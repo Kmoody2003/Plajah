@@ -414,7 +414,7 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-30 bg-black/80 backdrop-blur-md flex items-center justify-center p-8"
+            className="absolute inset-0 z-30 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-8"
             onClick={e => e.stopPropagation()}
           >
             <motion.div
@@ -422,7 +422,7 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.88, y: 24 }}
               transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-              className="bg-white/[0.07] backdrop-blur-2xl border border-white/[0.14] rounded-3xl p-8 max-w-md w-full text-center space-y-6 shadow-2xl"
+              className="bg-white/[0.07] backdrop-blur-2xl border border-white/[0.14] rounded-3xl p-5 sm:p-8 max-w-md max-h-[85dvh] overflow-y-auto w-full text-center space-y-6 shadow-2xl"
             >
               <div className="w-14 h-14 rounded-2xl bg-[#FFB68D]/15 border border-[#FFB68D]/30 flex items-center justify-center mx-auto">
                 <Sparkles size={22} className="text-[#FFB68D]" />
@@ -462,7 +462,7 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
         style={{ pointerEvents: showControls ? 'auto' : 'none' }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="bg-gradient-to-t from-black/85 via-black/40 to-transparent pt-20 pb-4 px-5">
+        <div className="bg-gradient-to-t from-black/85 via-black/40 to-transparent pt-20 pb-4 px-3 sm:px-5">
           {/* Progress bar */}
           <div className="mb-4">
             <div
@@ -556,7 +556,7 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
                 <Captions size={15} />
               </button>
               {ccMenu && (
-                <div className="absolute bottom-11 right-0 w-44 p-1.5 bg-black/90 backdrop-blur-md rounded-xl border border-white/10 z-30" onClick={e => e.stopPropagation()}>
+                <div className="absolute bottom-11 right-0 w-44 max-w-[80vw] p-1.5 bg-black/90 backdrop-blur-md rounded-xl border border-white/10 z-30" onClick={e => e.stopPropagation()}>
                   <button onClick={() => { setCcOn(false); setCcMenu(false); }} className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest ${!ccOn ? 'text-[#D0BCFF]' : 'text-white/50 hover:bg-white/5'}`}>Off</button>
                   {subtitles.length === 0 ? (
                     <p className="px-3 py-2 text-[9px] text-white/25 uppercase tracking-widest">No captions available</p>
@@ -986,7 +986,7 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
           <AnimatePresence>
             {upNextEpIn !== null && nextEpisode && (
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }}
-                className="absolute bottom-6 right-6 z-30 w-72 p-4 bg-black/85 backdrop-blur-md rounded-2xl border border-white/10">
+                className="absolute bottom-6 right-6 z-30 w-72 max-w-[calc(100vw-16px)] p-3 sm:p-4 bg-black/85 backdrop-blur-md rounded-2xl border border-white/10">
                 <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-2">Next episode in {upNextEpIn}s</p>
                 <div className="flex gap-3 items-start">
                   <div className="w-24 aspect-video rounded-lg overflow-hidden bg-white/10 shrink-0">
@@ -1081,7 +1081,7 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
               {/* Close panel */}
               <button
                 onClick={() => setIsUIVisible(false)}
-                className="fixed top-20 right-6 z-[160] p-2.5 bg-black/40 backdrop-blur-md rounded-full text-white/50 hover:text-white border border-white/[0.10] hover:border-white/25 transition-all"
+                className="fixed top-20 right-6 z-[160] p-3 bg-black/40 backdrop-blur-md rounded-full text-white/50 hover:text-white border border-white/[0.10] hover:border-white/25 transition-all"
               >
                 <X size={16} />
               </button>
@@ -1110,7 +1110,7 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                   </div>
 
                   {/* Title */}
-                  <h2 className="text-5xl md:text-7xl font-black tracking-tight text-white leading-[0.9] uppercase">
+                  <h2 className="text-3xl sm:text-5xl md:text-7xl font-black tracking-tight text-white leading-[0.9] uppercase">
                     {title}
                   </h2>
 
@@ -1154,7 +1154,7 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                       whileHover={{ scale: 1.04 }}
                       whileTap={{ scale: 0.97 }}
                       onClick={handlePlay}
-                      className="h-12 px-8 bg-[#D0BCFF] hover:bg-[#E8DAFF] text-[#1C1B1F] font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-3 transition-colors shadow-lg"
+                      className="h-12 px-6 sm:px-8 bg-[#D0BCFF] hover:bg-[#E8DAFF] text-[#1C1B1F] font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-3 transition-colors shadow-lg"
                     >
                       <Play fill="currentColor" size={18} /> Watch Now
                     </motion.button>
@@ -1268,7 +1268,7 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                               animate={{ opacity: 1, y: 0, scale: 1 }}
                               exit={{ opacity: 0, y: 8, scale: 0.93 }}
                               transition={{ duration: 0.15 }}
-                              className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50 w-64 bg-[#0C0C1A]/95 backdrop-blur-2xl border border-white/[0.12] rounded-2xl p-4 shadow-2xl pointer-events-none"
+                              className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50 w-64 max-w-[90vw] bg-[#0C0C1A]/95 backdrop-blur-2xl border border-white/[0.12] rounded-2xl p-4 shadow-2xl pointer-events-none"
                             >
                               <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30 mb-3">
                                 Featured In
@@ -1428,7 +1428,7 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                 animate={{ scale: 1, y: 0 }}
                 exit={{ scale: 0.92, y: 20 }}
                 transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-                className="bg-[#0E0E1A] border border-white/10 rounded-3xl p-8 w-full max-w-md space-y-6 shadow-2xl"
+                className="bg-[#0E0E1A] border border-white/10 rounded-3xl p-5 sm:p-8 w-full max-w-md max-h-[85dvh] overflow-y-auto space-y-6 shadow-2xl"
                 onClick={e => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between">

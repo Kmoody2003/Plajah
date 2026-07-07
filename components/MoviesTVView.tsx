@@ -299,7 +299,7 @@ const HomeView: React.FC<{
                 )}
               </div>
 
-              <h2 className="text-4xl sm:text-6xl md:text-8xl font-black uppercase tracking-tight leading-[0.88] text-white drop-shadow-2xl">
+              <h2 className="text-2xl sm:text-4xl md:text-6xl lg:text-8xl font-black uppercase tracking-tight leading-[0.88] text-white drop-shadow-2xl">
                 {heroTitle.split(' ').slice(0, 3).join(' ')}
                 {heroTitle.split(' ').length > 3 && (
                   <><br /><span className="text-[#D0BCFF]">{heroTitle.split(' ').slice(3).join(' ')}</span></>
@@ -330,7 +330,7 @@ const HomeView: React.FC<{
 
         {/* Dot pagination */}
         {heroItems.length > 1 && (
-          <div className="absolute bottom-5 right-6 flex gap-1.5">
+          <div className="absolute bottom-5 right-3 sm:right-6 flex gap-1.5">
             {heroItems.map((_, i) => (
               <button
                 key={i}
@@ -378,7 +378,7 @@ const HomeView: React.FC<{
               {/* Film History hero card */}
               <button
                 onClick={() => onNavigate('TALEO_HISTORY')}
-                className="shrink-0 relative w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
+                className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
                 style={{ border: '1px solid rgba(203,213,225,0.2)' }}
               >
                 <img
@@ -404,7 +404,7 @@ const HomeView: React.FC<{
               {/* Film School hero card */}
               <button
                 onClick={() => onNavigate('FILM_SCHOOL')}
-                className="shrink-0 relative w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
+                className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
                 style={{ border: '1px solid rgba(245,158,11,0.35)' }}
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-950/90 via-orange-900/60 to-red-950/80" />
@@ -804,7 +804,7 @@ const HiveView: React.FC<{
     <main className="pt-8 pb-40 px-4 sm:px-6 md:px-12 container mx-auto">
       <div className="mb-6 sm:mb-12">
         <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#FFB68D] mb-3">Streaming Partners</p>
-        <h2 className="text-5xl md:text-7xl font-black leading-[0.9] uppercase tracking-tight text-white">
+        <h2 className="text-3xl sm:text-5xl md:text-7xl font-black leading-[0.9] uppercase tracking-tight text-white">
           Discovery Partner<br />
           <span className="text-[#D0BCFF]">Ecosystems</span>
         </h2>
