@@ -5881,6 +5881,23 @@ export const ensureLiveChatRoom = async (
   }, { merge: true });
 };
 
+/**
+ * Persist intimate-mode settings on a chat room (shared: both participants read the same doc).
+ * Merged onto chat_rooms/{roomId}; only defined keys are written (undefined would throw).
+ */
+export const updateRoomIntimate = async (
+  roomId: string,
+  patch: { isIntimate?: boolean; intimateBackgroundUrl?: string | null; intimateTheme?: string; intimatePetName?: string | null },
+): Promise<void> => {
+  if (!auth.currentUser) return;
+  const clean: Record<string, any> = {};
+  for (const [k, v] of Object.entries(patch)) if (v !== undefined) clean[k] = v;
+  if (Object.keys(clean).length === 0) return;
+  // No updatedAt bump — the existing doc already satisfies isValidChatRoom, and bumping would
+  // reorder the DM list every time a couple tweaks their theme/background.
+  await setDoc(doc(db, 'chat_rooms', roomId), clean, { merge: true });
+};
+
 export const listenToMessages = (roomId: string, callback: (messages: ChatMessage[]) => void) => {
   const q = query(collection(db, 'chat_rooms', roomId, 'messages'), orderBy('timestamp', 'asc'));
   return onSnapshot(q, (snap) => {

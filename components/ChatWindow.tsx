@@ -5,7 +5,7 @@ import {
   Check, CheckCheck, User, Download, StopCircle, Reply, Pin,
   Forward, Search, Globe, Smile, Hash, Copy, Trash2, Star,
   Bold, Italic, Link, AtSign, BarChart2, AlertCircle, Volume2,
-  Flame, Timer, Camera, Radio,
+  Flame, Timer, Camera, Radio, Heart, Palette,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatMessage, ChatRoom, UserProfile, CollabProject, Album } from '../types';
@@ -13,7 +13,7 @@ import {
   sendMessage, listenToMessages, auth,
   createCollabProject, fetchCollabProjects, fetchUserContent,
   updateTypingStatus, markMessageAsSeen, fetchUserProfiles,
-  uploadFile,
+  uploadFile, updateRoomIntimate,
 } from '../services/backendService';
 import { encryptText, decryptText } from '../services/cryptoService';
 import GifStickerPicker from './GifStickerPicker';
@@ -36,6 +36,43 @@ type ExtendedMessage = ChatMessage & {
   burnAfter?: number;      // epoch ms set by markMessageAsSeen when recipient views
   videoNoteUrl?: string;
   gifUrl?: string;         // GIF (Giphy) attached to the message
+};
+
+// ── Intimate ("couples") mode — shared, per-room romantic theming ──────────────
+type IntimateThemeKey = 'ROSE' | 'CANDLELIGHT' | 'MIDNIGHT';
+const INTIMATE_THEMES: Record<IntimateThemeKey, {
+  label: string; grad: string; accent: string; ownBubble: string; otherBubble: string;
+}> = {
+  ROSE:        { label: 'Rose',        grad: 'linear-gradient(160deg,#1a0008 0%,#2d0010 50%,#0d0005 100%)', accent: '#ff6b6b', ownBubble: 'rgba(192,57,43,0.85)',  otherBubble: 'rgba(255,107,107,0.12)' },
+  CANDLELIGHT: { label: 'Candlelight', grad: 'linear-gradient(160deg,#1a1005 0%,#2b1a08 50%,#0d0800 100%)', accent: '#f0a860', ownBubble: 'rgba(200,120,40,0.85)',  otherBubble: 'rgba(240,168,96,0.12)' },
+  MIDNIGHT:    { label: 'Midnight',    grad: 'linear-gradient(160deg,#05061a 0%,#0d1030 50%,#03040d 100%)', accent: '#8ab4ff', ownBubble: 'rgba(70,90,190,0.85)',   otherBubble: 'rgba(138,180,255,0.12)' },
+};
+const intimateThemeOf = (room: ChatRoom): typeof INTIMATE_THEMES[IntimateThemeKey] =>
+  INTIMATE_THEMES[((room as any).intimateTheme as IntimateThemeKey) in INTIMATE_THEMES ? (room as any).intimateTheme : 'ROSE'];
+
+/** Slow-drifting hearts rendered behind the conversation while intimate mode is on. */
+const FloatingHearts: React.FC<{ accent: string }> = ({ accent }) => {
+  const hearts = [0, 1, 2, 3, 4, 5, 6, 7];
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <style>{`@keyframes intimateHeartRise{0%{transform:translateY(20px) scale(.6);opacity:0}12%{opacity:.5}70%{opacity:.35}100%{transform:translateY(-110%) scale(1);opacity:0}}`}</style>
+      {hearts.map((i) => (
+        <Heart
+          key={i}
+          size={10 + (i % 4) * 6}
+          fill={accent}
+          stroke="none"
+          style={{
+            position: 'absolute',
+            bottom: '-20px',
+            left: `${(i * 12 + 6) % 96}%`,
+            opacity: 0,
+            animation: `intimateHeartRise ${9 + (i % 5) * 3}s linear ${i * 1.4}s infinite`,
+          }}
+        />
+      ))}
+    </div>
+  );
 };
 
 interface ChatWindowProps {
@@ -184,6 +221,30 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // ── Intimate mode (shared, read from the room doc) ──────────────────────────
+  const isIntimate = !!room.isIntimate;
+  const intimateTheme = intimateThemeOf(room);
+  const intimateBg = room.intimateBackgroundUrl || undefined;
+  const petName = room.intimatePetName || undefined;
+  const [showIntimatePanel, setShowIntimatePanel] = useState(false);
+  const [petNameDraft, setPetNameDraft] = useState('');
+  const [intimateBgBusy, setIntimateBgBusy] = useState(false);
+  const intimateBgInputRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => { setPetNameDraft(room.intimatePetName || ''); }, [room.id, room.intimatePetName]);
+
+  const handleIntimateBgFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.currentTarget.value = '';
+    if (!file) return;
+    setIntimateBgBusy(true);
+    try {
+      const url = await uploadFile(`chat_intimate/${room.id}/bg_${Date.now()}_${file.name.replace(/[^\w.\-]+/g, '_')}`, file);
+      await updateRoomIntimate(room.id, { intimateBackgroundUrl: url });
+    } catch (err) { console.error('Intimate background upload failed', err); }
+    setIntimateBgBusy(false);
+  };
+  const savePetName = () => updateRoomIntimate(room.id, { intimatePetName: petNameDraft.trim() || null });
 
   // Merge external profiles
   useEffect(() => {
@@ -501,8 +562,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     : decryptedMessages;
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-black/10">
+    <div className="relative flex flex-col h-full overflow-hidden bg-black/10">
       <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
+      <input ref={intimateBgInputRef} type="file" accept="image/*" className="hidden" onChange={handleIntimateBgFile} />
+
+      {/* ── Intimate backdrop — photo or theme gradient + scrim + ambient hearts ── */}
+      {isIntimate && (
+        <div className="absolute inset-0 -z-10 pointer-events-none">
+          {intimateBg
+            ? <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${intimateBg})` }} />
+            : <div className="absolute inset-0" style={{ background: intimateTheme.grad }} />}
+          {/* readability scrim — darker over a photo than over the gradient */}
+          <div className="absolute inset-0" style={{ background: intimateBg ? 'rgba(8,0,4,0.66)' : 'rgba(0,0,0,0.28)' }} />
+          <div className="absolute -top-16 -left-16 w-72 h-72 rounded-full blur-[90px]" style={{ background: `${intimateTheme.accent}22` }} />
+          <div className="absolute -bottom-16 -right-10 w-64 h-64 rounded-full blur-[80px]" style={{ background: `${intimateTheme.accent}18` }} />
+          <FloatingHearts accent={intimateTheme.accent} />
+        </div>
+      )}
 
       {/* ── HEADER — song live chat gets a full cover banner ───────── */}
       {room.id.startsWith('live_chat_') && room.coverUrl && (
@@ -533,9 +609,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               <span className="text-[9px] font-bold text-small-orange">typing…</span>
             ) : (
               <>
-                <span className="text-[9px] font-bold text-white/25">
-                  {room.type === 'PRIVATE' ? 'Direct Message' : `${room.participants.length} members`}
-                </span>
+                {isIntimate && petName ? (
+                  <span className="text-[9px] font-black flex items-center gap-1" style={{ color: intimateTheme.accent }}>
+                    <Heart size={9} fill="currentColor" /> {petName}
+                  </span>
+                ) : (
+                  <span className="text-[9px] font-bold text-white/25">
+                    {room.type === 'PRIVATE' ? 'Direct Message' : `${room.participants.length} members`}
+                  </span>
+                )}
                 {pinnedMessages.length > 0 && (
                   <button onClick={() => setShowPinnedPanel(p => !p)} className="flex items-center gap-1 text-[9px] font-bold text-amber-400 hover:text-amber-300 transition-colors">
                     <Pin size={9} />
@@ -548,6 +630,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
+          {isIntimate && (
+            <button
+              onClick={() => setShowIntimatePanel(p => !p)}
+              title="Intimate settings"
+              className="p-2 rounded-xl transition-all"
+              style={{ color: showIntimatePanel ? intimateTheme.accent : undefined, background: showIntimatePanel ? `${intimateTheme.accent}22` : undefined }}
+            >
+              <Heart size={17} fill={showIntimatePanel ? 'currentColor' : 'none'} className={showIntimatePanel ? '' : 'text-white/30 hover:text-white'} />
+            </button>
+          )}
           <button onClick={() => { setSearchMode(p => !p); }} className={`p-2 rounded-xl transition-all ${searchMode ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
             <Search size={17} />
           </button>
@@ -600,6 +692,77 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ── INTIMATE SETTINGS PANEL ─────────────────────────────────── */}
+      <AnimatePresence>
+        {isIntimate && showIntimatePanel && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="absolute right-3 top-16 z-40 w-72 p-4 rounded-2xl border shadow-2xl backdrop-blur-2xl"
+            style={{ background: 'rgba(12,4,8,0.92)', borderColor: `${intimateTheme.accent}40` }}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Heart size={13} fill={intimateTheme.accent} stroke="none" />
+              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: intimateTheme.accent }}>Intimate Space</span>
+              <button onClick={() => setShowIntimatePanel(false)} className="ml-auto p-1 text-white/30 hover:text-white"><X size={13} /></button>
+            </div>
+
+            {/* Background */}
+            <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1.5">Background</p>
+            <div className="flex gap-2 mb-3">
+              <button
+                onClick={() => intimateBgInputRef.current?.click()}
+                disabled={intimateBgBusy}
+                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
+              >
+                <ImageIcon size={12} /> {intimateBgBusy ? 'Uploading…' : 'Upload photo'}
+              </button>
+              {intimateBg && (
+                <button
+                  onClick={() => updateRoomIntimate(room.id, { intimateBackgroundUrl: null })}
+                  className="px-2 py-2 rounded-xl bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-white/40 text-[9px] font-black uppercase tracking-widest transition-all"
+                >Clear</button>
+              )}
+            </div>
+
+            {/* Theme presets */}
+            <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1.5 flex items-center gap-1"><Palette size={9} /> Theme</p>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              {(Object.keys(INTIMATE_THEMES) as IntimateThemeKey[]).map((key) => {
+                const th = INTIMATE_THEMES[key];
+                const active = (room.intimateTheme || 'ROSE') === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => updateRoomIntimate(room.id, { intimateTheme: key })}
+                    className="flex flex-col items-center gap-1 p-2 rounded-xl border transition-all"
+                    style={{ borderColor: active ? th.accent : 'rgba(255,255,255,0.08)', background: active ? `${th.accent}18` : 'transparent' }}
+                  >
+                    <span className="w-full h-6 rounded-md" style={{ background: th.grad }} />
+                    <span className="text-[8px] font-black uppercase tracking-widest" style={{ color: active ? th.accent : 'rgba(255,255,255,0.4)' }}>{th.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Pet name */}
+            <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1.5">Pet name</p>
+            <div className="flex gap-2">
+              <input
+                value={petNameDraft}
+                onChange={(e) => setPetNameDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') savePetName(); }}
+                maxLength={40}
+                placeholder="e.g. My Love"
+                className="flex-1 min-w-0 bg-white/[0.06] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/20 outline-none focus:border-white/30"
+              />
+              <button onClick={savePetName} className="px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest text-black" style={{ background: intimateTheme.accent }}>Save</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── TWO-WAY (WALKIE-TALKIE) ─────────────────────────────────── */}
       {showWalkie && walkiePeerUid && uid && (
@@ -724,7 +887,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* ── MESSAGES ────────────────────────────────────────────────── */}
       <div
-        className="flex-1 overflow-y-auto px-4 py-4 space-y-2 scrollbar-hide"
+        className="relative z-10 flex-1 overflow-y-auto px-4 py-4 space-y-2 scrollbar-hide"
         onClick={() => { setContextMenuMsg(null); setShowEmojiPicker(null); setShowMoreMenu(false); }}
       >
         {displayedMessages.map((msg, i) => {
@@ -775,6 +938,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                       ? 'bg-small-orange text-white rounded-br-sm'
                       : 'bg-white/[0.08] backdrop-blur-md text-white rounded-bl-sm border border-white/[0.06]'
                   } ${msg.isPinned ? 'ring-1 ring-amber-400/30' : ''}`}
+                  style={isIntimate ? { backgroundColor: isMe ? intimateTheme.ownBubble : intimateTheme.otherBubble } : undefined}
                   onContextMenu={e => {
                     e.preventDefault();
                     setContextMenuMsg(msg);
@@ -1048,7 +1212,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 type="text"
                 value={inputText}
                 onChange={handleInputChange}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) handleSend(); }}
+                /* Enter submits via the form's onSubmit — no manual send here, or it fires twice (duplicate messages). */
                 placeholder={burnMode ? '🔥 Burns 30s after read…' : replyTo ? `Reply to ${replyTo.senderName}…` : 'Message…'}
                 className={`flex-1 bg-white/[0.06] border rounded-2xl px-4 py-3 text-sm text-white placeholder-white/20 focus:bg-white/[0.08] transition-all outline-none min-w-0 ${
                   burnMode ? 'border-orange-400/30 focus:border-orange-400/60' : 'border-white/[0.08] focus:border-small-orange/40'

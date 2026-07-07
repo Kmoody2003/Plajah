@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   MessageSquare, Users, Search, Plus, Settings, ChevronLeft,
   Globe, Phone, Video, Edit3, Mail, Mic, Radio, Star,
@@ -11,6 +11,7 @@ import { ChatRoom, UserProfile } from '../types';
 import {
   listenToChatRooms, auth, createChatRoom,
   fetchUserProfiles, renameChatRoom, searchUserProfiles, deleteChatRoom,
+  updateRoomIntimate,
 } from '../services/backendService';
 import { useCall } from '../contexts/CallContext';
 import { buildShareUrl, shareOrigin } from '../services/deepLinkService';
@@ -585,7 +586,9 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
   const [sidebarTab, setSidebarTab]         = useState<SidebarTab>('ALL');
   const [searchTerm, setSearchTerm]         = useState('');
   const [mainView, setMainView]             = useState<MainView>('CHAT_LIST');
-  const [intimateRooms, setIntimateRooms]   = useState<Set<string>>(new Set());
+  // Intimate rooms are now persisted on each room doc (shared across both participants),
+  // so derive the set from the live room list instead of ephemeral local state.
+  const intimateRooms = useMemo(() => new Set(rooms.filter(r => r.isIntimate).map(r => r.id)), [rooms]);
 
   // New room modal
   const [showNewModal, setShowNewModal]     = useState<'GROUP' | 'CHANNEL' | null>(null);
@@ -627,6 +630,9 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
   useEffect(() => {
     const unsubRooms = listenToChatRooms(items => {
       setRooms(items);
+      // Keep the open conversation in sync with its latest doc so shared changes
+      // (intimate background/theme/pet name, from either partner) reflect live.
+      setActiveRoom(prev => (prev ? (items.find(r => r.id === prev.id) || prev) : prev));
 
       // Auto-open a DM room that was just created via handleStartDM
       if (pendingDmUidRef.current) {
@@ -734,15 +740,15 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
   };
 
   const toggleIntimate = (roomId: string) => {
-    setIntimateRooms(prev => {
-      const next = new Set(prev);
-      if (next.has(roomId)) next.delete(roomId);
-      else next.add(roomId);
-      return next;
-    });
+    const room = rooms.find(r => r.id === roomId) || (activeRoom?.id === roomId ? activeRoom : null);
+    const next = !room?.isIntimate;
+    // Optimistic — the room-list listener will also reflect the persisted change.
+    setRooms(prev => prev.map(r => (r.id === roomId ? { ...r, isIntimate: next } : r)));
+    setActiveRoom(prev => (prev && prev.id === roomId ? { ...prev, isIntimate: next } : prev));
+    updateRoomIntimate(roomId, { isIntimate: next }).catch(() => {});
   };
 
-  const currentRoomIsIntimate = activeRoom ? intimateRooms.has(activeRoom.id) : false;
+  const currentRoomIsIntimate = activeRoom ? !!activeRoom.isIntimate : false;
 
   const TABS: { id: SidebarTab; label: string; icon: React.FC<any> }[] = [
     { id: 'ALL',      label: 'All',     icon: MessageSquare },

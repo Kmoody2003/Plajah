@@ -2693,6 +2693,11 @@ export interface ChatRoom {
   mediaId?: string;
   mediaTitle?: string;
   mediaArtist?: string;
+  // Intimate ("couples") mode — shared across both participants via the room doc
+  isIntimate?: boolean;
+  intimateBackgroundUrl?: string | null; // uploaded photo backdrop (null = use theme gradient)
+  intimateTheme?: 'ROSE' | 'CANDLELIGHT' | 'MIDNIGHT';
+  intimatePetName?: string | null; // nickname shown in the header
 }
 
 export interface CollabProject {
