@@ -3903,7 +3903,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
             {view === 'LICENSE_REQUESTS' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading requests…</div>}>
-                <LicenseRequestsInbox onBack={() => setView('CREATOR')} />
+                <LicenseRequestsInbox onBack={() => setView('CREATOR')} onOpenFilm={() => setView('FABULA' as AppView)} />
               </Suspense>
             )}
             {view === 'AUDIUS_ARTIST' && audiusArtist && (

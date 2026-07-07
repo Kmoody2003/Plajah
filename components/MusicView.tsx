@@ -28,6 +28,7 @@ import {
   audiusAlbumToNativeAlbum,
   AudiusCuration, AudiusPlaylist, AudiusArtist, AudiusAlbum,
 } from '../services/audiusService';
+import { listIncomingLicenseRequests } from '../services/licenseRequests';
 import PlajahPlusBanner from './PlajahPlusBanner';
 import { WC26_TEAMS } from '../data/worldCup2026';
 import { ANTHEM_LYRICS } from '../data/anthemLyrics';
@@ -219,6 +220,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     return saved === 'CHORA' || saved === 'OWNED' ? saved : 'ALL';
   });
   const [personalTracks, setPersonalTracks] = useState<Track[]>([]);
+  const [pendingSyncReqs, setPendingSyncReqs] = useState(0);
   const [vaultSource, setVaultSource] = useState<'ALL' | 'INTERNET_ARCHIVE' | 'WIKIMEDIA' | 'JAMENDO' | 'AUDIUS'>('ALL');
   const [vaultCategory, setVaultCategory] = useState<'ALL' | 'JAZZ' | 'CLASSICAL' | 'AUDIOBOOKS' | 'PODCASTS' | 'TRENDING'>('ALL');
   const [album3D, setAlbum3D] = useState<Album | null>(null);
@@ -257,6 +259,15 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
       .slice(0, 5),
     [albums]
   );
+
+  // Badge the "Sync Requests" button with the count of filmmakers awaiting a reply.
+  useEffect(() => {
+    const uid = userProfile?.uid;
+    if (!uid) { setPendingSyncReqs(0); return; }
+    listIncomingLicenseRequests(uid)
+      .then(rs => setPendingSyncReqs(rs.filter(r => r.status === 'PENDING').length))
+      .catch(() => {});
+  }, [userProfile?.uid]);
 
   useEffect(() => {
     if (bgAlbums.length < 2) return;
@@ -1021,11 +1032,14 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                 <button
                   onClick={() => onNavigate('LICENSE_REQUESTS')}
                   title="Filmmakers requesting to license your tracks"
-                  className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 text-white/70 hover:text-white rounded-full text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap"
+                  className="relative flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 text-white/70 hover:text-white rounded-full text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap"
                 >
                   <Film size={12} />
                   <span className="hidden sm:inline">Sync Requests</span>
                   <span className="sm:hidden">Sync</span>
+                  {pendingSyncReqs > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 grid place-items-center rounded-full bg-small-orange text-black text-[9px] font-black tabular-nums">{pendingSyncReqs > 9 ? '9+' : pendingSyncReqs}</span>
+                  )}
                 </button>
               )}
               {onUploadMusic && (

@@ -4,7 +4,7 @@
 // at that fee) or DENIED. Collection: `licenseRequests`.
 import { collection, doc, setDoc, updateDoc, getDocs, query, where } from 'firebase/firestore';
 import { db, auth } from './firebase';
-import { fetchAlbumById, updateAlbum } from './backendService';
+import { fetchAlbumById, updateAlbum, createNotification } from './backendService';
 import type { SyncLicenseRequest } from '../types';
 import type { MusicBinTrack } from './fabulaMusic';
 
@@ -89,6 +89,24 @@ export async function respondToLicenseRequest(
     ownerNote: opts.note || undefined,
     respondedAt: Date.now(),
   }));
+
+  // Notify the filmmaker that their request was answered.
+  try {
+    const price = Math.max(0, Number(opts.priceUsd || 0));
+    await createNotification({
+      userId: req.requesterUid,
+      senderId: u.uid,
+      senderName: u.displayName || req.artist || 'The artist',
+      senderPhoto: u.photoURL || '',
+      type: 'SYSTEM',
+      title: decision === 'APPROVED' ? 'Sync license approved' : 'Sync license declined',
+      message: decision === 'APPROVED'
+        ? `"${req.trackTitle}" is cleared${price ? ` for $${price}` : ''}${req.editTitle ? ` — ready to license for "${req.editTitle}".` : ' — ready to license.'}`
+        : `Your request to license "${req.trackTitle}"${req.editTitle ? ` for "${req.editTitle}"` : ''} was declined.`,
+      link: 'FABULA',
+      targetId: req.editId || req.trackId,
+    });
+  } catch (e) { console.warn('[licenseRequests] notify failed', e); }
 }
 
 export const requestKey = (trackId: string) => `req:${trackId}`;
