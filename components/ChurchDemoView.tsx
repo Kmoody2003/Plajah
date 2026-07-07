@@ -5,6 +5,7 @@ import {
   BookOpen, Gift, Check, ExternalLink,
 } from 'lucide-react';
 import DemoRibbon from './DemoRibbon';
+import ChurchAdminDemoView from './ChurchAdminDemoView';
 import {
   DEMO_CHURCH, DEMO_CHURCH_STAFF, DEMO_CHURCH_ALBUMS, DEMO_CHURCH_EVENTS,
   DEMO_CHURCH_VIDEOS, DEMO_CHURCH_FEED, DEMO_MINISTRY_DETAIL,
@@ -80,7 +81,32 @@ const StaffCard: React.FC<{ s: DemoStaff; onVisit: () => void }> = ({ s, onVisit
 const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVisitUser?: (uid: string) => void }> = ({ onBack, onCreate, onVisitUser }) => {
   const [tab, setTab] = useState<Tab>('HOME');
   const [ministryId, setMinistryId] = useState<string | null>(null);
+  const [mode, setMode] = useState<'member' | 'admin'>('member');
   const c = DEMO_CHURCH;
+
+  // Segmented control to flip between the congregant experience and the admin backend.
+  const modeToggle = (
+    <div className="sticky top-0 z-40 flex justify-center gap-1 p-1.5 bg-[#0d0b12]/95 backdrop-blur-xl border-b border-white/8">
+      <div className="inline-flex rounded-full bg-white/5 border border-white/10 p-0.5">
+        {(['member', 'admin'] as const).map(m => (
+          <button key={m} onClick={() => setMode(m)}
+            className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${mode === m ? 'text-white' : 'text-white/45 hover:text-white'}`}
+            style={mode === m ? { background: V } : undefined}>
+            {m === 'member' ? 'Member Experience' : 'Admin Backend'}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  if (mode === 'admin') {
+    return (
+      <div className="h-full flex flex-col bg-[#0d0b12]">
+        {modeToggle}
+        <div className="flex-1 min-h-0"><ChurchAdminDemoView onCreate={onCreate} /></div>
+      </div>
+    );
+  }
   // Members are real Plajah accounts → open their profile/feed. Demo accounts
   // have no real uid, so they show a preview nudge instead.
   const visitStaff = (s: DemoStaff) => (s.uid && onVisitUser ? onVisitUser(s.uid) : demoUserNudge());
@@ -99,6 +125,7 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
   return (
     <div className="h-full overflow-y-auto scrollbar-hide bg-[#0d0b12]">
       <DemoRibbon label="church" accent={V} ctaText="Create your church" onCreate={onCreate} />
+      {modeToggle}
 
       {/* Hero */}
       <div className="relative h-52 md:h-64 overflow-hidden">
