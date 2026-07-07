@@ -497,3 +497,70 @@ export async function publishAlbumToAudius(
 export function generateAudiusUploadLink(): string {
   return `https://audius.co/upload?app_name=${APP_NAME}&ref=plajah`;
 }
+
+// ─── Native normalization (Audius → Plajah Album/Track) ────────────────────────
+// So Audius content flows through the SAME native Chora album UI (PlayerView), the
+// player, and artist pages — not a separate Audius-only shell. An Audius owner is
+// tagged `audius:<userId>` so the app can route artist clicks to the Audius page.
+
+export const AUDIUS_THEME = '#7E1BCC';
+export const isAudiusOwner = (ownerId?: string) => !!ownerId && ownerId.startsWith('audius:');
+export const audiusUserIdFromOwner = (ownerId?: string) => (ownerId || '').replace(/^audius:/, '');
+
+/** An aggregated Audius ArchiveTrack → a native, playable Track. */
+export const archiveTrackToNativeTrack = (t: ArchiveTrack): Track => ({
+  id: t.id,
+  title: t.title,
+  artist: t.artist,
+  url: t.url,                 // Audius stream URL — plays natively in <audio>
+  albumCover: t.thumbnailUrl,
+  duration: t.duration,
+  genre: t.genre,
+  isGlobalArchive: true,
+} as Track);
+
+/** An Audius album/playlist (+ its tracks) → a native Album for PlayerView. */
+export const audiusAlbumToNativeAlbum = (a: AudiusAlbum | AudiusPlaylist, tracks: ArchiveTrack[], curator?: AudiusArtist | null): Album => ({
+  id: `audius:album:${a.id}`,
+  title: a.title,
+  artist: ('curator' in a ? a.curator : (a as AudiusPlaylist).curator) || curator?.name || 'Audius Artist',
+  coverImage: 'artworkUrl' in a ? a.artworkUrl : '',
+  type: 'MUSIC',
+  subType: ('isAlbum' in a && (a as AudiusAlbum).isAlbum) ? 'ALBUM' : 'PLAYLIST',
+  genre: tracks[0]?.genre,
+  description: (a as any).description || (curator?.bio ? curator.bio.slice(0, 240) : ''),
+  ownerId: `audius:${(a as any).curatorId || curator?.id || ''}`,
+  createdAt: (a as any).releaseDate ? Date.parse((a as any).releaseDate) || Date.now() : Date.now(),
+  themeColor: AUDIUS_THEME,
+  tracks: tracks.map(archiveTrackToNativeTrack),
+  source: 'AUDIUS',
+  audiusUrl: `https://audius.co/`,
+} as any);
+
+/** Resolve an `audius:album:<id>` into a full native Album (tracks + artist). */
+export const resolveNativeAudiusAlbum = async (nativeId: string): Promise<Album | null> => {
+  const id = nativeId.replace(/^audius:album:/, '');
+  try {
+    const [album, tracks] = await Promise.all([fetchAudiusAlbumById(id), fetchAudiusPlaylistTracks(id)]);
+    if (!album) return null;
+    const curator = album.curatorId ? await fetchAudiusArtistById(album.curatorId) : null;
+    return audiusAlbumToNativeAlbum(album, tracks, curator);
+  } catch { return null; }
+};
+
+/** A single Audius track → a one-track native Album (native album UI for a song). */
+export const audiusTrackToNativeAlbum = (t: ArchiveTrack, artistName?: string): Album => ({
+  id: `audius:album:single_${t.id.replace(/^audius_/, '')}`,
+  title: t.title,
+  artist: t.artist || artistName || 'Audius Artist',
+  coverImage: t.thumbnailUrl,
+  type: 'MUSIC',
+  subType: 'SINGLE',
+  genre: t.genre,
+  description: '',
+  ownerId: 'audius:',
+  createdAt: Date.now(),
+  themeColor: AUDIUS_THEME,
+  tracks: [archiveTrackToNativeTrack(t)],
+  source: 'AUDIUS',
+} as any);

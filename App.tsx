@@ -186,6 +186,7 @@ const TeleprompterApp = retryLazy(() => import('./components/teleprompter/Telepr
 const SpatialMixer = retryLazy(() => import('./components/spatialMixer/SpatialMixer'));
 const MediaConverter = retryLazy(() => import('./components/MediaConverter'));
 const ComicMangaMuseum = retryLazy(() => import('./components/ComicMangaMuseum'));
+const AudiusArtistPage = retryLazy(() => import('./components/AudiusArtistPage'));
 const BrandActivationPanel = retryLazy(() => import('./components/BrandActivationPanel'));
 const BibleExperience = retryLazy(() => import('./components/BibleExperience'));
 
@@ -205,6 +206,7 @@ import { ChallengeVsController } from './components/ChallengeVsScreen';
 import { TrackBreakdownController } from './components/TrackBreakdownModal';
 import { LoreaScoresController } from './components/LoreaScoresModal';
 import { initLoreaScoreListener } from './services/loreaScoreService';
+import { fetchAudiusArtistById, fetchAudiusPlaylistTracks, audiusAlbumToNativeAlbum, type AudiusArtist } from './services/audiusService';
 const BusinessDashboard = retryLazy(() => import('./components/BusinessDashboard'));
 const PlajahBusinessHub = retryLazy(() => import('./components/PlajahBusinessHub'));
 const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
@@ -488,6 +490,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [showCreator, setShowCreator] = useState(false);
   const [showBrandActivation, setShowBrandActivation] = useState(false);
+  const [audiusArtist, setAudiusArtist] = useState<AudiusArtist | null>(null);
   const [isMuseOpen, setIsMuseOpen] = useState(false);
   const [creatorInitialType, setCreatorInitialType] = useState<string | undefined>(undefined);
   const [isCreatorMinimized, setIsCreatorMinimized] = useState(false);
@@ -702,6 +705,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const handleOpenBrandActivation = () => { if (!user) { loginWithGoogle(); return; } setShowBrandActivation(true); };
     window.addEventListener('OPEN_BRAND_ACTIVATION', handleOpenBrandActivation);
 
+    // Audius artist navigation (related-artists, artist links) → the artist landing page.
+    const handleAudiusArtist = (e: Event) => {
+      const a = (e as CustomEvent).detail;
+      if (a?.id) { setAudiusArtist(a); setSelectedAlbum(null); setView('AUDIUS_ARTIST' as AppView); }
+    };
+    window.addEventListener('audius-artist', handleAudiusArtist);
+
     // Open the Album Creator seeded with a prebuilt release (e.g. a Spatial Mixer → Chora publish).
     const handleOpenAlbumCreator = (e: Event) => {
       const seed = (e as CustomEvent).detail?.album;
@@ -726,6 +736,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_SPATIAL_MIXER', handleOpenSpatialMixer);
       window.removeEventListener('OPEN_MEDIA_CONVERTER', handleOpenMediaConverter);
       window.removeEventListener('OPEN_BRAND_ACTIVATION', handleOpenBrandActivation);
+      window.removeEventListener('audius-artist', handleAudiusArtist);
       window.removeEventListener('OPEN_ALBUM_CREATOR', handleOpenAlbumCreator);
       window.removeEventListener('OPEN_FABULA', handleOpenFabula);
     };
@@ -1564,6 +1575,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [visitedProfile, setVisitedProfile] = useState<UserProfile | null>(null);
 
   const handleVisitUser = async (uid: string, initialTab?: string) => {
+    // Audius artists live off-platform — route to the Audius artist landing page.
+    if (uid && uid.startsWith('audius:')) {
+      const id = uid.replace(/^audius:/, '');
+      if (id) {
+        const art = await fetchAudiusArtistById(id).catch(() => null);
+        if (art) { setAudiusArtist(art); setSelectedAlbum(null); setView('AUDIUS_ARTIST' as AppView); return; }
+      }
+    }
     setViewedUserId(uid);
     setInitialProfileTab(initialTab);
     setSelectedAlbum(null);
@@ -3863,6 +3882,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <ComicMangaMuseum
                   onBack={() => setView('BOOKS')}
                   onSelectBook={(b) => { setSelectedBook(b); setView('BOOK_READER'); }}
+                />
+              </Suspense>
+            )}
+            {view === 'AUDIUS_ARTIST' && audiusArtist && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading artist…</div>}>
+                <AudiusArtistPage
+                  artist={audiusArtist}
+                  onBack={() => setView('MUSIC')}
+                  onSelectAlbum={async (album) => {
+                    const tracks = await fetchAudiusPlaylistTracks(album.id).catch(() => []);
+                    setSelectedVideo(null); setSelectedBook(null);
+                    setSelectedAlbum(audiusAlbumToNativeAlbum(album, tracks, audiusArtist));
+                    setView('PLAYER');
+                  }}
                 />
               </Suspense>
             )}

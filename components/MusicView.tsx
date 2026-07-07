@@ -24,7 +24,8 @@ import { PodcastsView } from './PodcastsView';
 import { fetchArchiveMusic, fetchWikimediaAudio, fetchJamendoMusic, fetchArchiveAudiobooks, fetchArchivePodcasts, ArchiveTrack } from '../services/archiveContentService';
 import {
   fetchAudiusTrending, searchAudius,
-  loadAudiusCuration, fetchAudiusPlaylistTracks, fetchAudiusArtistTracks,
+  loadAudiusCuration, fetchAudiusPlaylistTracks, fetchAudiusArtistTracks, fetchAudiusArtistById,
+  audiusAlbumToNativeAlbum,
   AudiusCuration, AudiusPlaylist, AudiusArtist, AudiusAlbum,
 } from '../services/audiusService';
 import PlajahPlusBanner from './PlajahPlusBanner';
@@ -587,8 +588,17 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
       curator: playlist.curator,
       description: playlist.description,
     };
-    setSelectedAudiusAlbum(album);
-    setSelectedAudiusArtist(null);
+    openAudiusAlbumNative(album);
+  };
+
+  // Open an Audius album in the NATIVE Chora album UI (PlayerView) — same experience
+  // as a platform release: tracks, visualizer, comments, player, artist link.
+  const openAudiusAlbumNative = async (album: AudiusAlbum) => {
+    const [tracks, curator] = await Promise.all([
+      fetchAudiusPlaylistTracks(album.id).catch(() => []),
+      album.curatorId ? fetchAudiusArtistById(album.curatorId).catch(() => null) : Promise.resolve(null),
+    ]);
+    onSelectAlbum(audiusAlbumToNativeAlbum(album, tracks, curator));
   };
 
   // Keep the play-directly path for quick-play from search etc.
@@ -900,7 +910,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
           <AudiusArtistPage
             artist={selectedAudiusArtist}
             onBack={() => setSelectedAudiusArtist(null)}
-            onSelectAlbum={(album) => { setSelectedAudiusAlbum(album); setSelectedAudiusArtist(null); }}
+            onSelectAlbum={(album) => openAudiusAlbumNative(album)}
           />
         </Suspense>
       </div>
