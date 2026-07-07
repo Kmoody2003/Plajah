@@ -189,6 +189,7 @@ const ComicMangaMuseum = retryLazy(() => import('./components/ComicMangaMuseum')
 const AudiusArtistPage = retryLazy(() => import('./components/AudiusArtistPage'));
 const BrandActivationPanel = retryLazy(() => import('./components/BrandActivationPanel'));
 const LicenseRequestsInbox = retryLazy(() => import('./components/LicenseRequestsInbox'));
+const LicenseForFilmModal = retryLazy(() => import('./components/LicenseForFilmModal'));
 const BibleExperience = retryLazy(() => import('./components/BibleExperience'));
 
 const AriaEventBridge: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
@@ -491,6 +492,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [showCreator, setShowCreator] = useState(false);
   const [showBrandActivation, setShowBrandActivation] = useState(false);
+  const [licenseForFilm, setLicenseForFilm] = useState<{ track: any; album: any } | null>(null);
   const [audiusArtist, setAudiusArtist] = useState<AudiusArtist | null>(null);
   const [isMuseOpen, setIsMuseOpen] = useState(false);
   const [creatorInitialType, setCreatorInitialType] = useState<string | undefined>(undefined);
@@ -725,6 +727,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const handleOpenFabula = () => setView('FABULA' as AppView);
     window.addEventListener('OPEN_FABULA', handleOpenFabula);
 
+    // License a Chora song for a film: pick a Fabula project, license + drop it into
+    // that film's Media Pool. detail: { track, album }.
+    const handleLicenseForFilm = (e: Event) => {
+      if (!user) { loginWithGoogle(); return; }
+      const d = (e as CustomEvent).detail;
+      if (d?.track && d?.album) setLicenseForFilm({ track: d.track, album: d.album });
+    };
+    window.addEventListener('OPEN_LICENSE_FOR_FILM', handleLicenseForFilm);
+
     return () => {
       window.removeEventListener('START_CHAT', handleStartChat);
       window.removeEventListener('OPEN_PIF_MODAL', handleOpenPIF);
@@ -740,6 +751,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('audius-artist', handleAudiusArtist);
       window.removeEventListener('OPEN_ALBUM_CREATOR', handleOpenAlbumCreator);
       window.removeEventListener('OPEN_FABULA', handleOpenFabula);
+      window.removeEventListener('OPEN_LICENSE_FOR_FILM', handleLicenseForFilm);
     };
   }, [user]);
 
@@ -4504,6 +4516,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
       {/* The Breakdown — fires on OPEN_BREAKDOWN custom event */}
       <TrackBreakdownController onOpenTheoryStudio={() => setView('MUSIC_THEORY')} />
+
+      {/* License a Chora song for a Fabula film — fires on OPEN_LICENSE_FOR_FILM */}
+      {licenseForFilm && (
+        <Suspense fallback={null}>
+          <LicenseForFilmModal
+            track={licenseForFilm.track}
+            album={licenseForFilm.album}
+            onOpenFabula={() => { setLicenseForFilm(null); setView('FABULA' as AppView); }}
+            onClose={() => setLicenseForFilm(null)}
+          />
+        </Suspense>
+      )}
 
       {/* Lorea Scores — saves transcribed notation; opens on OPEN_LOREA_SCORES */}
       <LoreaScoresController />

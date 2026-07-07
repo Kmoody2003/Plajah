@@ -21,6 +21,7 @@ import Waveform from "./Waveform";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
+import { fetchAlbumById } from "../../services/backendService";
 import ConnectToWorld from "../Worlds/ConnectToWorld";
 import { syncProductionToWorld, worldCharactersForProduction } from "../../services/fabulaWorldBridge";
 import SpatialMixer from "../spatialMixer/SpatialMixer";
@@ -1400,12 +1401,30 @@ export default function Fabula() {
     }
   };
 
-  // Load the buyer's sync-license grants (clears licensed tracks per project).
+  // Load the buyer's sync-license grants (clears licensed tracks per project) and
+  // self-heal: any grant for THIS film whose track isn't in the pool yet gets pulled
+  // in automatically — so a song licensed from Chora shows up on the film's timeline.
   const reloadSyncGrants = () => {
     if (!licensingEnabled()) return;
     const u = auth.currentUser;
     if (!u) { setSyncGrants(new Set()); return; }
-    listMyGrants(u.uid).then((gs) => setSyncGrants(grantSet(gs))).catch(() => {});
+    listMyGrants(u.uid).then(async (gs) => {
+      setSyncGrants(grantSet(gs));
+      const p = prod;
+      if (!p?.id) return;
+      const missing = gs.filter((g) => g.editId === p.id && !(p.mediaPool || []).some((m) => m.musicTrackId === g.trackId));
+      for (const g of missing) {
+        try {
+          const al = await fetchAlbumById(g.albumId);
+          const t = al?.tracks?.find((x) => x.id === g.trackId);
+          if (!t?.url) continue;
+          updateProd((pp) => {
+            if (pp.mediaPool.some((m) => m.musicTrackId === t.id)) return;
+            pp.mediaPool.push({ id: uid(), musicTrackId: t.id, name: `${t.title} — ${t.artist || al.artist}`, type: "audio", url: t.url, duration: t.duration || 0, bin: "Licensed Music", tags: ["music", "licensed"], musicMeta: { ...t, albumId: al.id, licensedEditId: p.id } });
+          });
+        } catch { /* best-effort */ }
+      }
+    }).catch(() => {});
   };
   useEffect(() => { reloadSyncGrants(); }, [prod?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {

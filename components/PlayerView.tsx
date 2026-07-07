@@ -23,7 +23,7 @@ import {
   Layers, Music2, Plus, MessageSquare, Send, User, Users, Clock, Activity, BookOpen, ChevronDown, ChevronUp, Image as ImageIcon,
   AlertCircle, Video as VideoIcon, Radio, List, HeartHandshake, Heart, Pen, Maximize2, Minimize2, GripVertical, Upload, EyeOff, Eye,
   SkipBack, SkipForward, ChevronLeft, ChevronRight, Waves, RotateCcw, ListPlus,
-  Languages, RefreshCw
+  Languages, RefreshCw, Film
 } from 'lucide-react';
 
 import { User as FirebaseUser } from 'firebase/auth';
@@ -2811,6 +2811,16 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                         <Sparkles size={11} />
                                         <span>PP</span>
                                       </button>
+                                      {!t.isPersonalMedia && t.url && (
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_LICENSE_FOR_FILM', { detail: { track: t, album } })); }}
+                                          title="License this song for a film in Fabula"
+                                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-300/70 hover:text-emerald-200 transition-all text-[9px] font-black uppercase tracking-widest"
+                                        >
+                                          <Film size={11} />
+                                          <span className="hidden lg:inline">Use in film</span>
+                                        </button>
+                                      )}
                                       {isOwner && (
                                         <button onClick={(e) => { e.stopPropagation(); setExpandedTrackId(isExpanded ? null : t.id); }} className={`p-1.5 rounded-lg transition-all ${isExpanded ? 'bg-small-orange/20 text-small-orange' : 'text-white/20 hover:text-white'}`}>
                                           <ChevronDown size={13} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
