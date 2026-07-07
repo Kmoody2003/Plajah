@@ -81,7 +81,7 @@ const ComicReader: React.FC<Props> = ({ pages, index, onIndexChange, readingDir 
   };
 
   const Btn: React.FC<{ on?: boolean; onClick: () => void; title: string; children: React.ReactNode }> = ({ on, onClick, title, children }) => (
-    <button onClick={onClick} title={title} className={`p-2 rounded-lg transition-colors ${on ? 'bg-small-orange text-black' : 'text-white/50 hover:text-white hover:bg-white/10'}`}>{children}</button>
+    <button onClick={onClick} title={title} className={`p-2.5 rounded-lg transition-colors ${on ? 'bg-small-orange text-black' : 'text-white/50 hover:text-white hover:bg-white/10'}`}>{children}</button>
   );
 
   return (

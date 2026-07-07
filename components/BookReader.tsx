@@ -1125,9 +1125,9 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               </button>
               
               <div className={`hidden md:flex items-center ${theme === 'LIGHT' ? 'bg-black/5' : 'bg-white/5'} rounded-full p-1 border ${theme === 'LIGHT' ? 'border-black/10' : 'border-white/10'}`}>
-                <button onClick={() => setZoom(Math.max(0.5, zoom - 0.1))} className={`p-2 transition-all ${s.btnHover}`}><ZoomOut size={18} /></button>
+                <button onClick={() => setZoom(Math.max(0.5, zoom - 0.1))} className={`p-2.5 transition-all ${s.btnHover}`}><ZoomOut size={18} /></button>
                 <span className={`text-[10px] font-black w-12 text-center ${s.subtext}`}>{Math.round(zoom * 100)}%</span>
-                <button onClick={() => setZoom(Math.min(3, zoom + 0.1))} className={`p-2 transition-all ${s.btnHover}`}><ZoomIn size={18} /></button>
+                <button onClick={() => setZoom(Math.min(3, zoom + 0.1))} className={`p-2.5 transition-all ${s.btnHover}`}><ZoomIn size={18} /></button>
               </div>
 
               <button onClick={toggleFullScreen} className={`p-3 rounded-full transition-all ${s.btnHover}`}>
@@ -1579,7 +1579,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              className={`fixed right-0 top-20 bottom-24 w-full lg:w-[400px] ${s.sidebar} z-40 flex flex-col p-8 overflow-y-auto ${s.scrollbar}`}
+              className={`fixed right-0 top-20 bottom-24 w-full lg:w-[400px] ${s.sidebar} z-40 flex flex-col p-4 lg:p-8 overflow-y-auto ${s.scrollbar}`}
             >
               <h3 className="text-xl font-display font-black uppercase tracking-tight mb-8">Reading Settings</h3>
               
@@ -1613,7 +1613,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                 {/* Display Mode — device-class scaling (phone / desk / 10-foot TV) */}
                 <section>
                   <label className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-6 block">Display Mode</label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {([
                       ['AUTO', 'Auto', <Sparkles key="a" size={14} />],
                       ['MOBILE', 'Phone', <Smartphone key="m" size={14} />],

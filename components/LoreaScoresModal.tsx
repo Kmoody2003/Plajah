@@ -42,7 +42,7 @@ const LoreaScoresModal: React.FC<{ onClose: () => void; initialTrackId?: string 
             <p className="text-[8px] font-black uppercase tracking-[0.25em] text-purple-300/70">Lorea · Scores</p>
             <p className="text-sm font-black text-white">Your transcribed sheet music</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/12 flex items-center justify-center transition-colors shrink-0">
+          <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/[0.06] hover:bg-white/12 flex items-center justify-center transition-colors shrink-0">
             <X size={14} className="text-white/50" />
           </button>
         </div>
@@ -81,7 +81,7 @@ const LoreaScoresModal: React.FC<{ onClose: () => void; initialTrackId?: string 
             {selected ? (
               <div className="p-4 sm:p-6">
                 <div className="flex items-center gap-3 mb-4">
-                  <button onClick={() => setShowListOnMobile(true)} className="md:hidden w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center shrink-0">
+                  <button onClick={() => setShowListOnMobile(true)} className="md:hidden w-10 h-10 rounded-full bg-white/[0.06] flex items-center justify-center shrink-0">
                     <ChevronLeft size={14} className="text-white/60" />
                   </button>
                   <div className="flex-1 min-w-0">
@@ -93,7 +93,7 @@ const LoreaScoresModal: React.FC<{ onClose: () => void; initialTrackId?: string 
                   </div>
                   {selected.musicXml && (
                     <button onClick={() => downloadMusicXml(selected)}
-                      className="flex items-center gap-2 rounded-xl bg-emerald-500/15 border border-emerald-500/25 hover:bg-emerald-500/25 px-3 py-2 transition-colors shrink-0">
+                      className="flex items-center gap-2 rounded-xl bg-emerald-500/15 border border-emerald-500/25 hover:bg-emerald-500/25 px-3 py-2.5 transition-colors shrink-0">
                       <Download size={13} className="text-emerald-300" />
                       <span className="text-[10px] font-black text-emerald-200">MusicXML</span>
                     </button>
