@@ -2,6 +2,67 @@ import { useEffect, useState, useCallback } from 'react';
 import { usePlatform } from '../hooks/usePlatform';
 import { findInDirection, getFocusables } from '../hooks/useDpadNavigation';
 
+// ── Modal detection (for focus-trapping + Back-to-close) ──────────────────────
+// A "modal scope" is an explicit dialog, or a heuristic full-screen fixed overlay
+// with a high z-index (how nearly every modal in this app is built). Spatial nav
+// is confined to it while open, and the remote Back button closes it.
+const isOverlay = (el: HTMLElement): boolean => {
+  const cs = getComputedStyle(el);
+  if (cs.position !== 'fixed') return false;
+  const z = parseInt(cs.zIndex || '0', 10) || 0;
+  if (z < 40) return false;
+  const r = el.getBoundingClientRect();
+  const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+  const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+  // A modal backdrop covers most of the viewport (distinguishes it from the short
+  // full-width transport bar / toasts). If the viewport can't be read, fall back
+  // to an absolute size that a real backdrop clears but a bar/toast doesn't.
+  if (vw > 0 && vh > 0) return r.width > vw * 0.55 && r.height > vh * 0.55;
+  return r.width >= 240 && r.height >= 240;
+};
+
+/** The modal container the element sits inside, if any (walks up to the nearest overlay). */
+const modalScopeOf = (el: HTMLElement | null): HTMLElement | null => {
+  if (!el) return null;
+  const dlg = el.closest('[role="dialog"],[aria-modal="true"]') as HTMLElement | null;
+  if (dlg) return dlg;
+  let node: HTMLElement | null = el;
+  while (node && node !== document.body) {
+    if (isOverlay(node)) return node;
+    node = node.parentElement;
+  }
+  return null;
+};
+
+/** The top-most open modal overlay on the page (highest z-index), or null. */
+const topScope = (): HTMLElement | null => {
+  let best: HTMLElement | null = null;
+  let bestZ = 39;
+  const dialogs = document.querySelectorAll<HTMLElement>('[role="dialog"],[aria-modal="true"]');
+  for (const d of dialogs) {
+    const z = parseInt(getComputedStyle(d).zIndex || '0', 10) || 0;
+    if (z >= bestZ && d.getClientRects().length) { bestZ = z; best = d; }
+  }
+  if (best) return best;
+  for (const f of getFocusables()) {
+    const scope = modalScopeOf(f);
+    if (scope) {
+      const z = parseInt(getComputedStyle(scope).zIndex || '0', 10) || 0;
+      if (z >= bestZ) { bestZ = z; best = scope; }
+    }
+  }
+  return best;
+};
+
+const closeModal = (modal: HTMLElement): void => {
+  const closeBtn = modal.querySelector<HTMLElement>(
+    '[data-tv-close],button[aria-label*="close" i],button[title*="close" i],button[title*="dismiss" i]'
+  );
+  if (closeBtn) closeBtn.click();
+  // Also fire Escape so modals that only listen for it (and any backdrop handlers) close too.
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+};
+
 /**
  * Global D-pad / 10-foot navigation layer.
  *
@@ -56,7 +117,13 @@ const TVNavigationLayer = () => {
   const move = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
     const activeEl = document.activeElement as HTMLElement | null;
     const rootedActive = activeEl && activeEl !== document.body ? activeEl : null;
-    const target = findInDirection(rootedActive, direction);
+    // Focus-trap: while focus is INSIDE a modal, confine navigation to its
+    // focusables so the remote can't wander onto the page behind it. (We only
+    // scope when already inside — never yank focus around the page.)
+    const scope = modalScopeOf(rootedActive);
+    const candidates = scope ? getFocusables(scope) : getFocusables();
+    const target = findInDirection(rootedActive, direction, candidates)
+      || (scope ? candidates[0] ?? null : null); // wrap to the modal's first item at an edge
     if (target) {
       target.focus();
       target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
@@ -75,12 +142,10 @@ const TVNavigationLayer = () => {
     let tries = 0;
     const seedFocus = () => {
       const el = document.activeElement as HTMLElement | null;
-      if (el && el !== document.body) return; // something is already focused — done
-      const focusables = getFocusables();
-      // Prefer a focusable inside the top-most overlay/dialog if one is open, so a
-      // popup that appears over the page grabs focus instead of the page behind it.
-      const inDialog = focusables.filter((f) => f.closest('[role="dialog"],[aria-modal="true"]'));
-      const target = (inDialog.length ? inDialog : focusables)[0];
+      // If a modal opened while focus sat on the page behind it, pull focus in.
+      const scope = topScope();
+      if (el && el !== document.body && !(scope && !scope.contains(el))) return; // already focused in the right place
+      const target = getFocusables(scope ?? document)[0];
       if (target) {
         target.focus();
         target.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
@@ -90,11 +155,26 @@ const TVNavigationLayer = () => {
     };
     seedTimer = window.setTimeout(seedFocus, 300);
 
-    // Re-seed whenever the DOM changes enough that focus was lost (route change,
-    // modal open/close) — keeps the remote from getting "stuck" with no focus.
+    // Re-seed when focus is fully lost (route change unmounts the focused element)
+    // so the remote never gets stuck with nothing focused. Kept cheap: the only
+    // work per debounced tick is an activeElement check; the (heavier) seedFocus —
+    // which prefers an open modal — runs only when focus has actually dropped to
+    // <body>. This deliberately does NOT yank focus into a modal that opens while
+    // the page still holds focus (that risks churn on this mutation-heavy app);
+    // the modal's buttons are still reachable by arrow, and Back closes it.
+    let reseedScheduled = false;
     const reseedObserver = new MutationObserver(() => {
-      const el = document.activeElement as HTMLElement | null;
-      if (!el || el === document.body) { tries = 0; window.clearTimeout(seedTimer); seedTimer = window.setTimeout(seedFocus, 120); }
+      if (reseedScheduled) return;
+      reseedScheduled = true;
+      window.setTimeout(() => {
+        reseedScheduled = false;
+        const el = document.activeElement as HTMLElement | null;
+        if (!el || el === document.body) {
+          tries = 0;
+          window.clearTimeout(seedTimer);
+          seedTimer = window.setTimeout(seedFocus, 60);
+        }
+      }, 200);
     });
     reseedObserver.observe(document.body, { childList: true, subtree: true });
 
@@ -139,7 +219,11 @@ const TVNavigationLayer = () => {
       if ((e.key === 'Backspace' || e.key === 'XF86Back' || e.key === 'Menu') && !inField) {
         e.preventDefault();
         e.stopImmediatePropagation();
-        window.dispatchEvent(new CustomEvent('tv:back'));
+        // Back closes an open modal first (so the remote can dismiss the popup that
+        // was previously un-exitable); otherwise it's an app-level "back".
+        const modal = modalScopeOf(document.activeElement as HTMLElement) || topScope();
+        if (modal) closeModal(modal);
+        else window.dispatchEvent(new CustomEvent('tv:back'));
       }
     };
 
