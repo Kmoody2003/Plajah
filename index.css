@@ -1199,6 +1199,32 @@ body.theme-nebula #universal-background::before {
   transition: transform 0.15s ease, box-shadow 0.15s ease !important;
 }
 
+/* ── Global D-pad focus ring ──────────────────────────────────────────────────
+   TVNavigationLayer adds `.tv-nav` to <html> on real D-pad devices (or ?tv=1).
+   Unlike the [data-tv-focusable] ring above, this targets every auto-discovered
+   native focusable, so the whole app is remote-navigable with a visible 10-foot
+   ring without per-element tagging. */
+/* html.tv-nav prefix + :focus-visible fallbacks so the ring beats any
+   `:focus:not(:focus-visible){outline:none}` resets and shows for every focus
+   move, whether the platform reports focus-visible or not. */
+html.tv-nav :focus,
+html.tv-nav :focus-visible,
+html.tv-nav :focus:not(:focus-visible) {
+  outline: 4px solid #FF8C00 !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(255, 140, 0, 0.22), 0 0 28px rgba(255, 140, 0, 0.35) !important;
+  border-radius: 10px;
+  /* keep the focused item clear of screen edges when scrolled into view (overscan) */
+  scroll-margin: 12vh 8vw;
+  position: relative;
+  z-index: 60;
+}
+html.tv-nav input:focus,
+html.tv-nav textarea:focus,
+html.tv-nav select:focus {
+  outline-offset: 2px !important;
+}
+
 /* Row-scroll containers — snap to item boundaries for D-pad swipe feel */
 .tv-row-scroll {
   display: flex;

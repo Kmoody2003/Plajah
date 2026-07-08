@@ -71,58 +71,121 @@ export const useDpadNavigation = (handlers: DpadHandlers) => {
   }, [handlers.enabled]);
 };
 
+// ── Focusable discovery ──────────────────────────────────────────────────────
+
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[role="button"]:not([aria-disabled="true"])',
+  '[role="link"]',
+  '[role="tab"]',
+  '[role="menuitem"]',
+  '[role="option"]',
+  '[data-tv-focusable]',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+/** True when the element is on-screen and actually rendered (not hidden/detached). */
+const isVisible = (el: HTMLElement): boolean => {
+  if (el.hasAttribute('disabled') || el.getAttribute('aria-hidden') === 'true') return false;
+  if (el.closest('[data-tv-ignore]')) return false;
+  const rects = el.getClientRects();
+  if (rects.length === 0) return false;
+  const r = el.getBoundingClientRect();
+  if (r.width < 2 || r.height < 2) return false;
+  // Must intersect the viewport (with a small margin so just-off-screen rows still
+  // count). Fall back to the document element's client size, and if the viewport
+  // can't be determined at all (0 — some embedded webviews / offscreen renders),
+  // skip the bound rather than filtering everything out.
+  const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+  const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+  if (vh > 0 && vw > 0) {
+    const margin = 4;
+    if (!(r.bottom > -margin && r.right > -margin && r.top < vh + margin && r.left < vw + margin)) {
+      return false;
+    }
+  }
+  return true;
+};
+
+/**
+ * All currently focusable, visible elements. Native focusables are auto-discovered
+ * so surfaces need no per-element tagging; opt out with `data-tv-ignore` on a
+ * container, or force-include a custom element with `data-tv-focusable`.
+ */
+export const getFocusables = (root: ParentNode = document): HTMLElement[] =>
+  Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(isVisible);
+
+type Dir = 'up' | 'down' | 'left' | 'right';
+
+/**
+ * Pure spatial pick: given the active element, return the best focus target in a
+ * direction using a rect-geometry score (primary-axis distance + cross-axis penalty).
+ */
+export const findInDirection = (
+  active: HTMLElement | null,
+  direction: Dir,
+  candidates: HTMLElement[] = getFocusables()
+): HTMLElement | null => {
+  const pool = candidates.filter((el) => el !== active);
+  if (!active) return pool[0] ?? null;
+
+  const r0 = active.getBoundingClientRect();
+  let best: HTMLElement | null = null;
+  let bestScore = Infinity;
+
+  for (const el of pool) {
+    const r = el.getBoundingClientRect();
+    let axisScore = Infinity;
+    let crossPenalty = 0;
+
+    if (direction === 'up' && r.bottom <= r0.top + 4) {
+      axisScore = r0.top - r.bottom;
+      crossPenalty = Math.abs(r.left + r.width / 2 - (r0.left + r0.width / 2));
+    } else if (direction === 'down' && r.top >= r0.bottom - 4) {
+      axisScore = r.top - r0.bottom;
+      crossPenalty = Math.abs(r.left + r.width / 2 - (r0.left + r0.width / 2));
+    } else if (direction === 'left' && r.right <= r0.left + 4) {
+      axisScore = r0.left - r.right;
+      crossPenalty = Math.abs(r.top + r.height / 2 - (r0.top + r0.height / 2));
+    } else if (direction === 'right' && r.left >= r0.right - 4) {
+      axisScore = r.left - r0.right;
+      crossPenalty = Math.abs(r.top + r.height / 2 - (r0.top + r0.height / 2));
+    } else {
+      continue;
+    }
+
+    // Cross-axis matters less than travel along the axis, so weight it down.
+    const total = axisScore + crossPenalty * 0.4;
+    if (total < bestScore) {
+      bestScore = total;
+      best = el;
+    }
+  }
+
+  return best;
+};
+
 /**
  * Spatial focus manager for TV.
- * Call focusNearest('right') etc. to move focus between [data-tv-focusable] elements.
+ * Call focusNearest('right') etc. to move focus between focusable elements.
+ * Auto-wires arrow keys to spatial navigation.
  */
-export const useTVFocusManager = () => {
-  const focusNearest = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
+export const useTVFocusManager = (enabled = true) => {
+  const focusNearest = useCallback((direction: Dir) => {
     const active = document.activeElement as HTMLElement | null;
-
-    const candidates = Array.from(
-      document.querySelectorAll<HTMLElement>('[data-tv-focusable]')
-    ).filter((el) => el !== active && !el.hasAttribute('disabled'));
-
-    if (!active) {
-      candidates[0]?.focus();
-      return;
+    const target = findInDirection(active, direction);
+    if (target) {
+      target.focus();
+      target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
     }
-
-    const r0 = active.getBoundingClientRect();
-    let best: HTMLElement | null = null;
-    let bestScore = Infinity;
-
-    for (const el of candidates) {
-      const r = el.getBoundingClientRect();
-      let axisScore = Infinity;
-      let crossPenalty = 0;
-
-      if (direction === 'up' && r.bottom <= r0.top + 4) {
-        axisScore = r0.top - r.bottom;
-        crossPenalty = Math.abs(r.left + r.width / 2 - (r0.left + r0.width / 2));
-      } else if (direction === 'down' && r.top >= r0.bottom - 4) {
-        axisScore = r.top - r0.bottom;
-        crossPenalty = Math.abs(r.left + r.width / 2 - (r0.left + r0.width / 2));
-      } else if (direction === 'left' && r.right <= r0.left + 4) {
-        axisScore = r0.left - r.right;
-        crossPenalty = Math.abs(r.top + r.height / 2 - (r0.top + r0.height / 2));
-      } else if (direction === 'right' && r.left >= r0.right - 4) {
-        axisScore = r.left - r0.right;
-        crossPenalty = Math.abs(r.top + r.height / 2 - (r0.top + r0.height / 2));
-      }
-
-      const total = axisScore + crossPenalty * 0.3;
-      if (total < bestScore) {
-        bestScore = total;
-        best = el;
-      }
-    }
-
-    best?.focus();
   }, []);
 
-  /** Auto-wire D-pad arrows to spatial focus navigation */
   useDpadNavigation({
+    enabled,
     onUp: () => focusNearest('up'),
     onDown: () => focusNearest('down'),
     onLeft: () => focusNearest('left'),
