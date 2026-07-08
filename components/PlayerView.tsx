@@ -1267,7 +1267,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         <button
                           onClick={(e) => { e.stopPropagation(); setPlaylistPickerTrack(t); }}
                           title="Add this song to a playlist"
-                          className="tap flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-white/50 hover:text-white transition-all text-[9px] font-black uppercase tracking-widest"
+                          className="tap hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-white/50 hover:text-white transition-all text-[9px] font-black uppercase tracking-widest"
                         >
                           <ListPlus size={12} />
                           <span className="hidden sm:inline">Add</span>
@@ -1275,7 +1275,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         <button
                           onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_BREAKDOWN', { detail: { track: t, album } })); }}
                           title="The Breakdown — analyze key, tempo, chords & sheet music"
-                          className="tap flex items-center gap-1 px-2 py-1 rounded-lg bg-[#FF8C00]/10 hover:bg-[#FF8C00]/25 text-[#FF8C00]/60 hover:text-[#FF8C00] transition-all text-[9px] font-black uppercase tracking-widest"
+                          className="tap hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-[#FF8C00]/10 hover:bg-[#FF8C00]/25 text-[#FF8C00]/60 hover:text-[#FF8C00] transition-all text-[9px] font-black uppercase tracking-widest"
                         >
                           <Waves size={11} />
                           <span className="hidden sm:inline">Breakdown</span>
@@ -1284,7 +1284,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         <button
                           onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { track: t, album } })); }}
                           title="Plajah Pixels — send this song into the visualizer"
-                          className="tap flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/25 text-purple-300/70 hover:text-purple-200 transition-all text-[9px] font-black uppercase tracking-widest"
+                          className="tap hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/25 text-purple-300/70 hover:text-purple-200 transition-all text-[9px] font-black uppercase tracking-widest"
                         >
                           <Sparkles size={11} />
                           <span>PP</span>
@@ -1308,20 +1308,30 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/10 transition-all"
                           />
                         </div>
-                        {isOwner && (
-                          <button
-                            onClick={() => setExpandedTrackId(isExpanded ? null : t.id)}
-                            className={`p-1.5 rounded-lg transition-all ${isExpanded ? 'bg-small-orange/20 text-small-orange' : 'text-white/20 hover:text-white'}`}
-                          >
-                            <ChevronDown size={14} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                          </button>
-                        )}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setExpandedTrackId(isExpanded ? null : t.id); }}
+                          title="More"
+                          className={`${isOwner ? '' : 'sm:hidden'} p-1.5 rounded-lg transition-all ${isExpanded ? 'bg-small-orange/20 text-small-orange' : 'text-white/20 hover:text-white'}`}
+                        >
+                          <ChevronDown size={14} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                        </button>
                       </div>
                     </div>
 
-                    {/* HnS Slot Drawer */}
-                    {isOwner && isExpanded && (
+                    {/* Expandable drawer — smooth height; on phones it holds the
+                        Add / Breakdown / Pixels actions so the row stays clean */}
+                    <AnimatePresence initial={false}>
+                    {isExpanded && (
+                      <motion.div key="drawer" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }} className="overflow-hidden">
                       <div className="bg-black/40 backdrop-blur-xl rounded-b-2xl border-t border-white/5 p-4 space-y-3">
+                        {/* Phone quick actions (hidden on sm+, where they live inline) */}
+                        <div className="flex sm:hidden flex-wrap gap-2">
+                          <button onClick={(e) => { e.stopPropagation(); setPlaylistPickerTrack(t); }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 text-white/70 text-[10px] font-black uppercase tracking-widest"><ListPlus size={13} /> Add to playlist</button>
+                          <button onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_BREAKDOWN', { detail: { track: t, album } })); }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FF8C00]/12 text-[#FF8C00] text-[10px] font-black uppercase tracking-widest"><Waves size={13} /> Breakdown</button>
+                          <button onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { track: t, album } })); }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-500/12 text-purple-200 text-[10px] font-black uppercase tracking-widest"><Sparkles size={13} /> Plajah Pixels</button>
+                        </div>
+                        {isOwner && (
+                        <div className="space-y-3">
                         <div className="flex items-center gap-2 mb-2">
                           {hnsOn ? <Eye size={12} className="text-small-orange" /> : <EyeOff size={12} className="text-white/30" />}
                           <span className="text-[9px] font-black uppercase tracking-widest text-white/30">
@@ -1377,8 +1387,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             </div>
                           );
                         })}
+                        </div>
+                        )}
                       </div>
+                      </motion.div>
                     )}
+                    </AnimatePresence>
 
                     {/* ── In This Song (mobile) ── */}
                     {t.characterIds && t.characterIds.length > 0 && worldCharacters.length > 0 && (
