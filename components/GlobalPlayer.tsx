@@ -16,6 +16,7 @@ import ThreeDImage from './ThreeDImage';
 
 import { useAchievements } from '../contexts/AchievementContext';
 import { fetchUserProfile } from '../services/backendService';
+import { areTooltipsOff, setTooltipsOff } from '../lib/tooltipPref';
 
 interface GlobalPlayerProps {
   onNavigate?: (view: any, params?: any) => void;
@@ -115,6 +116,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   const { triggerAction } = useAchievements();
 
   const [isSpillOverOpen, setIsSpillOverOpen] = useState(false);
+  const [tooltipsOff, setTooltipsOffState] = useState(areTooltipsOff());
   const [isLandscape, setIsLandscape] = useState(false);
 
   // Keep context in sync so Aria panel knows when to push up
@@ -1080,6 +1082,15 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                           <span className="text-[7px] font-black uppercase tracking-widest">{isCasting ? 'Stop' : 'Cast'}</span>
                         </button>
                       )}
+
+                      {/* Tooltips toggle — suppress native title tooltips app-wide (handy on touch/WebView) */}
+                      <button
+                        onClick={() => { const v = !tooltipsOff; setTooltipsOff(v); setTooltipsOffState(v); }}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl transition-all ${tooltipsOff ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/40'}`}
+                      >
+                        <MessageSquare size={18} />
+                        <span className="text-[7px] font-black uppercase tracking-widest">{tooltipsOff ? 'Tips Off' : 'Tips On'}</span>
+                      </button>
                     </div>
 
                     {/* Themes */}
