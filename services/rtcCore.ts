@@ -316,10 +316,46 @@ export class RtcSession {
 
   getLocalStream() { return this.local; }
 
-  /** Replace the camera (flip) without dropping any peer — hot track swap. */
+  /** Replace the camera (flip) without dropping any peer — hot track swap.
+   *  Uses an EXACT facingMode so phones actually switch to the back camera
+   *  (a non-exact facingMode is only a hint and often returns the same camera —
+   *  which looked like "the flip just mirrors"). Falls back to non-exact. */
   async switchCamera(facing: 'user' | 'environment') {
-    const next = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: facing } });
+    let next: MediaStream;
+    try {
+      next = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { exact: facing } } });
+    } catch {
+      next = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: facing } });
+    }
     await this.swapVideoTrack(next.getVideoTracks()[0]);
+  }
+
+  /** Cycle to the NEXT physical camera (front → back → back-wide → back-tele → …
+   *  → front). This is the reliable "flip" on multi-camera phones: it walks the
+   *  enumerated video inputs by deviceId rather than relying on facingMode hints.
+   *  Returns the new camera's facingMode (when the browser reports it) plus a
+   *  `mirror` flag — the UI should mirror the preview for front cameras only. */
+  async cycleCamera(): Promise<{ facingMode?: 'user' | 'environment'; mirror: boolean }> {
+    const cams = (await navigator.mediaDevices.enumerateDevices().catch(() => []))
+      .filter(d => d.kind === 'videoinput');
+    if (cams.length <= 1) {
+      // 0–1 enumerated cameras (or labels/ids hidden pre-permission) → toggle facingMode.
+      const cur = this.local?.getVideoTracks()[0]?.getSettings().facingMode;
+      await this.switchCamera(cur === 'environment' ? 'user' : 'environment');
+    } else {
+      const curId = this.local?.getVideoTracks()[0]?.getSettings().deviceId;
+      const idx = cams.findIndex(c => c.deviceId === curId);
+      const next = cams[(idx + 1) % cams.length];
+      const s = await navigator.mediaDevices.getUserMedia({ audio: false, video: { deviceId: { exact: next.deviceId } } });
+      await this.swapVideoTrack(s.getVideoTracks()[0]);
+    }
+    const track = this.local?.getVideoTracks()[0];
+    const fm = track?.getSettings().facingMode as 'user' | 'environment' | undefined;
+    const label = (track?.label || '').toLowerCase();
+    // Mirror front cameras only. When facingMode isn't reported, fall back to the
+    // device label (back/rear/environment cameras are never mirrored).
+    const mirror = fm === 'user' || (fm == null && /front|user|face|self/.test(label) && !/back|rear|environment|world/.test(label));
+    return { facingMode: fm, mirror };
   }
 
   /** Enumerate the machine's cameras / mics / speakers so the UI can offer a

@@ -36,6 +36,9 @@ export interface UseRtcSession {
   /** Low-latency data channel: reactions, polls, synced playback, cursors, etc. */
   sendData: (type: string, payload?: any) => void;
   switchCamera: (facing: 'user' | 'environment') => void;
+  /** Cycle to the next physical camera (front → back → back-wide → …). Resolves
+   *  to the new camera's facingMode (when known) + whether the preview should mirror. */
+  cycleCamera: () => Promise<{ facingMode?: 'user' | 'environment'; mirror: boolean }>;
   toggleScreenShare: () => void;
   leave: () => void;
   /** Available input/output devices (populated after join; refreshed on hot-plug). */
@@ -128,6 +131,13 @@ export function useRtcSession(
       setActiveDevices(sessionRef.current?.getActiveDevices() || {});
     });
   }, []);
+  const cycleCamera = useCallback(async (): Promise<{ facingMode?: 'user' | 'environment'; mirror: boolean }> => {
+    try {
+      const res = await sessionRef.current?.cycleCamera();
+      setActiveDevices(sessionRef.current?.getActiveDevices() || {});
+      return res ?? { mirror: false };
+    } catch { return { mirror: false }; }
+  }, []);
   const refreshDevices = useCallback(() => {
     sessionRef.current?.listDevices().then(d => {
       setDevices(d);
@@ -206,7 +216,7 @@ export function useRtcSession(
   return {
     localStream, remoteStreams, participants, peerStates, error,
     audioEnabled, videoEnabled, sharingScreen,
-    toggleAudio, toggleVideo, setAudio, setVideo, switchCamera, toggleScreenShare, leave,
+    toggleAudio, toggleVideo, setAudio, setVideo, switchCamera, cycleCamera, toggleScreenShare, leave,
     isRecording, startRecording, stopRecording, sendData,
     devices, activeDevices, refreshDevices, switchVideoDevice, switchAudioDevice,
     useDesktopAudio, screenStream,

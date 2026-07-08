@@ -180,6 +180,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [facing, setFacing] = useState<'user' | 'environment'>('user');
+  const [mirror, setMirror] = useState(true); // mirror the preview for front cameras only
   const [isLive, setIsLive] = useState(false);
   // Stable id from mount → the rtc session + preview start immediately; goLive
   // just publishes the streams doc + flips it live.
@@ -227,6 +228,14 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     if (!didMountRef.current) { didMountRef.current = true; return; } // skip initial (already user-facing)
     rtc.switchCamera(facing);
   }, [facing]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Flip = cycle to the NEXT physical camera (front → back → back-wide → …), not a
+  // mirror. cycleCamera walks the enumerated cameras by deviceId — a facingMode hint
+  // alone doesn't reliably switch to the back camera on phones — and reports whether
+  // the preview should be mirrored (front cameras only).
+  const flipCamera = async () => {
+    const { mirror: m } = await rtc.cycleCamera();
+    setMirror(m);
+  };
   // Live viewer count / peak ← backbone participants; mirrored to the streams doc
   // so the viewer side can display it.
   useEffect(() => {
@@ -414,7 +423,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
         muted
         playsInline
         className="absolute inset-0 w-full h-full object-contain bg-black"
-        style={{ transform: facing === 'user' ? 'scaleX(-1)' : 'none' }}
+        style={{ transform: mirror ? 'scaleX(-1)' : 'none' }}
       />
 
       {/* Dim overlay when cam off */}
@@ -437,7 +446,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
               <X size={18} className="text-white" />
             </button>
             <div className="flex items-center gap-2">
-              <button onClick={() => setFacing(f => f === 'user' ? 'environment' : 'user')}
+              <button onClick={flipCamera} title="Switch camera"
                 className="w-10 h-10 rounded-full bg-black/50 backdrop-blur flex items-center justify-center">
                 <FlipHorizontal2 size={18} className="text-white" />
               </button>
@@ -604,8 +613,8 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                 <span className="text-[9px] text-white/50">Chat</span>
               </button>
 
-              {/* Flip camera */}
-              <button onClick={() => { setFacing(f => f === 'user' ? 'environment' : 'user'); }}
+              {/* Cycle camera (front → back → back-wide → …) */}
+              <button onClick={flipCamera}
                 className="flex flex-col items-center gap-1">
                 <div className="w-12 h-12 rounded-full bg-black/60 backdrop-blur border border-white/15 flex items-center justify-center">
                   <FlipHorizontal2 size={22} className="text-white" />
