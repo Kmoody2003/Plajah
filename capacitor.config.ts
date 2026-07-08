@@ -29,6 +29,13 @@ const config: CapacitorConfig = {
     CapacitorHttp: {
       enabled: true,
     },
+    // Native Google/OAuth sign-in (WebViews block web-OAuth popups). skipNativeAuth
+    // keeps the Firebase JS SDK as the single source of auth truth — the plugin only
+    // returns a credential, which loginWithGoogle() feeds to signInWithCredential().
+    FirebaseAuthentication: {
+      skipNativeAuth: true,
+      providers: ['google.com'],
+    },
   },
 
   server: {

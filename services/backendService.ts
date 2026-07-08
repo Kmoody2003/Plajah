@@ -28,6 +28,7 @@ const onSnapshot: typeof rawOnSnapshot = ((...args: any[]) => {
 }) as typeof rawOnSnapshot;
 import {
   signInWithPopup,
+  signInWithCredential,
   linkWithPopup,
   getAdditionalUserInfo,
   GoogleAuthProvider,
@@ -3802,6 +3803,31 @@ export const postComment = async (parentId: string, comment: Omit<Comment, 'id'>
 };
 
 export const loginWithGoogle = async (loginHint?: string): Promise<User | null> => {
+  // Native (Capacitor) apps run inside a WebView, where Google refuses web-OAuth
+  // popups (disallowed_useragent — "this browser or app may not be secure"). Use
+  // the native Google Sign-In plugin to obtain a credential, then sign THAT into
+  // the JS SDK so the rest of the app (which reads auth.currentUser) is unchanged.
+  if ((window as any).Capacitor?.isNativePlatform?.()) {
+    try {
+      const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+      const res = await FirebaseAuthentication.signInWithGoogle();
+      const idToken = res.credential?.idToken;
+      if (!idToken) throw new Error('No idToken returned from native Google sign-in');
+      const credential = GoogleAuthProvider.credential(idToken, (res.credential as any)?.accessToken);
+      const result = await signInWithCredential(auth, credential);
+      if (result.user) {
+        try { await result.user.getIdToken(true); } catch { /* non-fatal */ }
+        await syncUserProfile(result.user);
+        return result.user;
+      }
+    } catch (error: any) {
+      if (error?.code === 'auth/cancelled' || /cancel/i.test(error?.message || '')) return null;
+      console.error('Native Google login failed:', error);
+      alert(`Google sign-in failed: ${error?.message || 'Unknown error'}. Please try again.`);
+    }
+    return null;
+  }
+
   const provider = new GoogleAuthProvider();
   // Always force the account chooser (so a hot-switch never silently reuses the
   // currently-remembered Google session), and pre-select the target account when
