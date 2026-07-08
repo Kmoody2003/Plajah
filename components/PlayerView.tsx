@@ -1267,7 +1267,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         <button
                           onClick={(e) => { e.stopPropagation(); setPlaylistPickerTrack(t); }}
                           title="Add this song to a playlist"
-                          className="tap hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-white/50 hover:text-white transition-all text-[9px] font-black uppercase tracking-widest"
+                          className="tap hidden items-center gap-1 px-2 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-white/50 hover:text-white transition-all text-[9px] font-black uppercase tracking-widest"
                         >
                           <ListPlus size={12} />
                           <span className="hidden sm:inline">Add</span>
@@ -1275,7 +1275,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         <button
                           onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_BREAKDOWN', { detail: { track: t, album } })); }}
                           title="The Breakdown — analyze key, tempo, chords & sheet music"
-                          className="tap hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-[#FF8C00]/10 hover:bg-[#FF8C00]/25 text-[#FF8C00]/60 hover:text-[#FF8C00] transition-all text-[9px] font-black uppercase tracking-widest"
+                          className="tap hidden items-center gap-1 px-2 py-1 rounded-lg bg-[#FF8C00]/10 hover:bg-[#FF8C00]/25 text-[#FF8C00]/60 hover:text-[#FF8C00] transition-all text-[9px] font-black uppercase tracking-widest"
                         >
                           <Waves size={11} />
                           <span className="hidden sm:inline">Breakdown</span>
@@ -1284,7 +1284,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         <button
                           onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { track: t, album } })); }}
                           title="Plajah Pixels — send this song into the visualizer"
-                          className="tap hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/25 text-purple-300/70 hover:text-purple-200 transition-all text-[9px] font-black uppercase tracking-widest"
+                          className="tap hidden items-center gap-1 px-2 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/25 text-purple-300/70 hover:text-purple-200 transition-all text-[9px] font-black uppercase tracking-widest"
                         >
                           <Sparkles size={11} />
                           <span>PP</span>
