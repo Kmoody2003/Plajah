@@ -25,9 +25,13 @@ const config: CapacitorConfig = {
     Browser: {
       presentationStyle: 'popover',
     },
-    // Capacitor HTTP — bypass CORS on native for API calls
+    // Capacitor HTTP — MUST stay disabled: when enabled it patches native
+    // fetch/XHR and breaks the Firebase Firestore transport (XHR/WebChannel
+    // streaming), so real-time data never loads and the app shows no content.
+    // Nothing in the app relies on it; Firestore/Storage/Auth do their own
+    // networking, and the backend already serves the web origin cross-origin.
     CapacitorHttp: {
-      enabled: true,
+      enabled: false,
     },
     // Native Google/OAuth sign-in (WebViews block web-OAuth popups). skipNativeAuth
     // keeps the Firebase JS SDK as the single source of auth truth — the plugin only
