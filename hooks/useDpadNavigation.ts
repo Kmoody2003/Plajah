@@ -88,26 +88,19 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
-/** True when the element is on-screen and actually rendered (not hidden/detached). */
+/** True when the element is actually rendered (not hidden / zero-size / detached). */
 const isVisible = (el: HTMLElement): boolean => {
   if (el.hasAttribute('disabled') || el.getAttribute('aria-hidden') === 'true') return false;
   if (el.closest('[data-tv-ignore]')) return false;
   const rects = el.getClientRects();
-  if (rects.length === 0) return false;
+  if (rects.length === 0) return false;            // display:none / detached / in a collapsed ancestor
   const r = el.getBoundingClientRect();
-  if (r.width < 2 || r.height < 2) return false;
-  // Must intersect the viewport (with a small margin so just-off-screen rows still
-  // count). Fall back to the document element's client size, and if the viewport
-  // can't be determined at all (0 — some embedded webviews / offscreen renders),
-  // skip the bound rather than filtering everything out.
-  const vh = window.innerHeight || document.documentElement.clientHeight || 0;
-  const vw = window.innerWidth || document.documentElement.clientWidth || 0;
-  if (vh > 0 && vw > 0) {
-    const margin = 4;
-    if (!(r.bottom > -margin && r.right > -margin && r.top < vh + margin && r.left < vw + margin)) {
-      return false;
-    }
-  }
+  if (r.width < 2 || r.height < 2) return false;   // zero-size
+  // NOTE: intentionally NOT filtering by viewport intersection. Spatial nav must
+  // be able to move focus to OFF-SCREEN (scrolled) controls and scroll them into
+  // view — that's how a D-pad reaches below-the-fold buttons (e.g. the sign-in
+  // buttons on the landing page). Only truly hidden / zero-size / detached
+  // elements are excluded here.
   return true;
 };
 

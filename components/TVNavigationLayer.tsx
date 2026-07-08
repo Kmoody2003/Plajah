@@ -66,11 +66,37 @@ const TVNavigationLayer = () => {
   useEffect(() => {
     if (!active) return;
 
-    // Grab an initial focus so the first arrow press has an anchor.
-    const seed = window.setTimeout(() => {
+    // Grab an initial focus so there's always something to move from, and so a
+    // remote can act on a freshly-loaded / just-changed screen. Retries because
+    // the page (and modals) mount asynchronously — otherwise a slow route could
+    // leave the D-pad with nothing to focus. Scrolls the target into view in case
+    // it's below the fold (e.g. the landing page's sign-in buttons).
+    let seedTimer = 0;
+    let tries = 0;
+    const seedFocus = () => {
       const el = document.activeElement as HTMLElement | null;
-      if (!el || el === document.body) getFocusables()[0]?.focus();
-    }, 300);
+      if (el && el !== document.body) return; // something is already focused — done
+      const focusables = getFocusables();
+      // Prefer a focusable inside the top-most overlay/dialog if one is open, so a
+      // popup that appears over the page grabs focus instead of the page behind it.
+      const inDialog = focusables.filter((f) => f.closest('[role="dialog"],[aria-modal="true"]'));
+      const target = (inDialog.length ? inDialog : focusables)[0];
+      if (target) {
+        target.focus();
+        target.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+        return;
+      }
+      if (tries++ < 24) seedTimer = window.setTimeout(seedFocus, 250); // keep trying as content loads
+    };
+    seedTimer = window.setTimeout(seedFocus, 300);
+
+    // Re-seed whenever the DOM changes enough that focus was lost (route change,
+    // modal open/close) — keeps the remote from getting "stuck" with no focus.
+    const reseedObserver = new MutationObserver(() => {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el || el === document.body) { tries = 0; window.clearTimeout(seedTimer); seedTimer = window.setTimeout(seedFocus, 120); }
+    });
+    reseedObserver.observe(document.body, { childList: true, subtree: true });
 
     // Capture phase: we run BEFORE the app's own global key handlers so spatial
     // nav can claim the arrows (many surfaces preventDefault arrows for their own
@@ -119,7 +145,8 @@ const TVNavigationLayer = () => {
 
     window.addEventListener('keydown', onKey, true);
     return () => {
-      window.clearTimeout(seed);
+      window.clearTimeout(seedTimer);
+      reseedObserver.disconnect();
       window.removeEventListener('keydown', onKey, true);
     };
   }, [active, move]);
