@@ -45,7 +45,7 @@ export default function PodcastDistributionHub() {
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
       <div>
-        <h1 className="text-5xl md:text-7xl font-black uppercase tracking-tighter leading-none text-white">Podcast<br />Distribution</h1>
+        <h1 className="text-3xl sm:text-5xl md:text-7xl font-black uppercase tracking-tighter leading-none text-white">Podcast<br />Distribution</h1>
         <p className="text-white/30 text-sm font-bold uppercase tracking-widest mt-2">RSS 2.0 + iTunes feed · submit to every major directory</p>
       </div>
 

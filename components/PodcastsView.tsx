@@ -402,7 +402,7 @@ export const PodcastsView: React.FC = () => {
                                     <div className="w-10 h-1 bg-small-orange" />
                                     <span className="text-xs font-black uppercase tracking-[0.4em] text-small-orange">Archive Discover</span>
                                 </div>
-                                <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl xl:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Podcast Universe</h1>
+                                <h1 className="text-2xl sm:text-6xl md:text-8xl lg:text-9xl xl:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Podcast Universe</h1>
                                 <p className="text-xs sm:text-sm lg:text-base opacity-40 font-medium uppercase tracking-widest leading-relaxed max-w-2xl mt-4">Access millions of frequencies, voices, and stories directly from the archive.</p>
                             </div>
                         </div>

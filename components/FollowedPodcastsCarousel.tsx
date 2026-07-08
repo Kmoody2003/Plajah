@@ -33,8 +33,8 @@ const FollowedPodcastsCarousel: React.FC<{ podcasts: Album[]; onOpen?: (album: A
           <Headphones size={12} className="text-small-orange" /> Following · Latest Episodes
         </h3>
         <div className="flex items-center gap-2">
-          <button onClick={() => scroll(-1)} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60"><ChevronLeft size={16} /></button>
-          <button onClick={() => scroll(1)} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60"><ChevronRight size={16} /></button>
+          <button onClick={() => scroll(-1)} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60"><ChevronLeft size={16} /></button>
+          <button onClick={() => scroll(1)} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60"><ChevronRight size={16} /></button>
         </div>
       </div>
 
@@ -64,7 +64,7 @@ const FollowedPodcastsCarousel: React.FC<{ podcasts: Album[]; onOpen?: (album: A
                 {resumable ? (
                   <>
                     <button onClick={() => play(resumeTime(ep.id))} className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-full bg-small-orange text-black text-[10px] font-black uppercase tracking-widest" title={`Resume at ${fmtTime(resumeTime(ep.id))}`}><Play size={11} fill="currentColor" /> Resume</button>
-                    <button onClick={() => { clearProgress(ep.id); play(0); }} title="Start from beginning" className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-white/5 text-white/50 hover:text-white"><RotateCcw size={13} /></button>
+                    <button onClick={() => { clearProgress(ep.id); play(0); }} title="Start from beginning" className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/5 text-white/50 hover:text-white"><RotateCcw size={13} /></button>
                   </>
                 ) : (
                   <button onClick={() => play(0)} className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-full bg-white/5 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10"><Play size={11} fill="currentColor" /> {saved?.completed ? 'Replay' : 'Play'}</button>
