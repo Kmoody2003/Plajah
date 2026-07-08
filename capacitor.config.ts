@@ -38,7 +38,13 @@ const config: CapacitorConfig = {
     // returns a credential, which loginWithGoogle() feeds to signInWithCredential().
     FirebaseAuthentication: {
       skipNativeAuth: true,
-      providers: ['google.com', 'facebook.com', 'twitter.com', 'microsoft.com'],
+      // NOTE: 'facebook.com' is intentionally omitted — the native Facebook SDK
+      // throws at app startup if no Facebook App ID / Client Token meta-data is
+      // present, crashing the whole app. Re-add it together with the FB app-id +
+      // client-token in AndroidManifest/strings once those credentials are set.
+      // Google needs the web client id (from google-services.json); Twitter and
+      // Microsoft use Firebase's OAuth (Custom Tab) and need no native SDK.
+      providers: ['google.com', 'twitter.com', 'microsoft.com'],
     },
   },
 
