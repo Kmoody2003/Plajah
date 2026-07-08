@@ -90,6 +90,16 @@ async function firestoreAuthHeaders(): Promise<Record<string, string>> {
 // shares we render a short cover+audio MP4 and point og:video at it. Cached in Cloud Storage.
 const STORAGE_BUCKET = process.env.STORAGE_BUCKET || 'gen-lang-client-0665118474.firebasestorage.app';
 
+// Firebase project id for FCM HTTP v1 (messages:send). Prefer the service-account
+// JSON's project_id; fall back to the storage bucket prefix.
+function fcmProjectId(): string {
+  try {
+    const sa = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}');
+    if (sa.project_id) return sa.project_id as string;
+  } catch { /* ignore */ }
+  return STORAGE_BUCKET.split('.')[0];
+}
+
 async function gcsObjectExists(objectPath: string): Promise<boolean> {
   const token = await getGoogleAccessToken();
   if (!token) return false;
@@ -3469,36 +3479,58 @@ Rules:
 
   // --- Embed & Meta tag Middleware ---
 
-  // Push notification send endpoint — called by the client after creating a Firestore notification
+  // Push notification send endpoint — called by the client after creating a Firestore
+  // notification. Uses FCM HTTP v1 (the legacy fcm/send API was decommissioned by
+  // Google in June 2024). Auth is the same service-account OAuth token used for
+  // Firestore (cloud-platform scope covers firebase.messaging). Sends per-token
+  // (v1 messages:send is single-recipient) — fine for chat/social fan-out sizes.
   app.post('/api/push', express.json(), async (req, res) => {
     const { token, tokens, title, body, link, icon } = req.body || {};
-    const serverKey = process.env.FCM_SERVER_KEY;
-    if (!serverKey) return res.status(503).json({ error: 'FCM not configured — set FCM_SERVER_KEY in environment' });
-
-    const targets: string[] = tokens || (token ? [token] : []);
+    const targets: string[] = (Array.isArray(tokens) ? tokens : []).concat(token ? [token] : []).filter(Boolean);
     if (!targets.length) return res.status(400).json({ error: 'No FCM token provided' });
 
-    const payload = {
-      registration_ids: targets,
-      notification: {
-        title: title || 'Plajah',
-        body: body || '',
-        icon: icon || 'https://plajah.com/icons/icon-192.png',
-        click_action: link || 'https://plajah.com',
-      },
-      data: { link: link || '/' },
-    };
+    const accessToken = await getGoogleAccessToken();
+    if (!accessToken) return res.status(503).json({ error: 'Push not configured — set GOOGLE_SERVICE_ACCOUNT_JSON' });
 
-    try {
-      const fcmRes = await fetch('https://fcm.googleapis.com/fcm/send', {
-        method: 'POST',
-        headers: { 'Authorization': `key=${serverKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      res.json(await fcmRes.json());
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
-    }
+    const projectId = fcmProjectId();
+    const endpoint = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
+    // `link` may be a URL, a path ("/feed"), or an in-app view name ("MESSAGES").
+    // Build a valid click URL for web push (origin for non-paths); pass the raw
+    // value in data.link so the app can route by view name after it opens.
+    const rawLink = String(link || '/');
+    const clickUrl = rawLink.startsWith('http')
+      ? rawLink
+      : rawLink.startsWith('/') ? `https://plajah.com${rawLink}` : 'https://plajah.com/';
+
+    const results = await Promise.all(targets.map(async (t) => {
+      try {
+        const r = await fetch(endpoint, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: {
+              token: t,
+              notification: { title: title || 'Plajah', body: body || '' },
+              webpush: {
+                notification: { icon: icon || 'https://plajah.com/icons/icon-192.png' },
+                fcm_options: { link: clickUrl },
+              },
+              // Native (Capacitor) + custom in-app routing read this.
+              data: { link: rawLink },
+              android: { priority: 'high' },
+            },
+          }),
+        });
+        if (r.ok) return { ok: true };
+        const err = await r.text();
+        // A 404/UNREGISTERED token is stale — signal the caller so it can prune it.
+        return { ok: false, status: r.status, stale: /UNREGISTERED|NOT_FOUND|InvalidRegistration/i.test(err), error: err.slice(0, 200) };
+      } catch (e: any) {
+        return { ok: false, error: e.message };
+      }
+    }));
+
+    res.json({ sent: results.filter(x => x.ok).length, total: targets.length, results });
   });
 
   // ── Philips Hue OAuth ─────────────────────────────────────────────────────
