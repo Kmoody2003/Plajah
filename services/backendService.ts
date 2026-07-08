@@ -3861,6 +3861,33 @@ export const loginWithGoogle = async (loginHint?: string): Promise<User | null> 
 };
 
 export const loginWithTwitter = async (): Promise<string | null> => {
+  if ((window as any).Capacitor?.isNativePlatform?.()) {
+    try {
+      const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+      const res = await FirebaseAuthentication.signInWithTwitter();
+      const credential = TwitterAuthProvider.credential(
+        res.credential?.accessToken as string,
+        (res.credential as any)?.secret as string,
+      );
+      const result = await signInWithCredential(auth, credential);
+      if (result.user) {
+        await syncUserProfile(result.user);
+        const screenName = (res as any)?.additionalUserInfo?.username as string | undefined;
+        if (screenName) {
+          await updateDoc(doc(db, 'users', result.user.uid), { xHandle: screenName });
+          return screenName;
+        }
+      }
+      return null;
+    } catch (error: any) {
+      if (!/cancel/i.test(error?.message || '')) {
+        console.error('Native Twitter login failed:', error);
+        alert(`Twitter sign-in failed: ${error?.message || 'Unknown error'}.`);
+      }
+      return null;
+    }
+  }
+
   const provider = new TwitterAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
@@ -3913,6 +3940,22 @@ export const linkXAccount = async (): Promise<string | null> => {
 };
 
 export const loginWithFacebook = async () => {
+  if ((window as any).Capacitor?.isNativePlatform?.()) {
+    try {
+      const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+      const res = await FirebaseAuthentication.signInWithFacebook();
+      const credential = FacebookAuthProvider.credential(res.credential?.accessToken as string);
+      const result = await signInWithCredential(auth, credential);
+      if (result.user) await syncUserProfile(result.user);
+    } catch (error: any) {
+      if (!/cancel/i.test(error?.message || '')) {
+        console.error('Native Facebook login failed:', error);
+        alert(`Facebook sign-in failed: ${error?.message || 'Unknown error'}.`);
+      }
+    }
+    return;
+  }
+
   const provider = new FacebookAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
@@ -3928,6 +3971,26 @@ export const loginWithFacebook = async () => {
 };
 
 export const loginWithMicrosoft = async () => {
+  if ((window as any).Capacitor?.isNativePlatform?.()) {
+    try {
+      const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+      const res = await FirebaseAuthentication.signInWithMicrosoft();
+      const oauth = new OAuthProvider('microsoft.com');
+      const credential = oauth.credential({
+        idToken: res.credential?.idToken,
+        accessToken: res.credential?.accessToken,
+      });
+      const result = await signInWithCredential(auth, credential);
+      if (result.user) await syncUserProfile(result.user);
+    } catch (error: any) {
+      if (!/cancel/i.test(error?.message || '')) {
+        console.error('Native Microsoft login failed:', error);
+        alert(`Microsoft sign-in failed: ${error?.message || 'Unknown error'}.`);
+      }
+    }
+    return;
+  }
+
   const provider = new OAuthProvider('microsoft.com');
   provider.setCustomParameters({ prompt: 'select_account' });
   try {

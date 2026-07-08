@@ -34,7 +34,7 @@ const config: CapacitorConfig = {
     // returns a credential, which loginWithGoogle() feeds to signInWithCredential().
     FirebaseAuthentication: {
       skipNativeAuth: true,
-      providers: ['google.com'],
+      providers: ['google.com', 'facebook.com', 'twitter.com', 'microsoft.com'],
     },
   },
 
