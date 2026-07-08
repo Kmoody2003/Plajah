@@ -44,7 +44,21 @@ function detect(): PlatformInfo {
     ua.includes('echo') ||
     !!(window as any).Alexa;
 
-  const isTV = isFireTV || isTizen || isRoku || (isAndroid && window.screen.width >= 1920);
+  // Android TV / Google TV — incl. TCL, Sony Bravia, Sharp Aquos, Xiaomi Mi Box,
+  // Chromecast-with-Google-TV, and the Android Studio TV emulator. Their WebView UA
+  // often lacks a clean "TV" token AND CSS screen.width is density-scaled below 1920,
+  // so the old `screen.width >= 1920` check missed them entirely. The strongest
+  // signal is that a leanback device has NO touchscreen (real Android phones/tablets
+  // always report maxTouchPoints > 0), backed up by UA brand/leanback tokens.
+  const isAndroidTV =
+    isAndroid && (
+      /google\s?tv|android\s?tv|smart-?tv|smarttv|leanback|\btv\b|bravia|aquos|\btcl\b|mibox|chromecast|sabrina|adt-3/.test(ua) ||
+      (typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints === 0)
+    );
+
+  const isTV =
+    isFireTV || isTizen || isRoku || isAndroidTV ||
+    (isAndroid && window.screen.width >= 1920);
 
   let type: PlatformType = 'web';
   if (isFireTV) type = 'firetv';
