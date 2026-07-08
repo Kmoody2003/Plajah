@@ -132,10 +132,13 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   // which interrupts video, audio, and games with no warning.
   const updateSW = registerSW({
     onNeedRefresh() {
-      // If the user just arrived (page loaded under 6 seconds ago) AND nothing
+      // If the user just arrived (page loaded under 10 seconds ago) AND nothing
       // is playing yet, silently reload to apply the update — feels like normal
       // page load to the user. Use setTimeout so updateSW is definitely assigned.
-      if (performance.now() < 6000 && !isMediaActive()) {
+      // Window widened from 6s → 10s because we now kick off the update check
+      // immediately on load (see onRegisteredSW), so the new SW is often found a
+      // few seconds in — comfortably inside this window on a cold open.
+      if (performance.now() < 10000 && !isMediaActive()) {
         setTimeout(() => updateSW(true), 0);
         return;
       }
@@ -148,9 +151,16 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
       console.log('[SW] App ready for offline use.');
     },
     onRegisteredSW(_swUrl: string, r: ServiceWorkerRegistration | undefined) {
-      // Browsers only check for a new SW on navigation by default; poll so a deploy
-      // that lands while the tab stays open is noticed (→ the Reload toast) within ~1 min.
-      if (r) setInterval(() => { r.update().catch(() => { /* offline */ }); }, 60_000);
+      // Browsers only check for a new SW on navigation by default. Check once
+      // immediately on load so a returning visitor sitting on a stale cached
+      // bundle picks up the latest deploy right away (→ silent reload if fresh,
+      // else the Reload toast) instead of waiting up to a minute for the poll.
+      // Then keep polling so a deploy that lands while the tab stays open is
+      // noticed within ~1 min.
+      if (r) {
+        r.update().catch(() => { /* offline */ });
+        setInterval(() => { r.update().catch(() => { /* offline */ }); }, 60_000);
+      }
     },
   });
 } else if (import.meta.env.DEV && 'serviceWorker' in navigator) {
