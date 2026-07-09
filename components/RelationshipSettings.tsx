@@ -11,7 +11,7 @@ import PartnerPickerModal from './PartnerPickerModal';
 // offers a shareable invite to bring a partner who isn't on Plajah yet.
 const RelationshipSettings: React.FC<{ me: UserProfile; accent?: string }> = ({ me, accent = '#ff6b6b' }) => {
   const [status, setStatus] = useState<RelationshipStatus>(me.relationshipStatus || 'SINGLE');
-  const [isPublic, setIsPublic] = useState<boolean>(me.relationshipPublic ?? true);
+  const [isPublic, setIsPublic] = useState<boolean>(me.relationshipPublic ?? false); // private by default
   const [partnerUid, setPartnerUid] = useState<string | null>(me.relationshipPartnerUid || null);
   const [partnerName, setPartnerName] = useState<string>(me.relationshipPartnerName || '');
   const [partnerPhoto, setPartnerPhoto] = useState<string>('');
@@ -81,10 +81,13 @@ const RelationshipSettings: React.FC<{ me: UserProfile; accent?: string }> = ({ 
             {RELATIONSHIP_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
-        <label className="flex items-center gap-2.5 cursor-pointer self-end pb-2.5">
-          <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} style={{ accentColor: accent }} />
-          <span className="text-[11px] text-white/60">Show on my public profile</span>
-        </label>
+        <div className="self-end pb-2.5">
+          <label className="flex items-center gap-2.5 cursor-pointer">
+            <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} style={{ accentColor: accent }} />
+            <span className="text-[11px] text-white/60">Show on my public profile</span>
+          </label>
+          <p className="text-[9px] text-white/30 mt-1 leading-relaxed pl-6">Private by default — only you can see it until you turn this on.</p>
+        </div>
       </div>
 
       {/* Partner link */}

@@ -56,7 +56,7 @@ export async function setRelationship(me: UserProfile, opts: SetRelationshipOpts
     relationshipStatus: opts.status,
     relationshipPartnerUid: partnerUid,
     relationshipPartnerName: wantsPartner ? (opts.partnerName || '') : '',
-    relationshipPublic: opts.isPublic ?? me.relationshipPublic ?? true,
+    relationshipPublic: opts.isPublic ?? me.relationshipPublic ?? false, // private by default; owner always sees their own
     relationshipSince: partnerUid ? (me.relationshipSince || Date.now()) : undefined,
   } as Partial<UserProfile>);
 
@@ -84,7 +84,7 @@ export async function setRelationship(me: UserProfile, opts: SetRelationshipOpts
 
 /** Confirm/accept a partner (point back at them). */
 export async function confirmRelationship(me: UserProfile, partnerUid: string, partnerName: string, status: RelationshipStatus = 'PARTNERED'): Promise<void> {
-  await setRelationship(me, { status: isPartneredStatus(me.relationshipStatus) ? me.relationshipStatus! : status, partnerUid, partnerName, isPublic: me.relationshipPublic ?? true });
+  await setRelationship(me, { status: isPartneredStatus(me.relationshipStatus) ? me.relationshipStatus! : status, partnerUid, partnerName, isPublic: me.relationshipPublic ?? false });
 }
 
 /** Remove my partner link and go Single. Notifies the ex-partner (best-effort). */

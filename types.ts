@@ -1274,7 +1274,7 @@ export interface UserProfile {
   relationshipStatus?: RelationshipStatus;
   relationshipPartnerUid?: string | null; // the linked spouse/partner
   relationshipPartnerName?: string;        // cached display name for the partner
-  relationshipPublic?: boolean;            // show the relationship on the public profile
+  relationshipPublic?: boolean;            // show on the public profile (default: private — owner always sees their own)
   relationshipSince?: number;              // unix ms — when the link was confirmed
   nibblesTutorialSeen?: boolean;           // first-run Nibbles walkthrough shown
   // Smart Guide — contextual feature discovery assistant

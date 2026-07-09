@@ -46,6 +46,7 @@ import {
   Shuffle,
   Bookmark,
   Megaphone,
+  Lock,
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -1100,8 +1101,8 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               </p>
             </div>
 
-            {/* Relationship status (public) */}
-            {profile.relationshipPublic && isPartneredStatus(profile.relationshipStatus) && (
+            {/* Relationship status — private by default; the owner always sees their own. */}
+            {(profile.relationshipPublic || isOwnProfile) && isPartneredStatus(profile.relationshipStatus) && (
               <div className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-rose-300/80">
                 <Heart size={12} fill="currentColor" />
                 <span>
@@ -1110,6 +1111,9 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     <> with <button onClick={() => onVisitUser(profile.relationshipPartnerUid!)} className="underline hover:text-rose-200">{profile.relationshipPartnerName || 'their partner'}</button></>
                   ) : profile.relationshipPartnerName ? ` with ${profile.relationshipPartnerName}` : ''}
                 </span>
+                {isOwnProfile && !profile.relationshipPublic && (
+                  <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-white/30" title="Only you can see your relationship status. Turn it on in settings to make it public."><Lock size={9} /> Only you</span>
+                )}
               </div>
             )}
 
