@@ -4338,6 +4338,42 @@ export const getNotificationPrefs = async (uid: string): Promise<Record<string, 
   }
 };
 
+/**
+ * Sends a test push to the signed-in user's own devices (every registered token).
+ * Bypasses preference gating so a test always fires. Returns how many were accepted
+ * by FCM and how many devices are registered — sent:0/total:0 means no device has
+ * registered a token yet (install the app + allow notifications on that device first).
+ */
+export const sendTestPush = async (): Promise<{ sent: number; total: number }> => {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return { sent: 0, total: 0 };
+  try {
+    const snap = await getDoc(doc(db, 'users', uid));
+    const data = snap.data() || {};
+    const tokens = Array.from(new Set<string>(
+      [...((data.fcmTokens as string[]) || []), data.fcmToken as string].filter(Boolean)
+    ));
+    if (!tokens.length) return { sent: 0, total: 0 };
+    const res = await fetch('/api/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tokens,
+        title: 'Plajah',
+        body: '🔔 Test notification — your push notifications are working!',
+        link: 'FEED',
+        channelId: 'system',
+        type: 'SYSTEM',
+        senderName: 'Plajah',
+      }),
+    });
+    const json = await res.json().catch(() => null) as { sent?: number } | null;
+    return { sent: json?.sent ?? 0, total: tokens.length };
+  } catch {
+    return { sent: 0, total: 0 };
+  }
+};
+
 /** Persists a user's notification preferences (master + per-category push toggles). */
 export const updateNotificationPrefs = async (uid: string, prefs: Record<string, boolean>): Promise<void> => {
   try {

@@ -5,8 +5,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { X, MessageCircle, Heart, Sparkles, Bell, BellOff } from 'lucide-react';
-import { auth, getNotificationPrefs, updateNotificationPrefs } from '../services/backendService';
+import { X, MessageCircle, Heart, Sparkles, Bell, BellOff, Send, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { auth, getNotificationPrefs, updateNotificationPrefs, sendTestPush } from '../services/backendService';
 
 interface NotificationSettingsProps {
   onClose: () => void;
@@ -35,6 +35,28 @@ const Toggle: React.FC<{ on: boolean; disabled?: boolean; onChange: () => void }
 const NotificationSettings: React.FC<NotificationSettingsProps> = ({ onClose }) => {
   const [prefs, setPrefs] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
+  const [testState, setTestState] = useState<'idle' | 'sending' | 'sent' | 'none' | 'error'>('idle');
+  const [testMsg, setTestMsg] = useState('');
+
+  const runTest = async () => {
+    setTestState('sending'); setTestMsg('');
+    try {
+      const { sent, total } = await sendTestPush();
+      if (total === 0) {
+        setTestState('none');
+        setTestMsg('No devices registered yet. Open Plajah on the device you want to test and allow notifications, then try again.');
+      } else if (sent > 0) {
+        setTestState('sent');
+        setTestMsg(`Sent to ${sent} device${sent === 1 ? '' : 's'}. If the app is open you’ll see a toast; background it to see the notification in your tray.`);
+      } else {
+        setTestState('error');
+        setTestMsg('Server accepted no devices — the push service may not be configured (GOOGLE_SERVICE_ACCOUNT_JSON) or your token expired.');
+      }
+    } catch {
+      setTestState('error');
+      setTestMsg('Could not reach the push service. Check your connection and try again.');
+    }
+  };
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
@@ -91,6 +113,26 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ onClose }) 
         ))}
 
         {loading && <p className="text-center text-[9px] font-black uppercase tracking-widest text-white/20 py-4">Loading…</p>}
+
+        {/* Send a test push to all of the current user's own devices */}
+        <div className="mt-2 pt-3 border-t border-white/5">
+          <button
+            onClick={runTest}
+            disabled={testState === 'sending'}
+            className="w-full flex items-center justify-center gap-2 p-3.5 rounded-2xl bg-small-orange/15 hover:bg-small-orange/25 border border-small-orange/30 text-small-orange text-[11px] font-black uppercase tracking-widest transition-colors tap disabled:opacity-60"
+          >
+            {testState === 'sending'
+              ? <><Loader2 size={14} className="animate-spin" /> Sending…</>
+              : <><Send size={14} /> Send test notification</>}
+          </button>
+          {testMsg && (
+            <div className={`mt-3 flex items-start gap-2 px-1 text-[10px] leading-relaxed ${testState === 'sent' ? 'text-green-400' : testState === 'none' ? 'text-white/50' : 'text-red-400'}`}>
+              {testState === 'sent' ? <CheckCircle2 size={13} className="shrink-0 mt-0.5" /> : <AlertCircle size={13} className="shrink-0 mt-0.5" />}
+              <span>{testMsg}</span>
+            </div>
+          )}
+        </div>
+
         <p className="text-center text-[9px] text-white/25 leading-relaxed px-4 pt-2">
           Muted categories still appear in your Notification Hub — you just won’t get a push for them.
         </p>
