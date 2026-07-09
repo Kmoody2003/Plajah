@@ -46,6 +46,7 @@ import {
 } from 'firebase/auth';
 import { db, storage, auth as firebaseAuth } from './firebase';
 import { saveResumable, updateResumableProgress, clearResumable } from './resumableUpload';
+import { registerTransfer, updateTransfer, removeTransfer } from './activeUpload';
 export const auth = firebaseAuth;
 export { db };
 
@@ -6321,9 +6322,15 @@ export const uploadVideoFileMux = async (
       attempts: 6,        // retry each chunk up to 6× before failing
       delayBeforeAttempt: 1, // seconds; UpChunk backs off between retries
     });
-    upload.on('progress', (e: any) => { const p = Math.round(e.detail); if (onProgress) onProgress(p); updateResumableProgress(p); });
-    upload.on('success', () => resolve());
-    upload.on('error', (e: any) => reject(new Error(e?.detail?.message || 'Mux upload failed')));
+    // Expose live progress + Pause/Resume to the publish tray.
+    registerTransfer({
+      id: uploadId, fileName: file.name, progress: 0, paused: false,
+      pause: () => { upload.pause(); updateTransfer(uploadId, { paused: true }); },
+      resume: () => { upload.resume(); updateTransfer(uploadId, { paused: false }); },
+    });
+    upload.on('progress', (e: any) => { const p = Math.round(e.detail); if (onProgress) onProgress(p); updateResumableProgress(p); updateTransfer(uploadId, { progress: p }); });
+    upload.on('success', () => { removeTransfer(uploadId); resolve(); });
+    upload.on('error', (e: any) => { removeTransfer(uploadId); reject(new Error(e?.detail?.message || 'Mux upload failed')); });
   });
   clearResumable();
   return uploadId;

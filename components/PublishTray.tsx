@@ -3,18 +3,20 @@
 // with full status + retry. Collapses to a compact chip. Multiple uploads run at once and each has
 // its own row here.
 
-import React, { useState } from 'react';
-import { UploadCloud, ChevronDown, ChevronUp, X, RotateCcw, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import React, { useState, useSyncExternalStore } from 'react';
+import { UploadCloud, ChevronDown, ChevronUp, X, RotateCcw, CheckCircle2, AlertCircle, Loader2, Play, Pause } from 'lucide-react';
 import { usePublishQueue } from '../contexts/PublishQueueContext';
+import { subscribeTransfers, getTransfers } from '../services/activeUpload';
 
 const T = { panel: '#12121a', border: '#23232f', ink: '#fff', muted: '#9a9aa6', orange: '#FF8C00', green: '#5fd17f', red: '#e2473b', font: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" };
 
 const PublishTray: React.FC = () => {
   const { jobs, remove, clearFinished, retry } = usePublishQueue();
+  const transfers = useSyncExternalStore(subscribeTransfers, getTransfers, getTransfers);
   const [min, setMin] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
 
-  if (!jobs.length) return null;
+  if (!jobs.length && !transfers.length) return null;
   const running = jobs.filter(j => j.status === 'RUNNING').length;
   const done = jobs.filter(j => j.status === 'DONE').length;
 
@@ -36,6 +38,24 @@ const PublishTray: React.FC = () => {
 
         {!min && (
           <div style={{ maxHeight: '52vh', overflowY: 'auto', padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {/* Live byte transfers (film uploads) — pause / resume the raw upload */}
+            {transfers.map(t => (
+              <div key={t.id} style={{ background: 'rgba(255,140,0,0.08)', border: `1px solid ${T.orange}44`, borderRadius: 12, padding: '9px 11px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <UploadCloud size={12} style={{ color: T.orange }} />
+                  <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: T.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.fileName}</span>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: T.orange, fontVariantNumeric: 'tabular-nums' }}>{t.progress}%</span>
+                  <button onClick={() => (t.paused ? t.resume() : t.pause())} title={t.paused ? 'Resume upload' : 'Pause upload'}
+                    style={{ background: 'transparent', border: 'none', color: T.orange, cursor: 'pointer', display: 'inline-flex', padding: 2 }}>
+                    {t.paused ? <Play size={14} /> : <Pause size={14} />}
+                  </button>
+                </div>
+                <div style={{ marginTop: 7, height: 3, background: 'rgba(255,255,255,0.1)', borderRadius: 9, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${t.progress}%`, background: T.orange, transition: 'width 300ms' }} />
+                </div>
+                {t.paused && <div style={{ fontSize: 9, color: T.muted, marginTop: 5, textTransform: 'uppercase', fontWeight: 800, letterSpacing: 1 }}>Paused — tap ▶ to resume</div>}
+              </div>
+            ))}
             {jobs.map(j => {
               const open = openId === j.id;
               const color = j.status === 'ERROR' ? T.red : j.status === 'DONE' ? T.green : T.orange;
