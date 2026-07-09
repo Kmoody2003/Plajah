@@ -3014,8 +3014,11 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
             description: cloudAlbum.description,
             artist: cloudAlbum.artist,
             genre: cloudAlbum.genre,
+            // Reliable Taleo marker so a movie shows in Taleo regardless of its genre
+            // (Taleo's genre-only filter missed movies tagged with a content genre).
+            subType: 'MOVIE',
             timestamp: Date.now()
-          });
+          } as any);
         }
       }
 
@@ -6571,6 +6574,10 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
     ...(muxUploadId ? { muxUploadId } : {}),
     // Saved live-stream replays surface in Reello's "Past Live Streams".
     ...(video.isLiveRecording ? { isLiveRecording: true } : {}),
+    // Reello UGC marker — REQUIRED for the video to show in the Reello feed
+    // (RelloView filters by isRello === true). Was being dropped here.
+    ...(video.isRello ? { isRello: true } : {}),
+    ...(Array.isArray(video.tags) && video.tags.length ? { tags: video.tags } : {}),
     ...(typeof video.duration === 'number' ? { duration: video.duration } : {}),
   } as any;
   

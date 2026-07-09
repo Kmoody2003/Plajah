@@ -1035,7 +1035,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
         fetchAllVideos(),
       ]);
 
-      const cinemaVideos = allPlatformVideos.filter(v => v.genre && TALEO_GENRES.includes(v.genre));
+      const cinemaVideos = allPlatformVideos.filter(v => (v.genre && TALEO_GENRES.includes(v.genre)) || (v as any).subType === 'MOVIE' || (v as any).subType === 'TV_SERIES');
       setPlatformVideos(cinemaVideos);
       setLocalContent(all.filter(a => a.type === 'VIDEO'));
       setUniverses(unis);

@@ -34,7 +34,12 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
     (async () => {
       const all = await fetchAllVideos();
       if (cancelled) return;
-      const recentRello = all.filter(v => v.isRello === true);
+      // A historical bug dropped the isRello flag on upload, so many UGC videos were saved
+      // without it and became invisible here. Recover them: treat a flagless public video as
+      // Reello UGC unless it's clearly a Taleo cinema item (movie/TV genre) or a live replay.
+      const CINEMA_GENRES = ['Movie', 'Short Film', 'TV Series', 'Short', 'Teaser', 'Trailer', 'Feature Film'];
+      const isRelloVideo = (v: Video) => v.isRello === true || (v.isRello == null && !v.isLiveRecording && !(v.genre && CINEMA_GENRES.includes(v.genre)));
+      const recentRello = all.filter(isRelloVideo);
       let relloVideos = recentRello;
 
       // Personalize the initial order: blend interest-scored + followed-creator
@@ -48,7 +53,7 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
             fetchFollowedVideos(uid).catch(() => [] as Video[]),
           ]);
           if (cancelled) return;
-          const onlyRello = (vs: Video[]) => vs.filter(v => v.isRello === true);
+          const onlyRello = (vs: Video[]) => vs.filter(isRelloVideo);
           const blended = blendRelloFeed({
             interestVideos: onlyRello(interested),
             followedVideos: onlyRello(followed),
