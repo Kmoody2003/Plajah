@@ -46,7 +46,7 @@ const WcAnthemBanner: React.FC<{ onOpenPlaylist: () => void }> = ({ onOpenPlayli
     <motion.div
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mt-4 relative overflow-hidden rounded-2xl px-5 py-4 flex items-center gap-4 cursor-pointer group"
+      className="mt-4 relative overflow-hidden rounded-2xl px-4 py-2.5 sm:px-5 sm:py-4 flex items-center gap-3 sm:gap-4 cursor-pointer group"
       style={{ background: 'linear-gradient(135deg, #001A35 0%, #003366 50%, #001A35 100%)', border: '1px solid rgba(255,140,0,0.3)' }}
       onClick={onOpenPlaylist}
     >
@@ -56,16 +56,19 @@ const WcAnthemBanner: React.FC<{ onOpenPlaylist: () => void }> = ({ onOpenPlayli
           {WC26_TEAMS.slice(0, 16).map(t => <span key={t.id}>{t.flag}</span>)}
         </div>
       </div>
-      <div className="w-10 h-10 rounded-xl bg-[#FF8C00]/15 flex items-center justify-center shrink-0 text-xl">🎵</div>
+      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-[#FF8C00]/15 flex items-center justify-center shrink-0 text-base sm:text-xl">🎵</div>
       <div className="flex-1 min-w-0">
-        <p className="text-[7px] font-black uppercase tracking-[0.4em] text-[#FF8C00] mb-0.5">World Cup 2026</p>
-        <p className="text-xs font-black text-white leading-snug">
+        {/* Phone: a single tight line */}
+        <p className="sm:hidden text-xs font-black text-white truncate">Nations of the World Cup Anthems</p>
+        {/* Tablet+: the richer copy */}
+        <p className="hidden sm:block text-[7px] font-black uppercase tracking-[0.4em] text-[#FF8C00] mb-0.5">World Cup 2026</p>
+        <p className="hidden sm:block text-xs font-black text-white leading-snug">
           Celebrate the Countries of the World Cup — in music with our World Cup Playlist of National Anthems
         </p>
       </div>
       <button
         onClick={onOpenPlaylist}
-        className="shrink-0 px-4 py-2 bg-[#FF8C00] text-black rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-[#FFA020] transition-colors whitespace-nowrap"
+        className="shrink-0 px-3 py-1.5 sm:px-4 sm:py-2 bg-[#FF8C00] text-black rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-[#FFA020] transition-colors whitespace-nowrap"
       >
         Play All
       </button>
