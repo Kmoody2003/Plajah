@@ -1216,7 +1216,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
 
             {activeTab === 'NOTIFY' && (
               <motion.div key="notify" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-5xl">
-                <AdminPushBroadcast />
+                <AdminPushBroadcast users={users} />
               </motion.div>
             )}
 

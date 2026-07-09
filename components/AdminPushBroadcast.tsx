@@ -3,16 +3,45 @@
 // Firebase ID token + admin role, gathers tokens, and fans out via FCM). Deep-link is
 // an in-app view name (e.g. FEED, MESSAGES) or a path/URL, same routing as any push.
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Send, Loader2, CheckCircle2, AlertTriangle, Users, User as UserIcon, Radio } from 'lucide-react';
+import { Send, Loader2, CheckCircle2, AlertTriangle, Users, User as UserIcon, Radio, X } from 'lucide-react';
 import { sendAdminBroadcast } from '../services/backendService';
+import { UserProfile } from '../types';
 
 const LINK_PRESETS = ['FEED', 'MESSAGES', 'LIVE_HUB', 'CHORA', 'REELLO', 'ACADEMIA', '/'];
 
-const AdminPushBroadcast: React.FC = () => {
+interface AdminPushBroadcastProps {
+  users?: UserProfile[];
+}
+
+const AdminPushBroadcast: React.FC<AdminPushBroadcastProps> = ({ users = [] }) => {
   const [mode, setMode] = useState<'user' | 'all'>('user');
   const [uid, setUid] = useState('');
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<UserProfile | null>(null);
+  const [showList, setShowList] = useState(false);
+
+  // Typeahead: match by display name, email, or exact uid. Cap the dropdown.
+  const matches = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    return users
+      .filter(u => (u.displayName || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q) || (u.uid || '').toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [search, users]);
+
+  // Resolved target uid: the picked user, or a pasted raw UID (Firebase UIDs are ~28 chars).
+  const effectiveUid = selected?.uid || (search.trim().length >= 20 ? search.trim() : '');
+
+  const pick = (u: UserProfile) => {
+    setSelected(u);
+    setUid(u.uid);
+    setSearch(u.displayName || u.email || u.uid);
+    setShowList(false);
+    setResult(null);
+  };
+  const clearPick = () => { setSelected(null); setUid(''); setSearch(''); setShowList(false); };
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [link, setLink] = useState('FEED');
@@ -20,13 +49,13 @@ const AdminPushBroadcast: React.FC = () => {
   const [confirmAll, setConfirmAll] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
-  const canSend = title.trim() && body.trim() && (mode === 'all' || uid.trim());
+  const canSend = title.trim() && body.trim() && (mode === 'all' || !!effectiveUid);
 
   const send = async () => {
     if (!canSend) return;
     if (mode === 'all' && !confirmAll) { setConfirmAll(true); return; }
     setSending(true); setResult(null); setConfirmAll(false);
-    const res = await sendAdminBroadcast({ mode, uid: uid.trim() || undefined, title: title.trim(), body: body.trim(), link: link.trim() || 'FEED' });
+    const res = await sendAdminBroadcast({ mode, uid: effectiveUid || undefined, title: title.trim(), body: body.trim(), link: link.trim() || 'FEED' });
     setSending(false);
     if ('error' in res) {
       setResult({ ok: false, msg: res.error });
@@ -69,9 +98,49 @@ const AdminPushBroadcast: React.FC = () => {
 
       <div className="space-y-4">
         {mode === 'user' && (
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2 block">Recipient UID</label>
-            <input value={uid} onChange={e => { setUid(e.target.value); setResult(null); }} placeholder="Firebase user UID" className={field} />
+          <div className="relative">
+            <label className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2 block">Recipient — search name, email or paste UID</label>
+            <div className="relative">
+              <input
+                value={search}
+                onChange={e => { setSearch(e.target.value); setSelected(null); setUid(''); setShowList(true); setResult(null); }}
+                onFocus={() => setShowList(true)}
+                placeholder="Start typing a name or email…"
+                className={field}
+              />
+              {(selected || search) && (
+                <button onClick={clearPick} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white"><X size={15} /></button>
+              )}
+            </div>
+
+            {/* Live typeahead dropdown */}
+            {showList && matches.length > 0 && (
+              <div className="absolute z-30 mt-2 w-full max-h-64 overflow-y-auto custom-scrollbar bg-[#12121a] border border-white/10 rounded-2xl shadow-2xl">
+                {matches.map(u => (
+                  <button
+                    key={u.uid}
+                    onClick={() => pick(u)}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-left transition-colors"
+                  >
+                    <img src={u.photoURL || `https://picsum.photos/seed/${u.uid}/60/60`} alt="" referrerPolicy="no-referrer" className="w-8 h-8 rounded-full object-cover border border-white/10 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-white truncate">{u.displayName || 'Unnamed'}</p>
+                      <p className="text-[10px] text-white/40 truncate">{u.email || u.uid}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            {showList && search.trim() && matches.length === 0 && search.trim().length < 20 && (
+              <p className="mt-2 text-[10px] text-white/30 px-1">No match. Keep typing, or paste the full Firebase UID.</p>
+            )}
+
+            {/* Resolved target */}
+            {selected ? (
+              <p className="mt-2 text-[10px] text-green-400 px-1 flex items-center gap-1"><CheckCircle2 size={11} /> {selected.displayName || selected.email} · <span className="text-white/40 font-mono">{selected.uid.slice(0, 10)}…</span></p>
+            ) : effectiveUid ? (
+              <p className="mt-2 text-[10px] text-green-400/80 px-1 font-mono">Using raw UID: {effectiveUid.slice(0, 14)}…</p>
+            ) : null}
           </div>
         )}
 
