@@ -89,6 +89,9 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     }
     return t;
   });
+  // Set when a camera-raw / image-sequence file (DPX/R3D/BRAW/EXR/ARRIRAW) is
+  // chosen — Mux can't stream those, so we warn the filmmaker to export a master.
+  const [rawFormatNote, setRawFormatNote] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState(initialAlbum?.coverImage || 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=1000&auto=format&fit=crop');
   const [coverFile, setCoverFile] = useState<File | undefined>(undefined);
   const [slideshow, setSlideshow] = useState<string[]>(initialAlbum?.slideshow || []);
@@ -424,6 +427,12 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         });
       }
       setTracks(prev => [...prev, ...newTracks]);
+      // Warn on camera-raw / image-sequence formats Mux can't stream.
+      const RAW_EXTS = new Set(['dpx', 'r3d', 'braw', 'exr', 'ari', 'arri', 'raw']);
+      const raw = fileArray.filter(f => RAW_EXTS.has((f.name.toLowerCase().split('.').pop() ?? '')));
+      if (raw.length) {
+        setRawFormatNote(`${raw.length === 1 ? raw[0].name : `${raw.length} files`} looks like a camera-raw / image-sequence format (DPX/R3D/BRAW/EXR). Mux can't stream those — it'll upload and stay under your account, but export a ProRes, DNxHD, or H.264 master (MOV/MP4/MXF) for playback.`);
+      }
     }
   };
 
@@ -1186,6 +1195,16 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('plajah:open-podcast-studio'))} className="shrink-0 flex items-center gap-2 px-6 py-3 bg-small-orange text-black font-black text-[10px] uppercase tracking-widest rounded-full hover:scale-105 transition-all">
                 <Mic2 size={14} /> Produce
               </button>
+            </div>
+          )}
+          {rawFormatNote && (
+            <div className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+              <span className="text-amber-300 text-sm shrink-0">⚠️</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-black uppercase tracking-widest text-amber-300 mb-1">Camera-raw format</p>
+                <p className="text-[11px] text-white/70 leading-relaxed">{rawFormatNote}</p>
+              </div>
+              <button onClick={() => setRawFormatNote(null)} className="text-white/30 hover:text-white shrink-0"><X size={14} /></button>
             </div>
           )}
           <div className="relative group">

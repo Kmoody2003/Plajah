@@ -104,6 +104,7 @@ import ExperiencePicker from './components/ExperiencePicker';
 import GlobalPlayer from './components/GlobalPlayer';
 import TVNavigationLayer from './components/TVNavigationLayer';
 import TooltipSuppressor from './components/TooltipSuppressor';
+import ResumeUploadPrompt from './components/ResumeUploadPrompt';
 import SanctuaryDemoView from './components/sanctuary/SanctuaryDemoView';
 import StoreDemoView from './components/StoreDemoView';
 import { DEMO_SANCTUARY_ID, DEMO_STORE_ID, DEMO_STORE_PRODUCTS } from './data/demoShowcase';
@@ -1918,6 +1919,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <SpatialProvider initialValue={userProfile?.uiSettings?.isSpatialModeEnabled}>
         <TVNavigationLayer />
         <TooltipSuppressor />
+        <ResumeUploadPrompt />
         <Suspense fallback={
           <div className="fixed inset-0 flex items-center justify-center bg-black z-[200]">
             <div className="flex flex-col items-center gap-4">

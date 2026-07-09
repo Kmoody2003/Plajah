@@ -45,6 +45,7 @@ import {
   User
 } from 'firebase/auth';
 import { db, storage, auth as firebaseAuth } from './firebase';
+import { saveResumable, updateResumableProgress, clearResumable } from './resumableUpload';
 export const auth = firebaseAuth;
 export { db };
 
@@ -6299,8 +6300,18 @@ export const seedMockUsers = async () => {
 export const uploadVideoFileMux = async (
   file: File,
   onProgress?: (p: number) => void,
+  existing?: { id: string; url: string },   // pass to RESUME an interrupted upload
 ): Promise<string> => {
-  const { id: uploadId, url: uploadUrl } = await createMuxDirectUpload();
+  const { id: uploadId, url: uploadUrl } = existing ?? await createMuxDirectUpload();
+  // Persist so a tab close / crash / network drop mid-upload can be resumed. The
+  // Mux url is a resumable GCS endpoint, so re-running UpChunk against it continues
+  // from the last byte instead of restarting.
+  saveResumable({
+    uploadId, uploadUrl,
+    fileName: file.name, fileSize: file.size,
+    title: file.name.replace(/\.[^.]+$/, ''),
+    createdAt: Date.now(), progress: 0,
+  });
   const UpChunk = await import('@mux/upchunk');
   await new Promise<void>((resolve, reject) => {
     const upload = UpChunk.createUpload({
@@ -6310,11 +6321,40 @@ export const uploadVideoFileMux = async (
       attempts: 6,        // retry each chunk up to 6× before failing
       delayBeforeAttempt: 1, // seconds; UpChunk backs off between retries
     });
-    upload.on('progress', (e: any) => { if (onProgress) onProgress(Math.round(e.detail)); });
+    upload.on('progress', (e: any) => { const p = Math.round(e.detail); if (onProgress) onProgress(p); updateResumableProgress(p); });
     upload.on('success', () => resolve());
     upload.on('error', (e: any) => reject(new Error(e?.detail?.message || 'Mux upload failed')));
   });
+  clearResumable();
   return uploadId;
+};
+
+// Resume an interrupted film upload (from the persisted resumable entry + the
+// re-selected file). Finishes the Mux upload to the SAME url, then creates the
+// video doc owned by the current account and starts Mux transcode polling.
+export const resumeVideoUpload = async (
+  entry: { uploadId: string; uploadUrl: string; title: string },
+  file: File,
+  onProgress?: (p: number) => void,
+): Promise<string | null> => {
+  const uploaderUid = auth.currentUser?.uid;
+  if (!uploaderUid) throw new Error('Sign in to resume your upload.');
+  await uploadVideoFileMux(file, onProgress, { id: entry.uploadId, url: entry.uploadUrl });
+  const id = `vid_${Date.now()}`;
+  const newVideo = removeUndefined({
+    id,
+    ownerId: uploaderUid,
+    title: entry.title || 'Untitled Video',
+    url: '',
+    muxUploadId: entry.uploadId,
+    isPrivate: true,   // resumed uploads land as a private draft the owner can publish
+    timestamp: Date.now(),
+  });
+  await setDoc(doc(db, 'videos', id), newVideo as any);
+  pollMuxUploadUntilReady(entry.uploadId, async (playbackId, assetId) => {
+    await updateDoc(doc(db, 'videos', id), { muxPlaybackId: playbackId, muxAssetId: assetId, muxUploadId: null }).catch(() => {});
+  }, 450, 4000);
+  return id;
 };
 
 export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number) => void): Promise<Video> => {
