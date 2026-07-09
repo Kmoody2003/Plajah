@@ -1083,8 +1083,6 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           WebkitBackdropFilter: 'blur(24px)',
           borderBottom: '1px solid rgba(255,255,255,0.055)',
         }}>
-          {/* Subtle orange→purple tint on the glass */}
-          <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(105deg, rgba(255,140,0,0.045) 0%, rgba(139,92,246,0.045) 100%)' }} />
           {/* Bottom separator with colour hint */}
           <div className="absolute bottom-0 left-0 right-0 h-px pointer-events-none" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,140,0,0.18) 30%, rgba(139,92,246,0.18) 70%, transparent 100%)' }} />
 
