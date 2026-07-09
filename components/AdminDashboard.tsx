@@ -10,6 +10,7 @@ import {
   BarChart3,
   FolderTree,
   Megaphone,
+  Bell,
   Settings,
   Search,
   ChevronRight,
@@ -99,6 +100,7 @@ import AdminSiteHealth from './AdminSiteHealth';
 import AdminAnalyticsDashboard from './AdminAnalyticsDashboard';
 import AdminUserHealth from './AdminUserHealth';
 import AdminSportsAgentsPanel from './AdminSportsAgentsPanel';
+import AdminPushBroadcast from './AdminPushBroadcast';
 
 interface AdminDashboardProps {
   onBack: () => void;
@@ -107,7 +109,7 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, currentUser }) => {
-  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS'>('STATS');
+  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS' | 'NOTIFY'>('STATS');
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettingsConfig | null>(null);
   const [contentLicensingOn, setContentLicensingOn] = useState(false);
@@ -521,6 +523,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
             { id: 'ANALYTICS', label: 'Analytics', icon: BarChart3 },
             { id: 'SITE_HEALTH', label: 'Site Health', icon: Activity },
             { id: 'USER_HEALTH', label: 'User Health', icon: Activity },
+            { id: 'NOTIFY', label: 'Push Broadcast', icon: Bell },
             { id: 'ERRORS', label: 'Errors', icon: AlertTriangle },
             { id: 'STATS', label: 'Stats (Legacy)', icon: Database },
             { id: 'SPORTS_AGENTS', label: 'Sports Agents', icon: Trophy },
@@ -1208,6 +1211,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
             {activeTab === 'USER_HEALTH' && (
               <motion.div key="userHealth" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-5xl">
                 <AdminUserHealth />
+              </motion.div>
+            )}
+
+            {activeTab === 'NOTIFY' && (
+              <motion.div key="notify" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-5xl">
+                <AdminPushBroadcast />
               </motion.div>
             )}
 

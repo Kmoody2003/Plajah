@@ -296,12 +296,19 @@ const fetchFirebaseDoc = async (collection: string, id: string) => {
   } catch(e) { return null; }
 };
 
-// Decode a Firestore REST document's typed `fields` into plain JSON.
+// Decode a Firestore REST document's typed `fields` into plain JSON. Scalars + arrays
+// of scalars (e.g. fcmTokens) are decoded; nested maps are left undefined (not needed here).
+const decodeFirestoreScalar = (v: any = {}): any =>
+  v.stringValue ?? (v.integerValue !== undefined ? Number(v.integerValue) : (v.doubleValue ?? (v.booleanValue !== undefined ? v.booleanValue : undefined)));
 const decodeFirestoreFields = (f: any = {}): any => {
   const out: any = {};
   for (const k in f) {
     const v = f[k] || {};
-    out[k] = v.stringValue ?? (v.integerValue !== undefined ? Number(v.integerValue) : (v.doubleValue ?? (v.booleanValue !== undefined ? v.booleanValue : undefined)));
+    if (v.arrayValue !== undefined) {
+      out[k] = (v.arrayValue.values || []).map(decodeFirestoreScalar).filter((x: any) => x !== undefined);
+    } else {
+      out[k] = decodeFirestoreScalar(v);
+    }
   }
   return out;
 };
@@ -3486,67 +3493,110 @@ Rules:
   // Google in June 2024). Auth is the same service-account OAuth token used for
   // Firestore (cloud-platform scope covers firebase.messaging). Sends per-token
   // (v1 messages:send is single-recipient) — fine for chat/social fan-out sizes.
+  // Fan one notification out to many FCM tokens (v1 messages:send is single-recipient).
+  // Sent in chunks so a large broadcast doesn't open thousands of sockets at once.
+  // Returns per-token results (index-aligned) so callers can prune UNREGISTERED tokens.
+  interface FcmOpts { title?: string; body?: string; link?: string; icon?: string; channelId?: string; data?: Record<string, string>; }
+  async function sendFcmMulticast(tokens: string[], opts: FcmOpts) {
+    const accessToken = await getGoogleAccessToken();
+    if (!accessToken) return { configured: false, sent: 0, total: tokens.length, results: tokens.map(() => ({ ok: false, error: 'not_configured' })) };
+    const projectId = fcmProjectId();
+    const endpoint = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
+    // `link` may be a URL, a path ("/feed"), or an in-app view name ("MESSAGES").
+    const rawLink = String(opts.link || '/');
+    const clickUrl = rawLink.startsWith('http')
+      ? rawLink
+      : rawLink.startsWith('/') ? `https://plajah.com${rawLink}` : 'https://plajah.com/';
+    // FCM data values must all be strings — carry what a native tap needs to deep-link.
+    const data: Record<string, string> = { link: rawLink, ...(opts.data || {}) };
+    const androidBlock: any = { priority: 'high' };
+    if (opts.channelId) androidBlock.notification = { channel_id: String(opts.channelId) };
+
+    const results: Array<{ ok: boolean; status?: number; stale?: boolean; error?: string }> = [];
+    const CHUNK = 200;
+    for (let i = 0; i < tokens.length; i += CHUNK) {
+      const slice = tokens.slice(i, i + CHUNK);
+      const r = await Promise.all(slice.map(async (t) => {
+        try {
+          const resp = await fetch(endpoint, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: {
+                token: t,
+                notification: { title: opts.title || 'Plajah', body: opts.body || '' },
+                webpush: {
+                  notification: { icon: opts.icon || 'https://plajah.com/icons/icon-192.png' },
+                  fcm_options: { link: clickUrl },
+                },
+                data,
+                android: androidBlock,
+              },
+            }),
+          });
+          if (resp.ok) return { ok: true };
+          const err = await resp.text();
+          return { ok: false, status: resp.status, stale: /UNREGISTERED|NOT_FOUND|InvalidRegistration/i.test(err), error: err.slice(0, 200) };
+        } catch (e: any) {
+          return { ok: false, error: e.message };
+        }
+      }));
+      results.push(...r);
+    }
+    return { configured: true, sent: results.filter(x => x.ok).length, total: tokens.length, results };
+  }
+
   app.post('/api/push', express.json(), async (req, res) => {
     const { token, tokens, title, body, link, icon, channelId, targetId, type, senderId, senderName, senderPhoto } = req.body || {};
     const targets: string[] = (Array.isArray(tokens) ? tokens : []).concat(token ? [token] : []).filter(Boolean);
     if (!targets.length) return res.status(400).json({ error: 'No FCM token provided' });
 
-    const accessToken = await getGoogleAccessToken();
-    if (!accessToken) return res.status(503).json({ error: 'Push not configured — set GOOGLE_SERVICE_ACCOUNT_JSON' });
-
-    const projectId = fcmProjectId();
-    const endpoint = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
-    // `link` may be a URL, a path ("/feed"), or an in-app view name ("MESSAGES").
-    // Build a valid click URL for web push (origin for non-paths); pass the raw
-    // value in data.link so the app can route by view name after it opens.
-    const rawLink = String(link || '/');
-    const clickUrl = rawLink.startsWith('http')
-      ? rawLink
-      : rawLink.startsWith('/') ? `https://plajah.com${rawLink}` : 'https://plajah.com/';
-
-    // FCM data values must all be strings — carry everything a native tap needs to
-    // deep-link (link + targetId + type + sender) exactly like an in-app notification tap.
-    const data: Record<string, string> = { link: rawLink };
+    const data: Record<string, string> = {};
     if (targetId) data.targetId = String(targetId);
     if (type) data.type = String(type);
     if (senderId) data.senderId = String(senderId);
     if (senderName) data.senderName = String(senderName);
     if (senderPhoto) data.senderPhoto = String(senderPhoto);
 
-    // Route native Android notifications to the matching channel (importance/sound/badge
-    // are configured per-channel on the device by nativePushService).
-    const androidBlock: any = { priority: 'high' };
-    if (channelId) androidBlock.notification = { channel_id: String(channelId) };
+    const out = await sendFcmMulticast(targets, { title, body, link, icon, channelId, data });
+    if (!out.configured) return res.status(503).json({ error: 'Push not configured — set GOOGLE_SERVICE_ACCOUNT_JSON' });
+    res.json({ sent: out.sent, total: out.total, results: out.results });
+  });
 
-    const results = await Promise.all(targets.map(async (t) => {
-      try {
-        const r = await fetch(endpoint, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: {
-              token: t,
-              notification: { title: title || 'Plajah', body: body || '' },
-              webpush: {
-                notification: { icon: icon || 'https://plajah.com/icons/icon-192.png' },
-                fcm_options: { link: clickUrl },
-              },
-              // Native (Capacitor) + custom in-app routing read this.
-              data,
-              android: androidBlock,
-            },
-          }),
-        });
-        if (r.ok) return { ok: true };
-        const err = await r.text();
-        // A 404/UNREGISTERED token is stale — signal the caller so it can prune it.
-        return { ok: false, status: r.status, stale: /UNREGISTERED|NOT_FOUND|InvalidRegistration/i.test(err), error: err.slice(0, 200) };
-      } catch (e: any) {
-        return { ok: false, error: e.message };
+  // Admin broadcast — push to ONE user (by uid) or to ALL users. Firebase ID token +
+  // admin check required. Reuses the same FCM multicast + channel routing as /api/push.
+  app.post('/api/push/admin', express.json(), authMiddleware, async (req: any, res) => {
+    const me = decodeFirestoreFields(((await fetchFirebaseDoc('users', req.uid)) || {}).fields || {});
+    const isAdmin = me.role === 'admin' || me.role === 'staff' || me.email === 'kmoody2003@gmail.com';
+    if (!isAdmin) return res.status(403).json({ error: 'Admin access required' });
+
+    const { mode, uid, title, body, link } = req.body || {};
+    if (!title || !body) return res.status(400).json({ error: 'title and body are required' });
+
+    let tokens: string[] = [];
+    let recipients = 0;
+    if (mode === 'all') {
+      const users = await queryFirebase('users', [], 5000);
+      recipients = users.length;
+      for (const u of users) {
+        if (Array.isArray(u.fcmTokens)) tokens.push(...u.fcmTokens);
+        if (u.fcmToken) tokens.push(u.fcmToken);
       }
-    }));
+    } else {
+      if (!uid) return res.status(400).json({ error: 'uid is required for single-user mode' });
+      const u = decodeFirestoreFields(((await fetchFirebaseDoc('users', String(uid))) || {}).fields || {});
+      if (u && (u.fcmTokens || u.fcmToken)) {
+        recipients = 1;
+        if (Array.isArray(u.fcmTokens)) tokens.push(...u.fcmTokens);
+        if (u.fcmToken) tokens.push(u.fcmToken);
+      }
+    }
+    tokens = Array.from(new Set(tokens.filter(Boolean)));
+    if (!tokens.length) return res.json({ sent: 0, total: 0, recipients, devices: 0 });
 
-    res.json({ sent: results.filter(x => x.ok).length, total: targets.length, results });
+    const out = await sendFcmMulticast(tokens, { title, body, link: link || 'FEED', channelId: 'system', data: { type: 'SYSTEM', senderName: 'Plajah' } });
+    if (!out.configured) return res.status(503).json({ error: 'Push not configured — set GOOGLE_SERVICE_ACCOUNT_JSON' });
+    res.json({ sent: out.sent, total: out.total, recipients, devices: tokens.length });
   });
 
   // ── Philips Hue OAuth ─────────────────────────────────────────────────────

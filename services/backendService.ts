@@ -4374,6 +4374,30 @@ export const sendTestPush = async (): Promise<{ sent: number; total: number }> =
   }
 };
 
+/**
+ * Admin: broadcast a push to a single user (mode:'user' + uid) or to ALL users
+ * (mode:'all'). Server verifies the caller's Firebase ID token + admin role before
+ * fanning out. Returns delivery counts, or { error } on failure.
+ */
+export const sendAdminBroadcast = async (
+  payload: { mode: 'user' | 'all'; uid?: string; title: string; body: string; link?: string }
+): Promise<{ sent: number; total: number; recipients: number; devices: number } | { error: string }> => {
+  if (!auth.currentUser) return { error: 'Not signed in' };
+  try {
+    const token = await auth.currentUser.getIdToken();
+    const res = await fetch('/api/push/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) return { error: json?.error || `Request failed (HTTP ${res.status})` };
+    return json;
+  } catch (e: any) {
+    return { error: e?.message || 'Request failed' };
+  }
+};
+
 /** Persists a user's notification preferences (master + per-category push toggles). */
 export const updateNotificationPrefs = async (uid: string, prefs: Record<string, boolean>): Promise<void> => {
   try {
