@@ -3295,21 +3295,23 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               {/* Persistent "back to Now Playing" chevron — floats centered above the Home tab
                   on mobile whenever something is queued and you're away from the music views,
                   so the tracklist of what's playing is always one tap away. */}
-              {(isMobile || theme === 'PHONE') && currentAlbum && !isBottomSectionExpanded && !transportForced && !['MUSIC', 'PLAYER', 'RADIO'].includes(view) && (
+              {(isMobile || theme === 'PHONE') && currentTrack && !isBottomSectionExpanded && !transportForced && !['MUSIC', 'PLAYER', 'RADIO'].includes(view) && (
                 <button
                   onTouchStart={(e) => { nowPlayingTouchY.current = e.touches[0].clientY; nowPlayingSwiped.current = false; }}
-                  onTouchMove={(e) => { if (nowPlayingTouchY.current != null && nowPlayingTouchY.current - e.touches[0].clientY > 28) nowPlayingSwiped.current = true; }}
+                  onTouchMove={(e) => { if (nowPlayingTouchY.current != null && nowPlayingTouchY.current - e.touches[0].clientY > 24) nowPlayingSwiped.current = true; }}
                   onTouchEnd={() => { if (nowPlayingSwiped.current) window.dispatchEvent(new CustomEvent('PLAJAH_OPEN_PLAYER_DRAWER')); nowPlayingTouchY.current = null; }}
                   onClick={() => {
                     if (nowPlayingSwiped.current) { nowPlayingSwiped.current = false; return; } // was a swipe-up, not a tap
-                    setIsMinimized(false); handleGlobalNavigate('PLAYER', { album: currentAlbum });
+                    setIsMinimized(false);
+                    if (currentAlbum) handleGlobalNavigate('PLAYER', { album: currentAlbum });
+                    else setView('MUSIC');
                   }}
-                  title={`Now playing: ${currentTrack?.title || currentAlbum.title} — tap for tracklist, swipe up for controls`}
+                  title={`Now playing: ${currentTrack.title} — tap for tracklist, swipe up for controls`}
                   className="fixed left-1/2 -translate-x-1/2 z-[151] flex items-center gap-1.5 max-w-[72vw] pl-2 pr-3 py-1.5 rounded-full border border-white/15 shadow-[0_6px_24px_rgba(107,0,153,0.45)] android-press"
                   style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom) + 6px)', background: 'linear-gradient(135deg, #6B0099 0%, #D40055 55%, #FF8C00 100%)' }}
                 >
                   <ChevronUp size={16} className={`text-white shrink-0 ${isPlaying ? 'animate-pulse' : ''}`} />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white truncate drop-shadow">{currentTrack?.title || currentAlbum.title}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white truncate drop-shadow">{currentTrack.title || currentAlbum?.title || 'Now Playing'}</span>
                 </button>
               )}
 
