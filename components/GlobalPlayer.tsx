@@ -945,16 +945,22 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
             spins to point up while the drawer is open. */}
         <button
           onClick={() => {
-            if (isMinimized) { setIsMinimized(false); }
-            else if (isPhoneMode) { setIsSpillOverOpen(o => !o); }
-            else { setIsMinimized(true); }
+            if (isPhoneMode) {
+              // Bring the controls up and open the full album view (tracklist of what's playing)
+              setIsMinimized(false);
+              if (currentAlbum) onNavigate?.('PLAYER', { album: currentAlbum });
+              else if (currentVideo) onNavigate?.('PLAYER', { video: currentVideo });
+              else setIsSpillOverOpen(o => !o);
+            } else {
+              setIsMinimized(!isMinimized);
+            }
           }}
-          className={`absolute p-2 bg-theme-card/90 backdrop-blur-3xl border border-white/5 rounded-t-xl transition-all shadow-2xl ${isMinimized ? 'text-small-orange' : (isPhoneMode ? 'text-small-orange hover:text-white' : 'text-white/40 hover:text-white')} ${isPhoneMode ? 'left-1/2 -translate-x-1/2' : 'right-8'} ${isLandscape && !isMinimized ? 'hidden' : '-top-10'} ${isMinimized ? 'animate-pulse hover:animate-none' : ''}`}
-          title={isMinimized ? 'Bring player back up' : (isPhoneMode ? 'More controls' : 'Minimize')}
+          className={`absolute p-2 bg-theme-card/90 backdrop-blur-3xl border border-white/5 rounded-t-xl transition-all shadow-2xl ${isPhoneMode ? 'text-small-orange hover:text-white' : (isMinimized ? 'text-small-orange' : 'text-white/40 hover:text-white')} ${isPhoneMode ? 'left-1/2 -translate-x-1/2' : 'right-8'} ${isLandscape && !isMinimized ? 'hidden' : '-top-10'} ${isMinimized ? 'animate-pulse hover:animate-none' : ''}`}
+          title={isPhoneMode ? 'Open now playing' : (isMinimized ? 'Bring player back up' : 'Minimize')}
         >
-          {isMinimized
+          {isPhoneMode
             ? <ChevronUp size={20} />
-            : <ChevronDown size={20} className={`transition-transform duration-500 ${isSpillOverOpen ? 'rotate-180' : ''}`} />}
+            : (isMinimized ? <ChevronUp size={20} /> : <ChevronDown size={20} />)}
         </button>
 
         {/* Mobile Swipe-Up Overflow — Full-height bottom sheet with drag-to-dismiss */}
