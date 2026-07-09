@@ -1192,16 +1192,30 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           }
         }
 
-        // Request push notification permission and store the FCM token
-        import('./services/pushNotificationService').then(({ requestPushPermission, onForegroundMessage }) => {
-          requestPushPermission().catch(() => {});
-          onForegroundMessage((payload) => {
-            // Show in-app toast for foreground push messages
-            const title = payload.notification?.title || 'New notification';
-            const body = payload.notification?.body || '';
-            const toastEvent = new CustomEvent('PUSH_TOAST', { detail: { title, body } });
-            window.dispatchEvent(toastEvent);
-          });
+        // Register for push notifications + store the FCM token. Native (APK / Fire TV)
+        // uses the Capacitor plugin for real system-tray delivery even when the app is
+        // killed; web / PWA uses the Firebase JS SDK + service worker. Both surface an
+        // in-app toast on foreground arrival, and taps route through the same handler.
+        import('./hooks/usePlatform').then(({ getPlatformInfo }) => {
+          if (getPlatformInfo().isNative) {
+            import('./services/nativePushService').then(({ initNativePush }) => {
+              initNativePush({
+                onForeground: (title, body) => {
+                  window.dispatchEvent(new CustomEvent('PUSH_TOAST', { detail: { title, body } }));
+                },
+                onNavigate: (data) => { handleNotificationNavigate(data); },
+              });
+            });
+          } else {
+            import('./services/pushNotificationService').then(({ requestPushPermission, onForegroundMessage }) => {
+              requestPushPermission().catch(() => {});
+              onForegroundMessage((payload) => {
+                const title = payload.notification?.title || 'New notification';
+                const body = payload.notification?.body || '';
+                window.dispatchEvent(new CustomEvent('PUSH_TOAST', { detail: { title, body } }));
+              });
+            });
+          }
         });
 
         // Real-time listener keeps userProfile fresh after any profile edits

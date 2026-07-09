@@ -1053,6 +1053,17 @@ export type AccountType =
 export type RelationshipStatus =
   | 'SINGLE' | 'DATING' | 'ENGAGED' | 'MARRIED' | 'PARTNERED' | 'COMPLICATED';
 
+// Per-user notification preferences. `push` is the master switch; the rest gate push
+// by category (in-app notifications are always created — these govern push delivery).
+// Absent/undefined means enabled (opt-out model), so existing users default to "all on".
+export interface NotificationPrefs {
+  push?: boolean;      // master: turn off all push
+  messages?: boolean;  // DMs / chat
+  social?: boolean;    // likes, comments, follows, mentions
+  content?: boolean;   // new posts/videos/releases from followed creators
+  system?: boolean;    // account + system updates
+}
+
 export interface UserProfile {
   uid: string;
   displayName: string;
@@ -1090,7 +1101,9 @@ export interface UserProfile {
     enabled: boolean;
     items: { id: string; url: string; type: 'PHOTO' | 'VIDEO' }[];
   };
-  fcmToken?: string;
+  fcmToken?: string;               // legacy single web token
+  fcmTokens?: string[];            // every registered device (web + native installs)
+  notificationPrefs?: NotificationPrefs;
   brandColor?: string;
   uiSettings?: {
     chatIconPosition?: { x: number; y: number };

@@ -3487,7 +3487,7 @@ Rules:
   // Firestore (cloud-platform scope covers firebase.messaging). Sends per-token
   // (v1 messages:send is single-recipient) — fine for chat/social fan-out sizes.
   app.post('/api/push', express.json(), async (req, res) => {
-    const { token, tokens, title, body, link, icon } = req.body || {};
+    const { token, tokens, title, body, link, icon, channelId, targetId, type, senderId, senderName, senderPhoto } = req.body || {};
     const targets: string[] = (Array.isArray(tokens) ? tokens : []).concat(token ? [token] : []).filter(Boolean);
     if (!targets.length) return res.status(400).json({ error: 'No FCM token provided' });
 
@@ -3504,6 +3504,20 @@ Rules:
       ? rawLink
       : rawLink.startsWith('/') ? `https://plajah.com${rawLink}` : 'https://plajah.com/';
 
+    // FCM data values must all be strings — carry everything a native tap needs to
+    // deep-link (link + targetId + type + sender) exactly like an in-app notification tap.
+    const data: Record<string, string> = { link: rawLink };
+    if (targetId) data.targetId = String(targetId);
+    if (type) data.type = String(type);
+    if (senderId) data.senderId = String(senderId);
+    if (senderName) data.senderName = String(senderName);
+    if (senderPhoto) data.senderPhoto = String(senderPhoto);
+
+    // Route native Android notifications to the matching channel (importance/sound/badge
+    // are configured per-channel on the device by nativePushService).
+    const androidBlock: any = { priority: 'high' };
+    if (channelId) androidBlock.notification = { channel_id: String(channelId) };
+
     const results = await Promise.all(targets.map(async (t) => {
       try {
         const r = await fetch(endpoint, {
@@ -3518,8 +3532,8 @@ Rules:
                 fcm_options: { link: clickUrl },
               },
               // Native (Capacitor) + custom in-app routing read this.
-              data: { link: rawLink },
-              android: { priority: 'high' },
+              data,
+              android: androidBlock,
             },
           }),
         });

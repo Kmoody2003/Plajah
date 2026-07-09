@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Bell, X, MessageCircle, MessageSquare, Plus, Zap, Heart, Inbox, UserPlus } from 'lucide-react';
+import { Bell, X, MessageCircle, MessageSquare, Plus, Zap, Heart, Inbox, UserPlus, Settings } from 'lucide-react';
 import { useNotifications } from '../contexts/NotificationContext';
 import { formatDistanceToNow } from 'date-fns';
 import { AppNotification } from '../types';
+import NotificationSettings from './NotificationSettings';
 
 interface NotificationCenterProps {
   onNavigate?: (notification: AppNotification) => void;
@@ -13,6 +14,7 @@ interface NotificationCenterProps {
 const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNavigate, onOpenAlerts }) => {
   const { notifications, unreadCount, markAsRead, clearAll, isLoading } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -57,9 +59,16 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNavigate, onO
               exit={{ opacity: 0, scale: 0.95, y: 10, x: 10 }}
               className="absolute top-16 right-0 w-80 max-h-[500px] bg-[#0a0a0a]/95 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] shadow-3xl z-[160] overflow-hidden flex flex-col"
             >
+              {showSettings ? (
+                <NotificationSettings onClose={() => setShowSettings(false)} />
+              ) : (
+              <>
               <div className="p-6 bg-white/5 border-b border-white/5 flex items-center justify-between">
                 <h3 className="text-xs font-black uppercase tracking-[0.3em]">Notification Hub</h3>
-                <button onClick={() => setIsOpen(false)} className="text-white/20 hover:text-white"><X size={16} /></button>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setShowSettings(true)} title="Notification settings" className="text-white/20 hover:text-white p-1"><Settings size={15} /></button>
+                  <button onClick={() => setIsOpen(false)} className="text-white/20 hover:text-white p-1"><X size={16} /></button>
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -126,6 +135,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNavigate, onO
                     Clear All History
                   </button>
                 </div>
+              )}
+              </>
               )}
             </motion.div>
           </>

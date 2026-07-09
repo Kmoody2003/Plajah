@@ -4065,6 +4065,15 @@ export const linkAuthProvider = async (providerName: 'GOOGLE' | 'TWITTER' | 'FAC
 
 export const logout = async () => {
   try {
+    // Detach this device's push token from the user first, so after sign-out they
+    // stop receiving pushes on a device that may now be used by someone else.
+    const uid = auth.currentUser?.uid;
+    if (uid && _thisDeviceToken) {
+      await updateDoc(doc(db, 'users', uid), {
+        fcmTokens: arrayRemove(_thisDeviceToken),
+        fcmToken: null,
+      }).catch(() => {});
+    }
     await signOut(auth);
   } catch (error) {
     console.error("Logout failed:", error);
@@ -4235,26 +4244,106 @@ export const isFollowing = async (targetUserId: string): Promise<boolean> => {
 };
 
 // --- PUSH NOTIFICATIONS ---
+// The FCM token for THIS device (web or native), remembered so sign-out can detach it
+// from the user — otherwise a signed-out user keeps getting pushes on a shared device.
+let _thisDeviceToken: string | null = null;
+
 export const saveFcmToken = async (uid: string, token: string): Promise<void> => {
+  _thisDeviceToken = token;
   try {
-    await updateDoc(doc(db, 'users', uid), { fcmToken: token });
+    await updateDoc(doc(db, 'users', uid), {
+      fcmToken: token,               // legacy single-token field (kept for backward compat)
+      fcmTokens: arrayUnion(token),  // multi-device set — web + every native install a user has
+    });
   } catch {
     // Non-critical
   }
 };
 
-const sendPushToUser = async (uid: string, title: string, body: string, link?: string): Promise<void> => {
+// Maps each notification type to a user-facing preference category + Android channel id.
+const PUSH_CATEGORY: Record<string, 'messages' | 'social' | 'content' | 'system'> = {
+  MESSAGE: 'messages',
+  COMMENT: 'social', LIKE: 'social', FOLLOW: 'social',
+  CONTENT: 'content',
+  SYSTEM: 'system',
+};
+
+interface PushMeta {
+  link?: string; type?: string; targetId?: string;
+  senderId?: string; senderName?: string; senderPhoto?: string;
+}
+
+const sendPushToUser = async (uid: string, title: string, body: string, meta: PushMeta = {}): Promise<void> => {
   try {
     const userSnap = await getDoc(doc(db, 'users', uid));
-    const fcmToken = userSnap.data()?.fcmToken as string | undefined;
-    if (!fcmToken) return;
-    await fetch('/api/push', {
+    const data = userSnap.data() || {};
+
+    // Respect the recipient's notification preferences (master switch + per-category).
+    const prefs = (data.notificationPrefs || {}) as Record<string, boolean>;
+    if (prefs.push === false) return;
+    const category = PUSH_CATEGORY[meta.type || 'SYSTEM'] || 'system';
+    if (prefs[category] === false) return;
+
+    // Fan out to every registered device: web FCM token + all native device tokens, de-duped.
+    const tokens = Array.from(new Set<string>(
+      [...((data.fcmTokens as string[]) || []), data.fcmToken as string].filter(Boolean)
+    ));
+    if (!tokens.length) return;
+
+    const res = await fetch('/api/push', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: fcmToken, title, body, link }),
+      body: JSON.stringify({
+        tokens, title, body,
+        link: meta.link,
+        channelId: category,
+        // Forwarded in the FCM data payload so a native tap can deep-link exactly
+        // like an in-app tap (handleNotificationNavigate reads link + targetId + type).
+        targetId: meta.targetId, type: meta.type,
+        senderId: meta.senderId, senderName: meta.senderName, senderPhoto: meta.senderPhoto,
+      }),
     });
+
+    // Prune any tokens FCM reports as permanently unregistered (app uninstalled /
+    // token rotated) so we stop fanning out to dead devices. Results are index-aligned
+    // with `tokens` because we send `tokens` only (no extra single `token`).
+    const json = await res.json().catch(() => null) as { results?: Array<{ ok: boolean; stale?: boolean }> } | null;
+    if (json?.results?.length === tokens.length) {
+      const stale = tokens.filter((_, i) => json.results![i]?.stale);
+      if (stale.length) {
+        await updateDoc(doc(db, 'users', uid), { fcmTokens: arrayRemove(...stale) }).catch(() => {});
+      }
+    }
   } catch {
     // Non-critical — push failures must never break the main flow
+  }
+};
+
+/** Removes a device token on sign-out so a shared device stops receiving the prior user's pushes. */
+export const removeFcmToken = async (uid: string, token: string): Promise<void> => {
+  try {
+    await updateDoc(doc(db, 'users', uid), { fcmTokens: arrayRemove(token) });
+  } catch {
+    // Non-critical
+  }
+};
+
+/** Reads a user's saved notification preferences (empty object = all defaults / enabled). */
+export const getNotificationPrefs = async (uid: string): Promise<Record<string, boolean>> => {
+  try {
+    const snap = await getDoc(doc(db, 'users', uid));
+    return (snap.data()?.notificationPrefs || {}) as Record<string, boolean>;
+  } catch {
+    return {};
+  }
+};
+
+/** Persists a user's notification preferences (master + per-category push toggles). */
+export const updateNotificationPrefs = async (uid: string, prefs: Record<string, boolean>): Promise<void> => {
+  try {
+    await updateDoc(doc(db, 'users', uid), { notificationPrefs: prefs });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `users/${uid}`);
   }
 };
 
@@ -4286,8 +4375,12 @@ export const createNotification = async (notif: Omit<AppNotification, 'id' | 'ti
       timestamp: serverTimestamp()
     });
     const docRef = await addDoc(collection(db, path), data);
-    // Fire push in background — never await, never block the main flow
-    sendPushToUser(notif.userId, notif.title, notif.message, notif.link).catch(() => {});
+    // Fire push in background — never await, never block the main flow. Pass the full
+    // meta so native taps deep-link and per-category preferences are honored.
+    sendPushToUser(notif.userId, notif.title, notif.message, {
+      link: notif.link, type: notif.type, targetId: notif.targetId,
+      senderId: notif.senderId, senderName: notif.senderName, senderPhoto: notif.senderPhoto,
+    }).catch(() => {});
     return docRef.id;
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
