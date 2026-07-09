@@ -102,6 +102,7 @@ const TVStudio = retryLazy(() => import('./components/TVStudio'));
 
 import ExperiencePicker from './components/ExperiencePicker';
 import GlobalPlayer from './components/GlobalPlayer';
+import AutoPlayCountdown from './components/AutoPlayCountdown';
 import TVNavigationLayer from './components/TVNavigationLayer';
 import TooltipSuppressor from './components/TooltipSuppressor';
 import ResumeUploadPrompt from './components/ResumeUploadPrompt';
@@ -547,6 +548,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | undefined>(undefined);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [pixelsPayload, setPixelsPayload] = useState<{ album?: any; track?: any } | null>(null);
+  // Shared-track landing: shows the 5s auto-play countdown, then plays that track.
+  const [autoPlayShare, setAutoPlayShare] = useState<{ album: any; track: any } | null>(null);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [kioskEventId, setKioskEventId] = useState<string | null>(null);
   const [scannerEventId, setScannerEventId] = useState<string | null>(null);
@@ -609,7 +612,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   const tooltipsActive = userProfile?.tooltipsEnabled ?? isFirstWeek;
 
-  const { isShrunk, setIsShrunk, setView: setGlobalView, analyser, isPlaying, isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, currentTrack, currentAlbum, pause, resume, next, prev, isMinimized, setIsMinimized, transportForced, setTransportForced, repeatMode, setRepeatMode, volume, setVolume, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, isSlideshowActive, setIsSlideshowActive, isMiniPlayerActive, setIsMiniPlayerActive, isThreeDEnabled, setIsThreeDEnabled, isSpatialAudioEnabled, setSpatialAudioEnabled } = useGlobalPlayerState();
+  const { isShrunk, setIsShrunk, setView: setGlobalView, analyser, isPlaying, isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, currentTrack, currentAlbum, playTrack, pause, resume, next, prev, isMinimized, setIsMinimized, transportForced, setTransportForced, repeatMode, setRepeatMode, volume, setVolume, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, isSlideshowActive, setIsSlideshowActive, isMiniPlayerActive, setIsMiniPlayerActive, isThreeDEnabled, setIsThreeDEnabled, isSpatialAudioEnabled, setSpatialAudioEnabled } = useGlobalPlayerState();
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
   // Persistent now-playing pill: tap → tracklist, swipe-up → extra-settings drawer.
   const nowPlayingTouchY = useRef<number | null>(null);
@@ -1411,6 +1414,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               setSelectedAlbum(remoteAlbum);
               setView('PLAYER');
               setIsPublicView(true);
+              // Shared a specific track → show the 5s auto-play countdown for it.
+              const sharedTrackId = params.get('track');
+              const sharedTrack = sharedTrackId ? (remoteAlbum.tracks || []).find((t: any) => t.id === sharedTrackId) : null;
+              if (sharedTrack) setAutoPlayShare({ album: remoteAlbum, track: sharedTrack });
             }
             setIsLoading(false);
             return;
@@ -4525,6 +4532,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         <Suspense fallback={null}>
           <BugReportButton currentView={view} />
         </Suspense>
+      )}
+
+      {/* Shared-track landing: 5s auto-play countdown, then plays the shared track. */}
+      {autoPlayShare && (
+        <AutoPlayCountdown
+          trackTitle={autoPlayShare.track.title || 'This track'}
+          artist={autoPlayShare.track.artist || autoPlayShare.album.artist || 'Unknown artist'}
+          onComplete={() => { playTrack(autoPlayShare.track, autoPlayShare.album, 'LIBRARY'); setAutoPlayShare(null); }}
+          onDismiss={() => setAutoPlayShare(null)}
+        />
       )}
 
       {pifWins.map(win => (

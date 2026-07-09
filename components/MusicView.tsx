@@ -34,6 +34,17 @@ import PlajahPlusBanner from './PlajahPlusBanner';
 import { WC26_TEAMS } from '../data/worldCup2026';
 import { ANTHEM_LYRICS } from '../data/anthemLyrics';
 import { WC_ANTHEM_ALBUM } from '../data/wcAnthemAlbum';
+import { shareAsset } from '../services/deepLinkService';
+
+// Share a single Chora track — the link lands on the track's album page and (via the
+// AutoPlayCountdown) offers a 5s auto-play. `albumId` is the track's parent album.
+const shareTrack = (albumId: string, track: { id: string; title?: string; artist?: string }) => {
+  shareAsset('track', albumId, {
+    title: track.title,
+    text: `🎵 ${track.title || 'This track'} — ${track.artist || 'Plajah'} on Plajah`,
+    extra: { track: track.id },
+  });
+};
 const AudiusArtistPage = lazy(() => import('./AudiusArtistPage'));
 const AudiusAlbumView  = lazy(() => import('./AudiusAlbumView'));
 const ChoraConservatory = lazy(() => import('./ChoraConservatory'));
@@ -1533,10 +1544,18 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                          >
                            <Plus size={10} />
                          </button>
+                         {/* Share this track — lands on its album page with a 5s auto-play countdown */}
+                         <button
+                           onClick={e => { e.stopPropagation(); const alb = albums.find(a => a.tracks?.some(t => t.id === track.id)); if (alb) shareTrack(alb.id, track); }}
+                           className="tap p-1.5 rounded-full bg-white/5 opacity-0 group-hover:opacity-100 hover:bg-small-orange/20 hover:text-small-orange transition-all shrink-0"
+                           title="Share this track"
+                         >
+                           <Share2 size={10} />
+                         </button>
                          {/* The Breakdown */}
                          <button
                            onClick={e => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_BREAKDOWN', { detail: { track, album: albums.find(a => a.tracks?.some(t => t.id === track.id)) ?? null } })); }}
-                           className="tap p-1.5 rounded-full bg-white/5 opacity-0 group-hover:opacity-100 hover:bg-orange-500/20 hover:text-orange-400 transition-all shrink-0"
+                           className="tap hidden sm:flex p-1.5 rounded-full bg-white/5 opacity-0 group-hover:opacity-100 hover:bg-orange-500/20 hover:text-orange-400 transition-all shrink-0"
                            title="The Breakdown — music theory analysis"
                          >
                            <Waves size={10} />
@@ -1761,6 +1780,13 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                                             <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest truncate">{track.artist}</p>
                                           </div>
                                           <span className="text-[9px] font-bold text-white/40 shrink-0">{fmtPlays(trackStats[track.id] ?? 0)} plays</span>
+                                          <button
+                                            onClick={e => { e.stopPropagation(); const albId = (track as any).albumId || albums.find(a => a.tracks?.some(t => t.id === track.id))?.id; if (albId) shareTrack(albId, track); }}
+                                            className="p-1.5 rounded-full opacity-0 group-hover:opacity-100 hover:bg-small-orange/20 text-white/30 hover:text-small-orange transition-all shrink-0"
+                                            title="Share this track"
+                                          >
+                                            <Share2 size={10} />
+                                          </button>
                                           <button
                                             onClick={async () => {
                                               await removeTrackFromPlaylist(pl.id, track.id);
