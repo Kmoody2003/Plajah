@@ -62,9 +62,9 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   // audio/video isn't interrupted and it reappears on Chora/Radio/Player.
   const MUSIC_TRANSPORT_VIEWS = ['MUSIC', 'PLAYER', 'RADIO'];
   const isPhoneSized = theme === 'PHONE' || vp.isPhone; // phones only — tablets keep the bar
-  // Hidden on non-music phone views, unless the user reveals it (double-tap Chora icon
-  // or swipe-up on the persistent now-playing pill → transportForced).
-  const hideTransportOnPhone = isPhoneSized && !MUSIC_TRANSPORT_VIEWS.includes(view || '') && !transportForced;
+  // Hidden on non-music phone views. `transportForced` (set below via the context) can
+  // override this at the usage site to reveal the bar (double-tap Chora / swipe-up pill).
+  const hideTransportOnPhone = isPhoneSized && !MUSIC_TRANSPORT_VIEWS.includes(view || '');
   const { isCastAvailable, isCasting, castTrack, stopCasting } = useGoogleCast();
   const { 
     currentTrack, 
@@ -783,7 +783,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
 
   return (
     <div
-      className={`fixed left-0 right-0 z-[100] flex-col transition-opacity duration-1000 ${hideTransportOnPhone ? 'hidden' : 'flex'} ${isUserActive ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed left-0 right-0 z-[100] flex-col transition-opacity duration-1000 ${(hideTransportOnPhone && !transportForced) ? 'hidden' : 'flex'} ${isUserActive ? 'opacity-100' : 'opacity-0'}`}
       style={{ bottom: topOffset ? 'auto' : bottomOffset, top: topOffset || 'auto' }}
     >
 
