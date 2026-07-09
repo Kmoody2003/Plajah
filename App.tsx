@@ -3273,11 +3273,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               {(isMobile || theme === 'PHONE') && currentAlbum && !isBottomSectionExpanded && !['MUSIC', 'PLAYER', 'RADIO'].includes(view) && (
                 <button
                   onClick={() => { setIsMinimized(false); handleGlobalNavigate('PLAYER', { album: currentAlbum }); }}
-                  title={`Now playing: ${currentAlbum.title} — tap to open the tracklist`}
-                  className={`fixed left-1/2 -translate-x-1/2 z-[151] p-2 rounded-t-xl bg-theme-card/90 backdrop-blur-3xl border border-white/5 text-small-orange shadow-2xl android-press ${isPlaying ? 'animate-pulse hover:animate-none' : ''}`}
-                  style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom))' }}
+                  title={`Now playing: ${currentTrack?.title || currentAlbum.title} — tap to open the tracklist`}
+                  className="fixed left-1/2 -translate-x-1/2 z-[151] flex items-center gap-1.5 max-w-[72vw] pl-2 pr-3 py-1.5 rounded-full bg-theme-card/90 backdrop-blur-3xl border border-white/10 shadow-2xl android-press"
+                  style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom) + 6px)' }}
                 >
-                  <ChevronUp size={20} />
+                  <ChevronUp size={16} className={`text-small-orange shrink-0 ${isPlaying ? 'animate-pulse' : ''}`} />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white truncate">{currentTrack?.title || currentAlbum.title}</span>
                 </button>
               )}
 
