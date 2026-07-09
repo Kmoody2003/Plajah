@@ -45,6 +45,27 @@ export const fetchArchiveComics = async (query = 'collection:comics AND mediatyp
   }).catch(() => []);
 };
 
+// archive.org almost never names its PDF exactly `<identifier>.pdf`, so the guessed
+// download URL 404s and the reader opens a dead link. Resolve the REAL readable file
+// from the item metadata: prefer a content PDF (not the OCR `_text.pdf`), then any PDF.
+// Returns a proper download URL (path segments encoded, slashes preserved), or null.
+export const resolveArchiveReadableUrl = async (identifier: string): Promise<string | null> => {
+  try {
+    const res = await fetch(`https://archive.org/metadata/${identifier}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const files: Array<{ name: string }> = data?.files || [];
+    const pdf =
+      files.find(f => /\.pdf$/i.test(f.name) && !/_text\.pdf$/i.test(f.name)) ||
+      files.find(f => /\.pdf$/i.test(f.name));
+    if (!pdf) return null;
+    const encoded = pdf.name.split('/').map(encodeURIComponent).join('/');
+    return `https://archive.org/download/${identifier}/${encoded}`;
+  } catch {
+    return null;
+  }
+};
+
 // ── Manga metadata / history (AniList) ─────────────────────────────────────────
 export interface MangaEntry {
   id: number;

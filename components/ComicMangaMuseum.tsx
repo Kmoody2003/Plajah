@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { ChevronLeft, Search, BookOpen, Landmark, Library as LibraryIcon, ExternalLink, Loader2, Sparkles, Clock } from 'lucide-react';
 import type { Album } from '../types';
-import { fetchArchiveComics, fetchAnilistManga, COMIC_COLLECTIONS, MANGA_ERAS, type MangaEntry } from '../services/comicsMangaService';
+import { fetchArchiveComics, fetchAnilistManga, resolveArchiveReadableUrl, COMIC_COLLECTIONS, MANGA_ERAS, type MangaEntry } from '../services/comicsMangaService';
 import { searchOpenLibrary, openLibrarySubject, OPEN_LIBRARY_SHELVES } from '../services/openLibraryService';
 import type { ArchiveBook } from '../services/archiveContentService';
 
@@ -77,7 +77,22 @@ const ComicMangaMuseum: React.FC<{ onBack: () => void; onSelectBook: (a: Album) 
   const [q, setQ] = useState('');
   const [results, setResults] = useState<ArchiveBook[] | null>(null);
   const [searching, setSearching] = useState(false);
-  const openComic = (b: ArchiveBook) => onSelectBook(toReadable(b));
+  const [opening, setOpening] = useState(false);
+  // Resolve the item's REAL readable file (the guessed <id>.pdf usually 404s) before
+  // handing the reader a live URL. Falls back to the guess if metadata has no PDF.
+  const openComic = async (b: ArchiveBook) => {
+    setOpening(true);
+    try {
+      const realUrl = await resolveArchiveReadableUrl(b.id);
+      const album = toReadable(b);
+      if (realUrl && (album as any).bookChapters?.[0]) {
+        (album as any).bookChapters[0] = { ...(album as any).bookChapters[0], url: realUrl, format: 'PDF' };
+      }
+      onSelectBook(album);
+    } finally {
+      setOpening(false);
+    }
+  };
 
   const runSearch = async () => {
     if (!q.trim()) { setResults(null); return; }
@@ -88,6 +103,12 @@ const ComicMangaMuseum: React.FC<{ onBack: () => void; onSelectBook: (a: Album) 
 
   return (
     <div className="h-full overflow-y-auto scrollbar-hide" style={{ background: 'linear-gradient(180deg,#120e1c,#0a0a0f)' }}>
+      {opening && (
+        <div className="fixed inset-0 z-[400] flex flex-col items-center justify-center gap-4 bg-black/70 backdrop-blur-sm">
+          <Loader2 className="animate-spin text-small-orange" size={40} />
+          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/50">Opening comic…</p>
+        </div>
+      )}
       {/* Hero */}
       <div className="relative px-6 lg:px-12 pt-6 pb-4 border-b border-white/8">
         <button onClick={onBack} className="flex items-center gap-1.5 text-white/50 hover:text-white text-[11px] font-bold uppercase tracking-widest mb-4"><ChevronLeft size={16} /> Lorea</button>
