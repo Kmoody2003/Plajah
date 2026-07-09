@@ -1604,6 +1604,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       return;
     }
     setAlbums(prev => prev.some(a => a.id === item.id) ? prev.map(a => a.id === item.id ? newAlbum : a) : [newAlbum, ...prev]);
+    // If the user is currently viewing this album (PlayerView renders selectedAlbum),
+    // refresh it too — otherwise edits (e.g. renamed tracks) don't appear until refetch.
+    setSelectedAlbum(prev => (prev && prev.id === item.id ? newAlbum : prev));
     if (editingAlbum) setEditingAlbum(null);
   };
 
