@@ -806,6 +806,17 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         } : undefined,
         ...filmFields,
       };
+      // When editing an existing item, reflect the change in any open view IMMEDIATELY
+      // (e.g. a renamed track in the album tracklist) instead of waiting for the background
+      // publish to finish. Strip File handles so shared app state never holds blob refs.
+      if (initialAlbum) {
+        const optimistic = {
+          ...newAlbum,
+          coverFile: undefined, artistFile: undefined, slideshowFiles: undefined,
+          tracks: (newAlbum.tracks || []).map((t: any) => { const { file, ...rest } = t; return rest; }),
+        } as Album;
+        onCreated(optimistic);
+      }
       // Publish in the background so the creator can close and multiple uploads can run at once.
       enqueue({
         title: title || 'Untitled',
