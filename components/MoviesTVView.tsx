@@ -242,7 +242,19 @@ const HomeView: React.FC<{
   const currentWorld = worlds[worldBannerIdx];
 
   // Section slices
-  const newToTaleo      = platformVideos.slice(0, 12);
+  // "New to Taleo" = the most recent Taleo content. A movie/TV upload lives as a VIDEO
+  // album (localContent); its per-track `videos` docs may not pass the cinema filter, so
+  // merge the albums in directly and drop the album's own sys_ video docs to avoid dupes.
+  const _taleoAlbumIds = new Set(localContent.map((a: any) => a.id));
+  const _standaloneVideos = platformVideos.filter((v: any) => {
+    const id = v.id || '';
+    if (!id.startsWith('sys_')) return true;
+    for (const aid of _taleoAlbumIds) if (id.startsWith(`sys_${aid}_`)) return false;
+    return true;
+  });
+  const newToTaleo = [...localContent, ..._standaloneVideos]
+    .sort((a: any, b: any) => (b.timestamp || b.createdAt || 0) - (a.timestamp || a.createdAt || 0))
+    .slice(0, 12);
   const creatorFilms    = platformVideos;
 
   // Continue Watching (resume) — Taleo watch progress.
