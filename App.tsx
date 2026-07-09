@@ -4094,6 +4094,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
             {view === 'BOOK_READER' && selectedBook && (
+              // Relative, full-height wrapper so the CONTAINED reader (absolute inset-0)
+              // fills the content column between the pillars and the right edge.
+              <div className="relative flex-1 min-h-0 w-full">
               <ErrorBoundary onReset={() => { setSelectedBook(null); setView('BOOKS'); }}>
                 <Suspense fallback={
                   <div className="flex-1 min-h-[60vh] flex flex-col items-center justify-center gap-4">
@@ -4110,6 +4113,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   />
                 </Suspense>
               </ErrorBoundary>
+              </div>
             )}
             {view === 'CREATOR' && user && <UserDashboard user={user} initialTab={dashboardInitialTab} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} onOpenScriptStudio={(fmt) => { setSelectedScriptId(undefined); setView('SCRIPT_STUDIO'); }} />}
             {(view === 'SEARCH' || view === 'PEOPLE') && <SearchView onBack={() => setView('DASHBOARD')} onVisitUser={handleVisitUser} currentUser={user} initialQuery={searchQuery} initialFilter={view === 'PEOPLE' ? 'PEOPLE' : undefined} />}

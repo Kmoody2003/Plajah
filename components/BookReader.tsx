@@ -277,6 +277,9 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const [showNotes, setShowNotes] = useState(false);
   const [showTOC, setShowTOC] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  // Default: reader is CONTAINED in the content column (between the pillars and the right
+  // edge). Full-bleed immersive mode is an opt-in toggle in the header.
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [notes, setNotes] = useState<BookNote[]>([]);
   const [activeNoteTab, setActiveNoteTab] = useState<'PAGE' | 'GENERAL'>('PAGE');
@@ -946,12 +949,12 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   // Portal to <body> so `fixed inset-0` is viewport-relative — the app's SpatialUIRoot
   // wrapper is transformed, which would otherwise confine this fixed reader to a small
   // box instead of filling the whole screen.
-  return createPortal(
+  const readerTree = (
     <>
     {/* Reader always mounted so content loads in background during opening scene */}
     <div
-      className={`fixed inset-0 ${s.bg} z-[160] flex flex-col overflow-hidden select-none pb-20 lg:pb-24 transition-colors duration-500`}
-      style={{ opacity: showOpeningScene ? 0 : 1, pointerEvents: showOpeningScene ? 'none' : undefined, transition: 'opacity 0.7s ease' }}
+      className={`${isFullscreen ? 'fixed inset-0 z-[160]' : 'absolute inset-0'} ${s.bg} flex flex-col overflow-hidden select-none pb-20 lg:pb-24 transition-colors duration-500`}
+      style={{ opacity: showOpeningScene ? 0 : 1, pointerEvents: showOpeningScene ? 'none' : undefined, transition: 'opacity 0.7s ease', ...(isFullscreen ? {} : { transform: 'translateZ(0)' }) }}
     >
       {/* Opaque base — the immersive reader must fully cover the app chrome (nav + ad
           pillars + bottom tab bar). Several reader themes use a transparent/glass bg,
@@ -1134,7 +1137,11 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                 <button onClick={() => setZoom(Math.min(3, zoom + 0.1))} className={`p-2.5 transition-all ${s.btnHover}`}><ZoomIn size={18} /></button>
               </div>
 
-              <button onClick={toggleFullScreen} className={`p-3 rounded-full transition-all ${s.btnHover}`}>
+              {/* Layout: contained (default, between the pillars) ⇄ immersive full-bleed */}
+              <button onClick={() => setIsFullscreen(f => !f)} className={`p-3 rounded-full transition-all ${isFullscreen ? s.activeBtn : s.btnHover}`} title={isFullscreen ? 'Fit reader to page' : 'Immersive full-screen'}>
+                {isFullscreen ? <Columns size={20} /> : <Monitor size={20} />}
+              </button>
+              <button onClick={toggleFullScreen} className={`p-3 rounded-full transition-all ${s.btnHover}`} title="Browser full-screen">
                 {isFullScreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
               </button>
             </div>
@@ -2083,9 +2090,11 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
         resuming={savedPos.chapter > 0 || savedPos.page > 0}
       />
     )}
-    </>,
-    document.body
+    </>
   );
+  // Full-bleed: portal to <body> so `fixed inset-0` is viewport-relative. Contained:
+  // render inline in the content column (between the pillars and the right edge).
+  return isFullscreen ? createPortal(readerTree, document.body) : readerTree;
 };
 
 const BookOpen = ({ size, className }: { size: number, className?: string }) => (
