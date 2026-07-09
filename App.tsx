@@ -609,8 +609,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   const tooltipsActive = userProfile?.tooltipsEnabled ?? isFirstWeek;
 
-  const { isShrunk, setIsShrunk, setView: setGlobalView, analyser, isPlaying, isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, currentTrack, currentAlbum, pause, resume, next, prev, isMinimized, setIsMinimized, repeatMode, setRepeatMode, volume, setVolume, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, isSlideshowActive, setIsSlideshowActive, isMiniPlayerActive, setIsMiniPlayerActive, isThreeDEnabled, setIsThreeDEnabled, isSpatialAudioEnabled, setSpatialAudioEnabled } = useGlobalPlayerState();
+  const { isShrunk, setIsShrunk, setView: setGlobalView, analyser, isPlaying, isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, currentTrack, currentAlbum, pause, resume, next, prev, isMinimized, setIsMinimized, transportForced, setTransportForced, repeatMode, setRepeatMode, volume, setVolume, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, isSlideshowActive, setIsSlideshowActive, isMiniPlayerActive, setIsMiniPlayerActive, isThreeDEnabled, setIsThreeDEnabled, isSpatialAudioEnabled, setSpatialAudioEnabled } = useGlobalPlayerState();
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
+  // Persistent now-playing pill: tap → tracklist, swipe-up → extra-settings drawer.
+  const nowPlayingTouchY = useRef<number | null>(null);
+  const nowPlayingSwiped = useRef(false);
+  // Double-tap the Chora nav icon to reveal the transport controls in place.
+  const lastChoraTapRef = useRef(0);
+  const choraTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // A shared album opens in public PLAYER view where the sidebar (and its player "Controller")
   // is hidden. The player defaults to docked-nano, which renders nothing — so a visitor could
   // play a track but had no transport controls. Force the standard bottom mini-player bar.
@@ -3225,7 +3231,26 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     return (
                       <button
                         key={tab.id}
-                        onClick={() => { setView(tab.id as any); setIsBottomSectionExpanded(false); }}
+                        onClick={() => {
+                          // Chora (Music) tab: double-tap reveals the transport controls in
+                          // place; a single tap navigates to Chora (delayed to detect the double).
+                          if (tab.id === 'MUSIC') {
+                            const now = Date.now();
+                            if (now - lastChoraTapRef.current < 280) {
+                              if (choraTapTimer.current) { clearTimeout(choraTapTimer.current); choraTapTimer.current = null; }
+                              lastChoraTapRef.current = 0;
+                              setTransportForced(true);
+                              setIsBottomSectionExpanded(false);
+                              return;
+                            }
+                            lastChoraTapRef.current = now;
+                            choraTapTimer.current = setTimeout(() => {
+                              setView('MUSIC'); setIsBottomSectionExpanded(false); choraTapTimer.current = null;
+                            }, 280);
+                            return;
+                          }
+                          setView(tab.id as any); setIsBottomSectionExpanded(false);
+                        }}
                         className="flex flex-col items-center gap-0.5 flex-1 py-1.5 android-press"
                         style={{ minHeight: 48 }}
                       >
@@ -3270,15 +3295,21 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               {/* Persistent "back to Now Playing" chevron — floats centered above the Home tab
                   on mobile whenever something is queued and you're away from the music views,
                   so the tracklist of what's playing is always one tap away. */}
-              {(isMobile || theme === 'PHONE') && currentAlbum && !isBottomSectionExpanded && !['MUSIC', 'PLAYER', 'RADIO'].includes(view) && (
+              {(isMobile || theme === 'PHONE') && currentAlbum && !isBottomSectionExpanded && !transportForced && !['MUSIC', 'PLAYER', 'RADIO'].includes(view) && (
                 <button
-                  onClick={() => { setIsMinimized(false); handleGlobalNavigate('PLAYER', { album: currentAlbum }); }}
-                  title={`Now playing: ${currentTrack?.title || currentAlbum.title} — tap to open the tracklist`}
-                  className="fixed left-1/2 -translate-x-1/2 z-[151] flex items-center gap-1.5 max-w-[72vw] pl-2 pr-3 py-1.5 rounded-full bg-theme-card/90 backdrop-blur-3xl border border-white/10 shadow-2xl android-press"
-                  style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom) + 6px)' }}
+                  onTouchStart={(e) => { nowPlayingTouchY.current = e.touches[0].clientY; nowPlayingSwiped.current = false; }}
+                  onTouchMove={(e) => { if (nowPlayingTouchY.current != null && nowPlayingTouchY.current - e.touches[0].clientY > 28) nowPlayingSwiped.current = true; }}
+                  onTouchEnd={() => { if (nowPlayingSwiped.current) window.dispatchEvent(new CustomEvent('PLAJAH_OPEN_PLAYER_DRAWER')); nowPlayingTouchY.current = null; }}
+                  onClick={() => {
+                    if (nowPlayingSwiped.current) { nowPlayingSwiped.current = false; return; } // was a swipe-up, not a tap
+                    setIsMinimized(false); handleGlobalNavigate('PLAYER', { album: currentAlbum });
+                  }}
+                  title={`Now playing: ${currentTrack?.title || currentAlbum.title} — tap for tracklist, swipe up for controls`}
+                  className="fixed left-1/2 -translate-x-1/2 z-[151] flex items-center gap-1.5 max-w-[72vw] pl-2 pr-3 py-1.5 rounded-full border border-white/15 shadow-[0_6px_24px_rgba(107,0,153,0.45)] android-press"
+                  style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom) + 6px)', background: 'linear-gradient(135deg, #6B0099 0%, #D40055 55%, #FF8C00 100%)' }}
                 >
-                  <ChevronUp size={16} className={`text-small-orange shrink-0 ${isPlaying ? 'animate-pulse' : ''}`} />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white truncate">{currentTrack?.title || currentAlbum.title}</span>
+                  <ChevronUp size={16} className={`text-white shrink-0 ${isPlaying ? 'animate-pulse' : ''}`} />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white truncate drop-shadow">{currentTrack?.title || currentAlbum.title}</span>
                 </button>
               )}
 

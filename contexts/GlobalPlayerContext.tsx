@@ -60,6 +60,8 @@ interface GlobalPlayerContextType {
   setIsShrunk: (val: boolean) => void;
   isMinimized: boolean;
   setIsMinimized: (val: boolean) => void;
+  transportForced: boolean;
+  setTransportForced: (val: boolean) => void;
   isThreeDEnabled: boolean;
   setIsThreeDEnabled: (val: boolean) => void;
   isSpatialAudioEnabled: boolean;
@@ -116,6 +118,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [isPhoneMode, setIsPhoneMode] = useState(false);
   const [isShrunk, setIsShrunk] = useState(true);
   const [isMinimized, setIsMinimized] = useState(false);
+  // When true, the mobile transport bar is shown even on non-music views (revealed by a
+  // double-tap of the Chora nav icon or a swipe-up on the persistent now-playing pill).
+  const [transportForced, setTransportForced] = useState(false);
   const [isThreeDEnabled, setIsThreeDEnabled] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -1083,7 +1088,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev,
     analyser: analyserRef.current, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme, isBigScreen: theme === 'BIG_SCREEN',
-    isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, isThreeDEnabled, setIsThreeDEnabled,
+    isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, transportForced, setTransportForced, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,
     spatialMode, setSpatialMode, dolbySupport, isAtmosActive,
     toggleFullScreen, toggleAppFullScreen, view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia, activateVideoSource,
@@ -1093,7 +1098,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev,
     isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme,
-    isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, isThreeDEnabled, setIsThreeDEnabled,
+    isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, transportForced, setTransportForced, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,
     spatialMode, setSpatialMode, dolbySupport, isAtmosActive,
     view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia, activateVideoSource,

@@ -62,7 +62,9 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   // audio/video isn't interrupted and it reappears on Chora/Radio/Player.
   const MUSIC_TRANSPORT_VIEWS = ['MUSIC', 'PLAYER', 'RADIO'];
   const isPhoneSized = theme === 'PHONE' || vp.isPhone; // phones only — tablets keep the bar
-  const hideTransportOnPhone = isPhoneSized && !MUSIC_TRANSPORT_VIEWS.includes(view || '');
+  // Hidden on non-music phone views, unless the user reveals it (double-tap Chora icon
+  // or swipe-up on the persistent now-playing pill → transportForced).
+  const hideTransportOnPhone = isPhoneSized && !MUSIC_TRANSPORT_VIEWS.includes(view || '') && !transportForced;
   const { isCastAvailable, isCasting, castTrack, stopCasting } = useGoogleCast();
   const { 
     currentTrack, 
@@ -102,6 +104,8 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
     setIsShrunk,
     isMinimized,
     setIsMinimized,
+    transportForced,
+    setTransportForced,
     isThreeDEnabled,
     setIsThreeDEnabled,
     isSpatialAudioEnabled,
@@ -287,6 +291,16 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
         setIsMinimized(false);
     }
   }, [view, isPlaying, isNanoDocked]);
+
+  // A forced-transport reveal is transient: hide it again once the user navigates away.
+  useEffect(() => { setTransportForced(false); }, [view, setTransportForced]);
+
+  // Swipe-up on the persistent now-playing pill opens the extra-settings drawer.
+  useEffect(() => {
+    const openDrawer = () => { setTransportForced(true); setIsSpillOverOpen(true); };
+    window.addEventListener('PLAJAH_OPEN_PLAYER_DRAWER', openDrawer);
+    return () => window.removeEventListener('PLAJAH_OPEN_PLAYER_DRAWER', openDrawer);
+  }, [setTransportForced]);
 
   useEffect(() => {
     if (currentUser) {
