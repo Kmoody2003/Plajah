@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { loginWithGoogle, loginWithTwitter, loginWithFacebook, loginWithMicrosoft, fetchRandomActiveUser, fetchLandingBgConfig } from '../services/backendService';
-import { ArrowRight, Sparkles, LogIn, X as XIcon, Facebook, Minimize2 } from 'lucide-react';
+import { ArrowRight, Sparkles, LogIn, X as XIcon, Facebook, Minimize2, Mail } from 'lucide-react';
 import { LandingBgAsset, LandingBgConfig, UserProfile } from '../types';
 import ThreeDImage from './ThreeDImage';
 import EarthGlobe from './EarthGlobe';
 import Logo from './Logo';
 import SignInPrompt from './SignInPrompt';
+import AuthExperience from './AuthExperience';
 
 interface LandingPageProps {
   onEnter: () => void;
@@ -117,6 +118,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
   const [leftAdUser, setLeftAdUser] = useState<UserProfile | null>(null);
   const [rightAdUser, setRightAdUser] = useState<UserProfile | null>(null);
   const [showStudent, setShowStudent] = useState(false);
+  const [authMode, setAuthMode] = useState<'REGISTER' | 'SIGN_IN' | null>(null);
   const [bgConfig, setBgConfig] = useState<LandingBgConfig>({
     mode: 'EARTH', slideshowIntervalMs: 5000, overlayOpacity: 40, assets: []
   });
@@ -244,6 +246,25 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
           </p>
         </motion.div>
 
+        {/* Primary CTA — create an account with email */}
+        <motion.div
+          initial={{ y: 30, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
+          className="w-full max-w-md flex flex-col items-center gap-3"
+        >
+          <button
+            onClick={() => setAuthMode('REGISTER')}
+            className="w-full group relative flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white font-black text-sm uppercase tracking-[0.15em] shadow-[0_10px_40px_rgba(212,0,85,0.4)] hover:scale-[1.03] active:scale-95 transition-all duration-300"
+          >
+            <Mail size={17} /> Create your free account <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+          </button>
+          <button onClick={() => setAuthMode('SIGN_IN')} className="text-[11px] font-black uppercase tracking-[0.25em] text-white/50 hover:text-white transition-colors">
+            Already have an account? Sign in
+          </button>
+          <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25 mt-1">Or continue with a social account</p>
+        </motion.div>
+
         <motion.div
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -310,6 +331,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
 
       <AnimatePresence>
         {showStudent && <SignInPrompt action="learn" initialMode="STUDENT" onClose={() => setShowStudent(false)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {authMode && <AuthExperience initialMode={authMode} onClose={() => setAuthMode(null)} />}
       </AnimatePresence>
 
       {/* Footer Info */}
