@@ -783,7 +783,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
 
   return (
     <div
-      className={`fixed left-0 right-0 z-[100] flex-col transition-opacity duration-1000 ${(hideTransportOnPhone && !transportForced) ? 'hidden' : 'flex'} ${isUserActive ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed left-0 right-0 z-[100] flex-col transition-opacity duration-1000 ${(hideTransportOnPhone && !transportForced) ? 'hidden' : 'flex'} ${(isUserActive || transportForced) ? 'opacity-100' : 'opacity-0'}`}
       style={{ bottom: topOffset ? 'auto' : bottomOffset, top: topOffset || 'auto' }}
     >
 
