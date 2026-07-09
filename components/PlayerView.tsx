@@ -908,12 +908,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           <img
             src={activeVideo?.coverImageUrl || album.coverImage || undefined}
             alt=""
-            className="w-full h-full object-cover scale-110 blur-[40px] opacity-60 transition-all duration-1000"
+            className="w-full h-full object-cover scale-110 blur-[40px] opacity-35 transition-all duration-1000"
             referrerPolicy="no-referrer"
           />
-          {/* Fade into background towards the bottom */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/20 to-black/70" />
-          <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/50 to-transparent" />
+          {/* Fade into background — keep the top airy, sink the tracklist area into near-black so the artwork doesn't wash it orange */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/60 to-black/90" />
+          <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 to-transparent" />
         </div>
 
         {/* Mobile Header */}
@@ -1083,8 +1083,6 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           WebkitBackdropFilter: 'blur(24px)',
           borderBottom: '1px solid rgba(255,255,255,0.055)',
         }}>
-          {/* Bottom separator with colour hint */}
-          <div className="absolute bottom-0 left-0 right-0 h-px pointer-events-none" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,140,0,0.18) 30%, rgba(139,92,246,0.18) 70%, transparent 100%)' }} />
 
           {/* Left edge chevron — fades in once user has scrolled */}
           <button
