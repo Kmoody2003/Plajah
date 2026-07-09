@@ -1391,7 +1391,23 @@ export const createPost = async (post: Partial<Post>) => {
 
     // Notify followers
     notifyFollowers(auth.currentUser.uid, 'CONTENT', 'New Post', `${auth.currentUser.displayName} shared a new post`, 'FEED', docRef.id);
-    
+
+    // Posting directly on someone else's feed/wall → notify that person specifically.
+    const targetUid = (post as any).targetUserId as string | undefined;
+    if (targetUid && targetUid !== auth.currentUser.uid) {
+      createNotification({
+        userId: targetUid,
+        senderId: auth.currentUser.uid,
+        senderName: authorName,
+        senderPhoto: authorPhoto,
+        type: 'CONTENT',
+        title: 'New post on your feed',
+        message: `${authorName} posted on your feed`,
+        link: 'FEED',
+        targetId: docRef.id,
+      }).catch(() => {});
+    }
+
     return docRef.id;
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
@@ -6590,6 +6606,10 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
   // Save to Firestore immediately so the creator can see the video right away.
   try {
     await setDoc(doc(db, 'videos', id), newVideo);
+    // New video is new content — notify the creator's followers (unless it's a private upload).
+    if (!newVideo.isPrivate) {
+      notifyFollowers(uploaderUid, 'CONTENT', 'New Video', `${auth.currentUser.displayName || 'A creator'} posted a new video: ${newVideo.title}`, 'FEED', id);
+    }
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
     throw e;
