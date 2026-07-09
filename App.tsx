@@ -3267,6 +3267,23 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 </div>
               </nav>
 
+              {/* Persistent "back to Now Playing" chevron — floats centered above the Home tab
+                  on mobile whenever something is queued and you're away from the music views,
+                  so the tracklist of what's playing is always one tap away. */}
+              {(isMobile || theme === 'PHONE') && currentAlbum && !isBottomSectionExpanded && !['MUSIC', 'PLAYER', 'RADIO'].includes(view) && (
+                <button
+                  onClick={() => { setIsMinimized(false); handleGlobalNavigate('PLAYER', { album: currentAlbum }); }}
+                  title={`Now playing: ${currentAlbum.title} — tap to open the tracklist`}
+                  className="fixed left-1/2 -translate-x-1/2 z-[151] w-10 h-10 rounded-full overflow-hidden shadow-[0_6px_20px_rgba(0,0,0,0.55)] android-press flex items-center justify-center"
+                  style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom) + 6px)' }}
+                >
+                  <img src={currentAlbum.coverImage} alt="" referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover opacity-60" />
+                  <span className="absolute inset-0 bg-black/45" />
+                  <span className={`absolute inset-0 rounded-full border-2 ${isPlaying ? 'border-small-orange animate-pulse' : 'border-small-orange/70'}`} />
+                  <ChevronUp size={18} className="relative text-white" />
+                </button>
+              )}
+
               {/* Full app drawer — slides up from bottom tab bar */}
               <AnimatePresence>
                 {isBottomSectionExpanded && (
