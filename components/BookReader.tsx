@@ -950,9 +950,13 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     <>
     {/* Reader always mounted so content loads in background during opening scene */}
     <div
-      className={`fixed inset-0 ${s.bg} z-[120] flex flex-col overflow-hidden select-none pb-24 lg:pb-28 transition-colors duration-500`}
+      className={`fixed inset-0 ${s.bg} z-[160] flex flex-col overflow-hidden select-none pb-20 lg:pb-24 transition-colors duration-500`}
       style={{ opacity: showOpeningScene ? 0 : 1, pointerEvents: showOpeningScene ? 'none' : undefined, transition: 'opacity 0.7s ease' }}
     >
+      {/* Opaque base — the immersive reader must fully cover the app chrome (nav + ad
+          pillars + bottom tab bar). Several reader themes use a transparent/glass bg,
+          which let the sidebars bleed through; this solid layer sits behind the glass. */}
+      <div className="absolute inset-0 -z-10 bg-[#08080c]" aria-hidden="true" />
       {currentChapter?.audioUrl && (
         <audio ref={audioRef} src={currentChapter.audioUrl} onEnded={() => setIsNarrating(false)} />
       )}
