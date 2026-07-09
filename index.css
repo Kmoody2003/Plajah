@@ -629,6 +629,11 @@ div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-t
   /* Touch targets — M3 minimum comfortable hit area. Wrap small icon buttons. */
   .tap    { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
   .tap-lg { min-width: 48px; min-height: 48px; display: inline-flex; align-items: center; justify-content: center; }
+  /* `.tap` sets display:inline-flex, which (same layer, later source order) would beat
+     Tailwind's `.hidden` — so `tap hidden` elements render visible. This compound selector
+     is more specific, so `hidden` wins and `tap hidden` is actually hidden (e.g. the mobile
+     Chora track-row Breakdown / Plajah Pixels buttons). */
+  .tap.hidden { display: none; }
 
   /* Safe-area-aware fixed anchors for floating UI (players, FABs, bottom bars). */
   .fixed-bottom-safe { bottom: max(1.5rem, env(safe-area-inset-bottom)); }
