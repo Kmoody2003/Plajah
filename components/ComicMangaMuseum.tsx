@@ -132,10 +132,30 @@ const ComicMangaMuseum: React.FC<{ onBack: () => void; onSelectBook: (a: Album) 
   const openComic = async (b: ArchiveBook) => {
     setOpening(true);
     try {
-      const realUrl = await resolveArchiveReadableUrl(b.id);
       const album = toReadable(b);
-      if (realUrl && (album as any).bookChapters?.[0]) {
-        (album as any).bookChapters[0] = { ...(album as any).bookChapters[0], url: realUrl, format: 'PDF' };
+      // Prefer native page-image reading: our server caches archive.org's JP2 scans as
+      // web JPEGs and serves them page-by-page (reliable, unlike archive's live IIIF).
+      let native = false;
+      try {
+        const r = await fetch(`/api/comics/pages/${encodeURIComponent(b.id)}`);
+        if (r.ok) {
+          const { count } = await r.json();
+          if (count > 0 && (album as any).bookChapters?.[0]) {
+            (album as any).bookChapters[0] = {
+              ...(album as any).bookChapters[0],
+              url: '', format: 'IMAGES',
+              pages: Array.from({ length: count }, (_, n) => ({ url: `/api/comics/page/${encodeURIComponent(b.id)}/${n}` })),
+            };
+            native = true;
+          }
+        }
+      } catch { /* fall through to the PDF path */ }
+      // Fallback: the item has no scanned JP2 pages — hand the reader its real PDF/HTML.
+      if (!native) {
+        const realUrl = await resolveArchiveReadableUrl(b.id);
+        if (realUrl && (album as any).bookChapters?.[0]) {
+          (album as any).bookChapters[0] = { ...(album as any).bookChapters[0], url: realUrl, format: 'PDF' };
+        }
       }
       onSelectBook(album);
     } finally {

@@ -3252,6 +3252,100 @@ Rules:
   });
 
   // --- Generic Proxy for external assets (CORS bypass and streaming support) ---
+  // ── Comic museum: cache archive.org JPEG-2000 scans as web JPEGs on first read ──
+  // archive.org's live IIIF image service (jp2→jpg) is slow/flaky, which is why the
+  // in-app reader kept erroring. Its *download* server, however, is fast + reliable, so
+  // we pull the raw .jp2 pages from there, ffmpeg-decode them to JPEG, and cache the
+  // result in our own Storage. First view of a page costs ~2s; every later view (any
+  // user) streams instantly from cache and never touches archive.org again.
+  const _comicPages = new Map<string, { pages: { zip: string; inner: string }[]; ts: number }>();
+  const _comicInflight = new Map<string, Promise<Buffer | null>>();
+
+  async function enumerateComicPages(id: string): Promise<{ zip: string; inner: string }[]> {
+    const hit = _comicPages.get(id);
+    if (hit && Date.now() - hit.ts < 12 * 3600_000) return hit.pages;
+    const pages: { zip: string; inner: string }[] = [];
+    try {
+      const metaRes = await safeOutboundFetch(`https://archive.org/metadata/${encodeURIComponent(id)}`);
+      const meta: any = await metaRes.json();
+      const zips: string[] = (meta.files || [])
+        .map((f: any) => f?.name).filter((n: any) => typeof n === 'string' && /_jp2\.zip$/i.test(n))
+        .sort((a: string, b: string) => a.localeCompare(b));
+      for (const zip of zips) {
+        const base = zip.replace(/\.zip$/i, '');
+        try {
+          const listRes = await safeOutboundFetch(`https://archive.org/download/${encodeURIComponent(id)}/${encodeURIComponent(zip)}/`);
+          const html = await listRes.text();
+          const names = Array.from(new Set(
+            Array.from(html.matchAll(/href="([^"?]+?\.jp2)"/gi))
+              .map(m => { try { return decodeURIComponent(m[1]); } catch { return m[1]; } })
+              .map(h => h.split('/').pop()!)
+          )).sort((a, b) => a.localeCompare(b));
+          for (const n of names) pages.push({ zip, inner: `${base}/${n}` });
+        } catch (e: any) { console.error('[comics] list zip failed', id, zip, e?.message); }
+      }
+    } catch (e: any) { console.error('[comics] enumerate failed', id, e?.message); }
+    _comicPages.set(id, { pages, ts: Date.now() });
+    return pages;
+  }
+
+  async function renderComicPage(id: string, n: number): Promise<Buffer | null> {
+    const objectPath = `comics-cache/${id}/${String(n).padStart(4, '0')}.jpg`;
+    const cached = await gcsDownload(objectPath);
+    if (cached && cached.length > 100) return cached;
+    const pages = await enumerateComicPages(id);
+    const pg = pages[n];
+    if (!pg) return null;
+    const jp2Url = `https://archive.org/download/${encodeURIComponent(id)}/${encodeURIComponent(pg.zip)}/${encodeURIComponent(pg.inner)}`;
+    let jp2Res: Response;
+    try { jp2Res = await safeOutboundFetch(jp2Url); } catch (e: any) { console.error('[comics] jp2 fetch failed', jp2Url, e?.message); return null; }
+    if (!jp2Res.ok) { console.error('[comics] jp2 fetch status', jp2Res.status, jp2Url); return null; }
+    const jp2Buf = Buffer.from(await jp2Res.arrayBuffer());
+    if (jp2Buf.length < 100) return null;
+    const stamp = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const inP = path.join(os.tmpdir(), `comic_${stamp}.jp2`);
+    const outP = path.join(os.tmpdir(), `comic_${stamp}.jpg`);
+    let jpg: Buffer | null = null;
+    try {
+      await fs.writeFile(inP, jp2Buf);
+      const { ok, err } = await runFfmpeg(['-y', '-hide_banner', '-loglevel', 'error', '-i', inP, '-vf', "scale='min(1600,iw)':-2", '-q:v', '4', outP], 40000);
+      if (ok) { try { jpg = await fs.readFile(outP); } catch { /* */ } }
+      else console.error('[comics] ffmpeg decode failed', id, n, err.slice(-400));
+    } catch (e: any) { console.error('[comics] render error', id, n, e?.message); }
+    finally { fs.unlink(inP).catch(() => {}); fs.unlink(outP).catch(() => {}); }
+    if (jpg && jpg.length > 100) gcsUpload(objectPath, jpg, 'image/jpeg').catch(() => {});
+    return jpg && jpg.length > 100 ? jpg : null;
+  }
+
+  // Enumerate a comic's pages (count only) so the client can build the native reader.
+  app.get('/api/comics/pages/:id', async (req: any, res: any) => {
+    const id = String(req.params.id || '');
+    if (!id) return res.status(400).json({ error: 'id required' });
+    try {
+      const pages = await enumerateComicPages(id);
+      if (!pages.length) return res.status(404).json({ error: 'no scanned pages for this item' });
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      return res.json({ id, count: pages.length });
+    } catch (e: any) { return res.status(500).json({ error: e?.message || 'enumerate failed' }); }
+  });
+
+  // Lazily decode + cache + stream a single page as JPEG.
+  app.get('/api/comics/page/:id/:n', async (req: any, res: any) => {
+    const id = String(req.params.id || '');
+    const n = parseInt(String(req.params.n), 10);
+    if (!id || !Number.isFinite(n) || n < 0) return res.status(400).end();
+    const key = `${id}/${n}`;
+    try {
+      let job = _comicInflight.get(key);
+      if (!job) { job = renderComicPage(id, n); _comicInflight.set(key, job); job.finally(() => _comicInflight.delete(key)); }
+      const jpg = await job;
+      if (!jpg) return res.status(502).end();
+      res.setHeader('Content-Type', 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      return res.end(jpg);
+    } catch (e: any) { console.error('[comics] page route', key, e?.message); return res.status(500).end(); }
+  });
+
   app.get('/api/proxy', async (req: any, res: any) => {
     const { url } = req.query;
     if (!url) return res.status(400).json({ error: 'URL required' });
