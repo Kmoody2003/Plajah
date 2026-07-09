@@ -2316,11 +2316,11 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               <div className="flex items-center gap-4 min-w-0">
                 <div className="w-10 h-10 rounded-2xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20 shrink-0"><VideoIcon size={18} className="text-small-orange" /></div>
                 <div className="min-w-0">
-                  <h4 className="text-xs font-black uppercase tracking-widest">{type === 'MUSIC' ? 'Also publish to Reello' : 'Surface in Video Gallery'}</h4>
+                  <h4 className="text-xs font-black uppercase tracking-widest">Also send to Reello</h4>
                   <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">
                     {type === 'MUSIC'
                       ? `Your ${musicVideos.length} music video${musicVideos.length > 1 ? 's' : ''} also go to the Reello video feed for more reach`
-                      : 'Mirror videos to gallery'}
+                      : 'Also surface this in the Reello video feed — it stays in Taleo either way'}
                   </p>
                 </div>
               </div>

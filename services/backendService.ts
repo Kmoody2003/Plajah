@@ -3017,6 +3017,9 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
             // Reliable Taleo marker so a movie shows in Taleo regardless of its genre
             // (Taleo's genre-only filter missed movies tagged with a content genre).
             subType: 'MOVIE',
+            // This whole block only runs when the creator opted into publishVideosToGallery
+            // ("Also send to Reello"), so flag it so it ALSO appears in the Reello feed.
+            isRello: true,
             timestamp: Date.now()
           } as any);
         }
@@ -3031,6 +3034,7 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
             ownerId: uid,
             artist: mv.artist || cloudAlbum.artist,
             genre: mv.genre || cloudAlbum.genre,
+            isRello: true, // opted into the gallery/Reello via publishVideosToGallery
             timestamp: mv.timestamp || Date.now()
           });
         }
@@ -3050,6 +3054,8 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
                 description: ep.description || cloudAlbum.description,
                 artist: cloudAlbum.artist,
                 genre: cloudAlbum.genre,
+                subType: 'TV_SERIES',
+                isRello: true, // opted into the gallery/Reello via publishVideosToGallery
                 timestamp: Date.now()
               });
             }
