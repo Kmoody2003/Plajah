@@ -134,3 +134,57 @@ export const MANGA_ERAS: { label: string; since: number; note: string }[] = [
   { label: 'Golden 80s–90s', since: 1985, note: 'Global breakout classics' },
   { label: 'Modern', since: 2005, note: 'Digital + worldwide simulpub' },
 ];
+
+// ── Museum: legendary creators (artists & writers) ─────────────────────────────
+// Curated, factual profiles. No external portraits (dead-link/CORS risk) — the UI
+// renders a gradient monogram from `color` + initials, so it's always reliable.
+export interface Legend {
+  name: string;
+  role: 'Writer' | 'Artist' | 'Writer-Artist' | 'Studio';
+  field: 'Comics' | 'Manga';
+  era: string;
+  knownFor: string;
+  legacy: string;
+  color: string;
+}
+
+export const COMIC_LEGENDS: Legend[] = [
+  { name: 'Jack Kirby', role: 'Artist', field: 'Comics', era: '1940s–1980s', knownFor: 'Fantastic Four · X-Men · Captain America · New Gods', legacy: '“The King of Comics.” His dynamic, cosmic art built the Marvel Universe and the visual language of the superhero.', color: '#FF8C00' },
+  { name: 'Stan Lee', role: 'Writer', field: 'Comics', era: '1960s–2000s', knownFor: 'Spider-Man · X-Men · Hulk · Avengers', legacy: 'Co-created Marvel’s pantheon and gave superheroes real, relatable humanity — flawed people behind the masks.', color: '#D40055' },
+  { name: 'Will Eisner', role: 'Writer-Artist', field: 'Comics', era: '1930s–2000s', knownFor: 'The Spirit · A Contract with God', legacy: 'Pioneered sequential-art storytelling and championed the “graphic novel” as a serious literary form.', color: '#6B0099' },
+  { name: 'Alan Moore', role: 'Writer', field: 'Comics', era: '1980s–', knownFor: 'Watchmen · V for Vendetta · From Hell', legacy: 'Redefined comics as literature with dense, deconstructive masterworks that changed what the medium could say.', color: '#0070FF' },
+  { name: 'Frank Miller', role: 'Writer-Artist', field: 'Comics', era: '1980s–', knownFor: 'The Dark Knight Returns · Sin City · 300', legacy: 'Brought noir grit and cinematic edge that reshaped the modern superhero and inspired a generation of film.', color: '#E2473B' },
+  { name: 'Neil Gaiman', role: 'Writer', field: 'Comics', era: '1989–', knownFor: 'The Sandman', legacy: 'Wove myth, dream and literary fantasy into comics’ most acclaimed saga — the first comic to win a literary award.', color: '#00C878' },
+  { name: 'Hergé', role: 'Writer-Artist', field: 'Comics', era: '1929–1980s', knownFor: 'The Adventures of Tintin', legacy: 'Master of the “clear line” style; defined European comics (bande dessinée) for the world.', color: '#E7B24B' },
+  { name: 'Charles Schulz', role: 'Writer-Artist', field: 'Comics', era: '1950–2000', knownFor: 'Peanuts', legacy: 'Turned a daily strip into a half-century meditation on childhood, failure and the human heart.', color: '#8B5CF6' },
+];
+
+export const MANGA_LEGENDS: Legend[] = [
+  { name: 'Osamu Tezuka', role: 'Writer-Artist', field: 'Manga', era: '1946–1989', knownFor: 'Astro Boy · Black Jack · Phoenix', legacy: 'The “God of Manga.” Invented modern story-manga and its cinematic panel language; father of the industry.', color: '#D40055' },
+  { name: 'Akira Toriyama', role: 'Writer-Artist', field: 'Manga', era: '1980s–2020s', knownFor: 'Dragon Ball · Dr. Slump', legacy: 'His action and crystalline clarity made shōnen a global phenomenon and defined a genre’s template.', color: '#FF8C00' },
+  { name: 'Naoki Urasawa', role: 'Writer-Artist', field: 'Manga', era: '1980s–', knownFor: 'Monster · 20th Century Boys · Pluto', legacy: 'Master of the literary thriller in manga form — meticulous, humane, endlessly suspenseful.', color: '#0070FF' },
+  { name: 'Rumiko Takahashi', role: 'Writer-Artist', field: 'Manga', era: '1978–', knownFor: 'Ranma ½ · Inuyasha · Urusei Yatsura', legacy: 'One of the best-selling comic artists in history and the queen of the romantic comedy.', color: '#FF4D8D' },
+  { name: 'Katsuhiro Otomo', role: 'Writer-Artist', field: 'Manga', era: '1980s–', knownFor: 'Akira', legacy: 'His hyper-detailed, kinetic vision brought cyberpunk manga — and anime — to the entire world.', color: '#00C878' },
+  { name: 'Eiichiro Oda', role: 'Writer-Artist', field: 'Manga', era: '1997–', knownFor: 'One Piece', legacy: 'Author of the best-selling manga of all time — a decades-long adventure of staggering scale.', color: '#6B0099' },
+  { name: 'Moto Hagio', role: 'Writer-Artist', field: 'Manga', era: '1969–', knownFor: 'The Poe Clan · They Were Eleven', legacy: 'Pioneer of the “Year 24 Group” who turned shōjo manga into rich, literary art.', color: '#8B5CF6' },
+  { name: 'Go Nagai', role: 'Writer-Artist', field: 'Manga', era: '1967–', knownFor: 'Devilman · Mazinger Z · Cutie Honey', legacy: 'Created the piloted-robot and dark-fantasy genres that shaped decades of manga and anime.', color: '#E2473B' },
+];
+
+// ── Museum: history timelines ──────────────────────────────────────────────────
+export interface HistoryEra { period: string; title: string; blurb: string; }
+
+export const COMICS_HISTORY: HistoryEra[] = [
+  { period: '1890s–1930s', title: 'The Strip & the Newsstand', blurb: 'Newspaper strips (Yellow Kid, Little Nemo, Krazy Kat) build a mass audience. In 1938 Action Comics #1 introduces Superman — and the comic book is born.' },
+  { period: '1938–1956', title: 'The Golden Age', blurb: 'Superheroes explode — Superman, Batman, Wonder Woman, Captain America — as comics become a wartime and postwar staple for millions.' },
+  { period: '1956–1970', title: 'The Silver Age', blurb: 'A science-fueled revival. Marvel’s Lee, Kirby and Ditko create flawed, human heroes — Spider-Man, the X-Men, the Fantastic Four — that redefine the genre.' },
+  { period: '1970–1985', title: 'The Bronze Age', blurb: 'Stories grow darker and socially aware — addiction, race, grief — while horror and sword-and-sorcery push the medium’s boundaries.' },
+  { period: '1986–Today', title: 'The Modern Age', blurb: 'Watchmen and The Dark Knight Returns legitimize comics as literature. Independent presses and the graphic-novel movement broaden who tells stories, and how.' },
+];
+
+export const MANGA_HISTORY: HistoryEra[] = [
+  { period: 'Edo–1930s', title: 'Roots', blurb: 'From Hokusai’s sketch “manga” to early 20th-century strips and kamishibai street theatre, Japan builds a deep visual-story tradition.' },
+  { period: '1945–1960s', title: 'Story Manga is Born', blurb: 'Osamu Tezuka’s cinematic New Treasure Island and Astro Boy establish modern, novelistic manga — long-form, emotional, and drawn like film.' },
+  { period: '1968–1980s', title: 'The Shōnen Boom', blurb: 'Weekly Shōnen Jump launches. Serialized action, sports and adventure reach tens of millions and set the industry’s engine running.' },
+  { period: '1970s', title: 'The Shōjo Revolution', blurb: 'The “Year 24 Group” (Hagio, Takemiya and peers) transforms girls’ manga into psychologically rich, boundary-pushing literary work.' },
+  { period: '1990s–Today', title: 'The Global Era', blurb: 'Dragon Ball, Sailor Moon, One Piece and Naruto break out worldwide. Digital publishing and simultaneous translation make manga a global language.' },
+];

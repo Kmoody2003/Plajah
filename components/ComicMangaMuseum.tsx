@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { ChevronLeft, Search, BookOpen, Landmark, Library as LibraryIcon, ExternalLink, Loader2, Sparkles, Clock } from 'lucide-react';
 import type { Album } from '../types';
-import { fetchArchiveComics, fetchAnilistManga, resolveArchiveReadableUrl, COMIC_COLLECTIONS, MANGA_ERAS, type MangaEntry } from '../services/comicsMangaService';
+import { fetchArchiveComics, fetchAnilistManga, resolveArchiveReadableUrl, COMIC_COLLECTIONS, MANGA_ERAS, COMIC_LEGENDS, MANGA_LEGENDS, COMICS_HISTORY, MANGA_HISTORY, type MangaEntry, type Legend, type HistoryEra } from '../services/comicsMangaService';
 import { searchOpenLibrary, openLibrarySubject, OPEN_LIBRARY_SHELVES } from '../services/openLibraryService';
 import type { ArchiveBook } from '../services/archiveContentService';
 
@@ -21,6 +21,55 @@ const toReadable = (b: ArchiveBook): Album => ({
   ownerId: 'system', createdAt: Date.now(), themeColor: V, tracks: [],
   bookChapters: [{ id: b.id, title: b.title, url: b.formats['application/pdf'] || b.formats['text/html'], format: b.formats['application/pdf'] ? 'PDF' : 'HTML' }],
 } as any);
+
+// ── Museum: legendary creators + history ──────────────────────────────────────
+const initials = (name: string) => name.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+
+const LegendCard: React.FC<{ l: Legend }> = ({ l }) => (
+  <div className="shrink-0 w-64 p-5 rounded-2xl bg-white/[0.03] border border-white/8 hover:border-white/20 hover:bg-white/[0.05] transition-all">
+    <div className="flex items-center gap-3 mb-3">
+      <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white text-sm shrink-0 shadow-lg" style={{ background: `linear-gradient(135deg, ${l.color}, ${l.color}77)` }}>{initials(l.name)}</div>
+      <div className="min-w-0">
+        <h4 className="text-sm font-black uppercase tracking-tight text-white truncate">{l.name}</h4>
+        <p className="text-[8.5px] font-black uppercase tracking-widest" style={{ color: l.color }}>{l.role} · {l.era}</p>
+      </div>
+    </div>
+    <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2 leading-snug">{l.knownFor}</p>
+    <p className="text-[11px] text-white/55 leading-relaxed">{l.legacy}</p>
+  </div>
+);
+
+const LegendsSection: React.FC<{ title: string; note: string; legends: Legend[] }> = ({ title, note, legends }) => (
+  <section className="mb-10 mt-2">
+    <div className="flex items-center gap-3 mb-4">
+      <Sparkles size={14} style={{ color: GOLD }} />
+      <h3 className="text-sm font-black uppercase tracking-[0.2em] text-white">{title}</h3>
+      <span className="text-[10px] text-white/30 hidden sm:inline">{note}</span>
+    </div>
+    <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
+      {legends.map(l => <LegendCard key={l.name} l={l} />)}
+    </div>
+  </section>
+);
+
+const HistorySection: React.FC<{ title: string; eras: HistoryEra[] }> = ({ title, eras }) => (
+  <section className="mb-12">
+    <div className="flex items-center gap-3 mb-6">
+      <Landmark size={14} style={{ color: GOLD }} />
+      <h3 className="text-sm font-black uppercase tracking-[0.2em] text-white">{title}</h3>
+    </div>
+    <div className="relative pl-6 space-y-7 border-l border-white/10 ml-1">
+      {eras.map((e, i) => (
+        <div key={i} className="relative">
+          <div className="absolute -left-[1.72rem] top-1.5 w-3 h-3 rounded-full" style={{ background: GOLD, boxShadow: '0 0 0 4px rgba(231,178,75,0.14)' }} />
+          <p className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: GOLD }}>{e.period}</p>
+          <h4 className="text-base font-black uppercase tracking-tight text-white mt-0.5 mb-1.5">{e.title}</h4>
+          <p className="text-[12.5px] text-white/55 leading-relaxed max-w-2xl">{e.blurb}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+);
 
 const BookCard: React.FC<{ b: ArchiveBook; onOpen: () => void }> = ({ b, onOpen }) => (
   <button onClick={onOpen} className="shrink-0 w-32 text-left group">
@@ -136,6 +185,9 @@ const ComicMangaMuseum: React.FC<{ onBack: () => void; onSelectBook: (a: Album) 
             {COMIC_COLLECTIONS.map(c => (
               <Row key={c.label} label={c.label} load={() => fetchArchiveComics(c.query, 18)} onOpen={openComic} />
             ))}
+            <div className="h-px w-full bg-white/5 my-8" />
+            <LegendsSection title="Legends of Comics" note="The artists & writers who built the medium" legends={COMIC_LEGENDS} />
+            <HistorySection title="A History of Comics" eras={COMICS_HISTORY} />
           </>
         )}
 
@@ -146,6 +198,9 @@ const ComicMangaMuseum: React.FC<{ onBack: () => void; onSelectBook: (a: Album) 
             {MANGA_ERAS.map(e => (
               <MangaRow key={e.label} label={e.label} note={`${e.since}+ · ${e.note}`} load={() => fetchAnilistManga({ sort: 'START_DATE', sinceYear: e.since, limit: 24 })} />
             ))}
+            <div className="h-px w-full bg-white/5 my-8" />
+            <LegendsSection title="Masters of Manga" note="The mangaka who shaped a century" legends={MANGA_LEGENDS} />
+            <HistorySection title="A History of Manga" eras={MANGA_HISTORY} />
           </>
         )}
 
