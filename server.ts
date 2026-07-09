@@ -2145,7 +2145,9 @@ async function startServer() {
       const upload = await mux.video.uploads.create({
         new_asset_settings: MUX_ASSET_SETTINGS,
         cors_origin: corsOrigin,
-        timeout: 3600,   // 1-hour window for large files
+        // 24-hour window: a multi-GB film on a slow connection can take hours, and
+        // UpChunk resumes within this window. 1 hour was too tight for large masters.
+        timeout: 86400,
       });
       res.json({ id: upload.id, url: upload.url });
     } catch (error: any) {

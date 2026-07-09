@@ -1757,7 +1757,7 @@ export const createPPVEvent = async (event: Partial<PPVEvent>) => {
   const path = `ppv_events/${id}`;
   const newEvent: PPVEvent = {
     id,
-    ownerId: auth.currentUser.uid,
+    ownerId: uploaderUid,
     ownerName: auth.currentUser.displayName || 'Artist',
     title: event.title || 'Untitled Event',
     description: event.description || '',
@@ -1814,7 +1814,7 @@ export const createClassroom = async (classroom: Partial<Classroom>) => {
   const path = `classrooms/${id}`;
   const newClass: Classroom = {
     id,
-    ownerId: auth.currentUser.uid,
+    ownerId: uploaderUid,
     ownerName: auth.currentUser.displayName || 'Teacher',
     title: classroom.title || 'Untitled Class',
     description: classroom.description || '',
@@ -2853,7 +2853,7 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
     if (auth.currentUser && finalTracks.some(t => t.url)) {
       const draftDoc = removeUndefined({
         ...album,
-        ownerId: auth.currentUser.uid,
+        ownerId: uploaderUid,
         coverImage: finalCover || album.coverImage || '',
         artistImage: finalArtistImg || finalCover || album.artistImage,
         tracks: finalTracks.map(t => { const { file, ...rest } = t; return { ...rest, rightsOwnerId: auth.currentUser?.uid }; }),
@@ -4084,7 +4084,7 @@ export const publishLiveFeed = async (feed: Partial<LiveFeed> & { title: string,
   try {
     const feedData = removeUndefined({
       ...feed,
-      ownerId: auth.currentUser.uid,
+      ownerId: uploaderUid,
       ownerName: auth.currentUser.displayName || 'Artist',
       ownerPhoto: auth.currentUser.photoURL || '',
       timestamp: serverTimestamp(),
@@ -4407,7 +4407,7 @@ export const uploadPhoto = async (file: File, metadata: Partial<Photo>) => {
     const newPhoto: Photo = {
       id,
       url,
-      ownerId: auth.currentUser.uid,
+      ownerId: uploaderUid,
       timestamp: Date.now(),
       isPublic: metadata.isPublic ?? false, // Default to private
       isGalleryEligible: metadata.isGalleryEligible ?? false,
@@ -4438,7 +4438,7 @@ export const uploadWorldPhoto = async (
     const newPhoto: Photo = {
       id,
       url,
-      ownerId: auth.currentUser.uid,
+      ownerId: uploaderUid,
       timestamp: Date.now(),
       isPublic: false,
       isGalleryEligible: false,
@@ -4489,7 +4489,7 @@ export const createPhotoAlbum = async (album: Partial<PhotoAlbum>) => {
   const path = `photo_albums/${id}`;
   const newAlbum: PhotoAlbum = {
     id,
-    ownerId: auth.currentUser.uid,
+    ownerId: uploaderUid,
     title: album.title || 'Untitled Album',
     description: album.description || '',
     photoIds: album.photoIds || [],
@@ -4600,7 +4600,7 @@ export const createEventPhotoPool = async (pool: Partial<EventPhotoPool>) => {
   const newPool: EventPhotoPool = {
     id,
     eventId: pool.eventId || '',
-    ownerId: auth.currentUser.uid,
+    ownerId: uploaderUid,
     title: pool.title || 'Event Photo Pool',
     description: pool.description || '',
     mediaIds: [],
@@ -5344,7 +5344,7 @@ export const addUserGame = async (game: Omit<Game, 'id' | 'timestamp' | 'playCou
     const newGame: Game = {
       ...game,
       id: gameId,
-      ownerId: auth.currentUser.uid,
+      ownerId: uploaderUid,
       playCount: 0,
       timestamp: Date.now()
     };
@@ -5393,7 +5393,7 @@ export const createPersonalAlbum = async (album: Partial<Album>) => {
   const path = `personal_albums/${id}`;
   const newAlbum: Album = {
     id,
-    ownerId: auth.currentUser.uid,
+    ownerId: uploaderUid,
     title: album.title || 'Untitled Album',
     artist: album.artist || 'Personal Collection',
     coverImage: album.coverImage || 'https://picsum.photos/seed/album/400/400',
@@ -5458,7 +5458,7 @@ export const createPlaylist = async (playlist: Partial<Playlist>) => {
   const path = `personal_playlists/${id}`;
   const newPlaylist: Playlist = {
     id,
-    ownerId: auth.currentUser.uid,
+    ownerId: uploaderUid,
     title: playlist.title || 'New Playlist',
     description: playlist.description || '',
     coverUrl: playlist.coverUrl || 'https://picsum.photos/seed/playlist/400/400',
@@ -6291,28 +6291,39 @@ export const seedMockUsers = async () => {
 // --- VIDEO FEATURES ---
 
 // Upload a video file directly to Mux (browser → Mux, skipping Firebase Storage).
+// Uses Mux's UpChunk for a RESUMABLE, chunked upload: multi-GB films survive
+// dropped connections (each chunk auto-retries, the whole upload resumes from the
+// last good chunk instead of restarting). This is what makes large professional
+// uploads reliable — a single PUT would restart from 0% on any network blip.
 // Returns the Mux upload ID so we can poll for the playback ID afterwards.
 export const uploadVideoFileMux = async (
   file: File,
   onProgress?: (p: number) => void,
 ): Promise<string> => {
   const { id: uploadId, url: uploadUrl } = await createMuxDirectUpload();
+  const UpChunk = await import('@mux/upchunk');
   await new Promise<void>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.upload.addEventListener('progress', (e) => {
-      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+    const upload = UpChunk.createUpload({
+      endpoint: uploadUrl,
+      file,
+      chunkSize: 30720,   // 30 MB chunks — good balance for big files on real networks
+      attempts: 6,        // retry each chunk up to 6× before failing
+      delayBeforeAttempt: 1, // seconds; UpChunk backs off between retries
     });
-    xhr.addEventListener('load', () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Mux upload failed: ${xhr.status}`))));
-    xhr.addEventListener('error', () => reject(new Error('Mux upload network error')));
-    xhr.open('PUT', uploadUrl);
-    xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
-    xhr.send(file);
+    upload.on('progress', (e: any) => { if (onProgress) onProgress(Math.round(e.detail)); });
+    upload.on('success', () => resolve());
+    upload.on('error', (e: any) => reject(new Error(e?.detail?.message || 'Mux upload failed')));
   });
   return uploadId;
 };
 
 export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number) => void): Promise<Video> => {
   if (!auth.currentUser) throw new Error("Must be signed in to upload videos.");
+  // Pin ownership to the account that STARTED the upload. A large film can upload
+  // for many minutes; if the user hot-switches accounts mid-upload we must NOT
+  // re-own the video to whoever is active when it finishes — it stays with the
+  // uploader until they delete it.
+  const uploaderUid = auth.currentUser.uid;
   const id = `vid_${Date.now()}`;
   const path = `videos/${id}`;
 
@@ -6341,7 +6352,7 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
   
   const newVideo: Video = {
     id,
-    ownerId: auth.currentUser.uid,
+    ownerId: uploaderUid,
     title: video.title || 'Untitled Video',
     url: videoUrl,
     thumbnailUrl: thumbUrl,
@@ -6602,7 +6613,7 @@ export const createVideoPlaylist = async (playlist: Partial<VideoPlaylist>) => {
   const path = `video_playlists/${id}`;
   const newPlaylist: VideoPlaylist = removeUndefined({
     id,
-    ownerId: auth.currentUser.uid,
+    ownerId: uploaderUid,
     ownerName: auth.currentUser.displayName || 'Creator',
     ownerPhoto: auth.currentUser.photoURL || '',
     title: playlist.title || 'New Playlist',
@@ -6817,7 +6828,7 @@ export const createFanPage = async (name: string, description: string) => {
   const path = `fan_pages/${id}`;
   const newPage: FanPage = {
     id,
-    ownerId: auth.currentUser.uid,
+    ownerId: uploaderUid,
     name,
     description,
     members: [auth.currentUser.uid],
@@ -6931,7 +6942,7 @@ export const createAdCampaign = async (campaign: Partial<AdCampaign>) => {
   try {
     const data = removeUndefined({
       ...campaign,
-      ownerId: auth.currentUser.uid,
+      ownerId: uploaderUid,
       timestamp: serverTimestamp(),
       isActive: campaign.isActive ?? true,
       status: 'ACTIVE'

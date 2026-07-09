@@ -27,6 +27,7 @@
     "@lumaai/luma-web": "^0.2.2",
     "@mux/mux-node": "^14.0.1",
     "@mux/mux-player-react": "^3.13.0",
+    "@mux/upchunk": "^3.5.0",
     "@pixiv/three-vrm": "^3.5.2",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.0",

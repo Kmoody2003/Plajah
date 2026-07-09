@@ -45,6 +45,14 @@ const TYPE_OPTIONS: { id: AssetType; label: string; desc: string; icon: React.Re
 const MUSIC_SUBTYPES = ['ALBUM', 'SINGLE', 'EP', 'PODCAST'] as const;
 const VIDEO_SUBTYPES = ['UGC', 'MOVIE', 'TV_SERIES', 'PODCAST'] as const;
 
+// Professional film/TV upload accept list. `video/*` alone hides pro masters
+// because .mxf/.mts/.m2ts/.mov (ProRes/DNxHD) often have no OS-registered MIME —
+// so filmmakers couldn't even select them. This covers the full set of container
+// formats Mux ingests + transcodes. (Camera-raw / image-sequence formats like
+// DPX, R3D, BRAW, EXR are NOT streamable by Mux — if one is chosen the upload
+// still stores it under the account, but export a ProRes/H.264 master for playback.)
+const VIDEO_ACCEPT = 'video/*,.mp4,.m4v,.mov,.qt,.mkv,.webm,.avi,.wmv,.flv,.ts,.m2ts,.mts,.mpg,.mpeg,.m2v,.3gp,.3g2,.ogv,.mxf,.gxf,.vob,.asf,.f4v,.divx';
+
 // Step labels are computed dynamically in the component based on type + subType.
 
 const hasSubtype = (t: AssetType) => t === 'MUSIC' || t === 'VIDEO';
@@ -385,7 +393,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         'flac','aiff','aif','aifc','alac','ape','wv','tta','tak','shn','caf','mka','wma','ra','rm',
         'ac3','eac3','dts','dtshd','mpc','amr','gsm','iamf','mid','midi','kar','mod','xm','it','s3m',
       ]);
-      const VIDEO_EXTS = new Set(['mp4','mov','mkv','m4v','avi','wmv','mpg','mpeg','m2ts','mts','ts','3gp','ogv']);
+      const VIDEO_EXTS = new Set(['mp4','mov','qt','mkv','m4v','avi','wmv','flv','mpg','mpeg','m2v','m2ts','mts','ts','3gp','3g2','ogv','webm','mxf','gxf','vob','asf','f4v','divx','r3d','braw','dpx','exr']);
       for (const file of fileArray) {
         const ext = file.name.toLowerCase().split('.').pop() ?? '';
         const isKnownAudio = KNOWN_AUDIO_EXTS.has(ext);
@@ -962,7 +970,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                 <Upload size={28} className="mx-auto mb-4 text-white/20 group-hover:text-white transition-colors" />
                 <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Main Movie File</p>
                 <p className="text-[8px] font-bold text-white/20 mt-2">{tracks[0]?.url ? 'File Selected' : 'No file selected'}</p>
-                <input type="file" className="hidden" accept="video/*" onChange={async (e) => {
+                <input type="file" className="hidden" accept={VIDEO_ACCEPT} onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (file) { const url = await uploadFile(file, 'VIDEO'); setTracks([{ id: 'movie', title, artist, url, duration: 0 }]); }
                 }} />
@@ -995,7 +1003,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                       <input type="text" value={feature.title} onChange={(e) => { const f = [...(movieMetadata.specialFeatures || [])]; f[idx].title = e.target.value; setMovieMetadata({ ...movieMetadata, specialFeatures: f }); }} className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-white outline-none w-full mb-1" />
                       <label className="text-[8px] font-bold text-white/20 cursor-pointer hover:text-white transition-colors">
                         {feature.url ? 'File Uploaded' : 'Upload Video'}
-                        <input type="file" className="hidden" accept="video/*" onChange={async (e) => { const file = e.target.files?.[0]; if (file) { const url = await uploadFile(file, 'VIDEO'); const f = [...(movieMetadata.specialFeatures || [])]; f[idx].url = url; setMovieMetadata({ ...movieMetadata, specialFeatures: f }); } }} />
+                        <input type="file" className="hidden" accept={VIDEO_ACCEPT} onChange={async (e) => { const file = e.target.files?.[0]; if (file) { const url = await uploadFile(file, 'VIDEO'); const f = [...(movieMetadata.specialFeatures || [])]; f[idx].url = url; setMovieMetadata({ ...movieMetadata, specialFeatures: f }); } }} />
                       </label>
                     </div>
                     <button type="button" onClick={() => setMovieMetadata({ ...movieMetadata, specialFeatures: movieMetadata.specialFeatures?.filter(f => f.id !== feature.id) })} className="text-white/20 hover:text-red-500"><Trash2 size={14} /></button>
@@ -1038,7 +1046,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                       <textarea value={ep.description || ''} onChange={(e) => { const s = [...seasons]; s[sIdx].episodes[eIdx].description = e.target.value; setSeasons(s); }} placeholder="Episode Description..." className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-medium text-white/60 outline-none resize-none h-16" />
                       <label className="block w-full py-3 bg-white/5 border border-dashed border-white/10 rounded-xl cursor-pointer hover:bg-white/10 text-center transition-all">
                         <span className="text-[8px] font-black uppercase tracking-widest text-white/40">{ep.url ? 'Video Ready' : 'Upload Video'}</span>
-                        <input type="file" className="hidden" accept="video/*" onChange={async (e) => { const file = e.target.files?.[0]; if (file) { const url = await uploadFile(file, 'VIDEO'); const s = [...seasons]; s[sIdx].episodes[eIdx].url = url; setSeasons(s); } }} />
+                        <input type="file" className="hidden" accept={VIDEO_ACCEPT} onChange={async (e) => { const file = e.target.files?.[0]; if (file) { const url = await uploadFile(file, 'VIDEO'); const s = [...seasons]; s[sIdx].episodes[eIdx].url = url; setSeasons(s); } }} />
                       </label>
                     </div>
                   ))}
@@ -1091,7 +1099,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                 <label className="flex items-center justify-center gap-3 w-full py-4 bg-black/40 border border-dashed border-white/10 rounded-2xl cursor-pointer hover:border-white/20 transition-all group">
                   <Upload size={16} className="text-white/30 group-hover:text-white transition-colors" />
                   <span className="text-[9px] font-black uppercase tracking-widest text-white/40">{gameVideoUrl && !gameVideoUrl.includes('http') ? 'Video Ready' : 'Upload .mp4 / .webm'}</span>
-                  <input type="file" className="hidden" accept="video/*" onChange={async (e) => {
+                  <input type="file" className="hidden" accept={VIDEO_ACCEPT} onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (file) { const url = await uploadFile(file, 'VIDEO'); setGameVideoUrl(url); }
                   }} />
@@ -1181,7 +1189,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             </div>
           )}
           <div className="relative group">
-            <input type="file" multiple accept={type === 'BOOK' ? '.pdf,.epub,.txt,.cbz,.cbr,.docx,.rtf,.fb2,.html,.htm,.mobi,.azw,.azw3,.djvu' : type === 'VIDEO' ? 'video/*' : type === 'PHOTO' ? 'image/*' : AUDIO_ACCEPT} onChange={handleFolderSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+            <input type="file" multiple accept={type === 'BOOK' ? '.pdf,.epub,.txt,.cbz,.cbr,.docx,.rtf,.fb2,.html,.htm,.mobi,.azw,.azw3,.djvu' : type === 'VIDEO' ? VIDEO_ACCEPT : type === 'PHOTO' ? 'image/*' : AUDIO_ACCEPT} onChange={handleFolderSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
             <div className="w-full py-16 border-2 border-dashed border-white/10 rounded-3xl flex flex-col items-center justify-center gap-6 group-hover:bg-white/[0.04] transition-all group-hover:border-white/20">
               <div className="p-6 rounded-2xl bg-white/5 text-white/40 group-hover:text-white transition-all shadow-2xl group-hover:scale-110 duration-500"><Upload size={32} /></div>
               <div className="text-center px-4">
@@ -1339,7 +1347,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                   {/* Replace file */}
                   <label title="Replace file" className="p-3 rounded-full text-white/20 hover:text-small-orange hover:bg-small-orange/10 transition-all cursor-pointer">
                     <RefreshCw size={15} />
-                    <input type="file" className="hidden" accept={track.mediaKind === 'VIDEO' ? 'video/*' : AUDIO_ACCEPT} onChange={(e) => {
+                    <input type="file" className="hidden" accept={track.mediaKind === 'VIDEO' ? VIDEO_ACCEPT : AUDIO_ACCEPT} onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) { stopPreview(); setPreviewVideoId(null); updateTrack(track.id, { file, url: URL.createObjectURL(file), mediaKind: file.type.startsWith('video') ? 'VIDEO' : track.mediaKind }); setQcResults(prev => { const n = { ...prev }; delete n[track.id]; return n; }); }
                       e.target.value = '';
@@ -1734,7 +1742,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                 <input type="url" value={newVideoUrl} onChange={(e) => setNewVideoUrl(e.target.value)} placeholder="YouTube/Vimeo URL" className="flex-1 bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-4 text-white font-bold focus:outline-none transition-all placeholder:text-white/10" />
                 <label className="p-4 bg-white/5 rounded-2xl cursor-pointer hover:bg-white/10 transition-all flex items-center justify-center">
                   <Upload size={20} className="text-white/40" />
-                  <input type="file" className="hidden" accept="video/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setNewVideoFile(f); setNewVideoUrl(f.name); } }} />
+                  <input type="file" className="hidden" accept={VIDEO_ACCEPT} onChange={(e) => { const f = e.target.files?.[0]; if (f) { setNewVideoFile(f); setNewVideoUrl(f.name); } }} />
                 </label>
               </div>
             </div>
@@ -2634,7 +2642,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                         <label className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest cursor-pointer transition-all hover:bg-white/10"
                           style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}>
                           <Upload size={9} /> File
-                          <input type="file" accept={AUDIO_ACCEPT + ',video/*'} className="hidden" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCreatorHnsSlotUpload(track, slot, f); }} />
+                          <input type="file" accept={AUDIO_ACCEPT + ',' + VIDEO_ACCEPT} className="hidden" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCreatorHnsSlotUpload(track, slot, f); }} />
                         </label>
                         {existing && (
                           <button type="button"
