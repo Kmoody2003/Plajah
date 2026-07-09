@@ -288,17 +288,6 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
     }
   }, [view, isPlaying, isNanoDocked]);
 
-  // Mobile: fully retract the player after 20s of no interaction. The colored chevron
-  // brings it back up. Any interaction (play/pause, track change, opening the drawer,
-  // un-retracting) re-runs this effect and restarts the 20s timer.
-  useEffect(() => {
-    if (!isPhoneMode) return;
-    if (isMinimized || isSpillOverOpen) return;
-    if (!(currentTrack || currentVideo)) return;
-    const t = setTimeout(() => setIsMinimized(true), 20000);
-    return () => clearTimeout(t);
-  }, [isPhoneMode, isMinimized, isSpillOverOpen, currentTrack, currentVideo, isPlaying]);
-
   useEffect(() => {
     if (currentUser) {
       const unsubscribe = listenToChatRooms((rooms) => {
