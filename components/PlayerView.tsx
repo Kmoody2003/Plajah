@@ -908,12 +908,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           <img
             src={activeVideo?.coverImageUrl || album.coverImage || undefined}
             alt=""
-            className="w-full h-full object-cover scale-110 blur-[40px] opacity-35 transition-all duration-1000"
+            className="w-full h-full object-cover scale-110 blur-[40px] saturate-[0.4] opacity-40 transition-all duration-1000"
             referrerPolicy="no-referrer"
           />
-          {/* Fade into background — keep the top airy, sink the tracklist area into near-black so the artwork doesn't wash it orange */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/60 to-black/90" />
-          <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 to-transparent" />
+          {/* Desaturated so warm covers bleed through as a faint neutral haze, not an orange wash. */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-black/35 to-black/70" />
         </div>
 
         {/* Mobile Header */}
