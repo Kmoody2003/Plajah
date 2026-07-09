@@ -1018,15 +1018,25 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             </div>
           ) : (
             <div className="w-full h-full relative text-left block">
-              <img
-                src={thumb((currentTrack?.images?.[0]) || album.coverImage, THUMB.large) || undefined}
-                alt={currentTrack?.title || album.title}
-                loading="lazy"
-                decoding="async"
-                onError={onThumbError((currentTrack?.images?.[0]) || album.coverImage)}
-                className="w-full h-full object-cover opacity-80"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
+              {isFlipped ? (
+                <div className="w-full h-full animate-in fade-in duration-500">
+                  <AnimatedSlideshow
+                    images={(currentTrack?.images && currentTrack.images.length > 0) ? currentTrack.images : (album.slideshow && album.slideshow.length > 0) ? album.slideshow : [album.coverImage]}
+                    isPlaying={globalIsPlaying && isCurrentTrackGlobal}
+                    themeColor={album.themeColor}
+                  />
+                </div>
+              ) : (
+                <img
+                  src={thumb((currentTrack?.images?.[0]) || album.coverImage, THUMB.large) || undefined}
+                  alt={currentTrack?.title || album.title}
+                  loading="lazy"
+                  decoding="async"
+                  onError={onThumbError((currentTrack?.images?.[0]) || album.coverImage)}
+                  className="w-full h-full object-cover opacity-80"
+                />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent pointer-events-none" />
               
               <div className="absolute inset-0 flex items-center justify-center p-8">
                 {(!globalIsPlaying || !isCurrentTrackGlobal) && (
@@ -1046,6 +1056,17 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               >
                 <Share2 size={16} />
               </button>
+              {/* Flip cover ⇄ slideshow — small badge on the art (only when the album/track has extra images) */}
+              {(((currentTrack?.images?.length || 0) > 1) || ((album.slideshow?.length || 0) > 0)) && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setIsFlipped(f => !f); }}
+                  title={isFlipped ? 'Show cover art' : 'Show slideshow'}
+                  className={`absolute top-4 left-4 z-20 w-10 h-10 rounded-xl backdrop-blur-md border flex items-center justify-center transition-all ${isFlipped ? 'bg-small-orange/30 border-small-orange/50 text-small-orange' : 'bg-black/50 border-white/20 text-white/60 hover:text-white hover:bg-black/70'}`}
+                  style={{top:'max(1rem, env(safe-area-inset-top))', left:'max(1rem, env(safe-area-inset-left))'}}
+                >
+                  <Layers size={16} />
+                </button>
+              )}
               {/* Floating Track Info on Cover */}
               <div className="absolute bottom-6 left-6 right-6" style={{bottom:'max(1.5rem, env(safe-area-inset-bottom))'}}>
                 <h2 className="text-2xl font-black uppercase tracking-tightest leading-none mb-1 shadow-md">{currentTrack?.title}</h2>
@@ -1242,13 +1263,14 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     key={t.id}
                     draggable={!!isOwner}
                     onDragStart={() => { dragTrackIndexRef.current = i; }}
-                    onDragOver={(e) => { e.preventDefault(); setDragOverTrackIndex(i); }}
-                    onDragLeave={() => setDragOverTrackIndex(null)}
-                    onDrop={(e) => { e.preventDefault(); const from = dragTrackIndexRef.current; setDragOverTrackIndex(null); if (from !== null && from !== i) reorderTracks(from, i); dragTrackIndexRef.current = null; }}
-                    onDragEnd={() => { dragTrackIndexRef.current = null; setDragOverTrackIndex(null); }}
-                    className={`rounded-2xl border transition-all ${dragOverTrackIndex === i ? 'scale-[1.02] border-small-orange/60' : isActive ? 'border-[#FF8C00]/50' : 'border-white/5'}`}
+                    onDragOver={(e) => { e.preventDefault(); }}
+                    onDrop={(e) => { e.preventDefault(); const from = dragTrackIndexRef.current; if (from !== null && from !== i) reorderTracks(from, i); dragTrackIndexRef.current = null; }}
+                    onDragEnd={() => { dragTrackIndexRef.current = null; }}
+                    className="relative overflow-hidden border-b border-white/[0.06] last:border-b-0"
                   >
-                    <div className={`flex items-center gap-3 p-4 ${isActive ? 'bg-gradient-to-br from-[#6B0099]/40 via-[#D40055]/30 to-[#FF8C00]/30 backdrop-blur-2xl shadow-[0_0_30px_rgba(107,0,153,0.3)] rounded-t-2xl' : 'bg-gradient-to-br from-[#6B0099]/10 via-transparent to-[#FF8C00]/10 backdrop-blur-xl rounded-2xl'} ${isExpanded ? '!rounded-b-none' : ''}`}>
+                    {/* Active row: edge-to-edge purple→orange gradient with a slow gentle sweep */}
+                    {isActive && <div className="absolute inset-0 track-gradient-active pointer-events-none" aria-hidden="true" />}
+                    <div className={`relative flex items-center gap-3 px-4 py-3.5 ${isActive ? '' : 'hover:bg-white/[0.03]'}`}>
                       {isOwner && <GripVertical size={14} className="text-white/20 shrink-0 cursor-grab active:cursor-grabbing" />}
                       <button onClick={() => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }} className="flex items-center gap-3 text-left flex-1 min-w-0">
                         <span className="text-[10px] font-black text-small-orange w-4 shrink-0">{i + 1}</span>
@@ -1324,11 +1346,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     {isExpanded && (
                       <motion.div key="drawer" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }} className="overflow-hidden">
                       <div className="bg-black/40 backdrop-blur-xl rounded-b-2xl border-t border-white/5 p-4 space-y-3">
-                        {/* Phone quick actions (hidden on sm+, where they live inline) */}
+                        {/* Phone quick action — kept minimal (Breakdown / Pixels live in the full player) */}
                         <div className="flex sm:hidden flex-wrap gap-2">
                           <button onClick={(e) => { e.stopPropagation(); setPlaylistPickerTrack(t); }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 text-white/70 text-[10px] font-black uppercase tracking-widest"><ListPlus size={13} /> Add to playlist</button>
-                          <button onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_BREAKDOWN', { detail: { track: t, album } })); }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FF8C00]/12 text-[#FF8C00] text-[10px] font-black uppercase tracking-widest"><Waves size={13} /> Breakdown</button>
-                          <button onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { track: t, album } })); }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-500/12 text-purple-200 text-[10px] font-black uppercase tracking-widest"><Sparkles size={13} /> Plajah Pixels</button>
                         </div>
                         {isOwner && (
                         <div className="space-y-3">

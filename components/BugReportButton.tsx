@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Bug, X, ShieldCheck, Check, Loader2 } from 'lucide-react';
 import { reportBug } from '../services/errorReporting';
@@ -19,6 +19,13 @@ const BugReportButton: React.FC<BugReportButtonProps> = ({ currentView }) => {
   const [severity, setSeverity] = useState<'warning' | 'error'>('warning');
   const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
+  // Opened from the main navigation "More" drawer (the floating button was removed).
+  useEffect(() => {
+    const h = () => setOpen(true);
+    window.addEventListener('OPEN_BUG_REPORT', h);
+    return () => window.removeEventListener('OPEN_BUG_REPORT', h);
+  }, []);
+
   const submit = async () => {
     if (!message.trim() || state === 'sending') return;
     setState('sending');
@@ -31,15 +38,8 @@ const BugReportButton: React.FC<BugReportButtonProps> = ({ currentView }) => {
 
   return (
     <>
-      {/* Floating trigger */}
-      <button
-        onClick={() => setOpen(true)}
-        title="Report a bug"
-        className="fixed bottom-5 left-5 z-[90] w-11 h-11 rounded-full bg-white/[0.06] border border-white/12 backdrop-blur-xl flex items-center justify-center text-white/50 hover:text-white hover:bg-white/12 transition-all shadow-lg"
-      >
-        <Bug size={17} />
-      </button>
-
+      {/* Trigger lives in the main navigation "More" drawer — this component only
+          renders the modal, opened via the OPEN_BUG_REPORT event. */}
       <AnimatePresence>
         {open && (
           <motion.div

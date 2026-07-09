@@ -288,6 +288,17 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
     }
   }, [view, isPlaying, isNanoDocked]);
 
+  // Mobile: fully retract the player after 20s of no interaction. The colored chevron
+  // brings it back up. Any interaction (play/pause, track change, opening the drawer,
+  // un-retracting) re-runs this effect and restarts the 20s timer.
+  useEffect(() => {
+    if (!isPhoneMode) return;
+    if (isMinimized || isSpillOverOpen) return;
+    if (!(currentTrack || currentVideo)) return;
+    const t = setTimeout(() => setIsMinimized(true), 20000);
+    return () => clearTimeout(t);
+  }, [isPhoneMode, isMinimized, isSpillOverOpen, currentTrack, currentVideo, isPlaying]);
+
   useEffect(() => {
     if (currentUser) {
       const unsubscribe = listenToChatRooms((rooms) => {
@@ -940,13 +951,21 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
           )}
         </AnimatePresence>
 
-        {/* Minimize/Collapse Toggle */}
+        {/* Colored chevron — the single control. When retracted it brings the player
+            back up; when up it's the sole trigger for the extra-controls drawer and
+            spins to point up while the drawer is open. */}
         <button
-          onClick={() => setIsMinimized(!isMinimized)}
-          className={`absolute p-2 bg-theme-card/90 backdrop-blur-3xl border border-white/5 rounded-t-xl text-white/40 hover:text-white transition-all shadow-2xl ${isPhoneMode ? 'left-1/2 -translate-x-1/2' : 'right-8'} ${isLandscape && !isMinimized ? 'hidden' : '-top-10'} ${isMinimized ? 'animate-pulse hover:animate-none' : ''}`}
-          title="Toggle Minimized Pill Mode"
+          onClick={() => {
+            if (isMinimized) { setIsMinimized(false); }
+            else if (isPhoneMode) { setIsSpillOverOpen(o => !o); }
+            else { setIsMinimized(true); }
+          }}
+          className={`absolute p-2 bg-theme-card/90 backdrop-blur-3xl border border-white/5 rounded-t-xl transition-all shadow-2xl ${isMinimized ? 'text-small-orange' : (isPhoneMode ? 'text-small-orange hover:text-white' : 'text-white/40 hover:text-white')} ${isPhoneMode ? 'left-1/2 -translate-x-1/2' : 'right-8'} ${isLandscape && !isMinimized ? 'hidden' : '-top-10'} ${isMinimized ? 'animate-pulse hover:animate-none' : ''}`}
+          title={isMinimized ? 'Bring player back up' : (isPhoneMode ? 'More controls' : 'Minimize')}
         >
-          {isMinimized ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          {isMinimized
+            ? <ChevronUp size={20} />
+            : <ChevronDown size={20} className={`transition-transform duration-500 ${isSpillOverOpen ? 'rotate-180' : ''}`} />}
         </button>
 
         {/* Mobile Swipe-Up Overflow — Full-height bottom sheet with drag-to-dismiss */}
@@ -1160,24 +1179,6 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
             <div className={`w-full flex ${isLandscape ? 'flex-row items-center gap-4 px-4 h-full' : 'flex-col items-center'}`}>
               {/* Sleeker Info Bar at Top */}
               <div className={`${isLandscape ? 'w-auto flex-shrink-0' : 'w-full'} flex items-center justify-between px-2 relative ${isShrunk ? '' : (isLandscape ? 'gap-2' : 'gap-4 pb-2 mb-2')}`}>
-                {/* Top-left utilities: Shrink & Home */}
-                <div className={`absolute flex items-center gap-1 z-20 ${isLandscape ? '-top-1 left-0' : (isShrunk ? '-top-6 left-0' : '-top-8 left-0')}`}>
-                  <button 
-                    onClick={() => setIsShrunk(!isShrunk)}
-                    className="p-1.5 bg-black/60 rounded-full border border-white/10 backdrop-blur-md text-white/40 hover:text-white active:scale-90 transition-all shadow-lg"
-                    title={isShrunk ? "Expand Player" : "Shrink Player"}
-                  >
-                    {isShrunk ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
-                  </button>
-                  <button 
-                    onClick={() => onNavigate?.('DASHBOARD')}
-                    className="p-1.5 bg-black/60 rounded-full border border-white/10 backdrop-blur-md text-white/40 hover:text-white active:scale-90 transition-all shadow-lg"
-                    title="Home"
-                  >
-                    <Home size={14} />
-                  </button>
-                </div>
-
                 {!isShrunk && (
                   <button
                     className={`flex items-center gap-3 min-w-0 flex-1 ${isLandscape ? '' : 'mt-2'} text-left`}
@@ -1221,13 +1222,6 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                         <Tv size={14} />
                       </button>
                     )}
-                    <button onClick={() => setIsSpillOverOpen(!isSpillOverOpen)} className="text-small-orange">
-                      {topOffset ? (
-                        <ChevronDown size={18} className={`transition-transform duration-500 ${isSpillOverOpen ? 'rotate-180' : ''}`} />
-                      ) : (
-                        <ChevronUp size={18} className={`transition-transform duration-500 ${isSpillOverOpen ? 'rotate-180' : ''}`} />
-                      )}
-                    </button>
                   </div>
                 )}
               </div>
@@ -1310,14 +1304,6 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                       <VideoIcon size={16} />
                     </button>
                   )}
-                  <button
-                    onClick={() => setIsSpillOverOpen(!isSpillOverOpen)}
-                    className={`p-2 android-press transition-all rounded-full ${isSpillOverOpen ? 'text-small-orange' : 'text-white/30'}`}
-                    style={{ minWidth: 36, minHeight: 36 }}
-                    title="Queue & Menu"
-                  >
-                    <List size={18} />
-                  </button>
                 </div>
               </div>
             </div>
