@@ -1249,6 +1249,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 </div>
               )}
 
+              {/* Edge-to-edge track list — break out of the content padding so rows span the full width */}
+              <div className="-mx-6">
               {localTracks.map((t, i) => {
                 const isActive = currentTrackIndex === i;
                 const isExpanded = expandedTrackId === t.id;
@@ -1440,6 +1442,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                   </div>
                 );
               })}
+              </div>
             </div>
           )}
 
