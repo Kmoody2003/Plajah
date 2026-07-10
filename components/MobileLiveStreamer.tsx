@@ -199,6 +199,27 @@ const CameraProControls: React.FC<{ track: MediaStreamTrack | null }> = ({ track
   );
 };
 
+// If the demo asset is the full character SHEET (squarish, large), crop to the clear
+// front-facing face close-up (lower-right) so the puppet is a clean talking head — the
+// face tracker builds from one detected face, not a multi-view sheet. A pre-cropped
+// portrait (non-square) is passed through unchanged.
+async function cropDemoFace(blob: Blob): Promise<Blob> {
+  try {
+    const bmp = await createImageBitmap(blob);
+    const ar = bmp.width / bmp.height;
+    if (ar > 0.9 && ar < 1.15 && bmp.width >= 700) {
+      const sx = Math.round(bmp.width * 0.785), sy = Math.round(bmp.height * 0.535);
+      const sw = Math.round(bmp.width * 0.215), sh = Math.round(bmp.height * 0.30);
+      const c = document.createElement('canvas'); c.width = sw; c.height = sh;
+      c.getContext('2d')!.drawImage(bmp, sx, sy, sw, sh, 0, 0, sw, sh);
+      bmp.close();
+      const out = await new Promise<Blob | null>(r => c.toBlob(b => r(b), 'image/png'));
+      if (out) return out;
+    } else { bmp.close(); }
+  } catch { /* fall through to the original */ }
+  return blob;
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const MobileLiveStreamer: React.FC<MobileLiveStreamerProps> = ({
@@ -361,7 +382,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     try {
       const res = await fetch('/vtuber/demo-character.png');
       if (!res.ok) throw new Error('Demo character isn\'t available yet.');
-      await buildAvatarFromBlob(await res.blob());
+      await buildAvatarFromBlob(await cropDemoFace(await res.blob()));
     } catch (e: any) { alert(e?.message || 'Could not load the demo character.'); }
     finally { setAvatarBuilding(false); }
   };
