@@ -12,7 +12,10 @@
 // Looks: neutral · warm · teal-orange · moody · vivid · noir · vintage, plus any
 // uploaded .cube 3D LUT. Grading runs on WebGL2; if unavailable it passes through.
 
-export type ComposerMode = 'front' | 'rear' | 'both' | 'screen-pip' | 'screen-mask';
+import type { VTuberHandle } from './vtuber/vtuberEngine';
+import type { AvatarDescriptor } from './vtuber/avatarFactory';
+
+export type ComposerMode = 'front' | 'rear' | 'both' | 'screen-pip' | 'screen-mask' | 'vtuber';
 export type LookId = 'none' | 'warm' | 'tealorange' | 'moody' | 'vivid' | 'noir' | 'vintage';
 export const LOOKS: { id: LookId; label: string }[] = [
   { id: 'none', label: 'Neutral' },
@@ -99,6 +102,11 @@ export class LiveComposer {
   private maskCanvas = document.createElement('canvas');
   private maskCtx = this.maskCanvas.getContext('2d')!;
 
+  // VTuber: a face-tracked avatar (2D puppet or VRM) driven by the front camera.
+  private avatar: AvatarDescriptor | null = null;
+  private vtuber: VTuberHandle | null = null;
+  private vtuberStarting = false;
+
   constructor(private onScreenEnded?: () => void) {
     this.initGL();
     this.setCanvas(720, 1280);
@@ -154,6 +162,30 @@ export class LiveComposer {
 
   setLook(look: LookId) { this.look = look; this.useLut = false; }
   clearLut() { this.useLut = false; }
+
+  /** Set the VTuber avatar (2D puppet built from a character sheet, or a VRM). Takes
+   *  effect next time 'vtuber' mode starts; if already in vtuber mode, restart it. */
+  setAvatar(a: AvatarDescriptor | null) {
+    this.avatar = a;
+    if (this.vtuber) { this.vtuber.dispose(); this.vtuber = null; }
+  }
+  hasAvatar() { return !!this.avatar; }
+  private async ensureVtuber() {
+    if (this.vtuber || this.vtuberStarting || !this.avatar || !this.frontStream) return;
+    this.vtuberStarting = true;
+    try {
+      // Lazy-load the VTuber engine (pulls in three.js) only when actually used.
+      const { createVTuberStream } = await import('./vtuber/vtuberEngine');
+      // AVATAR_ONLY on a transparent canvas — the composer draws it over its own
+      // background and then grades it, so LUTs/looks apply to the avatar too.
+      this.vtuber = await createVTuberStream(this.frontStream, {
+        avatar: this.avatar, mode: 'AVATAR_ONLY', width: 720, height: 1280,
+        background: { type: 'transparent' },
+      });
+    } catch (e) { console.warn('[liveComposer] vtuber start failed:', e); this.vtuber = null; }
+    this.vtuberStarting = false;
+  }
+  private releaseVtuber() { if (this.vtuber) { this.vtuber.dispose(); this.vtuber = null; } }
 
   /** Parse + upload a .cube 3D LUT (LUT_3D_SIZE). Falls back silently if no WebGL2. */
   setCubeLut(text: string): boolean {
@@ -213,6 +245,7 @@ export class LiveComposer {
     if (needRear) await this.ensureRear();
     if (needScreen) await this.ensureScreen();
     if (mode === 'screen-mask') await this.ensureSegmenter();
+    if (mode === 'vtuber') await this.ensureVtuber(); else this.releaseVtuber();
     if (!needFront) this.releaseFront();
     if (!needRear) this.releaseRear();
     if (!needScreen) this.releaseScreen();
@@ -267,6 +300,19 @@ export class LiveComposer {
       const person = this.seg ? this.renderMaskedPerson() : null;
       if (person && person.width) this.drawMaskedCorner(person); else this.drawPip(this.frontEl);
     }
+    else if (this.mode === 'vtuber') {
+      const src = this.vtuber?.canvas;
+      if (src && src.width) {
+        const scale = Math.max(W / src.width, H / src.height);
+        const sw = W / scale, sh = H / scale;
+        c.drawImage(src, (src.width - sw) / 2, (src.height - sh) / 2, sw, sh, 0, 0, W, H);
+      } else {
+        c.fillStyle = '#0d0d14'; c.fillRect(0, 0, W, H);
+        c.fillStyle = 'rgba(255,255,255,0.35)'; c.font = `${Math.round(W * 0.04)}px system-ui`;
+        c.textAlign = 'center'; c.fillText(this.avatar ? 'Loading avatar…' : 'Add a character first', W / 2, H / 2);
+        c.textAlign = 'left';
+      }
+    }
   }
   private pipRect() {
     const W = this.work.width, H = this.work.height;
@@ -304,6 +350,7 @@ export class LiveComposer {
 
   dispose() {
     if (this.raf) cancelAnimationFrame(this.raf); this.raf = 0;
+    this.releaseVtuber();
     this.releaseFront(); this.releaseRear(); this.releaseScreen();
     this.out?.getTracks().forEach(t => t.stop()); this.out = null;
     try { this.seg?.close?.(); } catch { /* */ }

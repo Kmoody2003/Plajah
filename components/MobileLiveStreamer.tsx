@@ -28,6 +28,7 @@ import {
   LayoutGrid, Monitor, UserSquare2, Columns2, MonitorSmartphone,
 } from 'lucide-react';
 import { LiveComposer, type ComposerMode, LOOKS, type LookId } from '../services/liveComposer';
+import { buildVTuberFromSheet } from '../services/vtuber/avatarFactory';
 import {
   auth, db, createPost, updatePost, deletePost, notifyFollowers, uploadVideo,
 } from '../services/backendService';
@@ -331,6 +332,24 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     const ok = composerRef.current?.setCubeLut(await file.text());
     if (ok) setLookId('custom');
     else alert("Couldn't load that LUT — only 3D .cube files (LUT_3D_SIZE) are supported.");
+  };
+
+  // VTuber — build a face-tracked avatar from an uploaded character sheet, then go live as it.
+  const sheetInputRef = useRef<HTMLInputElement>(null);
+  const [avatarBuilt, setAvatarBuilt] = useState(false);
+  const [avatarBuilding, setAvatarBuilding] = useState(false);
+  const [buildMsg, setBuildMsg] = useState('');
+  const buildAvatar = async (file?: File | null) => {
+    if (!file) return;
+    setAvatarBuilding(true); setBuildMsg('Building avatar…');
+    try {
+      if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
+      const desc = await buildVTuberFromSheet(file, { path: 'PUPPET2D', onProgress: (s: string, p: number) => setBuildMsg(`${s} · ${Math.round(p * 100)}%`) });
+      composerRef.current.setAvatar(desc);
+      setAvatarBuilt(true);
+      await applyMode('vtuber');
+    } catch (e: any) { alert(e?.message || 'Could not build that character into an avatar.'); }
+    finally { setAvatarBuilding(false); }
   };
 
   // ── Media + peers now run on the unified rtcCore backbone (broadcast topology:
@@ -769,11 +788,29 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                         </button>
                       </div>
                     </div>
+                    <div className="mt-2 pt-2 border-t border-white/10">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 pb-2">VTuber avatar</p>
+                      <div className="flex flex-wrap gap-1.5 px-1">
+                        {avatarBuilt && (
+                          <button onClick={() => applyMode('vtuber')}
+                            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${camMode === 'vtuber' ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80 hover:bg-white/12'}`}>
+                            Go live as avatar
+                          </button>
+                        )}
+                        <button onClick={() => sheetInputRef.current?.click()} disabled={avatarBuilding}
+                          className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-white/[0.06] text-white/80 hover:bg-white/12 disabled:opacity-50">
+                          {avatarBuilding ? (buildMsg || 'Building…') : avatarBuilt ? 'Change character' : 'Upload character'}
+                        </button>
+                      </div>
+                      <p className="text-[9px] text-white/30 px-2 pt-1.5 leading-snug">Upload a character drawing — your face drives it live, on-device.</p>
+                    </div>
                   </div>
                 </>
               )}
               <input ref={cubeInputRef} type="file" accept=".cube" className="hidden"
                 onChange={e => { uploadCube(e.target.files?.[0]); e.currentTarget.value = ''; }} />
+              <input ref={sheetInputRef} type="file" accept="image/*" className="hidden"
+                onChange={e => { buildAvatar(e.target.files?.[0]); e.currentTarget.value = ''; }} />
               {/* Camera / mic device picker */}
               {deviceMenu !== 'none' && (
                 <>
