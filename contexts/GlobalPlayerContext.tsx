@@ -86,6 +86,51 @@ interface GlobalPlayerContextType {
 const GlobalPlayerContext = createContext<GlobalPlayerContextType | undefined>(undefined);
 const GlobalPlayerProgressContext = createContext<GlobalPlayerProgressContextType | undefined>(undefined);
 
+// ── Media Session (lock screen + Android Auto / CarPlay / Bluetooth AVRCP) ──
+// Cars read the OS media session for title/artist/artwork/progress. It has to be
+// populated with an ABSOLUTE artwork URL and multiple sizes, and the position +
+// playback state kept in sync, or head units show nothing or a frozen scrubber.
+const toAbsoluteUrl = (u?: string | null): string | undefined => {
+  if (!u) return undefined;
+  try { return new URL(u, window.location.origin).href; } catch { return u || undefined; }
+};
+const artworkMimeType = (u?: string): string => {
+  const m = (u || '').split('?')[0].toLowerCase();
+  if (m.endsWith('.png')) return 'image/png';
+  if (m.endsWith('.webp')) return 'image/webp';
+  if (m.endsWith('.gif')) return 'image/gif';
+  return 'image/jpeg';
+};
+const updateMediaMetadata = (track: Track, album: Album | null) => {
+  if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
+  const src = toAbsoluteUrl(track.images?.[0] || (track as any).albumCover || album?.coverImage);
+  const type = artworkMimeType(src);
+  const artwork = src
+    ? ['96x96', '128x128', '256x256', '384x384', '512x512'].map(sizes => ({ src, sizes, type }))
+    : [];
+  const base = {
+    title: track.title || 'Unknown Title',
+    artist: album?.artist || track.artist || 'Unknown Artist',
+    album: album?.title || (track as any).albumTitle || '',
+  };
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({ ...base, artwork });
+  } catch {
+    // Some head units reject unreachable artwork and drop the whole payload — retry without it.
+    try { navigator.mediaSession.metadata = new MediaMetadata(base); } catch { /* unsupported */ }
+  }
+};
+const setSessionPlaybackState = (state: 'playing' | 'paused' | 'none') => {
+  if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
+  try { navigator.mediaSession.playbackState = state; } catch { /* */ }
+};
+const setSessionPosition = (audio: HTMLAudioElement | null) => {
+  if (!audio || typeof navigator === 'undefined' || !('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) return;
+  const d = audio.duration, p = audio.currentTime, rate = audio.playbackRate || 1;
+  if (!isFinite(d) || d <= 0 || !isFinite(p) || p < 0 || p > d) return;
+  try { navigator.mediaSession.setPositionState({ duration: d, position: p, playbackRate: rate }); } catch { /* */ }
+};
+
 export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [currentAlbum, setCurrentAlbum] = useState<Album | null>(null);
@@ -541,23 +586,17 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
           nextSrc = album.tracks[0].url;
         }
         if (nextSrc) {
+          // Warm the next track's connection + metadata only — NOT a full 'auto' download.
+          // Eagerly downloading the whole next file competed with the playing stream on
+          // cellular/in-car and starved it, causing the track to stall at random points.
           preloaderAudioRef.current.src = nextSrc;
-          preloaderAudioRef.current.preload = 'auto';
+          preloaderAudioRef.current.preload = 'metadata';
           preloaderAudioRef.current.load();
         }
       }
       
-      if ('mediaSession' in navigator) {
-        const imageUrl = track.images?.[0] || track.albumCover || album?.coverImage;
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: track.title,
-          artist: album?.artist || track.artist || 'Unknown Artist',
-          album: album?.title || track.albumTitle || 'Unknown Album',
-          ...(imageUrl ? {
-            artwork: [{ src: imageUrl, sizes: '512x512', type: 'image/jpeg' }]
-          } : {})
-        });
-      }
+      updateMediaMetadata(track, album);
+      setSessionPlaybackState('playing');
     } else if (source === 'VIDEO') {
       audio.pause();
     }
@@ -688,6 +727,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
     } else {
       audioRef.current.currentTime = time;
+      setSessionPosition(audioRef.current);
     }
   }, []);
 
@@ -827,6 +867,10 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       navigator.mediaSession.setActionHandler('seekto', (details) => {
          if (details.seekTime !== undefined) seek(details.seekTime);
       });
+      try {
+        navigator.mediaSession.setActionHandler('seekbackward', (d) => { const a = audioRef.current; seek(Math.max(0, a.currentTime - (d.seekOffset || 10))); });
+        navigator.mediaSession.setActionHandler('seekforward', (d) => { const a = audioRef.current; seek(Math.min(a.duration || Infinity, a.currentTime + (d.seekOffset || 10))); });
+      } catch { /* some browsers don't support these actions */ }
     }
     return () => {
       if ('mediaSession' in navigator) {
@@ -835,6 +879,10 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         navigator.mediaSession.setActionHandler('previoustrack', null);
         navigator.mediaSession.setActionHandler('nexttrack', null);
         navigator.mediaSession.setActionHandler('seekto', null);
+        try {
+          navigator.mediaSession.setActionHandler('seekbackward', null);
+          navigator.mediaSession.setActionHandler('seekforward', null);
+        } catch { /* */ }
       }
     };
   }, [resume, pause, prev, next, seek]);
@@ -868,9 +916,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         if (now - lastProgressSaveRef.current > 5000) { lastProgressSaveRef.current = now; persistProgress(); }
       }
     };
-    const onDurationChange = () => setDuration(audio.duration);
-    const onPlay = () => setIsPlaying(true);
-    const onPause = () => { setIsPlaying(false); persistProgress(); }; // capture latest position on pause
+    const onDurationChange = () => { setDuration(audio.duration); setSessionPosition(audio); };
+    const onPlay = () => { setIsPlaying(true); setSessionPlaybackState('playing'); setSessionPosition(audio); };
+    const onPause = () => { setIsPlaying(false); persistProgress(); setSessionPlaybackState('paused'); }; // capture latest position on pause
     const onError = (e: any) => {
       if (!audio.src || audio.src === window.location.href) return;
 
