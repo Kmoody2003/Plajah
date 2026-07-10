@@ -341,16 +341,28 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const [avatarBuilt, setAvatarBuilt] = useState(false);
   const [avatarBuilding, setAvatarBuilding] = useState(false);
   const [buildMsg, setBuildMsg] = useState('');
+  const buildAvatarFromBlob = async (blob: Blob) => {
+    if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
+    const desc = await buildVTuberFromSheet(blob, { path: 'PUPPET2D', onProgress: (s: string, p: number) => setBuildMsg(`${s} · ${Math.round(p * 100)}%`) });
+    composerRef.current.setAvatar(desc);
+    setAvatarBuilt(true);
+    await applyMode('vtuber');
+  };
   const buildAvatar = async (file?: File | null) => {
     if (!file) return;
     setAvatarBuilding(true); setBuildMsg('Building avatar…');
+    try { await buildAvatarFromBlob(file); }
+    catch (e: any) { alert(e?.message || 'Could not build that character into an avatar.'); }
+    finally { setAvatarBuilding(false); }
+  };
+  // Built-in demo character so any user can test VTuber with one tap (no upload).
+  const useDemoAvatar = async () => {
+    setAvatarBuilding(true); setBuildMsg('Loading demo character…');
     try {
-      if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
-      const desc = await buildVTuberFromSheet(file, { path: 'PUPPET2D', onProgress: (s: string, p: number) => setBuildMsg(`${s} · ${Math.round(p * 100)}%`) });
-      composerRef.current.setAvatar(desc);
-      setAvatarBuilt(true);
-      await applyMode('vtuber');
-    } catch (e: any) { alert(e?.message || 'Could not build that character into an avatar.'); }
+      const res = await fetch('/vtuber/demo-character.png');
+      if (!res.ok) throw new Error('Demo character isn\'t available yet.');
+      await buildAvatarFromBlob(await res.blob());
+    } catch (e: any) { alert(e?.message || 'Could not load the demo character.'); }
     finally { setAvatarBuilding(false); }
   };
 
@@ -808,12 +820,16 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                             Go live as avatar
                           </button>
                         )}
+                        <button onClick={useDemoAvatar} disabled={avatarBuilding}
+                          className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-gradient-to-r from-[#6B0099] to-[#FF8C00] text-white disabled:opacity-50">
+                          {avatarBuilding ? (buildMsg || 'Loading…') : '✨ Try demo avatar'}
+                        </button>
                         <button onClick={() => sheetInputRef.current?.click()} disabled={avatarBuilding}
                           className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-white/[0.06] text-white/80 hover:bg-white/12 disabled:opacity-50">
-                          {avatarBuilding ? (buildMsg || 'Building…') : avatarBuilt ? 'Change character' : 'Upload character'}
+                          {avatarBuilt ? 'Change character' : 'Upload your own'}
                         </button>
                       </div>
-                      <p className="text-[9px] text-white/30 px-2 pt-1.5 leading-snug">Upload a character drawing — your face drives it live, on-device.</p>
+                      <p className="text-[9px] text-white/30 px-2 pt-1.5 leading-snug">Tap the demo, or upload a character drawing — your face drives it live, on-device.</p>
                     </div>
                   </div>
                 </>
