@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { LiveComposer, type ComposerMode, LOOKS, type LookId } from '../services/liveComposer';
 import { buildVTuberFromSheet } from '../services/vtuber/avatarFactory';
+import { VoiceFX, VOICE_EFFECTS, type VoiceEffectId } from '../services/voiceFX';
 import {
   auth, db, createPost, updatePost, deletePost, notifyFollowers, uploadVideo,
 } from '../services/backendService';
@@ -340,6 +341,32 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   };
 
   useEffect(() => () => { composerRef.current?.dispose(); composerRef.current = null; }, []);
+
+  // Real-time voice changer — routes the mic through a Web Audio effect and publishes
+  // the processed track. The raw mic keeps feeding the effect; switching effects is
+  // instant (rewires the graph, same output track).
+  const voiceFxRef = useRef<VoiceFX | null>(null);
+  const rawMicRef = useRef<MediaStreamTrack | null>(null);
+  const [voiceId, setVoiceId] = useState<VoiceEffectId>('none');
+  const applyVoiceEffect = async (id: VoiceEffectId) => {
+    try {
+      if (id === 'none') {
+        if (voiceFxRef.current) { voiceFxRef.current.dispose(); voiceFxRef.current = null; }
+        if (rawMicRef.current) await rtc.publishExternalAudio(rawMicRef.current);
+        setVoiceId('none');
+        return;
+      }
+      if (!rawMicRef.current) rawMicRef.current = rtc.localStream?.getAudioTracks()[0] || null;
+      if (!rawMicRef.current) { alert('Microphone not ready yet.'); return; }
+      if (!voiceFxRef.current) {
+        voiceFxRef.current = new VoiceFX(new MediaStream([rawMicRef.current]));
+        await rtc.publishExternalAudio(voiceFxRef.current.getStream().getAudioTracks()[0]);
+      }
+      voiceFxRef.current.setEffect(id);
+      setVoiceId(id);
+    } catch (e: any) { alert(e?.message || 'Could not apply that voice effect.'); }
+  };
+  useEffect(() => () => { voiceFxRef.current?.dispose(); voiceFxRef.current = null; }, []);
 
   // Color grade / LUTs — grading lives in the composer, so picking a look first ensures
   // the composer is publishing (entering plain front mode if it wasn't).
@@ -851,6 +878,17 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                         </button>
                       </div>
                       <p className="text-[9px] text-white/30 px-2 pt-1.5 leading-snug">Tap the demo, or upload a character drawing — your face drives it live, on-device.</p>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-white/10">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 pb-2">Voice changer</p>
+                      <div className="flex flex-wrap gap-1.5 px-1 pb-1">
+                        {VOICE_EFFECTS.map(v => (
+                          <button key={v.id} onClick={() => applyVoiceEffect(v.id)}
+                            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${voiceId === v.id ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80 hover:bg-white/12'}`}>
+                            {v.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </>

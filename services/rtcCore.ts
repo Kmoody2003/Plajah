@@ -472,6 +472,21 @@ export class RtcSession {
     await this.swapVideoTrack(track);
   }
 
+  /** Publish an EXTERNAL audio track (e.g. a voice-changer output) in place of the mic.
+   *  Does NOT stop the old track — it may still feed the effect graph as its input. */
+  async publishExternalAudio(track: MediaStreamTrack) {
+    const old = this.local?.getAudioTracks()[0];
+    this.peers.forEach(({ pc }) => {
+      const sender = pc.getSenders().find(s => s.track?.kind === 'audio');
+      sender?.replaceTrack(track).catch(() => {});
+    });
+    if (this.local) {
+      if (old) this.local.removeTrack(old);
+      this.local.addTrack(track);
+      this.events.onLocalStream?.(this.local);
+    }
+  }
+
   /** Switch the CAMERA to a specific device mid-call — hot track swap, no peer drop. */
   async switchVideoDevice(deviceId: string) {
     const next = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ deviceId: { exact: deviceId } }) });
