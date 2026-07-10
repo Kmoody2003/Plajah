@@ -27,7 +27,7 @@ import {
   Clock, Settings, Volume2, VolumeX, RotateCcw, ArrowLeft, Save, Trash2,
   LayoutGrid, Monitor, UserSquare2, Columns2, MonitorSmartphone,
 } from 'lucide-react';
-import { LiveComposer, type ComposerMode } from '../services/liveComposer';
+import { LiveComposer, type ComposerMode, LOOKS, type LookId } from '../services/liveComposer';
 import {
   auth, db, createPost, updatePost, deletePost, notifyFollowers, uploadVideo,
 } from '../services/backendService';
@@ -316,6 +316,22 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   };
 
   useEffect(() => () => { composerRef.current?.dispose(); composerRef.current = null; }, []);
+
+  // Color grade / LUTs — grading lives in the composer, so picking a look first ensures
+  // the composer is publishing (entering plain front mode if it wasn't).
+  const [lookId, setLookId] = useState<LookId | 'custom'>('none');
+  const cubeInputRef = useRef<HTMLInputElement>(null);
+  const applyLook = async (look: LookId) => {
+    if (!composerPublishedRef.current) await applyMode('front');
+    composerRef.current?.setLook(look); setLookId(look);
+  };
+  const uploadCube = async (file?: File | null) => {
+    if (!file) return;
+    if (!composerPublishedRef.current) await applyMode('front');
+    const ok = composerRef.current?.setCubeLut(await file.text());
+    if (ok) setLookId('custom');
+    else alert("Couldn't load that LUT — only 3D .cube files (LUT_3D_SIZE) are supported.");
+  };
 
   // ── Media + peers now run on the unified rtcCore backbone (broadcast topology:
   //    this host publishes, viewers subscribe). The session is live from mount so
@@ -738,9 +754,26 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                         {camMode === m.id && m.on && <Check size={15} className="text-orange-400" />}
                       </button>
                     ))}
+                    <div className="mt-2 pt-2 border-t border-white/10">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 pb-2">Look · color grade</p>
+                      <div className="flex flex-wrap gap-1.5 px-1 pb-1">
+                        {LOOKS.map(l => (
+                          <button key={l.id} onClick={() => applyLook(l.id)}
+                            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${lookId === l.id ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80 hover:bg-white/12'}`}>
+                            {l.label}
+                          </button>
+                        ))}
+                        <button onClick={() => cubeInputRef.current?.click()}
+                          className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${lookId === 'custom' ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80 hover:bg-white/12'}`}>
+                          + .cube LUT
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </>
               )}
+              <input ref={cubeInputRef} type="file" accept=".cube" className="hidden"
+                onChange={e => { uploadCube(e.target.files?.[0]); e.currentTarget.value = ''; }} />
               {/* Camera / mic device picker */}
               {deviceMenu !== 'none' && (
                 <>
