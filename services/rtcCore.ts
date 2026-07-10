@@ -438,6 +438,13 @@ export class RtcSession {
     };
   }
 
+  /** Publish an EXTERNAL video track (e.g. a composited canvas from the live composer)
+   *  in place of the camera — hot swap, no peer drop. The composer owns its own source
+   *  cameras/screen; this only replaces the outbound track. */
+  async publishExternalVideo(track: MediaStreamTrack) {
+    await this.swapVideoTrack(track);
+  }
+
   /** Switch the CAMERA to a specific device mid-call — hot track swap, no peer drop. */
   async switchVideoDevice(deviceId: string) {
     const next = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ deviceId: { exact: deviceId } }) });

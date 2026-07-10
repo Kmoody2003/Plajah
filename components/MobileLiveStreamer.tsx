@@ -25,7 +25,9 @@ import {
   Radio, X, Camera, CameraOff, Mic, MicOff, FlipHorizontal2, MessageCircle,
   Users, Share2, Check, Heart, Send, ChevronDown, Eye, Zap, Sparkles,
   Clock, Settings, Volume2, VolumeX, RotateCcw, ArrowLeft, Save, Trash2,
+  LayoutGrid, Monitor, UserSquare2, Columns2, MonitorSmartphone,
 } from 'lucide-react';
+import { LiveComposer, type ComposerMode } from '../services/liveComposer';
 import {
   auth, db, createPost, updatePost, deletePost, notifyFollowers, uploadVideo,
 } from '../services/backendService';
@@ -206,6 +208,42 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const recordedBlobRef = useRef<Blob | null>(null);
   const didMountRef = useRef(false);
 
+  // ── Camera modes: front · rear · both · screen+cam · screen+cut-out person ──
+  // Composed modes route through a canvas mix that we publish in place of the raw
+  // camera; switching among them is instant (no track swap). front/rear stay native
+  // until the user picks an advanced mode, then everything runs through the composer.
+  const composerRef = useRef<LiveComposer | null>(null);
+  const composerPublishedRef = useRef(false);
+  const [camMode, setCamMode] = useState<ComposerMode>('front');
+  const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [modeBusy, setModeBusy] = useState(false);
+  const canScreen = typeof navigator !== 'undefined' && typeof (navigator.mediaDevices as any)?.getDisplayMedia === 'function';
+
+  const applyMode = async (mode: ComposerMode) => {
+    setModeMenuOpen(false);
+    if (modeBusy || mode === camMode) return;
+    setModeBusy(true);
+    try {
+      if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
+      const comp = composerRef.current;
+      // Publish the (initially black) canvas FIRST — this stops the raw camera the RTC
+      // layer held, so the composer can open its own cameras without a device conflict.
+      if (!composerPublishedRef.current) {
+        const track = comp.getStream().getVideoTracks()[0];
+        await rtc.publishExternalVideo(track);
+        composerPublishedRef.current = true;
+      }
+      await comp.setMode(mode);
+      setCamMode(mode);
+      setMirror(false); // the canvas is already composited — no CSS mirror on top
+      setCamOn(true);
+    } catch (e: any) {
+      alert(e?.message || 'Could not switch to that mode on this device.');
+    } finally { setModeBusy(false); }
+  };
+
+  useEffect(() => () => { composerRef.current?.dispose(); composerRef.current = null; }, []);
+
   // ── Media + peers now run on the unified rtcCore backbone (broadcast topology:
   //    this host publishes, viewers subscribe). The session is live from mount so
   //    the setup-screen preview works; viewers connect once they join. ──────────
@@ -233,6 +271,8 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   // alone doesn't reliably switch to the back camera on phones — and reports whether
   // the preview should be mirrored (front cameras only).
   const flipCamera = async () => {
+    // Once the composer owns the video, "flip" toggles its front/rear source.
+    if (composerPublishedRef.current) { await applyMode(camMode === 'rear' ? 'front' : 'rear'); return; }
     const { mirror: m } = await rtc.cycleCamera();
     setMirror(m);
   };
@@ -603,7 +643,31 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
             </div>
 
             {/* Controls */}
-            <div className="flex items-center justify-between w-full max-w-md mx-auto">
+            <div className="relative flex items-center justify-between w-full max-w-md mx-auto">
+              {/* Camera-mode popover */}
+              {modeMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setModeMenuOpen(false)} />
+                  <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 z-20 w-[280px] rounded-2xl bg-[#141019]/95 backdrop-blur-xl border border-white/12 p-2 shadow-2xl">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 pt-1 pb-2">Camera mode</p>
+                    {([
+                      { id: 'front', label: 'Front camera', icon: <UserSquare2 size={17} />, on: true },
+                      { id: 'rear', label: 'Rear camera', icon: <Camera size={17} />, on: true },
+                      { id: 'both', label: 'Both cameras', icon: <Columns2 size={17} />, on: true },
+                      { id: 'screen-pip', label: 'Screen + camera', icon: <MonitorSmartphone size={17} />, on: canScreen },
+                      { id: 'screen-mask', label: 'Screen + cut-out you', icon: <Monitor size={17} />, on: canScreen },
+                    ] as { id: ComposerMode; label: string; icon: JSX.Element; on: boolean }[]).map(m => (
+                      <button key={m.id} disabled={!m.on || modeBusy} onClick={() => applyMode(m.id)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${camMode === m.id ? 'bg-orange-500/20' : 'hover:bg-white/[0.06]'} disabled:opacity-35`}>
+                        <span className={camMode === m.id ? 'text-orange-400' : 'text-white/70'}>{m.icon}</span>
+                        <span className="flex-1 text-[13px] font-bold text-white">{m.label}</span>
+                        {!m.on && <span className="text-[8px] font-black uppercase tracking-wider text-white/30">Desktop</span>}
+                        {camMode === m.id && m.on && <Check size={15} className="text-orange-400" />}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
               {/* Chat toggle */}
               <button onClick={() => setShowChat(s => !s)}
                 className="flex flex-col items-center gap-1">
@@ -613,13 +677,22 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                 <span className="text-[9px] text-white/50">Chat</span>
               </button>
 
-              {/* Cycle camera (front → back → back-wide → …) */}
+              {/* Quick flip front ⇄ rear */}
               <button onClick={flipCamera}
                 className="flex flex-col items-center gap-1">
                 <div className="w-12 h-12 rounded-full bg-black/60 backdrop-blur border border-white/15 flex items-center justify-center">
                   <FlipHorizontal2 size={22} className="text-white" />
                 </div>
                 <span className="text-[9px] text-white/50">Flip</span>
+              </button>
+
+              {/* Camera mode: front · rear · both · screen + cam · screen + cut-out */}
+              <button onClick={() => setModeMenuOpen(o => !o)}
+                className="flex flex-col items-center gap-1">
+                <div className={`w-12 h-12 rounded-full backdrop-blur border flex items-center justify-center transition-all ${modeMenuOpen || camMode !== 'front' ? 'bg-orange-500/80 border-orange-400' : 'bg-black/60 border-white/15'}`}>
+                  {modeBusy ? <RotateCcw size={20} className="text-white animate-spin" /> : <LayoutGrid size={22} className="text-white" />}
+                </div>
+                <span className="text-[9px] text-white/50">Mode</span>
               </button>
 
               {/* End stream — big center button */}

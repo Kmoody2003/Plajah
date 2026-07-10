@@ -39,6 +39,8 @@ export interface UseRtcSession {
   /** Cycle to the next physical camera (front → back → back-wide → …). Resolves
    *  to the new camera's facingMode (when known) + whether the preview should mirror. */
   cycleCamera: () => Promise<{ facingMode?: 'user' | 'environment'; mirror: boolean }>;
+  /** Publish an external video track (composited canvas) in place of the camera. */
+  publishExternalVideo: (track: MediaStreamTrack) => Promise<void>;
   toggleScreenShare: () => void;
   leave: () => void;
   /** Available input/output devices (populated after join; refreshed on hot-plug). */
@@ -138,6 +140,9 @@ export function useRtcSession(
       return res ?? { mirror: false };
     } catch { return { mirror: false }; }
   }, []);
+  const publishExternalVideo = useCallback(async (track: MediaStreamTrack) => {
+    await sessionRef.current?.publishExternalVideo(track);
+  }, []);
   const refreshDevices = useCallback(() => {
     sessionRef.current?.listDevices().then(d => {
       setDevices(d);
@@ -216,7 +221,7 @@ export function useRtcSession(
   return {
     localStream, remoteStreams, participants, peerStates, error,
     audioEnabled, videoEnabled, sharingScreen,
-    toggleAudio, toggleVideo, setAudio, setVideo, switchCamera, cycleCamera, toggleScreenShare, leave,
+    toggleAudio, toggleVideo, setAudio, setVideo, switchCamera, cycleCamera, publishExternalVideo, toggleScreenShare, leave,
     isRecording, startRecording, stopRecording, sendData,
     devices, activeDevices, refreshDevices, switchVideoDevice, switchAudioDevice,
     useDesktopAudio, screenStream,
