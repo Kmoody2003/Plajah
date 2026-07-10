@@ -181,11 +181,12 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
     try {
       const constraints: MediaStreamConstraints = {
         video: streamType === 'QUICK' || streamType === 'SPORTS'
-          ? { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
-          : { width: { ideal: 1920 }, height: { ideal: 1080 } },
+          ? { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30, max: 60 } }
+          : { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30, max: 60 } },
         audio: { echoCancellation: true, noiseSuppression: true },
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      try { const vt = stream.getVideoTracks()[0]; if (vt) { vt.contentHint = 'detail'; const c: any = vt.getCapabilities?.() ?? {}; const adv: any[] = []; if (Array.isArray(c.focusMode) && c.focusMode.includes('continuous')) adv.push({ focusMode: 'continuous' }); if (Array.isArray(c.whiteBalanceMode) && c.whiteBalanceMode.includes('continuous')) adv.push({ whiteBalanceMode: 'continuous' }); if (adv.length) await vt.applyConstraints({ advanced: adv }); } } catch { /* */ }
       setLocalStream(stream);
       if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.muted = true; }
       setSignalOk(true);

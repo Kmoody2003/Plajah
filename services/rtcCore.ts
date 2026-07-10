@@ -99,6 +99,58 @@ interface Peer {
   unsubs: Array<() => void>;
 }
 
+// ── Camera quality ───────────────────────────────────────────────────────────
+// Two things made the stream look like a cheap webcam: (1) we captured with no
+// resolution constraints, so browsers hand back ~480p, and (2) WebRTC defaults to
+// ~1 Mbps and drops resolution to hold framerate — the classic blocky/soft look.
+// We now ask for full-HD capture, tune the device's own image pipeline (continuous
+// autofocus / auto-exposure / auto-white-balance for rich, sharp color), hint the
+// encoder toward detail, and give the sender real bitrate headroom.
+const HQ_VIDEO: MediaTrackConstraints = {
+  width:  { ideal: 1920 },
+  height: { ideal: 1080 },
+  frameRate: { ideal: 30, max: 60 },
+};
+/** Merge full-HD/framerate targets into the caller's video constraints (facingMode/
+ *  deviceId win; HQ fills the rest). `false` stays false. */
+function hqVideo(v: boolean | MediaTrackConstraints | undefined): boolean | MediaTrackConstraints {
+  if (v === false) return false;
+  if (v === true || v == null) return { ...HQ_VIDEO };
+  return { ...HQ_VIDEO, ...v };
+}
+/** Push the capture track to its best: detail content hint + the device's continuous
+ *  auto focus/exposure/white-balance, and nudge resolution toward the hardware max. */
+async function tuneVideoTrack(track?: MediaStreamTrack | null): Promise<void> {
+  if (!track || track.kind !== 'video') return;
+  try { track.contentHint = 'detail'; } catch { /* */ }
+  try {
+    const caps: any = track.getCapabilities?.() ?? {};
+    const adv: any[] = [];
+    const has = (k: string, val: string) => Array.isArray(caps[k]) && caps[k].includes(val);
+    if (has('focusMode', 'continuous')) adv.push({ focusMode: 'continuous' });
+    if (has('exposureMode', 'continuous')) adv.push({ exposureMode: 'continuous' });
+    if (has('whiteBalanceMode', 'continuous')) adv.push({ whiteBalanceMode: 'continuous' });
+    if (caps.width?.max && caps.height?.max) {
+      adv.push({ width: Math.min(1920, caps.width.max), height: Math.min(1080, caps.height.max) });
+    }
+    if (adv.length) await track.applyConstraints({ advanced: adv });
+  } catch { /* device doesn't expose advanced controls — capture constraints still apply */ }
+}
+/** Give the outbound video real bitrate + keep resolution over framerate so the
+ *  picture stays sharp instead of collapsing to a soft, blocky 1 Mbps stream. */
+function boostVideoSender(pc: RTCPeerConnection): void {
+  const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+  if (!sender) return;
+  try {
+    const params = sender.getParameters();
+    (params as any).degradationPreference = 'maintain-resolution';
+    if (params.encodings && params.encodings.length) {
+      params.encodings.forEach(e => { e.maxBitrate = 3_800_000; (e as any).maxFramerate = 30; });
+    }
+    sender.setParameters(params).catch(() => {});
+  } catch { /* encodings not negotiated yet — retried on connect */ }
+}
+
 export class RtcSession {
   readonly selfId: string;
   private cfg: Required<Pick<RtcSessionConfig, 'topology' | 'role' | 'collectionName' | 'iceServers'>> & RtcSessionConfig;
@@ -139,8 +191,9 @@ export class RtcSession {
         // Prefer a provided stream (e.g. a podcast mixed master) over capturing the mic/camera.
         this.local = this.cfg.localStream ?? await navigator.mediaDevices.getUserMedia({
           audio: this.cfg.media?.audio ?? true,
-          video: this.cfg.media?.video ?? true,
+          video: hqVideo(this.cfg.media?.video),
         });
+        if (!this.cfg.localStream) await tuneVideoTrack(this.local.getVideoTracks()[0]);
         this.events.onLocalStream?.(this.local);
       } catch (e: any) {
         this.events.onError?.(new Error(e?.message || 'Camera/mic unavailable'));
@@ -238,7 +291,12 @@ export class RtcSession {
     pc.ontrack = e => {
       if (e.streams[0]) this.events.onRemoteStream?.(peerId, e.streams[0]);
     };
-    pc.onconnectionstatechange = () => this.events.onPeerState?.(peerId, pc.connectionState);
+    pc.onconnectionstatechange = () => {
+      // Apply high-bitrate/maintain-resolution encoding once the sender's encodings
+      // exist (post-negotiation) — this is where the sharpness win lands.
+      if (pc.connectionState === 'connected' && publishes) boostVideoSender(pc);
+      this.events.onPeerState?.(peerId, pc.connectionState);
+    };
 
     pc.onicecandidate = e => {
       if (e.candidate) addDoc(this.edgeCandidates(this.selfId, peerId), e.candidate.toJSON()).catch(() => {});
@@ -323,9 +381,9 @@ export class RtcSession {
   async switchCamera(facing: 'user' | 'environment') {
     let next: MediaStream;
     try {
-      next = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { exact: facing } } });
+      next = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ facingMode: { exact: facing } }) });
     } catch {
-      next = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: facing } });
+      next = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ facingMode: facing }) });
     }
     await this.swapVideoTrack(next.getVideoTracks()[0]);
   }
@@ -346,7 +404,7 @@ export class RtcSession {
       const curId = this.local?.getVideoTracks()[0]?.getSettings().deviceId;
       const idx = cams.findIndex(c => c.deviceId === curId);
       const next = cams[(idx + 1) % cams.length];
-      const s = await navigator.mediaDevices.getUserMedia({ audio: false, video: { deviceId: { exact: next.deviceId } } });
+      const s = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ deviceId: { exact: next.deviceId } }) });
       await this.swapVideoTrack(s.getVideoTracks()[0]);
     }
     const track = this.local?.getVideoTracks()[0];
@@ -382,7 +440,7 @@ export class RtcSession {
 
   /** Switch the CAMERA to a specific device mid-call — hot track swap, no peer drop. */
   async switchVideoDevice(deviceId: string) {
-    const next = await navigator.mediaDevices.getUserMedia({ audio: false, video: { deviceId: { exact: deviceId } } });
+    const next = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ deviceId: { exact: deviceId } }) });
     await this.swapVideoTrack(next.getVideoTracks()[0]);
   }
 
@@ -411,6 +469,7 @@ export class RtcSession {
     if (!newTrack) return;
     const old = this.local?.getVideoTracks()[0];
     if (old) newTrack.enabled = old.enabled;
+    await tuneVideoTrack(newTrack);
     this.peers.forEach(({ pc }) => {
       const sender = pc.getSenders().find(s => s.track?.kind === 'video');
       sender?.replaceTrack(newTrack).catch(() => {});
