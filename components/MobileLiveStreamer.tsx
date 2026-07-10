@@ -212,8 +212,22 @@ async function cropDemoFace(blob: Blob): Promise<Blob> {
       const sx = Math.round(bmp.width * 0.785), sy = Math.round(bmp.height * 0.485);
       const sw = Math.round(bmp.width * 0.215), sh = Math.round(bmp.height * 0.29);
       const c = document.createElement('canvas'); c.width = sw; c.height = sh;
-      c.getContext('2d')!.drawImage(bmp, sx, sy, sw, sh, 0, 0, sw, sh);
+      const cx = c.getContext('2d')!;
+      cx.drawImage(bmp, sx, sy, sw, sh, 0, 0, sw, sh);
       bmp.close();
+      // Key out the solid backdrop (sampled from a corner) so the character is isolated —
+      // required for the face-swap overlay, else the crop's rectangle shows over your face.
+      try {
+        const img = cx.getImageData(0, 0, sw, sh), d = img.data;
+        const br = d[0], bg = d[1], bb = d[2];
+        const tol = 66;
+        for (let i = 0; i < d.length; i += 4) {
+          const dist = Math.abs(d[i] - br) + Math.abs(d[i + 1] - bg) + Math.abs(d[i + 2] - bb);
+          if (dist < tol) d[i + 3] = 0;
+          else if (dist < tol * 1.7) d[i + 3] = Math.round(((dist - tol) / (tol * 0.7)) * 255);
+        }
+        cx.putImageData(img, 0, 0);
+      } catch { /* keep opaque if imagedata is blocked */ }
       const out = await new Promise<Blob | null>(r => c.toBlob(b => r(b), 'image/png'));
       if (out) return out;
     } else { bmp.close(); }

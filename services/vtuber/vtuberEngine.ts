@@ -16,7 +16,7 @@ import { VrmRig } from './vrmRig';
 import { Puppet2DDriver } from './puppet2D';
 import type { AvatarDescriptor } from './avatarFactory';
 
-export type VTuberMode = 'AVATAR_ONLY' | 'PIP' | 'FACE_OVERLAY' | 'BODY_OVERLAY';
+export type VTuberMode = 'AVATAR_ONLY' | 'PIP' | 'FACE_OVERLAY' | 'BODY_OVERLAY' | 'FACE_SWAP';
 export interface VTuberBackground { type: 'transparent' | 'color'; value?: string }
 export interface VTuberOptions {
   avatarUrl?: string;                 // VRM url (shorthand for a VRM descriptor)
@@ -82,6 +82,7 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
 
   let lastTs = -1;
   let lastFace: RetargetResult = NEUTRAL;
+  let lastBbox: { x: number; y: number; w: number; h: number } | null = null;
   let raf = 0;
   const loop = () => {
     raf = requestAnimationFrame(loop);
@@ -93,6 +94,7 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
       const frame = tracker.detect(video, ts);
       if (frame) {
         lastFace = retargeter.retarget(frame, t / 1000);
+        lastBbox = frame.bbox;
         if (rig) rig.applyFace(lastFace.expressions, lastFace.head);
       }
     }
@@ -109,6 +111,22 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
       ctx.drawImage(video, 0, 0, W, H);
       const pw = Math.round(W * 0.3), ph = Math.round(H * 0.3);
       ctx.drawImage(avatarCanvas, W - pw - 16, H - ph - 16, pw, ph);
+    } else if (mode === 'FACE_SWAP') {
+      // Face swap: live camera + the avatar drawn ONTO the real face, tracking position,
+      // size and head roll. The avatar canvas is transparent outside the character.
+      ctx.drawImage(video, 0, 0, W, H);
+      if (lastBbox) {
+        const faceW = lastBbox.w * W;
+        const cx = (lastBbox.x + lastBbox.w / 2) * W;
+        const cy = (lastBbox.y + lastBbox.h / 2) * H;
+        const scale = (faceW * 2.4) / avatarCanvas.width; // avatar head ≈ 2.4× the landmark box
+        const dw = avatarCanvas.width * scale, dh = avatarCanvas.height * scale;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(-lastFace.head.z);
+        ctx.drawImage(avatarCanvas, -dw / 2, -dh * 0.42, dw, dh); // avatar face ~42% down its canvas
+        ctx.restore();
+      }
     } else {
       // FACE_OVERLAY / BODY_OVERLAY — Phase 3 adds face-aligned + segmentation compositing.
       ctx.drawImage(video, 0, 0, W, H);

@@ -182,7 +182,7 @@ export class LiveComposer {
       // AVATAR_ONLY on a transparent canvas — the composer draws it over its own
       // background and then grades it, so LUTs/looks apply to the avatar too.
       this.vtuber = await createVTuberStream(this.frontStream, {
-        avatar: this.avatar, mode: 'AVATAR_ONLY', width: 540, height: 960, fps: 24,
+        avatar: this.avatar, mode: 'FACE_SWAP', width: 540, height: 960, fps: 24,
         background: { type: 'transparent' },
       });
     } catch (e) { console.warn('[liveComposer] vtuber start failed:', e); this.vtuber = null; }

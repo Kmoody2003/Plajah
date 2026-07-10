@@ -6,6 +6,7 @@
 export interface FaceFrame {
   blendshapes: Record<string, number>; // categoryName -> score (0..1), e.g. jawOpen, eyeBlinkLeft
   matrix: Float32Array | null;          // 4x4 column-major facial transform (head pose)
+  bbox: { x: number; y: number; w: number; h: number } | null; // face box, normalized [0..1] video coords
 }
 
 export const VTUBER_MP_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
@@ -54,7 +55,16 @@ export class FaceTracker {
       const blendshapes: Record<string, number> = {};
       for (const c of cats) blendshapes[c.categoryName] = c.score;
       const m = res?.facialTransformationMatrixes?.[0]?.data;
-      return { blendshapes, matrix: m ? new Float32Array(m) : null };
+      // Face bounding box from the landmark cloud (normalized video coords) — used to
+      // position/scale the avatar onto the real face for the face-swap overlay.
+      let bbox: FaceFrame['bbox'] = null;
+      const lm = res?.faceLandmarks?.[0];
+      if (lm && lm.length) {
+        let minX = 1, minY = 1, maxX = 0, maxY = 0;
+        for (const p of lm) { if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x; if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y; }
+        bbox = { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+      }
+      return { blendshapes, matrix: m ? new Float32Array(m) : null, bbox };
     } catch {
       return null;
     }
