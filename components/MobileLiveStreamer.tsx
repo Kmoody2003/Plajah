@@ -852,7 +852,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
               {modeMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setModeMenuOpen(false)} />
-                  <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 z-20 w-[280px] rounded-2xl bg-[#141019]/95 backdrop-blur-xl border border-white/12 p-2 shadow-2xl max-h-[68vh] overflow-y-auto overscroll-contain">
+                  <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 z-20 w-[280px] rounded-2xl bg-[#141019]/35 backdrop-blur-2xl border border-white/12 p-2 shadow-2xl max-h-[68vh] overflow-y-auto overscroll-contain">
                     <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 pt-1 pb-2">Camera mode</p>
                     {([
                       { id: 'front', label: 'Front camera', icon: <UserSquare2 size={17} />, on: true },
@@ -931,7 +931,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
               {deviceMenu !== 'none' && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setDeviceMenu('none')} />
-                  <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 z-20 w-[290px] rounded-2xl bg-[#141019]/95 backdrop-blur-xl border border-white/12 p-2 shadow-2xl max-h-[48vh] overflow-y-auto">
+                  <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 z-20 w-[290px] rounded-2xl bg-[#141019]/35 backdrop-blur-2xl border border-white/12 p-2 shadow-2xl max-h-[48vh] overflow-y-auto">
                     <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 pt-1 pb-2">{deviceMenu === 'camera' ? 'Choose camera' : 'Choose microphone'}</p>
                     {(deviceMenu === 'camera' ? rtc.devices.cameras : rtc.devices.mics).map((d, i) => {
                       const active = deviceMenu === 'camera' ? rtc.activeDevices.cameraId === d.deviceId : rtc.activeDevices.micId === d.deviceId;

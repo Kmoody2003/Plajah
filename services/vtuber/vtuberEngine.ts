@@ -83,6 +83,8 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
   let lastTs = -1;
   let lastFace: RetargetResult = NEUTRAL;
   let lastBbox: { x: number; y: number; w: number; h: number } | null = null;
+  let smoothBox: { x: number; y: number; w: number; h: number } | null = null;
+  let lostFrames = 0;
   let raf = 0;
   const loop = () => {
     raf = requestAnimationFrame(loop);
@@ -115,18 +117,28 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
       // Face swap: live camera + the avatar drawn ONTO the real face, tracking position,
       // size and head roll. The avatar canvas is transparent outside the character.
       ctx.drawImage(video, 0, 0, W, H);
+      // Smooth the box so the avatar doesn't jitter; hold the last box a moment when the
+      // tracker drops a frame so the character doesn't flicker off.
       if (lastBbox) {
-        const faceW = lastBbox.w * W;
-        const cx = (lastBbox.x + lastBbox.w / 2) * W;
-        const cy = (lastBbox.y + lastBbox.h / 2) * H;
-        const scale = (faceW * 2.4) / avatarCanvas.width; // avatar head ≈ 2.4× the landmark box
-        const dw = avatarCanvas.width * scale, dh = avatarCanvas.height * scale;
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(-lastFace.head.z);
-        ctx.drawImage(avatarCanvas, -dw / 2, -dh * 0.42, dw, dh); // avatar face ~42% down its canvas
-        ctx.restore();
+        const target = lastBbox;
+        if (!smoothBox) smoothBox = { ...target };
+        else { const k = 0.35; smoothBox.x += (target.x - smoothBox.x) * k; smoothBox.y += (target.y - smoothBox.y) * k; smoothBox.w += (target.w - smoothBox.w) * k; smoothBox.h += (target.h - smoothBox.h) * k; }
+        lostFrames = 0;
+      } else if (smoothBox) {
+        lostFrames++; if (lostFrames > 30) smoothBox = null; // ~1s grace, then hide
       }
+      // Before the first lock, show the avatar centred so the character is visible to judge.
+      const box = smoothBox ?? { x: 0.28, y: 0.16, w: 0.44, h: 0.5 };
+      const faceW = box.w * W;
+      const cx = (box.x + box.w / 2) * W;
+      const cy = (box.y + box.h / 2) * H;
+      const scale = (faceW * 2.4) / avatarCanvas.width; // avatar head ≈ 2.4× the landmark box
+      const dw = avatarCanvas.width * scale, dh = avatarCanvas.height * scale;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(smoothBox ? -lastFace.head.z : 0);
+      ctx.drawImage(avatarCanvas, -dw / 2, -dh * 0.42, dw, dh); // avatar face ~42% down its canvas
+      ctx.restore();
     } else {
       // FACE_OVERLAY / BODY_OVERLAY — Phase 3 adds face-aligned + segmentation compositing.
       ctx.drawImage(video, 0, 0, W, H);
