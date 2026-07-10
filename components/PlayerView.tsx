@@ -917,8 +917,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
         {/* Mobile Header */}
         <header className="p-4 flex items-center justify-between bg-white/5 backdrop-blur-xl border-b border-white/5 z-50">
-          <button onClick={onBack} className="p-2 text-white/40 hover:text-white transition-all">
-            <ArrowLeft size={20} />
+          <button onClick={onBack} aria-label="Back to Chora" className="flex items-center gap-1.5 pr-2 text-white/70 hover:text-white transition-all shrink-0 active:scale-95">
+            <Logo size={22} flip />
+            <span className="text-[11px] font-black uppercase tracking-widest">Back</span>
           </button>
           <div className="flex-1 text-center min-w-0 px-4">
             <h1 className="text-xs font-black uppercase tracking-widest truncate">{album.title}</h1>
@@ -2313,11 +2314,21 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       </div>
 
       <div className="relative z-40 w-full h-full flex flex-col p-6 lg:p-12 pointer-events-none">
+        {/* ── Upper-left branded Back → Chora (desktop) ── */}
+        <button
+          onClick={onBack}
+          aria-label="Back to Chora"
+          className="hidden lg:flex absolute left-6 top-6 z-50 items-center gap-2 py-1.5 pl-2 pr-4 rounded-full pointer-events-auto transition-all hover:scale-[1.03] active:scale-95"
+          style={{ background: 'rgba(8,6,12,0.55)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)' }}
+        >
+          <Logo size={22} flip />
+          <span className="text-[9px] font-black uppercase tracking-widest text-white/80">Back</span>
+        </button>
         {/* ── Right-side vertical action column (desktop only) ── */}
         <div className="hidden lg:flex absolute right-6 top-0 bottom-0 z-50 flex-col items-end justify-center gap-[3px] pointer-events-auto" style={{ paddingRight: '0px' }}>
           {/* Helper: icon + expandable label pill */}
           {[
-            ...(!isPublic ? [{ key: 'back', icon: ArrowLeft, label: 'Library', onClick: onBack, style: {} }] : [{ key: 'live', icon: Globe, label: 'Live Microsite', onClick: undefined, style: { color: 'rgb(74 222 128)' } }]),
+            ...(isPublic ? [{ key: 'live', icon: Globe, label: 'Live Microsite', onClick: undefined, style: { color: 'rgb(74 222 128)' } }] : []),
             ...(isOwner && onEdit ? [{ key: 'edit', icon: Zap, label: 'Edit Album', onClick: () => onEdit(album), style: { color: '#FF8C00' } }] : []),
             ...(isVisualizerLayout ? [{ key: 'fx', icon: Activity, label: 'FX Stage On', onClick: () => setIsVisualizerLayout(false), style: { color: '#FF8C00' } }] : []),
             { key: 'tv', icon: VideoIcon, label: isTVMode ? 'TV On' : 'TV Mode', onClick: () => setIsTVMode(!isTVMode), style: isTVMode ? { color: '#FF8C00' } : {} },

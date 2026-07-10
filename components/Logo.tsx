@@ -4,9 +4,11 @@ interface LogoProps {
   className?: string;
   size?: number;
   fluid?: boolean;
+  /** Mirror the mark to point left — used for the branded "Back" control. */
+  flip?: boolean;
 }
 
-const Logo: React.FC<LogoProps> = ({ className = "", size = 40, fluid = false }) => {
+const Logo: React.FC<LogoProps> = ({ className = "", size = 40, fluid = false, flip = false }) => {
   return (
     <div className={fluid ? `relative flex flex-col items-center justify-center w-full h-full ${className}` : `relative flex flex-col items-center justify-center ${className}`}>
       <svg
@@ -16,6 +18,7 @@ const Logo: React.FC<LogoProps> = ({ className = "", size = 40, fluid = false })
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className="drop-shadow-2xl"
+        style={flip ? { transform: 'scaleX(-1)' } : undefined}
       >
         <defs>
           <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">

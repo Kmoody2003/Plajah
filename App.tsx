@@ -1643,6 +1643,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     loadAlbums();
   };
 
+  // Back from a Chora album → the main Chora page (also the fallback when the album
+  // was opened directly from a shared link, where there's no in-app history to pop).
+  const handleBackToChora = () => {
+    setSelectedAlbum(null);
+    setSelectedGame(null);
+    setSelectedVideo(null);
+    setSelectedBook(null);
+    if (isPublicView) setIsPublicView(false);
+    setView('MUSIC', isPublicView ? '/' : undefined);
+    loadAlbums();
+  };
+
   const [visitedProfile, setVisitedProfile] = useState<UserProfile | null>(null);
 
   const handleVisitUser = async (uid: string, initialTab?: string) => {
@@ -4222,7 +4234,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {(view === 'PLAYER' || view === 'PREVIEW') && selectedAlbum && (
               <PlayerView
                 album={selectedAlbum}
-                onBack={handleBackToDashboard}
+                onBack={handleBackToChora}
                 onEdit={(alb) => {
                   setEditingAlbum(alb);
                   setShowCreator(true);
