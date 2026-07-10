@@ -150,6 +150,30 @@ function boostVideoSender(pc: RTCPeerConnection): void {
     sender.setParameters(params).catch(() => {});
   } catch { /* encodings not negotiated yet — retried on connect */ }
 }
+/** Reorder the transceiver's codec list so the encoder picks VP9 first (much better
+ *  quality-per-bit than the VP8 default), then H.264, then VP8. Best-effort — older
+ *  browsers lack setCodecPreferences and just keep their default. */
+function preferVideoCodecs(pc: RTCPeerConnection): void {
+  try {
+    const caps = (RTCRtpSender as any).getCapabilities?.('video');
+    if (!caps?.codecs) return;
+    const rank = (mime: string) => {
+      const m = mime.toLowerCase();
+      if (m === 'video/vp9') return 0;
+      if (m === 'video/h264') return 1;
+      if (m === 'video/vp8') return 2;
+      if (m === 'video/av1') return 3; // usually SW-encoded → costly; keep available but low
+      return 4;
+    };
+    const ordered = [...caps.codecs].sort((a: any, b: any) => rank(a.mimeType) - rank(b.mimeType));
+    pc.getTransceivers().forEach(t => {
+      const kind = t.sender?.track?.kind || (t as any).receiver?.track?.kind;
+      if (kind === 'video' && typeof (t as any).setCodecPreferences === 'function') {
+        try { (t as any).setCodecPreferences(ordered); } catch { /* mixed m-line — skip */ }
+      }
+    });
+  } catch { /* setCodecPreferences unsupported */ }
+}
 
 export class RtcSession {
   readonly selfId: string;
@@ -287,6 +311,9 @@ export class RtcSession {
       // Viewer is receive-only.
       try { pc.addTransceiver('video', { direction: 'recvonly' }); pc.addTransceiver('audio', { direction: 'recvonly' }); } catch {}
     }
+    // Prefer modern codecs (VP9 → H.264 → VP8) — VP9 looks markedly cleaner than the
+    // VP8 default at the same bitrate, which is most of the "gorgeous vs. webcam" gap.
+    preferVideoCodecs(pc);
 
     pc.ontrack = e => {
       if (e.streams[0]) this.events.onRemoteStream?.(peerId, e.streams[0]);

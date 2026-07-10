@@ -219,6 +219,10 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const [modeBusy, setModeBusy] = useState(false);
   const canScreen = typeof navigator !== 'undefined' && typeof (navigator.mediaDevices as any)?.getDisplayMedia === 'function';
 
+  // Device pickers — tap the camera / mic control to choose a specific input.
+  const [deviceMenu, setDeviceMenu] = useState<'none' | 'camera' | 'mic'>('none');
+  const openDeviceMenu = (which: 'camera' | 'mic') => { setDeviceMenu(m => m === which ? 'none' : which); rtc.refreshDevices(); };
+
   const applyMode = async (mode: ComposerMode) => {
     setModeMenuOpen(false);
     if (modeBusy || mode === camMode) return;
@@ -668,6 +672,30 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                   </div>
                 </>
               )}
+              {/* Camera / mic device picker */}
+              {deviceMenu !== 'none' && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setDeviceMenu('none')} />
+                  <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 z-20 w-[290px] rounded-2xl bg-[#141019]/95 backdrop-blur-xl border border-white/12 p-2 shadow-2xl max-h-[48vh] overflow-y-auto">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 pt-1 pb-2">{deviceMenu === 'camera' ? 'Choose camera' : 'Choose microphone'}</p>
+                    {(deviceMenu === 'camera' ? rtc.devices.cameras : rtc.devices.mics).map((d, i) => {
+                      const active = deviceMenu === 'camera' ? rtc.activeDevices.cameraId === d.deviceId : rtc.activeDevices.micId === d.deviceId;
+                      return (
+                        <button key={d.deviceId || i}
+                          onClick={() => { if (deviceMenu === 'camera') rtc.switchVideoDevice(d.deviceId); else rtc.switchAudioDevice(d.deviceId); setDeviceMenu('none'); }}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${active ? 'bg-orange-500/20' : 'hover:bg-white/[0.06]'}`}>
+                          <span className={active ? 'text-orange-400' : 'text-white/70'}>{deviceMenu === 'camera' ? <Camera size={16} /> : <Mic size={16} />}</span>
+                          <span className="flex-1 text-[13px] font-bold text-white truncate">{d.label || (deviceMenu === 'camera' ? `Camera ${i + 1}` : `Microphone ${i + 1}`)}</span>
+                          {active && <Check size={15} className="text-orange-400 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                    {(deviceMenu === 'camera' ? rtc.devices.cameras : rtc.devices.mics).length === 0 && (
+                      <p className="text-[11px] text-white/40 px-3 py-3">No devices yet — grant camera/mic permission, then reopen.</p>
+                    )}
+                  </div>
+                </>
+              )}
               {/* Chat toggle */}
               <button onClick={() => setShowChat(s => !s)}
                 className="flex flex-col items-center gap-1">
@@ -677,13 +705,14 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                 <span className="text-[9px] text-white/50">Chat</span>
               </button>
 
-              {/* Quick flip front ⇄ rear */}
-              <button onClick={flipCamera}
+              {/* Camera device picker (tap → choose which camera) */}
+              <button onClick={() => openDeviceMenu('camera')}
                 className="flex flex-col items-center gap-1">
-                <div className="w-12 h-12 rounded-full bg-black/60 backdrop-blur border border-white/15 flex items-center justify-center">
-                  <FlipHorizontal2 size={22} className="text-white" />
+                <div className={`w-12 h-12 rounded-full backdrop-blur border flex items-center justify-center ${deviceMenu === 'camera' ? 'bg-orange-500/80 border-orange-400' : 'bg-black/60 border-white/15'}`}>
+                  <FlipHorizontal2 size={20} className="text-white" />
+                  <ChevronDown size={11} className="text-white/70 -ml-0.5 mt-2 self-end" />
                 </div>
-                <span className="text-[9px] text-white/50">Flip</span>
+                <span className="text-[9px] text-white/50">Camera</span>
               </button>
 
               {/* Camera mode: front · rear · both · screen + cam · screen + cut-out */}
@@ -704,7 +733,17 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                 <span className="text-[9px] text-red-400 font-bold">End</span>
               </button>
 
-              {/* Mic toggle */}
+              {/* Mic device picker (tap → choose which microphone) */}
+              <button onClick={() => openDeviceMenu('mic')}
+                className="flex flex-col items-center gap-1">
+                <div className={`w-12 h-12 rounded-full backdrop-blur border flex items-center justify-center ${deviceMenu === 'mic' ? 'bg-orange-500/80 border-orange-400' : 'bg-black/60 border-white/15'}`}>
+                  <Volume2 size={20} className="text-white" />
+                  <ChevronDown size={11} className="text-white/70 -ml-0.5 mt-2 self-end" />
+                </div>
+                <span className="text-[9px] text-white/50">Mic</span>
+              </button>
+
+              {/* Mute toggle (audio on/off) */}
               <button onClick={() => setMicOn(m => !m)}
                 className="flex flex-col items-center gap-1">
                 <div className={`w-12 h-12 rounded-full backdrop-blur border flex items-center justify-center ${micOn ? 'bg-black/60 border-white/15' : 'bg-red-500 border-red-500'}`}>
