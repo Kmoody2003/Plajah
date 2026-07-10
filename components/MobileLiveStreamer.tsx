@@ -25,7 +25,7 @@ import {
   Radio, X, Camera, CameraOff, Mic, MicOff, FlipHorizontal2, MessageCircle,
   Users, Share2, Check, Heart, Send, ChevronDown, Eye, Zap, Sparkles,
   Clock, Settings, Volume2, VolumeX, RotateCcw, ArrowLeft, Save, Trash2,
-  LayoutGrid, Monitor, UserSquare2, Columns2, MonitorSmartphone,
+  LayoutGrid, Monitor, UserSquare2, Columns2, MonitorSmartphone, Plus,
 } from 'lucide-react';
 import { LiveComposer, type ComposerMode, LOOKS, type LookId } from '../services/liveComposer';
 import { buildVTuberFromSheet } from '../services/vtuber/avatarFactory';
@@ -204,33 +204,39 @@ const CameraProControls: React.FC<{ track: MediaStreamTrack | null }> = ({ track
 // front-facing face close-up (lower-right) so the puppet is a clean talking head — the
 // face tracker builds from one detected face, not a multi-view sheet. A pre-cropped
 // portrait (non-square) is passed through unchanged.
-async function cropDemoFace(blob: Blob): Promise<Blob> {
+// A built-in demo character: a multi-view sheet + the face region to crop (as fractions of
+// the sheet). Each drawing lays the face out differently, so the crop rect is per-character.
+type DemoAvatar = { id: string; name: string; emoji: string; url: string; crop: { sx: number; sy: number; sw: number; sh: number } };
+const DEMO_AVATARS: DemoAvatar[] = [
+  { id: 'anime',   name: 'Aiko',  emoji: '🎌', url: '/vtuber/demo-character.png', crop: { sx: 0.785, sy: 0.485, sw: 0.215, sh: 0.29 } },
+  { id: 'cartoon', name: 'Kal',   emoji: '🎨', url: '/vtuber/demo-southpark.png', crop: { sx: 0.02,  sy: 0.01,  sw: 0.29,  sh: 0.36 } },
+];
+
+// Crop one face out of a character sheet and key its backdrop to transparent (so the
+// face-swap overlays just the character, not a rectangle). Sampled from a corner, so it
+// works for both a solid studio backdrop and a plain white sheet.
+async function cropSheetFace(blob: Blob, crop: DemoAvatar['crop']): Promise<Blob> {
   try {
     const bmp = await createImageBitmap(blob);
-    const ar = bmp.width / bmp.height;
-    if (ar > 0.9 && ar < 1.15 && bmp.width >= 700) {
-      const sx = Math.round(bmp.width * 0.785), sy = Math.round(bmp.height * 0.485);
-      const sw = Math.round(bmp.width * 0.215), sh = Math.round(bmp.height * 0.29);
-      const c = document.createElement('canvas'); c.width = sw; c.height = sh;
-      const cx = c.getContext('2d')!;
-      cx.drawImage(bmp, sx, sy, sw, sh, 0, 0, sw, sh);
-      bmp.close();
-      // Key out the solid backdrop (sampled from a corner) so the character is isolated —
-      // required for the face-swap overlay, else the crop's rectangle shows over your face.
-      try {
-        const img = cx.getImageData(0, 0, sw, sh), d = img.data;
-        const br = d[0], bg = d[1], bb = d[2];
-        const tol = 66;
-        for (let i = 0; i < d.length; i += 4) {
-          const dist = Math.abs(d[i] - br) + Math.abs(d[i + 1] - bg) + Math.abs(d[i + 2] - bb);
-          if (dist < tol) d[i + 3] = 0;
-          else if (dist < tol * 1.7) d[i + 3] = Math.round(((dist - tol) / (tol * 0.7)) * 255);
-        }
-        cx.putImageData(img, 0, 0);
-      } catch { /* keep opaque if imagedata is blocked */ }
-      const out = await new Promise<Blob | null>(r => c.toBlob(b => r(b), 'image/png'));
-      if (out) return out;
-    } else { bmp.close(); }
+    const sx = Math.round(bmp.width * crop.sx), sy = Math.round(bmp.height * crop.sy);
+    const sw = Math.round(bmp.width * crop.sw), sh = Math.round(bmp.height * crop.sh);
+    const c = document.createElement('canvas'); c.width = sw; c.height = sh;
+    const cx = c.getContext('2d')!;
+    cx.drawImage(bmp, sx, sy, sw, sh, 0, 0, sw, sh);
+    bmp.close();
+    try {
+      const img = cx.getImageData(0, 0, sw, sh), d = img.data;
+      const br = d[0], bg = d[1], bb = d[2];
+      const tol = 66;
+      for (let i = 0; i < d.length; i += 4) {
+        const dist = Math.abs(d[i] - br) + Math.abs(d[i + 1] - bg) + Math.abs(d[i + 2] - bb);
+        if (dist < tol) d[i + 3] = 0;
+        else if (dist < tol * 1.7) d[i + 3] = Math.round(((dist - tol) / (tol * 0.7)) * 255);
+      }
+      cx.putImageData(img, 0, 0);
+    } catch { /* keep opaque if imagedata is blocked */ }
+    const out = await new Promise<Blob | null>(r => c.toBlob(b => r(b), 'image/png'));
+    if (out) return out;
   } catch { /* fall through to the original */ }
   return blob;
 }
@@ -413,6 +419,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const [avatarBuilt, setAvatarBuilt] = useState(false);
   const [avatarBuilding, setAvatarBuilding] = useState(false);
   const [buildMsg, setBuildMsg] = useState('');
+  const [demoId, setDemoId] = useState<string | null>(null);
   const buildAvatarFromBlob = async (blob: Blob) => {
     if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
     const desc = await buildVTuberFromSheet(blob, { path: 'PUPPET2D', onProgress: (s: string, p: number) => setBuildMsg(`${s} · ${Math.round(p * 100)}%`) });
@@ -422,19 +429,19 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   };
   const buildAvatar = async (file?: File | null) => {
     if (!file) return;
-    setAvatarBuilding(true); setBuildMsg('Building avatar…');
+    setAvatarBuilding(true); setBuildMsg('Building avatar…'); setDemoId(null);
     try { await buildAvatarFromBlob(file); }
     catch (e: any) { alert(e?.message || 'Could not build that character into an avatar.'); }
     finally { setAvatarBuilding(false); }
   };
-  // Built-in demo character so any user can test VTuber with one tap (no upload).
-  const useDemoAvatar = async () => {
-    setAvatarBuilding(true); setBuildMsg('Loading demo character…');
+  // Built-in demo characters so any user can test VTuber with one tap (no upload).
+  const useDemoAvatar = async (demo: DemoAvatar) => {
+    setAvatarBuilding(true); setBuildMsg(`Loading ${demo.name}…`); setDemoId(demo.id);
     try {
-      const res = await fetch('/vtuber/demo-character.png');
-      if (!res.ok) throw new Error('Demo character isn\'t available yet.');
-      await buildAvatarFromBlob(await cropDemoFace(await res.blob()));
-    } catch (e: any) { alert(e?.message || 'Could not load the demo character.'); }
+      const res = await fetch(demo.url);
+      if (!res.ok) throw new Error(`${demo.name} isn't available yet.`);
+      await buildAvatarFromBlob(await cropSheetFace(await res.blob(), demo.crop));
+    } catch (e: any) { alert(e?.message || 'Could not load that character.'); setDemoId(null); }
     finally { setAvatarBuilding(false); }
   };
 
@@ -886,7 +893,33 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                     </div>
                     <div className="mt-2 pt-2 border-t border-white/10">
                       <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 pb-2">VTuber avatar</p>
-                      <div className="flex flex-wrap gap-1.5 px-1">
+                      {/* Demo character picker — tap a face to become it */}
+                      <div className="grid grid-cols-3 gap-1.5 px-1">
+                        {DEMO_AVATARS.map(demo => {
+                          const active = demoId === demo.id;
+                          return (
+                            <button key={demo.id} onClick={() => useDemoAvatar(demo)} disabled={avatarBuilding}
+                              className={`relative rounded-xl overflow-hidden aspect-square border-2 transition-all disabled:opacity-50 ${active ? 'border-orange-400 ring-2 ring-orange-400/40' : 'border-white/12 hover:border-white/30'}`}>
+                              <img src={demo.url} alt={demo.name} loading="lazy"
+                                className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: `${(demo.crop.sx + demo.crop.sw / 2) * 100}% ${(demo.crop.sy + demo.crop.sh / 2) * 100}%`, transform: 'scale(2.6)' }} />
+                              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-1 pt-3 pb-1">
+                                <span className="text-[10px] font-bold text-white flex items-center gap-0.5"><span>{demo.emoji}</span>{demo.name}</span>
+                              </div>
+                              {active && avatarBuilding && (
+                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                        <button onClick={() => sheetInputRef.current?.click()} disabled={avatarBuilding}
+                          className="rounded-xl aspect-square border-2 border-dashed border-white/20 hover:border-white/40 flex flex-col items-center justify-center gap-1 text-white/60 disabled:opacity-50">
+                          <Plus size={18} />
+                          <span className="text-[9px] font-bold leading-none">Upload</span>
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 px-1 mt-2">
                         {camMode === 'vtuber' ? (
                           <button onClick={() => applyMode('front')}
                             className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-red-500 text-white flex items-center gap-1">
@@ -894,20 +927,14 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                           </button>
                         ) : avatarBuilt && (
                           <button onClick={() => applyMode('vtuber')}
-                            className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-white/[0.06] text-white/80 hover:bg-white/12">
+                            className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-gradient-to-r from-[#6B0099] to-[#FF8C00] text-white">
                             Go live as avatar
                           </button>
                         )}
-                        <button onClick={useDemoAvatar} disabled={avatarBuilding}
-                          className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-gradient-to-r from-[#6B0099] to-[#FF8C00] text-white disabled:opacity-50">
-                          {avatarBuilding ? (buildMsg || 'Loading…') : '✨ Try demo avatar'}
-                        </button>
-                        <button onClick={() => sheetInputRef.current?.click()} disabled={avatarBuilding}
-                          className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-white/[0.06] text-white/80 hover:bg-white/12 disabled:opacity-50">
-                          {avatarBuilt ? 'Change character' : 'Upload your own'}
-                        </button>
                       </div>
-                      <p className="text-[9px] text-white/30 px-2 pt-1.5 leading-snug">Tap the demo, or upload a character drawing — your face drives it live, on-device.</p>
+                      <p className="text-[9px] text-white/30 px-2 pt-1.5 leading-snug">
+                        {avatarBuilding ? (buildMsg || 'Loading…') : 'Tap a character to become it — your face drives it live, on-device. Or upload your own drawing.'}
+                      </p>
                     </div>
                     <div className="mt-2 pt-2 border-t border-white/10">
                       <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 pb-2">Voice changer</p>
