@@ -269,6 +269,8 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const [saving, setSaving] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const [bottomH, setBottomH] = useState(0); // measured height of the chat + dock stack
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatMsgs = useLiveChat(streamId || null);
   const recordedBlobRef = useRef<Blob | null>(null);
@@ -414,6 +416,15 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
 
   // Auto-scroll chat
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMsgs]);
+  // Measure the chat + dock stack so the camera can shrink to sit above it (not under it).
+  useEffect(() => {
+    const el = bottomRef.current;
+    if (!el || step !== 'live') { setBottomH(0); return; }
+    const measure = () => setBottomH(el.offsetHeight);
+    measure();
+    const ro = new ResizeObserver(measure); ro.observe(el);
+    return () => ro.disconnect();
+  }, [step, showChat]);
 
   const fmt = (s: number) => `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
@@ -564,14 +575,14 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
 
   return (
     <div className="fixed inset-0 bg-black z-[200] flex flex-col select-none overflow-hidden" style={{ height: '100dvh' }}>
-      {/* Camera preview — fills screen portrait */}
+      {/* Camera preview — shrinks to sit above the chat + dock stack when chat is open */}
       <video
         ref={videoRef}
         autoPlay
         muted
         playsInline
-        className="absolute inset-0 w-full h-full object-contain bg-black"
-        style={{ transform: mirror ? 'scaleX(-1)' : 'none' }}
+        className="absolute top-0 left-0 right-0 w-full object-contain bg-black transition-all duration-300"
+        style={{ bottom: step === 'live' && showChat ? `${bottomH}px` : '0px', transform: mirror ? 'scaleX(-1)' : 'none' }}
       />
 
       {/* Dim overlay when cam off */}
@@ -693,53 +704,53 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
             </AnimatePresence>
           </div>
 
-          {/* Chat overlay (slide up) */}
-          <AnimatePresence>
-            {showChat && (
-              <motion.div
-                initial={{ y: '100%' }}
-                animate={{ y: 0 }}
-                exit={{ y: '100%' }}
-                transition={{ type: 'spring', damping: 28, stiffness: 400 }}
-                className="absolute inset-x-0 bottom-0 bg-black/85 backdrop-blur-xl rounded-t-3xl flex flex-col"
-                style={{ maxHeight: '60dvh' }}
-              >
-                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-                  <p className="text-sm font-black text-white">Live Chat</p>
-                  <button onClick={() => setShowChat(false)} className="text-white/40 hover:text-white">
-                    <ChevronDown size={20} />
-                  </button>
-                </div>
-                <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1.5 min-h-0">
-                  {chatMsgs.map(m => (
-                    <div key={m.id} className="flex items-start gap-2">
-                      <span className="text-[10px] font-black text-orange-400 shrink-0 mt-0.5">{(m.user || 'Viewer').split(' ')[0]}</span>
-                      <span className="text-[11px] text-white/80 leading-relaxed">{m.text}</span>
-                    </div>
-                  ))}
-                  <div ref={chatEndRef} />
-                </div>
-                <div className="flex items-center gap-2 px-4 py-3 border-t border-white/10 pb-safe">
-                  <input
-                    value={chatInput}
-                    onChange={e => setChatInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && chatInput.trim()) { sendChat(streamId, chatInput); setChatInput(''); } }}
-                    placeholder="Say something…"
-                    className="flex-1 bg-white/10 border border-white/15 rounded-full px-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none"
-                  />
-                  <button
-                    onClick={() => { if (chatInput.trim()) { sendChat(streamId, chatInput); setChatInput(''); } }}
-                    className="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center"
-                  >
-                    <Send size={14} className="text-white" />
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {/* Bottom stack — chat sits ABOVE the dock (no overlap); the camera shrinks above both */}
+          <div ref={bottomRef} className="absolute inset-x-0 bottom-0 z-10 flex flex-col">
+            {/* Live chat — in flow, above the dock */}
+            <AnimatePresence>
+              {showChat && (
+                <motion.div
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 16 }}
+                  transition={{ duration: 0.22, ease: 'easeOut' }}
+                  className="h-[46dvh] bg-black/85 backdrop-blur-xl rounded-t-3xl flex flex-col overflow-hidden"
+                >
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
+                    <p className="text-sm font-black text-white">Live Chat</p>
+                    <button onClick={() => setShowChat(false)} className="text-white/40 hover:text-white"><ChevronDown size={20} /></button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5 min-h-0">
+                    {chatMsgs.length === 0 && <p className="text-[12px] text-white/30 text-center py-6">No messages yet — say hello 👋</p>}
+                    {chatMsgs.map(m => (
+                      <div key={m.id} className="flex items-start gap-2">
+                        <span className="text-[11px] font-black text-orange-400 shrink-0 mt-0.5">{(m.user || 'Viewer').split(' ')[0]}</span>
+                        <span className="text-[13px] text-white/90 leading-relaxed">{m.text}</span>
+                      </div>
+                    ))}
+                    <div ref={chatEndRef} />
+                  </div>
+                  <div className="flex items-center gap-2 px-4 py-3 border-t border-white/10 shrink-0">
+                    <input
+                      value={chatInput}
+                      onChange={e => setChatInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && chatInput.trim()) { sendChat(streamId, chatInput); setChatInput(''); } }}
+                      placeholder="Say something…"
+                      className="flex-1 bg-white/10 border border-white/15 rounded-full px-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none"
+                    />
+                    <button
+                      onClick={() => { if (chatInput.trim()) { sendChat(streamId, chatInput); setChatInput(''); } }}
+                      className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center shrink-0"
+                    >
+                      <Send size={16} className="text-white" />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          {/* Bottom dock */}
-          <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center gap-3 px-4 pb-safe pt-4 bg-gradient-to-t from-black/70 to-transparent">
+            {/* Dock (controls) */}
+            <div className="flex flex-col items-center gap-3 px-4 pb-safe pt-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
             {/* Reactions row */}
             <div className="flex items-center gap-3">
               {['❤️', '🔥', '😂', '👏', '💯', '🎉'].map(e => (
@@ -906,6 +917,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                 <span className="text-[9px] text-white/50">{camOn ? 'Cam' : 'Hidden'}</span>
               </button>
             </div>
+          </div>
           </div>
         </>
       )}
