@@ -87,6 +87,12 @@ export class LiveComposer {
 
   getMode() { return this.mode; }
 
+  /** The physical camera track currently feeding the composite (front takes priority,
+   *  else rear) so manual camera controls can be applied to the real source. */
+  getActiveCameraTrack(): MediaStreamTrack | null {
+    return this.frontStream?.getVideoTracks()[0] || this.rearStream?.getVideoTracks()[0] || null;
+  }
+
   private async ensureFront() {
     if (this.frontStream) return;
     this.frontStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { ...HQ, facingMode: 'user' } });

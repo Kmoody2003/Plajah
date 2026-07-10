@@ -133,6 +133,71 @@ class LiveErrorBoundary extends React.Component<
   }
 }
 
+// ─── Manual pro camera controls ───────────────────────────────────────────────
+// Driven entirely by the device's real MediaStreamTrack.getCapabilities() — we only
+// render a control the hardware actually exposes, and apply it live via
+// applyConstraints. Some controls (focus distance, shutter, ISO, colour temperature)
+// require flipping the matching *Mode to 'manual' first, done in the same call.
+const PRO_CAPS: { key: string; label: string; mode?: string }[] = [
+  { key: 'zoom', label: 'Zoom' },
+  { key: 'focusDistance', label: 'Focus', mode: 'focusMode' },
+  { key: 'exposureCompensation', label: 'Exposure' },
+  { key: 'exposureTime', label: 'Shutter', mode: 'exposureMode' },
+  { key: 'iso', label: 'ISO', mode: 'exposureMode' },
+  { key: 'colorTemperature', label: 'White balance', mode: 'whiteBalanceMode' },
+  { key: 'brightness', label: 'Brightness' },
+  { key: 'contrast', label: 'Contrast' },
+  { key: 'saturation', label: 'Saturation' },
+  { key: 'sharpness', label: 'Sharpness' },
+];
+const CameraProControls: React.FC<{ track: MediaStreamTrack | null }> = ({ track }) => {
+  const [caps, setCaps] = useState<any>(null);
+  const [vals, setVals] = useState<Record<string, number>>({});
+  const [torch, setTorch] = useState(false);
+  const [fps, setFps] = useState(30);
+
+  useEffect(() => {
+    if (!track || track.kind !== 'video') { setCaps(null); return; }
+    try {
+      const c: any = track.getCapabilities?.() ?? {};
+      const s: any = track.getSettings?.() ?? {};
+      setCaps(c);
+      const v: Record<string, number> = {};
+      PRO_CAPS.forEach(({ key }) => { if (c[key]) v[key] = typeof s[key] === 'number' ? s[key] : c[key].min; });
+      setVals(v); setTorch(!!s.torch); setFps(Math.round(s.frameRate || 30));
+    } catch { setCaps(null); }
+  }, [track]);
+
+  if (!track) return <p className="text-[11px] text-white/40 px-3 py-2">Start the camera to adjust controls.</p>;
+  const apply = (adv: any) => { track.applyConstraints({ advanced: [adv] }).catch(() => {}); };
+  const numeric = caps ? PRO_CAPS.filter(({ key }) => caps[key] && typeof caps[key].min === 'number' && caps[key].max > caps[key].min) : [];
+  const hasTorch = !!caps?.torch;
+  const has60 = caps && !Array.isArray(caps.frameRate) && (caps.frameRate?.max ?? 0) >= 50;
+  if (!numeric.length && !hasTorch && !has60) return <p className="text-[11px] text-white/40 px-3 py-2">This camera doesn't expose manual controls in the browser.</p>;
+
+  return (
+    <div className="px-1 pb-1 space-y-3">
+      {(hasTorch || has60) && (
+        <div className="flex gap-2">
+          {hasTorch && <button onClick={() => { const t = !torch; setTorch(t); apply({ torch: t }); }} className={`flex-1 py-2 rounded-lg text-[11px] font-bold ${torch ? 'bg-orange-500 text-black' : 'bg-white/8 text-white'}`}>Torch {torch ? 'on' : 'off'}</button>}
+          {has60 && [30, 60].map(f => <button key={f} onClick={() => { setFps(f); track.applyConstraints({ frameRate: f }).catch(() => {}); }} className={`flex-1 py-2 rounded-lg text-[11px] font-bold ${fps === f ? 'bg-orange-500 text-black' : 'bg-white/8 text-white'}`}>{f} fps</button>)}
+        </div>
+      )}
+      {numeric.map(({ key, label, mode }) => {
+        const c = caps[key];
+        return (
+          <div key={key}>
+            <div className="text-[10px] text-white/50 mb-1">{label}</div>
+            <input type="range" min={c.min} max={c.max} step={c.step || (c.max - c.min) / 100} value={vals[key] ?? c.min}
+              onChange={e => { const val = parseFloat(e.target.value); setVals(p => ({ ...p, [key]: val })); apply(mode ? { [mode]: 'manual', [key]: val } : { [key]: val }); }}
+              className="w-full accent-orange-500" />
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const MobileLiveStreamer: React.FC<MobileLiveStreamerProps> = ({
@@ -222,6 +287,10 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   // Device pickers — tap the camera / mic control to choose a specific input.
   const [deviceMenu, setDeviceMenu] = useState<'none' | 'camera' | 'mic'>('none');
   const openDeviceMenu = (which: 'camera' | 'mic') => { setDeviceMenu(m => m === which ? 'none' : which); rtc.refreshDevices(); };
+  // The live camera track (composer source when composing, else the raw RTC camera) so
+  // the pro controls apply to the real hardware in every mode.
+  const getActiveCamTrack = (): MediaStreamTrack | null =>
+    composerPublishedRef.current ? (composerRef.current?.getActiveCameraTrack() ?? null) : (rtc.localStream?.getVideoTracks()[0] ?? null);
 
   const applyMode = async (mode: ComposerMode) => {
     setModeMenuOpen(false);
@@ -692,6 +761,12 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                     })}
                     {(deviceMenu === 'camera' ? rtc.devices.cameras : rtc.devices.mics).length === 0 && (
                       <p className="text-[11px] text-white/40 px-3 py-3">No devices yet — grant camera/mic permission, then reopen.</p>
+                    )}
+                    {deviceMenu === 'camera' && (
+                      <div className="mt-2 pt-2 border-t border-white/10">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 pb-1">Manual controls</p>
+                        <CameraProControls track={getActiveCamTrack()} />
+                      </div>
                     )}
                   </div>
                 </>
