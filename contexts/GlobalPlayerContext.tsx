@@ -199,6 +199,12 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [isAtmosActive, setIsAtmosActive] = useState(false);
   const contextRef = useRef<GlobalPlayerContextType | null>(null);
   const wakeLockRef = useRef<any>(null);
+  // Playback resilience: our INTENDED state vs. what the element actually did. A pause
+  // that fires while we still intend to play = an interruption (audio-focus loss, device
+  // handoff, AudioContext suspend) → we recover it. A user/OS pause clears the intent
+  // first, so it's respected.
+  const intendedPlayingRef = useRef(false);
+  const resumeRecoveryRef = useRef<{ tries: number; timer: any }>({ tries: 0, timer: null });
 
   useEffect(() => {
     audioRef.current = audioElement;
@@ -248,6 +254,12 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       if (AudioContextClass) {
         const ctx = new AudioContextClass();
         audioContextRef.current = ctx;
+        // Auto-resume: the OS can suspend the context on a device change / audio-route
+        // switch (headphones, Bluetooth) mid-song. Without this the audio goes silent
+        // even though the element is "playing". Bring it back whenever we intend to play.
+        ctx.addEventListener?.('statechange', () => {
+          if (ctx.state === 'suspended' && intendedPlayingRef.current) ctx.resume().catch(() => {});
+        });
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 2048;
         analyserRef.current = analyser;
@@ -277,6 +289,26 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (audioContextRef.current?.state === 'suspended') {
       audioContextRef.current.resume();
     }
+  }, []);
+
+  // Recover from a spurious pause (interruption / device handoff) while we still intend
+  // to play. Backs off and gives up after a handful of tries so a real, persistent
+  // interruption (a phone call, headphones unplugged and left out) doesn't loop forever.
+  const scheduleResumeRecovery = useCallback(() => {
+    const rr = resumeRecoveryRef.current;
+    if (rr.timer) return;
+    if (stateRef.current.audioSource === 'VIDEO' || usingDecodeFallbackRef.current) return;
+    if (rr.tries >= 6) { rr.tries = 0; return; }
+    const delay = Math.min(2000, 300 * (rr.tries + 1));
+    rr.timer = setTimeout(() => {
+      rr.timer = null;
+      const audio = audioRef.current;
+      if (!intendedPlayingRef.current || !audio || audio.ended) { rr.tries = 0; return; }
+      if (!audio.paused) { rr.tries = 0; return; } // already recovered
+      if (audioContextRef.current?.state === 'suspended') audioContextRef.current.resume().catch(() => {});
+      rr.tries += 1;
+      audio.play().then(() => { rr.tries = 0; }).catch(() => { scheduleResumeRecovery(); });
+    }, delay);
   }, []);
 
   const connectAudioSource = useCallback(() => {
@@ -334,6 +366,10 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, []);
 
   const pause = useCallback(() => {
+    // Explicit user/OS pause — clear intent FIRST so the pause event isn't treated as an
+    // interruption and auto-recovered.
+    intendedPlayingRef.current = false;
+    if (resumeRecoveryRef.current.timer) { clearTimeout(resumeRecoveryRef.current.timer); resumeRecoveryRef.current.timer = null; }
     if (stateRef.current.audioSource === 'VIDEO') {
       if (ytPlayerRef.current && typeof ytPlayerRef.current.pauseVideo === 'function') {
         ytPlayerRef.current.pauseVideo();
@@ -350,6 +386,8 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const resume = useCallback(() => {
     initAudioContext();
+    intendedPlayingRef.current = true;
+    resumeRecoveryRef.current.tries = 0;
     const audio = audioRef.current;
     if (audioContextRef.current?.state === 'suspended') audioContextRef.current.resume();
     if (stateRef.current.audioSource === 'VIDEO') {
@@ -397,6 +435,8 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const isNewTrack = stateRef.current.currentTrack?.id !== track.id || stateRef.current.audioSource === 'VIDEO';
 
     initAudioContext();
+    intendedPlayingRef.current = true;
+    resumeRecoveryRef.current.tries = 0;
 
     stateRef.current.currentTrack = track;
     stateRef.current.currentAlbum = album;
@@ -576,8 +616,11 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       attemptPlay();
       connectAudioSource();
       
-      // Initialize preloader to implicitly fetch the next track's bytes
-      if (album && source === 'LIBRARY') {
+      // Initialize preloader to implicitly fetch the next track's bytes.
+      // Desktop only — on mobile a second <audio> contends for the single audio-focus
+      // slot and can interrupt the playing track, so we let the browser buffer natively.
+      const isMobileDevice = /iPad|iPhone|iPod|Android/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      if (!isMobileDevice && album && source === 'LIBRARY') {
         const idx = album.tracks.findIndex(t => t.id === track.id);
         let nextSrc = null;
         if (idx !== -1 && idx < album.tracks.length - 1) {
@@ -917,8 +960,13 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
     };
     const onDurationChange = () => { setDuration(audio.duration); setSessionPosition(audio); };
-    const onPlay = () => { setIsPlaying(true); setSessionPlaybackState('playing'); setSessionPosition(audio); };
-    const onPause = () => { setIsPlaying(false); persistProgress(); setSessionPlaybackState('paused'); }; // capture latest position on pause
+    const onPlay = () => { setIsPlaying(true); setSessionPlaybackState('playing'); setSessionPosition(audio); resumeRecoveryRef.current.tries = 0; };
+    const onPause = () => {
+      setIsPlaying(false); persistProgress(); setSessionPlaybackState('paused'); // capture latest position on pause
+      // If we didn't ask to pause and the track isn't over, this is an interruption — recover.
+      if (intendedPlayingRef.current && !audio.ended) scheduleResumeRecovery();
+    };
+    const onStalled = () => { if (intendedPlayingRef.current && audio.paused && !audio.ended) scheduleResumeRecovery(); };
     const onError = (e: any) => {
       if (!audio.src || audio.src === window.location.href) return;
 
@@ -951,6 +999,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     audio.addEventListener('durationchange', onDurationChange);
     audio.addEventListener('play', onPlay);
     audio.addEventListener('pause', onPause);
+    audio.addEventListener('stalled', onStalled);
     audio.addEventListener('error', onError);
     audio.addEventListener('ended', onEnded);
 
@@ -959,10 +1008,11 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       audio.removeEventListener('durationchange', onDurationChange);
       audio.removeEventListener('play', onPlay);
       audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('stalled', onStalled);
       audio.removeEventListener('error', onError);
       audio.removeEventListener('ended', onEnded);
     };
-  }, [audioElement, onEnded]);
+  }, [audioElement, onEnded, scheduleResumeRecovery]);
 
   useEffect(() => {
     if ('mediaSession' in navigator && currentTrack && currentAlbum) {
@@ -1112,6 +1162,8 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, []);
 
   const clearMedia = useCallback(() => {
+    intendedPlayingRef.current = false;
+    if (resumeRecoveryRef.current.timer) { clearTimeout(resumeRecoveryRef.current.timer); resumeRecoveryRef.current.timer = null; }
     // Stop YouTube player
     if (ytPlayerRef.current) {
       try { ytPlayerRef.current.stopVideo?.(); } catch (_) {}
