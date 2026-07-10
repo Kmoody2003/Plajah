@@ -863,9 +863,14 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                     <div className="mt-2 pt-2 border-t border-white/10">
                       <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 pb-2">VTuber avatar</p>
                       <div className="flex flex-wrap gap-1.5 px-1">
-                        {avatarBuilt && (
+                        {camMode === 'vtuber' ? (
+                          <button onClick={() => applyMode('front')}
+                            className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-red-500 text-white flex items-center gap-1">
+                            <CameraOff size={13} /> Turn off avatar
+                          </button>
+                        ) : avatarBuilt && (
                           <button onClick={() => applyMode('vtuber')}
-                            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${camMode === 'vtuber' ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80 hover:bg-white/12'}`}>
+                            className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-white/[0.06] text-white/80 hover:bg-white/12">
                             Go live as avatar
                           </button>
                         )}
