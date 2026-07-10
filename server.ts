@@ -785,6 +785,150 @@ async function startServer() {
   const app = express();
   const PORT = parseInt(process.env.PORT || '3000', 10);
 
+  // ── Alexa skill: "Alexa, ask Chora to play <song>" ───────────────────────
+  // Custom Alexa skill endpoint. Verifies Amazon's request signature, searches the
+  // PUBLIC Chora catalog, and returns AudioPlayer directives so an Echo streams the
+  // track (with album auto-advance). Registered before express.json() so the raw body
+  // is available for signature verification. Only public published music is reachable —
+  // private-library / locker / intimate tracks are NEVER exposed (legal).
+  const ALEXA_SKILL_ID = process.env.ALEXA_SKILL_ID || '';
+
+  let _choraIndex: { tracks: any[]; ts: number } | null = null;
+  const getChoraTrackIndex = async (): Promise<any[]> => {
+    if (_choraIndex && Date.now() - _choraIndex.ts < 60_000) return _choraIndex.tracks;
+    const albums = await queryFirebase('albums', [{ field: 'type', value: 'MUSIC' }], 500);
+    const out: any[] = [];
+    for (const al of albums) {
+      if (al.isIntimateOnly || al.isPublic === false) continue; // never expose intimate/unpublished
+      const tracks = Array.isArray(al.tracks) ? al.tracks : [];
+      tracks.forEach((t: any, idx: number) => {
+        if (!t || !t.url) return;
+        if (t.isPrivate || t.isLockerOnly || t.isIntimateOnly) return; // locker/private — never shareable
+        const url = String(t.url);
+        if (!/^https:\/\//i.test(url)) return; // Alexa AudioPlayer requires HTTPS streams
+        out.push({
+          title: t.title || 'Untitled',
+          artist: t.artist || al.artist || 'Unknown Artist',
+          url,
+          albumId: al.id || '', index: idx,
+          cover: (t.albumCover || al.coverImage || '').startsWith('https') ? (t.albumCover || al.coverImage) : '',
+        });
+      });
+    }
+    _choraIndex = { tracks: out, ts: Date.now() };
+    return out;
+  };
+  const scoreChoraMatch = (track: any, songQ: string, artistQ: string): number => {
+    const t = (track.title || '').toLowerCase(), a = (track.artist || '').toLowerCase();
+    const q = (songQ || '').toLowerCase().trim();
+    if (!q) return 0;
+    let score = 0;
+    if (t === q) score += 100;
+    else if (t.includes(q) || q.includes(t)) score += 60;
+    else { const words = q.split(/\s+/).filter(w => w.length > 2); score += words.filter(w => t.includes(w)).length * 15; }
+    if (artistQ) { const aq = artistQ.toLowerCase().trim(); if (aq && (a.includes(aq) || aq.includes(a))) score += 40; }
+    return score;
+  };
+  const choraTrackByToken = async (token: string, delta = 0): Promise<any | null> => {
+    const [albumId, idxStr] = String(token || '').split('::');
+    const idx = parseInt(idxStr, 10);
+    if (!albumId || !isFinite(idx)) return null;
+    const tracks = await getChoraTrackIndex();
+    return tracks.find(t => t.albumId === albumId && t.index === idx + delta) || null;
+  };
+
+  const alexaSpeak = (text: string, endSession = true) => ({ version: '1.0', response: { outputSpeech: { type: 'PlainText', text }, shouldEndSession: endSession } });
+  const alexaAudioItem = (track: any, offset = 0, prevToken?: string) => ({
+    stream: { token: `${track.albumId}::${track.index}`, url: track.url, offsetInMilliseconds: offset, ...(prevToken ? { expectedPreviousToken: prevToken } : {}) },
+    metadata: { title: track.title, subtitle: track.artist, ...(track.cover ? { art: { sources: [{ url: track.cover }] } } : {}) },
+  });
+  const alexaPlay = (track: any, offset = 0) => ({ version: '1.0', response: { outputSpeech: { type: 'PlainText', text: `Playing ${track.title} by ${track.artist} on Chora.` }, directives: [{ type: 'AudioPlayer.Play', playBehavior: 'REPLACE_ALL', audioItem: alexaAudioItem(track, offset) }], shouldEndSession: true } });
+  const alexaEnqueue = (track: any, prevToken: string) => ({ version: '1.0', response: { directives: [{ type: 'AudioPlayer.Play', playBehavior: 'ENQUEUE', audioItem: alexaAudioItem(track, 0, prevToken) }] } });
+  const alexaStop = () => ({ version: '1.0', response: { directives: [{ type: 'AudioPlayer.Stop' }] } });
+
+  // SHA1-RSA signature verification against Amazon's cert chain (skill certification).
+  const _alexaCerts = new Map<string, string>();
+  const verifyAlexaSignature = async (certUrl: string, signature: string, body: Buffer): Promise<boolean> => {
+    try {
+      const u = new URL(certUrl);
+      if (u.protocol !== 'https:' || u.hostname.toLowerCase() !== 's3.amazonaws.com' || (u.port && u.port !== '443') || !u.pathname.replace(/\/+/g, '/').startsWith('/echo.api/')) return false;
+      let pem = _alexaCerts.get(certUrl);
+      if (!pem) {
+        const r = await safeOutboundFetch(certUrl);
+        if (!r.ok) return false;
+        pem = await r.text();
+        const x509 = new nodeCrypto.X509Certificate(pem);
+        const now = new Date();
+        if (new Date(x509.validFrom) > now || new Date(x509.validTo) < now) return false;
+        if (!/echo-api\.amazon\.com/.test(`${x509.subjectAltName || ''}`)) return false;
+        _alexaCerts.set(certUrl, pem);
+      }
+      const verifier = nodeCrypto.createVerify('RSA-SHA1');
+      verifier.update(body);
+      return verifier.verify(pem, Buffer.from(signature, 'base64'));
+    } catch { return false; }
+  };
+
+  app.post('/api/alexa', express.raw({ type: () => true, limit: '1mb' }), async (req: any, res: any) => {
+    const body: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body || {}));
+    try {
+      // 1. Signature (unless explicitly disabled for local dev)
+      if (process.env.ALEXA_SKIP_SIGNATURE !== 'true') {
+        const certUrl = String(req.headers['signaturecertchainurl'] || '');
+        const signature = String(req.headers['signature'] || '');
+        if (!certUrl || !signature || !(await verifyAlexaSignature(certUrl, signature, body))) return res.status(400).json({ error: 'invalid signature' });
+      }
+      const env = JSON.parse(body.toString('utf8'));
+      // 2. Application id + timestamp freshness (replay protection)
+      const appId = env?.context?.System?.application?.applicationId || env?.session?.application?.applicationId;
+      if (ALEXA_SKILL_ID && appId !== ALEXA_SKILL_ID) return res.status(400).json({ error: 'wrong skill' });
+      const ts = new Date(env?.request?.timestamp || 0).getTime();
+      if (!ts || Math.abs(Date.now() - ts) > 150_000) return res.status(400).json({ error: 'stale request' });
+
+      const type = env?.request?.type;
+      if (type === 'LaunchRequest') return res.json(alexaSpeak('Welcome to Chora. What would you like to hear?', false));
+
+      if (type === 'IntentRequest') {
+        const intent = env.request.intent || {};
+        const name = intent.name;
+        if (name === 'PlaySongIntent') {
+          const song = intent.slots?.song?.value || '';
+          const artist = intent.slots?.artist?.value || '';
+          if (!song) return res.json(alexaSpeak('What song would you like me to play?', false));
+          const tracks = await getChoraTrackIndex();
+          const best = tracks.map(t => ({ t, s: scoreChoraMatch(t, song, artist) })).filter(x => x.s > 0).sort((a, b) => b.s - a.s)[0];
+          if (!best) return res.json(alexaSpeak(`Sorry, I couldn't find ${song} on Chora.`));
+          return res.json(alexaPlay(best.t));
+        }
+        if (name === 'AMAZON.PauseIntent' || name === 'AMAZON.StopIntent' || name === 'AMAZON.CancelIntent') return res.json(alexaStop());
+        if (name === 'AMAZON.ResumeIntent') {
+          const ap = env.context?.AudioPlayer;
+          const t = ap?.token ? await choraTrackByToken(ap.token) : null;
+          return res.json(t ? alexaPlay(t, ap.offsetInMilliseconds || 0) : alexaSpeak('There is nothing to resume.'));
+        }
+        if (name === 'AMAZON.NextIntent') { const t = await choraTrackByToken(env.context?.AudioPlayer?.token, 1); return res.json(t ? alexaPlay(t) : alexaSpeak('That was the last track.')); }
+        if (name === 'AMAZON.PreviousIntent') { const t = await choraTrackByToken(env.context?.AudioPlayer?.token, -1); return res.json(t ? alexaPlay(t) : alexaSpeak('This is the first track.')); }
+        if (name === 'AMAZON.HelpIntent') return res.json(alexaSpeak('Ask me to play a song. For example, say: play Sunflowers.', false));
+        return res.json(alexaSpeak("Sorry, I didn't catch that. Ask me to play a song."));
+      }
+
+      if (typeof type === 'string' && type.startsWith('AudioPlayer.')) {
+        // Gapless album auto-advance: enqueue the next track as the current one nears the end.
+        if (type === 'AudioPlayer.PlaybackNearlyFinished') {
+          const t = await choraTrackByToken(env.request?.token, 1);
+          if (t) return res.json(alexaEnqueue(t, env.request.token));
+        }
+        return res.json({ version: '1.0', response: {} });
+      }
+
+      if (type === 'SessionEndedRequest') return res.json({ version: '1.0', response: {} });
+      return res.json(alexaSpeak('Sorry, something went wrong.'));
+    } catch (e: any) {
+      console.error('[alexa] error:', e?.message);
+      return res.json(alexaSpeak('Sorry, Chora ran into a problem.'));
+    }
+  });
+
   // ── Stripe Webhook — MUST be raw body BEFORE express.json() ──────────────
   app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     const sig = req.headers['stripe-signature'] as string;
