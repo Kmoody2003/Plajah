@@ -764,8 +764,9 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
             </AnimatePresence>
           </div>
 
-          {/* Bottom stack — chat sits ABOVE the dock (no overlap); the camera shrinks above both */}
-          <div ref={bottomRef} className="absolute inset-x-0 bottom-0 z-10 flex flex-col">
+          {/* Bottom stack — chat anchored at the very bottom, controls above it, camera above both.
+              flex-col-reverse renders the first child (chat) at the bottom and the dock above it. */}
+          <div ref={bottomRef} className="absolute inset-x-0 bottom-0 z-10 flex flex-col-reverse">
             {/* Live chat — in flow, above the dock */}
             <AnimatePresence>
               {showChat && (

@@ -114,7 +114,10 @@ export class LiveComposer {
 
   private initGL() {
     try {
-      const gl = this.canvas.getContext('webgl2', { alpha: false, preserveDrawingBuffer: false });
+      // preserveDrawingBuffer MUST be true: captureStream() on a WebGL canvas otherwise
+      // grabs a cleared (black) or frozen buffer — the graded/composited output never
+      // reaches the published/recorded stream.
+      const gl = this.canvas.getContext('webgl2', { alpha: false, preserveDrawingBuffer: true });
       if (!gl) throw new Error('no webgl2');
       this.gl = gl;
       const vs = gl.createShader(gl.VERTEX_SHADER)!; gl.shaderSource(vs, VERT); gl.compileShader(vs);
@@ -179,7 +182,7 @@ export class LiveComposer {
       // AVATAR_ONLY on a transparent canvas — the composer draws it over its own
       // background and then grades it, so LUTs/looks apply to the avatar too.
       this.vtuber = await createVTuberStream(this.frontStream, {
-        avatar: this.avatar, mode: 'AVATAR_ONLY', width: 720, height: 1280,
+        avatar: this.avatar, mode: 'AVATAR_ONLY', width: 540, height: 960, fps: 24,
         background: { type: 'transparent' },
       });
     } catch (e) { console.warn('[liveComposer] vtuber start failed:', e); this.vtuber = null; }
