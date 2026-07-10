@@ -37,6 +37,7 @@ export class SessionRecorder {
   private recorder: MediaRecorder | null = null;
   private chunks: Blob[] = [];
   private startedAt = 0;
+  private locked = false; // single-source canvas aspect locked to the source
   recording = false;
 
   constructor(options: SessionRecorderOptions = {}) {
@@ -145,6 +146,27 @@ export class SessionRecorder {
     }
 
     const els = [...this.videoEls.values()].filter(v => v.videoWidth > 0);
+
+    // Single source (the broadcast case: the composited/graded canvas): record it at
+    // its NATIVE aspect, uncropped — the old grid cover-cropped a portrait composite
+    // into a 16:9 cell, cutting off the PiP corner (looked like "only the rear feed").
+    if (els.length === 1) {
+      const v = els[0];
+      const ar = v.videoWidth / v.videoHeight;
+      if (!this.locked) {
+        let w: number, h: number;
+        if (ar >= 1) { w = this.opts.maxSize; h = Math.round(w / ar); }
+        else { h = this.opts.maxSize; w = Math.round(h * ar); }
+        canvas.width = w; canvas.height = h; this.locked = true;
+      }
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const car = canvas.width / canvas.height;
+      let dw = canvas.width, dh = canvas.height;
+      if (ar > car) { dw = canvas.width; dh = dw / ar; } else { dh = canvas.height; dw = dh * ar; }
+      try { ctx.drawImage(v, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh); } catch { /* not ready */ }
+      return;
+    }
+
     const n = Math.max(1, els.length);
     const cols = Math.ceil(Math.sqrt(n));
     const rows = Math.ceil(n / cols);
@@ -172,6 +194,7 @@ export class SessionRecorder {
 
   private cleanup() {
     this.recording = false;
+    this.locked = false;
     cancelAnimationFrame(this.raf);
     this.connected.forEach(src => { try { src.disconnect(); } catch {} });
     this.connected.clear();
