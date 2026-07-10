@@ -342,6 +342,16 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
 
   useEffect(() => () => { composerRef.current?.dispose(); composerRef.current = null; }, []);
 
+  // Lock to portrait while streaming. A rotating phone rotates the camera feed, which
+  // throws off MediaPipe face tracking (sideways face → not identified) and the avatar
+  // orientation. Best-effort: works in an installed PWA / some Android browsers; a hard
+  // lock elsewhere needs the native app.
+  useEffect(() => {
+    const so: any = (typeof screen !== 'undefined') ? (screen as any).orientation : null;
+    try { so?.lock?.('portrait-primary')?.catch?.(() => { try { so?.lock?.('portrait')?.catch?.(() => {}); } catch { /* */ } }); } catch { /* unsupported */ }
+    return () => { try { so?.unlock?.(); } catch { /* */ } };
+  }, []);
+
   // Real-time voice changer — routes the mic through a Web Audio effect and publishes
   // the processed track. The raw mic keeps feeding the effect; switching effects is
   // instant (rewires the graph, same output track).
