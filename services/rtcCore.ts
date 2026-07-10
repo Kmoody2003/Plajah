@@ -416,8 +416,13 @@ export class RtcSession {
       sender?.replaceTrack(newTrack).catch(() => {});
     });
     if (this.local) {
-      if (old) { this.local.removeTrack(old); old.stop(); }
-      this.local.addTrack(newTrack);
+      const audio = this.local.getAudioTracks();
+      if (old) old.stop();
+      // Rebuild as a NEW MediaStream reference. Mutating the same stream in place made
+      // React consumers bail on the identity check (setLocalStream(sameRef) is a no-op),
+      // so the preview <video> never re-bound its srcObject and stayed frozen on the old
+      // camera — the flip appeared to only mirror the image. A fresh reference re-binds it.
+      this.local = new MediaStream([newTrack, ...audio]);
       this.events.onLocalStream?.(this.local);
     }
   }
