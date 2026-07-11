@@ -77,14 +77,18 @@ async function createBodyStream(input: MediaStream, opts: VTuberOptions): Promis
   let lastTs = -1;
   let pose: import('./poseTracker').PoseFrame | null = null;
   let locked = false;
+  let lastDetect = -1e9, detectMs = 22; // pose inference is heavier than face
   let raf = 0;
   const loop = () => {
     raf = requestAnimationFrame(loop);
     const t = performance.now();
-    if (tracker.isReady && video.readyState >= 2) {
+    if (tracker.isReady && video.readyState >= 2 && (t - lastDetect) >= detectMs * 0.85) {
       const ts = Math.max(lastTs + 1, Math.round(t));
       lastTs = ts;
+      const d0 = performance.now();
       const frame = tracker.detect(feed.src(video), ts);
+      detectMs = detectMs * 0.8 + (performance.now() - d0) * 0.2;
+      lastDetect = t;
       if (frame) {
         pose = frame;
         if (!locked) { locked = true; setStatus('body locked ✓ — you drive the character'); }
@@ -174,15 +178,22 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
   let lastBbox: { x: number; y: number; w: number; h: number } | null = null;
   let smoothBox: { x: number; y: number; w: number; h: number } | null = null;
   let lostFrames = 0;
+  // Adaptive detection throttle: render every frame (smooth), but only run the ML detector
+  // as fast as it can actually keep up — on slow phones this stops inference from starving
+  // the render loop (saves battery + keeps the puppet fluid). Fast devices detect near 1:1.
+  let lastDetect = -1e9, detectMs = 16;
   let raf = 0;
   const loop = () => {
     raf = requestAnimationFrame(loop);
     const t = performance.now();
 
-    if (tracker.isReady && video.readyState >= 2) {
+    if (tracker.isReady && video.readyState >= 2 && (t - lastDetect) >= detectMs * 0.85) {
       const ts = Math.max(lastTs + 1, Math.round(t)); // detectForVideo needs monotonic timestamps
       lastTs = ts;
+      const d0 = performance.now();
       const frame = tracker.detect(feed.src(video), ts);
+      detectMs = detectMs * 0.8 + (performance.now() - d0) * 0.2;
+      lastDetect = t;
       if (frame) {
         if (!lastBbox) setStatus(feed.boost > 1.15 ? `face locked ✓ (low light ×${feed.boost.toFixed(1)})` : 'face locked ✓');
         lastFace = retargeter.retarget(frame, t / 1000);

@@ -642,6 +642,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const [avatarBuilding, setAvatarBuilding] = useState(false);
   const [buildMsg, setBuildMsg] = useState('');
   const [demoId, setDemoId] = useState<string | null>(null);
+  const [avatarKind, setAvatarKind] = useState<'puppet' | 'vrm' | null>(null);
   const buildAvatarFromBlob = async (blob: Blob, puppet?: DemoAvatar['puppet']) => {
     if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
     const desc = await buildVTuberFromSheet(blob, {
@@ -649,8 +650,23 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
       onProgress: (s: string, p: number) => setBuildMsg(`${s} · ${Math.round(p * 100)}%`),
     });
     composerRef.current.setAvatar(desc);
-    setAvatarBuilt(true);
+    setAvatarBuilt(true); setAvatarKind('puppet');
     await applyMode('vtuber');
+  };
+  // Upload a real 3D .vrm model — the engine drives its humanoid bones + ARKit blendshapes
+  // from your face/pose (industry-standard VTuber path). Loaded from a local object URL.
+  const vrmInputRef = useRef<HTMLInputElement>(null);
+  const loadVrm = async (file?: File | null) => {
+    if (!file) return;
+    setAvatarBuilding(true); setBuildMsg('Loading 3D model…'); setDemoId(null);
+    try {
+      if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
+      const url = URL.createObjectURL(file);
+      composerRef.current.setAvatar({ kind: 'VRM', url, source: 'upload' } as any);
+      setAvatarBuilt(true); setAvatarKind('vrm'); setVtuberStyleState('face');
+      await applyMode('vtuber');
+    } catch (e: any) { alert(e?.message || 'Could not load that .vrm model.'); }
+    finally { setAvatarBuilding(false); }
   };
   // Full-body paper doll: cut the body view (keyed) into a pose-driven rig — instant,
   // zero CV on the artwork (all tracking runs on the streamer's real body).
@@ -689,6 +705,9 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     await composerRef.current?.setVtuberStyle(s);
     if (camMode !== 'vtuber' && avatarBuilt) await applyMode('vtuber');
   };
+  // Green-screen / OBS mode — render the avatar on a chroma key instead of over live video.
+  const [greenOn, setGreenOn] = useState(false);
+  const toggleGreen = async () => { const on = !greenOn; setGreenOn(on); await composerRef.current?.setGreenScreen(on); };
 
   // ── Media + peers now run on the unified rtcCore backbone (broadcast topology:
   //    this host publishes, viewers subscribe). The session is live from mount so
@@ -1206,7 +1225,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                           <span className="text-[9px] font-bold leading-none">Upload</span>
                         </button>
                       </div>
-                      {avatarBuilt && (
+                      {avatarBuilt && avatarKind === 'puppet' && (
                         <div className="flex gap-1.5 px-1 mt-2">
                           {([['face', '👤 Face swap'], ['body', '🕺 Full body']] as const).map(([s, label]) => (
                             <button key={s} onClick={() => applyVtuberStyle(s)}
@@ -1228,9 +1247,19 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                             Go live as avatar
                           </button>
                         )}
+                        <button onClick={() => vrmInputRef.current?.click()} disabled={avatarBuilding}
+                          className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-white/[0.06] text-white/80 hover:bg-white/12 disabled:opacity-50">
+                          🧊 Upload .vrm (3D)
+                        </button>
+                        {avatarBuilt && (
+                          <button onClick={toggleGreen}
+                            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${greenOn ? 'bg-green-500 text-black' : 'bg-white/[0.06] text-white/80'}`}>
+                            🟩 Green screen
+                          </button>
+                        )}
                       </div>
                       <p className="text-[9px] text-white/30 px-2 pt-1.5 leading-snug">
-                        {avatarBuilding ? (buildMsg || 'Loading…') : 'Tap a character to become it — your face drives it live, on-device. Or upload your own drawing.'}
+                        {avatarBuilding ? (buildMsg || 'Loading…') : 'Tap a character to become it — your face/body drives it live, on-device. Upload a drawing or a 3D .vrm.'}
                       </p>
                     </div>
                     <div className="mt-2 pt-2 border-t border-white/10">
@@ -1274,7 +1303,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                       {(() => {
                         const d = composerRef.current?.getDiagnostics();
                         return d
-                          ? `engine ${composerPublishedRef.current ? 'LIVE' : 'idle'} · grade:${d.grade} · look:${d.look} · ${d.mode} ${d.size} · vtuber:${d.vtuber}`
+                          ? `engine ${composerPublishedRef.current ? 'LIVE' : 'idle'} · grade:${d.grade}${d.night ? '+night' : ''}${d.green ? '+green' : ''} · look:${d.look} · ${d.mode} ${d.size} · vtuber:${d.vtuber}${d.track ? ` · ${d.track}` : ''}`
                           : 'engine off — publishing raw camera';
                       })()}
                     </p>
@@ -1285,6 +1314,8 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                 onChange={e => { uploadCube(e.target.files?.[0]); e.currentTarget.value = ''; }} />
               <input ref={sheetInputRef} type="file" accept="image/*" className="hidden"
                 onChange={e => { buildAvatar(e.target.files?.[0]); e.currentTarget.value = ''; }} />
+              <input ref={vrmInputRef} type="file" accept=".vrm,model/gltf-binary" className="hidden"
+                onChange={e => { loadVrm(e.target.files?.[0]); e.currentTarget.value = ''; }} />
               {pollOpen && <PollComposer onLaunch={launchPoll} onClose={() => setPollOpen(false)} />}
               {/* Camera / mic device picker */}
               {deviceMenu !== 'none' && (

@@ -181,6 +181,7 @@ export class LiveComposer {
   private avatar: AvatarDescriptor | null = null;
   private bodyAvatar: AvatarDescriptor | null = null;
   private vtuberStyle: 'face' | 'body' = 'face';
+  private greenScreen = false;
   private vtuber: VTuberHandle | null = null;
   private vtuberStarting = false;
 
@@ -243,9 +244,10 @@ export class LiveComposer {
   getDiagnostics() {
     return {
       grade: this.gl ? 'webgl' : this.filter2dOk ? '2d-filter' : 'none',
-      look: this.getLook(), mode: this.mode, night: this.night,
+      look: this.getLook(), mode: this.mode, night: this.night, green: this.greenScreen,
       size: `${this.canvas.width}x${this.canvas.height}`,
       vtuber: this.vtuber ? `live-${this.vtuberStyle}` : this.hasAvatar() ? 'ready' : 'off',
+      track: this.vtuber?.getStatus?.() ?? '',
     };
   }
 
@@ -292,6 +294,14 @@ export class LiveComposer {
   }
   hasAvatar() { return !!(this.avatar || this.bodyAvatar); }
   getVtuberStyle() { return this.vtuberStyle; }
+  getGreenScreen() { return this.greenScreen; }
+  /** Green-screen / OBS mode: render the avatar on a chroma-key background (VRM + 2D
+   *  face puppet), instead of over your live camera. For OBS/desktop capture. */
+  async setGreenScreen(on: boolean): Promise<void> {
+    if (on === this.greenScreen) return;
+    this.greenScreen = on;
+    if (this.mode === 'vtuber') { this.releaseVtuber(); await this.ensureVtuber(); }
+  }
   /** Switch face-swap ↔ full-body live (restarts the engine on the same camera). */
   async setVtuberStyle(style: 'face' | 'body'): Promise<void> {
     if (style === this.vtuberStyle) return;
@@ -306,9 +316,15 @@ export class LiveComposer {
     try {
       // Lazy-load the VTuber engine (pulls in three.js) only when actually used.
       const { createVTuberStream } = await import('./vtuber/vtuberEngine');
+      const isVrm = (desc as any).kind === 'VRM';
+      // VRM is a whole 3D character (avatar-only). 2D puppet is a face swap over live
+      // video — unless green screen is on, then it renders on the chroma key for OBS.
+      const mode = (isVrm || this.greenScreen) ? 'AVATAR_ONLY' : 'FACE_SWAP';
+      const background = this.greenScreen
+        ? { type: 'color' as const, value: '#00b140' }
+        : { type: 'transparent' as const };
       this.vtuber = await createVTuberStream(this.frontStream, {
-        avatar: desc, mode: 'FACE_SWAP', width: 540, height: 960, fps: 24,
-        background: { type: 'transparent' },
+        avatar: desc, mode, width: 540, height: 960, fps: 24, background,
       });
     } catch (e) { console.warn('[liveComposer] vtuber start failed:', e); this.vtuber = null; }
     this.vtuberStarting = false;
