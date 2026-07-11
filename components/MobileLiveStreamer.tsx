@@ -550,11 +550,12 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     composerPublishedRef.current ? (composerRef.current?.getActiveCameraTrack() ?? null) : (rtc.localStream?.getVideoTracks()[0] ?? null);
 
   const applyMode = async (mode: ComposerMode) => {
-    setModeMenuOpen(false);
-    // NOTE: same-mode calls must still proceed until the composer is published — the old
-    // `mode === camMode` early-return made applyLook('front'-default) a silent no-op, so
-    // looks/LUTs never reached the output until the user happened to change modes.
+    // NOTE: the carousel stays OPEN so you can keep previewing the effect on the video
+    // above it (don't auto-close here). Same-mode calls must still proceed until the
+    // composer is published — the old `mode === camMode` early-return made
+    // applyLook('front'-default) a silent no-op, so looks/LUTs never reached the output.
     if (modeBusy || (mode === camMode && composerPublishedRef.current)) return;
+    const prevMode = camMode;
     setModeBusy(true);
     try {
       if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
@@ -571,7 +572,13 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
       setMirror(false); // the canvas is already composited — no CSS mirror on top
       setCamOn(true);
     } catch (e: any) {
-      alert(e?.message || 'Could not switch to that mode on this device.');
+      // Dual-camera (both) needs simultaneous front+rear, which many phones can't do — fall
+      // back to the previous working mode instead of leaving a broken state.
+      const dual = mode === 'both';
+      alert(dual
+        ? "This phone can't run the front and rear cameras at the same time (a hardware limit on most devices). Staying on your current camera."
+        : (e?.message || 'Could not switch to that mode on this device.'));
+      try { await composerRef.current?.setMode(prevMode === 'both' ? 'front' : prevMode); } catch { /* */ }
     } finally { setModeBusy(false); }
   };
 
@@ -739,12 +746,12 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   useEffect(() => { if (rtc.error) setPermError(rtc.error); }, [rtc.error]);
 
   // Composer-always-on: publish the composed canvas from the START of the stream, not on
-  // first mode change. One always-running render engine (camera is just a source) means:
-  // looks/LUTs apply instantly, the recording captures a fixed-size canvas (no raw-camera
-  // aspect races → no squished recordings), and VTuber/PiP swap in without renegotiation.
-  // The composer ADOPTS a clone of the RTC camera track so the camera isn't opened twice
-  // (double-capture fails on some Android devices). NOTE: this effect must live BELOW the
-  // `rtc` declaration — its dep array reads rtc.localStream at render time (TDZ otherwise).
+  // first mode change — so looks/LUTs/VTuber apply instantly and the recording is stable.
+  // applyMode('front') publishes the canvas (which stops the RTC camera) and then the
+  // composer opens its OWN front camera via getUserMedia — a REAL source that reliably
+  // delivers frames. (Adopting a clone of the RTC track produced a black feed on some
+  // devices — looks applied to black, and the tracker saw black = no face.) NOTE: must live
+  // BELOW the `rtc` declaration — its dep array reads rtc.localStream at render (TDZ else).
   const bootRef = useRef(false);
   useEffect(() => {
     if (!rtc.localStream || bootRef.current || composerPublishedRef.current) return;
@@ -754,8 +761,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     (async () => {
       try {
         if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
-        composerRef.current.adoptFrontTrack(cam.clone());
-        await applyMode('front');
+        await applyMode('front'); // publishes canvas + composer opens its own front camera
       } catch (e) {
         console.warn('[live] composer boot failed — staying on the raw camera:', e);
         bootRef.current = false;
@@ -1105,6 +1111,10 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
               ))}
             </AnimatePresence>
           </div>
+
+          {/* Tap-out: tapping the exposed video (or anywhere outside the panel) closes the
+              feature carousel. Sits above the video (z-auto) but below the dock (z-10). */}
+          {modeMenuOpen && <div className="fixed inset-0 z-[5]" onClick={() => setModeMenuOpen(false)} />}
 
           {/* Bottom stack — chat anchored at the very bottom, controls above it, camera above both.
               flex-col-reverse renders the first child (chat) at the bottom and the dock above it. */}
