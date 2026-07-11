@@ -29,14 +29,22 @@ export class FaceTracker {
         /* @vite-ignore */ CDN
       );
       const fileset = await vision.FilesetResolver.forVisionTasks(`${CDN}/wasm`);
-      this.fl = await vision.FaceLandmarker.createFromOptions(fileset, {
-        baseOptions: { modelAssetPath: MODEL, delegate: 'GPU' },
-        runningMode: 'VIDEO',
-        numFaces: 1,
-        outputFaceBlendshapes: true,
-        outputFacialTransformationMatrixes: true,
-      });
-      this.ready = true;
+      // GPU delegate fails inside some WebViews/browsers — fall back to CPU (slower but works).
+      for (const delegate of ['GPU', 'CPU'] as const) {
+        try {
+          this.fl = await vision.FaceLandmarker.createFromOptions(fileset, {
+            baseOptions: { modelAssetPath: MODEL, delegate },
+            runningMode: 'VIDEO',
+            numFaces: 1,
+            outputFaceBlendshapes: true,
+            outputFacialTransformationMatrixes: true,
+          });
+          break;
+        } catch (e) {
+          console.warn(`[vtuber] FaceLandmarker ${delegate} delegate failed:`, e);
+        }
+      }
+      this.ready = !!this.fl;
     } catch (e) {
       console.warn('[vtuber] FaceLandmarker init failed:', e);
     } finally {

@@ -1,7 +1,12 @@
 // liveComposer — camera/screen composition + color-grade engine for the live streamer.
 //
-// Pipeline: sources → 2D composite (work canvas) → WebGL2 color grade (built-in looks
-// or a custom .cube 3D LUT) → output canvas → captureStream → published track.
+// Pipeline: sources → 2D composite (work canvas) → grade → OUTPUT 2D canvas →
+// captureStream → published track. The captured surface is ALWAYS a 2D canvas
+// (mobile GPUs won't reliably captureStream a WebGL canvas); the grade itself runs
+// on an OFFSCREEN WebGL2 canvas (built-in looks + custom .cube 3D LUTs in a shader)
+// and is blitted synchronously into the output — drawImage from a WebGL canvas in
+// the same task is spec-guaranteed to see the frame, no preserveDrawingBuffer games.
+// Fallback chain: WebGL2 shader → ctx.filter looks → passthrough.
 // Switching modes/looks just changes what's drawn/graded — no track swap, no
 // renegotiation, so it's instant and never drops viewers.
 //
@@ -26,9 +31,35 @@ export const LOOKS: { id: LookId; label: string }[] = [
   { id: 'noir', label: 'Noir' },
   { id: 'vintage', label: 'Vintage' },
 ];
-// Built-in looks as 2D-canvas filter strings. A 2D canvas is captured far more reliably than
-// WebGL on mobile GPUs (WebGL captureStream frequently yields a black/frozen buffer regardless
-// of preserveDrawingBuffer), so the grade runs as a canvas filter on the output blit.
+// ── Grade shader (runs on an OFFSCREEN WebGL2 canvas; result is blitted into the captured
+//    2D output the same task, so capture reliability never depends on WebGL). ──────────────
+const VERT = `#version 300 es
+in vec2 p; out vec2 vUv;
+void main(){ vUv = vec2(p.x*0.5+0.5, 1.0-(p.y*0.5+0.5)); gl_Position = vec4(p,0.0,1.0); }`;
+const FRAG = `#version 300 es
+precision highp float; precision highp sampler3D;
+in vec2 vUv; out vec4 frag;
+uniform sampler2D uTex; uniform sampler3D uLut; uniform bool uUseLut; uniform int uLook;
+uniform float uLutScale; uniform float uLutOff; // texel-centre mapping: c*(N-1)/N + 0.5/N
+const vec3 L = vec3(0.299,0.587,0.114);
+vec3 grade(vec3 c){
+  if(uLook==1){ c.r*=1.06; c.b*=0.94; c=(c-0.5)*1.08+0.5; float l=dot(c,L); c=mix(vec3(l),c,1.12); }
+  else if(uLook==2){ float l=dot(c,L); vec3 s=mix(c,c*vec3(0.82,1.05,1.16),1.0-l); vec3 h=mix(s,s*vec3(1.16,1.02,0.84),l); c=(h-0.5)*1.06+0.5; }
+  else if(uLook==3){ float l=dot(c,L); c=mix(vec3(l),c,0.85)*0.93; c=(c-0.5)*1.12+0.48; c.b*=1.06; }
+  else if(uLook==4){ float l=dot(c,L); c=mix(vec3(l),c,1.38); c=(c-0.5)*1.12+0.5; }
+  else if(uLook==5){ float l=dot(c,L); c=vec3((l-0.5)*1.28+0.5); }
+  else if(uLook==6){ c=(c-0.5)*0.9+0.52; c.r*=1.05; c.g*=1.02; c.b*=0.9; float l=dot(c,L); c=mix(vec3(l),c,0.8); }
+  return c;
+}
+void main(){
+  vec3 c = texture(uTex, vUv).rgb;
+  c = grade(c);
+  if(uUseLut) c = texture(uLut, clamp(c,0.0,1.0)*uLutScale+uLutOff).rgb;
+  frag = vec4(clamp(c,0.0,1.0),1.0);
+}`;
+const LOOK_INDEX: Record<LookId, number> = { none: 0, warm: 1, tealorange: 2, moody: 3, vivid: 4, noir: 5, vintage: 6 };
+
+// Fallback: built-in looks as 2D-canvas filter strings (used when WebGL2 is unavailable).
 const LOOK_FILTERS: Record<LookId, string> = {
   none: 'none',
   warm: 'saturate(1.12) contrast(1.08) sepia(0.16) hue-rotate(-10deg) brightness(1.02)',
@@ -69,8 +100,21 @@ export class LiveComposer {
   private raf = 0;
   private mode: ComposerMode = 'front';
 
-  // Grade stage — a 2D canvas filter (see LOOK_FILTERS). Reliable capture on mobile.
+  // Grade stage — offscreen WebGL2 shader (looks + .cube LUTs), sync-blitted into the
+  // captured 2D output. ctx.filter is the no-WebGL fallback for the built-in looks.
   private look: LookId = 'none';
+  private useLut = false;
+  private glCanvas = document.createElement('canvas'); // offscreen — never captured
+  private gl: WebGL2RenderingContext | null = null;
+  private prog: WebGLProgram | null = null;
+  private uUse: WebGLUniformLocation | null = null;
+  private uLookLoc: WebGLUniformLocation | null = null;
+  private inTex: WebGLTexture | null = null;
+  private lut3d: WebGLTexture | null = null;
+  private filter2dOk = (() => {
+    try { const c = document.createElement('canvas').getContext('2d'); if (!c) return false; c.filter = 'grayscale(1)'; return typeof c.filter === 'string' && c.filter.includes('grayscale'); }
+    catch { return false; }
+  })();
 
   private frontStream: MediaStream | null = null;
   private rearStream: MediaStream | null = null;
@@ -90,12 +134,44 @@ export class LiveComposer {
   private vtuberStarting = false;
 
   constructor(private onScreenEnded?: () => void) {
+    this.initGL();
     this.setCanvas(720, 1280);
+  }
+
+  private initGL() {
+    try {
+      const gl = this.glCanvas.getContext('webgl2', { alpha: false, preserveDrawingBuffer: false, premultipliedAlpha: false });
+      if (!gl) throw new Error('no webgl2');
+      const vs = gl.createShader(gl.VERTEX_SHADER)!; gl.shaderSource(vs, VERT); gl.compileShader(vs);
+      const fs = gl.createShader(gl.FRAGMENT_SHADER)!; gl.shaderSource(fs, FRAG); gl.compileShader(fs);
+      if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(fs) || 'fs');
+      const prog = gl.createProgram()!; gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog) || 'link');
+      gl.useProgram(prog);
+      const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+      const loc = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+      gl.uniform1i(gl.getUniformLocation(prog, 'uTex'), 0);
+      gl.uniform1i(gl.getUniformLocation(prog, 'uLut'), 1);
+      this.uUse = gl.getUniformLocation(prog, 'uUseLut');
+      this.uLookLoc = gl.getUniformLocation(prog, 'uLook');
+      this.inTex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, this.inTex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      this.gl = gl; this.prog = prog;
+    } catch (e) {
+      console.warn('[liveComposer] WebGL2 grade unavailable — 2D-filter fallback:', e);
+      this.gl = null; this.prog = null;
+    }
   }
 
   private setCanvas(w: number, h: number) {
     if (this.work.width !== w) { this.work.width = w; this.work.height = h; }
     if (this.canvas.width !== w) { this.canvas.width = w; this.canvas.height = h; }
+    if (this.gl && this.glCanvas.width !== w) { this.glCanvas.width = w; this.glCanvas.height = h; this.gl.viewport(0, 0, w, h); }
   }
 
   getStream(): MediaStream {
@@ -103,15 +179,24 @@ export class LiveComposer {
     return this.out;
   }
   getMode() { return this.mode; }
-  getLook() { return this.look; }
-  hasGrade() { return true; }
+  getLook() { return this.useLut ? 'custom' : this.look; }
+  hasGrade() { return !!this.gl || this.filter2dOk; }
+  /** What the engine is actually running — surfaced in the UI for on-device debugging. */
+  getDiagnostics() {
+    return {
+      grade: this.gl ? 'webgl' : this.filter2dOk ? '2d-filter' : 'none',
+      look: this.getLook(), mode: this.mode,
+      size: `${this.canvas.width}x${this.canvas.height}`,
+      vtuber: this.vtuber ? 'live' : this.avatar ? 'ready' : 'off',
+    };
+  }
 
   getActiveCameraTrack(): MediaStreamTrack | null {
     return this.frontStream?.getVideoTracks()[0] || this.rearStream?.getVideoTracks()[0] || null;
   }
 
-  setLook(look: LookId) { this.look = look; }
-  clearLut() { /* custom .cube LUTs run on the WebGL path only; 2D uses built-in looks */ }
+  setLook(look: LookId) { this.look = look; this.useLut = false; }
+  clearLut() { this.useLut = false; }
 
   /** Set the VTuber avatar (2D puppet built from a character sheet, or a VRM). Takes
    *  effect next time 'vtuber' mode starts; if already in vtuber mode, restart it. */
@@ -137,18 +222,59 @@ export class LiveComposer {
   }
   private releaseVtuber() { if (this.vtuber) { this.vtuber.dispose(); this.vtuber = null; } }
 
-  /** Custom .cube 3D LUTs require the per-pixel WebGL path, which we dropped for reliable
-   *  2D capture on mobile. Built-in looks cover the common cases. Returns false so the UI
-   *  can tell the user custom LUTs aren't available in the browser streamer. */
-  setCubeLut(_text: string): boolean { return false; }
+  /** Parse + upload a .cube 3D LUT (LUT_3D_SIZE). Needs the WebGL grade path. */
+  setCubeLut(text: string): boolean {
+    const gl = this.gl; if (!gl) return false;
+    let size = 0; const data: number[] = [];
+    for (const raw of text.split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line || line.startsWith('#') || line.startsWith('TITLE') || line.startsWith('DOMAIN')) continue;
+      const m = line.match(/^LUT_3D_SIZE\s+(\d+)/i); if (m) { size = parseInt(m[1], 10); continue; }
+      if (/^LUT_1D_SIZE/i.test(line)) return false; // 1D not supported here
+      const p = line.split(/\s+/).map(Number);
+      if (p.length === 3 && p.every(n => !isNaN(n))) data.push(p[0], p[1], p[2]);
+    }
+    if (!size || data.length !== size * size * size * 3) return false;
+    const tex = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_3D, tex);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
+    // 8-bit LUT texture: float (RGB32F) 3D textures aren't LINEAR-filterable in WebGL2
+    // without an extension — the sampler returns black. 8-bit is exactly what .cube LUTs
+    // are applied to in practice, and is filterable on every GPU.
+    const bytes = new Uint8Array(data.length);
+    for (let i = 0; i < data.length; i++) bytes[i] = Math.max(0, Math.min(255, Math.round(data[i] * 255)));
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1); // RGB rows aren't 4-byte multiples for most sizes
+    gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGB8, size, size, size, 0, gl.RGB, gl.UNSIGNED_BYTE, bytes);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.uniform1f(gl.getUniformLocation(this.prog!, 'uLutScale'), (size - 1) / size);
+    gl.uniform1f(gl.getUniformLocation(this.prog!, 'uLutOff'), 0.5 / size);
+    if (this.lut3d) gl.deleteTexture(this.lut3d);
+    this.lut3d = tex; this.useLut = true; this.look = 'none';
+    return true;
+  }
 
+  /** Use an already-open camera track as the front source. Pass a CLONE — the composer
+   *  owns it from here. Avoids a second getUserMedia on the same camera, which fails on
+   *  some Android devices (double-capture). */
+  adoptFrontTrack(track: MediaStreamTrack) {
+    this.releaseFront();
+    this.frontStream = new MediaStream([track]);
+    this.frontEl.srcObject = this.frontStream;
+    this.frontEl.play().catch(() => {});
+  }
   private async ensureFront() {
-    if (this.frontStream) return;
+    if (this.frontStream?.getVideoTracks()[0]?.readyState === 'live') return;
     this.frontStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { ...HQ, facingMode: 'user' } });
     this.frontEl.srcObject = this.frontStream; await this.frontEl.play().catch(() => {});
   }
   private async ensureRear() {
-    if (this.rearStream) return;
+    if (this.rearStream?.getVideoTracks()[0]?.readyState === 'live') return;
+    this.releaseRear();
     try { this.rearStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { ...HQ, facingMode: { exact: 'environment' } } }); }
     catch { this.rearStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { ...HQ, facingMode: 'environment' } }); }
     this.rearEl.srcObject = this.rearStream; await this.rearEl.play().catch(() => {});
@@ -263,9 +389,26 @@ export class LiveComposer {
 
   private present() {
     const o = this.octx, W = this.canvas.width, H = this.canvas.height;
-    o.filter = LOOK_FILTERS[this.look] || 'none';
-    o.drawImage(this.work, 0, 0, W, H);
-    o.filter = 'none';
+    const gl = this.gl;
+    const grading = this.useLut && this.lut3d ? true : this.look !== 'none';
+    if (gl && this.prog && grading) {
+      // work → shader (look and/or LUT) → offscreen GL canvas → SYNCHRONOUS blit into the
+      // captured 2D output. Same-task drawImage from a WebGL canvas is spec-guaranteed to
+      // see the just-rendered frame — no preserveDrawingBuffer, no capture flakiness.
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.inTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, this.work);
+      if (this.useLut && this.lut3d) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_3D, this.lut3d); gl.activeTexture(gl.TEXTURE0); }
+      gl.uniform1i(this.uUse, this.useLut && this.lut3d ? 1 : 0);
+      gl.uniform1i(this.uLookLoc, LOOK_INDEX[this.look] ?? 0);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      o.drawImage(this.glCanvas, 0, 0, W, H);
+    } else if (grading && this.filter2dOk) {
+      o.filter = LOOK_FILTERS[this.look] || 'none';
+      o.drawImage(this.work, 0, 0, W, H);
+      o.filter = 'none';
+    } else {
+      o.drawImage(this.work, 0, 0, W, H);
+    }
   }
 
   private loop = () => {
@@ -280,5 +423,6 @@ export class LiveComposer {
     this.out?.getTracks().forEach(t => t.stop()); this.out = null;
     try { this.seg?.close?.(); } catch { /* */ }
     this.seg = null;
+    if (this.gl) { if (this.lut3d) this.gl.deleteTexture(this.lut3d); if (this.inTex) this.gl.deleteTexture(this.inTex); }
   }
 }

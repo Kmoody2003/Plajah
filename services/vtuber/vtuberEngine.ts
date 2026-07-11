@@ -62,7 +62,12 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
 
   if (isPuppet && opts.avatar?.kind === 'PUPPET2D') {
     puppet = new Puppet2DDriver(opts.avatar.rig);
-    avatarCanvas = document.createElement('canvas'); avatarCanvas.width = W; avatarCanvas.height = H;
+    // The avatar canvas keeps the RIG's aspect (capped for speed) — drawing the sprite into
+    // the output-shaped canvas stretched/squished the character.
+    const rw = opts.avatar.rig.width, rh = opts.avatar.rig.height;
+    const s = Math.min(1, 512 / Math.max(rw, rh));
+    avatarCanvas = document.createElement('canvas');
+    avatarCanvas.width = Math.max(2, Math.round(rw * s)); avatarCanvas.height = Math.max(2, Math.round(rh * s));
     avatarCtx = avatarCanvas.getContext('2d');
     opts.onStatus?.('Puppet ready');
   } else {
@@ -100,15 +105,17 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
         if (rig) rig.applyFace(lastFace.expressions, lastFace.head);
       }
     }
-    // render the avatar to its canvas
+    // render the avatar to its canvas (at the avatar canvas's own aspect)
     if (rig) rig.render();
-    if (puppet && avatarCtx) puppet.render(avatarCtx, W, H, lastFace);
+    if (puppet && avatarCtx) puppet.render(avatarCtx, avatarCanvas.width, avatarCanvas.height, lastFace);
 
     // composite per mode
     ctx.clearRect(0, 0, W, H);
     if (mode === 'AVATAR_ONLY') {
       if (bg.type === 'color') { ctx.fillStyle = bg.value || '#000'; ctx.fillRect(0, 0, W, H); }
-      ctx.drawImage(avatarCanvas, 0, 0, W, H);
+      const s = Math.min(W / avatarCanvas.width, H / avatarCanvas.height); // contain, never stretch
+      const dw = avatarCanvas.width * s, dh = avatarCanvas.height * s;
+      ctx.drawImage(avatarCanvas, (W - dw) / 2, (H - dh) / 2, dw, dh);
     } else if (mode === 'PIP') {
       ctx.drawImage(video, 0, 0, W, H);
       const pw = Math.round(W * 0.3), ph = Math.round(H * 0.3);

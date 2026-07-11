@@ -23,6 +23,8 @@ export interface Puppet2DRig {
   width: number;
   height: number;
   layers: Puppet2DLayer[];
+  /** Chatterbox sprites: fraction of the height where the jaw hinge sits (default 0.62). */
+  jawSplit?: number;
   meshBindings?: unknown;                       // triangulation + landmark bindings (Phase A detail)
 }
 

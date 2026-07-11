@@ -339,7 +339,10 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
 
   const applyMode = async (mode: ComposerMode) => {
     setModeMenuOpen(false);
-    if (modeBusy || mode === camMode) return;
+    // NOTE: same-mode calls must still proceed until the composer is published — the old
+    // `mode === camMode` early-return made applyLook('front'-default) a silent no-op, so
+    // looks/LUTs never reached the output until the user happened to change modes.
+    if (modeBusy || (mode === camMode && composerPublishedRef.current)) return;
     setModeBusy(true);
     try {
       if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
@@ -361,6 +364,31 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   };
 
   useEffect(() => () => { composerRef.current?.dispose(); composerRef.current = null; }, []);
+
+  // Composer-always-on: publish the composed canvas from the START of the stream, not on
+  // first mode change. One always-running render engine (camera is just a source) means:
+  // looks/LUTs apply instantly, the recording captures a fixed-size canvas (no raw-camera
+  // aspect races → no squished recordings), and VTuber/PiP swap in without renegotiation.
+  // The composer ADOPTS a clone of the RTC camera track so the camera isn't opened twice
+  // (double-capture fails on some Android devices).
+  const bootRef = useRef(false);
+  useEffect(() => {
+    if (!rtc.localStream || bootRef.current || composerPublishedRef.current) return;
+    const cam = rtc.localStream.getVideoTracks()[0];
+    if (!cam || cam.readyState !== 'live') return;
+    bootRef.current = true;
+    (async () => {
+      try {
+        if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
+        composerRef.current.adoptFrontTrack(cam.clone());
+        await applyMode('front');
+      } catch (e) {
+        console.warn('[live] composer boot failed — staying on the raw camera:', e);
+        bootRef.current = false;
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rtc.localStream]);
 
   // Lock to portrait while streaming. A rotating phone rotates the camera feed, which
   // throws off MediaPipe face tracking (sideways face → not identified) and the avatar
@@ -411,7 +439,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     if (!composerPublishedRef.current) await applyMode('front');
     const ok = composerRef.current?.setCubeLut(await file.text());
     if (ok) setLookId('custom');
-    else alert("Couldn't load that LUT — only 3D .cube files (LUT_3D_SIZE) are supported.");
+    else alert("Couldn't load that LUT — needs a 3D .cube file (LUT_3D_SIZE), and WebGL on this device.");
   };
 
   // VTuber — build a face-tracked avatar from an uploaded character sheet, then go live as it.
@@ -947,6 +975,15 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                         ))}
                       </div>
                     </div>
+                    {/* Engine health — what's actually rendering/publishing (on-device debugging) */}
+                    <p className="text-[8px] font-mono text-white/25 px-2 pt-2">
+                      {(() => {
+                        const d = composerRef.current?.getDiagnostics();
+                        return d
+                          ? `engine ${composerPublishedRef.current ? 'LIVE' : 'idle'} · grade:${d.grade} · look:${d.look} · ${d.mode} ${d.size} · vtuber:${d.vtuber}`
+                          : 'engine off — publishing raw camera';
+                      })()}
+                    </p>
                   </div>
                 </>
               )}

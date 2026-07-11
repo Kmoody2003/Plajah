@@ -152,8 +152,14 @@ export class SessionRecorder {
     // into a 16:9 cell, cutting off the PiP corner (looked like "only the rear feed").
     if (els.length === 1) {
       const v = els[0];
+      // Wait for REAL decoded frames before locking the canvas aspect — early metadata can
+      // report a transient aspect (Android raw-camera race), which recorded squished video.
+      if (v.readyState < 2) return;
       const ar = v.videoWidth / v.videoHeight;
-      if (!this.locked) {
+      const car = canvas.width / canvas.height;
+      // Lock once — and RE-lock if the source's aspect materially changes mid-recording
+      // (e.g. the published track swaps landscape→portrait).
+      if (!this.locked || Math.abs(ar - car) / car > 0.12) {
         let w: number, h: number;
         if (ar >= 1) { w = this.opts.maxSize; h = Math.round(w / ar); }
         else { h = this.opts.maxSize; w = Math.round(h * ar); }
