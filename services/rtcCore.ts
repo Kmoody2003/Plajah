@@ -467,9 +467,10 @@ export class RtcSession {
 
   /** Publish an EXTERNAL video track (e.g. a composited canvas from the live composer)
    *  in place of the camera — hot swap, no peer drop. The composer owns its own source
-   *  cameras/screen; this only replaces the outbound track. */
+   *  cameras/screen (it may be CONSUMING the very camera track we're replacing), so this
+   *  must NOT stop the old track — otherwise the composer's input goes black. */
   async publishExternalVideo(track: MediaStreamTrack) {
-    await this.swapVideoTrack(track);
+    await this.swapVideoTrack(track, true /* keepOld — composer still uses the source */);
   }
 
   /** Publish an EXTERNAL audio track (e.g. a voice-changer output) in place of the mic.
@@ -514,7 +515,7 @@ export class RtcSession {
 
   /** Shared camera hot-swap: replace the outbound video track on every peer and
    *  in the local stream, preserving mute state and firing onLocalStream. */
-  private async swapVideoTrack(newTrack?: MediaStreamTrack) {
+  private async swapVideoTrack(newTrack?: MediaStreamTrack, keepOld = false) {
     if (!newTrack) return;
     const old = this.local?.getVideoTracks()[0];
     if (old) newTrack.enabled = old.enabled;
@@ -525,7 +526,8 @@ export class RtcSession {
     });
     if (this.local) {
       const audio = this.local.getAudioTracks();
-      if (old) old.stop();
+      // keepOld: the composer is CONSUMING `old` as its source — stopping it blacks the feed.
+      if (old && !keepOld) old.stop();
       // Rebuild as a NEW MediaStream reference. Mutating the same stream in place made
       // React consumers bail on the identity check (setLocalStream(sameRef) is a no-op),
       // so the preview <video> never re-bound its srcObject and stayed frozen on the old

@@ -747,11 +747,11 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
 
   // Composer-always-on: publish the composed canvas from the START of the stream, not on
   // first mode change — so looks/LUTs/VTuber apply instantly and the recording is stable.
-  // applyMode('front') publishes the canvas (which stops the RTC camera) and then the
-  // composer opens its OWN front camera via getUserMedia — a REAL source that reliably
-  // delivers frames. (Adopting a clone of the RTC track produced a black feed on some
-  // devices — looks applied to black, and the tracker saw black = no face.) NOTE: must live
-  // BELOW the `rtc` declaration — its dep array reads rtc.localStream at render (TDZ else).
+  // The composer CONSUMES the real, live RTC camera track as its front source (no clone —
+  // clones were black on some devices; no fresh getUserMedia — that raced/failed after the
+  // RTC camera was stopped). publishExternalVideo now keeps that source track alive (see
+  // rtcCore.swapVideoTrack keepOld), so the composer's input never goes black. NOTE: must
+  // live BELOW the `rtc` declaration — its dep array reads rtc.localStream at render (TDZ).
   const bootRef = useRef(false);
   useEffect(() => {
     if (!rtc.localStream || bootRef.current || composerPublishedRef.current) return;
@@ -761,7 +761,8 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     (async () => {
       try {
         if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
-        await applyMode('front'); // publishes canvas + composer opens its own front camera
+        composerRef.current.adoptFrontTrack(cam); // the REAL live RTC camera — frames guaranteed
+        await applyMode('front');                 // publishes the canvas (keeps the source alive)
       } catch (e) {
         console.warn('[live] composer boot failed — staying on the raw camera:', e);
         bootRef.current = false;
