@@ -47,6 +47,7 @@ precision highp float; precision highp sampler3D;
 in vec2 vUv; out vec4 frag;
 uniform sampler2D uTex; uniform sampler3D uLut; uniform bool uUseLut; uniform int uLook;
 uniform float uLutScale; uniform float uLutOff; // texel-centre mapping: c*(N-1)/N + 0.5/N
+uniform bool uNight; // low-light boost: gamma shadow-lift before the look/LUT
 const vec3 L = vec3(0.299,0.587,0.114);
 vec3 grade(vec3 c){
   if(uLook==1){ c.r*=1.06; c.b*=0.94; c=(c-0.5)*1.08+0.5; float l=dot(c,L); c=mix(vec3(l),c,1.12); }
@@ -64,6 +65,7 @@ vec3 grade(vec3 c){
 }
 void main(){
   vec3 c = texture(uTex, vUv).rgb;
+  if(uNight){ c = pow(c, vec3(0.62)) * 1.06; float l=dot(c,L); c = mix(vec3(l), c, 1.12); }
   c = grade(c);
   if(uUseLut) c = texture(uLut, clamp(c,0.0,1.0)*uLutScale+uLutOff).rgb;
   frag = vec4(clamp(c,0.0,1.0),1.0);
@@ -148,11 +150,13 @@ export class LiveComposer {
   // captured 2D output. ctx.filter is the no-WebGL fallback for the built-in looks.
   private look: LookId = 'none';
   private useLut = false;
+  private night = false;
   private glCanvas = document.createElement('canvas'); // offscreen — never captured
   private gl: WebGL2RenderingContext | null = null;
   private prog: WebGLProgram | null = null;
   private uUse: WebGLUniformLocation | null = null;
   private uLookLoc: WebGLUniformLocation | null = null;
+  private uNightLoc: WebGLUniformLocation | null = null;
   private inTex: WebGLTexture | null = null;
   private lut3d: WebGLTexture | null = null;
   private filter2dOk = (() => {
@@ -205,6 +209,7 @@ export class LiveComposer {
       gl.uniform1i(gl.getUniformLocation(prog, 'uLut'), 1);
       this.uUse = gl.getUniformLocation(prog, 'uUseLut');
       this.uLookLoc = gl.getUniformLocation(prog, 'uLook');
+      this.uNightLoc = gl.getUniformLocation(prog, 'uNight');
       this.inTex = gl.createTexture();
       gl.bindTexture(gl.TEXTURE_2D, this.inTex);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -235,7 +240,7 @@ export class LiveComposer {
   getDiagnostics() {
     return {
       grade: this.gl ? 'webgl' : this.filter2dOk ? '2d-filter' : 'none',
-      look: this.getLook(), mode: this.mode,
+      look: this.getLook(), mode: this.mode, night: this.night,
       size: `${this.canvas.width}x${this.canvas.height}`,
       vtuber: this.vtuber ? 'live' : this.avatar ? 'ready' : 'off',
     };
@@ -247,6 +252,30 @@ export class LiveComposer {
 
   setLook(look: LookId) { this.look = look; this.useLut = false; }
   clearLut() { this.useLut = false; }
+
+  /** Night mode: real low-light help in the browser. Three layers stacked —
+   *  1) camera: 15fps (≈2× sensor integration time) + max exposure compensation,
+   *  2) temporal frame-blend in draw() (the same trick native night modes use for noise),
+   *  3) shader shadow-lift before the look/LUT.
+   *  Especially for front cameras, which have far smaller sensors than the rear. */
+  getNightMode() { return this.night; }
+  async setNightMode(on: boolean): Promise<void> {
+    this.night = on;
+    for (const s of [this.frontStream, this.rearStream]) {
+      const t = s?.getVideoTracks()[0];
+      if (!t || t.readyState !== 'live') continue;
+      try {
+        const caps: any = t.getCapabilities?.() ?? {};
+        const adv: any[] = [];
+        if (caps.exposureMode?.includes?.('continuous')) adv.push({ exposureMode: 'continuous' });
+        if (caps.exposureCompensation && typeof caps.exposureCompensation.max === 'number') {
+          const neutral = Math.min(Math.max(0, caps.exposureCompensation.min), caps.exposureCompensation.max);
+          adv.push({ exposureCompensation: on ? caps.exposureCompensation.max : neutral });
+        }
+        await t.applyConstraints({ frameRate: on ? 15 : 30, ...(adv.length ? { advanced: adv } : {}) } as any);
+      } catch { /* per-device — the shader+temporal layers still apply */ }
+    }
+  }
 
   /** Set the VTuber avatar (2D puppet built from a character sheet, or a VRM). Takes
    *  effect next time 'vtuber' mode starts; if already in vtuber mode, restart it. */
@@ -356,6 +385,7 @@ export class LiveComposer {
     if (!needScreen) this.releaseScreen();
     if (needScreen) this.setCanvas(1280, 720); else this.setCanvas(720, 1280);
     this.mode = mode;
+    if (this.night) this.setNightMode(true).catch(() => {}); // retune any freshly-opened camera
     this.getStream();
   }
 
@@ -395,7 +425,10 @@ export class LiveComposer {
 
   private draw() {
     const c = this.wctx, W = this.work.width, H = this.work.height;
-    c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
+    // Night: skip the clear and blend the new frame over the previous one (exponential
+    // moving average) — temporal noise reduction, the core of every native night mode.
+    if (this.night) c.globalAlpha = 0.62;
+    else { c.fillStyle = '#000'; c.fillRect(0, 0, W, H); }
     if (this.mode === 'front') coverDraw(c, this.frontEl, 0, 0, W, H);
     else if (this.mode === 'rear') coverDraw(c, this.rearEl, 0, 0, W, H);
     else if (this.mode === 'both') { coverDraw(c, this.rearEl, 0, 0, W, H); this.drawPip(this.frontEl); }
@@ -417,7 +450,28 @@ export class LiveComposer {
         c.textAlign = 'center'; c.fillText(this.avatar ? 'Loading avatar…' : 'Add a character first', W / 2, H / 2);
         c.textAlign = 'left';
       }
+      this.drawVtuberStatus(c, W, H);
     }
+    c.globalAlpha = 1;
+  }
+
+  /** Small on-video status pill in vtuber mode — shows exactly what the face tracker is
+   *  doing on THIS device (loading / tracking / unavailable), so failures are visible
+   *  instead of silent. */
+  private drawVtuberStatus(c: CanvasRenderingContext2D, W: number, H: number) {
+    const st = (this.vtuber as any)?.getStatus?.();
+    if (!st) return;
+    const a = c.globalAlpha; c.globalAlpha = 1;
+    const fs = Math.round(W * 0.028);
+    c.font = `600 ${fs}px system-ui`;
+    const label = `Face: ${st}`;
+    const tw = c.measureText(label).width;
+    const x = Math.round(W * 0.03), y = H - Math.round(W * 0.05) - fs;
+    c.fillStyle = 'rgba(0,0,0,0.55)';
+    c.fillRect(x - 8, y - fs - 4, tw + 16, fs + 14);
+    c.fillStyle = /live|locked/i.test(st) ? '#7CFC9B' : /unavailable|failed|timed/i.test(st) ? '#ff9d9d' : 'rgba(255,255,255,0.85)';
+    c.fillText(label, x, y);
+    c.globalAlpha = a;
   }
   private pipRect() {
     const W = this.work.width, H = this.work.height;
@@ -440,7 +494,7 @@ export class LiveComposer {
   private present() {
     const o = this.octx, W = this.canvas.width, H = this.canvas.height;
     const gl = this.gl;
-    const grading = this.useLut && this.lut3d ? true : this.look !== 'none';
+    const grading = this.night || (this.useLut && this.lut3d ? true : this.look !== 'none');
     if (gl && this.prog && grading) {
       // work → shader (look and/or LUT) → offscreen GL canvas → SYNCHRONOUS blit into the
       // captured 2D output. Same-task drawImage from a WebGL canvas is spec-guaranteed to
@@ -450,10 +504,12 @@ export class LiveComposer {
       if (this.useLut && this.lut3d) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_3D, this.lut3d); gl.activeTexture(gl.TEXTURE0); }
       gl.uniform1i(this.uUse, this.useLut && this.lut3d ? 1 : 0);
       gl.uniform1i(this.uLookLoc, LOOK_INDEX[this.look] ?? 0);
+      gl.uniform1i(this.uNightLoc, this.night ? 1 : 0);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       o.drawImage(this.glCanvas, 0, 0, W, H);
     } else if (grading && this.filter2dOk) {
-      o.filter = LOOK_FILTERS[this.look] || 'none';
+      const nightF = this.night ? 'brightness(1.55) contrast(0.9) saturate(1.15) ' : '';
+      o.filter = (nightF + (this.look !== 'none' ? LOOK_FILTERS[this.look] : '')).trim() || 'none';
       o.drawImage(this.work, 0, 0, W, H);
       o.filter = 'none';
     } else {

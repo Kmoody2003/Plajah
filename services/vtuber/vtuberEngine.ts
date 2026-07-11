@@ -35,6 +35,8 @@ export interface VTuberHandle {
   setMode: (m: VTuberMode) => void;
   setAvatar: (url: string) => Promise<boolean>;
   setBackground: (bg: VTuberBackground) => void;
+  /** Live human-readable tracker state — surfaced on-video so device failures are visible. */
+  getStatus: () => string;
   dispose: () => void;
 }
 
@@ -49,6 +51,9 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
   const video = document.createElement('video');
   video.srcObject = input; video.autoplay = true; video.muted = true; (video as any).playsInline = true;
   await video.play().catch(() => { /* may require a gesture upstream */ });
+
+  let status = 'starting…';
+  const setStatus = (s: string) => { status = s; opts.onStatus?.(s); };
 
   const tracker = new FaceTracker();
   const retargeter = new FaceRetargeter();
@@ -82,8 +87,13 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
   out.width = W; out.height = H;
   const ctx = out.getContext('2d')!;
 
-  opts.onStatus?.('Loading face tracker…');
-  tracker.init().then(ok => opts.onStatus?.(ok ? 'Tracking live' : 'Tracker unavailable — needs GPU/network'));
+  setStatus('loading tracker…');
+  // Timeout so a hung CDN/model load reads as a visible failure, not eternal "loading".
+  const initTimeout = setTimeout(() => { if (!tracker.isReady) setStatus('tracker timed out — check connection'); }, 25000);
+  tracker.init().then(ok => {
+    clearTimeout(initTimeout);
+    setStatus(ok ? 'tracking — looking for you…' : 'tracker unavailable on this device');
+  });
 
   let lastTs = -1;
   let lastFace: RetargetResult = NEUTRAL;
@@ -100,6 +110,7 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
       lastTs = ts;
       const frame = tracker.detect(video, ts);
       if (frame) {
+        if (!lastBbox) setStatus('face locked ✓');
         lastFace = retargeter.retarget(frame, t / 1000);
         lastBbox = frame.bbox;
         if (rig) rig.applyFace(lastFace.expressions, lastFace.head);
@@ -132,7 +143,8 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
         else { const k = 0.35; smoothBox.x += (target.x - smoothBox.x) * k; smoothBox.y += (target.y - smoothBox.y) * k; smoothBox.w += (target.w - smoothBox.w) * k; smoothBox.h += (target.h - smoothBox.h) * k; }
         lostFrames = 0;
       } else if (smoothBox) {
-        lostFrames++; if (lostFrames > 30) smoothBox = null; // ~1s grace, then hide
+        lostFrames++;
+        if (lostFrames > 30) { smoothBox = null; lastBbox = null; setStatus('tracking — looking for you…'); } // ~1s grace
       }
       // Before the first lock, show the avatar centred so the character is visible to judge.
       const box = smoothBox ?? { x: 0.28, y: 0.16, w: 0.44, h: 0.5 };
@@ -163,6 +175,7 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
     setMode: (m) => { mode = m; },
     setAvatar: (url) => rig ? rig.loadAvatar(url) : Promise.resolve(false), // puppet rigs are fixed
     setBackground: (b) => { bg = b; },
+    getStatus: () => status,
     dispose: () => {
       cancelAnimationFrame(raf);
       tracker.dispose();

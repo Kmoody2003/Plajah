@@ -588,6 +588,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   // Color grade / LUTs — grading lives in the composer, so picking a look first ensures
   // the composer is publishing (entering plain front mode if it wasn't).
   const [lookId, setLookId] = useState<LookId | 'custom'>('none');
+  const [nightOn, setNightOn] = useState(false);
   const cubeInputRef = useRef<HTMLInputElement>(null);
   const applyLook = async (look: LookId) => {
     if (!composerPublishedRef.current) await applyMode('front');
@@ -1116,6 +1117,14 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                         {camMode === m.id && m.on && <Check size={15} className="text-orange-400" />}
                       </button>
                     ))}
+                    {/* Night mode — camera-level exposure boost + temporal denoise + shadow lift.
+                        Front cameras have tiny sensors; this is the low-light rescue. */}
+                    <button onClick={async () => { const on = !nightOn; setNightOn(on); await composerRef.current?.setNightMode(on); }}
+                      className={`mt-1.5 w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${nightOn ? 'bg-indigo-500/25' : 'hover:bg-white/[0.06]'}`}>
+                      <span className="text-[17px]">🌙</span>
+                      <span className="flex-1 text-[13px] font-bold text-white">Night mode <span className="text-white/40 font-medium">· low light boost</span></span>
+                      <span className={`text-[9px] font-black uppercase tracking-wider ${nightOn ? 'text-indigo-300' : 'text-white/30'}`}>{nightOn ? 'On' : 'Off'}</span>
+                    </button>
                     <div className="mt-2 pt-2 border-t border-white/10">
                       <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 pb-2">Look · color grade</p>
                       <div className="flex flex-wrap gap-1.5 px-1 pb-1">
