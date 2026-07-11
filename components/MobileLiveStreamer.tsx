@@ -549,31 +549,6 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
 
   useEffect(() => () => { composerRef.current?.dispose(); composerRef.current = null; }, []);
 
-  // Composer-always-on: publish the composed canvas from the START of the stream, not on
-  // first mode change. One always-running render engine (camera is just a source) means:
-  // looks/LUTs apply instantly, the recording captures a fixed-size canvas (no raw-camera
-  // aspect races → no squished recordings), and VTuber/PiP swap in without renegotiation.
-  // The composer ADOPTS a clone of the RTC camera track so the camera isn't opened twice
-  // (double-capture fails on some Android devices).
-  const bootRef = useRef(false);
-  useEffect(() => {
-    if (!rtc.localStream || bootRef.current || composerPublishedRef.current) return;
-    const cam = rtc.localStream.getVideoTracks()[0];
-    if (!cam || cam.readyState !== 'live') return;
-    bootRef.current = true;
-    (async () => {
-      try {
-        if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
-        composerRef.current.adoptFrontTrack(cam.clone());
-        await applyMode('front');
-      } catch (e) {
-        console.warn('[live] composer boot failed — staying on the raw camera:', e);
-        bootRef.current = false;
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rtc.localStream]);
-
   // Lock to portrait while streaming. A rotating phone rotates the camera feed, which
   // throws off MediaPipe face tracking (sideways face → not identified) and the avatar
   // orientation. Best-effort: works in an installed PWA / some Android browsers; a hard
@@ -691,6 +666,32 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   useEffect(() => { if (videoRef.current) videoRef.current.srcObject = rtc.localStream; }, [rtc.localStream]);
   // Surface capture errors in the existing permission UI.
   useEffect(() => { if (rtc.error) setPermError(rtc.error); }, [rtc.error]);
+
+  // Composer-always-on: publish the composed canvas from the START of the stream, not on
+  // first mode change. One always-running render engine (camera is just a source) means:
+  // looks/LUTs apply instantly, the recording captures a fixed-size canvas (no raw-camera
+  // aspect races → no squished recordings), and VTuber/PiP swap in without renegotiation.
+  // The composer ADOPTS a clone of the RTC camera track so the camera isn't opened twice
+  // (double-capture fails on some Android devices). NOTE: this effect must live BELOW the
+  // `rtc` declaration — its dep array reads rtc.localStream at render time (TDZ otherwise).
+  const bootRef = useRef(false);
+  useEffect(() => {
+    if (!rtc.localStream || bootRef.current || composerPublishedRef.current) return;
+    const cam = rtc.localStream.getVideoTracks()[0];
+    if (!cam || cam.readyState !== 'live') return;
+    bootRef.current = true;
+    (async () => {
+      try {
+        if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
+        composerRef.current.adoptFrontTrack(cam.clone());
+        await applyMode('front');
+      } catch (e) {
+        console.warn('[live] composer boot failed — staying on the raw camera:', e);
+        bootRef.current = false;
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rtc.localStream]);
   // Bridge the existing mic/cam/flip UI setters to the backbone.
   useEffect(() => { rtc.setAudio(micOn); }, [micOn]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { rtc.setVideo(camOn); }, [camOn]); // eslint-disable-line react-hooks/exhaustive-deps
