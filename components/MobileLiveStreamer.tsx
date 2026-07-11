@@ -25,9 +25,9 @@ import {
   Radio, X, Camera, CameraOff, Mic, MicOff, FlipHorizontal2, MessageCircle,
   Users, Share2, Check, Heart, Send, ChevronDown, Eye, Zap, Sparkles,
   Clock, Settings, Volume2, VolumeX, RotateCcw, ArrowLeft, Save, Trash2,
-  LayoutGrid, Monitor, UserSquare2, Columns2, MonitorSmartphone, Plus,
+  LayoutGrid, Monitor, UserSquare2, Columns2, MonitorSmartphone, Plus, BarChart3,
 } from 'lucide-react';
-import { LiveComposer, type ComposerMode, LOOKS, type LookId } from '../services/liveComposer';
+import { LiveComposer, type ComposerMode, LOOKS, type LookId, AMBIENT_FX, type AmbientFx } from '../services/liveComposer';
 import { buildVTuberFromSheet } from '../services/vtuber/avatarFactory';
 import { VoiceFX, VOICE_EFFECTS, type VoiceEffectId } from '../services/voiceFX';
 import {
@@ -100,6 +100,190 @@ async function sendChat(streamId: string, text: string) {
     uid: user.uid,
   });
 }
+
+// ─── Audience emotes + polls (Twitch-style, on the same Firestore rails as chat) ──────
+
+const QUICK_EMOTES = ['❤️', '🔥', '😂', '👏', '😱', '🎉'];
+
+async function sendLiveEvent(streamId: string, emoji: string) {
+  const user = auth.currentUser;
+  if (!user) return;
+  await addDoc(collection(db, 'streams', streamId, 'events'), { type: 'emote', emoji, uid: user.uid, ts: Date.now() });
+}
+
+/** Host-side: fires for each NEW audience event — emotes become on-stream bursts. */
+function useLiveEvents(streamId: string | null, onEmote: (emoji: string) => void) {
+  const cbRef = useRef(onEmote); cbRef.current = onEmote;
+  useEffect(() => {
+    if (!streamId) return;
+    const since = Date.now();
+    const qy = query(collection(db, 'streams', streamId, 'events'), orderBy('ts', 'desc'), limit(24));
+    return onSnapshot(qy, (snap: any) => {
+      snap.docChanges().forEach((ch: any) => {
+        if (ch.type !== 'added') return;
+        const d = ch.doc.data();
+        if (d?.ts > since && d?.type === 'emote' && typeof d.emoji === 'string') cbRef.current(d.emoji.slice(0, 8));
+      });
+    });
+  }, [streamId]);
+}
+
+interface LivePoll { id: string; q: string; options: string[]; closed?: boolean; createdAt: number }
+
+/** Both sides: the active poll (on the stream doc) + live vote tallies + my vote. */
+function usePoll(streamId: string | null) {
+  const [poll, setPoll] = useState<LivePoll | null>(null);
+  const [counts, setCounts] = useState<number[]>([]);
+  const [myVote, setMyVote] = useState<number | null>(null);
+  useEffect(() => {
+    if (!streamId) return;
+    return onSnapshot(doc(db, 'streams', streamId), (snap: any) => setPoll(snap.data()?.activePoll ?? null));
+  }, [streamId]);
+  const pollId = poll?.id;
+  useEffect(() => {
+    setCounts([]); setMyVote(null);
+    if (!streamId || !pollId) return;
+    return onSnapshot(collection(db, 'streams', streamId, 'polls', pollId, 'votes'), (snap: any) => {
+      const c: number[] = []; let mine: number | null = null;
+      snap.forEach((d: any) => {
+        const opt = d.data()?.opt;
+        if (typeof opt === 'number') { c[opt] = (c[opt] || 0) + 1; if (d.id === auth.currentUser?.uid) mine = opt; }
+      });
+      setCounts(c); setMyVote(mine);
+    });
+  }, [streamId, pollId]);
+  return { poll, counts, myVote };
+}
+
+async function castVote(streamId: string, pollId: string, opt: number) {
+  const user = auth.currentUser; if (!user) return;
+  await setDoc(doc(db, 'streams', streamId, 'polls', pollId, 'votes', user.uid), { opt, ts: Date.now() });
+}
+
+/** Parse a dictated poll: "Your question…? option A or option B or option C". */
+export function parsePollDictation(text: string): { q: string; options: string[] } {
+  const t = text.trim();
+  const qm = t.indexOf('?');
+  if (qm > 0) {
+    const q = t.slice(0, qm + 1).trim();
+    const options = t.slice(qm + 1).split(/\s+or\s+|,/i).map(s => s.trim()).filter(Boolean).slice(0, 4);
+    return { q, options: options.length >= 2 ? options : [] };
+  }
+  return { q: t, options: [] };
+}
+
+/** Voice dictation via the Web Speech API (Chrome/Android; no-op elsewhere). */
+function useDictation(onText: (t: string) => void) {
+  const [listening, setListening] = useState(false);
+  const recRef = useRef<any>(null);
+  const onTextRef = useRef(onText); onTextRef.current = onText;
+  const SR = typeof window !== 'undefined' ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) : null;
+  const start = () => {
+    if (!SR || listening) return;
+    const rec = new SR();
+    rec.lang = navigator.language || 'en-US';
+    rec.interimResults = false; rec.maxAlternatives = 1; rec.continuous = false;
+    rec.onresult = (e: any) => { const t = e.results?.[0]?.[0]?.transcript; if (t) onTextRef.current(t); };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    recRef.current = rec; setListening(true);
+    try { rec.start(); } catch { setListening(false); }
+  };
+  const stop = () => { try { recRef.current?.stop(); } catch { /* */ } };
+  return { listening, supported: !!SR, start, stop };
+}
+
+/** The animated poll card — shared by streamer (results + end) and viewers (tap to vote). */
+const LivePollCard: React.FC<{
+  poll: LivePoll; counts: number[]; myVote: number | null;
+  onVote?: (i: number) => void; onEnd?: () => void;
+}> = ({ poll, counts, myVote, onVote, onEnd }) => {
+  const total = counts.reduce((a, b) => a + (b || 0), 0);
+  const max = Math.max(0, ...counts.map(c => c || 0));
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -18, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -12, scale: 0.96 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+      className="rounded-2xl overflow-hidden border border-white/15 bg-[#141019]/85 backdrop-blur-xl shadow-2xl pointer-events-auto">
+      <div className="h-1 bg-gradient-to-r from-[#6B0099] via-[#FF8C00] to-[#6B0099] bg-[length:200%_100%] animate-[gradient-x_3s_linear_infinite]" />
+      <div className="px-3 pt-2.5 pb-1.5">
+        <p className="text-[13px] font-black text-white leading-snug">📊 {poll.q}</p>
+      </div>
+      <div className="px-2.5 pb-2 space-y-1.5">
+        {poll.options.map((opt, i) => {
+          const n = counts[i] || 0;
+          const pct = total ? Math.round((n / total) * 100) : 0;
+          const won = !!poll.closed && n === max && max > 0;
+          return (
+            <button key={i} disabled={!onVote || !!poll.closed} onClick={() => onVote?.(i)}
+              className={`relative w-full rounded-xl overflow-hidden border text-left transition-all active:scale-[0.98] ${myVote === i ? 'border-orange-400' : 'border-white/10'} ${won ? 'ring-2 ring-yellow-400/80' : ''}`}>
+              <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#6B0099]/75 to-[#FF8C00]/75 transition-[width] duration-700 ease-out"
+                style={{ width: total ? `${Math.max(pct, 5)}%` : '0%' }} />
+              <div className="relative flex items-center justify-between gap-2 px-3 py-2">
+                <span className="text-[12px] font-bold text-white truncate">{won ? '🏆 ' : ''}{opt}{myVote === i ? ' ✓' : ''}</span>
+                <span className="text-[11px] font-black text-white/85 tabular-nums shrink-0">{pct}%</span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      <div className="px-3 pb-2 flex items-center justify-between">
+        <span className="text-[10px] text-white/40">{total} vote{total === 1 ? '' : 's'}{poll.closed ? ' · final 🎉' : onVote ? ' · tap to vote' : ''}</span>
+        {onEnd && !poll.closed && <button onClick={onEnd} className="text-[10px] font-black text-orange-300 uppercase tracking-wide">End poll</button>}
+      </div>
+    </motion.div>
+  );
+};
+
+/** Poll creation sheet — type it, or dictate it ("Question…? A or B or C"). */
+const PollComposer: React.FC<{ onLaunch: (q: string, options: string[]) => void; onClose: () => void }> = ({ onLaunch, onClose }) => {
+  const [q, setQ] = useState('');
+  const [opts, setOpts] = useState<string[]>(['', '']);
+  const dict = useDictation(t => {
+    const parsed = parsePollDictation(t);
+    if (parsed.q) setQ(parsed.q);
+    if (parsed.options.length >= 2) setOpts(parsed.options);
+  });
+  const clean = opts.map(o => o.trim()).filter(Boolean);
+  const valid = q.trim().length > 1 && clean.length >= 2;
+  return (
+    <div className="fixed inset-0 z-[240] bg-black/70 backdrop-blur-sm flex items-end justify-center" onClick={onClose}>
+      <div className="w-full max-w-md bg-[#17121e] border border-white/12 rounded-t-3xl p-4 pb-8" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-white font-black text-sm">📊 New poll</p>
+          <div className="flex items-center gap-2">
+            {dict.supported && (
+              <button onClick={() => (dict.listening ? dict.stop() : dict.start())}
+                className={`px-3 py-1.5 rounded-full text-[11px] font-bold flex items-center gap-1.5 ${dict.listening ? 'bg-red-500 text-white animate-pulse' : 'bg-white/10 text-white/80'}`}>
+                <Mic size={12} /> {dict.listening ? 'Listening…' : 'Dictate'}
+              </button>
+            )}
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center"><X size={14} className="text-white" /></button>
+          </div>
+        </div>
+        {dict.supported && <p className="text-[10px] text-white/35 mb-2">Say: “Your question? option A <b>or</b> option B <b>or</b> option C”</p>}
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Ask your audience…"
+          className="w-full bg-white/[0.06] border border-white/12 rounded-xl px-3 py-2.5 text-white text-sm placeholder-white/30 focus:outline-none focus:border-orange-400/60 mb-2" />
+        {opts.map((o, i) => (
+          <div key={i} className="flex gap-1.5 mb-1.5">
+            <input value={o} onChange={e => setOpts(p => p.map((x, j) => (j === i ? e.target.value : x)))} placeholder={`Option ${i + 1}`}
+              className="flex-1 bg-white/[0.06] border border-white/12 rounded-xl px-3 py-2 text-white text-sm placeholder-white/30 focus:outline-none focus:border-orange-400/60" />
+            {opts.length > 2 && (
+              <button onClick={() => setOpts(p => p.filter((_, j) => j !== i))} className="w-9 rounded-xl bg-white/[0.06] text-white/50 flex items-center justify-center"><X size={13} /></button>
+            )}
+          </div>
+        ))}
+        {opts.length < 4 && (
+          <button onClick={() => setOpts(p => [...p, ''])} className="text-[11px] font-bold text-white/50 flex items-center gap-1 mb-3"><Plus size={12} /> Add option</button>
+        )}
+        <button disabled={!valid} onClick={() => onLaunch(q.trim(), clean)}
+          className="w-full py-3 rounded-2xl font-black text-sm bg-gradient-to-r from-[#6B0099] to-[#FF8C00] text-white disabled:opacity-40">
+          🚀 Launch poll
+        </button>
+      </div>
+    </div>
+  );
+};
 
 // ─── Crash containment ────────────────────────────────────────────────────────
 // A failure inside the live UI must NEVER take down the whole platform. This
@@ -440,6 +624,25 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     const ok = composerRef.current?.setCubeLut(await file.text());
     if (ok) setLookId('custom');
     else alert("Couldn't load that LUT — needs a 3D .cube file (LUT_3D_SIZE), and WebGL on this device.");
+  };
+
+  // Audience fun layer — ambient FX, on-stream emote bursts (audience-triggered), polls.
+  const [ambientId, setAmbientId] = useState<AmbientFx>('none');
+  const applyAmbient = (fx: AmbientFx) => { composerRef.current?.setAmbient(fx); setAmbientId(fx); };
+  useLiveEvents(streamId || null, emoji => composerRef.current?.spawnBurst(emoji, 10));
+  const [pollOpen, setPollOpen] = useState(false);
+  const { poll, counts } = usePoll(streamId || null);
+  const launchPoll = async (q: string, options: string[]) => {
+    setPollOpen(false);
+    if (!streamId) return;
+    const p: LivePoll = { id: uid4(), q, options, createdAt: Date.now(), closed: false };
+    await updateDoc(doc(db, 'streams', streamId), { activePoll: p }).catch(() => {});
+  };
+  const endPoll = async () => {
+    if (!streamId || !poll) return;
+    composerRef.current?.spawnBurst('🎉', 18);
+    await updateDoc(doc(db, 'streams', streamId), { activePoll: { ...poll, closed: true } }).catch(() => {});
+    setTimeout(() => { updateDoc(doc(db, 'streams', streamId), { activePoll: null }).catch(() => {}); }, 8000);
   };
 
   // VTuber — build a face-tracked avatar from an uploaded character sheet, then go live as it.
@@ -804,6 +1007,14 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
             )}
           </div>
 
+          {/* Active poll — streamer sees live results + can end it */}
+          <div className="absolute left-3 right-3 max-w-sm mx-auto pointer-events-none z-10"
+            style={{ top: 'calc(max(env(safe-area-inset-top), 12px) + 88px)' }}>
+            <AnimatePresence>
+              {poll && <LivePollCard key={poll.id} poll={poll} counts={counts} myVote={null} onEnd={endPoll} />}
+            </AnimatePresence>
+          </div>
+
           {/* Floating reactions */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <AnimatePresence>
@@ -975,6 +1186,31 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                         ))}
                       </div>
                     </div>
+                    <div className="mt-2 pt-2 border-t border-white/10">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 pb-2">Audience fun</p>
+                      <button onClick={() => { setModeMenuOpen(false); setPollOpen(true); }}
+                        className="mx-1 mb-2 px-3 py-2 rounded-xl text-[11px] font-black bg-gradient-to-r from-[#6B0099] to-[#FF8C00] text-white flex items-center gap-1.5">
+                        <BarChart3 size={13} /> New poll — type or dictate
+                      </button>
+                      <p className="text-[9px] text-white/35 px-2 pb-1">Ambient effect on the stream</p>
+                      <div className="flex flex-wrap gap-1.5 px-1 pb-1">
+                        {AMBIENT_FX.map(f => (
+                          <button key={f.id} onClick={() => applyAmbient(f.id)}
+                            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${ambientId === f.id ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80 hover:bg-white/12'}`}>
+                            {f.icon} {f.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[9px] text-white/35 px-2 pt-1.5 pb-1">Hype burst (viewers can fire these too)</p>
+                      <div className="flex gap-1.5 px-1 pb-1">
+                        {QUICK_EMOTES.map(e => (
+                          <button key={e} onClick={() => composerRef.current?.spawnBurst(e, 12)}
+                            className="w-9 h-9 rounded-lg bg-white/[0.06] hover:bg-white/12 text-[17px] flex items-center justify-center active:scale-90 transition-transform">
+                            {e}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     {/* Engine health — what's actually rendering/publishing (on-device debugging) */}
                     <p className="text-[8px] font-mono text-white/25 px-2 pt-2">
                       {(() => {
@@ -991,6 +1227,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                 onChange={e => { uploadCube(e.target.files?.[0]); e.currentTarget.value = ''; }} />
               <input ref={sheetInputRef} type="file" accept="image/*" className="hidden"
                 onChange={e => { buildAvatar(e.target.files?.[0]); e.currentTarget.value = ''; }} />
+              {pollOpen && <PollComposer onLaunch={launchPoll} onClose={() => setPollOpen(false)} />}
               {/* Camera / mic device picker */}
               {deviceMenu !== 'none' && (
                 <>
@@ -1238,6 +1475,20 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
     if (!liked) addReaction('❤️');
   };
 
+  // Audience fun layer: quick emotes fire ON THE STREAM (the host bakes them into the
+  // video for everyone) + float locally for instant feedback. Polls: tap to vote.
+  const lastEmoteRef = useRef(0);
+  const quickEmote = (emoji: string) => {
+    const now = Date.now();
+    if (now - lastEmoteRef.current < 900) return; // rate limit
+    lastEmoteRef.current = now;
+    const r: Reaction = { id: uid4(), emoji, x: 10 + Math.random() * 70 };
+    setReactions(prev => [...prev, r]);
+    setTimeout(() => setReactions(prev => prev.filter(x => x.id !== r.id)), 2500);
+    sendLiveEvent(streamId, emoji).catch(() => {});
+  };
+  const { poll, counts, myVote } = usePoll(streamId);
+
   return (
     <div className="fixed inset-0 bg-black z-[200] flex flex-col overflow-hidden" style={{ height: '100dvh' }}>
       {/* Video */}
@@ -1247,6 +1498,17 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
         playsInline
         className="absolute inset-0 w-full h-full object-cover"
       />
+
+      {/* Active poll — tap an option to vote, watch the bars race live */}
+      <div className="absolute left-3 right-3 max-w-sm mx-auto z-10 pointer-events-none"
+        style={{ top: 'calc(max(env(safe-area-inset-top), 12px) + 60px)' }}>
+        <AnimatePresence>
+          {poll && (
+            <LivePollCard key={poll.id} poll={poll} counts={counts} myVote={myVote}
+              onVote={i => castVote(streamId, poll.id, i).catch(() => {})} />
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Connecting / ended overlay */}
       <AnimatePresence>
@@ -1374,11 +1636,12 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
 
       {/* Bottom controls */}
       <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-3 px-5 pb-safe pt-4">
-        {/* Reactions */}
+        {/* Quick emotes — these burst ON the stream itself for everyone watching */}
         {!showChat && (
-          <div className="flex items-center gap-3">
-            {['❤️', '🔥', '😂', '👏', '💯'].map(e => (
-              <button key={e} onClick={() => addReaction(e)} className="text-2xl active:scale-125 transition-transform">
+          <div className="flex items-center gap-2">
+            {QUICK_EMOTES.map(e => (
+              <button key={e} onClick={() => quickEmote(e)}
+                className="w-11 h-11 rounded-full bg-black/50 backdrop-blur border border-white/15 text-[20px] flex items-center justify-center active:scale-125 transition-transform">
                 {e}
               </button>
             ))}

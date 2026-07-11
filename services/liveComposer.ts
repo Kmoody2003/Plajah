@@ -21,7 +21,8 @@ import type { VTuberHandle } from './vtuber/vtuberEngine';
 import type { AvatarDescriptor } from './vtuber/avatarFactory';
 
 export type ComposerMode = 'front' | 'rear' | 'both' | 'screen-pip' | 'screen-mask' | 'vtuber';
-export type LookId = 'none' | 'warm' | 'tealorange' | 'moody' | 'vivid' | 'noir' | 'vintage';
+export type LookId = 'none' | 'warm' | 'tealorange' | 'moody' | 'vivid' | 'noir' | 'vintage'
+  | 'golden' | 'cyberpunk' | 'pastel' | 'sunset' | 'arctic';
 export const LOOKS: { id: LookId; label: string }[] = [
   { id: 'none', label: 'Neutral' },
   { id: 'warm', label: 'Warm film' },
@@ -30,6 +31,11 @@ export const LOOKS: { id: LookId; label: string }[] = [
   { id: 'vivid', label: 'Vivid' },
   { id: 'noir', label: 'Noir' },
   { id: 'vintage', label: 'Vintage' },
+  { id: 'golden', label: 'Golden hour' },
+  { id: 'cyberpunk', label: 'Cyberpunk' },
+  { id: 'pastel', label: 'Pastel dream' },
+  { id: 'sunset', label: 'Sunset pop' },
+  { id: 'arctic', label: 'Arctic' },
 ];
 // ── Grade shader (runs on an OFFSCREEN WebGL2 canvas; result is blitted into the captured
 //    2D output the same task, so capture reliability never depends on WebGL). ──────────────
@@ -49,6 +55,11 @@ vec3 grade(vec3 c){
   else if(uLook==4){ float l=dot(c,L); c=mix(vec3(l),c,1.38); c=(c-0.5)*1.12+0.5; }
   else if(uLook==5){ float l=dot(c,L); c=vec3((l-0.5)*1.28+0.5); }
   else if(uLook==6){ c=(c-0.5)*0.9+0.52; c.r*=1.05; c.g*=1.02; c.b*=0.9; float l=dot(c,L); c=mix(vec3(l),c,0.8); }
+  else if(uLook==7){ c.r*=1.14; c.g*=1.04; c.b*=0.82; c=(c-0.5)*1.06+0.52; float l=dot(c,L); c=mix(vec3(l),c,1.15); }
+  else if(uLook==8){ float l=dot(c,L); vec3 s=mix(c,c*vec3(0.6,0.9,1.5),1.0-l); vec3 h=mix(s,s*vec3(1.4,0.75,1.25),l); c=(h-0.5)*1.18+0.48; }
+  else if(uLook==9){ c=(c-0.5)*0.82+0.56; float l=dot(c,L); c=mix(vec3(l),c,1.12); c.r*=1.03; c.b*=1.06; }
+  else if(uLook==10){ float l=dot(c,L); c=mix(c,c*vec3(1.28,0.92,0.72),0.5+0.5*l); c=(c-0.5)*1.14+0.5; c=mix(vec3(dot(c,L)),c,1.2); }
+  else if(uLook==11){ c.r*=0.88; c.b*=1.14; c=(c-0.5)*1.08+0.53; float l=dot(c,L); c=mix(vec3(l),c,0.92); }
   return c;
 }
 void main(){
@@ -57,7 +68,7 @@ void main(){
   if(uUseLut) c = texture(uLut, clamp(c,0.0,1.0)*uLutScale+uLutOff).rgb;
   frag = vec4(clamp(c,0.0,1.0),1.0);
 }`;
-const LOOK_INDEX: Record<LookId, number> = { none: 0, warm: 1, tealorange: 2, moody: 3, vivid: 4, noir: 5, vintage: 6 };
+const LOOK_INDEX: Record<LookId, number> = { none: 0, warm: 1, tealorange: 2, moody: 3, vivid: 4, noir: 5, vintage: 6, golden: 7, cyberpunk: 8, pastel: 9, sunset: 10, arctic: 11 };
 
 // Fallback: built-in looks as 2D-canvas filter strings (used when WebGL2 is unavailable).
 const LOOK_FILTERS: Record<LookId, string> = {
@@ -68,9 +79,42 @@ const LOOK_FILTERS: Record<LookId, string> = {
   vivid: 'saturate(1.5) contrast(1.12)',
   noir: 'grayscale(1) contrast(1.3) brightness(1.03)',
   vintage: 'sepia(0.4) saturate(0.82) contrast(0.9) brightness(1.05)',
+  golden: 'sepia(0.28) saturate(1.25) contrast(1.06) brightness(1.06) hue-rotate(-8deg)',
+  cyberpunk: 'saturate(1.5) contrast(1.2) hue-rotate(12deg) brightness(0.96)',
+  pastel: 'saturate(1.1) contrast(0.84) brightness(1.12)',
+  sunset: 'sepia(0.2) saturate(1.4) contrast(1.14) hue-rotate(-14deg)',
+  arctic: 'saturate(0.92) contrast(1.08) brightness(1.05) hue-rotate(8deg)',
 };
 
 const HQ: MediaTrackConstraints = { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } };
+
+// ── Fun FX layer: emoji particles drawn ON the published output (bursts triggered by the
+//    streamer or the audience, plus continuous ambient effects). Drawn AFTER the grade so
+//    the emotes stay vibrant regardless of the active look/LUT. ─────────────────────────
+export type AmbientFx = 'none' | 'hearts' | 'sparkles' | 'confetti' | 'snow' | 'bubbles';
+export const AMBIENT_FX: { id: AmbientFx; label: string; icon: string }[] = [
+  { id: 'none', label: 'Off', icon: '—' },
+  { id: 'hearts', label: 'Hearts', icon: '💜' },
+  { id: 'sparkles', label: 'Sparkles', icon: '✨' },
+  { id: 'confetti', label: 'Confetti', icon: '🎊' },
+  { id: 'snow', label: 'Snow', icon: '❄️' },
+  { id: 'bubbles', label: 'Bubbles', icon: '🫧' },
+];
+interface FxParticle {
+  kind: 'emoji' | 'rect';
+  e?: string; color?: string;
+  x: number; y: number; vx: number; vy: number;
+  rot: number; vr: number; s: number;
+  life: number; ttl: number; sway: number;
+}
+const CONFETTI_COLORS = ['#FF8C00', '#6B0099', '#22c55e', '#3b82f6', '#eab308', '#ec4899', '#ef4444'];
+const AMBIENT_EMOJI: Record<Exclude<AmbientFx, 'none' | 'confetti'>, string[]> = {
+  hearts: ['💜', '❤️', '🧡', '💖'],
+  sparkles: ['✨', '⭐', '💫'],
+  snow: ['❄️', '❄️', '✻'],
+  bubbles: ['🫧'],
+};
+const AMBIENT_RATE: Record<AmbientFx, number> = { none: 0, hearts: 1.6, sparkles: 4, confetti: 7, snow: 3.5, bubbles: 1.8 };
 
 const makeVideoEl = (): HTMLVideoElement => {
   const v = document.createElement('video');
@@ -132,6 +176,12 @@ export class LiveComposer {
   private avatar: AvatarDescriptor | null = null;
   private vtuber: VTuberHandle | null = null;
   private vtuberStarting = false;
+
+  // Fun FX layer (emoji bursts + ambient effects), baked into the published output.
+  private parts: FxParticle[] = [];
+  private ambient: AmbientFx = 'none';
+  private emitAcc = 0;
+  private lastFxT = 0;
 
   constructor(private onScreenEnded?: () => void) {
     this.initGL();
@@ -411,8 +461,90 @@ export class LiveComposer {
     }
   }
 
+  // ── FX layer ────────────────────────────────────────────────────────────────
+  setAmbient(fx: AmbientFx) { this.ambient = fx; }
+  getAmbient() { return this.ambient; }
+  /** Fire an emoji burst into the published video (streamer or audience triggered). */
+  spawnBurst(emoji: string, n = 12) {
+    const W = this.canvas.width, H = this.canvas.height;
+    for (let i = 0; i < n; i++) {
+      this.parts.push({
+        kind: 'emoji', e: emoji,
+        x: W * (0.25 + Math.random() * 0.5), y: H + 30,
+        vx: (Math.random() - 0.5) * W * 0.22, vy: -H * (0.28 + Math.random() * 0.34),
+        rot: (Math.random() - 0.5) * 0.8, vr: (Math.random() - 0.5) * 2.4,
+        s: W * (0.045 + Math.random() * 0.05), life: 0, ttl: 2.4 + Math.random() * 1.4,
+        sway: Math.random() * Math.PI * 2,
+      });
+    }
+    if (this.parts.length > 240) this.parts.splice(0, this.parts.length - 240);
+  }
+  private emitAmbient(dt: number) {
+    const rate = AMBIENT_RATE[this.ambient];
+    if (!rate) return;
+    this.emitAcc += dt * rate;
+    const W = this.canvas.width, H = this.canvas.height;
+    while (this.emitAcc >= 1) {
+      this.emitAcc -= 1;
+      const a = this.ambient;
+      if (a === 'confetti') {
+        this.parts.push({ kind: 'rect', color: CONFETTI_COLORS[(Math.random() * CONFETTI_COLORS.length) | 0],
+          x: Math.random() * W, y: -14, vx: (Math.random() - 0.5) * W * 0.05, vy: H * (0.12 + Math.random() * 0.1),
+          rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 6, s: W * (0.012 + Math.random() * 0.012),
+          life: 0, ttl: 12, sway: Math.random() * Math.PI * 2 });
+      } else if (a === 'snow') {
+        const es = AMBIENT_EMOJI.snow;
+        this.parts.push({ kind: 'emoji', e: es[(Math.random() * es.length) | 0],
+          x: Math.random() * W, y: -20, vx: 0, vy: H * (0.05 + Math.random() * 0.05),
+          rot: 0, vr: (Math.random() - 0.5) * 0.6, s: W * (0.02 + Math.random() * 0.025),
+          life: 0, ttl: 16, sway: Math.random() * Math.PI * 2 });
+      } else if (a === 'sparkles') {
+        const es = AMBIENT_EMOJI.sparkles;
+        this.parts.push({ kind: 'emoji', e: es[(Math.random() * es.length) | 0],
+          x: Math.random() * W, y: Math.random() * H, vx: 0, vy: -H * 0.01,
+          rot: 0, vr: 0, s: W * (0.02 + Math.random() * 0.035),
+          life: 0, ttl: 1.2 + Math.random() * 0.8, sway: Math.random() * Math.PI * 2 });
+      } else { // hearts / bubbles — rise from the bottom with a sway
+        const es = a === 'hearts' ? AMBIENT_EMOJI.hearts : AMBIENT_EMOJI.bubbles;
+        this.parts.push({ kind: 'emoji', e: es[(Math.random() * es.length) | 0],
+          x: Math.random() * W, y: H + 24, vx: 0, vy: -H * (0.07 + Math.random() * 0.06),
+          rot: (Math.random() - 0.5) * 0.5, vr: (Math.random() - 0.5) * 0.8, s: W * (0.028 + Math.random() * 0.03),
+          life: 0, ttl: 9, sway: Math.random() * Math.PI * 2 });
+      }
+    }
+  }
+  private stepFx(dt: number) {
+    this.emitAmbient(dt);
+    if (!this.parts.length) return;
+    const o = this.octx, W = this.canvas.width, H = this.canvas.height;
+    const keep: FxParticle[] = [];
+    for (const p of this.parts) {
+      p.life += dt;
+      if (p.life > p.ttl) continue;
+      p.vy += (p.kind === 'rect' ? H * 0.02 : p.vy < 0 ? H * 0.09 : 0) * dt; // gravity on bursts/confetti
+      p.x += (p.vx + Math.sin(p.life * 2.2 + p.sway) * W * 0.02) * dt;
+      p.y += p.vy * dt;
+      p.rot += p.vr * dt;
+      if (p.y < -60 || p.y > H + 80) continue;
+      const fade = Math.min(1, Math.min(p.life / 0.18, (p.ttl - p.life) / 0.5));
+      o.save();
+      o.globalAlpha = Math.max(0, fade);
+      o.translate(p.x, p.y); o.rotate(p.rot);
+      if (p.kind === 'rect') { o.fillStyle = p.color!; o.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); }
+      else { o.font = `${Math.round(p.s)}px serif`; o.textAlign = 'center'; o.textBaseline = 'middle'; o.fillText(p.e!, 0, 0); }
+      o.restore();
+      keep.push(p);
+    }
+    this.parts = keep;
+  }
+
   private loop = () => {
-    try { this.draw(); this.present(); } catch { /* keep alive */ }
+    try {
+      const t = performance.now();
+      const dt = Math.min(0.05, this.lastFxT ? (t - this.lastFxT) / 1000 : 0.016);
+      this.lastFxT = t;
+      this.draw(); this.present(); this.stepFx(dt);
+    } catch { /* keep alive */ }
     this.raf = requestAnimationFrame(this.loop);
   };
 

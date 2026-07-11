@@ -971,6 +971,12 @@ body.has-custom-background::after {
   .brand-shimmer { animation: none; background-position: 50% 0; }
 }
 
+/* Live poll card: flowing brand-gradient top bar */
+@keyframes gradient-x {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
 /* Chora selected/active track: gentle, noticeable slow sweep of the purple→orange gradient */
 @keyframes track-gradient-sweep {
   0%   { background-position:   0% 50%; }

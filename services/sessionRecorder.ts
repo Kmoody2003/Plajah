@@ -166,9 +166,9 @@ export class SessionRecorder {
         canvas.width = w; canvas.height = h; this.locked = true;
       }
       ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      const car = canvas.width / canvas.height;
+      const car2 = canvas.width / canvas.height; // recompute — a re-lock may have resized
       let dw = canvas.width, dh = canvas.height;
-      if (ar > car) { dw = canvas.width; dh = dw / ar; } else { dh = canvas.height; dw = dh * ar; }
+      if (ar > car2) { dw = canvas.width; dh = dw / ar; } else { dh = canvas.height; dw = dh * ar; }
       try { ctx.drawImage(v, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh); } catch { /* not ready */ }
       return;
     }
