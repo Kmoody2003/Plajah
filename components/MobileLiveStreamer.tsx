@@ -525,6 +525,19 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const composerPublishedRef = useRef(false);
   const [camMode, setCamMode] = useState<ComposerMode>('front');
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [modeTab, setModeTab] = useState(0);            // active slide in the horizontal feature carousel
+  const modeScrollRef = useRef<HTMLDivElement>(null);
+  const scrollToTab = (i: number) => {
+    setModeTab(i);
+    const el = modeScrollRef.current; if (el) el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' });
+  };
+  const onModeScroll = () => {
+    const el = modeScrollRef.current; if (!el) return;
+    const i = Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
+    if (i !== modeTab) setModeTab(i);
+  };
+  // Mode menu ⇄ chat are mutually exclusive (both dock above the shrunken video).
+  const openModeMenu = () => { setShowChat(false); setModeMenuOpen(o => !o); };
   const [modeBusy, setModeBusy] = useState(false);
   const canScreen = typeof navigator !== 'undefined' && typeof (navigator.mediaDevices as any)?.getDisplayMedia === 'function';
 
@@ -805,7 +818,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     measure();
     const ro = new ResizeObserver(measure); ro.observe(el);
     return () => ro.disconnect();
-  }, [step, showChat]);
+  }, [step, showChat, modeMenuOpen]);
 
   const fmt = (s: number) => `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
@@ -963,7 +976,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
         muted
         playsInline
         className="absolute top-0 left-0 right-0 w-full object-contain bg-black transition-all duration-300"
-        style={{ bottom: step === 'live' && showChat ? `${bottomH}px` : '0px', transform: mirror ? 'scaleX(-1)' : 'none' }}
+        style={{ bottom: step === 'live' && (showChat || modeMenuOpen) ? `${bottomH}px` : '0px', transform: mirror ? 'scaleX(-1)' : 'none' }}
       />
 
       {/* Dim overlay when cam off */}
@@ -1141,71 +1154,75 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
 
             {/* Dock (controls) */}
             <div className="flex flex-col items-center gap-3 px-4 pb-safe pt-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
-            {/* Reactions row */}
-            <div className="flex items-center gap-3">
-              {['❤️', '🔥', '😂', '👏', '💯', '🎉'].map(e => (
-                <button key={e} onClick={() => addReaction(e)}
-                  className="text-2xl active:scale-125 transition-transform">
-                  {e}
-                </button>
-              ))}
-            </div>
-
-            {/* Controls */}
-            <div className="relative flex items-center justify-between w-full max-w-md mx-auto">
-              {/* Camera-mode popover */}
+            {/* ── Feature carousel — swipe LEFT/RIGHT through features; the video sits ABOVE
+                   this panel so you always see what each feature does to the image ── */}
+            <AnimatePresence>
               {modeMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setModeMenuOpen(false)} />
-                  <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 z-20 w-[280px] rounded-2xl bg-[#141019]/35 backdrop-blur-2xl border border-white/12 p-2 shadow-2xl max-h-[68vh] overflow-y-auto overscroll-contain">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 pt-1 pb-2">Camera mode</p>
-                    {([
-                      { id: 'front', label: 'Front camera', icon: <UserSquare2 size={17} />, on: true },
-                      { id: 'rear', label: 'Rear camera', icon: <Camera size={17} />, on: true },
-                      { id: 'both', label: 'Both cameras', icon: <Columns2 size={17} />, on: true },
-                      { id: 'screen-pip', label: 'Screen + camera', icon: <MonitorSmartphone size={17} />, on: canScreen },
-                      { id: 'screen-mask', label: 'Screen + cut-out you', icon: <Monitor size={17} />, on: canScreen },
-                    ] as { id: ComposerMode; label: string; icon: JSX.Element; on: boolean }[]).map(m => (
-                      <button key={m.id} disabled={!m.on || modeBusy} onClick={() => applyMode(m.id)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${camMode === m.id ? 'bg-orange-500/20' : 'hover:bg-white/[0.06]'} disabled:opacity-35`}>
-                        <span className={camMode === m.id ? 'text-orange-400' : 'text-white/70'}>{m.icon}</span>
-                        <span className="flex-1 text-[13px] font-bold text-white">{m.label}</span>
-                        {!m.on && <span className="text-[8px] font-black uppercase tracking-wider text-white/30">Desktop</span>}
-                        {camMode === m.id && m.on && <Check size={15} className="text-orange-400" />}
+                <motion.div
+                  initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }}
+                  transition={{ duration: 0.22, ease: 'easeOut' }}
+                  className="w-full max-w-md mx-auto bg-black/55 backdrop-blur-2xl rounded-2xl border border-white/10 overflow-hidden">
+                  {/* Tab bar (also swipeable) */}
+                  <div className="flex items-center gap-1 px-2 pt-2 pb-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {[['📷', 'Camera'], ['🎨', 'Looks'], ['🎭', 'Avatar'], ['🎙️', 'Voice'], ['🎉', 'Fun']].map(([icon, label], i) => (
+                      <button key={label} onClick={() => scrollToTab(i)}
+                        className={`px-2.5 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all ${modeTab === i ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/70'}`}>
+                        {icon} {label}
                       </button>
                     ))}
-                    {/* Night mode — camera-level exposure boost + temporal denoise + shadow lift.
-                        Front cameras have tiny sensors; this is the low-light rescue. */}
-                    <button onClick={async () => { const on = !nightOn; setNightOn(on); await composerRef.current?.setNightMode(on); }}
-                      className={`mt-1.5 w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${nightOn ? 'bg-indigo-500/25' : 'hover:bg-white/[0.06]'}`}>
-                      <span className="text-[17px]">🌙</span>
-                      <span className="flex-1 text-[13px] font-bold text-white">Night mode <span className="text-white/40 font-medium">· low light boost</span></span>
-                      <span className={`text-[9px] font-black uppercase tracking-wider ${nightOn ? 'text-indigo-300' : 'text-white/30'}`}>{nightOn ? 'On' : 'Off'}</span>
-                    </button>
-                    <div className="mt-2 pt-2 border-t border-white/10">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 pb-2">Look · color grade</p>
-                      <div className="flex flex-wrap gap-1.5 px-1 pb-1">
+                    <button onClick={() => setModeMenuOpen(false)} className="ml-auto shrink-0 text-white/40 px-1"><ChevronDown size={18} /></button>
+                  </div>
+                  {/* Horizontal snap carousel */}
+                  <div ref={modeScrollRef} onScroll={onModeScroll}
+                    className="flex overflow-x-auto snap-x snap-mandatory h-[30dvh] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {/* Slide 1 · Camera + Night */}
+                    <div className="w-full shrink-0 snap-center overflow-y-auto px-2 py-1">
+                      {([
+                        { id: 'front', label: 'Front camera', icon: <UserSquare2 size={17} />, on: true },
+                        { id: 'rear', label: 'Rear camera', icon: <Camera size={17} />, on: true },
+                        { id: 'both', label: 'Both cameras', icon: <Columns2 size={17} />, on: true },
+                        { id: 'screen-pip', label: 'Screen + camera', icon: <MonitorSmartphone size={17} />, on: canScreen },
+                        { id: 'screen-mask', label: 'Screen + cut-out you', icon: <Monitor size={17} />, on: canScreen },
+                      ] as { id: ComposerMode; label: string; icon: JSX.Element; on: boolean }[]).map(m => (
+                        <button key={m.id} disabled={!m.on || modeBusy} onClick={() => applyMode(m.id)}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${camMode === m.id ? 'bg-orange-500/20' : 'hover:bg-white/[0.06]'} disabled:opacity-35`}>
+                          <span className={camMode === m.id ? 'text-orange-400' : 'text-white/70'}>{m.icon}</span>
+                          <span className="flex-1 text-[13px] font-bold text-white">{m.label}</span>
+                          {!m.on && <span className="text-[8px] font-black uppercase tracking-wider text-white/30">Desktop</span>}
+                          {camMode === m.id && m.on && <Check size={15} className="text-orange-400" />}
+                        </button>
+                      ))}
+                      <button onClick={async () => { const on = !nightOn; setNightOn(on); await composerRef.current?.setNightMode(on); }}
+                        className={`mt-1.5 w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${nightOn ? 'bg-indigo-500/25' : 'hover:bg-white/[0.06]'}`}>
+                        <span className="text-[17px]">🌙</span>
+                        <span className="flex-1 text-[13px] font-bold text-white">Night mode <span className="text-white/40 font-medium">· low light</span></span>
+                        <span className={`text-[9px] font-black uppercase tracking-wider ${nightOn ? 'text-indigo-300' : 'text-white/30'}`}>{nightOn ? 'On' : 'Off'}</span>
+                      </button>
+                    </div>
+                    {/* Slide 2 · Looks */}
+                    <div className="w-full shrink-0 snap-center overflow-y-auto px-2 py-1">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-1 pb-2">Color grade — live preview above</p>
+                      <div className="flex flex-wrap gap-1.5">
                         {LOOKS.map(l => (
                           <button key={l.id} onClick={() => applyLook(l.id)}
-                            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${lookId === l.id ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80 hover:bg-white/12'}`}>
+                            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${lookId === l.id ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80'}`}>
                             {l.label}
                           </button>
                         ))}
                         <button onClick={() => cubeInputRef.current?.click()}
-                          className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${lookId === 'custom' ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80 hover:bg-white/12'}`}>
+                          className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${lookId === 'custom' ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80'}`}>
                           + .cube LUT
                         </button>
                       </div>
                     </div>
-                    <div className="mt-2 pt-2 border-t border-white/10">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 pb-2">VTuber avatar</p>
-                      {/* Demo character picker — tap a face to become it */}
-                      <div className="grid grid-cols-3 gap-1.5 px-1">
+                    {/* Slide 3 · Avatar */}
+                    <div className="w-full shrink-0 snap-center overflow-y-auto px-2 py-1">
+                      <div className="grid grid-cols-3 gap-1.5">
                         {DEMO_AVATARS.map(demo => {
                           const active = demoId === demo.id;
                           return (
                             <button key={demo.id} onClick={() => useDemoAvatar(demo)} disabled={avatarBuilding}
-                              className={`relative rounded-xl overflow-hidden aspect-square border-2 transition-all disabled:opacity-50 ${active ? 'border-orange-400 ring-2 ring-orange-400/40' : 'border-white/12 hover:border-white/30'}`}>
+                              className={`relative rounded-xl overflow-hidden aspect-square border-2 transition-all disabled:opacity-50 ${active ? 'border-orange-400 ring-2 ring-orange-400/40' : 'border-white/12'}`}>
                               <img src={demo.url} alt={demo.name} loading="lazy"
                                 className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: `${(demo.crop.sx + demo.crop.sw / 2) * 100}% ${(demo.crop.sy + demo.crop.sh / 2) * 100}%`, transform: 'scale(2.6)' }} />
                               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-1 pt-3 pb-1">
@@ -1220,13 +1237,13 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                           );
                         })}
                         <button onClick={() => sheetInputRef.current?.click()} disabled={avatarBuilding}
-                          className="rounded-xl aspect-square border-2 border-dashed border-white/20 hover:border-white/40 flex flex-col items-center justify-center gap-1 text-white/60 disabled:opacity-50">
+                          className="rounded-xl aspect-square border-2 border-dashed border-white/20 flex flex-col items-center justify-center gap-1 text-white/60 disabled:opacity-50">
                           <Plus size={18} />
                           <span className="text-[9px] font-bold leading-none">Upload</span>
                         </button>
                       </div>
                       {avatarBuilt && avatarKind === 'puppet' && (
-                        <div className="flex gap-1.5 px-1 mt-2">
+                        <div className="flex gap-1.5 mt-2">
                           {([['face', '👤 Face swap'], ['body', '🕺 Full body']] as const).map(([s, label]) => (
                             <button key={s} onClick={() => applyVtuberStyle(s)}
                               className={`flex-1 py-2 rounded-lg text-[11px] font-bold transition-all ${vtuberStyle === s ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80'}`}>
@@ -1235,7 +1252,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                           ))}
                         </div>
                       )}
-                      <div className="flex flex-wrap gap-1.5 px-1 mt-2">
+                      <div className="flex flex-wrap gap-1.5 mt-2">
                         {camMode === 'vtuber' ? (
                           <button onClick={() => applyMode('front')}
                             className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-red-500 text-white flex items-center gap-1">
@@ -1248,68 +1265,83 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                           </button>
                         )}
                         <button onClick={() => vrmInputRef.current?.click()} disabled={avatarBuilding}
-                          className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-white/[0.06] text-white/80 hover:bg-white/12 disabled:opacity-50">
-                          🧊 Upload .vrm (3D)
-                        </button>
+                          className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-white/[0.06] text-white/80 disabled:opacity-50">🧊 .vrm (3D)</button>
                         {avatarBuilt && (
                           <button onClick={toggleGreen}
-                            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${greenOn ? 'bg-green-500 text-black' : 'bg-white/[0.06] text-white/80'}`}>
-                            🟩 Green screen
-                          </button>
+                            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${greenOn ? 'bg-green-500 text-black' : 'bg-white/[0.06] text-white/80'}`}>🟩 Green</button>
                         )}
                       </div>
-                      <p className="text-[9px] text-white/30 px-2 pt-1.5 leading-snug">
-                        {avatarBuilding ? (buildMsg || 'Loading…') : 'Tap a character to become it — your face/body drives it live, on-device. Upload a drawing or a 3D .vrm.'}
+                      <p className="text-[9px] text-white/30 pt-1.5 leading-snug">
+                        {avatarBuilding ? (buildMsg || 'Loading…') : 'Tap a character — your face/body drives it live. Preview stays above.'}
                       </p>
                     </div>
-                    <div className="mt-2 pt-2 border-t border-white/10">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 pb-2">Voice changer</p>
-                      <div className="flex flex-wrap gap-1.5 px-1 pb-1">
+                    {/* Slide 4 · Voice */}
+                    <div className="w-full shrink-0 snap-center overflow-y-auto px-2 py-1">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-1 pb-2">Voice changer</p>
+                      <div className="flex flex-wrap gap-1.5">
                         {VOICE_EFFECTS.map(v => (
                           <button key={v.id} onClick={() => applyVoiceEffect(v.id)}
-                            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${voiceId === v.id ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80 hover:bg-white/12'}`}>
+                            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${voiceId === v.id ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80'}`}>
                             {v.label}
                           </button>
                         ))}
                       </div>
                     </div>
-                    <div className="mt-2 pt-2 border-t border-white/10">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 pb-2">Audience fun</p>
+                    {/* Slide 5 · Fun */}
+                    <div className="w-full shrink-0 snap-center overflow-y-auto px-2 py-1">
                       <button onClick={() => { setModeMenuOpen(false); setPollOpen(true); }}
-                        className="mx-1 mb-2 px-3 py-2 rounded-xl text-[11px] font-black bg-gradient-to-r from-[#6B0099] to-[#FF8C00] text-white flex items-center gap-1.5">
+                        className="mb-2 px-3 py-2 rounded-xl text-[11px] font-black bg-gradient-to-r from-[#6B0099] to-[#FF8C00] text-white flex items-center gap-1.5">
                         <BarChart3 size={13} /> New poll — type or dictate
                       </button>
-                      <p className="text-[9px] text-white/35 px-2 pb-1">Ambient effect on the stream</p>
-                      <div className="flex flex-wrap gap-1.5 px-1 pb-1">
+                      <p className="text-[9px] text-white/35 px-1 pb-1">Ambient effect</p>
+                      <div className="flex flex-wrap gap-1.5 pb-1">
                         {AMBIENT_FX.map(f => (
                           <button key={f.id} onClick={() => applyAmbient(f.id)}
-                            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${ambientId === f.id ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80 hover:bg-white/12'}`}>
+                            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${ambientId === f.id ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80'}`}>
                             {f.icon} {f.label}
                           </button>
                         ))}
                       </div>
-                      <p className="text-[9px] text-white/35 px-2 pt-1.5 pb-1">Hype burst (viewers can fire these too)</p>
-                      <div className="flex gap-1.5 px-1 pb-1">
+                      <p className="text-[9px] text-white/35 px-1 pt-1 pb-1">Hype burst (viewers can fire these too)</p>
+                      <div className="flex gap-1.5">
                         {QUICK_EMOTES.map(e => (
                           <button key={e} onClick={() => composerRef.current?.spawnBurst(e, 12)}
-                            className="w-9 h-9 rounded-lg bg-white/[0.06] hover:bg-white/12 text-[17px] flex items-center justify-center active:scale-90 transition-transform">
+                            className="w-9 h-9 rounded-lg bg-white/[0.06] text-[17px] flex items-center justify-center active:scale-90 transition-transform">
                             {e}
                           </button>
                         ))}
                       </div>
                     </div>
-                    {/* Engine health — what's actually rendering/publishing (on-device debugging) */}
-                    <p className="text-[8px] font-mono text-white/25 px-2 pt-2">
-                      {(() => {
-                        const d = composerRef.current?.getDiagnostics();
-                        return d
-                          ? `engine ${composerPublishedRef.current ? 'LIVE' : 'idle'} · grade:${d.grade}${d.night ? '+night' : ''}${d.green ? '+green' : ''} · look:${d.look} · ${d.mode} ${d.size} · vtuber:${d.vtuber}${d.track ? ` · ${d.track}` : ''}`
-                          : 'engine off — publishing raw camera';
-                      })()}
-                    </p>
                   </div>
-                </>
+                  {/* Dots + engine health */}
+                  <div className="flex items-center justify-center gap-1.5 pt-1">
+                    {[0, 1, 2, 3, 4].map(i => (
+                      <span key={i} className={`h-1.5 rounded-full transition-all ${modeTab === i ? 'w-4 bg-orange-400' : 'w-1.5 bg-white/25'}`} />
+                    ))}
+                  </div>
+                  <p className="text-[8px] font-mono text-white/25 text-center px-2 py-1 truncate">
+                    {(() => {
+                      const d = composerRef.current?.getDiagnostics();
+                      return d
+                        ? `${composerPublishedRef.current ? 'LIVE' : 'idle'} · grade:${d.grade}${d.night ? '+night' : ''}${d.green ? '+green' : ''} · look:${d.look} · ${d.mode} · vtuber:${d.vtuber}${d.track ? ` · ${d.track}` : ''}`
+                        : 'engine off — raw camera';
+                    })()}
+                  </p>
+                </motion.div>
               )}
+            </AnimatePresence>
+            {/* Reactions row */}
+            <div className="flex items-center gap-3">
+              {['❤️', '🔥', '😂', '👏', '💯', '🎉'].map(e => (
+                <button key={e} onClick={() => addReaction(e)}
+                  className="text-2xl active:scale-125 transition-transform">
+                  {e}
+                </button>
+              ))}
+            </div>
+
+            {/* Controls */}
+            <div className="relative flex items-center justify-between w-full max-w-md mx-auto">
               <input ref={cubeInputRef} type="file" accept=".cube" className="hidden"
                 onChange={e => { uploadCube(e.target.files?.[0]); e.currentTarget.value = ''; }} />
               <input ref={sheetInputRef} type="file" accept="image/*" className="hidden"
@@ -1348,7 +1380,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                 </>
               )}
               {/* Chat toggle */}
-              <button onClick={() => setShowChat(s => !s)}
+              <button onClick={() => { setModeMenuOpen(false); setShowChat(s => !s); }}
                 className="flex flex-col items-center gap-1">
                 <div className="w-12 h-12 rounded-full bg-black/60 backdrop-blur border border-white/15 flex items-center justify-center">
                   <MessageCircle size={22} className={showChat ? 'text-orange-400' : 'text-white'} />
@@ -1367,7 +1399,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
               </button>
 
               {/* Camera mode: front · rear · both · screen + cam · screen + cut-out */}
-              <button onClick={() => setModeMenuOpen(o => !o)}
+              <button onClick={openModeMenu}
                 className="flex flex-col items-center gap-1">
                 <div className={`w-12 h-12 rounded-full backdrop-blur border flex items-center justify-center transition-all ${modeMenuOpen || camMode !== 'front' ? 'bg-orange-500/80 border-orange-400' : 'bg-black/60 border-white/15'}`}>
                   {modeBusy ? <RotateCcw size={20} className="text-white animate-spin" /> : <LayoutGrid size={22} className="text-white" />}
