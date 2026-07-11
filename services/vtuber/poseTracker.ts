@@ -52,8 +52,9 @@ export class PoseTracker {
     return this.ready;
   }
 
-  /** Run detection for a video frame. `tsMs` must be monotonically increasing. */
-  detect(video: HTMLVideoElement, tsMs: number): PoseFrame | null {
+  /** Run detection for a video frame (or a preprocessed canvas — see DetectFeed).
+   *  `tsMs` must be monotonically increasing. */
+  detect(video: HTMLVideoElement | HTMLCanvasElement, tsMs: number): PoseFrame | null {
     if (!this.ready || !this.pl) return null;
     try {
       const res = this.pl.detectForVideo(video, tsMs);

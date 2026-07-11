@@ -19,12 +19,21 @@ export interface Puppet2DLayer {
   image?: ImageBitmap;                          // the cut-out layer pixels
   states?: Record<string, ImageBitmap>;         // eye:{open,closed}; mouth:{aa,ih,ou,ee,oh}
 }
+/** Optional face anchors (fractions of the sprite) for the procedural performance layer:
+ *  blink lids over the eyes, a talk/smile mouth. Skin colours are sampled at build time. */
+export interface PuppetFaceConfig {
+  eyeL?: { x: number; y: number; r: number; skin?: string };
+  eyeR?: { x: number; y: number; r: number; skin?: string };
+  mouth?: { x: number; y: number; w: number };
+}
 export interface Puppet2DRig {
   width: number;
   height: number;
   layers: Puppet2DLayer[];
   /** Chatterbox sprites: fraction of the height where the jaw hinge sits (default 0.62). */
   jawSplit?: number;
+  /** Anchors for the procedural mouth/eye performance overlays. */
+  face?: PuppetFaceConfig;
   meshBindings?: unknown;                       // triangulation + landmark bindings (Phase A detail)
 }
 
@@ -39,6 +48,8 @@ export interface BuildAvatarOptions {
   path?: AvatarPath;                            // AUTO = puppet now, 3D when available
   views?: Blob[];                               // extra views (front/side/back) for multi-view 3D
   compute?: 'local' | 'server' | 'auto';        // where the 3D generation runs
+  /** Per-character puppet tuning: jaw hinge + face anchors for the performance overlays. */
+  puppet?: { jawSplit?: number; face?: PuppetFaceConfig };
   onProgress?: (stage: string, pct: number) => void;
   signal?: AbortSignal;
 }
@@ -66,7 +77,7 @@ async function buildPuppet2D(image: Blob, opts: BuildAvatarOptions): Promise<Ava
   // the base → Puppet2DRig, driven live by the same tracker/retargeter. (Body-part segmentation
   // via SAM + a triangulated deformation mesh are the fidelity upgrade.)
   const { buildPuppet2DRig } = await import('./puppet2D');
-  const rig = await buildPuppet2DRig(image, opts.onProgress);
+  const rig = await buildPuppet2DRig(image, opts.onProgress, opts.puppet);
   return { kind: 'PUPPET2D', rig };
 }
 

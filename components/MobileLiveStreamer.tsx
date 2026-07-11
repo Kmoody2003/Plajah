@@ -396,12 +396,16 @@ const CameraProControls: React.FC<{ track: MediaStreamTrack | null }> = ({ track
 type DemoAvatar = {
   id: string; name: string; emoji: string; url: string;
   crop: { sx: number; sy: number; sw: number; sh: number };
+  /** Face-swap performance anchors (fractions of the FACE crop): jaw hinge, eyes, mouth. */
+  puppet?: { jawSplit?: number; face?: { eyeL?: { x: number; y: number; r: number }; eyeR?: { x: number; y: number; r: number }; mouth?: { x: number; y: number; w: number } } };
   body?: { crop: { sx: number; sy: number; sw: number; sh: number }; headSplit: number; arms?: { w: number; y0: number; y1: number } };
 };
 const DEMO_AVATARS: DemoAvatar[] = [
   { id: 'anime',   name: 'Aiko',  emoji: '🎌', url: '/vtuber/demo-character.png', crop: { sx: 0.785, sy: 0.485, sw: 0.215, sh: 0.29 },
+    puppet: { jawSplit: 0.7, face: { eyeL: { x: 0.36, y: 0.47, r: 0.09 }, eyeR: { x: 0.64, y: 0.47, r: 0.09 }, mouth: { x: 0.5, y: 0.78, w: 0.26 } } },
     body: { crop: { sx: 0.005, sy: 0.03, sw: 0.30, sh: 0.96 }, headSplit: 0.21 } }, // hands in pockets — no arm cut
   { id: 'cartoon', name: 'Kal',   emoji: '🎨', url: '/vtuber/demo-southpark.png', crop: { sx: 0.02,  sy: 0.01,  sw: 0.29,  sh: 0.36 },
+    puppet: { jawSplit: 0.76, face: { eyeL: { x: 0.38, y: 0.45, r: 0.12 }, eyeR: { x: 0.62, y: 0.45, r: 0.12 }, mouth: { x: 0.5, y: 0.8, w: 0.3 } } },
     body: { crop: { sx: 0.02, sy: 0.01, sw: 0.30, sh: 0.46 }, headSplit: 0.52, arms: { w: 0.18, y0: 0.52, y1: 0.85 } } },
 ];
 // Default body proportions for uploaded drawings (assumes a standing A-pose character).
@@ -638,9 +642,12 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const [avatarBuilding, setAvatarBuilding] = useState(false);
   const [buildMsg, setBuildMsg] = useState('');
   const [demoId, setDemoId] = useState<string | null>(null);
-  const buildAvatarFromBlob = async (blob: Blob) => {
+  const buildAvatarFromBlob = async (blob: Blob, puppet?: DemoAvatar['puppet']) => {
     if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
-    const desc = await buildVTuberFromSheet(blob, { path: 'PUPPET2D', onProgress: (s: string, p: number) => setBuildMsg(`${s} · ${Math.round(p * 100)}%`) });
+    const desc = await buildVTuberFromSheet(blob, {
+      path: 'PUPPET2D', puppet,
+      onProgress: (s: string, p: number) => setBuildMsg(`${s} · ${Math.round(p * 100)}%`),
+    });
     composerRef.current.setAvatar(desc);
     setAvatarBuilt(true);
     await applyMode('vtuber');
@@ -671,7 +678,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
       if (!res.ok) throw new Error(`${demo.name} isn't available yet.`);
       const raw = await res.blob();
       if (demo.body) await buildBodyFromBlob(raw, demo.body.crop, demo.body).catch(() => {});
-      await buildAvatarFromBlob(await cropSheetFace(raw, demo.crop));
+      await buildAvatarFromBlob(await cropSheetFace(raw, demo.crop), demo.puppet);
     } catch (e: any) { alert(e?.message || 'Could not load that character.'); setDemoId(null); }
     finally { setAvatarBuilding(false); }
   };

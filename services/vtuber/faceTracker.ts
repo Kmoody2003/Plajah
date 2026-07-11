@@ -53,8 +53,9 @@ export class FaceTracker {
     return this.ready;
   }
 
-  /** Run detection for a video frame. `tsMs` must be monotonically increasing (performance.now()). */
-  detect(video: HTMLVideoElement, tsMs: number): FaceFrame | null {
+  /** Run detection for a video frame (or a preprocessed canvas — see DetectFeed).
+   *  `tsMs` must be monotonically increasing (performance.now()). */
+  detect(video: HTMLVideoElement | HTMLCanvasElement, tsMs: number): FaceFrame | null {
     if (!this.ready || !this.fl) return null;
     try {
       const res = this.fl.detectForVideo(video, tsMs);

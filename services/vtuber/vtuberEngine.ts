@@ -11,6 +11,7 @@
 // Phase 1: AVATAR_ONLY + PIP (face tracking). Body-overlay/segmentation + hands are Phase 3.
 
 import { FaceTracker } from './faceTracker';
+import { DetectFeed } from './detectFeed';
 import { FaceRetargeter, type RetargetResult } from './retarget';
 import { VrmRig } from './vrmRig';
 import { Puppet2DDriver } from './puppet2D';
@@ -60,6 +61,7 @@ async function createBodyStream(input: MediaStream, opts: VTuberOptions): Promis
   ]);
   const tracker = new PoseTracker();
   const driver = new BodyPuppetDriver(rig);
+  const feed = new DetectFeed(); // low-light auto-gain + downscale for detection
 
   setStatus('loading body tracker…');
   const initTimeout = setTimeout(() => { if (!tracker.isReady) setStatus('body tracker timed out — check connection'); }, 25000);
@@ -82,7 +84,7 @@ async function createBodyStream(input: MediaStream, opts: VTuberOptions): Promis
     if (tracker.isReady && video.readyState >= 2) {
       const ts = Math.max(lastTs + 1, Math.round(t));
       lastTs = ts;
-      const frame = tracker.detect(video, ts);
+      const frame = tracker.detect(feed.src(video), ts);
       if (frame) {
         pose = frame;
         if (!locked) { locked = true; setStatus('body locked ✓ — you drive the character'); }
@@ -128,6 +130,7 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
 
   const tracker = new FaceTracker();
   const retargeter = new FaceRetargeter();
+  const feed = new DetectFeed(); // low-light auto-gain + downscale for detection
 
   // ── Avatar render path: VRM rig OR 2D puppet, both → an avatar canvas ──
   const isPuppet = opts.avatar?.kind === 'PUPPET2D';
@@ -179,9 +182,9 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
     if (tracker.isReady && video.readyState >= 2) {
       const ts = Math.max(lastTs + 1, Math.round(t)); // detectForVideo needs monotonic timestamps
       lastTs = ts;
-      const frame = tracker.detect(video, ts);
+      const frame = tracker.detect(feed.src(video), ts);
       if (frame) {
-        if (!lastBbox) setStatus('face locked ✓');
+        if (!lastBbox) setStatus(feed.boost > 1.15 ? `face locked ✓ (low light ×${feed.boost.toFixed(1)})` : 'face locked ✓');
         lastFace = retargeter.retarget(frame, t / 1000);
         lastBbox = frame.bbox;
         if (rig) rig.applyFace(lastFace.expressions, lastFace.head);
