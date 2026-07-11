@@ -38,6 +38,7 @@ export class SessionRecorder {
   private chunks: Blob[] = [];
   private startedAt = 0;
   private locked = false; // single-source canvas aspect locked to the source
+  private beginRecorder: (() => void) | null = null; // deferred start (after aspect lock)
   recording = false;
 
   constructor(options: SessionRecorderOptions = {}) {
@@ -59,26 +60,34 @@ export class SessionRecorder {
       this.dest = this.audioCtx.createMediaStreamDestination();
       this.reconcileAudio();
 
-      let mixed: MediaStream;
       if (this.opts.audioOnly) {
-        mixed = new MediaStream(this.dest.stream.getAudioTracks());
+        const mixed = new MediaStream(this.dest.stream.getAudioTracks());
+        const mime = this.pickMime();
+        this.recorder = new MediaRecorder(mixed, mime ? { mimeType: mime } : undefined);
+        this.chunks = [];
+        this.recorder.ondataavailable = e => { if (e.data.size > 0) this.chunks.push(e.data); };
+        this.recorder.start(1000);
       } else {
+        // Portrait default (the live streamer is portrait). drawGrid re-locks to the real
+        // source aspect on the first ready frame — but ONLY before MediaRecorder starts.
         this.canvas = document.createElement('canvas');
-        this.canvas.width = 1280; this.canvas.height = 720;
+        this.canvas.width = 720; this.canvas.height = 1280;
         const draw = () => { this.drawGrid(); this.raf = requestAnimationFrame(draw); };
         this.raf = requestAnimationFrame(draw);
-        const canvasStream = this.canvas.captureStream(this.opts.fps);
-        mixed = new MediaStream([
-          ...canvasStream.getVideoTracks(),
-          ...this.dest.stream.getAudioTracks(),
-        ]);
+        // Deferred: capture the canvas + start MediaRecorder ONLY once the canvas is locked
+        // to the source's real aspect. Starting before that (then resizing the canvas)
+        // squished every recording — the muxer's dimensions are fixed at start().
+        this.beginRecorder = () => {
+          if (this.recorder || !this.canvas || !this.dest) return;
+          const canvasStream = this.canvas.captureStream(this.opts.fps);
+          const mixed = new MediaStream([...canvasStream.getVideoTracks(), ...this.dest.stream.getAudioTracks()]);
+          const mime = this.pickMime();
+          this.recorder = new MediaRecorder(mixed, mime ? { mimeType: mime } : undefined);
+          this.chunks = [];
+          this.recorder.ondataavailable = e => { if (e.data.size > 0) this.chunks.push(e.data); };
+          this.recorder.start(1000);
+        };
       }
-
-      const mime = this.pickMime();
-      this.recorder = new MediaRecorder(mixed, mime ? { mimeType: mime } : undefined);
-      this.chunks = [];
-      this.recorder.ondataavailable = e => { if (e.data.size > 0) this.chunks.push(e.data); };
-      this.recorder.start(1000);
       this.startedAt = Date.now();
       this.recording = true;
       return true;
@@ -157,9 +166,10 @@ export class SessionRecorder {
       if (v.readyState < 2) return;
       const ar = v.videoWidth / v.videoHeight;
       const car = canvas.width / canvas.height;
-      // Lock once — and RE-lock if the source's aspect materially changes mid-recording
-      // (e.g. the published track swaps landscape→portrait).
-      if (!this.locked || Math.abs(ar - car) / car > 0.12) {
+      // Lock the canvas to the source aspect — but ONLY before MediaRecorder has started.
+      // Resizing the canvas after the recorder is running re-writes the muxer dimensions =
+      // squished output. Once recording, the size is frozen and we letterbox instead.
+      if (!this.recorder && (!this.locked || Math.abs(ar - car) / car > 0.12)) {
         let w: number, h: number;
         if (ar >= 1) { w = this.opts.maxSize; h = Math.round(w / ar); }
         else { h = this.opts.maxSize; w = Math.round(h * ar); }
@@ -170,6 +180,8 @@ export class SessionRecorder {
       let dw = canvas.width, dh = canvas.height;
       if (ar > car2) { dw = canvas.width; dh = dw / ar; } else { dh = canvas.height; dw = dh * ar; }
       try { ctx.drawImage(v, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh); } catch { /* not ready */ }
+      // First real frame is drawn at the locked aspect → NOW safe to start the recorder.
+      if (this.beginRecorder) { this.beginRecorder(); this.beginRecorder = null; }
       return;
     }
 
@@ -179,7 +191,7 @@ export class SessionRecorder {
     // Size the canvas to a 16:9-ish grid capped at maxSize on the long edge.
     const targetW = this.opts.maxSize;
     const targetH = Math.round((targetW / cols) * rows * (9 / 16)) || Math.round(targetW * 9 / 16);
-    if (canvas.width !== targetW || canvas.height !== targetH) { canvas.width = targetW; canvas.height = targetH; }
+    if (!this.recorder && (canvas.width !== targetW || canvas.height !== targetH)) { canvas.width = targetW; canvas.height = targetH; }
 
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -196,11 +208,14 @@ export class SessionRecorder {
       else { dw = cw; dh = cw / vr; dy = cy - (dh - ch) / 2; }
       try { ctx.drawImage(v, dx, dy, dw, dh); } catch { /* not ready */ }
     });
+    // Grid is sized + drawn → safe to start the recorder (deferred from start()).
+    if (els.length && this.beginRecorder) { this.beginRecorder(); this.beginRecorder = null; }
   }
 
   private cleanup() {
     this.recording = false;
     this.locked = false;
+    this.beginRecorder = null;
     cancelAnimationFrame(this.raf);
     this.connected.forEach(src => { try { src.disconnect(); } catch {} });
     this.connected.clear();

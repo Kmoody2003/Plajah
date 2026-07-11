@@ -525,6 +525,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const composerPublishedRef = useRef(false);
   const [camMode, setCamMode] = useState<ComposerMode>('front');
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [fxError, setFxError] = useState<string | null>(null); // surfaced FX/composer failure (device diag)
   const [modeTab, setModeTab] = useState(0);            // active slide in the horizontal feature carousel
   const modeScrollRef = useRef<HTMLDivElement>(null);
   const scrollToTab = (i: number) => {
@@ -571,12 +572,13 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
       setCamMode(mode);
       setMirror(false); // the canvas is already composited — no CSS mirror on top
       setCamOn(true);
+      setFxError(null);
     } catch (e: any) {
       // Dual-camera (both) needs simultaneous front+rear, which many phones can't do — fall
       // back to the previous working mode instead of leaving a broken state.
       const dual = mode === 'both';
-      alert(dual
-        ? "This phone can't run the front and rear cameras at the same time (a hardware limit on most devices). Staying on your current camera."
+      setFxError(dual
+        ? "This phone can't run the front + rear cameras at once — staying on your current camera."
         : (e?.message || 'Could not switch to that mode on this device.'));
       try { await composerRef.current?.setMode(prevMode === 'both' ? 'front' : prevMode); } catch { /* */ }
     } finally { setModeBusy(false); }
@@ -763,8 +765,10 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
         if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
         composerRef.current.adoptFrontTrack(cam); // the REAL live RTC camera — frames guaranteed
         await applyMode('front');                 // publishes the canvas (keeps the source alive)
-      } catch (e) {
+      } catch (e: any) {
         console.warn('[live] composer boot failed — staying on the raw camera:', e);
+        setFxError(`FX engine failed to start: ${e?.name || ''} ${e?.message || e}`.trim());
+        composerPublishedRef.current = false;
         bootRef.current = false;
       }
     })();
@@ -1049,6 +1053,20 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
       {/* Live UI */}
       {step === 'live' && (
         <>
+          {/* FX engine status + error — always visible so on-device failures are diagnosable
+              (tap to dismiss the error). 'FX ready' = composer publishing; 'raw camera' = not. */}
+          <div className="absolute left-0 right-0 z-20 flex flex-col items-center gap-1 pointer-events-none"
+            style={{ top: 'calc(max(env(safe-area-inset-top), 10px) + 44px)' }}>
+            {fxError && (
+              <button onClick={() => setFxError(null)}
+                className="pointer-events-auto max-w-[92%] px-3 py-1.5 rounded-full bg-red-500/90 text-white text-[11px] font-bold shadow-lg">
+                ⚠️ {fxError} (tap)
+              </button>
+            )}
+            <span className="px-2 py-0.5 rounded-full bg-black/45 backdrop-blur text-[9px] font-mono text-white/70">
+              {composerPublishedRef.current ? `FX ready · ${camMode}${lookId !== 'none' ? ' · ' + lookId : ''}` : 'raw camera (FX not engaged)'}
+            </span>
+          </div>
           {/* Top bar */}
           <div className="absolute top-0 left-0 right-0 flex items-start justify-between px-3 pt-safe z-10">
             <div className="flex items-center gap-2">
