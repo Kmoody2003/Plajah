@@ -31,7 +31,8 @@ export interface Puppet2DRig {
 // ── The descriptor the realtime engine consumes ──────────────────────────────────
 export type AvatarDescriptor =
   | { kind: 'VRM'; url: string; source: 'upload' | 'generated' }
-  | { kind: 'PUPPET2D'; rig: Puppet2DRig };
+  | { kind: 'PUPPET2D'; rig: Puppet2DRig }
+  | { kind: 'BODY2D'; rig: import('./bodyPuppet').BodyRig }; // full-body paper doll (pose-driven)
 
 export type AvatarPath = 'AUTO' | 'PUPPET2D' | 'VRM3D';
 export interface BuildAvatarOptions {

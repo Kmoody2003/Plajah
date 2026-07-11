@@ -176,8 +176,11 @@ export class LiveComposer {
   private maskCanvas = document.createElement('canvas');
   private maskCtx = this.maskCanvas.getContext('2d')!;
 
-  // VTuber: a face-tracked avatar (2D puppet or VRM) driven by the front camera.
+  // VTuber: a face-tracked avatar (2D puppet or VRM) driven by the front camera —
+  // 'face' = face-swap on your head; 'body' = full-body paper doll driven by your pose.
   private avatar: AvatarDescriptor | null = null;
+  private bodyAvatar: AvatarDescriptor | null = null;
+  private vtuberStyle: 'face' | 'body' = 'face';
   private vtuber: VTuberHandle | null = null;
   private vtuberStarting = false;
 
@@ -242,7 +245,7 @@ export class LiveComposer {
       grade: this.gl ? 'webgl' : this.filter2dOk ? '2d-filter' : 'none',
       look: this.getLook(), mode: this.mode, night: this.night,
       size: `${this.canvas.width}x${this.canvas.height}`,
-      vtuber: this.vtuber ? 'live' : this.avatar ? 'ready' : 'off',
+      vtuber: this.vtuber ? `live-${this.vtuberStyle}` : this.hasAvatar() ? 'ready' : 'off',
     };
   }
 
@@ -283,17 +286,28 @@ export class LiveComposer {
     this.avatar = a;
     if (this.vtuber) { this.vtuber.dispose(); this.vtuber = null; }
   }
-  hasAvatar() { return !!this.avatar; }
+  setBodyAvatar(a: AvatarDescriptor | null) {
+    this.bodyAvatar = a;
+    if (this.vtuberStyle === 'body' && this.vtuber) { this.vtuber.dispose(); this.vtuber = null; }
+  }
+  hasAvatar() { return !!(this.avatar || this.bodyAvatar); }
+  getVtuberStyle() { return this.vtuberStyle; }
+  /** Switch face-swap ↔ full-body live (restarts the engine on the same camera). */
+  async setVtuberStyle(style: 'face' | 'body'): Promise<void> {
+    if (style === this.vtuberStyle) return;
+    this.vtuberStyle = style;
+    this.releaseVtuber();
+    if (this.mode === 'vtuber') await this.ensureVtuber();
+  }
   private async ensureVtuber() {
-    if (this.vtuber || this.vtuberStarting || !this.avatar || !this.frontStream) return;
+    const desc = this.vtuberStyle === 'body' ? this.bodyAvatar : this.avatar;
+    if (this.vtuber || this.vtuberStarting || !desc || !this.frontStream) return;
     this.vtuberStarting = true;
     try {
       // Lazy-load the VTuber engine (pulls in three.js) only when actually used.
       const { createVTuberStream } = await import('./vtuber/vtuberEngine');
-      // AVATAR_ONLY on a transparent canvas — the composer draws it over its own
-      // background and then grades it, so LUTs/looks apply to the avatar too.
       this.vtuber = await createVTuberStream(this.frontStream, {
-        avatar: this.avatar, mode: 'FACE_SWAP', width: 540, height: 960, fps: 24,
+        avatar: desc, mode: 'FACE_SWAP', width: 540, height: 960, fps: 24,
         background: { type: 'transparent' },
       });
     } catch (e) { console.warn('[liveComposer] vtuber start failed:', e); this.vtuber = null; }

@@ -42,7 +42,78 @@ export interface VTuberHandle {
 
 const NEUTRAL: RetargetResult = { expressions: {}, head: { x: 0, y: 0, z: 0 } };
 
+/** Full-body path: PoseLandmarker on the person drives the paper-doll rig over live video. */
+async function createBodyStream(input: MediaStream, opts: VTuberOptions): Promise<VTuberHandle> {
+  const W = opts.width ?? 540;
+  const H = opts.height ?? 960;
+  const rig = (opts.avatar as any).rig;
+
+  const video = document.createElement('video');
+  video.srcObject = input; video.autoplay = true; video.muted = true; (video as any).playsInline = true;
+  await video.play().catch(() => { /* gesture upstream */ });
+
+  let status = 'starting…';
+  const setStatus = (s: string) => { status = s; opts.onStatus?.(s); };
+
+  const [{ PoseTracker }, { BodyPuppetDriver }] = await Promise.all([
+    import('./poseTracker'), import('./bodyPuppet'),
+  ]);
+  const tracker = new PoseTracker();
+  const driver = new BodyPuppetDriver(rig);
+
+  setStatus('loading body tracker…');
+  const initTimeout = setTimeout(() => { if (!tracker.isReady) setStatus('body tracker timed out — check connection'); }, 25000);
+  tracker.init().then((ok: boolean) => {
+    clearTimeout(initTimeout);
+    setStatus(ok ? 'body tracking — step back so I can see you…' : 'body tracker unavailable on this device');
+  });
+
+  const out = document.createElement('canvas');
+  out.width = W; out.height = H;
+  const ctx = out.getContext('2d')!;
+
+  let lastTs = -1;
+  let pose: import('./poseTracker').PoseFrame | null = null;
+  let locked = false;
+  let raf = 0;
+  const loop = () => {
+    raf = requestAnimationFrame(loop);
+    const t = performance.now();
+    if (tracker.isReady && video.readyState >= 2) {
+      const ts = Math.max(lastTs + 1, Math.round(t));
+      lastTs = ts;
+      const frame = tracker.detect(video, ts);
+      if (frame) {
+        pose = frame;
+        if (!locked) { locked = true; setStatus('body locked ✓ — you drive the character'); }
+      }
+    }
+    ctx.clearRect(0, 0, W, H);
+    ctx.drawImage(video, 0, 0, W, H);
+    driver.render(ctx, W, H, pose);
+  };
+  loop();
+
+  const stream = out.captureStream(opts.fps ?? 24);
+  input.getAudioTracks().forEach(tr => { try { stream.addTrack(tr); } catch { /* */ } });
+
+  return {
+    canvas: out,
+    stream,
+    setMode: () => { /* body path has one mode */ },
+    setAvatar: () => Promise.resolve(false),
+    setBackground: () => { /* over live video */ },
+    getStatus: () => status,
+    dispose: () => {
+      cancelAnimationFrame(raf);
+      tracker.dispose();
+      try { (video as any).srcObject = null; } catch { /* */ }
+    },
+  };
+}
+
 export async function createVTuberStream(input: MediaStream, opts: VTuberOptions): Promise<VTuberHandle> {
+  if (opts.avatar?.kind === 'BODY2D') return createBodyStream(input, opts);
   const W = opts.width ?? 1280;
   const H = opts.height ?? 720;
   let mode: VTuberMode = opts.mode ?? 'AVATAR_ONLY';

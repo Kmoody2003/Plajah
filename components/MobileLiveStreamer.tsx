@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { LiveComposer, type ComposerMode, LOOKS, type LookId, AMBIENT_FX, type AmbientFx } from '../services/liveComposer';
 import { buildVTuberFromSheet } from '../services/vtuber/avatarFactory';
+import { buildBodyRig } from '../services/vtuber/bodyPuppet';
 import { VoiceFX, VOICE_EFFECTS, type VoiceEffectId } from '../services/voiceFX';
 import {
   auth, db, createPost, updatePost, deletePost, notifyFollowers, uploadVideo,
@@ -390,11 +391,21 @@ const CameraProControls: React.FC<{ track: MediaStreamTrack | null }> = ({ track
 // portrait (non-square) is passed through unchanged.
 // A built-in demo character: a multi-view sheet + the face region to crop (as fractions of
 // the sheet). Each drawing lays the face out differently, so the crop rect is per-character.
-type DemoAvatar = { id: string; name: string; emoji: string; url: string; crop: { sx: number; sy: number; sw: number; sh: number } };
+// `body` describes the FULL-BODY view for the pose-driven paper doll: where it is on the
+// sheet, where the head splits, and (when the arms hang clear of the body) the arm regions.
+type DemoAvatar = {
+  id: string; name: string; emoji: string; url: string;
+  crop: { sx: number; sy: number; sw: number; sh: number };
+  body?: { crop: { sx: number; sy: number; sw: number; sh: number }; headSplit: number; arms?: { w: number; y0: number; y1: number } };
+};
 const DEMO_AVATARS: DemoAvatar[] = [
-  { id: 'anime',   name: 'Aiko',  emoji: '🎌', url: '/vtuber/demo-character.png', crop: { sx: 0.785, sy: 0.485, sw: 0.215, sh: 0.29 } },
-  { id: 'cartoon', name: 'Kal',   emoji: '🎨', url: '/vtuber/demo-southpark.png', crop: { sx: 0.02,  sy: 0.01,  sw: 0.29,  sh: 0.36 } },
+  { id: 'anime',   name: 'Aiko',  emoji: '🎌', url: '/vtuber/demo-character.png', crop: { sx: 0.785, sy: 0.485, sw: 0.215, sh: 0.29 },
+    body: { crop: { sx: 0.005, sy: 0.03, sw: 0.30, sh: 0.96 }, headSplit: 0.21 } }, // hands in pockets — no arm cut
+  { id: 'cartoon', name: 'Kal',   emoji: '🎨', url: '/vtuber/demo-southpark.png', crop: { sx: 0.02,  sy: 0.01,  sw: 0.29,  sh: 0.36 },
+    body: { crop: { sx: 0.02, sy: 0.01, sw: 0.30, sh: 0.46 }, headSplit: 0.52, arms: { w: 0.18, y0: 0.52, y1: 0.85 } } },
 ];
+// Default body proportions for uploaded drawings (assumes a standing A-pose character).
+const UPLOAD_BODY = { headSplit: 0.22, arms: { w: 0.2, y0: 0.2, y1: 0.62 } };
 
 // Crop one face out of a character sheet and key its backdrop to transparent (so the
 // face-swap overlays just the character, not a rectangle). Sampled from a corner, so it
@@ -634,10 +645,21 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     setAvatarBuilt(true);
     await applyMode('vtuber');
   };
+  // Full-body paper doll: cut the body view (keyed) into a pose-driven rig — instant,
+  // zero CV on the artwork (all tracking runs on the streamer's real body).
+  const buildBodyFromBlob = async (raw: Blob, crop: { sx: number; sy: number; sw: number; sh: number }, cfg: { headSplit: number; arms?: { w: number; y0: number; y1: number } }) => {
+    if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
+    const keyed = await cropSheetFace(raw, crop); // same crop+key helper the face path uses
+    const rig = await buildBodyRig(keyed, cfg);
+    composerRef.current.setBodyAvatar({ kind: 'BODY2D', rig });
+  };
   const buildAvatar = async (file?: File | null) => {
     if (!file) return;
     setAvatarBuilding(true); setBuildMsg('Building avatar…'); setDemoId(null);
-    try { await buildAvatarFromBlob(file); }
+    try {
+      await buildBodyFromBlob(file, { sx: 0, sy: 0, sw: 1, sh: 1 }, UPLOAD_BODY).catch(() => {});
+      await buildAvatarFromBlob(file);
+    }
     catch (e: any) { alert(e?.message || 'Could not build that character into an avatar.'); }
     finally { setAvatarBuilding(false); }
   };
@@ -647,9 +669,18 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     try {
       const res = await fetch(demo.url);
       if (!res.ok) throw new Error(`${demo.name} isn't available yet.`);
-      await buildAvatarFromBlob(await cropSheetFace(await res.blob(), demo.crop));
+      const raw = await res.blob();
+      if (demo.body) await buildBodyFromBlob(raw, demo.body.crop, demo.body).catch(() => {});
+      await buildAvatarFromBlob(await cropSheetFace(raw, demo.crop));
     } catch (e: any) { alert(e?.message || 'Could not load that character.'); setDemoId(null); }
     finally { setAvatarBuilding(false); }
+  };
+  // Face swap ↔ full body — restarts the engine live.
+  const [vtuberStyle, setVtuberStyleState] = useState<'face' | 'body'>('face');
+  const applyVtuberStyle = async (s: 'face' | 'body') => {
+    setVtuberStyleState(s);
+    await composerRef.current?.setVtuberStyle(s);
+    if (camMode !== 'vtuber' && avatarBuilt) await applyMode('vtuber');
   };
 
   // ── Media + peers now run on the unified rtcCore backbone (broadcast topology:
@@ -1168,6 +1199,16 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                           <span className="text-[9px] font-bold leading-none">Upload</span>
                         </button>
                       </div>
+                      {avatarBuilt && (
+                        <div className="flex gap-1.5 px-1 mt-2">
+                          {([['face', '👤 Face swap'], ['body', '🕺 Full body']] as const).map(([s, label]) => (
+                            <button key={s} onClick={() => applyVtuberStyle(s)}
+                              className={`flex-1 py-2 rounded-lg text-[11px] font-bold transition-all ${vtuberStyle === s ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80'}`}>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                       <div className="flex flex-wrap gap-1.5 px-1 mt-2">
                         {camMode === 'vtuber' ? (
                           <button onClick={() => applyMode('front')}
