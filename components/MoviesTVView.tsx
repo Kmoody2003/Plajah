@@ -188,6 +188,7 @@ const HomeView: React.FC<{
   tabNav: React.ReactNode;
   onRequestSignIn: (action: string) => void;
   platformVideos?: any[];
+  localContent?: Album[];
   worlds?: IPWorld[];
   featuredCharacters?: Character[];
   filmClubs?: Club[];
@@ -196,7 +197,7 @@ const HomeView: React.FC<{
   universes, movies, tvSeries, genreCollections, curatedPlaylists,
   featuredItem, onSelectArchiveItem, onSelectMovie, setCurrentSubView,
   setActiveAllyUrl, onSelectCuratedPlaylist, tabNav, onRequestSignIn,
-  platformVideos = [], worlds = [], featuredCharacters = [], filmClubs = [],
+  platformVideos = [], localContent = [], worlds = [], featuredCharacters = [], filmClubs = [],
   onNavigate,
 }) => {
   const [heroIdx, setHeroIdx] = useState(0);
@@ -1300,6 +1301,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
                 tabNav={tabNavEl}
                 onRequestSignIn={action => setSignInAction(action)}
                 platformVideos={adaptedPlatformVideos}
+                localContent={localContent}
                 worlds={worlds}
                 featuredCharacters={featuredCharacters}
                 filmClubs={filmClubs}
