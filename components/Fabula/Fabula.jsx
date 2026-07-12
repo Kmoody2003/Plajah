@@ -3,6 +3,7 @@ import {
   Film, Music, Clapperboard, Layers, Play, Pause, SkipBack, Plus, Upload,
   Sparkles, ChevronLeft, Wand2, Users, Globe, Trash2, MonitorPlay, X, ListVideo,
   Palette, Box, Cpu, Lock, Unlock, Camera, Brush, Type, Captions, Keyboard,
+  Scissors, MousePointer2, FlagTriangleRight, FlagTriangleLeft,
 } from "lucide-react";
 import * as THREE from "three";
 import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from "idb-keyval";
@@ -534,10 +535,14 @@ export default function Fabula() {
   const [previewAsset, setPreviewAsset] = useState(null); // source viewer (dual canvas, à la resolve)
   const [srcPlaying, setSrcPlaying] = useState(false);
   const [srcTc, setSrcTc] = useState(0);
+  const [srcIn, setSrcIn] = useState(null);   // source-viewer mark-in (seconds into the asset)
+  const [srcOut, setSrcOut] = useState(null);  // source-viewer mark-out
+  useEffect(() => { setSrcIn(null); setSrcOut(null); setSrcTc(0); }, [previewAsset?.id]); // reset marks on new source
   const srcVideoRef = useRef(null);
   const [playhead, setPlayhead] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [selClipId, setSelClipId] = useState(null);
+  const [toolMode, setToolMode] = useState("select"); // select | razor
   const [zoom, setZoom] = useState(1);
   /* edit toolset: snapping, clipboard, markers, in/out, undo history, shortcuts */
   const [snapOn, setSnapOn] = useState(true);
@@ -714,6 +719,7 @@ export default function Fabula() {
     p.design.palette = p.design.palette || [];
     p.edits = p.edits || []; // standalone timelines — docs, music videos, any cut not bound to a scene
     p.mediaPool.forEach((a) => { a.bin = a.bin || "imports"; });
+    p.bins = p.bins || []; // user-created media bins (empty ones persist even with no assets yet)
     p.tracks = p.tracks && p.tracks.length ? p.tracks : TRACKS.map((t) => ({ ...t })); // dynamic, unlimited tracks
     return p;
   };
@@ -1262,11 +1268,15 @@ export default function Fabula() {
       ping(`Convert failed: ${err?.message || err}. Video/pro formats need the Crossover cloud (deploy pending).`);
     }
   };
-  const insertAssetClip = (asset) => {
+  const insertAssetClip = (asset, range) => {
     const isMc = asset.type === "multicam";
     const trackId = asset.type === "audio" ? "a2" : "v1";
+    // Honor a source-viewer in/out sub-range if a valid one was marked.
+    const hasRange = range && range.in != null && range.out != null && range.out > range.in;
+    const srcInVal = hasRange ? range.in : 0;
+    const duration = hasRange ? (range.out - range.in) : (asset.duration || 5);
     const next = [...clips, {
-      id: uid(), trackId, start: playhead, duration: asset.duration || 5,
+      id: uid(), trackId, start: playhead, duration, srcIn: srcInVal,
       kind: isMc ? "multicam" : "media", assetId: asset.id, label: asset.name, ...(isMc ? { angle: 0 } : {}),
     }];
     setClips(next); commitClips(next);
@@ -1675,6 +1685,23 @@ export default function Fabula() {
   const pasteClip = () => { if (!clipboard) return; const d = { ...JSON.parse(JSON.stringify(clipboard)), id: uid(), start: playhead }; applyClips([...clips, d]); setSelClipId(d.id); ping("Pasted"); };
   const liftDelete = () => { const c = getSel(); if (!c) return; applyClips(clips.filter((x) => x.id !== c.id)); setSelClipId(null); };
   const rippleDelete = () => { const c = getSel(); if (!c) return; const dur = c.duration; applyClips(clips.filter((x) => x.id !== c.id).map((x) => (x.trackId === c.trackId && x.start > c.start ? { ...x, start: Math.max(0, x.start - dur) } : x))); setSelClipId(null); };
+  // Ripple-delete the In→Out range across all tracks: remove the middle of any clip in range,
+  // keep the head/tail, and pull everything downstream left to close the gap.
+  const rippleDeleteRange = (a, b) => {
+    if (a == null || b == null || b <= a) return;
+    const gap = b - a;
+    const next = [];
+    for (const c of clips) {
+      const s = c.start, e = c.start + c.duration;
+      if (e <= a) { next.push(c); continue; }                                   // fully before
+      if (s >= b) { next.push({ ...c, start: Math.max(0, s - gap) }); continue; } // fully after → shift left
+      if (s < a) next.push({ ...c, duration: a - s });                          // head remainder
+      if (e > b) next.push({ ...c, id: uid(), start: a, duration: e - b, srcIn: (c.srcIn || 0) + (b - s) }); // tail remainder (gap closed)
+    }
+    next.sort((x, y) => x.start - y.start);
+    applyClips(next);
+    setMarkIn(null); setMarkOut(null); setSelClipId(null); setPlayhead(a);
+  };
   const nudgeSel = (dir) => { const c = getSel(); if (!c) return; applyClips(clips.map((x) => (x.id === c.id ? { ...x, start: Math.max(0, x.start + dir * frameDur) } : x))); };
   const toggleDisable = () => { const c = getSel(); if (!c) return; applyClips(clips.map((x) => (x.id === c.id ? { ...x, disabled: !x.disabled } : x))); };
   const addMarkerAtPlayhead = () => setMarkers((m) => [...m, { id: uid(), t: playhead }]);
@@ -1842,6 +1869,22 @@ export default function Fabula() {
     const rect = e.currentTarget.getBoundingClientRect();
     setPlayhead(Math.max(0, (e.clientX - rect.left) / pxPerSec));
   };
+  // Drag-scrub: hold + drag on the ruler to scrub the playhead (preview video + audio follow).
+  const startScrub = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const seek = (clientX) => setPlayhead(Math.max(0, (clientX - rect.left) / pxPerSec));
+    setPlaying(false); seek(e.clientX);
+    const move = (ev) => { ev.preventDefault(); seek(ev.clientX); };
+    const up = () => { document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); };
+    document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
+  };
+  // Razor: split the clip at the clicked position (used when the razor tool is active).
+  const razorAt = (e, clipId) => {
+    const body = e.currentTarget.parentElement; if (!body) return;
+    const rect = body.getBoundingClientRect();
+    const at = Math.max(0, (e.clientX - rect.left) / pxPerSec);
+    bladeClip(clipId, at);
+  };
 
   /* monitor source */
   const monitorClip = useMemo(() => {
@@ -1907,7 +1950,18 @@ export default function Fabula() {
                           if (v.paused) { v.play().catch(() => {}); setSrcPlaying(true); } else { v.pause(); setSrcPlaying(false); }
                         }}>{srcPlaying ? <Pause size={13} /> : <Play size={13} />}</button>
                       </div>
-                      <button className="minibtn" disabled={!previewAsset} onClick={() => previewAsset && insertAssetClip(previewAsset)} title="Insert at playhead">▼ INSERT</button>
+                      {/* Source in/out marking */}
+                      <button className="tbtn sm" title="Mark In (source)" disabled={!previewAsset?.url}
+                        onClick={() => setSrcIn(srcTc)} style={{ color: srcIn != null ? "#FF8C00" : undefined }}><FlagTriangleRight size={12} /></button>
+                      <span className="tc sm dim2">{srcIn != null ? fmtTc(srcIn, vfmt) : "--"} / {srcOut != null ? fmtTc(srcOut, vfmt) : "--"}</span>
+                      <button className="tbtn sm" title="Mark Out (source)" disabled={!previewAsset?.url}
+                        onClick={() => setSrcOut(srcTc)} style={{ color: srcOut != null ? "#FF8C00" : undefined }}><FlagTriangleLeft size={12} /></button>
+                      {(srcIn != null || srcOut != null) && (
+                        <button className="tbtn sm" title="Clear source in/out" onClick={() => { setSrcIn(null); setSrcOut(null); }}><X size={11} /></button>
+                      )}
+                      <button className="minibtn" disabled={!previewAsset}
+                        onClick={() => previewAsset && insertAssetClip(previewAsset, { in: srcIn, out: srcOut })}
+                        title={srcIn != null && srcOut != null && srcOut > srcIn ? "Insert marked range at playhead" : "Insert whole clip at playhead"}>▼ INSERT{srcIn != null && srcOut != null && srcOut > srcIn ? " RANGE" : ""}</button>
                     </div>
                   </div>
   );
@@ -2256,10 +2310,23 @@ export default function Fabula() {
   const renderTimeline = () => (
 <div className="tlwrap glass-dark">
                   <div className="tl-tools">
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span className="dim small">{container.title} {scene?.slugline ? "· " + scene.slugline : ""} · {clips.length} CLIPS</span>
-                      <button className="minibtn" disabled={!selClip} title="Cut selected clip at playhead"
-                        onClick={() => selClip && bladeClip(selClip.id, playhead)}>✂ CUT</button>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      {/* Tools */}
+                      <button className="minibtn" title="Select / move tool (V)" style={{ opacity: toolMode === "select" ? 1 : 0.5, color: toolMode === "select" ? "#FF8C00" : undefined }}
+                        onClick={() => setToolMode("select")}><MousePointer2 size={11} /></button>
+                      <button className="minibtn" title="Razor — click a clip to cut it (B / C)" style={{ opacity: toolMode === "razor" ? 1 : 0.5, color: toolMode === "razor" ? "#FF8C00" : undefined }}
+                        onClick={() => setToolMode(toolMode === "razor" ? "select" : "razor")}><Scissors size={11} /></button>
+                      <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,0.12)", margin: "0 2px" }} />
+                      <button className="minibtn" title="Split clip at playhead (S)" disabled={!clips.some((c) => playhead > c.start && playhead < c.start + c.duration)}
+                        onClick={() => bladeAtPlayhead()}><Scissors size={11} /> SPLIT</button>
+                      <button className="minibtn" title="Mark In (I)" onClick={() => setMarkIn(playhead)}><FlagTriangleRight size={11} /> IN</button>
+                      <button className="minibtn" title="Mark Out (O)" onClick={() => setMarkOut(playhead)}><FlagTriangleLeft size={11} /> OUT</button>
+                      <button className="minibtn" title="Clear In/Out" disabled={markIn == null && markOut == null}
+                        onClick={() => { setMarkIn(null); setMarkOut(null); }}><X size={11} /></button>
+                      <button className="minibtn" title="Ripple-delete range In→Out (closes the gap)" disabled={markIn == null || markOut == null || markOut <= markIn}
+                        onClick={() => rippleDeleteRange(markIn, markOut)}><Trash2 size={11} /> RIPPLE</button>
+                      <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,0.12)", margin: "0 2px" }} />
+                      <span className="dim small">{clips.length} CLIPS</span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative" }}>
                       <button className="minibtn" onClick={() => setFormatOpen(!formatOpen)} title="Project format">
@@ -2309,7 +2376,7 @@ export default function Fabula() {
                       {/* ruler */}
                       <div className="ruler">
                         <div className="trackhead rh"><span className="phdot" /></div>
-                        <div className="ruler-track" onMouseDown={rulerSeek}>
+                        <div className="ruler-track" onMouseDown={startScrub} style={{ cursor: "ew-resize" }}>
                           {Array.from({ length: Math.ceil((seqEnd + 22)) }).map((_, i) => (
                             <span key={i} className="tick" style={{ left: i * pxPerSec }}>{i % (zoom < 0.8 ? 5 : 2) === 0 ? "00:" + String(i).padStart(2, "0") : ""}</span>
                           ))}
@@ -2340,10 +2407,10 @@ export default function Fabula() {
                               return (
                                 <div key={c.id}
                                   className={`clip ${c.kind} ${sel ? "sel" : ""} ${shot?.status === "ready" ? "rdy" : ""}`}
-                                  style={{ left: c.start * pxPerSec, width: Math.max(8, c.duration * pxPerSec), opacity: c.disabled ? 0.4 : 1 }}
-                                  onMouseDown={(e) => onClipDown(e, c.id, "move")}
-                                  onClick={(e) => { e.stopPropagation(); setSelClipId(c.id); }}
-                                  onDoubleClick={(e) => { e.stopPropagation(); openNested(c); }}>
+                                  style={{ left: c.start * pxPerSec, width: Math.max(8, c.duration * pxPerSec), opacity: c.disabled ? 0.4 : 1, cursor: toolMode === "razor" ? "crosshair" : undefined }}
+                                  onMouseDown={(e) => { if (toolMode === "razor") { e.stopPropagation(); razorAt(e, c.id); return; } onClipDown(e, c.id, "move"); }}
+                                  onClick={(e) => { e.stopPropagation(); if (toolMode !== "razor") setSelClipId(c.id); }}
+                                  onDoubleClick={(e) => { e.stopPropagation(); if (toolMode !== "razor") openNested(c); }}>
                                   {shot?.frameUrl && c.kind !== "voice" && <img className="clipframe" src={shot.frameUrl} alt="" />}
                                   <div className="cliplabel">
                                     {c.kind === "script" && <Clapperboard size={9} />}
@@ -3014,11 +3081,28 @@ export default function Fabula() {
                   <div className="mediaws glass-dark">
                     <div className="mwside">
                       <div className="paneltitle"><MonitorPlay size={12} /> BINS</div>
-                      {["all", ...Array.from(new Set((prod.mediaPool || []).map((a) => a.bin || "imports")))].map((b) => (
-                        <button key={b} className={`binbtn ${binFilter === b ? "on" : ""}`} onClick={() => setBinFilter(b)}>
-                          {b.toUpperCase()} <span className="catcount">{b === "all" ? prod.mediaPool.length : prod.mediaPool.filter((a) => (a.bin || "imports") === b).length}</span>
-                        </button>
-                      ))}
+                      {["all", ...Array.from(new Set([...(prod.bins || []), ...(prod.mediaPool || []).map((a) => a.bin || "imports")]))].map((b) => {
+                        const count = b === "all" ? prod.mediaPool.length : prod.mediaPool.filter((a) => (a.bin || "imports") === b).length;
+                        return (
+                          <button key={b} className={`binbtn ${binFilter === b ? "on" : ""}`} onClick={() => setBinFilter(b)}
+                            onDoubleClick={() => {
+                              if (b === "all" || b === "imports") return;
+                              if (count > 0) { ping("Move its assets out first, then the bin can be removed."); return; }
+                              updateProd((p) => { p.bins = (p.bins || []).filter((x) => x !== b); });
+                              if (binFilter === b) setBinFilter("all");
+                            }}
+                            title={b === "all" || b === "imports" ? "" : "Double-click to remove empty bin"}>
+                            {b.toUpperCase()} <span className="catcount">{count}</span>
+                          </button>
+                        );
+                      })}
+                      <button className="binbtn" style={{ color: "var(--green)", borderColor: "rgba(120,220,150,0.3)" }}
+                        onClick={() => {
+                          const name = (window.prompt("New bin name") || "").trim();
+                          if (!name) return;
+                          updateProd((p) => { p.bins = p.bins || []; if (!p.bins.includes(name)) p.bins.push(name); });
+                          setBinFilter(name);
+                        }}>+ NEW BIN</button>
                       <div className="insp-div" />
                       <button className="minibtn full" onClick={() => fileRef.current?.click()}><Upload size={12} /> IMPORT FILES</button>
                       <button className="minibtn full blue" style={{ marginTop: 6 }} onClick={() => folderRef.current?.click()} title="Folder import runs the full intelligence: bins route to world categories, character folders verify into the Cast"><Upload size={12} /> IMPORT FOLDER</button>
@@ -3039,6 +3123,13 @@ export default function Fabula() {
                           <span className="poolname">{a.name}</span>
                           <div className="btnrow" style={{ gap: 4, marginTop: 3 }}>
                             <span className={`pooltype ${a.type}`}>{{ video: "VID", audio: "AUD", image: "IMG", multicam: "MC", model: "3D", graphic: "GFX", text: "TXT" }[a.type] || "FILE"}</span>
+                            <select value={a.bin || "imports"} onClick={(e) => e.stopPropagation()} title="Bin"
+                              onChange={(e) => { const nb = e.target.value; updateProd((p) => { const x = p.mediaPool.find((y) => y.id === a.id); if (x) x.bin = nb; }); }}
+                              style={{ fontSize: 8, background: "rgba(0,0,0,0.4)", color: "#bbb", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 3, maxWidth: 68 }}>
+                              {Array.from(new Set(["imports", ...(prod.bins || []), ...(prod.mediaPool || []).map((x) => x.bin || "imports")])).map((b) => (
+                                <option key={b} value={b}>{b}</option>
+                              ))}
+                            </select>
                             {["image", "video", "graphic"].includes(a.type) && (
                               <button className={`chip ${a.designation === "frame" ? "blue" : "dimchip"}`} style={{ border: "none", cursor: "pointer" }}
                                 onClick={() => updateProd((p) => { const x = p.mediaPool.find((y) => y.id === a.id); if (x) x.designation = x.designation === "frame" ? "concept" : "frame"; })}>
