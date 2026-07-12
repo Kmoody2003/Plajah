@@ -19,6 +19,7 @@ import { useFabulaShortcuts } from "./useFabulaShortcuts";
 import KeyboardShortcutsEditor from "./KeyboardShortcutsEditor";
 import { loadShortcutPrefs } from "../../services/fabula/shortcuts";
 import Waveform from "./Waveform";
+import { attachAudioGraph, CLIP_AUDIO_DEFAULT, COMP_DEFAULT, EQ_LABELS } from "../../services/fabula/audioGraph";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
@@ -569,6 +570,8 @@ export default function Fabula() {
   const rateRef = useRef(1);
   const histRef = useRef({ past: [], future: [] });
   const dragRef = useRef(null);
+  const activeViewerRef = useRef("program"); // "program" | "source" — which viewer Space controls
+  const dragAssetRef = useRef(null);         // asset being dragged from the source viewer → timeline
   const saveTimer = useRef(null);
   const cancelRef = useRef(false);
   const fileRef = useRef(null);
@@ -1284,21 +1287,37 @@ export default function Fabula() {
       ping(`Convert failed: ${err?.message || err}. Video/pro formats need the Crossover cloud (deploy pending).`);
     }
   };
-  const insertAssetClip = (asset, range) => {
+  const insertAssetClip = (asset, range, opts = {}) => {
     const isMc = asset.type === "multicam";
-    const trackId = asset.type === "audio" ? "a2" : "v1";
     // Honor a source-viewer in/out sub-range if a valid one was marked.
     const hasRange = range && range.in != null && range.out != null && range.out > range.in;
     const srcInVal = hasRange ? range.in : 0;
     const duration = hasRange ? (range.out - range.in) : (asset.duration || 5);
-    const next = [...clips, {
-      id: uid(), trackId, start: playhead, duration, srcIn: srcInVal,
-      kind: isMc ? "multicam" : "media", assetId: asset.id, label: asset.name, ...(isMc ? { angle: 0 } : {}),
-    }];
-    setClips(next); commitClips(next);
+    const start = opts.at != null ? Math.max(0, opts.at) : playhead;
+    const aTrack = tracks.find((t) => t.type === "audio")?.id || "a1";
+    const dropType = opts.trackId ? tracks.find((t) => t.id === opts.trackId)?.type : null;
+    // Audio-only asset, OR dropped onto an audio track → a single audio clip.
+    if (asset.type === "audio" || dropType === "audio") {
+      const clip = { id: uid(), trackId: dropType === "audio" ? opts.trackId : aTrack, start, duration, srcIn: srcInVal, kind: "media", assetId: asset.id, label: asset.name };
+      const next = [...clips, clip]; setClips(next); commitClips(next); setSelClipId(clip.id); return;
+    }
+    // Multicam / stills → single picture clip (no linked audio).
+    if (isMc || asset.type === "image" || asset.type === "graphic") {
+      const trackId = opts.trackId && dropType === "video" ? opts.trackId : "v1";
+      const clip = { id: uid(), trackId, start, duration, srcIn: srcInVal, kind: isMc ? "multicam" : "media", assetId: asset.id, label: asset.name, ...(isMc ? { angle: 0 } : {}) };
+      const next = [...clips, clip]; setClips(next); commitClips(next); setSelClipId(clip.id); return;
+    }
+    // Video → linked picture + audio pair (the clip's sound rides an audio track so
+    // track volume/pan/EQ apply). The picture clip is `av`-muted; audio plays via AudioLayer.
+    const trackId = opts.trackId && dropType === "video" ? opts.trackId : "v1";
+    const linkId = uid();
+    const videoClip = { id: uid(), trackId, start, duration, srcIn: srcInVal, kind: "media", assetId: asset.id, label: asset.name, linkId, av: true };
+    const audioClip = { id: uid(), trackId: aTrack, start, duration, srcIn: srcInVal, kind: "media", assetId: asset.id, label: asset.name + " · A", linkId };
+    const next = [...clips, videoClip, audioClip]; setClips(next); commitClips(next); setSelClipId(videoClip.id);
   };
   // Load an asset into the source viewer; `play` = double-click behaviour (start playing).
   const openInViewer = (a, play) => {
+    activeViewerRef.current = "source";
     setPreviewAsset(a); setSrcTc(0);
     const playable = play && a?.url && (a.type === "video" || a.type === "audio");
     srcWantPlayRef.current = !!playable;
@@ -1950,7 +1969,14 @@ export default function Fabula() {
   };
 
   useFabulaShortcuts({
-    "playback.playPause": () => { rateRef.current = 1; setPlaying((p) => !p); },
+    "playback.playPause": () => {
+      // Space follows the active viewer: if the source viewer was last engaged, toggle it; else the program monitor.
+      if (activeViewerRef.current === "source" && previewAsset?.url && (previewAsset.type === "video" || previewAsset.type === "audio")) {
+        const v = srcVideoRef.current;
+        if (v) { if (v.paused) { v.play().catch(() => {}); setSrcPlaying(true); } else { v.pause(); setSrcPlaying(false); } return; }
+      }
+      rateRef.current = 1; setPlaying((p) => !p);
+    },
     "playback.shuttleBack": () => { rateRef.current = -2; setPlaying(true); },
     "playback.shuttleStop": () => setPlaying(false),
     "playback.shuttleFwd": () => { rateRef.current = 2; setPlaying(true); },
@@ -2048,13 +2074,32 @@ export default function Fabula() {
     e.stopPropagation();
     const c = clips.find((x) => x.id === clipId);
     if (!c) return;
-    dragRef.current = { clipId, mode, startX: e.clientX, origStart: c.start, origDur: c.duration, origSrcIn: c.srcIn || 0, trackId: c.trackId, trimMode };
+    // Linked A/V: siblings sharing this clip's linkId move together.
+    const links = c.linkId ? clips.filter((x) => x.linkId === c.linkId && x.id !== clipId).map((x) => ({ id: x.id, origStart: x.start })) : [];
+    dragRef.current = { clipId, mode, startX: e.clientX, origStart: c.start, origDur: c.duration, origSrcIn: c.srcIn || 0, trackId: c.trackId, trimMode, links };
     setSelClipId(clipId);
   };
   const onTimelineMove = (e) => {
     const d = dragRef.current; if (!d) return;
     const dt = (e.clientX - d.startX) / pxPerSec;
     const snap = (v) => Math.round(v * 20) / 20;
+    const fps = vfmt.fps || 24;
+    // Edge-snap: pull a value toward the playhead or any neighbouring clip edge on this track.
+    const edgeSnap = (val, dur) => {
+      if (!snapOn) return val;
+      const pts = [0, playhead];
+      clips.forEach((x) => { if (x.trackId === d.trackId && x.id !== d.clipId) { pts.push(x.start, x.start + x.duration); } });
+      const thresh = 0.2;
+      let best = val, bestD = thresh;
+      pts.forEach((p) => {
+        const dLead = Math.abs(val - p); if (dLead < bestD) { bestD = dLead; best = p; }             // leading edge kisses a point
+        if (dur != null) { const dTrail = Math.abs((val + dur) - p); if (dTrail < bestD) { bestD = dTrail; best = p - dur; } } // trailing edge kisses a point
+      });
+      return Math.max(0, best);
+    };
+    // Live trim preview: park the playhead on the frame at the edge being trimmed (Resolve-style).
+    if (d.mode === "start") { const nd = Math.max(0.3, d.origDur - dt); setPlayhead(Math.max(0, snap(d.origStart + (d.origDur - nd)))); }
+    else if (d.mode === "end") { const nd = Math.max(0.3, d.origDur + dt); setPlayhead(Math.max(0, snap(d.origStart + nd) - 1 / fps)); }
     setClips((cur) => {
       const same = cur.filter((x) => x.trackId === d.trackId).sort((a, b) => a.start - b.start);
       const nextC = same[same.findIndex((x) => x.id === d.clipId) + 1];
@@ -2063,9 +2108,14 @@ export default function Fabula() {
         if (d.trimMode === "slip") {
           return cur.map((x) => (x.id === d.clipId ? { ...x, srcIn: Math.max(0, snap(d.origSrcIn + dt)) } : x)); // shift content within window
         }
-        let ns = Math.max(0, d.origStart + dt);
-        if (snapOn && Math.abs(ns - playhead) < 0.18) ns = playhead;
-        return cur.map((x) => (x.id === d.clipId ? { ...x, start: snap(ns) } : x));
+        const ns = snap(edgeSnap(Math.max(0, d.origStart + dt), d.origDur));
+        const moveDelta = ns - d.origStart;
+        return cur.map((x) => {
+          if (x.id === d.clipId) return { ...x, start: ns };
+          const lk = d.links.find((l) => l.id === x.id); // linked A/V sibling rides along
+          if (lk) return { ...x, start: Math.max(0, snap(lk.origStart + moveDelta)) };
+          return x;
+        });
       }
       // left-edge trim — changes start + duration + srcIn together
       if (d.mode === "start") {
@@ -2075,6 +2125,8 @@ export default function Fabula() {
         const nSrc = Math.max(0, d.origSrcIn + consumed);
         return cur.map((x) => {
           if (x.id === d.clipId) return { ...x, start: snap(ns), duration: snap(nd), srcIn: snap(nSrc) };
+          const lk = d.links.find((l) => l.id === x.id);
+          if (lk) return { ...x, start: snap(ns), duration: snap(nd), srcIn: snap(nSrc) };
           if (d.trimMode === "ripple" && x.trackId === d.trackId && x.start > d.origStart) return { ...x, start: snap(x.start - consumed) };
           return x;
         });
@@ -2085,6 +2137,8 @@ export default function Fabula() {
         const delta = nd - d.origDur;
         return cur.map((x) => {
           if (x.id === d.clipId) return { ...x, duration: snap(nd) };
+          const lk = d.links.find((l) => l.id === x.id);
+          if (lk) return { ...x, duration: snap(nd) };
           if (d.trimMode === "ripple" && x.trackId === d.trackId && x.start > d.origStart) return { ...x, start: snap(x.start + delta) };
           if (d.trimMode === "roll" && nextC && x.id === nextC.id) return { ...x, start: snap(x.start + delta), duration: Math.max(0.3, snap(x.duration - delta)), srcIn: Math.max(0, snap((x.srcIn || 0) + delta)) };
           return x;
@@ -2134,14 +2188,58 @@ export default function Fabula() {
   const selShot = selClip?.shotId ? scene?.shots.find((s) => s.id === selClip.shotId) : null;
   const selMc = selClip?.kind === "multicam" ? prod?.mediaPool.find((a) => a.id === selClip.assetId) : null;
   const seqEnd = clips.reduce((m, c) => Math.max(m, c.start + c.duration), 0);
+  const selTrackType = selClip ? (tracks.find((t) => t.id === selClip.trackId)?.type) : null;
+  const selIsAudio = !!selClip && (selTrackType === "audio" || selClip.kind === "voice");
+
+  /* ----- audio channel strip (clip + track): vol / pan / 5-band EQ / compressor ----- */
+  const ensureAudio = (c) => ({ ...CLIP_AUDIO_DEFAULT, ...(c?.audio || {}), eq: [...((c?.audio?.eq) || CLIP_AUDIO_DEFAULT.eq)], comp: { ...COMP_DEFAULT, ...(c?.audio?.comp || {}) } });
+  const updateClipAudio = (id, patch) => { const n = clips.map((c) => (c.id === id ? { ...c, audio: { ...ensureAudio(c), ...patch } } : c)); setClips(n); commitClips(n); };
+  const renderAudioPanel = (title, a, onPatch, withPan) => {
+    const comp = { ...COMP_DEFAULT, ...(a.comp || {}) };
+    const eq = a.eq || [0, 0, 0, 0, 0];
+    const R = (lbl, node) => <div className="insp-row"><span className="lbl">{lbl}</span>{node}</div>;
+    return (
+      <div className="apanel">
+        <div className="aphead">{title}</div>
+        {R("VOL", <><input type="range" min="0" max="1.5" step="0.01" value={a.vol == null ? 1 : a.vol} onChange={(e) => onPatch({ vol: parseFloat(e.target.value) })} /><span className="insp-val mono">{Math.round((a.vol == null ? 1 : a.vol) * 100)}%</span></>)}
+        {withPan && R("PAN", <><input type="range" min="-1" max="1" step="0.02" value={a.pan || 0} onChange={(e) => onPatch({ pan: parseFloat(e.target.value) })} onDoubleClick={() => onPatch({ pan: 0 })} /><span className="insp-val mono">{(a.pan || 0) === 0 ? "C" : a.pan < 0 ? "L" + Math.round(-a.pan * 100) : "R" + Math.round(a.pan * 100)}</span></>)}
+        <div className="lbl" style={{ marginTop: 8 }}>5-BAND EQ · dB</div>
+        <div className="apeq">
+          {EQ_LABELS.map((lbl, i) => (
+            <div className="apband" key={i}>
+              <input type="range" min="-12" max="12" step="0.5" value={eq[i] || 0} onChange={(e) => { const ne = [...eq]; ne[i] = parseFloat(e.target.value); onPatch({ eq: ne }); }}
+                style={{ writingMode: "vertical-lr", direction: "rtl", width: 18, height: 62 }} title={`${lbl}Hz`} />
+              <span>{lbl}</span>
+              <b style={{ color: (eq[i] || 0) === 0 ? "rgba(255,255,255,.35)" : "#7ee2a8" }}>{(eq[i] || 0) > 0 ? "+" : ""}{eq[i] || 0}</b>
+            </div>
+          ))}
+        </div>
+        <div className="insp-row" style={{ marginTop: 6 }}>
+          <span className="lbl">COMPRESSOR</span>
+          <button className={`minibtn ${comp.on ? "blue" : ""}`} onClick={() => onPatch({ comp: { ...comp, on: !comp.on } })}>{comp.on ? "ON" : "OFF"}</button>
+        </div>
+        {comp.on && <>
+          {R("THRESH", <><input type="range" min="-60" max="0" step="1" value={comp.threshold} onChange={(e) => onPatch({ comp: { ...comp, threshold: parseFloat(e.target.value) } })} /><span className="insp-val mono">{comp.threshold}dB</span></>)}
+          {R("RATIO", <><input type="range" min="1" max="20" step="0.5" value={comp.ratio} onChange={(e) => onPatch({ comp: { ...comp, ratio: parseFloat(e.target.value) } })} /><span className="insp-val mono">{comp.ratio}:1</span></>)}
+          {R("ATTACK", <><input type="range" min="0" max="0.2" step="0.001" value={comp.attack} onChange={(e) => onPatch({ comp: { ...comp, attack: parseFloat(e.target.value) } })} /><span className="insp-val mono">{Math.round(comp.attack * 1000)}ms</span></>)}
+          {R("RELEASE", <><input type="range" min="0.01" max="1" step="0.01" value={comp.release} onChange={(e) => onPatch({ comp: { ...comp, release: parseFloat(e.target.value) } })} /><span className="insp-val mono">{Math.round(comp.release * 1000)}ms</span></>)}
+          {R("MAKEUP", <><input type="range" min="0" max="24" step="0.5" value={comp.makeup} onChange={(e) => onPatch({ comp: { ...comp, makeup: parseFloat(e.target.value) } })} /><span className="insp-val mono">+{comp.makeup}dB</span></>)}
+        </>}
+      </div>
+    );
+  };
 
   // video element sync now lives inside MonitorLayer (per-layer, multicam-offset aware)
 
   /* ----- edit-page block renderers (shared across resolve-style workspaces) ----- */
   const renderSource = () => (
-                  <div className="viewer src">
+                  <div className="viewer src" onMouseDown={() => (activeViewerRef.current = "source")}>
                     <div className="viewer-tag">SOURCE: {previewAsset ? previewAsset.name : "NO CLIP SELECTED"}</div>
-                    <div className="viewer-body">
+                    <div className="viewer-body"
+                      draggable={!!previewAsset?.url}
+                      onDragStart={(e) => { if (!previewAsset?.url) { e.preventDefault(); return; } dragAssetRef.current = { asset: previewAsset, range: { in: srcIn, out: srcOut } }; e.dataTransfer.effectAllowed = "copy"; try { e.dataTransfer.setData("text/plain", "fabula-src"); } catch { /* */ } }}
+                      onDragEnd={() => { dragAssetRef.current = null; }}
+                      title={previewAsset?.url ? "Drag into the timeline to insert this clip" : undefined}>
                       {previewAsset ? (
                         <>
                           {previewAsset.type === "video" && previewAsset.url && (
@@ -2292,7 +2390,7 @@ export default function Fabula() {
                   </aside>
   );
   const renderMonitor = () => (
-<section className="monitor">
+<section className="monitor" onMouseDown={() => (activeViewerRef.current = "program")}>
                     <div className="screen" style={{ aspectRatio: prod.defaults.aspect.includes(":") ? prod.defaults.aspect.replace(":", "/") : "2.39/1", filter: LOOKS.find((l) => l.id === prod.design?.lookId)?.filter || "none" }}>
                       {videoTracksAsc.map((tr, i) => {
                         const lc = clips.find((c) => c.trackId === tr.id && playhead >= c.start && playhead < c.start + c.duration);
@@ -2305,7 +2403,7 @@ export default function Fabula() {
                         const ac = clips.find((c) => c.trackId === tr.id && c.assetId && playhead >= c.start && playhead < c.start + c.duration);
                         if (!ac) return null;
                         const ts = (container.timeline?.trackSettings || {})[tr.id] || { vol: 1, mute: false };
-                        return <AudioLayer key={tr.id} clip={ac} prod={prod} playhead={playhead} playing={playing} vol={ts.vol} mute={ts.mute} />;
+                        return <AudioLayer key={tr.id} clip={ac} prod={prod} playhead={playhead} playing={playing} track={ts} />;
                       })}
                       {(() => {
                         const sc = clips.find((c) => c.kind === "subtitle" && c.text && playhead >= c.start && playhead < c.start + c.duration);
@@ -2368,6 +2466,18 @@ export default function Fabula() {
                         <div className="insp-row"><span className="lbl">CLIP</span><span className="insp-val">{selClip.label}</span></div>
                         <div className="insp-row"><span className="lbl">KIND</span><span className={`chip ${selClip.kind === "script" ? "amb" : selClip.kind === "voice" ? "green" : "blue"}`}>{selClip.kind.toUpperCase()}</span></div>
                         <div className="insp-row"><span className="lbl">IN / DUR</span><span className="insp-val mono">{fmtTc(selClip.start, vfmt)} · {selClip.duration.toFixed(1)}s</span></div>
+                        {selIsAudio && (() => {
+                          const tid = selClip.trackId;
+                          const ts = (container.timeline?.trackSettings || {})[tid] || {};
+                          const ta = { vol: ts.vol, pan: ts.pan || 0, mute: ts.mute, eq: ts.eq || [0, 0, 0, 0, 0], comp: { ...COMP_DEFAULT, ...(ts.comp || {}) } };
+                          return (
+                            <>
+                              <div className="insp-div" />
+                              {renderAudioPanel("CLIP AUDIO", ensureAudio(selClip), (patch) => updateClipAudio(selClip.id, patch), false)}
+                              {renderAudioPanel(`TRACK · ${String(tid).toUpperCase()}`, ta, (patch) => setTrackSetting(tid, patch), true)}
+                            </>
+                          );
+                        })()}
                         {selClip.kind === "subtitle" && (
                           <>
                             <div className="insp-div" />
@@ -2464,7 +2574,7 @@ export default function Fabula() {
                             <Cpu size={12} /> ⚡ GENERATE VIA {engines[0].name.toUpperCase()}
                           </button>
                         )}
-                        {selClip.kind !== "voice" && (() => {
+                        {selClip.kind !== "voice" && !selIsAudio && (() => {
                           const fx = ensureFx(selClip);
                           const slider = (lbl, key, min, max, step) => (
                             <div className="fxrow" key={key}>
@@ -2768,9 +2878,31 @@ export default function Fabula() {
                       {tracks.map((tr) => (
                         <div className={`track ${tr.id === "v1" ? "primary" : ""}`} key={tr.id}>
                           <div className={`trackhead ${tr.type}`}>
-                            {tr.type === "video" ? <Film size={10} /> : tr.type === "subtitle" ? <Captions size={10} /> : <Music size={10} />} {tr.name}
+                            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                              {tr.type === "video" ? <Film size={10} /> : tr.type === "subtitle" ? <Captions size={10} /> : <Music size={10} />} {tr.name}
+                            </div>
+                            {tr.type === "audio" && (() => {
+                              const ts = (container.timeline?.trackSettings || {})[tr.id] || {};
+                              const vol = ts.vol == null ? 1 : ts.vol, pan = ts.pan || 0, mute = !!ts.mute;
+                              return (
+                                <div className="trkmix">
+                                  <button className={`trkmute ${mute ? "on" : ""}`} title={mute ? "Unmute track" : "Mute track"} onClick={(e) => { e.stopPropagation(); setTrackSetting(tr.id, { mute: !mute }); }}>{mute ? "M" : "M"}</button>
+                                  <label title={`Volume ${Math.round(vol * 100)}%`}><span>VOL</span><input type="range" min="0" max="1.5" step="0.01" value={vol} onChange={(e) => setTrackSetting(tr.id, { vol: parseFloat(e.target.value) })} onMouseDown={(e) => e.stopPropagation()} /></label>
+                                  <label title={`Pan ${pan === 0 ? "C" : pan < 0 ? "L" + Math.round(-pan * 100) : "R" + Math.round(pan * 100)}`}><span>PAN</span><input type="range" min="-1" max="1" step="0.02" value={pan} onChange={(e) => setTrackSetting(tr.id, { pan: parseFloat(e.target.value) })} onMouseDown={(e) => e.stopPropagation()} onDoubleClick={() => setTrackSetting(tr.id, { pan: 0 })} /></label>
+                                </div>
+                              );
+                            })()}
                           </div>
-                          <div className="trackbody">
+                          <div className="trackbody"
+                            onDragOver={(e) => { if (dragAssetRef.current) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } }}
+                            onDrop={(e) => {
+                              const d = dragAssetRef.current; if (!d) return;
+                              e.preventDefault();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const at = Math.max(0, (e.clientX - rect.left) / pxPerSec);
+                              insertAssetClip(d.asset, d.range, { at, trackId: tr.id });
+                              dragAssetRef.current = null;
+                            }}>
                             {clips.filter((c) => c.trackId === tr.id).map((c) => {
                               const shot = c.shotId ? scene?.shots.find((s) => s.id === c.shotId) : null;
                               const sel = selClipId === c.id;
@@ -3804,20 +3936,35 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
   const shot = clip.shotId ? scene?.shots.find((s) => s.id === clip.shotId) : null;
   const vRef = videoRef || localRef;
 
+  // Target source-time for the current playhead, held in a ref so the video's own
+  // load/seek events can re-apply it (fixes: a freshly-swapped clip renders black or a
+  // stale frame until you click — the seek was issued before the element could honor it).
+  const seekRef = useRef(0);
+  const doSeek = () => {
+    const v = vRef.current;
+    if (!v || asset?.type !== "video") return;
+    const t = seekRef.current;
+    if (!Number.isFinite(t)) return;
+    // Seek ~1 frame-tight when paused (accurate trim/in-out preview); loose while playing (no stutter).
+    if (Math.abs(v.currentTime - t) > (playing ? 0.25 : 0.034)) {
+      try { v.currentTime = Math.max(0, t); } catch { /* not seekable yet — onLoadedData/onSeeked retries */ }
+    }
+  };
   useEffect(() => {
     const v = vRef.current;
-    if (v && asset?.type === "video") {
-      const t = playhead - clip.start + offset;
-      if (!playing || Math.abs(v.currentTime - t) > 0.25) v.currentTime = Math.max(0, t);
-      if (playing && v.paused) v.play().catch(() => {});
-      if (!playing && !v.paused) v.pause();
-    }
+    if (!v || asset?.type !== "video") return;
+    seekRef.current = Math.max(0, playhead - clip.start + offset);
+    doSeek();
+    if (playing) { if (v.paused) v.play().catch(() => {}); }
+    else if (!v.paused) v.pause();
   }, [playhead, playing, asset?.url, clip.start, offset]);
   // Live audio: honor the track's mixer vol/mute (was hardcoded `muted`, so nothing played).
+  // av === linked-audio clip present → the picture is muted here and its sound plays through the
+  // audio track (AudioLayer), so track volume/pan/EQ apply.
   useEffect(() => {
     const v = vRef.current;
-    if (v && asset?.type === "video") { v.volume = Math.max(0, Math.min(1, vol)); v.muted = !!mute || !!clip.disabled; }
-  }, [vol, mute, clip.disabled, asset?.url]);
+    if (v && asset?.type === "video") { v.volume = Math.max(0, Math.min(1, vol)); v.muted = !!mute || !!clip.disabled || !!clip.av; }
+  }, [vol, mute, clip.disabled, clip.av, asset?.url]);
 
   // fades
   const tIn = playhead - clip.start, tOut = clip.start + clip.duration - playhead;
@@ -3847,7 +3994,7 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
         <SceneView snapshot={asset.pixels} palette={prod?.pixelsConfig?.colorPalette}
           playing={playing} time={playhead - clip.start + offset} className="mvid" />
       ) : <>
-        {asset?.url && asset.type === "video" && <video ref={vRef} src={asset.url} className="mvid" muted={!!mute || !!clip.disabled} playsInline />}
+        {asset?.url && asset.type === "video" && <video ref={vRef} src={asset.url} className="mvid" muted={!!mute || !!clip.disabled || !!clip.av} playsInline preload="auto" onLoadedData={doSeek} onCanPlay={doSeek} onSeeked={() => { if (!playing) doSeek(); }} />}
         {asset?.url && (asset.type === "image" || asset.type === "graphic") && <img src={asset.url} className="mvid" alt="" />}
         {asset && !asset.url && (
           <div className="sboard">
@@ -3880,8 +4027,9 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
 /* ---------- audio playback: one active clip on one audio track (a1/a2) ----------
    Audio-track clips were only drawn as waveforms — never mounted to a playing element,
    so music/dialogue was silent. This mounts a hidden <audio> synced to the playhead. */
-function AudioLayer({ clip, prod, playhead, playing, vol = 1, mute = false }) {
+function AudioLayer({ clip, prod, playhead, playing, track = {} }) {
   const aRef = useRef(null);
+  const graphRef = useRef(undefined); // undefined = not attempted, null = failed (use element vol), Graph = active
   const asset = clip.assetId ? prod.mediaPool.find((a) => a.id === clip.assetId) : null;
   const url = asset?.url;
   const offset = clip.srcIn || 0;
@@ -3893,10 +4041,23 @@ function AudioLayer({ clip, prod, playhead, playing, vol = 1, mute = false }) {
     if (playing && a.paused) a.play().catch(() => {});
     if (!playing && !a.paused) a.pause();
   }, [playhead, playing, url, clip.start, offset]);
+  // DSP strip: gain / pan / 5-band EQ / compressor at clip + track stage. Falls back to
+  // element volume if Web Audio isn't available or the element is already sourced.
+  const clipAudioKey = JSON.stringify(clip.audio || null);
+  const trackKey = JSON.stringify({ v: track.vol, m: track.mute, p: track.pan, e: track.eq, c: track.comp });
   useEffect(() => {
     const a = aRef.current;
-    if (a) { a.volume = Math.max(0, Math.min(1, vol)); a.muted = !!mute || !!clip.disabled; }
-  }, [vol, mute, clip.disabled, url]);
+    if (!a || !url) return;
+    if (graphRef.current === undefined) graphRef.current = attachAudioGraph(a);
+    const g = graphRef.current;
+    if (g) { g.resume(); a.muted = !!clip.disabled; a.volume = 1; g.apply(clip.audio, track); }
+    else { // no graph — plain element controls (no EQ/comp/pan, but vol + mute still work)
+      const cv = clip.audio?.vol == null ? 1 : clip.audio.vol;
+      const tv = track.vol == null ? 1 : track.vol;
+      a.volume = Math.max(0, Math.min(1, cv * tv));
+      a.muted = !!track.mute || !!clip.disabled;
+    }
+  }, [url, clipAudioKey, trackKey, clip.disabled]);
   if (!url || clip.disabled) return null;
   return <audio ref={aRef} src={url} preload="auto" style={{ display: "none" }} />;
 }
@@ -4219,10 +4380,26 @@ const CSS = `
 .tl-scroll{flex:1;overflow:auto;position:relative}
 .tl-inner{position:relative;min-height:100%}
 .ruler{display:flex;height:22px;border-bottom:1px solid var(--w08);position:sticky;top:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);z-index:6}
-.trackhead{width:128px;min-width:128px;border-right:1px solid var(--w08);display:flex;align-items:center;gap:6px;
-  padding:0 10px;font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;position:sticky;left:0;
+.trackhead{width:128px;min-width:128px;border-right:1px solid var(--w08);display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;
+  padding:0 8px;font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;position:sticky;left:0;
   background:rgba(8,8,8,.92);z-index:5}
 .trackhead.video{color:var(--blue)} .trackhead.audio{color:var(--green)}
+.trkmix{display:flex;flex-direction:column;gap:1px;width:100%}
+.trkmix label{display:flex;align-items:center;gap:4px;width:100%}
+.trkmix label span{font-size:6.5px;color:rgba(255,255,255,.4);width:16px;flex-shrink:0}
+.trkmix input[type=range]{flex:1;height:8px;accent-color:var(--green);cursor:pointer;margin:0}
+.trkmute{position:absolute;right:6px;top:5px;width:15px;height:15px;border-radius:4px;border:1px solid var(--w08);
+  background:rgba(255,255,255,.05);color:rgba(255,255,255,.5);font-size:8px;font-weight:900;cursor:pointer;padding:0}
+.trkmute.on{background:var(--red);color:#fff;border-color:var(--red)}
+.apanel{border:1px solid var(--w08);border-radius:8px;padding:8px;margin:6px 0;background:rgba(61,220,132,.04)}
+.aphead{font-size:9px;font-weight:900;letter-spacing:.1em;color:var(--green);margin-bottom:6px}
+.apanel .insp-row{margin:3px 0}
+.apanel .insp-row input[type=range]{flex:1;accent-color:var(--green)}
+.apeq{display:flex;justify-content:space-between;gap:4px;padding:4px 2px 0}
+.apband{display:flex;flex-direction:column;align-items:center;gap:2px}
+.apband input[type=range]{accent-color:var(--green);cursor:pointer}
+.apband span{font-size:7px;color:rgba(255,255,255,.4)}
+.apband b{font-size:8px;font-family:'JetBrains Mono',monospace}
 .rh{justify-content:center}
 .phdot{width:6px;height:6px;border-radius:50%;background:var(--red);animation:bl 1.2s infinite}
 .ruler-track{flex:1;position:relative;cursor:crosshair}
