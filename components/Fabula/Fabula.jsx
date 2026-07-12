@@ -758,7 +758,9 @@ export default function Fabula() {
       if (p) stSet("studio:prod:" + id, p).catch(() => {}); // re-seed the local cache
     }
     if (!p) { setError("Couldn't load that production."); return; }
-    setProd(migrate(p)); setSceneSel(null); setProdTab("structure");
+    const mp = migrate(p);
+    await rehydrateBlobs(mp); // re-point dead blob URLs to stashed bytes before showing
+    setProd(mp); setSceneSel(null); setProdTab("structure");
   };
   const deleteProduction = async (id) => {
     if (!window.confirm("Delete this production and everything inside it?")) return;
@@ -1233,6 +1235,7 @@ export default function Fabula() {
       const type = f.type.startsWith("video") ? "video" : f.type.startsWith("audio") ? "audio" : "image";
       const id = uid();
       addAssetToPool({ id, name: f.name, type, url: URL.createObjectURL(f), duration: type === "image" ? 0 : 5, session: true, bin: "imports" });
+      stSet("studio:blob:" + id, f); // stash the bytes so the media survives a reload + can sync to cloud later
       return { id, f, type };
     });
     if (files.length) ping(`Imported ${files.length} asset${files.length > 1 ? "s" : ""}`);
@@ -1303,6 +1306,18 @@ export default function Fabula() {
   };
   // Relink an offline/missing asset to a local file (re-point its url).
   const openRelink = (assetId) => { relinkTargetRef.current = assetId; relinkRef.current?.click(); };
+  // On load, re-point dead local URLs (blob: from a prior session) to the stashed bytes in
+  // IndexedDB — so imported media plays AND can sync to the cloud after a reload. Mutates p.
+  const rehydrateBlobs = async (p) => {
+    if (!p?.mediaPool?.length) return;
+    await Promise.all(p.mediaPool.map(async (a) => {
+      const local = !a.url || a.url.startsWith("blob:") || a.url.startsWith("data:") || a.offline;
+      if (!local) return;
+      if (a.url && a.url.startsWith("blob:")) { try { if ((await fetch(a.url)).ok) return; } catch { /* dead */ } }
+      const b = await stGet("studio:blob:" + a.id);
+      if (b && b.size) { try { a.url = URL.createObjectURL(b); a.offline = false; a.session = true; } catch { /* */ } }
+    }));
+  };
   // Source-viewer waveform scrubber: click/drag across the waveform to seek the source.
   const startSrcScrub = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -1370,25 +1385,35 @@ export default function Fabula() {
   // project opens on any device. Down-sync is automatic — loadProjectCloud already returns
   // the project with these cloud URLs. Re-run any time you add local media.
   const [syncing, setSyncing] = useState(false);
-  const unsyncedCount = (prod?.mediaPool || []).filter((a) => a.url && a.url.startsWith("blob:")).length;
+  const isLocalUrl = (u) => !!u && (u.startsWith("blob:") || u.startsWith("data:"));
+  const unsyncedCount = (prod?.mediaPool || []).filter((a) => isLocalUrl(a.url)).length;
   const syncAssetsToCloud = async (onlyIds) => {
     if (!prod || syncing) return;
-    if (!auth.currentUser) { ping("Sign in to sync your project to the cloud."); return; }
+    if (!auth.currentUser) { window.alert("Sign in to Plajah first.\n\nCloud sync stores your media under your account so the project opens on any device. You're not signed in, so there's nowhere to put it."); return; }
     const idSet = onlyIds && onlyIds.length ? new Set(onlyIds) : null;
-    const local = (prod.mediaPool || []).filter((a) => a.url && a.url.startsWith("blob:") && (!idSet || idSet.has(a.id)));
-    if (!local.length) { ping(idSet ? "The selected media is already in the cloud." : "All assets are already in the cloud — this project opens everywhere."); return; }
+    const local = (prod.mediaPool || []).filter((a) => isLocalUrl(a.url) && (!idSet || idSet.has(a.id)));
+    if (!local.length) { ping(idSet ? "The selected media is already in the cloud." : "All media is already in the cloud — this project is portable."); return; }
     setSyncing(true);
-    let done = 0;
+    let done = 0; const failed = []; const dead = [];
     for (const a of local) {
       try {
-        const blob = await fetch(a.url).then((r) => r.blob());
-        const cloudUrl = await uploadFabulaAsset(prod.id, a.id, blob, a.name, (pct) => setSaveState(`sync ${a.name} ${pct}%`));
+        let blob;
+        try { blob = await fetch(a.url).then((r) => { if (!r.ok) throw new Error("gone"); return r.blob(); }); }
+        catch { blob = null; } // the blob: URL died (page reloaded) — fall back to the stashed bytes
+        if (!blob || !blob.size) { blob = await stGet("studio:blob:" + a.id); }
+        if (!blob || !blob.size) { dead.push(a.name); continue; }
+        const cloudUrl = await uploadFabulaAsset(prod.id, a.id, blob, a.name, (pct) => setSaveState(`↑ ${a.name} ${pct}%`));
         updateProd((p) => { const x = p.mediaPool.find((y) => y.id === a.id); if (x) { x.url = cloudUrl; x.cloudUrl = cloudUrl; x.session = false; x.offline = false; } });
         done++; ping(`Synced ${done}/${local.length} · ${a.name}`);
-      } catch (e) { ping(`Couldn't sync ${a.name} — ${e?.message || "upload failed"}`); }
+      } catch (e) { failed.push(`${a.name}: ${e?.code || e?.message || "upload failed"}`); }
     }
-    setSyncing(false);
-    ping(done === local.length ? `☁ Cloud sync complete — ${done} asset${done === 1 ? "" : "s"} available everywhere.` : `Synced ${done}/${local.length}. Retry to finish the rest.`);
+    setSyncing(false); setSaveState("saved");
+    if (!failed.length && !dead.length) { ping(`☁ Cloud sync complete — ${done} asset${done === 1 ? "" : "s"} available on any device.`); return; }
+    const lines = [];
+    if (done) lines.push(`✅ Synced ${done} asset${done === 1 ? "" : "s"} to the cloud.`);
+    if (dead.length) lines.push(`\n⚠️ ${dead.length} couldn't be read — these were only held in this browser session and are gone after a reload. Re-import (or relink from folder), then sync again:\n• ${dead.slice(0, 8).join("\n• ")}${dead.length > 8 ? `\n• …${dead.length - 8} more` : ""}`);
+    if (failed.length) lines.push(`\n❌ ${failed.length} failed to upload (send me this error):\n• ${failed.slice(0, 8).join("\n• ")}`);
+    window.alert(lines.join("\n"));
   };
   // Batch relink from a folder: pick a folder, match each target asset by filename, re-point it.
   // targets = asset ids (null = all offline assets). "finds the clips again" workflow.
@@ -1400,8 +1425,9 @@ export default function Fabula() {
     const ids = folderRelinkTargetsRef.current;
     const targets = (prod.mediaPool || []).filter((a) => (ids ? ids.includes(a.id) : (!a.url || a.offline)));
     if (!targets.length) { ping("Nothing to relink — all selected media is already online."); folderRelinkTargetsRef.current = null; return; }
-    const relinks = targets.map((a) => { const f = byName.get((a.name || "").toLowerCase()); return f ? { id: a.id, url: URL.createObjectURL(f), type: f.type.startsWith("video") ? "video" : f.type.startsWith("audio") ? "audio" : "image" } : null; }).filter(Boolean);
+    const relinks = targets.map((a) => { const f = byName.get((a.name || "").toLowerCase()); return f ? { id: a.id, f, url: URL.createObjectURL(f) } : null; }).filter(Boolean);
     if (!relinks.length) { ping("No matching filenames found in that folder."); folderRelinkTargetsRef.current = null; return; }
+    for (const r of relinks) stSet("studio:blob:" + r.id, r.f); // stash bytes for reload + cloud sync
     updateProd((p) => { for (const r of relinks) { const x = p.mediaPool.find((y) => y.id === r.id); if (x) { x.url = r.url; x.offline = false; x.session = true; } } });
     ping(`🔗 Relinked ${relinks.length} of ${targets.length} clip${targets.length === 1 ? "" : "s"} from the folder.`);
     folderRelinkTargetsRef.current = null;
@@ -2200,6 +2226,7 @@ export default function Fabula() {
                         const f = e.target.files?.[0]; const id = relinkTargetRef.current;
                         if (f && id) {
                           const type = f.type.startsWith("video") ? "video" : f.type.startsWith("audio") ? "audio" : "image";
+                          stSet("studio:blob:" + id, f); // stash so it survives reloads + can sync
                           relinkAsset(id, URL.createObjectURL(f), f.name, type);
                         }
                         e.target.value = ""; relinkTargetRef.current = null;
