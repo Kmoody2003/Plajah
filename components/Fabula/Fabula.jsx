@@ -570,6 +570,8 @@ export default function Fabula() {
   const rateRef = useRef(1);
   const histRef = useRef({ past: [], future: [] });
   const dragRef = useRef(null);
+  const tlScrollRef = useRef(null);          // the scrolling timeline viewport (for zoom-to-fit width)
+  const [tlHeight, setTlHeight] = useState(320); // resizable timeline height (drag the divider)
   const activeViewerRef = useRef("program"); // "program" | "source" — which viewer Space controls
   const dragAssetRef = useRef(null);         // asset being dragged from the source viewer → timeline
   const saveTimer = useRef(null);
@@ -1953,9 +1955,23 @@ export default function Fabula() {
     } catch { ping("Couldn't rename that project."); }
   };
   const addMarkerAtPlayhead = () => setMarkers((m) => [...m, { id: uid(), t: playhead }]);
-  const zoomIn = () => setZoom((z) => Math.min(2, +(z + 0.2).toFixed(2)));
-  const zoomOut = () => setZoom((z) => Math.max(0.4, +(z - 0.2).toFixed(2)));
-  const zoomFit = () => setZoom(Math.max(0.4, Math.min(2, 8 / (tlEnd() || 1))));
+  const zoomIn = () => setZoom((z) => Math.min(4, +(z + 0.2).toFixed(2)));
+  const zoomOut = () => setZoom((z) => Math.max(0.1, +(z - 0.2).toFixed(2)));
+  // Drag the divider above the timeline to grow/shrink it (dragging up = taller timeline).
+  const startTlResize = (e) => {
+    e.preventDefault();
+    const startY = e.clientY, startH = tlHeight;
+    const move = (ev) => setTlHeight(Math.max(150, Math.min(window.innerHeight - 200, startH + (startY - ev.clientY))));
+    const up = () => { document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); };
+    document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
+  };
+  // Fit the whole sequence to the visible timeline width (minus the 128px track headers).
+  const zoomFit = () => {
+    const w = tlScrollRef.current?.clientWidth || 900;
+    const avail = Math.max(240, w - 128 - 28);
+    const secs = tlEnd() || 1;
+    setZoom(Math.max(0.1, Math.min(4, +(avail / (secs * 46)).toFixed(3))));
+  };
   const addCrossDissolve = () => {
     const c = getSel(); if (!c) return;
     const same = clips.filter((x) => x.trackId === c.trackId).sort((a, b) => a.start - b.start);
@@ -2789,7 +2805,9 @@ export default function Fabula() {
     );
   };
   const renderTimeline = () => (
-<div className="tlwrap glass-dark">
+<>
+                <div className="tl-resize" title="Drag to resize the timeline" onMouseDown={startTlResize} />
+<div className="tlwrap glass-dark" style={{ height: tlHeight }}>
                   <div className="tl-tools">
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       {/* Tools */}
@@ -2848,11 +2866,12 @@ export default function Fabula() {
                       )}
                       <div className="zoomer">
                         <span className="dim small">ZOOM</span>
-                        <input type="range" min="0.4" max="2" step="0.1" value={zoom} onChange={(e) => setZoom(parseFloat(e.target.value))} />
+                        <input type="range" min="0.1" max="4" step="0.05" value={zoom} onChange={(e) => setZoom(parseFloat(e.target.value))} />
+                        <button className="minibtn" title="Zoom to fit the whole sequence" onClick={zoomFit}>FIT</button>
                       </div>
                     </div>
                   </div>
-                  <div className="tl-scroll">
+                  <div className="tl-scroll" ref={tlScrollRef}>
                     <div className="tl-inner" style={{ width: Math.max(900, (seqEnd + 20) * pxPerSec + 128) }}>
                       {/* ruler */}
                       <div className="ruler">
@@ -2979,6 +2998,7 @@ export default function Fabula() {
                     </div>
                   </div>
                 </div>
+</>
   );
 
   /* ════════════════ RENDER ════════════════ */
@@ -4373,12 +4393,18 @@ const CSS = `
   border-radius:6px;padding:6px 9px;margin-top:5px;font-size:9.5px;font-weight:900;letter-spacing:.18em;color:var(--w40)}
 
 /* timeline */
-.tlwrap{height:252px;border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
-.tl-tools{height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--w08)}
+.tlwrap{border-radius:12px;display:flex;flex-direction:column;overflow:hidden;flex:0 0 auto;min-height:150px}
+.tl-resize{height:8px;flex:0 0 auto;cursor: row-resize;display:flex;align-items:center;justify-content:center;margin:-4px 0 -2px}
+.tl-resize::after{content:"";width:44px;height:3px;border-radius:2px;background:rgba(255,255,255,.18)}
+.tl-resize:hover::after{background:var(--accent,#FF8C00)}
+.tl-tools{height:32px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--w08)}
 .zoomer{display:flex;align-items:center;gap:8px}
 .zoomer input{width:110px;accent-color:#f97316}
-.tl-scroll{flex:1;overflow:auto;position:relative}
-.tl-inner{position:relative;min-height:100%}
+.tl-scroll{flex:1 1 auto;overflow-x:auto;overflow-y:auto;position:relative;min-height:0}
+.tl-scroll::-webkit-scrollbar{width:12px;height:12px}
+.tl-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:6px;border:3px solid transparent;background-clip:padding-box}
+.tl-scroll::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.4);background-clip:padding-box}
+.tl-inner{position:relative;min-height:min-content}
 .ruler{display:flex;height:22px;border-bottom:1px solid var(--w08);position:sticky;top:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);z-index:6}
 .trackhead{width:128px;min-width:128px;border-right:1px solid var(--w08);display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;
   padding:0 8px;font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;position:sticky;left:0;
