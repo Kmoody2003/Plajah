@@ -1873,14 +1873,19 @@ export default function Fabula() {
                       {previewAsset ? (
                         <>
                           {previewAsset.type === "video" && previewAsset.url && (
-                            <video ref={srcVideoRef} src={previewAsset.url} className="mvid framed" muted loop
-                              onTimeUpdate={(e) => setSrcTc(e.currentTarget.currentTime)} />
+                            <video ref={srcVideoRef} src={previewAsset.url} className="mvid framed" playsInline
+                              onTimeUpdate={(e) => setSrcTc(e.currentTarget.currentTime)}
+                              onEnded={() => setSrcPlaying(false)} />
                           )}
                           {(previewAsset.type === "image" || previewAsset.type === "graphic") && previewAsset.url && (
                             <img src={previewAsset.url} className="mvid framed" alt="" />
                           )}
                           {previewAsset.type === "audio" && (
-                            <div className="srcaudio"><Music size={56} /><span>AUDIO ASSET PREVIEW</span></div>
+                            <div className="srcaudio"><Music size={56} /><span>AUDIO ASSET PREVIEW</span>
+                              {previewAsset.url && <audio ref={srcVideoRef} src={previewAsset.url}
+                                onTimeUpdate={(e) => setSrcTc(e.currentTarget.currentTime)}
+                                onEnded={() => setSrcPlaying(false)} />}
+                            </div>
                           )}
                           {previewAsset.type === "multicam" && (
                             <div className="srcaudio" style={{ color: "#a855f7" }}><Layers size={56} /><span>{previewAsset.angles.length}-ANGLE MULTICAM</span></div>
@@ -1897,7 +1902,7 @@ export default function Fabula() {
                       <span className="tc sm">{fmtTc(srcTc, vfmt)}</span>
                       <div className="tbtns">
                         <button className="tbtn sm" onClick={() => { if (srcVideoRef.current) srcVideoRef.current.currentTime = 0; setSrcTc(0); }}><SkipBack size={12} /></button>
-                        <button className="tbtn sm" disabled={previewAsset?.type !== "video"} onClick={() => {
+                        <button className="tbtn sm" disabled={!(previewAsset?.url && (previewAsset?.type === "video" || previewAsset?.type === "audio"))} onClick={() => {
                           const v = srcVideoRef.current; if (!v) return;
                           if (v.paused) { v.play().catch(() => {}); setSrcPlaying(true); } else { v.pause(); setSrcPlaying(false); }
                         }}>{srcPlaying ? <Pause size={13} /> : <Play size={13} />}</button>
@@ -1978,7 +1983,15 @@ export default function Fabula() {
                       {videoTracksAsc.map((tr, i) => {
                         const lc = clips.find((c) => c.trackId === tr.id && playhead >= c.start && playhead < c.start + c.duration);
                         if (!lc) return null;
-                        return <MonitorLayer key={tr.id} clip={lc} prod={prod} scene={scene} playhead={playhead} playing={playing} top={i > 0} z={i + 1} videoRef={i === 0 ? videoRef : undefined} />;
+                        const ts = (container.timeline?.trackSettings || {})[tr.id] || { vol: 1, mute: false };
+                        return <MonitorLayer key={tr.id} clip={lc} prod={prod} scene={scene} playhead={playhead} playing={playing} top={i > 0} z={i + 1} videoRef={i === 0 ? videoRef : undefined} vol={ts.vol} mute={ts.mute} />;
+                      })}
+                      {/* Audio bed — mount hidden <audio> for the live clip on each audio track */}
+                      {tracks.filter((t) => t.type === "audio").map((tr) => {
+                        const ac = clips.find((c) => c.trackId === tr.id && c.assetId && playhead >= c.start && playhead < c.start + c.duration);
+                        if (!ac) return null;
+                        const ts = (container.timeline?.trackSettings || {})[tr.id] || { vol: 1, mute: false };
+                        return <AudioLayer key={tr.id} clip={ac} prod={prod} playhead={playhead} playing={playing} vol={ts.vol} mute={ts.mute} />;
                       })}
                       {(() => {
                         const sc = clips.find((c) => c.kind === "subtitle" && c.text && playhead >= c.start && playhead < c.start + c.duration);
@@ -3266,7 +3279,7 @@ export default function Fabula() {
 }
 
 /* ---------- compositing layer: one active clip on one video track ---------- */
-function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef }) {
+function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, vol = 1, mute = false }) {
   const localRef = useRef(null);
   const fx = ensureFx(clip);
   // resolve media (multicam → active angle)
@@ -3289,6 +3302,11 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef }
       if (!playing && !v.paused) v.pause();
     }
   }, [playhead, playing, asset?.url, clip.start, offset]);
+  // Live audio: honor the track's mixer vol/mute (was hardcoded `muted`, so nothing played).
+  useEffect(() => {
+    const v = vRef.current;
+    if (v && asset?.type === "video") { v.volume = Math.max(0, Math.min(1, vol)); v.muted = !!mute || !!clip.disabled; }
+  }, [vol, mute, clip.disabled, asset?.url]);
 
   // fades
   const tIn = playhead - clip.start, tOut = clip.start + clip.duration - playhead;
@@ -3318,7 +3336,7 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef }
         <SceneView snapshot={asset.pixels} palette={prod?.pixelsConfig?.colorPalette}
           playing={playing} time={playhead - clip.start + offset} className="mvid" />
       ) : <>
-        {asset?.url && asset.type === "video" && <video ref={vRef} src={asset.url} className="mvid" muted />}
+        {asset?.url && asset.type === "video" && <video ref={vRef} src={asset.url} className="mvid" muted={!!mute || !!clip.disabled} playsInline />}
         {asset?.url && (asset.type === "image" || asset.type === "graphic") && <img src={asset.url} className="mvid" alt="" />}
         {asset && !asset.url && (
           <div className="sboard">
@@ -3346,6 +3364,30 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef }
       )}
     </div>
   );
+}
+
+/* ---------- audio playback: one active clip on one audio track (a1/a2) ----------
+   Audio-track clips were only drawn as waveforms — never mounted to a playing element,
+   so music/dialogue was silent. This mounts a hidden <audio> synced to the playhead. */
+function AudioLayer({ clip, prod, playhead, playing, vol = 1, mute = false }) {
+  const aRef = useRef(null);
+  const asset = clip.assetId ? prod.mediaPool.find((a) => a.id === clip.assetId) : null;
+  const url = asset?.url;
+  const offset = clip.srcIn || 0;
+  useEffect(() => {
+    const a = aRef.current;
+    if (!a || !url) return;
+    const t = playhead - clip.start + offset;
+    if (!playing || Math.abs(a.currentTime - t) > 0.25) { try { a.currentTime = Math.max(0, t); } catch { /* seeking */ } }
+    if (playing && a.paused) a.play().catch(() => {});
+    if (!playing && !a.paused) a.pause();
+  }, [playhead, playing, url, clip.start, offset]);
+  useEffect(() => {
+    const a = aRef.current;
+    if (a) { a.volume = Math.max(0, Math.min(1, vol)); a.muted = !!mute || !!clip.disabled; }
+  }, [vol, mute, clip.disabled, url]);
+  if (!url || clip.disabled) return null;
+  return <audio ref={aRef} src={url} preload="auto" style={{ display: "none" }} />;
 }
 
 /* ---------- 3D STAGE: flat image → depth-displaced set geometry ---------- */
