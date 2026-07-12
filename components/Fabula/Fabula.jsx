@@ -19,7 +19,7 @@ import { useFabulaShortcuts } from "./useFabulaShortcuts";
 import KeyboardShortcutsEditor from "./KeyboardShortcutsEditor";
 import { loadShortcutPrefs } from "../../services/fabula/shortcuts";
 import Waveform from "./Waveform";
-import { attachAudioGraph, CLIP_AUDIO_DEFAULT, COMP_DEFAULT, EQ_LABELS } from "../../services/fabula/audioGraph";
+import { attachAudioGraph, meterRegistry, CLIP_AUDIO_DEFAULT, COMP_DEFAULT, EQ_LABELS } from "../../services/fabula/audioGraph";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
@@ -739,6 +739,10 @@ export default function Fabula() {
     p.mediaPool.forEach((a) => { a.bin = a.bin || "imports"; });
     p.bins = p.bins || []; // user-created media bins (empty ones persist even with no assets yet)
     p.tracks = p.tracks && p.tracks.length ? p.tracks : TRACKS.map((t) => ({ ...t })); // dynamic, unlimited tracks
+    // Ensure the standard audio pair exists — older projects predate A2, so it never rendered.
+    ["a1", "a2"].forEach((aid) => {
+      if (!p.tracks.some((t) => t.id === aid)) p.tracks.push({ id: aid, name: aid.toUpperCase() + (aid === "a1" ? " · DIALOGUE" : " · MUSIC"), type: "audio" });
+    });
     return p;
   };
 
@@ -2419,7 +2423,7 @@ export default function Fabula() {
                         const ac = clips.find((c) => c.trackId === tr.id && c.assetId && playhead >= c.start && playhead < c.start + c.duration);
                         if (!ac) return null;
                         const ts = (container.timeline?.trackSettings || {})[tr.id] || { vol: 1, mute: false };
-                        return <AudioLayer key={tr.id} clip={ac} prod={prod} playhead={playhead} playing={playing} track={ts} />;
+                        return <AudioLayer key={tr.id} clip={ac} prod={prod} playhead={playhead} playing={playing} track={ts} trackId={tr.id} />;
                       })}
                       {(() => {
                         const sc = clips.find((c) => c.kind === "subtitle" && c.text && playhead >= c.start && playhead < c.start + c.duration);
@@ -2895,19 +2899,25 @@ export default function Fabula() {
                       <div className="phline" style={{ left: 128 + playhead * pxPerSec }} />
                       {/* tracks */}
                       {tracks.map((tr) => (
-                        <div className={`track ${tr.id === "v1" ? "primary" : ""}`} key={tr.id}>
+                        <div className={`track ${tr.type} ${tr.id === "v1" ? "primary" : ""}`} key={tr.id}>
                           <div className={`trackhead ${tr.type}`}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                              {tr.type === "video" ? <Film size={10} /> : tr.type === "subtitle" ? <Captions size={10} /> : <Music size={10} />} {tr.name}
+                            <div className="thname">
+                              {tr.type === "video" ? <Film size={10} /> : tr.type === "subtitle" ? <Captions size={10} /> : <Music size={10} />}
+                              <span className="thlabel">{tr.name}</span>
                             </div>
                             {tr.type === "audio" && (() => {
                               const ts = (container.timeline?.trackSettings || {})[tr.id] || {};
                               const vol = ts.vol == null ? 1 : ts.vol, pan = ts.pan || 0, mute = !!ts.mute;
                               return (
-                                <div className="trkmix">
-                                  <button className={`trkmute ${mute ? "on" : ""}`} title={mute ? "Unmute track" : "Mute track"} onClick={(e) => { e.stopPropagation(); setTrackSetting(tr.id, { mute: !mute }); }}>{mute ? "M" : "M"}</button>
-                                  <label title={`Volume ${Math.round(vol * 100)}%`}><span>VOL</span><input type="range" min="0" max="1.5" step="0.01" value={vol} onChange={(e) => setTrackSetting(tr.id, { vol: parseFloat(e.target.value) })} onMouseDown={(e) => e.stopPropagation()} /></label>
-                                  <label title={`Pan ${pan === 0 ? "C" : pan < 0 ? "L" + Math.round(-pan * 100) : "R" + Math.round(pan * 100)}`}><span>PAN</span><input type="range" min="-1" max="1" step="0.02" value={pan} onChange={(e) => setTrackSetting(tr.id, { pan: parseFloat(e.target.value) })} onMouseDown={(e) => e.stopPropagation()} onDoubleClick={() => setTrackSetting(tr.id, { pan: 0 })} /></label>
+                                <div className="trkstrip">
+                                  <div className="trkctrls">
+                                    <button className={`trkmute ${mute ? "on" : ""}`} title={mute ? "Unmute track" : "Mute track"} onClick={(e) => { e.stopPropagation(); setTrackSetting(tr.id, { mute: !mute }); }}>M</button>
+                                    <div className="trkfaders">
+                                      <label title={`Volume ${Math.round(vol * 100)}%`}><span>V</span><input type="range" min="0" max="1.5" step="0.01" value={vol} onChange={(e) => setTrackSetting(tr.id, { vol: parseFloat(e.target.value) })} onMouseDown={(e) => e.stopPropagation()} /></label>
+                                      <label title={`Pan ${pan === 0 ? "Center" : pan < 0 ? "L" + Math.round(-pan * 100) : "R" + Math.round(pan * 100)}`}><span>P</span><input type="range" min="-1" max="1" step="0.02" value={pan} onChange={(e) => setTrackSetting(tr.id, { pan: parseFloat(e.target.value) })} onMouseDown={(e) => e.stopPropagation()} onDoubleClick={() => setTrackSetting(tr.id, { pan: 0 })} /></label>
+                                    </div>
+                                  </div>
+                                  <TrackMeter trackId={tr.id} />
                                 </div>
                               );
                             })()}
@@ -3005,6 +3015,7 @@ export default function Fabula() {
   return (
     <div className="studio" onMouseMove={onTimelineMove} onMouseUp={onTimelineUp}>
       <style>{CSS}</style>
+      {prod && page === "edit" && <MediaWarmer prod={prod} clips={clips} />}
 
       {/* ───── animated splash ───── */}
       {splash && (
@@ -4047,7 +4058,7 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
 /* ---------- audio playback: one active clip on one audio track (a1/a2) ----------
    Audio-track clips were only drawn as waveforms — never mounted to a playing element,
    so music/dialogue was silent. This mounts a hidden <audio> synced to the playhead. */
-function AudioLayer({ clip, prod, playhead, playing, track = {} }) {
+function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId }) {
   const aRef = useRef(null);
   const graphRef = useRef(undefined); // undefined = not attempted, null = failed (use element vol), Graph = active
   const asset = clip.assetId ? prod.mediaPool.find((a) => a.id === clip.assetId) : null;
@@ -4070,16 +4081,64 @@ function AudioLayer({ clip, prod, playhead, playing, track = {} }) {
     if (!a || !url) return;
     if (graphRef.current === undefined) graphRef.current = attachAudioGraph(a);
     const g = graphRef.current;
-    if (g) { g.resume(); a.muted = !!clip.disabled; a.volume = 1; g.apply(clip.audio, track); }
+    if (g) { g.resume(); a.muted = !!clip.disabled; a.volume = 1; g.apply(clip.audio, track); if (trackId) meterRegistry.set(trackId, g.level); }
     else { // no graph — plain element controls (no EQ/comp/pan, but vol + mute still work)
       const cv = clip.audio?.vol == null ? 1 : clip.audio.vol;
       const tv = track.vol == null ? 1 : track.vol;
       a.volume = Math.max(0, Math.min(1, cv * tv));
       a.muted = !!track.mute || !!clip.disabled;
     }
-  }, [url, clipAudioKey, trackKey, clip.disabled]);
+  }, [url, clipAudioKey, trackKey, clip.disabled, trackId]);
+  // Release the meter when this track's clip goes silent/unmounts.
+  useEffect(() => () => { if (trackId && meterRegistry.get(trackId) === graphRef.current?.level) meterRegistry.delete(trackId); }, [trackId]);
   if (!url || clip.disabled) return null;
   return <audio ref={aRef} src={url} preload="auto" style={{ display: "none" }} />;
+}
+
+/* ---------- Resolve-style per-track peak meter (reads the live DSP analyser) ---------- */
+function TrackMeter({ trackId }) {
+  const coverRef = useRef(null);
+  const peakRef = useRef(0);
+  useEffect(() => {
+    let raf; let hold = 0;
+    const tick = () => {
+      const sampler = meterRegistry.get(trackId);
+      const lv = sampler ? Math.min(1, sampler() * 1.1) : 0;
+      // fast attack, slow release for a readable ballistic like a real meter
+      hold = lv > hold ? lv : Math.max(lv, hold - 0.03);
+      if (coverRef.current) coverRef.current.style.height = (100 - hold * 100).toFixed(1) + "%";
+      raf = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(raf);
+  }, [trackId]);
+  return <div className="vmeter" title="Track level"><i ref={coverRef} style={{ height: "100%" }} /></div>;
+}
+
+/* ---------- media warm cache: keep timeline clips' media decoded + resident in RAM ----------
+   Playback used to drop out at clip boundaries because the monitor element swaps `src` and the
+   browser tears down / reloads the next clip cold. This mounts hidden preloaded elements for the
+   media used on the timeline so the bytes stay resident and the browser keeps them warm — playback
+   across cuts is far smoother, and the second pass is seamless. Capped to bound memory. */
+function MediaWarmer({ prod, clips }) {
+  const items = useMemo(() => {
+    const seen = new Set(); const out = [];
+    for (const c of clips) {
+      if (!c.assetId || seen.has(c.assetId)) continue;
+      const a = prod?.mediaPool?.find((x) => x.id === c.assetId);
+      if (a?.url && (a.type === "video" || a.type === "audio")) { seen.add(c.assetId); out.push({ id: a.id, url: a.url, type: a.type }); }
+      if (out.length >= 12) break;
+    }
+    return out;
+  }, [clips, prod]);
+  if (!items.length) return null;
+  return (
+    <div aria-hidden style={{ position: "absolute", width: 0, height: 0, overflow: "hidden", opacity: 0, pointerEvents: "none" }}>
+      {items.map((it) => it.type === "video"
+        ? <video key={it.id} src={it.url} preload="auto" muted playsInline />
+        : <audio key={it.id} src={it.url} preload="auto" />)}
+    </div>
+  );
 }
 
 /* ---------- 3D STAGE: flat image → depth-displaced set geometry ---------- */
@@ -4406,17 +4465,25 @@ const CSS = `
 .tl-scroll::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.4);background-clip:padding-box}
 .tl-inner{position:relative;min-height:min-content}
 .ruler{display:flex;height:22px;border-bottom:1px solid var(--w08);position:sticky;top:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);z-index:6}
-.trackhead{width:128px;min-width:128px;border-right:1px solid var(--w08);display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;
-  padding:0 8px;font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;position:sticky;left:0;
-  background:rgba(8,8,8,.92);z-index:5}
+.trackhead{width:128px;min-width:128px;max-width:128px;border-right:1px solid var(--w08);display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:3px;
+  padding:4px 8px;font-size:9px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;position:sticky;left:0;
+  background:rgba(8,8,8,.92);z-index:5;overflow:hidden}
 .trackhead.video{color:var(--blue)} .trackhead.audio{color:var(--green)}
-.trkmix{display:flex;flex-direction:column;gap:1px;width:100%}
-.trkmix label{display:flex;align-items:center;gap:4px;width:100%}
-.trkmix label span{font-size:6.5px;color:rgba(255,255,255,.4);width:16px;flex-shrink:0}
-.trkmix input[type=range]{flex:1;height:8px;accent-color:var(--green);cursor:pointer;margin:0}
-.trkmute{position:absolute;right:6px;top:5px;width:15px;height:15px;border-radius:4px;border:1px solid var(--w08);
-  background:rgba(255,255,255,.05);color:rgba(255,255,255,.5);font-size:8px;font-weight:900;cursor:pointer;padding:0}
+.thname{display:flex;align-items:center;gap:4px;min-width:0}
+.thlabel{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+/* audio channel strip — controls on the left, vertical peak meter on the right; nothing spills the 128px header */
+.trkstrip{display:flex;align-items:stretch;gap:6px;min-width:0}
+.trkctrls{display:flex;align-items:center;gap:5px;flex:1 1 auto;min-width:0}
+.trkfaders{display:flex;flex-direction:column;gap:2px;flex:1 1 auto;min-width:0}
+.trkfaders label{display:flex;align-items:center;gap:4px;min-width:0}
+.trkfaders label span{font-size:7px;color:rgba(255,255,255,.4);width:9px;flex:0 0 auto}
+.trkfaders input[type=range]{flex:1 1 auto;width:100%;min-width:0;height:10px;accent-color:var(--green);cursor:pointer;margin:0}
+.trkmute{flex:0 0 auto;width:17px;height:17px;border-radius:4px;border:1px solid var(--w08);
+  background:rgba(255,255,255,.05);color:rgba(255,255,255,.5);font-size:9px;font-weight:900;cursor:pointer;padding:0;line-height:1}
 .trkmute.on{background:var(--red);color:#fff;border-color:var(--red)}
+.vmeter{flex:0 0 auto;width:9px;align-self:stretch;border-radius:2px;overflow:hidden;position:relative;
+  background:linear-gradient(to top,#25c26a 0%,#25c26a 55%,#e6d84f 78%,#ff5252 100%)}
+.vmeter i{position:absolute;left:0;right:0;top:0;background:#0c0c0e;display:block}
 .apanel{border:1px solid var(--w08);border-radius:8px;padding:8px;margin:6px 0;background:rgba(61,220,132,.04)}
 .aphead{font-size:9px;font-weight:900;letter-spacing:.1em;color:var(--green);margin-bottom:6px}
 .apanel .insp-row{margin:3px 0}
@@ -4433,6 +4500,7 @@ const CSS = `
   border-left:1px solid rgba(255,255,255,.1);padding-left:3px;height:9px;line-height:9px}
 .phline{position:absolute;top:0;bottom:0;width:1px;background:var(--red);box-shadow:0 0 8px rgba(239,68,68,.6);z-index:7;pointer-events:none}
 .track{display:flex;height:50px;border-bottom:1px solid rgba(255,255,255,.05)}
+.track.audio{height:66px}
 .track.primary .trackbody{background:rgba(255,255,255,.025)}
 .trackbody{flex:1;position:relative;background-image:linear-gradient(to right,rgba(255,255,255,.03) 1px,transparent 1px);background-size:46px 100%}
 .clip{position:absolute;top:4px;bottom:4px;border-radius:6px;overflow:hidden;cursor:grab;user-select:none;

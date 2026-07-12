@@ -48,10 +48,15 @@ interface Graph {
   clipEq: BiquadFilterNode[]; trackEq: BiquadFilterNode[];
   clipComp: DynamicsCompressorNode; clipMk: GainNode;
   trackComp: DynamicsCompressorNode; trackMk: GainNode;
-  pan: StereoPannerNode | null; gain: GainNode;
+  pan: StereoPannerNode | null; gain: GainNode; analyser: AnalyserNode;
   resume(): void;
   apply(clip: ClipAudio | undefined, track: TrackAudio | undefined): void;
+  level(): number; // instantaneous peak 0..1 (post-fader)
 }
+
+// trackId → live peak sampler, so the timeline's per-track meters can read the audible level
+// without re-plumbing the graph up into React. Populated by AudioLayer while a clip is live.
+export const meterRegistry = new Map<string, () => number>();
 
 const graphs = new WeakMap<HTMLMediaElement, Graph | null>();
 
@@ -88,12 +93,15 @@ export function attachAudioGraph(el: HTMLMediaElement): Graph | null {
   const trackComp = ctx.createDynamicsCompressor(), trackMk = ctx.createGain();
   const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
   const gain = ctx.createGain();
-  const chain: AudioNode[] = [source, ...clipEq, clipComp, clipMk, ...trackEq, trackComp, trackMk, ...(pan ? [pan] : []), gain, ctx.destination];
+  const analyser = ctx.createAnalyser(); analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.2;
+  const chain: AudioNode[] = [source, ...clipEq, clipComp, clipMk, ...trackEq, trackComp, trackMk, ...(pan ? [pan] : []), gain, analyser, ctx.destination];
   try { for (let i = 0; i < chain.length - 1; i++) chain[i].connect(chain[i + 1]); }
   catch { try { source.connect(ctx.destination); } catch { /* last resort — still audible */ } }
+  const buf = new Float32Array(analyser.fftSize);
   const g: Graph = {
-    ctx, clipEq, trackEq, clipComp, clipMk, trackComp, trackMk, pan, gain,
+    ctx, clipEq, trackEq, clipComp, clipMk, trackComp, trackMk, pan, gain, analyser,
     resume() { if (ctx.state === 'suspended') ctx.resume().catch(() => {}); },
+    level() { try { analyser.getFloatTimeDomainData(buf); let peak = 0; for (let i = 0; i < buf.length; i++) { const a = Math.abs(buf[i]); if (a > peak) peak = a; } return peak; } catch { return 0; } },
     apply(clip, track) {
       applyBand(clipEq, clip?.eq); applyComp(clipComp, clipMk, clip?.comp);
       applyBand(trackEq, track?.eq); applyComp(trackComp, trackMk, track?.comp);
