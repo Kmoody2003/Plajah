@@ -537,6 +537,7 @@ export default function Fabula() {
   const [srcTc, setSrcTc] = useState(0);
   const [srcIn, setSrcIn] = useState(null);   // source-viewer mark-in (seconds into the asset)
   const [srcOut, setSrcOut] = useState(null);  // source-viewer mark-out
+  const [srcDur, setSrcDur] = useState(0);     // source media real duration (from loadedmetadata)
   useEffect(() => { setSrcIn(null); setSrcOut(null); setSrcTc(0); }, [previewAsset?.id]); // reset marks on new source
   const srcVideoRef = useRef(null);
   const srcWantPlayRef = useRef(false); // autoplay the source on load (double-click behaviour)
@@ -559,6 +560,7 @@ export default function Fabula() {
   const [marquee, setMarquee] = useState(null);     // rubber-band selection rect { x0, y0, x1, y1 }
   const folderRelinkRef = useRef(null);             // folder picker for batch relink
   const folderRelinkTargetsRef = useRef(null);      // asset ids to relink from a folder (null = all offline)
+  const marqueeActiveRef = useRef(false);           // true while a marquee drag is happening (suppresses the click)
   const [markers, setMarkers] = useState([]);
   const [markIn, setMarkIn] = useState(null);
   const [markOut, setMarkOut] = useState(null);
@@ -1301,9 +1303,21 @@ export default function Fabula() {
   };
   // Relink an offline/missing asset to a local file (re-point its url).
   const openRelink = (assetId) => { relinkTargetRef.current = assetId; relinkRef.current?.click(); };
+  // Source-viewer waveform scrubber: click/drag across the waveform to seek the source.
+  const startSrcScrub = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const total = srcDur || previewAsset?.duration || 0;
+    if (!total) return;
+    const seek = (clientX) => { const f = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)); const t = f * total; if (srcVideoRef.current) srcVideoRef.current.currentTime = t; setSrcTc(t); };
+    seek(e.clientX);
+    const move = (ev) => { ev.preventDefault(); seek(ev.clientX); };
+    const up = () => { document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); };
+    document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
+  };
   // ── Media-pool multi-select (click / ⌘-click / shift-range / marquee) ──
   const poolFiltered = () => (prod?.mediaPool || []).filter((x) => binFilter === "all" || (x.bin || "imports") === binFilter);
   const poolClick = (e, a) => {
+    if (marqueeActiveRef.current) return; // this was a marquee drag, not a click
     if (e.ctrlKey || e.metaKey) { setPoolSel((s) => s.includes(a.id) ? s.filter((x) => x !== a.id) : [...s, a.id]); return; }
     if (e.shiftKey && poolSel.length) {
       const ids = poolFiltered().map((x) => x.id);
@@ -1318,18 +1332,27 @@ export default function Fabula() {
     setPoolCtx({ x: e.clientX, y: e.clientY });
   };
   const startMarquee = (e) => {
-    if (e.button !== 0 || e.target !== e.currentTarget) return; // only empty-space drags
+    if (e.button !== 0) return;
+    // Don't start a marquee from interactive controls (checkbox, bin select, chips).
+    if (e.target.closest && e.target.closest("input,select,button,a,textarea")) return;
     const grid = e.currentTarget, x0 = e.clientX, y0 = e.clientY;
-    const baseSel = (e.ctrlKey || e.metaKey || e.shiftKey) ? [...poolSel] : [];
-    if (!baseSel.length) setPoolSel([]);
+    const additive = e.ctrlKey || e.metaKey || e.shiftKey;
+    const baseSel = additive ? [...poolSel] : [];
+    let active = false;
     const move = (ev) => {
+      // Only begin marqueeing once the pointer has moved a few px — a plain click still selects.
+      if (!active) { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 5) return; active = true; marqueeActiveRef.current = true; if (!additive) setPoolSel([]); }
       setMarquee({ x0, y0, x1: ev.clientX, y1: ev.clientY });
       const L = Math.min(x0, ev.clientX), R = Math.max(x0, ev.clientX), T = Math.min(y0, ev.clientY), B = Math.max(y0, ev.clientY);
       const hit = [];
       grid.querySelectorAll(".mwcard[data-aid]").forEach((el) => { const r = el.getBoundingClientRect(); if (r.left < R && r.right > L && r.top < B && r.bottom > T) hit.push(el.getAttribute("data-aid")); });
       setPoolSel(Array.from(new Set([...baseSel, ...hit])));
     };
-    const up = () => { setMarquee(null); document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); };
+    const up = () => {
+      setMarquee(null);
+      document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up);
+      setTimeout(() => { marqueeActiveRef.current = false; }, 0); // let the click handler read it first
+    };
     document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
   };
   const deletePoolAssets = (ids) => {
@@ -2097,6 +2120,7 @@ export default function Fabula() {
                         <>
                           {previewAsset.type === "video" && previewAsset.url && (
                             <video ref={srcVideoRef} src={previewAsset.url} className="mvid framed" playsInline
+                              onLoadedMetadata={(e) => setSrcDur(e.currentTarget.duration || 0)}
                               onLoadedData={(e) => { if (srcWantPlayRef.current) { srcWantPlayRef.current = false; e.currentTarget.play().then(() => setSrcPlaying(true)).catch(() => setSrcPlaying(false)); } }}
                               onTimeUpdate={(e) => setSrcTc(e.currentTarget.currentTime)}
                               onEnded={() => setSrcPlaying(false)} />
@@ -2107,6 +2131,7 @@ export default function Fabula() {
                           {previewAsset.type === "audio" && (
                             <div className="srcaudio"><Music size={56} /><span>AUDIO ASSET PREVIEW</span>
                               {previewAsset.url && <audio ref={srcVideoRef} src={previewAsset.url}
+                                onLoadedMetadata={(e) => setSrcDur(e.currentTarget.duration || 0)}
                                 onLoadedData={(e) => { if (srcWantPlayRef.current) { srcWantPlayRef.current = false; e.currentTarget.play().then(() => setSrcPlaying(true)).catch(() => setSrcPlaying(false)); } }}
                                 onTimeUpdate={(e) => setSrcTc(e.currentTarget.currentTime)}
                                 onEnded={() => setSrcPlaying(false)} />}
@@ -2123,6 +2148,23 @@ export default function Fabula() {
                         <div className="src-empty"><Film size={40} /></div>
                       )}
                     </div>
+                    {/* Audio waveform jog bar — scrub + see the in/out range (DaVinci-style) */}
+                    {previewAsset?.url && (previewAsset.type === "video" || previewAsset.type === "audio") && (() => {
+                      const total = srcDur || previewAsset.duration || 0;
+                      const pct = (t) => total > 0 ? `${Math.max(0, Math.min(1, t / total)) * 100}%` : "0%";
+                      return (
+                        <div className="srcscrub" style={{ position: "relative", height: 46, margin: "5px 8px 0", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, overflow: "hidden", cursor: "text" }}
+                          onMouseDown={startSrcScrub} title="Drag to scrub · mark In/Out with the ⟩ ⟨ buttons">
+                          <Waveform url={previewAsset.url} srcIn={0} duration={total || undefined} bars={180} />
+                          {srcIn != null && srcOut != null && srcOut > srcIn && total > 0 && (
+                            <div style={{ position: "absolute", top: 0, bottom: 0, left: pct(srcIn), width: `calc(${pct(srcOut)} - ${pct(srcIn)})`, background: "rgba(255,140,0,0.22)", pointerEvents: "none" }} />
+                          )}
+                          {srcIn != null && total > 0 && <div style={{ position: "absolute", top: 0, bottom: 0, left: pct(srcIn), width: 2, background: "#FF8C00", pointerEvents: "none" }} />}
+                          {srcOut != null && total > 0 && <div style={{ position: "absolute", top: 0, bottom: 0, left: pct(srcOut), width: 2, background: "#FF8C00", pointerEvents: "none" }} />}
+                          {total > 0 && <div style={{ position: "absolute", top: 0, bottom: 0, left: pct(srcTc), width: 2, background: "#fff", boxShadow: "0 0 5px rgba(0,0,0,0.9)", pointerEvents: "none" }} />}
+                        </div>
+                      );
+                    })()}
                     <div className="viewer-bar">
                       <span className="tc sm">{fmtTc(srcTc, vfmt)}</span>
                       <div className="tbtns">
@@ -4175,6 +4217,8 @@ const CSS = `
 .clipframe{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.45;z-index:1}
 .wave{display:flex;align-items:flex-end;gap:1px;height:12px;margin-top:2px;opacity:.5}
 .wave i{flex:1;background:var(--green);border-radius:1px}
+.srcscrub .wave{height:100%;margin:0;padding:5px 6px;box-sizing:border-box;opacity:.7;gap:1px;align-items:center}
+.srcscrub .wave i{background:#7fd8a0}
 .trimR{position:absolute;right:0;top:0;bottom:0;width:7px;cursor:ew-resize;background:rgba(255,255,255,.12);z-index:3}
 .trimR:hover{background:rgba(255,255,255,.4)}
 .trimL{position:absolute;left:0;top:0;bottom:0;width:7px;cursor:ew-resize;background:rgba(255,255,255,.12);z-index:3}
