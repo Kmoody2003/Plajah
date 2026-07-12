@@ -19,7 +19,7 @@ import { useFabulaShortcuts } from "./useFabulaShortcuts";
 import KeyboardShortcutsEditor from "./KeyboardShortcutsEditor";
 import { loadShortcutPrefs } from "../../services/fabula/shortcuts";
 import Waveform from "./Waveform";
-import { attachAudioGraph, meterRegistry, resumeAudioCtx, CLIP_AUDIO_DEFAULT, COMP_DEFAULT, EQ_LABELS } from "../../services/fabula/audioGraph";
+import { attachAudioGraph, getAudioCtx, meterRegistry, resumeAudioCtx, CLIP_AUDIO_DEFAULT, COMP_DEFAULT, EQ_LABELS } from "../../services/fabula/audioGraph";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
@@ -4089,14 +4089,25 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
    so music/dialogue was silent. This mounts a hidden <audio> synced to the playhead. */
 function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active = true }) {
   const aRef = useRef(null);
-  const graphRef = useRef(undefined); // undefined = not attempted, null = failed (use element vol), Graph = active
+  const graphRef = useRef(undefined); // undefined = not attached yet, null = failed, Graph = attached
+  const [ctxTick, setCtxTick] = useState(0); // bump when the AudioContext state changes
   const asset = clip.assetId ? prod.mediaPool.find((a) => a.id === clip.assetId) : null;
   const url = asset?.url;
   const offset = clip.srcIn || 0;
+  // Re-run the routing when the shared context flips suspended→running, so the DSP graph
+  // attaches the moment audio is allowed (until then the element plays directly = audible).
+  useEffect(() => {
+    const ctx = getAudioCtx();
+    if (!ctx) return undefined;
+    const onchange = () => setCtxTick((t) => t + 1);
+    ctx.addEventListener("statechange", onchange);
+    return () => ctx.removeEventListener("statechange", onchange);
+  }, []);
   useEffect(() => {
     const a = aRef.current;
     if (!a || !url) return;
     if (active) {
+      resumeAudioCtx();
       const t = playhead - clip.start + offset;
       if (!playing || Math.abs(a.currentTime - t) > 0.25) { try { a.currentTime = Math.max(0, t); } catch { /* seeking */ } }
       if (playing && a.paused) a.play().catch(() => {});
@@ -4106,23 +4117,29 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active
       try { if (Math.abs(a.currentTime - offset) > 0.05) a.currentTime = Math.max(0, offset); } catch { /* seeking */ }
     }
   }, [active, playhead, playing, url, clip.start, offset]);
-  // DSP strip: gain / pan / 5-band EQ / compressor at clip + track stage. Falls back to
-  // element volume if Web Audio isn't available or the element is already sourced.
+  // DSP strip: gain / pan / 5-band EQ / compressor at clip + track stage. Crucially, only route
+  // through Web Audio ONCE THE CONTEXT IS RUNNING — a MediaElementSource on a suspended context is
+  // silent, which killed all mixer-routed audio. Until running, the bare <audio> plays directly.
   const clipAudioKey = JSON.stringify(clip.audio || null);
   const trackKey = JSON.stringify({ v: track.vol, m: track.mute, p: track.pan, e: track.eq, c: track.comp });
   useEffect(() => {
     const a = aRef.current;
     if (!a || !url) return;
-    if (graphRef.current === undefined) graphRef.current = attachAudioGraph(a);
-    const g = graphRef.current;
-    if (g) { if (active) g.resume(); a.muted = !!clip.disabled; a.volume = 1; g.apply(clip.audio, { ...track, mute: track.mute || !active }); if (active && trackId) meterRegistry.set(trackId, g.level); }
-    else if (active) { // no graph — plain element controls (no EQ/comp/pan, but vol + mute still work)
+    const ctx = getAudioCtx();
+    if (active) resumeAudioCtx();
+    if (ctx && ctx.state === "running" && graphRef.current === undefined) graphRef.current = attachAudioGraph(a);
+    const g = graphRef.current || null;
+    if (g) {
+      a.muted = !!clip.disabled; a.volume = 1;
+      g.apply(clip.audio, { ...track, mute: track.mute || !active });
+      if (active && trackId) meterRegistry.set(trackId, g.level);
+    } else if (active) { // context not running yet (or Web Audio unavailable) — element plays directly
       const cv = clip.audio?.vol == null ? 1 : clip.audio.vol;
       const tv = track.vol == null ? 1 : track.vol;
       a.volume = Math.max(0, Math.min(1, cv * tv));
       a.muted = !!track.mute || !!clip.disabled;
-    } else { a.muted = true; } // warm buffer, no graph — keep it silent
-  }, [active, url, clipAudioKey, trackKey, clip.disabled, trackId]);
+    } else { a.muted = true; } // warm buffer — silent
+  }, [active, url, clipAudioKey, trackKey, clip.disabled, trackId, ctxTick]);
   // Release the meter when this track's clip goes silent/unmounts.
   useEffect(() => () => { if (trackId && meterRegistry.get(trackId) === graphRef.current?.level) meterRegistry.delete(trackId); }, [trackId]);
   if (!url || clip.disabled) return null;
