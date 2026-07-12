@@ -551,6 +551,8 @@ export default function Fabula() {
   const [snapOn, setSnapOn] = useState(true);
   const [trimMode, setTrimMode] = useState("normal"); // normal | ripple | roll | slip
   const [clipboard, setClipboard] = useState(null);
+  const [ctxMenu, setCtxMenu] = useState(null); // right-click clip menu: { x, y, clipId }
+  const [transcribing, setTranscribing] = useState(false);
   const [markers, setMarkers] = useState([]);
   const [markIn, setMarkIn] = useState(null);
   const [markOut, setMarkOut] = useState(null);
@@ -1701,6 +1703,16 @@ export default function Fabula() {
     histRef.current.future = [];
     setClips(next); commitClips(next);
   };
+  // Dismiss the right-click clip menu on any outside click / scroll / Escape.
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    const onKey = (e) => { if (e.key === "Escape") setCtxMenu(null); };
+    window.addEventListener("mousedown", close);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("mousedown", close); window.removeEventListener("scroll", close, true); window.removeEventListener("keydown", onKey); };
+  }, [ctxMenu]);
   const undoEdit = () => { const h = histRef.current; if (!h.past.length) return; const prev = h.past.pop(); h.future.push(clips); setClips(prev); commitClips(prev); ping("Undo"); };
   const redoEdit = () => { const h = histRef.current; if (!h.future.length) return; const nx = h.future.pop(); h.past.push(clips); setClips(nx); commitClips(nx); ping("Redo"); };
 
@@ -1754,6 +1766,50 @@ export default function Fabula() {
   };
   const nudgeSel = (dir) => { const c = getSel(); if (!c) return; applyClips(clips.map((x) => (x.id === c.id ? { ...x, start: Math.max(0, x.start + dir * frameDur) } : x))); };
   const toggleDisable = () => { const c = getSel(); if (!c) return; applyClips(clips.map((x) => (x.id === c.id ? { ...x, disabled: !x.disabled } : x))); };
+  // Transcribe a clip's dialogue → time-coded subtitle clips (Gemini). Sends the clip's
+  // media inline, so keep it reasonably short (inline size cap ~18MB).
+  const blobToBase64 = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(blob); });
+  const transcribeClip = async (clip) => {
+    const c = clip || getSel(); if (!c) return;
+    const asset = c.assetId ? prod.mediaPool.find((a) => a.id === c.assetId) : null;
+    if (!asset?.url) { ping("This clip has no media to transcribe — relink it first."); return; }
+    if (transcribing) return;
+    setTranscribing(true); ping("Transcribing clip… (sending audio to the AI)");
+    try {
+      const blob = await fetch(asset.url).then((r) => r.blob());
+      if (blob.size > 18 * 1024 * 1024) { ping("Clip is too large to transcribe in-browser (18MB cap) — use a shorter or audio-only clip."); setTranscribing(false); return; }
+      const b64 = await blobToBase64(blob);
+      const mime = blob.type || (asset.type === "audio" ? "audio/mpeg" : "video/mp4");
+      const { generateTimeCodedCaptions } = await import("../../services/geminiService");
+      const caps = await generateTimeCodedCaptions(b64, mime, c.label || asset.name, "");
+      if (!caps || !caps.length) { ping("No speech detected (or the AI transcription is unavailable)."); setTranscribing(false); return; }
+      let subId = (tracks.find((t) => t.type === "subtitle") || {}).id;
+      if (!subId) { addTrack("subtitle"); subId = "s1"; }
+      const base = c.start - (c.srcIn || 0);
+      const subClips = caps.filter((cp) => cp && typeof cp.time === "number" && cp.text).map((cp, i, arr) => {
+        const nextT = arr[i + 1]?.time;
+        const dur = Math.max(0.8, Math.min(8, (nextT != null ? nextT : cp.time + 3) - cp.time));
+        return { id: uid(), trackId: subId, start: Math.max(0, base + cp.time), duration: dur, kind: "subtitle", text: cp.text, label: cp.text.slice(0, 24) };
+      });
+      applyClips([...clips, ...subClips]);
+      ping(`Transcribed — ${subClips.length} caption${subClips.length === 1 ? "" : "s"} added on the subtitle track`);
+    } catch (e) { ping("Transcription failed — " + (e?.message || "AI unavailable")); }
+    setTranscribing(false);
+  };
+  // Rename a project from the library (or the open project).
+  const renameProduction = async (id, currentTitle) => {
+    const title = (window.prompt("Rename project", currentTitle || "") || "").trim();
+    if (!title || title === currentTitle) return;
+    try {
+      if (prod?.id === id) updateProd((p) => { p.title = title; });
+      else {
+        const p = (await stGet("studio:prod:" + id)) || (await loadProjectCloud(id));
+        if (p) { p.title = title; p.updatedAt = Date.now(); await stSet("studio:prod:" + id, p); saveProjectCloud(p).catch(() => {}); }
+      }
+      setIndex((cur) => { const n = cur.map((x) => (x.id === id ? { ...x, title } : x)); stSet("studio:index", { list: n }); return n; });
+      ping("Renamed");
+    } catch { ping("Couldn't rename that project."); }
+  };
   const addMarkerAtPlayhead = () => setMarkers((m) => [...m, { id: uid(), t: playhead }]);
   const zoomIn = () => setZoom((z) => Math.min(2, +(z + 0.2).toFixed(2)));
   const zoomOut = () => setZoom((z) => Math.max(0.4, +(z - 0.2).toFixed(2)));
@@ -2471,6 +2527,7 @@ export default function Fabula() {
                                   style={{ left: c.start * pxPerSec, width: Math.max(8, c.duration * pxPerSec), opacity: c.disabled ? 0.4 : 1, cursor: toolMode === "razor" ? "crosshair" : undefined }}
                                   onMouseDown={(e) => { if (toolMode === "razor") { e.stopPropagation(); razorAt(e, c.id); return; } onClipDown(e, c.id, "move"); }}
                                   onClick={(e) => { e.stopPropagation(); if (toolMode !== "razor") setSelClipId(c.id); }}
+                                  onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelClipId(c.id); setCtxMenu({ x: e.clientX, y: e.clientY, clipId: c.id }); }}
                                   onDoubleClick={(e) => { e.stopPropagation(); if (toolMode !== "razor") openNested(c); }}>
                                   {shot?.frameUrl && c.kind !== "voice" && <img className="clipframe" src={shot.frameUrl} alt="" />}
                                   <div className="cliplabel">
@@ -2502,6 +2559,37 @@ export default function Fabula() {
                         <button className="minibtn" onClick={() => setShowShortcuts(true)} title="Keyboard shortcuts — map your own (Ctrl+Alt+K)"><Keyboard size={10} /> KEYS</button>
                       </div>
                       {showShortcuts && <KeyboardShortcutsEditor onClose={() => setShowShortcuts(false)} onChange={setShortcutPrefs} />}
+                      {ctxMenu && (() => {
+                        const c = clips.find((x) => x.id === ctxMenu.clipId);
+                        const close = () => setCtxMenu(null);
+                        const run = (fn) => { close(); fn(); };
+                        const mi = (label, fn, opts = {}) => (
+                          <button disabled={opts.disabled} onClick={() => run(fn)}
+                            style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 12px", background: "none", border: "none", color: opts.danger ? "#ff8080" : "#e8e8ec", font: "600 12px system-ui", textAlign: "left", cursor: "pointer", opacity: opts.disabled ? 0.4 : 1 }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,140,0,0.16)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = "none")}>
+                            {opts.icon}<span style={{ flex: 1 }}>{label}</span>{opts.hint && <span style={{ opacity: 0.4, fontSize: 10 }}>{opts.hint}</span>}
+                          </button>
+                        );
+                        const div = <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "4px 0" }} />;
+                        return (
+                          <div style={{ position: "fixed", left: Math.min(ctxMenu.x, window.innerWidth - 220), top: Math.min(ctxMenu.y, window.innerHeight - 360), zIndex: 9999, width: 210, background: "rgba(20,16,25,0.97)", backdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, boxShadow: "0 12px 40px rgba(0,0,0,0.6)", padding: "5px 0" }}
+                            onMouseDown={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
+                            {mi("Copy", copySel, { icon: <Layers size={12} />, hint: "⌘C" })}
+                            {mi("Cut", cutSel, { icon: <Scissors size={12} />, hint: "⌘X" })}
+                            {mi("Paste", pasteClip, { icon: <Plus size={12} />, hint: "⌘V", disabled: !clipboard })}
+                            {div}
+                            {mi("Default transition", addCrossDissolve, { icon: <Wand2 size={12} /> })}
+                            {mi("Split at playhead", bladeAtPlayhead, { icon: <Scissors size={12} /> })}
+                            {mi("Duplicate", duplicateSel, { icon: <Plus size={12} /> })}
+                            {mi(transcribing ? "Transcribing…" : "Transcribe clip", () => transcribeClip(c), { icon: <Captions size={12} />, disabled: transcribing || !c?.assetId })}
+                            {mi(c?.disabled ? "Enable clip" : "Disable clip", toggleDisable, { icon: c?.disabled ? <Unlock size={12} /> : <Lock size={12} /> })}
+                            {div}
+                            {mi("Delete (leave gap)", liftDelete, { icon: <Trash2 size={12} />, danger: true, hint: "Del" })}
+                            {mi("Ripple delete", rippleDelete, { icon: <Trash2 size={12} />, danger: true })}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -2608,9 +2696,10 @@ export default function Fabula() {
               <div className="glass-card prodrow" key={p.id} onClick={() => openProduction(p.id)}>
                 <div className="prodicon">{p.type === "film" ? <Film size={18} /> : <Layers size={18} />}</div>
                 <div className="prodmain">
-                  <div className="prodtitle">{p.title}</div>
+                  <div className="prodtitle" onDoubleClick={(e) => { e.stopPropagation(); renameProduction(p.id, p.title); }} title="Double-click to rename">{p.title}</div>
                   <div className="prodmeta">{p.type === "film" ? "FILM" : "TV SERIES"} · {p.sceneCount || 0} SCENES · {new Date(p.updated).toLocaleDateString()}</div>
                 </div>
+                <button className="ghost" onClick={(e) => { e.stopPropagation(); renameProduction(p.id, p.title); }} title="Rename project"><Brush size={13} /></button>
                 <button className="ghost danger" onClick={(e) => { e.stopPropagation(); deleteProduction(p.id); }}><Trash2 size={13} /></button>
               </div>
             ))}
