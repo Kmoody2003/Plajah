@@ -22,7 +22,7 @@ import Waveform from "./Waveform";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
-import { fetchAlbumById } from "../../services/backendService";
+import { fetchAlbumById, uploadFabulaAsset } from "../../services/backendService";
 import ConnectToWorld from "../Worlds/ConnectToWorld";
 import { syncProductionToWorld, worldCharactersForProduction } from "../../services/fabulaWorldBridge";
 import SpatialMixer from "../spatialMixer/SpatialMixer";
@@ -539,6 +539,9 @@ export default function Fabula() {
   const [srcOut, setSrcOut] = useState(null);  // source-viewer mark-out
   useEffect(() => { setSrcIn(null); setSrcOut(null); setSrcTc(0); }, [previewAsset?.id]); // reset marks on new source
   const srcVideoRef = useRef(null);
+  const srcWantPlayRef = useRef(false); // autoplay the source on load (double-click behaviour)
+  const relinkRef = useRef(null);       // hidden file input for relinking offline media
+  const relinkTargetRef = useRef(null); // asset id being relinked
   const [playhead, setPlayhead] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [selClipId, setSelClipId] = useState(null);
@@ -1281,6 +1284,38 @@ export default function Fabula() {
     }];
     setClips(next); commitClips(next);
   };
+  // Load an asset into the source viewer; `play` = double-click behaviour (start playing).
+  const openInViewer = (a, play) => {
+    setPreviewAsset(a); setSrcTc(0);
+    const playable = play && a?.url && (a.type === "video" || a.type === "audio");
+    srcWantPlayRef.current = !!playable;
+    setSrcPlaying(!!playable);
+  };
+  // Relink an offline/missing asset to a local file (re-point its url).
+  const openRelink = (assetId) => { relinkTargetRef.current = assetId; relinkRef.current?.click(); };
+  // Cloud asset sync: upload every LOCAL (blob:) asset to durable storage so the whole
+  // project opens on any device. Down-sync is automatic — loadProjectCloud already returns
+  // the project with these cloud URLs. Re-run any time you add local media.
+  const [syncing, setSyncing] = useState(false);
+  const unsyncedCount = (prod?.mediaPool || []).filter((a) => a.url && a.url.startsWith("blob:")).length;
+  const syncAssetsToCloud = async () => {
+    if (!prod || syncing) return;
+    if (!auth.currentUser) { ping("Sign in to sync your project to the cloud."); return; }
+    const local = (prod.mediaPool || []).filter((a) => a.url && a.url.startsWith("blob:"));
+    if (!local.length) { ping("All assets are already in the cloud — this project opens everywhere."); return; }
+    setSyncing(true);
+    let done = 0;
+    for (const a of local) {
+      try {
+        const blob = await fetch(a.url).then((r) => r.blob());
+        const cloudUrl = await uploadFabulaAsset(prod.id, a.id, blob, a.name, (pct) => setSaveState(`sync ${a.name} ${pct}%`));
+        updateProd((p) => { const x = p.mediaPool.find((y) => y.id === a.id); if (x) { x.url = cloudUrl; x.cloudUrl = cloudUrl; x.session = false; x.offline = false; } });
+        done++; ping(`Synced ${done}/${local.length} · ${a.name}`);
+      } catch (e) { ping(`Couldn't sync ${a.name} — ${e?.message || "upload failed"}`); }
+    }
+    setSyncing(false);
+    ping(done === local.length ? `☁ Cloud sync complete — all ${done} assets available everywhere.` : `Synced ${done}/${local.length}. Retry to finish the rest.`);
+  };
 
   // ── Send scene → Lorea comic composer (script + world cast + assets follow) ──
   const sendSceneToComic = () => {
@@ -1684,6 +1719,21 @@ export default function Fabula() {
   const cutSel = () => { const c = getSel(); if (!c) return; setClipboard(JSON.parse(JSON.stringify(c))); applyClips(clips.filter((x) => x.id !== c.id)); setSelClipId(null); };
   const pasteClip = () => { if (!clipboard) return; const d = { ...JSON.parse(JSON.stringify(clipboard)), id: uid(), start: playhead }; applyClips([...clips, d]); setSelClipId(d.id); ping("Pasted"); };
   const liftDelete = () => { const c = getSel(); if (!c) return; applyClips(clips.filter((x) => x.id !== c.id)); setSelClipId(null); };
+  // Backspace also removes the selected clip (Delete is already bound). Guarded off text inputs.
+  const backspaceRef = useRef({});
+  backspaceRef.current = { liftDelete, selClipId, page };
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "Backspace") return;
+      const el = e.target;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+      const st = backspaceRef.current;
+      if (st.page !== "edit" || !st.selClipId) return;
+      e.preventDefault(); st.liftDelete();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const rippleDelete = () => { const c = getSel(); if (!c) return; const dur = c.duration; applyClips(clips.filter((x) => x.id !== c.id).map((x) => (x.trackId === c.trackId && x.start > c.start ? { ...x, start: Math.max(0, x.start - dur) } : x))); setSelClipId(null); };
   // Ripple-delete the In→Out range across all tracks: remove the middle of any clip in range,
   // keep the head/tail, and pull everything downstream left to close the gap.
@@ -1917,6 +1967,7 @@ export default function Fabula() {
                         <>
                           {previewAsset.type === "video" && previewAsset.url && (
                             <video ref={srcVideoRef} src={previewAsset.url} className="mvid framed" playsInline
+                              onLoadedData={(e) => { if (srcWantPlayRef.current) { srcWantPlayRef.current = false; e.currentTarget.play().then(() => setSrcPlaying(true)).catch(() => setSrcPlaying(false)); } }}
                               onTimeUpdate={(e) => setSrcTc(e.currentTarget.currentTime)}
                               onEnded={() => setSrcPlaying(false)} />
                           )}
@@ -1926,6 +1977,7 @@ export default function Fabula() {
                           {previewAsset.type === "audio" && (
                             <div className="srcaudio"><Music size={56} /><span>AUDIO ASSET PREVIEW</span>
                               {previewAsset.url && <audio ref={srcVideoRef} src={previewAsset.url}
+                                onLoadedData={(e) => { if (srcWantPlayRef.current) { srcWantPlayRef.current = false; e.currentTarget.play().then(() => setSrcPlaying(true)).catch(() => setSrcPlaying(false)); } }}
                                 onTimeUpdate={(e) => setSrcTc(e.currentTarget.currentTime)}
                                 onEnded={() => setSrcPlaying(false)} />}
                             </div>
@@ -1971,6 +2023,15 @@ export default function Fabula() {
                     <div className="paneltitle"><MonitorPlay size={12} /> MEDIA POOL</div>
                     <button className="minibtn full" onClick={() => fileRef.current?.click()}><Upload size={12} /> IMPORT MEDIA</button>
                     <input ref={fileRef} type="file" multiple accept="video/*,image/*,audio/*" style={{ display: "none" }} onChange={handleUpload} />
+                    <input ref={relinkRef} type="file" accept="video/*,image/*,audio/*" style={{ display: "none" }}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0]; const id = relinkTargetRef.current;
+                        if (f && id) {
+                          const type = f.type.startsWith("video") ? "video" : f.type.startsWith("audio") ? "audio" : "image";
+                          relinkAsset(id, URL.createObjectURL(f), f.name, type);
+                        }
+                        e.target.value = ""; relinkTargetRef.current = null;
+                      }} />
                     <div className="btnrow" style={{ marginTop: 6, gap: 5 }}>
                       <button className="minibtn blue grow" onClick={() => importRef.current?.click()} title="Import a timeline cut from Resolve, Premiere, or Final Cut"><ListVideo size={12} /> EDL / XML</button>
                       <select className="sel fpssel" value={importFps} onChange={(e) => setImportFps(parseFloat(e.target.value))} title="Frame rate for EDL timecode math">
@@ -1990,7 +2051,7 @@ export default function Fabula() {
                     </button>
                     <div className="poollist">
                       {(prod.mediaPool || []).map((a) => (
-                        <div className={`poolitem ${previewAsset?.id === a.id ? "previewing" : ""}`} key={a.id} onClick={() => { setPreviewAsset(a); setSrcPlaying(false); setSrcTc(0); }} onDoubleClick={() => (a.bin === "Music" && a.musicMeta ? addMusicWithCaptions(a) : insertAssetClip(a))} title="Click: load in source viewer · Double-click: insert (Music adds synced-lyric captions)">
+                        <div className={`poolitem ${previewAsset?.id === a.id ? "previewing" : ""}`} key={a.id} onClick={() => openInViewer(a, false)} onDoubleClick={() => openInViewer(a, true)} title="Click: load in source viewer · Double-click: load & play">
                           {(a.type === "video" || a.type === "audio") && (
                             <input type="checkbox" className="mcchk" checked={mcSel.includes(a.id)} title="Select for multicam group"
                               onClick={(e) => e.stopPropagation()}
@@ -1998,7 +2059,7 @@ export default function Fabula() {
                           )}
                           <span className={`pooltype ${a.type}`}>{{ video: "VID", audio: "AUD", image: "IMG", multicam: "MC", model: "3D", graphic: "GFX", text: "TXT" }[a.type] || "FILE"}</span>
                           <span className="poolname">{a.name}</span>
-                          {a.offline && !a.url && <span className="chip red" style={{ fontSize: 7 }}>OFFLINE</span>}
+                          {(!a.url || a.offline) && <button className="chip blue" style={{ fontSize: 7, border: "none", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); openRelink(a.id); }} title="Relink to a local file">🔗 RELINK</button>}
                           {a.generated && <Sparkles size={10} className="genstar" />}
                           {a.needsConversion && !a.converted && (
                             <span className="chip" style={{ fontSize: 7, cursor: "pointer", background: "rgba(255,140,0,0.18)", color: "#ffb057" }}
@@ -3106,11 +3167,20 @@ export default function Fabula() {
                       <div className="insp-div" />
                       <button className="minibtn full" onClick={() => fileRef.current?.click()}><Upload size={12} /> IMPORT FILES</button>
                       <button className="minibtn full blue" style={{ marginTop: 6 }} onClick={() => folderRef.current?.click()} title="Folder import runs the full intelligence: bins route to world categories, character folders verify into the Cast"><Upload size={12} /> IMPORT FOLDER</button>
+                      <div className="insp-div" />
+                      <button className="minibtn full" style={{ color: unsyncedCount ? "var(--green)" : undefined, borderColor: unsyncedCount ? "rgba(120,220,150,0.35)" : undefined }}
+                        disabled={syncing} onClick={syncAssetsToCloud}
+                        title="Upload local media to the cloud so this project opens on any device. Down-sync is automatic when you reopen the project elsewhere.">
+                        ☁ {syncing ? "SYNCING…" : `SYNC TO CLOUD${unsyncedCount ? ` (${unsyncedCount})` : " ✓"}`}
+                      </button>
+                      <div className="dim small" style={{ marginTop: 6 }}>
+                        {unsyncedCount ? `${unsyncedCount} local asset${unsyncedCount === 1 ? "" : "s"} not yet in the cloud — sync to work on this project from any device.` : "All media is in the cloud — this project is portable across devices."}
+                      </div>
                       <div className="dim small" style={{ marginTop: 8 }}>Folder bins populate Productions & SLATE automatically — a characters bin runs identity verification into the Cast; props/sets/lore route into the World.</div>
                     </div>
                     <div className="mwgrid">
                       {(prod.mediaPool || []).filter((a) => binFilter === "all" || (a.bin || "imports") === binFilter).map((a) => (
-                        <div className={`mwcard ${previewAsset?.id === a.id ? "previewing" : ""}`} key={a.id} onClick={() => { setPreviewAsset(a); setSrcPlaying(false); setSrcTc(0); }} onDoubleClick={() => insertAssetClip(a)} title="Click: source viewer · Double-click: insert at playhead">
+                        <div className={`mwcard ${previewAsset?.id === a.id ? "previewing" : ""}`} key={a.id} onClick={() => openInViewer(a, false)} onDoubleClick={() => openInViewer(a, true)} title="Click: source viewer · Double-click: load & play">
                           <div className="mwthumb">
                             {a.url && (a.type === "image" || a.type === "graphic") && <img src={a.url} alt="" />}
                             {a.url && a.type === "video" && <video src={a.url} muted />}
@@ -3136,7 +3206,7 @@ export default function Fabula() {
                                 {a.designation === "frame" ? "🎞" : "✎"}
                               </button>
                             )}
-                            {a.offline && !a.url && <span className="chip red" style={{ fontSize: 7 }}>OFFLINE</span>}
+                            {(!a.url || a.offline) && <button className="chip blue" style={{ fontSize: 7, border: "none", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); openRelink(a.id); }} title="Relink to a local file">🔗 RELINK</button>}
                           </div>
                         </div>
                       ))}

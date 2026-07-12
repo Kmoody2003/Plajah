@@ -1216,6 +1216,31 @@ export const uploadLandingBgAsset = async (
   return { url };
 };
 
+/** Upload one Fabula project asset (a local blob) to durable cloud storage and return its
+ *  download URL, so the project's media is available on any device. Path is scoped to the
+ *  signed-in user + project + asset id (stable — re-uploads overwrite the same object). */
+export const uploadFabulaAsset = async (
+  projectId: string,
+  assetId: string,
+  blob: Blob,
+  filename?: string,
+  onProgress?: (pct: number) => void
+): Promise<string> => {
+  const uid = firebaseAuth.currentUser?.uid;
+  if (!uid) throw new Error('Sign in to sync');
+  const ext = (filename?.split('.').pop() || blob.type.split('/')[1] || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '');
+  // Under users/{uid}/** — the existing storage rule already lets the owner write here.
+  const path = `users/${uid}/fabula/${projectId}/${assetId}.${ext || 'bin'}`;
+  const sRef = ref(storage, path);
+  const task = uploadBytesResumable(sRef, blob, blob.type ? { contentType: blob.type } : undefined);
+  await new Promise<void>((resolve, reject) => {
+    task.on('state_changed',
+      snap => onProgress?.(Math.round(snap.bytesTransferred / Math.max(1, snap.totalBytes) * 100)),
+      reject, resolve);
+  });
+  return await getDownloadURL(task.snapshot.ref);
+};
+
 export const fetchSportsHeroConfig = async (): Promise<import('../types').SportsHeroConfig | null> => {
   try {
     const snap = await getDoc(doc(db, 'systemConfig', 'sportsHero'));
