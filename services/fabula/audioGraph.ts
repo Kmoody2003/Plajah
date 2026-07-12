@@ -36,8 +36,23 @@ export function getAudioCtx(): AudioContext | null {
     const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
     if (!Ctx) return null;
     _ctx = new Ctx();
+    installResumeOnGesture(_ctx);
     return _ctx;
   } catch { return null; }
+}
+
+// A MediaElementSource routes the element's audio THROUGH the context, so if the context is
+// suspended (browsers start it suspended until a user gesture) nothing is audible — that made all
+// timeline audio go silent once the DSP graph was introduced. Resume on any interaction so audio
+// always plays. Kept until the context is running, then the listeners self-remove.
+export function resumeAudioCtx() { if (_ctx && _ctx.state === 'suspended') _ctx.resume().catch(() => {}); }
+function installResumeOnGesture(ctx: AudioContext) {
+  const evs = ['pointerdown', 'mousedown', 'keydown', 'touchstart'];
+  const resume = () => {
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    if (ctx.state === 'running') evs.forEach((e) => window.removeEventListener(e, resume, true));
+  };
+  evs.forEach((e) => window.addEventListener(e, resume, { capture: true, passive: true }));
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));

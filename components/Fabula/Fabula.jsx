@@ -19,7 +19,7 @@ import { useFabulaShortcuts } from "./useFabulaShortcuts";
 import KeyboardShortcutsEditor from "./KeyboardShortcutsEditor";
 import { loadShortcutPrefs } from "../../services/fabula/shortcuts";
 import Waveform from "./Waveform";
-import { attachAudioGraph, meterRegistry, CLIP_AUDIO_DEFAULT, COMP_DEFAULT, EQ_LABELS } from "../../services/fabula/audioGraph";
+import { attachAudioGraph, meterRegistry, resumeAudioCtx, CLIP_AUDIO_DEFAULT, COMP_DEFAULT, EQ_LABELS } from "../../services/fabula/audioGraph";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
@@ -1990,6 +1990,7 @@ export default function Fabula() {
 
   useFabulaShortcuts({
     "playback.playPause": () => {
+      resumeAudioCtx();
       // Space follows the active viewer: if the source viewer was last engaged, toggle it; else the program monitor.
       if (activeViewerRef.current === "source" && previewAsset?.url && (previewAsset.type === "video" || previewAsset.type === "audio")) {
         const v = srcVideoRef.current;
@@ -2413,17 +2414,36 @@ export default function Fabula() {
 <section className="monitor" onMouseDown={() => (activeViewerRef.current = "program")}>
                     <div className="screen" style={{ aspectRatio: prod.defaults.aspect.includes(":") ? prod.defaults.aspect.replace(":", "/") : "2.39/1", filter: LOOKS.find((l) => l.id === prod.design?.lookId)?.filter || "none" }}>
                       {videoTracksAsc.map((tr, i) => {
-                        const lc = clips.find((c) => c.trackId === tr.id && playhead >= c.start && playhead < c.start + c.duration);
-                        if (!lc) return null;
+                        // Double-buffer: mount the current clip + its neighbours, keyed by clip.id, so the
+                        // next clip is already decoded/seeked and going live is just a visibility swap (no
+                        // src reload → no dip to black between butted clips).
+                        const tclips = clips.filter((c) => c.trackId === tr.id).sort((a, b) => a.start - b.start);
+                        if (!tclips.length) return null;
+                        const curIdx = tclips.findIndex((c) => playhead >= c.start && playhead < c.start + c.duration);
+                        const idxs = new Set();
+                        if (curIdx >= 0) { idxs.add(curIdx - 1); idxs.add(curIdx); idxs.add(curIdx + 1); }
+                        else { const nx = tclips.findIndex((c) => c.start >= playhead); if (nx >= 0) { idxs.add(nx - 1); idxs.add(nx); } else idxs.add(tclips.length - 1); }
                         const ts = (container.timeline?.trackSettings || {})[tr.id] || { vol: 1, mute: false };
-                        return <MonitorLayer key={tr.id} clip={lc} prod={prod} scene={scene} playhead={playhead} playing={playing} top={i > 0} z={i + 1} videoRef={i === 0 ? videoRef : undefined} vol={ts.vol} mute={ts.mute} />;
+                        return [...idxs].filter((idx) => idx >= 0 && idx < tclips.length).map((idx) => {
+                          const c = tclips[idx];
+                          const isActive = curIdx >= 0 && idx === curIdx;
+                          return <MonitorLayer key={c.id} clip={c} active={isActive} prod={prod} scene={scene} playhead={playhead} playing={playing} top={i > 0} z={(i + 1) * 10 + (isActive ? 5 : 0)} videoRef={(i === 0 && isActive) ? videoRef : undefined} vol={ts.vol} mute={ts.mute} />;
+                        });
                       })}
-                      {/* Audio bed — mount hidden <audio> for the live clip on each audio track */}
+                      {/* Audio bed — mount the live clip + the next one per track (double-buffered, gapless) */}
                       {tracks.filter((t) => t.type === "audio").map((tr) => {
-                        const ac = clips.find((c) => c.trackId === tr.id && c.assetId && playhead >= c.start && playhead < c.start + c.duration);
-                        if (!ac) return null;
+                        const tclips = clips.filter((c) => c.trackId === tr.id && c.assetId).sort((a, b) => a.start - b.start);
+                        if (!tclips.length) return null;
+                        const curIdx = tclips.findIndex((c) => playhead >= c.start && playhead < c.start + c.duration);
+                        const idxs = new Set();
+                        if (curIdx >= 0) { idxs.add(curIdx); idxs.add(curIdx + 1); }
+                        else { const nx = tclips.findIndex((c) => c.start >= playhead); if (nx >= 0) idxs.add(nx); }
                         const ts = (container.timeline?.trackSettings || {})[tr.id] || { vol: 1, mute: false };
-                        return <AudioLayer key={tr.id} clip={ac} prod={prod} playhead={playhead} playing={playing} track={ts} trackId={tr.id} />;
+                        return [...idxs].filter((idx) => idx >= 0 && idx < tclips.length).map((idx) => {
+                          const c = tclips[idx];
+                          const isActive = curIdx >= 0 && idx === curIdx;
+                          return <AudioLayer key={c.id} clip={c} active={isActive} prod={prod} playhead={playhead} playing={playing} track={ts} trackId={tr.id} />;
+                        });
                       })}
                       {(() => {
                         const sc = clips.find((c) => c.kind === "subtitle" && c.text && playhead >= c.start && playhead < c.start + c.duration);
@@ -2468,7 +2488,7 @@ export default function Fabula() {
                       <span className="tc">{fmtTc(playhead, vfmt)}</span>
                       <div className="tbtns">
                         <button className="tbtn" onClick={() => { setPlayhead(0); setPlaying(false); }}><SkipBack size={14} /></button>
-                        <button className="tbtn play" onClick={() => setPlaying(!playing)}>{playing ? <Pause size={15} /> : <Play size={15} />}</button>
+                        <button className="tbtn play" onClick={() => { resumeAudioCtx(); setPlaying(!playing); }}>{playing ? <Pause size={15} /> : <Play size={15} />}</button>
                       </div>
                       <span className="tc dim2">/ {fmtTc(seqEnd, vfmt)}</span>
                       {monitorAssetRaw?.type === "multicam" && (
@@ -3953,7 +3973,7 @@ export default function Fabula() {
 }
 
 /* ---------- compositing layer: one active clip on one video track ---------- */
-function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, vol = 1, mute = false }) {
+function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, vol = 1, mute = false, active = true }) {
   const localRef = useRef(null);
   const fx = ensureFx(clip);
   // resolve media (multicam → active angle)
@@ -3984,18 +4004,27 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
   useEffect(() => {
     const v = vRef.current;
     if (!v || asset?.type !== "video") return;
-    seekRef.current = Math.max(0, playhead - clip.start + offset);
-    doSeek();
-    if (playing) { if (v.paused) v.play().catch(() => {}); }
-    else if (!v.paused) v.pause();
-  }, [playhead, playing, asset?.url, clip.start, offset]);
+    if (active) {
+      seekRef.current = Math.max(0, playhead - clip.start + offset);
+      doSeek();
+      if (playing) { if (v.paused) v.play().catch(() => {}); }
+      else if (!v.paused) v.pause();
+    } else {
+      // Warm buffer: park decoded at the clip's in-point, paused. When the playhead reaches this
+      // clip and `active` flips true, the element is already showing the right frame → no reload,
+      // no dip to black at the cut (this is the double-buffering that kills the between-clip flash).
+      seekRef.current = Math.max(0, offset);
+      if (!v.paused) v.pause();
+      doSeek();
+    }
+  }, [active, playhead, playing, asset?.url, clip.start, offset]);
   // Live audio: honor the track's mixer vol/mute (was hardcoded `muted`, so nothing played).
   // av === linked-audio clip present → the picture is muted here and its sound plays through the
-  // audio track (AudioLayer), so track volume/pan/EQ apply.
+  // audio track (AudioLayer). Warm (inactive) buffers stay muted.
   useEffect(() => {
     const v = vRef.current;
-    if (v && asset?.type === "video") { v.volume = Math.max(0, Math.min(1, vol)); v.muted = !!mute || !!clip.disabled || !!clip.av; }
-  }, [vol, mute, clip.disabled, clip.av, asset?.url]);
+    if (v && asset?.type === "video") { v.volume = Math.max(0, Math.min(1, vol)); v.muted = !active || !!mute || !!clip.disabled || !!clip.av; }
+  }, [vol, mute, clip.disabled, clip.av, asset?.url, active]);
 
   // fades
   const tIn = playhead - clip.start, tOut = clip.start + clip.duration - playhead;
@@ -4010,11 +4039,11 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
 
   const style = {
     position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-    opacity: fx.op * fade,
+    opacity: active ? fx.op * fade : 0, // warm buffers are mounted+decoded but invisible until they go live
     transform: `translate(${fx.x}%, ${fx.y}%) scale(${fx.sc}) rotate(${fx.rot}deg)`,
     filter: `blur(${fx.blur}px) brightness(${fx.bri}) contrast(${fx.con}) saturate(${fx.sat})`,
-    mixBlendMode: top ? fx.blend : "normal",
-    clipPath, zIndex: z ?? (top ? 2 : 1), pointerEvents: "none",
+    mixBlendMode: active && top ? fx.blend : "normal",
+    clipPath, zIndex: active ? (z ?? (top ? 2 : 1)) : 0, pointerEvents: "none",
   };
 
   return (
@@ -4025,7 +4054,7 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
         <SceneView snapshot={asset.pixels} palette={prod?.pixelsConfig?.colorPalette}
           playing={playing} time={playhead - clip.start + offset} className="mvid" />
       ) : <>
-        {asset?.url && asset.type === "video" && <video ref={vRef} src={asset.url} className="mvid" muted={!!mute || !!clip.disabled || !!clip.av} playsInline preload="auto" onLoadedData={doSeek} onCanPlay={doSeek} onSeeked={() => { if (!playing) doSeek(); }} />}
+        {asset?.url && asset.type === "video" && <video ref={vRef} src={asset.url} className="mvid" muted={!active || !!mute || !!clip.disabled || !!clip.av} playsInline preload="auto" onLoadedData={doSeek} onCanPlay={doSeek} onSeeked={() => { if (!playing) doSeek(); }} />}
         {asset?.url && (asset.type === "image" || asset.type === "graphic") && <img src={asset.url} className="mvid" alt="" />}
         {asset && !asset.url && (
           <div className="sboard">
@@ -4058,7 +4087,7 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
 /* ---------- audio playback: one active clip on one audio track (a1/a2) ----------
    Audio-track clips were only drawn as waveforms — never mounted to a playing element,
    so music/dialogue was silent. This mounts a hidden <audio> synced to the playhead. */
-function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId }) {
+function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active = true }) {
   const aRef = useRef(null);
   const graphRef = useRef(undefined); // undefined = not attempted, null = failed (use element vol), Graph = active
   const asset = clip.assetId ? prod.mediaPool.find((a) => a.id === clip.assetId) : null;
@@ -4067,11 +4096,16 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId }) {
   useEffect(() => {
     const a = aRef.current;
     if (!a || !url) return;
-    const t = playhead - clip.start + offset;
-    if (!playing || Math.abs(a.currentTime - t) > 0.25) { try { a.currentTime = Math.max(0, t); } catch { /* seeking */ } }
-    if (playing && a.paused) a.play().catch(() => {});
-    if (!playing && !a.paused) a.pause();
-  }, [playhead, playing, url, clip.start, offset]);
+    if (active) {
+      const t = playhead - clip.start + offset;
+      if (!playing || Math.abs(a.currentTime - t) > 0.25) { try { a.currentTime = Math.max(0, t); } catch { /* seeking */ } }
+      if (playing && a.paused) a.play().catch(() => {});
+      if (!playing && !a.paused) a.pause();
+    } else { // warm buffer — parked at in-point, paused, ready to go live gaplessly
+      if (!a.paused) a.pause();
+      try { if (Math.abs(a.currentTime - offset) > 0.05) a.currentTime = Math.max(0, offset); } catch { /* seeking */ }
+    }
+  }, [active, playhead, playing, url, clip.start, offset]);
   // DSP strip: gain / pan / 5-band EQ / compressor at clip + track stage. Falls back to
   // element volume if Web Audio isn't available or the element is already sourced.
   const clipAudioKey = JSON.stringify(clip.audio || null);
@@ -4081,14 +4115,14 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId }) {
     if (!a || !url) return;
     if (graphRef.current === undefined) graphRef.current = attachAudioGraph(a);
     const g = graphRef.current;
-    if (g) { g.resume(); a.muted = !!clip.disabled; a.volume = 1; g.apply(clip.audio, track); if (trackId) meterRegistry.set(trackId, g.level); }
-    else { // no graph — plain element controls (no EQ/comp/pan, but vol + mute still work)
+    if (g) { if (active) g.resume(); a.muted = !!clip.disabled; a.volume = 1; g.apply(clip.audio, { ...track, mute: track.mute || !active }); if (active && trackId) meterRegistry.set(trackId, g.level); }
+    else if (active) { // no graph — plain element controls (no EQ/comp/pan, but vol + mute still work)
       const cv = clip.audio?.vol == null ? 1 : clip.audio.vol;
       const tv = track.vol == null ? 1 : track.vol;
       a.volume = Math.max(0, Math.min(1, cv * tv));
       a.muted = !!track.mute || !!clip.disabled;
-    }
-  }, [url, clipAudioKey, trackKey, clip.disabled, trackId]);
+    } else { a.muted = true; } // warm buffer, no graph — keep it silent
+  }, [active, url, clipAudioKey, trackKey, clip.disabled, trackId]);
   // Release the meter when this track's clip goes silent/unmounts.
   useEffect(() => () => { if (trackId && meterRegistry.get(trackId) === graphRef.current?.level) meterRegistry.delete(trackId); }, [trackId]);
   if (!url || clip.disabled) return null;
