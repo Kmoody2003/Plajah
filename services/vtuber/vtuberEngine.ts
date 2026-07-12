@@ -78,10 +78,13 @@ async function createBodyStream(input: MediaStream, opts: VTuberOptions): Promis
   let pose: import('./poseTracker').PoseFrame | null = null;
   let locked = false;
   let lastDetect = -1e9, detectMs = 22; // pose inference is heavier than face
+  let lastRender = 0;
   let raf = 0;
   const loop = () => {
     raf = requestAnimationFrame(loop);
     const t = performance.now();
+    if (t - lastRender < 31) return; // ~30fps cap — the output is 24fps; per-RAF is wasted heat
+    lastRender = t;
     if (tracker.isReady && video.readyState >= 2 && (t - lastDetect) >= detectMs * 0.85) {
       const ts = Math.max(lastTs + 1, Math.round(t));
       lastTs = ts;
@@ -182,10 +185,13 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
   // as fast as it can actually keep up — on slow phones this stops inference from starving
   // the render loop (saves battery + keeps the puppet fluid). Fast devices detect near 1:1.
   let lastDetect = -1e9, detectMs = 16;
+  let lastRender = 0;
   let raf = 0;
   const loop = () => {
     raf = requestAnimationFrame(loop);
     const t = performance.now();
+    if (t - lastRender < 31) return; // ~30fps cap — output is 24fps; per-RAF render is wasted heat
+    lastRender = t;
 
     if (tracker.isReady && video.readyState >= 2 && (t - lastDetect) >= detectMs * 0.85) {
       const ts = Math.max(lastTs + 1, Math.round(t)); // detectForVideo needs monotonic timestamps

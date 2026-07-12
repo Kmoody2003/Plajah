@@ -625,13 +625,16 @@ export class LiveComposer {
   }
 
   private loop = () => {
+    this.raf = requestAnimationFrame(this.loop);
+    // Cap to ~30fps. RAF fires at 60–120Hz; drawing + WebGL grade + captureStream at that
+    // rate is pure wasted GPU heat when the published/recorded stream is 30fps anyway.
+    const t = performance.now();
+    if (t - this.lastFxT < 31) return;
     try {
-      const t = performance.now();
       const dt = Math.min(0.05, this.lastFxT ? (t - this.lastFxT) / 1000 : 0.016);
       this.lastFxT = t;
       this.draw(); this.present(); this.stepFx(dt);
     } catch { /* keep alive */ }
-    this.raf = requestAnimationFrame(this.loop);
   };
 
   dispose() {

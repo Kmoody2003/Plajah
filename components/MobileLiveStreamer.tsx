@@ -561,9 +561,13 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     try {
       if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
       const comp = composerRef.current;
-      // Publish the (initially black) canvas FIRST — this stops the raw camera the RTC
-      // layer held, so the composer can open its own cameras without a device conflict.
+      // First engage: the composer ADOPTS the live RTC camera as its source (no clone → no
+      // black; no second getUserMedia → no device conflict) and publishes its canvas. RTC
+      // keeps the source alive (swapVideoTrack keepOld). Before this, the raw camera streams
+      // directly — the composer isn't running at all, so an idle stream stays cool.
       if (!composerPublishedRef.current) {
+        const rtcCam = rtc.localStream?.getVideoTracks()[0];
+        if (rtcCam && rtcCam.readyState === 'live') comp.adoptFrontTrack(rtcCam);
         const track = comp.getStream().getVideoTracks()[0];
         await rtc.publishExternalVideo(track);
         composerPublishedRef.current = true;
@@ -747,33 +751,12 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   // Surface capture errors in the existing permission UI.
   useEffect(() => { if (rtc.error) setPermError(rtc.error); }, [rtc.error]);
 
-  // Composer-always-on: publish the composed canvas from the START of the stream, not on
-  // first mode change — so looks/LUTs/VTuber apply instantly and the recording is stable.
-  // The composer CONSUMES the real, live RTC camera track as its front source (no clone —
-  // clones were black on some devices; no fresh getUserMedia — that raced/failed after the
-  // RTC camera was stopped). publishExternalVideo now keeps that source track alive (see
-  // rtcCore.swapVideoTrack keepOld), so the composer's input never goes black. NOTE: must
-  // live BELOW the `rtc` declaration — its dep array reads rtc.localStream at render (TDZ).
-  const bootRef = useRef(false);
-  useEffect(() => {
-    if (!rtc.localStream || bootRef.current || composerPublishedRef.current) return;
-    const cam = rtc.localStream.getVideoTracks()[0];
-    if (!cam || cam.readyState !== 'live') return;
-    bootRef.current = true;
-    (async () => {
-      try {
-        if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
-        composerRef.current.adoptFrontTrack(cam); // the REAL live RTC camera — frames guaranteed
-        await applyMode('front');                 // publishes the canvas (keeps the source alive)
-      } catch (e: any) {
-        console.warn('[live] composer boot failed — staying on the raw camera:', e);
-        setFxError(`FX engine failed to start: ${e?.name || ''} ${e?.message || e}`.trim());
-        composerPublishedRef.current = false;
-        bootRef.current = false;
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rtc.localStream]);
+  // NO composer-always-on: the raw RTC camera streams directly by default (zero GPU cost —
+  // an idle stream never spins up the compositor, so the phone stays cool). The composer
+  // only engages the FIRST time the user picks an effect (look / LUT / VTuber / camera mode)
+  // — see applyMode's first-publish, which adopts the live RTC camera as the source. Running
+  // a full WebGL compositor + trackers every frame when nobody asked for an effect was
+  // pegging the GPU (overheating, lag, frozen viewport) for no benefit.
   // Bridge the existing mic/cam/flip UI setters to the backbone.
   useEffect(() => { rtc.setAudio(micOn); }, [micOn]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { rtc.setVideo(camOn); }, [camOn]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1063,8 +1046,8 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                 ⚠️ {fxError} (tap)
               </button>
             )}
-            <span className="px-2 py-0.5 rounded-full bg-black/45 backdrop-blur text-[9px] font-mono text-white/70">
-              {composerPublishedRef.current ? `FX ready · ${camMode}${lookId !== 'none' ? ' · ' + lookId : ''}` : 'raw camera (FX not engaged)'}
+            <span className="px-2 py-0.5 rounded-full bg-black/45 backdrop-blur text-[9px] font-mono text-white/60">
+              {composerPublishedRef.current ? `FX ✓ · ${camMode}${lookId !== 'none' ? ' · ' + lookId : ''}` : 'direct camera · tap Mode to add effects'}
             </span>
           </div>
           {/* Top bar */}
