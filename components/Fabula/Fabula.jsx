@@ -547,6 +547,8 @@ export default function Fabula() {
   const [playhead, setPlayhead] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [selClipId, setSelClipId] = useState(null);
+  const [selIds, setSelIds] = useState([]);        // timeline multi-select (Ctrl+click / marquee)
+  const [tlMarquee, setTlMarquee] = useState(null); // live marquee rect over the timeline
   const [toolMode, setToolMode] = useState("select"); // select | razor
   const [zoom, setZoom] = useState(1);
   /* edit toolset: snapping, clipboard, markers, in/out, undo history, shortcuts */
@@ -1878,7 +1880,11 @@ export default function Fabula() {
   const copySel = () => { const c = getSel(); if (c) { setClipboard(JSON.parse(JSON.stringify(c))); ping("Copied"); } };
   const cutSel = () => { const c = getSel(); if (!c) return; setClipboard(JSON.parse(JSON.stringify(c))); applyClips(clips.filter((x) => x.id !== c.id)); setSelClipId(null); };
   const pasteClip = () => { if (!clipboard) return; const d = { ...JSON.parse(JSON.stringify(clipboard)), id: uid(), start: playhead }; applyClips([...clips, d]); setSelClipId(d.id); ping("Pasted"); };
-  const liftDelete = () => { const c = getSel(); if (!c) return; applyClips(clips.filter((x) => x.id !== c.id)); setSelClipId(null); };
+  const liftDelete = () => {
+    // Multi-selection: delete every selected clip at once.
+    if (selIds.length > 1) { const kill = new Set(selIds); applyClips(clips.filter((x) => !kill.has(x.id))); setSelIds([]); setSelClipId(null); return; }
+    const c = getSel(); if (!c) return; applyClips(clips.filter((x) => x.id !== c.id)); setSelClipId(null); setSelIds([]);
+  };
   // Backspace also removes the selected clip (Delete is already bound). Guarded off text inputs.
   const backspaceRef = useRef({});
   backspaceRef.current = { liftDelete, selClipId, page };
@@ -1961,6 +1967,54 @@ export default function Fabula() {
   const addMarkerAtPlayhead = () => setMarkers((m) => [...m, { id: uid(), t: playhead }]);
   const zoomIn = () => setZoom((z) => Math.min(4, +(z + 0.2).toFixed(2)));
   const zoomOut = () => setZoom((z) => Math.max(0.1, +(z - 0.2).toFixed(2)));
+  // Alt+scroll-wheel zooms the timeline, keeping the time under the cursor fixed (Resolve-style).
+  // Native non-passive listener — React's onWheel is passive so preventDefault is ignored there.
+  useEffect(() => {
+    const el = tlScrollRef.current;
+    if (!el) return undefined;
+    const onWheel = (e) => {
+      if (!e.altKey) return;
+      e.preventDefault();
+      setZoom((z) => {
+        const nz = Math.max(0.1, Math.min(4, +(z * (e.deltaY > 0 ? 0.85 : 1.18)).toFixed(3)));
+        // keep the timeline point under the cursor stationary while zooming
+        const rect = el.getBoundingClientRect();
+        const cx = e.clientX - rect.left - 128 + el.scrollLeft;        // px into the sequence at old zoom
+        const t = cx / (46 * z);                                        // seconds under the cursor
+        requestAnimationFrame(() => { el.scrollLeft = Math.max(0, t * 46 * nz - (e.clientX - rect.left - 128)); });
+        return nz;
+      });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  });
+  // Marquee select: left-click-drag over empty timeline space draws a rubber band; every clip
+  // it touches joins the multi-selection (5px threshold so plain clicks still deselect/seek).
+  const startTlMarquee = (e) => {
+    if (e.button !== 0) return;
+    if (e.target.closest(".ruler, .trackhead, .clip, button, input, select, .mk, .tl-tools")) return;
+    const x0 = e.clientX, y0 = e.clientY;
+    let live = false;
+    const move = (ev) => {
+      if (!live && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 5) return;
+      live = true;
+      setTlMarquee({ x0, y0, x1: ev.clientX, y1: ev.clientY });
+    };
+    const up = (ev) => {
+      document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up);
+      setTlMarquee(null);
+      if (!live) { setSelIds([]); return; } // plain click on empty space clears the selection
+      const L = Math.min(x0, ev.clientX), R = Math.max(x0, ev.clientX), T = Math.min(y0, ev.clientY), B = Math.max(y0, ev.clientY);
+      const hits = [];
+      document.querySelectorAll(".trackbody .clip[data-cid]").forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.left < R && r.right > L && r.top < B && r.bottom > T) hits.push(el.dataset.cid);
+      });
+      setSelIds(hits);
+      setSelClipId(hits[0] || null);
+    };
+    document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
+  };
   // Drag the divider above the timeline to grow/shrink it (dragging up = taller timeline).
   const startTlResize = (e) => {
     e.preventDefault();
@@ -2095,9 +2149,21 @@ export default function Fabula() {
     e.stopPropagation();
     const c = clips.find((x) => x.id === clipId);
     if (!c) return;
-    // Linked A/V: siblings sharing this clip's linkId move together.
+    // Ctrl/Cmd+click: toggle this clip in the multi-selection (no drag).
+    if ((e.ctrlKey || e.metaKey) && mode === "move") {
+      setSelIds((cur) => cur.includes(clipId) ? cur.filter((x) => x !== clipId) : [...cur, clipId]);
+      setSelClipId(clipId);
+      return;
+    }
+    // Clicking a clip outside the multi-selection collapses it to just that clip.
+    const inSel = selIds.includes(clipId);
+    if (!inSel && selIds.length) setSelIds([]);
+    // Linked A/V siblings + (on a plain move) every other multi-selected clip ride along.
     const links = c.linkId ? clips.filter((x) => x.linkId === c.linkId && x.id !== clipId).map((x) => ({ id: x.id, origStart: x.start })) : [];
-    dragRef.current = { clipId, mode, startX: e.clientX, origStart: c.start, origDur: c.duration, origSrcIn: c.srcIn || 0, trackId: c.trackId, trimMode, links };
+    const group = (mode === "move" && inSel && selIds.length > 1)
+      ? clips.filter((x) => selIds.includes(x.id) && x.id !== clipId).map((x) => ({ id: x.id, origStart: x.start }))
+      : [];
+    dragRef.current = { clipId, mode, startX: e.clientX, origStart: c.start, origDur: c.duration, origSrcIn: c.srcIn || 0, trackId: c.trackId, trimMode, links, group };
     setSelClipId(clipId);
   };
   const onTimelineMove = (e) => {
@@ -2135,6 +2201,8 @@ export default function Fabula() {
           if (x.id === d.clipId) return { ...x, start: ns };
           const lk = d.links.find((l) => l.id === x.id); // linked A/V sibling rides along
           if (lk) return { ...x, start: Math.max(0, snap(lk.origStart + moveDelta)) };
+          const gm = (d.group || []).find((g) => g.id === x.id); // multi-selected clips move as a block
+          if (gm) return { ...x, start: Math.max(0, snap(gm.origStart + moveDelta)) };
           return x;
         });
       }
@@ -2337,7 +2405,15 @@ export default function Fabula() {
 
   const renderPool = () => (
 <aside className="pool glass-dark">
-                    <div className="paneltitle"><MonitorPlay size={12} /> MEDIA POOL</div>
+                    <div className="paneltitle"><MonitorPlay size={12} /> MEDIA POOL
+                      <button className="minibtn" style={{ marginLeft: "auto", fontSize: 8 }} title="Create a media bin"
+                        onClick={() => {
+                          const name = (window.prompt("New bin name") || "").trim();
+                          if (!name) return;
+                          updateProd((p) => { p.bins = p.bins || []; if (!p.bins.includes(name)) p.bins.push(name); });
+                          ping(`Bin "${name}" created — assign clips to it from the MEDIA workspace`);
+                        }}>+ BIN</button>
+                    </div>
                     <button className="minibtn full" onClick={() => fileRef.current?.click()}><Upload size={12} /> IMPORT MEDIA</button>
                     <input ref={fileRef} type="file" multiple accept="video/*,image/*,audio/*" style={{ display: "none" }} onChange={handleUpload} />
                     <input ref={relinkRef} type="file" accept="video/*,image/*,audio/*" style={{ display: "none" }}
@@ -2375,6 +2451,8 @@ export default function Fabula() {
                               onClick={(e) => e.stopPropagation()}
                               onChange={() => setMcSel((s) => s.includes(a.id) ? s.filter((x) => x !== a.id) : [...s, a.id])} />
                           )}
+                          {a.url && a.type === "video" && <ScrubThumb url={a.url} className="poolthumb" />}
+                          {a.url && (a.type === "image" || a.type === "graphic") && <img src={a.url} className="poolthumb" alt="" />}
                           <span className={`pooltype ${a.type}`}>{{ video: "VID", audio: "AUD", image: "IMG", multicam: "MC", model: "3D", graphic: "GFX", text: "TXT" }[a.type] || "FILE"}</span>
                           <span className="poolname">{a.name}</span>
                           {(!a.url || a.offline) && <button className="chip blue" style={{ fontSize: 7, border: "none", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); openRelink(a.id); }} title="Relink to a local file">🔗 RELINK</button>}
@@ -2831,6 +2909,7 @@ export default function Fabula() {
   const renderTimeline = () => (
 <>
                 <div className="tl-resize" title="Drag to resize the timeline" onMouseDown={startTlResize} />
+                {tlMarquee && <div style={{ position: "fixed", left: Math.min(tlMarquee.x0, tlMarquee.x1), top: Math.min(tlMarquee.y0, tlMarquee.y1), width: Math.abs(tlMarquee.x1 - tlMarquee.x0), height: Math.abs(tlMarquee.y1 - tlMarquee.y0), border: "1px solid #FF8C00", background: "rgba(255,140,0,0.12)", zIndex: 9998, pointerEvents: "none" }} />}
 <div className="tlwrap glass-dark" style={{ height: tlHeight }}>
                   <div className="tl-tools">
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -2896,7 +2975,7 @@ export default function Fabula() {
                     </div>
                   </div>
                   <div className="tl-scroll" ref={tlScrollRef}>
-                    <div className="tl-inner" style={{ width: Math.max(900, (seqEnd + 20) * pxPerSec + 128) }}>
+                    <div className="tl-inner" style={{ width: Math.max(900, (seqEnd + 20) * pxPerSec + 128) }} onMouseDown={startTlMarquee}>
                       {/* ruler */}
                       <div className="ruler">
                         <div className="trackhead rh"><span className="phdot" /></div>
@@ -2954,10 +3033,10 @@ export default function Fabula() {
                             }}>
                             {clips.filter((c) => c.trackId === tr.id).map((c) => {
                               const shot = c.shotId ? scene?.shots.find((s) => s.id === c.shotId) : null;
-                              const sel = selClipId === c.id;
+                              const sel = selClipId === c.id || selIds.includes(c.id);
                               const wfUrl = (tr.type === "audio" || c.kind === "voice") && c.assetId ? (prod?.mediaPool?.find((m) => m.id === c.assetId)?.url) : null;
                               return (
-                                <div key={c.id}
+                                <div key={c.id} data-cid={c.id}
                                   className={`clip ${c.kind} ${sel ? "sel" : ""} ${shot?.status === "ready" ? "rdy" : ""}`}
                                   style={{ left: c.start * pxPerSec, width: Math.max(8, c.duration * pxPerSec), opacity: c.disabled ? 0.4 : 1, cursor: toolMode === "razor" ? "crosshair" : undefined }}
                                   onMouseDown={(e) => { if (toolMode === "razor") { e.stopPropagation(); razorAt(e, c.id); return; } onClipDown(e, c.id, "move"); }}
@@ -3716,7 +3795,7 @@ export default function Fabula() {
                           onClick={(e) => poolClick(e, a)} onContextMenu={(e) => poolContext(e, a)} onDoubleClick={() => openInViewer(a, true)} title="Click: select + view · Double-click: load & play · Right-click: menu · Drag: marquee-select">
                           <div className="mwthumb">
                             {a.url && (a.type === "image" || a.type === "graphic") && <img src={a.url} alt="" />}
-                            {a.url && a.type === "video" && <video src={a.url} muted />}
+                            {a.url && a.type === "video" && <ScrubThumb url={a.url} />}
                             {(!a.url || !["image", "graphic", "video"].includes(a.type)) && <span className="wext">{{ audio: "♪", model: "3D", text: "TXT", multicam: "MC" }[a.type] || "FILE"}</span>}
                             {(a.type === "video" || a.type === "audio") && (
                               <input type="checkbox" className="mcchk mwchk" checked={mcSel.includes(a.id)} onClick={(e) => e.stopPropagation()}
@@ -3965,7 +4044,7 @@ export default function Fabula() {
         </div>
         <div className="ftr-right">
           <span>{storageReady ? "PERSISTED" : storageReady === false ? "SESSION ONLY" : "…"}</span>
-          <span className="ver mono">FABULA α-0.3</span>
+          <span className="ver mono">FABULA α-0.5</span>
         </div>
       </footer>
     </div>
@@ -4164,6 +4243,21 @@ function TrackMeter({ trackId }) {
     return () => cancelAnimationFrame(raf);
   }, [trackId]);
   return <div className="vmeter" title="Track level"><i ref={coverRef} style={{ height: "100%" }} /></div>;
+}
+
+/* ---------- hover-scrub video thumbnail (media pool) — sweep the mouse across to preview ---------- */
+function ScrubThumb({ url, className }) {
+  const r = useRef(null);
+  return (
+    <video ref={r} src={url} className={className} muted playsInline preload="metadata"
+      onMouseMove={(e) => {
+        const v = r.current; if (!v || !v.duration || !isFinite(v.duration)) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const f = Math.max(0, Math.min(0.999, (e.clientX - rect.left) / rect.width));
+        try { v.currentTime = f * v.duration; } catch { /* not seekable yet */ }
+      }}
+      onMouseLeave={() => { const v = r.current; if (v && v.duration && isFinite(v.duration)) { try { v.currentTime = 0; } catch { /* */ } } }} />
+  );
 }
 
 /* ---------- media warm cache: keep timeline clips' media decoded + resident in RAM ----------
@@ -4458,6 +4552,7 @@ const CSS = `
   text-transform:uppercase;margin-bottom:8px}
 .poollist{flex:1;overflow-y:auto;margin-top:8px}
 .poolitem{display:flex;align-items:center;gap:7px;padding:6px;border-radius:6px;cursor:pointer;border:1px solid transparent}
+.poolthumb{width:52px;height:30px;object-fit:cover;border-radius:4px;flex:0 0 auto;background:#000;cursor:ew-resize}
 .poolitem:hover{background:var(--w04);border-color:var(--w08)}
 .pooltype{font-size:7.5px;font-weight:900;letter-spacing:.1em;padding:2px 5px;border-radius:3px;background:var(--w08);color:var(--w40)}
 .pooltype.video{color:var(--blue)} .pooltype.audio{color:var(--green)} .pooltype.image{color:var(--org)}

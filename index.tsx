@@ -160,6 +160,12 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
       if (r) {
         r.update().catch(() => { /* offline */ });
         setInterval(() => { r.update().catch(() => { /* offline */ }); }, 60_000);
+        // Also check the moment the user returns to the tab — long-lived editor
+        // sessions (Fabula etc.) otherwise sit on a stale bundle until they notice
+        // the toast, which reads as "the fixes didn't ship".
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') r.update().catch(() => { /* offline */ });
+        });
       }
     },
   });
