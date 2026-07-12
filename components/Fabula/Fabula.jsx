@@ -553,6 +553,12 @@ export default function Fabula() {
   const [clipboard, setClipboard] = useState(null);
   const [ctxMenu, setCtxMenu] = useState(null); // right-click clip menu: { x, y, clipId }
   const [transcribing, setTranscribing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(null);   // top menu bar: 'File' | 'Edit' | 'View' | 'Clip' | 'Help'
+  const [poolSel, setPoolSel] = useState([]);       // selected media-pool asset ids (multi-select)
+  const [poolCtx, setPoolCtx] = useState(null);     // media-pool right-click menu { x, y }
+  const [marquee, setMarquee] = useState(null);     // rubber-band selection rect { x0, y0, x1, y1 }
+  const folderRelinkRef = useRef(null);             // folder picker for batch relink
+  const folderRelinkTargetsRef = useRef(null);      // asset ids to relink from a folder (null = all offline)
   const [markers, setMarkers] = useState([]);
   const [markIn, setMarkIn] = useState(null);
   const [markOut, setMarkOut] = useState(null);
@@ -1295,16 +1301,59 @@ export default function Fabula() {
   };
   // Relink an offline/missing asset to a local file (re-point its url).
   const openRelink = (assetId) => { relinkTargetRef.current = assetId; relinkRef.current?.click(); };
+  // ── Media-pool multi-select (click / ⌘-click / shift-range / marquee) ──
+  const poolFiltered = () => (prod?.mediaPool || []).filter((x) => binFilter === "all" || (x.bin || "imports") === binFilter);
+  const poolClick = (e, a) => {
+    if (e.ctrlKey || e.metaKey) { setPoolSel((s) => s.includes(a.id) ? s.filter((x) => x !== a.id) : [...s, a.id]); return; }
+    if (e.shiftKey && poolSel.length) {
+      const ids = poolFiltered().map((x) => x.id);
+      const i1 = ids.indexOf(poolSel[poolSel.length - 1]), i2 = ids.indexOf(a.id);
+      if (i1 >= 0 && i2 >= 0) { setPoolSel(ids.slice(Math.min(i1, i2), Math.max(i1, i2) + 1)); return; }
+    }
+    setPoolSel([a.id]); openInViewer(a, false);
+  };
+  const poolContext = (e, a) => {
+    e.preventDefault(); e.stopPropagation();
+    setPoolSel((s) => (s.includes(a.id) ? s : [a.id]));
+    setPoolCtx({ x: e.clientX, y: e.clientY });
+  };
+  const startMarquee = (e) => {
+    if (e.button !== 0 || e.target !== e.currentTarget) return; // only empty-space drags
+    const grid = e.currentTarget, x0 = e.clientX, y0 = e.clientY;
+    const baseSel = (e.ctrlKey || e.metaKey || e.shiftKey) ? [...poolSel] : [];
+    if (!baseSel.length) setPoolSel([]);
+    const move = (ev) => {
+      setMarquee({ x0, y0, x1: ev.clientX, y1: ev.clientY });
+      const L = Math.min(x0, ev.clientX), R = Math.max(x0, ev.clientX), T = Math.min(y0, ev.clientY), B = Math.max(y0, ev.clientY);
+      const hit = [];
+      grid.querySelectorAll(".mwcard[data-aid]").forEach((el) => { const r = el.getBoundingClientRect(); if (r.left < R && r.right > L && r.top < B && r.bottom > T) hit.push(el.getAttribute("data-aid")); });
+      setPoolSel(Array.from(new Set([...baseSel, ...hit])));
+    };
+    const up = () => { setMarquee(null); document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); };
+    document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
+  };
+  const deletePoolAssets = (ids) => {
+    if (!ids.length) return;
+    if (!window.confirm(`Remove ${ids.length} asset${ids.length === 1 ? "" : "s"} from the media pool? (Timeline clips using them go offline.)`)) return;
+    updateProd((p) => { p.mediaPool = (p.mediaPool || []).filter((a) => !ids.includes(a.id)); });
+    setPoolSel([]);
+  };
+  const movePoolToBin = (ids) => {
+    const name = (window.prompt("Move to bin (name)", "imports") || "").trim(); if (!name) return;
+    updateProd((p) => { p.bins = p.bins || []; if (!p.bins.includes(name)) p.bins.push(name); for (const id of ids) { const x = p.mediaPool.find((y) => y.id === id); if (x) x.bin = name; } });
+    ping(`Moved ${ids.length} to “${name}”.`);
+  };
   // Cloud asset sync: upload every LOCAL (blob:) asset to durable storage so the whole
   // project opens on any device. Down-sync is automatic — loadProjectCloud already returns
   // the project with these cloud URLs. Re-run any time you add local media.
   const [syncing, setSyncing] = useState(false);
   const unsyncedCount = (prod?.mediaPool || []).filter((a) => a.url && a.url.startsWith("blob:")).length;
-  const syncAssetsToCloud = async () => {
+  const syncAssetsToCloud = async (onlyIds) => {
     if (!prod || syncing) return;
     if (!auth.currentUser) { ping("Sign in to sync your project to the cloud."); return; }
-    const local = (prod.mediaPool || []).filter((a) => a.url && a.url.startsWith("blob:"));
-    if (!local.length) { ping("All assets are already in the cloud — this project opens everywhere."); return; }
+    const idSet = onlyIds && onlyIds.length ? new Set(onlyIds) : null;
+    const local = (prod.mediaPool || []).filter((a) => a.url && a.url.startsWith("blob:") && (!idSet || idSet.has(a.id)));
+    if (!local.length) { ping(idSet ? "The selected media is already in the cloud." : "All assets are already in the cloud — this project opens everywhere."); return; }
     setSyncing(true);
     let done = 0;
     for (const a of local) {
@@ -1316,7 +1365,23 @@ export default function Fabula() {
       } catch (e) { ping(`Couldn't sync ${a.name} — ${e?.message || "upload failed"}`); }
     }
     setSyncing(false);
-    ping(done === local.length ? `☁ Cloud sync complete — all ${done} assets available everywhere.` : `Synced ${done}/${local.length}. Retry to finish the rest.`);
+    ping(done === local.length ? `☁ Cloud sync complete — ${done} asset${done === 1 ? "" : "s"} available everywhere.` : `Synced ${done}/${local.length}. Retry to finish the rest.`);
+  };
+  // Batch relink from a folder: pick a folder, match each target asset by filename, re-point it.
+  // targets = asset ids (null = all offline assets). "finds the clips again" workflow.
+  const openFolderRelink = (targets) => { folderRelinkTargetsRef.current = targets && targets.length ? targets : null; folderRelinkRef.current?.click(); };
+  const relinkFromFolderFiles = (fileList) => {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    const byName = new Map(); for (const f of files) byName.set((f.name || "").toLowerCase(), f);
+    const ids = folderRelinkTargetsRef.current;
+    const targets = (prod.mediaPool || []).filter((a) => (ids ? ids.includes(a.id) : (!a.url || a.offline)));
+    if (!targets.length) { ping("Nothing to relink — all selected media is already online."); folderRelinkTargetsRef.current = null; return; }
+    const relinks = targets.map((a) => { const f = byName.get((a.name || "").toLowerCase()); return f ? { id: a.id, url: URL.createObjectURL(f), type: f.type.startsWith("video") ? "video" : f.type.startsWith("audio") ? "audio" : "image" } : null; }).filter(Boolean);
+    if (!relinks.length) { ping("No matching filenames found in that folder."); folderRelinkTargetsRef.current = null; return; }
+    updateProd((p) => { for (const r of relinks) { const x = p.mediaPool.find((y) => y.id === r.id); if (x) { x.url = r.url; x.offline = false; x.session = true; } } });
+    ping(`🔗 Relinked ${relinks.length} of ${targets.length} clip${targets.length === 1 ? "" : "s"} from the folder.`);
+    folderRelinkTargetsRef.current = null;
   };
 
   // ── Send scene → Lorea comic composer (script + world cast + assets follow) ──
@@ -1713,6 +1778,15 @@ export default function Fabula() {
     window.addEventListener("keydown", onKey);
     return () => { window.removeEventListener("mousedown", close); window.removeEventListener("scroll", close, true); window.removeEventListener("keydown", onKey); };
   }, [ctxMenu]);
+  // Dismiss the menu-bar dropdown + pool right-click menu on any outside click / Escape.
+  useEffect(() => {
+    if (!menuOpen && !poolCtx) return;
+    const close = () => { setMenuOpen(null); setPoolCtx(null); };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    window.addEventListener("mousedown", close);
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("mousedown", close); window.removeEventListener("keydown", onKey); };
+  }, [menuOpen, poolCtx]);
   const undoEdit = () => { const h = histRef.current; if (!h.past.length) return; const prev = h.past.pop(); h.future.push(clips); setClips(prev); commitClips(prev); ping("Undo"); };
   const redoEdit = () => { const h = histRef.current; if (!h.future.length) return; const nx = h.future.pop(); h.past.push(clips); setClips(nx); commitClips(nx); ping("Redo"); };
 
@@ -2424,6 +2498,117 @@ export default function Fabula() {
                     )}
                   </aside>
   );
+  // ── Traditional menu bar (File · Edit · View · Clip · Help) ──
+  const renderMenuBar = () => {
+    const sel = getSel();
+    const D = "—"; // divider marker
+    const menus = {
+      File: [
+        { label: "New quick project", fn: createQuickProject },
+        { label: "New edit (standalone timeline)", fn: () => newEdit() },
+        { label: "Open a production…", fn: () => setPage("productions") },
+        D,
+        { label: "Import files…", fn: () => fileRef.current?.click() },
+        { label: "Import folder…", fn: () => folderRef.current?.click() },
+        D,
+        { label: `Sync assets to cloud${unsyncedCount ? ` (${unsyncedCount})` : " ✓"}`, fn: () => syncAssetsToCloud() },
+        D,
+        { label: "Export EDL (CMX3600)", fn: exportEDL },
+        { label: rendering ? "Rendering…" : "Render MP4", fn: doRenderMP4, disabled: rendering },
+      ],
+      Edit: [
+        { label: "Undo", fn: undoEdit, hint: "⌘Z" },
+        { label: "Redo", fn: redoEdit, hint: "⌘⇧Z" },
+        D,
+        { label: "Cut", fn: cutSel, hint: "⌘X", need: true },
+        { label: "Copy", fn: copySel, hint: "⌘C", need: true },
+        { label: "Paste", fn: pasteClip, hint: "⌘V", disabled: !clipboard },
+        { label: "Duplicate", fn: duplicateSel, hint: "⌘D", need: true },
+        D,
+        { label: "Delete (leave gap)", fn: liftDelete, hint: "Del", need: true },
+        { label: "Ripple delete", fn: rippleDelete, hint: "⇧Del", need: true },
+      ],
+      View: [
+        { label: "Zoom in", fn: zoomIn, hint: "+" },
+        { label: "Zoom out", fn: zoomOut, hint: "−" },
+        { label: "Zoom to fit", fn: zoomFit },
+        D,
+        { label: `Snapping: ${snapOn ? "On" : "Off"}`, fn: () => setSnapOn((s) => !s) },
+        D,
+        ...[["media", "MEDIA"], ["edit", "EDIT"], ["vfx", "VFX"], ["color", "COLOR"], ["audio", "AUDIO"], ["deliver", "DELIVER"]].map(([id, lab]) => ({ label: `Workspace: ${lab}`, fn: () => setEditWs(id), active: editWs === id })),
+        D,
+        { label: "Keyboard shortcuts…", fn: () => setShowShortcuts(true) },
+      ],
+      Clip: [
+        { label: "Split at playhead", fn: bladeAtPlayhead, hint: "S" },
+        { label: "Add default transition", fn: addCrossDissolve, need: true },
+        D,
+        { label: "Mark In", fn: () => setMarkIn(playhead), hint: "I" },
+        { label: "Mark Out", fn: () => setMarkOut(playhead), hint: "O" },
+        D,
+        { label: transcribing ? "Transcribing…" : "Transcribe clip", fn: () => transcribeClip(), need: true, disabled: transcribing },
+        { label: sel?.disabled ? "Enable clip" : "Disable clip", fn: toggleDisable, need: true },
+        D,
+        { label: "Relink selected clip's media…", fn: () => { const c = getSel(); c?.assetId ? openRelink(c.assetId) : ping("Select a clip with media first."); } },
+        { label: "Relink media from folder…", fn: () => openFolderRelink(poolSel.length ? poolSel : null) },
+      ],
+      Help: [
+        { label: "Keyboard shortcuts…", fn: () => setShowShortcuts(true) },
+        { label: "About Fabula", fn: () => ping("Fabula α — Plajah's AI film NLE") },
+      ],
+    };
+    return (
+      <div style={{ display: "flex", alignItems: "stretch", gap: 2, padding: "0 6px", height: 30, background: "rgba(10,8,14,0.9)", borderBottom: "1px solid rgba(255,255,255,0.08)", position: "relative", zIndex: 500, flexShrink: 0 }}>
+        {Object.keys(menus).map((name) => (
+          <div key={name} style={{ position: "relative", display: "flex", alignItems: "center" }}>
+            <button onMouseDown={(e) => { e.stopPropagation(); setMenuOpen(menuOpen === name ? null : name); }} onMouseEnter={() => { if (menuOpen) setMenuOpen(name); }}
+              style={{ padding: "0 10px", height: "100%", background: menuOpen === name ? "rgba(255,140,0,0.18)" : "none", border: "none", color: "#d8d8de", font: "600 12px system-ui", cursor: "pointer" }}>{name}</button>
+            {menuOpen === name && (
+              <div onMouseDown={(e) => e.stopPropagation()}
+                style={{ position: "absolute", top: "100%", left: 0, minWidth: 232, background: "rgba(20,16,25,0.98)", backdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, boxShadow: "0 12px 40px rgba(0,0,0,0.6)", padding: "5px 0", zIndex: 501 }}>
+                {menus[name].map((it, i) => it === D ? <div key={i} style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "4px 0" }} /> : (
+                  <button key={i} disabled={it.disabled || (it.need && !sel)} onClick={() => { setMenuOpen(null); it.fn(); }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "6px 14px", background: "none", border: "none", color: "#e8e8ec", font: "500 12px system-ui", textAlign: "left", cursor: "pointer", opacity: (it.disabled || (it.need && !sel)) ? 0.4 : 1 }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,140,0,0.16)")} onMouseLeave={(e) => (e.currentTarget.style.background = "none")}>
+                    <span style={{ flex: 1 }}>{it.active ? "● " : ""}{it.label}</span>{it.hint && <span style={{ opacity: 0.4, fontSize: 10 }}>{it.hint}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+  // Media-pool right-click menu (acts on the current pool selection).
+  const renderPoolCtx = () => {
+    if (!poolCtx) return null;
+    const ids = poolSel;
+    const first = ids.length ? prod.mediaPool.find((a) => a.id === ids[0]) : null;
+    const localN = (prod.mediaPool || []).filter((a) => ids.includes(a.id) && a.url && a.url.startsWith("blob:")).length;
+    const offlineN = (prod.mediaPool || []).filter((a) => ids.includes(a.id) && (!a.url || a.offline)).length;
+    const run = (fn) => { setPoolCtx(null); fn(); };
+    const mi = (label, fn, opts = {}) => (
+      <button disabled={opts.disabled} onClick={() => run(fn)}
+        style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "6px 14px", background: "none", border: "none", color: opts.danger ? "#ff8080" : "#e8e8ec", font: "500 12px system-ui", textAlign: "left", cursor: "pointer", opacity: opts.disabled ? 0.4 : 1 }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,140,0,0.16)")} onMouseLeave={(e) => (e.currentTarget.style.background = "none")}>{label}</button>
+    );
+    const div = <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "4px 0" }} />;
+    return (
+      <div style={{ position: "fixed", left: Math.min(poolCtx.x, window.innerWidth - 232), top: Math.min(poolCtx.y, window.innerHeight - 330), zIndex: 9999, width: 224, background: "rgba(20,16,25,0.98)", backdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, boxShadow: "0 12px 40px rgba(0,0,0,0.6)", padding: "5px 0" }}
+        onMouseDown={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
+        <div style={{ padding: "4px 14px 6px", fontSize: 10, opacity: 0.5 }}>{ids.length} selected</div>
+        {mi("Load & play", () => first && openInViewer(first, true), { disabled: !first })}
+        {mi("Insert at playhead", () => ids.forEach((id) => { const a = prod.mediaPool.find((x) => x.id === id); if (a) insertAssetClip(a); }))}
+        {div}
+        {mi(`Relink from folder…${offlineN ? ` (${offlineN} offline)` : ""}`, () => openFolderRelink(ids))}
+        {mi(`Sync to cloud${localN ? ` (${localN})` : ""}`, () => syncAssetsToCloud(ids), { disabled: !localN })}
+        {div}
+        {mi("Move to bin…", () => movePoolToBin(ids))}
+        {mi("Remove from pool", () => deletePoolAssets(ids), { danger: true })}
+      </div>
+    );
+  };
   const renderTimeline = () => (
 <div className="tlwrap glass-dark">
                   <div className="tl-tools">
@@ -3206,7 +3391,12 @@ export default function Fabula() {
 
         {/* ════════ EDIT PAGE — resolve-style workspaces ════════ */}
         {page === "edit" && (
-          <div className="editwrap">
+          <div className="editwrap" style={{ display: "flex", flexDirection: "column" }}>
+            {prod && renderMenuBar()}
+            {renderPoolCtx()}
+            {marquee && <div style={{ position: "fixed", left: Math.min(marquee.x0, marquee.x1), top: Math.min(marquee.y0, marquee.y1), width: Math.abs(marquee.x1 - marquee.x0), height: Math.abs(marquee.y1 - marquee.y0), border: "1px solid #FF8C00", background: "rgba(255,140,0,0.12)", zIndex: 9998, pointerEvents: "none" }} />}
+            <input ref={folderRelinkRef} type="file" webkitdirectory="" directory="" multiple style={{ display: "none" }}
+              onChange={(e) => { relinkFromFolderFiles(e.target.files); e.target.value = ""; }} />
             {!prod && (
               <div className="dim center big-empty" style={{ margin: "auto" }}>
                 Cut first, ask questions later.
@@ -3267,9 +3457,11 @@ export default function Fabula() {
                       </div>
                       <div className="dim small" style={{ marginTop: 8 }}>Folder bins populate Productions & SLATE automatically — a characters bin runs identity verification into the Cast; props/sets/lore route into the World.</div>
                     </div>
-                    <div className="mwgrid">
-                      {(prod.mediaPool || []).filter((a) => binFilter === "all" || (a.bin || "imports") === binFilter).map((a) => (
-                        <div className={`mwcard ${previewAsset?.id === a.id ? "previewing" : ""}`} key={a.id} onClick={() => openInViewer(a, false)} onDoubleClick={() => openInViewer(a, true)} title="Click: source viewer · Double-click: load & play">
+                    <div className="mwgrid" style={{ position: "relative" }} onMouseDown={startMarquee}>
+                      {poolFiltered().map((a) => (
+                        <div className={`mwcard ${previewAsset?.id === a.id ? "previewing" : ""}`} key={a.id} data-aid={a.id}
+                          style={poolSel.includes(a.id) ? { outline: "2px solid #FF8C00", outlineOffset: -2, borderRadius: 6 } : undefined}
+                          onClick={(e) => poolClick(e, a)} onContextMenu={(e) => poolContext(e, a)} onDoubleClick={() => openInViewer(a, true)} title="Click: select + view · Double-click: load & play · Right-click: menu · Drag: marquee-select">
                           <div className="mwthumb">
                             {a.url && (a.type === "image" || a.type === "graphic") && <img src={a.url} alt="" />}
                             {a.url && a.type === "video" && <video src={a.url} muted />}
