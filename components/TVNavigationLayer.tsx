@@ -114,6 +114,26 @@ const TVNavigationLayer = () => {
     return () => root.classList.remove('tv-nav');
   }, [active]);
 
+  // Auto-enable on the FIRST remote key. TV detection (UA/touch heuristics) is unreliable on
+  // Android TV / Fire TV WebViews, so a device can boot with D-pad nav off and feel frozen. A
+  // real remote sends arrow/OK keydowns that a phone or a mouse-driven desktop never would, so
+  // treat the first such key as proof this is a leanback device — but ONLY in a native app or an
+  // already-detected TV, so desktop keyboard users are never hijacked.
+  useEffect(() => {
+    if (active) return;
+    if (!(platform.isNative || platform.isTV)) return;
+    const onFirstKey = (e: KeyboardEvent) => {
+      const kc = e.keyCode || e.which;
+      const isDpad =
+        e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight' ||
+        e.key === 'Enter' || e.key === 'Select' ||
+        kc === 37 || kc === 38 || kc === 39 || kc === 40 || kc === 13 || kc === 23;
+      if (isDpad) setActive(true);
+    };
+    window.addEventListener('keydown', onFirstKey, true);
+    return () => window.removeEventListener('keydown', onFirstKey, true);
+  }, [active, platform.isNative, platform.isTV]);
+
   const move = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
     const activeEl = document.activeElement as HTMLElement | null;
     const rootedActive = activeEl && activeEl !== document.body ? activeEl : null;
@@ -190,11 +210,14 @@ const TVNavigationLayer = () => {
       const inField =
         tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !!t?.isContentEditable;
 
+      // Some Android TV / Fire TV WebViews deliver the D-pad as keyCodes without a
+      // standard `key` (or a vendor `key`), so fall back to keyCode 37–40.
+      const kc = e.keyCode || e.which;
       const dir =
-        e.key === 'ArrowUp' ? 'up' :
-        e.key === 'ArrowDown' ? 'down' :
-        e.key === 'ArrowLeft' ? 'left' :
-        e.key === 'ArrowRight' ? 'right' : null;
+        (e.key === 'ArrowUp' || kc === 38) ? 'up' :
+        (e.key === 'ArrowDown' || kc === 40) ? 'down' :
+        (e.key === 'ArrowLeft' || kc === 37) ? 'left' :
+        (e.key === 'ArrowRight' || kc === 39) ? 'right' : null;
 
       if (dir) {
         if (inField) return;                          // arrows move the caret / adjust value
@@ -205,12 +228,19 @@ const TVNavigationLayer = () => {
         return;
       }
 
-      if (e.key === 'Enter') {
+      // OK / center button: 'Enter' (13), KEYCODE_DPAD_CENTER (23), or vendor 'Select'.
+      const isOk = e.key === 'Enter' || e.key === 'Select' || kc === 13 || kc === 23;
+      if (isOk) {
         if (inField) return;
         const el = document.activeElement as HTMLElement | null;
-        // Native controls already activate on Enter; only synth-activate custom ones.
-        if (el && !['A', 'BUTTON', 'INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)) {
+        if (!el || el === document.body) return;
+        const nativeActivates = ['A', 'BUTTON', 'INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
+        // Native controls fire their own click on a real Enter. But DPAD_CENTER (23) and
+        // vendor 'Select' often DON'T auto-activate in a WebView, so synth-click them —
+        // that was the "can navigate but can't select / sign in" failure on TV.
+        if (!nativeActivates || kc === 23 || e.key === 'Select') {
           e.preventDefault();
+          e.stopImmediatePropagation();
           el.click();
         }
         return;
