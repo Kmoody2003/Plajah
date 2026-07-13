@@ -752,20 +752,46 @@ export default function Fabula() {
      project's 24/30fps instead of the display's 60–165Hz — the single biggest playback-perf lever
      in a component this size. */
   const clockRef = useRef(0);
+  const phlineRef = useRef(null);   // playhead line — moved imperatively during playback
+  const tcRef = useRef(null);       // transport timecode — updated imperatively during playback
+  const pxPerSecRef = useRef(46);   // kept current every render so the imperative line tracks zoom
+  pxPerSecRef.current = pxPerSec;
   useEffect(() => {
     if (!playing) return undefined;
-    const fps = (prod?.defaults?.format?.fps) || vfmt?.fps || 24;
+    const fps = vfmt?.fps || 24;
     clockRef.current = playhead;
-    let raf; let last = performance.now(); let lastFrame = Math.round(playhead * fps);
+    // ZERO-REACT TRANSPORT. The video/audio elements free-run on their own clocks during
+    // playback; React is only needed when something on screen CHANGES STATE — a cut (buffer
+    // swap), a subtitle/title entering or leaving, a fade animating. So: build the set of
+    // those moments once, move the playhead line + timecode imperatively every rAF (no
+    // re-render), and setPlayhead only when the clock crosses a boundary. Editor re-renders
+    // during playback drop from ~30/sec to roughly one per cut — the difference between
+    // "web app scrubbing along" and native-feeling playback.
+    const marks = new Set([0]);
+    for (const c of clips) {
+      marks.add(+c.start.toFixed(3)); marks.add(+(c.start + c.duration).toFixed(3));
+      const fx = c.fx || {};
+      if (fx.fadeIn > 0) for (let t = 0.1; t <= fx.fadeIn; t += 0.1) marks.add(+(c.start + t).toFixed(3));
+      if (fx.fadeOut > 0) for (let t = 0.1; t <= fx.fadeOut; t += 0.1) marks.add(+(c.start + c.duration - t).toFixed(3));
+    }
+    const bounds = [...marks].sort((a, b) => a - b);
+    let raf; let last = performance.now();
     const tick = (now) => {
       const dt = Math.min(0.25, (now - last) / 1000); last = now; // clamp tab-stall jumps
-      clockRef.current = Math.max(0, clockRef.current + dt * rateRef.current);
-      const f = Math.round(clockRef.current * fps);
-      if (f !== lastFrame) { lastFrame = f; setPlayhead(f / fps); }
+      const prev = clockRef.current;
+      const cur = Math.max(0, prev + dt * rateRef.current);
+      clockRef.current = cur;
+      if (phlineRef.current) phlineRef.current.style.left = (128 + cur * pxPerSecRef.current) + "px";
+      if (tcRef.current) tcRef.current.textContent = fmtTc(cur, vfmt);
+      const lo = Math.min(prev, cur), hi = Math.max(prev, cur);
+      let crossed = false;
+      for (const b of bounds) { if (b > lo && b <= hi) { crossed = true; break; } if (b > hi) break; }
+      if (crossed) setPlayhead(Math.round(cur * fps) / fps);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    // On pause, land React exactly where the clock stopped (frame-quantized).
+    return () => { cancelAnimationFrame(raf); setPlayhead(Math.max(0, Math.round(clockRef.current * fps) / fps)); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing]);
 
@@ -2981,7 +3007,7 @@ export default function Fabula() {
                       )}
                     </div>
                     <div className="transport">
-                      <span className="tc">{fmtTc(playhead, vfmt)}</span>
+                      <span ref={tcRef} className="tc">{fmtTc(playhead, vfmt)}</span>
                       <div className="tbtns">
                         <button className="tbtn" onClick={() => { setPlayhead(0); setPlaying(false); }}><SkipBack size={14} /></button>
                         <button className="tbtn play" onClick={() => { resumeAudioCtx(); setPlaying(!playing); }}>{playing ? <Pause size={15} /> : <Play size={15} />}</button>
@@ -3470,8 +3496,8 @@ export default function Fabula() {
                           ))}
                         </div>
                       </div>
-                      {/* playhead line */}
-                      <div className="phline" style={{ left: 128 + playhead * pxPerSec }} />
+                      {/* playhead line — driven imperatively during playback (zero re-renders) */}
+                      <div ref={phlineRef} className="phline" style={{ left: 128 + playhead * pxPerSec }} />
                       {/* tracks — clips render only within ±1 screen of the scroll viewport */}
                       {tracks.map((tr) => (
                         <div className={`track ${tr.type} ${tr.id === "v1" ? "primary" : ""}`} key={tr.id}>
