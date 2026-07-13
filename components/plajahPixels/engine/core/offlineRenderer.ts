@@ -190,6 +190,7 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
     return d;
   };
 
+  const gradeCanvases = new Map<string, HTMLCanvasElement>(); // per-layer graded-frame buffers (Fabula color page)
   const colorCanvases = new Map<string, HTMLCanvasElement>();
   const colorEl = (hex: string) => {
     let c = colorCanvases.get(hex);
@@ -271,15 +272,31 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
           inputs.push({ texture: tex, opacity, blendMode: layer.blendMode, transform: layer.transform });
         } else if (clip.type === 'media' && clip.mediaUrl) {
           const el = await getMedia(clip.mediaUrl, clip.mediaType ?? 'video');
+          // Per-clip GRADE (Fabula color page): bake the clip's grade into the frame via a cached
+          // 2D canvas with ctx.filter before compositing — export now matches the graded monitor.
+          const grade = (layer as any).grade as { bri: number; con: number; sat: number; hue: number; warm: number; blur: number } | undefined;
+          const applyGrade = (src: HTMLVideoElement | HTMLImageElement): HTMLCanvasElement | HTMLVideoElement | HTMLImageElement => {
+            if (!grade) return src;
+            const sw = (src as HTMLVideoElement).videoWidth || (src as HTMLImageElement).naturalWidth || width;
+            const sh = (src as HTMLVideoElement).videoHeight || (src as HTMLImageElement).naturalHeight || height;
+            const gw = Math.min(sw, 1920), gh = Math.round(gw * (sh / Math.max(1, sw)));
+            let gc = gradeCanvases.get(layer.id);
+            if (!gc || gc.width !== gw || gc.height !== gh) { gc = document.createElement('canvas'); gc.width = gw; gc.height = gh; gradeCanvases.set(layer.id, gc); }
+            const g = gc.getContext('2d')!;
+            g.filter = `blur(${grade.blur || 0}px) brightness(${grade.bri}) contrast(${grade.con}) saturate(${grade.sat})${grade.warm ? ` sepia(${Math.min(1, grade.warm)})` : ''}${grade.hue ? ` hue-rotate(${grade.hue}deg)` : ''}`;
+            g.drawImage(src, 0, 0, gw, gh);
+            g.filter = 'none';
+            return gc;
+          };
           if (el instanceof HTMLVideoElement) {
             const dur = el.duration || 0;
             let st = lt;
             if (dur > 0) st = st % dur; // loop the source within the clip
             if (fast) { try { el.currentTime = st; } catch { /* */ } } // no wait — nearest ready frame
             else await seekVideo(el, st);
-            inputs.push({ element: el, opacity, blendMode: layer.blendMode, transform: layer.transform });
+            inputs.push({ element: applyGrade(el), opacity, blendMode: layer.blendMode, transform: layer.transform });
           } else if (el instanceof HTMLImageElement) {
-            inputs.push({ element: el, opacity, blendMode: layer.blendMode, transform: layer.transform });
+            inputs.push({ element: applyGrade(el), opacity, blendMode: layer.blendMode, transform: layer.transform });
           }
         } else if (clip.type === 'color' && clip.fillColor) {
           inputs.push({ element: colorEl(clip.fillColor), opacity, blendMode: layer.blendMode, transform: layer.transform });

@@ -168,6 +168,10 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
       // Fabula fx → compositor transform: x/y are % (→ UV fraction), sc scale, rot deg→rad.
       const tf = fx ? { x: (fx.x || 0) / 100, y: (fx.y || 0) / 100, scale: fx.sc ?? 1, rot: ((fx.rot || 0) * Math.PI) / 180 } : null;
       const hasTf = tf && (tf.x !== 0 || tf.y !== 0 || tf.scale !== 1 || tf.rot !== 0);
+      // Per-clip GRADE rides into the export (monitor parity): exposure/contrast/saturation/
+      // hue/warmth/soften were preview-only before — the MP4 ignored them entirely.
+      const grade = fx ? { bri: fx.bri ?? 1, con: fx.con ?? 1, sat: fx.sat ?? 1, hue: fx.hue || 0, warm: fx.warm || 0, blur: fx.blur || 0 } : null;
+      const hasGrade = grade && (grade.bri !== 1 || grade.con !== 1 || grade.sat !== 1 || grade.hue !== 0 || grade.warm !== 0 || grade.blur !== 0);
       for (const layer of snap.layers) {
         out.push({
           ...layer,
@@ -176,7 +180,8 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
           opacity: (layer.opacity ?? 1) * clipOp,
           time: lt,
           transform: hasTf ? tf : undefined,
-        });
+          ...(hasGrade ? { grade } : {}),
+        } as any);
       }
     }
     // Subtitle + title clips burn in on top, screen-blended.
