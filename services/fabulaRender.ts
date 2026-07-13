@@ -72,7 +72,18 @@ function applyEqComp(ctx: BaseAudioContext, input: AudioNode, eq?: number[], com
 // track's EQ/comp, stereo pan, fader and mute — the same chain the editor's mixer runs, so
 // what you hear in the edit is what the MP4 contains.
 async function mixAudio(clips: any[], mediaPool: any[], durationSec: number, trackSettings?: Record<string, any>): Promise<AudioBuffer | null> {
-  const audioClips = clips.filter(c => /^a\d+$/.test(c.trackId) && c.assetId && !c.disabled);
+  const aClips = clips.filter(c => /^a\d+$/.test(c.trackId) && c.assetId && !c.disabled);
+  // Video clips with EMBEDDED audio (older clips with no linked A-track sibling) used to render
+  // SILENT — the mixer only read a-tracks. Their sound now routes through the A1 track bus, so
+  // the A1 fader/EQ/comp/pan govern it exactly like the rest of the mix. Skipped when the clip
+  // has a live linked-audio sibling (`av` pairs) — that sibling already carries the sound.
+  const linkedIds = new Set(aClips.map(c => c.linkId).filter(Boolean));
+  const itemOf = (id: string) => mediaPool.find(m => m.id === id);
+  const vAudio = clips
+    .filter(c => /^v\d+$/.test(c.trackId) && c.assetId && !c.disabled && !c.av
+      && !(c.linkId && linkedIds.has(c.linkId)) && itemOf(c.assetId)?.type === 'video')
+    .map(c => ({ ...c, trackId: 'a1' }));
+  const audioClips = [...aClips, ...vAudio];
   if (!audioClips.length || durationSec <= 0) return null;
   const SR = 48000;
 
