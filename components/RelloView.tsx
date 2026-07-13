@@ -22,7 +22,9 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showGoLive, setShowGoLive] = useState(false);
-  const [showScienceBanner, setShowScienceBanner] = useState(true);
+  // A shared video link opens a FOCUSED page (just that video) — no discovery chrome.
+  const focused = !!initialVideoId;
+  const [showScienceBanner, setShowScienceBanner] = useState(!initialVideoId);
   const [activeStream, setActiveStream] = useState<ScienceStream | null>(null);
   const [shared, setShared] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -32,6 +34,16 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // FOCUSED SHARE MODE — a shared Reello link opens THAT video's own page and nothing else:
+      // fetch it by id, show it alone, skip the whole personalized feed + all discovery chrome.
+      // (Playlist/channel shares never reach here — they route to VideoTab / the profile.)
+      if (initialVideoId) {
+        let target: Video | undefined;
+        try { target = (await fetchVideoById(initialVideoId)) || undefined; } catch { /* fall back below */ }
+        if (cancelled) return;
+        if (target) { setVideos([target]); setCurrentIndex(0); setLoading(false); return; }
+        // Unknown/removed id → fall through to the normal feed so it isn't a dead end.
+      }
       const all = await fetchAllVideos();
       if (cancelled) return;
       // A historical bug dropped the isRello flag on upload, so many UGC videos were saved
@@ -61,16 +73,6 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
           });
           if (blended.length > 0) relloVideos = blended;
         } catch { /* keep flat recent list */ }
-      }
-      // A shared link → start on that video, surfacing it first. The feed is only
-      // the recent-50, so fetch the exact video by id if it isn't already there.
-      if (initialVideoId) {
-        let target = all.find(v => v.id === initialVideoId);
-        if (!target) { try { target = (await fetchVideoById(initialVideoId)) || undefined; } catch { /* */ } }
-        if (cancelled) return;
-        if (target && !relloVideos.some(v => v.id === initialVideoId)) relloVideos = [target, ...relloVideos];
-        const idx = relloVideos.findIndex(v => v.id === initialVideoId);
-        if (idx >= 0) setCurrentIndex(idx);
       }
       setVideos(relloVideos);
       setLoading(false);
@@ -156,8 +158,8 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
         </Suspense>
       )}
 
-      {/* Science & Space Live discovery row */}
-      {showScienceBanner && !activeStream && (
+      {/* Science & Space Live discovery row — never on a shared/focused video page */}
+      {!focused && showScienceBanner && !activeStream && (
         <div className="absolute bottom-6 left-4 right-16 z-20">
           <div className="bg-black/70 backdrop-blur-xl border border-white/10 rounded-2xl p-3">
             <div className="flex items-center justify-between mb-2.5">
