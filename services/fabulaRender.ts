@@ -175,7 +175,8 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
     }
     for (const c of titleClips) {
       if (!(t >= c.start && t < c.start + c.duration)) continue;
-      out.push({ id: `title:${c.id}`, clip: { type: 'title', text: c.text, subtitle: c.subtitle, titleStyle: c.titleStyle }, blendMode: 'screen', opacity: 1, time: 0 });
+      // titler overrides (font/color/size/position) ride along so the export matches the monitor
+      out.push({ id: `title:${c.id}`, clip: { type: 'title', text: c.text, subtitle: c.subtitle, titleStyle: c.titleStyle, tFont: c.tFont, tColor: c.tColor, tSubColor: c.tSubColor, tSize: c.tSize, tx: c.tx, ty: c.ty } as any, blendMode: 'screen', opacity: 1, time: 0 });
     }
     return out;
   };

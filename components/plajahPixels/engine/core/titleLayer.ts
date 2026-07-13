@@ -22,9 +22,13 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number): string
   return lines;
 }
 
+/** Custom overrides from the titler UI — font family, fill color, size (% of frame width),
+ *  and anchor position (% of frame). Everything optional; defaults match the style presets. */
+export interface TitleOpts { font?: string; color?: string; subColor?: string; size?: number; x?: number; y?: number }
+
 /** A cached lower-third title canvas. `accent` is the brand/accent color. */
-export function getTitleCanvas(title: string, subtitle = '', style: TitleStyle = 'modern', accent = '#FF8C00'): HTMLCanvasElement {
-  const key = `${title}|${subtitle}|${style}|${accent}`;
+export function getTitleCanvas(title: string, subtitle = '', style: TitleStyle = 'modern', accent = '#FF8C00', opts: TitleOpts = {}): HTMLCanvasElement {
+  const key = `${title}|${subtitle}|${style}|${accent}|${opts.font || ''}|${opts.color || ''}|${opts.subColor || ''}|${opts.size ?? ''}|${opts.x ?? ''}|${opts.y ?? ''}`;
   const hit = cache.get(key);
   if (hit) return hit;
 
@@ -34,15 +38,18 @@ export function getTitleCanvas(title: string, subtitle = '', style: TitleStyle =
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); // keyed out by screen blend
 
   const cx = W * 0.5;
-  const titleSize = Math.round(W * (style === 'minimal' ? 0.05 : 0.058));
-  const subSize = Math.round(W * 0.03);
+  const titleSize = Math.round(W * ((opts.size != null ? opts.size / 100 : (style === 'minimal' ? 0.05 : 0.058))));
+  const subSize = Math.round(titleSize * 0.5);
   const serif = style === 'classic';
-  const font = serif ? 'Georgia, "Times New Roman", serif' : 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+  const font = opts.font
+    ? `"${opts.font}", system-ui, sans-serif`
+    : serif ? 'Georgia, "Times New Roman", serif' : 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
 
   ctx.textAlign = style === 'classic' ? 'center' : 'left';
   ctx.textBaseline = 'alphabetic';
-  const leftX = style === 'classic' ? cx : W * 0.12;
-  const baseY = H * 0.80;
+  const anchorX = opts.x != null ? W * (opts.x / 100) : (style === 'classic' ? cx : W * 0.12);
+  const leftX = style === 'classic' ? anchorX : anchorX;
+  const baseY = opts.y != null ? H * (opts.y / 100) : H * 0.80;
 
   ctx.font = `700 ${titleSize}px ${font}`;
   const titleLines = wrap(ctx, title, W * 0.76);
@@ -51,14 +58,14 @@ export function getTitleCanvas(title: string, subtitle = '', style: TitleStyle =
 
   // accent element
   ctx.fillStyle = accent;
-  if (style === 'modern') ctx.fillRect(W * 0.12 - 14, y - titleSize * 0.85, 7, titleLines.length * lineH + (subtitle ? subSize * 1.6 : 0)); // left bar
-  else if (style === 'classic') { ctx.fillRect(cx - 60, y - titleSize, 120, 3); } // rule above
+  if (style === 'modern') ctx.fillRect(leftX - 14, y - titleSize * 0.85, 7, titleLines.length * lineH + (subtitle ? subSize * 1.6 : 0)); // left bar
+  else if (style === 'classic') { ctx.fillRect(leftX - 60, y - titleSize, 120, 3); } // rule above
 
   // title
   ctx.lineWidth = Math.max(2, titleSize * 0.12); ctx.strokeStyle = 'rgba(0,0,0,0.9)';
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = opts.color || '#fff';
   ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = titleSize * 0.25;
-  const tx = style === 'classic' ? cx : leftX;
+  const tx = leftX;
   for (const ln of titleLines) { ctx.strokeText(ln, tx, y); ctx.fillText(ln, tx, y); y += lineH; }
   ctx.shadowBlur = 0;
 
@@ -66,10 +73,10 @@ export function getTitleCanvas(title: string, subtitle = '', style: TitleStyle =
   if (subtitle) {
     y += subSize * 0.4;
     ctx.font = `500 ${subSize}px ${font}`;
-    ctx.fillStyle = style === 'minimal' ? 'rgba(255,255,255,0.85)' : accent;
+    ctx.fillStyle = opts.subColor || (style === 'minimal' ? 'rgba(255,255,255,0.85)' : accent);
     const subLines = wrap(ctx, subtitle, W * 0.76);
     for (const ln of subLines) { ctx.strokeText(ln, tx, y); ctx.fillText(ln, tx, y); y += subSize * 1.25; }
-    if (style === 'classic') { ctx.fillStyle = accent; ctx.fillRect(cx - 60, y - subSize * 0.4, 120, 3); } // rule below
+    if (style === 'classic') { ctx.fillStyle = accent; ctx.fillRect(leftX - 60, y - subSize * 0.4, 120, 3); } // rule below
   }
 
   cache.set(key, c);

@@ -584,6 +584,17 @@ export default function Fabula() {
   const [proxyOn, setProxyOn] = useState(() => (localStorage.getItem("fabula:proxy") ?? "1") === "1");
   const [proxies, setProxies] = useState(() => new Map()); // assetId → object URL of proxy blob
   const [proxyBusy, setProxyBusy] = useState(null);        // "2/7 · name" while building
+  const [guides, setGuides] = useState(() => localStorage.getItem("fabula:guides") === "1"); // title/action-safe overlay (never rendered)
+  const [localFonts, setLocalFonts] = useState([]);        // families from the Local Font Access API
+  const loadLocalFonts = async () => {
+    try {
+      if (typeof window.queryLocalFonts !== "function") { window.alert("This browser doesn't expose local fonts (Chrome/Edge only)."); return; }
+      const fonts = await window.queryLocalFonts();
+      const fams = Array.from(new Set(fonts.map((f) => f.family))).sort();
+      setLocalFonts(fams);
+      ping(`${fams.length} local font familes loaded`);
+    } catch (e) { ping("Local fonts unavailable — " + (e?.message || "permission denied")); }
+  };
   const activeViewerRef = useRef("program"); // "program" | "source" — which viewer Space controls
   const dragAssetRef = useRef(null);         // asset being dragged from the source viewer → timeline
   const saveTimer = useRef(null);
@@ -724,11 +735,21 @@ export default function Fabula() {
     return () => clearTimeout(clipsSaveTimer.current);
   }, [clips]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* playback (rate-aware for JKL shuttle) */
+  /* playback (rate-aware for JKL shuttle) — WALL-CLOCK rAF, not a fixed-increment interval.
+     setInterval(33ms)+0.033s assumed perfect ticks; real intervals jitter, so the timeline clock
+     drifted from the video's clock and the monitor force-reseeked every time drift passed the
+     threshold → the visible stutter. Advancing by measured elapsed time keeps the two clocks
+     locked (dropped UI frames just advance further, exactly like a real NLE transport). */
   useEffect(() => {
-    if (!playing) return;
-    const t = setInterval(() => setPlayhead((p) => Math.max(0, p + 0.033 * rateRef.current)), 33);
-    return () => clearInterval(t);
+    if (!playing) return undefined;
+    let raf; let last = performance.now();
+    const tick = (now) => {
+      const dt = Math.min(0.25, (now - last) / 1000); last = now; // clamp tab-stall jumps
+      setPlayhead((p) => Math.max(0, p + dt * rateRef.current));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
   }, [playing]);
 
   /* ----- production CRUD ----- */
@@ -1254,7 +1275,8 @@ export default function Fabula() {
   const handleUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     const added = files.map((f) => {
-      const type = f.type.startsWith("video") ? "video" : f.type.startsWith("audio") ? "audio" : "image";
+      const isLottie = /\.(lottie)$/i.test(f.name) || (/\.json$/i.test(f.name)) || f.type === "application/json";
+      const type = isLottie ? "lottie" : f.type.startsWith("video") ? "video" : f.type.startsWith("audio") ? "audio" : "image";
       const id = uid();
       addAssetToPool({ id, name: f.name, type, url: URL.createObjectURL(f), duration: type === "image" ? 0 : 5, session: true, bin: "imports" });
       stSet("studio:blob:" + id, f); // stash the bytes so the media survives a reload + can sync to cloud later
@@ -1266,6 +1288,7 @@ export default function Fabula() {
     // Crossover: probe real duration + browser-compatibility (client-side, instant),
     // replacing the old hardcoded 5s guess and flagging formats that won't decode.
     for (const { id, f, type } of added) {
+      if (type === "lottie") continue; // vector animation — nothing to probe
       try {
         const probe = await crossover.probe({ id, name: f.name, kind: type, sizeBytes: f.size, file: f });
         const dur = probe.durationSec && isFinite(probe.durationSec) ? probe.durationSec : undefined;
@@ -1321,8 +1344,8 @@ export default function Fabula() {
       const clip = { id: uid(), trackId: dropType === "audio" ? opts.trackId : aTrack, start, duration, srcIn: srcInVal, kind: "media", assetId: asset.id, label: asset.name };
       const next = [...clips, clip]; setClips(next); commitClips(next); setSelClipId(clip.id); return;
     }
-    // Multicam / stills → single picture clip (no linked audio).
-    if (isMc || asset.type === "image" || asset.type === "graphic") {
+    // Multicam / stills / Lottie animations → single picture clip (no linked audio).
+    if (isMc || asset.type === "image" || asset.type === "graphic" || asset.type === "lottie") {
       const trackId = opts.trackId && dropType === "video" ? opts.trackId : "v1";
       const clip = { id: uid(), trackId, start, duration, srcIn: srcInVal, kind: isMc ? "multicam" : "media", assetId: asset.id, label: asset.name, ...(isMc ? { angle: 0 } : {}) };
       const next = [...clips, clip]; setClips(next); commitClips(next); setSelClipId(clip.id); return;
@@ -2564,7 +2587,7 @@ export default function Fabula() {
                         }}>+ BIN</button>
                     </div>
                     <button className="minibtn full" onClick={() => fileRef.current?.click()}><Upload size={12} /> IMPORT MEDIA</button>
-                    <input ref={fileRef} type="file" multiple accept="video/*,image/*,audio/*" style={{ display: "none" }} onChange={handleUpload} />
+                    <input ref={fileRef} type="file" multiple accept="video/*,image/*,audio/*,.lottie,.json" style={{ display: "none" }} onChange={handleUpload} />
                     <input ref={relinkRef} type="file" accept="video/*,image/*,audio/*" style={{ display: "none" }}
                       onChange={(e) => {
                         const f = e.target.files?.[0]; const id = relinkTargetRef.current;
@@ -2631,7 +2654,7 @@ export default function Fabula() {
                           )}
                           {a.url && a.type === "video" && <ScrubThumb url={a.url} className="poolthumb" />}
                           {a.url && (a.type === "image" || a.type === "graphic") && <img src={a.url} className="poolthumb" alt="" />}
-                          <span className={`pooltype ${a.type}`}>{{ video: "VID", audio: "AUD", image: "IMG", multicam: "MC", model: "3D", graphic: "GFX", text: "TXT" }[a.type] || "FILE"}</span>
+                          <span className={`pooltype ${a.type}`}>{{ video: "VID", audio: "AUD", image: "IMG", multicam: "MC", model: "3D", graphic: "GFX", text: "TXT", lottie: "LOT" }[a.type] || "FILE"}</span>
                           <span className="poolname">{a.name}</span>
                           {(!a.url || a.offline) && <button className="chip blue" style={{ fontSize: 7, border: "none", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); openRelink(a.id); }} title="Relink to a local file">🔗 RELINK</button>}
                           {a.generated && <Sparkles size={10} className="genstar" />}
@@ -2668,7 +2691,7 @@ export default function Fabula() {
   );
   const renderMonitor = () => (
 <section className="monitor" onMouseDown={() => (activeViewerRef.current = "program")}>
-                    <div className="screen" style={{ aspectRatio: prod.defaults.aspect.includes(":") ? prod.defaults.aspect.replace(":", "/") : "2.39/1", filter: LOOKS.find((l) => l.id === prod.design?.lookId)?.filter || "none" }}>
+                    <div className="screen" style={{ aspectRatio: prod.defaults.aspect.includes(":") ? prod.defaults.aspect.replace(":", "/") : "2.39/1", filter: LOOKS.find((l) => l.id === prod.design?.lookId)?.filter || "none", containerType: "inline-size" }}>
                       {videoTracksAsc.map((tr, i) => {
                         // Double-buffer: mount the current clip + its neighbours, keyed by clip.id, so the
                         // next clip is already decoded/seeked and going live is just a visibility swap (no
@@ -2713,15 +2736,56 @@ export default function Fabula() {
                         const tc = clips.find((c) => c.kind === "title" && c.text && playhead >= c.start && playhead < c.start + c.duration);
                         if (!tc) return null;
                         const cls = tc.titleStyle || "modern";
+                        const x = tc.tx != null ? tc.tx : (cls === "classic" ? 50 : 12);
+                        const y = tc.ty != null ? tc.ty : 78;
+                        const size = tc.tSize != null ? tc.tSize : (cls === "minimal" ? 5 : 5.8); // % of frame width
+                        const font = tc.tFont || (cls === "classic" ? 'Georgia, "Times New Roman", serif' : "system-ui, sans-serif");
+                        const color = tc.tColor || "#fff";
+                        const isSel = selClipId === tc.id;
+                        // Drag to reposition (when selected). Position is stored in % of frame → resolution-independent.
+                        const dragTitle = (e) => {
+                          if (!isSel) { setSelClipId(tc.id); return; }
+                          e.preventDefault(); e.stopPropagation();
+                          const scr = e.currentTarget.parentElement.getBoundingClientRect();
+                          const move = (ev) => {
+                            const nx = Math.max(0, Math.min(100, ((ev.clientX - scr.left) / scr.width) * 100));
+                            const ny = Math.max(0, Math.min(100, ((ev.clientY - scr.top) / scr.height) * 100));
+                            setClips((cur) => cur.map((c) => (c.id === tc.id ? { ...c, tx: Math.round(nx * 10) / 10, ty: Math.round(ny * 10) / 10 } : c)));
+                          };
+                          const up = () => { document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); commitClips(); };
+                          document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
+                        };
+                        const resizeTitle = (e) => {
+                          e.preventDefault(); e.stopPropagation();
+                          const startX = e.clientX, startSize = size;
+                          const move = (ev) => {
+                            const ns = Math.max(1.5, Math.min(20, startSize * (1 + (ev.clientX - startX) / 260)));
+                            setClips((cur) => cur.map((c) => (c.id === tc.id ? { ...c, tSize: Math.round(ns * 10) / 10 } : c)));
+                          };
+                          const up = () => { document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); commitClips(); };
+                          document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
+                        };
                         return (
-                          <div style={{ position: "absolute", left: cls === "classic" ? 0 : "12%", right: cls === "classic" ? 0 : "12%", bottom: "16%", textAlign: cls === "classic" ? "center" : "left", zIndex: 61, pointerEvents: "none" }}>
-                            <div style={{ display: "inline-block", borderLeft: cls === "modern" ? "4px solid #FF8C00" : "none", paddingLeft: cls === "modern" ? 10 : 0 }}>
-                              <div style={{ color: "#fff", fontWeight: 700, fontSize: "clamp(14px,3vw,40px)", fontFamily: cls === "classic" ? "Georgia,serif" : "system-ui,sans-serif", textShadow: "0 2px 8px rgba(0,0,0,0.9)" }}>{tc.text}</div>
-                              {tc.subtitle && <div style={{ color: cls === "minimal" ? "rgba(255,255,255,0.85)" : "#FF8C00", fontWeight: 500, fontSize: "clamp(10px,1.8vw,22px)", marginTop: 2, textShadow: "0 2px 6px rgba(0,0,0,0.9)" }}>{tc.subtitle}</div>}
+                          <div style={{ position: "absolute", left: x + "%", top: y + "%", transform: cls === "classic" ? "translate(-50%,-50%)" : "translateY(-50%)", textAlign: cls === "classic" ? "center" : "left", zIndex: 61, maxWidth: "76%", pointerEvents: "auto", cursor: isSel ? "move" : "pointer", outline: isSel ? "1px dashed rgba(255,140,0,0.85)" : "none", outlineOffset: 4 }}
+                            onMouseDown={dragTitle} title={isSel ? "Drag to move · corner handle resizes" : "Click to select this title"}>
+                            <div style={{ display: "inline-block", borderLeft: cls === "modern" ? "0.4cqw solid #FF8C00" : "none", paddingLeft: cls === "modern" ? "0.9cqw" : 0 }}>
+                              <div style={{ color, fontWeight: 700, fontSize: `${size}cqw`, lineHeight: 1.12, fontFamily: font, textShadow: "0 2px 8px rgba(0,0,0,0.9)", whiteSpace: "pre-wrap" }}>{tc.text}</div>
+                              {tc.subtitle && <div style={{ color: tc.tSubColor || (cls === "minimal" ? "rgba(255,255,255,0.85)" : "#FF8C00"), fontWeight: 500, fontSize: `${size * 0.45}cqw`, marginTop: 2, fontFamily: font, textShadow: "0 2px 6px rgba(0,0,0,0.9)" }}>{tc.subtitle}</div>}
                             </div>
+                            {isSel && <span onMouseDown={resizeTitle} title="Drag to resize"
+                              style={{ position: "absolute", right: -12, bottom: -12, width: 12, height: 12, background: "#FF8C00", borderRadius: 3, cursor: "nwse-resize", border: "1px solid rgba(0,0,0,0.6)" }} />}
                           </div>
                         );
                       })()}
+                      {/* Title/action-safe guides — UI overlay only; the export pipeline never sees it. */}
+                      {guides && (
+                        <div style={{ position: "absolute", inset: 0, zIndex: 70, pointerEvents: "none" }}>
+                          <div style={{ position: "absolute", inset: "5%", border: "1px solid rgba(255,255,255,0.3)" }} />
+                          <div style={{ position: "absolute", inset: "10%", border: "1px dashed rgba(255,200,0,0.4)" }} />
+                          <span style={{ position: "absolute", left: "10.5%", top: "10.2%", fontSize: 8, color: "rgba(255,200,0,0.6)", letterSpacing: "0.1em" }}>TITLE SAFE</span>
+                          <span style={{ position: "absolute", left: "5.5%", top: "5.2%", fontSize: 8, color: "rgba(255,255,255,0.45)", letterSpacing: "0.1em" }}>ACTION SAFE</span>
+                        </div>
+                      )}
                       {!monitorClip && <div className="noclip">NO CLIP AT PLAYHEAD</div>}
                       {monitorShot && monitorAsset && <span className="overlay-slug">{monitorShot.slug}</span>}
                       {angleView && monitorAssetRaw?.type === "multicam" && (
@@ -2748,6 +2812,8 @@ export default function Fabula() {
                       </div>
                       <span className="tc dim2">/ {fmtTc(seqEnd, vfmt)}</span>
                       <div style={{ display: "flex", height: 20, marginLeft: 6 }} title="Master output level"><TrackMeter trackId="master" /></div>
+                      <button className="minibtn" style={{ opacity: guides ? 1 : 0.45 }} title="Title/action-safe guides — preview only, never rendered into the file"
+                        onClick={() => { const nv = !guides; setGuides(nv); try { localStorage.setItem("fabula:guides", nv ? "1" : "0"); } catch { /* */ } }}>SAFE</button>
                       {monitorAssetRaw?.type === "multicam" && (
                         <button className={`minibtn ${angleView ? "blue" : ""}`} onClick={() => setAngleView(!angleView)}><Layers size={11} /> ANGLES</button>
                       )}
@@ -2775,6 +2841,21 @@ export default function Fabula() {
                             </>
                           );
                         })()}
+                        {/* A video clip with linked audio exposes that audio's strip right here —
+                            adjust the sound without hunting for the sibling clip on the A-track. */}
+                        {!selIsAudio && selClip.linkId && (() => {
+                          const la = clips.find((x) => x.linkId === selClip.linkId && x.id !== selClip.id && (tracks.find((t) => t.id === x.trackId)?.type === "audio"));
+                          if (!la) return null;
+                          const ts = (container.timeline?.trackSettings || {})[la.trackId] || {};
+                          const ta = { vol: ts.vol, pan: ts.pan || 0, mute: ts.mute, eq: ts.eq || [0, 0, 0, 0, 0], comp: { ...COMP_DEFAULT, ...(ts.comp || {}) } };
+                          return (
+                            <>
+                              <div className="insp-div" />
+                              {renderAudioPanel("LINKED AUDIO (this video's sound)", ensureAudio(la), (patch) => updateClipAudio(la.id, patch), false)}
+                              {renderAudioPanel(`TRACK · ${String(la.trackId).toUpperCase()}`, ta, (patch) => setTrackSetting(la.trackId, patch), true)}
+                            </>
+                          );
+                        })()}
                         {selClip.kind === "subtitle" && (
                           <>
                             <div className="insp-div" />
@@ -2798,8 +2879,48 @@ export default function Fabula() {
                               <option value="classic">Classic</option>
                               <option value="minimal">Minimal</option>
                             </select>
+                            <div className="lbl" style={{ marginTop: 6 }}>FONT</div>
+                            <div className="btnrow" style={{ gap: 5 }}>
+                              <select className="sel grow" value={selClip.tFont || ""} onChange={(e) => updateClip(selClip.id, { tFont: e.target.value || undefined })}>
+                                <option value="">Style default</option>
+                                {["Arial", "Georgia", "Impact", "Times New Roman", "Courier New", "Verdana", "Trebuchet MS", "Palatino Linotype", "Garamond"].map((f) => <option key={f} value={f}>{f}</option>)}
+                                {localFonts.map((f) => <option key={"lf:" + f} value={f}>{f}</option>)}
+                              </select>
+                              <button className="minibtn" title="List every font installed on this machine (Chrome/Edge — asks permission once)" onClick={loadLocalFonts}>LOCAL FONTS…</button>
+                            </div>
+                            <div className="insp-row" style={{ marginTop: 6 }}><span className="lbl">SIZE</span>
+                              <input type="range" min="1.5" max="20" step="0.1" value={selClip.tSize != null ? selClip.tSize : 5.8} onChange={(e) => updateClip(selClip.id, { tSize: parseFloat(e.target.value) })} />
+                              <span className="insp-val mono">{(selClip.tSize != null ? selClip.tSize : 5.8).toFixed(1)}</span>
+                            </div>
+                            <div className="insp-row"><span className="lbl">COLOR</span>
+                              <input type="color" value={selClip.tColor || "#ffffff"} onChange={(e) => updateClip(selClip.id, { tColor: e.target.value })} style={{ width: 34, height: 22, padding: 0, border: "none", background: "none", cursor: "pointer" }} />
+                              <span className="lbl" style={{ marginLeft: 8 }}>SUB</span>
+                              <input type="color" value={selClip.tSubColor || "#FF8C00"} onChange={(e) => updateClip(selClip.id, { tSubColor: e.target.value })} style={{ width: 34, height: 22, padding: 0, border: "none", background: "none", cursor: "pointer" }} />
+                            </div>
+                            <div className="insp-row"><span className="lbl">POS</span><span className="insp-val mono">{(selClip.tx != null ? selClip.tx : (selClip.titleStyle === "classic" ? 50 : 12)).toFixed(0)}% · {(selClip.ty != null ? selClip.ty : 78).toFixed(0)}%</span>
+                              <button className="minibtn" title="Reset position/size" onClick={() => updateClip(selClip.id, { tx: undefined, ty: undefined, tSize: undefined })}>RESET</button>
+                            </div>
+                            <div className="dim small">Drag the title in the monitor to place it; the corner handle resizes. Turn on SAFE (under the monitor) for title-safe guides — they never render into the file.</div>
                           </>
                         )}
+                        {(() => {
+                          const la = selClip.assetId ? prod.mediaPool.find((x) => x.id === selClip.assetId) : null;
+                          if (la?.type !== "lottie") return null;
+                          return (
+                            <>
+                              <div className="insp-div" />
+                              <div className="lbl">LOTTIE ANIMATION</div>
+                              <div className="insp-row"><span className="lbl">SPEED</span>
+                                <input type="range" min="0.25" max="3" step="0.05" value={selClip.lottieSpeed || 1} onChange={(e) => updateClip(selClip.id, { lottieSpeed: parseFloat(e.target.value) })} />
+                                <span className="insp-val mono">{(selClip.lottieSpeed || 1).toFixed(2)}×</span>
+                              </div>
+                              <div className="insp-row"><span className="lbl">LOOP</span>
+                                <button className={`minibtn ${selClip.lottieLoop !== false ? "blue" : ""}`} onClick={() => updateClip(selClip.id, { lottieLoop: selClip.lottieLoop === false })}>{selClip.lottieLoop !== false ? "ON" : "OFF"}</button>
+                              </div>
+                              <div className="dim small">Transform/opacity/blend below apply like any picture clip. Razor + trim work normally.</div>
+                            </>
+                          );
+                        })()}
                         {selShot && (
                           <>
                             <div className="insp-div" />
@@ -3990,7 +4111,7 @@ export default function Fabula() {
                           </div>
                           <span className="poolname">{a.name}</span>
                           <div className="btnrow" style={{ gap: 4, marginTop: 3 }}>
-                            <span className={`pooltype ${a.type}`}>{{ video: "VID", audio: "AUD", image: "IMG", multicam: "MC", model: "3D", graphic: "GFX", text: "TXT" }[a.type] || "FILE"}</span>
+                            <span className={`pooltype ${a.type}`}>{{ video: "VID", audio: "AUD", image: "IMG", multicam: "MC", model: "3D", graphic: "GFX", text: "TXT", lottie: "LOT" }[a.type] || "FILE"}</span>
                             <select value={a.bin || "imports"} onClick={(e) => e.stopPropagation()} title="Bin"
                               onChange={(e) => { const nb = e.target.value; updateProd((p) => { const x = p.mediaPool.find((y) => y.id === a.id); if (x) x.bin = nb; }); }}
                               style={{ fontSize: 8, background: "rgba(0,0,0,0.4)", color: "#bbb", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 3, maxWidth: 68 }}>
@@ -4322,6 +4443,7 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
           playing={playing} time={playhead - clip.start + offset} className="mvid" />
       ) : <>
         {asset?.url && asset.type === "video" && <video ref={vRef} src={asset.url} className="mvid" muted={!active || !!mute || !!clip.disabled || !!clip.av} playsInline preload="auto" onLoadedData={doSeek} onCanPlay={doSeek} onSeeked={() => { if (!playing) doSeek(); }} />}
+        {asset?.url && asset.type === "lottie" && <LottieLayer url={asset.url} time={Math.max(0, playhead - clip.start + offset)} playing={playing && active} speed={clip.lottieSpeed || 1} loop={clip.lottieLoop !== false} />}
         {asset?.url && (asset.type === "image" || asset.type === "graphic") && <img src={asset.url} className="mvid" alt="" />}
         {asset && !asset.url && (
           <div className="sboard">
@@ -4446,6 +4568,39 @@ function TrackMeter({ trackId }) {
     return () => cancelAnimationFrame(raf);
   }, [trackId]);
   return <div className="vmeter" title="Track level"><i ref={coverRef} style={{ height: "100%" }} /></div>;
+}
+
+/* ---------- Lottie layer: vector animation on the timeline, playhead-synced ----------
+   Plays .lottie / Lottie .json via dotlottie-web on a transparent canvas. While the transport
+   runs it free-runs at `speed`; paused/scrubbing it seeks to the exact frame for the playhead. */
+function LottieLayer({ url, time, playing, speed = 1, loop = true }) {
+  const canvasRef = useRef(null);
+  const dlRef = useRef(null);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let dl = null, alive = true;
+    (async () => {
+      try {
+        const { DotLottie } = await import("@lottiefiles/dotlottie-web");
+        if (!alive || !canvasRef.current) return;
+        dl = new DotLottie({ canvas: canvasRef.current, src: url, loop, autoplay: false });
+        dl.addEventListener("load", () => { if (alive) setReady(true); });
+        dlRef.current = dl;
+      } catch (e) { console.warn("[fabula-lottie]", e?.message || e); }
+    })();
+    return () => { alive = false; try { dl?.destroy(); } catch { /* */ } dlRef.current = null; setReady(false); };
+  }, [url, loop]);
+  useEffect(() => {
+    const dl = dlRef.current;
+    if (!dl || !ready) return;
+    try {
+      dl.setSpeed?.(Math.max(0.05, speed));
+      const durSec = dl.duration || 0;
+      if (playing) { if (!dl.isPlaying) { if (durSec > 0 && dl.totalFrames) { const t = loop ? ((time * speed) % durSec) : Math.min(time * speed, durSec - 0.001); dl.setFrame?.(Math.max(0, (t / durSec) * (dl.totalFrames - 1))); } dl.play(); } }
+      else { dl.pause(); if (durSec > 0 && dl.totalFrames) { const t = loop ? (((time * speed) % durSec) + durSec) % durSec : Math.max(0, Math.min(time * speed, durSec - 0.001)); dl.setFrame?.((t / durSec) * (dl.totalFrames - 1)); } }
+    } catch { /* mid-load */ }
+  }, [playing, time, speed, loop, ready]);
+  return <canvas ref={canvasRef} className="mvid" style={{ background: "transparent" }} width={960} height={540} />;
 }
 
 /* ---------- hover-scrub video thumbnail (media pool) — sweep the mouse across to preview ---------- */
