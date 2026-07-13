@@ -72,11 +72,27 @@ async function pickVideoCodec(width: number, height: number, bitrate: number, fp
 
 function seekVideo(v: HTMLVideoElement, t: number, timeoutMs = 1500): Promise<void> {
   return new Promise((resolve) => {
+    // 'seeked' means the seek COMPLETED internally — but the decoded frame can be presented one
+    // tick later on some GPUs, so sampling immediately grabs the PREVIOUS frame (renders came out
+    // with duplicated/juddery frames). requestVideoFrameCallback is the actual "new frame is
+    // presented" signal; wait for it (short-capped) after the seek before letting the compositor
+    // texture the element. Redundant seeks (already on the target frame) resolve immediately —
+    // setting currentTime to its current value doesn't reliably fire 'seeked'.
+    const target = Math.max(0, Math.min(t, (v.duration || t) - 0.0005));
+    if (Math.abs(v.currentTime - target) < 0.0005 && v.readyState >= 2) { resolve(); return; }
     let done = false;
-    const finish = () => { if (done) return; done = true; v.removeEventListener('seeked', finish); clearTimeout(timer); resolve(); };
+    const settle = () => {
+      if (done) return; done = true;
+      if (typeof (v as any).requestVideoFrameCallback === 'function') {
+        let fired = false;
+        const cap = setTimeout(() => { if (!fired) { fired = true; resolve(); } }, 120);
+        (v as any).requestVideoFrameCallback(() => { if (!fired) { fired = true; clearTimeout(cap); resolve(); } });
+      } else resolve();
+    };
+    const finish = () => { v.removeEventListener('seeked', finish); clearTimeout(timer); settle(); };
     const timer = setTimeout(finish, timeoutMs);
     v.addEventListener('seeked', finish);
-    try { v.currentTime = t; } catch { finish(); }
+    try { v.currentTime = target; } catch { finish(); }
   });
 }
 

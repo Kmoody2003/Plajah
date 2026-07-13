@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, memo } from "react";
 import {
   Film, Music, Clapperboard, Layers, Play, Pause, SkipBack, Plus, Upload,
   Sparkles, ChevronLeft, Wand2, Users, Globe, Trash2, MonitorPlay, X, ListVideo,
@@ -735,21 +735,29 @@ export default function Fabula() {
     return () => clearTimeout(clipsSaveTimer.current);
   }, [clips]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* playback (rate-aware for JKL shuttle) — WALL-CLOCK rAF, not a fixed-increment interval.
-     setInterval(33ms)+0.033s assumed perfect ticks; real intervals jitter, so the timeline clock
-     drifted from the video's clock and the monitor force-reseeked every time drift passed the
-     threshold → the visible stutter. Advancing by measured elapsed time keeps the two clocks
-     locked (dropped UI frames just advance further, exactly like a real NLE transport). */
+  /* playback (rate-aware for JKL shuttle) — WALL-CLOCK, FRAME-GATED transport.
+     The clock accumulates measured elapsed time in a ref every rAF (so it can never drift from
+     the video's clock, unlike the old fixed-increment interval), but React state only updates
+     when the playhead crosses a PROJECT FRAME boundary. Two wins: every rendered position lands
+     exactly on a frame (frame-accurate by construction), and the whole editor re-renders at the
+     project's 24/30fps instead of the display's 60–165Hz — the single biggest playback-perf lever
+     in a component this size. */
+  const clockRef = useRef(0);
   useEffect(() => {
     if (!playing) return undefined;
-    let raf; let last = performance.now();
+    const fps = (prod?.defaults?.format?.fps) || vfmt?.fps || 24;
+    clockRef.current = playhead;
+    let raf; let last = performance.now(); let lastFrame = Math.round(playhead * fps);
     const tick = (now) => {
       const dt = Math.min(0.25, (now - last) / 1000); last = now; // clamp tab-stall jumps
-      setPlayhead((p) => Math.max(0, p + dt * rateRef.current));
+      clockRef.current = Math.max(0, clockRef.current + dt * rateRef.current);
+      const f = Math.round(clockRef.current * fps);
+      if (f !== lastFrame) { lastFrame = f; setPlayhead(f / fps); }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing]);
 
   /* ----- production CRUD ----- */
@@ -4603,8 +4611,9 @@ function LottieLayer({ url, time, playing, speed = 1, loop = true }) {
   return <canvas ref={canvasRef} className="mvid" style={{ background: "transparent" }} width={960} height={540} />;
 }
 
-/* ---------- hover-scrub video thumbnail (media pool) — sweep the mouse across to preview ---------- */
-function ScrubThumb({ url, className }) {
+/* ---------- hover-scrub video thumbnail (media pool) — sweep the mouse across to preview ----------
+   memo: pool thumbs are <video> elements — re-rendering them on every transport frame is wasted work. */
+const ScrubThumb = memo(function ScrubThumb({ url, className }) {
   const r = useRef(null);
   return (
     <video ref={r} src={url} className={className} muted playsInline preload="metadata"
@@ -4616,14 +4625,14 @@ function ScrubThumb({ url, className }) {
       }}
       onMouseLeave={() => { const v = r.current; if (v && v.duration && isFinite(v.duration)) { try { v.currentTime = 0; } catch { /* */ } } }} />
   );
-}
+});
 
 /* ---------- media warm cache: keep timeline clips' media decoded + resident in RAM ----------
    Playback used to drop out at clip boundaries because the monitor element swaps `src` and the
    browser tears down / reloads the next clip cold. This mounts hidden preloaded elements for the
    media used on the timeline so the bytes stay resident and the browser keeps them warm — playback
    across cuts is far smoother, and the second pass is seamless. Capped to bound memory. */
-function MediaWarmer({ prod, clips }) {
+const MediaWarmer = memo(function MediaWarmer({ prod, clips }) {
   const items = useMemo(() => {
     const seen = new Set(); const out = [];
     for (const c of clips) {
@@ -4642,7 +4651,7 @@ function MediaWarmer({ prod, clips }) {
         : <audio key={it.id} src={it.url} preload="auto" muted {...(needsCors(it.url) ? { crossOrigin: "anonymous" } : {})} />)}
     </div>
   );
-}
+});
 
 /* ---------- 3D STAGE: flat image → depth-displaced set geometry ---------- */
 function Stage3D({ prod, ping }) {
@@ -5016,7 +5025,7 @@ const CSS = `
 .track.audio{height:66px}
 .track.primary .trackbody{background:rgba(255,255,255,.025)}
 .trackbody{flex:1;position:relative;background-image:linear-gradient(to right,rgba(255,255,255,.03) 1px,transparent 1px);background-size:46px 100%}
-.clip{position:absolute;top:4px;bottom:4px;border-radius:6px;overflow:hidden;cursor:grab;user-select:none;
+.clip{position:absolute;top:4px;bottom:4px;border-radius:6px;overflow:hidden;cursor:grab;user-select:none;contain:layout paint;
   display:flex;flex-direction:column;justify-content:center;padding:0 8px;border:1px solid}
 .clip.script{background:rgba(249,115,22,.13);border-color:rgba(249,115,22,.45);border-style:dashed}
 .clip.script.rdy{background:rgba(249,115,22,.22);border-style:solid}

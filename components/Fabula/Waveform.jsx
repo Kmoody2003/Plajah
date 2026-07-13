@@ -2,7 +2,7 @@
 // the asset once (cached per URL across all clips), then draws peak bars over the clip's
 // [srcIn, srcIn+duration] window. Cheap to re-render; decode is async + cached.
 
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 
 const cache = new Map(); // url -> { data: Float32Array, dur } | null (null = failed)
 const pending = new Map(); // url -> Promise
@@ -26,7 +26,9 @@ async function loadPeaks(url) {
   return p;
 }
 
-export default function Waveform({ url, srcIn = 0, duration, bars = 48 }) {
+// memo: during playback the editor re-renders every frame — without memo each audio clip's
+// bar field (up to 180 <i> nodes) re-diffed 24-30×/sec for nothing. Props are stable per clip.
+function Waveform({ url, srcIn = 0, duration, bars = 48 }) {
   const [peaks, setPeaks] = useState(null);
   useEffect(() => {
     let alive = true;
@@ -56,3 +58,5 @@ export default function Waveform({ url, srcIn = 0, duration, bars = 48 }) {
     </div>
   );
 }
+
+export default memo(Waveform);
