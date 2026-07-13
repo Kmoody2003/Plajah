@@ -16,6 +16,7 @@
 import { renderTimeline } from '../components/plajahPixels/engine/core/offlineRenderer';
 import type { SceneSnapshot, RenderLayer } from '../components/plajahPixels/engine/timeline/sceneTimeline';
 import { EQ_BANDS } from './fabula/audioGraph';
+import { probeVideoFrameRate, sourceSafeRenderFrameRate } from './videoFrameRate';
 
 interface RenderFabulaOpts {
   clips: any[];                 // Fabula clips on the active timeline
@@ -208,6 +209,31 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
 
   const duration = Math.max(0, ...clips.map(c => c.start + c.duration));
   const audioBuffer = await mixAudio(clips, mediaPool, duration, trackSettings);
+  // A grade can make an offline render slower, but it must never make the FILE
+  // lower-FPS. Preserve the fastest active source cadence (up to 60fps). Imported
+  // assets cache this value; older projects are measured once here at delivery.
+  const activeAssetIds = new Set(videoClips.map(c => c.assetId).filter(Boolean));
+  const sources = new Map<string, any>();
+  for (const item of mediaPool.filter(asset => activeAssetIds.has(asset.id))) {
+    if (item.type === 'video' && item.url) sources.set(item.url, item);
+    for (const layer of item.pixels?.layers || []) {
+      const clip = layer?.clip;
+      if (clip?.type === 'media' && clip.mediaType !== 'image' && clip.mediaUrl) {
+        sources.set(clip.mediaUrl, item);
+      }
+    }
+  }
+  onProgress?.(0, 'Checking source frame rates');
+  const sourceRates = await Promise.all([...sources].map(async ([url, item]) => {
+    if (item.url === url && item.fps) return item.fps as number;
+    const measured = await probeVideoFrameRate(url, signal);
+    if (measured && item.url === url) item.fps = measured; // cache ordinary media assets
+    return measured;
+  }));
+  if (signal?.aborted) return null;
+  const requestedFps = format.fps || 30;
+  const renderFps = sourceSafeRenderFrameRate(requestedFps, sourceRates);
+  if (renderFps > requestedFps + 0.001) onProgress?.(0, `Preserving source cadence at ${renderFps} fps`);
   const config = {
     colorPalette: palette || [],
     gradeBrightness: 1, gradeContrast: 1, gradeSaturation: 1, gradeGamma: 1,
@@ -216,7 +242,7 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
 
   return renderTimeline({
     resolveLayers, duration, audioBuffer, config,
-    width: format.w || 1920, height: format.h || 1080, fps: format.fps || 30,
+    width: format.w || 1920, height: format.h || 1080, fps: renderFps,
     onProgress, signal,
   });
 }

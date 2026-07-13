@@ -805,7 +805,7 @@ export default function Fabula() {
     p.defaults = p.defaults || {};
     p.defaults.aspect = p.defaults.aspect || "2.39:1"; p.defaults.service = p.defaults.service || "kling";
     p.defaults.stillTarget = p.defaults.stillTarget || "mj_magnific"; p.defaults.style = p.defaults.style || "";
-    p.defaults.format = p.defaults.format || { preset: "hd1080", label: "HD 1080p", w: 1920, h: 1080, fps: 24, drop: false };
+    p.defaults.format = p.defaults.format || { preset: "hd1080", label: "HD 1080p", w: 1920, h: 1080, fps: 30, drop: false };
     p.worldCats = p.worldCats || {};
     WORLD_CATS.forEach((c) => { p.worldCats[c.id] = p.worldCats[c.id] || []; });
     p.mediaPool.forEach((a) => { a.tags = a.tags || []; });
@@ -1346,6 +1346,7 @@ export default function Fabula() {
           if (dur) a.duration = dur;
           if (probe.width) a.width = probe.width;
           if (probe.height) a.height = probe.height;
+          if (probe.fps) a.fps = probe.fps;
           if (incompatible) a.needsConversion = true;
         });
         if (incompatible) ping(`"${f.name}" may not play/render in-browser — hit CONVERT on it to transcode via Crossover.`);
@@ -1881,7 +1882,7 @@ export default function Fabula() {
   const [formatOpen, setFormatOpen] = useState(false);
   const [mcSel, setMcSel] = useState([]);
   const [angleView, setAngleView] = useState(false);
-  const vfmt = prod?.defaults?.format || { fps: 24, drop: false, w: 1920, h: 1080, label: "HD 1080p" };
+  const vfmt = prod?.defaults?.format || { fps: 30, drop: false, w: 1920, h: 1080, label: "HD 1080p" };
   // Dynamic, unlimited tracks (display order: video group then audio). videoTracksAsc
   // is bottom→top for compositing (v1 base, higher numbers overlay).
   const tracks = (prod?.tracks && prod.tracks.length) ? prod.tracks : TRACKS;
@@ -1978,7 +1979,14 @@ export default function Fabula() {
     // Crossover pre-render validation: warn about timeline sources that may not decode in-browser.
     const badFormats = (prod.mediaPool || []).filter((a) => a.needsConversion && !a.converted && clips.some((c) => c.assetId === a.id && !c.disabled));
     if (badFormats.length) ping(`Heads up: ${badFormats.length} clip source${badFormats.length > 1 ? "s" : ""} may not decode in-browser — hit CONVERT in the pool. Rendering anyway.`);
+    // Quiesce the display-rate preview workload before the offline renderer takes
+    // over the decoder/GPU. This is especially important on 120-165Hz displays.
     setRendering(true); setRenderPct(0); setRenderStage("Preparing");
+    setPlaying(false); rateRef.current = 1;
+    await Promise.race([
+      new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+      new Promise((resolve) => setTimeout(resolve, 100)), // background-tab rAF fallback
+    ]);
     renderAbortRef.current = new AbortController();
     try {
       const blob = await renderFabulaToBlob({

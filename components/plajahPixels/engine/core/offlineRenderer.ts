@@ -25,6 +25,7 @@ import { AudioDriverSampler } from '../audioDrivers';
 import { getTextCanvas } from './textLayer';
 import { getTitleCanvas } from './titleLayer';
 import { SceneTimeline, RenderLayer, activeBlockAt, localTime } from '../timeline/sceneTimeline';
+import { normalizeVideoFrameRate, videoFrameTiming } from '../../../../services/videoFrameRate';
 
 export interface RenderOptions {
   timeline?: SceneTimeline;              // single-track Pixels path (activeBlockAt)
@@ -70,47 +71,63 @@ async function pickVideoCodec(width: number, height: number, bitrate: number, fp
   return null;
 }
 
-// Per-element record of the SOURCE frame currently presented (mediaTime + measured frame
-// duration from rVFC metadata). Lets the render loop skip seeks entirely when the requested
-// time still falls inside the frame already on screen — the dominant per-frame cost when the
-// render fps exceeds the source fps, and a large chunk of it even at matched rates.
-const presented = new WeakMap<HTMLVideoElement, { mediaTime: number; frameDur: number }>();
+// Per-element record of the SOURCE frame currently presented. frameDur is the MINIMUM positive
+// delta ever observed between presentations — the only safe estimate of the true source frame
+// duration (averaging consecutive deltas OVERESTIMATES it when the render fps is below the
+// source fps, which made the skip window too wide and duplicated frames on 60fps clips — the
+// "some clips stutter in exports" regression). The skip only engages after 3 measurements and
+// only within 60% of that minimum — correctness beats speed here.
+const presented = new WeakMap<HTMLVideoElement, { mediaTime: number; frameDur: number; samples: number }>();
 
-function seekVideo(v: HTMLVideoElement, t: number, timeoutMs = 1500): Promise<void> {
-  return new Promise((resolve) => {
+function seekVideo(v: HTMLVideoElement, t: number, timeoutMs = 2500): Promise<void> {
+  return new Promise((resolve, reject) => {
     // 'seeked' means the seek COMPLETED internally — but the decoded frame can be presented one
     // tick later on some GPUs, so sampling immediately grabs the PREVIOUS frame (renders came out
     // with duplicated/juddery frames). requestVideoFrameCallback is the actual "new frame is
-    // presented" signal; wait for it (short-capped) after the seek before letting the compositor
+    // presented" signal; wait for it (capped) after the seek before letting the compositor
     // texture the element.
     const target = Math.max(0, Math.min(t, (v.duration || t) - 0.0005));
-    // FAST PATH 1: the target lies within the source frame already presented → the correct
-    // pixels are already on screen; no seek, no wait, no rVFC. (Same-frame currentTime writes
-    // also don't reliably fire 'seeked', so this doubles as the hang guard.)
+    // FAST PATH (conservative): target provably inside the frame already presented.
     const cur = presented.get(v);
-    if (cur && v.readyState >= 2 && target >= cur.mediaTime - 1e-4 && target < cur.mediaTime + cur.frameDur - 1e-4) { resolve(); return; }
-    if (Math.abs(v.currentTime - target) < 0.0005 && v.readyState >= 2) { resolve(); return; }
+    if (cur && cur.samples >= 3 && v.readyState >= 2
+      && target >= cur.mediaTime - 1e-4 && target < cur.mediaTime + cur.frameDur * 0.6) { resolve(); return; }
     let done = false;
+    let seekTimedOut = false;
     const settle = () => {
       if (done) return; done = true;
+      if (seekTimedOut) { reject(new Error(`source seek timed out at ${target.toFixed(3)}s`)); return; }
       if (typeof (v as any).requestVideoFrameCallback === 'function') {
         let fired = false;
-        const cap = setTimeout(() => { if (!fired) { fired = true; resolve(); } }, 80);
+        // Waiting longer changes render time, never file cadence. Do not silently
+        // encode a stale frame when the display/GPU misses this callback.
+        const cap = setTimeout(() => {
+          if (!fired) { fired = true; reject(new Error(`source frame was not presented at ${target.toFixed(3)}s`)); }
+        }, 1000);
         (v as any).requestVideoFrameCallback((_now: number, meta: any) => {
+          const prev = presented.get(v);
           if (meta && typeof meta.mediaTime === 'number') {
-            const prev = presented.get(v);
-            // measure the source frame duration from consecutive presentations (fallback 1/30)
-            const dur = prev && meta.mediaTime > prev.mediaTime && meta.mediaTime - prev.mediaTime < 0.5
-              ? meta.mediaTime - prev.mediaTime
-              : (prev?.frameDur || 1 / 30);
-            presented.set(v, { mediaTime: meta.mediaTime, frameDur: dur });
+            const delta = prev ? meta.mediaTime - prev.mediaTime : 0;
+            const frameDur = prev && delta > 0.001 && delta < 0.5
+              ? Math.min(prev.frameDur, delta)          // min-track → true source frame duration
+              : (prev?.frameDur ?? 1 / 15);             // safe upper bound until source FPS is measured
+            const state = { mediaTime: meta.mediaTime, frameDur, samples: (prev?.samples || 0) + (delta > 0.001 ? 1 : 0) };
+            presented.set(v, state);
+            const isTargetFrame = !prev || (
+              meta.mediaTime <= target + 0.001
+              && target < meta.mediaTime + state.frameDur * 1.25 + 0.001
+            );
+            if (!isTargetFrame && !fired) {
+              fired = true; clearTimeout(cap);
+              reject(new Error(`stale source frame ${meta.mediaTime.toFixed(3)}s for ${target.toFixed(3)}s`));
+              return;
+            }
           }
           if (!fired) { fired = true; clearTimeout(cap); resolve(); }
         });
       } else resolve();
     };
     const finish = () => { v.removeEventListener('seeked', finish); clearTimeout(timer); settle(); };
-    const timer = setTimeout(finish, timeoutMs);
+    const timer = setTimeout(() => { seekTimedOut = true; finish(); }, timeoutMs);
     v.addEventListener('seeked', finish);
     try { v.currentTime = target; } catch { finish(); }
   });
@@ -140,7 +157,8 @@ async function loadMediaEl(url: string, type: 'video' | 'image'): Promise<HTMLVi
 
 /** Render the timeline to an MP4 Blob, or null on failure / unsupported / abort. */
 export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> {
-  const { timeline, resolveLayers, audioBuffer, config, fps, fast, analysis, onProgress, signal } = opts;
+  const { timeline, resolveLayers, audioBuffer, config, fast, analysis, onProgress, signal } = opts;
+  const fps = normalizeVideoFrameRate(opts.fps) || 30;
   const width = Math.max(2, Math.round(opts.width / 2) * 2);
   const height = Math.max(2, Math.round(opts.height / 2) * 2);
   const bitrate = opts.bitrate ?? Math.round(Math.min(24_000_000, Math.max(8_000_000, width * height * fps * 0.12)));
@@ -149,6 +167,8 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
   if (!picked) { console.warn('[Pixels render] WebCodecs H.264 unavailable in this browser'); return null; }
   const { codec, hardwareAcceleration } = picked;
   if (hardwareAcceleration !== 'prefer-hardware') console.warn('[Pixels render] no hardware H.264 encoder — falling back to software (slower).');
+  // Make the encoder path visible in the UI so "why is this slow" is answerable at a glance.
+  onProgress?.(0, hardwareAcceleration === 'prefer-hardware' ? 'Rendering — GPU hardware encoder' : 'Rendering — SOFTWARE encoder (no hw H.264 on this device; slower)');
 
   const durationSec = timeline?.duration ?? opts.duration ?? 0;
   const total = Math.max(1, Math.ceil(durationSec * fps));
@@ -201,13 +221,19 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
   // Muxer + encoders.
   const muxer = new Muxer({
     target: new ArrayBufferTarget(),
-    video: { codec: 'avc', width, height },
+    // mp4-muxer uses this as its exact track timescale. Fractional rates cannot
+    // be used as an integer MP4 timescale, so retain its precise 57,600 fallback.
+    video: { codec: 'avc', width, height, ...(Number.isInteger(fps) ? { frameRate: fps } : {}) },
     ...(audioBuffer ? { audio: { codec: 'aac' as const, numberOfChannels: Math.min(2, audioBuffer.numberOfChannels), sampleRate: audioBuffer.sampleRate } } : {}),
     fastStart: 'in-memory',
   });
 
   let encErr: any = null;
-  const videoEnc = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e) => { encErr = e; } });
+  let encodedFrameCount = 0;
+  const videoEnc = new VideoEncoder({
+    output: (chunk, meta) => { muxer.addVideoChunk(chunk, meta); encodedFrameCount++; },
+    error: (e) => { encErr = e; },
+  });
   // realtime = throughput over the default multi-pass 'quality' analysis; prefer-hardware
   // routes to the GPU encoder. Together these are the difference between minutes and an hour.
   videoEnc.configure({ codec, width, height, bitrate, framerate: fps, hardwareAcceleration, latencyMode: 'realtime' });
@@ -279,10 +305,13 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
             if (!grade) return src;
             const sw = (src as HTMLVideoElement).videoWidth || (src as HTMLImageElement).naturalWidth || width;
             const sh = (src as HTMLVideoElement).videoHeight || (src as HTMLImageElement).naturalHeight || height;
-            const gw = Math.min(sw, 1920), gh = Math.round(gw * (sh / Math.max(1, sw)));
+            // FULL FIDELITY: bake at the source's native resolution (4K-safe cap) — the old
+            // 1920px cap downscaled 4K sources before compositing and visibly softened exports.
+            const gw = Math.min(sw, 4096), gh = Math.round(gw * (sh / Math.max(1, sw)));
             let gc = gradeCanvases.get(layer.id);
             if (!gc || gc.width !== gw || gc.height !== gh) { gc = document.createElement('canvas'); gc.width = gw; gc.height = gh; gradeCanvases.set(layer.id, gc); }
             const g = gc.getContext('2d')!;
+            g.imageSmoothingEnabled = true; (g as any).imageSmoothingQuality = 'high';
             g.filter = `blur(${grade.blur || 0}px) brightness(${grade.bri}) contrast(${grade.con}) saturate(${grade.sat})${grade.warm ? ` sepia(${Math.min(1, grade.warm)})` : ''}${grade.hue ? ` hue-rotate(${grade.hue}deg)` : ''}`;
             g.drawImage(src, 0, 0, gw, gh);
             g.filter = 'none';
@@ -322,7 +351,8 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
       }
 
       comp.render(inputs, grade, shake);
-      const frame = new VideoFrame(canvas as any, { timestamp: Math.round(t * 1e6), duration: Math.round(1e6 / fps) });
+      const timing = videoFrameTiming(i, fps);
+      const frame = new VideoFrame(canvas as any, timing);
       videoEnc.encode(frame, { keyFrame: i % gopFrames === 0 });
       frame.close();
 
@@ -335,6 +365,9 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
     }
     await videoEnc.flush();
     if (encErr) throw encErr;
+    // Slow filters may increase wall-clock time, but every scheduled frame must
+    // reach the MP4. Refuse to deliver a deceptively valid low-cadence file.
+    if (encodedFrameCount !== total) throw new Error(`video encoder produced ${encodedFrameCount}/${total} frames`);
 
     // ── Audio pass (AAC) ────────────────────────────────────────────────────
     if (audioBuffer && typeof AudioEncoder !== 'undefined') {

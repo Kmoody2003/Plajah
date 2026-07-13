@@ -7,6 +7,7 @@ import type {
 } from './types';
 import { AUDIO_CODECS, IMAGE_FORMATS } from './formats';
 import type { BackendEngine } from './engine';
+import { probeVideoFrameRate } from '../videoFrameRate';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Client backend — instant, private, zero-cost conversions that run entirely
@@ -182,8 +183,10 @@ function probeVideoElement(file: File): Promise<Partial<MediaProbe>> {
       URL.revokeObjectURL(url);
       resolve(p);
     };
-    v.onloadedmetadata = () =>
-      done({ durationSec: v.duration, width: v.videoWidth, height: v.videoHeight });
+    v.onloadedmetadata = async () => {
+      const fps = await probeVideoFrameRate(url);
+      done({ durationSec: v.duration, width: v.videoWidth, height: v.videoHeight, ...(fps ? { fps } : {}) });
+    };
     v.onerror = () => done({ corrupt: true });
     v.src = url;
   });
