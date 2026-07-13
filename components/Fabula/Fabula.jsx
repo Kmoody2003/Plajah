@@ -21,6 +21,7 @@ import { loadShortcutPrefs } from "../../services/fabula/shortcuts";
 import Waveform from "./Waveform";
 import { attachAudioGraph, getAudioCtx, meterRegistry, needsCors, resumeAudioCtx, CLIP_AUDIO_DEFAULT, COMP_DEFAULT, EQ_LABELS } from "../../services/fabula/audioGraph";
 import { transcodeToProxy, canTranscode } from "../plajahPixels/engine/core/proxyTranscoder";
+import { FxLibraryPanel, LottieBuilder, PerformCapture } from "./FxLibrary";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
@@ -585,6 +586,7 @@ export default function Fabula() {
   const [proxies, setProxies] = useState(() => new Map()); // assetId → object URL of proxy blob
   const [proxyBusy, setProxyBusy] = useState(null);        // "2/7 · name" while building
   const [guides, setGuides] = useState(() => localStorage.getItem("fabula:guides") === "1"); // title/action-safe overlay (never rendered)
+  const [fxLibOpen, setFxLibOpen] = useState(() => localStorage.getItem("fabula:fxlib") === "1"); // effects library panel (edit page)
   const [localFonts, setLocalFonts] = useState([]);        // families from the Local Font Access API
   const loadLocalFonts = async () => {
     try {
@@ -1365,6 +1367,36 @@ export default function Fabula() {
     const videoClip = { id: uid(), trackId, start, duration, srcIn: srcInVal, kind: "media", assetId: asset.id, label: asset.name, linkId, av: true };
     const audioClip = { id: uid(), trackId: aTrack, start, duration, srcIn: srcInVal, kind: "media", assetId: asset.id, label: asset.name + " · A", linkId };
     const next = [...clips, videoClip, audioClip]; setClips(next); commitClips(next); setSelClipId(videoClip.id);
+  };
+  /* ── Effects Library actions ── */
+  const applyFxPreset = (preset) => {
+    if (!selClipId) { ping("Select a clip in the timeline first."); return; }
+    updateFx(selClipId, preset.fx);
+    ping(`Filter "${preset.name}" applied — fine-tune in the inspector`);
+  };
+  const insertGenerator = (mode, name) => {
+    // A Pixels generator scene as a pool asset: MonitorLayer plays it live (SceneView) and the
+    // export renders it on the GPU (offlineRenderer) — full parity, no media file needed.
+    const asset = {
+      id: uid(), name: name + " (generator)", type: "graphic", generated: true, duration: 8, bin: "generators",
+      pixels: { name, layers: [{ id: "g1", blendMode: "normal", opacity: 1, clip: { type: "generator", sceneMode: mode, opacity: 1 } }] },
+    };
+    updateProd((p) => { p.mediaPool.push(asset); });
+    insertAssetClip(asset);
+    ping(`⚡ ${name} generator at the playhead`);
+  };
+  const addLottieBlobToPool = (blob, name, dur) => {
+    const id = uid();
+    addAssetToPool({ id, name: name + ".json", type: "lottie", url: URL.createObjectURL(blob), duration: dur || 5, session: true, bin: "lottie" });
+    stSet("studio:blob:" + id, blob);
+    scheduleAutoSync([id]);
+    ping(`◈ "${name}" added to the media pool — drop it on the timeline`);
+  };
+  const addTakeToPool = (blob, name) => {
+    const id = uid();
+    addAssetToPool({ id, name: name + ".webm", type: "video", url: URL.createObjectURL(blob), duration: 10, session: true, bin: "performances" });
+    stSet("studio:blob:" + id, blob);
+    scheduleAutoSync([id]);
   };
   // Load an asset into the source viewer; `play` = double-click behaviour (start playing).
   const openInViewer = (a, play) => {
@@ -2582,7 +2614,9 @@ export default function Fabula() {
   const renderPool = () => (
 <aside className="pool glass-dark" style={{ width: poolW, minWidth: poolW }}>
                     <div className="paneltitle"><MonitorPlay size={12} /> MEDIA POOL
-                      <button className="minibtn" style={{ marginLeft: "auto", fontSize: 8, opacity: poolView === "list" ? 1 : 0.45 }} title="List view"
+                      <button className="minibtn" style={{ marginLeft: "auto", fontSize: 8, color: fxLibOpen ? "#FF8C00" : undefined }} title="Effects Library — filters, generators, Lottie"
+                        onClick={() => { const nv = !fxLibOpen; setFxLibOpen(nv); try { localStorage.setItem("fabula:fxlib", nv ? "1" : "0"); } catch { /* */ } }}>⚡FX</button>
+                      <button className="minibtn" style={{ fontSize: 8, opacity: poolView === "list" ? 1 : 0.45 }} title="List view"
                         onClick={() => { setPoolView("list"); try { localStorage.setItem("fabula:poolview", "list"); } catch { /* */ } }}>≡</button>
                       <button className="minibtn" style={{ fontSize: 8, opacity: poolView === "thumbs" ? 1 : 0.45 }} title="Thumbnail view — hover a thumb to play + scrub it in the source monitor"
                         onClick={() => { setPoolView("thumbs"); try { localStorage.setItem("fabula:poolview", "thumbs"); } catch { /* */ } }}>▦</button>
@@ -2645,7 +2679,7 @@ export default function Fabula() {
                                 : a.url && (a.type === "image" || a.type === "graphic") ? <img src={a.url} className="ptvid" alt="" />
                                 : <div className="ptvid ptph">{a.type === "audio" ? <Music size={22} /> : <Film size={22} />}</div>}
                               <span className="ptname">{a.name}</span>
-                              {(!a.url || a.offline) && <button className="chip blue" style={{ fontSize: 7, border: "none", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); openRelink(a.id); }}>🔗 RELINK</button>}
+                              {(!a.pixels && (!a.url || a.offline)) && <button className="chip blue" style={{ fontSize: 7, border: "none", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); openRelink(a.id); }}>🔗 RELINK</button>}
                             </div>
                           );
                         })}
@@ -2664,7 +2698,7 @@ export default function Fabula() {
                           {a.url && (a.type === "image" || a.type === "graphic") && <img src={a.url} className="poolthumb" alt="" />}
                           <span className={`pooltype ${a.type}`}>{{ video: "VID", audio: "AUD", image: "IMG", multicam: "MC", model: "3D", graphic: "GFX", text: "TXT", lottie: "LOT" }[a.type] || "FILE"}</span>
                           <span className="poolname">{a.name}</span>
-                          {(!a.url || a.offline) && <button className="chip blue" style={{ fontSize: 7, border: "none", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); openRelink(a.id); }} title="Relink to a local file">🔗 RELINK</button>}
+                          {(!a.pixels && (!a.url || a.offline)) && <button className="chip blue" style={{ fontSize: 7, border: "none", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); openRelink(a.id); }} title="Relink to a local file">🔗 RELINK</button>}
                           {a.generated && <Sparkles size={10} className="genstar" />}
                           {a.needsConversion && !a.converted && (
                             <span className="chip" style={{ fontSize: 7, cursor: "pointer", background: "rgba(255,140,0,0.18)", color: "#ffb057" }}
@@ -4133,7 +4167,7 @@ export default function Fabula() {
                                 {a.designation === "frame" ? "🎞" : "✎"}
                               </button>
                             )}
-                            {(!a.url || a.offline) && <button className="chip blue" style={{ fontSize: 7, border: "none", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); openRelink(a.id); }} title="Relink to a local file">🔗 RELINK</button>}
+                            {(!a.pixels && (!a.url || a.offline)) && <button className="chip blue" style={{ fontSize: 7, border: "none", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); openRelink(a.id); }} title="Relink to a local file">🔗 RELINK</button>}
                           </div>
                         </div>
                       ))}
@@ -4149,6 +4183,15 @@ export default function Fabula() {
                     <div className="edit-upper">
                       {renderPool()}
                       <div className="hsplit" title="Drag to resize the media pool" onMouseDown={(e) => startPanelResize(e, "pool")} />
+                      {fxLibOpen && (
+                        <FxLibraryPanel prod={prod} selClipId={selClipId}
+                          onApplyFilter={applyFxPreset}
+                          onInsertGenerator={insertGenerator}
+                          onInsertLottie={(a) => insertAssetClip(a)}
+                          onImportLottie={() => fileRef.current?.click()}
+                          onOpenFxPage={() => setEditWs("vfx")}
+                          onClose={() => { setFxLibOpen(false); try { localStorage.setItem("fabula:fxlib", "0"); } catch { /* */ } }} />
+                      )}
                       <div className="dualview">
                         {renderSource()}
                         {renderMonitor()}
@@ -4161,9 +4204,13 @@ export default function Fabula() {
                 )}
 
                 {editWs === "vfx" && (
-                  <div className="edit-upper">
-                    {renderMonitor()}
-                    {renderInspector()}
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, minHeight: 0, overflowY: "auto" }}>
+                    <div className="edit-upper" style={{ flex: "0 0 300px", minHeight: 300 }}>
+                      {renderMonitor()}
+                      {renderInspector()}
+                    </div>
+                    <LottieBuilder onAddToPool={addLottieBlobToPool} />
+                    <PerformCapture onTake={addTakeToPool} ping={ping} />
                   </div>
                 )}
 
@@ -4921,6 +4968,25 @@ const CSS = `
 .poolitem{display:flex;align-items:center;gap:7px;padding:6px;border-radius:6px;cursor:pointer;border:1px solid transparent}
 .poolthumb{width:52px;height:30px;object-fit:cover;border-radius:4px;flex:0 0 auto;background:#000;cursor:ew-resize}
 .hsplit{width:8px;flex:0 0 auto;cursor:col-resize;display:flex;align-items:center;justify-content:center;margin:0 -3px}
+.fxlib{width:224px;min-width:224px;border-radius:12px;padding:10px;display:flex;flex-direction:column;overflow:hidden}
+.fxtabs{display:flex;gap:3px;margin:2px 0 8px}
+.fxtab{flex:1;padding:5px 0;border-radius:6px;border:1px solid var(--w08);background:rgba(255,255,255,.04);color:rgba(255,255,255,.55);
+  font-size:8px;font-weight:900;letter-spacing:.08em;cursor:pointer}
+.fxtab.on{background:rgba(255,140,0,.16);color:#FF8C00;border-color:rgba(255,140,0,.4)}
+.fxbody{flex:1;overflow-y:auto;min-height:0}
+.fxgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.fxcard{background:rgba(0,0,0,.35);border:1px solid var(--w08);border-radius:8px;padding:5px;cursor:pointer;display:flex;flex-direction:column;gap:4px}
+.fxcard:hover{border-color:rgba(255,140,0,.5)}
+.fxthumb{height:44px;border-radius:5px;background:linear-gradient(120deg,#ff8c42 0%,#7b5cff 45%,#31c6a8 100%);display:block}
+.fxthumb.gen{display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);font-size:13px}
+.fxname{font-size:8px;font-weight:800;letter-spacing:.05em;color:rgba(255,255,255,.78);text-transform:uppercase;text-align:left}
+.fxlist{display:flex;flex-direction:column;gap:4px}
+.fxrowbtn{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:6px;border:1px solid var(--w08);
+  background:rgba(0,0,0,.3);color:#e5e5e5;font-size:10px;font-weight:600;cursor:pointer;text-align:left}
+.fxrowbtn:hover{border-color:rgba(255,140,0,.5)}
+.fxdot{color:#a78bfa}
+.fxrowname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fxstudio{border-radius:12px;padding:12px;flex:0 0 auto}
 .hsplit::after{content:"";width:3px;height:44px;border-radius:2px;background:rgba(255,255,255,.14)}
 .hsplit:hover::after{background:#FF8C00}
 .poolthumbs{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(102px,1fr));gap:8px;align-content:start;margin-top:8px}
