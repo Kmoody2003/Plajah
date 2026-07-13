@@ -20,6 +20,7 @@ import KeyboardShortcutsEditor from "./KeyboardShortcutsEditor";
 import { loadShortcutPrefs } from "../../services/fabula/shortcuts";
 import Waveform from "./Waveform";
 import { attachAudioGraph, getAudioCtx, meterRegistry, needsCors, resumeAudioCtx, CLIP_AUDIO_DEFAULT, COMP_DEFAULT, EQ_LABELS } from "../../services/fabula/audioGraph";
+import { transcodeToProxy, canTranscode } from "../plajahPixels/engine/core/proxyTranscoder";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
@@ -578,6 +579,11 @@ export default function Fabula() {
   const [poolW, setPoolW] = useState(() => parseInt(localStorage.getItem("fabula:poolw"), 10) || 230);
   const [inspW, setInspW] = useState(() => parseInt(localStorage.getItem("fabula:inspw"), 10) || 262);
   const [poolView, setPoolView] = useState(() => localStorage.getItem("fabula:poolview") || "list"); // list | thumbs
+  // Proxy media: 540p short-GOP instant-seek H.264 proxies per video asset (WebCodecs), stored in
+  // IndexedDB. The MONITOR plays proxies (Resolve-style scrub perf); EXPORT always uses full-res.
+  const [proxyOn, setProxyOn] = useState(() => (localStorage.getItem("fabula:proxy") ?? "1") === "1");
+  const [proxies, setProxies] = useState(() => new Map()); // assetId → object URL of proxy blob
+  const [proxyBusy, setProxyBusy] = useState(null);        // "2/7 · name" while building
   const activeViewerRef = useRef("program"); // "program" | "source" — which viewer Space controls
   const dragAssetRef = useRef(null);         // asset being dragged from the source viewer → timeline
   const saveTimer = useRef(null);
@@ -1303,9 +1309,9 @@ export default function Fabula() {
     const isMc = asset.type === "multicam";
     // Honor a source-viewer in/out sub-range if a valid one was marked.
     const hasRange = range && range.in != null && range.out != null && range.out > range.in;
-    const srcInVal = hasRange ? range.in : 0;
-    const duration = hasRange ? (range.out - range.in) : (asset.duration || 5);
-    const start = opts.at != null ? Math.max(0, opts.at) : playhead;
+    const srcInVal = hasRange ? qFrame(range.in) : 0;
+    const duration = Math.max(1 / (vfmt.fps || 24), qFrame(hasRange ? (range.out - range.in) : (asset.duration || 5)));
+    const start = qFrame(opts.at != null ? Math.max(0, opts.at) : playhead);
     const aTrack = tracks.find((t) => t.type === "audio")?.id || "a1";
     const dropType = opts.trackId ? tracks.find((t) => t.id === opts.trackId)?.type : null;
     // Audio-only asset, OR dropped onto an audio track → a single audio clip.
@@ -1348,6 +1354,46 @@ export default function Fabula() {
       const b = await stGet("studio:blob:" + a.id);
       if (b && b.size) { try { a.url = URL.createObjectURL(b); a.offline = false; a.session = true; } catch { /* */ } }
     }));
+  };
+  // Load any stashed proxies for this project's assets (built earlier, survive reloads).
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!prod?.mediaPool?.length) return;
+      const found = [];
+      for (const a of prod.mediaPool) {
+        if (a.type !== "video") continue;
+        const b = await stGet("studio:proxy:" + a.id);
+        if (b && b.size) { try { found.push([a.id, URL.createObjectURL(b)]); } catch { /* */ } }
+      }
+      if (alive && found.length) setProxies((cur) => new Map([...cur, ...found]));
+    })();
+    return () => { alive = false; };
+  }, [prod?.id]);
+  // Build 540p instant-seek proxies for every video asset that doesn't have one yet.
+  const buildProxies = async () => {
+    const vids = (prod?.mediaPool || []).filter((a) => a.type === "video" && a.url && !proxies.has(a.id));
+    if (!vids.length) { ping("Every video asset already has a proxy"); return; }
+    if (!(await canTranscode())) { window.alert("This browser can't build proxies (WebCodecs H.264 unavailable). Use Chrome or Edge."); return; }
+    let n = 0, made = 0;
+    for (const a of vids) {
+      n++; setProxyBusy(`${n}/${vids.length} · ${a.name}`);
+      try {
+        let blob = null;
+        try { const r = await fetch(a.url); blob = r.ok ? await r.blob() : null; } catch { blob = null; }
+        if (!blob || !blob.size) blob = await stGet("studio:blob:" + a.id);
+        if (!blob || !blob.size) continue;
+        const proxy = await transcodeToProxy(blob, { maxW: 960, maxH: 540, fps: 30, gopSeconds: 0.5, maxSeconds: 300 });
+        if (proxy) {
+          await stSet("studio:proxy:" + a.id, proxy);
+          const purl = URL.createObjectURL(proxy);
+          setProxies((cur) => { const m = new Map(cur); m.set(a.id, purl); return m; });
+          made++;
+        }
+      } catch (e) { console.warn("[fabula-proxy]", a.name, e?.message || e); }
+    }
+    setProxyBusy(null);
+    ping(made ? `⚡ ${made} prox${made === 1 ? "y" : "ies"} built — monitor now scrubs instant-seek media` : "No proxies could be built (clips too long or unreadable)");
   };
   // Source-viewer waveform scrubber: click/drag across the waveform to seek the source.
   const startSrcScrub = (e) => {
@@ -1781,6 +1827,8 @@ export default function Fabula() {
         clips, mediaPool: prod.mediaPool || [], format: vfmt,
         palette: prod?.pixelsConfig?.colorPalette || [],
         title: container?.title,
+        trackSettings: container?.timeline?.trackSettings || {}, // render = live mixer parity
+
         onProgress: (p, s) => { setRenderPct(p); setRenderStage(s); },
         signal: renderAbortRef.current.signal,
       });
@@ -2188,8 +2236,11 @@ export default function Fabula() {
   const onTimelineMove = (e) => {
     const d = dragRef.current; if (!d) return;
     const dt = (e.clientX - d.startX) / pxPerSec;
-    const snap = (v) => Math.round(v * 20) / 20;
     const fps = vfmt.fps || 24;
+    // Quantize to the PROJECT FRAME GRID. The old 1/20s grid aligned with no frame rate, so
+    // every trim/move drifted the in/out points off frame boundaries (the "clips lose their
+    // in and out points / not frame accurate" bug). All edit math now lands exactly on frames.
+    const snap = (v) => Math.round(v * fps) / fps;
     // Edge-snap: pull a value toward the playhead or any neighbouring clip edge on this track.
     const edgeSnap = (val, dur) => {
       if (!snapOn) return val;
@@ -2256,14 +2307,16 @@ export default function Fabula() {
     });
   };
   const onTimelineUp = () => { if (dragRef.current) { dragRef.current = null; commitClips(); } };
+  // Seeks land exactly on frame boundaries so the monitor shows the true frame at the playhead.
+  const qFrame = (t) => Math.round(t * (vfmt.fps || 24)) / (vfmt.fps || 24);
   const rulerSeek = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    setPlayhead(Math.max(0, (e.clientX - rect.left) / pxPerSec));
+    setPlayhead(Math.max(0, qFrame((e.clientX - rect.left) / pxPerSec)));
   };
   // Drag-scrub: hold + drag on the ruler to scrub the playhead (preview video + audio follow).
   const startScrub = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const seek = (clientX) => setPlayhead(Math.max(0, (clientX - rect.left) / pxPerSec));
+    const seek = (clientX) => setPlayhead(Math.max(0, qFrame((clientX - rect.left) / pxPerSec)));
     setPlaying(false); seek(e.clientX);
     const move = (ev) => { ev.preventDefault(); seek(ev.clientX); };
     const up = () => { document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); };
@@ -2273,7 +2326,7 @@ export default function Fabula() {
   const razorAt = (e, clipId) => {
     const body = e.currentTarget.parentElement; if (!body) return;
     const rect = body.getBoundingClientRect();
-    const at = Math.max(0, (e.clientX - rect.left) / pxPerSec);
+    const at = Math.max(0, qFrame((e.clientX - rect.left) / pxPerSec)); // cut on a frame boundary
     bladeClip(clipId, at);
   };
 
@@ -2292,6 +2345,15 @@ export default function Fabula() {
   const monitorAsset = mcAngle ? prod?.mediaPool.find((a) => a.id === mcAngle.assetId) : monitorAssetRaw;
   const monitorOffset = (mcAngle?.offset || 0) + (monitorClip?.srcIn || 0);
   const monitorShot = monitorClip?.shotId ? scene?.shots.find((s) => s.id === monitorClip.shotId) : null;
+  // Monitor-only media pool with proxy URLs swapped in. AudioLayer + the MP4 render keep the
+  // ORIGINAL pool — proxies are video-only (no audio track) and export must be full-res.
+  const monitorProd = useMemo(() => {
+    if (!proxyOn || !proxies.size || !prod?.mediaPool?.length) return prod;
+    let changed = false;
+    const mp = prod.mediaPool.map((a) => { const p = proxies.get(a.id); if (p && a.type === "video") { changed = true; return { ...a, url: p }; } return a; });
+    return changed ? { ...prod, mediaPool: mp } : prod;
+  }, [prod, proxies, proxyOn]);
+
   const selClip = clips.find((c) => c.id === selClipId);
   const selShot = selClip?.shotId ? scene?.shots.find((s) => s.id === selClip.shotId) : null;
   const selMc = selClip?.kind === "multicam" ? prod?.mediaPool.find((a) => a.id === selClip.assetId) : null;
@@ -2557,7 +2619,7 @@ export default function Fabula() {
                         return [...idxs].filter((idx) => idx >= 0 && idx < tclips.length).map((idx) => {
                           const c = tclips[idx];
                           const isActive = curIdx >= 0 && idx === curIdx;
-                          return <MonitorLayer key={c.id} clip={c} active={isActive} prod={prod} scene={scene} playhead={playhead} playing={playing} top={i > 0} z={(i + 1) * 10 + (isActive ? 5 : 0)} videoRef={(i === 0 && isActive) ? videoRef : undefined} vol={ts.vol} mute={ts.mute} />;
+                          return <MonitorLayer key={c.id} clip={c} active={isActive} prod={monitorProd} scene={scene} playhead={playhead} playing={playing} top={i > 0} z={(i + 1) * 10 + (isActive ? 5 : 0)} videoRef={(i === 0 && isActive) ? videoRef : undefined} vol={ts.vol} mute={ts.mute} />;
                         });
                       })}
                       {/* Audio bed — mount the live clip + the next one per track (double-buffered, gapless) */}
@@ -3124,6 +3186,13 @@ export default function Fabula() {
                         ))}
                         <button className="minibtn" onClick={() => setSnapOn((s) => !s)} title="Toggle snapping (N)" style={{ opacity: snapOn ? 1 : 0.45 }}><Box size={10} /> SNAP {snapOn ? "ON" : "OFF"}</button>
                         <button className="minibtn" onClick={() => setShowShortcuts(true)} title="Keyboard shortcuts — map your own (Ctrl+Alt+K)"><Keyboard size={10} /> KEYS</button>
+                        <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,0.1)", margin: "0 2px" }} />
+                        <button className="minibtn" title="Monitor plays 540p instant-seek proxies (export always full-res)" style={{ opacity: proxyOn ? 1 : 0.45, color: proxyOn && proxies.size ? "#7ee2a8" : undefined }}
+                          onClick={() => { const nv = !proxyOn; setProxyOn(nv); try { localStorage.setItem("fabula:proxy", nv ? "1" : "0"); } catch { /* */ } }}>PROXY {proxyOn ? "ON" : "OFF"}{proxies.size ? ` · ${proxies.size}✓` : ""}</button>
+                        {(() => { const missing = (prod?.mediaPool || []).filter((a) => a.type === "video" && a.url && !proxies.has(a.id)).length; return (
+                          <button className="minibtn" disabled={!!proxyBusy || !missing} title="Build 540p short-GOP proxies for every video asset — Resolve-style smooth scrubbing"
+                            onClick={buildProxies}>{proxyBusy ? `⚙ ${proxyBusy}` : `BUILD PROXIES${missing ? ` (${missing})` : " ✓"}`}</button>
+                        ); })()}
                       </div>
                       {showShortcuts && <KeyboardShortcutsEditor onClose={() => setShowShortcuts(false)} onChange={setShortcutPrefs} />}
                       {ctxMenu && (() => {
@@ -3167,7 +3236,7 @@ export default function Fabula() {
   return (
     <div className="studio" onMouseMove={onTimelineMove} onMouseUp={onTimelineUp}>
       <style>{CSS}</style>
-      {prod && page === "edit" && <MediaWarmer prod={prod} clips={clips} />}
+      {prod && page === "edit" && <MediaWarmer prod={monitorProd} clips={clips} />}
 
       {/* ───── animated splash ───── */}
       {splash && (

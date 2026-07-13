@@ -15,6 +15,7 @@
 
 import { renderTimeline } from '../components/plajahPixels/engine/core/offlineRenderer';
 import type { SceneSnapshot, RenderLayer } from '../components/plajahPixels/engine/timeline/sceneTimeline';
+import { EQ_BANDS } from './fabula/audioGraph';
 
 interface RenderFabulaOpts {
   clips: any[];                 // Fabula clips on the active timeline
@@ -22,6 +23,7 @@ interface RenderFabulaOpts {
   format: { w?: number; h?: number; fps?: number };
   palette?: string[];           // Pixels colorPalette carried through on export (fidelity)
   title?: string;
+  trackSettings?: Record<string, any>; // per-track mixer: vol/pan/mute/eq/comp (render = live parity)
   onProgress?: (p: number, stage: string) => void;
   signal?: AbortSignal;
 }
@@ -40,10 +42,36 @@ function itemToSnapshot(item: any, label: string): SceneSnapshot {
   return { name: label || 'clip', layers: [] };                 // unresolved → black
 }
 
-// Mix ALL audio clips (any a-track) into one master buffer — placed at each clip's start with its
-// srcIn offset, duration, per-clip gain (fx.vol) and fade-in/out envelope. (Previously only the first
-// audio clip played, anchored at t=0.)
-async function mixAudio(clips: any[], mediaPool: any[], durationSec: number): Promise<AudioBuffer | null> {
+// Append an EQ + compressor stage (matching the live audioGraph chain) after `input`.
+// Zero-gain EQ bands and comp.on=false are skipped entirely — bit-transparent bypass.
+function applyEqComp(ctx: BaseAudioContext, input: AudioNode, eq?: number[], comp?: any): AudioNode {
+  let node = input;
+  if (eq && eq.some((v) => v)) {
+    EQ_BANDS.forEach((b, i) => {
+      const f = ctx.createBiquadFilter();
+      f.type = b.type; f.frequency.value = b.f; f.Q.value = b.q || 1;
+      f.gain.value = Math.max(-24, Math.min(24, eq[i] || 0));
+      node.connect(f); node = f;
+    });
+  }
+  if (comp && comp.on) {
+    const c = ctx.createDynamicsCompressor();
+    c.threshold.value = Math.max(-100, Math.min(0, comp.threshold ?? -24));
+    c.ratio.value = Math.max(1, Math.min(20, comp.ratio ?? 3));
+    c.attack.value = Math.max(0, Math.min(1, comp.attack ?? 0.003));
+    c.release.value = Math.max(0, Math.min(1, comp.release ?? 0.25));
+    c.knee.value = Math.max(0, Math.min(40, comp.knee ?? 30));
+    const mk = ctx.createGain(); mk.gain.value = Math.pow(10, (comp.makeup || 0) / 20);
+    node.connect(c); c.connect(mk); node = mk;
+  }
+  return node;
+}
+
+// Mix ALL audio clips (any a-track) into one master buffer with FULL DSP PARITY to live
+// playback: per-clip gain + fades + clip EQ/comp, summed into per-track buses that apply the
+// track's EQ/comp, stereo pan, fader and mute — the same chain the editor's mixer runs, so
+// what you hear in the edit is what the MP4 contains.
+async function mixAudio(clips: any[], mediaPool: any[], durationSec: number, trackSettings?: Record<string, any>): Promise<AudioBuffer | null> {
   const audioClips = clips.filter(c => /^a\d+$/.test(c.trackId) && c.assetId && !c.disabled);
   if (!audioClips.length || durationSec <= 0) return null;
   const SR = 48000;
@@ -61,19 +89,42 @@ async function mixAudio(clips: any[], mediaPool: any[], durationSec: number): Pr
   try { decodeCtx.close(); } catch { /* */ }
 
   const offline = new OfflineAudioContext(2, Math.ceil(durationSec * SR), SR);
+
+  // One bus per audio track: input → track EQ/comp → pan → fader(mute) → destination.
+  const buses = new Map<string, GainNode>();
+  const trackBus = (tid: string): GainNode => {
+    const hit = buses.get(tid); if (hit) return hit;
+    const ts = (trackSettings || {})[tid] || {};
+    const input = offline.createGain();
+    let node: AudioNode = applyEqComp(offline, input, ts.eq, ts.comp);
+    if (typeof (offline as any).createStereoPanner === 'function' && (ts.pan || 0) !== 0) {
+      const p = (offline as any).createStereoPanner();
+      p.pan.value = Math.max(-1, Math.min(1, ts.pan || 0));
+      node.connect(p); node = p;
+    }
+    const fader = offline.createGain();
+    fader.gain.value = ts.mute ? 0 : Math.max(0, ts.vol == null ? 1 : ts.vol);
+    node.connect(fader); fader.connect(offline.destination);
+    buses.set(tid, input);
+    return input;
+  };
+
   for (const c of audioClips) {
     const ab = cache.get(c.assetId); if (!ab) continue;
     const start = Math.max(0, c.start || 0);
     const offset = Math.max(0, c.srcIn || 0);
     const dur = Math.max(0.01, Math.min(c.duration || (ab.duration - offset), ab.duration - offset));
-    const gainVal = c.fx?.vol != null ? c.fx.vol : (c.vol != null ? c.vol : 1);
+    // clip gain: the inspector's clip-audio volume (c.audio.vol), falling back to legacy fx.vol
+    const gainVal = c.audio?.vol != null ? c.audio.vol : (c.fx?.vol != null ? c.fx.vol : (c.vol != null ? c.vol : 1));
     const fi = Math.min(c.fx?.fadeIn || 0, dur), fo = Math.min(c.fx?.fadeOut || 0, dur);
     const src = offline.createBufferSource(); src.buffer = ab;
     const g = offline.createGain();
     g.gain.setValueAtTime(fi > 0 ? 0.0001 : gainVal, start);
     if (fi > 0) g.gain.linearRampToValueAtTime(gainVal, start + fi);
     if (fo > 0) { g.gain.setValueAtTime(gainVal, Math.max(start, start + dur - fo)); g.gain.linearRampToValueAtTime(0.0001, start + dur); }
-    src.connect(g); g.connect(offline.destination);
+    src.connect(g);
+    const shaped = applyEqComp(offline, g, c.audio?.eq, c.audio?.comp); // clip EQ/comp
+    shaped.connect(trackBus(c.trackId));
     try { src.start(start, offset, dur); } catch { /* out of range */ }
   }
   try { return await offline.startRendering(); } catch { return null; }
@@ -82,7 +133,7 @@ async function mixAudio(clips: any[], mediaPool: any[], durationSec: number): Pr
 /** Render the Fabula timeline to an MP4 Blob via the Pixels offline renderer. Composites
  *  ALL video tracks (v1, v2, … unlimited; bottom→top) per frame, captions included. */
 export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob | null> {
-  const { clips, mediaPool, format, palette, onProgress, signal } = opts;
+  const { clips, mediaPool, format, palette, trackSettings, onProgress, signal } = opts;
   const videoClips = clips.filter(c => /^v\d+$/.test(c.trackId) && !c.disabled);
   const subtitleClips = clips.filter(c => c.kind === 'subtitle' && c.text);
   const titleClips = clips.filter(c => c.kind === 'title' && c.text);
@@ -130,7 +181,7 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
   };
 
   const duration = Math.max(0, ...clips.map(c => c.start + c.duration));
-  const audioBuffer = await mixAudio(clips, mediaPool, duration);
+  const audioBuffer = await mixAudio(clips, mediaPool, duration, trackSettings);
   const config = {
     colorPalette: palette || [],
     gradeBrightness: 1, gradeContrast: 1, gradeSaturation: 1, gradeGamma: 1,
