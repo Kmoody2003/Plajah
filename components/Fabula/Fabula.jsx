@@ -21,7 +21,8 @@ import { loadShortcutPrefs } from "../../services/fabula/shortcuts";
 import Waveform from "./Waveform";
 import { attachAudioGraph, getAudioCtx, meterRegistry, needsCors, resumeAudioCtx, CLIP_AUDIO_DEFAULT, COMP_DEFAULT, EQ_LABELS } from "../../services/fabula/audioGraph";
 import { transcodeToProxy, canTranscode } from "../plajahPixels/engine/core/proxyTranscoder";
-import { FxLibraryPanel, LottieBuilder, PerformCapture } from "./FxLibrary";
+import { FxLibraryPanel, LottieBuilder, PerformCapture, CompBuilder } from "./FxLibrary";
+import ColorScopes from "./ColorScopes";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
@@ -4430,6 +4431,12 @@ export default function Fabula() {
                       {renderMonitor()}
                       {renderInspector()}
                     </div>
+                    <CompBuilder prod={prod} askAI={callClaudeJson} ping={ping}
+                      onAddToPool={(snapshot, nm) => {
+                        const asset = { id: uid(), name: nm + " (comp)", type: "graphic", generated: true, duration: 8, bin: "comps", pixels: snapshot };
+                        updateProd((p) => { p.mediaPool.push(asset); });
+                        ping(`🎇 "${nm}" is in the media pool — drop it on the timeline like a clip`);
+                      }} />
                     <LottieBuilder onAddToPool={addLottieBlobToPool} />
                     <PerformCapture onTake={addTakeToPool} ping={ping} />
                   </div>
@@ -4452,24 +4459,40 @@ export default function Fabula() {
                       </div>
                       {selClip && selClip.kind !== "voice" ? (() => {
                         const fx = ensureFx(selClip);
-                        const slider = (lbl, key, min, max, step) => (
+                        const gv = (k, d = 0) => (fx[k] != null ? fx[k] : d);
+                        const slider = (lbl, key, min, max, step, def = 0) => (
                           <div className="fxrow" key={key}>
                             <span className="fxlbl">{lbl}</span>
-                            <input type="range" min={min} max={max} step={step} value={fx[key]} onChange={(e) => updateFx(selClip.id, { [key]: parseFloat(e.target.value) })} />
-                            <span className="fxval">{Number(fx[key]).toFixed(2)}</span>
+                            <input type="range" min={min} max={max} step={step} value={gv(key, def)} onChange={(e) => updateFx(selClip.id, { [key]: parseFloat(e.target.value) })}
+                              onDoubleClick={() => updateFx(selClip.id, { [key]: def })} />
+                            <span className="fxval">{Number(gv(key, def)).toFixed(2)}</span>
                           </div>
                         );
+                        const GRADE_KEYS = ["bri", "con", "sat", "hue", "warm", "blur"];
                         return (
                           <>
                             <div className="insp-div" />
-                            <div className="lbl">CLIP GRADE — {selClip.label}</div>
-                            {slider("BRIGHT", "bri", 0, 2.5, 0.02)}
-                            {slider("CONTRAST", "con", 0, 2.5, 0.02)}
-                            {slider("SATURATE", "sat", 0, 2.5, 0.02)}
-                            {slider("BLUR", "blur", 0, 30, 0.5)}
+                            <div className="lbl">PRIMARIES — {selClip.label} <span className="dim small" style={{ letterSpacing: 0 }}>(double-click a slider to reset)</span></div>
+                            {slider("EXPOSURE", "bri", 0, 2.5, 0.02, 1)}
+                            {slider("CONTRAST", "con", 0, 2.5, 0.02, 1)}
+                            {slider("SATURATION", "sat", 0, 2.5, 0.02, 1)}
+                            {slider("HUE °", "hue", -180, 180, 1, 0)}
+                            {slider("WARMTH", "warm", 0, 1, 0.02, 0)}
+                            {slider("SOFTEN", "blur", 0, 30, 0.5, 0)}
+                            <div className="btnrow" style={{ gap: 5, marginTop: 8 }}>
+                              <button className="minibtn" onClick={() => { const g = {}; GRADE_KEYS.forEach((k) => { g[k] = fx[k]; }); window.__fabGrade = g; ping("Grade copied"); }}>⧉ COPY GRADE</button>
+                              <button className="minibtn" disabled={!window.__fabGrade} onClick={() => { if (window.__fabGrade) { updateFx(selClip.id, { ...window.__fabGrade }); ping("Grade pasted"); } }}>⧊ PASTE</button>
+                              <button className="minibtn" onClick={() => { if (selIds.length > 1 && window.__fabGrade) { applyClips(clips.map((c) => (selIds.includes(c.id) ? { ...c, fx: { ...ensureFx(c), ...window.__fabGrade } } : c))); ping(`Grade → ${selIds.length} clips`); } else ping("Ctrl+click / marquee-select clips in EDIT first, copy a grade, then paste to all."); }}>PASTE → SELECTED</button>
+                              <button className="minibtn" onClick={() => updateFx(selClip.id, { bri: 1, con: 1, sat: 1, hue: 0, warm: 0, blur: 0 })}>RESET</button>
+                            </div>
                           </>
                         );
-                      })() : <div className="dim small" style={{ marginTop: 10 }}>Select a clip in the EDIT room to grade it individually.</div>}
+                      })() : <div className="dim small" style={{ marginTop: 10 }}>Select a clip in the EDIT room (or click one in the timeline below) to grade it. Scopes read the program monitor live.</div>}
+                    </aside>
+                    <aside className="inspector glass-dark" style={{ width: 500, minWidth: 380, overflowY: "auto" }}>
+                      <div className="paneltitle">📈 SCOPES <span className="dim small" style={{ letterSpacing: 0 }}>live from the program monitor</span></div>
+                      <ColorScopes sourceRef={videoRef} />
+                      <div className="dim small" style={{ marginTop: 8 }}>Waveform: exposure (keep skin ~55–70%). Parade: channel balance — matching tops/bottoms = neutral. Vectorscope: saturation spread; skin tones hug the orange line. Histogram: clipping at either end.</div>
                     </aside>
                   </div>
                 )}
@@ -4707,7 +4730,7 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
     position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
     opacity: active ? fx.op * fade : 0, // warm buffers are mounted+decoded but invisible until they go live
     transform: `translate(${fx.x}%, ${fx.y}%) scale(${fx.sc}) rotate(${fx.rot}deg)`,
-    filter: `blur(${fx.blur}px) brightness(${fx.bri}) contrast(${fx.con}) saturate(${fx.sat})`,
+    filter: `blur(${fx.blur}px) brightness(${fx.bri}) contrast(${fx.con}) saturate(${fx.sat})${fx.warm ? ` sepia(${Math.min(1, fx.warm)})` : ""}${fx.hue ? ` hue-rotate(${fx.hue}deg)` : ""}`,
     mixBlendMode: active && top ? fx.blend : "normal",
     clipPath, zIndex: active ? (z ?? (top ? 2 : 1)) : 0, pointerEvents: "none",
   };

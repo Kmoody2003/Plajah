@@ -239,6 +239,152 @@ export function LottieBuilder({ onAddToPool }) {
   );
 }
 
+/* ═══════════════ COMP BUILDER — layer compositing with a conversational co-pilot ═══════════════
+   Comps are Pixels scene snapshots: a LAYER STACK of generator / GLSL shader / color / text /
+   media layers with blend modes + opacity, rendered by the same GPU engine live in the monitor
+   AND in MP4 exports. The DESCRIBE box asks the AI to write (or rewrite) the whole stack —
+   including custom GLSL — so a novice types "smoky purple nebula with light rays over my clip"
+   and gets a working comp; power users then tweak every layer by hand. */
+const BLEND_MODES = ["normal", "add", "screen", "multiply", "overlay", "lighten", "darken"];
+export function CompBuilder({ prod, askAI, onAddToPool, ping }) {
+  const [name, setName] = useState("My Comp");
+  const [layers, setLayers] = useState([
+    { id: 1, blendMode: "normal", opacity: 1, clip: { type: "generator", sceneMode: "STUDIO_NEBULA", opacity: 1 } },
+  ]);
+  const [sel, setSel] = useState(1);
+  const [prompt, setPrompt] = useState("");
+  const [thinking, setThinking] = useState(false);
+  const mediaAssets = (prod?.mediaPool || []).filter((a) => a.url && (a.type === "video" || a.type === "image"));
+
+  const L = layers.find((x) => x.id === sel);
+  const patchL = (p) => setLayers((cur) => cur.map((x) => (x.id === sel ? { ...x, ...p } : x)));
+  const patchClip = (p) => setLayers((cur) => cur.map((x) => (x.id === sel ? { ...x, clip: { ...x.clip, ...p } } : x)));
+  const addLayer = (clip) => { const id = Math.max(0, ...layers.map((x) => x.id)) + 1; setLayers((c) => [...c, { id, blendMode: "screen", opacity: 1, clip }]); setSel(id); };
+  const move = (dir) => setLayers((cur) => {
+    const i = cur.findIndex((x) => x.id === sel); const j = i + dir;
+    if (i < 0 || j < 0 || j >= cur.length) return cur;
+    const n = [...cur]; [n[i], n[j]] = [n[j], n[i]]; return n;
+  });
+  const describe = async () => {
+    if (!prompt.trim() || thinking) return;
+    setThinking(true);
+    try {
+      const r = await askAI(
+        `You are a motion-graphics compositor building a LAYER STACK for a GPU engine. Layers render bottom→top.
+Layer clip types you can use:
+- {"type":"generator","sceneMode":ONE OF ${GENERATOR_LIST.map(([m]) => m).join("|")},"params":[0..1 x4 optional]}
+- {"type":"shader","shaderSrc":"WebGL2 GLSL fragment shader. MUST define: void main(){...} writing to 'o' (vec4 out). Available uniforms: float uT (seconds), vec2 uRes, sampler2D uAudio (x=freq). Use 'in vec2 vUv;'. Keep under 60 lines."}
+- {"type":"color","fillColor":"#rrggbb"}
+- {"type":"text","text":"..."}
+- {"type":"media","mediaName":"EXACT name of a user asset from the list, or omit media layers if none fit"}
+Respond with VALID JSON ONLY (no fences): {"name":"comp name","layers":[{"blendMode":"normal|add|screen|multiply|overlay|lighten|darken","opacity":0..1,"clip":{...}}]}
+2-5 layers. Put backgrounds first, accents on top with screen/add blends.`,
+        `USER ASSETS AVAILABLE: ${mediaAssets.map((a) => a.name).join(", ") || "(none)"}\n\nCURRENT STACK (rewrite or extend as asked): ${JSON.stringify(layers.map(({ id, ...rest }) => rest))}\n\nBUILD THIS: ${prompt}`
+      );
+      if (Array.isArray(r?.layers) && r.layers.length) {
+        const next = r.layers.slice(0, 6).map((ly, i) => {
+          const clip = { ...(ly.clip || {}) };
+          if (clip.type === "media") {
+            const m = mediaAssets.find((a) => a.name === clip.mediaName) || mediaAssets[0];
+            if (m) { clip.mediaUrl = m.url; clip.mediaType = m.type === "image" ? "image" : "video"; }
+            delete clip.mediaName;
+          }
+          return { id: i + 1, blendMode: BLEND_MODES.includes(ly.blendMode) ? ly.blendMode : "normal", opacity: Math.max(0, Math.min(1, ly.opacity ?? 1)), clip };
+        });
+        setLayers(next); setSel(next[next.length - 1].id);
+        if (r.name) setName(r.name);
+        ping?.("🎇 Comp built — tweak any layer, then add it to the pool");
+      } else ping?.("The AI didn't return a usable stack — try rephrasing.");
+    } catch (e) { ping?.("Comp build failed — " + (e?.message || "AI unavailable")); }
+    setThinking(false);
+  };
+  const addToPool = () => {
+    const snapshot = { name: name.trim() || "Comp", layers: layers.map((ly, i) => ({ id: "c" + (i + 1), blendMode: ly.blendMode, opacity: ly.opacity, clip: ly.clip })) };
+    onAddToPool(snapshot, name.trim() || "Comp");
+  };
+
+  return (
+    <div className="fxstudio glass-dark">
+      <div className="paneltitle">🎇 COMP BUILDER <span className="dim small" style={{ marginLeft: 8, letterSpacing: 0 }}>layer compositing — describe it and the AI builds the stack (GLSL included); renders live + in exports</span></div>
+      <div className="btnrow" style={{ gap: 5 }}>
+        <input className="in grow" placeholder='Describe the comp… e.g. "smoky purple nebula, gold particles drifting up, my clip on top with a soft screen glow"'
+          value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") describe(); }} />
+        <button className="cta sm" disabled={thinking || !prompt.trim()} onClick={describe}>{thinking ? "COMPOSING…" : "✨ BUILD IT"}</button>
+      </div>
+      <div style={{ display: "flex", gap: 12, marginTop: 10, flexWrap: "wrap" }}>
+        <div style={{ flex: "0 0 240px" }}>
+          <div className="lbl">LAYERS (bottom → top)</div>
+          <div className="fxlist">
+            {layers.map((ly) => (
+              <button key={ly.id} className="fxrowbtn" style={ly.id === sel ? { borderColor: "rgba(255,140,0,0.6)" } : undefined} onClick={() => setSel(ly.id)}>
+                <span className="fxdot">{{ generator: "⚡", shader: "ƒ", color: "■", text: "T", media: "🎞" }[ly.clip.type] || "•"}</span>
+                <span className="fxrowname">{ly.clip.sceneMode || ly.clip.text || ly.clip.fillColor || (ly.clip.mediaUrl ? "media" : ly.clip.type)}</span>
+                <span className="dim small">{ly.blendMode}</span>
+              </button>
+            ))}
+          </div>
+          <div className="btnrow" style={{ gap: 4, marginTop: 6, flexWrap: "wrap" }}>
+            <button className="minibtn" onClick={() => addLayer({ type: "generator", sceneMode: "PARTICLES", opacity: 1 })}>＋GEN</button>
+            <button className="minibtn" onClick={() => addLayer({ type: "color", fillColor: "#12081f", opacity: 1 })}>＋COLOR</button>
+            <button className="minibtn" onClick={() => addLayer({ type: "text", text: "TITLE", opacity: 1 })}>＋TEXT</button>
+            {mediaAssets.length > 0 && <button className="minibtn" onClick={() => addLayer({ type: "media", mediaUrl: mediaAssets[0].url, mediaType: mediaAssets[0].type === "image" ? "image" : "video", opacity: 1 })}>＋MEDIA</button>}
+            <button className="minibtn" onClick={() => move(-1)}>▲</button>
+            <button className="minibtn" onClick={() => move(1)}>▼</button>
+            {layers.length > 1 && <button className="minibtn" onClick={() => { setLayers((c) => c.filter((x) => x.id !== sel)); setSel(layers.find((x) => x.id !== sel)?.id); }}>✕</button>}
+          </div>
+        </div>
+        <div style={{ flex: 1, minWidth: 240 }}>
+          {L && (
+            <>
+              <div className="lbl">LAYER {layers.findIndex((x) => x.id === sel) + 1} — {L.clip.type.toUpperCase()}</div>
+              <div className="insp-row"><span className="lbl">BLEND</span>
+                <select className="sel xs grow" value={L.blendMode} onChange={(e) => patchL({ blendMode: e.target.value })}>
+                  {BLEND_MODES.map((b) => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+              <div className="insp-row"><span className="lbl">OPACITY</span>
+                <input type="range" min="0" max="1" step="0.02" value={L.opacity} onChange={(e) => patchL({ opacity: parseFloat(e.target.value) })} />
+                <span className="insp-val mono">{Math.round(L.opacity * 100)}%</span>
+              </div>
+              {L.clip.type === "generator" && (
+                <div className="insp-row"><span className="lbl">SCENE</span>
+                  <select className="sel xs grow" value={L.clip.sceneMode} onChange={(e) => patchClip({ sceneMode: e.target.value })}>
+                    {GENERATOR_LIST.map(([m, n]) => <option key={m} value={m}>{n}</option>)}
+                  </select>
+                </div>
+              )}
+              {L.clip.type === "color" && (
+                <div className="insp-row"><span className="lbl">COLOR</span>
+                  <input type="color" value={L.clip.fillColor || "#12081f"} onChange={(e) => patchClip({ fillColor: e.target.value })} style={{ width: 34, height: 22, border: "none", background: "none", cursor: "pointer" }} />
+                </div>
+              )}
+              {L.clip.type === "text" && (
+                <input className="in" value={L.clip.text || ""} onChange={(e) => patchClip({ text: e.target.value })} placeholder="Text…" />
+              )}
+              {L.clip.type === "media" && (
+                <select className="sel grow" value={L.clip.mediaUrl || ""} onChange={(e) => { const m = mediaAssets.find((a) => a.url === e.target.value); patchClip({ mediaUrl: e.target.value, mediaType: m?.type === "image" ? "image" : "video" }); }}>
+                  {mediaAssets.map((a) => <option key={a.id} value={a.url}>{a.name}</option>)}
+                </select>
+              )}
+              {L.clip.type === "shader" && (
+                <>
+                  <div className="lbl" style={{ marginTop: 4 }}>GLSL (AI-written — editable)</div>
+                  <textarea className="ta mono" rows={6} value={L.clip.shaderSrc || ""} onChange={(e) => patchClip({ shaderSrc: e.target.value })} />
+                </>
+              )}
+            </>
+          )}
+          <div className="btnrow" style={{ gap: 5, marginTop: 10 }}>
+            <input className="in tiny grow" value={name} onChange={(e) => setName(e.target.value)} placeholder="Comp name…" />
+            <button className="cta sm" onClick={addToPool}>➕ ADD TO MEDIA POOL</button>
+          </div>
+          <div className="dim small" style={{ marginTop: 6 }}>The comp becomes a pool asset — drop it on the timeline like a clip. It plays live in the monitor and renders on the GPU in exports.</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════ PERFORM CAPTURE — VTuber puppeteering for post-production ═══════════════ */
 export function PerformCapture({ onTake, ping }) {
   const stageRef = useRef(null);
