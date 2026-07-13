@@ -4,6 +4,7 @@ import {
   Sparkles, ChevronLeft, Wand2, Users, Globe, Trash2, MonitorPlay, X, ListVideo,
   Palette, Box, Cpu, Lock, Unlock, Camera, Brush, Type, Captions, Keyboard,
   Scissors, MousePointer2, FlagTriangleRight, FlagTriangleLeft,
+  SlidersHorizontal, Mic2,
 } from "lucide-react";
 import * as THREE from "three";
 import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from "idb-keyval";
@@ -26,6 +27,8 @@ import ColorScopes from "./ColorScopes";
 import GradePreview from "./GradePreview";
 import MixConsole from "./MixConsole";
 import VoiceStudio from "./VoiceStudio";
+import AudioEditor from "./AudioEditor";
+import { quickStems, separateStemsCloud } from "../../services/fabula/stemSeparation";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
@@ -562,6 +565,8 @@ export default function Fabula() {
   const [trimMode, setTrimMode] = useState("normal"); // normal | ripple | roll | slip
   const [clipboard, setClipboard] = useState(null);
   const [ctxMenu, setCtxMenu] = useState(null); // right-click clip menu: { x, y, clipId }
+  const [audioEdit, setAudioEdit] = useState(null); // { clip, url, blob } → open AudioEditor
+  const [stemBusy, setStemBusy] = useState(false);   // stem-split / separation in flight
   const [transcribing, setTranscribing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(null);   // top menu bar: 'File' | 'Edit' | 'View' | 'Clip' | 'Help'
   const [poolSel, setPoolSel] = useState([]);       // selected media-pool asset ids (multi-select)
@@ -1451,8 +1456,11 @@ export default function Fabula() {
     if (opts.trackId) {
       const q = (t) => Math.round(t * (vfmt.fps || 24)) / (vfmt.fps || 24);
       const clip = { id: uid(), trackId: opts.trackId, start: q(opts.at != null ? opts.at : playhead), duration: q(dur), srcIn: 0, kind: "media", assetId: id, label: name };
-      const next = [...clips, clip]; setClips(next); commitClips(next); setSelClipId(clip.id);
+      // defer = caller batch-commits (avoids stale-closure clobber when placing several in a loop).
+      if (!opts.defer) { const next = [...clips, clip]; setClips(next); commitClips(next); setSelClipId(clip.id); }
+      return clip;
     }
+    return null;
   };
   // Load an asset into the source viewer; `play` = double-click behaviour (start playing).
   const openInViewer = (a, play) => {
@@ -2714,6 +2722,87 @@ export default function Fabula() {
   /* ----- audio channel strip (clip + track): vol / pan / 5-band EQ / compressor ----- */
   const ensureAudio = (c) => ({ ...CLIP_AUDIO_DEFAULT, ...(c?.audio || {}), eq: [...((c?.audio?.eq) || CLIP_AUDIO_DEFAULT.eq)], comp: { ...COMP_DEFAULT, ...(c?.audio?.comp || {}) } });
   const updateClipAudio = (id, patch) => { const n = clips.map((c) => (c.id === id ? { ...c, audio: { ...ensureAudio(c), ...patch } } : c)); setClips(n); commitClips(n); };
+  // Resolve a clip's underlying media bytes, LOCAL-FIRST (IndexedDB stash → blob:/cloud url). Works for
+  // audio clips AND video clips (decodeAudioData pulls the audio track out of most mp4/webm).
+  const resolveClipBlob = async (clip) => {
+    if (!clip?.assetId) return null;
+    const b = await stGet("studio:blob:" + clip.assetId);
+    if (b && b.size) return b;
+    const a = prod?.mediaPool?.find((x) => x.id === clip.assetId);
+    const u = a?.url || a?.cloudUrl;
+    if (!u) return null;
+    try { const r = await fetch(u); if (r.ok) return await r.blob(); } catch { /* offline */ }
+    return null;
+  };
+  // Send a clip (audio, or a video clip's linked sound) to the Sound Forge-style editor.
+  const openAudioEditor = async (clip) => {
+    if (!clip?.assetId) { ping("This clip has no audio to edit"); return; }
+    const a = prod?.mediaPool?.find((x) => x.id === clip.assetId);
+    const url = a?.url || a?.cloudUrl;
+    let blob = null; try { blob = await resolveClipBlob(clip); } catch { /* url fallback */ }
+    if (!url && !blob) { ping("Audio is offline — relink the source first"); return; }
+    setAudioEdit({ clip, url: url || (blob ? URL.createObjectURL(blob) : ""), blob });
+  };
+  // Add N named audio tracks in ONE update and return their ids. Allocating all at once avoids the
+  // stale-state collision you'd get from calling an add-one helper twice in the same tick.
+  const addAudioTracksNamed = (names) => {
+    const cur = (prod?.tracks && prod.tracks.length) ? prod.tracks : TRACKS;
+    const base = cur.filter((t) => t.type === "audio").map((t) => parseInt(t.id.slice(1), 10) || 0).reduce((m, v) => Math.max(m, v), 0);
+    const ids = names.map((_, i) => "a" + (base + 1 + i));
+    updateProd((p) => {
+      p.tracks = (p.tracks && p.tracks.length) ? p.tracks : TRACKS.map((t) => ({ ...t }));
+      names.forEach((name, i) => p.tracks.push({ id: ids[i], name, type: "audio" }));
+    });
+    return ids;
+  };
+  // Right-click → stem split. mode: 'vocals-music' (quick, browser) | '4stem' | 'voices' (Crossover).
+  const splitClipStems = async (clip, mode) => {
+    if (stemBusy) return;
+    setStemBusy(true);
+    try {
+      const asset = prod?.mediaPool?.find((x) => x.id === clip.assetId);
+      const cloudUrl = asset?.cloudUrl || (asset?.url && /^https?:/i.test(asset.url) ? asset.url : null);
+      const base = clip.label || asset?.name || "clip";
+      const at = clip.start;
+      if (mode === "4stem" || mode === "voices") {
+        ping(mode === "voices" ? "Detecting & splitting voices on Crossover…" : "Separating stems on Crossover…");
+        const res = cloudUrl ? await separateStemsCloud(cloudUrl, mode) : { ok: false, message: "sync this clip to the cloud first" };
+        if (res.ok) {
+          const drops = mode === "voices"
+            ? (res.voices || []).map((u, i) => ({ u, n: `${base} · voice ${i + 1}` }))
+            : [["vocals", res.vocals], ["drums", res.drums], ["bass", res.bass], ["other", res.other]]
+              .filter(([, u]) => u).map(([k, u]) => ({ u, n: `${base} · ${k}` }));
+          if (drops.length) {
+            const tids = addAudioTracksNamed(drops.map((d) => d.n.slice(0, 18)));
+            const made = [];
+            for (let i = 0; i < drops.length; i++) {
+              const blob = await (await fetch(drops[i].u)).blob();
+              const cl = await placeAudioClip(blob, drops[i].n, { trackId: tids[i], at, defer: true });
+              if (cl) made.push(cl);
+            }
+            if (made.length) { const next = [...clips, ...made]; setClips(next); commitClips(next); setSelClipId(made[0].id); }
+            ping(`Placed ${made.length} stems on new tracks`);
+          } else ping("Separation returned no stems");
+          return;
+        }
+        // Crossover tier absent → honest fallback to the instant browser split.
+        ping(`HQ separation unavailable (${res.message || "offline"}) — using instant split`);
+        mode = "vocals-music";
+      }
+      // Instant, in-browser mid/side split.
+      const blob = await resolveClipBlob(clip);
+      if (!blob) { ping("Audio is offline — relink the source first"); return; }
+      const { vocals, instrumental } = await quickStems(blob, "both");
+      const [vt, mt] = addAudioTracksNamed([`${base} · vocals`.slice(0, 18), `${base} · music`.slice(0, 18)]);
+      const made = [];
+      if (vocals) { const cl = await placeAudioClip(vocals, `${base} · vocals`, { trackId: vt, at, defer: true }); if (cl) made.push(cl); }
+      if (instrumental) { const cl = await placeAudioClip(instrumental, `${base} · music`, { trackId: mt, at, defer: true }); if (cl) made.push(cl); }
+      if (made.length) { const next = [...clips, ...made]; setClips(next); commitClips(next); setSelClipId(made[0].id); }
+      ping("Split into vocals + music on new tracks");
+    } catch (e) {
+      ping("Stem split failed: " + (e?.message || "error"));
+    } finally { setStemBusy(false); }
+  };
   const renderAudioPanel = (title, a, onPatch, withPan) => {
     const comp = { ...COMP_DEFAULT, ...(a.comp || {}) };
     const eq = a.eq || [0, 0, 0, 0, 0];
@@ -3686,6 +3775,13 @@ export default function Fabula() {
                             {mi("Split at playhead", bladeAtPlayhead, { icon: <Scissors size={12} /> })}
                             {mi("Duplicate", duplicateSel, { icon: <Plus size={12} /> })}
                             {mi(transcribing ? "Transcribing…" : "Transcribe clip", () => transcribeClip(c), { icon: <Captions size={12} />, disabled: transcribing || !c?.assetId })}
+                            {c?.assetId && (c.trackId?.startsWith("a") || c.kind === "media") && <>
+                              {div}
+                              {mi("Send to audio editor", () => openAudioEditor(c), { icon: <SlidersHorizontal size={12} /> })}
+                              {mi(stemBusy ? "Separating…" : "Isolate vocals + music", () => splitClipStems(c, "vocals-music"), { icon: <Mic2 size={12} />, disabled: stemBusy, hint: "instant" })}
+                              {mi(stemBusy ? "Separating…" : "Separate stems (Crossover)", () => splitClipStems(c, "4stem"), { icon: <Wand2 size={12} />, disabled: stemBusy, hint: "HQ" })}
+                              {mi(stemBusy ? "Detecting…" : "Split voices to tracks (Crossover)", () => splitClipStems(c, "voices"), { icon: <Users size={12} />, disabled: stemBusy, hint: "HQ" })}
+                            </>}
                             {mi(c?.disabled ? "Enable clip" : "Disable clip", toggleDisable, { icon: c?.disabled ? <Unlock size={12} /> : <Lock size={12} /> })}
                             {div}
                             {mi("Delete (leave gap)", liftDelete, { icon: <Trash2 size={12} />, danger: true, hint: "Del" })}
@@ -3704,6 +3800,12 @@ export default function Fabula() {
     <div className="studio" onMouseMove={onTimelineMove} onMouseUp={onTimelineUp}>
       <style>{CSS}</style>
       {prod && page === "edit" && <MediaWarmer prod={monitorProd} clips={clips} />}
+      {audioEdit && (
+        <AudioEditor clip={audioEdit.clip} url={audioEdit.url} blob={audioEdit.blob}
+          clipAudio={clips.find((c) => c.id === audioEdit.clip.id)?.audio || ensureAudio(audioEdit.clip)}
+          onChange={(clean) => updateClipAudio(audioEdit.clip.id, { clean })}
+          onClose={() => setAudioEdit(null)} />
+      )}
       {exportReady && (
         <div style={{ position: "fixed", inset: 0, zIndex: 10000, background: "rgba(0,0,0,0.62)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }}
           onMouseDown={(e) => { if (e.target === e.currentTarget && !publishing) setExportReady(null); }}>
@@ -4582,18 +4684,41 @@ export default function Fabula() {
 
                 {editWs === "audio" && (
                   <div className="scroll" style={{ padding: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+                    {/* REFERENCE MONITOR — score & mix to picture: the program frame at the playhead. */}
+                    {(() => {
+                      const vclips = clips.filter((c) => c.trackId?.startsWith("v") && c.assetId).sort((a, b) => a.start - b.start);
+                      const cur = [...vclips].reverse().find((c) => playhead >= c.start && playhead < c.start + c.duration);
+                      const ar = (vfmt.w && vfmt.h) ? vfmt.w / vfmt.h : 16 / 9;
+                      return (
+                        <div className="glass-card" style={{ padding: 10 }}>
+                          <div className="lbl" style={{ display: "flex", alignItems: "center", gap: 8 }}><MonitorPlay size={12} /> REFERENCE MONITOR
+                            <span className="dim small" style={{ letterSpacing: 0, marginLeft: "auto" }}>{fmtTc(playhead, vfmt)}</span></div>
+                          <div style={{ position: "relative", width: "100%", aspectRatio: String(ar), background: "#000", borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)" }}>
+                            {cur
+                              ? <MonitorLayer key={cur.id} clip={cur} active prod={monitorProd} scene={scene} playhead={playhead} playing={playing} top={false} z={10} vol={0} mute />
+                              : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#4a4a52", fontSize: 11 }}>no picture at playhead</div>}
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                            <button className="minibtn" onClick={() => setPlaying((p) => !p)} style={{ width: 40 }}>{playing ? <Pause size={13} /> : <Play size={13} />}</button>
+                            <span className="dim small">Picture follows the timeline — a fixed reference while you build the score.</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <MixConsole audioTracks={tracks.filter((tr) => tr.type === "audio")} trackSettings={container.timeline?.trackSettings || {}} setTrackSetting={setTrackSetting} />
                     <VoiceStudio audioTracks={tracks.filter((tr) => tr.type === "audio")} playhead={playhead} setPlayhead={setPlayhead} setPlaying={setPlaying} onPlaceClip={placeAudioClip} ping={ping} />
                     <div className="glass-card">
-                      <div className="lbl">DIALOGUE &amp; AUDIO CLIPS ON THIS TIMELINE</div>
+                      <div className="lbl">DIALOGUE &amp; AUDIO CLIPS ON THIS TIMELINE <span className="dim small" style={{ letterSpacing: 0 }}>· edit or separate any clip</span></div>
                       {clips.filter((c) => c.trackId.startsWith("a")).sort((a, b) => a.start - b.start).map((c) => {
                         const shot = c.shotId ? scene?.shots.find((s) => s.id === c.shotId) : null;
                         return (
-                          <div className="briefrow" key={c.id} onClick={() => { setSelClipId(c.id); setPlayhead(c.start); }} style={{ cursor: "pointer" }}>
-                            <div className="briefhead">
-                              <span className="tc" style={{ fontSize: 11 }}>{fmtTc(c.start, vfmt)}</span>
-                              <strong>{c.label}</strong>
+                          <div className="briefrow" key={c.id} style={{ cursor: "pointer" }}>
+                            <div className="briefhead" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <span className="tc" style={{ fontSize: 11, cursor: "pointer" }} onClick={() => { setSelClipId(c.id); setPlayhead(c.start); }}>{fmtTc(c.start, vfmt)}</span>
+                              <strong style={{ flex: 1 }} onClick={() => { setSelClipId(c.id); setPlayhead(c.start); }}>{c.label}</strong>
                               {shot?.voice && <CopyBtn text={shot.voice} label="VOICE DIRECTION" small />}
+                              <button className="minibtn" title="Send to audio editor (non-destructive clean-up)" onClick={(e) => { e.stopPropagation(); openAudioEditor(c); }}><SlidersHorizontal size={11} /></button>
+                              <button className="minibtn" disabled={stemBusy} title="Isolate vocals + music to new tracks" onClick={(e) => { e.stopPropagation(); splitClipStems(c, "vocals-music"); }}><Mic2 size={11} /></button>
                             </div>
                           </div>
                         );

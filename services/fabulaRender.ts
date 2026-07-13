@@ -68,6 +68,50 @@ function applyEqComp(ctx: BaseAudioContext, input: AudioNode, eq?: number[], com
   return node;
 }
 
+// Non-destructive cleanup pre-stage (parity with AudioEditor / audioGraph.applyClean). hpf/lpf 0 =
+// bypass; hum 0 = off; trim in dB. denoise + normalize are baked into the buffer separately.
+function applyCleanRender(ctx: BaseAudioContext, input: AudioNode, clean?: any): AudioNode {
+  if (!clean) return input;
+  let node = input;
+  if (clean.hpf > 0) { const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = Math.max(10, Math.min(2000, clean.hpf)); f.Q.value = 0.707; node.connect(f); node = f; }
+  if (clean.hum) { const f = ctx.createBiquadFilter(); f.type = 'notch'; f.frequency.value = clean.hum; f.Q.value = 8; node.connect(f); node = f; }
+  if (clean.lpf > 0) { const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = Math.max(1000, Math.min(22000, clean.lpf)); f.Q.value = 0.707; node.connect(f); node = f; }
+  if (clean.trim) { const g = ctx.createGain(); g.gain.value = Math.pow(10, Math.max(-24, Math.min(24, clean.trim)) / 20); node.connect(g); node = g; }
+  return node;
+}
+// Bake denoise (time-domain noise gate below an auto-estimated floor) + normalize (peak → −1 dBFS)
+// into a fresh buffer. Only called when the clip actually asks for them, so the shared cache is safe.
+function bakeCleanBuffer(ctx: BaseAudioContext, ab: AudioBuffer, clean: any): AudioBuffer {
+  const out = ctx.createBuffer(ab.numberOfChannels, ab.length, ab.sampleRate);
+  const win = Math.max(1, Math.round(ab.sampleRate * 0.02)); // 20ms envelope window
+  const denoise = Math.max(0, Math.min(1, clean.denoise || 0));
+  let globalPeak = 0;
+  for (let ch = 0; ch < ab.numberOfChannels; ch++) {
+    const src = ab.getChannelData(ch), dst = out.getChannelData(ch);
+    // estimate noise floor = median-ish of the quietest windows' RMS
+    let floor = 1;
+    if (denoise > 0) {
+      const rms: number[] = [];
+      for (let i = 0; i < src.length; i += win) { let s = 0, n = 0; for (let j = i; j < Math.min(src.length, i + win); j++) { s += src[j] * src[j]; n++; } rms.push(Math.sqrt(s / Math.max(1, n))); }
+      rms.sort((a, b) => a - b); floor = rms[Math.floor(rms.length * 0.1)] || 0;
+    }
+    const gateLo = floor * (1 + denoise * 2), gateHi = floor * (2 + denoise * 3);
+    let env = 0; const atk = 0.4, rel = 0.02;
+    for (let i = 0; i < src.length; i++) {
+      let v = src[i];
+      if (denoise > 0 && gateHi > gateLo) {
+        const a = Math.abs(v); env += (a > env ? atk : rel) * (a - env);
+        let gain = env <= gateLo ? 0 : env >= gateHi ? 1 : (env - gateLo) / (gateHi - gateLo);
+        gain = 1 - denoise * (1 - gain); // denoise=1 → full gate, denoise=0.5 → half depth
+        v *= gain;
+      }
+      dst[i] = v; const av = Math.abs(v); if (av > globalPeak) globalPeak = av;
+    }
+  }
+  if (clean.normalize && globalPeak > 0) { const scale = 0.891 / globalPeak; for (let ch = 0; ch < out.numberOfChannels; ch++) { const d = out.getChannelData(ch); for (let i = 0; i < d.length; i++) d[i] *= scale; } }
+  return out;
+}
+
 // Mix ALL audio clips (any a-track) into one master buffer with FULL DSP PARITY to live
 // playback: per-clip gain + fades + clip EQ/comp, summed into per-track buses that apply the
 // track's EQ/comp, stereo pan, fader and mute — the same chain the editor's mixer runs, so
@@ -158,7 +202,10 @@ async function mixAudio(clips: any[], mediaPool: any[], durationSec: number, tra
   };
 
   for (const c of audioClips) {
-    const ab = cache.get(c.assetId); if (!ab) continue;
+    let ab = cache.get(c.assetId); if (!ab) continue;
+    const clean = c.audio?.clean;
+    // Denoise / normalize are look-ahead processes → bake into a per-clip buffer copy (cache stays raw).
+    if (clean && ((clean.denoise || 0) > 0 || clean.normalize)) { try { ab = bakeCleanBuffer(offline, ab, clean); } catch { /* keep raw */ } }
     const start = Math.max(0, c.start || 0);
     const offset = Math.max(0, c.srcIn || 0);
     const dur = Math.max(0.01, Math.min(c.duration || (ab.duration - offset), ab.duration - offset));
@@ -171,7 +218,8 @@ async function mixAudio(clips: any[], mediaPool: any[], durationSec: number, tra
     if (fi > 0) g.gain.linearRampToValueAtTime(gainVal, start + fi);
     if (fo > 0) { g.gain.setValueAtTime(gainVal, Math.max(start, start + dur - fo)); g.gain.linearRampToValueAtTime(0.0001, start + dur); }
     src.connect(g);
-    const shaped = applyEqComp(offline, g, c.audio?.eq, c.audio?.comp); // clip EQ/comp
+    const cleaned = applyCleanRender(offline, g, clean);          // HPF/LPF/hum/trim (live parity)
+    const shaped = applyEqComp(offline, cleaned, c.audio?.eq, c.audio?.comp); // clip EQ/comp
     shaped.connect(trackBus(c.trackId));
     try { src.start(start, offset, dur); } catch { /* out of range */ }
   }

@@ -23,12 +23,17 @@ export const EQ_BANDS: { f: number; type: BiquadFilterType; q?: number }[] = [
 export const EQ_LABELS = ['80', '250', '1k', '4k', '12k'];
 
 export interface CompSettings { on: boolean; threshold: number; ratio: number; attack: number; release: number; knee: number; makeup: number; }
-export interface ClipAudio { vol: number; eq: number[]; comp: CompSettings; }
+// Non-destructive cleanup from the AudioEditor (Sound Forge-style). All parameters, never baked into
+// the media — applied live (HPF/LPF/hum/trim via biquads) and at render (plus spectral gate `denoise`).
+export interface CleanSettings { hpf: number; lpf: number; hum: 0 | 50 | 60; trim: number; denoise: number; normalize: boolean; }
+export interface ClipAudio { vol: number; eq: number[]; comp: CompSettings; clean?: CleanSettings; }
 export interface TrackAudio { vol?: number; pan?: number; mute?: boolean; eq?: number[]; comp?: Partial<CompSettings>; sendReverb?: number; sendDelay?: number; }
 export const REVERB_PRESETS = ['room', 'chamber', 'hall', 'plate', 'cathedral'] as const;
 export type ReverbPreset = typeof REVERB_PRESETS[number];
 
 export const COMP_DEFAULT: CompSettings = { on: false, threshold: -24, ratio: 3, attack: 0.003, release: 0.25, knee: 30, makeup: 0 };
+// hpf/lpf 0 = bypass (nyquist); hum 0 = off; trim in dB; denoise 0..1; normalize is a render-only peak lift.
+export const CLEAN_DEFAULT: CleanSettings = { hpf: 0, lpf: 0, hum: 0, trim: 0, denoise: 0, normalize: false };
 export const CLIP_AUDIO_DEFAULT: ClipAudio = { vol: 1, eq: [0, 0, 0, 0, 0], comp: { ...COMP_DEFAULT } };
 
 let _ctx: AudioContext | null = null;
@@ -103,6 +108,7 @@ const dbToGain = (db: number) => Math.pow(10, (db || 0) / 20);
 
 interface Graph {
   ctx: AudioContext;
+  hpf: BiquadFilterNode; lpf: BiquadFilterNode; hum: BiquadFilterNode; trim: GainNode; // cleanup pre-stage
   clipEq: BiquadFilterNode[]; trackEq: BiquadFilterNode[];
   clipComp: DynamicsCompressorNode; clipMk: GainNode;
   trackComp: DynamicsCompressorNode; trackMk: GainNode;
@@ -225,6 +231,14 @@ function applyBand(nodes: BiquadFilterNode[], eq: number[] | undefined) {
   const g = eq || [];
   nodes.forEach((n, i) => { n.gain.value = clamp(g[i] || 0, -24, 24); });
 }
+// Non-destructive cleanup pre-stage. hpf/lpf 0 = bypass; hum 0 = off; trim in dB (denoise/normalize
+// are render-only — a live biquad can't do spectral gating or look-ahead peak normalization).
+function applyClean(hpf: BiquadFilterNode, lpf: BiquadFilterNode, hum: BiquadFilterNode, trim: GainNode, c: CleanSettings | undefined) {
+  hpf.frequency.value = c && c.hpf > 0 ? clamp(c.hpf, 10, 2000) : 10;
+  lpf.frequency.value = c && c.lpf > 0 ? clamp(c.lpf, 1000, 22000) : 22000;
+  if (c && c.hum) { hum.frequency.value = c.hum; hum.Q.value = 8; } else { hum.Q.value = 0.0001; }
+  trim.gain.value = dbToGain(clamp(c?.trim || 0, -24, 24));
+}
 function applyComp(comp: DynamicsCompressorNode, makeup: GainNode, c: Partial<CompSettings> | undefined) {
   if (c && c.on) {
     comp.threshold.value = clamp(c.threshold ?? -24, -100, 0);
@@ -249,6 +263,11 @@ export function attachAudioGraph(el: HTMLMediaElement): Graph | null {
   try { source = ctx.createMediaElementSource(el); }
   catch { graphs.set(el, null); return null; } // already connected — leave the element's own output intact
   const mkEq = () => EQ_BANDS.map((b) => { const f = ctx.createBiquadFilter(); f.type = b.type; f.frequency.value = b.f; f.Q.value = b.q || 1; f.gain.value = 0; return f; });
+  // Non-destructive cleanup pre-stage (AudioEditor). Start bypassed (extreme corners / notch off).
+  const hpf = ctx.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = 10; hpf.Q.value = 0.707;
+  const lpf = ctx.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 22000; lpf.Q.value = 0.707;
+  const hum = ctx.createBiquadFilter(); hum.type = 'notch'; hum.frequency.value = 60; hum.Q.value = 0.0001;
+  const trim = ctx.createGain(); trim.gain.value = 1;
   const clipEq = mkEq(), trackEq = mkEq();
   const clipComp = ctx.createDynamicsCompressor(), clipMk = ctx.createGain();
   const trackComp = ctx.createDynamicsCompressor(), trackMk = ctx.createGain();
@@ -257,7 +276,7 @@ export function attachAudioGraph(el: HTMLMediaElement): Graph | null {
   const analyser = ctx.createAnalyser(); analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.2;
   const master = getMasterBus(ctx);
   const fx = getFxBuses(ctx);
-  const chain: AudioNode[] = [source, ...clipEq, clipComp, clipMk, ...trackEq, trackComp, trackMk, ...(pan ? [pan] : []), gain, analyser, master.input];
+  const chain: AudioNode[] = [source, hpf, hum, lpf, trim, ...clipEq, clipComp, clipMk, ...trackEq, trackComp, trackMk, ...(pan ? [pan] : []), gain, analyser, master.input];
   try { for (let i = 0; i < chain.length - 1; i++) chain[i].connect(chain[i + 1]); }
   catch { try { source.connect(master.input); } catch { /* last resort — still audible */ } }
   // Post-fader aux sends (tapped after the fader `gain`, before the analyser) → shared FX buses.
@@ -265,10 +284,11 @@ export function attachAudioGraph(el: HTMLMediaElement): Graph | null {
   const sendD = ctx.createGain(); sendD.gain.value = 0; gain.connect(sendD); sendD.connect(fx.delaySend);
   const buf = new Float32Array(analyser.fftSize);
   const g: Graph = {
-    ctx, clipEq, trackEq, clipComp, clipMk, trackComp, trackMk, pan, gain, analyser, sendR, sendD,
+    ctx, hpf, lpf, hum, trim, clipEq, trackEq, clipComp, clipMk, trackComp, trackMk, pan, gain, analyser, sendR, sendD,
     resume() { if (ctx.state === 'suspended') ctx.resume().catch(() => {}); },
     level() { try { analyser.getFloatTimeDomainData(buf); let peak = 0; for (let i = 0; i < buf.length; i++) { const a = Math.abs(buf[i]); if (a > peak) peak = a; } return peak; } catch { return 0; } },
     apply(clip, track) {
+      applyClean(hpf, lpf, hum, trim, clip?.clean);
       applyBand(clipEq, clip?.eq); applyComp(clipComp, clipMk, clip?.comp);
       applyBand(trackEq, track?.eq); applyComp(trackComp, trackMk, track?.comp);
       if (pan) pan.pan.value = clamp(track?.pan || 0, -1, 1);
