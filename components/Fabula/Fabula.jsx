@@ -2105,6 +2105,10 @@ export default function Fabula() {
         }
         const dests = [pubReello && `Reello (${pubVisibility})`, pubTaleo && "Taleo", pubFabula && "Fabula library"].filter(Boolean).join(" + ");
         ping(`🚀 Published to ${dests}${pubDownload ? " · downloaded" : ""}`);
+        // Keep the dialog open in a success state so we can deep-link straight to the video in
+        // Reello (the reel player at THAT short) instead of dropping the user on a generic feed.
+        setExportReady((x) => ({ ...x, done: true, reelloId: pubReello ? (vid?.id || null) : null, taleoId: pubTaleo ? (vid?.id || null) : null }));
+        return;
       } else if (pubDownload) {
         ping("Rendered MP4 downloaded — Pixels engine, frame-accurate.");
       }
@@ -3812,18 +3816,43 @@ export default function Fabula() {
         <div style={{ position: "fixed", inset: 0, zIndex: 10000, background: "rgba(0,0,0,0.62)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }}
           onMouseDown={(e) => { if (e.target === e.currentTarget && !publishing) setExportReady(null); }}>
           <div className="glass-dark" style={{ width: 400, maxWidth: "92vw", borderRadius: 14, padding: 16, border: "1px solid rgba(255,140,0,0.25)" }}>
-            <div className="paneltitle">🎬 EXPORT READY
-              <span className="dim small" style={{ marginLeft: 8, letterSpacing: 0 }}>{(exportReady.blob.size / 1e6).toFixed(1)} MB · one file, sent where you check</span>
-            </div>
-            <div className="lbl">TITLE</div>
-            <input className="in" value={exportReady.name} onChange={(e) => setExportReady((x) => ({ ...x, name: e.target.value }))} />
-            {renderDestinations()}
-            <div className="btnrow" style={{ gap: 6, marginTop: 12 }}>
-              <button className="cta grow" disabled={publishing || (!pubReello && !pubFabula && !pubTaleo && !pubDownload)} onClick={finishExport}>
-                {publishing ? "PUBLISHING…" : "EXPORT"}
-              </button>
-              <button className="minibtn" disabled={publishing} onClick={() => setExportReady(null)}>CANCEL</button>
-            </div>
+            {exportReady.done ? (
+              // ── PUBLISHED — offer a real deep-link into Reello playback (not a generic feed) ──
+              <>
+                <div className="paneltitle">✅ PUBLISHED
+                  <span className="dim small" style={{ marginLeft: 8, letterSpacing: 0 }}>“{exportReady.name}” is live</span>
+                </div>
+                <div className="dim small" style={{ margin: "8px 0 12px" }}>Your cut is on its way to the destinations you picked. Jump straight to it:</div>
+                <div className="btnrow" style={{ gap: 6, flexDirection: "column" }}>
+                  {exportReady.reelloId && (
+                    <button className="cta full" onClick={() => { window.dispatchEvent(new CustomEvent("NAVIGATE", { detail: { target: "RELLO", params: { videoId: exportReady.reelloId } } })); setExportReady(null); }}>
+                      <Play size={13} /> WATCH ON REELLO
+                    </button>
+                  )}
+                  {exportReady.taleoId && (
+                    <button className="minibtn" style={{ justifyContent: "center", padding: 11 }} onClick={() => { window.dispatchEvent(new CustomEvent("NAVIGATE", { detail: { target: "MOVIES_TV" } })); setExportReady(null); }}>
+                      <Film size={12} /> OPEN IN TALEO
+                    </button>
+                  )}
+                  <button className="minibtn" style={{ justifyContent: "center", padding: 11 }} onClick={() => setExportReady(null)}>DONE</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="paneltitle">🎬 EXPORT READY
+                  <span className="dim small" style={{ marginLeft: 8, letterSpacing: 0 }}>{(exportReady.blob.size / 1e6).toFixed(1)} MB · one file, sent where you check</span>
+                </div>
+                <div className="lbl">TITLE</div>
+                <input className="in" value={exportReady.name} onChange={(e) => setExportReady((x) => ({ ...x, name: e.target.value }))} />
+                {renderDestinations()}
+                <div className="btnrow" style={{ gap: 6, marginTop: 12 }}>
+                  <button className="cta grow" disabled={publishing || (!pubReello && !pubFabula && !pubTaleo && !pubDownload)} onClick={finishExport}>
+                    {publishing ? "PUBLISHING…" : "EXPORT"}
+                  </button>
+                  <button className="minibtn" disabled={publishing} onClick={() => setExportReady(null)}>CANCEL</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

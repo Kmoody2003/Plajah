@@ -1078,6 +1078,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         setSelectedAlbum(null);
       }
       setView('PLAYER');
+    } else if (target === 'RELLO' || target === 'VIDEOS') {
+      // Reello playback. With a videoId, land ON that short in the reel feed (same path as a
+      // shared /share?type=video link); without one, open the Reello feed. Fabula uses this to
+      // deep-link straight to a just-published video instead of dropping the user on a generic feed.
+      if (params?.videoId) { setRelloInitialVideoId(params.videoId); setView('RELLO'); }
+      else setView('VIDEOS');
     } else if (target === 'CLUBS') {
       setView('CLUBS');
     } else if (target === 'LIVE_HUB') {
