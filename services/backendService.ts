@@ -6624,6 +6624,9 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
     // Reello UGC marker — REQUIRED for the video to show in the Reello feed
     // (RelloView filters by isRello === true). Was being dropped here.
     ...(video.isRello ? { isRello: true } : {}),
+    // Fabula-library marker — one uploaded file can surface in Reello, the Fabula
+    // video bin, or both; these flags are the routing conditions.
+    ...((video as any).isFabula ? { isFabula: true } : {}),
     ...(Array.isArray(video.tags) && video.tags.length ? { tags: video.tags } : {}),
     ...(typeof video.duration === 'number' ? { duration: video.duration } : {}),
   } as any;

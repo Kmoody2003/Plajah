@@ -25,7 +25,7 @@ import { FxLibraryPanel, LottieBuilder, PerformCapture } from "./FxLibrary";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
-import { fetchAlbumById, uploadFabulaAsset } from "../../services/backendService";
+import { fetchAlbumById, uploadFabulaAsset, uploadVideo } from "../../services/backendService";
 import ConnectToWorld from "../Worlds/ConnectToWorld";
 import { syncProductionToWorld, worldCharactersForProduction } from "../../services/fabulaWorldBridge";
 import SpatialMixer from "../spatialMixer/SpatialMixer";
@@ -587,6 +587,13 @@ export default function Fabula() {
   const [proxyBusy, setProxyBusy] = useState(null);        // "2/7 · name" while building
   const [guides, setGuides] = useState(() => localStorage.getItem("fabula:guides") === "1"); // title/action-safe overlay (never rendered)
   const [fxLibOpen, setFxLibOpen] = useState(() => localStorage.getItem("fabula:fxlib") === "1"); // effects library panel (edit page)
+  // Export destinations: one rendered file, flag-routed to Reello and/or the Fabula library.
+  const [exportReady, setExportReady] = useState(null); // { blob, name } — opens the destination dialog
+  const [pubReello, setPubReello] = useState(true);     // default: Reello checked…
+  const [pubVisibility, setPubVisibility] = useState("private"); // …but PRIVATE
+  const [pubFabula, setPubFabula] = useState(false);
+  const [pubDownload, setPubDownload] = useState(true);
+  const [publishing, setPublishing] = useState(false);
   const [localFonts, setLocalFonts] = useState([]);        // families from the Local Font Access API
   const loadLocalFonts = async () => {
     try {
@@ -1954,17 +1961,59 @@ export default function Fabula() {
         signal: renderAbortRef.current.signal,
       });
       if (!blob) { ping("Render failed or cancelled — see console."); return; }
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = (container?.title || "fabula").replace(/\s+/g, "_").toLowerCase() + ".mp4";
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 30000);
-      ping("Rendered MP4 — Pixels engine, frame-accurate.");
+      // Open the destination dialog instead of auto-downloading: one file, routed to
+      // Reello (default, private) and/or the Fabula library, and/or a download.
+      setPubReello(true); setPubVisibility("private"); setPubFabula(false); setPubDownload(true);
+      setExportReady({ blob, name: (container?.title || "Fabula Cut").trim() });
+      ping("Render complete — choose where it goes.");
     } catch (e) {
       console.warn("[Fabula render]", e); ping("Render error — see console.");
     } finally {
       setRendering(false);
     }
+  };
+  // One file, flag-routed: a single videos/{id} document whose isRello / isFabula flags decide
+  // where it surfaces (Reello feed, Fabula video bin, or both). Download is independent.
+  const finishExport = async () => {
+    if (!exportReady) return;
+    const { blob } = exportReady;
+    const name = (exportReady.name || "Fabula Cut").trim() || "Fabula Cut";
+    setPublishing(true);
+    try {
+      if (pubDownload) {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = name.replace(/\s+/g, "_").toLowerCase() + ".mp4";
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+      }
+      if (pubReello || pubFabula) {
+        if (!auth.currentUser) { window.alert("Sign in to publish to Reello / the Fabula library. The file was " + (pubDownload ? "downloaded instead." : "NOT saved — check Download and export again.")); return; }
+        const file = new File([blob], name.replace(/\s+/g, "_").toLowerCase() + ".mp4", { type: "video/mp4" });
+        const vid = await uploadVideo({
+          file, title: name,
+          description: `Edited in Fabula${prod?.title ? ` — ${prod.title}` : ""}`,
+          isPrivate: pubVisibility === "private",
+          isRello: pubReello,                    // surfaces in the Reello feed
+          isFabula: pubFabula,                   // surfaces in the Fabula video bin
+          tags: ["fabula-export", ...(pubReello ? ["reello"] : []), ...(pubFabula ? ["fabula"] : [])],
+          duration: seqEnd,
+        });
+        if (pubFabula) { // also drop straight into THIS project's media pool
+          const aid = uid();
+          addAssetToPool({ id: aid, name: name + ".mp4", type: "video", url: URL.createObjectURL(blob), duration: seqEnd, session: true, bin: "exports", cloudUrl: vid?.url || undefined });
+          stSet("studio:blob:" + aid, blob);
+        }
+        const dests = [pubReello && `Reello (${pubVisibility})`, pubFabula && "Fabula library"].filter(Boolean).join(" + ");
+        ping(`🚀 Published to ${dests}${pubDownload ? " · downloaded" : ""}`);
+      } else if (pubDownload) {
+        ping("Rendered MP4 downloaded — Pixels engine, frame-accurate.");
+      }
+      setExportReady(null);
+    } catch (e) {
+      console.warn("[Fabula publish]", e);
+      window.alert("Publish failed: " + (e?.code || e?.message || e) + "\n\nThe rendered file is still here — you can Download it or try again.");
+    } finally { setPublishing(false); }
   };
   const exportAll = () => {
     const head = `=== ${prod ? prod.title + " — " : ""}${container?.title || "UNTITLED"} ===\n` +
@@ -3464,6 +3513,45 @@ export default function Fabula() {
     <div className="studio" onMouseMove={onTimelineMove} onMouseUp={onTimelineUp}>
       <style>{CSS}</style>
       {prod && page === "edit" && <MediaWarmer prod={monitorProd} clips={clips} />}
+      {exportReady && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 10000, background: "rgba(0,0,0,0.62)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget && !publishing) setExportReady(null); }}>
+          <div className="glass-dark" style={{ width: 400, maxWidth: "92vw", borderRadius: 14, padding: 16, border: "1px solid rgba(255,140,0,0.25)" }}>
+            <div className="paneltitle">🎬 EXPORT READY
+              <span className="dim small" style={{ marginLeft: 8, letterSpacing: 0 }}>{(exportReady.blob.size / 1e6).toFixed(1)} MB · one file, sent where you check</span>
+            </div>
+            <div className="lbl">TITLE</div>
+            <input className="in" value={exportReady.name} onChange={(e) => setExportReady((x) => ({ ...x, name: e.target.value }))} />
+            <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, cursor: "pointer" }}>
+              <input type="checkbox" checked={pubReello} onChange={(e) => setPubReello(e.target.checked)} />
+              <span style={{ fontWeight: 800, fontSize: 12 }}>REELLO</span>
+              <span className="dim small">your video channel</span>
+              {pubReello && (
+                <select className="sel xs" style={{ marginLeft: "auto" }} value={pubVisibility} onChange={(e) => setPubVisibility(e.target.value)}>
+                  <option value="private">Private (only you)</option>
+                  <option value="public">Public</option>
+                </select>
+              )}
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, cursor: "pointer" }}>
+              <input type="checkbox" checked={pubFabula} onChange={(e) => setPubFabula(e.target.checked)} />
+              <span style={{ fontWeight: 800, fontSize: 12 }}>FABULA LIBRARY</span>
+              <span className="dim small">MY VIDEOS bin + this project's pool</span>
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, cursor: "pointer" }}>
+              <input type="checkbox" checked={pubDownload} onChange={(e) => setPubDownload(e.target.checked)} />
+              <span style={{ fontWeight: 800, fontSize: 12 }}>DOWNLOAD .MP4</span>
+            </label>
+            <div className="dim small" style={{ marginTop: 10 }}>One upload — the checkboxes are just routing flags on the same file, so it can surface in Reello, the Fabula library, or both.</div>
+            <div className="btnrow" style={{ gap: 6, marginTop: 12 }}>
+              <button className="cta grow" disabled={publishing || (!pubReello && !pubFabula && !pubDownload)} onClick={finishExport}>
+                {publishing ? "PUBLISHING…" : "EXPORT"}
+              </button>
+              <button className="minibtn" disabled={publishing} onClick={() => setExportReady(null)}>CANCEL</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ───── animated splash ───── */}
       {splash && (
