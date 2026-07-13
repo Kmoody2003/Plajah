@@ -91,13 +91,22 @@ async function mixAudio(clips: any[], mediaPool: any[], durationSec: number, tra
   // decode each unique asset once
   const cache = new Map<string, AudioBuffer>();
   const decodeCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-  for (const c of audioClips) {
-    if (cache.has(c.assetId)) continue;
-    const item = mediaPool.find(m => m.id === c.assetId);
-    if (!item?.url) continue;
-    try { cache.set(c.assetId, await decodeCtx.decodeAudioData(await (await fetch(item.url)).arrayBuffer())); }
-    catch { /* skip undecodable */ }
-  }
+  // Decode every unique source in PARALLEL, each guarded by a timeout. Serial decoding of
+  // several video files' audio (every video clip routes its embedded audio here now) was the
+  // invisible "stuck on Preparing" stall — one big/slow file blocked the whole render. A source
+  // that can't decode in ~25s is skipped (it just renders silent) rather than hanging the export.
+  const uniqueIds = [...new Set(audioClips.map(c => c.assetId))];
+  await Promise.all(uniqueIds.map(async (id) => {
+    const item = mediaPool.find(m => m.id === id);
+    if (!item?.url) return;
+    try {
+      const buf = await Promise.race([
+        (async () => decodeCtx.decodeAudioData(await (await fetch(item.url)).arrayBuffer()))(),
+        new Promise<null>((res) => setTimeout(() => res(null), 25000)),
+      ]);
+      if (buf) cache.set(id, buf as AudioBuffer);
+    } catch { /* undecodable / no audio track — skip */ }
+  }));
   try { decodeCtx.close(); } catch { /* */ }
 
   const offline = new OfflineAudioContext(2, Math.ceil(durationSec * SR), SR);
@@ -208,7 +217,9 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
   };
 
   const duration = Math.max(0, ...clips.map(c => c.start + c.duration));
+  onProgress?.(0, 'Mixing audio'); // visible stage — this step used to sit silently on "Preparing"
   const audioBuffer = await mixAudio(clips, mediaPool, duration, trackSettings);
+  if (signal?.aborted) return null;
   // A grade can make an offline render slower, but it must never make the FILE
   // lower-FPS. Preserve the fastest active source cadence (up to 60fps). Imported
   // assets cache this value; older projects are measured once here at delivery.
@@ -223,15 +234,25 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
       }
     }
   }
-  onProgress?.(0, 'Checking source frame rates');
-  const sourceRates = await Promise.all([...sources].map(async ([url, item]) => {
-    if (item.url === url && item.fps) return item.fps as number;
-    const measured = await probeVideoFrameRate(url, signal);
-    if (measured && item.url === url) item.fps = measured; // cache ordinary media assets
-    return measured;
-  }));
-  if (signal?.aborted) return null;
   const requestedFps = format.fps || 30;
+  // Cadence probe is a NICETY, never a blocker: only probe sources without a cached fps, and
+  // cap the whole phase — if probing is slow/unresponsive we fall back to the requested fps
+  // rather than stalling the export.
+  const toProbe = [...sources].filter(([url, item]) => !(item.url === url && item.fps));
+  let sourceRates: number[] = [...sources].map(([url, item]) => (item.url === url && item.fps) ? (item.fps as number) : 0);
+  if (toProbe.length) {
+    onProgress?.(0, 'Checking source frame rates');
+    const probed = await Promise.race([
+      Promise.all(toProbe.map(async ([url, item]) => {
+        const measured = await probeVideoFrameRate(url, signal);
+        if (measured && item.url === url) item.fps = measured; // cache ordinary media assets
+        return measured;
+      })),
+      new Promise<number[]>((res) => setTimeout(() => res([]), 8000)), // hard cap on probing
+    ]);
+    if (Array.isArray(probed) && probed.length) sourceRates = sourceRates.concat(probed);
+  }
+  if (signal?.aborted) return null;
   const renderFps = sourceSafeRenderFrameRate(requestedFps, sourceRates);
   if (renderFps > requestedFps + 0.001) onProgress?.(0, `Preserving source cadence at ${renderFps} fps`);
   const config = {
