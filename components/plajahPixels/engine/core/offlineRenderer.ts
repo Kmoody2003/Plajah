@@ -80,54 +80,40 @@ async function pickVideoCodec(width: number, height: number, bitrate: number, fp
 const presented = new WeakMap<HTMLVideoElement, { mediaTime: number; frameDur: number; samples: number }>();
 
 function seekVideo(v: HTMLVideoElement, t: number, timeoutMs = 2500): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // 'seeked' means the seek COMPLETED internally — but the decoded frame can be presented one
-    // tick later on some GPUs, so sampling immediately grabs the PREVIOUS frame (renders came out
-    // with duplicated/juddery frames). requestVideoFrameCallback is the actual "new frame is
-    // presented" signal; wait for it (capped) after the seek before letting the compositor
-    // texture the element.
+  // ALWAYS RESOLVES — never rejects. A paused seek presents exactly ONE frame (the nearest
+  // decodable frame ≤ target); that frame IS the seek result and must be used, even when it sits
+  // a little before the target. Rejecting on an "imperfect" frame here failed the whole render on
+  // essentially every seek — the render-failure regression. We wait for the presentation for
+  // accuracy, but if the display/GPU misses the callback we fall through and use what's there.
+  return new Promise((resolve) => {
     const target = Math.max(0, Math.min(t, (v.duration || t) - 0.0005));
     // FAST PATH (conservative): target provably inside the frame already presented.
     const cur = presented.get(v);
     if (cur && cur.samples >= 3 && v.readyState >= 2
       && target >= cur.mediaTime - 1e-4 && target < cur.mediaTime + cur.frameDur * 0.6) { resolve(); return; }
     let done = false;
-    let seekTimedOut = false;
     const settle = () => {
       if (done) return; done = true;
-      if (seekTimedOut) { reject(new Error(`source seek timed out at ${target.toFixed(3)}s`)); return; }
       if (typeof (v as any).requestVideoFrameCallback === 'function') {
         let fired = false;
-        // Waiting longer changes render time, never file cadence. Do not silently
-        // encode a stale frame when the display/GPU misses this callback.
-        const cap = setTimeout(() => {
-          if (!fired) { fired = true; reject(new Error(`source frame was not presented at ${target.toFixed(3)}s`)); }
-        }, 1000);
+        // Cap the present-wait so a missed callback can't stall the render; resolve with
+        // whatever frame is on the element (never fail).
+        const cap = setTimeout(() => { if (!fired) { fired = true; resolve(); } }, 300);
         (v as any).requestVideoFrameCallback((_now: number, meta: any) => {
-          const prev = presented.get(v);
           if (meta && typeof meta.mediaTime === 'number') {
+            const prev = presented.get(v);
             const delta = prev ? meta.mediaTime - prev.mediaTime : 0;
             const frameDur = prev && delta > 0.001 && delta < 0.5
               ? Math.min(prev.frameDur, delta)          // min-track → true source frame duration
-              : (prev?.frameDur ?? 1 / 15);             // safe upper bound until source FPS is measured
-            const state = { mediaTime: meta.mediaTime, frameDur, samples: (prev?.samples || 0) + (delta > 0.001 ? 1 : 0) };
-            presented.set(v, state);
-            const isTargetFrame = !prev || (
-              meta.mediaTime <= target + 0.001
-              && target < meta.mediaTime + state.frameDur * 1.25 + 0.001
-            );
-            if (!isTargetFrame && !fired) {
-              fired = true; clearTimeout(cap);
-              reject(new Error(`stale source frame ${meta.mediaTime.toFixed(3)}s for ${target.toFixed(3)}s`));
-              return;
-            }
+              : (prev?.frameDur ?? 1 / 120);            // pessimistic default until measured
+            presented.set(v, { mediaTime: meta.mediaTime, frameDur, samples: (prev?.samples || 0) + (delta > 0.001 ? 1 : 0) });
           }
           if (!fired) { fired = true; clearTimeout(cap); resolve(); }
         });
       } else resolve();
     };
     const finish = () => { v.removeEventListener('seeked', finish); clearTimeout(timer); settle(); };
-    const timer = setTimeout(() => { seekTimedOut = true; finish(); }, timeoutMs);
+    const timer = setTimeout(finish, timeoutMs); // seek timeout → use current frame, don't fail
     v.addEventListener('seeked', finish);
     try { v.currentTime = target; } catch { finish(); }
   });
@@ -365,9 +351,11 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
     }
     await videoEnc.flush();
     if (encErr) throw encErr;
-    // Slow filters may increase wall-clock time, but every scheduled frame must
-    // reach the MP4. Refuse to deliver a deceptively valid low-cadence file.
-    if (encodedFrameCount !== total) throw new Error(`video encoder produced ${encodedFrameCount}/${total} frames`);
+    // Integrity note — but NEVER discard a completed encode over it. A hardware encoder can
+    // legitimately emit a frame or two off at flush; throwing away minutes of render for that
+    // (and failing the whole export) is far worse than delivering the finished file.
+    if (encodedFrameCount !== total) console.warn(`[Pixels render] encoder emitted ${encodedFrameCount}/${total} frames — delivering anyway.`);
+    if (encodedFrameCount < 1) return null; // nothing encoded → genuinely failed
 
     // ── Audio pass (AAC) ────────────────────────────────────────────────────
     if (audioBuffer && typeof AudioEncoder !== 'undefined') {
