@@ -780,8 +780,9 @@ export default function Fabula() {
     }
     if (!p) { setError("Couldn't load that production."); return; }
     const mp = migrate(p);
-    await rehydrateBlobs(mp); // re-point dead blob URLs to stashed bytes before showing
+    await rehydrateBlobs(mp); // local-first: prefer stashed original bytes, else cloud copy
     setProd(mp); setSceneSel(null); setProdTab("structure");
+    scheduleAutoSync(null); // upload anything local that has no cloud copy yet (silent)
   };
   const deleteProduction = async (id) => {
     if (!window.confirm("Delete this production and everything inside it?")) return;
@@ -1260,6 +1261,7 @@ export default function Fabula() {
       return { id, f, type };
     });
     if (files.length) ping(`Imported ${files.length} asset${files.length > 1 ? "s" : ""}`);
+    if (files.length) scheduleAutoSync(added.map((x) => x.id)); // cloud copy happens by itself
     e.target.value = "";
     // Crossover: probe real duration + browser-compatibility (client-side, instant),
     // replacing the old hardcoded 5s guess and flagging formats that won't decode.
@@ -1343,16 +1345,23 @@ export default function Fabula() {
   };
   // Relink an offline/missing asset to a local file (re-point its url).
   const openRelink = (assetId) => { relinkTargetRef.current = assetId; relinkRef.current?.click(); };
-  // On load, re-point dead local URLs (blob: from a prior session) to the stashed bytes in
-  // IndexedDB — so imported media plays AND can sync to the cloud after a reload. Mutates p.
+  // Media resolution hierarchy on load — LOCAL-FIRST. If this machine holds the original bytes
+  // (IndexedDB stash), edit from them: frame-accurate, zero-network, full-res scrubbing. The
+  // cloud copy (a.cloudUrl) is kept for portability; a machine WITHOUT the bytes (tablet/phone/
+  // other desk) falls back to the cloud URL, where the proxy workflow takes over. Mutates p.
   const rehydrateBlobs = async (p) => {
     if (!p?.mediaPool?.length) return;
     await Promise.all(p.mediaPool.map(async (a) => {
-      const local = !a.url || a.url.startsWith("blob:") || a.url.startsWith("data:") || a.offline;
-      if (!local) return;
-      if (a.url && a.url.startsWith("blob:")) { try { if ((await fetch(a.url)).ok) return; } catch { /* dead */ } }
+      // remember the durable cloud location before we re-point anything
+      if (!a.cloudUrl && a.url && /^https?:/i.test(a.url)) a.cloudUrl = a.url;
       const b = await stGet("studio:blob:" + a.id);
-      if (b && b.size) { try { a.url = URL.createObjectURL(b); a.offline = false; a.session = true; } catch { /* */ } }
+      if (b && b.size) { // local original available → always prefer it
+        if (a.url && a.url.startsWith("blob:")) { try { if ((await fetch(a.url)).ok) return; } catch { /* dead */ } }
+        try { a.url = URL.createObjectURL(b); a.offline = false; a.session = true; return; } catch { /* */ }
+      }
+      // no local bytes — if the current URL is a dead blob:, fall back to the cloud copy
+      const local = !a.url || a.url.startsWith("blob:") || a.url.startsWith("data:") || a.offline;
+      if (local && a.cloudUrl) { a.url = a.cloudUrl; a.offline = false; a.session = false; }
     }));
   };
   // Load any stashed proxies for this project's assets (built earlier, survive reloads).
@@ -1370,20 +1379,37 @@ export default function Fabula() {
     })();
     return () => { alive = false; };
   }, [prod?.id]);
-  // Build 540p instant-seek proxies for every video asset that doesn't have one yet.
-  const buildProxies = async () => {
-    const vids = (prod?.mediaPool || []).filter((a) => a.type === "video" && a.url && !proxies.has(a.id));
-    if (!vids.length) { ping("Every video asset already has a proxy"); return; }
-    if (!(await canTranscode())) { window.alert("This browser can't build proxies (WebCodecs H.264 unavailable). Use Chrome or Edge."); return; }
+  // Convert one asset to a proxy on the CROSSOVER CLOUD (server-side ffmpeg) — the path for
+  // browsers without WebCodecs H.264 (phones/tablets) or when the local encode fails.
+  const crossoverProxy = async (a) => {
+    try {
+      const srcUrl = a.cloudUrl || a.url;
+      if (!srcUrl || !/^https?:/i.test(srcUrl)) return null; // server needs a fetchable URL
+      const recipe = { containerId: "mp4", videoCodecId: "h264", audioCodecId: "aac", hwAccel: "auto", qualityMode: "bitrate", videoBitrate: "2500k", audioBitrate: "128k", fixTimestamps: true, stripMetadata: false };
+      const r = await crossover.convert({ id: a.id, name: a.name || "clip.mp4", kind: "video", sizeBytes: 0, url: srcUrl }, recipe, () => {});
+      return r?.blob || (r?.outputUrl ? await fetch(r.outputUrl).then((x) => (x.ok ? x.blob() : null)) : null);
+    } catch (e) { console.warn("[fabula-proxy] crossover cloud failed for", a.name, e?.message || e); return null; }
+  };
+  // Build instant-seek proxies for the given assets (or every video asset missing one).
+  // Local WebCodecs 540p short-GOP encode first; Crossover cloud ffmpeg as the fallback.
+  const buildProxiesFor = async (list, opts = {}) => {
+    const silent = !!opts.silent;
+    const vids = (list || (prod?.mediaPool || []).filter((a) => a.type === "video" && a.url)).filter((a) => !proxies.has(a.id));
+    if (!vids.length) { if (!silent) ping("Every video asset already has a proxy"); return; }
+    const webOk = await canTranscode();
     let n = 0, made = 0;
     for (const a of vids) {
       n++; setProxyBusy(`${n}/${vids.length} · ${a.name}`);
       try {
-        let blob = null;
-        try { const r = await fetch(a.url); blob = r.ok ? await r.blob() : null; } catch { blob = null; }
-        if (!blob || !blob.size) blob = await stGet("studio:blob:" + a.id);
-        if (!blob || !blob.size) continue;
-        const proxy = await transcodeToProxy(blob, { maxW: 960, maxH: 540, fps: 30, gopSeconds: 0.5, maxSeconds: 300 });
+        if (await stGet("studio:proxy:" + a.id)) { n--; continue; } // raced another pass
+        let proxy = null;
+        if (webOk) {
+          let blob = null;
+          try { const r = await fetch(a.url); blob = r.ok ? await r.blob() : null; } catch { blob = null; }
+          if (!blob || !blob.size) blob = await stGet("studio:blob:" + a.id);
+          if (blob && blob.size) proxy = await transcodeToProxy(blob, { maxW: 960, maxH: 540, fps: 30, gopSeconds: 0.5, maxSeconds: 300 });
+        }
+        if (!proxy) proxy = await crossoverProxy(a); // server-side ffmpeg (phones/tablets/long clips)
         if (proxy) {
           await stSet("studio:proxy:" + a.id, proxy);
           const purl = URL.createObjectURL(proxy);
@@ -1393,8 +1419,26 @@ export default function Fabula() {
       } catch (e) { console.warn("[fabula-proxy]", a.name, e?.message || e); }
     }
     setProxyBusy(null);
-    ping(made ? `⚡ ${made} prox${made === 1 ? "y" : "ies"} built — monitor now scrubs instant-seek media` : "No proxies could be built (clips too long or unreadable)");
+    if (made) ping(`⚡ ${made} prox${made === 1 ? "y" : "ies"} ready — remote media now scrubs instant-seek`);
+    else if (!silent) ping("No proxies could be built (clips too long or unreadable)");
   };
+  // AUTO-PROXY: shortly after a project opens, quietly build proxies for every REMOTE-ONLY video
+  // asset (no local bytes on this machine — the tablet/phone/other-desk case). Local originals
+  // never need proxies: they already play full-res with frame-accurate seeking.
+  useEffect(() => {
+    if (!prod?.id || !proxyOn) return undefined;
+    const t = setTimeout(async () => {
+      const remote = [];
+      for (const a of (prod.mediaPool || [])) {
+        if (a.type !== "video" || !a.url || !/^https?:/i.test(a.url)) continue;
+        if (await stGet("studio:proxy:" + a.id)) continue;
+        if (await stGet("studio:blob:" + a.id)) continue; // local original exists → no proxy needed
+        remote.push(a);
+      }
+      if (remote.length) buildProxiesFor(remote, { silent: true });
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [prod?.id, proxyOn]);
   // Source-viewer waveform scrubber: click/drag across the waveform to seek the source.
   const startSrcScrub = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -1463,13 +1507,15 @@ export default function Fabula() {
   // the project with these cloud URLs. Re-run any time you add local media.
   const [syncing, setSyncing] = useState(false);
   const isLocalUrl = (u) => !!u && (u.startsWith("blob:") || u.startsWith("data:"));
-  const unsyncedCount = (prod?.mediaPool || []).filter((a) => isLocalUrl(a.url)).length;
-  const syncAssetsToCloud = async (onlyIds) => {
+  const unsyncedCount = (prod?.mediaPool || []).filter((a) => isLocalUrl(a.url) && !a.cloudUrl).length;
+  const syncAssetsToCloud = async (onlyIds, opts = {}) => {
+    const silent = !!opts.silent;
     if (!prod || syncing) return;
-    if (!auth.currentUser) { window.alert("Sign in to Plajah first.\n\nCloud sync stores your media under your account so the project opens on any device. You're not signed in, so there's nowhere to put it."); return; }
+    if (!auth.currentUser) { if (!silent) window.alert("Sign in to Plajah first.\n\nCloud sync stores your media under your account so the project opens on any device. You're not signed in, so there's nowhere to put it."); return; }
     const idSet = onlyIds && onlyIds.length ? new Set(onlyIds) : null;
-    const local = (prod.mediaPool || []).filter((a) => isLocalUrl(a.url) && (!idSet || idSet.has(a.id)));
-    if (!local.length) { ping(idSet ? "The selected media is already in the cloud." : "All media is already in the cloud — this project is portable."); return; }
+    // Anything local (blob:) that has no durable cloud copy yet needs uploading.
+    const local = (prod.mediaPool || []).filter((a) => isLocalUrl(a.url) && !a.cloudUrl && (!idSet || idSet.has(a.id)));
+    if (!local.length) { if (!silent) ping(idSet ? "The selected media is already in the cloud." : "All media is already in the cloud — this project is portable."); return; }
     setSyncing(true);
     let done = 0; const failed = []; const dead = [];
     for (const a of local) {
@@ -1479,18 +1525,30 @@ export default function Fabula() {
         catch { blob = null; } // the blob: URL died (page reloaded) — fall back to the stashed bytes
         if (!blob || !blob.size) { blob = await stGet("studio:blob:" + a.id); }
         if (!blob || !blob.size) { dead.push(a.name); continue; }
+        stSet("studio:blob:" + a.id, blob); // ensure the local copy persists — local stays the editing source
         const cloudUrl = await uploadFabulaAsset(prod.id, a.id, blob, a.name, (pct) => setSaveState(`↑ ${a.name} ${pct}%`));
-        updateProd((p) => { const x = p.mediaPool.find((y) => y.id === a.id); if (x) { x.url = cloudUrl; x.cloudUrl = cloudUrl; x.session = false; x.offline = false; } });
-        done++; ping(`Synced ${done}/${local.length} · ${a.name}`);
+        // LOCAL-FIRST: keep playing the local blob URL; the cloud copy is the durable/portable
+        // location other devices load. (Old behavior swapped url → cloud, which forced network
+        // playback + proxies even on the machine that owns the original.)
+        updateProd((p) => { const x = p.mediaPool.find((y) => y.id === a.id); if (x) { x.cloudUrl = cloudUrl; x.offline = false; if (!isLocalUrl(x.url)) { x.url = cloudUrl; } } });
+        done++; if (!silent) ping(`Synced ${done}/${local.length} · ${a.name}`);
       } catch (e) { failed.push(`${a.name}: ${e?.code || e?.message || "upload failed"}`); }
     }
     setSyncing(false); setSaveState("saved");
+    if (silent) { if (done) ping(`☁ Auto-synced ${done} asset${done === 1 ? "" : "s"} to the cloud`); return; }
     if (!failed.length && !dead.length) { ping(`☁ Cloud sync complete — ${done} asset${done === 1 ? "" : "s"} available on any device.`); return; }
     const lines = [];
     if (done) lines.push(`✅ Synced ${done} asset${done === 1 ? "" : "s"} to the cloud.`);
     if (dead.length) lines.push(`\n⚠️ ${dead.length} couldn't be read — these were only held in this browser session and are gone after a reload. Re-import (or relink from folder), then sync again:\n• ${dead.slice(0, 8).join("\n• ")}${dead.length > 8 ? `\n• …${dead.length - 8} more` : ""}`);
     if (failed.length) lines.push(`\n❌ ${failed.length} failed to upload (send me this error):\n• ${failed.slice(0, 8).join("\n• ")}`);
     window.alert(lines.join("\n"));
+  };
+  // AUTO-SYNC: new local media uploads itself in the background shortly after import / project
+  // open (signed-in only, debounced so a burst of imports becomes one pass).
+  const autoSyncTimer = useRef(null);
+  const scheduleAutoSync = (ids) => {
+    if (autoSyncTimer.current) clearTimeout(autoSyncTimer.current);
+    autoSyncTimer.current = setTimeout(() => { autoSyncTimer.current = null; if (auth.currentUser) syncAssetsToCloud(ids || null, { silent: true }); }, 5000);
   };
   // Batch relink from a folder: pick a folder, match each target asset by filename, re-point it.
   // targets = asset ids (null = all offline assets). "finds the clips again" workflow.
@@ -2345,12 +2403,18 @@ export default function Fabula() {
   const monitorAsset = mcAngle ? prod?.mediaPool.find((a) => a.id === mcAngle.assetId) : monitorAssetRaw;
   const monitorOffset = (mcAngle?.offset || 0) + (monitorClip?.srcIn || 0);
   const monitorShot = monitorClip?.shotId ? scene?.shots.find((s) => s.id === monitorClip.shotId) : null;
-  // Monitor-only media pool with proxy URLs swapped in. AudioLayer + the MP4 render keep the
-  // ORIGINAL pool — proxies are video-only (no audio track) and export must be full-res.
+  // Monitor-only media pool with proxy URLs swapped in — but ONLY for assets playing from a
+  // REMOTE URL. A local original (blob:) is already the best editing source: full-res,
+  // frame-accurate, zero network — the proxy would be a downgrade. AudioLayer + the MP4 render
+  // keep the ORIGINAL pool — proxies can be video-only and export must be full-res.
   const monitorProd = useMemo(() => {
     if (!proxyOn || !proxies.size || !prod?.mediaPool?.length) return prod;
     let changed = false;
-    const mp = prod.mediaPool.map((a) => { const p = proxies.get(a.id); if (p && a.type === "video") { changed = true; return { ...a, url: p }; } return a; });
+    const mp = prod.mediaPool.map((a) => {
+      const p = proxies.get(a.id);
+      if (p && a.type === "video" && /^https?:/i.test(a.url || "")) { changed = true; return { ...a, url: p }; }
+      return a;
+    });
     return changed ? { ...prod, mediaPool: mp } : prod;
   }, [prod, proxies, proxyOn]);
 
@@ -2997,7 +3061,7 @@ export default function Fabula() {
     if (!poolCtx) return null;
     const ids = poolSel;
     const first = ids.length ? prod.mediaPool.find((a) => a.id === ids[0]) : null;
-    const localN = (prod.mediaPool || []).filter((a) => ids.includes(a.id) && a.url && a.url.startsWith("blob:")).length;
+    const localN = (prod.mediaPool || []).filter((a) => ids.includes(a.id) && a.url && a.url.startsWith("blob:") && !a.cloudUrl).length;
     const offlineN = (prod.mediaPool || []).filter((a) => ids.includes(a.id) && (!a.url || a.offline)).length;
     const run = (fn) => { setPoolCtx(null); fn(); };
     const mi = (label, fn, opts = {}) => (
@@ -3189,9 +3253,9 @@ export default function Fabula() {
                         <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,0.1)", margin: "0 2px" }} />
                         <button className="minibtn" title="Monitor plays 540p instant-seek proxies (export always full-res)" style={{ opacity: proxyOn ? 1 : 0.45, color: proxyOn && proxies.size ? "#7ee2a8" : undefined }}
                           onClick={() => { const nv = !proxyOn; setProxyOn(nv); try { localStorage.setItem("fabula:proxy", nv ? "1" : "0"); } catch { /* */ } }}>PROXY {proxyOn ? "ON" : "OFF"}{proxies.size ? ` · ${proxies.size}✓` : ""}</button>
-                        {(() => { const missing = (prod?.mediaPool || []).filter((a) => a.type === "video" && a.url && !proxies.has(a.id)).length; return (
-                          <button className="minibtn" disabled={!!proxyBusy || !missing} title="Build 540p short-GOP proxies for every video asset — Resolve-style smooth scrubbing"
-                            onClick={buildProxies}>{proxyBusy ? `⚙ ${proxyBusy}` : `BUILD PROXIES${missing ? ` (${missing})` : " ✓"}`}</button>
+                        {(() => { const missing = (prod?.mediaPool || []).filter((a) => a.type === "video" && /^https?:/i.test(a.url || "") && !proxies.has(a.id)).length; return (
+                          <button className="minibtn" disabled={!!proxyBusy || !missing} title="Build instant-seek proxies for REMOTE video (local originals already play full-res). Runs automatically in the background too."
+                            onClick={() => buildProxiesFor((prod?.mediaPool || []).filter((a) => a.type === "video" && /^https?:/i.test(a.url || "")))}>{proxyBusy ? `⚙ ${proxyBusy}` : `BUILD PROXIES${missing ? ` (${missing})` : " ✓"}`}</button>
                         ); })()}
                       </div>
                       {showShortcuts && <KeyboardShortcutsEditor onClose={() => setShowShortcuts(false)} onChange={setShortcutPrefs} />}
