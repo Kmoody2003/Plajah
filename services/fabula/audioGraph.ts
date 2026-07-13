@@ -35,10 +35,51 @@ export function getAudioCtx(): AudioContext | null {
   try {
     const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
     if (!Ctx) return null;
-    _ctx = new Ctx();
+    // DAW-grade context: 48kHz pro rate + interactive latency hint (smallest safe buffer the
+    // browser will give us → lowest round-trip). Falls back to defaults if the UA rejects them.
+    try { _ctx = new Ctx({ latencyHint: 'interactive', sampleRate: 48000 }); }
+    catch { _ctx = new Ctx(); }
     installResumeOnGesture(_ctx);
     return _ctx;
   } catch { return null; }
+}
+
+/** Live engine telemetry for the mixing-console readout. */
+export function audioEngineInfo(): { sampleRate: number; baseLatencyMs: number; outputLatencyMs: number; maxChannels: number; state: string } {
+  const c = _ctx;
+  if (!c) return { sampleRate: 0, baseLatencyMs: 0, outputLatencyMs: 0, maxChannels: 0, state: 'none' };
+  return {
+    sampleRate: c.sampleRate,
+    baseLatencyMs: Math.round(((c as any).baseLatency || 0) * 100000) / 100,
+    outputLatencyMs: Math.round(((c as any).outputLatency || 0) * 100000) / 100,
+    maxChannels: c.destination.maxChannelCount || 2,
+    state: c.state,
+  };
+}
+
+/** Output devices (audiooutput). Needs one prior mic/permission grant to expose labels. */
+export async function listOutputDevices(): Promise<{ deviceId: string; label: string }[]> {
+  try {
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    return devs.filter((d) => d.kind === 'audiooutput').map((d) => ({ deviceId: d.deviceId, label: d.label || `Output ${d.deviceId.slice(0, 6)}` }));
+  } catch { return []; }
+}
+
+/** Route the whole engine to a specific hardware output (Chromium: AudioContext.setSinkId). */
+export async function setOutputDevice(sinkId: string): Promise<boolean> {
+  try {
+    if (_ctx && typeof (_ctx as any).setSinkId === 'function') { await (_ctx as any).setSinkId(sinkId); return true; }
+    return false;
+  } catch (e) { console.warn('[audioGraph] setSinkId failed', e); return false; }
+}
+
+/** Request N-channel output when the hardware supports it (surround interfaces). */
+export function setOutputChannels(n: number): number {
+  if (!_ctx) return 0;
+  const max = _ctx.destination.maxChannelCount || 2;
+  const want = Math.max(1, Math.min(n, max));
+  try { _ctx.destination.channelCount = want; _ctx.destination.channelInterpretation = 'discrete'; } catch { /* */ }
+  return want;
 }
 
 // A MediaElementSource routes the element's audio THROUGH the context, so if the context is
@@ -75,20 +116,37 @@ interface Graph {
 export const meterRegistry = new Map<string, () => number>();
 
 // ---- master bus: every channel strip sums here, then one path to the hardware ----
-//   strip → masterGain → masterAnalyser → ctx.destination (default output device)
-let _master: { gain: GainNode; analyser: AnalyserNode } | null = null;
+//   strip → masterGain → [brickwall limiter] → masterAnalyser → ctx.destination
+let _master: { input: GainNode; gain: GainNode; limiter: DynamicsCompressorNode; makeup: GainNode; analyser: AnalyserNode; limiterOn: boolean } | null = null;
 function getMasterBus(ctx: AudioContext) {
-  if (_master) return _master;
-  const gain = ctx.createGain();
+  if (_master) return (_master as any); // strips connect to .input
+  const input = ctx.createGain();       // sum point — strips connect here
+  const gain = ctx.createGain();        // master fader
+  // Brickwall limiter: catches inter-track sum peaks so the master never clips → clean output.
+  const limiter = ctx.createDynamicsCompressor();
+  limiter.threshold.value = -1.0; limiter.ratio.value = 20; limiter.attack.value = 0.001; limiter.release.value = 0.05; limiter.knee.value = 0;
+  const makeup = ctx.createGain(); makeup.gain.value = 1;
   const analyser = ctx.createAnalyser(); analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.2;
-  gain.connect(analyser); analyser.connect(ctx.destination);
+  input.connect(gain); gain.connect(limiter); limiter.connect(makeup); makeup.connect(analyser); analyser.connect(ctx.destination);
   const buf = new Float32Array(analyser.fftSize);
   meterRegistry.set('master', () => {
     try { analyser.getFloatTimeDomainData(buf); let p = 0; for (let i = 0; i < buf.length; i++) { const a = Math.abs(buf[i]); if (a > p) p = a; } return p; } catch { return 0; }
   });
-  _master = { gain, analyser };
-  return _master;
+  _master = { input, gain, limiter, makeup, analyser, limiterOn: true };
+  return (_master as any);
 }
+/** Master fader (0..1.5). */
+export function setMasterGain(v: number) { if (_master) _master.gain.gain.value = Math.max(0, v); }
+/** Bypass/engage the brickwall limiter (re-patch gain → limiter or gain → makeup). */
+export function setMasterLimiter(on: boolean) {
+  if (!_master) return; if (_master.limiterOn === on) return;
+  const m = _master; m.limiterOn = on;
+  try { m.gain.disconnect(); m.limiter.disconnect(); } catch { /* */ }
+  if (on) { m.gain.connect(m.limiter); m.limiter.connect(m.makeup); }
+  else { m.gain.connect(m.makeup); }
+}
+/** True post-limiter gain reduction in dB (for the master GR meter). */
+export function masterReduction(): number { return _master ? (_master.limiter.reduction || 0) : 0; }
 
 // A cross-origin media element WITHOUT CORS credentials is "tainted": routing it through
 // createMediaElementSource plays SILENCE by spec (no error). Cloud-synced assets live on
@@ -138,9 +196,9 @@ export function attachAudioGraph(el: HTMLMediaElement): Graph | null {
   const gain = ctx.createGain();
   const analyser = ctx.createAnalyser(); analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.2;
   const master = getMasterBus(ctx);
-  const chain: AudioNode[] = [source, ...clipEq, clipComp, clipMk, ...trackEq, trackComp, trackMk, ...(pan ? [pan] : []), gain, analyser, master.gain];
+  const chain: AudioNode[] = [source, ...clipEq, clipComp, clipMk, ...trackEq, trackComp, trackMk, ...(pan ? [pan] : []), gain, analyser, master.input];
   try { for (let i = 0; i < chain.length - 1; i++) chain[i].connect(chain[i + 1]); }
-  catch { try { source.connect(master.gain); } catch { /* last resort — still audible */ } }
+  catch { try { source.connect(master.input); } catch { /* last resort — still audible */ } }
   const buf = new Float32Array(analyser.fftSize);
   const g: Graph = {
     ctx, clipEq, trackEq, clipComp, clipMk, trackComp, trackMk, pan, gain, analyser,

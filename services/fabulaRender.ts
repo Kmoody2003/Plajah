@@ -111,11 +111,21 @@ async function mixAudio(clips: any[], mediaPool: any[], durationSec: number, tra
 
   const offline = new OfflineAudioContext(2, Math.ceil(durationSec * SR), SR);
 
-  // One bus per audio track: input → track EQ/comp → pan → fader(mute) → destination.
+  // Master bus with the SAME brickwall limiter as live (clean, clip-proof export). Any track
+  // soloed → non-soloed tracks are muted (solo derives to mute, matching the live console).
+  const anySolo = Object.values(trackSettings || {}).some((t: any) => t && t.solo);
+  const masterIn = offline.createGain();
+  const masterLimiter = offline.createDynamicsCompressor();
+  masterLimiter.threshold.value = -1.0; masterLimiter.ratio.value = 20; masterLimiter.attack.value = 0.001; masterLimiter.release.value = 0.05; masterLimiter.knee.value = 0;
+  const masterGain = offline.createGain();
+  masterGain.gain.value = Math.max(0, (trackSettings as any)?.master?.vol == null ? 1 : (trackSettings as any).master.vol);
+  masterIn.connect(masterLimiter); masterLimiter.connect(masterGain); masterGain.connect(offline.destination);
+
+  // One bus per audio track: input → track EQ/comp → pan → fader(mute/solo) → master.
   const buses = new Map<string, GainNode>();
   const trackBus = (tid: string): GainNode => {
     const hit = buses.get(tid); if (hit) return hit;
-    const ts = (trackSettings || {})[tid] || {};
+    const ts: any = (trackSettings || {})[tid] || {};
     const input = offline.createGain();
     let node: AudioNode = applyEqComp(offline, input, ts.eq, ts.comp);
     if (typeof (offline as any).createStereoPanner === 'function' && (ts.pan || 0) !== 0) {
@@ -124,8 +134,9 @@ async function mixAudio(clips: any[], mediaPool: any[], durationSec: number, tra
       node.connect(p); node = p;
     }
     const fader = offline.createGain();
-    fader.gain.value = ts.mute ? 0 : Math.max(0, ts.vol == null ? 1 : ts.vol);
-    node.connect(fader); fader.connect(offline.destination);
+    const muted = ts.mute || (anySolo && !ts.solo);
+    fader.gain.value = muted ? 0 : Math.max(0, ts.vol == null ? 1 : ts.vol);
+    node.connect(fader); fader.connect(masterIn);
     buses.set(tid, input);
     return input;
   };

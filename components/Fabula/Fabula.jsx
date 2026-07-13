@@ -24,6 +24,8 @@ import { transcodeToProxy, canTranscode } from "../plajahPixels/engine/core/prox
 import { FxLibraryPanel, LottieBuilder, PerformCapture, CompBuilder } from "./FxLibrary";
 import ColorScopes from "./ColorScopes";
 import GradePreview from "./GradePreview";
+import MixConsole from "./MixConsole";
+import VoiceStudio from "./VoiceStudio";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
@@ -1435,6 +1437,22 @@ export default function Fabula() {
     addAssetToPool({ id, name: name + ".webm", type: "video", url: URL.createObjectURL(blob), duration: 10, session: true, bin: "performances" });
     stSet("studio:blob:" + id, blob);
     scheduleAutoSync([id]);
+  };
+  // Voice Studio → an audio asset in the pool, optionally dropped on a track at the playhead.
+  const placeAudioClip = async (blob, name, opts = {}) => {
+    const id = uid();
+    const ext = (blob.type || "").includes("wav") ? "wav" : (blob.type || "").includes("mp3") || (blob.type || "").includes("mpeg") ? "mp3" : "webm";
+    // decode duration for correct clip length
+    let dur = opts.duration || 3;
+    try { const ac = new (window.AudioContext || window.webkitAudioContext)(); const ab = await ac.decodeAudioData(await blob.arrayBuffer()); dur = ab.duration; ac.close(); } catch { /* keep default */ }
+    addAssetToPool({ id, name: `${name}.${ext}`, type: "audio", url: URL.createObjectURL(blob), duration: dur, session: true, bin: "voice" });
+    stSet("studio:blob:" + id, blob);
+    scheduleAutoSync([id]);
+    if (opts.trackId) {
+      const q = (t) => Math.round(t * (vfmt.fps || 24)) / (vfmt.fps || 24);
+      const clip = { id: uid(), trackId: opts.trackId, start: q(opts.at != null ? opts.at : playhead), duration: q(dur), srcIn: 0, kind: "media", assetId: id, label: name };
+      const next = [...clips, clip]; setClips(next); commitClips(next); setSelClipId(clip.id);
+    }
   };
   // Load an asset into the source viewer; `play` = double-click behaviour (start playing).
   const openInViewer = (a, play) => {
@@ -2964,7 +2982,10 @@ export default function Fabula() {
                         const idxs = new Set();
                         if (curIdx >= 0) { idxs.add(curIdx); idxs.add(curIdx + 1); }
                         else { const nx = tclips.findIndex((c) => c.start >= playhead); if (nx >= 0) idxs.add(nx); }
-                        const ts = (container.timeline?.trackSettings || {})[tr.id] || { vol: 1, mute: false };
+                        const tsRaw = (container.timeline?.trackSettings || {})[tr.id] || { vol: 1, mute: false };
+                        // Solo derives to mute: if ANY audio track is soloed, non-soloed tracks are muted.
+                        const anySolo = Object.values(container.timeline?.trackSettings || {}).some((t) => t && t.solo);
+                        const ts = anySolo ? { ...tsRaw, mute: tsRaw.mute || !tsRaw.solo } : tsRaw;
                         return [...idxs].filter((idx) => idx >= 0 && idx < tclips.length).map((idx) => {
                           const c = tclips[idx];
                           const isActive = curIdx >= 0 && idx === curIdx;
@@ -4554,27 +4575,15 @@ export default function Fabula() {
                 )}
 
                 {editWs === "audio" && (
-                  <div className="scroll" style={{ padding: 16 }}>
+                  <div className="scroll" style={{ padding: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+                    <MixConsole audioTracks={tracks.filter((tr) => tr.type === "audio")} trackSettings={container.timeline?.trackSettings || {}} setTrackSetting={setTrackSetting} />
+                    <VoiceStudio audioTracks={tracks.filter((tr) => tr.type === "audio")} playhead={playhead} setPlayhead={setPlayhead} setPlaying={setPlaying} onPlaceClip={placeAudioClip} ping={ping} />
                     <div className="glass-card">
-                      <div className="lbl">MIXER — track levels stored on this timeline, applied at render/export</div>
-                      {tracks.filter((tr) => tr.type === "audio").map((tr) => {
-                        const ts = (container.timeline?.trackSettings || {})[tr.id] || { vol: 1, mute: false };
-                        return (
-                          <div className="fxrow" key={tr.id} style={{ marginBottom: 8 }}>
-                            <span className="fxlbl" style={{ width: 100, color: "var(--green)" }}>{tr.name}</span>
-                            <input type="range" min="0" max="1.5" step="0.01" value={ts.vol} onChange={(e) => setTrackSetting(tr.id, { vol: parseFloat(e.target.value) })} />
-                            <span className="fxval">{(ts.vol * 100).toFixed(0)}%</span>
-                            <button className={`minibtn ${ts.mute ? "blue" : ""}`} onClick={() => setTrackSetting(tr.id, { mute: !ts.mute })}>{ts.mute ? "MUTED" : "MUTE"}</button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="glass-card">
-                      <div className="lbl">DIALOGUE & AUDIO CLIPS ON THIS TIMELINE</div>
+                      <div className="lbl">DIALOGUE &amp; AUDIO CLIPS ON THIS TIMELINE</div>
                       {clips.filter((c) => c.trackId.startsWith("a")).sort((a, b) => a.start - b.start).map((c) => {
                         const shot = c.shotId ? scene?.shots.find((s) => s.id === c.shotId) : null;
                         return (
-                          <div className="briefrow" key={c.id}>
+                          <div className="briefrow" key={c.id} onClick={() => { setSelClipId(c.id); setPlayhead(c.start); }} style={{ cursor: "pointer" }}>
                             <div className="briefhead">
                               <span className="tc" style={{ fontSize: 11 }}>{fmtTc(c.start, vfmt)}</span>
                               <strong>{c.label}</strong>
@@ -4583,7 +4592,7 @@ export default function Fabula() {
                           </div>
                         );
                       })}
-                      {!clips.some((c) => c.trackId.startsWith("a")) && <div className="dim small">No audio clips yet.</div>}
+                      {!clips.some((c) => c.trackId.startsWith("a")) && <div className="dim small">No audio clips yet — use TEXT-TO-VOICE, record a voiceover, or drop music/dialogue on the timeline.</div>}
                     </div>
                   </div>
                 )}
@@ -5383,6 +5392,33 @@ const CSS = `
 .apband input[type=range]{accent-color:var(--green);cursor:pointer}
 .apband span{font-size:7px;color:rgba(255,255,255,.4)}
 .apband b{font-size:8px;font-family:'JetBrains Mono',monospace}
+/* ── Mixing console ── */
+.mixconsole{border-radius:12px;padding:12px}
+.mcrow{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;align-items:flex-end}
+.mcstrip{flex:0 0 auto;width:66px;background:rgba(0,0,0,.35);border:1px solid var(--w08);border-radius:8px;padding:6px 4px;display:flex;flex-direction:column;align-items:center;gap:5px}
+.mcstrip.master{background:rgba(255,140,0,.06);border-color:rgba(255,140,0,.3)}
+.mctop{display:flex;gap:3px;width:100%;justify-content:center;min-height:34px}
+.mcknob{display:flex;flex-direction:column;align-items:center;gap:1px;width:18px}
+.mcknob input{width:16px;height:30px;writing-mode:vertical-lr;direction:rtl;accent-color:var(--green)}
+.mcknob span{font-size:6px;color:var(--w40)}
+.mcbtn{width:100%;font-size:8px;font-weight:900;padding:3px 0;border-radius:4px;border:1px solid var(--w08);background:rgba(255,255,255,.05);color:var(--w40);cursor:pointer}
+.mcbtn.on{background:rgba(120,220,150,.2);color:#7ee2a8;border-color:rgba(120,220,150,.4)}
+.mcpan{width:100%}
+.mcpan input{width:100%;height:10px;accent-color:var(--blue)}
+.mcfaderrow{display:flex;gap:4px;align-items:stretch;height:150px}
+.mcfader{display:flex;align-items:center}
+.mcfader input{height:150px;width:20px;accent-color:#FF8C00;cursor:pointer}
+.mcmeter{width:8px;height:150px;border-radius:2px;overflow:hidden;position:relative;background:linear-gradient(to top,#25c26a 0%,#25c26a 60%,#e6d84f 82%,#ff5252 100%)}
+.mcmeter i{position:absolute;left:0;right:0;top:0;background:#0c0c0e;display:block}
+.mcdb{font-size:8px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,.7)}
+.mcbtns{display:flex;gap:3px}
+.mcms{width:20px;height:18px;font-size:9px;font-weight:900;border-radius:4px;border:1px solid var(--w08);background:rgba(255,255,255,.05);color:var(--w40);cursor:pointer;padding:0}
+.mcms.on.mute{background:var(--red);color:#fff;border-color:var(--red)}
+.mcms.on.solo{background:#ffcf33;color:#000;border-color:#ffcf33}
+.mcms.on.learn{background:#a855f7;color:#fff;border-color:#a855f7;animation:bl 1s infinite}
+.mcname{font-size:7px;font-weight:900;letter-spacing:.04em;color:rgba(255,255,255,.7);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%}
+.mcgr{width:100%;height:5px;background:rgba(0,0,0,.4);border-radius:3px;overflow:hidden}
+.mcgr i{display:block;height:100%;background:linear-gradient(90deg,#ffcf33,#ff5252)}
 .rh{justify-content:center}
 .phdot{width:6px;height:6px;border-radius:50%;background:var(--red);animation:bl 1.2s infinite}
 .ruler-track{flex:1;position:relative;cursor:crosshair}
