@@ -33,13 +33,16 @@ const Meter = memo(function Meter({ id, tall }) {
 
 const EQ3 = [{ i: 0, label: "LO" }, { i: 2, label: "MID" }, { i: 4, label: "HI" }];
 
-function ChannelStrip({ tr, ts, onPatch, midiLearnId, onMidiLearn }) {
+// Plajah-toned channel tab colors, cycled per strip (Bitwig-style multi-color channels).
+const TAB_COLORS = ["#f97316", "#00A3FF", "#22c55e", "#a855f7", "#ffcf33", "#ff6b9d"];
+
+function ChannelStrip({ tr, ts, onPatch, midiLearnId, onMidiLearn, tab }) {
   const vol = ts.vol == null ? 1 : ts.vol, pan = ts.pan || 0;
   const eq = ts.eq || [0, 0, 0, 0, 0];
   const comp = ts.comp || {};
   const setEq = (i, v) => { const n = [...eq]; n[i] = v; onPatch({ eq: n }); };
   return (
-    <div className="mcstrip">
+    <div className="mcstrip" style={{ "--tab": tab }}>
       <div className="mctop">
         {EQ3.map(({ i, label }) => (
           <div className="mcknob" key={i} title={`${label} EQ ${(eq[i] || 0) > 0 ? "+" : ""}${eq[i] || 0}dB`}>
@@ -144,8 +147,8 @@ export default function MixConsole({ audioTracks, trackSettings, setTrackSetting
         </span>
       </div>
       <div className="mcrow">
-        {audioTracks.map((tr) => (
-          <ChannelStrip key={tr.id} tr={tr} ts={trackSettings?.[tr.id] || {}}
+        {audioTracks.map((tr, i) => (
+          <ChannelStrip key={tr.id} tr={tr} ts={trackSettings?.[tr.id] || {}} tab={TAB_COLORS[i % TAB_COLORS.length]}
             onPatch={(p) => setTrackSetting(tr.id, p)} midiLearnId={midiLearnId} onMidiLearn={learn} />
         ))}
         {!audioTracks.length && <div className="dim small" style={{ padding: 12 }}>No audio tracks. Add one from the timeline (+ AUDIO), or drop music/dialogue on A1/A2.</div>}

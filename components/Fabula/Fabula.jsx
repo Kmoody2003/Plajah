@@ -28,6 +28,7 @@ import GradePreview from "./GradePreview";
 import MixConsole from "./MixConsole";
 import VoiceStudio from "./VoiceStudio";
 import AudioEditor from "./AudioEditor";
+import AudioTimeline from "./AudioTimeline";
 import { quickStems, separateStemsCloud } from "../../services/fabula/stemSeparation";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -4692,19 +4693,26 @@ export default function Fabula() {
                       return (
                         <div className="glass-card" style={{ padding: 10 }}>
                           <div className="lbl" style={{ display: "flex", alignItems: "center", gap: 8 }}><MonitorPlay size={12} /> REFERENCE MONITOR
-                            <span className="dim small" style={{ letterSpacing: 0, marginLeft: "auto" }}>{fmtTc(playhead, vfmt)}</span></div>
-                          <div style={{ position: "relative", width: "100%", aspectRatio: String(ar), background: "#000", borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)" }}>
-                            {cur
-                              ? <MonitorLayer key={cur.id} clip={cur} active prod={monitorProd} scene={scene} playhead={playhead} playing={playing} top={false} z={10} vol={0} mute />
-                              : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#4a4a52", fontSize: 11 }}>no picture at playhead</div>}
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                            <button className="minibtn" onClick={() => setPlaying((p) => !p)} style={{ width: 40 }}>{playing ? <Pause size={13} /> : <Play size={13} />}</button>
-                            <span className="dim small">Picture follows the timeline — a fixed reference while you build the score.</span>
+                            <span className="dim small mono" style={{ letterSpacing: 0, marginLeft: "auto" }}>{fmtTc(playhead, vfmt)}</span></div>
+                          {/* scaled back 50%: compact monitor on the left, transport + note beside it */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <div style={{ position: "relative", width: "50%", maxWidth: 340, flex: "0 0 auto", aspectRatio: String(ar), background: "#0c0c11", borderRadius: 8, overflow: "hidden", border: "1px solid var(--line)" }}>
+                              {cur
+                                ? <MonitorLayer key={cur.id} clip={cur} active prod={monitorProd} scene={scene} playhead={playhead} playing={playing} top={false} z={10} vol={0} mute />
+                                : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#5a5a64", fontSize: 11 }}>no picture at playhead</div>}
+                            </div>
+                            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                              <button className="minibtn" onClick={() => setPlaying((p) => !p)} style={{ width: 52 }}>{playing ? <Pause size={13} /> : <Play size={13} />}</button>
+                              <span className="dim small">Picture follows the timeline — a fixed reference while you build the score.</span>
+                            </div>
                           </div>
                         </div>
                       );
                     })()}
+                    <AudioTimeline audioTracks={tracks.filter((tr) => tr.type === "audio")} clips={clips} prod={prod} vfmt={vfmt} fmtTc={fmtTc}
+                      playhead={playhead} setPlayhead={setPlayhead} playing={playing} setPlaying={setPlaying}
+                      selClipId={selClipId} setSelClipId={setSelClipId} trackSettings={container.timeline?.trackSettings || {}}
+                      setTrackSetting={setTrackSetting} onOpenEditor={openAudioEditor} onSplit={(c) => splitClipStems(c, "vocals-music")} />
                     <MixConsole audioTracks={tracks.filter((tr) => tr.type === "audio")} trackSettings={container.timeline?.trackSettings || {}} setTrackSetting={setTrackSetting} />
                     <VoiceStudio audioTracks={tracks.filter((tr) => tr.type === "audio")} playhead={playhead} setPlayhead={setPlayhead} setPlaying={setPlaying} onPlaceClip={placeAudioClip} ping={ping} />
                     <div className="glass-card">
@@ -5250,8 +5258,12 @@ function AttachMedia({ onAttach }) {
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,700;0,900;1,900&family=JetBrains+Mono:wght@400;700&display=swap');
 :root{
-  --org:#f97316; --org-dim:rgba(249,115,22,.14); --blue:#00A3FF; --green:#22c55e; --red:#ef4444;
-  --bg:#050505; --w04:rgba(255,255,255,.04); --w08:rgba(255,255,255,.08); --w40:rgba(255,255,255,.4);
+  --org:#f97316; --org-dim:rgba(249,115,22,.14); --blue:#00A3FF; --green:#22c55e; --red:#ef4444; --pur:#a855f7;
+  /* grayer base so panels read as separated layers instead of a flat black void */
+  --bg:#101014; --bg2:#16161c; --panel:#1c1c23; --panel2:#22222b;
+  --w04:rgba(255,255,255,.04); --w08:rgba(255,255,255,.08); --w40:rgba(255,255,255,.4);
+  /* contrasting gray hairlines for UX separation */
+  --line:rgba(255,255,255,.13); --line-2:rgba(255,255,255,.08); --line-hi:rgba(255,255,255,.22);
 }
 *{box-sizing:border-box} 
 .studio{height:100vh;display:flex;flex-direction:column;background:var(--bg);color:#e5e5e5;
@@ -5260,10 +5272,11 @@ const CSS = `
 .blob{position:absolute;width:42%;height:42%;border-radius:50%;filter:blur(130px);opacity:.13;pointer-events:none;z-index:0}
 .b1{top:-12%;left:-10%;background:var(--org)}
 .b2{bottom:-12%;right:-10%;background:var(--blue)}
-.glass{backdrop-filter:blur(24px);background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08)}
-.glass-dark{backdrop-filter:blur(28px);background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.07)}
-.glass-card{backdrop-filter:blur(20px);background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);
-  border-radius:12px;padding:18px;margin-bottom:14px}
+.glass{backdrop-filter:blur(24px);background:rgba(255,255,255,.04);border-color:var(--line)}
+.glass-dark{backdrop-filter:blur(30px) saturate(1.2);background:rgba(26,26,33,.62);border:1px solid var(--line);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.glass-card{backdrop-filter:blur(22px) saturate(1.15);background:rgba(34,34,43,.5);border:1px solid var(--line);
+  border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:#0a0a0a}::-webkit-scrollbar-thumb{background:#333;border-radius:3px}
 
 /* header */
@@ -5494,10 +5507,10 @@ const CSS = `
 .tl-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:6px;border:3px solid transparent;background-clip:padding-box}
 .tl-scroll::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.4);background-clip:padding-box}
 .tl-inner{position:relative;min-height:min-content}
-.ruler{display:flex;height:22px;border-bottom:1px solid var(--w08);position:sticky;top:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);z-index:6}
-.trackhead{width:128px;min-width:128px;max-width:128px;border-right:1px solid var(--w08);display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:3px;
+.ruler{display:flex;height:22px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(16,16,22,.82);backdrop-filter:blur(8px);z-index:6}
+.trackhead{width:128px;min-width:128px;max-width:128px;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:3px;
   padding:4px 8px;font-size:9px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;position:sticky;left:0;
-  background:rgba(8,8,8,.92);z-index:5;overflow:hidden}
+  background:rgba(22,22,28,.94);z-index:5;overflow:hidden}
 .trackhead.video{color:var(--blue)} .trackhead.audio{color:var(--green)}
 .thname{display:flex;align-items:center;gap:4px;min-width:0}
 .thlabel{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
@@ -5524,52 +5537,73 @@ const CSS = `
 .apband span{font-size:7px;color:rgba(255,255,255,.4)}
 .apband b{font-size:8px;font-family:'JetBrains Mono',monospace}
 /* ── Mixing console ── */
-.mixconsole{border-radius:12px;padding:12px}
-.mcrow{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;align-items:flex-end}
-.mcstrip{flex:0 0 auto;width:66px;background:rgba(0,0,0,.35);border:1px solid var(--w08);border-radius:8px;padding:6px 4px;display:flex;flex-direction:column;align-items:center;gap:5px}
-.mcstrip.master{background:rgba(255,140,0,.06);border-color:rgba(255,140,0,.3)}
-.mctop{display:flex;gap:3px;width:100%;justify-content:center;min-height:34px}
-.mcknob{display:flex;flex-direction:column;align-items:center;gap:1px;width:18px}
-.mcknob input{width:16px;height:30px;writing-mode:vertical-lr;direction:rtl;accent-color:var(--green)}
-.mcknob span{font-size:6px;color:var(--w40)}
-.mcbtn{width:100%;font-size:8px;font-weight:900;padding:3px 0;border-radius:4px;border:1px solid var(--w08);background:rgba(255,255,255,.05);color:var(--w40);cursor:pointer}
-.mcbtn.on{background:rgba(120,220,150,.2);color:#7ee2a8;border-color:rgba(120,220,150,.4)}
-.mcpan{width:100%}
-.mcpan input{width:100%;height:10px;accent-color:var(--blue)}
-.mcfaderrow{display:flex;gap:4px;align-items:stretch;height:150px}
-.mcfader{display:flex;align-items:center}
-.mcfader input{height:150px;width:20px;accent-color:#FF8C00;cursor:pointer}
-.mcmeter{width:8px;height:150px;border-radius:2px;overflow:hidden;position:relative;background:linear-gradient(to top,#25c26a 0%,#25c26a 60%,#e6d84f 82%,#ff5252 100%)}
-.mcmeter i{position:absolute;left:0;right:0;top:0;background:#0c0c0e;display:block}
-.mcdb{font-size:8px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,.7)}
-.mcbtns{display:flex;gap:3px}
-.mcms{width:20px;height:18px;font-size:9px;font-weight:900;border-radius:4px;border:1px solid var(--w08);background:rgba(255,255,255,.05);color:var(--w40);cursor:pointer;padding:0}
-.mcms.on.mute{background:var(--red);color:#fff;border-color:var(--red)}
-.mcms.on.solo{background:#ffcf33;color:#000;border-color:#ffcf33}
-.mcms.on.learn{background:#a855f7;color:#fff;border-color:#a855f7;animation:bl 1s infinite}
-.mcname{font-size:7px;font-weight:900;letter-spacing:.04em;color:rgba(255,255,255,.7);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%}
-.mcgr{width:100%;height:5px;background:rgba(0,0,0,.4);border-radius:3px;overflow:hidden}
+/* ═══ MIXING CONSOLE — modern DAW (Studio One / Bitwig) aesthetic, Plajah-toned frosted glass ═══ */
+.mixconsole{border-radius:14px;padding:14px}
+.mcrow{display:flex;gap:8px;overflow-x:auto;padding:8px 6px 10px;align-items:flex-end;
+  background:linear-gradient(180deg,rgba(0,0,0,.28),rgba(0,0,0,.14));border:1px solid var(--line-2);border-radius:12px}
+.mcstrip{flex:0 0 auto;width:70px;border:1px solid var(--line);border-radius:10px;padding:0 5px 7px;
+  display:flex;flex-direction:column;align-items:center;gap:6px;position:relative;overflow:hidden;
+  background:linear-gradient(180deg,rgba(40,40,50,.72),rgba(22,22,28,.82));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 2px 8px rgba(0,0,0,.35)}
+/* colored track tab across the top — the DAW channel identity strip */
+.mcstrip::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:var(--tab,var(--org));opacity:.9}
+.mcstrip>*:first-child{margin-top:9px}
+.mcstrip.master{background:linear-gradient(180deg,rgba(249,115,22,.16),rgba(28,20,10,.85));border-color:rgba(249,115,22,.4)}
+.mcstrip.master::before{background:linear-gradient(90deg,var(--org),#ffb45a)}
+.mctop{display:flex;gap:4px;width:100%;justify-content:center;min-height:34px}
+.mcknob{display:flex;flex-direction:column;align-items:center;gap:2px;width:19px}
+.mcknob input{width:15px;height:32px;writing-mode:vertical-lr;direction:rtl;accent-color:var(--blue);cursor:pointer}
+.mcknob span{font-size:6.5px;font-weight:800;letter-spacing:.06em;color:var(--w40)}
+.mcbtn{width:100%;font-size:8px;font-weight:900;letter-spacing:.08em;padding:4px 0;border-radius:5px;border:1px solid var(--line);
+  background:rgba(255,255,255,.04);color:var(--w40);cursor:pointer;transition:all .12s}
+.mcbtn:hover{background:rgba(255,255,255,.09)}
+.mcbtn.on{background:linear-gradient(180deg,rgba(34,197,94,.32),rgba(34,197,94,.16));color:#8ef0b4;border-color:rgba(34,197,94,.5);box-shadow:0 0 10px rgba(34,197,94,.25)}
+.mcpan{width:100%;padding:0 2px}
+.mcpan input{width:100%;height:12px;accent-color:var(--blue);cursor:pointer}
+.mcfaderrow{display:flex;gap:6px;align-items:stretch;height:154px;padding:4px 0;
+  background:rgba(0,0,0,.32);border-radius:7px;border:1px solid var(--line-2);width:100%;justify-content:center}
+.mcfader{display:flex;align-items:center;justify-content:center;width:26px}
+/* sleek flat DAW fader — thin channel track + a wide low-profile cap */
+.mcfader input{-webkit-appearance:none;appearance:none;height:150px;width:26px;background:transparent;cursor:pointer;writing-mode:vertical-lr;direction:rtl}
+.mcfader input::-webkit-slider-runnable-track{width:4px;border-radius:3px;background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.05));box-shadow:inset 0 0 2px rgba(0,0,0,.6)}
+.mcfader input::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:13px;margin-left:-10px;border-radius:3px;
+  background:linear-gradient(180deg,#fff,#c9c9d2 48%,#8a8a94 52%,#4a4a52);border:1px solid rgba(0,0,0,.5);
+  box-shadow:0 1px 3px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.8)}
+.mcfader input::-moz-range-track{width:4px;border-radius:3px;background:rgba(255,255,255,.12)}
+.mcfader input::-moz-range-thumb{width:24px;height:13px;border-radius:3px;background:linear-gradient(180deg,#eee,#4a4a52);border:1px solid rgba(0,0,0,.5)}
+.mcmeter{width:9px;height:150px;border-radius:3px;overflow:hidden;position:relative;
+  background:linear-gradient(to top,#25c26a 0%,#25c26a 58%,#e6d84f 80%,#ff5252 100%);box-shadow:inset 0 0 3px rgba(0,0,0,.7)}
+.mcmeter i{position:absolute;left:0;right:0;top:0;background:#111116;display:block}
+.mcdb{font-size:8.5px;font-family:'JetBrains Mono',monospace;color:#d8d8e0;background:rgba(0,0,0,.4);border-radius:3px;padding:1px 5px;letter-spacing:.02em}
+.mcbtns{display:flex;gap:4px}
+.mcms{width:21px;height:19px;font-size:9px;font-weight:900;border-radius:5px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--w40);cursor:pointer;padding:0;transition:all .12s}
+.mcms:hover{background:rgba(255,255,255,.1)}
+.mcms.on.mute{background:linear-gradient(180deg,#ff6b6b,var(--red));color:#fff;border-color:var(--red);box-shadow:0 0 8px rgba(239,68,68,.4)}
+.mcms.on.solo{background:linear-gradient(180deg,#ffe066,#ffcf33);color:#000;border-color:#ffcf33;box-shadow:0 0 8px rgba(255,207,51,.4)}
+.mcms.on.learn{background:var(--pur);color:#fff;border-color:var(--pur);animation:bl 1s infinite;box-shadow:0 0 8px rgba(168,85,247,.5)}
+.mcname{font-size:7.5px;font-weight:900;letter-spacing:.05em;color:#cfcfd8;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;text-transform:uppercase}
+.mcgr{width:100%;height:5px;background:rgba(0,0,0,.5);border-radius:3px;overflow:hidden;border:1px solid var(--line-2)}
 .mcgr i{display:block;height:100%;background:linear-gradient(90deg,#ffcf33,#ff5252)}
-.fxrack{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
-.fxunit{flex:1;min-width:200px;background:rgba(0,0,0,.3);border:1px solid var(--w08);border-radius:8px;padding:8px}
-.fxunit .insp-row input[type=range]{flex:1;accent-color:#a855f7}
+.fxrack{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.fxunit{flex:1;min-width:200px;background:linear-gradient(180deg,rgba(40,40,50,.5),rgba(22,22,28,.6));border:1px solid var(--line);border-radius:10px;padding:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.fxunit .insp-row input[type=range]{flex:1;accent-color:var(--pur)}
 .rh{justify-content:center}
 .phdot{width:6px;height:6px;border-radius:50%;background:var(--red);animation:bl 1.2s infinite}
 .ruler-track{flex:1;position:relative;cursor:crosshair}
 .tick{position:absolute;bottom:1px;font-family:'JetBrains Mono',monospace;font-size:7.5px;color:rgba(255,255,255,.25);
   border-left:1px solid rgba(255,255,255,.1);padding-left:3px;height:9px;line-height:9px}
 .phline{position:absolute;top:0;bottom:0;width:1px;background:var(--red);box-shadow:0 0 8px rgba(239,68,68,.6);z-index:7;pointer-events:none}
-.track{display:flex;height:50px;border-bottom:1px solid rgba(255,255,255,.05)}
+.track{display:flex;height:50px;border-bottom:1px solid var(--line-2)}
 .track.audio{height:66px}
 .track.primary .trackbody{background:rgba(255,255,255,.025)}
-.trackbody{flex:1;position:relative;background-image:linear-gradient(to right,rgba(255,255,255,.03) 1px,transparent 1px);background-size:46px 100%}
+.trackbody{flex:1;position:relative;background-image:linear-gradient(to right,var(--line-2) 1px,transparent 1px);background-size:46px 100%}
 .clip{position:absolute;top:4px;bottom:4px;border-radius:6px;overflow:hidden;cursor:grab;user-select:none;contain:layout paint;
   display:flex;flex-direction:column;justify-content:center;padding:0 8px;border:1px solid}
-.clip.script{background:rgba(249,115,22,.13);border-color:rgba(249,115,22,.45);border-style:dashed}
-.clip.script.rdy{background:rgba(249,115,22,.22);border-style:solid}
-.clip.media{background:rgba(0,163,255,.16);border-color:rgba(0,163,255,.45)}
-.clip.voice{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.4)}
-.clip.sel{box-shadow:0 0 0 1.5px #fff, 0 0 14px rgba(249,115,22,.4);z-index:4}
+.clip.script{background:linear-gradient(180deg,rgba(249,115,22,.34),rgba(249,115,22,.2));border-color:rgba(249,140,60,.7);border-style:dashed}
+.clip.script.rdy{background:linear-gradient(180deg,rgba(249,115,22,.5),rgba(249,115,22,.3));border-style:solid}
+.clip.media{background:linear-gradient(180deg,rgba(0,163,255,.42),rgba(0,120,200,.28));border-color:rgba(90,190,255,.7)}
+.clip.voice{background:linear-gradient(180deg,rgba(34,197,94,.42),rgba(24,150,72,.28));border-color:rgba(80,220,130,.7)}
+.clip.sel{box-shadow:0 0 0 1.5px #fff, 0 0 14px rgba(249,115,22,.5);z-index:4}
 .cliplabel{display:flex;align-items:center;gap:5px;font-size:9.5px;font-weight:800;letter-spacing:.04em;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;position:relative;z-index:2}
 .clipframe{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.45;z-index:1}
