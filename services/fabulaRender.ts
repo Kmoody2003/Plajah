@@ -172,6 +172,14 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
       // hue/warmth/soften were preview-only before — the MP4 ignored them entirely.
       const grade = fx ? { bri: fx.bri ?? 1, con: fx.con ?? 1, sat: fx.sat ?? 1, hue: fx.hue || 0, warm: fx.warm || 0, blur: fx.blur || 0 } : null;
       const hasGrade = grade && (grade.bri !== 1 || grade.con !== 1 || grade.sat !== 1 || grade.hue !== 0 || grade.warm !== 0 || grade.blur !== 0);
+      // WHEEL grade (lift/gamma/gain + temp/tint from the color page) → the compositor's
+      // per-input GPU grade stage. Separate from the ctx.filter primaries above — no overlap,
+      // no double application: filters bake bri/con/sat/hue/warm; GL applies the wheels.
+      const w = fx?.wheel;
+      const glGrade = w && (
+        (w.lift || []).some((v: number) => v !== 0) || (w.gamma || []).some((v: number) => v !== 1)
+        || (w.gain || []).some((v: number) => v !== 1) || w.temp || w.tint
+      ) ? { lift: w.lift, gamma: w.gamma, gain: w.gain, temp: w.temp || 0, tint: w.tint || 0 } : null;
       for (const layer of snap.layers) {
         out.push({
           ...layer,
@@ -181,6 +189,7 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
           time: lt,
           transform: hasTf ? tf : undefined,
           ...(hasGrade ? { grade } : {}),
+          ...(glGrade ? { glGrade } : {}),
         } as any);
       }
     }

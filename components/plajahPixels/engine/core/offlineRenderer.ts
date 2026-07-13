@@ -294,9 +294,9 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
             if (dur > 0) st = st % dur; // loop the source within the clip
             if (fast) { try { el.currentTime = st; } catch { /* */ } } // no wait — nearest ready frame
             else await seekVideo(el, st);
-            inputs.push({ element: applyGrade(el), opacity, blendMode: layer.blendMode, transform: layer.transform });
+            inputs.push({ element: applyGrade(el), opacity, blendMode: layer.blendMode, transform: layer.transform, grade: (layer as any).glGrade });
           } else if (el instanceof HTMLImageElement) {
-            inputs.push({ element: applyGrade(el), opacity, blendMode: layer.blendMode, transform: layer.transform });
+            inputs.push({ element: applyGrade(el), opacity, blendMode: layer.blendMode, transform: layer.transform, grade: (layer as any).glGrade });
           }
         } else if (clip.type === 'color' && clip.fillColor) {
           inputs.push({ element: colorEl(clip.fillColor), opacity, blendMode: layer.blendMode, transform: layer.transform });

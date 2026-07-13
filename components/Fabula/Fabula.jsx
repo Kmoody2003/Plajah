@@ -23,6 +23,7 @@ import { attachAudioGraph, getAudioCtx, meterRegistry, needsCors, resumeAudioCtx
 import { transcodeToProxy, canTranscode } from "../plajahPixels/engine/core/proxyTranscoder";
 import { FxLibraryPanel, LottieBuilder, PerformCapture, CompBuilder } from "./FxLibrary";
 import ColorScopes from "./ColorScopes";
+import GradePreview from "./GradePreview";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
@@ -754,6 +755,7 @@ export default function Fabula() {
      project's 24/30fps instead of the display's 60–165Hz — the single biggest playback-perf lever
      in a component this size. */
   const clockRef = useRef(0);
+  const gradeMonRef = useRef(null); // color page's GL grade-monitor canvas (scopes read it)
   const phlineRef = useRef(null);   // playhead line — moved imperatively during playback
   const tcRef = useRef(null);       // transport timecode — updated imperatively during playback
   const pxPerSecRef = useRef(46);   // kept current every render so the imperative line tracks zoom
@@ -4468,11 +4470,46 @@ export default function Fabula() {
                             <span className="fxval">{Number(gv(key, def)).toFixed(2)}</span>
                           </div>
                         );
-                        const GRADE_KEYS = ["bri", "con", "sat", "hue", "warm", "blur"];
+                        const GRADE_KEYS = ["bri", "con", "sat", "hue", "warm", "blur", "wheel"];
+                        const wheel = { lift: [0, 0, 0], gamma: [1, 1, 1], gain: [1, 1, 1], temp: 0, tint: 0, ...(fx.wheel || {}) };
+                        const setWheel = (patch) => updateFx(selClip.id, { wheel: { ...wheel, ...patch } });
+                        const wheelRow = (label, key, def, min, max) => (
+                          <div key={key} style={{ marginBottom: 6 }}>
+                            <div className="insp-row"><span className="lbl" style={{ width: 44 }}>{label}</span>
+                              <input type="range" min={min} max={max} step="0.005" value={(wheel[key][0] + wheel[key][1] + wheel[key][2]) / 3}
+                                onChange={(e) => { const m = parseFloat(e.target.value); const cur = (wheel[key][0] + wheel[key][1] + wheel[key][2]) / 3; const d = m - cur; setWheel({ [key]: wheel[key].map((v) => Math.max(min, Math.min(max, v + d))) }); }}
+                                onDoubleClick={() => setWheel({ [key]: [def, def, def] })} title="Master — drag; double-click resets" />
+                              <span className="insp-val mono">{((wheel[key][0] + wheel[key][1] + wheel[key][2]) / 3).toFixed(2)}</span>
+                            </div>
+                            <div style={{ display: "flex", gap: 4, paddingLeft: 48 }}>
+                              {["R", "G", "B"].map((ch, i) => (
+                                <label key={ch} style={{ flex: 1, display: "flex", alignItems: "center", gap: 3 }}>
+                                  <span style={{ fontSize: 7, color: ["#ff7a7a", "#7ee2a8", "#7ab8ff"][i], fontWeight: 900 }}>{ch}</span>
+                                  <input type="range" min={min} max={max} step="0.005" value={wheel[key][i]} style={{ flex: 1, height: 8, accentColor: ["#ff7a7a", "#7ee2a8", "#7ab8ff"][i] }}
+                                    onChange={(e) => { const n = [...wheel[key]]; n[i] = parseFloat(e.target.value); setWheel({ [key]: n }); }}
+                                    onDoubleClick={() => { const n = [...wheel[key]]; n[i] = def; setWheel({ [key]: n }); }} />
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        );
                         return (
                           <>
                             <div className="insp-div" />
-                            <div className="lbl">PRIMARIES — {selClip.label} <span className="dim small" style={{ letterSpacing: 0 }}>(double-click a slider to reset)</span></div>
+                            <div className="lbl">WHEELS — GPU grade (exports on the compositor)</div>
+                            {wheelRow("LIFT", "lift", 0, -0.5, 0.5)}
+                            {wheelRow("GAMMA", "gamma", 1, 0.3, 2.5)}
+                            {wheelRow("GAIN", "gain", 1, 0, 2.5)}
+                            <div className="insp-row"><span className="lbl">TEMP</span>
+                              <input type="range" min="-0.3" max="0.3" step="0.005" value={wheel.temp} onChange={(e) => setWheel({ temp: parseFloat(e.target.value) })} onDoubleClick={() => setWheel({ temp: 0 })} />
+                              <span className="insp-val mono">{wheel.temp.toFixed(2)}</span>
+                            </div>
+                            <div className="insp-row"><span className="lbl">TINT</span>
+                              <input type="range" min="-0.3" max="0.3" step="0.005" value={wheel.tint} onChange={(e) => setWheel({ tint: parseFloat(e.target.value) })} onDoubleClick={() => setWheel({ tint: 0 })} />
+                              <span className="insp-val mono">{wheel.tint.toFixed(2)}</span>
+                            </div>
+                            <div className="insp-div" />
+                            <div className="lbl">PRIMARIES <span className="dim small" style={{ letterSpacing: 0 }}>(double-click a slider to reset)</span></div>
                             {slider("EXPOSURE", "bri", 0, 2.5, 0.02, 1)}
                             {slider("CONTRAST", "con", 0, 2.5, 0.02, 1)}
                             {slider("SATURATION", "sat", 0, 2.5, 0.02, 1)}
@@ -4483,15 +4520,26 @@ export default function Fabula() {
                               <button className="minibtn" onClick={() => { const g = {}; GRADE_KEYS.forEach((k) => { g[k] = fx[k]; }); window.__fabGrade = g; ping("Grade copied"); }}>⧉ COPY GRADE</button>
                               <button className="minibtn" disabled={!window.__fabGrade} onClick={() => { if (window.__fabGrade) { updateFx(selClip.id, { ...window.__fabGrade }); ping("Grade pasted"); } }}>⧊ PASTE</button>
                               <button className="minibtn" onClick={() => { if (selIds.length > 1 && window.__fabGrade) { applyClips(clips.map((c) => (selIds.includes(c.id) ? { ...c, fx: { ...ensureFx(c), ...window.__fabGrade } } : c))); ping(`Grade → ${selIds.length} clips`); } else ping("Ctrl+click / marquee-select clips in EDIT first, copy a grade, then paste to all."); }}>PASTE → SELECTED</button>
-                              <button className="minibtn" onClick={() => updateFx(selClip.id, { bri: 1, con: 1, sat: 1, hue: 0, warm: 0, blur: 0 })}>RESET</button>
+                              <button className="minibtn" onClick={() => updateFx(selClip.id, { bri: 1, con: 1, sat: 1, hue: 0, warm: 0, blur: 0, wheel: undefined })}>RESET</button>
                             </div>
                           </>
                         );
                       })() : <div className="dim small" style={{ marginTop: 10 }}>Select a clip in the EDIT room (or click one in the timeline below) to grade it. Scopes read the program monitor live.</div>}
                     </aside>
                     <aside className="inspector glass-dark" style={{ width: 500, minWidth: 380, overflowY: "auto" }}>
-                      <div className="paneltitle">📈 SCOPES <span className="dim small" style={{ letterSpacing: 0 }}>live from the program monitor</span></div>
-                      <ColorScopes sourceRef={videoRef} />
+                      <div className="paneltitle">🎛 GRADE MONITOR <span className="dim small" style={{ letterSpacing: 0 }}>GPU — the export's exact shader</span></div>
+                      {(() => {
+                        const fx = selClip ? ensureFx(selClip) : null;
+                        const w = fx?.wheel;
+                        const glg = fx ? {
+                          lift: w?.lift, gamma: w?.gamma, gain: w?.gain,
+                          temp: w?.temp || 0, tint: w?.tint || 0,
+                          contrast: fx.con ?? 1, sat: fx.sat ?? 1, hue: ((fx.hue || 0) * Math.PI) / 180,
+                        } : null;
+                        return <GradePreview videoRef={videoRef} grade={glg} outRef={gradeMonRef} />;
+                      })()}
+                      <div className="paneltitle" style={{ marginTop: 10 }}>📈 SCOPES <span className="dim small" style={{ letterSpacing: 0 }}>post-grade — reading the grade monitor</span></div>
+                      <ColorScopes sourceRef={gradeMonRef} />
                       <div className="dim small" style={{ marginTop: 8 }}>Waveform: exposure (keep skin ~55–70%). Parade: channel balance — matching tops/bottoms = neutral. Vectorscope: saturation spread; skin tones hug the orange line. Histogram: clipping at either end.</div>
                     </aside>
                   </div>

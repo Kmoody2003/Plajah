@@ -39,6 +39,33 @@ uniform int uMode;
 uniform vec2 uTrans;      // per-layer translate (UV fraction); 0 = none
 uniform float uScale;     // per-layer scale; 1 = none
 uniform float uRot;       // per-layer rotation (radians); 0 = none
+// Per-input GRADE stage (Resolve-style primaries) — applied to the source BEFORE blending.
+uniform int uGradeOn;
+uniform vec3 uGLift, uGGamma, uGGain;
+uniform float uGCon, uGPivot, uGSat, uGHue, uGTemp, uGTint;
+
+vec3 gradeColor(vec3 c) {
+  // lift / gamma / gain (per channel): c' = gain * (c + lift) ^ (1/gamma)
+  c = uGGain * pow(max(c + uGLift, 0.0), 1.0 / max(uGGamma, vec3(0.05)));
+  // contrast around a pivot (Resolve defaults to ~0.435)
+  c = (c - uGPivot) * uGCon + uGPivot;
+  // temp (R↔B) and tint (G↔magenta) axis gains
+  c *= vec3(1.0 + uGTemp, 1.0 + uGTint, 1.0 - uGTemp);
+  // saturation around Rec.709 luma
+  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  c = mix(vec3(l), c, uGSat);
+  // hue rotation (luminance-preserving matrix); rows packed as constructor columns so
+  // c * m applies the standard matrix (GLSL v*M == transpose(M)*v).
+  if (abs(uGHue) > 0.0001) {
+    float ch = cos(uGHue), sh = sin(uGHue);
+    mat3 m = mat3(
+      0.299 + 0.701*ch + 0.168*sh, 0.587 - 0.587*ch + 0.330*sh, 0.114 - 0.114*ch - 0.497*sh,
+      0.299 - 0.299*ch - 0.328*sh, 0.587 + 0.413*ch + 0.035*sh, 0.114 - 0.114*ch + 0.292*sh,
+      0.299 - 0.300*ch + 1.250*sh, 0.587 - 0.588*ch - 1.050*sh, 0.114 + 0.886*ch - 0.203*sh);
+    c = c * m;
+  }
+  return clamp(c, 0.0, 1.0);
+}
 
 vec3 blend(int m, vec3 d, vec3 s) {
   if (m == 1) return d + s - d * s;                 // screen
@@ -66,6 +93,7 @@ void main() {
   float inb = step(0.0, suv.x) * step(suv.x, 1.0) * step(0.0, suv.y) * step(suv.y, 1.0);
   vec4 dst = texture(uDst, vUv);
   vec4 src = texture(uSrc, clamp(suv, 0.0, 1.0)) * inb;
+  if (uGradeOn == 1) src.rgb = gradeColor(src.rgb);
   float a = src.a * uOpacity;
   vec3 blended = blend(uMode, dst.rgb, src.rgb);
   outColor = vec4(mix(dst.rgb, blended, a), clamp(dst.a + a, 0.0, 1.0));
@@ -112,6 +140,22 @@ function isNeutral(g: GradeParams): boolean {
   return g.brightness === 1 && g.contrast === 1 && g.saturation === 1 && g.gamma === 1;
 }
 
+/** Per-input Resolve-style primaries, applied in-shader before blending.
+ *  lift/gamma/gain are per-channel [r,g,b]; hue in radians; temp/tint ±0.3-ish. */
+export interface InputGrade {
+  lift?: [number, number, number];
+  gamma?: [number, number, number];
+  gain?: [number, number, number];
+  contrast?: number; pivot?: number;
+  sat?: number; hue?: number; temp?: number; tint?: number;
+}
+export function isGradeIdentity(g?: InputGrade | null): boolean {
+  if (!g) return true;
+  const v3 = (a?: [number, number, number], d = 0) => !a || (a[0] === d && a[1] === d && a[2] === d);
+  return v3(g.lift, 0) && v3(g.gamma, 1) && v3(g.gain, 1)
+    && (g.contrast ?? 1) === 1 && (g.sat ?? 1) === 1 && !(g.hue) && !(g.temp) && !(g.tint);
+}
+
 export interface LayerInput {
   /** A texture already in our GL context (ported generator) … */
   texture?: WebGLTexture;
@@ -121,6 +165,8 @@ export interface LayerInput {
   blendMode: string;
   /** Per-layer transform: translate (UV fraction), scale, rotation (radians). */
   transform?: { x: number; y: number; scale: number; rot: number };
+  /** Per-input grade (wheels/temp/tint) — applied in-shader before blending. */
+  grade?: InputGrade;
 }
 
 /** Camera-shake transform applied in the present pass (UV space). Identity = no shake. */
@@ -139,6 +185,7 @@ export class Compositor {
   private uPresentTex: WebGLUniformLocation;
   private uShake: Record<string, WebGLUniformLocation | null> = {};
   private gradeU: Record<string, WebGLUniformLocation | null> = {};
+  private inGradeU: Record<string, WebGLUniformLocation | null> = {}; // per-input grade uniforms
   private ping?: RenderTarget; private pong?: RenderTarget;
   private srcTex: WebGLTexture;       // reused for element uploads
   private width = 0; private height = 0;
@@ -159,6 +206,8 @@ export class Compositor {
     this.uTrans = gl.getUniformLocation(this.compositeProg, 'uTrans');
     this.uScale = gl.getUniformLocation(this.compositeProg, 'uScale');
     this.uRot = gl.getUniformLocation(this.compositeProg, 'uRot');
+    for (const n of ['uGradeOn', 'uGLift', 'uGGamma', 'uGGain', 'uGCon', 'uGPivot', 'uGSat', 'uGHue', 'uGTemp', 'uGTint'])
+      this.inGradeU[n] = gl.getUniformLocation(this.compositeProg, n);
     this.uPresentTex = gl.getUniformLocation(this.presentProg, 'uTex')!;
     for (const n of ['uShakeOff', 'uShakeSin', 'uShakeCos', 'uShakeScale'])
       this.uShake[n] = gl.getUniformLocation(this.presentProg, n);
@@ -215,6 +264,22 @@ export class Compositor {
       gl.uniform2f(this.uTrans, tf?.x ?? 0, tf?.y ?? 0);
       gl.uniform1f(this.uScale, tf?.scale ?? 1);
       gl.uniform1f(this.uRot, tf?.rot ?? 0);
+      // Per-input grade — set EVERY layer (uniforms persist across draws; identity must reset).
+      const gr = layer.grade;
+      const on = gr && !isGradeIdentity(gr);
+      gl.uniform1i(this.inGradeU.uGradeOn, on ? 1 : 0);
+      if (on && gr) {
+        const l = gr.lift ?? [0, 0, 0], gm = gr.gamma ?? [1, 1, 1], gn = gr.gain ?? [1, 1, 1];
+        gl.uniform3f(this.inGradeU.uGLift, l[0], l[1], l[2]);
+        gl.uniform3f(this.inGradeU.uGGamma, gm[0], gm[1], gm[2]);
+        gl.uniform3f(this.inGradeU.uGGain, gn[0], gn[1], gn[2]);
+        gl.uniform1f(this.inGradeU.uGCon, gr.contrast ?? 1);
+        gl.uniform1f(this.inGradeU.uGPivot, gr.pivot ?? 0.435);
+        gl.uniform1f(this.inGradeU.uGSat, gr.sat ?? 1);
+        gl.uniform1f(this.inGradeU.uGHue, gr.hue ?? 0);
+        gl.uniform1f(this.inGradeU.uGTemp, gr.temp ?? 0);
+        gl.uniform1f(this.inGradeU.uGTint, gr.tint ?? 0);
+      }
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       const t = this.ping; this.ping = this.pong; this.pong = t; // swap
     }
