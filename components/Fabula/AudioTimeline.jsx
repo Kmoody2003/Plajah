@@ -156,9 +156,13 @@ const ATL_CSS = `
 .atl-meter{height:5px;border-radius:3px;overflow:hidden;background:rgba(0,0,0,.5);border:1px solid var(--line-2);position:relative}
 .atl-meter i{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,#25c26a 0%,#25c26a 60%,#e6d84f 82%,#ff5252 100%)}
 .atl-lane{position:relative;flex:1;background-image:linear-gradient(to right,var(--line-2) 1px,transparent 1px);background-size:${48}px 100%;cursor:crosshair}
-.atl-clip{position:absolute;top:5px;bottom:5px;border-radius:7px;overflow:hidden;cursor:pointer;border:1px solid color-mix(in srgb,var(--tab) 70%,#fff 0%);
-  background:linear-gradient(180deg,color-mix(in srgb,var(--tab) 42%,#101014),color-mix(in srgb,var(--tab) 24%,#101014));display:flex;flex-direction:column}
-.atl-clip.sel{box-shadow:0 0 0 1.5px #fff,0 0 14px color-mix(in srgb,var(--tab) 60%,transparent);z-index:4}
+/* frosted color clip — translucent tinted glass over the lane, color kept via the channel tab */
+.atl-clip{position:absolute;top:5px;bottom:5px;border-radius:8px;overflow:hidden;cursor:pointer;
+  border:1px solid color-mix(in srgb,var(--tab) 55%,rgba(255,255,255,.25));
+  background:linear-gradient(180deg,color-mix(in srgb,var(--tab) 34%,transparent),color-mix(in srgb,var(--tab) 18%,transparent));
+  backdrop-filter:blur(9px) saturate(1.3);-webkit-backdrop-filter:blur(9px) saturate(1.3);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 2px 6px rgba(0,0,0,.3);display:flex;flex-direction:column}
+.atl-clip.sel{box-shadow:0 0 0 1.5px #fff,0 0 16px color-mix(in srgb,var(--tab) 55%,transparent),inset 0 1px 0 rgba(255,255,255,.2);z-index:4}
 .atl-cliphdr{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:2px 6px;background:rgba(0,0,0,.28)}
 .atl-cliplabel{font-size:9.5px;font-weight:800;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.5)}
 .atl-clipacts{display:flex;gap:2px;flex:0 0 auto}

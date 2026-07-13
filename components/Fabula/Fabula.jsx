@@ -29,6 +29,7 @@ import MixConsole from "./MixConsole";
 import VoiceStudio from "./VoiceStudio";
 import AudioEditor from "./AudioEditor";
 import AudioTimeline from "./AudioTimeline";
+import ColorWheels from "./ColorWheels";
 import { quickStems, separateStemsCloud } from "../../services/fabula/stemSeparation";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -3707,7 +3708,7 @@ export default function Fabula() {
                               const wfUrl = (tr.type === "audio" || c.kind === "voice") && c.assetId ? (prod?.mediaPool?.find((m) => m.id === c.assetId)?.url) : null;
                               return (
                                 <div key={c.id} data-cid={c.id}
-                                  className={`clip ${c.kind} ${sel ? "sel" : ""} ${shot?.status === "ready" ? "rdy" : ""}`}
+                                  className={`clip ${c.kind} ${tr.type === "video" ? "vid" : ""} ${sel ? "sel" : ""} ${shot?.status === "ready" ? "rdy" : ""}`}
                                   style={{ left: c.start * pxPerSec, width: Math.max(8, c.duration * pxPerSec), opacity: c.disabled ? 0.4 : 1, cursor: toolMode === "razor" ? "crosshair" : undefined }}
                                   onMouseDown={(e) => { if (toolMode === "razor") { e.stopPropagation(); razorAt(e, c.id); return; } onClipDown(e, c.id, "move"); }}
                                   onClick={(e) => { e.stopPropagation(); if (toolMode !== "razor") setSelClipId(c.id); }}
@@ -3852,7 +3853,7 @@ export default function Fabula() {
 
 
       {/* ambient blobs */}
-      <div className="blob b1" /><div className="blob b2" />
+      <div className="blob b1" /><div className="blob b2" /><div className="b3" />
 
       {/* ───── header ───── */}
       <header className="hdr glass">
@@ -4634,11 +4635,9 @@ export default function Fabula() {
                         return (
                           <>
                             <div className="insp-div" />
-                            <div className="lbl">WHEELS — GPU grade (exports on the compositor)</div>
-                            {wheelRow("LIFT", "lift", 0, -0.5, 0.5)}
-                            {wheelRow("GAMMA", "gamma", 1, 0.3, 2.5)}
-                            {wheelRow("GAIN", "gain", 1, 0, 2.5)}
-                            <div className="insp-row"><span className="lbl">TEMP</span>
+                            <div className="lbl">COLOR WHEELS — GPU grade (exports on the compositor)</div>
+                            <ColorWheels wheel={wheel} setWheel={setWheel} />
+                            <div className="insp-row" style={{ marginTop: 8 }}><span className="lbl">TEMP</span>
                               <input type="range" min="-0.3" max="0.3" step="0.005" value={wheel.temp} onChange={(e) => setWheel({ temp: parseFloat(e.target.value) })} onDoubleClick={() => setWheel({ temp: 0 })} />
                               <span className="insp-val mono">{wheel.temp.toFixed(2)}</span>
                             </div>
@@ -5259,8 +5258,11 @@ const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,700;0,900;1,900&family=JetBrains+Mono:wght@400;700&display=swap');
 :root{
   --org:#f97316; --org-dim:rgba(249,115,22,.14); --blue:#00A3FF; --green:#22c55e; --red:#ef4444; --pur:#a855f7;
+  /* Plajah logo colors — purple → magenta → orange. Used as fleeting hints, never overbearing. */
+  --pl-purple:#7c3aed; --pl-magenta:#e0459b; --pl-orange:#f97316;
+  --pl-grad:linear-gradient(120deg,var(--pl-purple),var(--pl-magenta) 52%,var(--pl-orange));
   /* grayer base so panels read as separated layers instead of a flat black void */
-  --bg:#101014; --bg2:#16161c; --panel:#1c1c23; --panel2:#22222b;
+  --bg:#0f0e13; --bg2:#16161c; --panel:#1c1c23; --panel2:#22222b;
   --w04:rgba(255,255,255,.04); --w08:rgba(255,255,255,.08); --w40:rgba(255,255,255,.4);
   /* contrasting gray hairlines for UX separation */
   --line:rgba(255,255,255,.13); --line-2:rgba(255,255,255,.08); --line-hi:rgba(255,255,255,.22);
@@ -5269,9 +5271,11 @@ const CSS = `
 .studio{height:100vh;display:flex;flex-direction:column;background:var(--bg);color:#e5e5e5;
   font-family:'Inter',system-ui,sans-serif;overflow:hidden;position:relative}
 .mono{font-family:'JetBrains Mono',monospace}
-.blob{position:absolute;width:42%;height:42%;border-radius:50%;filter:blur(130px);opacity:.13;pointer-events:none;z-index:0}
-.b1{top:-12%;left:-10%;background:var(--org)}
-.b2{bottom:-12%;right:-10%;background:var(--blue)}
+/* ambient platform-theme wash — Plajah logo hues bleeding faintly behind the frosted panels */
+.blob{position:absolute;width:46%;height:46%;border-radius:50%;filter:blur(150px);opacity:.16;pointer-events:none;z-index:0}
+.b1{top:-14%;left:-12%;background:var(--pl-purple)}
+.b2{bottom:-16%;right:-12%;background:var(--pl-magenta)}
+.b3{position:absolute;width:34%;height:34%;border-radius:50%;filter:blur(150px);opacity:.10;pointer-events:none;z-index:0;bottom:-10%;left:28%;background:var(--pl-orange)}
 .glass{backdrop-filter:blur(24px);background:rgba(255,255,255,.04);border-color:var(--line)}
 .glass-dark{backdrop-filter:blur(30px) saturate(1.2);background:rgba(26,26,33,.62);border:1px solid var(--line);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
@@ -5317,6 +5321,24 @@ const CSS = `
 .ta.dlg{border-left:3px solid var(--org);margin:8px 0}
 .in:focus,.ta:focus,.sel:focus{outline:none;border-color:rgba(249,115,22,.55)}
 .grow{flex:1}
+
+/* ═══ SLEEK CONTROLS — modern, un-cartoony sliders across the whole studio ═══
+   Replaces the chunky native accent-color range with a fine rail + a small precise knurled thumb.
+   Vertical faders (.mcfader/.mcknob) override this below; horizontal sliders inherit it. */
+.studio input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;cursor:pointer;height:16px}
+.studio input[type=range]::-webkit-slider-runnable-track{height:3px;border-radius:2px;
+  background:linear-gradient(90deg,rgba(255,255,255,.05),rgba(255,255,255,.2));box-shadow:inset 0 0 2px rgba(0,0,0,.55)}
+.studio input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;margin-top:-5px;border-radius:50%;
+  background:radial-gradient(circle at 34% 30%,#fdfdff,#c4c4cd 55%,#6f6f79);border:1px solid rgba(0,0,0,.55);
+  box-shadow:0 1px 3px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.5);transition:filter .1s}
+.studio input[type=range]::-webkit-slider-thumb:hover{filter:brightness(1.12)}
+.studio input[type=range]::-moz-range-track{height:3px;border-radius:2px;background:rgba(255,255,255,.16)}
+.studio input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 34% 30%,#fff,#7a7a84);border:1px solid rgba(0,0,0,.5)}
+/* vertical mini-knob sliders (EQ / sends) — slim rail + compact cap tinted by channel color */
+.mcknob input{-webkit-appearance:none;appearance:none;width:16px;height:34px;background:transparent;cursor:pointer;writing-mode:vertical-lr;direction:rtl}
+.mcknob input::-webkit-slider-runnable-track{width:3px;border-radius:2px;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.16),rgba(255,255,255,.02));box-shadow:inset 0 0 2px rgba(0,0,0,.7)}
+.mcknob input::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:9px;margin-left:-5.5px;border-radius:2px;
+  background:linear-gradient(180deg,#40404a,#20202a);border:1px solid rgba(0,0,0,.6);box-shadow:0 1px 2px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.14)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 @media(max-width:760px){.grid2{grid-template-columns:1fr}}
@@ -5552,7 +5574,7 @@ const CSS = `
 .mcstrip.master::before{background:linear-gradient(90deg,var(--org),#ffb45a)}
 .mctop{display:flex;gap:4px;width:100%;justify-content:center;min-height:34px}
 .mcknob{display:flex;flex-direction:column;align-items:center;gap:2px;width:19px}
-.mcknob input{width:15px;height:32px;writing-mode:vertical-lr;direction:rtl;accent-color:var(--blue);cursor:pointer}
+/* .mcknob input styling lives in the SLEEK CONTROLS block above (vertical mini-knob) */
 .mcknob span{font-size:6.5px;font-weight:800;letter-spacing:.06em;color:var(--w40)}
 .mcbtn{width:100%;font-size:8px;font-weight:900;letter-spacing:.08em;padding:4px 0;border-radius:5px;border:1px solid var(--line);
   background:rgba(255,255,255,.04);color:var(--w40);cursor:pointer;transition:all .12s}
@@ -5563,14 +5585,16 @@ const CSS = `
 .mcfaderrow{display:flex;gap:6px;align-items:stretch;height:154px;padding:4px 0;
   background:rgba(0,0,0,.32);border-radius:7px;border:1px solid var(--line-2);width:100%;justify-content:center}
 .mcfader{display:flex;align-items:center;justify-content:center;width:26px}
-/* sleek flat DAW fader — thin channel track + a wide low-profile cap */
+/* sleek console fader — PreSonus Universal Control DNA, slimmer: a fine channel rail with a low, wide
+   cap carrying a bright indicator band tinted by the channel color (a fleeting Plajah hint). */
 .mcfader input{-webkit-appearance:none;appearance:none;height:150px;width:26px;background:transparent;cursor:pointer;writing-mode:vertical-lr;direction:rtl}
-.mcfader input::-webkit-slider-runnable-track{width:4px;border-radius:3px;background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.05));box-shadow:inset 0 0 2px rgba(0,0,0,.6)}
-.mcfader input::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:13px;margin-left:-10px;border-radius:3px;
-  background:linear-gradient(180deg,#fff,#c9c9d2 48%,#8a8a94 52%,#4a4a52);border:1px solid rgba(0,0,0,.5);
-  box-shadow:0 1px 3px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.8)}
-.mcfader input::-moz-range-track{width:4px;border-radius:3px;background:rgba(255,255,255,.12)}
-.mcfader input::-moz-range-thumb{width:24px;height:13px;border-radius:3px;background:linear-gradient(180deg,#eee,#4a4a52);border:1px solid rgba(0,0,0,.5)}
+.mcfader input::-webkit-slider-runnable-track{width:3px;border-radius:2px;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.14) 50%,rgba(255,255,255,.02));box-shadow:inset 0 0 3px rgba(0,0,0,.8)}
+.mcfader input::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:12px;margin-left:-10.5px;border-radius:3px;
+  background:linear-gradient(180deg,#43434e 0%,#26262e 42%,var(--tab,#9aa) 46%,var(--tab,#9aa) 54%,#1a1a20 58%,#2c2c34 100%);
+  border:1px solid rgba(0,0,0,.65);box-shadow:0 2px 5px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.16)}
+.mcfader input::-webkit-slider-thumb:hover{filter:brightness(1.2)}
+.mcfader input::-moz-range-track{width:3px;border-radius:2px;background:rgba(255,255,255,.12)}
+.mcfader input::-moz-range-thumb{width:24px;height:12px;border-radius:3px;background:linear-gradient(180deg,#43434e,#1a1a20);border:1px solid rgba(0,0,0,.6)}
 .mcmeter{width:9px;height:150px;border-radius:3px;overflow:hidden;position:relative;
   background:linear-gradient(to top,#25c26a 0%,#25c26a 58%,#e6d84f 80%,#ff5252 100%);box-shadow:inset 0 0 3px rgba(0,0,0,.7)}
 .mcmeter i{position:absolute;left:0;right:0;top:0;background:#111116;display:block}
@@ -5603,6 +5627,9 @@ const CSS = `
 .clip.script.rdy{background:linear-gradient(180deg,rgba(249,115,22,.5),rgba(249,115,22,.3));border-style:solid}
 .clip.media{background:linear-gradient(180deg,rgba(0,163,255,.42),rgba(0,120,200,.28));border-color:rgba(90,190,255,.7)}
 .clip.voice{background:linear-gradient(180deg,rgba(34,197,94,.42),rgba(24,150,72,.28));border-color:rgba(80,220,130,.7)}
+/* VIDEO clips wear the Plajah logo gradient — purple → magenta → orange */
+.clip.vid,.clip.media.vid{background:linear-gradient(115deg,rgba(124,58,237,.55),rgba(224,69,155,.5) 52%,rgba(249,115,22,.5));
+  border-color:rgba(240,150,200,.6);box-shadow:inset 0 1px 0 rgba(255,255,255,.14)}
 .clip.sel{box-shadow:0 0 0 1.5px #fff, 0 0 14px rgba(249,115,22,.5);z-index:4}
 .cliplabel{display:flex;align-items:center;gap:5px;font-size:9.5px;font-weight:800;letter-spacing:.04em;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;position:relative;z-index:2}

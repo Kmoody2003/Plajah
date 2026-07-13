@@ -10,6 +10,7 @@ import {
   audioEngineInfo, listOutputDevices, setOutputDevice, setOutputChannels, resumeAudioCtx,
   setReverb, setDelay, REVERB_PRESETS,
 } from "../../services/fabula/audioGraph";
+import AnalogFX from "./AnalogFX";
 
 // dB helpers for a musical fader taper (0..1.5 linear gain shown as dB).
 const toDb = (g) => (g <= 0.0001 ? -Infinity : 20 * Math.log10(g));
@@ -187,36 +188,8 @@ export default function MixConsole({ audioTracks, trackSettings, setTrackSetting
         <button className="minibtn" onClick={() => listOutputDevices().then(setDevices)}>↻ DEVICES</button>
         <span className="dim small">Faders/pan/EQ/comp/sends are live and bake into the export. Solo mutes the rest. MIDI-learn (◎) maps a controller to any fader.</span>
       </div>
-      {/* FX rack — shared aux buses the channel RVB/DLY sends feed */}
-      <div className="fxrack">
-        <div className="fxunit">
-          <div className="lbl">◗ REVERB <span className="dim small" style={{ letterSpacing: 0 }}>convolution</span></div>
-          <div className="insp-row"><span className="lbl">SPACE</span>
-            <select className="sel xs grow" value={rvb.preset} onChange={(e) => setRvb({ preset: e.target.value })}>
-              {REVERB_PRESETS.map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-          <div className="insp-row"><span className="lbl">MIX</span>
-            <input type="range" min="0" max="1.5" step="0.02" value={rvb.wet} onChange={(e) => setRvb({ wet: parseFloat(e.target.value) })} />
-            <span className="insp-val mono">{Math.round(rvb.wet * 100)}</span>
-          </div>
-        </div>
-        <div className="fxunit">
-          <div className="lbl">◗ DELAY <span className="dim small" style={{ letterSpacing: 0 }}>feedback</span></div>
-          <div className="insp-row"><span className="lbl">TIME</span>
-            <input type="range" min="0.02" max="1.2" step="0.01" value={dly.time} onChange={(e) => setDly({ time: parseFloat(e.target.value) })} />
-            <span className="insp-val mono">{Math.round(dly.time * 1000)}ms</span>
-          </div>
-          <div className="insp-row"><span className="lbl">FBK</span>
-            <input type="range" min="0" max="0.9" step="0.02" value={dly.feedback} onChange={(e) => setDly({ feedback: parseFloat(e.target.value) })} />
-            <span className="insp-val mono">{Math.round(dly.feedback * 100)}</span>
-          </div>
-          <div className="insp-row"><span className="lbl">MIX</span>
-            <input type="range" min="0" max="1.5" step="0.02" value={dly.wet} onChange={(e) => setDly({ wet: parseFloat(e.target.value) })} />
-            <span className="insp-val mono">{Math.round(dly.wet * 100)}</span>
-          </div>
-        </div>
-      </div>
+      {/* FX rack — vintage analog units (rotary knobs + VU needles) over the shared aux buses */}
+      <AnalogFX rvb={rvb} setRvb={setRvb} dly={dly} setDly={setDly} />
     </div>
   );
 }
