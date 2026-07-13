@@ -574,6 +574,10 @@ export default function Fabula() {
   const dragRef = useRef(null);
   const tlScrollRef = useRef(null);          // the scrolling timeline viewport (for zoom-to-fit width)
   const [tlHeight, setTlHeight] = useState(320); // resizable timeline height (drag the divider)
+  // Resizable work sections (persisted): media-pool + inspector widths, pool view mode.
+  const [poolW, setPoolW] = useState(() => parseInt(localStorage.getItem("fabula:poolw"), 10) || 230);
+  const [inspW, setInspW] = useState(() => parseInt(localStorage.getItem("fabula:inspw"), 10) || 262);
+  const [poolView, setPoolView] = useState(() => localStorage.getItem("fabula:poolview") || "list"); // list | thumbs
   const activeViewerRef = useRef("program"); // "program" | "source" — which viewer Space controls
   const dragAssetRef = useRef(null);         // asset being dragged from the source viewer → timeline
   const saveTimer = useRef(null);
@@ -2023,6 +2027,21 @@ export default function Fabula() {
     const up = () => { document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); };
     document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
   };
+  // Drag the vertical divider next to a side panel to resize it (persisted across sessions).
+  const startPanelResize = (e, which) => {
+    e.preventDefault();
+    const startX = e.clientX, startW = which === "pool" ? poolW : inspW;
+    const set = which === "pool" ? setPoolW : setInspW;
+    const key = which === "pool" ? "fabula:poolw" : "fabula:inspw";
+    let w = startW;
+    const move = (ev) => {
+      // pool grows dragging right; inspector grows dragging left
+      w = Math.max(150, Math.min(560, startW + (which === "pool" ? ev.clientX - startX : startX - ev.clientX)));
+      set(w);
+    };
+    const up = () => { document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); try { localStorage.setItem(key, String(w)); } catch { /* */ } };
+    document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
+  };
   // Fit the whole sequence to the visible timeline width (minus the 128px track headers).
   const zoomFit = () => {
     const w = tlScrollRef.current?.clientWidth || 900;
@@ -2404,9 +2423,13 @@ export default function Fabula() {
   );
 
   const renderPool = () => (
-<aside className="pool glass-dark">
+<aside className="pool glass-dark" style={{ width: poolW, minWidth: poolW }}>
                     <div className="paneltitle"><MonitorPlay size={12} /> MEDIA POOL
-                      <button className="minibtn" style={{ marginLeft: "auto", fontSize: 8 }} title="Create a media bin"
+                      <button className="minibtn" style={{ marginLeft: "auto", fontSize: 8, opacity: poolView === "list" ? 1 : 0.45 }} title="List view"
+                        onClick={() => { setPoolView("list"); try { localStorage.setItem("fabula:poolview", "list"); } catch { /* */ } }}>≡</button>
+                      <button className="minibtn" style={{ fontSize: 8, opacity: poolView === "thumbs" ? 1 : 0.45 }} title="Thumbnail view — hover a thumb to play + scrub it in the source monitor"
+                        onClick={() => { setPoolView("thumbs"); try { localStorage.setItem("fabula:poolview", "thumbs"); } catch { /* */ } }}>▦</button>
+                      <button className="minibtn" style={{ fontSize: 8 }} title="Create a media bin"
                         onClick={() => {
                           const name = (window.prompt("New bin name") || "").trim();
                           if (!name) return;
@@ -2443,7 +2466,36 @@ export default function Fabula() {
                     <button className="minibtn full" style={{ marginTop: 6 }} onClick={loadMyVideos} disabled={videoLoading} title="Load your on-platform videos + Live-stream recordings">
                       <MonitorPlay size={12} /> {videoLoading ? "LOADING…" : "MY VIDEOS + LIVE"}
                     </button>
-                    <div className="poollist">
+                    {poolView === "thumbs" && (
+                      <div className="poolthumbs">
+                        {(prod.mediaPool || []).map((a) => {
+                          const playable = a.url && (a.type === "video" || a.type === "audio");
+                          return (
+                            <div key={a.id} className={`ptcard ${previewAsset?.id === a.id ? "previewing" : ""}`}
+                              title="Hover: play + scrub in the source monitor · Double-click: load & play · Right-click: menu"
+                              onMouseEnter={() => { if (a.url) openInViewer(a, !!playable); }}
+                              onMouseMove={(e) => {
+                                if (!playable || previewAsset?.id !== a.id) return;
+                                const v = srcVideoRef.current; const total = srcDur || a.duration || 0;
+                                if (!v || !total) return;
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const f = Math.max(0, Math.min(0.999, (e.clientX - rect.left) / rect.width));
+                                try { v.currentTime = f * total; setSrcTc(f * total); } catch { /* not seekable yet */ }
+                              }}
+                              onClick={() => openInViewer(a, false)} onDoubleClick={() => openInViewer(a, true)}
+                              onContextMenu={(e) => poolContext(e, a)}>
+                              {a.url && a.type === "video" ? <ScrubThumb url={a.url} className="ptvid" />
+                                : a.url && (a.type === "image" || a.type === "graphic") ? <img src={a.url} className="ptvid" alt="" />
+                                : <div className="ptvid ptph">{a.type === "audio" ? <Music size={22} /> : <Film size={22} />}</div>}
+                              <span className="ptname">{a.name}</span>
+                              {(!a.url || a.offline) && <button className="chip blue" style={{ fontSize: 7, border: "none", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); openRelink(a.id); }}>🔗 RELINK</button>}
+                            </div>
+                          );
+                        })}
+                        {!(prod.mediaPool || []).length && <div className="dim small" style={{ padding: 8, gridColumn: "1 / -1" }}>Empty — import media to see thumbnails.</div>}
+                      </div>
+                    )}
+                    <div className="poollist" style={poolView === "thumbs" ? { display: "none" } : undefined}>
                       {(prod.mediaPool || []).map((a) => (
                         <div className={`poolitem ${previewAsset?.id === a.id ? "previewing" : ""}`} key={a.id} onClick={() => openInViewer(a, false)} onDoubleClick={() => openInViewer(a, true)} title="Click: load in source viewer · Double-click: load & play">
                           {(a.type === "video" || a.type === "audio") && (
@@ -2577,7 +2629,7 @@ export default function Fabula() {
                   </section>
   );
   const renderInspector = () => (
-<aside className="inspector glass-dark">
+<aside className="inspector glass-dark" style={{ width: inspW, minWidth: inspW }}>
                     <div className="paneltitle">INSPECTOR</div>
                     {!selClip && <div className="dim small" style={{ padding: 8 }}>Select a clip. Script clips carry the full story DNA — dialogue, prompts, character locks.</div>}
                     {selClip && (
@@ -3834,10 +3886,12 @@ export default function Fabula() {
                   <>
                     <div className="edit-upper">
                       {renderPool()}
+                      <div className="hsplit" title="Drag to resize the media pool" onMouseDown={(e) => startPanelResize(e, "pool")} />
                       <div className="dualview">
                         {renderSource()}
                         {renderMonitor()}
                       </div>
+                      <div className="hsplit" title="Drag to resize the inspector" onMouseDown={(e) => startPanelResize(e, "insp")} />
                       {renderInspector()}
                     </div>
                     {renderTimeline()}
@@ -4569,6 +4623,15 @@ const CSS = `
 .poollist{flex:1;overflow-y:auto;margin-top:8px}
 .poolitem{display:flex;align-items:center;gap:7px;padding:6px;border-radius:6px;cursor:pointer;border:1px solid transparent}
 .poolthumb{width:52px;height:30px;object-fit:cover;border-radius:4px;flex:0 0 auto;background:#000;cursor:ew-resize}
+.hsplit{width:8px;flex:0 0 auto;cursor:col-resize;display:flex;align-items:center;justify-content:center;margin:0 -3px}
+.hsplit::after{content:"";width:3px;height:44px;border-radius:2px;background:rgba(255,255,255,.14)}
+.hsplit:hover::after{background:#FF8C00}
+.poolthumbs{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(102px,1fr));gap:8px;align-content:start;margin-top:8px}
+.ptcard{background:rgba(0,0,0,.35);border:1px solid var(--w08);border-radius:8px;padding:5px;cursor:pointer}
+.ptcard.previewing{border-color:#FF8C00;box-shadow:0 0 0 1px rgba(255,140,0,.4)}
+.ptvid{width:100%;height:62px;object-fit:cover;border-radius:5px;background:#000;display:block;cursor:ew-resize}
+.ptph{display:flex;align-items:center;justify-content:center;color:var(--w40);cursor:pointer}
+.ptname{display:block;font-size:8px;font-weight:700;letter-spacing:.04em;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgba(255,255,255,.75)}
 .poolitem:hover{background:var(--w04);border-color:var(--w08)}
 .pooltype{font-size:7.5px;font-weight:900;letter-spacing:.1em;padding:2px 5px;border-radius:3px;background:var(--w08);color:var(--w40)}
 .pooltype.video{color:var(--blue)} .pooltype.audio{color:var(--green)} .pooltype.image{color:var(--org)}
