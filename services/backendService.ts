@@ -6627,6 +6627,8 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
     // Fabula-library marker — one uploaded file can surface in Reello, the Fabula
     // video bin, or both; these flags are the routing conditions.
     ...((video as any).isFabula ? { isFabula: true } : {}),
+    // Taleo routing: MoviesTVView surfaces videos with subType MOVIE / TV_SERIES.
+    ...((video as any).subType ? { subType: (video as any).subType } : {}),
     ...(Array.isArray(video.tags) && video.tags.length ? { tags: video.tags } : {}),
     ...(typeof video.duration === 'number' ? { duration: video.duration } : {}),
   } as any;

@@ -592,6 +592,7 @@ export default function Fabula() {
   const [pubReello, setPubReello] = useState(true);     // default: Reello checked…
   const [pubVisibility, setPubVisibility] = useState("private"); // …but PRIVATE
   const [pubFabula, setPubFabula] = useState(false);
+  const [pubTaleo, setPubTaleo] = useState(false);      // Taleo movies & TV catalog (subType MOVIE)
   const [pubDownload, setPubDownload] = useState(true);
   const [publishing, setPublishing] = useState(false);
   const [localFonts, setLocalFonts] = useState([]);        // families from the Local Font Access API
@@ -1987,9 +1988,9 @@ export default function Fabula() {
         signal: renderAbortRef.current.signal,
       });
       if (!blob) { ping("Render failed or cancelled — see console."); return; }
-      // Open the destination dialog instead of auto-downloading: one file, routed to
-      // Reello (default, private) and/or the Fabula library, and/or a download.
-      setPubReello(true); setPubVisibility("private"); setPubFabula(false); setPubDownload(true);
+      // Open the destination dialog instead of auto-downloading: one file, routed to Reello
+      // (default, private) / Taleo / the Fabula library, and/or a download. The checkboxes keep
+      // whatever was set in the DELIVER section — the dialog is the confirm step.
       setExportReady({ blob, name: (container?.title || "Fabula Cut").trim() });
       ping("Render complete — choose where it goes.");
     } catch (e) {
@@ -1998,8 +1999,40 @@ export default function Fabula() {
       setRendering(false);
     }
   };
-  // One file, flag-routed: a single videos/{id} document whose isRello / isFabula flags decide
-  // where it surfaces (Reello feed, Fabula video bin, or both). Download is independent.
+  // Shared destinations UI — shown inline in the DELIVER section (pre-render) AND in the
+  // post-render confirm dialog. Same state either way: one file, flags route where it surfaces.
+  const renderDestinations = () => (
+    <>
+      <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, cursor: "pointer" }}>
+        <input type="checkbox" checked={pubReello} onChange={(e) => setPubReello(e.target.checked)} />
+        <span style={{ fontWeight: 800, fontSize: 12 }}>REELLO</span>
+        <span className="dim small">your video channel</span>
+        {pubReello && (
+          <select className="sel xs" style={{ marginLeft: "auto" }} value={pubVisibility} onChange={(e) => setPubVisibility(e.target.value)}>
+            <option value="private">Private (only you)</option>
+            <option value="public">Public</option>
+          </select>
+        )}
+      </label>
+      <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, cursor: "pointer" }}>
+        <input type="checkbox" checked={pubTaleo} onChange={(e) => setPubTaleo(e.target.checked)} />
+        <span style={{ fontWeight: 800, fontSize: 12 }}>TALEO</span>
+        <span className="dim small">movies &amp; TV — surfaces in the cinema catalog as a film</span>
+      </label>
+      <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, cursor: "pointer" }}>
+        <input type="checkbox" checked={pubFabula} onChange={(e) => setPubFabula(e.target.checked)} />
+        <span style={{ fontWeight: 800, fontSize: 12 }}>FABULA LIBRARY</span>
+        <span className="dim small">MY VIDEOS bin + this project's pool</span>
+      </label>
+      <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, cursor: "pointer" }}>
+        <input type="checkbox" checked={pubDownload} onChange={(e) => setPubDownload(e.target.checked)} />
+        <span style={{ fontWeight: 800, fontSize: 12 }}>DOWNLOAD .MP4</span>
+      </label>
+      <div className="dim small" style={{ marginTop: 8 }}>One upload — the checkboxes are routing flags on the same file, so it can surface in Reello, Taleo, the Fabula library, or any mix. Reello defaults to private.</div>
+    </>
+  );
+  // One file, flag-routed: a single videos/{id} document whose isRello / subType(MOVIE) / isFabula
+  // flags decide where it surfaces (Reello feed, Taleo catalog, Fabula bin). Download is independent.
   const finishExport = async () => {
     if (!exportReady) return;
     const { blob } = exportReady;
@@ -2013,16 +2046,17 @@ export default function Fabula() {
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 30000);
       }
-      if (pubReello || pubFabula) {
-        if (!auth.currentUser) { window.alert("Sign in to publish to Reello / the Fabula library. The file was " + (pubDownload ? "downloaded instead." : "NOT saved — check Download and export again.")); return; }
+      if (pubReello || pubFabula || pubTaleo) {
+        if (!auth.currentUser) { window.alert("Sign in to publish to Reello / Taleo / the Fabula library. The file was " + (pubDownload ? "downloaded instead." : "NOT saved — check Download and export again.")); return; }
         const file = new File([blob], name.replace(/\s+/g, "_").toLowerCase() + ".mp4", { type: "video/mp4" });
         const vid = await uploadVideo({
           file, title: name,
           description: `Edited in Fabula${prod?.title ? ` — ${prod.title}` : ""}`,
           isPrivate: pubVisibility === "private",
-          isRello: pubReello,                    // surfaces in the Reello feed
-          isFabula: pubFabula,                   // surfaces in the Fabula video bin
-          tags: ["fabula-export", ...(pubReello ? ["reello"] : []), ...(pubFabula ? ["fabula"] : [])],
+          isRello: pubReello,                              // surfaces in the Reello feed
+          isFabula: pubFabula,                             // surfaces in the Fabula video bin
+          ...(pubTaleo ? { subType: "MOVIE" } : {}),       // surfaces in the Taleo cinema catalog
+          tags: ["fabula-export", ...(pubReello ? ["reello"] : []), ...(pubTaleo ? ["taleo"] : []), ...(pubFabula ? ["fabula"] : [])],
           duration: seqEnd,
         });
         if (pubFabula) { // also drop straight into THIS project's media pool
@@ -2030,7 +2064,7 @@ export default function Fabula() {
           addAssetToPool({ id: aid, name: name + ".mp4", type: "video", url: URL.createObjectURL(blob), duration: seqEnd, session: true, bin: "exports", cloudUrl: vid?.url || undefined });
           stSet("studio:blob:" + aid, blob);
         }
-        const dests = [pubReello && `Reello (${pubVisibility})`, pubFabula && "Fabula library"].filter(Boolean).join(" + ");
+        const dests = [pubReello && `Reello (${pubVisibility})`, pubTaleo && "Taleo", pubFabula && "Fabula library"].filter(Boolean).join(" + ");
         ping(`🚀 Published to ${dests}${pubDownload ? " · downloaded" : ""}`);
       } else if (pubDownload) {
         ping("Rendered MP4 downloaded — Pixels engine, frame-accurate.");
@@ -3641,29 +3675,9 @@ export default function Fabula() {
             </div>
             <div className="lbl">TITLE</div>
             <input className="in" value={exportReady.name} onChange={(e) => setExportReady((x) => ({ ...x, name: e.target.value }))} />
-            <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, cursor: "pointer" }}>
-              <input type="checkbox" checked={pubReello} onChange={(e) => setPubReello(e.target.checked)} />
-              <span style={{ fontWeight: 800, fontSize: 12 }}>REELLO</span>
-              <span className="dim small">your video channel</span>
-              {pubReello && (
-                <select className="sel xs" style={{ marginLeft: "auto" }} value={pubVisibility} onChange={(e) => setPubVisibility(e.target.value)}>
-                  <option value="private">Private (only you)</option>
-                  <option value="public">Public</option>
-                </select>
-              )}
-            </label>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, cursor: "pointer" }}>
-              <input type="checkbox" checked={pubFabula} onChange={(e) => setPubFabula(e.target.checked)} />
-              <span style={{ fontWeight: 800, fontSize: 12 }}>FABULA LIBRARY</span>
-              <span className="dim small">MY VIDEOS bin + this project's pool</span>
-            </label>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, cursor: "pointer" }}>
-              <input type="checkbox" checked={pubDownload} onChange={(e) => setPubDownload(e.target.checked)} />
-              <span style={{ fontWeight: 800, fontSize: 12 }}>DOWNLOAD .MP4</span>
-            </label>
-            <div className="dim small" style={{ marginTop: 10 }}>One upload — the checkboxes are just routing flags on the same file, so it can surface in Reello, the Fabula library, or both.</div>
+            {renderDestinations()}
             <div className="btnrow" style={{ gap: 6, marginTop: 12 }}>
-              <button className="cta grow" disabled={publishing || (!pubReello && !pubFabula && !pubDownload)} onClick={finishExport}>
+              <button className="cta grow" disabled={publishing || (!pubReello && !pubFabula && !pubTaleo && !pubDownload)} onClick={finishExport}>
                 {publishing ? "PUBLISHING…" : "EXPORT"}
               </button>
               <button className="minibtn" disabled={publishing} onClick={() => setExportReady(null)}>CANCEL</button>
@@ -4500,7 +4514,9 @@ export default function Fabula() {
                     <div className="glass-card">
                       <div className="lbl">DELIVER — "{container.title}"</div>
                       <div className="readtxt">{vfmt.label} · {vfmt.w}×{vfmt.h} · {vfmt.fps}{vfmt.drop ? " DF" : " NDF"} fps · {prod.defaults.aspect} · {clips.length} clips · {fmtTc(seqEnd, vfmt)} runtime</div>
-                      <div className="btnrow" style={{ marginTop: 10 }}>
+                      <div className="lbl" style={{ marginTop: 12 }}>DESTINATIONS — where the render goes when it finishes</div>
+                      {renderDestinations()}
+                      <div className="btnrow" style={{ marginTop: 12 }}>
                         <button className="cta" onClick={doRenderMP4} style={{ background: rendering ? "#3a2a12" : undefined }}>
                           <Film size={13} /> {rendering ? `RENDERING ${Math.round(renderPct * 100)}% — CANCEL` : "RENDER MP4 (PIXELS ENGINE)"}
                         </button>
