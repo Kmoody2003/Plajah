@@ -24,7 +24,9 @@ export const EQ_LABELS = ['80', '250', '1k', '4k', '12k'];
 
 export interface CompSettings { on: boolean; threshold: number; ratio: number; attack: number; release: number; knee: number; makeup: number; }
 export interface ClipAudio { vol: number; eq: number[]; comp: CompSettings; }
-export interface TrackAudio { vol?: number; pan?: number; mute?: boolean; eq?: number[]; comp?: Partial<CompSettings>; }
+export interface TrackAudio { vol?: number; pan?: number; mute?: boolean; eq?: number[]; comp?: Partial<CompSettings>; sendReverb?: number; sendDelay?: number; }
+export const REVERB_PRESETS = ['room', 'chamber', 'hall', 'plate', 'cathedral'] as const;
+export type ReverbPreset = typeof REVERB_PRESETS[number];
 
 export const COMP_DEFAULT: CompSettings = { on: false, threshold: -24, ratio: 3, attack: 0.003, release: 0.25, knee: 30, makeup: 0 };
 export const CLIP_AUDIO_DEFAULT: ClipAudio = { vol: 1, eq: [0, 0, 0, 0, 0], comp: { ...COMP_DEFAULT } };
@@ -105,6 +107,7 @@ interface Graph {
   clipComp: DynamicsCompressorNode; clipMk: GainNode;
   trackComp: DynamicsCompressorNode; trackMk: GainNode;
   pan: StereoPannerNode | null; gain: GainNode; analyser: AnalyserNode;
+  sendR: GainNode; sendD: GainNode; // post-fader aux sends → reverb / delay buses
   resume(): void;
   apply(clip: ClipAudio | undefined, track: TrackAudio | undefined): void;
   level(): number; // instantaneous peak 0..1 (post-fader)
@@ -147,6 +150,63 @@ export function setMasterLimiter(on: boolean) {
 }
 /** True post-limiter gain reduction in dB (for the master GR meter). */
 export function masterReduction(): number { return _master ? (_master.limiter.reduction || 0) : 0; }
+
+// ---- FX aux buses: convolution REVERB + feedback DELAY, fed by per-track sends ----
+//   channel post-fader → sendReverb → reverbConvolver → reverbWet → master.input
+//                      → sendDelay  → delay(+feedback) → delayWet  → master.input
+export const REVERB_SPECS: Record<ReverbPreset, { seconds: number; decay: number; bright: number }> = {
+  room: { seconds: 0.8, decay: 3.0, bright: 0.5 },
+  chamber: { seconds: 1.6, decay: 2.6, bright: 0.6 },
+  hall: { seconds: 2.8, decay: 2.2, bright: 0.45 },
+  plate: { seconds: 1.8, decay: 2.4, bright: 0.9 },
+  cathedral: { seconds: 4.5, decay: 1.8, bright: 0.4 },
+};
+/** Procedural impulse response — exponentially-decaying filtered noise (no IR files needed).
+ *  Exported so the OFFLINE render can build the identical reverb (export parity). */
+export function makeIR(ctx: BaseAudioContext, preset: ReverbPreset): AudioBuffer {
+  const s = REVERB_SPECS[preset]; const sr = ctx.sampleRate; const len = Math.max(1, Math.floor(sr * s.seconds));
+  const ir = ctx.createBuffer(2, len, sr);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    let lp = 0; const bright = 0.02 + s.bright * 0.5; // one-pole tone control
+    for (let i = 0; i < len; i++) {
+      const env = Math.pow(1 - i / len, s.decay);
+      const white = (Math.random() * 2 - 1) * env;
+      lp += bright * (white - lp);
+      d[i] = lp;
+    }
+  }
+  return ir;
+}
+let _fx: { reverbSend: GainNode; conv: ConvolverNode; reverbWet: GainNode; delaySend: GainNode; delay: DelayNode; fb: GainNode; delayWet: GainNode; preset: ReverbPreset } | null = null;
+function getFxBuses(ctx: AudioContext) {
+  if (_fx) return _fx;
+  const master = getMasterBus(ctx);
+  const reverbSend = ctx.createGain();
+  const conv = ctx.createConvolver(); conv.normalize = true; conv.buffer = makeIR(ctx, 'hall');
+  const reverbWet = ctx.createGain(); reverbWet.gain.value = 0.9;
+  reverbSend.connect(conv); conv.connect(reverbWet); reverbWet.connect(master.input);
+  const delaySend = ctx.createGain();
+  const delay = ctx.createDelay(2.0); delay.delayTime.value = 0.33;
+  const fb = ctx.createGain(); fb.gain.value = 0.35;
+  const delayWet = ctx.createGain(); delayWet.gain.value = 0.8;
+  delaySend.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(delayWet); delayWet.connect(master.input);
+  _fx = { reverbSend, conv, reverbWet, delaySend, delay, fb, delayWet, preset: 'hall' };
+  return _fx;
+}
+/** Global reverb params (send bus is shared; per-track amount is the send). */
+export function setReverb(p: { preset?: ReverbPreset; wet?: number }) {
+  if (!_ctx) return; const fx = getFxBuses(_ctx);
+  if (p.preset && p.preset !== fx.preset) { fx.conv.buffer = makeIR(_ctx, p.preset); fx.preset = p.preset; }
+  if (p.wet != null) fx.reverbWet.gain.value = Math.max(0, p.wet);
+}
+/** Global delay params. */
+export function setDelay(p: { time?: number; feedback?: number; wet?: number }) {
+  if (!_ctx) return; const fx = getFxBuses(_ctx);
+  if (p.time != null) fx.delay.delayTime.value = clamp(p.time, 0, 2);
+  if (p.feedback != null) fx.fb.gain.value = clamp(p.feedback, 0, 0.95);
+  if (p.wet != null) fx.delayWet.gain.value = Math.max(0, p.wet);
+}
 
 // A cross-origin media element WITHOUT CORS credentials is "tainted": routing it through
 // createMediaElementSource plays SILENCE by spec (no error). Cloud-synced assets live on
@@ -196,12 +256,16 @@ export function attachAudioGraph(el: HTMLMediaElement): Graph | null {
   const gain = ctx.createGain();
   const analyser = ctx.createAnalyser(); analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.2;
   const master = getMasterBus(ctx);
+  const fx = getFxBuses(ctx);
   const chain: AudioNode[] = [source, ...clipEq, clipComp, clipMk, ...trackEq, trackComp, trackMk, ...(pan ? [pan] : []), gain, analyser, master.input];
   try { for (let i = 0; i < chain.length - 1; i++) chain[i].connect(chain[i + 1]); }
   catch { try { source.connect(master.input); } catch { /* last resort — still audible */ } }
+  // Post-fader aux sends (tapped after the fader `gain`, before the analyser) → shared FX buses.
+  const sendR = ctx.createGain(); sendR.gain.value = 0; gain.connect(sendR); sendR.connect(fx.reverbSend);
+  const sendD = ctx.createGain(); sendD.gain.value = 0; gain.connect(sendD); sendD.connect(fx.delaySend);
   const buf = new Float32Array(analyser.fftSize);
   const g: Graph = {
-    ctx, clipEq, trackEq, clipComp, clipMk, trackComp, trackMk, pan, gain, analyser,
+    ctx, clipEq, trackEq, clipComp, clipMk, trackComp, trackMk, pan, gain, analyser, sendR, sendD,
     resume() { if (ctx.state === 'suspended') ctx.resume().catch(() => {}); },
     level() { try { analyser.getFloatTimeDomainData(buf); let peak = 0; for (let i = 0; i < buf.length; i++) { const a = Math.abs(buf[i]); if (a > peak) peak = a; } return peak; } catch { return 0; } },
     apply(clip, track) {
@@ -210,7 +274,10 @@ export function attachAudioGraph(el: HTMLMediaElement): Graph | null {
       if (pan) pan.pan.value = clamp(track?.pan || 0, -1, 1);
       const cv = clip?.vol == null ? 1 : clip.vol;
       const tv = track?.vol == null ? 1 : track.vol;
-      gain.gain.value = track?.mute ? 0 : Math.max(0, cv) * Math.max(0, tv);
+      const muted = !!track?.mute;
+      gain.gain.value = muted ? 0 : Math.max(0, cv) * Math.max(0, tv);
+      sendR.gain.value = muted ? 0 : clamp(track?.sendReverb || 0, 0, 1);
+      sendD.gain.value = muted ? 0 : clamp(track?.sendDelay || 0, 0, 1);
     },
   };
   graphs.set(el, g);

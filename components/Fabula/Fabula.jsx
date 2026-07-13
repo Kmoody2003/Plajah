@@ -3101,10 +3101,16 @@ export default function Fabula() {
                           const tid = selClip.trackId;
                           const ts = (container.timeline?.trackSettings || {})[tid] || {};
                           const ta = { vol: ts.vol, pan: ts.pan || 0, mute: ts.mute, eq: ts.eq || [0, 0, 0, 0, 0], comp: { ...COMP_DEFAULT, ...(ts.comp || {}) } };
+                          const cfx = ensureFx(selClip);
                           return (
                             <>
                               <div className="insp-div" />
                               {renderAudioPanel("CLIP AUDIO", ensureAudio(selClip), (patch) => updateClipAudio(selClip.id, patch), false)}
+                              <div className="apanel">
+                                <div className="aphead">FADES</div>
+                                <div className="insp-row"><span className="lbl">IN</span><input type="range" min="0" max="4" step="0.05" value={cfx.fadeIn || 0} onChange={(e) => updateFx(selClip.id, { fadeIn: parseFloat(e.target.value) })} onDoubleClick={() => updateFx(selClip.id, { fadeIn: 0 })} /><span className="insp-val mono">{(cfx.fadeIn || 0).toFixed(2)}s</span></div>
+                                <div className="insp-row"><span className="lbl">OUT</span><input type="range" min="0" max="4" step="0.05" value={cfx.fadeOut || 0} onChange={(e) => updateFx(selClip.id, { fadeOut: parseFloat(e.target.value) })} onDoubleClick={() => updateFx(selClip.id, { fadeOut: 0 })} /><span className="insp-val mono">{(cfx.fadeOut || 0).toFixed(2)}s</span></div>
+                              </div>
                               {renderAudioPanel(`TRACK · ${String(tid).toUpperCase()}`, ta, (patch) => setTrackSetting(tid, patch), true)}
                             </>
                           );
@@ -4884,7 +4890,7 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active
   // through Web Audio ONCE THE CONTEXT IS RUNNING — a MediaElementSource on a suspended context is
   // silent, which killed all mixer-routed audio. Until running, the bare <audio> plays directly.
   const clipAudioKey = JSON.stringify(clip.audio || null);
-  const trackKey = JSON.stringify({ v: track.vol, m: track.mute, p: track.pan, e: track.eq, c: track.comp });
+  const trackKey = JSON.stringify({ v: track.vol, m: track.mute, p: track.pan, e: track.eq, c: track.comp, sr: track.sendReverb, sd: track.sendDelay });
   useEffect(() => {
     const a = aRef.current;
     if (!a || !url) return;
@@ -5419,6 +5425,9 @@ const CSS = `
 .mcname{font-size:7px;font-weight:900;letter-spacing:.04em;color:rgba(255,255,255,.7);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%}
 .mcgr{width:100%;height:5px;background:rgba(0,0,0,.4);border-radius:3px;overflow:hidden}
 .mcgr i{display:block;height:100%;background:linear-gradient(90deg,#ffcf33,#ff5252)}
+.fxrack{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+.fxunit{flex:1;min-width:200px;background:rgba(0,0,0,.3);border:1px solid var(--w08);border-radius:8px;padding:8px}
+.fxunit .insp-row input[type=range]{flex:1;accent-color:#a855f7}
 .rh{justify-content:center}
 .phdot{width:6px;height:6px;border-radius:50%;background:var(--red);animation:bl 1.2s infinite}
 .ruler-track{flex:1;position:relative;cursor:crosshair}

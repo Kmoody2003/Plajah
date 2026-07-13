@@ -8,6 +8,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import {
   meterRegistry, setMasterGain, setMasterLimiter, masterReduction,
   audioEngineInfo, listOutputDevices, setOutputDevice, setOutputChannels, resumeAudioCtx,
+  setReverb, setDelay, REVERB_PRESETS,
 } from "../../services/fabula/audioGraph";
 
 // dB helpers for a musical fader taper (0..1.5 linear gain shown as dB).
@@ -48,6 +49,16 @@ function ChannelStrip({ tr, ts, onPatch, midiLearnId, onMidiLearn }) {
         ))}
       </div>
       <button className={`mcbtn ${comp.on ? "on" : ""}`} title="Compressor" onClick={() => onPatch({ comp: { ...comp, on: !comp.on } })}>COMP</button>
+      <div className="mctop" style={{ minHeight: 0 }}>
+        <div className="mcknob" title={`Reverb send ${Math.round((ts.sendReverb || 0) * 100)}%`}>
+          <input type="range" min="0" max="1" step="0.02" value={ts.sendReverb || 0} onChange={(e) => onPatch({ sendReverb: parseFloat(e.target.value) })} onDoubleClick={() => onPatch({ sendReverb: 0 })} />
+          <span>RVB</span>
+        </div>
+        <div className="mcknob" title={`Delay send ${Math.round((ts.sendDelay || 0) * 100)}%`}>
+          <input type="range" min="0" max="1" step="0.02" value={ts.sendDelay || 0} onChange={(e) => onPatch({ sendDelay: parseFloat(e.target.value) })} onDoubleClick={() => onPatch({ sendDelay: 0 })} />
+          <span>DLY</span>
+        </div>
+      </div>
       <div className="mcpan" title={`Pan ${pan === 0 ? "C" : pan < 0 ? "L" + Math.round(-pan * 100) : "R" + Math.round(pan * 100)}`}>
         <input type="range" min="-1" max="1" step="0.02" value={pan} onChange={(e) => onPatch({ pan: parseFloat(e.target.value) })} onDoubleClick={() => onPatch({ pan: 0 })} />
       </div>
@@ -81,8 +92,14 @@ export default function MixConsole({ audioTracks, trackSettings, setTrackSetting
   const midiMap = useRef({});      // CC number → trackId
   const learnRef = useRef(null);
 
+  const masterCfg = trackSettings?.master || {};
+  const rvb = { preset: "hall", wet: 0.9, ...(masterCfg.reverb || {}) };
+  const dly = { time: 0.33, feedback: 0.35, wet: 0.8, ...(masterCfg.delay || {}) };
+  const setRvb = (p) => { const n = { ...rvb, ...p }; setTrackSetting("master", { reverb: n }); setReverb(n); };
+  const setDly = (p) => { const n = { ...dly, ...p }; setTrackSetting("master", { delay: n }); setDelay(n); };
   useEffect(() => { setMasterGain(masterVol); setTrackSetting("master", { vol: masterVol }); /* eslint-disable-next-line */ }, [masterVol]);
   useEffect(() => { setMasterLimiter(limiterOn); }, [limiterOn]);
+  useEffect(() => { setReverb(rvb); setDelay(dly); /* eslint-disable-next-line */ }, []); // push saved FX to the engine on mount
 
   // Engine telemetry + master GR meter refresh.
   useEffect(() => {
@@ -165,7 +182,37 @@ export default function MixConsole({ audioTracks, trackSettings, setTrackSetting
           </>
         )}
         <button className="minibtn" onClick={() => listOutputDevices().then(setDevices)}>↻ DEVICES</button>
-        <span className="dim small">Faders/pan/EQ/comp are live and bake into the export. Solo mutes the rest. MIDI-learn (◎) maps a controller to any fader.</span>
+        <span className="dim small">Faders/pan/EQ/comp/sends are live and bake into the export. Solo mutes the rest. MIDI-learn (◎) maps a controller to any fader.</span>
+      </div>
+      {/* FX rack — shared aux buses the channel RVB/DLY sends feed */}
+      <div className="fxrack">
+        <div className="fxunit">
+          <div className="lbl">◗ REVERB <span className="dim small" style={{ letterSpacing: 0 }}>convolution</span></div>
+          <div className="insp-row"><span className="lbl">SPACE</span>
+            <select className="sel xs grow" value={rvb.preset} onChange={(e) => setRvb({ preset: e.target.value })}>
+              {REVERB_PRESETS.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+          <div className="insp-row"><span className="lbl">MIX</span>
+            <input type="range" min="0" max="1.5" step="0.02" value={rvb.wet} onChange={(e) => setRvb({ wet: parseFloat(e.target.value) })} />
+            <span className="insp-val mono">{Math.round(rvb.wet * 100)}</span>
+          </div>
+        </div>
+        <div className="fxunit">
+          <div className="lbl">◗ DELAY <span className="dim small" style={{ letterSpacing: 0 }}>feedback</span></div>
+          <div className="insp-row"><span className="lbl">TIME</span>
+            <input type="range" min="0.02" max="1.2" step="0.01" value={dly.time} onChange={(e) => setDly({ time: parseFloat(e.target.value) })} />
+            <span className="insp-val mono">{Math.round(dly.time * 1000)}ms</span>
+          </div>
+          <div className="insp-row"><span className="lbl">FBK</span>
+            <input type="range" min="0" max="0.9" step="0.02" value={dly.feedback} onChange={(e) => setDly({ feedback: parseFloat(e.target.value) })} />
+            <span className="insp-val mono">{Math.round(dly.feedback * 100)}</span>
+          </div>
+          <div className="insp-row"><span className="lbl">MIX</span>
+            <input type="range" min="0" max="1.5" step="0.02" value={dly.wet} onChange={(e) => setDly({ wet: parseFloat(e.target.value) })} />
+            <span className="insp-val mono">{Math.round(dly.wet * 100)}</span>
+          </div>
+        </div>
       </div>
     </div>
   );

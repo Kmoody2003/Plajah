@@ -15,7 +15,7 @@
 
 import { renderTimeline } from '../components/plajahPixels/engine/core/offlineRenderer';
 import type { SceneSnapshot, RenderLayer } from '../components/plajahPixels/engine/timeline/sceneTimeline';
-import { EQ_BANDS } from './fabula/audioGraph';
+import { EQ_BANDS, makeIR } from './fabula/audioGraph';
 import { probeVideoFrameRate, sourceSafeRenderFrameRate } from './videoFrameRate';
 
 interface RenderFabulaOpts {
@@ -118,10 +118,24 @@ async function mixAudio(clips: any[], mediaPool: any[], durationSec: number, tra
   const masterLimiter = offline.createDynamicsCompressor();
   masterLimiter.threshold.value = -1.0; masterLimiter.ratio.value = 20; masterLimiter.attack.value = 0.001; masterLimiter.release.value = 0.05; masterLimiter.knee.value = 0;
   const masterGain = offline.createGain();
-  masterGain.gain.value = Math.max(0, (trackSettings as any)?.master?.vol == null ? 1 : (trackSettings as any).master.vol);
+  const masterCfg: any = (trackSettings as any)?.master || {};
+  masterGain.gain.value = Math.max(0, masterCfg.vol == null ? 1 : masterCfg.vol);
   masterIn.connect(masterLimiter); masterLimiter.connect(masterGain); masterGain.connect(offline.destination);
 
-  // One bus per audio track: input → track EQ/comp → pan → fader(mute/solo) → master.
+  // FX aux buses (same IR/params as live → export parity): reverb convolver + feedback delay.
+  const rvb = masterCfg.reverb || {};
+  const dly = masterCfg.delay || {};
+  const reverbSend = offline.createGain();
+  const conv = offline.createConvolver(); conv.normalize = true; conv.buffer = makeIR(offline, rvb.preset || 'hall');
+  const reverbWet = offline.createGain(); reverbWet.gain.value = rvb.wet == null ? 0.9 : rvb.wet;
+  reverbSend.connect(conv); conv.connect(reverbWet); reverbWet.connect(masterIn);
+  const delaySend = offline.createGain();
+  const delayNode = offline.createDelay(2.0); delayNode.delayTime.value = Math.max(0, Math.min(2, dly.time == null ? 0.33 : dly.time));
+  const fbNode = offline.createGain(); fbNode.gain.value = Math.max(0, Math.min(0.95, dly.feedback == null ? 0.35 : dly.feedback));
+  const delayWet = offline.createGain(); delayWet.gain.value = dly.wet == null ? 0.8 : dly.wet;
+  delaySend.connect(delayNode); delayNode.connect(fbNode); fbNode.connect(delayNode); delayNode.connect(delayWet); delayWet.connect(masterIn);
+
+  // One bus per audio track: input → track EQ/comp → pan → fader(mute/solo) → master (+ aux sends).
   const buses = new Map<string, GainNode>();
   const trackBus = (tid: string): GainNode => {
     const hit = buses.get(tid); if (hit) return hit;
@@ -137,6 +151,8 @@ async function mixAudio(clips: any[], mediaPool: any[], durationSec: number, tra
     const muted = ts.mute || (anySolo && !ts.solo);
     fader.gain.value = muted ? 0 : Math.max(0, ts.vol == null ? 1 : ts.vol);
     node.connect(fader); fader.connect(masterIn);
+    if (!muted && (ts.sendReverb || 0) > 0) { const s = offline.createGain(); s.gain.value = ts.sendReverb; fader.connect(s); s.connect(reverbSend); }
+    if (!muted && (ts.sendDelay || 0) > 0) { const s = offline.createGain(); s.gain.value = ts.sendDelay; fader.connect(s); s.connect(delaySend); }
     buses.set(tid, input);
     return input;
   };
