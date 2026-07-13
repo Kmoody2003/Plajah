@@ -70,23 +70,43 @@ async function pickVideoCodec(width: number, height: number, bitrate: number, fp
   return null;
 }
 
+// Per-element record of the SOURCE frame currently presented (mediaTime + measured frame
+// duration from rVFC metadata). Lets the render loop skip seeks entirely when the requested
+// time still falls inside the frame already on screen — the dominant per-frame cost when the
+// render fps exceeds the source fps, and a large chunk of it even at matched rates.
+const presented = new WeakMap<HTMLVideoElement, { mediaTime: number; frameDur: number }>();
+
 function seekVideo(v: HTMLVideoElement, t: number, timeoutMs = 1500): Promise<void> {
   return new Promise((resolve) => {
     // 'seeked' means the seek COMPLETED internally — but the decoded frame can be presented one
     // tick later on some GPUs, so sampling immediately grabs the PREVIOUS frame (renders came out
     // with duplicated/juddery frames). requestVideoFrameCallback is the actual "new frame is
     // presented" signal; wait for it (short-capped) after the seek before letting the compositor
-    // texture the element. Redundant seeks (already on the target frame) resolve immediately —
-    // setting currentTime to its current value doesn't reliably fire 'seeked'.
+    // texture the element.
     const target = Math.max(0, Math.min(t, (v.duration || t) - 0.0005));
+    // FAST PATH 1: the target lies within the source frame already presented → the correct
+    // pixels are already on screen; no seek, no wait, no rVFC. (Same-frame currentTime writes
+    // also don't reliably fire 'seeked', so this doubles as the hang guard.)
+    const cur = presented.get(v);
+    if (cur && v.readyState >= 2 && target >= cur.mediaTime - 1e-4 && target < cur.mediaTime + cur.frameDur - 1e-4) { resolve(); return; }
     if (Math.abs(v.currentTime - target) < 0.0005 && v.readyState >= 2) { resolve(); return; }
     let done = false;
     const settle = () => {
       if (done) return; done = true;
       if (typeof (v as any).requestVideoFrameCallback === 'function') {
         let fired = false;
-        const cap = setTimeout(() => { if (!fired) { fired = true; resolve(); } }, 120);
-        (v as any).requestVideoFrameCallback(() => { if (!fired) { fired = true; clearTimeout(cap); resolve(); } });
+        const cap = setTimeout(() => { if (!fired) { fired = true; resolve(); } }, 80);
+        (v as any).requestVideoFrameCallback((_now: number, meta: any) => {
+          if (meta && typeof meta.mediaTime === 'number') {
+            const prev = presented.get(v);
+            // measure the source frame duration from consecutive presentations (fallback 1/30)
+            const dur = prev && meta.mediaTime > prev.mediaTime && meta.mediaTime - prev.mediaTime < 0.5
+              ? meta.mediaTime - prev.mediaTime
+              : (prev?.frameDur || 1 / 30);
+            presented.set(v, { mediaTime: meta.mediaTime, frameDur: dur });
+          }
+          if (!fired) { fired = true; clearTimeout(cap); resolve(); }
+        });
       } else resolve();
     };
     const finish = () => { v.removeEventListener('seeked', finish); clearTimeout(timer); settle(); };

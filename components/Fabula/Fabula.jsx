@@ -2256,6 +2256,24 @@ export default function Fabula() {
   const addMarkerAtPlayhead = () => setMarkers((m) => [...m, { id: uid(), t: playhead }]);
   const zoomIn = () => setZoom((z) => Math.min(4, +(z + 0.2).toFixed(2)));
   const zoomOut = () => setZoom((z) => Math.max(0.1, +(z - 0.2).toFixed(2)));
+  // Timeline VIRTUALIZATION: track the scroll viewport (rAF-throttled, 40px hysteresis) so only
+  // clips near the visible window render. Long timelines used to mount every clip — and every
+  // one of them re-diffed per transport frame; off-screen clips now cost nothing.
+  const [tlView, setTlView] = useState({ left: 0, width: 4000 });
+  useEffect(() => {
+    const el = tlScrollRef.current;
+    if (!el) return undefined;
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      setTlView((v) => (Math.abs(v.left - el.scrollLeft) > 40 || Math.abs(v.width - el.clientWidth) > 40 ? { left: el.scrollLeft, width: el.clientWidth } : v));
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    const ro = new ResizeObserver(onScroll); ro.observe(el);
+    update();
+    return () => { el.removeEventListener("scroll", onScroll); ro.disconnect(); if (raf) cancelAnimationFrame(raf); };
+  }, [page, editWs, prod?.id]);
   // Alt+scroll-wheel zooms the timeline, keeping the time under the cursor fixed (Resolve-style).
   // Native non-passive listener — React's onWheel is passive so preventDefault is ignored there.
   useEffect(() => {
@@ -3454,7 +3472,7 @@ export default function Fabula() {
                       </div>
                       {/* playhead line */}
                       <div className="phline" style={{ left: 128 + playhead * pxPerSec }} />
-                      {/* tracks */}
+                      {/* tracks — clips render only within ±1 screen of the scroll viewport */}
                       {tracks.map((tr) => (
                         <div className={`track ${tr.type} ${tr.id === "v1" ? "primary" : ""}`} key={tr.id}>
                           <div className={`trackhead ${tr.type}`}>
@@ -3489,7 +3507,13 @@ export default function Fabula() {
                               insertAssetClip(d.asset, d.range, { at, trackId: tr.id });
                               dragAssetRef.current = null;
                             }}>
-                            {clips.filter((c) => c.trackId === tr.id).map((c) => {
+                            {clips.filter((c) => {
+                              if (c.trackId !== tr.id) return false;
+                              // virtualization: skip clips more than a screen-width outside the viewport
+                              const vis0 = (tlView.left - 128 - tlView.width) / pxPerSec;
+                              const vis1 = (tlView.left + tlView.width * 2) / pxPerSec;
+                              return c.start + c.duration > vis0 && c.start < vis1;
+                            }).map((c) => {
                               const shot = c.shotId ? scene?.shots.find((s) => s.id === c.shotId) : null;
                               const sel = selClipId === c.id || selIds.includes(c.id);
                               const wfUrl = (tr.type === "audio" || c.kind === "voice") && c.assetId ? (prod?.mediaPool?.find((m) => m.id === c.assetId)?.url) : null;
