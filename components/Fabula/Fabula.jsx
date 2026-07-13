@@ -2172,6 +2172,73 @@ export default function Fabula() {
     } catch (e) { ping("Transcription failed — " + (e?.message || "AI unavailable")); }
     setTranscribing(false);
   };
+  /* ── BUILD SCRIPT FROM TIMELINE — reverse-engineer the screenplay from the edit ──
+     Every video-track clip is watched by the vision model (action description + setting) and its
+     dialogue transcribed with speakers matched against the production/world cast; the SLATE agent
+     then writes the screenplay in cut order and reconstructs the shot list, populating a scene
+     (script + slugline + tone → the production/story tabs) and its SLATE breakdown, with each
+     shot linked back to the timeline clip that produced it. */
+  const [scriptBuilding, setScriptBuilding] = useState(false);
+  const buildScriptFromTimeline = async () => {
+    if (scriptBuilding || transcribing) return;
+    const vClips = clips.filter((c) => /^v\d+$/.test(c.trackId) && c.assetId && !c.disabled).sort((a, b) => a.start - b.start);
+    if (!vClips.length) { ping("Nothing on the video tracks to analyze."); return; }
+    const CAP = 24;
+    if (vClips.length > CAP) ping(`Long cut — analyzing the first ${CAP} clips of ${vClips.length}.`);
+    setScriptBuilding(true);
+    try {
+      // Cast for speaker matching: production cast + the attached world's characters.
+      let cast = (prod.cast || []).map((ch) => ch.name).filter(Boolean);
+      try {
+        const wc = await worldCharactersForProduction(prod);
+        if (Array.isArray(wc)) cast = Array.from(new Set([...cast, ...wc.map((x) => x?.name).filter(Boolean)]));
+      } catch { /* no world attached */ }
+      const { analyzeClipForScript } = await import("../../services/geminiService");
+      const analyses = [];
+      let n = 0;
+      for (const c of vClips.slice(0, CAP)) {
+        n++; setSaveState(`🎬 watching clip ${n}/${Math.min(vClips.length, CAP)}`);
+        const asset = prod.mediaPool.find((a) => a.id === c.assetId);
+        let a = null;
+        if (asset?.url && ["video", "audio", "image"].includes(asset.type)) {
+          try {
+            let blob = await fetch(asset.url).then((r) => (r.ok ? r.blob() : null)).catch(() => null);
+            if (!blob || !blob.size) blob = await stGet("studio:blob:" + asset.id);
+            if (blob && blob.size > 18 * 1024 * 1024) blob = (await stGet("studio:proxy:" + asset.id)) || blob; // 540p proxy fits the cap
+            if (blob && blob.size && blob.size <= 18 * 1024 * 1024) {
+              const b64 = await blobToBase64(blob);
+              const mime = blob.type || (asset.type === "audio" ? "audio/mpeg" : asset.type === "image" ? "image/jpeg" : "video/mp4");
+              a = await analyzeClipForScript(b64, mime, cast, c.label || asset.name || "clip");
+            }
+          } catch (e) { console.warn("[build-script] clip analysis failed:", asset?.name, e?.message || e); }
+        }
+        analyses.push({ clipId: c.id, label: c.label || asset?.name || "clip", start: +c.start.toFixed(1), duration: +c.duration.toFixed(1), analysis: a || { action: "(unanalyzed — media offline or over the 18MB cap; build a proxy and retry)", setting: "", dialogue: [] } });
+      }
+      setSaveState("🎬 writing the screenplay…");
+      const castCtx = (prod.cast || []).map((ch) => `${ch.name}: ${[ch.personality, ch.looks].filter(Boolean).join(" · ")}`.trim()).join("\n");
+      const r = await callClaudeJson(
+        `${AGENT}\nYou REVERSE-ENGINEER a screenplay from an edited timeline. You receive per-clip computer-vision action descriptions and speaker-attributed dialogue, in cut order. Write the scene as a professional screenplay that matches the FOOTAGE — never invent events or lines. Keep the cast attributions the analyses made; keep SPEAKER 1/2 where unknown.\n${JSON_RULES}\nSchema: {"title":"scene title","slugline":"INT./EXT. LOCATION - TIME","tone":"one line","environment":"one line","script":"the full screenplay: slugline, action lines, CHARACTER\\ndialogue blocks, in cut order","shots":[{"clipId":"echo the input clipId","slug":"S1","type":"WIDE|MED|CU|INSERT|POV|OTS","camera":"one-line camera description of what the footage shows","purpose":"why this shot works in the cut","lines":"dialogue heard in this shot, or empty","character":"main cast name on screen, or empty"}]}`,
+        `KNOWN CAST:\n${castCtx || "(none)"}\n\nTIMELINE (cut order):\n${JSON.stringify(analyses)}`
+      );
+      const sceneId = uid(); const shotIds = new Map(); let actId = null;
+      updateProd((p) => {
+        p.acts = p.acts && p.acts.length ? p.acts : [{ id: uid(), number: 1, title: "ACT I", scenes: [] }];
+        const act = p.acts[0]; act.scenes = act.scenes || []; actId = act.id;
+        const shots = (r.shots || []).map((s, i) => {
+          const id = uid(); if (s.clipId) shotIds.set(s.clipId, id);
+          return { id, slug: s.slug || `S${i + 1}`, type: s.type || "MED", camera: s.camera || "", purpose: s.purpose || "", lines: s.lines || "", character: s.character || "", status: "ready", notes: "reverse-built from the edit", still: "", video: "", voice: "" };
+        });
+        act.scenes.push({ ...BLANK_SCENE(), id: sceneId, title: r.title || "REVERSE-BUILT SCENE", slugline: r.slugline || "", tone: r.tone || "", environment: r.environment || "", script: r.script || "", shots });
+      });
+      // reverse-link: each timeline clip now points at the shot reconstructed from it (edit ↔ SLATE)
+      if (shotIds.size) applyClips(clips.map((c) => (shotIds.has(c.id) ? { ...c, shotId: shotIds.get(c.id) } : c)));
+      ping(`📜 Script rebuilt — ${(r.shots || []).length} shots, dialogue tagged to ${cast.length ? "your cast" : "SPEAKER 1/2"}. Opening SLATE…`);
+      if (actId) gotoScene(actId, sceneId, "slate");
+    } catch (e) {
+      console.warn("[build-script]", e);
+      window.alert("Build Script from Timeline failed: " + (e?.message || e));
+    } finally { setSaveState("saved"); setScriptBuilding(false); }
+  };
   // Rename a project from the library (or the open project).
   const renameProduction = async (id, currentTitle) => {
     const title = (window.prompt("Rename project", currentTitle || "") || "").trim();
@@ -3469,6 +3536,8 @@ export default function Fabula() {
                           <button className="minibtn" disabled={!!proxyBusy || !missing} title="Build instant-seek proxies for REMOTE video (local originals already play full-res). Runs automatically in the background too."
                             onClick={() => buildProxiesFor((prod?.mediaPool || []).filter((a) => a.type === "video" && /^https?:/i.test(a.url || "")))}>{proxyBusy ? `⚙ ${proxyBusy}` : `BUILD PROXIES${missing ? ` (${missing})` : " ✓"}`}</button>
                         ); })()}
+                        <button className="minibtn" disabled={scriptBuilding || !clips.length} title="Reverse-engineer the screenplay from this edit: every clip is watched (computer vision) + transcribed, dialogue is tagged to your cast, and the scene + SLATE shot list are rebuilt from the cut"
+                          onClick={buildScriptFromTimeline} style={{ color: scriptBuilding ? "#FF8C00" : undefined }}>{scriptBuilding ? "📜 BUILDING…" : "📜 BUILD SCRIPT FROM TIMELINE"}</button>
                       </div>
                       {showShortcuts && <KeyboardShortcutsEditor onClose={() => setShowShortcuts(false)} onChange={setShortcutPrefs} />}
                       {ctxMenu && (() => {

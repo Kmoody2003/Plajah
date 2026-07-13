@@ -187,6 +187,56 @@ Rules:
   }
 };
 
+/** Fabula "build script from timeline": watch one clip and return (a) a computer-vision
+ *  description of the on-screen action and (b) the spoken dialogue, with each line attributed
+ *  to a known cast member when the voice/face plausibly matches, else SPEAKER 1/2/…. */
+export const analyzeClipForScript = async (
+  mediaBase64: string, mimeType: string, castNames: string[], clipLabel: string,
+): Promise<{ action: string; setting: string; dialogue: { time: number; speaker: string; text: string }[] } | null> => {
+  const ai = getAI();
+  if (!ai) return null;
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-flash-latest',
+      contents: [
+        { inlineData: { data: mediaBase64, mimeType } },
+        { text: `You are a script supervisor reverse-engineering a screenplay from footage. Watch/listen to this clip ("${clipLabel}") completely.
+
+Return:
+- "action": 1-3 sentences of present-tense screenplay action describing exactly what happens VISUALLY (who does what, camera movement if obvious, key props/emotion). If the clip is audio-only, describe the soundscape.
+- "setting": a short slugline-style location + time guess, e.g. "INT. KITCHEN - NIGHT" (best effort).
+- "dialogue": every clearly spoken line, in order, with the second it begins.
+
+Known cast for this production: ${castNames.length ? castNames.join(', ') : '(none provided)'}.
+Speaker attribution: if a line plausibly belongs to one of the known cast (name spoken, matching appearance, context), use that EXACT cast name; otherwise use SPEAKER 1, SPEAKER 2, … consistently. Never invent dialogue.` },
+      ],
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            action: { type: Type.STRING },
+            setting: { type: Type.STRING },
+            dialogue: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: { time: { type: Type.NUMBER }, speaker: { type: Type.STRING }, text: { type: Type.STRING } },
+                required: ['time', 'speaker', 'text'],
+              },
+            },
+          },
+          required: ['action', 'setting', 'dialogue'],
+        },
+      },
+    });
+    return JSON.parse(response.text || 'null');
+  } catch (error) {
+    console.error('analyzeClipForScript error:', error);
+    return null;
+  }
+};
+
 export const analyzeThemeBackground = async (imageBase64: string, theme: string) => {
   const ai = getAI();
   if (!ai) return [];
