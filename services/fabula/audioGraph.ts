@@ -71,7 +71,35 @@ interface Graph {
 
 // trackId → live peak sampler, so the timeline's per-track meters can read the audible level
 // without re-plumbing the graph up into React. Populated by AudioLayer while a clip is live.
+// 'master' is always the master-bus meter once the engine is running.
 export const meterRegistry = new Map<string, () => number>();
+
+// ---- master bus: every channel strip sums here, then one path to the hardware ----
+//   strip → masterGain → masterAnalyser → ctx.destination (default output device)
+let _master: { gain: GainNode; analyser: AnalyserNode } | null = null;
+function getMasterBus(ctx: AudioContext) {
+  if (_master) return _master;
+  const gain = ctx.createGain();
+  const analyser = ctx.createAnalyser(); analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.2;
+  gain.connect(analyser); analyser.connect(ctx.destination);
+  const buf = new Float32Array(analyser.fftSize);
+  meterRegistry.set('master', () => {
+    try { analyser.getFloatTimeDomainData(buf); let p = 0; for (let i = 0; i < buf.length; i++) { const a = Math.abs(buf[i]); if (a > p) p = a; } return p; } catch { return 0; }
+  });
+  _master = { gain, analyser };
+  return _master;
+}
+
+// A cross-origin media element WITHOUT CORS credentials is "tainted": routing it through
+// createMediaElementSource plays SILENCE by spec (no error). Cloud-synced assets live on
+// firebasestorage.googleapis.com, so every synced clip went mute through the mixer. Elements
+// feeding the mixer must load with crossOrigin="anonymous"; this tells callers when that matters.
+export const needsCors = (url: string | null | undefined): boolean =>
+  !!url && /^https?:/i.test(url) && (() => { try { return new URL(url, window.location.href).origin !== window.location.origin; } catch { return false; } })();
+
+export function engineStatus() {
+  return { state: _ctx?.state || 'none', sampleRate: _ctx?.sampleRate || 0, master: !!_master };
+}
 
 const graphs = new WeakMap<HTMLMediaElement, Graph | null>();
 
@@ -109,9 +137,10 @@ export function attachAudioGraph(el: HTMLMediaElement): Graph | null {
   const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
   const gain = ctx.createGain();
   const analyser = ctx.createAnalyser(); analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.2;
-  const chain: AudioNode[] = [source, ...clipEq, clipComp, clipMk, ...trackEq, trackComp, trackMk, ...(pan ? [pan] : []), gain, analyser, ctx.destination];
+  const master = getMasterBus(ctx);
+  const chain: AudioNode[] = [source, ...clipEq, clipComp, clipMk, ...trackEq, trackComp, trackMk, ...(pan ? [pan] : []), gain, analyser, master.gain];
   try { for (let i = 0; i < chain.length - 1; i++) chain[i].connect(chain[i + 1]); }
-  catch { try { source.connect(ctx.destination); } catch { /* last resort — still audible */ } }
+  catch { try { source.connect(master.gain); } catch { /* last resort — still audible */ } }
   const buf = new Float32Array(analyser.fftSize);
   const g: Graph = {
     ctx, clipEq, trackEq, clipComp, clipMk, trackComp, trackMk, pan, gain, analyser,

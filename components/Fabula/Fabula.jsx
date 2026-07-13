@@ -19,7 +19,7 @@ import { useFabulaShortcuts } from "./useFabulaShortcuts";
 import KeyboardShortcutsEditor from "./KeyboardShortcutsEditor";
 import { loadShortcutPrefs } from "../../services/fabula/shortcuts";
 import Waveform from "./Waveform";
-import { attachAudioGraph, getAudioCtx, meterRegistry, resumeAudioCtx, CLIP_AUDIO_DEFAULT, COMP_DEFAULT, EQ_LABELS } from "../../services/fabula/audioGraph";
+import { attachAudioGraph, getAudioCtx, meterRegistry, needsCors, resumeAudioCtx, CLIP_AUDIO_DEFAULT, COMP_DEFAULT, EQ_LABELS } from "../../services/fabula/audioGraph";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
@@ -2569,6 +2569,7 @@ export default function Fabula() {
                         <button className="tbtn play" onClick={() => { resumeAudioCtx(); setPlaying(!playing); }}>{playing ? <Pause size={15} /> : <Play size={15} />}</button>
                       </div>
                       <span className="tc dim2">/ {fmtTc(seqEnd, vfmt)}</span>
+                      <div style={{ display: "flex", height: 20, marginLeft: 6 }} title="Master output level"><TrackMeter trackId="master" /></div>
                       {monitorAssetRaw?.type === "multicam" && (
                         <button className={`minibtn ${angleView ? "blue" : ""}`} onClick={() => setAngleView(!angleView)}><Layers size={11} /> ANGLES</button>
                       )}
@@ -4170,9 +4171,17 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active
   const aRef = useRef(null);
   const graphRef = useRef(undefined); // undefined = not attached yet, null = failed, Graph = attached
   const [ctxTick, setCtxTick] = useState(0); // bump when the AudioContext state changes
+  // Cross-origin media (cloud-synced assets on firebasestorage) MUST load with
+  // crossOrigin="anonymous" or the mixer's MediaElementSource plays pure silence (tainted media,
+  // no error — this is what killed all audio-track sound). If a host ever refuses CORS the
+  // element errors instead; we then rebuild it plain and play it DIRECT (no DSP, but audible).
+  const [corsFail, setCorsFail] = useState(false);
   const asset = clip.assetId ? prod.mediaPool.find((a) => a.id === clip.assetId) : null;
   const url = asset?.url;
+  const wantCors = needsCors(url) && !corsFail;
   const offset = clip.srcIn || 0;
+  useEffect(() => { setCorsFail(false); }, [url]); // new source, new chance
+  useEffect(() => { graphRef.current = undefined; }, [url, corsFail]); // element remounts → re-resolve routing (attach is WeakMap-idempotent)
   // Re-run the routing when the shared context flips suspended→running, so the DSP graph
   // attaches the moment audio is allowed (until then the element plays directly = audible).
   useEffect(() => {
@@ -4206,7 +4215,9 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active
     if (!a || !url) return;
     const ctx = getAudioCtx();
     if (active) resumeAudioCtx();
-    if (ctx && ctx.state === "running" && graphRef.current === undefined) graphRef.current = attachAudioGraph(a);
+    // Attach the DSP strip only when the context is running AND the element's samples are
+    // readable (same-origin, or cross-origin loaded via CORS). A corsFail element plays direct.
+    if (ctx && ctx.state === "running" && graphRef.current === undefined && (!needsCors(url) || wantCors)) graphRef.current = attachAudioGraph(a);
     const g = graphRef.current || null;
     if (g) {
       a.muted = !!clip.disabled; a.volume = 1;
@@ -4222,7 +4233,12 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active
   // Release the meter when this track's clip goes silent/unmounts.
   useEffect(() => () => { if (trackId && meterRegistry.get(trackId) === graphRef.current?.level) meterRegistry.delete(trackId); }, [trackId]);
   if (!url || clip.disabled) return null;
-  return <audio ref={aRef} src={url} preload="auto" style={{ display: "none" }} />;
+  return <audio key={wantCors ? "cors" : "plain"} ref={aRef} src={url} preload="auto" style={{ display: "none" }}
+    {...(wantCors ? { crossOrigin: "anonymous" } : {})}
+    onError={() => {
+      // CORS-mode load refused → rebuild plain and play direct (audible, DSP bypassed for this clip).
+      if (wantCors) { console.warn("[fabula-audio] CORS refused for", url, "— playing direct, DSP bypassed"); setCorsFail(true); }
+    }} />;
 }
 
 /* ---------- Resolve-style per-track peak meter (reads the live DSP analyser) ---------- */
@@ -4280,8 +4296,8 @@ function MediaWarmer({ prod, clips }) {
   return (
     <div aria-hidden style={{ position: "absolute", width: 0, height: 0, overflow: "hidden", opacity: 0, pointerEvents: "none" }}>
       {items.map((it) => it.type === "video"
-        ? <video key={it.id} src={it.url} preload="auto" muted playsInline />
-        : <audio key={it.id} src={it.url} preload="auto" />)}
+        ? <video key={it.id} src={it.url} preload="auto" muted playsInline {...(needsCors(it.url) ? { crossOrigin: "anonymous" } : {})} />
+        : <audio key={it.id} src={it.url} preload="auto" muted {...(needsCors(it.url) ? { crossOrigin: "anonymous" } : {})} />)}
     </div>
   );
 }
