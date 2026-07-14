@@ -1980,8 +1980,126 @@ export default function Fabula() {
       setClips(next); commitClips(next); setPlayhead(0); setSelClipId(null);
       const total = Object.keys(keyToAsset).length;
       ping(`Imported ${next.length} clips · ${matched}/${total} media relinked${matched && uidNow ? " · uploading to cloud in background" : ""}`);
-    } catch (e) { setError("Import failed: " + e.message); }
+      return next;
+    } catch (e) { setError("Import failed: " + e.message); return null; }
   };
+
+  // FULL-MOVIE reverse-population: watch the whole master edit, then reconstruct as much of the
+  // Production as possible — a scene breakdown (multiple scenes across acts), the screenplay per scene,
+  // a character list (recognized + tagged to the connected World's characters), and a world bible/logline.
+  const [reversing, setReversing] = useState(false);
+  const reversePopulateProduction = async (clipsArg) => {
+    if (reversing || scriptBuilding) return;
+    const src = Array.isArray(clipsArg) ? clipsArg : clips;
+    const vClips = src.filter((c) => /^v\d+$/.test(c.trackId) && c.assetId && !c.disabled).sort((a, b) => a.start - b.start);
+    if (!vClips.length) { ping("Nothing on the video tracks to analyze."); return; }
+    const CAP = 48;
+    if (vClips.length > CAP) ping(`Master cut is long — analyzing ${CAP} clips across ${vClips.length}.`);
+    // even sampling across the whole timeline so the breakdown covers the full arc, not just the head
+    const step = vClips.length > CAP ? vClips.length / CAP : 1;
+    const sample = vClips.length > CAP ? Array.from({ length: CAP }, (_, i) => vClips[Math.floor(i * step)]) : vClips;
+    setReversing(true);
+    try {
+      let worldChars = [];
+      try { worldChars = (await worldCharactersForProduction(prod)) || []; } catch { /* no world */ }
+      const cast = Array.from(new Set([...(prod.cast || []).map((c) => c.name), ...worldChars.map((x) => x?.name)].filter(Boolean)));
+      const { analyzeClipForScript } = await import("../../services/geminiService");
+      const analyses = [];
+      let n = 0;
+      for (const c of sample) {
+        n++; setSaveState(`🎬 watching the cut ${n}/${sample.length}`);
+        const asset = prod.mediaPool.find((a) => a.id === c.assetId);
+        let a = null;
+        if (asset?.url && ["video", "audio", "image"].includes(asset.type)) {
+          try {
+            let blob = await fetch(asset.url).then((r) => (r.ok ? r.blob() : null)).catch(() => null);
+            if (!blob || !blob.size) blob = await stGet("studio:blob:" + asset.id);
+            if (blob && blob.size > 18 * 1024 * 1024) blob = (await stGet("studio:proxy:" + asset.id)) || blob;
+            if (blob && blob.size && blob.size <= 18 * 1024 * 1024) {
+              const b64 = await blobToBase64(blob);
+              const mime = blob.type || (asset.type === "audio" ? "audio/mpeg" : asset.type === "image" ? "image/jpeg" : "video/mp4");
+              a = await analyzeClipForScript(b64, mime, cast, c.label || asset.name || "clip");
+            }
+          } catch (e) { console.warn("[reverse] clip analysis failed:", asset?.name, e?.message || e); }
+        }
+        analyses.push({ clipId: c.id, label: c.label || asset?.name || "clip", start: +c.start.toFixed(1), duration: +c.duration.toFixed(1), analysis: a || { action: "(unanalyzed — offline or >18MB; build a proxy)", setting: "", dialogue: [] } });
+      }
+      setSaveState("🎬 breaking down the production…");
+      const worldCtx = worldChars.length ? `CONNECTED WORLD CHARACTERS (tag matches to these EXACT names):\n${worldChars.map((w) => `${w.name}${w.visual_lock ? " — " + w.visual_lock.slice(0, 80) : ""}`).join("\n")}` : "";
+      const r = await callClaudeJson(
+        `${AGENT}\nYou REVERSE-ENGINEER an entire film production from its MASTER EDIT. You receive per-clip computer-vision action + speaker-attributed dialogue in cut order (sampled across the whole runtime). Reconstruct the production from what the FOOTAGE actually shows — never invent events, lines, or characters not evidenced. Group the cut into SCENES at location/time/story shifts. Recognize recurring people and give each a stable character name (prefer a connected-World name when it clearly matches; otherwise coin a consistent name and reuse it). Keep dialogue attributions.\n${JSON_RULES}\nSchema: {"logline":"one sentence","worldBible":"3-5 sentences: era, place, tone, rules the footage implies","characters":[{"name":"stable name","description":"look + role in one line","world":true|false}],"scenes":[{"title":"scene title","act":1|2|3,"slugline":"INT./EXT. LOCATION - TIME","tone":"one line","environment":"one line","script":"screenplay for THIS scene only, in cut order","clipIds":["ids of the clips in this scene"],"shots":[{"clipId":"echo input clipId","slug":"S1","type":"WIDE|MED|CU|INSERT|POV|OTS","camera":"what the footage shows","purpose":"why it's in the cut","lines":"dialogue heard or empty","character":"main on-screen character or empty"}]}]}`,
+        `${worldCtx}\n\nKNOWN CAST:\n${(prod.cast || []).map((c) => c.name).join(", ") || "(none)"}\n\nMASTER EDIT (sampled, cut order):\n${JSON.stringify(analyses)}`
+      );
+
+      const clipToShot = new Map();
+      let firstActId = null, firstSceneId = null;
+      updateProd((p) => {
+        // 1) characters → cast, tagged to the World when matched
+        p.cast = p.cast || [];
+        const wcNames = new Set(worldChars.map((w) => (w.name || "").toLowerCase()));
+        (r.characters || []).forEach((ch) => {
+          if (!ch?.name) return;
+          const key = ch.name.toLowerCase();
+          const existing = p.cast.find((x) => (x.name || "").toLowerCase() === key);
+          const inWorld = ch.world || wcNames.has(key);
+          if (existing) { if (inWorld) existing.fromWorld = true; if (!existing.looks && ch.description) existing.looks = ch.description; }
+          else p.cast.push({ id: uid(), name: ch.name, looks: ch.description || "", voice: "", personality: "", media: [], wardrobe: [], fromWorld: inWorld, fromAnalysis: true });
+        });
+        // 2) logline / world bible if empty
+        if (!p.description && r.logline) p.description = r.logline;
+        if (!p.world && r.worldBible) p.world = r.worldBible;
+        // 3) scenes → acts (I/II/III), each with reverse-built shots
+        p.acts = p.acts && p.acts.length ? p.acts : [1, 2, 3].map((num) => ({ id: uid(), number: num, title: "ACT " + ["I", "II", "III"][num - 1], scenes: [] }));
+        while (p.acts.length < 3) p.acts.push({ id: uid(), number: p.acts.length + 1, title: "ACT " + ["I", "II", "III"][p.acts.length], scenes: [] });
+        (r.scenes || []).forEach((s) => {
+          const actIdx = Math.min(2, Math.max(0, (s.act || 1) - 1));
+          const act = p.acts[actIdx]; act.scenes = act.scenes || [];
+          const shots = (s.shots || []).map((sh, i) => {
+            const id = uid(); if (sh.clipId) clipToShot.set(sh.clipId, id);
+            return { id, slug: sh.slug || `S${i + 1}`, type: sh.type || "MED", camera: sh.camera || "", purpose: sh.purpose || "", lines: sh.lines || "", character: sh.character || "", status: "ready", notes: "reverse-built from the master edit", still: "", video: "", voice: "" };
+          });
+          const sceneId = uid();
+          act.scenes.push({ ...BLANK_SCENE(), id: sceneId, title: s.title || "SCENE", slugline: s.slugline || "", tone: s.tone || "", environment: s.environment || "", script: s.script || "", shots });
+          if (!firstSceneId) { firstSceneId = sceneId; firstActId = act.id; }
+        });
+      });
+      if (clipToShot.size) applyClips(src.map((c) => (clipToShot.has(c.id) ? { ...c, shotId: clipToShot.get(c.id) } : c)));
+      const nChars = (r.characters || []).length, nScenes = (r.scenes || []).length, nWorld = (r.characters || []).filter((c) => c.world).length;
+      ping(`🎬 Production reverse-built — ${nScenes} scenes, ${nChars} characters${nWorld ? ` (${nWorld} tagged to your World)` : ""}. Opening SLATE…`);
+      if (firstActId && firstSceneId) gotoScene(firstActId, firstSceneId, "slate");
+    } catch (e) {
+      console.warn("[reverse-populate]", e);
+      window.alert("Reverse-populate failed: " + (e?.message || e));
+    } finally { setSaveState("saved"); setReversing(false); }
+  };
+
+  // "Import Edit" (Production page): bring an edit/timeline in, then optionally reverse-build the whole
+  // production. Uses a pending ref so the import runs AFTER the new edit is active (avoids stale editSel).
+  const editImportRef = useRef(null);
+  const pendingEditImport = useRef(null); // { file, mode: 'full'|'scene' }
+  const importEditToProduction = (file) => {
+    if (!file) return;
+    const full = window.confirm(
+      `Is "${file.name}" the FULL MOVIE (master timeline)?\n\n` +
+      `OK  →  Full movie: I'll populate the timeline, then analyze the whole cut in the background — ` +
+      `break it into scenes, reverse-build the screenplay, recognize characters (tagging any that match your ` +
+      `connected World), and fill in the production bible.\n\n` +
+      `Cancel  →  Just a Scene: populate the timeline and build a single scene from it.`
+    );
+    const base = file.name.replace(/\.[^.]+$/, "").slice(0, 40) || "IMPORTED EDIT";
+    pendingEditImport.current = { file, mode: full ? "full" : "scene" };
+    newEdit(base); // creates the edit + navigates to the edit page → the effect below fires the import
+  };
+  useEffect(() => {
+    const pend = pendingEditImport.current;
+    if (!pend || !editSel || page !== "edit") return;
+    pendingEditImport.current = null;
+    (async () => {
+      const built = await importTimelineWithMedia(pend.file);
+      if (built && built.length) { if (pend.mode === "full") await reversePopulateProduction(built); else await buildScriptFromTimeline(built); }
+    })();
+    // eslint-disable-next-line
+  }, [editSel, page]);
 
   const exportTimelineFCPXML = () => {
     try {
@@ -2381,9 +2499,10 @@ export default function Fabula() {
      (script + slugline + tone → the production/story tabs) and its SLATE breakdown, with each
      shot linked back to the timeline clip that produced it. */
   const [scriptBuilding, setScriptBuilding] = useState(false);
-  const buildScriptFromTimeline = async () => {
+  const buildScriptFromTimeline = async (clipsArg) => {
     if (scriptBuilding || transcribing) return;
-    const vClips = clips.filter((c) => /^v\d+$/.test(c.trackId) && c.assetId && !c.disabled).sort((a, b) => a.start - b.start);
+    const src = Array.isArray(clipsArg) ? clipsArg : clips;
+    const vClips = src.filter((c) => /^v\d+$/.test(c.trackId) && c.assetId && !c.disabled).sort((a, b) => a.start - b.start);
     if (!vClips.length) { ping("Nothing on the video tracks to analyze."); return; }
     const CAP = 24;
     if (vClips.length > CAP) ping(`Long cut — analyzing the first ${CAP} clips of ${vClips.length}.`);
@@ -2433,7 +2552,7 @@ export default function Fabula() {
         act.scenes.push({ ...BLANK_SCENE(), id: sceneId, title: r.title || "REVERSE-BUILT SCENE", slugline: r.slugline || "", tone: r.tone || "", environment: r.environment || "", script: r.script || "", shots });
       });
       // reverse-link: each timeline clip now points at the shot reconstructed from it (edit ↔ SLATE)
-      if (shotIds.size) applyClips(clips.map((c) => (shotIds.has(c.id) ? { ...c, shotId: shotIds.get(c.id) } : c)));
+      if (shotIds.size) applyClips(src.map((c) => (shotIds.has(c.id) ? { ...c, shotId: shotIds.get(c.id) } : c)));
       ping(`📜 Script rebuilt — ${(r.shots || []).length} shots, dialogue tagged to ${cast.length ? "your cast" : "SPEAKER 1/2"}. Opening SLATE…`);
       if (actId) gotoScene(actId, sceneId, "slate");
     } catch (e) {
@@ -4078,11 +4197,22 @@ export default function Fabula() {
               {[["structure", "STRUCTURE", ListVideo], ["cast", "CAST", Users], ["world", "WORLD", Globe], ["design", "DESIGN", Brush]].map(([id, lab, Ic]) => (
                 <button key={id} className={`ptab ${prodTab === id ? "on" : ""}`} onClick={() => setProdTab(id)}><Ic size={13} /> {lab}</button>
               ))}
+              {/* Import an edit / master timeline and reverse-build the production from it. */}
+              <button
+                className="ptab"
+                style={{ marginLeft: "auto" }}
+                onClick={() => editImportRef.current?.click()}
+                disabled={reversing || scriptBuilding}
+                title="Import an edit or a whole project timeline (FCPXML / EDL). You choose whether it's the full movie or a single scene — a full movie is analyzed in the background to reverse-build scenes, script, and characters."
+              >
+                <Upload size={13} /> {reversing ? "ANALYZING…" : "IMPORT EDIT"}
+              </button>
+              <input ref={editImportRef} type="file" accept=".edl,.xml,.fcpxml" style={{ display: "none" }}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) importEditToProduction(f); e.target.value = ""; }} />
               {/* Connect this production to a Plajah World — share characters &
                   world knowledge with Lorea / Worlds; entries land private. */}
               <button
                 className={`ptab ${prod.worldId ? "on" : ""}`}
-                style={{ marginLeft: "auto" }}
                 onClick={() => setConnectWorldOpen(true)}
                 title={prod.worldId ? "Connected to a Plajah World" : "Connect to a Plajah World"}
               >
