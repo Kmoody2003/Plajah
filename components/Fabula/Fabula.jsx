@@ -529,6 +529,7 @@ export default function Fabula() {
   const [prodTab, setProdTab] = useState("structure"); // structure | cast | world | design | media
   const [mediaSearch, setMediaSearch] = useState("");  // keyword/tag search — shared media + edit pages
   const [mediaBin, setMediaBin] = useState("all");     // folder filter for the Media Assets tab
+  const [scriptImporting, setScriptImporting] = useState(false); // Lorea .txt → structured script
   const [connectWorldOpen, setConnectWorldOpen] = useState(false); // Plajah World link modal
   const [storageReady, setStorageReady] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -933,6 +934,7 @@ export default function Fabula() {
   const folderRef = useRef(null);
   const mirrorFolderRef = useRef(null);             // literal folder → mirrored bins (media pool)
   const mediaFilesRef = useRef(null);               // plain files → auto-tagged import (media assets tab)
+  const scriptFilesRef = useRef(null);              // .txt/.md/.fountain → Lorea script structuring
   const [genOpen, setGenOpen] = useState(false);    // generation agent panel (Kling/Magnific → bins)
 
   const inferCategory = (relPath) => {
@@ -2204,8 +2206,11 @@ export default function Fabula() {
     const worldIdx = [];
     Object.entries(prod?.worldCats || {}).forEach(([cat, items]) => (items || []).forEach((it) => { if ((it.name || "").length >= 2) worldIdx.push({ cat, id: it.id, name: it.name.toLowerCase() }); }));
     const castLinks = []; // { assetId, castId }
+    const scriptFiles = []; // .txt/.md/.fountain → Lorea structuring, not media
     for (const { path, name, file: rawFile } of files) {
       const bin = path || "imports";
+      // Script text files aren't media — hand them to the Lorea script engine to structure into scenes.
+      if (/\.(txt|md|fountain|markdown)$/i.test(name)) { scriptFiles.push(rawFile); continue; }
       const dkey = `${name}|${bin}`;
       if (existing.has(dkey)) continue; existing.add(dkey);
       if (bin !== "imports") newBins.add(bin);
@@ -2244,6 +2249,12 @@ export default function Fabula() {
     });
     const tagged = newAssets.filter((a) => a.tags?.length).length;
     if (tagged) ping(`Auto-tagged ${tagged} asset${tagged === 1 ? "" : "s"} into cast / world`);
+    // Script text files structure in the background (Lorea) so a folder/drop with scripts auto-populates
+    // the Structure page. One at a time to keep AI calls serial.
+    if (scriptFiles.length) {
+      ping(`Structuring ${scriptFiles.length} script${scriptFiles.length === 1 ? "" : "s"} with Lorea…`);
+      (async () => { for (const sf of scriptFiles) { const t = await sf.text().catch(() => ""); if (t) await importScriptText(t, sf.name); } })();
+    }
     return newAssets.length;
   };
   // Literal folder mirror: an <input webkitdirectory> (or dropped folder) → bins that match the
@@ -2275,6 +2286,49 @@ export default function Fabula() {
       });
     });
     ping(`${results.length} generated result${results.length === 1 ? "" : "s"} added to ${target}`);
+  };
+  // Lorea script engine: drop a .txt/.md/.fountain (rough screenplay, treatment, prose, outline, notes)
+  // → intelligently structure it into scenes across the acts + identify characters, ready for SLATE
+  // breakdown. This is where scripts built from the timeline (Build Script) also live.
+  const importScriptText = async (text, sourceName = "script") => {
+    const clean = (text || "").trim();
+    if (clean.length < 40) { ping("That file has too little text to structure into a script."); return; }
+    setScriptImporting(true);
+    try {
+      const r = await callClaudeJson(
+        `${AGENT}\nYou are the Lorea script engine. You receive RAW TEXT — a rough screenplay, treatment, prose, outline, or unformatted notes. STRUCTURE it into a screenplay for this production: infer scene breaks at location/time/story shifts, write proper sluglines, and KEEP the author's events and dialogue (never invent a new plot). Identify recurring characters.\n${JSON_RULES}\nSchema: {"logline":"one sentence","worldBible":"3-5 sentences on era/place/tone/rules implied","characters":[{"name":"stable name","description":"look + role in one line","world":false}],"scenes":[{"act":1|2|3,"title":"scene title","slugline":"INT./EXT. LOCATION - TIME","tone":"one line","environment":"one line","script":"screenplay for THIS scene: slugline, action lines, CHARACTER\\ndialogue blocks"}]}`,
+        `${productionContext()}\n\nSOURCE FILE: ${sourceName}\n\nRAW TEXT:\n${clean.slice(0, 24000)}`,
+      );
+      let firstActId = null, firstSceneId = null, nScenes = 0, nChars = 0;
+      updateProd((p) => {
+        p.cast = p.cast || [];
+        (r.characters || []).forEach((ch) => {
+          if (!ch?.name) return;
+          const key = ch.name.toLowerCase();
+          const ex = p.cast.find((x) => (x.name || "").toLowerCase() === key);
+          if (ex) { if (!ex.looks && ch.description) ex.looks = ch.description; }
+          else { p.cast.push({ id: uid(), name: ch.name, looks: ch.description || "", voice: "", personality: "", media: [], wardrobe: [], fromAnalysis: true }); nChars++; }
+        });
+        if (!p.description && r.logline) p.description = r.logline;
+        if (!p.world && r.worldBible) p.world = r.worldBible;
+        p.acts = p.acts && p.acts.length ? p.acts : [1, 2, 3].map((num) => ({ id: uid(), number: num, title: "ACT " + ["I", "II", "III"][num - 1], scenes: [] }));
+        while (p.acts.length < 3) p.acts.push({ id: uid(), number: p.acts.length + 1, title: "ACT " + ["I", "II", "III"][p.acts.length], scenes: [] });
+        (r.scenes || []).forEach((s) => {
+          const actIdx = Math.min(2, Math.max(0, (s.act || 1) - 1));
+          const act = p.acts[actIdx]; act.scenes = act.scenes || [];
+          const sceneId = uid();
+          act.scenes.push({ ...BLANK_SCENE(), id: sceneId, title: s.title || "SCENE", slugline: s.slugline || "", tone: s.tone || "", environment: s.environment || "", script: s.script || "" });
+          nScenes++; if (!firstSceneId) { firstSceneId = sceneId; firstActId = act.id; }
+        });
+      });
+      ping(`📝 Structured ${nScenes} scene${nScenes === 1 ? "" : "s"} from ${sourceName}${nChars ? ` · ${nChars} new cast` : ""}. Run SLATE breakdown to build coverage.`);
+      if (firstActId && firstSceneId) gotoScene(firstActId, firstSceneId, "slate");
+    } catch (e) { console.warn("[script import]", e); window.alert("Couldn't structure that script: " + (e?.message || e)); }
+    finally { setScriptImporting(false); }
+  };
+  const importScriptFiles = async (fileList) => {
+    const files = Array.from(fileList || []).filter((f) => /\.(txt|md|fountain|markdown)$/i.test(f.name));
+    for (const f of files) { const text = await f.text().catch(() => ""); if (text) await importScriptText(text, f.name); }
   };
   const refreshSyncFolders = async () => { if (prod?.id) { try { setSyncFolders(await listSyncFolders(prod.id)); } catch { /* */ } } };
   const rescanSyncFolder = async (id, interactive) => {
@@ -4467,16 +4521,28 @@ export default function Fabula() {
                 if (mediaBin !== "all") { const b = a.bin || "imports"; if (!(b === mediaBin || b.startsWith(mediaBin + "/"))) return false; }
                 return assetMatches(a, mediaSearch.trim());
               });
+              const onMediaDrop = (e) => {
+                e.preventDefault();
+                const dropped = Array.from(e.dataTransfer?.files || []);
+                if (!dropped.length) return;
+                const scripts = dropped.filter((f) => /\.(txt|md|fountain|markdown)$/i.test(f.name));
+                const media = dropped.filter((f) => !/\.(txt|md|fountain|markdown)$/i.test(f.name));
+                if (scripts.length) importScriptFiles(scripts);
+                if (media.length) importFolderMirror(media);
+              };
               return (
-                <>
+                <div className="matab" onDragOver={(e) => e.preventDefault()} onDrop={onMediaDrop}>
                   <div className="glass-card">
-                    <div className="lbl">MEDIA ASSETS — the production’s single file source. Import a folder (kept as a watch folder that auto-updates); its subfolders become bins, names matching your Cast or World auto-tag into those libraries, and the edit page’s media pool mirrors this exactly.</div>
+                    <div className="lbl">MEDIA ASSETS — the production’s single file source. Import a folder (kept as a watch folder that auto-updates); its subfolders become bins, names matching your Cast or World auto-tag into those libraries, and the edit page’s media pool mirrors this exactly. Drop <strong>.txt / .fountain</strong> scripts anywhere here and Lorea structures them into the Structure page.</div>
                     <div className="btnrow" style={{ marginTop: 10, flexWrap: "wrap" }}>
                       <button className="cta" onClick={addSyncFolderNow} disabled={folderSyncing} title="Pick a folder — it becomes a watch folder that auto-imports new/changed files, mirroring its structure"><FolderOpen size={13} /> {folderSyncing ? "IMPORTING…" : "IMPORT FOLDER (WATCH)"}</button>
                       <button className="minibtn" onClick={() => mirrorFolderRef.current?.click()} title="One-time folder import (mirrors structure, no watch)"><Upload size={12} /> FOLDER (ONCE)</button>
                       <button className="minibtn" onClick={() => mediaFilesRef.current?.click()}><Upload size={12} /> FILES</button>
+                      <button className="minibtn" onClick={() => scriptFilesRef.current?.click()} disabled={scriptImporting} title="Structure a .txt / .md / .fountain script into scenes with Lorea"><FileText size={12} /> {scriptImporting ? "STRUCTURING…" : "IMPORT SCRIPT"}</button>
                       <input ref={mediaFilesRef} type="file" multiple accept="video/*,image/*,audio/*,.lottie,.json,.svg,.ai,.pdf" style={{ display: "none" }}
                         onChange={(e) => { importFolderMirror(e.target.files); e.target.value = ""; }} />
+                      <input ref={scriptFilesRef} type="file" multiple accept=".txt,.md,.fountain,.markdown" style={{ display: "none" }}
+                        onChange={(e) => { importScriptFiles(e.target.files); e.target.value = ""; }} />
                     </div>
                   </div>
 
@@ -4545,7 +4611,7 @@ export default function Fabula() {
                       ))}
                     </div>
                   </div>
-                </>
+                </div>
               );
             })()}
 
