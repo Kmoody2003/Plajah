@@ -149,7 +149,29 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
       } catch { if (direct) { v.src = direct; v.play?.().catch(() => {}); } }
     })();
     return () => { cancelled = true; try { hls?.destroy(); } catch { /* */ } };
-  }, [current?.id]);
+    // Re-run when the Mux id (or url) resolves so a still-transcoding shared video starts on its own.
+  }, [current?.id, (current as any)?.muxPlaybackId, current?.url]);
+
+  // If the current video (e.g. a link shared right after publishing) has no playable source yet,
+  // watch its doc so it plays the moment Mux finishes transcoding — no manual reload needed.
+  useEffect(() => {
+    if (!current || (current as any).muxPlaybackId || current.url) return;
+    const id = current.id;
+    let unsub: (() => void) | undefined;
+    (async () => {
+      try {
+        const { db } = await import('../services/firebase');
+        const { doc, onSnapshot } = await import('firebase/firestore');
+        unsub = onSnapshot(doc(db, 'videos', id), (snap) => {
+          const d: any = snap.data(); if (!d) return;
+          if (d.muxPlaybackId || d.url) {
+            setVideos(vs => vs.map(v => v.id === id ? { ...v, muxPlaybackId: d.muxPlaybackId, url: d.url } : v));
+          }
+        });
+      } catch { /* offline — the poster + Processing hint stay up */ }
+    })();
+    return () => { try { unsub?.(); } catch { /* */ } };
+  }, [current?.id, (current as any)?.muxPlaybackId, current?.url]);
 
   const shareCurrent = async () => {
     if (!current) return;
