@@ -175,6 +175,8 @@ export class LiveComposer {
   private segLoading = false;
   private maskCanvas = document.createElement('canvas');
   private maskCtx = this.maskCanvas.getContext('2d')!;
+  private lastMask: Float32Array | null = null; // reused between throttled segmentations (thermal)
+  private lastSegT = 0;
 
   // VTuber: a face-tracked avatar (2D puppet or VRM) driven by the front camera —
   // 'face' = face-swap on your head; 'body' = full-body paper doll driven by your pose.
@@ -437,23 +439,57 @@ export class LiveComposer {
     const el = this.frontEl, vw = el.videoWidth, vh = el.videoHeight;
     if (!vw || !vh || !this.seg) return null;
     const bw = 320, bh = Math.round(bw * vh / vw);
-    if (this.maskCanvas.width !== bw) { this.maskCanvas.width = bw; this.maskCanvas.height = bh; }
-    const m = this.maskCtx; m.drawImage(el, 0, 0, bw, bh);
-    try {
-      const res = this.seg.segmentForVideo(el, performance.now());
-      const mask = res.confidenceMasks?.[0];
-      if (mask) {
-        const mf = mask.getAsFloat32Array();
-        const img = m.getImageData(0, 0, bw, bh), d = img.data;
-        for (let p = 0, j = 3; p < mf.length; p++, j += 4) d[j] = mf[p] > 0.5 ? 255 : Math.round(mf[p] * mf[p] * 255);
-        m.putImageData(img, 0, 0);
-      }
-      res.close?.();
-    } catch { /* skip frame */ }
+    if (this.maskCanvas.width !== bw) { this.maskCanvas.width = bw; this.maskCanvas.height = bh; this.lastMask = null; }
+    const m = this.maskCtx;
+    // RGB updates every frame (smooth motion); the SEGMENTATION only re-runs ~15fps and the mask is
+    // reused in between. Selfie-segment at full 30fps is the single biggest thermal load in mask mode —
+    // the silhouette barely moves in 66ms, so halving the inference rate keeps the phone cool with no
+    // visible cost. (drawImage of the opaque video resets alpha, so we re-apply the stored mask each frame.)
+    m.drawImage(el, 0, 0, bw, bh);
+    const t = performance.now();
+    if (!this.lastMask || this.lastMask.length !== bw * bh || t - this.lastSegT >= 66) {
+      try {
+        const res = this.seg.segmentForVideo(el, t);
+        const mask = res.confidenceMasks?.[0];
+        if (mask) { const mf = mask.getAsFloat32Array(); if (mf.length === bw * bh) { this.lastMask = mf.slice(); this.lastSegT = t; } }
+        res.close?.();
+      } catch { /* keep the previous mask */ }
+    }
+    const mf = this.lastMask;
+    if (mf && mf.length === bw * bh) {
+      const img = m.getImageData(0, 0, bw, bh), d = img.data;
+      for (let p = 0, j = 3; p < mf.length; p++, j += 4) d[j] = mf[p] > 0.5 ? 255 : Math.round(mf[p] * mf[p] * 255);
+      m.putImageData(img, 0, 0);
+    }
     return this.maskCanvas;
   }
 
+  // Keep the composite canvas at the ACTIVE camera's real aspect ratio. The output used to be a
+  // hardcoded 720×1280 portrait, so a landscape (or any non-portrait) camera got center-cropped into
+  // portrait and the live player stretched the mismatch → "badly squished". Now the published surface
+  // carries the true source aspect (capped for power), so it matches the raw-camera feed and never
+  // squishes. Only resizes on a real aspect change (orientation flip / camera switch), not per-frame.
+  private syncAspect() {
+    let sw = 0, sh = 0;
+    const primary =
+      this.mode === 'front' ? this.frontEl :
+      this.mode === 'rear' ? this.rearEl :
+      this.mode === 'both' ? this.rearEl :
+      (this.mode === 'screen-pip' || this.mode === 'screen-mask') ? this.screenEl : null;
+    if (primary && primary.videoWidth) { sw = primary.videoWidth; sh = primary.videoHeight; }
+    else if (this.mode === 'vtuber' && this.vtuber?.canvas?.width) { sw = this.vtuber.canvas.width; sh = this.vtuber.canvas.height; }
+    else if (this.frontEl.videoWidth) { sw = this.frontEl.videoWidth; sh = this.frontEl.videoHeight; } // fallback so we still adapt before a mode's source is ready
+    if (!sw || !sh) return;
+    const long = Math.max(sw, sh), cap = 1280;               // 720p-class ceiling keeps the phone cool
+    const scale = long > cap ? cap / long : 1;
+    const w = Math.max(2, Math.round(sw * scale / 2) * 2);    // even dims — some encoders reject odd
+    const h = Math.max(2, Math.round(sh * scale / 2) * 2);
+    const curAr = this.canvas.width / this.canvas.height, newAr = w / h;
+    if (Math.abs(curAr - newAr) / curAr > 0.03) this.setCanvas(w, h);
+  }
+
   private draw() {
+    this.syncAspect();
     const c = this.wctx, W = this.work.width, H = this.work.height;
     // Night: skip the clear and blend the new frame over the previous one (exponential
     // moving average) — temporal noise reduction, the core of every native night mode.
