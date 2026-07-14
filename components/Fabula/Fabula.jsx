@@ -31,6 +31,8 @@ import AudioEditor from "./AudioEditor";
 import AudioTimeline from "./AudioTimeline";
 import ColorWheels from "./ColorWheels";
 import { quickStems, separateStemsCloud } from "../../services/fabula/stemSeparation";
+import { exportFCPXML, importFCPXML } from "../../services/fabula/fcpxml";
+import { initResumableUploads, enqueueUpload, onUploadProgress, pendingCount } from "../../services/fabula/resumableUpload";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
@@ -569,6 +571,7 @@ export default function Fabula() {
   const [ctxMenu, setCtxMenu] = useState(null); // right-click clip menu: { x, y, clipId }
   const [audioEdit, setAudioEdit] = useState(null); // { clip, url, blob } → open AudioEditor
   const [stemBusy, setStemBusy] = useState(false);   // stem-split / separation in flight
+  const [uploadPending, setUploadPending] = useState(0); // background resumable uploads still in flight
   const [transcribing, setTranscribing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(null);   // top menu bar: 'File' | 'Edit' | 'View' | 'Clip' | 'Help'
   const [poolSel, setPoolSel] = useState([]);       // selected media-pool asset ids (multi-select)
@@ -1906,6 +1909,102 @@ export default function Fabula() {
     ping("Media relinked");
   };
 
+  // ── Timeline interchange (FCPXML / EDL) with media relink + background cloud upload ──
+  // Ask where the media lives, read it LOCAL-FIRST off the drive, and in the background upload it to the
+  // cloud with cross-session resume — so the edit is instantly playable while portability catches up.
+  const baseOf = (s) => { try { const u = decodeURIComponent(s || ""); return (u.split(/[\\/]/).pop() || "").split("?")[0].toLowerCase(); } catch { return ((s || "").split(/[\\/]/).pop() || "").toLowerCase(); } };
+  const pickMediaFolder = async () => {
+    // File System Access (Chromium desktop + Android Chrome): recursive, keeps the whole tree.
+    if (window.showDirectoryPicker) {
+      try {
+        const dir = await window.showDirectoryPicker({ id: "fabula-media", mode: "read" });
+        const map = new Map();
+        const walk = async (h, d) => { if (d > 6) return; for await (const [nm, en] of h.entries()) { if (en.kind === "file") map.set(nm.toLowerCase(), en); else if (en.kind === "directory") await walk(en, d + 1); } };
+        await walk(dir, 0);
+        return { kind: "fsa", map };
+      } catch (e) { if (e?.name === "AbortError") return null; /* unsupported → fallback */ }
+    }
+    return new Promise((resolve) => {
+      const inp = document.createElement("input");
+      inp.type = "file"; inp.multiple = true; inp.webkitdirectory = true;
+      inp.onchange = () => { const map = new Map(); for (const f of inp.files) map.set(f.name.toLowerCase(), f); resolve(map.size ? { kind: "files", map } : null); };
+      inp.oncancel = () => resolve(null);
+      inp.click();
+    });
+  };
+  const fileFromPick = async (pick, key) => { const v = pick?.map.get(key); if (!v) return null; return pick.kind === "fsa" ? await v.getFile() : v; };
+
+  const importTimelineWithMedia = async (file) => {
+    try {
+      const text = await file.text();
+      const isFcp = /\.fcpxml$/i.test(file.name) || /<fcpxml/i.test(text.slice(0, 500));
+      let parsed, fmt;
+      if (isFcp) { const r = importFCPXML(text); parsed = r.clips; fmt = r.format; }
+      else { const pr = parseTimelineFile(file.name, text, importFps); parsed = (pr.clips || []).map((c) => ({ ...c, assetId: (c.name || "").toLowerCase(), label: c.name })); fmt = { fps: importFps }; }
+      if (!parsed.length) { setError("No usable clips found in the file."); return; }
+      if (clips.length && !window.confirm(`Import ${parsed.length} clips and REPLACE the current timeline for "${(container?.title) || "this edit"}"?`)) return;
+
+      ping("Locate the media folder so the clips relink…");
+      const pick = await pickMediaFolder();  // null = user skipped; import stays offline for manual relink
+      const uidNow = auth.currentUser?.uid;
+      const keyToAsset = {};                 // basename key → new pool asset id
+      let matched = 0;
+
+      const assets = [];
+      for (const c of parsed) {
+        const key = c.assetId; if (!key || keyToAsset[key]) continue;
+        const id = uid();
+        const isAudio = c.trackId.startsWith("a");
+        const f = await fileFromPick(pick, key);
+        if (f) {
+          matched++;
+          const t = f.type || "";
+          const asset = { id, name: f.name, type: t.startsWith("audio") ? "audio" : t.startsWith("image") ? "image" : "video", url: URL.createObjectURL(f), duration: c.duration || 0, bin: "imported", session: true, imported: isFcp ? "fcpxml" : "edl" };
+          await stSet("studio:blob:" + id, f);
+          assets.push(asset);
+          if (uidNow) enqueueUpload({ assetId: id, name: f.name, mime: f.type || "application/octet-stream", size: f.size, blobKey: "studio:blob:" + id, uid: uidNow }).catch(() => {});
+        } else {
+          assets.push({ id, name: c.label || key, type: isAudio ? "audio" : "video", url: "", duration: c.duration || 0, bin: "imported", offline: true, imported: isFcp ? "fcpxml" : "edl" });
+        }
+        keyToAsset[key] = id;
+      }
+
+      const q = (t) => Math.round((t || 0) * (vfmt.fps || 24)) / (vfmt.fps || 24);
+      const next = parsed.map((c) => ({ id: uid(), trackId: c.trackId, start: q(c.start), duration: Math.max(0.2, q(c.duration)), kind: "media", assetId: keyToAsset[c.assetId], label: c.label || "Clip", srcIn: q(c.srcIn || 0) }));
+      updateProd((p) => {
+        p.mediaPool = p.mediaPool || [];
+        assets.forEach((a) => { if (!p.mediaPool.some((x) => x.id === a.id)) p.mediaPool.push(a); });
+        p.tracks = (p.tracks && p.tracks.length) ? p.tracks : TRACKS.map((t) => ({ ...t }));
+        [...new Set(next.map((c) => c.trackId))].forEach((tid) => { if (!p.tracks.some((t) => t.id === tid)) p.tracks.push({ id: tid, name: tid.toUpperCase(), type: tid.startsWith("a") ? "audio" : "video" }); });
+      });
+      setClips(next); commitClips(next); setPlayhead(0); setSelClipId(null);
+      const total = Object.keys(keyToAsset).length;
+      ping(`Imported ${next.length} clips · ${matched}/${total} media relinked${matched && uidNow ? " · uploading to cloud in background" : ""}`);
+    } catch (e) { setError("Import failed: " + e.message); }
+  };
+
+  const exportTimelineFCPXML = () => {
+    try {
+      const xml = exportFCPXML(clips, tracks, prod?.mediaPool || [], { w: vfmt.w, h: vfmt.h, fps: vfmt.fps }, (container?.title) || prod?.title || "Fabula Project");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([xml], { type: "application/xml" }));
+      a.download = ((container?.title) || "fabula_timeline").replace(/\s+/g, "_") + ".fcpxml";
+      a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 20000);
+      ping("FCPXML exported — import into DaVinci Resolve (File ▸ Import ▸ Timeline)");
+    } catch (e) { setError("Export failed: " + e.message); }
+  };
+
+  // Resume any unfinished background uploads across sessions; stamp the cloud URL onto the asset when done.
+  useEffect(() => {
+    initResumableUploads((assetId, cloudUrl) => {
+      if (!cloudUrl) return;
+      updateProd((p) => { const a = p.mediaPool?.find((x) => x.id === assetId); if (a && !a.cloudUrl) a.cloudUrl = cloudUrl; });
+    });
+    const off = onUploadProgress((qd) => setUploadPending(qd.filter((e) => e.status !== "done").length));
+    return () => { off?.(); };
+    // eslint-disable-next-line
+  }, []);
+
   /* ----- format / multicam / blade ----- */
   const [formatOpen, setFormatOpen] = useState(false);
   const [mcSel, setMcSel] = useState([]);
@@ -2959,13 +3058,14 @@ export default function Fabula() {
                         e.target.value = ""; relinkTargetRef.current = null;
                       }} />
                     <div className="btnrow" style={{ marginTop: 6, gap: 5 }}>
-                      <button className="minibtn blue grow" onClick={() => importRef.current?.click()} title="Import a timeline cut from Resolve, Premiere, or Final Cut"><ListVideo size={12} /> EDL / XML</button>
+                      <button className="minibtn blue grow" onClick={() => importRef.current?.click()} title="Import a timeline from DaVinci Resolve / Premiere / Final Cut (FCPXML or EDL). You'll be asked where the media is — it reads local-first and uploads to the cloud in the background."><ListVideo size={12} /> IMPORT TIMELINE</button>
                       <select className="sel fpssel" value={importFps} onChange={(e) => setImportFps(parseFloat(e.target.value))} title="Frame rate for EDL timecode math">
                         {[23.976, 24, 25, 29.97, 30].map((f) => <option key={f} value={f}>{f} fps</option>)}
                       </select>
                     </div>
+                    {uploadPending > 0 && <div className="dim small" style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 5 }}><Upload size={11} /> {uploadPending} file{uploadPending > 1 ? "s" : ""} uploading to cloud… (resumes across sessions)</div>}
                     <input ref={importRef} type="file" accept=".edl,.xml,.fcpxml" style={{ display: "none" }}
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) importTimeline(f); e.target.value = ""; }} />
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) importTimelineWithMedia(f); e.target.value = ""; }} />
                     <button className="minibtn full" style={{ marginTop: 6 }} onClick={loadMyMusic} disabled={musicLoading} title="Load your released tracks; double-click a Music item to add it with synced-lyric captions">
                       <Music size={12} /> {musicLoading ? "LOADING…" : "MY MUSIC (ON-PLATFORM)"}
                     </button>
@@ -4775,6 +4875,7 @@ export default function Fabula() {
                         <button className="cta" onClick={doRenderMP4} style={{ background: rendering ? "#3a2a12" : undefined }}>
                           <Film size={13} /> {rendering ? `RENDERING ${Math.round(renderPct * 100)}% — CANCEL` : "RENDER MP4 (PIXELS ENGINE)"}
                         </button>
+                        <button className="cta" onClick={exportTimelineFCPXML} title="Export this timeline as FCPXML — import into DaVinci Resolve (File ▸ Import ▸ Timeline), Premiere, or Final Cut"><ListVideo size={13} /> EXPORT FCPXML (RESOLVE)</button>
                         <button className="cta" onClick={exportEDL}><ListVideo size={13} /> EXPORT EDL (CMX3600)</button>
                         <CopyBtn text={exportAll()} label="⤓ COPY FULL EXPORT (BIBLE + SHOTS + PROMPTS)" />
                       </div>
