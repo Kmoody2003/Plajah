@@ -928,6 +928,7 @@ export default function Fabula() {
   /* ----- WORLD: folder import + asset intelligence ----- */
   const [worldCat, setWorldCat] = useState("overview");
   const folderRef = useRef(null);
+  const mirrorFolderRef = useRef(null);             // literal folder → mirrored bins (media pool)
 
   const inferCategory = (relPath) => {
     for (const [re, cat] of FOLDER_MAP) if (re.test(relPath)) return cat;
@@ -1623,7 +1624,20 @@ export default function Fabula() {
     document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
   };
   // ── Media-pool multi-select (click / ⌘-click / shift-range / marquee) ──
-  const poolFiltered = () => (prod?.mediaPool || []).filter((x) => binFilter === "all" || (x.bin || "imports") === binFilter);
+  // A bin selection shows that folder AND everything nested under it (prefix match), so picking a
+  // parent bin reveals the whole subtree — the way a folder does on disk.
+  const poolFiltered = () => (prod?.mediaPool || []).filter((x) => {
+    if (binFilter === "all") return true;
+    const b = x.bin || "imports";
+    return b === binFilter || b.startsWith(binFilter + "/");
+  });
+  // Ordered, ancestor-expanded list of bin paths for the nested tree render.
+  const binTree = () => {
+    const raw = new Set([...(prod?.bins || []), ...(prod?.mediaPool || []).map((a) => a.bin || "imports")]);
+    const all = new Set();
+    for (const p of raw) { if (!p) continue; const segs = p.split("/"); let acc = ""; for (const s of segs) { acc = acc ? acc + "/" + s : s; all.add(acc); } }
+    return [...all].sort((a, b) => a.localeCompare(b));
+  };
   const poolClick = (e, a) => {
     if (marqueeActiveRef.current) return; // this was a marquee drag, not a click
     if (e.ctrlKey || e.metaKey) { setPoolSel((s) => s.includes(a.id) ? s.filter((x) => x !== a.id) : [...s, a.id]); return; }
@@ -2199,6 +2213,21 @@ export default function Fabula() {
       newAssets.forEach((a) => p.mediaPool.push(a));
     });
     return newAssets.length;
+  };
+  // Literal folder mirror: an <input webkitdirectory> (or dropped folder) → bins that match the
+  // on-disk tree exactly. Each file's webkitRelativePath keeps the FULL nested path (root folder
+  // included) as its bin, so "Footage/Day1/clip.mp4" lands in the "Footage/Day1" bin and the pool
+  // renders the same hierarchy. (The World page's IMPORT FOLDER is different — it flattens + AI-
+  // classifies into cast/world categories; this one just reproduces the folders.)
+  const importFolderMirror = async (fileList) => {
+    const items = Array.from(fileList || []).map((f) => {
+      const rel = f.webkitRelativePath || f.name;
+      const path = rel.split("/").slice(0, -1).join("/"); // drop the filename → the nested folder path
+      return { path, name: f.name, file: f };
+    });
+    const n = await importFilesToBins(items);
+    if (n) ping(`Imported ${n} file${n === 1 ? "" : "s"} — bins mirror the folder structure`);
+    return n;
   };
   const refreshSyncFolders = async () => { if (prod?.id) { try { setSyncFolders(await listSyncFolders(prod.id)); } catch { /* */ } } };
   const rescanSyncFolder = async (id, interactive) => {
@@ -4856,18 +4885,23 @@ export default function Fabula() {
                   <div className="mediaws glass-dark">
                     <div className="mwside">
                       <div className="paneltitle"><MonitorPlay size={12} /> BINS</div>
-                      {["all", ...Array.from(new Set([...(prod.bins || []), ...(prod.mediaPool || []).map((a) => a.bin || "imports")]))].map((b) => {
-                        const count = b === "all" ? prod.mediaPool.length : prod.mediaPool.filter((a) => (a.bin || "imports") === b).length;
+                      {["all", ...binTree()].map((b) => {
+                        // count includes the bin's own assets + everything nested beneath it (subtree)
+                        const count = b === "all" ? prod.mediaPool.length
+                          : prod.mediaPool.filter((a) => { const ab = a.bin || "imports"; return ab === b || ab.startsWith(b + "/"); }).length;
+                        const depth = b === "all" ? 0 : b.split("/").length - 1;
+                        const leaf = b === "all" ? "ALL" : (b.split("/").pop() || b).toUpperCase();
                         return (
                           <button key={b} className={`binbtn ${binFilter === b ? "on" : ""}`} onClick={() => setBinFilter(b)}
+                            style={depth ? { paddingLeft: 8 + depth * 12 } : undefined}
                             onDoubleClick={() => {
                               if (b === "all" || b === "imports") return;
                               if (count > 0) { ping("Move its assets out first, then the bin can be removed."); return; }
                               updateProd((p) => { p.bins = (p.bins || []).filter((x) => x !== b); });
                               if (binFilter === b) setBinFilter("all");
                             }}
-                            title={b === "all" || b === "imports" ? "" : "Double-click to remove empty bin"}>
-                            {b.toUpperCase()} <span className="catcount">{count}</span>
+                            title={b === "all" ? "" : b + (b === "imports" ? "" : " · double-click to remove empty bin")}>
+                            {depth > 0 && <span className="bintree">└</span>}{leaf} <span className="catcount">{count}</span>
                           </button>
                         );
                       })}
@@ -4880,7 +4914,9 @@ export default function Fabula() {
                         }}>+ NEW BIN</button>
                       <div className="insp-div" />
                       <button className="minibtn full" onClick={() => fileRef.current?.click()}><Upload size={12} /> IMPORT FILES</button>
-                      <button className="minibtn full blue" style={{ marginTop: 6 }} onClick={() => folderRef.current?.click()} title="Folder import runs the full intelligence: bins route to world categories, character folders verify into the Cast"><Upload size={12} /> IMPORT FOLDER</button>
+                      <button className="minibtn full blue" style={{ marginTop: 6 }} onClick={() => mirrorFolderRef.current?.click()} title="Import a folder — the bins mirror its nested folder structure exactly (vectors rasterized, media auto-synced)"><Upload size={12} /> IMPORT FOLDER</button>
+                      <input ref={mirrorFolderRef} type="file" webkitdirectory="" directory="" multiple style={{ display: "none" }}
+                        onChange={(e) => { importFolderMirror(e.target.files); e.target.value = ""; }} />
                       <div className="insp-div" />
                       <button className="minibtn full" style={{ color: unsyncedCount ? "var(--green)" : undefined, borderColor: unsyncedCount ? "rgba(120,220,150,0.35)" : undefined }}
                         disabled={syncing} onClick={syncAssetsToCloud}
@@ -6225,6 +6261,7 @@ const CSS = `
   font-size:10px;font-weight:900;letter-spacing:.12em;padding:7px 9px;border-radius:6px;cursor:pointer;text-align:left}
 .binbtn:hover{color:#fff;background:var(--w04)}
 .binbtn.on{background:var(--org);color:#000}
+.bintree{opacity:.4;margin-right:4px;font-weight:400}
 .mwgrid{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;padding:14px;
   overflow-y:auto;align-content:start}
 .mwcard{background:rgba(0,0,0,.4);border:1px solid var(--w08);border-radius:9px;padding:7px;cursor:pointer}

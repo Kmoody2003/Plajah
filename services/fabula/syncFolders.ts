@@ -77,7 +77,10 @@ export async function scanFolder(handle: any, maxDepth = 8): Promise<ScannedFile
       }
     }
   };
-  await walk(handle, '', 0);
+  // Seed the relative path with the folder's own name so files at the root nest under a bin named
+  // after the folder (and subfolders under it) — the pool's bin tree then mirrors the disk exactly,
+  // instead of dropping top-level files into the generic "imports" bin.
+  await walk(handle, handle.name || '', 0);
   return out;
 }
 
