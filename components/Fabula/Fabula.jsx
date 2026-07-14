@@ -35,6 +35,7 @@ import { exportFCPXML, importFCPXML } from "../../services/fabula/fcpxml";
 import { initResumableUploads, enqueueUpload, onUploadProgress, pendingCount } from "../../services/fabula/resumableUpload";
 import { listSyncFolders, addSyncFolder, removeSyncFolder, rescanNew } from "../../services/fabula/syncFolders";
 import { isVectorFile, rasterizeVector } from "../../services/fabula/vectorRaster";
+import GeneratePanel from "./GeneratePanel";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
@@ -929,6 +930,7 @@ export default function Fabula() {
   const [worldCat, setWorldCat] = useState("overview");
   const folderRef = useRef(null);
   const mirrorFolderRef = useRef(null);             // literal folder → mirrored bins (media pool)
+  const [genOpen, setGenOpen] = useState(false);    // generation agent panel (Kling/Magnific → bins)
 
   const inferCategory = (relPath) => {
     for (const [re, cat] of FOLDER_MAP) if (re.test(relPath)) return cat;
@@ -2228,6 +2230,21 @@ export default function Fabula() {
     const n = await importFilesToBins(items);
     if (n) ping(`Imported ${n} file${n === 1 ? "" : "s"} — bins mirror the folder structure`);
     return n;
+  };
+  // Agent results → bins: the generation agent writes outputs to cloud storage; when a job finishes,
+  // GeneratePanel hands the result URLs here and they become pool assets in the target bin — the
+  // "populate bins headless" path (same destination the watch folder feeds).
+  const importGenResults = (results, bin) => {
+    if (!results?.length) return;
+    const target = bin || "Generated";
+    updateProd((p) => {
+      p.mediaPool = p.mediaPool || []; p.bins = p.bins || [];
+      if (!p.bins.includes(target)) p.bins.push(target);
+      results.forEach((r) => {
+        p.mediaPool.push({ id: uid(), name: r.name || "generated", type: r.type || "image", url: r.url, cloudUrl: r.url, bin: target, duration: 0, generated: true, synced: true, session: true });
+      });
+    });
+    ping(`${results.length} generated result${results.length === 1 ? "" : "s"} added to ${target}`);
   };
   const refreshSyncFolders = async () => { if (prod?.id) { try { setSyncFolders(await listSyncFolders(prod.id)); } catch { /* */ } } };
   const rescanSyncFolder = async (id, interactive) => {
@@ -4193,6 +4210,11 @@ export default function Fabula() {
           onChange={(clean) => updateClipAudio(audioEdit.clip.id, { clean })}
           onClose={() => setAudioEdit(null)} />
       )}
+      {genOpen && (
+        <GeneratePanel projectId={prod?.id || "local"} bins={binTree()}
+          defaultBin={binFilter !== "all" ? binFilter : ""}
+          importResults={importGenResults} onClose={() => setGenOpen(false)} />
+      )}
       {exportReady && (
         <div style={{ position: "fixed", inset: 0, zIndex: 10000, background: "rgba(0,0,0,0.62)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }}
           onMouseDown={(e) => { if (e.target === e.currentTarget && !publishing) setExportReady(null); }}>
@@ -4917,6 +4939,9 @@ export default function Fabula() {
                       <button className="minibtn full blue" style={{ marginTop: 6 }} onClick={() => mirrorFolderRef.current?.click()} title="Import a folder — the bins mirror its nested folder structure exactly (vectors rasterized, media auto-synced)"><Upload size={12} /> IMPORT FOLDER</button>
                       <input ref={mirrorFolderRef} type="file" webkitdirectory="" directory="" multiple style={{ display: "none" }}
                         onChange={(e) => { importFolderMirror(e.target.files); e.target.value = ""; }} />
+                      <button className="minibtn full" style={{ marginTop: 6, background: "linear-gradient(120deg,rgba(124,58,237,0.28),rgba(249,115,22,0.22))", borderColor: "rgba(224,69,155,0.4)", color: "#fff" }}
+                        onClick={() => setGenOpen(true)} title="Generate with a linked service (Kling, Magnific) — results land in a bin automatically">
+                        <Sparkles size={12} /> GENERATE</button>
                       <div className="insp-div" />
                       <button className="minibtn full" style={{ color: unsyncedCount ? "var(--green)" : undefined, borderColor: unsyncedCount ? "rgba(120,220,150,0.35)" : undefined }}
                         disabled={syncing} onClick={syncAssetsToCloud}
