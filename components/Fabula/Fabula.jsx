@@ -1421,6 +1421,42 @@ export default function Fabula() {
     const audioClip = { id: uid(), trackId: aTrack, start, duration, srcIn: srcInVal, kind: "media", assetId: asset.id, label: asset.name + " · A", linkId };
     const next = [...clips, videoClip, audioClip]; setClips(next); commitClips(next); setSelClipId(videoClip.id);
   };
+  // Detach a video clip's embedded audio onto an audio track (NLE "split/detach audio"). Mutes the
+  // picture clip's built-in sound (av:true) so it isn't doubled, and links the pair (shared linkId) so
+  // move/trim still ride together. Drops onto the first audio track that's free at the clip's time, else
+  // adds a new one. Batches over the current selection when several video clips are picked.
+  const detachAudio = (clipId) => {
+    const targetIds = (selIds.length > 1 && selIds.includes(clipId)) ? selIds : [clipId];
+    const curTracks = (prod?.tracks && prod.tracks.length) ? prod.tracks : TRACKS;
+    let audioTrackIds = curTracks.filter((t) => t.type === "audio").map((t) => t.id);
+    const addTracks = [];
+    let working = [...clips];   // grows as we place audio clips (so overlap checks see them)
+    let done = 0;
+    for (const id of targetIds) {
+      const c = clips.find((x) => x.id === id);
+      if (!c?.assetId || !c.trackId.startsWith("v") || c.av) continue;
+      const asset = prod?.mediaPool?.find((a) => a.id === c.assetId);
+      const overlaps = (tid) => working.some((x) => x.trackId === tid && !(x.start + x.duration <= c.start + 1e-4 || x.start >= c.start + c.duration - 1e-4));
+      let aTrack = audioTrackIds.find((tid) => !overlaps(tid));
+      if (!aTrack) {
+        const nums = audioTrackIds.map((t) => parseInt(t.slice(1), 10) || 0);
+        const n = (nums.length ? Math.max(...nums) : 0) + 1; aTrack = "a" + n;
+        audioTrackIds = [...audioTrackIds, aTrack]; addTracks.push({ id: aTrack, name: "A" + n, type: "audio" });
+      }
+      const linkId = c.linkId || uid();
+      const audioClip = { id: uid(), trackId: aTrack, start: c.start, duration: c.duration, srcIn: c.srcIn || 0, kind: "media", assetId: c.assetId, label: (c.label || asset?.name || "clip") + " · A", linkId };
+      working = working.map((x) => (x.id === c.id ? { ...x, av: true, linkId } : x)).concat(audioClip);
+      done++;
+    }
+    if (!done) { ping("Pick a video clip that still has its audio."); return; }
+    updateProd((p) => {
+      p.tracks = (p.tracks && p.tracks.length) ? p.tracks : TRACKS.map((t) => ({ ...t }));
+      addTracks.forEach((t) => { if (!p.tracks.some((x) => x.id === t.id)) p.tracks.push(t); });
+      writeTimelineClips(p, working);
+    });
+    setClips(working); setSelClipId(null);
+    ping(`Audio split to a track${done > 1 ? ` · ${done} clips` : ""}`);
+  };
   /* ── Effects Library actions ── */
   const applyFxPreset = (preset) => {
     if (!selClipId) { ping("Select a clip in the timeline first."); return; }
@@ -4084,6 +4120,7 @@ export default function Fabula() {
                             {mi("Default transition", addCrossDissolve, { icon: <Wand2 size={12} /> })}
                             {mi("Split at playhead", bladeAtPlayhead, { icon: <Scissors size={12} /> })}
                             {mi("Duplicate", duplicateSel, { icon: <Plus size={12} /> })}
+                            {c?.assetId && c.trackId?.startsWith("v") && !c.av && mi("Split audio to track", () => detachAudio(c.id), { icon: <Music size={12} />, hint: (selIds.length > 1 && selIds.includes(c.id)) ? `×${selIds.length}` : undefined })}
                             {mi(transcribing ? "Transcribing…" : "Transcribe clip", () => transcribeClip(c), { icon: <Captions size={12} />, disabled: transcribing || !c?.assetId })}
                             {c?.assetId && (c.trackId?.startsWith("a") || c.kind === "media") && <>
                               {div}
