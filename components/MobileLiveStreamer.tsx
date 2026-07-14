@@ -1195,7 +1195,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                         { id: 'both', label: 'Both cameras', icon: <Columns2 size={17} />, on: true },
                         { id: 'screen-pip', label: 'Screen + camera', icon: <MonitorSmartphone size={17} />, on: canScreen },
                         { id: 'screen-mask', label: 'Screen + cut-out you', icon: <Monitor size={17} />, on: canScreen },
-                      ] as { id: ComposerMode; label: string; icon: JSX.Element; on: boolean }[]).map(m => (
+                      ] as { id: ComposerMode; label: string; icon: React.JSX.Element; on: boolean }[]).map(m => (
                         <button key={m.id} disabled={!m.on || modeBusy} onClick={() => applyMode(m.id)}
                           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${camMode === m.id ? 'bg-orange-500/20' : 'hover:bg-white/[0.06]'} disabled:opacity-35`}>
                           <span className={camMode === m.id ? 'text-orange-400' : 'text-white/70'}>{m.icon}</span>

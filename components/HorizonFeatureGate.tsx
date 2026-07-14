@@ -187,7 +187,7 @@ export const HORIZON_FEATURES: Record<string, HorizonFeatureDef> = {
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<HorizonStatus, { label: string; color: string; Icon: React.ElementType }> = {
+const STATUS_CONFIG: Record<HorizonStatus, { label: string; color: string; Icon: React.ComponentType<any> }> = {
   PLANNED:   { label: 'Planned',   color: 'text-white/40 border-white/15 bg-white/5',       Icon: Telescope },
   BUILDING:  { label: 'Building',  color: 'text-sky-400 border-sky-500/30 bg-sky-500/10',   Icon: FlaskConical },
   TESTING:   { label: 'Testing',   color: 'text-amber-400 border-amber-500/30 bg-amber-500/10', Icon: Zap },

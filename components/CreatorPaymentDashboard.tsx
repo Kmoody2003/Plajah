@@ -34,7 +34,7 @@ interface SplitRecipient {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const CATEGORIES: { key: EarningCategory; label: string; icon: React.ElementType; color: string; desc: string }[] = [
+const CATEGORIES: { key: EarningCategory; label: string; icon: React.ComponentType<any>; color: string; desc: string }[] = [
   { key: 'tip',          label: 'Tips & Gifts',          icon: Gift,       color: '#f472b6', desc: 'Live stream tips and direct gifts' },
   { key: 'digital_sale', label: 'Digital Sales',         icon: Music2,     color: '#a78bfa', desc: 'Music, books, movies sold individually' },
   { key: 'sanctuary',    label: 'Sanctuary',             icon: Heart,      color: '#f87171', desc: 'Sanctuary memberships & exclusive access' },
@@ -64,7 +64,7 @@ const fmt = (cents: number) =>
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-const StatCard: React.FC<{ label: string; value: string; sub?: string; color?: string; icon: React.ElementType }> = ({ label, value, sub, color = '#a78bfa', icon: Icon }) => (
+const StatCard: React.FC<{ label: string; value: string; sub?: string; color?: string; icon: React.ComponentType<any> }> = ({ label, value, sub, color = '#a78bfa', icon: Icon }) => (
   <div className="p-5 bg-white/[0.04] border border-white/8 rounded-2xl">
     <div className="flex items-start justify-between mb-3">
       <p className="text-[9px] font-black uppercase tracking-widest text-white/30">{label}</p>
@@ -77,7 +77,7 @@ const StatCard: React.FC<{ label: string; value: string; sub?: string; color?: s
   </div>
 );
 
-const CategoryBar: React.FC<{ label: string; grossCents: number; netCents: number; count: number; color: string; icon: React.ElementType; maxCents: number }> = ({ label, netCents, count, color, icon: Icon, maxCents }) => {
+const CategoryBar: React.FC<{ label: string; grossCents: number; netCents: number; count: number; color: string; icon: React.ComponentType<any>; maxCents: number }> = ({ label, netCents, count, color, icon: Icon, maxCents }) => {
   const pct = maxCents > 0 ? (netCents / maxCents) * 100 : 0;
   return (
     <div className="flex items-center gap-4 py-3 border-b border-white/5 last:border-0">
@@ -423,7 +423,7 @@ const CreatorPaymentDashboard: React.FC<Props> = ({ currentUser }) => {
   const byCategory = earnings?.byCategory ?? {};
   const maxCatNet  = Math.max(...CATEGORIES.map(c => byCategory[c.key]?.netCents ?? 0), 1);
 
-  const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
+  const TABS: { key: Tab; label: string; icon: React.ComponentType<any> }[] = [
     { key: 'overview',     label: 'Overview',      icon: BarChart3 },
     { key: 'categories',   label: 'By Category',   icon: Layers },
     { key: 'transactions', label: 'Transactions',  icon: DollarSign },

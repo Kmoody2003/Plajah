@@ -13,7 +13,7 @@ const CW = 240;
 const CH = Math.round(240 * 680 / 320); // 510 px
 
 // ─── promoted-type config ────────────────────────────────────────────────────
-const PTYPES: { kind: UserAdPromotedType; label: string; Icon: React.ElementType; color: string }[] = [
+const PTYPES: { kind: UserAdPromotedType; label: string; Icon: React.ComponentType<any>; color: string }[] = [
   { kind: 'MUSIC',      label: 'Music Release',  Icon: Music2,    color: '#FF8C00' },
   { kind: 'FILM',       label: 'Film Release',   Icon: Film,      color: '#00B4D8' },
   { kind: 'TV',         label: 'TV Release',     Icon: Tv,        color: '#7209B7' },

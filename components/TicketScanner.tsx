@@ -17,7 +17,7 @@ const TicketScanner: React.FC<Props> = ({ eventId, eventTitle, onBack }) => {
   const [checking, setChecking]       = useState(false);
   const [scanCount, setScanCount]     = useState({ valid: 0, invalid: 0 });
   const inputRef                      = useRef<HTMLInputElement>(null);
-  const clearTimer                    = useRef<ReturnType<typeof setTimeout>>();
+  const clearTimer                    = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Auto-focus the input so a barcode scanner (USB HID keyboard) auto-populates it
   useEffect(() => { inputRef.current?.focus(); }, []);

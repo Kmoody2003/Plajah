@@ -425,6 +425,7 @@ export class LiveComposer {
     if (this.seg || this.segLoading) return;
     this.segLoading = true;
     try {
+      // @ts-ignore -- runtime CDN URL import (resolved by the browser, not TS)
       const vision: any = await import(/* @vite-ignore */ 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14');
       const fileset = await vision.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
       this.seg = await vision.ImageSegmenter.createFromOptions(fileset, {

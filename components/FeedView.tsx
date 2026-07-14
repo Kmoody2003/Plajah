@@ -2777,7 +2777,7 @@ const toggleFavoriteTeam = async (team: string) => {
                       </div>
                       <div className="absolute bottom-0 left-0 right-0 p-3">
                         <p className="text-[10px] font-black uppercase tracking-widest text-white truncate leading-tight">{featuredMusic.title}</p>
-                        {featuredMusic.artistName && <p className="text-[8px] text-white/40 font-bold truncate mt-0.5">{featuredMusic.artistName}</p>}
+                        {featuredMusic.artist && <p className="text-[8px] text-white/40 font-bold truncate mt-0.5">{featuredMusic.artist}</p>}
                         <span className="inline-block mt-1.5 text-[7px] font-black uppercase tracking-widest text-small-orange">Play →</span>
                       </div>
                     </button>
@@ -2800,7 +2800,7 @@ const toggleFavoriteTeam = async (team: string) => {
                       </div>
                       <div className="absolute bottom-0 left-0 right-0 p-3">
                         <p className="text-[10px] font-black uppercase tracking-widest text-white truncate leading-tight">{featuredFilm.title}</p>
-                        {featuredFilm.artistName && <p className="text-[8px] text-white/40 font-bold truncate mt-0.5">{featuredFilm.artistName}</p>}
+                        {featuredFilm.artist && <p className="text-[8px] text-white/40 font-bold truncate mt-0.5">{featuredFilm.artist}</p>}
                         <span className="inline-block mt-1.5 text-[7px] font-black uppercase tracking-widest text-cyan-400">Watch →</span>
                       </div>
                     </button>
@@ -2823,7 +2823,7 @@ const toggleFavoriteTeam = async (team: string) => {
                       </div>
                       <div className="absolute bottom-0 left-0 right-0 p-3">
                         <p className="text-[10px] font-black uppercase tracking-widest text-white truncate leading-tight">{featuredBook.title}</p>
-                        {featuredBook.artistName && <p className="text-[8px] text-white/40 font-bold truncate mt-0.5">{featuredBook.artistName}</p>}
+                        {featuredBook.artist && <p className="text-[8px] text-white/40 font-bold truncate mt-0.5">{featuredBook.artist}</p>}
                         <span className="inline-block mt-1.5 text-[7px] font-black uppercase tracking-widest text-emerald-400">Read →</span>
                       </div>
                     </button>

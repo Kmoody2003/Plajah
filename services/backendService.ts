@@ -1800,7 +1800,7 @@ export const createPPVEvent = async (event: Partial<PPVEvent>) => {
   const path = `ppv_events/${id}`;
   const newEvent: PPVEvent = {
     id,
-    ownerId: uploaderUid,
+    ownerId: auth.currentUser!.uid,
     ownerName: auth.currentUser.displayName || 'Artist',
     title: event.title || 'Untitled Event',
     description: event.description || '',
@@ -1857,7 +1857,7 @@ export const createClassroom = async (classroom: Partial<Classroom>) => {
   const path = `classrooms/${id}`;
   const newClass: Classroom = {
     id,
-    ownerId: uploaderUid,
+    ownerId: auth.currentUser!.uid,
     ownerName: auth.currentUser.displayName || 'Teacher',
     title: classroom.title || 'Untitled Class',
     description: classroom.description || '',
@@ -2896,7 +2896,7 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
     if (auth.currentUser && finalTracks.some(t => t.url)) {
       const draftDoc = removeUndefined({
         ...album,
-        ownerId: uploaderUid,
+        ownerId: auth.currentUser!.uid,
         coverImage: finalCover || album.coverImage || '',
         artistImage: finalArtistImg || finalCover || album.artistImage,
         tracks: finalTracks.map(t => { const { file, ...rest } = t; return { ...rest, rightsOwnerId: auth.currentUser?.uid }; }),
@@ -4145,7 +4145,7 @@ export const publishLiveFeed = async (feed: Partial<LiveFeed> & { title: string,
   try {
     const feedData = removeUndefined({
       ...feed,
-      ownerId: uploaderUid,
+      ownerId: auth.currentUser!.uid,
       ownerName: auth.currentUser.displayName || 'Artist',
       ownerPhoto: auth.currentUser.photoURL || '',
       timestamp: serverTimestamp(),
@@ -4612,7 +4612,7 @@ export const uploadPhoto = async (file: File, metadata: Partial<Photo>) => {
     const newPhoto: Photo = {
       id,
       url,
-      ownerId: uploaderUid,
+      ownerId: auth.currentUser!.uid,
       timestamp: Date.now(),
       isPublic: metadata.isPublic ?? false, // Default to private
       isGalleryEligible: metadata.isGalleryEligible ?? false,
@@ -4643,7 +4643,7 @@ export const uploadWorldPhoto = async (
     const newPhoto: Photo = {
       id,
       url,
-      ownerId: uploaderUid,
+      ownerId: auth.currentUser!.uid,
       timestamp: Date.now(),
       isPublic: false,
       isGalleryEligible: false,
@@ -4694,7 +4694,7 @@ export const createPhotoAlbum = async (album: Partial<PhotoAlbum>) => {
   const path = `photo_albums/${id}`;
   const newAlbum: PhotoAlbum = {
     id,
-    ownerId: uploaderUid,
+    ownerId: auth.currentUser!.uid,
     title: album.title || 'Untitled Album',
     description: album.description || '',
     photoIds: album.photoIds || [],
@@ -4805,7 +4805,7 @@ export const createEventPhotoPool = async (pool: Partial<EventPhotoPool>) => {
   const newPool: EventPhotoPool = {
     id,
     eventId: pool.eventId || '',
-    ownerId: uploaderUid,
+    ownerId: auth.currentUser!.uid,
     title: pool.title || 'Event Photo Pool',
     description: pool.description || '',
     mediaIds: [],
@@ -5549,7 +5549,7 @@ export const addUserGame = async (game: Omit<Game, 'id' | 'timestamp' | 'playCou
     const newGame: Game = {
       ...game,
       id: gameId,
-      ownerId: uploaderUid,
+      ownerId: auth.currentUser!.uid,
       playCount: 0,
       timestamp: Date.now()
     };
@@ -5598,7 +5598,7 @@ export const createPersonalAlbum = async (album: Partial<Album>) => {
   const path = `personal_albums/${id}`;
   const newAlbum: Album = {
     id,
-    ownerId: uploaderUid,
+    ownerId: auth.currentUser!.uid,
     title: album.title || 'Untitled Album',
     artist: album.artist || 'Personal Collection',
     coverImage: album.coverImage || 'https://picsum.photos/seed/album/400/400',
@@ -5663,7 +5663,7 @@ export const createPlaylist = async (playlist: Partial<Playlist>) => {
   const path = `personal_playlists/${id}`;
   const newPlaylist: Playlist = {
     id,
-    ownerId: uploaderUid,
+    ownerId: auth.currentUser!.uid,
     title: playlist.title || 'New Playlist',
     description: playlist.description || '',
     coverUrl: playlist.coverUrl || 'https://picsum.photos/seed/playlist/400/400',
@@ -6876,7 +6876,7 @@ export const createVideoPlaylist = async (playlist: Partial<VideoPlaylist>) => {
   const path = `video_playlists/${id}`;
   const newPlaylist: VideoPlaylist = removeUndefined({
     id,
-    ownerId: uploaderUid,
+    ownerId: auth.currentUser!.uid,
     ownerName: auth.currentUser.displayName || 'Creator',
     ownerPhoto: auth.currentUser.photoURL || '',
     title: playlist.title || 'New Playlist',
@@ -7091,7 +7091,7 @@ export const createFanPage = async (name: string, description: string) => {
   const path = `fan_pages/${id}`;
   const newPage: FanPage = {
     id,
-    ownerId: uploaderUid,
+    ownerId: auth.currentUser!.uid,
     name,
     description,
     members: [auth.currentUser.uid],
@@ -7205,7 +7205,7 @@ export const createAdCampaign = async (campaign: Partial<AdCampaign>) => {
   try {
     const data = removeUndefined({
       ...campaign,
-      ownerId: uploaderUid,
+      ownerId: auth.currentUser!.uid,
       timestamp: serverTimestamp(),
       isActive: campaign.isActive ?? true,
       status: 'ACTIVE'

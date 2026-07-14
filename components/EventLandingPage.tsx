@@ -24,7 +24,7 @@ const fmtTime = (ts: number) => new Date(ts).toLocaleTimeString('en-US', { hour:
 
 const ITINERARY_EMOJI: Record<string, string> = { DOORS: '🚪', PERFORMANCE: '🎤', WORKSHOP: '🛠️', MEET_GREET: '🤝', BREAK: '⏸️', CEREMONY: '🏆', OTHER: '📌' };
 const TYPE_LABELS: Record<string, string> = { IN_PERSON: 'In-Person Event', VIRTUAL: 'Virtual Event', HYBRID: 'Hybrid Event' };
-const TYPE_ICONS: Record<string, React.ElementType> = { IN_PERSON: MapPin, VIRTUAL: Globe, HYBRID: Globe };
+const TYPE_ICONS: Record<string, React.ComponentType<any>> = { IN_PERSON: MapPin, VIRTUAL: Globe, HYBRID: Globe };
 
 // ── Ticket Purchase Modal ─────────────────────────────────────────────────────
 

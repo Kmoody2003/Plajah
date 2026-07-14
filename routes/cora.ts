@@ -221,7 +221,7 @@ coraRouter.get('/songs', async (req: Request, res: Response) => {
 
 coraRouter.get('/songs/track/:tid', async (req: Request, res: Response) => {
   try {
-    const song = await getSongByTrackId(req.params.tid);
+    const song = await getSongByTrackId(String(req.params.tid));
     if (!song) return res.status(404).json({ error: 'Not found' });
     return res.json({ song });
   } catch (err: any) {
@@ -232,7 +232,7 @@ coraRouter.get('/songs/track/:tid', async (req: Request, res: Response) => {
 // ─── GET /api/cora/songs/:id ──────────────────────────────────────────────────
 
 coraRouter.get('/songs/:id', async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (!id || id < 1) return res.status(400).json({ error: 'Invalid song id' });
   try {
     const song = await getSong(id);
@@ -246,7 +246,7 @@ coraRouter.get('/songs/:id', async (req: Request, res: Response) => {
 // ─── PUT /api/cora/songs/:id ──────────────────────────────────────────────────
 
 coraRouter.put('/songs/:id', async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (!id || id < 1) return res.status(400).json({ error: 'Invalid song id' });
 
   const allowed = ['title', 'artist', 'lyrics', 'genreRules', 'tempo', 'beatDetectionVersion'] as const;
@@ -268,7 +268,7 @@ coraRouter.put('/songs/:id', async (req: Request, res: Response) => {
 // ─── DELETE /api/cora/songs/:id ───────────────────────────────────────────────
 
 coraRouter.delete('/songs/:id', async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (!id || id < 1) return res.status(400).json({ error: 'Invalid song id' });
   try {
     await deleteSong(id);

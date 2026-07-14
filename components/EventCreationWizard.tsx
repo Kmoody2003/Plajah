@@ -21,7 +21,7 @@ interface Props {
 
 type Section = 'basics' | 'datetime' | 'location' | 'tiers' | 'itinerary' | 'media' | 'advanced';
 
-const SECTION_META: { key: Section; label: string; icon: React.ElementType; desc: string }[] = [
+const SECTION_META: { key: Section; label: string; icon: React.ComponentType<any>; desc: string }[] = [
   { key: 'basics',    label: 'Event Basics',    icon: Calendar,  desc: 'Name, type, description' },
   { key: 'datetime',  label: 'Date & Time',     icon: Clock,     desc: 'When does it start?' },
   { key: 'location',  label: 'Location',        icon: MapPin,    desc: 'Venue, virtual, or hybrid' },
@@ -129,7 +129,7 @@ const EventCreationWizard: React.FC<Props> = ({ currentUser, editingEvent, onSav
     if (!file) return;
     setUploadingCover(true);
     try {
-      const url = await uploadFile(file, `events/${currentUser.uid}/${Date.now()}_cover`);
+      const url = await uploadFile(`events/${currentUser.uid}/${Date.now()}_cover`, file);
       setCoverImage(url);
     } catch { } finally { setUploadingCover(false); }
   };
