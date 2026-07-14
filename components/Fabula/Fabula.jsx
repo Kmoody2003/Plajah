@@ -4,7 +4,7 @@ import {
   Sparkles, ChevronLeft, Wand2, Users, Globe, Trash2, MonitorPlay, X, ListVideo,
   Palette, Box, Cpu, Lock, Unlock, Camera, Brush, Type, Captions, Keyboard,
   Scissors, MousePointer2, FlagTriangleRight, FlagTriangleLeft,
-  SlidersHorizontal, Mic2,
+  SlidersHorizontal, Mic2, FolderOpen, Search, Tag, FileText, RefreshCw,
 } from "lucide-react";
 import * as THREE from "three";
 import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from "idb-keyval";
@@ -526,7 +526,9 @@ export default function Fabula() {
   const [prod, setProd] = useState(null);
   const [syncGrants, setSyncGrants] = useState(() => new Set()); // "trackId::editId" keys the buyer holds
   const [sceneSel, setSceneSel] = useState(null); // {actId, sceneId}
-  const [prodTab, setProdTab] = useState("structure"); // structure | cast | world
+  const [prodTab, setProdTab] = useState("structure"); // structure | cast | world | design | media
+  const [mediaSearch, setMediaSearch] = useState("");  // keyword/tag search — shared media + edit pages
+  const [mediaBin, setMediaBin] = useState("all");     // folder filter for the Media Assets tab
   const [connectWorldOpen, setConnectWorldOpen] = useState(false); // Plajah World link modal
   const [storageReady, setStorageReady] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -930,6 +932,7 @@ export default function Fabula() {
   const [worldCat, setWorldCat] = useState("overview");
   const folderRef = useRef(null);
   const mirrorFolderRef = useRef(null);             // literal folder → mirrored bins (media pool)
+  const mediaFilesRef = useRef(null);               // plain files → auto-tagged import (media assets tab)
   const [genOpen, setGenOpen] = useState(false);    // generation agent panel (Kling/Magnific → bins)
 
   const inferCategory = (relPath) => {
@@ -1626,12 +1629,19 @@ export default function Fabula() {
     document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
   };
   // ── Media-pool multi-select (click / ⌘-click / shift-range / marquee) ──
+  // Keyword search across name + tags + folder — the same matcher powers the media & edit pages.
+  const assetMatches = (a, q) => {
+    if (!q) return true;
+    const s = q.toLowerCase();
+    return (a.name || "").toLowerCase().includes(s)
+      || (a.bin || "").toLowerCase().includes(s)
+      || (a.tags || []).some((t) => (t || "").toLowerCase().includes(s));
+  };
   // A bin selection shows that folder AND everything nested under it (prefix match), so picking a
-  // parent bin reveals the whole subtree — the way a folder does on disk.
+  // parent bin reveals the whole subtree — the way a folder does on disk. Keyword search narrows further.
   const poolFiltered = () => (prod?.mediaPool || []).filter((x) => {
-    if (binFilter === "all") return true;
-    const b = x.bin || "imports";
-    return b === binFilter || b.startsWith(binFilter + "/");
+    if (binFilter !== "all") { const b = x.bin || "imports"; if (!(b === binFilter || b.startsWith(binFilter + "/"))) return false; }
+    return assetMatches(x, mediaSearch.trim());
   });
   // Ordered, ancestor-expanded list of bin paths for the nested tree render.
   const binTree = () => {
@@ -2188,6 +2198,12 @@ export default function Fabula() {
     const existing = new Set((prod?.mediaPool || []).map((a) => `${a.name}|${a.bin || "imports"}`));
     const newAssets = [], newBins = new Set();
     let vectorFailed = 0;
+    // Auto-tag index: match an asset's name/folder against cast + world-feature names so imports self-file
+    // into those libraries (tags are searchable everywhere; cast matches also link into the member).
+    const castIdx = (prod?.cast || []).map((c) => ({ id: c.id, name: (c.name || "").toLowerCase() })).filter((c) => c.name.length >= 2);
+    const worldIdx = [];
+    Object.entries(prod?.worldCats || {}).forEach(([cat, items]) => (items || []).forEach((it) => { if ((it.name || "").length >= 2) worldIdx.push({ cat, id: it.id, name: it.name.toLowerCase() }); }));
+    const castLinks = []; // { assetId, castId }
     for (const { path, name, file: rawFile } of files) {
       const bin = path || "imports";
       const dkey = `${name}|${bin}`;
@@ -2204,8 +2220,15 @@ export default function Fabula() {
       const id = uid();
       const t = file.type || "";
       const type = vector ? "image" : t.startsWith("audio") ? "audio" : t.startsWith("image") ? "image" : /\.(json|lottie)$/i.test(name) ? "lottie" : "video";
+      // Auto-tag from name + folder path against cast/world + folder-category regex.
+      const hay = `${name} ${bin}`.toLowerCase();
+      const tags = new Set();
+      let castId, worldCat;
+      castIdx.forEach((c) => { if (hay.includes(c.name)) { tags.add(c.name); if (!castId) castId = c.id; castLinks.push({ assetId: id, castId: c.id }); } });
+      worldIdx.forEach((w) => { if (hay.includes(w.name)) { tags.add(w.name); if (!worldCat) worldCat = w.cat; } });
+      FOLDER_MAP.forEach(([re, cat]) => { if (re.test(bin)) { tags.add(cat); if (!worldCat) worldCat = cat; } });
       await stSet("studio:blob:" + id, file);
-      newAssets.push({ id, name, type, vector: vector || undefined, url: URL.createObjectURL(file), duration: 0, bin, session: true, synced: true });
+      newAssets.push({ id, name, type, vector: vector || undefined, url: URL.createObjectURL(file), duration: 0, bin, session: true, synced: true, tags: [...tags], castId, worldCat });
       if (uidNow) enqueueUpload({ assetId: id, name: file.name || name, mime: file.type || "application/octet-stream", size: file.size, blobKey: "studio:blob:" + id, uid: uidNow }).catch(() => {});
     }
     if (vectorFailed) ping(`${vectorFailed} vector file${vectorFailed === 1 ? "" : "s"} couldn't be read — re-save as SVG or PDF and re-import`);
@@ -2213,7 +2236,14 @@ export default function Fabula() {
       p.mediaPool = p.mediaPool || []; p.bins = p.bins || [];
       newBins.forEach((b) => { if (!p.bins.includes(b)) p.bins.push(b); });
       newAssets.forEach((a) => p.mediaPool.push(a));
+      // Link name-matched assets into their cast member's media library.
+      castLinks.forEach(({ assetId, castId }) => {
+        const m = (p.cast || []).find((c) => c.id === castId);
+        if (m) { m.media = m.media || []; if (!m.media.includes(assetId)) m.media.push(assetId); }
+      });
     });
+    const tagged = newAssets.filter((a) => a.tags?.length).length;
+    if (tagged) ping(`Auto-tagged ${tagged} asset${tagged === 1 ? "" : "s"} into cast / world`);
     return newAssets.length;
   };
   // Literal folder mirror: an <input webkitdirectory> (or dropped folder) → bins that match the
@@ -4378,7 +4408,7 @@ export default function Fabula() {
             <h1 className="mega">{prod.title}</h1>
             <input className="in desc" placeholder="One-line description of this production…" value={prod.description} onChange={(e) => updateProd((p) => { p.description = e.target.value; })} />
             <div className="ptabs">
-              {[["structure", "STRUCTURE", ListVideo], ["cast", "CAST", Users], ["world", "WORLD", Globe], ["design", "DESIGN", Brush]].map(([id, lab, Ic]) => (
+              {[["structure", "STRUCTURE", ListVideo], ["cast", "CAST", Users], ["world", "WORLD", Globe], ["design", "DESIGN", Brush], ["media", "MEDIA ASSETS", FolderOpen]].map(([id, lab, Ic]) => (
                 <button key={id} className={`ptab ${prodTab === id ? "on" : ""}`} onClick={() => setProdTab(id)}><Ic size={13} /> {lab}</button>
               ))}
               {/* Import an edit / master timeline and reverse-build the production from it. */}
@@ -4429,6 +4459,95 @@ export default function Fabula() {
                 return added;
               }}
             />
+
+            {prodTab === "media" && (() => {
+              const tree = binTree();
+              const allTags = [...new Set((prod.mediaPool || []).flatMap((a) => a.tags || []))].sort();
+              const assets = (prod.mediaPool || []).filter((a) => {
+                if (mediaBin !== "all") { const b = a.bin || "imports"; if (!(b === mediaBin || b.startsWith(mediaBin + "/"))) return false; }
+                return assetMatches(a, mediaSearch.trim());
+              });
+              return (
+                <>
+                  <div className="glass-card">
+                    <div className="lbl">MEDIA ASSETS — the production’s single file source. Import a folder (kept as a watch folder that auto-updates); its subfolders become bins, names matching your Cast or World auto-tag into those libraries, and the edit page’s media pool mirrors this exactly.</div>
+                    <div className="btnrow" style={{ marginTop: 10, flexWrap: "wrap" }}>
+                      <button className="cta" onClick={addSyncFolderNow} disabled={folderSyncing} title="Pick a folder — it becomes a watch folder that auto-imports new/changed files, mirroring its structure"><FolderOpen size={13} /> {folderSyncing ? "IMPORTING…" : "IMPORT FOLDER (WATCH)"}</button>
+                      <button className="minibtn" onClick={() => mirrorFolderRef.current?.click()} title="One-time folder import (mirrors structure, no watch)"><Upload size={12} /> FOLDER (ONCE)</button>
+                      <button className="minibtn" onClick={() => mediaFilesRef.current?.click()}><Upload size={12} /> FILES</button>
+                      <input ref={mediaFilesRef} type="file" multiple accept="video/*,image/*,audio/*,.lottie,.json,.svg,.ai,.pdf" style={{ display: "none" }}
+                        onChange={(e) => { importFolderMirror(e.target.files); e.target.value = ""; }} />
+                    </div>
+                  </div>
+
+                  {/* watch folders */}
+                  {syncFolders.length > 0 && (
+                    <div className="glass-card">
+                      <div className="lbl">WATCH FOLDERS <span className="catcount">{syncFolders.length}</span> — auto-update while the project is open</div>
+                      {syncFolders.map((f) => (
+                        <div className="watchrow" key={f.id}>
+                          <FolderOpen size={13} />
+                          <div className="watchmeta"><strong>{f.name}</strong><span className="dim small">{f.fileCount || 0} files · {f.lastScan ? "synced" : "not scanned"}</span></div>
+                          <button className="minibtn" onClick={() => rescanSyncFolder(f.id, true)} title="Rescan now"><RefreshCw size={11} /></button>
+                          <button className="minibtn" onClick={async () => { await removeSyncFolder(prod.id, f.id); refreshSyncFolders(); }} title="Stop watching"><Trash2 size={11} /></button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* search + tag filter */}
+                  <div className="glass-card">
+                    <div className="mediasearch wide">
+                      <Search size={13} />
+                      <input value={mediaSearch} onChange={(e) => setMediaSearch(e.target.value)} placeholder="Search by name, tag, or folder…" />
+                      {mediaSearch && <X size={13} style={{ cursor: "pointer" }} onClick={() => setMediaSearch("")} />}
+                    </div>
+                    <div className="binrow">
+                      {["all", ...tree].map((b) => (
+                        <button key={b} className={`binchip ${mediaBin === b ? "on" : ""}`} onClick={() => setMediaBin(b)} style={b !== "all" ? { paddingLeft: 8 + (b.split("/").length - 1) * 8 } : undefined} title={b}>
+                          {b === "all" ? "ALL" : (b.split("/").pop() || b)}
+                        </button>
+                      ))}
+                    </div>
+                    {allTags.length > 0 && (
+                      <div className="tagrow">
+                        <Tag size={11} className="dim" />
+                        {allTags.map((t) => (
+                          <button key={t} className={`tagchip ${mediaSearch.toLowerCase() === t ? "on" : ""}`} onClick={() => setMediaSearch(mediaSearch.toLowerCase() === t ? "" : t)}>{t}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* asset library */}
+                  <div className="glass-card">
+                    <div className="lbl">LIBRARY <span className="catcount">{assets.length}</span></div>
+                    {assets.length === 0 && <div className="dim small">No assets{mediaSearch || mediaBin !== "all" ? " match this filter" : " yet — import a folder above"}.</div>}
+                    <div className="magrid">
+                      {assets.map((a) => (
+                        <div className={`macard ${(!a.url || a.offline) ? "offline" : ""}`} key={a.id} title={a.bin || "imports"}
+                          onClick={() => { setPage("edit"); setEditWs("media"); setBinFilter(a.bin || "imports"); openInViewer(a, false); }}>
+                          <div className="mathumb">
+                            {a.url && a.type === "video" && <ScrubThumb url={a.url} className="poolthumb" />}
+                            {a.url && (a.type === "image" || a.type === "graphic") && <img src={a.url} className="poolthumb" alt="" />}
+                            {(a.type === "audio") && <Music size={20} className="dim" />}
+                            {(!a.url || a.offline) && <span className="chip blue" style={{ fontSize: 7 }}>OFFLINE</span>}
+                            <span className={`pooltype ${a.type}`}>{{ video: "VID", audio: "AUD", image: "IMG", graphic: "GFX", lottie: "LOT" }[a.type] || "FILE"}</span>
+                          </div>
+                          <div className="maname">{a.name}</div>
+                          {(a.tags || []).length > 0 && (
+                            <div className="matags">
+                              {a.castId && <span className="matag cast"><Users size={8} /> {(prod.cast || []).find((c) => c.id === a.castId)?.name || "cast"}</span>}
+                              {(a.tags || []).filter((t) => !a.castId || t !== ((prod.cast || []).find((c) => c.id === a.castId)?.name || "").toLowerCase()).slice(0, 3).map((t) => <span key={t} className="matag">{t}</span>)}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
 
             {prodTab === "structure" && (prod.edits || []).length > 0 && (
               <div className="glass-card actcard">
@@ -4906,6 +5025,11 @@ export default function Fabula() {
                 {editWs === "media" && (
                   <div className="mediaws glass-dark">
                     <div className="mwside">
+                      <div className="mediasearch">
+                        <Search size={12} />
+                        <input value={mediaSearch} onChange={(e) => setMediaSearch(e.target.value)} placeholder="Search name, tag, folder…" />
+                        {mediaSearch && <X size={12} style={{ cursor: "pointer" }} onClick={() => setMediaSearch("")} />}
+                      </div>
                       <div className="paneltitle"><MonitorPlay size={12} /> BINS</div>
                       {["all", ...binTree()].map((b) => {
                         // count includes the bin's own assets + everything nested beneath it (subtree)
@@ -6287,6 +6411,29 @@ const CSS = `
 .binbtn:hover{color:#fff;background:var(--w04)}
 .binbtn.on{background:var(--org);color:#000}
 .bintree{opacity:.4;margin-right:4px;font-weight:400}
+.mediasearch{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.32);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:6px 9px;margin-bottom:9px;color:var(--w40)}
+.mediasearch input{flex:1;background:none;border:none;outline:none;color:#fff;font-size:12px;font-family:inherit;min-width:0}
+.mediasearch.wide{margin-bottom:11px}
+.binrow{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.binchip{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:var(--w40);font-size:10px;font-weight:800;letter-spacing:.05em;padding:4px 9px;border-radius:999px;cursor:pointer}
+.binchip.on{background:var(--org);color:#000;border-color:transparent}
+.tagrow{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.tagchip{background:rgba(124,58,237,.14);border:1px solid rgba(124,58,237,.32);color:#c4b3f0;font-size:10px;padding:3px 8px;border-radius:999px;cursor:pointer}
+.tagchip.on{background:linear-gradient(120deg,#7c3aed,#e0459b);color:#fff;border-color:transparent}
+.magrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:8px}
+.macard{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:7px;cursor:pointer;transition:border-color .15s}
+.macard:hover{border-color:rgba(224,69,155,.5)}
+.macard.offline{outline:1px solid rgba(251,113,133,.5);outline-offset:-1px}
+.mathumb{position:relative;height:66px;border-radius:6px;overflow:hidden;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center}
+.mathumb .poolthumb{width:100%;height:100%;object-fit:cover}
+.maname{font-size:10.5px;color:#e6e2f0;margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.matags{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.matag{display:inline-flex;align-items:center;gap:2px;font-size:8px;font-weight:700;letter-spacing:.03em;color:var(--w40);background:rgba(255,255,255,.06);border-radius:4px;padding:1px 4px;text-transform:uppercase}
+.matag.cast{color:#7ee2a8;background:rgba(52,211,153,.12)}
+.watchrow{display:flex;align-items:center;gap:9px;padding:7px 2px;border-bottom:1px solid rgba(255,255,255,.06)}
+.watchrow:last-child{border-bottom:none}
+.watchmeta{flex:1;display:flex;flex-direction:column;min-width:0}
+.watchmeta strong{color:#fff;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mwgrid{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;padding:14px;
   overflow-y:auto;align-content:start}
 .mwcard{background:rgba(0,0,0,.4);border:1px solid var(--w08);border-radius:9px;padding:7px;cursor:pointer}
