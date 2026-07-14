@@ -46,7 +46,6 @@ const laneFor = (trackId: string): number => {
   if (trackId.startsWith('v')) return n;    // video above (v1=1, v2=2)
   return n;                                  // subtitles/others treated as upper lanes
 };
-const trackForLane = (lane: number): string => (lane < 0 ? `a${-lane}` : `v${lane || 1}`);
 const xmlEsc = (s: string) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const fileUrl = (a: FcpAsset): string => {
   const u = a.url || a.cloudUrl || '';
@@ -144,23 +143,28 @@ export function importFCPXML(xml: string): ParsedTimeline {
   const projectName = doc.querySelector('project')?.getAttribute('name') || doc.querySelector('event')?.getAttribute('name') || 'Imported Timeline';
 
   // clips: any asset-clip / video / audio / clip with a ref, anywhere in the sequence.
+  // Audio routing is the tricky bit — Resolve emits audio-only clips a few ways: an <audio> tag, an
+  // <asset-clip> on a NEGATIVE lane, OR an <asset-clip> referencing an audio-only asset with NO lane
+  // at all. The old code defaulted lane-less clips to lane 1 (video), so those audio clips vanished onto
+  // a video track. Now a clip is audio if the tag is audio, the lane is negative, OR its asset is
+  // audio-only (hasVideo=0) — and it lands on a matching a-track.
+  const audioOnly = new Set(mediaRefs.filter((m) => !m.hasVideo).map((m) => m.refId));
   const clips: FcpClip[] = [];
-  const seen = new Set<string>();
-  doc.querySelectorAll('sequence asset-clip, sequence video, sequence audio, sequence clip, sequence ref-clip').forEach((el, i) => {
+  doc.querySelectorAll('sequence asset-clip, sequence video, sequence audio, sequence audio-clip, sequence clip, sequence ref-clip, sequence sync-clip').forEach((el, i) => {
     const ref = el.getAttribute('ref'); if (!ref) return;
-    const laneStr = el.getAttribute('lane');
     const tag = el.tagName.toLowerCase();
-    const lane = laneStr != null ? parseInt(laneStr, 10) : (tag === 'audio' ? -1 : 1);
+    const laneStr = el.getAttribute('lane');
+    const lane = laneStr != null ? (parseInt(laneStr, 10) || 0) : 0;
+    const isAudio = tag === 'audio' || tag === 'audio-clip' || lane < 0 || audioOnly.has(ref);
     // offset is relative to the parent; walk up summing parent offsets to get absolute timeline pos.
     let offset = fcpToSec(el.getAttribute('offset'));
     let p = el.parentElement;
     while (p && !/^(spine|sequence)$/i.test(p.tagName)) { offset += fcpToSec(p.getAttribute('offset')); p = p.parentElement; }
-    const id = `imp_${Date.now().toString(36)}_${i}`;
-    if (seen.has(id)) return; seen.add(id);
+    const trackId = isAudio ? `a${lane < 0 ? -lane : 1}` : `v${lane > 0 ? lane : 1}`;
     clips.push({
-      id, trackId: trackForLane(lane || (tag === 'audio' ? -1 : 1)),
+      id: `imp_${Date.now().toString(36)}_${i}`, trackId,
       start: offset, duration: fcpToSec(el.getAttribute('duration')) || 1, srcIn: fcpToSec(el.getAttribute('start')),
-      kind: 'media', assetId: refName.get(ref) || ref, label: el.getAttribute('name') || mediaRefs.find(m => m.refId === ref)?.name || 'Clip',
+      kind: 'media', assetId: refName.get(ref) || ref, label: el.getAttribute('name') || mediaRefs.find((m) => m.refId === ref)?.name || 'Clip',
     });
   });
 

@@ -5975,7 +5975,12 @@ const CSS = `
 /* VIDEO clips wear the Plajah logo gradient — purple → magenta → orange */
 .clip.vid,.clip.media.vid{background:linear-gradient(115deg,rgba(124,58,237,.55),rgba(224,69,155,.5) 52%,rgba(249,115,22,.5));
   border-color:rgba(240,150,200,.6);box-shadow:inset 0 1px 0 rgba(255,255,255,.14)}
-.clip.sel{box-shadow:0 0 0 1.5px #fff, 0 0 14px rgba(249,115,22,.5);z-index:4}
+/* SELECTED clip — the Chora "active track" animated purple→magenta→orange gradient sweep, so the
+   active clip is instantly recognizable at a glance. (Keyframes track-gradient-sweep are global, index.css.) */
+.clip.sel{box-shadow:0 0 0 1.5px #fff, 0 0 16px rgba(224,69,155,.55);z-index:5;border-color:rgba(255,255,255,.7);
+  background-image:linear-gradient(90deg,rgba(124,58,237,.7) 0%,rgba(224,69,155,.6) 25%,rgba(249,115,22,.65) 50%,rgba(224,69,155,.6) 75%,rgba(124,58,237,.7) 100%);
+  background-size:300% 100%;animation:track-gradient-sweep 6s ease-in-out infinite alternate}
+@media (prefers-reduced-motion: reduce){ .clip.sel{animation:none;background-position:50% 50%} }
 /* non-relinked / offline media — flagged RED in the pool + on the timeline */
 .clip.nomedia{outline:2px solid var(--red);outline-offset:-2px}
 .clip.nomedia::after{content:"⚠ NO MEDIA";position:absolute;top:2px;right:4px;font-size:7px;font-weight:900;letter-spacing:.06em;color:#ff9d9d;text-shadow:0 1px 2px rgba(0,0,0,.7);pointer-events:none}
