@@ -33,6 +33,7 @@ import ColorWheels from "./ColorWheels";
 import { quickStems, separateStemsCloud } from "../../services/fabula/stemSeparation";
 import { exportFCPXML, importFCPXML } from "../../services/fabula/fcpxml";
 import { initResumableUploads, enqueueUpload, onUploadProgress, pendingCount } from "../../services/fabula/resumableUpload";
+import { listSyncFolders, addSyncFolder, removeSyncFolder, rescanNew } from "../../services/fabula/syncFolders";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
@@ -572,6 +573,8 @@ export default function Fabula() {
   const [audioEdit, setAudioEdit] = useState(null); // { clip, url, blob } → open AudioEditor
   const [stemBusy, setStemBusy] = useState(false);   // stem-split / separation in flight
   const [uploadPending, setUploadPending] = useState(0); // background resumable uploads still in flight
+  const [syncFolders, setSyncFolders] = useState([]);    // watch folders for this project
+  const [folderSyncing, setFolderSyncing] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(null);   // top menu bar: 'File' | 'Edit' | 'View' | 'Clip' | 'Help'
   const [poolSel, setPoolSel] = useState([]);       // selected media-pool asset ids (multi-select)
@@ -2123,6 +2126,67 @@ export default function Fabula() {
     // eslint-disable-next-line
   }, []);
 
+  // ── Sync / watch folders ──────────────────────────────────────────────────
+  // Import files into bins that MIRROR the on-disk folder structure (bin name = relative folder path),
+  // read local-first + queued for background upload. Deduped by name+bin so a rescan only adds new files.
+  const importFilesToBins = async (files) => {
+    if (!files?.length) return 0;
+    const uidNow = auth.currentUser?.uid;
+    const existing = new Set((prod?.mediaPool || []).map((a) => `${a.name}|${a.bin || "imports"}`));
+    const newAssets = [], newBins = new Set();
+    for (const { path, name, file } of files) {
+      const bin = path || "imports";
+      const dkey = `${name}|${bin}`;
+      if (existing.has(dkey)) continue; existing.add(dkey);
+      if (bin !== "imports") newBins.add(bin);
+      const id = uid();
+      const t = file.type || "";
+      const type = t.startsWith("audio") ? "audio" : t.startsWith("image") ? "image" : /\.(json|lottie)$/i.test(name) ? "lottie" : "video";
+      await stSet("studio:blob:" + id, file);
+      newAssets.push({ id, name, type, url: URL.createObjectURL(file), duration: 0, bin, session: true, synced: true });
+      if (uidNow) enqueueUpload({ assetId: id, name, mime: file.type || "application/octet-stream", size: file.size, blobKey: "studio:blob:" + id, uid: uidNow }).catch(() => {});
+    }
+    if (newAssets.length) updateProd((p) => {
+      p.mediaPool = p.mediaPool || []; p.bins = p.bins || [];
+      newBins.forEach((b) => { if (!p.bins.includes(b)) p.bins.push(b); });
+      newAssets.forEach((a) => p.mediaPool.push(a));
+    });
+    return newAssets.length;
+  };
+  const refreshSyncFolders = async () => { if (prod?.id) { try { setSyncFolders(await listSyncFolders(prod.id)); } catch { /* */ } } };
+  const rescanSyncFolder = async (id, interactive) => {
+    if (!prod?.id) return;
+    try {
+      const r = await rescanNew(prod.id, id, interactive);
+      if (!r) { if (interactive) ping("Grant access to the folder so it can sync"); return; }
+      const n = await importFilesToBins(r.fresh);
+      await refreshSyncFolders();
+      if (n) ping(`Synced ${n} new file${n === 1 ? "" : "s"} from ${r.folder.name}`);
+    } catch (e) { if (interactive) ping("Sync failed: " + (e?.message || e)); }
+  };
+  const addSyncFolderNow = async () => {
+    if (!prod?.id) return;
+    setFolderSyncing(true);
+    try { const f = await addSyncFolder(prod.id); if (f) { await refreshSyncFolders(); ping("Watching folder — importing…"); await rescanSyncFolder(f.id, true); } }
+    catch (e) { ping(e?.message || "Couldn't add that folder"); }
+    finally { setFolderSyncing(false); }
+  };
+  const removeSyncFolderNow = async (id) => { if (prod?.id) { await removeSyncFolder(prod.id, id); await refreshSyncFolders(); ping("Stopped watching that folder"); } };
+  const rescanAll = async (interactive) => { setFolderSyncing(true); try { for (const f of syncFolders) await rescanSyncFolder(f.id, interactive); } finally { setFolderSyncing(false); } };
+
+  useEffect(() => { refreshSyncFolders(); /* eslint-disable-next-line */ }, [prod?.id]);
+  // Poll watched folders (browsers can't push FS events): on an interval + on window focus. Only folders
+  // whose read permission is still granted rescan silently; the rest wait for a manual (gesture) rescan.
+  useEffect(() => {
+    if (!prod?.id || !syncFolders.length) return undefined;
+    const tick = () => { syncFolders.forEach((f) => rescanSyncFolder(f.id, false)); };
+    const iv = setInterval(tick, 45000);
+    const onFocus = () => tick();
+    window.addEventListener("focus", onFocus);
+    return () => { clearInterval(iv); window.removeEventListener("focus", onFocus); };
+    // eslint-disable-next-line
+  }, [prod?.id, syncFolders.length]);
+
   /* ----- format / multicam / blade ----- */
   const [formatOpen, setFormatOpen] = useState(false);
   const [mcSel, setMcSel] = useState([]);
@@ -3185,6 +3249,25 @@ export default function Fabula() {
                     {uploadPending > 0 && <div className="dim small" style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 5 }}><Upload size={11} /> {uploadPending} file{uploadPending > 1 ? "s" : ""} uploading to cloud… (resumes across sessions)</div>}
                     <input ref={importRef} type="file" accept=".edl,.xml,.fcpxml" style={{ display: "none" }}
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) importTimelineWithMedia(f); e.target.value = ""; }} />
+                    {/* ── SYNC / WATCH FOLDERS — auto-import media, mirroring the on-disk folder tree into bins ── */}
+                    <div style={{ marginTop: 6, border: "1px solid var(--line, rgba(255,255,255,.13))", borderRadius: 8, padding: "6px 8px", background: "rgba(0,0,0,0.2)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span className="lbl" style={{ margin: 0 }}>📁 SYNC FOLDERS</span>
+                        <span className="dim small" style={{ letterSpacing: 0 }}>auto-import</span>
+                        <button className="minibtn" style={{ marginLeft: "auto", fontSize: 8 }} disabled={folderSyncing} onClick={addSyncFolderNow} title="Watch a folder on this computer — new files auto-import as you add them, and the media/clip bins mirror the folder structure. Reads local-first + uploads to the cloud in the background.">{folderSyncing ? "…" : "＋ ADD"}</button>
+                        {syncFolders.length > 0 && <button className="minibtn" style={{ fontSize: 8 }} disabled={folderSyncing} onClick={() => rescanAll(true)} title="Rescan all watched folders now">↻</button>}
+                      </div>
+                      {syncFolders.length === 0
+                        ? <div className="dim small" style={{ marginTop: 4, letterSpacing: 0 }}>Watch a folder → drop files in and they auto-import; bins mirror the folder tree.</div>
+                        : syncFolders.map((f) => (
+                          <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4, fontSize: 10 }}>
+                            <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${f.name} · ${f.fileCount} files · last scan ${f.lastScan ? new Date(f.lastScan).toLocaleTimeString() : "—"}`}>📂 {f.name}</span>
+                            <span className="dim" style={{ fontSize: 9 }}>{f.fileCount}</span>
+                            <button className="minibtn" style={{ fontSize: 8, padding: "2px 5px" }} onClick={() => rescanSyncFolder(f.id, true)} title="Rescan this folder now">↻</button>
+                            <button className="minibtn" style={{ fontSize: 8, padding: "2px 5px" }} onClick={() => removeSyncFolderNow(f.id)} title="Stop watching this folder">✕</button>
+                          </div>
+                        ))}
+                    </div>
                     <button className="minibtn full" style={{ marginTop: 6 }} onClick={loadMyMusic} disabled={musicLoading} title="Load your released tracks; double-click a Music item to add it with synced-lyric captions">
                       <Music size={12} /> {musicLoading ? "LOADING…" : "MY MUSIC (ON-PLATFORM)"}
                     </button>
@@ -3199,8 +3282,8 @@ export default function Fabula() {
                         {(prod.mediaPool || []).map((a) => {
                           const playable = a.url && (a.type === "video" || a.type === "audio");
                           return (
-                            <div key={a.id} className={`ptcard ${previewAsset?.id === a.id ? "previewing" : ""}`}
-                              title="Hover: play + scrub in the source monitor · Double-click: load & play · Right-click: menu"
+                            <div key={a.id} className={`ptcard ${previewAsset?.id === a.id ? "previewing" : ""} ${(!a.url || a.offline) ? "offline" : ""}`}
+                              title={(!a.url || a.offline) ? "Media not linked — relink or add its sync folder" : "Hover: play + scrub in the source monitor · Double-click: load & play · Right-click: menu"}
                               onMouseEnter={() => { if (a.url) openInViewer(a, !!playable); }}
                               onMouseMove={(e) => {
                                 if (!playable || previewAsset?.id !== a.id) return;
@@ -3225,7 +3308,7 @@ export default function Fabula() {
                     )}
                     <div className="poollist" style={poolView === "thumbs" ? { display: "none" } : undefined}>
                       {(prod.mediaPool || []).map((a) => (
-                        <div className={`poolitem ${previewAsset?.id === a.id ? "previewing" : ""}`} key={a.id} onClick={() => openInViewer(a, false)} onDoubleClick={() => openInViewer(a, true)} title="Click: load in source viewer · Double-click: load & play">
+                        <div className={`poolitem ${previewAsset?.id === a.id ? "previewing" : ""} ${(!a.url || a.offline) ? "offline" : ""}`} key={a.id} onClick={() => openInViewer(a, false)} onDoubleClick={() => openInViewer(a, true)} title={(!a.url || a.offline) ? "Media not linked — locate it (relink) or add its sync folder" : "Click: load in source viewer · Double-click: load & play"}>
                           {(a.type === "video" || a.type === "audio") && (
                             <input type="checkbox" className="mcchk" checked={mcSel.includes(a.id)} title="Select for multicam group"
                               onClick={(e) => e.stopPropagation()}
@@ -3928,10 +4011,12 @@ export default function Fabula() {
                             }).map((c) => {
                               const shot = c.shotId ? scene?.shots.find((s) => s.id === c.shotId) : null;
                               const sel = selClipId === c.id || selIds.includes(c.id);
-                              const wfUrl = (tr.type === "audio" || c.kind === "voice") && c.assetId ? (prod?.mediaPool?.find((m) => m.id === c.assetId)?.url) : null;
+                              const cAsset = c.assetId ? prod?.mediaPool?.find((m) => m.id === c.assetId) : null;
+                              const noMedia = !!c.assetId && (!cAsset || !cAsset.url || cAsset.offline);
+                              const wfUrl = (tr.type === "audio" || c.kind === "voice") && c.assetId ? (cAsset?.url) : null;
                               return (
                                 <div key={c.id} data-cid={c.id}
-                                  className={`clip ${c.kind} ${tr.type === "video" ? "vid" : ""} ${sel ? "sel" : ""} ${shot?.status === "ready" ? "rdy" : ""}`}
+                                  className={`clip ${c.kind} ${tr.type === "video" ? "vid" : ""} ${sel ? "sel" : ""} ${shot?.status === "ready" ? "rdy" : ""} ${noMedia ? "nomedia" : ""}`}
                                   style={{ left: c.start * pxPerSec, width: Math.max(8, c.duration * pxPerSec), opacity: c.disabled ? 0.4 : 1, cursor: toolMode === "razor" ? "crosshair" : undefined }}
                                   onMouseDown={(e) => { if (toolMode === "razor") { e.stopPropagation(); razorAt(e, c.id); return; } onClipDown(e, c.id, "move"); }}
                                   onClick={(e) => { e.stopPropagation(); if (toolMode !== "razor") setSelClipId(c.id); }}
@@ -5891,6 +5976,14 @@ const CSS = `
 .clip.vid,.clip.media.vid{background:linear-gradient(115deg,rgba(124,58,237,.55),rgba(224,69,155,.5) 52%,rgba(249,115,22,.5));
   border-color:rgba(240,150,200,.6);box-shadow:inset 0 1px 0 rgba(255,255,255,.14)}
 .clip.sel{box-shadow:0 0 0 1.5px #fff, 0 0 14px rgba(249,115,22,.5);z-index:4}
+/* non-relinked / offline media — flagged RED in the pool + on the timeline */
+.clip.nomedia{outline:2px solid var(--red);outline-offset:-2px}
+.clip.nomedia::after{content:"⚠ NO MEDIA";position:absolute;top:2px;right:4px;font-size:7px;font-weight:900;letter-spacing:.06em;color:#ff9d9d;text-shadow:0 1px 2px rgba(0,0,0,.7);pointer-events:none}
+.poolitem.offline{border-left:3px solid var(--red);background:rgba(239,68,68,.10)}
+.poolitem.offline .poolname{color:#ff9d9d}
+.poolitem.offline .pooltype{background:var(--red);color:#fff}
+.ptcard.offline{outline:2px solid var(--red);outline-offset:-2px}
+.ptcard.offline::after{content:"NO MEDIA";position:absolute;bottom:4px;left:4px;font-size:7px;font-weight:900;color:#fff;background:var(--red);padding:1px 4px;border-radius:3px;pointer-events:none}
 .cliplabel{display:flex;align-items:center;gap:5px;font-size:9.5px;font-weight:800;letter-spacing:.04em;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;position:relative;z-index:2}
 .clipframe{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.45;z-index:1}
