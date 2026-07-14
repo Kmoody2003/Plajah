@@ -115,6 +115,42 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
     };
   }, [current?.id]);
 
+  // Resolve playback. Plajah videos are uploaded to MUX — a Mux video has an EMPTY `url` and only a
+  // `muxPlaybackId` (HLS at stream.mux.com), which a plain <video src> can't play → it rendered black.
+  // Prefer the Mux HLS stream (via hls.js, native HLS on Safari); fall back to a direct `url`.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !current) return;
+    let hls: any;
+    let cancelled = false;
+    const pid = (current as any).muxPlaybackId as string | undefined;
+    const direct = current.url;
+    (async () => {
+      try {
+        if (pid) {
+          const streamUrl = `https://stream.mux.com/${pid}.m3u8`;
+          if (v.canPlayType('application/vnd.apple.mpegurl')) {
+            v.src = streamUrl;
+          } else {
+            const { default: Hls } = await import('hls.js');
+            if (cancelled) return;
+            if (Hls.isSupported()) {
+              hls = new Hls({ enableWorker: true, maxBufferLength: 30, startLevel: -1 });
+              hls.loadSource(streamUrl);
+              hls.attachMedia(v);
+            } else {
+              v.src = streamUrl; // last resort
+            }
+          }
+        } else if (direct) {
+          v.src = direct;
+        }
+        v.play?.().catch(() => { v.muted = true; v.play?.().catch(() => {}); });
+      } catch { if (direct) { v.src = direct; v.play?.().catch(() => {}); } }
+    })();
+    return () => { cancelled = true; try { hls?.destroy(); } catch { /* */ } };
+  }, [current?.id]);
+
   const shareCurrent = async () => {
     if (!current) return;
     await shareAsset('video', current.id, { title: current.title, text: `${current.title} on Plajah` });
@@ -239,13 +275,20 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
             <video
               ref={videoRef}
               key={current.id}
-              src={current.url}
+              poster={(current as any).thumbnailUrl || (current as any).coverImageUrl || undefined}
               className="w-full h-full object-cover absolute inset-0"
               autoPlay
               loop
               playsInline
               muted={false}
             />
+          )}
+          {/* Nothing playable yet (e.g. a Mux upload still transcoding) — show a hint, not a black void */}
+          {current && !current.url && !(current as any).muxPlaybackId && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 text-white/50 pointer-events-none">
+              <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              <p className="text-[9px] font-black uppercase tracking-widest">Processing video…</p>
+            </div>
           )}
 
           {/* Gradient overlays */}
