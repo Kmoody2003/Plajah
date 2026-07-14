@@ -34,6 +34,7 @@ import { quickStems, separateStemsCloud } from "../../services/fabula/stemSepara
 import { exportFCPXML, importFCPXML } from "../../services/fabula/fcpxml";
 import { initResumableUploads, enqueueUpload, onUploadProgress, pendingCount } from "../../services/fabula/resumableUpload";
 import { listSyncFolders, addSyncFolder, removeSyncFolder, rescanNew } from "../../services/fabula/syncFolders";
+import { isVectorFile, rasterizeVector } from "../../services/fabula/vectorRaster";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
@@ -2170,18 +2171,28 @@ export default function Fabula() {
     const uidNow = auth.currentUser?.uid;
     const existing = new Set((prod?.mediaPool || []).map((a) => `${a.name}|${a.bin || "imports"}`));
     const newAssets = [], newBins = new Set();
-    for (const { path, name, file } of files) {
+    let vectorFailed = 0;
+    for (const { path, name, file: rawFile } of files) {
       const bin = path || "imports";
       const dkey = `${name}|${bin}`;
       if (existing.has(dkey)) continue; existing.add(dkey);
       if (bin !== "imports") newBins.add(bin);
+      // Vector art (SVG, Illustrator .ai, PDF) → hi-res alpha PNG so it composites crisply with
+      // transparency. Keep the original name; mark the asset so the UI can badge it "vector".
+      let file = rawFile, vector = false;
+      if (isVectorFile(rawFile)) {
+        const png = await rasterizeVector(rawFile).catch(() => null);
+        if (png) { file = png; vector = true; }
+        else { vectorFailed++; continue; } // undecodable (e.g. legacy PostScript .ai) — skip, hint below
+      }
       const id = uid();
       const t = file.type || "";
-      const type = t.startsWith("audio") ? "audio" : t.startsWith("image") ? "image" : /\.(json|lottie)$/i.test(name) ? "lottie" : "video";
+      const type = vector ? "image" : t.startsWith("audio") ? "audio" : t.startsWith("image") ? "image" : /\.(json|lottie)$/i.test(name) ? "lottie" : "video";
       await stSet("studio:blob:" + id, file);
-      newAssets.push({ id, name, type, url: URL.createObjectURL(file), duration: 0, bin, session: true, synced: true });
-      if (uidNow) enqueueUpload({ assetId: id, name, mime: file.type || "application/octet-stream", size: file.size, blobKey: "studio:blob:" + id, uid: uidNow }).catch(() => {});
+      newAssets.push({ id, name, type, vector: vector || undefined, url: URL.createObjectURL(file), duration: 0, bin, session: true, synced: true });
+      if (uidNow) enqueueUpload({ assetId: id, name: file.name || name, mime: file.type || "application/octet-stream", size: file.size, blobKey: "studio:blob:" + id, uid: uidNow }).catch(() => {});
     }
+    if (vectorFailed) ping(`${vectorFailed} vector file${vectorFailed === 1 ? "" : "s"} couldn't be read — re-save as SVG or PDF and re-import`);
     if (newAssets.length) updateProd((p) => {
       p.mediaPool = p.mediaPool || []; p.bins = p.bins || [];
       newBins.forEach((b) => { if (!p.bins.includes(b)) p.bins.push(b); });
@@ -3265,7 +3276,7 @@ export default function Fabula() {
                         }}>+ BIN</button>
                     </div>
                     <button className="minibtn full" onClick={() => fileRef.current?.click()}><Upload size={12} /> IMPORT MEDIA</button>
-                    <input ref={fileRef} type="file" multiple accept="video/*,image/*,audio/*,.lottie,.json" style={{ display: "none" }} onChange={handleUpload} />
+                    <input ref={fileRef} type="file" multiple accept="video/*,image/*,audio/*,.lottie,.json,.svg,.ai,.pdf" style={{ display: "none" }} onChange={handleUpload} />
                     <input ref={relinkRef} type="file" accept="video/*,image/*,audio/*" style={{ display: "none" }}
                       onChange={(e) => {
                         const f = e.target.files?.[0]; const id = relinkTargetRef.current;
@@ -4065,7 +4076,7 @@ export default function Fabula() {
                                     {c.kind === "media" && <Film size={9} />}
                                     <span>{c.label}</span>
                                   </div>
-                                  {wfUrl && <Waveform url={wfUrl} srcIn={c.srcIn} duration={c.duration} />}
+                                  {wfUrl && <div className="clipwave"><Waveform url={wfUrl} srcIn={c.srcIn} duration={c.duration} /></div>}
                                   <div className="trimL" onMouseDown={(e) => onClipDown(e, c.id, "start")} />
                                   <div className="trimR" onMouseDown={(e) => onClipDown(e, c.id, "end")} />
                                 </div>
@@ -6029,10 +6040,10 @@ const CSS = `
 .cliplabel{display:flex;align-items:center;gap:5px;font-size:9.5px;font-weight:800;letter-spacing:.04em;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;position:relative;z-index:2}
 .clipframe{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.45;z-index:1}
-.wave{display:flex;align-items:flex-end;gap:1px;height:12px;margin-top:2px;opacity:.5}
-.wave i{flex:1;background:var(--green);border-radius:1px}
-.srcscrub .wave{height:100%;margin:0;padding:5px 6px;box-sizing:border-box;opacity:.7;gap:1px;align-items:center}
-.srcscrub .wave i{background:#7fd8a0}
+.wave{display:block;width:100%;height:100%}
+.clipwave{position:absolute;left:0;right:0;bottom:0;top:0;pointer-events:none;z-index:0}
+.clip.vid .wave,.clip.media .wave{--wave-peak:rgba(255,255,255,.22);--wave-rms:rgba(255,255,255,.55)}
+.srcscrub .wave{height:100%}
 .trimR{position:absolute;right:0;top:0;bottom:0;width:7px;cursor:ew-resize;background:rgba(255,255,255,.12);z-index:3}
 .trimR:hover{background:rgba(255,255,255,.4)}
 .trimL{position:absolute;left:0;top:0;bottom:0;width:7px;cursor:ew-resize;background:rgba(255,255,255,.12);z-index:3}

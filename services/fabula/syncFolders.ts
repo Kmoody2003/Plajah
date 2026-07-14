@@ -58,7 +58,7 @@ export async function getHandle(id: string, interactive = false): Promise<any | 
   } catch { return h; }
 }
 
-const MEDIA_RE = /\.(mp4|mov|m4v|webm|mkv|avi|mpg|mpeg|mp3|wav|m4a|aac|flac|ogg|jpg|jpeg|png|gif|webp|heic|tif|tiff|aep|json|lottie)$/i;
+const MEDIA_RE = /\.(mp4|mov|m4v|webm|mkv|avi|mpg|mpeg|mp3|wav|m4a|aac|flac|ogg|jpg|jpeg|png|gif|webp|avif|heic|tif|tiff|svg|ai|pdf|aep|json|lottie)$/i;
 
 /** Recursively scan a directory handle → media files with their relative folder path (for bin mirroring). */
 export async function scanFolder(handle: any, maxDepth = 8): Promise<ScannedFile[]> {

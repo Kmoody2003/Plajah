@@ -298,6 +298,7 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
             if (!gc || gc.width !== gw || gc.height !== gh) { gc = document.createElement('canvas'); gc.width = gw; gc.height = gh; gradeCanvases.set(layer.id, gc); }
             const g = gc.getContext('2d')!;
             g.imageSmoothingEnabled = true; (g as any).imageSmoothingQuality = 'high';
+            g.clearRect(0, 0, gw, gh); // reused canvas — clear so a transparent (alpha) source doesn't ghost the prior frame
             g.filter = `blur(${grade.blur || 0}px) brightness(${grade.bri}) contrast(${grade.con}) saturate(${grade.sat})${grade.warm ? ` sepia(${Math.min(1, grade.warm)})` : ''}${grade.hue ? ` hue-rotate(${grade.hue}deg)` : ''}`;
             g.drawImage(src, 0, 0, gw, gh);
             g.filter = 'none';

@@ -31,12 +31,15 @@ interface RenderFabulaOpts {
 
 function itemToSnapshot(item: any, label: string): SceneSnapshot {
   if (item?.pixels) return item.pixels as SceneSnapshot;        // real Pixels scene
-  if (item?.url && (item.type === 'video' || item.type === 'image')) {
+  // Any url-backed visual: video, image, or a rasterized-vector/generated 'graphic' still.
+  // Images & graphics (PNG/WebP/rasterized SVG/AI) carry alpha; the compositor's per-source
+  // alpha blend then reveals lower tracks through their transparent pixels.
+  if (item?.url && (item.type === 'video' || item.type === 'image' || item.type === 'graphic')) {
     return {
       name: item.name || label,
       layers: [{
         id: 'v1', blendMode: 'normal', opacity: 1,
-        clip: { type: 'media', mediaUrl: item.url, mediaType: item.type === 'image' ? 'image' : 'video', opacity: 1 },
+        clip: { type: 'media', mediaUrl: item.url, mediaType: item.type === 'video' ? 'video' : 'image', opacity: 1 },
       }],
     };
   }
