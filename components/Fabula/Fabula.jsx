@@ -46,6 +46,39 @@ import SpatialMixer from "../spatialMixer/SpatialMixer";
 import { setComicHandoff } from "../../services/comicHandoff";
 import MusicLicensingStore from "../MusicLicensingStore";
 
+// Read a drag-and-drop into { path, name, file } items, recursively walking dropped FOLDERS via the
+// webkitGetAsEntry directory API (mirroring their structure into `path`). This is a picker-free way to
+// read a local folder — drag it straight onto the media area. Falls back to flat files where the
+// directory API is unavailable.
+async function readDroppedItems(dataTransfer) {
+  const out = [];
+  const items = dataTransfer?.items ? Array.from(dataTransfer.items) : [];
+  const entries = items.map((it) => it.webkitGetAsEntry?.()).filter(Boolean);
+  if (!entries.length) {
+    for (const f of Array.from(dataTransfer?.files || [])) {
+      const rel = f.webkitRelativePath || f.name;
+      out.push({ path: rel.split("/").slice(0, -1).join("/"), name: f.name, file: f });
+    }
+    return out;
+  }
+  const readEntry = (entry, prefix) => new Promise((resolve) => {
+    if (entry.isFile) {
+      entry.file((f) => { out.push({ path: prefix, name: f.name, file: f }); resolve(); }, () => resolve());
+    } else if (entry.isDirectory) {
+      const dirPath = prefix ? `${prefix}/${entry.name}` : entry.name;
+      const reader = entry.createReader();
+      const acc = [];
+      const readBatch = () => reader.readEntries((batch) => {
+        if (!batch.length) { Promise.all(acc.map((c) => readEntry(c, dirPath))).then(resolve); return; }
+        acc.push(...batch); readBatch();
+      }, () => resolve());
+      readBatch();
+    } else resolve();
+  });
+  await Promise.all(entries.map((e) => readEntry(e, "")));
+  return out;
+}
+
 /* ════════════════════════════════════════════════════════════
    FABULA — holistic storytelling studio. The whole story, then the telling.
    PRODUCTIONS (knowledge layer) · SLATE (coverage intelligence)
@@ -4666,14 +4699,19 @@ export default function Fabula() {
                 return true;
               });
               const toggleCollapse = (path) => setMediaCollapsed((s) => { const n = new Set(s); n.has(path) ? n.delete(path) : n.add(path); return n; });
-              const onMediaDrop = (e) => {
+              const onMediaDrop = async (e) => {
                 e.preventDefault();
-                const dropped = Array.from(e.dataTransfer?.files || []);
-                if (!dropped.length) return;
-                const scripts = dropped.filter((f) => /\.(txt|md|fountain|markdown)$/i.test(f.name));
-                const media = dropped.filter((f) => !/\.(txt|md|fountain|markdown)$/i.test(f.name));
+                const picked = await readDroppedItems(e.dataTransfer); // walks dropped folders (no picker)
+                if (!picked.length) { ping("Nothing readable was dropped."); return; }
+                const isScript = (n) => /\.(txt|md|fountain|markdown)$/i.test(n);
+                const scripts = picked.filter((p) => isScript(p.name)).map((p) => p.file);
+                const media = picked.filter((p) => !isScript(p.name));
                 if (scripts.length) importScriptFiles(scripts);
-                if (media.length) importFolderMirror(media);
+                if (media.length) {
+                  const folders = new Set(media.map((m) => m.path || "imports")).size;
+                  const n = await importFilesToBins(media);
+                  ping(n ? `Imported ${n} dropped file${n === 1 ? "" : "s"} across ${folders} folder${folders === 1 ? "" : "s"}` : `Dropped ${media.length} file${media.length === 1 ? "" : "s"}, but 0 were added (already imported).`);
+                }
               };
               return (
                 <div className="matab" onDragOver={(e) => e.preventDefault()} onDrop={onMediaDrop}>
@@ -5297,7 +5335,19 @@ export default function Fabula() {
             {prod && container && (
               <>
                 {editWs === "media" && (
-                  <div className="mediaws glass-dark">
+                  <div className="mediaws glass-dark"
+                    onDragOver={(e) => { if (e.dataTransfer?.types?.includes("Files")) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } }}
+                    onDrop={async (e) => {
+                      if (!e.dataTransfer?.types?.includes("Files")) return;
+                      e.preventDefault();
+                      const picked = await readDroppedItems(e.dataTransfer);
+                      if (!picked.length) { ping("Nothing readable was dropped."); return; }
+                      const isScript = (n) => /\.(txt|md|fountain|markdown)$/i.test(n);
+                      const scripts = picked.filter((p) => isScript(p.name)).map((p) => p.file);
+                      const media = picked.filter((p) => !isScript(p.name));
+                      if (scripts.length) importScriptFiles(scripts);
+                      if (media.length) { const n = await importFilesToBins(media); ping(n ? `Imported ${n} dropped file${n === 1 ? "" : "s"}` : `Dropped ${media.length}, but 0 added (already imported).`); }
+                    }}>
                     <div className="mwside">
                       <div className="mediasearch">
                         <Search size={12} />
