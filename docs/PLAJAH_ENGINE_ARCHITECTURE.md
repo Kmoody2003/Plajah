@@ -51,7 +51,10 @@ gen-agent (Kling/Magnific).
 
 ## Phased roadmap
 - **Phase 0 (shipped):** crash/hang fixes + true local-first playback + sync gated to idle.
-- **Phase 1 (2–3 wks):** OPFS media substrate; drop duplicated IDB copies.
+- **Phase 1 (shipped):** OPFS media substrate (`services/fabula/mediaStore.ts`, OPFS-first + IDB
+  fallback + migrate-on-read; `stGet/stSet` route `studio:blob:`/`studio:proxy:` through it);
+  storage-dedup — watch-folder originals keep no second on-device copy (disk-direct), both cloud
+  sync paths read folder bytes off the disk handle. Vector rasters still keep their copy.
 - **Phase 2 (4–6 wks):** shared budgeted decoder pool + single WebGPU compositor (Fabula adopts
   Pixels' surface; zero-copy VideoFrame→GPU).
 - **Phase 3 (6–10 wks):** `plajah-core` in Rust — compositor first, then op-based doc, then
