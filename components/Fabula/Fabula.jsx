@@ -33,7 +33,7 @@ import ColorWheels from "./ColorWheels";
 import { quickStems, separateStemsCloud } from "../../services/fabula/stemSeparation";
 import { exportFCPXML, importFCPXML } from "../../services/fabula/fcpxml";
 import { initResumableUploads, enqueueUpload, onUploadProgress, pendingCount } from "../../services/fabula/resumableUpload";
-import { listSyncFolders, addSyncFolder, removeSyncFolder, rescanNew } from "../../services/fabula/syncFolders";
+import { listSyncFolders, addSyncFolder, removeSyncFolder, rescanNew, markSeen } from "../../services/fabula/syncFolders";
 import { isVectorFile, rasterizeVector } from "../../services/fabula/vectorRaster";
 import GeneratePanel from "./GeneratePanel";
 import { auth } from "../../services/firebase";
@@ -2433,14 +2433,18 @@ export default function Fabula() {
     for (const f of files) { const text = await f.text().catch(() => ""); if (text) await importScriptText(text, f.name); }
   };
   const refreshSyncFolders = async () => { if (prod?.id) { try { setSyncFolders(await listSyncFolders(prod.id)); } catch { /* */ } } };
-  const rescanSyncFolder = async (id, interactive) => {
+  const rescanSyncFolder = async (id, interactive, full = false) => {
     if (!prod?.id) return;
     try {
-      const r = await rescanNew(prod.id, id, interactive);
+      const r = await rescanNew(prod.id, id, interactive, full);
       if (!r) { if (interactive) ping("Grant access to the folder so it can sync"); return; }
+      if (!r.fresh.length) { if (interactive) ping(r.total ? `Nothing new — all ${r.total} files already imported. (Use RESCAN to force a full re-import.)` : `That folder has no media files.`); return; }
       const n = await importFilesToBins(r.fresh);
+      // Mark seen ONLY after the import ran, so files that failed to import aren't hidden from future
+      // scans. (The old code marked them seen during the scan, which permanently stranded them.)
+      await markSeen(prod.id, id, r.fresh.map((f) => f.key));
       await refreshSyncFolders();
-      if (n) ping(`Synced ${n} new file${n === 1 ? "" : "s"} from ${r.folder.name}`);
+      if (interactive || n) ping(`Read ${r.total} file${r.total === 1 ? "" : "s"} from ${r.folder.name} · imported ${n} into the media pool`);
     } catch (e) { if (interactive) ping("Sync failed: " + (e?.message || e)); }
   };
   const addSyncFolderNow = async () => {
@@ -2462,7 +2466,7 @@ export default function Fabula() {
     finally { setFolderSyncing(false); }
   };
   const removeSyncFolderNow = async (id) => { if (prod?.id) { await removeSyncFolder(prod.id, id); await refreshSyncFolders(); ping("Stopped watching that folder"); } };
-  const rescanAll = async (interactive) => { setFolderSyncing(true); try { for (const f of syncFolders) await rescanSyncFolder(f.id, interactive); } finally { setFolderSyncing(false); } };
+  const rescanAll = async (interactive, full = false) => { setFolderSyncing(true); try { for (const f of syncFolders) await rescanSyncFolder(f.id, interactive, full); } finally { setFolderSyncing(false); } };
 
   useEffect(() => { refreshSyncFolders(); /* eslint-disable-next-line */ }, [prod?.id]);
   // Reset media filters when the production changes. Otherwise a bin/search filter from a previous
@@ -3558,7 +3562,7 @@ export default function Fabula() {
                           <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4, fontSize: 10 }}>
                             <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${f.name} · ${f.fileCount} files · last scan ${f.lastScan ? new Date(f.lastScan).toLocaleTimeString() : "—"}`}>📂 {f.name}</span>
                             <span className="dim" style={{ fontSize: 9 }}>{f.fileCount}</span>
-                            <button className="minibtn" style={{ fontSize: 8, padding: "2px 5px" }} onClick={() => rescanSyncFolder(f.id, true)} title="Rescan this folder now">↻</button>
+                            <button className="minibtn" style={{ fontSize: 8, padding: "2px 5px" }} onClick={() => rescanSyncFolder(f.id, true, true)} title="Rescan this folder now (full re-import)">↻</button>
                             <button className="minibtn" style={{ fontSize: 8, padding: "2px 5px" }} onClick={() => removeSyncFolderNow(f.id)} title="Stop watching this folder">✕</button>
                           </div>
                         ))}
@@ -4687,8 +4691,11 @@ export default function Fabula() {
                       {syncFolders.map((f) => (
                         <div className="watchrow" key={f.id}>
                           <FolderOpen size={13} />
-                          <div className="watchmeta"><strong>{f.name}</strong><span className="dim small">{f.fileCount || 0} files · {f.lastScan ? "synced" : "not scanned"}</span></div>
-                          <button className="minibtn" onClick={() => rescanSyncFolder(f.id, true)} title="Rescan now"><RefreshCw size={11} /></button>
+                          <button className="watchmeta watchnav" onClick={() => setMediaBin(tree.includes(f.name) ? f.name : "all")} title="Show this folder's media below">
+                            <strong>{f.name}</strong>
+                            <span className="dim small">{f.fileCount || 0} scanned · {countIn(f.name)} in pool → browse below</span>
+                          </button>
+                          <button className="minibtn" onClick={() => rescanSyncFolder(f.id, true, true)} title="Rescan now — full re-import of every file in the folder"><RefreshCw size={11} /></button>
                           <button className="minibtn" onClick={async () => { await removeSyncFolder(prod.id, f.id); refreshSyncFolders(); }} title="Stop watching"><Trash2 size={11} /></button>
                         </div>
                       ))}
@@ -6721,6 +6728,8 @@ const CSS = `
 .watchrow:last-child{border-bottom:none}
 .watchmeta{flex:1;display:flex;flex-direction:column;min-width:0}
 .watchmeta strong{color:#fff;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.watchnav{background:none;border:none;text-align:left;cursor:pointer;padding:0}
+.watchnav:hover strong{color:var(--org)}
 .mwgrid{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;padding:14px;
   overflow-y:auto;align-content:start}
 .mwcard{background:rgba(0,0,0,.4);border:1px solid var(--w08);border-radius:9px;padding:7px;cursor:pointer}

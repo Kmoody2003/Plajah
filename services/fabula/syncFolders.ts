@@ -84,9 +84,11 @@ export async function scanFolder(handle: any, maxDepth = 8): Promise<ScannedFile
   return out;
 }
 
-/** Rescan a folder and return ONLY the files not yet imported (updating the folder's seen-set + lastScan).
- *  Returns null if the handle can't be accessed (permission needed). */
-export async function rescanNew(projectId: string, id: string, interactive = false): Promise<{ folder: SyncFolder; fresh: ScannedFile[] } | null> {
+/** Rescan a folder and return the files to import. `full` ignores the seen-set (re-import everything —
+ *  the recovery path when files were counted but never actually landed in the pool). This does NOT
+ *  mark anything seen: the caller commits via markSeen() only AFTER a successful import, so a failed
+ *  import doesn't permanently hide files from future scans. Returns null if the handle can't be read. */
+export async function rescanNew(projectId: string, id: string, interactive = false, full = false): Promise<{ folder: SyncFolder; fresh: ScannedFile[]; total: number } | null> {
   const handle = await getHandle(id, interactive);
   if (!handle) return null;
   const all = await scanFolder(handle);
@@ -94,12 +96,23 @@ export async function rescanNew(projectId: string, id: string, interactive = fal
   const folder = folders.find((f) => f.id === id);
   if (!folder) return null;
   const seen = new Set(folder.seen || []);
-  const fresh = all.filter((f) => !seen.has(f.key));
-  fresh.forEach((f) => seen.add(f.key));
-  folder.seen = [...seen];
-  folder.fileCount = folder.seen.length;
+  const fresh = full ? all : all.filter((f) => !seen.has(f.key));
   folder.lastScan = Date.now();
   folder.name = handle.name || folder.name;
   await saveMeta(projectId, folders);
-  return { folder, fresh };
+  return { folder, fresh, total: all.length };
+}
+
+/** Mark files as imported (seen) — called by the caller AFTER importFilesToBins succeeds, so the
+ *  seen-set reflects what actually made it into the pool. Updates fileCount to the seen total. */
+export async function markSeen(projectId: string, id: string, keys: string[]): Promise<void> {
+  if (!keys?.length) return;
+  const folders = await listSyncFolders(projectId);
+  const folder = folders.find((f) => f.id === id);
+  if (!folder) return;
+  const seen = new Set(folder.seen || []);
+  keys.forEach((k) => seen.add(k));
+  folder.seen = [...seen];
+  folder.fileCount = folder.seen.length;
+  await saveMeta(projectId, folders);
 }
