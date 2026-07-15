@@ -2211,51 +2211,64 @@ export default function Fabula() {
   const importFilesToBins = async (files) => {
     if (!files?.length) return 0;
     const uidNow = auth.currentUser?.uid;
-    const existing = new Set((prod?.mediaPool || []).map((a) => `${a.name}|${a.bin || "imports"}`));
-    const newAssets = [], newBins = new Set();
-    let vectorFailed = 0;
-    // Auto-tag index: match an asset's name/folder against cast + world-feature names so imports self-file
-    // into those libraries (tags are searchable everywhere; cast matches also link into the member).
+    // Existing assets keyed by name|bin. A same-key asset that's ONLINE → true duplicate (skip); one
+    // that's OFFLINE (no url, e.g. a placeholder from an XML/EDL import or a reload that lost the blob)
+    // → RE-LINK it in place. This is why re-importing a folder used to "add 0": the offline placeholders
+    // matched every file and blocked them. Now they get relinked and light up.
+    const byKey = new Map((prod?.mediaPool || []).map((a) => [`${a.name}|${a.bin || "imports"}`, a]));
+    const newAssets = [], newBins = new Set(), relinks = []; // relinks: { id, url }
+    const seenBatch = new Set();
+    let vectorFailed = 0, added = 0, relinked = 0;
     const castIdx = (prod?.cast || []).map((c) => ({ id: c.id, name: (c.name || "").toLowerCase() })).filter((c) => c.name.length >= 2);
     const worldIdx = [];
     Object.entries(prod?.worldCats || {}).forEach(([cat, items]) => (items || []).forEach((it) => { if ((it.name || "").length >= 2) worldIdx.push({ cat, id: it.id, name: it.name.toLowerCase() }); }));
     const castLinks = []; // { assetId, castId }
     const scriptFiles = []; // .txt/.md/.fountain → Lorea structuring, not media
     for (const { path, name, file: rawFile } of files) {
-      const bin = path || "imports";
-      // Script text files aren't media — hand them to the Lorea script engine to structure into scenes.
-      if (/\.(txt|md|fountain|markdown)$/i.test(name)) { scriptFiles.push(rawFile); continue; }
-      const dkey = `${name}|${bin}`;
-      if (existing.has(dkey)) continue; existing.add(dkey);
-      if (bin !== "imports") newBins.add(bin);
-      // Vector art (SVG, Illustrator .ai, PDF) → hi-res alpha PNG so it composites crisply with
-      // transparency. Keep the original name; mark the asset so the UI can badge it "vector".
-      let file = rawFile, vector = false;
-      if (isVectorFile(rawFile)) {
-        const png = await rasterizeVector(rawFile).catch(() => null);
-        if (png) { file = png; vector = true; }
-        else { vectorFailed++; continue; } // undecodable (e.g. legacy PostScript .ai) — skip, hint below
-      }
-      const id = uid();
-      const t = file.type || "";
-      const type = vector ? "image" : t.startsWith("audio") ? "audio" : t.startsWith("image") ? "image" : /\.(json|lottie)$/i.test(name) ? "lottie" : "video";
-      // Auto-tag from name + folder path against cast/world + folder-category regex.
-      const hay = `${name} ${bin}`.toLowerCase();
-      const tags = new Set();
-      let castId, worldCat;
-      castIdx.forEach((c) => { if (hay.includes(c.name)) { tags.add(c.name); if (!castId) castId = c.id; castLinks.push({ assetId: id, castId: c.id }); } });
-      worldIdx.forEach((w) => { if (hay.includes(w.name)) { tags.add(w.name); if (!worldCat) worldCat = w.cat; } });
-      FOLDER_MAP.forEach(([re, cat]) => { if (re.test(bin)) { tags.add(cat); if (!worldCat) worldCat = cat; } });
-      await stSet("studio:blob:" + id, file);
-      newAssets.push({ id, name, type, vector: vector || undefined, url: URL.createObjectURL(file), duration: 0, bin, session: true, synced: true, tags: [...tags], castId, worldCat });
-      if (uidNow) enqueueUpload({ assetId: id, name: file.name || name, mime: file.type || "application/octet-stream", size: file.size, blobKey: "studio:blob:" + id, uid: uidNow }).catch(() => {});
+      try {
+        const bin = path || "imports";
+        if (/\.(txt|md|fountain|markdown)$/i.test(name)) { scriptFiles.push(rawFile); continue; }
+        const dkey = `${name}|${bin}`;
+        if (seenBatch.has(dkey)) continue; seenBatch.add(dkey);
+        const dup = byKey.get(dkey);
+        if (dup && dup.url && !dup.offline) continue; // already imported and online — skip
+        // Vector art (SVG/.ai/PDF) → hi-res alpha PNG. Undecodable → skip with a hint.
+        let file = rawFile, vector = false;
+        if (isVectorFile(rawFile)) {
+          const png = await rasterizeVector(rawFile).catch(() => null);
+          if (png) { file = png; vector = true; } else { vectorFailed++; continue; }
+        }
+        if (bin !== "imports") newBins.add(bin);
+        if (dup) {
+          // RE-LINK the existing offline asset (keep its id/tags/links; just restore the media).
+          const blobKey = "studio:blob:" + dup.id;
+          await stSet(blobKey, file).catch(() => {}); // storage failure is non-fatal — the session blob still works
+          relinks.push({ id: dup.id, url: URL.createObjectURL(file) });
+          if (uidNow) enqueueUpload({ assetId: dup.id, name: file.name || name, mime: file.type || "application/octet-stream", size: file.size, blobKey, uid: uidNow }).catch(() => {});
+          relinked++;
+          continue;
+        }
+        const id = uid();
+        const t = file.type || "";
+        const type = vector ? "image" : t.startsWith("audio") ? "audio" : t.startsWith("image") ? "image" : /\.(json|lottie)$/i.test(name) ? "lottie" : "video";
+        const hay = `${name} ${bin}`.toLowerCase();
+        const tags = new Set();
+        let castId, worldCat;
+        castIdx.forEach((c) => { if (hay.includes(c.name)) { tags.add(c.name); if (!castId) castId = c.id; castLinks.push({ assetId: id, castId: c.id }); } });
+        worldIdx.forEach((w) => { if (hay.includes(w.name)) { tags.add(w.name); if (!worldCat) worldCat = w.cat; } });
+        FOLDER_MAP.forEach(([re, cat]) => { if (re.test(bin)) { tags.add(cat); if (!worldCat) worldCat = cat; } });
+        await stSet("studio:blob:" + id, file).catch(() => {}); // non-fatal
+        newAssets.push({ id, name, type, vector: vector || undefined, url: URL.createObjectURL(file), duration: 0, bin, session: true, synced: true, tags: [...tags], castId, worldCat });
+        if (uidNow) enqueueUpload({ assetId: id, name: file.name || name, mime: file.type || "application/octet-stream", size: file.size, blobKey: "studio:blob:" + id, uid: uidNow }).catch(() => {});
+        added++;
+      } catch (e) { console.warn("[import] skipped a file:", name, e); } // one bad file never aborts the batch
     }
     if (vectorFailed) ping(`${vectorFailed} vector file${vectorFailed === 1 ? "" : "s"} couldn't be read — re-save as SVG or PDF and re-import`);
-    if (newAssets.length) updateProd((p) => {
+    if (newAssets.length || relinks.length) updateProd((p) => {
       p.mediaPool = p.mediaPool || []; p.bins = p.bins || [];
       newBins.forEach((b) => { if (!p.bins.includes(b)) p.bins.push(b); });
       newAssets.forEach((a) => p.mediaPool.push(a));
-      // Link name-matched assets into their cast member's media library.
+      relinks.forEach(({ id, url }) => { const a = p.mediaPool.find((x) => x.id === id); if (a) { a.url = url; a.offline = false; a.synced = true; } });
       castLinks.forEach(({ assetId, castId }) => {
         const m = (p.cast || []).find((c) => c.id === castId);
         if (m) { m.media = m.media || []; if (!m.media.includes(assetId)) m.media.push(assetId); }
@@ -2263,13 +2276,12 @@ export default function Fabula() {
     });
     const tagged = newAssets.filter((a) => a.tags?.length).length;
     if (tagged) ping(`Auto-tagged ${tagged} asset${tagged === 1 ? "" : "s"} into cast / world`);
-    // Script text files structure in the background (Lorea) so a folder/drop with scripts auto-populates
-    // the Structure page. One at a time to keep AI calls serial.
+    if (relinked) ping(`Re-linked ${relinked} offline asset${relinked === 1 ? "" : "s"} — they're live now`);
     if (scriptFiles.length) {
       ping(`Structuring ${scriptFiles.length} script${scriptFiles.length === 1 ? "" : "s"} with Lorea…`);
       (async () => { for (const sf of scriptFiles) { const t = await sf.text().catch(() => ""); if (t) await importScriptText(t, sf.name); } })();
     }
-    return newAssets.length;
+    return added + relinked;
   };
   // Literal folder mirror: an <input webkitdirectory> (or dropped folder) → bins that match the
   // on-disk tree exactly. Each file's webkitRelativePath keeps the FULL nested path (root folder
