@@ -28,8 +28,10 @@ import {
   CreditCard, Globe, Shield, Bell, LogOut, Save, Plus, Trash2, X,
   ExternalLink, Play, Sparkles, Radio, Tv, Search, Notebook, Mail,
   CheckSquare, Square, Check, FolderPlus, LayoutGrid, Eye, EyeOff, ChevronUp, ChevronDown, Building2, ShoppingBag, Pen, Box, Heart, HeartHandshake, Trophy, Baby, DollarSign, UploadCloud, LayoutTemplate, Share2,
-  Film, BarChart2, FileText, Users, Activity,
+  Film, BarChart2, FileText, Users, Activity, ChevronLeft,
 } from 'lucide-react';
+import { useViewport } from '../hooks/useViewport';
+import MobileSettingsMenu, { SETTINGS_TAB_LABELS } from './MobileSettingsMenu';
 import FediverseSettings from './FediverseSettings';
 import FediverseHub from './FediverseHub';
 import { motion } from 'motion/react';
@@ -91,6 +93,12 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
     'BOOKS_STUDIO' | 'SERIAL_SCHEDULER' | 'BOOK_CLUBS' |
     'CLASSROOM_ANALYTICS' | 'CERTIFICATES' | 'SAFETY' | 'FAMILY'
   >((initialTab as any) || 'ACCOUNT');
+  // Phone-only settings shell: a touch-first drill-down replaces the sidebar. 'list' = the grouped
+  // menu; 'detail' = one section full-screen with a back header. Deep-linked (initialTab) opens detail.
+  const { breakpoint } = useViewport();
+  const isPhone = breakpoint === 'phone';
+  const [mobileNav, setMobileNav] = useState<'list' | 'detail'>(initialTab ? 'detail' : 'list');
+  const canUse = React.useCallback((cap?: string) => !cap || hasCapability(profile, cap as Capability), [profile]);
   const [showFilmWizard, setShowFilmWizard]   = useState(false);
   const [showBookWizard, setShowBookWizard]   = useState(false);
   const [showBookClubCreator, setShowBookClubCreator] = useState(false);
@@ -228,9 +236,20 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
   if (!profile) return null;
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row h-screen overflow-hidden bg-[#020202]">
-      {/* Sidebar */}
-      <aside className="w-full lg:w-80 border-r border-white/5 flex flex-col p-8 bg-black/40 backdrop-blur-3xl">
+    <div className="flex-1 flex flex-col lg:flex-row h-screen overflow-hidden bg-[#020202] relative">
+      {/* Phone: touch-first drill-down menu replaces the sidebar (covers the view in 'list' mode). */}
+      {isPhone && mobileNav === 'list' && (
+        <MobileSettingsMenu
+          displayName={profile?.displayName || (user as any)?.displayName}
+          handle={(profile as any)?.handle || (profile as any)?.username}
+          avatarUrl={(profile as any)?.avatarUrl || (profile as any)?.photoURL || (user as any)?.photoURL}
+          visible={canUse}
+          onSelect={(id) => { setActiveTab(id as any); setMobileNav('detail'); }}
+          onExit={onBack}
+        />
+      )}
+      {/* Sidebar (desktop/tablet only) */}
+      <aside className="hidden lg:flex w-full lg:w-80 border-r border-white/5 flex-col p-8 bg-black/40 backdrop-blur-3xl">
         <div className="flex items-center gap-4 mb-12">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#6B0099] to-[#FF8C00] flex items-center justify-center shadow-xl">
             <Settings size={24} className="text-white" />
@@ -420,7 +439,17 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-8 lg:p-16">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-8 lg:p-16">
+        {/* Phone: sticky back header for the drilled-in section. */}
+        {isPhone && (
+          <div className="lg:hidden sticky top-0 z-30 -mx-4 -mt-4 mb-4 px-2 py-2 bg-[#020202]/90 backdrop-blur-xl border-b border-white/8 flex items-center gap-1"
+            style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
+            <button onClick={() => setMobileNav('list')} className="h-10 pl-1 pr-2 rounded-full flex items-center gap-1 text-white active:bg-white/10" aria-label="Back to settings">
+              <ChevronLeft size={24} /><span className="text-sm font-semibold">Settings</span>
+            </button>
+            <span className="ml-1 text-base font-bold text-white/90 truncate">{SETTINGS_TAB_LABELS[activeTab] || ''}</span>
+          </div>
+        )}
         <div className="max-w-4xl mx-auto">
           {showCreator.active && createPortal(
             // Portal to <body>: the dashboard sits inside motion/animated ancestors whose `transform`
