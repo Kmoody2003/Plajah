@@ -35,6 +35,8 @@ export interface UpEntry {
 let queue: UpEntry[] = [];
 let running = false;
 let loaded = false;
+let paused = false;                    // when true the uploader idles — keeps editing snappy on big projects
+const PKEY = 'fabula:uploadsPaused:v1';
 let onComplete: ((assetId: string, cloudUrl: string | undefined) => void) | null = null;
 let listeners: ((q: UpEntry[]) => void)[] = [];
 
@@ -49,6 +51,21 @@ export function onUploadProgress(cb: (q: UpEntry[]) => void): () => void {
   return () => { listeners = listeners.filter(l => l !== cb); };
 }
 export function pendingCount(): number { return queue.filter(e => e.status !== 'done').length; }
+
+// ── pause / clear (large-project controls) ──────────────────────────────────────
+export function uploadsPaused(): boolean { return paused; }
+export async function setUploadsPaused(p: boolean): Promise<void> {
+  paused = !!p;
+  try { await idbSet(PKEY, paused); } catch { /* */ }
+  notify();
+  if (!paused) runQueue();
+}
+/** Cancel all not-yet-started uploads (keeps completed + the one in flight). Use to stop a runaway sync. */
+export async function clearUploadQueue(): Promise<void> {
+  await load();
+  queue = queue.filter(e => e.status === 'done' || e.status === 'uploading');
+  await save();
+}
 
 async function idToken(): Promise<string> {
   const u = auth.currentUser; if (!u) throw new Error('sign-in required');
@@ -127,7 +144,7 @@ async function runQueue(): Promise<void> {
   try {
     await load();
     // Only run when signed in (uploads are owner-scoped). Auth listener re-kicks us otherwise.
-    while (auth.currentUser && queue.some(e => e.status === 'pending' || e.status === 'uploading' || (e.status === 'error'))) {
+    while (!paused && auth.currentUser && queue.some(e => e.status === 'pending' || e.status === 'uploading' || (e.status === 'error'))) {
       const e = queue.find(x => x.status === 'pending' || x.status === 'uploading') || queue.find(x => x.status === 'error');
       if (!e) break;
       try { await processOne(e); }
@@ -159,7 +176,7 @@ export function initResumableUploads(complete?: (assetId: string, cloudUrl: stri
   if (inited) { runQueue(); return; }
   inited = true;
   // Reset any 'uploading' left mid-flight by a previous session back to resumable state.
-  load().then(() => { queue.forEach(e => { if (e.status === 'uploading') e.status = 'pending'; }); return save(); }).then(() => runQueue());
+  load().then(async () => { paused = (await idbGet(PKEY)) || false; queue.forEach(e => { if (e.status === 'uploading') e.status = 'pending'; }); return save(); }).then(() => runQueue());
   onAuthStateChanged(auth, (u) => { if (u) runQueue(); });   // resume once the user signs in
   if (typeof window !== 'undefined') window.addEventListener('online', () => runQueue());
 }

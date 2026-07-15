@@ -32,7 +32,7 @@ import AudioTimeline from "./AudioTimeline";
 import ColorWheels from "./ColorWheels";
 import { quickStems, separateStemsCloud } from "../../services/fabula/stemSeparation";
 import { exportFCPXML, importFCPXML } from "../../services/fabula/fcpxml";
-import { initResumableUploads, enqueueUpload, onUploadProgress, pendingCount } from "../../services/fabula/resumableUpload";
+import { initResumableUploads, enqueueUpload, onUploadProgress, pendingCount, setUploadsPaused, uploadsPaused, clearUploadQueue } from "../../services/fabula/resumableUpload";
 import { listSyncFolders, addSyncFolder, removeSyncFolder, rescanNew, markSeen } from "../../services/fabula/syncFolders";
 import { isVectorFile, rasterizeVector } from "../../services/fabula/vectorRaster";
 import GeneratePanel from "./GeneratePanel";
@@ -567,6 +567,8 @@ export default function Fabula() {
   const [mediaAddScene, setMediaAddScene] = useState("");                // "actId|sceneId" target for add-to-scene
   const [mediaPage, setMediaPage] = useState(1);                         // Media Assets grid page (1-based)
   const [mediaPageSize, setMediaPageSize] = useState(50);               // items per page: 25 | 50 | 75
+  const [mediaAutoSync, setMediaAutoSync] = useState(() => { try { return localStorage.getItem("fabula:autoSyncMedia") === "1"; } catch { return false; } }); // default LOCAL-FIRST — big folders don't flood the cloud uploader
+  const [syncPaused, setSyncPaused] = useState(false);                 // uploader paused (mirrors resumableUpload)
   const [scriptImporting, setScriptImporting] = useState(false); // Lorea .txt → structured script
   const [scriptMsg, setScriptMsg] = useState("");                // SLATE auto-breakdown progress
   const [connectWorldOpen, setConnectWorldOpen] = useState(false); // Plajah World link modal
@@ -2251,6 +2253,10 @@ export default function Fabula() {
     // → RE-LINK it in place. This is why re-importing a folder used to "add 0": the offline placeholders
     // matched every file and blocked them. Now they get relinked and light up.
     const byKey = new Map((prod?.mediaPool || []).map((a) => [`${a.name}|${a.bin || "imports"}`, a]));
+    // Content signature (name+size) → catches the SAME file even if its bin changed between imports, so a
+    // re-scan can't spawn duplicate assets (the cause of "3,711 files became 10,000 in the sync queue").
+    const bySig = new Map();
+    (prod?.mediaPool || []).forEach((a) => { if (a.size) { const s = `${(a.name || "").toLowerCase()}|${a.size}`; if (!bySig.has(s)) bySig.set(s, a); } });
     const newAssets = [], newBins = new Set(), relinks = []; // relinks: { id, url }
     const seenBatch = new Set();
     let vectorFailed = 0, added = 0, relinked = 0;
@@ -2263,10 +2269,11 @@ export default function Fabula() {
       try {
         const bin = path || "imports";
         if (/\.(txt|md|fountain|markdown)$/i.test(name)) { scriptFiles.push(rawFile); continue; }
-        const dkey = `${name}|${bin}`;
-        if (seenBatch.has(dkey)) continue; seenBatch.add(dkey);
-        const dup = byKey.get(dkey);
-        if (dup && dup.url && !dup.offline) continue; // already imported and online — skip
+        const sig = rawFile?.size ? `${name.toLowerCase()}|${rawFile.size}` : null;
+        if (seenBatch.has(sig || `${name}|${bin}`)) continue; seenBatch.add(sig || `${name}|${bin}`);
+        // Match by name+bin OR by content signature (name+size) so a bin change can't duplicate a file.
+        const dup = byKey.get(`${name}|${bin}`) || (sig ? bySig.get(sig) : null);
+        if (dup && dup.url && !dup.offline) continue; // already imported and online (same bin or same file elsewhere) — skip
         // Vector art (SVG/.ai/PDF) → hi-res alpha PNG. Undecodable → skip with a hint.
         let file = rawFile, vector = false;
         if (isVectorFile(rawFile)) {
@@ -2278,8 +2285,8 @@ export default function Fabula() {
           // RE-LINK the existing offline asset (keep its id/tags/links; just restore the media).
           const blobKey = "studio:blob:" + dup.id;
           await stSet(blobKey, file).catch(() => {}); // storage failure is non-fatal — the session blob still works
-          relinks.push({ id: dup.id, url: URL.createObjectURL(file) });
-          if (uidNow) enqueueUpload({ assetId: dup.id, name: file.name || name, mime: file.type || "application/octet-stream", size: file.size, blobKey, uid: uidNow }).catch(() => {});
+          relinks.push({ id: dup.id, url: URL.createObjectURL(file), size: rawFile?.size || file.size || 0 });
+          if (uidNow && mediaAutoSync) enqueueUpload({ assetId: dup.id, name: file.name || name, mime: file.type || "application/octet-stream", size: file.size, blobKey, uid: uidNow }).catch(() => {});
           relinked++;
           continue;
         }
@@ -2293,8 +2300,10 @@ export default function Fabula() {
         worldIdx.forEach((w) => { if (hay.includes(w.name)) { tags.add(w.name); if (!worldCat) worldCat = w.cat; } });
         FOLDER_MAP.forEach(([re, cat]) => { if (re.test(bin)) { tags.add(cat); if (!worldCat) worldCat = cat; } });
         await stSet("studio:blob:" + id, file).catch(() => {}); // non-fatal
-        newAssets.push({ id, name, type, vector: vector || undefined, url: URL.createObjectURL(file), duration: 0, bin, session: true, synced: true, tags: [...tags], castId, worldCat });
-        if (uidNow) enqueueUpload({ assetId: id, name: file.name || name, mime: file.type || "application/octet-stream", size: file.size, blobKey: "studio:blob:" + id, uid: uidNow }).catch(() => {});
+        newAssets.push({ id, name, type, vector: vector || undefined, url: URL.createObjectURL(file), duration: 0, size: rawFile?.size || file.size || 0, bin, session: true, synced: mediaAutoSync ? undefined : "local", tags: [...tags], castId, worldCat });
+        // Local-first: bulk folder/watch imports only auto-upload when the user opts in — otherwise a
+        // huge folder would flood the cloud uploader and hinder editing. "Sync to cloud" enqueues later.
+        if (uidNow && mediaAutoSync) enqueueUpload({ assetId: id, name: file.name || name, mime: file.type || "application/octet-stream", size: file.size, blobKey: "studio:blob:" + id, uid: uidNow }).catch(() => {});
         added++;
       } catch (e) { console.warn("[import] skipped a file:", name, e); } // one bad file never aborts the batch
     }
@@ -2303,7 +2312,7 @@ export default function Fabula() {
       p.mediaPool = p.mediaPool || []; p.bins = p.bins || [];
       newBins.forEach((b) => { if (!p.bins.includes(b)) p.bins.push(b); });
       newAssets.forEach((a) => p.mediaPool.push(a));
-      relinks.forEach(({ id, url }) => { const a = p.mediaPool.find((x) => x.id === id); if (a) { a.url = url; a.offline = false; a.synced = true; } });
+      relinks.forEach(({ id, url, size }) => { const a = p.mediaPool.find((x) => x.id === id); if (a) { a.url = url; a.offline = false; if (size) a.size = size; if (!mediaAutoSync) a.synced = "local"; } });
       castLinks.forEach(({ assetId, castId }) => {
         const m = (p.cast || []).find((c) => c.id === castId);
         if (m) { m.media = m.media || []; if (!m.media.includes(assetId)) m.media.push(assetId); }
@@ -2358,6 +2367,25 @@ export default function Fabula() {
   // ── Media Assets: notes + add-to-scene ────────────────────────────────────────
   const updateAssetNote = (assetId, note) => updateProd((p) => { const a = p.mediaPool?.find((x) => x.id === assetId); if (a) a.note = note; });
   const sceneList = () => (prod?.acts || []).flatMap((a) => (a.scenes || []).map((s) => ({ actId: a.id, sceneId: s.id, label: `${a.title || "ACT"} · ${s.title || s.slugline || "Scene"}` })));
+  // ── Cloud sync controls (large-project friendly: local-first, pausable) ──────────
+  const setAutoSync = (on) => { setMediaAutoSync(on); try { localStorage.setItem("fabula:autoSyncMedia", on ? "1" : "0"); } catch { /* */ } };
+  const toggleSyncPaused = async () => { const p = !syncPaused; setSyncPaused(p); await setUploadsPaused(p); };
+  const clearSyncNow = async () => { await clearUploadQueue(); setUploadPending(0); ping("Sync queue cleared — nothing more uploads until you sync again."); };
+  const syncAllLocalMedia = async () => {
+    const uidNow = auth.currentUser?.uid;
+    if (!uidNow) { ping("Sign in to sync media to the cloud."); return; }
+    const locals = (prod?.mediaPool || []).filter((a) => a.url && !a.cloudUrl);
+    let n = 0;
+    for (const a of locals) {
+      const blobKey = "studio:blob:" + a.id;
+      const blob = await stGet(blobKey);
+      if (!blob) continue;
+      enqueueUpload({ assetId: a.id, name: a.name, mime: blob.type || "application/octet-stream", size: blob.size || a.size || 0, blobKey, uid: uidNow }).catch(() => {});
+      n++;
+    }
+    if (syncPaused) { setSyncPaused(false); await setUploadsPaused(false); }
+    ping(n ? `Queued ${n} file${n === 1 ? "" : "s"} to upload in the background` : "Everything's already synced.");
+  };
   // Append an asset to a scene's timeline as a V1 clip (after the last picture clip). If that scene is
   // the one open in the editor, go through the live clips state so the debounced autosave doesn't
   // clobber the addition; otherwise write straight into the production.
@@ -2523,12 +2551,21 @@ export default function Fabula() {
   useEffect(() => { setBinFilter("all"); setMediaBin("all"); setMediaSearch(""); setMediaSel(null); setMediaCollapsed(new Set()); }, [prod?.id]);
   // Jump back to page 1 whenever the filter or page size changes, so you never land past the last page.
   useEffect(() => { setMediaPage(1); }, [mediaBin, mediaSearch, mediaPageSize, prod?.id]);
+  useEffect(() => { setSyncPaused(uploadsPaused()); }, []);
   // Poll watched folders (browsers can't push FS events): on an interval + on window focus. Only folders
   // whose read permission is still granted rescan silently; the rest wait for a manual (gesture) rescan.
   useEffect(() => {
     if (!prod?.id || !syncFolders.length) return undefined;
-    const tick = () => { syncFolders.forEach((f) => rescanSyncFolder(f.id, false)); };
-    const iv = setInterval(tick, 45000);
+    let scanning = false;
+    // Gentle, non-overlapping polling: skip a tick if the previous scan is still running (large folders
+    // take a while), and don't rescan a hidden tab. Every 90s — new files still show within a minute or
+    // two, without a heavy directory walk hammering a big project mid-edit.
+    const tick = async () => {
+      if (scanning || document.hidden) return;
+      scanning = true;
+      try { for (const f of syncFolders) await rescanSyncFolder(f.id, false); } finally { scanning = false; }
+    };
+    const iv = setInterval(tick, 90000);
     const onFocus = () => tick();
     window.addEventListener("focus", onFocus);
     return () => { clearInterval(iv); window.removeEventListener("focus", onFocus); };
@@ -4694,6 +4731,8 @@ export default function Fabula() {
                 return assetMatches(a, mediaSearch.trim());
               });
               const selAsset = mediaSel ? (prod.mediaPool || []).find((a) => a.id === mediaSel) : null;
+              const poolCount = (prod.mediaPool || []).length;
+              const localOnlyCount = (prod.mediaPool || []).filter((a) => a.url && !a.cloudUrl).length;
               // Pagination — keep the grid from becoming an endless scroll on large libraries.
               const totalPages = Math.max(1, Math.ceil(assets.length / mediaPageSize));
               const pageNo = Math.min(Math.max(1, mediaPage), totalPages);
@@ -4742,6 +4781,18 @@ export default function Fabula() {
                       <input ref={scriptFilesRef} type="file" multiple accept=".txt,.md,.fountain,.markdown" style={{ display: "none" }}
                         onChange={(e) => { importScriptFiles(e.target.files); e.target.value = ""; }} />
                     </div>
+                  </div>
+
+                  {/* cloud sync — local-first, pausable (keeps big projects snappy) */}
+                  <div className="glass-card">
+                    <div className="lbl">CLOUD SYNC — {mediaAutoSync ? "auto-sync ON" : "LOCAL-FIRST"} · {localOnlyCount} of {poolCount} local-only{uploadPending ? ` · ${uploadPending} uploading` : ""}{syncPaused ? " · PAUSED" : ""}</div>
+                    <div className="btnrow" style={{ flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+                      <label className="synctoggle"><input type="checkbox" checked={mediaAutoSync} onChange={(e) => setAutoSync(e.target.checked)} /> Auto-sync new imports</label>
+                      <button className="minibtn" onClick={syncAllLocalMedia} disabled={!localOnlyCount} title="Upload every local file to the cloud in the background">☁ Sync all to cloud</button>
+                      <button className="minibtn" onClick={toggleSyncPaused} title="Pause/resume background uploads so they never slow editing">{syncPaused ? "▶ Resume sync" : "⏸ Pause sync"}</button>
+                      {uploadPending > 0 && <button className="minibtn" style={{ color: "var(--red)", borderColor: "rgba(251,113,133,.35)" }} onClick={clearSyncNow}>✕ Clear queue ({uploadPending})</button>}
+                    </div>
+                    <div className="dim small" style={{ marginTop: 6 }}>Your library plays from the local files on this device — editing never waits on the cloud. Sync (to open on another device) runs in the background and can be paused.</div>
                   </div>
 
                   {/* watch folders */}
@@ -6769,6 +6820,8 @@ const CSS = `
 .binbtn.on{background:var(--org);color:#000}
 .bintree{opacity:.4;margin-right:4px;font-weight:400}
 .linkbtn{background:none;border:none;color:var(--org);font-weight:800;cursor:pointer;padding:0;font-size:inherit;text-decoration:underline}
+.synctoggle{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#cfcbdb;cursor:pointer;user-select:none}
+.synctoggle input{accent-color:var(--org);width:14px;height:14px}
 .mediasearch{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.32);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:6px 9px;margin-bottom:9px;color:var(--w40)}
 .mediasearch input{flex:1;background:none;border:none;outline:none;color:#fff;font-size:12px;font-family:inherit;min-width:0}
 .mediasearch.wide{margin-bottom:11px}
