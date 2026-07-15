@@ -55,8 +55,15 @@ gen-agent (Kling/Magnific).
   fallback + migrate-on-read; `stGet/stSet` route `studio:blob:`/`studio:proxy:` through it);
   storage-dedup — watch-folder originals keep no second on-device copy (disk-direct), both cloud
   sync paths read folder bytes off the disk handle. Vector rasters still keep their copy.
-- **Phase 2 (4–6 wks):** shared budgeted decoder pool + single WebGPU compositor (Fabula adopts
-  Pixels' surface; zero-copy VideoFrame→GPU).
+- **Phase 2 (in progress):**
+  - *Slice 1 (shipped):* the two foundations, built + verified before the editor depends on them —
+    `services/fabula/gpuComposite.ts` (one-device WebGPU compositor: N layers, per-layer transform/
+    opacity/WGSL grade + premultiplied alpha; headlessly verified — mid-gray@brightness1.5 → [192,192,
+    192], grade math correct) and `services/fabula/decoderBudget.ts` (global live-decoder cap 24–48 by
+    core count; ScrubThumb acquires a slot before mounting `<video>`).
+  - *Slice 2 (next):* wire the compositor into the live program monitor behind a default-off flag —
+    GPU-composite the video layers into one surface, keep DOM overlays (titles/Lottie/Pixels) on top,
+    full fallback to the current MonitorLayer stack. Needs a real project to verify visually.
 - **Phase 3 (6–10 wks):** `plajah-core` in Rust — compositor first, then op-based doc, then
   Cloud Run render on the same crate.
 - **Phase 4 (ongoing):** CRDT collaboration + cloud-only AI + Crossover Cloud fallback.
