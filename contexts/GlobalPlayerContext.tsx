@@ -7,7 +7,7 @@ import { detectDolbySupport, isLikelyAtmosUrl } from '../services/dolbyDetection
 import { saveProgress } from '../services/episodeProgressService';
 import { getCachedMedia } from '../services/offlineStorageService';
 import Hls from 'hls.js';
-import { peekTrackStream, prefetchTrackStreams, pickStreamUrl, getQuality as getAudioQuality } from '../services/choraStreamService';
+import { peekTrackStream, prefetchTrackStreams, pickStreamUrl, getQuality as getAudioQuality, enqueueTranscode, enqueueAlbumTranscodes, getTrackStream } from '../services/choraStreamService';
 
 interface GlobalPlayerProgressContextType {
   currentTime: number;
@@ -999,6 +999,21 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const ids = currentAlbum?.tracks?.map(t => t.id).filter(Boolean) as string[] | undefined;
     if (ids?.length) prefetchTrackStreams(ids);
   }, [currentAlbum?.id]); // eslint-disable-line
+
+  // Console helper for triggering + backfilling transcodes on production (source .ts files aren't
+  // served in a prod build, so `import()` fails — use these instead). Reuses the app's auth token.
+  //   await __chora.transcodeCurrentAlbum()        // the album playing now
+  //   await __chora.transcode('<trackId>','<masterUrl>')
+  //   await __chora.getStream('<trackId>')          // inspect status
+  useEffect(() => {
+    (window as any).__chora = {
+      transcode: (trackId: string, srcUrl: string) => enqueueTranscode(trackId, srcUrl),
+      transcodeCurrentAlbum: () => enqueueAlbumTranscodes((stateRef.current.currentAlbum?.tracks as any) || []),
+      backfillAlbum: (tracks: any[]) => enqueueAlbumTranscodes(tracks),
+      getStream: (trackId: string) => getTrackStream(trackId),
+    };
+    return () => { try { delete (window as any).__chora; } catch { /* */ } };
+  }, []);
 
   useEffect(() => {
     if ('mediaSession' in navigator) {
