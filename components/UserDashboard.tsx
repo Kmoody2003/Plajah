@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { UserProfile, Album, Video, Photo, Track, MerchItem, IPWorld, ThemeType } from '../types';
 import { 
   fetchUserProfile, updateUserProfile, updateLiveStreamConfig,
@@ -421,9 +422,14 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-8 lg:p-16">
         <div className="max-w-4xl mx-auto">
-          {showCreator.active && (
-            <div className="fixed inset-0 z-[100] bg-black/55 p-4 lg:p-12 overflow-y-auto" style={{ backdropFilter: 'blur(4px)' }}>
-              <div className="max-w-6xl mx-auto relative">
+          {showCreator.active && createPortal(
+            // Portal to <body>: the dashboard sits inside motion/animated ancestors whose `transform`
+            // turns `position: fixed` into "fixed relative to that ancestor", which anchored the editor
+            // above the user's scroll and forced them to scroll up. Rendered at the body root it's truly
+            // viewport-fixed and centered, so it opens over wherever the user is.
+            <div className="fixed inset-0 z-[100] bg-black/55 p-4 lg:p-12 overflow-y-auto flex justify-center items-start" style={{ backdropFilter: 'blur(4px)' }}
+              onMouseDown={(e) => { if (e.target === e.currentTarget) setShowCreator({ active: false }); }}>
+              <div className="max-w-6xl w-full mx-auto relative my-auto">
                 <AlbumCreator
                   onCreated={(album) => {
                     setShowCreator({ active: false });
@@ -436,7 +442,8 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                   initialAlbum={showCreator.album || (showCreator.type ? { type: showCreator.type } as any : undefined)}
                 />
               </div>
-            </div>
+            </div>,
+            document.body,
           )}
           {activeTab === 'ALIASES' && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
