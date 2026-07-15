@@ -4830,8 +4830,8 @@ export default function Fabula() {
                     )}
                   </div>
 
-                  {/* browser: folder tree | asset grid */}
-                  <div className="mabrowse">
+                  {/* browser: folder tree | asset grid | preview */}
+                  <div className={`mabrowse ${selAsset ? "haspreview" : ""}`}>
                     {/* folder tree */}
                     <div className="glass-card matree">
                       <div className="lbl">FOLDERS <span className="catcount">{folderCount}</span></div>
@@ -4903,10 +4903,8 @@ export default function Fabula() {
                         </div>
                       )}
                     </div>
-                  </div>
-
-                  {/* preview + notes + add-to-scene */}
-                  {selAsset && (
+                    {/* preview — sits to the RIGHT of the grid as a column when an asset is selected */}
+                    {selAsset && (
                     <div className="glass-card mapreview">
                       <div className="mapvhead">
                         <span className="lbl" style={{ margin: 0 }}>PREVIEW</span>
@@ -4937,7 +4935,8 @@ export default function Fabula() {
                         </div>
                       </div>
                     </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               );
             })()}
@@ -6285,14 +6284,14 @@ const CSS = `
 /* main + scroll */
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;z-index:1;position:relative}
 .scroll{overflow-y:auto;height:100%}
-.pad{padding:26px clamp(16px,4vw,46px);max-width:1100px;margin:0 auto;width:100%}
+.pad{padding:24px clamp(16px,3.5vw,48px);max-width:1680px;margin:0 auto;width:100%}
 .mega{font-size:clamp(28px,4.5vw,44px);font-weight:900;font-style:italic;text-transform:uppercase;
   letter-spacing:-.045em;color:var(--org);margin:0 0 6px}
 .mega.sm{font-size:24px}
 .slash{color:#fff}
 .lede{color:var(--w40);font-weight:500;margin:0 0 22px;max-width:640px;line-height:1.5;font-size:14px}
-.lbl{font-size:9.5px;font-weight:900;letter-spacing:.22em;text-transform:uppercase;color:rgba(249,115,22,.65);margin:0 0 6px}
-.dim{color:var(--w40)} .dim2{color:rgba(255,255,255,.25)} .small{font-size:11px} .center{text-align:center}
+.lbl{font-size:10.5px;font-weight:900;letter-spacing:.2em;text-transform:uppercase;color:rgba(249,115,22,.65);margin:0 0 6px}
+.dim{color:var(--w40)} .dim2{color:rgba(255,255,255,.25)} .small{font-size:12px} .center{text-align:center}
 .big-empty{padding:80px 20px;font-size:14px;letter-spacing:.04em}
 .ital{font-style:italic}
 
@@ -6826,22 +6825,24 @@ const CSS = `
 .mediasearch input{flex:1;background:none;border:none;outline:none;color:#fff;font-size:12px;font-family:inherit;min-width:0}
 .mediasearch.wide{margin-bottom:11px}
 .binrow{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
-.binchip{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:var(--w40);font-size:10px;font-weight:800;letter-spacing:.05em;padding:4px 9px;border-radius:999px;cursor:pointer}
+.binchip{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:var(--w40);font-size:11px;font-weight:800;letter-spacing:.05em;padding:5px 10px;border-radius:999px;cursor:pointer}
 .binchip.on{background:var(--org);color:#000;border-color:transparent}
 .tagrow{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
-.tagchip{background:rgba(124,58,237,.14);border:1px solid rgba(124,58,237,.32);color:#c4b3f0;font-size:10px;padding:3px 8px;border-radius:999px;cursor:pointer}
+.tagchip{background:rgba(124,58,237,.14);border:1px solid rgba(124,58,237,.32);color:#c4b3f0;font-size:11px;padding:4px 9px;border-radius:999px;cursor:pointer}
 .tagchip.on{background:linear-gradient(120deg,#7c3aed,#e0459b);color:#fff;border-color:transparent}
-.magrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:8px}
-.mabrowse{display:grid;grid-template-columns:230px 1fr;gap:12px;align-items:start}
-@media(max-width:720px){.mabrowse{grid-template-columns:1fr}}
-.matree{max-height:60vh;overflow-y:auto}
-.matreerow{width:100%;display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--w40);font-size:11.5px;padding:6px 8px;border-radius:6px;cursor:pointer;text-align:left}
+.magrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(144px,1fr));gap:12px;margin-top:10px}
+.mabrowse{display:grid;grid-template-columns:250px minmax(0,1fr);gap:14px;align-items:start}
+.mabrowse.haspreview{grid-template-columns:250px minmax(0,1fr) clamp(320px,26vw,440px)}
+@media(max-width:1100px){.mabrowse.haspreview{grid-template-columns:250px minmax(0,1fr)}}
+@media(max-width:720px){.mabrowse,.mabrowse.haspreview{grid-template-columns:1fr}}
+.matree{max-height:66vh;overflow-y:auto}
+.matreerow{width:100%;display:flex;align-items:center;gap:7px;background:none;border:none;color:var(--w40);font-size:13px;padding:7px 8px;border-radius:6px;cursor:pointer;text-align:left}
 .matreerow:hover{color:#fff;background:var(--w04)}
 .matreerow.on{background:rgba(249,115,22,.16);color:#ffb057}
-.matreetoggle{width:12px;display:inline-flex;justify-content:center;color:var(--w40);font-size:9px}
-.matreespace{width:12px;display:inline-block}
+.matreetoggle{width:13px;display:inline-flex;justify-content:center;color:var(--w40);font-size:10px}
+.matreespace{width:13px;display:inline-block}
 .matreelabel{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
-.matreecount{font-size:9px;color:var(--w40);font-variant-numeric:tabular-nums}
+.matreecount{font-size:10.5px;color:var(--w40);font-variant-numeric:tabular-nums}
 .magridwrap{min-width:0}
 .mapaghead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .mapager{display:flex;align-items:center;gap:8px}
@@ -6851,29 +6852,33 @@ const CSS = `
 .mapager .gp-sel{background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.14);color:#eee;border-radius:7px;padding:5px 8px;font-size:11px}
 .macard.sel{outline:2px solid rgba(224,69,155,.7);outline-offset:-2px}
 .manoteflag{position:absolute;top:3px;left:3px;font-size:9px;color:#ffd27f;background:rgba(0,0,0,.5);border-radius:4px;padding:0 3px}
-.mapreview{margin-top:2px}
+.mapreview{margin:0;align-self:start;position:sticky;top:8px;max-height:calc(100vh - 30px);overflow-y:auto}
 .mapvhead{display:flex;align-items:center;justify-content:space-between}
-.mapvbody{display:grid;grid-template-columns:minmax(220px,1fr) 1fr;gap:14px;margin-top:8px}
+/* In the right-hand preview column the media + meta stack vertically; when the preview wraps below the
+   grid (narrow screens) it goes back to side-by-side so it isn't a tall strip. */
+.mapvbody{display:block;margin-top:8px}
+.mapvbody>.mapvmeta{margin-top:12px}
+@media(max-width:1100px){.mapvbody{display:grid;grid-template-columns:minmax(220px,1fr) 1fr;gap:14px}.mapvbody>.mapvmeta{margin-top:0}}
 @media(max-width:720px){.mapvbody{grid-template-columns:1fr}}
 .mapvmedia{background:#000;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:150px}
-.mapvplayer{width:100%;max-height:300px;object-fit:contain;display:block}
+.mapvplayer{width:100%;max-height:340px;object-fit:contain;display:block}
 .mapvaudio{display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px;width:100%}
 .mapvaudioel{width:100%}
 .mapvoffline{color:var(--red);font-size:12px;padding:24px;text-align:center}
 .mapvmeta{min-width:0}
-.mapvname{font-weight:800;color:#fff;font-size:14px;margin-bottom:2px;word-break:break-word}
-.mapvnotes{width:100%;box-sizing:border-box;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:#fff;padding:8px 10px;font-size:12px;resize:vertical;font-family:inherit}
+.mapvname{font-weight:800;color:#fff;font-size:16px;margin-bottom:3px;word-break:break-word}
+.mapvnotes{width:100%;box-sizing:border-box;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:#fff;padding:9px 11px;font-size:13px;resize:vertical;font-family:inherit}
 .mapvnotes:focus{outline:none;border-color:rgba(224,69,155,.5)}
 .mapvadd{display:flex;gap:8px;align-items:center}
 .mapvadd .gp-sel{background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.14);color:#eee;border-radius:8px;padding:8px 10px;font-size:12px}
 .macard{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:7px;cursor:pointer;transition:border-color .15s}
 .macard:hover{border-color:rgba(224,69,155,.5)}
 .macard.offline{outline:1px solid rgba(251,113,133,.5);outline-offset:-1px}
-.mathumb{position:relative;height:66px;border-radius:6px;overflow:hidden;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center}
+.mathumb{position:relative;height:84px;border-radius:6px;overflow:hidden;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center}
 .mathumb .poolthumb{width:100%;height:100%;object-fit:cover}
-.maname{font-size:10.5px;color:#e6e2f0;margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.maname{font-size:12px;color:#e6e2f0;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .matags{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
-.matag{display:inline-flex;align-items:center;gap:2px;font-size:8px;font-weight:700;letter-spacing:.03em;color:var(--w40);background:rgba(255,255,255,.06);border-radius:4px;padding:1px 4px;text-transform:uppercase}
+.matag{display:inline-flex;align-items:center;gap:2px;font-size:9.5px;font-weight:700;letter-spacing:.03em;color:var(--w40);background:rgba(255,255,255,.06);border-radius:4px;padding:2px 5px;text-transform:uppercase}
 .matag.cast{color:#7ee2a8;background:rgba(52,211,153,.12)}
 .watchrow{display:flex;align-items:center;gap:9px;padding:7px 2px;border-bottom:1px solid rgba(255,255,255,.06)}
 .watchrow:last-child{border-bottom:none}
