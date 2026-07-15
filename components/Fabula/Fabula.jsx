@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import * as THREE from "three";
 import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from "idb-keyval";
+import { putBytes as mediaPutBytes, getBytes as mediaGetBytes, delBytes as mediaDelBytes } from "../../services/fabula/mediaStore";
 import { renderFabulaToBlob } from "../../services/fabulaRender";
 import { crossover } from "../../services/crossover";
 import SceneView from "../plajahPixels/components/SceneView";
@@ -205,8 +206,13 @@ const BLANK_SCENE = () => ({
 // so projects silently never saved/loaded inside Plajah. IndexedDB also handles
 // large editing projects far better than localStorage's ~5MB cap.) Falls back to
 // the artifact's window.storage if it ever IS present.
+// Media + proxy bytes route through the OPFS media substrate (fast, high-capacity, out of the IDB
+// value store); everything else (project docs, index, settings) stays in idb-keyval. Callers are
+// unchanged — they still stGet/stSet "studio:blob:<id>" / "studio:proxy:<id>".
+const isMediaKey = (k) => typeof k === "string" && (k.startsWith("studio:blob:") || k.startsWith("studio:proxy:"));
 async function stGet(k) {
   try {
+    if (isMediaKey(k)) return (await mediaGetBytes(k)) || null;
     const r = await idbGet(k);
     if (r !== undefined && r !== null) return r;
     if (typeof window !== "undefined" && window.storage?.get) {
@@ -216,8 +222,8 @@ async function stGet(k) {
     return null;
   } catch { return null; }
 }
-async function stSet(k, v) { try { await idbSet(k, v); return true; } catch { return false; } }
-async function stDel(k) { try { await idbDel(k); } catch {} }
+async function stSet(k, v) { try { if (isMediaKey(k)) return await mediaPutBytes(k, v); await idbSet(k, v); return true; } catch { return false; } }
+async function stDel(k) { try { if (isMediaKey(k)) { await mediaDelBytes(k); return; } await idbDel(k); } catch {} }
 
 /* ---------------- Claude API + robust JSON ---------------- */
 // Firebase restores the session asynchronously on load, so auth.currentUser can be
@@ -1784,8 +1790,10 @@ export default function Fabula() {
         try { blob = await fetch(a.url).then((r) => { if (!r.ok) throw new Error("gone"); return r.blob(); }); }
         catch { blob = null; } // the blob: URL died (page reloaded) — fall back to the stashed bytes
         if (!blob || !blob.size) { blob = await stGet("studio:blob:" + a.id); }
+        // Folder-sourced originals keep no on-device copy — read the real file straight off the disk handle.
+        if ((!blob || !blob.size) && a.folderId) { try { blob = await getFileFromFolder(a.folderId, a.diskPath || a.bin || "", a.diskName || a.name); } catch { /* offline */ } }
         if (!blob || !blob.size) { dead.push(a.name); continue; }
-        stSet("studio:blob:" + a.id, blob); // ensure the local copy persists — local stays the editing source
+        if (!a.folderId) stSet("studio:blob:" + a.id, blob); // persist a copy only for non-folder media (folder originals live on disk)
         const cloudUrl = await uploadFabulaAsset(prod.id, a.id, blob, a.name, (pct) => setSaveState(`↑ ${a.name} ${pct}%`));
         // LOCAL-FIRST: keep playing the local blob URL; the cloud copy is the durable/portable
         // location other devices load. (Old behavior swapped url → cloud, which forced network
@@ -2301,12 +2309,17 @@ export default function Fabula() {
           if (png) { file = png; vector = true; } else { vectorFailed++; continue; }
         }
         if (bin !== "imports") newBins.add(bin);
+        // Storage-dedup (Phase 1): a watch-folder ORIGINAL is re-openable straight from the disk handle,
+        // so we don't keep a second copy of its bytes on device. Vector art is the exception — it was
+        // rasterised into a new PNG that has no matching file on disk, so that copy must be kept.
+        const diskResolvable = !!folderId && !vector;
+        const keepCopy = !diskResolvable;
         if (dup) {
           // RE-LINK the existing offline asset (keep its id/tags/links; just restore the media).
           const blobKey = "studio:blob:" + dup.id;
-          await stSet(blobKey, file).catch(() => {}); // storage failure is non-fatal — the session blob still works
+          if (keepCopy) await stSet(blobKey, file).catch(() => {}); // storage failure is non-fatal — the session blob still works
           relinks.push({ id: dup.id, url: URL.createObjectURL(file), size: rawFile?.size || file.size || 0, folderId, diskName: name, bin });
-          if (uidNow && mediaAutoSync) enqueueUpload({ assetId: dup.id, name: file.name || name, mime: file.type || "application/octet-stream", size: file.size, blobKey, uid: uidNow }).catch(() => {});
+          if (uidNow && mediaAutoSync) enqueueUpload({ assetId: dup.id, name: file.name || name, mime: file.type || "application/octet-stream", size: file.size, blobKey, uid: uidNow, folderId, diskPath: diskResolvable ? bin : undefined, diskName: name }).catch(() => {});
           relinked++;
           continue;
         }
@@ -2319,11 +2332,11 @@ export default function Fabula() {
         castIdx.forEach((c) => { if (hay.includes(c.name)) { tags.add(c.name); if (!castId) castId = c.id; castLinks.push({ assetId: id, castId: c.id }); } });
         worldIdx.forEach((w) => { if (hay.includes(w.name)) { tags.add(w.name); if (!worldCat) worldCat = w.cat; } });
         FOLDER_MAP.forEach(([re, cat]) => { if (re.test(bin)) { tags.add(cat); if (!worldCat) worldCat = cat; } });
-        await stSet("studio:blob:" + id, file).catch(() => {}); // non-fatal
+        if (keepCopy) await stSet("studio:blob:" + id, file).catch(() => {}); // non-fatal; skipped for disk-resolvable folder originals
         newAssets.push({ id, name, type, vector: vector || undefined, url: URL.createObjectURL(file), duration: 0, size: rawFile?.size || file.size || 0, bin, session: true, synced: mediaAutoSync ? undefined : "local", tags: [...tags], castId, worldCat, folderId, diskName: name, diskPath: folderId ? bin : undefined });
         // Local-first: bulk folder/watch imports only auto-upload when the user opts in — otherwise a
         // huge folder would flood the cloud uploader and hinder editing. "Sync to cloud" enqueues later.
-        if (uidNow && mediaAutoSync) enqueueUpload({ assetId: id, name: file.name || name, mime: file.type || "application/octet-stream", size: file.size, blobKey: "studio:blob:" + id, uid: uidNow }).catch(() => {});
+        if (uidNow && mediaAutoSync) enqueueUpload({ assetId: id, name: file.name || name, mime: file.type || "application/octet-stream", size: file.size, blobKey: "studio:blob:" + id, uid: uidNow, folderId, diskPath: diskResolvable ? bin : undefined, diskName: name }).catch(() => {});
         added++;
       } catch (e) { console.warn("[import] skipped a file:", name, e); } // one bad file never aborts the batch
     }

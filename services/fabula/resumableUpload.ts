@@ -11,6 +11,8 @@
 import { get as idbGet, set as idbSet } from 'idb-keyval';
 import { auth, storage } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import { getBytes as mediaGetBytes } from './mediaStore';
+import { getFileFromFolder } from './syncFolders';
 
 const QKEY = 'fabula:resumableQueue:v1';
 const CHUNK = 8 * 1024 * 1024;        // 8MB — a multiple of 256KB (GCS requires that for non-final chunks)
@@ -23,7 +25,10 @@ export interface UpEntry {
   path: string;          // storage object path
   size: number;
   mime: string;
-  blobKey: string;       // idb key holding the bytes (studio:blob:<assetId>)
+  blobKey: string;       // media-store key holding the bytes (studio:blob:<assetId>)
+  folderId?: string;     // watch-folder origin — read bytes straight from disk if no local copy is kept
+  diskPath?: string;     // bin/relative path within that folder
+  diskName?: string;     // on-disk filename
   sessionUrl?: string;   // persisted resumable session URI
   offset: number;        // bytes confirmed uploaded
   status: 'pending' | 'uploading' | 'done' | 'error';
@@ -119,7 +124,11 @@ async function pushChunks(e: UpEntry, blob: Blob): Promise<any> {
 }
 
 async function processOne(e: UpEntry): Promise<void> {
-  const blob: Blob | undefined = await idbGet(e.blobKey);
+  // Bytes come from the OPFS media store; for folder-sourced media that keeps no local copy, read the
+  // real file straight off the disk handle. (idbGet stays as a last-ditch legacy fallback.)
+  let blob: Blob | null = await mediaGetBytes(e.blobKey);
+  if ((!blob || !blob.size) && e.folderId) { try { blob = await getFileFromFolder(e.folderId, e.diskPath || '', e.diskName || e.name); } catch { /* offline */ } }
+  if (!blob || !blob.size) { blob = (await idbGet(e.blobKey)) || null; }
   if (!blob || !blob.size) { e.status = 'error'; e.error = 'local media unavailable'; await save(); return; }
   if (blob.size !== e.size) { e.size = blob.size; }
   e.status = 'uploading'; e.error = undefined; await save();
@@ -156,14 +165,14 @@ async function runQueue(): Promise<void> {
 }
 
 /** Queue a local media file for background upload. `blobKey` must already hold the bytes in idb. */
-export async function enqueueUpload(opts: { assetId: string; name: string; mime: string; size: number; blobKey: string; uid: string }): Promise<void> {
+export async function enqueueUpload(opts: { assetId: string; name: string; mime: string; size: number; blobKey: string; uid: string; folderId?: string; diskPath?: string; diskName?: string }): Promise<void> {
   await load();
   if (queue.some(e => e.assetId === opts.assetId && e.status !== 'error')) return; // already queued/done
   const safe = (opts.name || opts.assetId).replace(/[^\w.\-]+/g, '_');
   queue.push({
     id: `up_${opts.assetId}`, assetId: opts.assetId, name: opts.name,
     path: `fabula-media/${opts.uid}/${opts.assetId}_${safe}`, size: opts.size, mime: opts.mime || 'application/octet-stream',
-    blobKey: opts.blobKey, offset: 0, status: 'pending', updatedAt: Date.now(),
+    blobKey: opts.blobKey, folderId: opts.folderId, diskPath: opts.diskPath, diskName: opts.diskName, offset: 0, status: 'pending', updatedAt: Date.now(),
   });
   await save();
   runQueue();
