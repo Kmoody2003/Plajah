@@ -530,6 +530,7 @@ export default function Fabula() {
   const [mediaSearch, setMediaSearch] = useState("");  // keyword/tag search — shared media + edit pages
   const [mediaBin, setMediaBin] = useState("all");     // folder filter for the Media Assets tab
   const [scriptImporting, setScriptImporting] = useState(false); // Lorea .txt → structured script
+  const [scriptMsg, setScriptMsg] = useState("");                // SLATE auto-breakdown progress
   const [connectWorldOpen, setConnectWorldOpen] = useState(false); // Plajah World link modal
   const [storageReady, setStorageReady] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -2287,9 +2288,48 @@ export default function Fabula() {
     });
     ping(`${results.length} generated result${results.length === 1 ? "" : "s"} added to ${target}`);
   };
+  // Scene context builder parameterized by a scene payload (the active-scene `sceneContext()` above
+  // reads the current `scene`; this one takes any scene so we can batch-run breakdowns).
+  const sceneContextFor = (sc) => [
+    `SCENE: ${sc.slugline || sc.title}`,
+    `MODE: ${sc.mode === "action" ? "ACTION SET PIECE" : "DIALOGUE SCENE"}`,
+    productionContext(),
+    sc.tone ? `EMOTIONAL TONE / SUBTEXT: ${sc.tone}` : "",
+    sc.environment ? `ENVIRONMENT NOTES: ${sc.environment}` : "",
+    sc.styleNotes ? `VISUAL STYLE / REFERENCES: ${sc.styleNotes}` : "",
+    `ASPECT RATIO: ${prod.defaults.aspect}`,
+    `\nSCRIPT / SCENE CONCEPT:\n${sc.script}`,
+  ].filter(Boolean).join("\n\n");
+
+  // Run a full SLATE breakdown (scene bible → shot list) for ONE scene, identified by ids and given
+  // its data directly (so it doesn't depend on the stale `prod` closure right after scenes are added).
+  // Applies bible + shots via functional updateProd (fresh state) and fills cast gaps from the locks.
+  const runBreakdownForScene = async (actId, sceneId, sc) => {
+    if (!sc?.script?.trim()) return false;
+    const bible = await callClaudeJson(bibleSystem(), sceneContextFor(sc));
+    updateProd((p) => {
+      const s = p.acts?.find((a) => a.id === actId)?.scenes.find((x) => x.id === sceneId);
+      if (s) s.bible = bible;
+      (bible.characters || []).forEach((bc) => {
+        if (!bc?.name) return;
+        const ex = p.cast.find((c) => c.name.trim().toLowerCase() === bc.name.trim().toLowerCase());
+        if (ex) { if (!ex.looks?.trim()) ex.looks = bc.visual_lock; if (!ex.voice?.trim()) ex.voice = bc.voice_profile; }
+        else p.cast.push({ id: uid(), name: bc.name, looks: bc.visual_lock, voice: bc.voice_profile, personality: "", dos: "", donts: "" });
+      });
+    });
+    const parsed = await callClaudeJson(shotListSystem(sc.mode), `SCENE BIBLE:\n${bibleText(bible)}\n\n${sceneContextFor(sc)}`);
+    const shots = (parsed.shots || []).map((s) => ({ ...s, id: uid(), still: "", video: "", voice: "", continuity: "", notes: "", status: "planned", frameUrl: "" }));
+    updateProd((p) => {
+      const s = p.acts?.find((a) => a.id === actId)?.scenes.find((x) => x.id === sceneId);
+      if (s) s.shots = shots;
+    });
+    return shots.length > 0;
+  };
+
   // Lorea script engine: drop a .txt/.md/.fountain (rough screenplay, treatment, prose, outline, notes)
-  // → intelligently structure it into scenes across the acts + identify characters, ready for SLATE
-  // breakdown. This is where scripts built from the timeline (Build Script) also live.
+  // → intelligently structure it into scenes across the acts + identify characters, then AUTO-RUN the
+  // SLATE breakdown so scenes arrive with coverage. This is where scripts built from the timeline
+  // (Build Script) also live.
   const importScriptText = async (text, sourceName = "script") => {
     const clean = (text || "").trim();
     if (clean.length < 40) { ping("That file has too little text to structure into a script."); return; }
@@ -2299,7 +2339,8 @@ export default function Fabula() {
         `${AGENT}\nYou are the Lorea script engine. You receive RAW TEXT — a rough screenplay, treatment, prose, outline, or unformatted notes. STRUCTURE it into a screenplay for this production: infer scene breaks at location/time/story shifts, write proper sluglines, and KEEP the author's events and dialogue (never invent a new plot). Identify recurring characters.\n${JSON_RULES}\nSchema: {"logline":"one sentence","worldBible":"3-5 sentences on era/place/tone/rules implied","characters":[{"name":"stable name","description":"look + role in one line","world":false}],"scenes":[{"act":1|2|3,"title":"scene title","slugline":"INT./EXT. LOCATION - TIME","tone":"one line","environment":"one line","script":"screenplay for THIS scene: slugline, action lines, CHARACTER\\ndialogue blocks"}]}`,
         `${productionContext()}\n\nSOURCE FILE: ${sourceName}\n\nRAW TEXT:\n${clean.slice(0, 24000)}`,
       );
-      let firstActId = null, firstSceneId = null, nScenes = 0, nChars = 0;
+      let firstActId = null, firstSceneId = null, nChars = 0;
+      const made = []; // { actId, sceneId, sc } — the scenes we just created, for auto-breakdown
       updateProd((p) => {
         p.cast = p.cast || [];
         (r.characters || []).forEach((ch) => {
@@ -2317,14 +2358,27 @@ export default function Fabula() {
           const actIdx = Math.min(2, Math.max(0, (s.act || 1) - 1));
           const act = p.acts[actIdx]; act.scenes = act.scenes || [];
           const sceneId = uid();
-          act.scenes.push({ ...BLANK_SCENE(), id: sceneId, title: s.title || "SCENE", slugline: s.slugline || "", tone: s.tone || "", environment: s.environment || "", script: s.script || "" });
-          nScenes++; if (!firstSceneId) { firstSceneId = sceneId; firstActId = act.id; }
+          const sc = { ...BLANK_SCENE(), id: sceneId, title: s.title || "SCENE", slugline: s.slugline || "", tone: s.tone || "", environment: s.environment || "", script: s.script || "" };
+          act.scenes.push(sc);
+          made.push({ actId: act.id, sceneId, sc });
+          if (!firstSceneId) { firstSceneId = sceneId; firstActId = act.id; }
         });
       });
-      ping(`📝 Structured ${nScenes} scene${nScenes === 1 ? "" : "s"} from ${sourceName}${nChars ? ` · ${nChars} new cast` : ""}. Run SLATE breakdown to build coverage.`);
+      ping(`📝 Structured ${made.length} scene${made.length === 1 ? "" : "s"} from ${sourceName}${nChars ? ` · ${nChars} new cast` : ""}. Building SLATE coverage…`);
       if (firstActId && firstSceneId) gotoScene(firstActId, firstSceneId, "slate");
+      // Auto-run the SLATE breakdown (bible → shots) for each new scene, capped so a feature-length
+      // script doesn't fan out into hundreds of AI calls; the rest can be run per scene on demand.
+      const CAP = 24;
+      const todo = made.slice(0, CAP);
+      let done = 0;
+      for (const m of todo) {
+        try { await runBreakdownForScene(m.actId, m.sceneId, m.sc); done++; setScriptMsg(`SLATE breakdown ${done}/${todo.length}…`); }
+        catch (e) { console.warn("[breakdown]", m.sceneId, e); }
+      }
+      setScriptMsg("");
+      ping(`🎬 SLATE coverage built for ${done} scene${done === 1 ? "" : "s"}${made.length > CAP ? ` · ${made.length - CAP} more — open a scene and run breakdown` : ""}.`);
     } catch (e) { console.warn("[script import]", e); window.alert("Couldn't structure that script: " + (e?.message || e)); }
-    finally { setScriptImporting(false); }
+    finally { setScriptImporting(false); setScriptMsg(""); }
   };
   const importScriptFiles = async (fileList) => {
     const files = Array.from(fileList || []).filter((f) => /\.(txt|md|fountain|markdown)$/i.test(f.name));
@@ -4538,7 +4592,7 @@ export default function Fabula() {
                       <button className="cta" onClick={addSyncFolderNow} disabled={folderSyncing} title="Pick a folder — it becomes a watch folder that auto-imports new/changed files, mirroring its structure"><FolderOpen size={13} /> {folderSyncing ? "IMPORTING…" : "IMPORT FOLDER (WATCH)"}</button>
                       <button className="minibtn" onClick={() => mirrorFolderRef.current?.click()} title="One-time folder import (mirrors structure, no watch)"><Upload size={12} /> FOLDER (ONCE)</button>
                       <button className="minibtn" onClick={() => mediaFilesRef.current?.click()}><Upload size={12} /> FILES</button>
-                      <button className="minibtn" onClick={() => scriptFilesRef.current?.click()} disabled={scriptImporting} title="Structure a .txt / .md / .fountain script into scenes with Lorea"><FileText size={12} /> {scriptImporting ? "STRUCTURING…" : "IMPORT SCRIPT"}</button>
+                      <button className="minibtn" onClick={() => scriptFilesRef.current?.click()} disabled={scriptImporting} title="Structure a .txt / .md / .fountain script into scenes with Lorea, then auto-run the SLATE breakdown"><FileText size={12} /> {scriptImporting ? (scriptMsg || "STRUCTURING…") : "IMPORT SCRIPT"}</button>
                       <input ref={mediaFilesRef} type="file" multiple accept="video/*,image/*,audio/*,.lottie,.json,.svg,.ai,.pdf" style={{ display: "none" }}
                         onChange={(e) => { importFolderMirror(e.target.files); e.target.value = ""; }} />
                       <input ref={scriptFilesRef} type="file" multiple accept=".txt,.md,.fountain,.markdown" style={{ display: "none" }}
