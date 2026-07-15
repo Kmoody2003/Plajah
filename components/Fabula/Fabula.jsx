@@ -10,6 +10,7 @@ import * as THREE from "three";
 import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from "idb-keyval";
 import { putBytes as mediaPutBytes, getBytes as mediaGetBytes, delBytes as mediaDelBytes } from "../../services/fabula/mediaStore";
 import { acquire as acquireDecoder } from "../../services/fabula/decoderBudget";
+import { createCompositor, webgpuAvailable } from "../../services/fabula/gpuComposite";
 import { renderFabulaToBlob } from "../../services/fabulaRender";
 import { crossover } from "../../services/crossover";
 import SceneView from "../plajahPixels/components/SceneView";
@@ -576,6 +577,10 @@ export default function Fabula() {
   const [mediaPageSize, setMediaPageSize] = useState(50);               // items per page: 25 | 50 | 75
   const [editPoolPage, setEditPoolPage] = useState(1);                   // edit-workspace media pool page
   const [srcPoolCap, setSrcPoolCap] = useState(300);                     // source-viewer pool: cap DOM cards on huge libraries
+  const screenRef = useRef(null);                                        // program-monitor .screen element (for the GPU canvas to size to)
+  const gpuRegRef = useRef(new Map());                                   // clip.id → { el, fx, fade, z } registered by eligible MonitorLayers
+  const [gpuMonitor, setGpuMonitor] = useState(() => { try { return webgpuAvailable() && localStorage.getItem("fabula:gpuMonitor") === "on"; } catch { return false; } });
+  const toggleGpuMonitor = () => setGpuMonitor((v) => { const n = !v; try { localStorage.setItem("fabula:gpuMonitor", n ? "on" : "off"); } catch { /* */ } if (!n) gpuRegRef.current.clear(); return n; });
   const [mediaAutoSync, setMediaAutoSync] = useState(() => { try { return localStorage.getItem("fabula:autoSyncMedia") === "1"; } catch { return false; } }); // default LOCAL-FIRST — big folders don't flood the cloud uploader
   const [syncPaused, setSyncPaused] = useState(false);                 // uploader paused (mirrors resumableUpload)
   const [scriptImporting, setScriptImporting] = useState(false); // Lorea .txt → structured script
@@ -3790,7 +3795,8 @@ export default function Fabula() {
   );
   const renderMonitor = () => (
 <section className="monitor" onMouseDown={() => (activeViewerRef.current = "program")}>
-                    <div className="screen" style={{ aspectRatio: prod.defaults.aspect.includes(":") ? prod.defaults.aspect.replace(":", "/") : "2.39/1", filter: LOOKS.find((l) => l.id === prod.design?.lookId)?.filter || "none", containerType: "inline-size" }}>
+                    <div ref={screenRef} className="screen" style={{ aspectRatio: prod.defaults.aspect.includes(":") ? prod.defaults.aspect.replace(":", "/") : "2.39/1", filter: LOOKS.find((l) => l.id === prod.design?.lookId)?.filter || "none", containerType: "inline-size" }}>
+                      {gpuMonitor && <GpuStage reg={gpuRegRef.current} hostRef={screenRef} onFail={() => { try { localStorage.setItem("fabula:gpuMonitor", "off"); } catch { /* */ } gpuRegRef.current.clear(); setGpuMonitor(false); ping("GPU monitor hit an issue — reverted to the standard renderer."); }} />}
                       {videoTracksAsc.map((tr, i) => {
                         // Double-buffer: mount the current clip + its neighbours, keyed by clip.id, so the
                         // next clip is already decoded/seeked and going live is just a visibility swap (no
@@ -3805,7 +3811,7 @@ export default function Fabula() {
                         return [...idxs].filter((idx) => idx >= 0 && idx < tclips.length).map((idx) => {
                           const c = tclips[idx];
                           const isActive = curIdx >= 0 && idx === curIdx;
-                          return <MonitorLayer key={c.id} clip={c} active={isActive} prod={monitorProd} scene={scene} playhead={playhead} playing={playing} top={i > 0} z={(i + 1) * 10 + (isActive ? 5 : 0)} videoRef={(i === 0 && isActive) ? videoRef : undefined} vol={ts.vol} mute={ts.mute} />;
+                          return <MonitorLayer key={c.id} clip={c} active={isActive} prod={monitorProd} scene={scene} playhead={playhead} playing={playing} top={i > 0} z={(i + 1) * 10 + (isActive ? 5 : 0)} videoRef={(i === 0 && isActive) ? videoRef : undefined} vol={ts.vol} mute={ts.mute} gpuMode={gpuMonitor} gpuReg={gpuRegRef.current} />;
                         });
                       })}
                       {/* Audio bed — mount the live clip + the next one per track (double-buffered, gapless) */}
@@ -3916,6 +3922,10 @@ export default function Fabula() {
                       <div style={{ display: "flex", height: 20, marginLeft: 6 }} title="Master output level"><TrackMeter trackId="master" /></div>
                       <button className="minibtn" style={{ opacity: guides ? 1 : 0.45 }} title="Title/action-safe guides — preview only, never rendered into the file"
                         onClick={() => { const nv = !guides; setGuides(nv); try { localStorage.setItem("fabula:guides", nv ? "1" : "0"); } catch { /* */ } }}>SAFE</button>
+                      {webgpuAvailable() && (
+                        <button className={`minibtn ${gpuMonitor ? "blue" : ""}`} style={{ opacity: gpuMonitor ? 1 : 0.55 }} onClick={toggleGpuMonitor}
+                          title={gpuMonitor ? "GPU monitor ON — video layers composite on one WebGPU surface. Click to use the standard renderer." : "GPU monitor OFF (beta) — composite video preview on the GPU (one surface instead of a stack of video elements). Click to try it."}>⚡ GPU</button>
+                      )}
                       {monitorAssetRaw?.type === "multicam" && (
                         <button className={`minibtn ${angleView ? "blue" : ""}`} onClick={() => setAngleView(!angleView)}><Layers size={11} /> ANGLES</button>
                       )}
@@ -5935,7 +5945,7 @@ export default function Fabula() {
 }
 
 /* ---------- compositing layer: one active clip on one video track ---------- */
-function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, vol = 1, mute = false, active = true }) {
+function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, vol = 1, mute = false, active = true, gpuMode = false, gpuReg = null }) {
   const localRef = useRef(null);
   const fx = ensureFx(clip);
   // resolve media (multicam → active angle)
@@ -5999,9 +6009,24 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
     ? `inset(${Math.max(0, m.y - m.h / 2)}% ${Math.max(0, 100 - m.x - m.w / 2)}% ${Math.max(0, 100 - m.y - m.h / 2)}% ${Math.max(0, m.x - m.w / 2)}% round ${m.f}px)`
     : m.t === "ellipse" ? `ellipse(${m.w / 2}% ${m.h / 2}% at ${m.x}% ${m.y}%)` : "none";
 
+  // GPU program monitor (Phase 2): when the compositor is active this video layer is eligible for GPU
+  // compositing only if it uses no fx the compositor doesn't yet reproduce (blur / matte / blend). If
+  // eligible, we KEEP decoding + seeking in this <video> exactly as before but hide its DOM pixels — the
+  // shared GPU canvas samples this same element and draws it. The seek/double-buffer/videoRef logic is
+  // untouched, so toggling GPU off is a byte-identical fallback.
+  const gpuEligible = gpuMode && asset?.type === "video" && !!asset?.url
+    && (fx.blur || 0) === 0 && (fx.matte?.t || "none") === "none" && (fx.blend || "normal") === "normal";
+  useEffect(() => {
+    if (!gpuReg) return undefined;
+    if (gpuEligible && active) gpuReg.set(clip.id, { el: vRef.current, fx, fade, z: z ?? 0 });
+    else gpuReg.delete(clip.id);
+    return undefined;
+  });
+  useEffect(() => () => { gpuReg?.delete(clip.id); }, []); // eslint-disable-line
+
   const style = {
     position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-    opacity: active ? fx.op * fade : 0, // warm buffers are mounted+decoded but invisible until they go live
+    opacity: (gpuEligible && active) ? 0 : (active ? fx.op * fade : 0), // GPU draws it → hide the DOM copy; warm buffers already invisible
     transform: `translate(${fx.x}%, ${fx.y}%) scale(${fx.sc}) rotate(${fx.rot}deg)`,
     filter: `blur(${fx.blur}px) brightness(${fx.bri}) contrast(${fx.con}) saturate(${fx.sat})${fx.warm ? ` sepia(${Math.min(1, fx.warm)})` : ""}${fx.hue ? ` hue-rotate(${fx.hue}deg)` : ""}`,
     mixBlendMode: active && top ? fx.blend : "normal",
@@ -6045,6 +6070,55 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
       )}
     </div>
   );
+}
+
+/* ---------- GPU program monitor (Phase 2) ----------
+   One WebGPU canvas that composites the eligible video layers MonitorLayer registered — sampling
+   those same <video> elements each frame (GPU→GPU copy), applying per-layer transform / opacity /
+   grade / fade. Replaces the stack of visible per-clip <video> elements with a single GPU surface.
+   Any init or per-frame failure calls onFail() → the parent flips back to the DOM MonitorLayer stack
+   (byte-identical fallback). A health check does the same if it can't produce output while layers are
+   registered, so a default-on state can never leave the monitor stuck on black. */
+function GpuStage({ reg, hostRef, onFail }) {
+  const canvasRef = useRef(null);
+  useEffect(() => {
+    let alive = true, raf = 0, comp = null, drewSomething = false, framesWithLayers = 0;
+    const fail = () => { if (!alive) return; alive = false; cancelAnimationFrame(raf); try { comp?.destroy(); } catch { /* */ } onFail?.(); };
+    (async () => {
+      try {
+        comp = await createCompositor(canvasRef.current);
+        if (!comp || !alive) { if (comp && !alive) comp.destroy(); else fail(); return; }
+        const tick = () => {
+          if (!alive) return;
+          try {
+            const cv = canvasRef.current, host = hostRef?.current;
+            if (cv && host) {
+              const dpr = Math.min(2, window.devicePixelRatio || 1);
+              const w = Math.max(1, Math.round(host.clientWidth * dpr)), h = Math.max(1, Math.round(host.clientHeight * dpr));
+              if (cv.width !== w || cv.height !== h) comp.resize(w, h);
+            }
+            const layers = [...reg.values()].filter((e) => e && e.el).sort((a, b) => (a.z || 0) - (b.z || 0)).map((e) => {
+              const f = e.fx || {}; const fade = e.fade ?? 1;
+              return {
+                source: e.el,
+                opacity: (f.op ?? 1) * fade, scale: f.sc ?? 1,
+                tx: ((f.x ?? 0) / 100) * 2, ty: -((f.y ?? 0) / 100) * 2, rot: -((f.rot ?? 0) * Math.PI) / 180,
+                grade: { brightness: f.bri ?? 1, contrast: f.con ?? 1, saturation: f.sat ?? 1, warmth: f.warm ?? 0, hue: ((f.hue ?? 0) * Math.PI) / 180 },
+              };
+            });
+            comp.composite(layers);
+            if (layers.length) { framesWithLayers++; drewSomething = true; }
+            // Health check: if we've had layers for ~90 frames but the canvas is still blank, bail to DOM.
+            if (framesWithLayers > 90 && !drewSomething) return fail();
+          } catch { return fail(); }
+          raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+      } catch { fail(); }
+    })();
+    return () => { alive = false; cancelAnimationFrame(raf); try { comp?.destroy(); } catch { /* */ } };
+  }, []); // eslint-disable-line
+  return <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block", zIndex: 1, background: "#000" }} />;
 }
 
 /* ---------- audio playback: one active clip on one audio track (a1/a2) ----------
