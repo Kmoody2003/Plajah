@@ -4646,6 +4646,11 @@ export default function Fabula() {
                       <button className="minibtn" onClick={() => mirrorFolderRef.current?.click()} title="One-time folder import (mirrors structure, no watch)"><Upload size={12} /> FOLDER (ONCE)</button>
                       <button className="minibtn" onClick={() => mediaFilesRef.current?.click()}><Upload size={12} /> FILES</button>
                       <button className="minibtn" onClick={() => scriptFilesRef.current?.click()} disabled={scriptImporting} title="Structure a .txt / .md / .fountain script into scenes with Lorea, then auto-run the SLATE breakdown"><FileText size={12} /> {scriptImporting ? (scriptMsg || "STRUCTURING…") : "IMPORT SCRIPT"}</button>
+                      {/* Folder picker for FOLDER (ONCE) + the FSA fallback. Must live HERE too: the
+                          other mirrorFolderRef input is on the edit page, which isn't mounted in the
+                          production view — so without this, the ref was null and nothing opened. */}
+                      <input ref={mirrorFolderRef} type="file" webkitdirectory="" directory="" multiple style={{ display: "none" }}
+                        onChange={(e) => { importFolderMirror(e.target.files); e.target.value = ""; }} />
                       <input ref={mediaFilesRef} type="file" multiple accept="video/*,image/*,audio/*,.lottie,.json,.svg,.ai,.pdf" style={{ display: "none" }}
                         onChange={(e) => { importFolderMirror(e.target.files); e.target.value = ""; }} />
                       <input ref={scriptFilesRef} type="file" multiple accept=".txt,.md,.fountain,.markdown" style={{ display: "none" }}
