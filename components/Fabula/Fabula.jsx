@@ -565,6 +565,8 @@ export default function Fabula() {
   const [mediaSel, setMediaSel] = useState(null);      // asset id being previewed in the Media Assets tab
   const [mediaCollapsed, setMediaCollapsed] = useState(() => new Set()); // collapsed folder paths in the tree
   const [mediaAddScene, setMediaAddScene] = useState("");                // "actId|sceneId" target for add-to-scene
+  const [mediaPage, setMediaPage] = useState(1);                         // Media Assets grid page (1-based)
+  const [mediaPageSize, setMediaPageSize] = useState(50);               // items per page: 25 | 50 | 75
   const [scriptImporting, setScriptImporting] = useState(false); // Lorea .txt → structured script
   const [scriptMsg, setScriptMsg] = useState("");                // SLATE auto-breakdown progress
   const [connectWorldOpen, setConnectWorldOpen] = useState(false); // Plajah World link modal
@@ -2519,6 +2521,8 @@ export default function Fabula() {
   // the grid shows empty while the counts (unfiltered) still tick up. This was the "number shows but
   // grid is empty" bug across all import methods.
   useEffect(() => { setBinFilter("all"); setMediaBin("all"); setMediaSearch(""); setMediaSel(null); setMediaCollapsed(new Set()); }, [prod?.id]);
+  // Jump back to page 1 whenever the filter or page size changes, so you never land past the last page.
+  useEffect(() => { setMediaPage(1); }, [mediaBin, mediaSearch, mediaPageSize, prod?.id]);
   // Poll watched folders (browsers can't push FS events): on an interval + on window focus. Only folders
   // whose read permission is still granted rescan silently; the rest wait for a manual (gesture) rescan.
   useEffect(() => {
@@ -4690,6 +4694,12 @@ export default function Fabula() {
                 return assetMatches(a, mediaSearch.trim());
               });
               const selAsset = mediaSel ? (prod.mediaPool || []).find((a) => a.id === mediaSel) : null;
+              // Pagination — keep the grid from becoming an endless scroll on large libraries.
+              const totalPages = Math.max(1, Math.ceil(assets.length / mediaPageSize));
+              const pageNo = Math.min(Math.max(1, mediaPage), totalPages);
+              const pageAssets = assets.slice((pageNo - 1) * mediaPageSize, pageNo * mediaPageSize);
+              const pageFrom = assets.length ? (pageNo - 1) * mediaPageSize + 1 : 0;
+              const pageTo = Math.min(pageNo * mediaPageSize, assets.length);
               // Folder tree: a node has children if any path extends it; hide nodes whose ancestor is collapsed.
               const hasKids = (path) => tree.some((p) => p.startsWith(path + "/"));
               const countIn = (path) => (prod.mediaPool || []).filter((a) => { const b = a.bin || "imports"; return b === path || b.startsWith(path + "/"); }).length;
@@ -4795,12 +4805,25 @@ export default function Fabula() {
 
                     {/* asset grid */}
                     <div className="glass-card magridwrap">
-                      <div className="lbl">{mediaBin === "all" ? "ALL MEDIA" : mediaBin} <span className="catcount">{assets.length}</span></div>
+                      <div className="mapaghead">
+                        <div className="lbl" style={{ margin: 0 }}>{mediaBin === "all" ? "ALL MEDIA" : mediaBin} <span className="catcount">{assets.length}</span></div>
+                        {assets.length > 0 && (
+                          <div className="mapager">
+                            <span className="dim small">{pageFrom}–{pageTo} of {assets.length}</span>
+                            <select className="gp-sel" value={mediaPageSize} onChange={(e) => setMediaPageSize(Number(e.target.value))} title="Items per page">
+                              {[25, 50, 75].map((n) => <option key={n} value={n}>{n}/page</option>)}
+                            </select>
+                            <button className="pagebtn" disabled={pageNo <= 1} onClick={() => setMediaPage(pageNo - 1)} title="Previous page"><ChevronLeft size={13} /></button>
+                            <span className="dim small" style={{ minWidth: 54, textAlign: "center" }}>{pageNo} / {totalPages}</span>
+                            <button className="pagebtn" disabled={pageNo >= totalPages} onClick={() => setMediaPage(pageNo + 1)} title="Next page"><ChevronLeft size={13} style={{ transform: "rotate(180deg)" }} /></button>
+                          </div>
+                        )}
+                      </div>
                       {assets.length === 0 && (prod.mediaPool || []).length > 0 && (mediaBin !== "all" || mediaSearch)
                         ? <div className="dim small">No assets match this filter. <button className="linkbtn" onClick={() => { setMediaBin("all"); setMediaSearch(""); }}>Show all {(prod.mediaPool || []).length} →</button></div>
                         : assets.length === 0 && <div className="dim small">No assets yet — import a folder or files above.</div>}
                       <div className="magrid">
-                        {assets.map((a) => (
+                        {pageAssets.map((a) => (
                           <div className={`macard ${mediaSel === a.id ? "sel" : ""} ${(!a.url || a.offline) ? "offline" : ""}`} key={a.id} title={a.bin || "imports"}
                             onClick={() => setMediaSel(a.id)} onDoubleClick={() => { setPage("edit"); setEditWs("media"); setBinFilter(a.bin || "imports"); openInViewer(a, false); }}>
                             <div className="mathumb">
@@ -4821,6 +4844,13 @@ export default function Fabula() {
                           </div>
                         ))}
                       </div>
+                      {totalPages > 1 && (
+                        <div className="mapager" style={{ justifyContent: "center", marginTop: 12 }}>
+                          <button className="pagebtn" disabled={pageNo <= 1} onClick={() => setMediaPage(pageNo - 1)}><ChevronLeft size={13} /></button>
+                          <span className="dim small">Page {pageNo} of {totalPages}</span>
+                          <button className="pagebtn" disabled={pageNo >= totalPages} onClick={() => setMediaPage(pageNo + 1)}><ChevronLeft size={13} style={{ transform: "rotate(180deg)" }} /></button>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -6760,6 +6790,12 @@ const CSS = `
 .matreelabel{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
 .matreecount{font-size:9px;color:var(--w40);font-variant-numeric:tabular-nums}
 .magridwrap{min-width:0}
+.mapaghead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.mapager{display:flex;align-items:center;gap:8px}
+.pagebtn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#ddd;cursor:pointer}
+.pagebtn:hover:not(:disabled){background:rgba(255,255,255,.1);color:#fff}
+.pagebtn:disabled{opacity:.35;cursor:default}
+.mapager .gp-sel{background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.14);color:#eee;border-radius:7px;padding:5px 8px;font-size:11px}
 .macard.sel{outline:2px solid rgba(224,69,155,.7);outline-offset:-2px}
 .manoteflag{position:absolute;top:3px;left:3px;font-size:9px;color:#ffd27f;background:rgba(0,0,0,.5);border-radius:4px;padding:0 3px}
 .mapreview{margin-top:2px}
