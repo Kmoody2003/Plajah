@@ -271,6 +271,86 @@ async function ensureSocialVideo(objectPath: string, coverUrl: string, audioUrl:
   } finally { socialVideoInFlight.delete(objectPath); }
 }
 
+// ── Chora — music transcode to a streaming ladder (Step 1) ───────────────────────────────
+// One ffmpeg job per track: EBU R128 loudness-normalize to −14 LUFS, then emit a High HLS rendition
+// (AAC-LC 256, fMP4 6s segments — the default gapless stream), a Data-saver progressive file (HE-AAC
+// 96 if libfdk is present, else AAC 128), and a FLAC lossless. Outputs land in GCS under
+// chora-hls/{trackId}/ and are served (with Range) by GET /api/chora/media. The original master is
+// left untouched. The result is written to a flat choraStreams/{trackId} doc the client joins on play,
+// so we never rewrite the album's tracks array.
+let _choraLibfdk: boolean | null = null;
+async function choraHasLibfdk(): Promise<boolean> {
+  if (_choraLibfdk !== null) return _choraLibfdk;
+  _choraLibfdk = await new Promise<boolean>((resolve) => {
+    try {
+      const p = spawn('ffmpeg', ['-hide_banner', '-encoders']);
+      let out = '';
+      p.stdout.on('data', (d) => (out += d));
+      p.stderr.on('data', (d) => (out += d));
+      p.on('close', () => resolve(/libfdk_aac/.test(out)));
+      p.on('error', () => resolve(false));
+    } catch { resolve(false); }
+  });
+  return _choraLibfdk;
+}
+
+interface ChoraTranscodeResult { status: 'ready'; hls: string; low: string; flac: string; loudnessLufs: number; durationSec: number; }
+async function choraTranscodeToGcs(inPath: string, trackId: string, publicBase: string): Promise<ChoraTranscodeResult> {
+  const workDir = path.join(os.tmpdir(), `chora_${trackId}_${Date.now()}`);
+  const hlsDir = path.join(workDir, 'aac256');
+  await fs.mkdir(hlsDir, { recursive: true });
+
+  // 1) Measure loudness (EBU R128 two-pass). print_format=json goes to stderr; parse it.
+  let ln = 'loudnorm=I=-14:TP=-1:LRA=11';
+  let loudnessLufs = -14;
+  const meas = await runFfmpeg(['-hide_banner', '-i', inPath, '-af', 'loudnorm=I=-14:TP=-1:LRA=11:print_format=json', '-f', 'null', '-'], 180000);
+  const jm = meas.err.match(/\{[\s\S]*?"input_i"[\s\S]*?\}/);
+  if (jm) { try {
+    const j = JSON.parse(jm[0]);
+    loudnessLufs = parseFloat(j.input_i) || -14;
+    ln = `loudnorm=I=-14:TP=-1:LRA=11:measured_I=${j.input_i}:measured_TP=${j.input_tp}:measured_LRA=${j.input_lra}:measured_thresh=${j.input_thresh}:linear=true`;
+  } catch { /* fall back to single-pass loudnorm */ } }
+
+  const heArgs = (await choraHasLibfdk())
+    ? ['-c:a', 'libfdk_aac', '-profile:a', 'aac_he_v2', '-b:a', '96k']
+    : ['-c:a', 'aac', '-b:a', '128k'];
+
+  // 2) High — AAC-LC 256 HLS (fMP4, 6s) — the default gapless stream.
+  const r1 = await runFfmpeg(['-y', '-i', inPath, '-vn', '-af', ln, '-c:a', 'aac', '-b:a', '256k', '-ar', '48000',
+    '-f', 'hls', '-hls_time', '6', '-hls_segment_type', 'fmp4', '-hls_playlist_type', 'vod', '-hls_flags', 'independent_segments',
+    '-hls_segment_filename', path.join(hlsDir, 'seg_%03d.m4s'), path.join(hlsDir, 'playlist.m3u8')], 300000);
+  if (!r1.ok) throw new Error('hls encode: ' + r1.err.slice(-300));
+
+  // 3) Data-saver — progressive HE-AAC/AAC.
+  const lowPath = path.join(workDir, 'low.m4a');
+  const r2 = await runFfmpeg(['-y', '-i', inPath, '-vn', '-af', ln, ...heArgs, '-ar', '48000', '-movflags', '+faststart', lowPath], 300000);
+  if (!r2.ok) throw new Error('low encode: ' + r2.err.slice(-300));
+
+  // 4) Lossless — FLAC.
+  const flacPath = path.join(workDir, 'lossless.flac');
+  const r3 = await runFfmpeg(['-y', '-i', inPath, '-vn', '-af', ln, '-c:a', 'flac', '-compression_level', '8', flacPath], 300000);
+  if (!r3.ok) throw new Error('flac encode: ' + r3.err.slice(-300));
+
+  let durationSec = 0;
+  try { const { json } = await runFfprobe(inPath); durationSec = parseFloat(json?.format?.duration || '0') || 0; } catch { /* */ }
+
+  // 5) Upload everything under chora-hls/{trackId}/.
+  const ctFor = (f: string) => f.endsWith('.m3u8') ? 'application/vnd.apple.mpegurl'
+    : (f.endsWith('.m4s') || f.endsWith('.m4a') || f.endsWith('.mp4')) ? 'audio/mp4'
+    : f.endsWith('.flac') ? 'audio/flac' : 'application/octet-stream';
+  const uploadFile = async (local: string, rel: string) => {
+    const buf = await fs.readFile(local);
+    if (!(await gcsUpload(`chora-hls/${trackId}/${rel}`, buf, ctFor(rel)))) throw new Error('gcs upload failed: ' + rel);
+  };
+  for (const f of await fs.readdir(hlsDir)) await uploadFile(path.join(hlsDir, f), `aac256/${f}`);
+  await uploadFile(lowPath, 'low.m4a');
+  await uploadFile(flacPath, 'lossless.flac');
+  fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+
+  const base = `${publicBase}/api/chora/media/${trackId}`;
+  return { status: 'ready', hls: `${base}/aac256/playlist.m3u8`, low: `${base}/low.m4a`, flac: `${base}/lossless.flac`, loudnessLufs, durationSec };
+}
+
 /** Resolve an album's cover + a playable (non-paywalled) track for the social video. */
 function pickSocialTrack(fields: any, track?: string): { cover: string; audio: string; trackId: string } | null {
   const cover = fields?.coverImage?.stringValue || fields?.coverImageUrl?.stringValue || '';
@@ -4348,6 +4428,68 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     } finally {
       cleanup();
     }
+  });
+
+  // ── Chora — transcode a track's master to the streaming ladder (Step 1) ──────
+  // POST { trackId, srcUrl }. Writes choraStreams/{trackId} = { status, hls, low, flac, ... }.
+  // Status-gated: the client only uses the result once status==='ready', so this is safe to run
+  // in the background and to backfill the catalog without any playback disruption.
+  app.post('/api/chora/transcode', apiLimiter, authMiddleware, express.json({ limit: '256kb' }), async (req: any, res) => {
+    const trackId = String(req.body?.trackId || '').trim();
+    const srcUrl = String(req.body?.srcUrl || '').trim();
+    if (!trackId || !srcUrl) return res.status(400).json({ error: 'trackId and srcUrl required' });
+    const publicBase = (process.env.PUBLIC_API_BASE || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+    firestoreWrite('choraStreams', trackId, { status: 'processing', updatedAt: Date.now() }).catch(() => {});
+    let inPath: string | null = null;
+    try {
+      inPath = await fetchToTmp(srcUrl, 'audio');
+      if (!inPath) throw new Error('source fetch failed');
+      const r = await choraTranscodeToGcs(inPath, trackId, publicBase);
+      await firestoreWrite('choraStreams', trackId, {
+        status: r.status, hls: r.hls, low: r.low, flac: r.flac,
+        loudnessLufs: Math.round(r.loudnessLufs), durationSec: Math.round(r.durationSec),
+        rungs: ['low', 'high', 'lossless'], updatedAt: Date.now(),
+      });
+      res.json(r);
+    } catch (e: any) {
+      firestoreWrite('choraStreams', trackId, { status: 'failed', error: String(e?.message || e).slice(0, 300), updatedAt: Date.now() }).catch(() => {});
+      res.status(500).json({ error: String(e?.message || e) });
+    } finally { if (inPath) fs.unlink(inPath).catch(() => {}); }
+  });
+
+  // Serve a transcoded asset from GCS with Range + permissive CORS (HLS playlists resolve their
+  // relative segment URLs against this path). Playlists cache briefly; immutable media caches forever.
+  app.options('/api/chora/media/:trackId/*', (_req: any, res: any) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Range');
+    res.status(204).end();
+  });
+  app.get('/api/chora/media/:trackId/*', async (req: any, res: any) => {
+    const trackId = String(req.params.trackId).replace(/[^\w\-]/g, '');
+    const sub = String(req.params[0] || '').replace(/\.\.+/g, '').replace(/^\/+/, '');
+    if (!trackId || !sub) return res.status(400).end();
+    const token = await getGoogleAccessToken();
+    if (!token) return res.status(503).end();
+    try {
+      const gcsUrl = `https://storage.googleapis.com/storage/v1/b/${STORAGE_BUCKET}/o/${encodeURIComponent(`chora-hls/${trackId}/${sub}`)}?alt=media`;
+      const headers: any = { Authorization: `Bearer ${token}` };
+      if (req.headers.range) headers.Range = req.headers.range;
+      const g = await fetch(gcsUrl, { headers });
+      if (!g.ok && g.status !== 206) return res.status(g.status === 404 ? 404 : 502).end();
+      const ct = sub.endsWith('.m3u8') ? 'application/vnd.apple.mpegurl'
+        : sub.endsWith('.flac') ? 'audio/flac'
+        : (sub.endsWith('.m4s') || sub.endsWith('.m4a') || sub.endsWith('.mp4')) ? 'audio/mp4'
+        : (g.headers.get('content-type') || 'application/octet-stream');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges');
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Content-Type', ct);
+      res.setHeader('Cache-Control', sub.endsWith('.m3u8') ? 'public, max-age=60' : 'public, max-age=31536000, immutable');
+      const cr = g.headers.get('content-range'); if (cr) res.setHeader('Content-Range', cr);
+      const cl = g.headers.get('content-length'); if (cl) res.setHeader('Content-Length', cl);
+      res.status(g.status === 206 ? 206 : 200).end(Buffer.from(await g.arrayBuffer()));
+    } catch (e: any) { res.status(502).end(); }
   });
 
   // Finalize/repair — remux an unfinalized (crashed OBS/livestream) recording:
