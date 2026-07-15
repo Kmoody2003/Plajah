@@ -61,9 +61,18 @@ gen-agent (Kling/Magnific).
     opacity/WGSL grade + premultiplied alpha; headlessly verified — mid-gray@brightness1.5 → [192,192,
     192], grade math correct) and `services/fabula/decoderBudget.ts` (global live-decoder cap 24–48 by
     core count; ScrubThumb acquires a slot before mounting `<video>`).
-  - *Slice 2 (next):* wire the compositor into the live program monitor behind a default-off flag —
-    GPU-composite the video layers into one surface, keep DOM overlays (titles/Lottie/Pixels) on top,
-    full fallback to the current MonitorLayer stack. Needs a real project to verify visually.
+  - *Slice 2 (shipped, default-off toggle):* GPU program monitor — video layers composite onto one
+    WebGPU surface (`GpuStage`) instead of a stack of visible `<video>` elements. MonitorLayer still
+    owns every `<video>` (seek/double-buffer/videoRef/audio); GPU mode just hides eligible video pixels
+    and registers the element, and GpuStage samples those same elements each frame (GPU→GPU) applying
+    transform/opacity/grade/fade. Titles/subtitles/Lottie/Pixels/images stay DOM on top; blur/matte/
+    blend layers stay DOM. `⚡ GPU` toggle in the monitor transport (WebGPU-only), **default off**; any
+    error or blank-output health check auto-reverts to the MonitorLayer renderer (byte-identical
+    fallback). Engine verified in-browser (blue→[0,0,255,255]; 0.5-scale letterboxes correctly).
+    Default-off because the composited output on real footage can only be verified on the user's
+    device; flip to default once confirmed.
+  - *Slice 2b (next):* verify on a real project → make GPU default; then route the timeline warm-buffer
+    decoders through the budget/shared pool; grade parity (exact CSS-filter match) + advanced blend modes.
 - **Phase 3 (6–10 wks):** `plajah-core` in Rust — compositor first, then op-based doc, then
   Cloud Run render on the same crate.
 - **Phase 4 (ongoing):** CRDT collaboration + cloud-only AI + Crossover Cloud fallback.
