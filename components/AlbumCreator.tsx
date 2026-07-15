@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit, FilmDistribution, FilmVersion } from '../types';
 import { generateAlbumMetadata, generateTrackLyrics } from '../services/geminiService';
 import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, uploadFile as storageUpload, uploadVideo } from '../services/backendService';
+import { enqueueTranscode } from '../services/choraStreamService';
 import { captureVideoFrame } from '../src/lib/videoUtils';
 import { probeVideo } from '../src/lib/videoQc';
 import {
@@ -822,7 +823,17 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         title: title || 'Untitled',
         kind: contentNoun,
         run: (onProgress) => publishToCloud(newAlbum, onProgress),
-        onDone: (published) => onCreated(typeof published === 'string' ? newAlbum : published),
+        onDone: (published) => {
+          const finalAlbum: any = typeof published === 'string' ? newAlbum : published;
+          onCreated(finalAlbum);
+          // Kick off transcode-to-streaming-ladder for music tracks (background; status-gated, so
+          // playback keeps using the original until the AAC/HLS + FLAC renditions are ready).
+          if (type === 'MUSIC' && Array.isArray(finalAlbum?.tracks)) {
+            for (const t of finalAlbum.tracks) {
+              if (t?.id && typeof t.url === 'string' && /^https?:/i.test(t.url)) enqueueTranscode(t.id, t.url).catch(() => {});
+            }
+          }
+        },
       });
       onCancel?.();
       return;

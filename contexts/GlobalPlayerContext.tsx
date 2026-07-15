@@ -6,6 +6,8 @@ import { diagnoseAudioUrl, createDecodeAudioPlayer, type DecodedAudioPlayer } fr
 import { detectDolbySupport, isLikelyAtmosUrl } from '../services/dolbyDetection';
 import { saveProgress } from '../services/episodeProgressService';
 import { getCachedMedia } from '../services/offlineStorageService';
+import Hls from 'hls.js';
+import { peekTrackStream, prefetchTrackStreams, pickStreamUrl, getQuality as getAudioQuality } from '../services/choraStreamService';
 
 interface GlobalPlayerProgressContextType {
   currentTime: number;
@@ -175,6 +177,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const stateRef = useRef({ repeatMode, currentAlbum, currentTrack, currentVideo, isPlaying, audioSource, currentTime, ytPlayer: null as any });
   const audioRef = useRef<HTMLAudioElement>(audioElement);
   const preloaderAudioRef = useRef<HTMLAudioElement>(new Audio());
+  const hlsRef = useRef<Hls | null>(null); // active hls.js instance (transcoded HLS streams)
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
@@ -452,10 +455,14 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (conn && (conn.saveData || /(^|-)2g/.test(conn.effectiveType || ''))) return; // don't burn a metered/slow link
     const tracks = st.currentAlbum.tracks;
     const idx = tracks.findIndex(t => t.id === st.currentTrack!.id);
-    let nextUrl: string | null = null;
-    if (idx !== -1 && idx < tracks.length - 1) nextUrl = tracks[idx + 1].url ?? null;
-    else if (st.repeatMode === 'ALL' && tracks.length) nextUrl = tracks[0].url ?? null;
-    if (!nextUrl) return;
+    let nextTrack: Track | null = null;
+    if (idx !== -1 && idx < tracks.length - 1) nextTrack = tracks[idx + 1];
+    else if (st.repeatMode === 'ALL' && tracks.length) nextTrack = tracks[0];
+    if (!nextTrack?.url) return;
+    // If the next track has a ready transcoded stream, hls.js/native HLS buffers it ahead on its own —
+    // no need to prewarm the (unused) original file.
+    if (peekTrackStream(nextTrack.id)?.status === 'ready') return;
+    const nextUrl = nextTrack.url;
     if (prewarmRef.current?.url === nextUrl || warmingRef.current?.url === nextUrl) return; // already warm/warming
     discardPrewarm();
     const ctrl = new AbortController();
@@ -516,38 +523,59 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
 
         const isExternal = track.url.startsWith('http') && !track.url.includes(window.location.host);
-        if (isExternal) {
-          audio.crossOrigin = "anonymous";
-        } else {
-          audio.removeAttribute('crossorigin');
-        }
+        // Prefer a READY transcoded stream (AAC HLS / progressive / FLAC) over the original when
+        // online — the fix for the stutter. Falls back to track.url for anything not yet transcoded,
+        // so this is dormant + safe until the pipeline has produced streams. Synchronous cache peek
+        // keeps the first play inside the autoplay gesture.
+        const stream = (typeof navigator === 'undefined' || navigator.onLine !== false) ? peekTrackStream(track.id) : null;
+        const streamPick = pickStreamUrl(stream, getAudioQuality());
+        // Always tear down a prior hls.js instance when the track changes.
+        if (hlsRef.current) { try { hlsRef.current.destroy(); } catch { /* */ } hlsRef.current = null; }
         try {
-          // Offline playback: when the device is offline, prefer a cached blob so
-          // downloaded tracks play with no network. The onLine check keeps the ONLINE
-          // path fully synchronous (no await) so the first play stays inside the user
-          // gesture — autoplay policies won't block it. onerror below is the safety net
-          // for the "falsely online" case (navigator.onLine true but fetch fails).
           revokePlaybackBlob();
-          let playbackUrl = track.url;
-          // Gapless: if we prewarmed exactly this track (the natural next), play the ready blob
-          // instantly — no cold network fetch. Ownership passes to playbackBlobRef (revoked on the
-          // next change). Otherwise drop any stale prewarm and take the normal online/offline path.
-          if (prewarmRef.current?.url === track.url) {
-            playbackBlobRef.current = prewarmRef.current.blob;
-            playbackUrl = prewarmRef.current.blob;
-            prewarmRef.current = null;
-          } else {
+          if (streamPick) {
             discardPrewarm();
-            if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-              try {
-                const cached = await getCachedMedia(track.url);
-                if (cached) { playbackBlobRef.current = cached; playbackUrl = cached; }
-              } catch { /* fall back to network URL */ }
+            audio.crossOrigin = 'anonymous'; // served with permissive CORS
+            if (streamPick.isHls) {
+              if (audio.canPlayType('application/vnd.apple.mpegurl')) {
+                if (audio.src !== streamPick.url) audio.src = streamPick.url;   // native HLS (Safari/iOS)
+              } else if (Hls.isSupported()) {
+                audio.removeAttribute('src');
+                const hls = new Hls({ maxBufferLength: 30, enableWorker: true });
+                hls.on(Hls.Events.ERROR, (_evt, data) => {
+                  if (data?.fatal) { // fall back to the original file so playback never dies
+                    try { hls.destroy(); } catch { /* */ }
+                    hlsRef.current = null;
+                    try { audio.src = track.url!; audio.play().catch(() => {}); } catch { /* */ }
+                  }
+                });
+                hls.loadSource(streamPick.url);
+                hls.attachMedia(audio);
+                hlsRef.current = hls;
+              } else if (audio.src !== streamPick.url) { audio.src = streamPick.url; }
+            } else if (audio.src !== streamPick.url) {
+              audio.src = streamPick.url; // progressive low/flac rendition
             }
-          }
-          if (audio.src !== playbackUrl) {
-            audio.src = playbackUrl;
-            // DO NOT call audio.load() — breaks iOS background sequential playback
+          } else {
+            // ── original-file path (no transcode yet) ──
+            if (isExternal) audio.crossOrigin = 'anonymous'; else audio.removeAttribute('crossorigin');
+            let playbackUrl = track.url;
+            // Gapless: if we prewarmed exactly this track, play the ready blob instantly (no cold fetch).
+            if (prewarmRef.current?.url === track.url) {
+              playbackBlobRef.current = prewarmRef.current.blob;
+              playbackUrl = prewarmRef.current.blob;
+              prewarmRef.current = null;
+            } else {
+              discardPrewarm();
+              if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+                try { const cached = await getCachedMedia(track.url); if (cached) { playbackBlobRef.current = cached; playbackUrl = cached; } }
+                catch { /* fall back to network URL */ }
+              }
+            }
+            if (audio.src !== playbackUrl) {
+              audio.src = playbackUrl;
+              // DO NOT call audio.load() — breaks iOS background sequential playback
+            }
           }
         } catch (e) {
           console.error("Audio src assignment failed:", e);
@@ -963,7 +991,14 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, [isPlaying, audioSource]);
 
   // Release any prewarmed next-track blob + in-flight warm on unmount (no leaks).
-  useEffect(() => () => { discardPrewarm(); }, []);
+  useEffect(() => () => { discardPrewarm(); if (hlsRef.current) { try { hlsRef.current.destroy(); } catch { /* */ } hlsRef.current = null; } }, []);
+
+  // When an album loads, warm the transcoded-stream cache for its tracks so the FIRST play is
+  // already HLS (not the cold original). Cheap Firestore reads, cached + deduped.
+  useEffect(() => {
+    const ids = currentAlbum?.tracks?.map(t => t.id).filter(Boolean) as string[] | undefined;
+    if (ids?.length) prefetchTrackStreams(ids);
+  }, [currentAlbum?.id]); // eslint-disable-line
 
   useEffect(() => {
     if ('mediaSession' in navigator) {
