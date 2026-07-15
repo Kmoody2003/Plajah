@@ -936,7 +936,8 @@ export default function Fabula() {
   /* ----- WORLD: folder import + asset intelligence ----- */
   const [worldCat, setWorldCat] = useState("overview");
   const folderRef = useRef(null);
-  const mirrorFolderRef = useRef(null);             // literal folder → mirrored bins (media pool)
+  const mirrorFolderRef = useRef(null);             // literal folder → mirrored bins (production Media tab + FSA fallback)
+  const editFolderRef = useRef(null);               // same, but the editor media-page IMPORT FOLDER (own ref, no cross-mount clash)
   const mediaFilesRef = useRef(null);               // plain files → auto-tagged import (media assets tab)
   const scriptFilesRef = useRef(null);              // .txt/.md/.fountain → Lorea script structuring
   const [genOpen, setGenOpen] = useState(false);    // generation agent panel (Kling/Magnific → bins)
@@ -2276,13 +2277,20 @@ export default function Fabula() {
   // renders the same hierarchy. (The World page's IMPORT FOLDER is different — it flattens + AI-
   // classifies into cast/world categories; this one just reproduces the folders.)
   const importFolderMirror = async (fileList) => {
-    const items = Array.from(fileList || []).map((f) => {
+    const arr = Array.from(fileList || []);
+    // Always report the outcome — a silent "nothing happened" was impossible to diagnose. This tells
+    // you (and a bug report) exactly where a folder import stalls: picker, dedup, or display.
+    if (!arr.length) { ping("That folder had no files, or the picker was cancelled."); return 0; }
+    const items = arr.map((f) => {
       const rel = f.webkitRelativePath || f.name;
       const path = rel.split("/").slice(0, -1).join("/"); // drop the filename → the nested folder path
       return { path, name: f.name, file: f };
     });
+    const folders = new Set(items.map((i) => i.path || "imports")).size;
     const n = await importFilesToBins(items);
-    if (n) ping(`Imported ${n} file${n === 1 ? "" : "s"} — bins mirror the folder structure`);
+    ping(n
+      ? `Imported ${n} file${n === 1 ? "" : "s"} across ${folders} folder${folders === 1 ? "" : "s"} — bins mirror the structure`
+      : `Picked ${arr.length} file${arr.length === 1 ? "" : "s"}, but 0 were added (already imported, or all scripts/unreadable).`);
     return n;
   };
   // Agent results → bins: the generation agent writes outputs to cloud storage; when a job finishes,
@@ -5307,8 +5315,8 @@ export default function Fabula() {
                         }}>+ NEW BIN</button>
                       <div className="insp-div" />
                       <button className="minibtn full" onClick={() => fileRef.current?.click()}><Upload size={12} /> IMPORT FILES</button>
-                      <button className="minibtn full blue" style={{ marginTop: 6 }} onClick={() => mirrorFolderRef.current?.click()} title="Import a folder — the bins mirror its nested folder structure exactly (vectors rasterized, media auto-synced)"><Upload size={12} /> IMPORT FOLDER</button>
-                      <input ref={mirrorFolderRef} type="file" webkitdirectory="" directory="" multiple style={{ display: "none" }}
+                      <button className="minibtn full blue" style={{ marginTop: 6 }} onClick={() => editFolderRef.current?.click()} title="Import a folder — the bins mirror its nested folder structure exactly (vectors rasterized, media auto-synced)"><Upload size={12} /> IMPORT FOLDER</button>
+                      <input ref={editFolderRef} type="file" webkitdirectory="" directory="" multiple style={{ display: "none" }}
                         onChange={(e) => { importFolderMirror(e.target.files); e.target.value = ""; }} />
                       <button className="minibtn full" style={{ marginTop: 6, background: "linear-gradient(120deg,rgba(124,58,237,0.28),rgba(249,115,22,0.22))", borderColor: "rgba(224,69,155,0.4)", color: "#fff" }}
                         onClick={() => setGenOpen(true)} title="Generate with a linked service (Kling, Magnific) — results land in a bin automatically">
