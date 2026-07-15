@@ -1986,25 +1986,28 @@ export default function Fabula() {
   // cloud with cross-session resume — so the edit is instantly playable while portability catches up.
   const baseOf = (s) => { try { const u = decodeURIComponent(s || ""); return (u.split(/[\\/]/).pop() || "").split("?")[0].toLowerCase(); } catch { return ((s || "").split(/[\\/]/).pop() || "").toLowerCase(); } };
   const pickMediaFolder = async () => {
-    // File System Access (Chromium desktop + Android Chrome): recursive, keeps the whole tree.
+    // File System Access (Chromium desktop + Android Chrome): recursive, keeps the whole tree AND each
+    // file's folder path (rel) so a relinked XML/EDL mirrors the on-disk structure into the bins — the
+    // same navigable folder surface the folder/watch imports build.
     if (window.showDirectoryPicker) {
       try {
         const dir = await window.showDirectoryPicker({ id: "fabula-media", mode: "read" });
         const map = new Map();
-        const walk = async (h, d) => { if (d > 6) return; for await (const [nm, en] of h.entries()) { if (en.kind === "file") map.set(nm.toLowerCase(), en); else if (en.kind === "directory") await walk(en, d + 1); } };
-        await walk(dir, 0);
+        const walk = async (h, rel, d) => { if (d > 6) return; for await (const [nm, en] of h.entries()) { if (en.kind === "file") map.set(nm.toLowerCase(), { entry: en, dir: rel }); else if (en.kind === "directory") await walk(en, rel ? `${rel}/${nm}` : nm, d + 1); } };
+        await walk(dir, dir.name || "", 0);
         return { kind: "fsa", map };
       } catch (e) { if (e?.name === "AbortError") return null; /* unsupported → fallback */ }
     }
     return new Promise((resolve) => {
       const inp = document.createElement("input");
       inp.type = "file"; inp.multiple = true; inp.webkitdirectory = true;
-      inp.onchange = () => { const map = new Map(); for (const f of inp.files) map.set(f.name.toLowerCase(), f); resolve(map.size ? { kind: "files", map } : null); };
+      inp.onchange = () => { const map = new Map(); for (const f of inp.files) { const rel = (f.webkitRelativePath || f.name).split("/").slice(0, -1).join("/"); map.set(f.name.toLowerCase(), { file: f, dir: rel }); } resolve(map.size ? { kind: "files", map } : null); };
       inp.oncancel = () => resolve(null);
       inp.click();
     });
   };
-  const fileFromPick = async (pick, key) => { const v = pick?.map.get(key); if (!v) return null; return pick.kind === "fsa" ? await v.getFile() : v; };
+  // Returns { file, dir } for a basename key, or null. `dir` is the file's folder path → the asset bin.
+  const fileFromPick = async (pick, key) => { const v = pick?.map.get(key); if (!v) return null; const file = pick.kind === "fsa" ? await v.entry.getFile() : v.file; return { file, dir: v.dir || "" }; };
 
   const importTimelineWithMedia = async (file) => {
     try {
@@ -2027,11 +2030,15 @@ export default function Fabula() {
         const key = c.assetId; if (!key || keyToAsset[key]) continue;
         const id = uid();
         const isAudio = c.trackId.startsWith("a");
-        const f = await fileFromPick(pick, key);
-        if (f) {
+        const got = await fileFromPick(pick, key);
+        if (got?.file) {
           matched++;
+          const f = got.file;
           const t = f.type || "";
-          const asset = { id, name: f.name, type: t.startsWith("audio") ? "audio" : t.startsWith("image") ? "image" : "video", url: URL.createObjectURL(f), duration: c.duration || 0, bin: "imported", session: true, imported: isFcp ? "fcpxml" : "edl" };
+          // Mirror the on-disk folder into the bin so XML/EDL relinks share the same navigable folder
+          // tree as folder/watch imports (unified media surface). Background upload knows the cloud copy.
+          const bin = got.dir || "imported";
+          const asset = { id, name: f.name, type: t.startsWith("audio") ? "audio" : t.startsWith("image") ? "image" : "video", url: URL.createObjectURL(f), duration: c.duration || 0, bin, session: true, synced: true, imported: isFcp ? "fcpxml" : "edl" };
           await stSet("studio:blob:" + id, f);
           assets.push(asset);
           if (uidNow) enqueueUpload({ assetId: id, name: f.name, mime: f.type || "application/octet-stream", size: f.size, blobKey: "studio:blob:" + id, uid: uidNow }).catch(() => {});
@@ -2044,8 +2051,10 @@ export default function Fabula() {
       const q = (t) => Math.round((t || 0) * (vfmt.fps || 24)) / (vfmt.fps || 24);
       const next = parsed.map((c) => ({ id: uid(), trackId: c.trackId, start: q(c.start), duration: Math.max(0.2, q(c.duration)), kind: "media", assetId: keyToAsset[c.assetId], label: c.label || "Clip", srcIn: q(c.srcIn || 0) }));
       updateProd((p) => {
-        p.mediaPool = p.mediaPool || [];
+        p.mediaPool = p.mediaPool || []; p.bins = p.bins || [];
         assets.forEach((a) => { if (!p.mediaPool.some((x) => x.id === a.id)) p.mediaPool.push(a); });
+        // Register the mirrored folder paths as bins so the tree shows them everywhere (unified surface).
+        [...new Set(assets.map((a) => a.bin).filter((b) => b && b !== "imports"))].forEach((b) => { if (!p.bins.includes(b)) p.bins.push(b); });
         p.tracks = (p.tracks && p.tracks.length) ? p.tracks : TRACKS.map((t) => ({ ...t }));
         [...new Set(next.map((c) => c.trackId))].forEach((tid) => { if (!p.tracks.some((t) => t.id === tid)) p.tracks.push({ id: tid, name: tid.toUpperCase(), type: tid.startsWith("a") ? "audio" : "video" }); });
       });
