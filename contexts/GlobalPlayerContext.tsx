@@ -189,6 +189,16 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       playbackBlobRef.current = null;
     }
   };
+  // Gapless prewarm: near the end of a track we fetch the NEXT track's bytes into a blob so the
+  // hand-off is instant instead of a cold network fetch (the cause of the inter-track gap/stutter,
+  // especially in the Android WebView). Bounded + connection-aware so it never starves the playing
+  // stream — the reason an earlier eager preloader was removed. `warmingRef` is the in-flight fetch.
+  const prewarmRef = useRef<{ url: string; blob: string } | null>(null);
+  const warmingRef = useRef<{ url: string; ctrl: AbortController } | null>(null);
+  const discardPrewarm = () => {
+    if (warmingRef.current) { try { warmingRef.current.ctrl.abort(); } catch { /* */ } warmingRef.current = null; }
+    if (prewarmRef.current) { try { URL.revokeObjectURL(prewarmRef.current.blob); } catch { /* */ } prewarmRef.current = null; }
+  };
   const pannerRef = useRef<PannerNode | null>(null);
   const bypassGainRef = useRef<GainNode | null>(null);
   const pannerInputGainRef = useRef<GainNode | null>(null);
@@ -430,6 +440,43 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     audio.volume = startVolume;
   }, []);
 
+  // Prewarm the NEXT track's bytes into a blob near the end of the current one, so the hand-off is
+  // instant. Bounded (skips >60MB originals — those are what the transcode pipeline fixes) and
+  // connection-aware (skips Save-Data / 2G) so it never starves the playing stream. Self-dedupes, so
+  // it's safe to call every animation frame in the last few seconds.
+  const warmNextTrack = React.useCallback(async () => {
+    const st = stateRef.current;
+    if (st.audioSource !== 'LIBRARY' || !st.currentAlbum || !st.currentTrack) return;
+    if (typeof navigator === 'undefined' || navigator.onLine === false) return;
+    const conn: any = (navigator as any).connection;
+    if (conn && (conn.saveData || /(^|-)2g/.test(conn.effectiveType || ''))) return; // don't burn a metered/slow link
+    const tracks = st.currentAlbum.tracks;
+    const idx = tracks.findIndex(t => t.id === st.currentTrack!.id);
+    let nextUrl: string | null = null;
+    if (idx !== -1 && idx < tracks.length - 1) nextUrl = tracks[idx + 1].url ?? null;
+    else if (st.repeatMode === 'ALL' && tracks.length) nextUrl = tracks[0].url ?? null;
+    if (!nextUrl) return;
+    if (prewarmRef.current?.url === nextUrl || warmingRef.current?.url === nextUrl) return; // already warm/warming
+    discardPrewarm();
+    const ctrl = new AbortController();
+    warmingRef.current = { url: nextUrl, ctrl }; // synchronous re-entry guard (set before any await)
+    try {
+      // Already downloaded for offline → use that blob directly, no network.
+      const cached = await getCachedMedia(nextUrl).catch(() => null);
+      if (cached) { prewarmRef.current = { url: nextUrl, blob: cached }; return; }
+      // Skip huge originals (hi-res WAV) — warming them would starve the stream + blow memory.
+      let bytes = 0;
+      try { const head = await fetch(nextUrl, { method: 'HEAD', signal: ctrl.signal }); bytes = parseInt(head.headers.get('content-length') || '0', 10) || 0; } catch { /* HEAD may be blocked */ }
+      if (bytes > 60 * 1024 * 1024) return;
+      const res = await fetch(nextUrl, { signal: ctrl.signal });
+      if (!res.ok || ctrl.signal.aborted) return;
+      const blob = await res.blob();
+      if (ctrl.signal.aborted) return;
+      prewarmRef.current = { url: nextUrl, blob: URL.createObjectURL(blob) };
+    } catch { /* aborted or failed — the cold path still works */ }
+    finally { if (warmingRef.current?.ctrl === ctrl) warmingRef.current = null; }
+  }, []);
+
   const playTrack = React.useCallback(async (track: Track, album: Album | null, source: 'LIBRARY' | 'RADIO' | 'VIDEO', startAt?: number) => {
     let audio = audioRef.current;
     const isNewTrack = stateRef.current.currentTrack?.id !== track.id || stateRef.current.audioSource === 'VIDEO';
@@ -482,11 +529,21 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
           // for the "falsely online" case (navigator.onLine true but fetch fails).
           revokePlaybackBlob();
           let playbackUrl = track.url;
-          if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-            try {
-              const cached = await getCachedMedia(track.url);
-              if (cached) { playbackBlobRef.current = cached; playbackUrl = cached; }
-            } catch { /* fall back to network URL */ }
+          // Gapless: if we prewarmed exactly this track (the natural next), play the ready blob
+          // instantly — no cold network fetch. Ownership passes to playbackBlobRef (revoked on the
+          // next change). Otherwise drop any stale prewarm and take the normal online/offline path.
+          if (prewarmRef.current?.url === track.url) {
+            playbackBlobRef.current = prewarmRef.current.blob;
+            playbackUrl = prewarmRef.current.blob;
+            prewarmRef.current = null;
+          } else {
+            discardPrewarm();
+            if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+              try {
+                const cached = await getCachedMedia(track.url);
+                if (cached) { playbackBlobRef.current = cached; playbackUrl = cached; }
+              } catch { /* fall back to network URL */ }
+            }
           }
           if (audio.src !== playbackUrl) {
             audio.src = playbackUrl;
@@ -893,6 +950,10 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         if (now - lastUpdate >= 60) {                  // ~16fps state updates: smooth + cheap
           lastUpdate = now;
           setCurrentTime(prev => (Math.abs(prev - t) >= 0.03 ? t : prev));
+          // Gapless: once we're within ~20s of the end, prewarm the next track's bytes so the
+          // hand-off is instant. Self-dedupes + bounded, so this cheap call is safe here.
+          const dur = audio.duration;
+          if (dur && isFinite(dur) && dur - t <= 20 && dur - t > 0.3) warmNextTrack();
         }
       }
       raf = requestAnimationFrame(tick);
@@ -900,6 +961,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [isPlaying, audioSource]);
+
+  // Release any prewarmed next-track blob + in-flight warm on unmount (no leaks).
+  useEffect(() => () => { discardPrewarm(); }, []);
 
   useEffect(() => {
     if ('mediaSession' in navigator) {

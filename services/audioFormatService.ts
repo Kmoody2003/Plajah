@@ -206,7 +206,19 @@ export async function createDecodeAudioPlayer(
   const response = await fetch(url, { cache: 'force-cache' });
   if (!response.ok) throw new Error(`Fetch failed: ${response.status} ${response.statusText}`);
 
+  // Guard: this path pulls the WHOLE file into RAM and decodes it on the main thread. For a large
+  // hi-res WAV/AIFF that's a huge allocation that can OOM or freeze a phone. Cap it — over the limit
+  // we refuse rather than crash the tab. (The transcode-to-AAC pipeline removes the need for this
+  // path entirely; until then, a too-large uncompressed original simply won't force-decode.)
+  const MAX_DECODE_BYTES = 120 * 1024 * 1024; // ~120MB
+  const len = parseInt(response.headers.get('content-length') || '0', 10) || 0;
+  if (len > MAX_DECODE_BYTES) {
+    throw new Error(`Track too large to decode in-memory (${(len / 1048576).toFixed(0)}MB > ${MAX_DECODE_BYTES / 1048576}MB). Needs a compressed/transcoded stream.`);
+  }
   const arrayBuffer = await response.arrayBuffer();
+  if (arrayBuffer.byteLength > MAX_DECODE_BYTES) {
+    throw new Error(`Track too large to decode in-memory (${(arrayBuffer.byteLength / 1048576).toFixed(0)}MB). Needs a compressed/transcoded stream.`);
+  }
   const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
   let sourceNode: AudioBufferSourceNode | null = null;
