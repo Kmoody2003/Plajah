@@ -2457,6 +2457,11 @@ export default function Fabula() {
   const rescanAll = async (interactive) => { setFolderSyncing(true); try { for (const f of syncFolders) await rescanSyncFolder(f.id, interactive); } finally { setFolderSyncing(false); } };
 
   useEffect(() => { refreshSyncFolders(); /* eslint-disable-next-line */ }, [prod?.id]);
+  // Reset media filters when the production changes. Otherwise a bin/search filter from a previous
+  // project persists and strands the grid: every import lands in a bin the stale filter excludes, so
+  // the grid shows empty while the counts (unfiltered) still tick up. This was the "number shows but
+  // grid is empty" bug across all import methods.
+  useEffect(() => { setBinFilter("all"); setMediaBin("all"); setMediaSearch(""); setMediaSel(null); setMediaCollapsed(new Set()); }, [prod?.id]);
   // Poll watched folders (browsers can't push FS events): on an interval + on window focus. Only folders
   // whose read permission is still granted rescan silently; the rest wait for a manual (gesture) rescan.
   useEffect(() => {
@@ -4726,7 +4731,9 @@ export default function Fabula() {
                     {/* asset grid */}
                     <div className="glass-card magridwrap">
                       <div className="lbl">{mediaBin === "all" ? "ALL MEDIA" : mediaBin} <span className="catcount">{assets.length}</span></div>
-                      {assets.length === 0 && <div className="dim small">No assets{mediaSearch || mediaBin !== "all" ? " match this filter" : " yet — import a folder or files above"}.</div>}
+                      {assets.length === 0 && (prod.mediaPool || []).length > 0 && (mediaBin !== "all" || mediaSearch)
+                        ? <div className="dim small">No assets match this filter. <button className="linkbtn" onClick={() => { setMediaBin("all"); setMediaSearch(""); }}>Show all {(prod.mediaPool || []).length} →</button></div>
+                        : assets.length === 0 && <div className="dim small">No assets yet — import a folder or files above.</div>}
                       <div className="magrid">
                         {assets.map((a) => (
                           <div className={`macard ${mediaSel === a.id ? "sel" : ""} ${(!a.url || a.offline) ? "offline" : ""}`} key={a.id} title={a.bin || "imports"}
@@ -5351,6 +5358,9 @@ export default function Fabula() {
                           </div>
                         </div>
                       ))}
+                      {poolFiltered().length === 0 && (prod.mediaPool || []).length > 0 && (binFilter !== "all" || mediaSearch) && (
+                        <div className="dim small" style={{ gridColumn: "1 / -1", padding: 8 }}>No media matches the current bin/search. <button className="linkbtn" onClick={() => { setBinFilter("all"); setMediaSearch(""); }}>Show all {(prod.mediaPool || []).length} →</button></div>
+                      )}
                       {mcSel.length >= 2 && (
                         <button className="minibtn full" style={{ gridColumn: "1 / -1" }} onClick={createMulticam}><Layers size={12} /> CREATE MULTICAM ({mcSel.length} ANGLES)</button>
                       )}
@@ -6651,6 +6661,7 @@ const CSS = `
 .binbtn:hover{color:#fff;background:var(--w04)}
 .binbtn.on{background:var(--org);color:#000}
 .bintree{opacity:.4;margin-right:4px;font-weight:400}
+.linkbtn{background:none;border:none;color:var(--org);font-weight:800;cursor:pointer;padding:0;font-size:inherit;text-decoration:underline}
 .mediasearch{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.32);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:6px 9px;margin-bottom:9px;color:var(--w40)}
 .mediasearch input{flex:1;background:none;border:none;outline:none;color:#fff;font-size:12px;font-family:inherit;min-width:0}
 .mediasearch.wide{margin-bottom:11px}
