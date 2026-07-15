@@ -97,8 +97,27 @@ call `/api/chora/transcode` from each track's master, throttle N-at-a-time, log 
    native `aac` 128k** for the data-saver rung if not. Endpoint probes `ffmpeg -encoders` once + caches.
 4. **Trigger** — explicit enqueue from the publish flow now; Storage-finalize event as a later backstop.
 
-## Build order
-1. Server: `POST /api/chora/transcode` on `server.ts` (+ types). ← core
-2. Client: `track.stream` type + status-gated HLS source resolution + hls.js + quality pref (flag `chora:hls`).
-3. Enqueue from `AlbumCreator` after upload; backfill script.
-4. Deploy → probe → transcode ONE track end-to-end → verify HLS + FLAC play → batch-backfill.
+## Build status — Step 1 CODE COMPLETE (deployed to master, dormant)
+1. ✅ Server: `POST /api/chora/transcode` + `GET /api/chora/media/:trackId/*` (Range/CORS) on `server.ts`.
+   Writes `choraStreams/{trackId}`. Reuses runFfmpeg/gcsUpload/getGoogleAccessToken/firestoreWrite.
+2. ✅ Client: `services/choraStreamService.ts` (read/cache streams, pickStreamUrl, getQuality/setQuality,
+   enqueueTranscode, enqueueAlbumTranscodes). `GlobalPlayerContext.playTrack` prefers a ready stream via
+   hls.js/native HLS with fatal-error fallback to the original; album-load prefetch; prewarm skips
+   HLS-ready next.
+3. ✅ Enqueue: `AlbumCreator` publish `onDone` fires `enqueueTranscode` per music track. Backfill =
+   `enqueueAlbumTranscodes(tracks)` (admin-triggerable / console loop over `fetchAllPublicAlbums()`).
+4. ⏳ REMAINING (needs the user's infra): deploy `plajah-api` Cloud Run → probe → transcode ONE track →
+   verify HLS+FLAC play → batch-backfill.
+
+## Deploy + test (the part only the user's infra can do)
+- Ensure the Cloud Run `plajah-api` image has **ffmpeg** (it already does — `/api/crossover/*` runs it)
+  and **GOOGLE_SERVICE_ACCOUNT_JSON** set (already required for Firestore writes + GCS). For the true
+  HE-AAC 96 data-saver rung, the ffmpeg build needs **libfdk_aac** (else it auto-falls-back to AAC 128).
+- After deploy, transcode one track (signed-in, from the browser console):
+  `await (await import('/services/choraStreamService.ts')).enqueueTranscode('<trackId>','<masterDownloadUrl>')`
+  then check Firestore `choraStreams/<trackId>` flips pending→processing→ready, and
+  `GET /api/chora/media/<trackId>/aac256/playlist.m3u8` returns a playlist.
+- Play that track in Chora → it should stream via HLS (gapless, loudness-normalized). Then backfill the
+  catalog with `enqueueAlbumTranscodes` per album (throttled).
+- Optional client picker UI (Data-saver/High/Lossless) → calls `setQuality()`; not required (default
+  'high'). Optional: Storage-finalize event trigger as a backstop; move masters to Nearline at scale.
