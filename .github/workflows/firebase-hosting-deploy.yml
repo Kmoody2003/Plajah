@@ -157,7 +157,11 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --port 8080 \
-            --memory 1Gi \
-            --cpu 1 \
+            --memory 2Gi \
+            --cpu 2 \
+            --cpu-boost \
             --timeout 300 \
             --update-env-vars NODE_ENV=production,VITE_FIREBASE_DB_ID=plajah-prod,VITE_FIREBASE_PROJECT_ID=gen-lang-client-0665118474
+        # ↑ The server transpiles ~6k lines via tsx at boot; on 1 vCPU that raced the Cloud Run
+        # startup health-check and the revision was killed as "failed to start in time". More CPU +
+        # startup CPU boost + memory headroom lets it bind $PORT well inside the window.
