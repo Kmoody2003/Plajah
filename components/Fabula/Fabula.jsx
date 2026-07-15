@@ -567,6 +567,8 @@ export default function Fabula() {
   const [mediaAddScene, setMediaAddScene] = useState("");                // "actId|sceneId" target for add-to-scene
   const [mediaPage, setMediaPage] = useState(1);                         // Media Assets grid page (1-based)
   const [mediaPageSize, setMediaPageSize] = useState(50);               // items per page: 25 | 50 | 75
+  const [editPoolPage, setEditPoolPage] = useState(1);                   // edit-workspace media pool page
+  const [srcPoolCap, setSrcPoolCap] = useState(300);                     // source-viewer pool: cap DOM cards on huge libraries
   const [mediaAutoSync, setMediaAutoSync] = useState(() => { try { return localStorage.getItem("fabula:autoSyncMedia") === "1"; } catch { return false; } }); // default LOCAL-FIRST — big folders don't flood the cloud uploader
   const [syncPaused, setSyncPaused] = useState(false);                 // uploader paused (mirrors resumableUpload)
   const [scriptImporting, setScriptImporting] = useState(false); // Lorea .txt → structured script
@@ -775,7 +777,11 @@ export default function Fabula() {
   const allScenes = useMemo(() => prod ? prod.acts.flatMap((a) => a.scenes.map((s) => ({ actId: a.id, act: a, scene: s }))) : [], [prod]);
 
   /* ----- mutators ----- */
-  const updateProd = (mut) => setProd((p) => { if (!p) return p; const n = JSON.parse(JSON.stringify(p)); mut(n); n.updatedAt = Date.now(); return n; });
+  // structuredClone is a native deep-clone — dramatically faster than the JSON round-trip on large
+  // productions (thousands of pool assets), and it doesn't choke on non-JSON values. Fall back to JSON
+  // where structuredClone is unavailable or a value isn't cloneable (e.g. a stray function/handle).
+  const deepClone = (o) => { try { return typeof structuredClone === "function" ? structuredClone(o) : JSON.parse(JSON.stringify(o)); } catch { return JSON.parse(JSON.stringify(o)); } };
+  const updateProd = (mut) => setProd((p) => { if (!p) return p; const n = deepClone(p); mut(n); n.updatedAt = Date.now(); return n; });
   const updateScene = (mut) => updateProd((p) => {
     const act = p.acts.find((a) => a.id === sceneSel?.actId);
     const sc = act?.scenes.find((s) => s.id === sceneSel?.sceneId);
@@ -2551,20 +2557,28 @@ export default function Fabula() {
   useEffect(() => { setBinFilter("all"); setMediaBin("all"); setMediaSearch(""); setMediaSel(null); setMediaCollapsed(new Set()); }, [prod?.id]);
   // Jump back to page 1 whenever the filter or page size changes, so you never land past the last page.
   useEffect(() => { setMediaPage(1); }, [mediaBin, mediaSearch, mediaPageSize, prod?.id]);
+  useEffect(() => { setEditPoolPage(1); }, [binFilter, mediaSearch, mediaPageSize, prod?.id]);
   useEffect(() => { setSyncPaused(uploadsPaused()); }, []);
+  // Keep a live "is the editor busy" flag the background poll can read without re-subscribing. During
+  // playback or a render the edit thread is the priority — the folder walk must never compete with it.
+  const editBusyRef = useRef(false);
+  useEffect(() => { editBusyRef.current = playing || rendering; }, [playing, rendering]);
   // Poll watched folders (browsers can't push FS events): on an interval + on window focus. Only folders
   // whose read permission is still granted rescan silently; the rest wait for a manual (gesture) rescan.
   useEffect(() => {
     if (!prod?.id || !syncFolders.length) return undefined;
     let scanning = false;
-    // Gentle, non-overlapping polling: skip a tick if the previous scan is still running (large folders
-    // take a while), and don't rescan a hidden tab. Every 90s — new files still show within a minute or
-    // two, without a heavy directory walk hammering a big project mid-edit.
-    const tick = async () => {
-      if (scanning || document.hidden) return;
+    // Gentle, non-overlapping, idle-scheduled polling: skip a tick if the previous scan is still running
+    // (large folders take a while), if the tab is hidden, or if the editor is playing/rendering. Run the
+    // heavy directory walk in an idle slice so it yields to the edit thread instead of blocking it. Every
+    // 90s — new files still show within a minute or two, without hammering a big project mid-edit.
+    const doScan = async () => {
+      if (scanning || document.hidden || editBusyRef.current) return;
       scanning = true;
-      try { for (const f of syncFolders) await rescanSyncFolder(f.id, false); } finally { scanning = false; }
+      try { for (const f of syncFolders) { if (editBusyRef.current) break; await rescanSyncFolder(f.id, false); } } finally { scanning = false; }
     };
+    const ric = window.requestIdleCallback || ((fn) => setTimeout(() => fn({ timeRemaining: () => 0 }), 0));
+    const tick = () => ric(() => { doScan(); }, { timeout: 4000 });
     const iv = setInterval(tick, 90000);
     const onFocus = () => tick();
     window.addEventListener("focus", onFocus);
@@ -3664,7 +3678,7 @@ export default function Fabula() {
                     </button>
                     {poolView === "thumbs" && (
                       <div className="poolthumbs">
-                        {(prod.mediaPool || []).map((a) => {
+                        {(prod.mediaPool || []).slice(0, srcPoolCap).map((a) => {
                           const playable = a.url && (a.type === "video" || a.type === "audio");
                           return (
                             <div key={a.id} className={`ptcard ${previewAsset?.id === a.id ? "previewing" : ""} ${(!a.url || a.offline) ? "offline" : ""}`}
@@ -3688,11 +3702,16 @@ export default function Fabula() {
                             </div>
                           );
                         })}
+                        {(prod.mediaPool || []).length > srcPoolCap && (
+                          <button className="minibtn" style={{ gridColumn: "1 / -1", marginTop: 4 }} onClick={() => setSrcPoolCap((c) => c + 300)}>
+                            Show more ({srcPoolCap} of {(prod.mediaPool || []).length} — use the Media workspace to search & page the full library) ↓
+                          </button>
+                        )}
                         {!(prod.mediaPool || []).length && <div className="dim small" style={{ padding: 8, gridColumn: "1 / -1" }}>Empty — import media to see thumbnails.</div>}
                       </div>
                     )}
                     <div className="poollist" style={poolView === "thumbs" ? { display: "none" } : undefined}>
-                      {(prod.mediaPool || []).map((a) => (
+                      {(prod.mediaPool || []).slice(0, srcPoolCap).map((a) => (
                         <div className={`poolitem ${previewAsset?.id === a.id ? "previewing" : ""} ${(!a.url || a.offline) ? "offline" : ""}`} key={a.id} onClick={() => openInViewer(a, false)} onDoubleClick={() => openInViewer(a, true)} title={(!a.url || a.offline) ? "Media not linked — locate it (relink) or add its sync folder" : "Click: load in source viewer · Double-click: load & play"}>
                           {(a.type === "video" || a.type === "audio") && (
                             <input type="checkbox" className="mcchk" checked={mcSel.includes(a.id)} title="Select for multicam group"
@@ -3721,6 +3740,11 @@ export default function Fabula() {
                       {mcSel.length >= 2 && (
                         <button className="minibtn full" style={{ marginTop: 6 }} onClick={createMulticam}>
                           <Layers size={12} /> CREATE MULTICAM ({mcSel.length} ANGLES)
+                        </button>
+                      )}
+                      {(prod.mediaPool || []).length > srcPoolCap && (
+                        <button className="minibtn full" style={{ marginTop: 4 }} onClick={() => setSrcPoolCap((c) => c + 300)}>
+                          Show more ({srcPoolCap} of {(prod.mediaPool || []).length}) ↓
                         </button>
                       )}
                       {!(prod.mediaPool || []).length && <div className="dim small" style={{ padding: 8 }}>Empty — the edit doesn't need media yet. Build from the breakdown and generate into the placeholders.</div>}
@@ -5481,13 +5505,26 @@ export default function Fabula() {
                       </div>
                       <div className="dim small" style={{ marginTop: 8 }}>Folder bins populate Productions & SLATE automatically — a characters bin runs identity verification into the Cast; props/sets/lore route into the World.</div>
                     </div>
+                    {(() => {
+                      // Compute the filtered pool and the bin-option list ONCE per render (not once per
+                      // card) — the old per-card `new Set(...mediaPool.map)` was O(n²) and, together with
+                      // an unbounded grid of <video> thumbnails, hung/crashed the tab on large projects.
+                      const filtered = poolFiltered();
+                      const binOptions = Array.from(new Set(["imports", ...(prod.bins || []), ...(prod.mediaPool || []).map((x) => x.bin || "imports")]));
+                      const perPage = mediaPageSize || 50;
+                      const pageCount = Math.max(1, Math.ceil(filtered.length / perPage));
+                      const page = Math.min(editPoolPage, pageCount);
+                      const start = (page - 1) * perPage;
+                      const shown = filtered.slice(start, start + perPage);
+                      return (
+                    <>
                     <div className="mwgrid" style={{ position: "relative" }} onMouseDown={startMarquee}>
-                      {poolFiltered().map((a) => (
+                      {shown.map((a) => (
                         <div className={`mwcard ${previewAsset?.id === a.id ? "previewing" : ""}`} key={a.id} data-aid={a.id}
                           style={poolSel.includes(a.id) ? { outline: "2px solid #FF8C00", outlineOffset: -2, borderRadius: 6 } : undefined}
                           onClick={(e) => poolClick(e, a)} onContextMenu={(e) => poolContext(e, a)} onDoubleClick={() => openInViewer(a, true)} title="Click: select + view · Double-click: load & play · Right-click: menu · Drag: marquee-select">
                           <div className="mwthumb">
-                            {a.url && (a.type === "image" || a.type === "graphic") && <img src={a.url} alt="" />}
+                            {a.url && (a.type === "image" || a.type === "graphic") && <img src={a.url} alt="" loading="lazy" />}
                             {a.url && a.type === "video" && <ScrubThumb url={a.url} />}
                             {(!a.url || !["image", "graphic", "video"].includes(a.type)) && <span className="wext">{{ audio: "♪", model: "3D", text: "TXT", multicam: "MC" }[a.type] || "FILE"}</span>}
                             {(a.type === "video" || a.type === "audio") && (
@@ -5501,7 +5538,7 @@ export default function Fabula() {
                             <select value={a.bin || "imports"} onClick={(e) => e.stopPropagation()} title="Bin"
                               onChange={(e) => { const nb = e.target.value; updateProd((p) => { const x = p.mediaPool.find((y) => y.id === a.id); if (x) x.bin = nb; }); }}
                               style={{ fontSize: 8, background: "rgba(0,0,0,0.4)", color: "#bbb", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 3, maxWidth: 68 }}>
-                              {Array.from(new Set(["imports", ...(prod.bins || []), ...(prod.mediaPool || []).map((x) => x.bin || "imports")])).map((b) => (
+                              {binOptions.map((b) => (
                                 <option key={b} value={b}>{b}</option>
                               ))}
                             </select>
@@ -5515,13 +5552,30 @@ export default function Fabula() {
                           </div>
                         </div>
                       ))}
-                      {poolFiltered().length === 0 && (prod.mediaPool || []).length > 0 && (binFilter !== "all" || mediaSearch) && (
+                      {filtered.length === 0 && (prod.mediaPool || []).length > 0 && (binFilter !== "all" || mediaSearch) && (
                         <div className="dim small" style={{ gridColumn: "1 / -1", padding: 8 }}>No media matches the current bin/search. <button className="linkbtn" onClick={() => { setBinFilter("all"); setMediaSearch(""); }}>Show all {(prod.mediaPool || []).length} →</button></div>
                       )}
                       {mcSel.length >= 2 && (
                         <button className="minibtn full" style={{ gridColumn: "1 / -1" }} onClick={createMulticam}><Layers size={12} /> CREATE MULTICAM ({mcSel.length} ANGLES)</button>
                       )}
                     </div>
+                    {filtered.length > perPage && (
+                      <div className="btnrow" style={{ justifyContent: "space-between", alignItems: "center", marginTop: 6, gap: 8 }}>
+                        <div className="dim small">{start + 1}–{Math.min(start + perPage, filtered.length)} of {filtered.length}</div>
+                        <div className="btnrow" style={{ gap: 6, alignItems: "center" }}>
+                          <button className="minibtn" disabled={page <= 1} onClick={() => setEditPoolPage(Math.max(1, page - 1))}>‹ Prev</button>
+                          <span className="dim small">{page} / {pageCount}</span>
+                          <button className="minibtn" disabled={page >= pageCount} onClick={() => setEditPoolPage(Math.min(pageCount, page + 1))}>Next ›</button>
+                          <select value={perPage} onChange={(e) => setMediaPageSize(Number(e.target.value))}
+                            style={{ fontSize: 10, background: "rgba(0,0,0,0.4)", color: "#bbb", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 3 }}>
+                            {[25, 50, 75].map((n) => <option key={n} value={n}>{n}/page</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                    </>
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -6094,17 +6148,34 @@ function LottieLayer({ url, time, playing, speed = 1, loop = true }) {
 
 /* ---------- hover-scrub video thumbnail (media pool) — sweep the mouse across to preview ----------
    memo: pool thumbs are <video> elements — re-rendering them on every transport frame is wasted work. */
+// LAZY thumbnail: mounts a <video> only while the card is on/near screen. Browsers cap concurrent video
+// decoders (~75) and choke well before that, so a large pool used to spawn thousands of <video>s and
+// hang/crash the tab. Now an IntersectionObserver keeps the live count to roughly what's visible; cards
+// off-screen render a cheap placeholder and free their decoder.
 const ScrubThumb = memo(function ScrubThumb({ url, className }) {
+  const wrap = useRef(null);
   const r = useRef(null);
+  const [live, setLive] = useState(false);
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setLive(true); return undefined; }
+    const io = new IntersectionObserver((ents) => { for (const e of ents) setLive(e.isIntersecting); }, { rootMargin: "250px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
   return (
-    <video ref={r} src={url} className={className} muted playsInline preload="metadata"
-      onMouseMove={(e) => {
-        const v = r.current; if (!v || !v.duration || !isFinite(v.duration)) return;
-        const rect = e.currentTarget.getBoundingClientRect();
-        const f = Math.max(0, Math.min(0.999, (e.clientX - rect.left) / rect.width));
-        try { v.currentTime = f * v.duration; } catch { /* not seekable yet */ }
-      }}
-      onMouseLeave={() => { const v = r.current; if (v && v.duration && isFinite(v.duration)) { try { v.currentTime = 0; } catch { /* */ } } }} />
+    <div ref={wrap} className={className} style={{ background: "#0c0c11", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+      {live ? (
+        <video ref={r} src={url} muted playsInline preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          onMouseMove={(e) => {
+            const v = r.current; if (!v || !v.duration || !isFinite(v.duration)) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const f = Math.max(0, Math.min(0.999, (e.clientX - rect.left) / rect.width));
+            try { v.currentTime = f * v.duration; } catch { /* not seekable yet */ }
+          }}
+          onMouseLeave={() => { const v = r.current; if (v && v.duration && isFinite(v.duration)) { try { v.currentTime = 0; } catch { /* */ } } }} />
+      ) : <span style={{ fontSize: 16, color: "#3a3a48" }}>▶</span>}
+    </div>
   );
 });
 
