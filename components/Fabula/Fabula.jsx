@@ -33,7 +33,7 @@ import ColorWheels from "./ColorWheels";
 import { quickStems, separateStemsCloud } from "../../services/fabula/stemSeparation";
 import { exportFCPXML, importFCPXML } from "../../services/fabula/fcpxml";
 import { initResumableUploads, enqueueUpload, onUploadProgress, pendingCount, setUploadsPaused, uploadsPaused, clearUploadQueue } from "../../services/fabula/resumableUpload";
-import { listSyncFolders, addSyncFolder, removeSyncFolder, rescanNew, markSeen } from "../../services/fabula/syncFolders";
+import { listSyncFolders, addSyncFolder, removeSyncFolder, rescanNew, markSeen, getFileFromFolder } from "../../services/fabula/syncFolders";
 import { isVectorFile, rasterizeVector } from "../../services/fabula/vectorRaster";
 import GeneratePanel from "./GeneratePanel";
 import { auth } from "../../services/firebase";
@@ -1582,12 +1582,24 @@ export default function Fabula() {
     await Promise.all(p.mediaPool.map(async (a) => {
       // remember the durable cloud location before we re-point anything
       if (!a.cloudUrl && a.url && /^https?:/i.test(a.url)) a.cloudUrl = a.url;
+      // ── Resolution order (LOCAL-FIRST, native-NLE style) ────────────────────────────────
+      // 1) DIRECT FROM THE DRIVE: if this asset came from a watch folder, re-open the actual file
+      //    through the persisted directory handle. This is the "Fabula is looking straight at your
+      //    disk" path — no IndexedDB copy needed, always the real local file, never the cloud while
+      //    the file is present on device. (Falls through silently if the folder/permission is gone.)
+      if (a.folderId) {
+        try {
+          const f = await getFileFromFolder(a.folderId, a.diskPath || a.bin || "", a.diskName || a.name);
+          if (f && f.size) { a.url = URL.createObjectURL(f); a.offline = false; a.session = true; if (f.size) a.size = f.size; return; }
+        } catch { /* fall through to idb / cloud */ }
+      }
+      // 2) IndexedDB stash: the local original bytes we cached at import (safety net + non-folder imports).
       const b = await stGet("studio:blob:" + a.id);
-      if (b && b.size) { // local original available → always prefer it
+      if (b && b.size) { // local original available → always prefer it over the cloud
         if (a.url && a.url.startsWith("blob:")) { try { if ((await fetch(a.url)).ok) return; } catch { /* dead */ } }
         try { a.url = URL.createObjectURL(b); a.offline = false; a.session = true; return; } catch { /* */ }
       }
-      // no local bytes — if the current URL is a dead blob:, fall back to the cloud copy
+      // 3) Cloud copy — ONLY when the bytes aren't on this device at all (a portable open on another machine).
       const local = !a.url || a.url.startsWith("blob:") || a.url.startsWith("data:") || a.offline;
       if (local && a.cloudUrl) { a.url = a.cloudUrl; a.offline = false; a.session = false; }
     }));
@@ -2251,8 +2263,10 @@ export default function Fabula() {
   // ── Sync / watch folders ──────────────────────────────────────────────────
   // Import files into bins that MIRROR the on-disk folder structure (bin name = relative folder path),
   // read local-first + queued for background upload. Deduped by name+bin so a rescan only adds new files.
-  const importFilesToBins = async (files) => {
+  const importFilesToBins = async (files, opts = {}) => {
     if (!files?.length) return 0;
+    const folderId = opts.folderId || undefined; // watch-folder origin → assets remember it, so on reload
+                                                  // we re-open the real file straight from the drive handle.
     const uidNow = auth.currentUser?.uid;
     // Existing assets keyed by name|bin. A same-key asset that's ONLINE → true duplicate (skip); one
     // that's OFFLINE (no url, e.g. a placeholder from an XML/EDL import or a reload that lost the blob)
@@ -2291,7 +2305,7 @@ export default function Fabula() {
           // RE-LINK the existing offline asset (keep its id/tags/links; just restore the media).
           const blobKey = "studio:blob:" + dup.id;
           await stSet(blobKey, file).catch(() => {}); // storage failure is non-fatal — the session blob still works
-          relinks.push({ id: dup.id, url: URL.createObjectURL(file), size: rawFile?.size || file.size || 0 });
+          relinks.push({ id: dup.id, url: URL.createObjectURL(file), size: rawFile?.size || file.size || 0, folderId, diskName: name, bin });
           if (uidNow && mediaAutoSync) enqueueUpload({ assetId: dup.id, name: file.name || name, mime: file.type || "application/octet-stream", size: file.size, blobKey, uid: uidNow }).catch(() => {});
           relinked++;
           continue;
@@ -2306,7 +2320,7 @@ export default function Fabula() {
         worldIdx.forEach((w) => { if (hay.includes(w.name)) { tags.add(w.name); if (!worldCat) worldCat = w.cat; } });
         FOLDER_MAP.forEach(([re, cat]) => { if (re.test(bin)) { tags.add(cat); if (!worldCat) worldCat = cat; } });
         await stSet("studio:blob:" + id, file).catch(() => {}); // non-fatal
-        newAssets.push({ id, name, type, vector: vector || undefined, url: URL.createObjectURL(file), duration: 0, size: rawFile?.size || file.size || 0, bin, session: true, synced: mediaAutoSync ? undefined : "local", tags: [...tags], castId, worldCat });
+        newAssets.push({ id, name, type, vector: vector || undefined, url: URL.createObjectURL(file), duration: 0, size: rawFile?.size || file.size || 0, bin, session: true, synced: mediaAutoSync ? undefined : "local", tags: [...tags], castId, worldCat, folderId, diskName: name, diskPath: folderId ? bin : undefined });
         // Local-first: bulk folder/watch imports only auto-upload when the user opts in — otherwise a
         // huge folder would flood the cloud uploader and hinder editing. "Sync to cloud" enqueues later.
         if (uidNow && mediaAutoSync) enqueueUpload({ assetId: id, name: file.name || name, mime: file.type || "application/octet-stream", size: file.size, blobKey: "studio:blob:" + id, uid: uidNow }).catch(() => {});
@@ -2318,7 +2332,7 @@ export default function Fabula() {
       p.mediaPool = p.mediaPool || []; p.bins = p.bins || [];
       newBins.forEach((b) => { if (!p.bins.includes(b)) p.bins.push(b); });
       newAssets.forEach((a) => p.mediaPool.push(a));
-      relinks.forEach(({ id, url, size }) => { const a = p.mediaPool.find((x) => x.id === id); if (a) { a.url = url; a.offline = false; if (size) a.size = size; if (!mediaAutoSync) a.synced = "local"; } });
+      relinks.forEach(({ id, url, size, folderId: fid, diskName, bin: rbin }) => { const a = p.mediaPool.find((x) => x.id === id); if (a) { a.url = url; a.offline = false; if (size) a.size = size; if (fid) { a.folderId = fid; a.diskName = diskName || a.name; if (rbin) { a.bin = rbin; a.diskPath = rbin; } } if (!mediaAutoSync) a.synced = "local"; } });
       castLinks.forEach(({ assetId, castId }) => {
         const m = (p.cast || []).find((c) => c.id === castId);
         if (m) { m.media = m.media || []; if (!m.media.includes(assetId)) m.media.push(assetId); }
@@ -2520,7 +2534,7 @@ export default function Fabula() {
       const r = await rescanNew(prod.id, id, interactive, full);
       if (!r) { if (interactive) ping("Grant access to the folder so it can sync"); return; }
       if (!r.fresh.length) { if (interactive) ping(r.total ? `Nothing new — all ${r.total} files already imported. (Use RESCAN to force a full re-import.)` : `That folder has no media files.`); return; }
-      const n = await importFilesToBins(r.fresh);
+      const n = await importFilesToBins(r.fresh, { folderId: id });
       // Mark seen ONLY after the import ran, so files that failed to import aren't hidden from future
       // scans. (The old code marked them seen during the scan, which permanently stranded them.)
       await markSeen(prod.id, id, r.fresh.map((f) => f.key));
@@ -4944,6 +4958,9 @@ export default function Fabula() {
                         <div className="mapvmeta">
                           <div className="mapvname">{selAsset.name}</div>
                           <div className="dim small">{selAsset.bin || "imports"} · {selAsset.type?.toUpperCase()}{selAsset.duration ? ` · ${selAsset.duration.toFixed(1)}s` : ""}{selAsset.cloudUrl ? " · ☁ synced" : " · ⭯ syncing"}</div>
+                          <div className="dim small" style={{ marginTop: 2 }} title={selAsset.folderId ? "Playing the real file straight from your drive" : (selAsset.url && selAsset.url.startsWith("blob:")) ? "Playing from the on-device copy" : "Playing from the cloud (bytes not on this device)"}>
+                            {selAsset.folderId ? "▣ ON DEVICE · reading from disk" : (selAsset.url && selAsset.url.startsWith("blob:")) ? "▣ ON DEVICE · local copy" : (selAsset.url && /^https?:/i.test(selAsset.url)) ? "☁ CLOUD · not on this device" : "— offline"}
+                          </div>
                           {(selAsset.tags || []).length > 0 && <div className="matags" style={{ marginTop: 6 }}>{(selAsset.tags || []).map((t) => <span key={t} className="matag">{t}</span>)}</div>}
                           <div className="lbl" style={{ marginTop: 12 }}>NOTES</div>
                           <textarea className="mapvnotes" rows={3} value={selAsset.note || ""} placeholder="Add production notes for this asset…" onChange={(e) => updateAssetNote(selAsset.id, e.target.value)} />

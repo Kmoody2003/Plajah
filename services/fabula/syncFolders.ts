@@ -103,6 +103,26 @@ export async function rescanNew(projectId: string, id: string, interactive = fal
   return { folder, fresh, total: all.length };
 }
 
+/** Re-open a single file DIRECTLY from a watch folder's on-disk handle — the "looking at the drive"
+ *  path. `binPath` is the asset's bin (which mirrors the on-disk path, including the folder's own name
+ *  as its root, exactly as scanFolder seeds it); we strip that root and walk the subdirectories to the
+ *  file. Returns the live File (fresh objectURL fodder) or null if the handle/permission/file is gone —
+ *  in which case the caller falls back to the IndexedDB copy, then the cloud. Non-interactive: never
+ *  prompts (silent background re-resolve); a lapsed permission simply returns null until re-granted. */
+export async function getFileFromFolder(folderId: string, binPath: string, name: string): Promise<File | null> {
+  const handle = await getHandle(folderId, false);
+  if (!handle) return null;
+  try {
+    let segs = (binPath || '').split('/').filter(Boolean);
+    if (segs.length && handle.name && segs[0] === handle.name) segs = segs.slice(1); // drop the root-folder name
+    let dir: any = handle;
+    for (const s of segs) dir = await dir.getDirectoryHandle(s);
+    const fh = await dir.getFileHandle(name);
+    const f = await fh.getFile();
+    return f && f.size ? f : null;
+  } catch { return null; } // moved/renamed/permission lapsed → let the caller fall back
+}
+
 /** Mark files as imported (seen) — called by the caller AFTER importFilesToBins succeeds, so the
  *  seen-set reflects what actually made it into the pool. Updates fileCount to the seen total. */
 export async function markSeen(projectId: string, id: string, keys: string[]): Promise<void> {
