@@ -9,6 +9,7 @@ import {
 import * as THREE from "three";
 import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from "idb-keyval";
 import { putBytes as mediaPutBytes, getBytes as mediaGetBytes, delBytes as mediaDelBytes } from "../../services/fabula/mediaStore";
+import { acquire as acquireDecoder } from "../../services/fabula/decoderBudget";
 import { renderFabulaToBlob } from "../../services/fabulaRender";
 import { crossover } from "../../services/crossover";
 import SceneView from "../plajahPixels/components/SceneView";
@@ -6185,17 +6186,27 @@ function LottieLayer({ url, time, playing, speed = 1, loop = true }) {
 const ScrubThumb = memo(function ScrubThumb({ url, className }) {
   const wrap = useRef(null);
   const r = useRef(null);
-  const [live, setLive] = useState(false);
+  const [onScreen, setOnScreen] = useState(false);
+  const [slot, setSlot] = useState(false);      // holds a global decoder-budget slot
+  const releaseRef = useRef(null);
   useEffect(() => {
     const el = wrap.current;
-    if (!el || typeof IntersectionObserver === "undefined") { setLive(true); return undefined; }
-    const io = new IntersectionObserver((ents) => { for (const e of ents) setLive(e.isIntersecting); }, { rootMargin: "250px" });
+    if (!el || typeof IntersectionObserver === "undefined") { setOnScreen(true); return undefined; }
+    const io = new IntersectionObserver((ents) => { for (const e of ents) setOnScreen(e.isIntersecting); }, { rootMargin: "250px" });
     io.observe(el);
     return () => io.disconnect();
   }, []);
+  // Only mount a real <video> decoder when on-screen AND the global budget has a free slot — so a huge
+  // pool can never exhaust the browser's decoder cap and crash the tab. Off-screen → release the slot.
+  useEffect(() => {
+    if (onScreen && !releaseRef.current) { const rel = acquireDecoder(); if (rel) { releaseRef.current = rel; setSlot(true); } else setSlot(false); }
+    else if (!onScreen && releaseRef.current) { releaseRef.current(); releaseRef.current = null; setSlot(false); }
+  }, [onScreen]);
+  useEffect(() => () => { if (releaseRef.current) { releaseRef.current(); releaseRef.current = null; } }, []);
+  const showVideo = onScreen && slot;
   return (
     <div ref={wrap} className={className} style={{ background: "#0c0c11", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-      {live ? (
+      {showVideo ? (
         <video ref={r} src={url} muted playsInline preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
           onMouseMove={(e) => {
             const v = r.current; if (!v || !v.duration || !isFinite(v.duration)) return;
