@@ -89,10 +89,16 @@ call `/api/chora/transcode` from each track's master, throttle N-at-a-time, log 
 - Storage: +~30–50% for renditions; recoverable by tiering masters to Nearline.
 - CDN egress on segments (already needed for any streaming).
 
-## Open decisions (gate the build)
-1. **libfdk_aac** in the Cloud Run image? Yes → true HE-AAC 96k data-saver + better AAC. No → native
-   AAC, data-saver becomes LC 128k. (Recommend adding libfdk to the image.)
-2. **Ship the FLAC lossless tier now** or AAC-only first (add FLAC later)?
-3. **Masters hot or Nearline** after transcode (cost vs re-encode latency)?
-4. **Trigger**: explicit enqueue from publish only, or also a Storage-finalize event as a backstop?
-   (Recommend explicit now; add the event later.)
+## Decisions (LOCKED)
+1. **FLAC lossless tier — ship in Step 1.** Full ladder (AAC 96/256 HLS + FLAC) + the
+   Data-saver/High/Lossless picker from launch.
+2. **Masters — keep hot** for now (no Nearline lifecycle rule yet; revisit at scale).
+3. **libfdk_aac** — use if the Cloud Run ffmpeg build has it (true HE-AAC v2 96k); **auto-fallback to
+   native `aac` 128k** for the data-saver rung if not. Endpoint probes `ffmpeg -encoders` once + caches.
+4. **Trigger** — explicit enqueue from the publish flow now; Storage-finalize event as a later backstop.
+
+## Build order
+1. Server: `POST /api/chora/transcode` on `server.ts` (+ types). ← core
+2. Client: `track.stream` type + status-gated HLS source resolution + hls.js + quality pref (flag `chora:hls`).
+3. Enqueue from `AlbumCreator` after upload; backfill script.
+4. Deploy → probe → transcode ONE track end-to-end → verify HLS + FLAC play → batch-backfill.
