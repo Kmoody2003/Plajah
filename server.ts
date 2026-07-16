@@ -1,5 +1,9 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
+// NOTE: `vite` is imported LAZILY inside the dev-only branch below. A static top-level import pulls
+// the entire Vite package (esbuild + rollup + its whole dep graph) into memory on EVERY boot — even
+// in production, where the Vite dev middleware is never used. That eager load was the bulk of the
+// Cloud Run cold-start time and pushed the container past the startup health-check ("failed to start
+// and listen on PORT within the allocated timeout"). Loading it only in dev keeps production boot lean.
 import path from 'path';
 import { fileURLToPath } from 'url';
 import cookieParser from 'cookie-parser';
@@ -4459,15 +4463,17 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
 
   // Serve a transcoded asset from GCS with Range + permissive CORS (HLS playlists resolve their
   // relative segment URLs against this path). Playlists cache briefly; immutable media caches forever.
-  app.options('/api/chora/media/:trackId/*', (_req: any, res: any) => {
+  app.options('/api/chora/media/:trackId/*splat', (_req: any, res: any) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Range');
     res.status(204).end();
   });
-  app.get('/api/chora/media/:trackId/*', async (req: any, res: any) => {
+  app.get('/api/chora/media/:trackId/*splat', async (req: any, res: any) => {
     const trackId = String(req.params.trackId).replace(/[^\w\-]/g, '');
-    const sub = String(req.params[0] || '').replace(/\.\.+/g, '').replace(/^\/+/, '');
+    // Express 5 named wildcard → req.params.splat is an array of the remaining path segments.
+    const splat = (req.params as any).splat;
+    const sub = (Array.isArray(splat) ? splat.join('/') : String(splat || '')).replace(/\.\.+/g, '').replace(/^\/+/, '');
     if (!trackId || !sub) return res.status(400).end();
     const token = await getGoogleAccessToken();
     if (!token) return res.status(503).end();
@@ -4612,6 +4618,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // --- Vite Middleware ---
 
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite'); // dev-only — never loaded in prod
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
