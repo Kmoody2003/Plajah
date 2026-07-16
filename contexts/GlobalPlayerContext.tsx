@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Track, Album, Video } from '../types';
 import { doc, increment, setDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../services/backendService';
+import { db, fetchAllPublicAlbums } from '../services/backendService';
 import { diagnoseAudioUrl, createDecodeAudioPlayer, type DecodedAudioPlayer } from '../services/audioFormatService';
 import { detectDolbySupport, isLikelyAtmosUrl } from '../services/dolbyDetection';
 import { saveProgress } from '../services/episodeProgressService';
@@ -24,7 +24,7 @@ interface GlobalPlayerContextType {
   audioSource: 'LIBRARY' | 'RADIO' | 'VIDEO' | null;
   repeatMode: 'OFF' | 'ONE' | 'ALL';
   setRepeatMode: (mode: 'OFF' | 'ONE' | 'ALL') => void;
-  playTrack: (track: Track, album: Album | null, source: 'LIBRARY' | 'RADIO' | 'VIDEO', startAt?: number) => void;
+  playTrack: (track: Track, album: Album | null, source: 'LIBRARY' | 'RADIO' | 'VIDEO', startAt?: number, forceReload?: boolean) => void;
   playVideo: (video: Video) => void;
   setVideoElement: (el: HTMLVideoElement | null) => void;
   setYtPlayer: (player: any | null) => void;
@@ -484,9 +484,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     finally { if (warmingRef.current?.ctrl === ctrl) warmingRef.current = null; }
   }, []);
 
-  const playTrack = React.useCallback(async (track: Track, album: Album | null, source: 'LIBRARY' | 'RADIO' | 'VIDEO', startAt?: number) => {
+  const playTrack = React.useCallback(async (track: Track, album: Album | null, source: 'LIBRARY' | 'RADIO' | 'VIDEO', startAt?: number, forceReload?: boolean) => {
     let audio = audioRef.current;
-    const isNewTrack = stateRef.current.currentTrack?.id !== track.id || stateRef.current.audioSource === 'VIDEO';
+    const isNewTrack = forceReload || stateRef.current.currentTrack?.id !== track.id || stateRef.current.audioSource === 'VIDEO';
 
     initAudioContext();
     intendedPlayingRef.current = true;
@@ -1000,17 +1000,54 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (ids?.length) prefetchTrackStreams(ids);
   }, [currentAlbum?.id]); // eslint-disable-line
 
+  // Live quality switch: when the listener changes their audio-quality tier (data/high/lossless),
+  // re-resolve the CURRENTLY-playing track at the new tier and seek back to where they were — but
+  // only when a ready transcoded stream exists (otherwise quality is moot, it's the original file)
+  // and only while actually playing, so a paused track just picks up the new tier on next play.
+  useEffect(() => {
+    const onQualityChanged = () => {
+      const s = stateRef.current;
+      if (!s.currentTrack || s.audioSource === 'VIDEO' || !s.isPlaying) return;
+      const ready = peekTrackStream(s.currentTrack.id);
+      if (!ready || ready.status !== 'ready') return;
+      const at = Math.max(0, s.currentTime || 0);
+      playTrack(s.currentTrack, s.currentAlbum, s.audioSource as 'LIBRARY' | 'RADIO', at, true);
+    };
+    window.addEventListener('chora:quality-changed', onQualityChanged);
+    return () => window.removeEventListener('chora:quality-changed', onQualityChanged);
+  }, [playTrack]);
+
   // Console helper for triggering + backfilling transcodes on production (source .ts files aren't
   // served in a prod build, so `import()` fails — use these instead). Reuses the app's auth token.
   //   await __chora.transcodeCurrentAlbum()        // the album playing now
   //   await __chora.transcode('<trackId>','<masterUrl>')
   //   await __chora.getStream('<trackId>')          // inspect status
+  //   await __chora.backfillEverything()            // the WHOLE public catalog (leave tab open)
   useEffect(() => {
     (window as any).__chora = {
       transcode: (trackId: string, srcUrl: string) => enqueueTranscode(trackId, srcUrl),
       transcodeCurrentAlbum: () => enqueueAlbumTranscodes((stateRef.current.currentAlbum?.tracks as any) || []),
       backfillAlbum: (tracks: any[]) => enqueueAlbumTranscodes(tracks),
       getStream: (trackId: string) => getTrackStream(trackId),
+      // Backfill the entire public catalogue. Each track transcodes fully before the next
+      // (the endpoint is synchronous), so this is slow but safe — it won't stampede the server.
+      // Re-runnable: already-ready/processing tracks are skipped, so you can stop and resume.
+      backfillEverything: async () => {
+        const albums = await fetchAllPublicAlbums();
+        const music = (albums || []).filter((a: any) =>
+          a && a.type !== 'BOOK' && Array.isArray(a.tracks) && a.tracks.length);
+        const totalTracks = music.reduce((n: number, a: any) => n + a.tracks.length, 0);
+        console.log(`%c[chora backfill] ${music.length} albums · ~${totalTracks} tracks. Keep this tab open — each track transcodes fully before the next, so this can take a while.`, 'color:#FF8C00;font-weight:bold');
+        let processed = 0;
+        for (let i = 0; i < music.length; i++) {
+          const a = music[i];
+          const n = await enqueueAlbumTranscodes(a.tracks);
+          processed += n;
+          console.log(`[chora backfill] (${i + 1}/${music.length}) "${a.title || a.id}" — +${n} · running total ${processed}`);
+        }
+        console.log(`%c[chora backfill] DONE — ${processed} tracks transcoded across ${music.length} albums.`, 'color:#22c55e;font-weight:bold');
+        return processed;
+      },
     };
     return () => { try { delete (window as any).__chora; } catch { /* */ } };
   }, []);

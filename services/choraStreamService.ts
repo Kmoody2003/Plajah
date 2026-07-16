@@ -44,6 +44,12 @@ export function peekTrackStream(trackId: string): ChoraStream | null | undefined
   return cache.get(trackId);
 }
 
+/** Force a fresh read (busts the cache) — the admin backfill UI uses this to poll live status. */
+export async function refreshTrackStream(trackId: string): Promise<ChoraStream | null> {
+  cache.delete(trackId);
+  return getTrackStream(trackId);
+}
+
 /** Warm the cache for a set of track ids (e.g. when an album loads), so play is instant-HLS. */
 export function prefetchTrackStreams(trackIds: string[]): void {
   for (const id of trackIds) if (id && !cache.has(id) && !inflight.has(id)) getTrackStream(id).catch(() => {});
@@ -65,7 +71,11 @@ export function getQuality(): ChoraQuality {
   try { const q = localStorage.getItem('chora:quality'); if (q === 'data' || q === 'high' || q === 'lossless') return q; } catch { /* */ }
   return 'high';
 }
-export function setQuality(q: ChoraQuality): void { try { localStorage.setItem('chora:quality', q); } catch { /* */ } }
+export function setQuality(q: ChoraQuality): void {
+  try { localStorage.setItem('chora:quality', q); } catch { /* */ }
+  // Let the player live-switch the current track to the new tier (see GlobalPlayerContext).
+  try { window.dispatchEvent(new CustomEvent('chora:quality-changed', { detail: q })); } catch { /* SSR / no window */ }
+}
 
 /** Enqueue a track for transcode on the server (fire-and-forget from upload/backfill). */
 export async function enqueueTranscode(trackId: string, srcUrl: string): Promise<boolean> {

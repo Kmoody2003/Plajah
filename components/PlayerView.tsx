@@ -11,6 +11,7 @@ import PaintPoolVisualizer from './PaintPoolVisualizer';
 import Logo from './Logo';
 import { publishToCloud, postComment, subscribeToComments, updateAlbum, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig, createPost, auth } from '../services/backendService';
 import ShareButton from './ShareButton';
+import ChoraQualityButton from './ChoraQualityButton';
 import OfflineDownloadButton from './OfflineDownloadButton';
 import PlaylistPickerModal from './PlaylistPickerModal';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
@@ -925,9 +926,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             <h1 className="text-xs font-black uppercase tracking-widest truncate">{album.title}</h1>
             <p className="text-[8px] font-bold text-small-orange uppercase tracking-[0.3em] truncate">{album.artist}</p>
           </div>
-          <button onClick={() => setShowShareModal(true)} className="p-2 text-white/40 hover:text-white transition-all">
-            <Share2 size={20} />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <ChoraQualityButton className="p-2" />
+            <button onClick={() => setShowShareModal(true)} className="p-2 text-white/40 hover:text-white transition-all">
+              <Share2 size={20} />
+            </button>
+          </div>
         </header>
 
         {/* Top Media Section (Shared Placement for Cover Art & Video) */}
