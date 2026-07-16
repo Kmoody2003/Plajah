@@ -25,6 +25,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { StudioBook, StudioPage, StudioPanel, StudioPageType, Album } from '../types';
 import { setComicHandoff, peekComicHandoff } from '../services/comicHandoff';
+import { extractDocument, type ImportedParagraph } from '../services/documentImport';
 import { auth, storage, db } from '../services/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -656,6 +657,36 @@ async function importMarkdown(file: File): Promise<Partial<StudioPage>[]> {
   }));
 }
 
+// Group extracted paragraphs into Studio pages, breaking to a new chapter page
+// whenever a top-level heading (Title / Heading 1–2) is encountered.
+function paragraphsToPages(paras: ImportedParagraph[]): Partial<StudioPage>[] {
+  const pages: Partial<StudioPage>[] = [];
+  let bodyHtml = '';
+  let chapterTitle: string | undefined;
+  const flush = () => {
+    if (!bodyHtml.trim()) { chapterTitle = undefined; return; }
+    pages.push({ type: 'TEXT' as StudioPageType, richText: bodyHtml.trim(), bgColor: '#ffffff', ...(chapterTitle ? { chapterTitle } : {}) });
+    bodyHtml = '';
+    chapterTitle = undefined;
+  };
+  for (const p of paras) {
+    if (p.heading > 0 && p.heading <= 2 && p.text.trim()) {
+      // Break to a new chapter page; the heading opens it and keeps its title.
+      flush();
+      chapterTitle = p.text.trim();
+      bodyHtml += p.html || `<h${p.heading}>${escapeStudioHtml(p.text)}</h${p.heading}>`;
+      continue;
+    }
+    bodyHtml += p.html || (p.text.trim() ? `<p>${escapeStudioHtml(p.text)}</p>` : '');
+  }
+  flush();
+  return pages.length ? pages : [{ type: 'TEXT' as StudioPageType, richText: '', bgColor: '#ffffff' }];
+}
+
+function escapeStudioHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function buildHTML(book: StudioBook): string {
   const sorted = [...book.pages].sort((a,b) => a.order - b.order);
   const body = sorted.map(p => {
@@ -907,18 +938,23 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
   const handleImportFile = async (file: File) => {
     setShowImport(false);
     let partials: Partial<StudioPage>[] = [];
-    if (file.name.endsWith('.txt')) partials = await importTxt(file);
-    else if (file.name.endsWith('.md') || file.name.endsWith('.markdown')) partials = await importMarkdown(file);
-    else if (file.name.endsWith('.docx') || file.name.endsWith('.pdf')) {
-      const fd = new FormData(); fd.append('file', file);
-      const route = file.name.endsWith('.docx') ? '/api/books/parse-docx' : '/api/books/parse-pdf';
-      try {
-        const res = await fetch(route, { method:'POST', body:fd });
-        if (res.ok) partials = (await res.json()).pages ?? [];
-        else { alert('Server conversion failed. Run the Plajah backend and try again.'); return; }
-      } catch { alert('Conversion requires the Plajah backend server (npm run dev).'); return; }
-    } else { alert('Supported formats: .txt · .md · .docx · .pdf'); return; }
+    const name = file.name.toLowerCase();
+    try {
+      if (name.endsWith('.txt') || name.endsWith('.text')) partials = await importTxt(file);
+      else if (name.endsWith('.md') || name.endsWith('.markdown')) partials = await importMarkdown(file);
+      else if (name.endsWith('.docx') || name.endsWith('.pdf') || name.endsWith('.fountain')) {
+        // Client-side extraction — no backend required (works on web + native + offline).
+        const { paragraphs, title } = await extractDocument(file);
+        partials = paragraphsToPages(paragraphs);
+        if (title && (!book.title || /^untitled$/i.test(book.title))) setBookField('title', title);
+      } else { alert('Supported formats: .docx · .pdf · .txt · .md · .fountain\n\nGoogle Docs: File → Download → Word (.docx) or plain text.'); return; }
+    } catch (e: any) {
+      console.error('[BookImport]', e);
+      alert(e?.message || 'Could not read that file. Try re-saving it as .docx or .pdf.');
+      return;
+    }
 
+    if (!partials.length) { alert('No readable text found in that file.'); return; }
     const maxOrder = Math.max(0, ...book.pages.map(p => p.order));
     const pages: StudioPage[] = partials.map((partial, i) => ({ ...makeBlankPage(partial.type ?? 'TEXT', maxOrder + i + 1), ...partial }));
     setBook(b => ({ ...b, pages: [...b.pages, ...pages] }));
@@ -1230,18 +1266,18 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
               <div className={`border-2 border-dashed rounded-2xl p-10 text-center transition-all duration-200 ${importDragging ? 'border-orange-400 bg-orange-500/5' : 'border-white/8 hover:border-white/15'}`}>
                 <Upload size={24} className={`mx-auto mb-3 transition-colors ${importDragging ? 'text-orange-400' : 'text-white/15'}`}/>
                 <p className="text-sm text-white/50 mb-1">Drop a file or click to browse</p>
-                <p className="text-xs text-white/20">Word (.docx) · PDF · Markdown (.md) · Plain text (.txt)</p>
+                <p className="text-xs text-white/20">Word (.docx) · PDF · Markdown (.md) · Plain text (.txt) · Fountain</p>
                 <button onClick={() => importRef.current?.click()}
                   className="mt-5 px-5 py-2 bg-orange-500 text-black text-sm font-bold rounded-xl hover:bg-orange-400 transition-colors">
                   Choose file
                 </button>
-                <input ref={importRef} type="file" accept=".txt,.md,.markdown,.docx,.pdf" className="hidden"
+                <input ref={importRef} type="file" accept=".txt,.text,.md,.markdown,.docx,.pdf,.fountain" className="hidden"
                   onChange={e => { const f=e.target.files?.[0]; if(f) handleImportFile(f); }}/>
               </div>
               <div className="mt-4 space-y-2 text-xs text-white/25">
-                <p>✓ <span className="text-white/40">Text & Markdown</span> — imported instantly in your browser</p>
-                <p>↑ <span className="text-white/40">Word & PDF</span> — converted on the Plajah server (requires backend running)</p>
-                <p>✓ <span className="text-white/40">Images, video & audio</span> — add after import via the toolbar</p>
+                <p>✓ <span className="text-white/40">Word, PDF, Markdown & text</span> — imported instantly in your browser, no server needed</p>
+                <p>✓ <span className="text-white/40">Headings</span> — become chapter breaks automatically; bold & italics are preserved</p>
+                <p>✓ <span className="text-white/40">Google Docs</span> — File → Download → Word (.docx), then import that file</p>
               </div>
             </motion.div>
           </motion.div>

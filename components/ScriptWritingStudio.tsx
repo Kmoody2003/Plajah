@@ -6,7 +6,7 @@ import {
   MessageSquare, Check, BookOpen, Clock, RefreshCw,
   Copy, Share2, Palette, Layers, Eye, EyeOff,
   Lock, Unlock, ChevronRight, Star, Zap, Settings,
-  AlignLeft, AlignCenter, Edit3,
+  AlignLeft, AlignCenter, Edit3, Upload, FileUp, AlertCircle,
 } from 'lucide-react';
 import { db, auth } from '../services/firebase';
 import { doc, setDoc, getDoc, serverTimestamp, collection } from 'firebase/firestore';
@@ -14,6 +14,10 @@ import {
   fetchWorldCharacters, fetchWorldLore, fetchUserWorlds,
   createTimelineEvent,
 } from '../services/backendService';
+import {
+  extractDocument, screenplayFromText,
+  SUPPORTED_IMPORT_ACCEPT, isSupportedImport,
+} from '../services/documentImport';
 import type {
   Character, LoreEntry, IPWorld,
   ScriptData, ScriptElement, ScriptElementType,
@@ -218,6 +222,14 @@ export default function ScriptWritingStudio({
   const [sceneSearch, setSceneSearch]     = useState('');
   const [showRevMenu, setShowRevMenu]     = useState(false);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
+
+  // ── Import state ─────────────────────────────────────────────────────────────
+  const [showImport, setShowImport]   = useState(false);
+  const [importDragging, setImportDragging] = useState(false);
+  const [importing, setImporting]     = useState(false);
+  const [importError, setImportError] = useState('');
+  const [importMode, setImportMode]   = useState<'REPLACE' | 'APPEND'>('REPLACE');
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   // ── World state ────────────────────────────────────────────────────────────
   const [worldCharacters, setWorldCharacters]   = useState<Character[]>([]);
@@ -548,6 +560,44 @@ export default function ScriptWritingStudio({
   }, [scriptId, format, titlePage, elements, beats, logline, synopsis]);
 
   const exportPrint = useCallback(() => window.print(), []);
+
+  // ── Import a manuscript (.docx / .pdf / .txt / .fountain / .md) ─────────────
+  const importDocument = useCallback(async (file: File) => {
+    setImportError('');
+    if (!isSupportedImport(file.name)) {
+      setImportError('Unsupported file. Use .docx, .pdf, .txt, .fountain, or .md — Google Docs export to any of these.');
+      return;
+    }
+    setImporting(true);
+    try {
+      const { title, plainText } = await extractDocument(file);
+      const parsed = screenplayFromText(plainText);
+      if (!parsed.length) {
+        setImportError('No readable text found in that file.');
+        setImporting(false);
+        return;
+      }
+      setElements(prev => importMode === 'APPEND' ? [...prev, ...parsed] : parsed);
+      setActiveId(parsed[0]?.id ?? null);
+      // Adopt the document's title when the script is still untitled.
+      if (importMode === 'REPLACE' && title &&
+          (!titlePage.title || /^untitled/i.test(titlePage.title))) {
+        setTitlePage(p => ({ ...p, title }));
+      }
+      setShowImport(false);
+    } catch (e: any) {
+      console.error('[ScriptImport]', e);
+      setImportError(e?.message || 'Could not read that file.');
+    } finally {
+      setImporting(false);
+    }
+  }, [importMode, titlePage.title]);
+
+  const onImportPick = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) importDocument(f);
+    e.target.value = ''; // allow re-picking the same file
+  }, [importDocument]);
 
   // ── Add to World Timeline ─────────────────────────────────────────────────
   const addToTimeline = useCallback(async () => {
@@ -1317,6 +1367,14 @@ export default function ScriptWritingStudio({
           )}
         </div>
 
+        {/* Import manuscript */}
+        <button
+          onClick={() => { setImportError(''); setShowImport(true); }}
+          title="Import a document (Word, PDF, text, Fountain)"
+          className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/8 transition-colors">
+          <FileUp size={14} />
+        </button>
+
         {/* Title page toggle */}
         <button
           onClick={() => setShowTitlePage(p => !p)}
@@ -1411,6 +1469,76 @@ export default function ScriptWritingStudio({
       {/* Click-away to close menus */}
       {(showRevMenu || showFormatMenu) && (
         <div className="fixed inset-0 z-10" onClick={() => { setShowRevMenu(false); setShowFormatMenu(false); }} />
+      )}
+
+      {/* ── Import modal ── */}
+      {showImport && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+             onClick={() => !importing && setShowImport(false)}>
+          <div className="w-full max-w-md bg-[#141414] border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+               onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/8">
+              <div className="flex items-center gap-2">
+                <FileUp size={15} className="text-orange-400" />
+                <span className="text-xs font-black uppercase tracking-widest text-white/80">Import Document</span>
+              </div>
+              <button onClick={() => !importing && setShowImport(false)}
+                className="p-1 rounded-lg text-white/30 hover:text-white hover:bg-white/8 transition-colors">
+                <X size={15} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Replace / Append */}
+              <div className="flex gap-2">
+                {(['REPLACE', 'APPEND'] as const).map(m => (
+                  <button key={m}
+                    onClick={() => setImportMode(m)}
+                    className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-colors ${importMode === m ? 'bg-orange-500/20 text-orange-400 ring-1 ring-orange-500/40' : 'bg-white/5 text-white/40 hover:text-white/70'}`}>
+                    {m === 'REPLACE' ? 'Replace script' : 'Append to end'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Drop zone */}
+              <div
+                onDragOver={e => { e.preventDefault(); setImportDragging(true); }}
+                onDragLeave={() => setImportDragging(false)}
+                onDrop={e => { e.preventDefault(); setImportDragging(false); const f = e.dataTransfer.files?.[0]; if (f) importDocument(f); }}
+                onClick={() => !importing && importInputRef.current?.click()}
+                className={`flex flex-col items-center justify-center gap-2 py-8 px-4 rounded-2xl border-2 border-dashed cursor-pointer transition-colors ${importDragging ? 'border-orange-500/60 bg-orange-500/10' : 'border-white/12 hover:border-white/25 bg-white/[0.02]'}`}>
+                {importing ? (
+                  <>
+                    <RefreshCw size={22} className="text-orange-400 animate-spin" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white/50">Reading & formatting…</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={22} className="text-white/40" />
+                    <span className="text-[11px] font-bold text-white/60">Drop a file or click to browse</span>
+                    <span className="text-[9px] text-white/30">.docx · .pdf · .txt · .fountain · .md</span>
+                  </>
+                )}
+                <input ref={importInputRef} type="file" accept={SUPPORTED_IMPORT_ACCEPT} className="hidden" onChange={onImportPick} />
+              </div>
+
+              {/* Error */}
+              {importError && (
+                <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
+                  <AlertCircle size={13} className="text-red-400 mt-px shrink-0" />
+                  <span className="text-[10px] text-red-300/90 leading-relaxed">{importError}</span>
+                </div>
+              )}
+
+              {/* Hints */}
+              <div className="text-[9px] text-white/30 leading-relaxed space-y-1">
+                <p><span className="text-white/50 font-bold">Google Docs?</span> File → Download → <span className="text-white/50">Microsoft Word (.docx)</span> or plain text, then import it here.</p>
+                <p>Scene headings (INT./EXT.), ALL-CAPS character cues, and CUT TO: transitions are auto-detected. Fountain files import with full formatting.</p>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
