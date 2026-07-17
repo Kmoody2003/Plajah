@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { useGoogleCast } from '../hooks/useGoogleCast';
 import { useViewport } from '../hooks/useViewport';
-import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box, Video as VideoIcon, Headphones } from 'lucide-react';
+import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Shuffle, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box, Video as VideoIcon, Headphones } from 'lucide-react';
 import Logo from './Logo';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
@@ -81,9 +81,11 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
     prev, 
     toggleFullScreen,
     toggleAppFullScreen,
-    repeatMode, 
-    setRepeatMode, 
-    playTrack, 
+    repeatMode,
+    setRepeatMode,
+    isShuffle,
+    setIsShuffle,
+    playTrack,
     setVideoElement, 
     setCurrentVideo,
     analyser,
@@ -601,7 +603,14 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col items-center">
                     <div className="flex items-center gap-0">
-                      <button 
+                      <button
+                        onClick={() => setIsShuffle(!isShuffle)}
+                        className={`p-1 transition-all ${isShuffle ? 'text-green-400' : 'text-white/40 hover:text-white'}`}
+                        title={isShuffle ? "Shuffle On" : "Shuffle Off"}
+                      >
+                        <Shuffle size={isMinimized ? 11 : 14} />
+                      </button>
+                      <button
                         onClick={() => {
                           if (repeatMode === 'OFF') setRepeatMode('ALL');
                           else if (repeatMode === 'ALL') setRepeatMode('ONE');
@@ -912,11 +921,12 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
           onClick={() => setIsMinimized(false)}
           className="fixed z-[1010] flex items-center gap-2 px-3 py-1.5 bg-black/70 backdrop-blur-xl border border-white/10 rounded-full shadow-[0_0_20px_rgba(107,0,153,0.4)] hover:scale-105 active:scale-95 transition-all"
           style={{
+            // Centered, and lifted so it hovers clearly ABOVE the restore chevron (no mis-taps).
             bottom: isPhoneMode && !isLandscape
-              ? 'calc(4rem + env(safe-area-inset-bottom) + 0.5rem)'
-              : '0.5rem',
-            right: isPhoneMode ? '50%' : '5rem',
-            transform: isPhoneMode ? 'translateX(50%)' : undefined,
+              ? 'calc(4rem + env(safe-area-inset-bottom) + 3.25rem)'
+              : '3.25rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
           }}
           title="Show Player"
         >
@@ -969,7 +979,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
               setIsMinimized(!isMinimized);
             }
           }}
-          className={`absolute p-2 bg-theme-card/90 backdrop-blur-3xl border border-white/5 rounded-t-xl transition-all shadow-2xl ${isPhoneMode ? 'text-small-orange hover:text-white' : (isMinimized ? 'text-small-orange' : 'text-white/40 hover:text-white')} ${isPhoneMode ? 'left-1/2 -translate-x-1/2' : 'right-8'} ${isLandscape && !isMinimized ? 'hidden' : '-top-10'} ${isMinimized ? 'animate-pulse hover:animate-none' : ''}`}
+          className={`absolute p-2 bg-theme-card/90 backdrop-blur-3xl border border-white/5 rounded-t-xl transition-all shadow-2xl left-1/2 -translate-x-1/2 ${isPhoneMode ? 'text-small-orange hover:text-white' : (isMinimized ? 'text-small-orange' : 'text-white/40 hover:text-white')} ${isLandscape && !isMinimized ? 'hidden' : '-top-10'} ${isMinimized ? 'animate-pulse hover:animate-none' : ''}`}
           title={isPhoneMode ? 'Open now playing' : (isMinimized ? 'Bring player back up' : 'Minimize')}
         >
           {isPhoneMode
@@ -1062,6 +1072,15 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                         <span className="text-[7px] font-black uppercase tracking-widest">
                           {repeatMode === 'OFF' ? 'Repeat' : repeatMode === 'ALL' ? 'All' : 'One'}
                         </span>
+                      </button>
+
+                      {/* Shuffle / random */}
+                      <button
+                        onClick={() => setIsShuffle(!isShuffle)}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl transition-all ${isShuffle ? 'bg-green-500/20 text-green-400' : 'bg-white/5 text-white/40'}`}
+                      >
+                        <Shuffle size={18} />
+                        <span className="text-[7px] font-black uppercase tracking-widest">Shuffle</span>
                       </button>
 
                       {/* Visualizer type */}
@@ -1252,8 +1271,16 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
 
               {/* Balanced Controls Hub at Bottom */}
               <div className={`flex items-center justify-between ${isLandscape ? 'flex-1 gap-2' : 'w-full'} ${isShrunk ? 'px-1 gap-2' : (isLandscape ? 'px-0' : 'px-3 gap-2')}`}>
-                {/* Left Side: repeat toggle always visible in portrait */}
+                {/* Left Side: shuffle + repeat toggles always visible in portrait */}
                 <div className={`flex items-center justify-start shrink-0 ${isLandscape ? 'hidden' : ''}`}>
+                  <button
+                    onClick={() => setIsShuffle(!isShuffle)}
+                    className={`p-2 transition-all rounded-full android-press ${isShuffle ? 'text-green-400' : 'text-white/20'}`}
+                    style={{ minWidth: 36, minHeight: 36 }}
+                    title={isShuffle ? 'Shuffle On' : 'Shuffle Off'}
+                  >
+                    <Shuffle size={16} />
+                  </button>
                   <button
                     onClick={() => {
                       if (repeatMode === 'OFF') setRepeatMode('ALL');

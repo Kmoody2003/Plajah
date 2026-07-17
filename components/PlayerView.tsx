@@ -8,6 +8,7 @@ import Visualizer from './Visualizer';
 import AnimatedSlideshow from './AnimatedSlideshow';
 import ScrollingWaveform from './ScrollingWaveform';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
+import FxStageVisualizers, { type FxEngine, fxPresetName, FX_ENGINE_PRESETS, loadMilkdropNames } from './FxStageVisualizers';
 import Logo from './Logo';
 import { publishToCloud, postComment, subscribeToComments, updateAlbum, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig, createPost, auth } from '../services/backendService';
 import ShareButton from './ShareButton';
@@ -445,6 +446,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     togglePlay,
     next: globalNext,
     prev: globalPrev,
+    repeatMode,
+    isShuffle,
+    setIsShuffle,
+    nextTrackId,
     analyser: globalAnalyser,
     isSlideshowActive,
     setIsSlideshowActive,
@@ -510,6 +515,75 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const [isMobile, setIsMobile] = useState(detectMobile);
   const [isVisualizerLayout, setIsVisualizerLayout] = useState(false);
   const [isVisualizerFullscreen, setIsVisualizerFullscreen] = useState(false);
+  // FX Stage engine: 'FLOW'/'PAINT' are the built-in reactors; the rest pull the
+  // three Plajah Pixels engines (MilkDrops / Shaders / Generators) as no-param reactors.
+  const [fxEngine, setFxEngine] = useState<'FLOW' | 'PAINT' | FxEngine>('FLOW');
+  const [fxPresetIndex, setFxPresetIndex] = useState(0);
+  const [fxMenuOpen, setFxMenuOpen] = useState(false);
+  const [milkdropNames, setMilkdropNames] = useState<string[]>([]);
+  const isPixelsEngine = fxEngine === 'MILKDROP' || fxEngine === 'SHADER' || fxEngine === 'GENERATOR';
+  const FX_OPTIONS = [
+    { id: 'FLOW' as const, label: 'Flow' }, { id: 'PAINT' as const, label: 'Paint' },
+    { id: 'MILKDROP' as const, label: 'MilkDrops' }, { id: 'SHADER' as const, label: 'Shaders' }, { id: 'GENERATOR' as const, label: 'Generators' },
+  ];
+  // Lazily fetch the full butterchurn preset name list the first time MilkDrops is used.
+  React.useEffect(() => {
+    if (fxEngine === 'MILKDROP' && milkdropNames.length === 0) loadMilkdropNames().then(setMilkdropNames);
+  }, [fxEngine, milkdropNames.length]);
+  const selectFxEngine = React.useCallback((id: 'FLOW' | 'PAINT' | FxEngine) => {
+    setFxEngine(id); setFxPresetIndex(0); setFxMenuOpen(false);
+    if (id === 'FLOW' || id === 'PAINT') setVisualizerType(id);
+  }, [setVisualizerType]);
+  const cycleFxPreset = React.useCallback((dir: 1 | -1) => setFxPresetIndex(p => p + dir), []);
+  // The active pixels engine's full preset list (MilkDrops loaded async).
+  const fxPresetList = fxEngine === 'MILKDROP' ? milkdropNames : (isPixelsEngine ? FX_ENGINE_PRESETS[fxEngine as FxEngine] : []);
+  const fxCurrentPreset = fxPresetList.length ? fxPresetList[((fxPresetIndex % fxPresetList.length) + fxPresetList.length) % fxPresetList.length] : '';
+
+  // Selector: the three types stay separate (pills); the active pixels type gets its own
+  // dropdown listing ALL its Plajah Pixels presets, plus ◀ ▶ to step through them.
+  const fxSelectorEl = (
+    <div className="flex items-center gap-2 shrink-0 min-w-0">
+      {/* Type pills — Flow / Paint / MilkDrops / Shaders / Generators */}
+      <div className="flex items-center gap-0.5 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full p-1 shrink-0">
+        {FX_OPTIONS.map(opt => (
+          <button key={opt.id} onClick={() => selectFxEngine(opt.id)}
+            className={`shrink-0 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${fxEngine === opt.id ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}>
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Per-type preset dropdown (only for the pixels engines) */}
+      {isPixelsEngine && (
+        <div className="relative flex items-center gap-1 shrink-0">
+          <button onClick={() => cycleFxPreset(-1)} aria-label="Previous preset"
+            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-black/50 border border-white/10 text-white/60 hover:text-white transition-all"><ChevronLeft size={14} /></button>
+          <button onClick={() => setFxMenuOpen(o => !o)}
+            className="shrink-0 flex items-center gap-1.5 h-7 px-3 rounded-full bg-black/50 border border-white/10 text-white text-[9px] font-bold hover:bg-black/70 transition-all max-w-[150px]">
+            <span className="truncate">{fxCurrentPreset || (fxEngine === 'MILKDROP' ? 'Loading…' : `Preset ${fxPresetIndex + 1}`)}</span>
+            <ChevronDown size={12} className={`shrink-0 transition-transform ${fxMenuOpen ? 'rotate-180' : ''}`} />
+          </button>
+          <button onClick={() => cycleFxPreset(1)} aria-label="Next preset"
+            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-black/50 border border-white/10 text-white/60 hover:text-white transition-all"><ChevronRight size={14} /></button>
+          {fxMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setFxMenuOpen(false)} />
+              <div className="absolute top-full right-0 mt-2 w-56 max-h-72 overflow-y-auto no-scrollbar rounded-2xl bg-[#141414] border border-white/10 shadow-2xl z-50 p-1">
+                <div className="px-3 pt-1.5 pb-1 text-[8px] font-black uppercase tracking-[0.2em] text-white/25">{fxEngine === 'MILKDROP' ? 'MilkDrops' : fxEngine === 'SHADER' ? 'Shaders' : 'Generators'} · {fxPresetList.length || '…'}</div>
+                {fxPresetList.length === 0 && <div className="px-3 py-2 text-[10px] text-white/30">Loading presets…</div>}
+                {fxPresetList.map((name, idx) => (
+                  <button key={idx} onClick={() => { setFxPresetIndex(idx); setFxMenuOpen(false); }}
+                    className={`w-full text-left px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors truncate ${(((fxPresetIndex % fxPresetList.length) + fxPresetList.length) % fxPresetList.length) === idx ? 'bg-small-orange/20 text-small-orange' : 'text-white/50 hover:text-white hover:bg-white/5'}`}>
+                    {name}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
   const [isDJMode, setIsDJMode] = useState(false);
   const [isLightingOpen, setIsLightingOpen] = useState(false);
 
@@ -557,6 +631,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   }, [album.worldId]);
 
   const currentTrack = localTracks?.[currentTrackIndex] || null;
+  // Open the full Plajah Pixels experience for the current track (same as the track-row PP button).
+  const openPlajahPixels = React.useCallback(() => {
+    window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { track: currentTrack, album } }));
+  }, [currentTrack, album]);
   const isOwner = user && album.ownerId === user.uid;
 
   const reorderTracks = async (from: number, to: number) => {
@@ -782,6 +860,13 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const getCurrentCaption = () => getActiveCaption(currentTrack, globalCurrentTime, globalDuration);
 
   const isCurrentTrackGlobal = globalTrack?.id === currentTrack?.id;
+  // ── Active-track timing for the track bar (countdown + end-approach visuals) ──
+  const trackRemaining = Math.max(0, (globalDuration || 0) - (globalCurrentTime || 0));
+  const trackProgress = globalDuration > 0 ? Math.min(1, (globalCurrentTime || 0) / globalDuration) : 0;
+  const isEndingSoon = isCurrentTrackGlobal && globalDuration > 0 && trackRemaining <= 10;
+  // Repeat-One: green glow at the very start that fades into the gradient (first ~12%).
+  const repeatOneGreenOpacity = (repeatMode === 'ONE' && globalDuration > 0)
+    ? Math.max(0, 1 - trackProgress / 0.12) : 0;
   const activeVideo = album.musicVideos?.find(v => v.id === activeVideoId);
   const ytPlayerRef = useRef<any>(null);
   const ytContainerId = useRef(`yt-player-${Math.random().toString(36).substr(2, 9)}`);
@@ -936,6 +1021,29 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
         {/* Top Media Section (Shared Placement for Cover Art & Video) */}
         <div id="mobile-video-container" className="relative w-full flex-1 bg-transparent overflow-hidden border-b border-white/5 z-10">
+          {/* ── Mobile / tablet FX Stage — audio-reactive visualizers, no parameters ── */}
+          {isVisualizerLayout && (
+            <div className="absolute inset-0 z-30 bg-black">
+              <div className="absolute inset-0">
+                {isPixelsEngine ? (
+                  <FxStageVisualizers engine={fxEngine as FxEngine} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
+                ) : (
+                  <>
+                    <div className="absolute inset-0" style={{ opacity: fxEngine === 'PAINT' ? 0.35 : 1 }}>
+                      <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} alwaysAnimate={true} />
+                    </div>
+                    {fxEngine === 'PAINT' && <div className="absolute inset-0 pointer-events-none"><PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} alwaysAnimate={true} /></div>}
+                  </>
+                )}
+              </div>
+              {/* Controls: exit · reactor selector · PP */}
+              <div className="absolute top-0 left-0 right-0 z-10 p-3 flex items-center gap-2 bg-gradient-to-b from-black/70 to-transparent" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
+                <button onClick={() => setIsVisualizerLayout(false)} aria-label="Exit FX Stage" className="shrink-0 p-2 rounded-full bg-black/60 border border-white/10 text-white/60 hover:text-white transition-all"><X size={14} /></button>
+                <div className="flex-1 flex items-center justify-center min-w-0">{fxSelectorEl}</div>
+                <button onClick={openPlajahPixels} aria-label="Open Plajah Pixels" title="Open the full Plajah Pixels experience" className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-full bg-purple-500/20 border border-purple-400/30 text-purple-200 text-[9px] font-black uppercase tracking-widest"><Sparkles size={11} /> PP</button>
+              </div>
+            </div>
+          )}
           {activeVideoId ? (
             <div className="w-full h-full animate-in fade-in duration-500">
               {(() => {
@@ -1071,6 +1179,15 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                   <Layers size={16} />
                 </button>
               )}
+              {/* FX Stage entry — audio-reactive visualizers on phone/tablet */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsVisualizerLayout(true); }}
+                title="FX Stage — audio-reactive visualizers"
+                className="absolute bottom-4 left-4 z-20 flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/50 backdrop-blur-md border border-white/15 text-white/70 hover:text-white hover:border-small-orange/50 transition-all text-[9px] font-black uppercase tracking-widest"
+                style={{ bottom: 'max(1rem, env(safe-area-inset-bottom))', left: 'max(1rem, env(safe-area-inset-left))' }}
+              >
+                <Activity size={12} /> FX Stage
+              </button>
               {/* Floating Track Info on Cover */}
               <div className="absolute bottom-6 left-6 right-6" style={{bottom:'max(1.5rem, env(safe-area-inset-bottom))'}}>
                 <h2 className="text-2xl font-black uppercase tracking-tightest leading-none mb-1 shadow-md">{currentTrack?.title}</h2>
@@ -1259,6 +1376,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               {localTracks.map((t, i) => {
                 const isActive = currentTrackIndex === i;
                 const isExpanded = expandedTrackId === t.id;
+                // The track queued to play next (respects shuffle/repeat) — glows green.
+                const isNextUp = !isActive && !!nextTrackId && t.id === nextTrackId;
                 const hnsOn = !!album.hideNSeekConfig?.isEnabled;
                 return (
                   <div
@@ -1268,23 +1387,41 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     onDragOver={(e) => { e.preventDefault(); }}
                     onDrop={(e) => { e.preventDefault(); const from = dragTrackIndexRef.current; if (from !== null && from !== i) reorderTracks(from, i); dragTrackIndexRef.current = null; }}
                     onDragEnd={() => { dragTrackIndexRef.current = null; }}
-                    className="relative overflow-hidden border-b border-white/[0.06] last:border-b-0"
+                    className={`relative overflow-hidden border-b border-white/[0.06] last:border-b-0 ${isNextUp ? 'track-next-glow' : ''}`}
                   >
                     {/* Active row: edge-to-edge purple→orange gradient with a slow gentle sweep */}
                     {isActive && <div className="absolute inset-0 track-gradient-active pointer-events-none" aria-hidden="true" />}
+                    {/* Repeat-One: green glow at the start, fading into the gradient */}
+                    {isActive && repeatOneGreenOpacity > 0 && (
+                      <div className="absolute inset-0 pointer-events-none" aria-hidden="true"
+                        style={{ background: 'linear-gradient(90deg, rgba(34,197,94,0.55) 0%, rgba(34,197,94,0) 34%)', opacity: repeatOneGreenOpacity }} />
+                    )}
+                    {/* Final 10s: red flash bleeding in from the trailing edge */}
+                    {isActive && isEndingSoon && (
+                      <div className="absolute inset-0 pointer-events-none track-ending-flash" aria-hidden="true" />
+                    )}
                     <div className={`relative flex items-center gap-3 px-4 py-3.5 ${isActive ? '' : 'hover:bg-white/[0.03]'}`}>
                       {isOwner && <GripVertical size={14} className="text-white/20 shrink-0 cursor-grab active:cursor-grabbing" />}
                       <button onClick={() => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }} className="flex items-center gap-3 text-left flex-1 min-w-0">
-                        <span className="text-[10px] font-black text-small-orange w-4 shrink-0">{i + 1}</span>
+                        <span className="text-[10px] font-black text-small-orange w-4 shrink-0 self-start pt-0.5">{i + 1}</span>
                         <div className="min-w-0 flex-1">
+                          {/* Track-list titles stay a single line (the full title is the big header above) */}
                           <p className="text-xs font-bold uppercase tracking-widest truncate">{t.title}</p>
+                          {/* Lyrics get the full-width title column (timing moved to the right) */}
                           {isActive && isCurrentTrackGlobal
                             ? <CaptionTicker caption={getCurrentCaption()} />
-                            : <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">{t.artist || album.artist}</p>}
+                            : <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest break-words">{t.artist || album.artist}</p>}
                           {(t.isEclipsa || t.isAtmos) && <ImmersiveBadge isEclipsa={t.isEclipsa} isAtmos={t.isAtmos} size="sm" className="mt-1" />}
                         </div>
                       </button>
                       <div className="flex items-center gap-2 shrink-0">
+                        {/* Active track: countdown / total on the RIGHT, right-aligned */}
+                        {isActive && isCurrentTrackGlobal && globalDuration > 0 && (
+                          <div className="flex flex-col items-end font-mono tabular-nums text-[9px] font-black tracking-tight leading-tight self-center">
+                            <span className={isEndingSoon ? 'text-red-400' : 'text-white/70'}>-{formatTime(trackRemaining)}</span>
+                            <span className="text-white/35">{formatTime(globalDuration)}</span>
+                          </div>
+                        )}
                         {isActive && globalIsPlaying && isCurrentTrackGlobal
                           ? <AmplitudeBar analyser={globalAnalyser} isPlaying={true} />
                           : <Play size={14} className="text-white/20" fill="currentColor" />}
@@ -2083,21 +2220,30 @@ const PlayerView: React.FC<PlayerViewProps> = ({
            <div className="flex-1 min-h-0 w-full relative overflow-hidden rounded-3xl bg-black/40 border border-white/[0.06] shadow-[0_0_80px_rgba(0,0,0,0.6)]">
              {/* Full-panel visualizer — always animates (idle or audio-reactive) */}
              <div className="absolute inset-0 z-0">
-               <div className="absolute inset-0" style={{ opacity: visualizerType === 'PAINT' ? 0.35 : 1, transition: 'opacity 0.8s ease' }}>
-                 <Visualizer
-                   analyser={globalAnalyser}
-                   themeColor={album.themeColor}
-                   trackTitle={currentTrack?.title || album.title}
-                   artist={album.artist}
-                   isPlaying={globalIsPlaying && isCurrentTrackGlobal}
-                   scrollingText={scrollingText}
-                   alwaysAnimate={true}
-                 />
-               </div>
-               {visualizerType === 'PAINT' && (
-                 <div className="absolute inset-0 pointer-events-none">
-                   <PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} alwaysAnimate={true} />
+               {isPixelsEngine ? (
+                 /* Plajah Pixels engines — MilkDrops / Shaders / Generators (no-param reactors) */
+                 <div className="absolute inset-0">
+                   <FxStageVisualizers engine={fxEngine as FxEngine} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
                  </div>
+               ) : (
+                 <>
+                   <div className="absolute inset-0" style={{ opacity: fxEngine === 'PAINT' ? 0.35 : 1, transition: 'opacity 0.8s ease' }}>
+                     <Visualizer
+                       analyser={globalAnalyser}
+                       themeColor={album.themeColor}
+                       trackTitle={currentTrack?.title || album.title}
+                       artist={album.artist}
+                       isPlaying={globalIsPlaying && isCurrentTrackGlobal}
+                       scrollingText={scrollingText}
+                       alwaysAnimate={true}
+                     />
+                   </div>
+                   {fxEngine === 'PAINT' && (
+                     <div className="absolute inset-0 pointer-events-none">
+                       <PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} alwaysAnimate={true} />
+                     </div>
+                   )}
+                 </>
                )}
              </div>
 
@@ -2116,28 +2262,25 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                  <X size={11} /> Exit
                </button>
 
-               {/* Visualizer type selector */}
-               <div className="flex items-center gap-1.5 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full p-1">
+               {/* Reactor selector — dropdown of engines + preset-cycling arrows */}
+               {fxSelectorEl}
+
+               <div className="flex items-center gap-2 shrink-0">
+                 {/* PP → full Plajah Pixels experience (same action as the track-row PP button) */}
                  <button
-                   onClick={() => setVisualizerType('FLOW')}
-                   className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${visualizerType === 'FLOW' ? 'bg-white text-black shadow' : 'text-white/40 hover:text-white'}`}
+                   onClick={openPlajahPixels}
+                   title="Open the full Plajah Pixels experience"
+                   className="flex items-center gap-1.5 px-3.5 py-2 bg-purple-500/15 backdrop-blur-xl border border-purple-400/30 rounded-full text-[9px] font-black uppercase tracking-widest text-purple-200 hover:bg-purple-500/30 hover:text-white transition-all"
                  >
-                   Flow
+                   <Sparkles size={11} /> PP
                  </button>
                  <button
-                   onClick={() => setVisualizerType('PAINT')}
-                   className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${visualizerType === 'PAINT' ? 'bg-white text-black shadow' : 'text-white/40 hover:text-white'}`}
+                   onClick={() => setIsVisualizerFullscreen(true)}
+                   className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full text-[9px] font-black uppercase tracking-widest text-white hover:bg-white/20 transition-all"
                  >
-                   Paint
+                   <Maximize2 size={11} /> Full
                  </button>
                </div>
-
-               <button
-                 onClick={() => setIsVisualizerFullscreen(true)}
-                 className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full text-[9px] font-black uppercase tracking-widest text-white hover:bg-white/20 transition-all"
-               >
-                 <Maximize2 size={11} /> Full
-               </button>
              </div>
 
              {/* Bottom: album art thumbnail + track info */}
@@ -2582,8 +2725,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             </motion.div>
           )}
 
-          <div className={`w-full bg-theme-card backdrop-blur-3xl rounded-[2.5rem] shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_8px_40px_rgba(0,0,0,0.25)] ${isVisualizerLayout ? 'p-4 lg:p-5' : 'p-6 lg:p-8'}`}>
-             <div className="flex flex-col gap-4">
+          <div className={`relative overflow-hidden w-full bg-theme-card backdrop-blur-3xl rounded-[2.5rem] shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_8px_40px_rgba(0,0,0,0.25)] ${isVisualizerLayout ? 'p-4 lg:p-5' : 'p-6 lg:p-8'}`}>
+             {/* Animated Plajah brand gradient — living sweep, weighted to purple + magenta */}
+             <div className="absolute inset-0 audio-session-gradient opacity-40 pointer-events-none" aria-hidden="true" />
+             <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/20 to-black/45 pointer-events-none" aria-hidden="true" />
+             <div className="relative z-10 flex flex-col gap-4">
                 <div className="flex items-center gap-4">
                    <span className="px-3 py-1 bg-white/10 rounded-md text-[10px] font-black tracking-widest text-small-orange uppercase">Audio Session</span>
                    <span className="text-[10px] font-bold opacity-30 uppercase tracking-widest">Track {currentTrackIndex+1} / {album.tracks.length}</span>
@@ -2665,8 +2811,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                      />
                    </div>
                 </div>
-                <h1 className={`font-display font-black tracking-tightest leading-[0.9] ${isVisualizerLayout ? 'text-xl lg:text-2xl' : 'text-4xl lg:text-5xl'}`}>{currentTrack?.title || album.title}</h1>
-                {!isVisualizerLayout && <p className="text-xl lg:text-2xl font-medium text-primary/40 italic">{album.artist}</p>}
+                <h1 className={`font-black uppercase tracking-tighter leading-[0.9] text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] ${isVisualizerLayout ? 'text-lg lg:text-2xl' : 'text-3xl lg:text-5xl'}`}>{currentTrack?.title || album.title}</h1>
+                {!isVisualizerLayout && (
+                  <p className="text-lg lg:text-2xl font-display font-black italic tracking-tight bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#6B0099] bg-clip-text text-transparent w-fit drop-shadow-[0_1px_8px_rgba(0,0,0,0.4)]">{album.artist}</p>
+                )}
                 {(() => { const ecl = currentTrack?.isEclipsa || album.tracks?.some(t => t.isEclipsa); const atm = currentTrack?.isAtmos || album.tracks?.some(t => t.isAtmos); return (ecl || atm) ? <ImmersiveBadge isEclipsa={ecl} isAtmos={atm} showHint className="mt-3" /> : null; })()}
              </div>
           </div>
@@ -2821,6 +2969,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             {localTracks.map((t, i) => {
                               const isActive = currentTrackIndex === i;
                               const isExpanded = expandedTrackId === t.id;
+                              const isNextUp = !isActive && !!nextTrackId && t.id === nextTrackId;
                               const hnsOn = !!album.hideNSeekConfig?.isEnabled;
                               return (
                                 <div
@@ -2831,46 +2980,36 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                   onDragLeave={() => setDragOverTrackIndex(null)}
                                   onDrop={(e) => { e.preventDefault(); const from = dragTrackIndexRef.current; setDragOverTrackIndex(null); if (from !== null && from !== i) reorderTracks(from, i); dragTrackIndexRef.current = null; }}
                                   onDragEnd={() => { dragTrackIndexRef.current = null; setDragOverTrackIndex(null); }}
-                                  className={`rounded-2xl border transition-all ${dragOverTrackIndex === i ? 'scale-[1.01] border-small-orange/60' : isActive ? 'border-[#FF8C00]/50' : 'border-white/5'}`}
+                                  className={`relative overflow-hidden rounded-2xl border transition-all ${isNextUp ? 'track-next-glow' : ''} ${dragOverTrackIndex === i ? 'scale-[1.01] border-small-orange/60' : isActive ? 'border-[#FF8C00]/50' : 'border-white/5'}`}
                                 >
-                                  <div className={`flex items-center gap-3 px-3 py-2 relative overflow-hidden rounded-2xl group ${isActive ? 'bg-gradient-to-r from-[#6B0099]/30 via-[#D40055]/30 to-[#FF8C00]/30 backdrop-blur-2xl shadow-[0_0_30px_rgba(107,0,153,0.3)]' : 'bg-gradient-to-r from-[#6B0099]/10 via-transparent to-[#FF8C00]/10 backdrop-blur-xl hover:from-[#6B0099]/20 hover:to-[#FF8C00]/20'} ${isExpanded ? '!rounded-b-none' : ''}`}>
-                                    {isOwner && <GripVertical size={14} className="text-white/20 shrink-0 cursor-grab active:cursor-grabbing" />}
+                                  <div className={`flex items-center gap-3 px-3 py-2 relative overflow-hidden rounded-2xl group ${isActive ? 'backdrop-blur-2xl shadow-[0_0_30px_rgba(107,0,153,0.3)]' : 'bg-gradient-to-r from-[#6B0099]/10 via-transparent to-[#FF8C00]/10 backdrop-blur-xl hover:from-[#6B0099]/20 hover:to-[#FF8C00]/20'} ${isExpanded ? '!rounded-b-none' : ''}`}>
+                                    {/* Active row: animated brand gradient + repeat-one green + final-10s red flash */}
+                                    {isActive && <div className="absolute inset-0 track-gradient-active pointer-events-none" aria-hidden="true" />}
+                                    {isActive && repeatOneGreenOpacity > 0 && <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{ background: 'linear-gradient(90deg, rgba(34,197,94,0.55) 0%, rgba(34,197,94,0) 34%)', opacity: repeatOneGreenOpacity }} />}
+                                    {isActive && isEndingSoon && <div className="absolute inset-0 pointer-events-none track-ending-flash" aria-hidden="true" />}
+                                    {isOwner && <GripVertical size={14} className="text-white/20 shrink-0 cursor-grab active:cursor-grabbing relative z-10" />}
                                     <button onClick={() => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }} className="flex items-center gap-4 text-left flex-1 min-w-0 relative z-10">
                                       <span className={`text-[10px] font-black w-4 shrink-0 ${isActive ? 'text-small-orange' : 'text-white/20'}`}>{i + 1}</span>
-                                      <span className={`text-sm font-bold uppercase tracking-widest truncate ${isActive ? 'text-white' : 'text-white/60 group-hover:text-white'}`}>{t.title || 'Untitled'}</span>
+                                      <span className="min-w-0 flex-1">
+                                        {/* Track-list titles stay a single line (full title is the big header above) */}
+                                        <span className={`block text-sm font-bold uppercase tracking-widest truncate ${isActive ? 'text-white' : 'text-white/60 group-hover:text-white'}`}>{t.title || 'Untitled'}</span>
+                                        {/* Live lyrics — only when there's a real caption (getActiveCaption returns '...' when none) */}
+                                        {isActive && isCurrentTrackGlobal && getCurrentCaption() !== '...' && <CaptionTicker caption={getCurrentCaption()} />}
+                                      </span>
                                     </button>
                                     <div className="flex items-center gap-2 shrink-0 relative z-10">
+                                      {isActive && isCurrentTrackGlobal && globalDuration > 0 && (
+                                        <div className="flex flex-col items-end font-mono tabular-nums text-[9px] font-black tracking-tight leading-tight self-center">
+                                          <span className={isEndingSoon ? 'text-red-400' : 'text-white/70'}>-{formatTime(trackRemaining)}</span>
+                                          <span className="text-white/35">{formatTime(globalDuration)}</span>
+                                        </div>
+                                      )}
                                       {t.isExclusive && <span className="text-[8px] font-black text-small-orange uppercase">Excl.</span>}
                                       {isActive && globalIsPlaying && isCurrentTrackGlobal
                                         ? <div className="flex gap-0.5 items-end h-3">{[0,1,2].map(b => <motion.div key={b} animate={{height:[4,12,6,10,4]}} transition={{duration:1,repeat:Infinity,delay:b*0.2}} className="w-0.5 bg-small-orange rounded-full" />)}</div>
                                         : <Play size={13} className="text-white/10 group-hover:text-white/40" fill="currentColor" />}
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_BREAKDOWN', { detail: { track: t, album } })); }}
-                                        title="The Breakdown — analyze key, tempo, chords & sheet music"
-                                        className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-[#FF8C00]/10 hover:bg-[#FF8C00]/25 text-[#FF8C00]/60 hover:text-[#FF8C00] transition-all text-[9px] font-black uppercase tracking-widest"
-                                      >
-                                        <Waves size={11} />
-                                        <span className="hidden lg:inline">Breakdown</span>
-                                      </button>
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { track: t, album } })); }}
-                                        title="Plajah Pixels — send this song into the visualizer"
-                                        className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/25 text-purple-300/70 hover:text-purple-200 transition-all text-[9px] font-black uppercase tracking-widest"
-                                      >
-                                        <Sparkles size={11} />
-                                        <span>PP</span>
-                                      </button>
-                                      {!t.isPersonalMedia && t.url && (
-                                        <button
-                                          onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_LICENSE_FOR_FILM', { detail: { track: t, album } })); }}
-                                          title="License this song for a film in Fabula"
-                                          className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-300/70 hover:text-emerald-200 transition-all text-[9px] font-black uppercase tracking-widest"
-                                        >
-                                          <Film size={11} />
-                                          <span className="hidden lg:inline">Use in film</span>
-                                        </button>
-                                      )}
-                                      <button onClick={(e) => { e.stopPropagation(); setExpandedTrackId(isExpanded ? null : t.id); }} title="More" className={`${isOwner ? '' : 'sm:hidden'} p-1.5 rounded-lg transition-all ${isExpanded ? 'bg-small-orange/20 text-small-orange' : 'text-white/20 hover:text-white'}`}>
+                                      {/* Breakdown / PP / Use-in-film live in the collapsible drawer below (all rows) */}
+                                      <button onClick={(e) => { e.stopPropagation(); setExpandedTrackId(isExpanded ? null : t.id); }} title="More actions" className={`p-1.5 rounded-lg transition-all ${isExpanded ? 'bg-small-orange/20 text-small-orange' : 'text-white/25 hover:text-white'}`}>
                                         <ChevronDown size={13} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                       </button>
                                     </div>
@@ -2889,8 +3028,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                         className="overflow-hidden"
                                       >
                                         <div className="bg-black/50 backdrop-blur-xl rounded-b-2xl border-t border-white/5 p-4 space-y-3">
-                                          {/* Phone quick actions (hidden on sm+, where they live inline) */}
-                                          <div className="flex sm:hidden flex-wrap gap-2">
+                                          {/* Secondary action row — Breakdown / Pixels / Use-in-film for every track */}
+                                          <div className="flex flex-wrap gap-2">
                                             <button
                                               onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_BREAKDOWN', { detail: { track: t, album } })); }}
                                               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FF8C00]/12 text-[#FF8C00] transition-all text-[10px] font-black uppercase tracking-widest"
@@ -2961,11 +3100,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                       </motion.div>
                                     )}
                                   </AnimatePresence>
-                                  {!isExpanded && isActive && (
-                                    <div className="px-4 pb-2">
-                                      <HUDCommentModule album={album} trackId={t.id} isPublic={true} themeColor={album.themeColor} user={user} minimal onVisitUser={onVisitUser} onUpdate={onUpdate} />
-                                    </div>
-                                  )}
+                                  {/* (Comments for the active track live in the album comments panel below,
+                                      not inline per-row — keeps every track bar a uniform single line.) */}
 
                                   {/* ── In This Song characters ── */}
                                   {t.characterIds && t.characterIds.length > 0 && worldCharacters.length > 0 && (
@@ -3319,13 +3455,21 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           >
             {/* ── Background: full-canvas visualizer ── */}
             <div className="absolute inset-0 z-0">
-              <div className="absolute inset-0" style={{ opacity: visualizerType === 'PAINT' ? 0.5 : 1, transition: 'opacity 0.8s ease' }}>
-                <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} alwaysAnimate={true} />
-              </div>
-              {visualizerType === 'PAINT' && (
-                <div className="absolute inset-0 pointer-events-none">
-                  <PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} alwaysAnimate={true} />
+              {isPixelsEngine ? (
+                <div className="absolute inset-0">
+                  <FxStageVisualizers engine={fxEngine as FxEngine} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
                 </div>
+              ) : (
+                <>
+                  <div className="absolute inset-0" style={{ opacity: fxEngine === 'PAINT' ? 0.5 : 1, transition: 'opacity 0.8s ease' }}>
+                    <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} alwaysAnimate={true} />
+                  </div>
+                  {fxEngine === 'PAINT' && (
+                    <div className="absolute inset-0 pointer-events-none">
+                      <PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} alwaysAnimate={true} />
+                    </div>
+                  )}
+                </>
               )}
             </div>
 

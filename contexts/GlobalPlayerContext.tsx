@@ -24,6 +24,10 @@ interface GlobalPlayerContextType {
   audioSource: 'LIBRARY' | 'RADIO' | 'VIDEO' | null;
   repeatMode: 'OFF' | 'ONE' | 'ALL';
   setRepeatMode: (mode: 'OFF' | 'ONE' | 'ALL') => void;
+  isShuffle: boolean;
+  setIsShuffle: (val: boolean) => void;
+  /** Pre-selected next track (respects shuffle / repeat) so the UI can highlight it. */
+  nextTrackId: string | null;
   playTrack: (track: Track, album: Album | null, source: 'LIBRARY' | 'RADIO' | 'VIDEO', startAt?: number, forceReload?: boolean) => void;
   playVideo: (video: Video) => void;
   setVideoElement: (el: HTMLVideoElement | null) => void;
@@ -143,6 +147,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [duration, setDuration] = useState(0);
   const [audioSource, setAudioSource] = useState<'LIBRARY' | 'RADIO' | 'VIDEO' | null>(null);
   const [repeatMode, setRepeatMode] = useState<'OFF' | 'ONE' | 'ALL'>('OFF');
+  const [isShuffle, setIsShuffle] = useState(false);
+  const [nextTrackId, setNextTrackId] = useState<string | null>(null);
+  const shuffleOrderRef = useRef<string[]>([]); // stable shuffled id order so the "next" pick doesn't jitter
   const [isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled] = useState(true);
   const [visualizerType, setVisualizerType] = useState<'FLOW' | 'PAINT'>('FLOW');
   const [isSlideshowActive, setIsSlideshowActive] = useState(false);
@@ -174,7 +181,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const playCountedTrackRef = useRef<string | null>(null);
   const lastProgressSaveRef = useRef(0);
   const ytPlayerRef = useRef<any | null>(null);
-  const stateRef = useRef({ repeatMode, currentAlbum, currentTrack, currentVideo, isPlaying, audioSource, currentTime, ytPlayer: null as any });
+  const stateRef = useRef({ repeatMode, isShuffle, currentAlbum, currentTrack, currentVideo, isPlaying, audioSource, currentTime, ytPlayer: null as any });
   const audioRef = useRef<HTMLAudioElement>(audioElement);
   const preloaderAudioRef = useRef<HTMLAudioElement>(new Audio());
   const hlsRef = useRef<Hls | null>(null); // active hls.js instance (transcoded HLS streams)
@@ -370,8 +377,45 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, []);
 
   useEffect(() => {
-    stateRef.current = { repeatMode, currentAlbum, currentTrack, currentVideo, isPlaying, audioSource, currentTime, ytPlayer: ytPlayerRef.current };
-  }, [repeatMode, currentAlbum, currentTrack, currentVideo, isPlaying, audioSource, currentTime]);
+    stateRef.current = { repeatMode, isShuffle, currentAlbum, currentTrack, currentVideo, isPlaying, audioSource, currentTime, ytPlayer: ytPlayerRef.current };
+  }, [repeatMode, isShuffle, currentAlbum, currentTrack, currentVideo, isPlaying, audioSource, currentTime]);
+
+  // ── Next-track selection (shuffle / repeat aware) ──────────────────────────
+  // Pre-selects the upcoming track so both auto-advance AND the UI (green glow)
+  // agree on what plays next — even in shuffle, the "next" is stable, not re-rolled.
+  const pickNextId = React.useCallback((): string | null => {
+    const st = stateRef.current;
+    const album = st.currentAlbum, cur = st.currentTrack;
+    if (!album || !cur || !album.tracks?.length) return null;
+    const tracks = album.tracks;
+    if (st.repeatMode === 'ONE') return cur.id;
+    if (st.isShuffle) {
+      let order = shuffleOrderRef.current;
+      if (order.indexOf(cur.id) === -1) {
+        const rest = tracks.map(t => t.id).filter(id => id !== cur.id);
+        for (let k = rest.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [rest[k], rest[j]] = [rest[j], rest[k]]; }
+        order = shuffleOrderRef.current = [cur.id, ...rest];
+      }
+      const i = order.indexOf(cur.id);
+      if (i !== -1 && i < order.length - 1) return order[i + 1];
+      // Exhausted the bag → reshuffle the rest (never repeat current back-to-back).
+      const rest = tracks.map(t => t.id).filter(id => id !== cur.id);
+      if (!rest.length) return st.repeatMode === 'ALL' ? cur.id : null;
+      for (let k = rest.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [rest[k], rest[j]] = [rest[j], rest[k]]; }
+      shuffleOrderRef.current = [cur.id, ...rest];
+      return rest[0];
+    }
+    const idx = tracks.findIndex(t => t.id === cur.id);
+    if (idx !== -1 && idx < tracks.length - 1) return tracks[idx + 1].id;
+    if (st.repeatMode === 'ALL') return tracks[0].id;
+    return null;
+  }, []);
+
+  // Refresh the exposed nextTrackId whenever the pick could change.
+  useEffect(() => {
+    if (!isShuffle) shuffleOrderRef.current = [];
+    setNextTrackId(pickNextId());
+  }, [currentTrack?.id, currentAlbum?.id, repeatMode, isShuffle, pickNextId]);
 
   const setYtPlayer = useCallback((player: any | null) => {
     ytPlayerRef.current = player;
@@ -861,19 +905,14 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const next = React.useCallback(() => {
     if (stateRef.current.audioSource === 'VIDEO') return;
-    if (stateRef.current.currentAlbum && stateRef.current.currentTrack) {
-      const idx = stateRef.current.currentAlbum.tracks.findIndex(t => t.id === stateRef.current.currentTrack?.id);
-      if (idx !== -1) {
-        if (idx < stateRef.current.currentAlbum.tracks.length - 1) {
-          playTrack(stateRef.current.currentAlbum.tracks[idx + 1], stateRef.current.currentAlbum, 'LIBRARY');
-        } else if (stateRef.current.repeatMode === 'ALL') {
-          playTrack(stateRef.current.currentAlbum.tracks[0], stateRef.current.currentAlbum, 'LIBRARY');
-        } else {
-          pause();
-        }
-      }
+    const album = stateRef.current.currentAlbum;
+    if (album && stateRef.current.currentTrack) {
+      const nid = pickNextId();                       // shuffle / repeat aware
+      const t = nid ? album.tracks.find(x => x.id === nid) : null;
+      if (t) playTrack(t, album, 'LIBRARY');
+      else pause();
     }
-  }, [playTrack, pause]);
+  }, [playTrack, pause, pickNextId]);
 
   const prev = React.useCallback(() => {
     if (stateRef.current.audioSource === 'VIDEO') return;
@@ -1336,6 +1375,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const contextValue: GlobalPlayerContextType = useMemo(() => ({
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
+    isShuffle, setIsShuffle, nextTrackId,
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev,
     analyser: analyserRef.current, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme, isBigScreen: theme === 'BIG_SCREEN',
@@ -1346,6 +1386,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     isPlayerExpanded, setIsPlayerExpanded,
   }), [
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
+    isShuffle, setIsShuffle, nextTrackId,
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev,
     isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme,

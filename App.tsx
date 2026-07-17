@@ -294,7 +294,7 @@ const THEME_BG: Record<string, string> = {
 };
 import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd, fetchSystemSettingsConfig } from './services/backendService';
 import { initFeatureFlagListener } from './services/featureFlagService';
-import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark, Cctv, Bug } from 'lucide-react';
+import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark, Cctv, Bug, AlertTriangle } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -356,6 +356,9 @@ import { saveStudioEpisode } from './services/podcastStudio/studioService';
 import { installGlobalErrorReporting } from './services/errorReporting';
 import { installSessionTrace, traceView } from './services/sessionTrace';
 import { installHealthMonitor } from './services/healthMonitor';
+import { useHardwareBack } from './hooks/useHardwareBack';
+import { useNavLayout } from './hooks/useNavLayout';
+import { ChoraNavBar, NavLayoutSwitcher, type NavPage } from './components/ChoraCompactNav';
 
 const App: React.FC = () => {
   // Check for ?view=pitch-music|pitch-film|pitch-writer|research and ?room=<id> on load
@@ -456,6 +459,8 @@ const App: React.FC = () => {
 
   // Platform-wide error capture (uncaught errors + unhandled rejections → errorReports).
   useEffect(() => { installGlobalErrorReporting(); installSessionTrace(); installHealthMonitor(); }, []);
+  // Android hardware back → go back a screen in-app instead of exiting the APK.
+  useHardwareBack();
   useEffect(() => { traceView(view); }, [view]);
 
   useEffect(() => {
@@ -517,6 +522,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     if (user?.uid) return initPodcastLibrarySync(user.uid);
   }, [user?.uid]);
   const [theme, setTheme] = useState<ThemeType>('PLAJAH');
+  // Remember the user's desktop theme so we can restore it when the window is resized
+  // back up from a mobile/PHONE width (checkDevice forces PHONE going down).
+  const lastDesktopThemeRef = useRef<ThemeType>('PLAJAH');
+  useEffect(() => { if (theme !== 'PHONE' && theme !== 'BIG_SCREEN') lastDesktopThemeRef.current = theme; }, [theme]);
   
   // Theme Asset Cycle
   const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
@@ -570,6 +579,32 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [adSlotIdx, setAdSlotIdx] = useState(0);
   const [showPlajahPlusBillboard, setShowPlajahPlusBillboard] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
+  // Adaptive nav layout — slim rail on compact desktop (12–20"), horizontal bar on
+  // touch tablets, split pillars as an opt-in. See hooks/useNavLayout.
+  const navLayout = useNavLayout();
+  // Transient red warning toast (e.g. nano view isn't available in bar mode).
+  const [navWarning, setNavWarning] = useState<string | null>(null);
+  const navWarnTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const barSettledRef = useRef(false);
+  const showNavWarning = useCallback((msg: string) => {
+    setNavWarning(msg);
+    if (navWarnTimer.current) clearTimeout(navWarnTimer.current);
+    navWarnTimer.current = setTimeout(() => setNavWarning(null), 3200);
+  }, []);
+  // Curated primary destinations for the compact top bar (Concept C). The full sidebar
+  // config still lives in the vertical rail; the bar shows the headline pages + "More".
+  const barPages: NavPage[] = [
+    { id: 'DASHBOARD', label: 'Home', icon: Home },
+    { id: 'MUSIC', label: 'Chora', icon: Music2 },
+    { id: 'VIDEOS', label: 'Reello', icon: VideoIcon },
+    { id: 'MOVIES_TV', label: 'Taleo', icon: Film },
+    { id: 'PLAJAH_SPORTS', label: 'Sports', icon: Zap },
+    { id: 'BOOKS', label: 'Lorea', icon: BookOpen },
+    { id: 'FEED', label: 'Social', icon: Rss },
+    { id: 'CHAT', label: 'Chat', icon: MessageSquare },
+    { id: 'GAMES', label: 'Games', icon: Gamepad2 },
+    { id: 'APPS', label: 'Apps', icon: AppWindow },
+  ];
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedTeamLeague, setSelectedTeamLeague] = useState<string | null>(null);
   const [selectedTeamName, setSelectedTeamName] = useState<string | null>(null);
@@ -626,6 +661,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   useEffect(() => {
     if (isPublicView && view === 'PLAYER') { setIsNanoView(false); setIsNanoDocked(false); }
   }, [isPublicView, view, setIsNanoView, setIsNanoDocked]);
+
+  // Horizontal-bar (Concept C) nav: the floating nano player fights the top bar and hides the
+  // transport — keep the full global bottom bar instead. If the user tries to turn nano ON here,
+  // revert it and pop a red warning (rather than the controls silently vanishing). Switching INTO
+  // bar mode with nano already on just turns it off quietly (barSettledRef guards the warning).
+  useEffect(() => {
+    if (!navLayout.isBar) { barSettledRef.current = false; return; }
+    if (isNanoView || isNanoDocked) {
+      setIsNanoView(false);
+      setIsNanoDocked(false);
+      if (barSettledRef.current) showNavWarning('Nano view unavailable in this view');
+    }
+    barSettledRef.current = true;
+  }, [navLayout.isBar, isNanoView, isNanoDocked, setIsNanoView, setIsNanoDocked, showNavWarning]);
 
   useEffect(() => {
     setGlobalView(view);
@@ -803,10 +852,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       const isTV = tvKeywords.some(keyword => ua.toLowerCase().includes(keyword));
 
       if (mobile) {
-        // Always force PHONE layout on any mobile/tablet device, regardless of current view
-        setTheme('PHONE');
+        // Force PHONE layout on any mobile/tablet width — but remember the desktop theme.
+        setTheme(prev => prev === 'PHONE' ? prev : 'PHONE');
       } else if (isTV && view === 'LANDING') {
         setTheme('BIG_SCREEN');
+      } else {
+        // Resized back up to desktop → restore the desktop theme so the layout reflows.
+        setTheme(prev => prev === 'PHONE' ? lastDesktopThemeRef.current : prev);
       }
     };
     checkDevice();
@@ -2092,9 +2144,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 )}
               </>
             )}
-            {/* Left Ad Billboard — full-height canvas, floor to ceiling */}
+            {/* Ad Billboard — full-height canvas. Sits on the LEFT normally; Split (B) AND the
+                horizontal Bar (C) move it to the FAR RIGHT (order + left border); Bar makes it
+                narrower and drops it below the fixed top nav bar. */}
           {(!isPublicView && view !== 'MOVIE_UX' && view !== 'GAME_PLAYER' && view !== 'EVENT_PHOTO_POOL') && (
-            <aside className="lg:w-80 hidden lg:block sticky top-0 h-screen z-50 shrink-0 overflow-hidden border-r border-white/[0.06] relative">
+            <aside className={`hidden lg:block z-50 shrink-0 overflow-hidden border-white/[0.06] relative ${
+              navLayout.isBar
+                ? 'lg:order-last border-l lg:w-56 sticky lg:top-14 h-[calc(100vh-3.5rem)]'
+                : navLayout.isSplit
+                  ? 'lg:order-last border-l lg:w-80 sticky top-0 h-screen'
+                  : 'lg:w-80 border-r sticky top-0 h-screen'
+            }`}>
               <AnimatePresence mode="sync">
               {(() => {
                 const slots = adSlots.length > 0 ? adSlots : [{ kind: 'plus' as const }];
@@ -2386,8 +2446,29 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             </aside>
           )}
 
-          {(!isPublicView && !isMobile && theme !== 'PHONE') && (
-            <aside className={`${isSidebarCollapsed ? 'w-24' : (theme === 'BIG_SCREEN' ? 'w-24 hover:w-80' : 'w-80')} border-r border-white/[0.07] hidden lg:flex flex-col p-4 lg:p-6 sticky top-0 h-screen glass-high transition-all duration-500 group/sidebar z-50 overflow-x-hidden shrink-0`}>
+          {/* Concept C — horizontal top bar for touch tablets / portrait (fixed chrome) */}
+          {(!isPublicView && !navLayout.isPhone && navLayout.isBar) && (
+            <ChoraNavBar
+              pages={barPages}
+              activeView={view}
+              onNavigate={(id) => setView(id as AppView)}
+              onMore={() => setView('DASHBOARD')}
+              onCreate={() => setShowCreator(true)}
+              switcher={<NavLayoutSwitcher pref={navLayout.pref} onSetPref={navLayout.setPref} compact />}
+            />
+          )}
+
+          {/* Transient red warning toast (e.g. nano view blocked in bar mode) */}
+          {navWarning && (
+            <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[300] flex items-center gap-2 px-4 py-2.5 rounded-full bg-red-600/90 backdrop-blur-xl border border-red-400/40 shadow-2xl animate-in fade-in slide-in-from-top-2"
+                 role="alert" style={{ top: 'calc(3.5rem + env(safe-area-inset-top) + 0.5rem)' }}>
+              <AlertTriangle size={13} className="text-white shrink-0" />
+              <span className="text-[11px] font-black uppercase tracking-widest text-white">{navWarning}</span>
+            </div>
+          )}
+
+          {(!isPublicView && !isMobile && theme !== 'PHONE' && !navLayout.isBar) && (
+            <aside className={`${isSidebarCollapsed ? 'w-24' : (theme === 'BIG_SCREEN' ? 'w-24 hover:w-80' : (navLayout.isSlim || navLayout.isSplit) ? 'w-52' : 'w-80')} border-r border-white/[0.07] hidden lg:flex flex-col ${(navLayout.isSlim || navLayout.isSplit) && !isSidebarCollapsed ? 'p-3 lg:p-4' : 'p-4 lg:p-6'} sticky top-0 h-screen glass-high transition-colors duration-300 group/sidebar z-50 overflow-x-hidden shrink-0`}>
               <div className={`flex items-center gap-4 mb-10 px-1 h-14 ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
                 <button 
                   onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -2435,6 +2516,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     <Icon size={13} />
                   </button>
                 ))}
+              </div>
+
+              {/* ── Nav Layout control (Concept A↔C responsive + Split opt-in) ── */}
+              <div className={`flex items-center justify-center gap-1 pb-2 mb-1 ${isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:flex' : 'flex')}`}>
+                <NavLayoutSwitcher pref={navLayout.pref} onSetPref={navLayout.setPref} compact />
               </div>
 
               {sidebarMode === 'og' && <nav className="flex-1 flex flex-col gap-2 overflow-y-auto pr-1 custom-scrollbar overflow-x-hidden w-full">
@@ -3433,7 +3519,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             </>
           )}
 
-          <SpatialUIRoot className={`flex-1 flex flex-col w-full overflow-y-auto overflow-x-hidden custom-scrollbar ${(isMobile || theme === 'PHONE') ? (isShrunk ? (isLandscape ? 'pt-2 pb-20 transition-all duration-500' : 'pt-2 pb-40 transition-all duration-500') : (isLandscape ? 'pt-2 pb-24 transition-all duration-500' : 'pt-2 pb-64 transition-all duration-500')) : 'pb-40 lg:pb-0'}`}>
+          <SpatialUIRoot className={`flex-1 flex flex-col w-full overflow-y-auto overflow-x-hidden custom-scrollbar ${navLayout.isBar && !navLayout.isPhone ? 'pt-16' : ''} ${(isMobile || theme === 'PHONE') ? (isShrunk ? (isLandscape ? 'pt-2 pb-20 transition-all duration-500' : 'pt-2 pb-40 transition-all duration-500') : (isLandscape ? 'pt-2 pb-24 transition-all duration-500' : 'pt-2 pb-64 transition-all duration-500')) : 'pb-40 lg:pb-0'}`}>
             {/* World Cup temporary banner — mobile only, expires 2026-07-29 (epoch 1753747200000) */}
             {(isMobile || theme === 'PHONE') && !wcMobileBannerDismissed && view !== 'PLAJAH_SPORTS' && Date.now() < 1753747200000 && (
               <div className="mx-3 mt-2 mb-1 flex items-center gap-3 px-4 py-3 rounded-2xl relative overflow-hidden"

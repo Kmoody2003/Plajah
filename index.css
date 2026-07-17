@@ -990,10 +990,60 @@ body.has-custom-background::after {
     rgba(212,0,85,0.42) 75%,
     rgba(107,0,153,0.55) 100%);
   background-size: 300% 100%;
-  animation: track-gradient-sweep 7s ease-in-out infinite alternate;
+  animation: track-gradient-sweep 4.5s linear infinite alternate;
+}
+/* AUDIO SESSION card backdrop — same living sweep, weighted toward purple + magenta. */
+.audio-session-gradient {
+  background-image: linear-gradient(105deg,
+    rgba(107,0,153,0.60) 0%,     /* purple */
+    rgba(168,0,140,0.52) 26%,    /* magenta */
+    rgba(212,0,105,0.46) 50%,    /* pink-magenta */
+    rgba(255,110,30,0.28) 68%,   /* a little orange */
+    rgba(140,0,175,0.60) 100%);  /* purple */
+  background-size: 300% 100%;
+  animation: track-gradient-sweep 6s linear infinite alternate;
 }
 @media (prefers-reduced-motion: reduce) {
-  .track-gradient-active { animation: none; background-position: 50% 50%; }
+  /* Keep the ambient gradient clearly alive (just a touch gentler) rather than frozen. */
+  .track-gradient-active { animation-duration: 7s; }
+  .audio-session-gradient { animation-duration: 9s; }
+}
+
+/* Final 10s — a red gradient on the RIGHT edge fading into the bar's orange, with a
+   sharp red↔magenta pulse right at the trailing edge. */
+@keyframes track-ending-flash-anim {
+  0%, 100% {
+    background-image: linear-gradient(90deg,
+      transparent 40%,
+      rgba(255,90,0,0.45) 68%,       /* fades into the orange */
+      rgba(239,68,68,0.85) 100%);    /* red edge */
+    opacity: 0.7;
+  }
+  50% {
+    background-image: linear-gradient(90deg,
+      transparent 36%,
+      rgba(255,60,0,0.6) 64%,
+      rgba(212,0,90,1) 100%);        /* sharp magenta edge */
+    opacity: 1;
+  }
+}
+.track-ending-flash {
+  background-image: linear-gradient(90deg, transparent 40%, rgba(255,90,0,0.45) 68%, rgba(239,68,68,0.85) 100%);
+  animation: track-ending-flash-anim 0.6s ease-in-out infinite;
+}
+/* The track queued up next (sequential, shuffle, or repeat) — a soft green edge glow. */
+@keyframes track-next-breathe {
+  0%, 100% { box-shadow: inset 2px 0 14px -6px rgba(34,197,94,0.5), inset 0 0 0 1px rgba(34,197,94,0.18); }
+  50%      { box-shadow: inset 2px 0 20px -6px rgba(34,197,94,0.85), inset 0 0 0 1px rgba(34,197,94,0.32); }
+}
+.track-next-glow { animation: track-next-breathe 2.8s ease-in-out infinite; }
+.track-next-glow::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgba(34,197,94,0.16) 0%, rgba(34,197,94,0) 40%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .track-ending-flash { animation: none; opacity: 0.5; }
+  .track-next-glow { animation: none; box-shadow: inset 2px 0 16px -6px rgba(34,197,94,0.6), inset 0 0 0 1px rgba(34,197,94,0.25); }
 }
 
 /* Responsive adjustments */
