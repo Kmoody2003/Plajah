@@ -816,6 +816,16 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow read, delete: if isAdmin();
     }
+    match /loginIssues/{id} {
+      // Login failures happen while LOGGED OUT, so create must not require auth.
+      // Guarded to a well-formed, size-capped login-issue doc so it can't be abused
+      // as free storage. Only admins read/clear (for the login-trouble alert feed).
+      allow create: if request.resource.data.keys().hasOnly(['provider','code','message','email','url','userAgent','createdAt'])
+                    && request.resource.data.provider is string && request.resource.data.provider.size() < 40
+                    && request.resource.data.message is string && request.resource.data.message.size() < 500
+                    && request.resource.data.createdAt is int;
+      allow read, delete: if isAdmin();
+    }
     match /liveFeed/{id} {
       // Admin-only analytics/site-health collection (server-populated). It had no rule,
       // so it fell through to default-deny — which failed the admin Analytics query.

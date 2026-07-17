@@ -450,6 +450,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     isShuffle,
     setIsShuffle,
     nextTrackId,
+    beginScratch,
+    scratchBy,
+    endScratch,
     analyser: globalAnalyser,
     isSlideshowActive,
     setIsSlideshowActive,
@@ -2163,6 +2166,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         duration={globalDuration}
         trackId={currentTrack?.id || 'unknown'}
         isPlaying={globalIsPlaying && isCurrentTrackGlobal}
+        onScratchStart={isCurrentTrackGlobal ? beginScratch : undefined}
+        onScratchBy={isCurrentTrackGlobal ? scratchBy : undefined}
+        onScratchEnd={isCurrentTrackGlobal ? endScratch : undefined}
       />
 
       {/* Subtle depth overlay — no blur so background stays visible */}

@@ -3875,6 +3875,7 @@ export const loginWithGoogle = async (loginHint?: string): Promise<User | null> 
     } catch (error: any) {
       if (error?.code === 'auth/cancelled' || /cancel/i.test(error?.message || '')) return null;
       console.error('Native Google login failed:', error);
+      void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'google-native', error, email: loginHint }));
       alert(`Google sign-in failed: ${error?.message || 'Unknown error'}. Please try again.`);
     }
     return null;
@@ -3898,6 +3899,7 @@ export const loginWithGoogle = async (loginHint?: string): Promise<User | null> 
     }
   } catch (error: any) {
     console.error("Google login failed:", error);
+    void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'google', error, email: loginHint }));
     const errorCode = error?.code || "";
     if (errorCode === 'auth/operation-not-allowed') {
       alert("Google sign-in is not enabled. Go to Firebase Console → Authentication → Sign-in method and enable Google.");
@@ -3934,6 +3936,7 @@ export const loginWithTwitter = async (): Promise<string | null> => {
     } catch (error: any) {
       if (!/cancel/i.test(error?.message || '')) {
         console.error('Native Twitter login failed:', error);
+        void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'twitter-native', error }));
         alert(`Twitter sign-in failed: ${error?.message || 'Unknown error'}.`);
       }
       return null;
@@ -3955,6 +3958,7 @@ export const loginWithTwitter = async (): Promise<string | null> => {
     return null;
   } catch (error: any) {
     console.error("Twitter login failed:", error);
+    void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'twitter', error }));
     const errorCode = error?.code || "";
     if (errorCode === 'auth/operation-not-allowed') {
       alert("Twitter sign-in is not enabled in the Firebase Console. Please go to Authentication > Sign-in method and enable Twitter.");
@@ -4002,6 +4006,7 @@ export const loginWithFacebook = async () => {
     } catch (error: any) {
       if (!/cancel/i.test(error?.message || '')) {
         console.error('Native Facebook login failed:', error);
+        void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'facebook-native', error }));
         alert(`Facebook sign-in failed: ${error?.message || 'Unknown error'}.`);
       }
     }
@@ -4014,6 +4019,7 @@ export const loginWithFacebook = async () => {
     if (result.user) await syncUserProfile(result.user);
   } catch (error: any) {
     const code = error?.code || '';
+    void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'facebook', error }));
     if (code === 'auth/account-exists-with-different-credential') {
       alert('An account already exists with this email. Sign in with your original method, then link Facebook from Account Settings.');
     } else if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
@@ -4037,6 +4043,7 @@ export const loginWithMicrosoft = async () => {
     } catch (error: any) {
       if (!/cancel/i.test(error?.message || '')) {
         console.error('Native Microsoft login failed:', error);
+        void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'microsoft-native', error }));
         alert(`Microsoft sign-in failed: ${error?.message || 'Unknown error'}.`);
       }
     }
@@ -4050,6 +4057,7 @@ export const loginWithMicrosoft = async () => {
     if (result.user) await syncUserProfile(result.user);
   } catch (error: any) {
     const code = error?.code || '';
+    void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'microsoft', error }));
     if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
       alert(`Microsoft sign-in failed: ${error.message || 'Unknown error'}`);
     }
@@ -4065,7 +4073,10 @@ export const loginWithEmail = async (email: string, password: string) => {
     const code = error?.code || '';
     if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
       throw new Error('Invalid email or password.');
-    } else if (code === 'auth/too-many-requests') {
+    }
+    // Everything past this point is a system/config/network problem (not a user typo) — worth alerting on.
+    void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'email', error, email }));
+    if (code === 'auth/too-many-requests') {
       throw new Error('Too many attempts. Please try again later.');
     }
     throw new Error(error.message || 'Sign-in failed.');

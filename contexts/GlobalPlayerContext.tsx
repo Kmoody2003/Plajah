@@ -40,6 +40,10 @@ interface GlobalPlayerContextType {
   setVolume: (volume: number) => void;
   next: () => void;
   prev: () => void;
+  /** DJ scratch on the streaming audio: begin on pointer-down, feed time deltas (s) on move, end on up. */
+  beginScratch: () => void;
+  scratchBy: (deltaSeconds: number) => void;
+  endScratch: () => void;
   analyser: AnalyserNode | null;
   isFrequencyVisualizerEnabled: boolean;
   setIsFrequencyVisualizerEnabled: (val: boolean) => void;
@@ -930,6 +934,36 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, [playTrack, seek]);
 
+  // ── Scratch (DJ) — drive the streaming <audio> like a jog wheel. Drag maps to a
+  //    time delta (scrub) + a playback-rate pitch bend, so you hear the record move.
+  const scratchRef = useRef({ active: false, wasPlaying: false });
+  const beginScratch = React.useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio || stateRef.current.audioSource === 'VIDEO') return;
+    scratchRef.current.active = true;
+    scratchRef.current.wasPlaying = !audio.paused;
+    try { audio.playbackRate = 1; } catch { /* */ }
+  }, []);
+  const scratchBy = React.useCallback((deltaSeconds: number) => {
+    const audio = audioRef.current;
+    if (!audio || !scratchRef.current.active) return;
+    const dur = audio.duration || 0;
+    const next = Math.max(0, Math.min(dur ? dur - 0.06 : 0, (audio.currentTime || 0) + deltaSeconds));
+    try {
+      audio.currentTime = next;
+      audio.playbackRate = Math.min(4, Math.max(0.25, 0.3 + Math.abs(deltaSeconds) * 26)); // faster drag = higher pitch
+      if (audio.paused) audio.play().catch(() => {});
+    } catch { /* */ }
+  }, []);
+  const endScratch = React.useCallback(() => {
+    const audio = audioRef.current;
+    scratchRef.current.active = false;
+    if (!audio) return;
+    try { audio.playbackRate = 1; } catch { /* */ }
+    if (scratchRef.current.wasPlaying) { intendedPlayingRef.current = true; audio.play().catch(() => {}); }
+    else audio.pause();
+  }, []);
+
   const onEnded = useCallback(() => {
     const state = stateRef.current;
     if (state.repeatMode === 'ONE') {
@@ -1376,7 +1410,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const contextValue: GlobalPlayerContextType = useMemo(() => ({
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
     isShuffle, setIsShuffle, nextTrackId,
-    playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev,
+    playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev, beginScratch, scratchBy, endScratch,
     analyser: analyserRef.current, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme, isBigScreen: theme === 'BIG_SCREEN',
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, transportForced, setTransportForced, isThreeDEnabled, setIsThreeDEnabled,
@@ -1387,7 +1421,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }), [
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
     isShuffle, setIsShuffle, nextTrackId,
-    playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev,
+    playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev, beginScratch, scratchBy, endScratch,
     isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme,
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, transportForced, setTransportForced, isThreeDEnabled, setIsThreeDEnabled,

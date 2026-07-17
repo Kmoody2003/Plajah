@@ -1,10 +1,13 @@
-import React, { useRef, Suspense } from 'react';
-import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import React, { useRef, useState, useEffect } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { Stars } from '@react-three/drei';
-import { TextureLoader } from 'three';
 import * as THREE from 'three';
 
-// NASA Blue Marble via Wikimedia Commons — CORS-open, public domain, stable URL
+// NASA Blue Marble (Wikimedia). This is an EXTERNAL host that can (and does) block
+// hotlinked cross-origin texture loads — so the load is now GRACEFUL: on failure the
+// globe falls back to a styled sphere instead of throwing. A thrown texture error here
+// used to escape the R3F canvas as an UNCAUGHT window error and could crash the whole
+// landing page (taking the login form with it).
 const EARTH_URL =
   'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/The_Blue_Marble_%28remastered%29.jpg/1024px-The_Blue_Marble_%28remastered%29.jpg';
 
@@ -21,7 +24,22 @@ function OrbitalCamera() {
 
 function EarthMesh() {
   const ref = useRef<THREE.Mesh>(null);
-  const texture = useLoader(TextureLoader, EARTH_URL);
+  // Load the texture imperatively so a failed/blocked request NEVER throws during render
+  // (which would escape the canvas as an uncaught error). On error we just render the
+  // styled sphere below — the page keeps working.
+  const [texture, setTexture] = useState<THREE.Texture | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const loader = new THREE.TextureLoader();
+    loader.setCrossOrigin('anonymous');
+    loader.load(
+      EARTH_URL,
+      (tex) => { if (!cancelled) setTexture(tex); },
+      undefined,
+      () => { /* blocked/failed → keep the styled fallback, no throw, no error report */ },
+    );
+    return () => { cancelled = true; };
+  }, []);
 
   useFrame(({ clock }) => {
     if (ref.current) ref.current.rotation.y = clock.getElapsedTime() * 0.025;
@@ -31,7 +49,8 @@ function EarthMesh() {
     <>
       <mesh ref={ref}>
         <sphereGeometry args={[2, 64, 64]} />
-        <meshStandardMaterial map={texture} roughness={0.85} metalness={0.05} />
+        {/* Base color doubles as the fallback when the texture is missing/blocked. */}
+        <meshStandardMaterial map={texture ?? undefined} color={texture ? '#ffffff' : '#12325e'} roughness={0.85} metalness={0.05} />
       </mesh>
       {/* Atmosphere rim */}
       <mesh>
@@ -45,15 +64,6 @@ function EarthMesh() {
         />
       </mesh>
     </>
-  );
-}
-
-function DarkSphere() {
-  return (
-    <mesh>
-      <sphereGeometry args={[2, 32, 32]} />
-      <meshBasicMaterial color="#0d1f3c" />
-    </mesh>
   );
 }
 
@@ -82,9 +92,7 @@ export default function EarthGlobe() {
         <ambientLight intensity={0.1} />
         <directionalLight position={[8, 2, 5]} intensity={2.2} color="#fff8e7" />
 
-        <Suspense fallback={<DarkSphere />}>
-          <EarthMesh />
-        </Suspense>
+        <EarthMesh />
 
         <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
       </Canvas>

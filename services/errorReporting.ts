@@ -47,6 +47,31 @@ export async function reportError(err: unknown, opts: ReportOpts = {}): Promise<
   } catch { /* swallow — the reporter must never break the app */ }
 }
 
+/**
+ * Log a LOGIN failure. Login happens while logged-out, so this writes to `loginIssues`
+ * (creatable without auth) rather than `errorReports` (auth-only). Skips benign
+ * user-cancelled flows. Never throws. Admins read/alert on this collection.
+ */
+export async function reportLoginIssue(info: { provider: string; error: unknown; email?: string }): Promise<void> {
+  try {
+    const e = info.error as any;
+    const code = String(e?.code || '').slice(0, 80);
+    const message = String(e?.message ?? e ?? 'Login failed').slice(0, 500);
+    // Don't alert on the user simply closing/cancelling the popup.
+    if (/popup-closed-by-user|cancelled-popup-request|auth\/cancelled|user-cancel/i.test(code + ' ' + message)) return;
+    trace('error', `login-failure ${info.provider} ${code}`);
+    await addDoc(collection(db, 'loginIssues'), {
+      provider: String(info.provider).slice(0, 40),
+      code,
+      message,
+      email: String(info.email || '').slice(0, 120),
+      url: typeof location !== 'undefined' ? location.href.slice(0, 300) : '',
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 300) : '',
+      createdAt: Date.now(),
+    });
+  } catch { /* never throw — must not break the login flow */ }
+}
+
 /** Install global handlers for uncaught errors + unhandled promise rejections. Call once on boot. */
 export function installGlobalErrorReporting(): void {
   if (installed || typeof window === 'undefined') return;

@@ -5,7 +5,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../../services/backendService';
-import { AlertTriangle, Search, Layers, List as ListIcon, X } from 'lucide-react';
+import { AlertTriangle, Search, Layers, List as ListIcon, X, LogIn } from 'lucide-react';
 
 interface Report {
   id: string; message: string; stack?: string; source: string; context?: string;
@@ -15,14 +15,22 @@ interface Report {
   userMessage?: string; currentView?: string; traceText?: string; viewport?: string; screen?: string;
 }
 
+interface LoginIssue {
+  id: string; provider: string; code?: string; message: string; email?: string;
+  url?: string; userAgent?: string; createdAt: number;
+}
+
 const T = { panel: '#13131c', border: '#23232f', ink: '#fff', muted: '#9a9aa6', orange: '#FF8C00', red: '#e2473b', amber: '#e2a13b' };
 const ago = (ms: number) => { const s = Math.round((Date.now() - ms) / 1000); return s < 60 ? `${s}s` : s < 3600 ? `${Math.round(s / 60)}m` : s < 86400 ? `${Math.round(s / 3600)}h` : `${Math.round(s / 86400)}d`; };
 
 const ErrorReportsPanel: React.FC = () => {
   const [reports, setReports] = useState<Report[]>([]);
+  const [logins, setLogins] = useState<LoginIssue[]>([]);
   const [filter, setFilter] = useState('');
   const [grouped, setGrouped] = useState(true);
   const [sel, setSel] = useState<Report | null>(null);
+  const [selLogin, setSelLogin] = useState<LoginIssue | null>(null);
+  const [showLogins, setShowLogins] = useState(false);
   const [err, setErr] = useState('');
 
   useEffect(() => {
@@ -33,6 +41,20 @@ const ErrorReportsPanel: React.FC = () => {
     );
     return unsub;
   }, []);
+
+  useEffect(() => {
+    const unsub = onSnapshot(
+      query(collection(db, 'loginIssues'), orderBy('createdAt', 'desc'), limit(200)),
+      snap => setLogins(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }))),
+      () => { /* non-fatal — the main error feed still loads */ },
+    );
+    return unsub;
+  }, []);
+
+  const recentLogins = useMemo(
+    () => logins.filter(l => Date.now() - l.createdAt < 24 * 3600 * 1000),
+    [logins],
+  );
 
   const filtered = useMemo(() => {
     const f = filter.trim().toLowerCase();
@@ -72,6 +94,33 @@ const ErrorReportsPanel: React.FC = () => {
       </div>
 
       {err && <div style={{ color: T.red, fontSize: 12.5, marginBottom: 10 }}>{err}</div>}
+
+      {/* Login-trouble alert feed — surfaces users who couldn't sign in (captured while logged out). */}
+      {recentLogins.length > 0 && (
+        <div style={{ marginBottom: 12, border: `1px solid ${T.red}55`, background: `${T.red}12`, borderRadius: 12, overflow: 'hidden' }}>
+          <button onClick={() => setShowLogins(s => !s)} style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: 'transparent', border: 'none', color: T.ink, cursor: 'pointer' }}>
+            <LogIn size={17} style={{ color: T.red }} />
+            <span style={{ fontSize: 13.5, fontWeight: 800 }}>Login trouble</span>
+            <span style={{ fontSize: 11.5, fontWeight: 800, color: T.red, background: `${T.red}22`, borderRadius: 6, padding: '2px 8px' }}>{recentLogins.length} in 24h</span>
+            <span style={{ fontSize: 11, color: T.muted }}>{[...new Set(recentLogins.map(l => l.email || 'unknown'))].filter(e => e !== 'unknown').length} known email{[...new Set(recentLogins.map(l => l.email).filter(Boolean))].length === 1 ? '' : 's'}</span>
+            <div style={{ flex: 1 }} />
+            <span style={{ fontSize: 11, color: T.muted }}>{showLogins ? 'Hide' : 'Show'}</span>
+          </button>
+          {showLogins && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '0 10px 10px', maxHeight: '30vh', overflowY: 'auto' }}>
+              {recentLogins.map(l => (
+                <button key={l.id} onClick={() => setSelLogin(l)} style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 11px', borderRadius: 9, border: `1px solid ${T.border}`, background: T.panel, color: T.ink, cursor: 'pointer' }}>
+                  <span style={{ minWidth: 62, fontSize: 10.5, fontWeight: 800, color: T.amber, textTransform: 'uppercase' }}>{l.provider}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.email || 'unknown user'} · {l.code || 'error'}</div>
+                    <div style={{ fontSize: 10.5, color: T.muted, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.message} · {ago(l.createdAt)} ago</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: '64vh', overflowY: 'auto' }}>
         {grouped ? groups.map(g => (
@@ -127,6 +176,31 @@ const ErrorReportsPanel: React.FC = () => {
               </>
             )}
             {sel.stack && <pre style={{ marginTop: 12, padding: 10, background: '#0c0c12', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 11, color: '#cbb', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{sel.stack}</pre>}
+          </div>
+        </div>
+      )}
+
+      {selLogin && (
+        <div onClick={() => setSelLogin(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'grid', placeItems: 'center', zIndex: 9999, padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 560, maxWidth: '94vw', maxHeight: '86vh', overflowY: 'auto', background: T.panel, border: `1px solid ${T.border}`, borderRadius: 14, padding: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <LogIn size={18} style={{ color: T.red }} />
+              <div style={{ flex: 1, fontSize: 14, fontWeight: 800 }}>Login failure — {selLogin.provider}</div>
+              <button onClick={() => setSelLogin(null)} style={{ background: 'transparent', border: 'none', color: T.muted, cursor: 'pointer' }}><X size={18} /></button>
+            </div>
+            <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '90px 1fr', gap: '6px 10px', fontSize: 12 }}>
+              {[
+                ['Provider', selLogin.provider],
+                ['Email', selLogin.email || '— (not provided)'],
+                ['Code', selLogin.code || '—'],
+                ['Message', selLogin.message],
+                ['URL', selLogin.url || '—'],
+                ['When', new Date(selLogin.createdAt).toLocaleString()],
+                ['Agent', selLogin.userAgent || '—'],
+              ].map(([k, v]) => (
+                <React.Fragment key={k as string}><span style={{ color: T.muted, fontWeight: 700 }}>{k}</span><span style={{ wordBreak: 'break-word' }}>{v as string}</span></React.Fragment>
+              ))}
+            </div>
           </div>
         </div>
       )}

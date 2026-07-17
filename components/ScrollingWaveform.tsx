@@ -5,6 +5,10 @@ interface ScrollingWaveformProps {
   duration: number;
   trackId: string;
   isPlaying?: boolean;
+  /** When provided, the waveform becomes a scratch surface: drag left/right to scrub the audio. */
+  onScratchStart?: () => void;
+  onScratchBy?: (deltaSeconds: number) => void;
+  onScratchEnd?: () => void;
 }
 
 function buildWaveform(trackId: string, numPoints = 1200): Float32Array {
@@ -77,8 +81,10 @@ function bakeWave(waveform: Float32Array, viewW: number, h: number): BakedWave {
   return { gray, color, totalW, h };
 }
 
-const ScrollingWaveform: React.FC<ScrollingWaveformProps> = ({ currentTime, duration, trackId, isPlaying = false }) => {
+const ScrollingWaveform: React.FC<ScrollingWaveformProps> = ({ currentTime, duration, trackId, isPlaying = false, onScratchStart, onScratchBy, onScratchEnd }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const dragRef = useRef<{ x: number } | null>(null);
+  const scratchable = !!onScratchBy;
   const ctRef = useRef(currentTime);
   const durRef = useRef(duration);
   const playingRef = useRef(isPlaying);
@@ -186,10 +192,24 @@ const ScrollingWaveform: React.FC<ScrollingWaveformProps> = ({ currentTime, dura
     return () => cancelAnimationFrame(raf.current);
   }, []);
 
+  const secPerPx = () => {
+    const totalW = baked.current?.totalW || Math.max(sizeRef.current.w * 8, 1);
+    return (durRef.current || 0) / totalW;
+  };
+
   return (
     <div
-      className="absolute bottom-0 left-0 w-full h-40 pointer-events-none z-[5] overflow-hidden opacity-80"
+      className={`absolute bottom-0 left-0 w-full h-40 z-[5] overflow-hidden opacity-80 ${scratchable ? 'pointer-events-auto cursor-grab active:cursor-grabbing touch-none' : 'pointer-events-none'}`}
       style={{ contain: 'layout paint size' }}
+      onPointerDown={scratchable ? (e) => { e.currentTarget.setPointerCapture(e.pointerId); dragRef.current = { x: e.clientX }; onScratchStart?.(); } : undefined}
+      onPointerMove={scratchable ? (e) => {
+        if (!dragRef.current) return;
+        const dx = e.clientX - dragRef.current.x;
+        dragRef.current.x = e.clientX;
+        onScratchBy?.(dx * secPerPx());   // drag right = forward, left = back
+      } : undefined}
+      onPointerUp={scratchable ? (e) => { try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* */ } dragRef.current = null; onScratchEnd?.(); } : undefined}
+      onPointerCancel={scratchable ? () => { dragRef.current = null; onScratchEnd?.(); } : undefined}
     >
       <canvas ref={canvasRef} className="w-full h-full block" />
     </div>
