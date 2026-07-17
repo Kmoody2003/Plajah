@@ -734,6 +734,13 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const trendingVideos = useMemo(() => [...filteredVideos].sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0)).slice(0, 8), [filteredVideos]);
   const recentVideos = useMemo(() => [...filteredVideos].sort((a, b) => b.timestamp - a.timestamp).slice(0, 8), [filteredVideos]);
 
+  // A creator's uploads mix Reello videos with Taleo (Movies & TV) content. Split them so
+  // the profile shows a clean "Videos" grid and a distinct "Movies & TV" shelf — clicking a
+  // Taleo item then opens the Movies & TV experience as expected, instead of a jarring jump.
+  const isCinemaItem = (v: any) => { const s = v?.subType || ''; return s === 'MOVIE' || s === 'Movie' || s === 'Short Film' || s === 'TV_SERIES' || s === 'TV Series'; };
+  const userReello = useMemo(() => userVideos.filter(v => !isCinemaItem(v)), [userVideos]);
+  const userTaleo = useMemo(() => userVideos.filter(v => isCinemaItem(v)), [userVideos]);
+
   const handlePlay = (item: Video | Album | any) => {
     const sub = (item as any).subType || '';
     const isCinema = sub === 'MOVIE' || sub === 'Movie' || sub === 'Short Film' || sub === 'TV_SERIES' || sub === 'TV Series';
@@ -957,22 +964,34 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
           </section>
         )}
 
-        {/* Videos */}
+        {/* Videos (Reello) */}
         <section>
-          <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2.5 mb-5"><Film className="text-small-orange" size={16} /> Videos <span className="text-white/20">{userVideos.length}</span></h2>
-          {userVideos.length > 0 ? (
+          <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2.5 mb-5"><Film className="text-small-orange" size={16} /> Videos <span className="text-white/20">{userReello.length}</span></h2>
+          {userReello.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {userVideos.map(v => (
+              {userReello.map(v => (
                 <VideoCard key={v.id} video={v} currentUser={currentUser} onPlay={() => handlePlay(v)}
                   onAssignWorld={() => setAssigningVideo(v)} onShareToClub={auth.currentUser ? () => setShareToClubVideo(v) : undefined} onSave={auth.currentUser ? () => setSaveVideo(v as Video) : undefined} />
               ))}
             </div>
-          ) : (
+          ) : userTaleo.length === 0 ? (
             <div className="py-16 bg-white/[0.02] border-2 border-dashed border-white/5 rounded-3xl text-center">
               <p className="text-[10px] font-black uppercase tracking-widest text-white/20">No videos yet — hit Upload to start your channel</p>
             </div>
-          )}
+          ) : null}
         </section>
+
+        {/* Movies & TV (Taleo) — distinct so clicking opens the cinema experience as expected */}
+        {userTaleo.length > 0 && (
+          <section>
+            <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2.5 mb-5"><Monitor className="text-small-orange" size={16} /> Movies &amp; TV <span className="text-white/20">{userTaleo.length}</span><span className="text-[8px] font-black tracking-widest text-white/25 border border-white/10 rounded-full px-2 py-0.5 ml-1">Plajah Taleo</span></h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {userTaleo.map(v => (
+                <VideoCard key={v.id} video={v} currentUser={currentUser} onPlay={() => handlePlay(v)} onAssignWorld={() => setAssigningVideo(v)} />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     );
   };
@@ -1475,14 +1494,14 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
           {/* â"€â"€ MY VIDEOS â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
           {activeView === 'uploads' && (
-            <div className="space-y-6 pt-2">
+            <div className="space-y-10 pt-2">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-black uppercase tracking-widest">{profileScoped ? 'Videos' : (isOwner ? 'My Videos' : `${profile?.displayName || 'Creator'}'s Videos`)} <span className="text-white/20 ml-2">{userVideos.length}</span></h2>
+                <h2 className="text-lg font-black uppercase tracking-widest">{profileScoped ? 'Videos' : (isOwner ? 'My Videos' : `${profile?.displayName || 'Creator'}'s Videos`)} <span className="text-white/20 ml-2">{userReello.length}</span></h2>
                 {isOwner && <button onClick={() => setShowUpload(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all"><Plus size={14} /> Upload</button>}
               </div>
-              {userVideos.length > 0 ? (
+              {userReello.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {userVideos.map(video => (
+                  {userReello.map(video => (
                     <VideoCard
                       key={video.id}
                       video={video}
@@ -1494,11 +1513,23 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                     />
                   ))}
                 </div>
-              ) : (
+              ) : userTaleo.length === 0 ? (
                 <div className="py-32 bg-white/[0.02] border-2 border-dashed border-white/5 rounded-[3rem] flex flex-col items-center justify-center text-center">
                   <Film size={48} className="text-white/10 mb-6" />
                   <p className="text-sm font-black uppercase tracking-widest text-white/20 mb-2">{isOwner ? 'No videos uploaded yet' : `${profile?.displayName || 'This creator'} hasn't posted any videos yet`}</p>
                   {isOwner && <button onClick={() => setShowUpload(true)} className="mt-6 px-10 py-4 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl">Upload First Video</button>}
+                </div>
+              ) : null}
+
+              {/* Movies & TV — Taleo content, kept distinct so opening the cinema experience is expected */}
+              {userTaleo.length > 0 && (
+                <div>
+                  <h2 className="text-lg font-black uppercase tracking-widest flex items-center gap-2.5"><Monitor className="text-small-orange" size={18} /> Movies &amp; TV <span className="text-white/20">{userTaleo.length}</span><span className="text-[8px] font-black tracking-widest text-white/25 border border-white/10 rounded-full px-2 py-0.5 ml-1">Plajah Taleo</span></h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-5">
+                    {userTaleo.map(video => (
+                      <VideoCard key={video.id} video={video} currentUser={currentUser} onPlay={() => handlePlay(video)} onAssignWorld={isOwner ? () => setAssigningVideo(video) : undefined} />
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
