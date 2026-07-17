@@ -66,15 +66,22 @@ export default defineConfig(({ mode }) => {
               '**/basicPitchBackend-*.js',
               'models/basic-pitch/**',
               '**/models/basic-pitch/**',
+              // Verovio (~8 MB) + ONNX Runtime wasm (~27 MB) are lazy, optional features —
+              // keep them OUT of the install precache (they exceed the size limit and would
+              // bloat every install). Cached on first real use by the runtime rule below.
+              '**/verovio-*.js',
+              '**/ort-*.wasm',
+              '**/ort-*.mjs',
+              '**/ort.bundle*.js',
             ],
             runtimeCaching: [
               {
-                // Lazy ML assets (tfjs chunks + Basic Pitch model): cache on first use.
+                // Lazy ML/engraving assets (tfjs, Basic Pitch, Verovio, ONNX Runtime): cache on first use.
                 urlPattern: ({ url }: { url: URL }) =>
                   url.pathname.startsWith('/models/') ||
-                  /register_all_kernels-|basicPitchBackend-/.test(url.pathname),
+                  /register_all_kernels-|basicPitchBackend-|verovio-|ort-|ort\.bundle/.test(url.pathname),
                 handler: 'CacheFirst' as const,
-                options: { cacheName: 'plajah-ml', expiration: { maxEntries: 12, maxAgeSeconds: 60 * 60 * 24 * 365 } },
+                options: { cacheName: 'plajah-ml', expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 } },
               },
               {
                 // HTML documents: always hit network first. Falls back to cache only when offline.
