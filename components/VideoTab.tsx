@@ -29,6 +29,7 @@ import SignInPrompt from './SignInPrompt';
 import StoriesBar from './StoriesBar';
 import PlajahPlusBanner from './PlajahPlusBanner';
 import WorldBadge from './WorldBadge';
+import ReelloChannelHeader from './ReelloChannelHeader';
 import { thumb as thumbUrl, onThumbError, THUMB } from '../src/lib/imageThumb';
 
 interface VideoTabProps {
@@ -831,7 +832,8 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
       {/* â"€â"€ Top Bar â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
       <div className={`sticky top-0 z-40 glass-nav border-b border-white/5 px-4 sm:px-6 lg:px-12 py-4 ${profileScoped ? 'hidden' : ''}`}>
         <div className="max-w-7xl mx-auto flex items-center gap-4">
-          <h1 className="text-xl font-black uppercase tracking-widest shrink-0 hidden lg:block">
+          <h1 className="text-xl font-display font-black uppercase tracking-widest shrink-0 hidden lg:block"
+            style={{ background: 'linear-gradient(115deg,#a855f7 0%,#D40055 55%,#FF8C00 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
             {mode === 'MOVIES_TV' ? 'Plajah Taleo' : 'Plajah Reello'}
           </h1>
 
@@ -870,17 +872,18 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
           </div>
         </div>
 
-        {/* Category chips */}
-        <div className="max-w-7xl mx-auto mt-3 flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+        {/* Category chips — bold, brand-gradient active state that stands out */}
+        <div className="max-w-7xl mx-auto mt-3.5 flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-1">
           {CATEGORIES.map(cat => {
             const active = activeCategory === cat.id;
             return (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full font-black text-[9px] uppercase tracking-widest whitespace-nowrap shrink-0 transition-all border ${active ? 'bg-white text-black border-white shadow-lg' : 'bg-white/5 border-white/5 text-white/50 hover:bg-white/10 hover:text-white hover:border-white/10'}`}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-black text-[10px] uppercase tracking-[0.14em] whitespace-nowrap shrink-0 transition-all border ${active ? 'text-white border-transparent scale-105 shadow-[0_6px_22px_rgba(212,0,85,0.4)]' : 'bg-white/[0.04] border-white/8 text-white/45 hover:text-white hover:border-white/20 hover:bg-white/[0.08]'}`}
+                style={active ? { background: 'linear-gradient(115deg,#6B0099 0%,#D40055 58%,#FF8C00 100%)' } : undefined}
               >
-                <cat.icon size={11} /> {cat.label}
+                <cat.icon size={12} /> {cat.label}
               </button>
             );
           })}
@@ -918,6 +921,25 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
         {/* Main */}
         <div className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 lg:pl-0 space-y-2">
+
+          {/* Channel header — a creator's Reello channel banner (profile Videos tab) */}
+          {profileScoped && profile && (
+            <ReelloChannelHeader
+              profile={profile}
+              isOwner={isOwner}
+              videoCount={userVideos.length}
+              bannerUrl={(() => {
+                const v: any = userVideos[0];
+                if (v) return v.muxPlaybackId ? `https://image.mux.com/${v.muxPlaybackId}/thumbnail.png?width=1280&height=480&time=5` : (v.thumbnailUrl || v.coverImage);
+                return profile.backgroundSlideshow?.items?.find(i => i.type === 'PHOTO')?.url;
+              })()}
+              isFollowing={followedIds.has(profile.uid)}
+              onToggleFollow={() => handleToggleFollow(profile)}
+              onUpload={() => { if (!auth.currentUser) { setSignInAction('upload videos'); return; } setShowUpload(true); }}
+              onGoLive={() => { if (!auth.currentUser) { setSignInAction('go live'); return; } setShowGoLiveModal(true); }}
+              onShare={() => { try { navigator.share?.({ title: `${profile.displayName} on Plajah Reello`, url: `${location.origin}/?type=user&id=${profile.uid}` }); } catch { /* */ } }}
+            />
+          )}
 
           {/* Mobile view tabs */}
           <div className={`gap-2 lg:hidden mb-6 overflow-x-auto no-scrollbar ${profileScoped ? 'hidden' : 'flex'}`}>
@@ -1297,7 +1319,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
           {activeView === 'uploads' && (
             <div className="space-y-6 pt-2">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-black uppercase tracking-widest">{isOwner ? 'My Videos' : `${profile?.displayName || 'Creator'}'s Videos`} <span className="text-white/20 ml-2">{userVideos.length}</span></h2>
+                <h2 className="text-lg font-black uppercase tracking-widest">{profileScoped ? 'Videos' : (isOwner ? 'My Videos' : `${profile?.displayName || 'Creator'}'s Videos`)} <span className="text-white/20 ml-2">{userVideos.length}</span></h2>
                 {isOwner && <button onClick={() => setShowUpload(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all"><Plus size={14} /> Upload</button>}
               </div>
               {userVideos.length > 0 ? (
