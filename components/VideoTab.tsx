@@ -461,6 +461,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   // On a user profile, open straight to that creator's own videos ('uploads' = the profile
   // owner's videos), never the global discover feed.
   const [activeView, setActiveView] = useState<'discover' | 'uploads' | 'live' | 'playlists' | 'channel' | 'shorts' | 'subscriptions' | 'history' | 'liked'>(profileScoped ? 'uploads' : 'discover');
+  const [channelSearch, setChannelSearch] = useState('');   // creator/channel directory search (Subscriptions)
   // Deep-link: a shared playlist link opens straight to its detail under the Playlists tab.
   useEffect(() => {
     if (initialPlaylistId) {
@@ -824,6 +825,158 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
     }
   };
 
+  // ── Creator directory (Following + Discover) ──────────────────────────────────
+  // Moved out of the old "Channel" tab: now lives under Subscriptions and in video search.
+  const renderChannelDirectory = (query?: string) => {
+    const q = (query || '').trim().toLowerCase();
+    const match = (p: UserProfile) => !q || p.displayName?.toLowerCase().includes(q) || (p.bio || '').toLowerCase().includes(q);
+    const following = followingProfiles.filter(match);
+    const suggested = recommendedProfiles.filter(match);
+    if (q && !following.length && !suggested.length) {
+      return <p className="text-[9px] font-bold text-white/25 uppercase tracking-widest py-6">No channels match &ldquo;{query}&rdquo;</p>;
+    }
+    return (
+      <div className="space-y-8">
+        {following.length > 0 && (
+          <div>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-4">Following</h3>
+            <div className="flex gap-4 flex-wrap">
+              {following.map(p => (
+                <button key={p.uid} onClick={() => onVisitUser?.(p.uid)} className="flex flex-col items-center gap-2 group">
+                  <div className="w-14 h-14 rounded-full overflow-hidden ring-2 ring-white/10 group-hover:ring-small-orange/60 transition-all">
+                    {p.photoURL ? <img loading="lazy" decoding="async" src={thumbUrl(p.photoURL, THUMB.micro) || undefined} onError={onThumbError(p.photoURL)} alt={p.displayName} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-white/10 flex items-center justify-center text-white/40 text-lg font-black">{p.displayName?.[0]}</div>}
+                  </div>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-white/40 group-hover:text-white transition-colors max-w-[60px] truncate">{p.displayName}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {suggested.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40">Discover Channels</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {suggested.map(p => {
+                const isFollowed = followedIds.has(p.uid);
+                return (
+                  <div key={p.uid} className="p-4 bg-white/5 border border-white/5 rounded-3xl">
+                    <button onClick={() => onVisitUser?.(p.uid)} className="w-full text-left">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 rounded-full overflow-hidden bg-white/10 ring-1 ring-white/10">
+                          {p.photoURL ? <img loading="lazy" decoding="async" src={thumbUrl(p.photoURL, THUMB.micro) || undefined} onError={onThumbError(p.photoURL)} alt={p.displayName} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white/40 text-lg font-black">{p.displayName?.[0]}</div>}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-black uppercase tracking-widest text-white truncate">{p.displayName}</p>
+                          <p className="text-[8px] text-white/30 uppercase tracking-widest truncate">{p.bio || 'Creator'}</p>
+                        </div>
+                      </div>
+                    </button>
+                    <button onClick={() => handleToggleFollow(p)} className={`w-full px-3 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${isFollowed ? 'bg-white/10 border border-white/10 text-white/70 hover:bg-white/15' : 'bg-white text-black hover:bg-small-orange hover:text-white'}`}>
+                      {isFollowed ? 'Following' : 'Follow'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ── "My Channel" — the current user's own channel: their videos, live feeds, FAST
+  //    (TV) channel, and radio station, with the branded channel header on top. ────────
+  const myUid = currentUser?.uid || auth.currentUser?.uid;
+  const myLiveFeeds = liveFeeds.filter(f => f.ownerId === myUid);
+  const renderMyChannel = () => {
+    const me = profile || currentUser;
+    if (!me) {
+      return <div className="py-24 text-center"><p className="text-[10px] font-black uppercase tracking-widest text-white/25">Sign in to build your channel</p></div>;
+    }
+    const bannerV: any = userVideos[0];
+    const banner = bannerV
+      ? (bannerV.muxPlaybackId ? `https://image.mux.com/${bannerV.muxPlaybackId}/thumbnail.png?width=1280&height=480&time=5` : (bannerV.thumbnailUrl || bannerV.coverImage))
+      : me.backgroundSlideshow?.items?.find(i => i.type === 'PHOTO')?.url;
+    const fast = me.tvChannel;
+    return (
+      <div className="space-y-12 pt-2">
+        <ReelloChannelHeader
+          profile={me} isOwner videoCount={userVideos.length} bannerUrl={banner}
+          onUpload={() => { if (!auth.currentUser) { setSignInAction('upload videos'); return; } setShowUpload(true); }}
+          onGoLive={() => { if (!auth.currentUser) { setSignInAction('go live'); return; } setShowGoLiveModal(true); }}
+          onShare={() => { try { navigator.share?.({ title: `${me.displayName} on Plajah Reello`, url: `${location.origin}/?type=user&id=${me.uid}` }); } catch { /* */ } }}
+        />
+
+        {/* Live now */}
+        {myLiveFeeds.length > 0 && (
+          <section>
+            <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2.5 mb-5"><Radio className="text-red-500" size={16} /> Live Now</h2>
+            <div className="flex gap-4 overflow-x-auto pb-3 custom-scrollbar">
+              {myLiveFeeds.map(feed => (
+                <LiveFeedCard key={feed.id} feed={feed} onSelect={() => setActiveLiveStream({ streamId: (feed as any).muxStreamId || feed.id, title: feed.title, ownerName: feed.ownerName })} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* FAST / TV channel */}
+        {fast && (
+          <section>
+            <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2.5 mb-5"><Tv className="text-small-orange" size={16} /> FAST Channel</h2>
+            <button
+              onClick={() => { if (fast.liveStreamUrl) handlePlay({ id: fast.id, title: fast.title, url: fast.liveStreamUrl, ownerId: me.uid } as any); else window.dispatchEvent(new CustomEvent('OPEN_TV_CHANNEL', { detail: { channelId: fast.id } })); }}
+              className="w-full sm:max-w-xl text-left flex items-center gap-4 p-4 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-small-orange/40 hover:bg-white/[0.07] transition-all group"
+            >
+              <div className="w-16 h-16 rounded-xl shrink-0 flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#6B0099,#D40055,#FF8C00)' }}><Tv size={26} className="text-white" /></div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-black uppercase tracking-widest text-white truncate group-hover:text-small-orange transition-colors">{fast.title}</p>
+                <p className="text-[9px] font-bold text-white/35 uppercase tracking-widest mt-1">{fast.isAutoGenerated ? 'Auto-programmed' : 'Curated'} · {fast.curatedVideoIds?.length || 0} videos · 24/7</p>
+              </div>
+              <Play size={20} className="text-white/40 group-hover:text-white shrink-0" fill="currentColor" />
+            </button>
+          </section>
+        )}
+
+        {/* Radio station */}
+        {(me.radioSettings || me.isArtist) && (
+          <section>
+            <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2.5 mb-5"><Radio className="text-small-orange" size={16} /> Radio Station</h2>
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('OPEN_ARTIST_RADIO', { detail: { artistId: me.uid } }))}
+              className="w-full sm:max-w-xl text-left flex items-center gap-4 p-4 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-small-orange/40 hover:bg-white/[0.07] transition-all group"
+            >
+              <div className="w-16 h-16 rounded-xl shrink-0 flex items-center justify-center overflow-hidden">
+                {me.photoURL ? <img src={thumbUrl(me.photoURL, THUMB.micro) || me.photoURL} onError={onThumbError(me.photoURL)} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#6B0099,#D40055,#FF8C00)' }}><Radio size={24} className="text-white" /></div>}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-black uppercase tracking-widest text-white truncate group-hover:text-small-orange transition-colors">{me.displayName} Radio</p>
+                <p className="text-[9px] font-bold text-white/35 uppercase tracking-widest mt-1">Non-stop from this creator</p>
+              </div>
+              <Play size={20} className="text-white/40 group-hover:text-white shrink-0" fill="currentColor" />
+            </button>
+          </section>
+        )}
+
+        {/* Videos */}
+        <section>
+          <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2.5 mb-5"><Film className="text-small-orange" size={16} /> Videos <span className="text-white/20">{userVideos.length}</span></h2>
+          {userVideos.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {userVideos.map(v => (
+                <VideoCard key={v.id} video={v} currentUser={currentUser} onPlay={() => handlePlay(v)}
+                  onAssignWorld={() => setAssigningVideo(v)} onShareToClub={auth.currentUser ? () => setShareToClubVideo(v) : undefined} onSave={auth.currentUser ? () => setSaveVideo(v as Video) : undefined} />
+              ))}
+            </div>
+          ) : (
+            <div className="py-16 bg-white/[0.02] border-2 border-dashed border-white/5 rounded-3xl text-center">
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/20">No videos yet — hit Upload to start your channel</p>
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  };
+
   const isMusicVideoMode = newVideo.genre === 'Music Video';
 
   // â"€â"€ Render â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
@@ -907,7 +1060,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
             { id: 'playlists', label: 'Playlists', icon: List },
             { id: 'liked', label: 'Liked', icon: Heart },
             { id: 'history', label: 'History', icon: Clock },
-            { id: 'channel', label: 'Channel', icon: Layers },
+            { id: 'channel', label: 'My Channel', icon: Layers },
           ].map(item => (
             <button
               key={item.id}
@@ -944,7 +1097,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
           {/* Mobile view tabs */}
           <div className={`gap-2 lg:hidden mb-6 overflow-x-auto no-scrollbar ${profileScoped ? 'hidden' : 'flex'}`}>
             {(['discover', 'subscriptions', 'shorts', 'uploads', 'live', 'playlists', 'liked', 'history', 'channel'] as const).map(v => (
-              <button key={v} onClick={() => setActiveView(v)} className={`px-4 py-2 rounded-full font-black text-[9px] uppercase tracking-widest whitespace-nowrap shrink-0 transition-all ${activeView === v ? 'bg-white text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>{v}</button>
+              <button key={v} onClick={() => setActiveView(v)} className={`px-4 py-2 rounded-full font-black text-[9px] uppercase tracking-widest whitespace-nowrap shrink-0 transition-all ${activeView === v ? 'bg-white text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>{v === 'channel' ? 'My Channel' : v === 'uploads' ? 'My Videos' : v}</button>
             ))}
           </div>
 
@@ -1044,6 +1197,11 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                       <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest">No videos match &ldquo;{searchTerm}&rdquo;</p>
                     </div>
                   )}
+                  {/* Channels matching the query — directory + creators live in search too */}
+                  <div className="mt-10">
+                    <h2 className="text-xs font-black uppercase tracking-widest text-white/50 mb-5 flex items-center gap-2"><Users size={13} className="text-small-orange" /> Channels</h2>
+                    {renderChannelDirectory(searchTerm)}
+                  </div>
                 </section>
               )}
 
@@ -1440,7 +1598,22 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
           {/* ── SUBSCRIPTIONS ── */}
           {activeView === 'subscriptions' && (
-            <SubscriptionsSection onPlay={(v) => handlePlay(v)} onVisitUser={onVisitUser} />
+            <div className="space-y-12 pt-2">
+              <SubscriptionsSection onPlay={(v) => handlePlay(v)} onVisitUser={onVisitUser} />
+              {/* Channel directory + search — moved here from the old Channel tab */}
+              <div>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+                  <h2 className="text-lg font-black uppercase tracking-widest flex items-center gap-2.5"><Users className="text-small-orange" size={18} /> Channels</h2>
+                  <div className="relative w-full sm:max-w-xs">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" size={14} />
+                    <input value={channelSearch} onChange={e => setChannelSearch(e.target.value)} placeholder="Search channels…"
+                      className="w-full bg-white/5 border border-white/10 focus:border-white/30 rounded-xl py-2 pl-9 pr-8 text-[10px] font-black uppercase tracking-widest text-white placeholder:text-white/20 outline-none transition-all" />
+                    {channelSearch && <button onClick={() => setChannelSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white"><X size={13} /></button>}
+                  </div>
+                </div>
+                {renderChannelDirectory(channelSearch)}
+              </div>
+            </div>
           )}
 
           {/* ── LIKED ── */}
@@ -1453,81 +1626,8 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
             <HistorySection onPlay={(v) => handlePlay(v)} />
           )}
 
-          {/* â"€â"€ CHANNELS â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
-          {activeView === 'channel' && (
-            <div className="space-y-8 pt-2">
-              <div>
-                <h2 className="text-lg font-black uppercase tracking-widest">Channels</h2>
-                <p className="text-[10px] text-white/40 uppercase tracking-[0.4em] mt-2 max-w-2xl">
-                  Discover creators to follow and build your channel network with fresh accounts.
-                </p>
-              </div>
-
-              {followingProfiles.length > 0 ? (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-4">Following</h3>
-                    <div className="flex gap-4 flex-wrap">
-                      {followingProfiles.map(p => (
-                        <button key={p.uid} onClick={() => onVisitUser?.(p.uid)} className="flex flex-col items-center gap-2 group">
-                          <div className="w-14 h-14 rounded-full overflow-hidden ring-2 ring-white/10 group-hover:ring-small-orange/60 transition-all">
-                            {p.photoURL
-                              ? <img loading="lazy" decoding="async" src={thumbUrl(p.photoURL, THUMB.micro) || undefined} onError={onThumbError(p.photoURL)} alt={p.displayName} className="w-full h-full object-cover" />
-                              : <div className="w-full h-full bg-white/10 flex items-center justify-center text-white/40 text-lg font-black">{p.displayName?.[0]}</div>}
-                          </div>
-                          <span className="text-[8px] font-black uppercase tracking-widest text-white/40 group-hover:text-white transition-colors max-w-[60px] truncate">{p.displayName}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="py-20 text-center bg-white/5 rounded-[3rem] border border-dashed border-white/10">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-white/20">You aren't following any channels yet</p>
-                </div>
-              )}
-
-              {recommendedProfiles.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-                    <div>
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-2">Discover</h3>
-                      <p className="text-[9px] text-white/30 uppercase tracking-widest">Suggested accounts you can follow.</p>
-                    </div>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-white/30">{recommendedProfiles.length} suggestions</span>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {recommendedProfiles.map(p => {
-                      const isFollowed = followedIds.has(p.uid);
-                      return (
-                        <div key={p.uid} className="p-4 bg-white/5 border border-white/5 rounded-3xl">
-                          <button onClick={() => onVisitUser?.(p.uid)} className="w-full text-left">
-                            <div className="flex items-center gap-3 mb-4">
-                              <div className="w-12 h-12 rounded-full overflow-hidden bg-white/10 ring-1 ring-white/10">
-                                {p.photoURL
-                                  ? <img loading="lazy" decoding="async" src={thumbUrl(p.photoURL, THUMB.micro) || undefined} onError={onThumbError(p.photoURL)} alt={p.displayName} className="w-full h-full object-cover" />
-                                  : <div className="w-full h-full flex items-center justify-center text-white/40 text-lg font-black">{p.displayName?.[0]}</div>}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-black uppercase tracking-widest text-white truncate">{p.displayName}</p>
-                                <p className="text-[8px] text-white/30 uppercase tracking-widest truncate">{p.bio || 'Creator'}</p>
-                              </div>
-                            </div>
-                          </button>
-                          <button
-                            onClick={() => handleToggleFollow(p)}
-                            className={`w-full px-3 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${isFollowed ? 'bg-white/10 border border-white/10 text-white/70 hover:bg-white/15' : 'bg-white text-black hover:bg-small-orange hover:text-white'}`}
-                          >
-                            {isFollowed ? 'Following' : 'Follow'}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          {/* â"€â"€ MY CHANNEL â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
+          {activeView === 'channel' && renderMyChannel()}
         </div>
       </div>
 
