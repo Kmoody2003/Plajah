@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "start": "node server.ts",
-    "build": "vite build",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
     "sports:agent": "tsx scripts/localSportsAgent.ts",
@@ -93,6 +93,7 @@
     "@types/react-dom": "^19.0.0",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "cross-env": "^10.1.0",
     "playwright": "^1.60.0",
     "prisma": "^7.8.0",
     "puppeteer": "^24.42.0",
