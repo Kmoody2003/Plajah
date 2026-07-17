@@ -15,14 +15,17 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X, Music2, Zap, BookOpen, Download, ChevronRight,
-  BarChart2, Waves, Hash, Disc, Sparkles, ChevronDown, Activity,
+  BarChart2, Waves, Hash, Disc, Sparkles, ChevronDown, Activity, Eye, EyeOff,
 } from 'lucide-react';
 import { Track, Album } from '../types';
 import { useGlobalPlayer, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { detectBeats, type BeatAnalysis } from '../services/audioBeatDetection';
 import { transcribeTrack, type Transcription } from '../services/audioTranscription';
 import { buildNotation, notationToMusicXML, type Notation } from '../services/musicNotation';
+import { quickStems, separateStemsCloud } from '../services/fabula/stemSeparation';
+import { demucsCapability, isDemucsModelAvailable, separateStemsLocal, type DemucsTier } from '../services/demucsClient';
 import SheetMusic from './SheetMusic';
+import VerovioScore from './VerovioScore';
 import { db } from '../services/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import html2canvas from 'html2canvas';
@@ -1207,29 +1210,132 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
   const [enhanceState, setEnhanceState] = useState<'idle' | 'running' | 'fallback'>('idle');
   const abortRef = useRef<AbortController | null>(null);
 
-  const runTranscription = useCallback((backend: 'poly-dsp' | 'basic-pitch') => {
+  // Which source the transcription reads: the full mix, an INSTANT center-channel split
+  // (quickStems: vocals/instrumental), or a real STUDIO stem (Demucs 4-stem: vocals/drums/
+  // bass/other) when the on-demand separation succeeds. Transcribing an isolated part is
+  // far more accurate than the full mix.
+  type StemSource = 'mix' | 'vocals' | 'instrumental' | 'drums' | 'bass' | 'other';
+  const [stemSource, setStemSource] = useState<StemSource>('mix');
+  const [separating, setSeparating] = useState(false);
+  const stemUrlCacheRef = useRef<Map<StemSource, string>>(new Map());
+  // Studio (Demucs) separation — on-demand, hybrid with the instant quickStems default.
+  const [studioState, setStudioState] = useState<'idle' | 'running' | 'ready' | 'unavailable'>('idle');
+  const [studioProgress, setStudioProgress] = useState(0);
+  const studioStemsRef = useRef<Partial<Record<StemSource, string>>>({});
+  // On-device (private) separation: the whole model runs in the browser, audio never uploaded.
+  // Opt-in, gated to capable non-TV devices. A server version is coming for everyone.
+  const [onDevice, setOnDevice] = useState(true);
+  const demucsCap = useMemo<{ tier: DemucsTier; reason: string }>(() => demucsCapability(), []);
+
+  // Resolve the URL to transcribe for a given source, separating + caching the stem WAV.
+  const resolveSourceUrl = useCallback(async (source: StemSource, signal: AbortSignal): Promise<string | null> => {
+    if (source === 'mix' || !track.url) return track.url || null;
+    // Real Demucs stem (vocals/drums/bass/other) if studio separation produced it.
+    const studio = studioStemsRef.current[source];
+    if (studio) return studio;
+    const cached = stemUrlCacheRef.current.get(source);
+    if (cached) return cached;
+    // quickStems only makes vocals/instrumental — anything else with no studio stem → mix.
+    if (source !== 'vocals' && source !== 'instrumental') return track.url;
+    setSeparating(true);
+    try {
+      const resp = await fetch(track.url, { signal });
+      const blob = await resp.blob();
+      const stems = await quickStems(blob, source === 'vocals' ? 'vocals' : 'instrumental');
+      const stemBlob = source === 'vocals' ? stems.vocals : stems.instrumental;
+      if (!stemBlob) return track.url; // separation gave nothing → fall back to the mix
+      const url = URL.createObjectURL(stemBlob);
+      stemUrlCacheRef.current.set(source, url);
+      return url;
+    } catch {
+      return track.url; // fetch/decode failed → mix
+    } finally {
+      if (!signal.aborted) setSeparating(false);
+    }
+  }, [track.url]);
+
+  // Trigger real Demucs 4-stem separation on demand. Prefers ON-DEVICE (private) when the
+  // toggle is on, a model is vendored, and the device is capable; else tries the cloud tier;
+  // else falls back silently (the instant quickStems options stay available).
+  const runStudioSeparation = useCallback(async () => {
+    if (!track.url || studioState === 'running') return;
+    setStudioState('running'); setStudioProgress(0);
+    try {
+      // On-device path (audio never leaves the machine).
+      if (onDevice && demucsCap.tier !== 'blocked' && await isDemucsModelAvailable()) {
+        try {
+          const stems = await separateStemsLocal(track.url, p => setStudioProgress(p));
+          studioStemsRef.current = {
+            vocals: URL.createObjectURL(stems.vocals), drums: URL.createObjectURL(stems.drums),
+            bass: URL.createObjectURL(stems.bass), other: URL.createObjectURL(stems.other),
+          };
+          setStudioState('ready');
+          return;
+        } catch { /* fall through to cloud / unavailable */ }
+      }
+      // Cloud tier (server Demucs) — not deployed yet → graceful.
+      const res = await separateStemsCloud(track.url, '4stem');
+      if (res.ok && (res.vocals || res.drums || res.bass || res.other)) {
+        studioStemsRef.current = { vocals: res.vocals, drums: res.drums, bass: res.bass, other: res.other };
+        setStudioState('ready');
+      } else {
+        setStudioState('unavailable');
+      }
+    } catch {
+      setStudioState('unavailable');
+    }
+  }, [track.url, studioState, onDevice, demucsCap.tier]);
+
+  const runTranscription = useCallback((backend: 'poly-dsp' | 'basic-pitch', source: StemSource) => {
     if (!track.url) return;
     abortRef.current?.abort();
     const ac = new AbortController();
     abortRef.current = ac;
     setTranscribing(true); setTransProgress(0);
     if (backend === 'basic-pitch') setEnhanceState('running');
-    transcribeTrack(track.url, { signal: ac.signal, backend, onProgress: (_s, p) => setTransProgress(p) })
-      .then(t => {
-        if (ac.signal.aborted) return;
-        setTranscription(t);
-        setNotation(buildNotation(t));
-        if (backend === 'basic-pitch') setEnhanceState(t.backend === 'basic-pitch' ? 'idle' : 'fallback');
+    resolveSourceUrl(source, ac.signal)
+      .then(url => {
+        if (!url || ac.signal.aborted) return undefined;
+        return transcribeTrack(url, { signal: ac.signal, backend, onProgress: (_s, p) => setTransProgress(p) })
+          .then(t => {
+            if (ac.signal.aborted) return;
+            setTranscription(t);
+            setNotation(buildNotation(t));
+            if (backend === 'basic-pitch') setEnhanceState(t.backend === 'basic-pitch' ? 'idle' : 'fallback');
+          });
       })
       .catch(() => { if (backend === 'basic-pitch') setEnhanceState('fallback'); })
       .finally(() => { if (!ac.signal.aborted) setTranscribing(false); });
-  }, [track.url]);
+  }, [track.url, resolveSourceUrl]);
+
+  // Switch the transcription source (mix / vocals / instrumental) and re-run.
+  const changeStemSource = useCallback((source: StemSource) => {
+    setStemSource(source);
+    setEnhanceState('idle');
+    runTranscription('poly-dsp', source);
+  }, [runTranscription]);
 
   useEffect(() => {
-    setTranscription(null); setNotation(null); setEnhanceState('idle');
-    runTranscription('poly-dsp');
+    // New track → reset to the mix and drop any cached stem URLs + studio stems.
+    setTranscription(null); setNotation(null); setEnhanceState('idle'); setStemSource('mix');
+    setStudioState('idle');
+    Object.values(studioStemsRef.current).forEach(u => { if (u?.startsWith('blob:')) URL.revokeObjectURL(u); });
+    studioStemsRef.current = {};
+    stemUrlCacheRef.current.forEach(u => URL.revokeObjectURL(u));
+    stemUrlCacheRef.current = new Map();
+    runTranscription('poly-dsp', 'mix');
     return () => abortRef.current?.abort();
   }, [track.id, track.url]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Revoke any stem object URLs when the modal unmounts.
+  useEffect(() => () => { stemUrlCacheRef.current.forEach(u => URL.revokeObjectURL(u)); }, []);
+
+  // Live (lightweight SVG engraver + playhead) vs Publication (Verovio, print-grade) score view.
+  const [scoreView, setScoreView] = useState<'live' | 'publication'>('live');
+  const scoreMusicXml = useMemo(
+    () => (notation ? notationToMusicXML(notation, track.title, track.artist) : null),
+    [notation, track.title, track.artist],
+  );
 
   // Real key/tempo/time-signature take over the headline + theory cards when ready.
   const displayTheory: TrackTheory = transcription
@@ -1452,6 +1558,74 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
                 <p className="text-xs font-black text-white mt-0.5">
                   {displayTheory.scale} · {displayTheory.timeSignature} · {displayTheory.tempo} BPM
                 </p>
+                {/* Transcription source — isolate a stem for a far more accurate read than the full mix.
+                    Instant quickStems by default; real Demucs stems appear once Studio separation runs. */}
+                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                  <span className="text-[7px] font-black uppercase tracking-[0.18em] text-white/25">Source</span>
+                  <div className="inline-flex rounded-lg bg-white/[0.04] border border-white/10 p-0.5">
+                    {((studioState === 'ready'
+                      ? [['mix', 'Mix'], ['vocals', 'Vocals'], ['drums', 'Drums'], ['bass', 'Bass'], ['other', 'Other']]
+                      : [['mix', 'Mix'], ['vocals', 'Vocals'], ['instrumental', 'Instr.']]) as [StemSource, string][]).map(([id, label]) => (
+                      <button
+                        key={id}
+                        onClick={() => { if (id !== stemSource && !transcribing && !separating) changeStemSource(id); }}
+                        disabled={transcribing || separating}
+                        className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest transition-colors disabled:opacity-50 ${
+                          stemSource === id ? 'bg-emerald-500/25 text-emerald-200' : 'text-white/40 hover:text-white/70'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Studio (Demucs) separation — on-demand, hybrid with the instant split. */}
+                  {studioState === 'ready' ? (
+                    <span className="flex items-center gap-1 rounded-md bg-fuchsia-500/15 border border-fuchsia-500/25 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-fuchsia-200">
+                      <Sparkles size={8} /> Studio ✓ {onDevice && '· on-device'}
+                    </span>
+                  ) : studioState === 'running' ? (
+                    <span className="text-[7px] font-bold text-fuchsia-300/80 animate-pulse">
+                      {onDevice ? `separating on your device… ${Math.round(studioProgress * 100)}%` : 'separating stems…'}
+                    </span>
+                  ) : studioState === 'unavailable' ? (
+                    <span className="text-[7px] text-white/25">studio tier offline — using instant split</span>
+                  ) : demucsCap.tier !== 'blocked' ? (
+                    <button
+                      onClick={runStudioSeparation}
+                      disabled={transcribing || separating}
+                      className="flex items-center gap-1 rounded-md bg-fuchsia-500/10 border border-fuchsia-500/25 hover:bg-fuchsia-500/20 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-fuchsia-200 transition-colors disabled:opacity-50"
+                      title={onDevice ? 'Real Demucs 4-stem separation, private (runs on your device)' : 'Real Demucs 4-stem separation'}
+                    >
+                      <Sparkles size={8} /> Studio Separation
+                    </button>
+                  ) : (
+                    <span className="text-[7px] text-white/25">studio separation not available on this device</span>
+                  )}
+                  {separating && <span className="text-[7px] font-bold text-emerald-400/70 animate-pulse">splitting…</span>}
+                  {stemSource !== 'mix' && !separating && studioState !== 'running' && (
+                    <span className="text-[7px] text-white/25">isolated · more accurate</span>
+                  )}
+                </div>
+                {/* On-device (privacy) toggle + honest heads-up. Hidden on TV / unsupported. */}
+                {demucsCap.tier !== 'blocked' && studioState === 'idle' && (
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    <button
+                      onClick={() => setOnDevice(v => !v)}
+                      className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[7px] font-black uppercase tracking-widest transition-colors ${
+                        onDevice ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-200' : 'border-white/10 text-white/40 hover:text-white/70'
+                      }`}
+                      title="Run separation privately on your own hardware — audio never leaves your device"
+                    >
+                      {onDevice ? <Eye size={8} /> : <EyeOff size={8} />} On-device · private
+                    </button>
+                    {onDevice && (
+                      <span className="text-[7px] text-white/30">
+                        {demucsCap.tier === 'low' ? '⚠ heavy — runs on your hardware, may take minutes' : 'runs on your hardware · nothing uploaded'}
+                        {' · '}<span className="text-fuchsia-300/50">server version coming soon</span>
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="flex flex-col items-end gap-1 shrink-0">
                 {transcription?.backend === 'basic-pitch' ? (
@@ -1465,7 +1639,7 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
                     <span className="text-[8px] font-black text-fuchsia-200/90">Enhancing… {Math.round(transProgress * 100)}%</span>
                   </span>
                 ) : notation ? (
-                  <button onClick={() => runTranscription('basic-pitch')}
+                  <button onClick={() => runTranscription('basic-pitch', stemSource)}
                     className="flex items-center gap-1 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/25 hover:bg-fuchsia-500/20 px-2 py-1 transition-colors">
                     <Sparkles size={9} className="text-fuchsia-300" />
                     <span className="text-[8px] font-black text-fuchsia-200">Enhance with AI</span>
@@ -1474,13 +1648,36 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
                 {enhanceState === 'fallback' && (
                   <span className="text-[7px] text-white/30 text-right leading-tight">AI model unavailable —<br />kept DSP version</span>
                 )}
+                {/* Live (playhead) vs Publication (Verovio print-grade) score view */}
+                {notation && (
+                  <div className="inline-flex rounded-lg bg-white/[0.04] border border-white/10 p-0.5 mt-1">
+                    {([['live', 'Live'], ['publication', 'Publication']] as ['live' | 'publication', string][]).map(([id, label]) => (
+                      <button
+                        key={id}
+                        onClick={() => setScoreView(id)}
+                        className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest transition-colors ${
+                          scoreView === id ? 'bg-fuchsia-500/25 text-fuchsia-200' : 'text-white/40 hover:text-white/70'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
             {notation ? (
-              <div className="bg-[#060606] rounded-2xl p-3 overflow-x-auto custom-scrollbar">
-                <SheetMusic notation={notation} currentBeat={currentBeat} color="#d4d4d8" />
-              </div>
+              scoreView === 'publication' && scoreMusicXml ? (
+                // Publication view — Verovio engraving. Falls back to the live engraver if it can't load.
+                <div className="rounded-2xl overflow-hidden">
+                  <VerovioScore musicXml={scoreMusicXml} title={`${track.title} — ${displayTheory.scale}`} onFail={() => setScoreView('live')} />
+                </div>
+              ) : (
+                <div className="bg-[#060606] rounded-2xl p-3 overflow-x-auto custom-scrollbar">
+                  <SheetMusic notation={notation} currentBeat={currentBeat} color="#d4d4d8" />
+                </div>
+              )
             ) : (
               <div className="h-24 rounded-2xl bg-white/[0.015] border border-white/[0.04] flex items-center justify-center">
                 {transcribing ? (

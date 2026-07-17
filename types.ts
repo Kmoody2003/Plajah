@@ -152,6 +152,26 @@ export interface Track {
   originalUrl?: string; // Preserved original URL when track has been auto-converted for browser compatibility
   browserCompatUrl?: string; // Browser-optimized WAV URL (16-bit PCM, plays natively without decode fallback)
   browserCompatStatus?: 'pending' | 'converting' | 'done' | 'failed'; // Conversion state
+  /** Precomputed DJ/waveform analysis (peaks + beat grid), computed once at upload and
+   *  stored so the player, waveform, and DJ decks populate instantly with no on-play delay. */
+  audioAnalysis?: AudioAnalysis;
+}
+
+/**
+ * Precomputed audio analysis stored on a track. Small enough to live inline on the track
+ * doc (peaks are downsampled). Feeds the scrolling waveform, beat grid, and DJ decks so
+ * there is zero analysis/decoding delay when a track starts playing.
+ */
+export interface AudioAnalysis {
+  version: number;       // bump to invalidate/recompute when the algorithm changes
+  bpm: number;
+  confidence: number;    // 0–1 beat-grid fit
+  firstBeatSec: number;  // grid phase anchor
+  duration: number;      // seconds
+  /** Downsampled 0–1 peak amplitudes across the whole track (for waveform rendering). */
+  peaks: number[];
+  /** Beat timestamps in seconds. Capped to keep the doc small; DJ can re-derive from bpm+phase. */
+  beats?: number[];
 }
 
 export interface Photo {

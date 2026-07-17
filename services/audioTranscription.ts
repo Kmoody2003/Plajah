@@ -388,12 +388,15 @@ export async function transcribeTrack(url: string, opts: TranscribeOptions = {})
   const beat = detectBeatsFromBuffer(data, sampleRate, duration);
   const bpm = beat.bpm || 120;
   const period = 60 / bpm;
-  const firstBeatSec = beat.firstBeatSec || 0;
+  // Measure the beat grid from the first DOWNBEAT so bar lines land on real bar starts
+  // (falls back to the first beat when the downbeat isn't confidently detected).
+  const originSec = beat.downbeatSec ?? beat.firstBeatSec ?? 0;
+  const beatsPerMeasure = beat.beatsPerMeasure ?? 4;
 
   const subdiv = 4;                                   // sixteenth-note grid
   const quantize = (raw: { startSec: number; durSec: number; midi: number; velocity: number }[], voice?: Voice): TNote[] =>
     raw.map(n => {
-      const startBeat = Math.max(0, Math.round(((n.startSec - firstBeatSec) / period) * subdiv) / subdiv);
+      const startBeat = Math.max(0, Math.round(((n.startSec - originSec) / period) * subdiv) / subdiv);
       const durBeats = Math.min(8, Math.max(0.25, Math.round((n.durSec / period) * subdiv) / subdiv));
       // In polyphonic mode the voice is assigned by register; else it's given.
       const v: Voice = voice ?? (n.midi < 55 ? 'bass' : 'melody');
@@ -460,9 +463,9 @@ export async function transcribeTrack(url: string, opts: TranscribeOptions = {})
     key,
     mode,
     keyFifths,
-    beatsPerMeasure: 4,
+    beatsPerMeasure,
     beatUnit: 4,
-    firstBeatSec,
+    firstBeatSec: originSec,
     durationSec: duration,
     confidence: beat.confidence,
     backend: usedBackend,

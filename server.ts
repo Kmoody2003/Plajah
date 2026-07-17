@@ -4498,6 +4498,65 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     } catch (e: any) { res.status(502).end(); }
   });
 
+  // ── Server-side Demucs 4-stem separation (the "studio quality for everyone" tier) ──
+  // OFF by default → returns 501 so the client falls back to on-device / instant stems.
+  // To enable on a deploy: `pip install demucs` (+ torch) on the box and set
+  // ENABLE_DEMUCS_STEMS=1 (optionally DEMUCS_PYTHON=python3). GPU makes it ~seconds/song;
+  // CPU is a few minutes. Stems are uploaded to GCS and streamed back same-origin.
+  const runDemucs = (inPath: string, outDir: string): Promise<{ ok: boolean; err?: string }> => new Promise(resolve => {
+    let p: ReturnType<typeof spawn>;
+    try { p = spawn(process.env.DEMUCS_PYTHON || 'python3', ['-m', 'demucs', '-n', 'htdemucs', '-o', outDir, inPath], { stdio: ['ignore', 'ignore', 'pipe'] }); }
+    catch (e: any) { return resolve({ ok: false, err: `spawn failed: ${e?.message || e}` }); }
+    let err = '';
+    p.stderr?.on('data', (d: Buffer) => { if (err.length < 4000) err += d.toString(); });
+    p.on('close', code => resolve(code === 0 ? { ok: true } : { ok: false, err: err.slice(-500) }));
+  });
+
+  app.post('/api/crossover/stems', apiLimiter, authMiddleware, express.json(), async (req: any, res) => {
+    if (process.env.ENABLE_DEMUCS_STEMS !== '1') {
+      return res.status(501).json({ ok: false, message: 'Server Demucs tier not enabled (set ENABLE_DEMUCS_STEMS=1 with demucs installed).' });
+    }
+    const url = req.body?.url;
+    if (!url || typeof url !== 'string') return res.status(400).json({ ok: false, message: 'url required' });
+    const jobId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const inPath = await fetchToTmp(url, 'wav');
+    if (!inPath) return res.status(400).json({ ok: false, message: 'could not fetch audio' });
+    const outDir = path.join(os.tmpdir(), `demucs_${jobId}`);
+    try {
+      const r = await runDemucs(inPath, outDir);
+      if (!r.ok) return res.status(500).json({ ok: false, message: 'demucs failed: ' + (r.err || '') });
+      const modelDir = path.join(outDir, 'htdemucs');
+      const subs = await fs.readdir(modelDir).catch(() => [] as string[]);
+      if (!subs.length) return res.status(500).json({ ok: false, message: 'no demucs output' });
+      const stemDir = path.join(modelDir, subs[0]);
+      const publicBase = (process.env.PUBLIC_API_BASE || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+      const out: any = { ok: true };
+      for (const stem of ['vocals', 'drums', 'bass', 'other']) {
+        const buf = await fs.readFile(path.join(stemDir, `${stem}.wav`)).catch(() => null);
+        if (buf && await gcsUpload(`demucs-stems/${jobId}/${stem}.wav`, buf, 'audio/wav')) {
+          out[stem] = `${publicBase}/api/crossover/stems/${jobId}/${stem}`;
+        }
+      }
+      res.json(out);
+    } catch (e: any) {
+      res.status(500).json({ ok: false, message: String(e?.message || e) });
+    } finally {
+      fs.rm(outDir, { recursive: true, force: true }).catch(() => {});
+      fs.rm(inPath, { force: true }).catch(() => {});
+    }
+  });
+
+  // Stream a separated stem back (same-origin → no CORS headaches for the client).
+  app.get('/api/crossover/stems/:job/:stem', async (req: any, res: any) => {
+    const { job, stem } = req.params;
+    if (!/^[\w]+$/.test(job) || !['vocals', 'drums', 'bass', 'other'].includes(stem)) return res.status(400).end();
+    const buf = await gcsDownload(`demucs-stems/${job}/${stem}.wav`);
+    if (!buf) return res.status(404).end();
+    res.setHeader('Content-Type', 'audio/wav');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.send(buf);
+  });
+
   // Finalize/repair — remux an unfinalized (crashed OBS/livestream) recording:
   // stream-copy + faststart + regenerated timestamps. (Deep moov-atom recovery,
   // e.g. untrunc, is a later upgrade.)

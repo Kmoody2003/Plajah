@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { useGoogleCast } from '../hooks/useGoogleCast';
 import { useViewport } from '../hooks/useViewport';
-import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Shuffle, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box, Video as VideoIcon, Headphones } from 'lucide-react';
+import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Shuffle, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box, Video as VideoIcon, Headphones, ZapOff } from 'lucide-react';
 import Logo from './Logo';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
@@ -82,6 +82,8 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
     beginScratch,
     scratchBy,
     endScratch,
+    resetAudioFx,
+    isFxActive,
     toggleFullScreen,
     toggleAppFullScreen,
     repeatMode,
@@ -655,8 +657,15 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
 
                   <div className="flex flex-col items-center">
                     <div className="flex items-center gap-0">
-                      <button 
-                        onClick={() => setIsFrequencyVisualizerEnabled(!isFrequencyVisualizerEnabled)} 
+                      <button
+                        onClick={() => resetAudioFx?.()}
+                        className={`p-1 rounded-lg transition-all ${isFxActive ? 'text-red-300 bg-red-500/15 animate-pulse' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+                        title="Kill DJ audio FX — reset to natural dry sound"
+                      >
+                        <ZapOff size={isMinimized ? 11 : 14} />
+                      </button>
+                      <button
+                        onClick={() => setIsFrequencyVisualizerEnabled(!isFrequencyVisualizerEnabled)}
                         className={`p-1 rounded-lg transition-all ${isFrequencyVisualizerEnabled ? 'text-small-orange bg-small-orange/10' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
                         title="Frequency FX"
                       >

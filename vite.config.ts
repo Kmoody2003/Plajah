@@ -152,6 +152,10 @@ export default defineConfig(({ mode }) => {
           '@tensorflow/tfjs',
           '@spotify/basic-pitch',
         ],
+        // Verovio ships an embedded-WASM ESM module; let Vite serve it as-is instead of
+        // pre-bundling. onnxruntime-web (on-device Demucs) ships wasm/worker assets that must
+        // not be pre-bundled either.
+        exclude: ['verovio', 'onnxruntime-web'],
       },
     };
 });

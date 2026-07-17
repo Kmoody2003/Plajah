@@ -3,6 +3,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { onAuthStateChanged } from 'firebase/auth';
 import { storage, auth } from '../services/firebase';
 import { reportError } from '../services/errorReporting';
+import { precomputeByUrl } from '../services/djAnalysis';
 
 /**
  * Guarantee a signed-in user with a FRESH id token before any Storage write.
@@ -129,6 +130,9 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         async () => {
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
           setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'COMPLETED', progress: 100, downloadURL } : t));
+          // Precompute DJ/waveform analysis for audio uploads so peaks + beat grid are ready
+          // instantly on first play (warmed by URL; adopted + persisted by track id later).
+          if (type === 'MUSIC') precomputeByUrl(downloadURL);
           resolve(downloadURL);
         }
       );

@@ -330,7 +330,6 @@ let _webnnSession: any = null;
 
 async function initWebNN(): Promise<void> {
   try {
-    // @ts-expect-error onnxruntime-web is an optional peer dep — not installed in all envs
     const ort = await import('onnxruntime-web').catch(() => null);
     if (!ort) { updateState({ backend: 'UNAVAILABLE' }); return; }
 

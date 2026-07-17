@@ -7,6 +7,7 @@ import ImmersiveBadge from './ImmersiveBadge';
 import Visualizer from './Visualizer';
 import AnimatedSlideshow from './AnimatedSlideshow';
 import ScrollingWaveform from './ScrollingWaveform';
+import { getCachedAnalysis, getOrComputeAnalysis } from '../services/djAnalysis';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
 import FxStageVisualizers, { type FxEngine, fxPresetName, FX_ENGINE_PRESETS, loadMilkdropNames } from './FxStageVisualizers';
 import Logo from './Logo';
@@ -25,7 +26,7 @@ import {
   Layers, Music2, Plus, MessageSquare, Send, User, Users, Clock, Activity, BookOpen, ChevronDown, ChevronUp, Image as ImageIcon,
   AlertCircle, Video as VideoIcon, Radio, List, HeartHandshake, Heart, Pen, Maximize2, Minimize2, GripVertical, Upload, EyeOff, Eye,
   SkipBack, SkipForward, ChevronLeft, ChevronRight, Waves, RotateCcw, ListPlus,
-  Languages, RefreshCw, Film
+  Languages, RefreshCw, Film, ZapOff
 } from 'lucide-react';
 
 import { User as FirebaseUser } from 'firebase/auth';
@@ -454,6 +455,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     scratchBy,
     endScratch,
     analyser: globalAnalyser,
+    getAudioContext,
+    setDjFilter,
+    resetAudioFx,
+    isFxActive,
     isSlideshowActive,
     setIsSlideshowActive,
     visualizerType,
@@ -634,6 +639,21 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   }, [album.worldId]);
 
   const currentTrack = localTracks?.[currentTrackIndex] || null;
+
+  // Resolve real precomputed waveform peaks for the current track (instant if cached/stored,
+  // else computed in the background), fed to the scrolling waveform for a true audio shape.
+  const [trackPeaks, setTrackPeaks] = useState<number[] | null>(null);
+  useEffect(() => {
+    const t = currentTrack;
+    if (!t?.url) { setTrackPeaks(null); return; }
+    const cached = getCachedAnalysis(t);
+    if (cached) { setTrackPeaks(cached.peaks); return; }
+    setTrackPeaks(null);
+    let cancelled = false;
+    getOrComputeAnalysis(t).then(a => { if (!cancelled && a) setTrackPeaks(a.peaks); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [currentTrack?.id]);
+
   // Open the full Plajah Pixels experience for the current track (same as the track-row PP button).
   const openPlajahPixels = React.useCallback(() => {
     window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { track: currentTrack, album } }));
@@ -2166,6 +2186,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         duration={globalDuration}
         trackId={currentTrack?.id || 'unknown'}
         isPlaying={globalIsPlaying && isCurrentTrackGlobal}
+        peaks={trackPeaks}
         onScratchStart={isCurrentTrackGlobal ? beginScratch : undefined}
         onScratchBy={isCurrentTrackGlobal ? scratchBy : undefined}
         onScratchEnd={isCurrentTrackGlobal ? endScratch : undefined}
@@ -2477,6 +2498,21 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           <Logo size={22} flip />
           <span className="text-[9px] font-black uppercase tracking-widest text-white/80">Back</span>
         </button>
+        {/* ── Kill: reset the track to its natural dry state (no DJ FX) ── */}
+        <button
+          onClick={() => resetAudioFx?.()}
+          aria-label="Kill DJ audio FX — reset to dry"
+          title="Kill all DJ audio FX — reset the track to its natural, dry sound"
+          className={`hidden lg:flex absolute left-6 top-[3.6rem] z-50 items-center gap-1.5 py-1.5 pl-3 pr-4 rounded-full pointer-events-auto transition-all hover:scale-[1.03] active:scale-95 ${isFxActive ? 'animate-pulse' : ''}`}
+          style={{
+            background: isFxActive ? 'rgba(220,38,38,0.28)' : 'rgba(8,6,12,0.55)',
+            border: `1px solid ${isFxActive ? 'rgba(248,113,113,0.6)' : 'rgba(255,255,255,0.08)'}`,
+            backdropFilter: 'blur(12px)',
+          }}
+        >
+          <ZapOff size={13} className={isFxActive ? 'text-red-300' : 'text-white/60'} />
+          <span className={`text-[9px] font-black uppercase tracking-widest ${isFxActive ? 'text-red-200' : 'text-white/60'}`}>Kill</span>
+        </button>
         {/* ── Right-side vertical action column (desktop only) ── */}
         <div className="hidden lg:flex absolute right-6 top-0 bottom-0 z-50 flex-col items-end justify-center gap-[3px] pointer-events-auto" style={{ paddingRight: '0px' }}>
           {/* Helper: icon + expandable label pill */}
@@ -2485,7 +2521,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             ...(isOwner && onEdit ? [{ key: 'edit', icon: Zap, label: 'Edit Album', onClick: () => onEdit(album), style: { color: '#FF8C00' } }] : []),
             ...(isVisualizerLayout ? [{ key: 'fx', icon: Activity, label: 'FX Stage On', onClick: () => setIsVisualizerLayout(false), style: { color: '#FF8C00' } }] : []),
             { key: 'tv', icon: VideoIcon, label: isTVMode ? 'TV On' : 'TV Mode', onClick: () => setIsTVMode(!isTVMode), style: isTVMode ? { color: '#FF8C00' } : {} },
-            { key: 'dj', icon: Disc, label: 'DJ Mode', onClick: () => setIsDJMode(true), style: {} },
+            { key: 'dj', icon: Disc, label: 'DJ Mode', onClick: () => { getAudioContext?.(); setIsDJMode(true); }, style: {} },
             { key: 'lights', icon: Zap, label: 'Lights', onClick: () => setIsLightingOpen(true), style: isLightingOpen ? { color: '#FF8C00' } : {} },
             { key: 'pixels', icon: Sparkles, label: 'Pixels', onClick: () => window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { album } })), style: {} },
             ...(!isOwner && !isPreview ? [
@@ -2611,7 +2647,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                <VideoIcon size={13} /> {isTVMode ? 'TV On' : 'TV Mode'}
              </button>
              <button
-               onClick={() => setIsDJMode(true)}
+               onClick={() => { getAudioContext?.(); setIsDJMode(true); }}
                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-all font-black text-[9px] uppercase tracking-widest bg-white/8 text-white border border-white/10 hover:bg-[#00D4AA]/20 hover:border-[#00D4AA]/40 hover:text-[#00D4AA] shrink-0 whitespace-nowrap"
              >
                <Disc size={13} /> DJ Mode
@@ -2988,7 +3024,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                   onDragEnd={() => { dragTrackIndexRef.current = null; setDragOverTrackIndex(null); }}
                                   className={`relative overflow-hidden rounded-2xl border transition-all ${isNextUp ? 'track-next-glow' : ''} ${dragOverTrackIndex === i ? 'scale-[1.01] border-small-orange/60' : isActive ? 'border-[#FF8C00]/50' : 'border-white/5'}`}
                                 >
-                                  <div className={`flex items-center gap-3 px-3 py-2 relative overflow-hidden rounded-2xl group ${isActive ? 'backdrop-blur-2xl shadow-[0_0_30px_rgba(107,0,153,0.3)]' : 'bg-gradient-to-r from-[#6B0099]/10 via-transparent to-[#FF8C00]/10 backdrop-blur-xl hover:from-[#6B0099]/20 hover:to-[#FF8C00]/20'} ${isExpanded ? '!rounded-b-none' : ''}`}>
+                                  <div className={`flex items-center gap-3 px-3 py-[9px] relative overflow-hidden rounded-2xl group ${isActive ? 'backdrop-blur-2xl shadow-[0_0_30px_rgba(107,0,153,0.3)]' : 'bg-gradient-to-r from-[#6B0099]/10 via-transparent to-[#FF8C00]/10 backdrop-blur-xl hover:from-[#6B0099]/20 hover:to-[#FF8C00]/20'} ${isExpanded ? '!rounded-b-none' : ''}`}>
                                     {/* Active row: animated brand gradient + repeat-one green + final-10s red flash */}
                                     {isActive && <div className="absolute inset-0 track-gradient-active pointer-events-none" aria-hidden="true" />}
                                     {isActive && repeatOneGreenOpacity > 0 && <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{ background: 'linear-gradient(90deg, rgba(34,197,94,0.55) 0%, rgba(34,197,94,0) 34%)', opacity: repeatOneGreenOpacity }} />}
@@ -3811,6 +3847,17 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             initialTime={globalCurrentTime}
             initialTrackIndex={currentTrackIndex}
             onPauseGlobal={pause}
+            getSharedAudioContext={getAudioContext}
+            onExitToGlobal={(track, timeSec, opts) => {
+              // Keep the song playing in the album view, carrying the deck position + filter.
+              setDjFilter?.(opts.filter);
+              if (track.id === globalTrack?.id) {
+                seek(timeSec);
+                if (opts.playing) resume();
+              } else {
+                playTrack(track, album, 'LIBRARY', timeSec, true);
+              }
+            }}
           />
         )}
       </AnimatePresence>

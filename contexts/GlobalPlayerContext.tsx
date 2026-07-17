@@ -6,6 +6,7 @@ import { diagnoseAudioUrl, createDecodeAudioPlayer, type DecodedAudioPlayer } fr
 import { detectDolbySupport, isLikelyAtmosUrl } from '../services/dolbyDetection';
 import { saveProgress } from '../services/episodeProgressService';
 import { getCachedMedia } from '../services/offlineStorageService';
+import { getOrComputeAnalysis, getCachedAnalysis } from '../services/djAnalysis';
 import Hls from 'hls.js';
 import { peekTrackStream, prefetchTrackStreams, pickStreamUrl, getQuality as getAudioQuality, enqueueTranscode, enqueueAlbumTranscodes, getTrackStream } from '../services/choraStreamService';
 
@@ -45,6 +46,15 @@ interface GlobalPlayerContextType {
   scratchBy: (deltaSeconds: number) => void;
   endScratch: () => void;
   analyser: AnalyserNode | null;
+  /** The shared, always-unlocked AudioContext. DJ mode + FX build their nodes on THIS
+   *  (never a separate context) so audio can't get stuck suspended. Ensures + resumes it. */
+  getAudioContext: () => AudioContext | null;
+  /** Drive the DJ carry-over filter on the streaming path (0.5 = dry). Persists after DJ exit. */
+  setDjFilter: (value: number) => void;
+  /** Kill switch — reset the track to its natural dry state (no DJ FX). */
+  resetAudioFx: () => void;
+  /** Whether DJ FX are currently coloring the stream (for the Kill button's active state). */
+  isFxActive: boolean;
   isFrequencyVisualizerEnabled: boolean;
   setIsFrequencyVisualizerEnabled: (val: boolean) => void;
   visualizerType: 'FLOW' | 'PAINT';
@@ -152,6 +162,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [audioSource, setAudioSource] = useState<'LIBRARY' | 'RADIO' | 'VIDEO' | null>(null);
   const [repeatMode, setRepeatMode] = useState<'OFF' | 'ONE' | 'ALL'>('OFF');
   const [isShuffle, setIsShuffle] = useState(false);
+  const [isFxActive, setIsFxActive] = useState(false);   // DJ FX (filter) currently coloring the stream
   const [nextTrackId, setNextTrackId] = useState<string | null>(null);
   const shuffleOrderRef = useRef<string[]>([]); // stable shuffled id order so the "next" pick doesn't jitter
   const [isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled] = useState(true);
@@ -192,6 +203,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  // DJ filter carried over into the streaming path (transparent by default). Lets DJ FX keep
+  // running after you exit DJ mode, and the Kill button resets it to a dry/natural sound.
+  const djFilterRef = useRef<BiquadFilterNode | null>(null);
   // Fallback decode player for formats the <audio> element can't handle (24-bit WAV, AIFF, etc.)
   const decodedPlayerRef = useRef<DecodedAudioPlayer | null>(null);
   const usingDecodeFallbackRef = useRef(false);
@@ -272,6 +286,18 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
   }, [isPlaying]);
 
+  // Backfill precomputed audio analysis (waveform peaks + beat grid) for the playing track.
+  // Deferred + guarded so it never touches the playback hot path: it decodes on an OFFLINE
+  // context (no effect on live output) and persists once per track, so the waveform + DJ decks
+  // populate instantly on subsequent plays. Universal — covers older tracks with no analysis.
+  useEffect(() => {
+    const t = currentTrack;
+    if (!t?.url || getCachedAnalysis(t)) return;
+    let cancelled = false;
+    const id = setTimeout(() => { if (!cancelled) getOrComputeAnalysis(t).catch(() => {}); }, 4000);
+    return () => { cancelled = true; clearTimeout(id); };
+  }, [currentTrack?.id]);
+
   const initAudioContext = useCallback(() => {
     if (!audioContextRef.current) {
       const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
@@ -287,6 +313,12 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 2048;
         analyserRef.current = analyser;
+        // DJ carry-over filter — starts transparent (lowpass wide open), so it's inert until
+        // DJ mode or setDjFilter drives it. Sits first in the bypass path.
+        const djFilter = ctx.createBiquadFilter();
+        djFilter.type = 'lowpass';
+        djFilter.frequency.value = 20000;
+        djFilterRef.current = djFilter;
         // Panner for Eclipsa spatial audio — only active when an Eclipsa track is playing
         const panner = ctx.createPanner();
         panner.panningModel = 'HRTF';
@@ -313,6 +345,35 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (audioContextRef.current?.state === 'suspended') {
       audioContextRef.current.resume();
     }
+  }, []);
+
+  // Shared audio engine accessor for DJ mode / FX: ensure the ONE context exists + is
+  // resumed, and return it. Building deck/FX nodes on this (never a fresh AudioContext)
+  // is what keeps DJ audio from getting stuck suspended.
+  const getAudioContext = useCallback((): AudioContext | null => {
+    initAudioContext();
+    if (audioContextRef.current?.state === 'suspended') audioContextRef.current.resume().catch(() => {});
+    return audioContextRef.current;
+  }, [initAudioContext]);
+
+  // Drive the carry-over filter on the streaming path (DJ convention: 0.5 = off/dry,
+  // <0.5 = low-pass sweep, >0.5 = high-pass sweep). Persists after DJ mode closes.
+  const setDjFilter = useCallback((value: number) => {
+    const f = djFilterRef.current;
+    const active = Math.abs(value - 0.5) > 0.02;
+    if (f) {
+      if (!active) { f.type = 'lowpass'; f.frequency.value = 20000; }
+      else if (value < 0.5) { f.type = 'lowpass'; f.frequency.value = 180 + value * 2 * 3600; }
+      else { f.type = 'highpass'; f.frequency.value = (value - 0.5) * 2 * 7200; }
+    }
+    setIsFxActive(active);
+  }, []);
+
+  // Kill switch — return the track to its natural, dry state (no DJ FX). Safe on all platforms.
+  const resetAudioFx = useCallback(() => {
+    const f = djFilterRef.current;
+    if (f) { f.type = 'lowpass'; f.frequency.value = 20000; }
+    setIsFxActive(false);
   }, []);
 
   // Recover from a spurious pause (interruption / device handoff) while we still intend
@@ -345,17 +406,21 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (audioContextRef.current && analyserRef.current && !sourceRef.current) {
       try {
         const source = audioContextRef.current.createMediaElementSource(audio);
+        // The DJ carry-over filter sits first in the (default) bypass path; transparent by
+        // default so it changes nothing until driven. The spatial path is left untouched.
+        const head: AudioNode = djFilterRef.current ?? source;
+        if (djFilterRef.current) source.connect(djFilterRef.current);
         if (pannerRef.current && bypassGainRef.current && pannerInputGainRef.current) {
           // Dual-path graph — only the active path carries audio:
-          // Bypass path (default, no HRTF coloring): source → bypassGain → analyser → destination
-          // Spatial path (Eclipsa only):              source → pannerInputGain → panner → analyser → destination
-          source.connect(bypassGainRef.current);
+          // Bypass path (default): source → [djFilter] → bypassGain → analyser → destination
+          // Spatial path (Eclipsa): source → pannerInputGain → panner → analyser → destination
+          head.connect(bypassGainRef.current);
           source.connect(pannerInputGainRef.current);
           bypassGainRef.current.connect(analyserRef.current);
           pannerInputGainRef.current.connect(pannerRef.current);
           pannerRef.current.connect(analyserRef.current);
         } else {
-          source.connect(analyserRef.current);
+          head.connect(analyserRef.current);
         }
         analyserRef.current.connect(audioContextRef.current.destination);
         sourceRef.current = source;
@@ -1411,7 +1476,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
     isShuffle, setIsShuffle, nextTrackId,
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev, beginScratch, scratchBy, endScratch,
-    analyser: analyserRef.current, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive,
+    analyser: analyserRef.current, getAudioContext, setDjFilter, resetAudioFx, isFxActive, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme, isBigScreen: theme === 'BIG_SCREEN',
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, transportForced, setTransportForced, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,
@@ -1422,7 +1487,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
     isShuffle, setIsShuffle, nextTrackId,
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev, beginScratch, scratchBy, endScratch,
-    isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive,
+    getAudioContext, setDjFilter, resetAudioFx, isFxActive, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme,
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, transportForced, setTransportForced, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,

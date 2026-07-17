@@ -162,18 +162,26 @@ const SheetMusic: React.FC<Props> = ({
     return { x, y1: topY - 4, y2: topY + STAFF_H + SYSTEM_GAP + STAFF_H + 4 };
   }, [currentBeat, notation.divisions, layout, measuresPerSystem]);
 
+  // The engraved staves are EXPENSIVE (hundreds of SVG nodes) and depend only on the
+  // notation — NOT the playhead. Memoize them so a per-frame `currentBeat` change re-renders
+  // only the single playhead line, not the whole score. This is the fix for the render stutter.
+  const staves = useMemo(() => (
+    Array.from({ length: layout.systems }).map((_, sys) => {
+      const topY = 8 + sys * SYSTEM_PAD;
+      const startMeasure = sys * measuresPerSystem;
+      return (
+        <g key={sys}>
+          {renderStaff(notation.staves[0], sys, topY, startMeasure)}
+          {notation.staves[1] && renderStaff(notation.staves[1], sys, topY + STAFF_H + SYSTEM_GAP, startMeasure)}
+        </g>
+      );
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ), [notation, layout, measuresPerSystem, color]);
+
   return (
     <svg viewBox={`0 0 ${layout.width} ${layout.height}`} width="100%" className={className} style={{ color }}>
-      {Array.from({ length: layout.systems }).map((_, sys) => {
-        const topY = 8 + sys * SYSTEM_PAD;
-        const startMeasure = sys * measuresPerSystem;
-        return (
-          <g key={sys}>
-            {renderStaff(notation.staves[0], sys, topY, startMeasure)}
-            {notation.staves[1] && renderStaff(notation.staves[1], sys, topY + STAFF_H + SYSTEM_GAP, startMeasure)}
-          </g>
-        );
-      })}
+      {staves}
       {playhead && (
         <line x1={playhead.x} y1={playhead.y1} x2={playhead.x} y2={playhead.y2}
           stroke="#f97316" strokeWidth={1.4} strokeDasharray="4 3" opacity={0.7} />
@@ -182,4 +190,4 @@ const SheetMusic: React.FC<Props> = ({
   );
 };
 
-export default SheetMusic;
+export default React.memo(SheetMusic);

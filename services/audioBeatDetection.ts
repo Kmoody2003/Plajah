@@ -23,6 +23,14 @@ export interface BeatAnalysis {
   firstBeatSec: number;
   durationSec: number;
   sampleRate: number;
+  /** Detected meter (beats per measure) — 4, 3, etc. Falls back to 4 when unsure. */
+  beatsPerMeasure?: number;
+  /** Time (seconds) of the first detected DOWNBEAT (beat 1 of a bar) — bar-line anchor. */
+  downbeatSec?: number;
+  /** Which beat index in `beats` is the first downbeat. */
+  downbeatIndex?: number;
+  /** 0–1 confidence in the meter/downbeat estimate. */
+  meterConfidence?: number;
 }
 
 const MIN_BPM = 60;
@@ -107,6 +115,49 @@ function scoreBpm(onsetSec: number[], bpm: number): number {
   return score / Math.max(1, onsetSec.length);
 }
 
+/**
+ * Estimate meter (beats/measure) + the downbeat phase from the low-frequency (kick) energy
+ * at each beat. Downbeats carry more kick/energy, so we find the (period, phase) whose
+ * "beat-1" positions stand out most from the rest. Handles 4/4 and 3/4 (the common cases).
+ */
+function detectMeter(filtered: Float32Array, sampleRate: number, beats: number[]): {
+  beatsPerMeasure: number; downbeatIndex: number; downbeatSec: number; meterConfidence: number;
+} {
+  const fallback = { beatsPerMeasure: 4, downbeatIndex: 0, downbeatSec: beats[0] ?? 0, meterConfidence: 0 };
+  if (beats.length < 8) return fallback;
+
+  // Kick energy in the first part of each beat (where the downbeat hit lands).
+  const beatPeriod = beats.length > 1 ? (beats[beats.length - 1] - beats[0]) / (beats.length - 1) : 0.5;
+  const win = Math.max(1, Math.floor(sampleRate * Math.min(0.12, beatPeriod * 0.5)));
+  const energy = beats.map(t => {
+    const start = Math.floor(t * sampleRate);
+    let e = 0;
+    for (let j = start; j < Math.min(start + win, filtered.length); j++) e += Math.abs(filtered[j]);
+    return e / win;
+  });
+
+  let best = { M: 4, p: 0, score: -Infinity };
+  for (const M of [4, 3]) {                 // common meters; 4/4 first
+    for (let p = 0; p < M; p++) {
+      let dSum = 0, dN = 0, oSum = 0, oN = 0;
+      for (let i = 0; i < energy.length; i++) {
+        if ((((i - p) % M) + M) % M === 0) { dSum += energy[i]; dN++; }
+        else { oSum += energy[i]; oN++; }
+      }
+      const dAvg = dSum / Math.max(1, dN), oAvg = oSum / Math.max(1, oN);
+      const contrast = (dAvg - oAvg) / (dAvg + oAvg + 1e-9);   // -1..1: how much downbeats stand out
+      const score = contrast + (M === 4 ? 0.03 : 0);           // slight prior toward 4/4
+      if (score > best.score) best = { M, p, score };
+    }
+  }
+  return {
+    beatsPerMeasure: best.M,
+    downbeatIndex: best.p,
+    downbeatSec: beats[best.p] ?? beats[0] ?? 0,
+    meterConfidence: Math.max(0, Math.min(1, best.score)),
+  };
+}
+
 export async function detectBeats(url: string, signal?: AbortSignal): Promise<BeatAnalysis> {
   const { data, sampleRate, duration } = await decodeMono(url, signal);
   return detectBeatsFromBuffer(data, sampleRate, duration);
@@ -141,7 +192,14 @@ export function detectBeatsFromBuffer(data: Float32Array, sampleRate: number, du
   const beats: number[] = [];
   for (let t = firstBeatSec; t < duration; t += period) beats.push(+t.toFixed(4));
 
-  return { bpm, confidence: Math.max(0, Math.min(1, best.score)), beats, firstBeatSec, durationSec: duration, sampleRate };
+  const meter = detectMeter(filtered, sampleRate, beats);
+
+  return {
+    bpm, confidence: Math.max(0, Math.min(1, best.score)), beats, firstBeatSec,
+    durationSec: duration, sampleRate,
+    beatsPerMeasure: meter.beatsPerMeasure, downbeatSec: meter.downbeatSec,
+    downbeatIndex: meter.downbeatIndex, meterConfidence: meter.meterConfidence,
+  };
 }
 
 /** Which beat index (and fractional phase) the audio is at right now — for

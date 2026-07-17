@@ -5,6 +5,9 @@ interface ScrollingWaveformProps {
   duration: number;
   trackId: string;
   isPlaying?: boolean;
+  /** Real precomputed peak amplitudes (0–1). When provided, the waveform reflects the actual
+   *  audio instead of a synthetic shape derived from the track id. */
+  peaks?: number[] | null;
   /** When provided, the waveform becomes a scratch surface: drag left/right to scrub the audio. */
   onScratchStart?: () => void;
   onScratchBy?: (deltaSeconds: number) => void;
@@ -24,6 +27,12 @@ function buildWaveform(trackId: string, numPoints = 1200): Float32Array {
   for (let i = 0; i < numPoints; i++) data[i] = Math.pow(random(), 2.5);
   for (let i = 1; i < numPoints - 1; i++) data[i] = (data[i - 1] + data[i] * 2 + data[i + 1]) / 4;
   return data;
+}
+
+/** Real precomputed peaks when available, else the synthetic fallback keyed by track id. */
+function resolveWaveform(peaks: number[] | null | undefined, trackId: string): Float32Array {
+  if (peaks && peaks.length > 8) return Float32Array.from(peaks);
+  return buildWaveform(trackId || 'default');
 }
 
 type AnyCanvas = OffscreenCanvas | HTMLCanvasElement;
@@ -81,7 +90,7 @@ function bakeWave(waveform: Float32Array, viewW: number, h: number): BakedWave {
   return { gray, color, totalW, h };
 }
 
-const ScrollingWaveform: React.FC<ScrollingWaveformProps> = ({ currentTime, duration, trackId, isPlaying = false, onScratchStart, onScratchBy, onScratchEnd }) => {
+const ScrollingWaveform: React.FC<ScrollingWaveformProps> = ({ currentTime, duration, trackId, isPlaying = false, peaks, onScratchStart, onScratchBy, onScratchEnd }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dragRef = useRef<{ x: number } | null>(null);
   const scratchable = !!onScratchBy;
@@ -90,7 +99,7 @@ const ScrollingWaveform: React.FC<ScrollingWaveformProps> = ({ currentTime, dura
   const playingRef = useRef(isPlaying);
   const playbackRef = useRef({ time: currentTime, updatedAt: 0 });
   const sizeRef = useRef({ w: 0, h: 0 });
-  const waveRef = useRef<Float32Array>(buildWaveform(trackId || 'default'));
+  const waveRef = useRef<Float32Array>(resolveWaveform(peaks, trackId));
   const baked = useRef<BakedWave | null>(null);
   const raf = useRef(0);
   const lastStartX = useRef(Number.NaN);
@@ -104,10 +113,10 @@ const ScrollingWaveform: React.FC<ScrollingWaveformProps> = ({ currentTime, dura
   }, [currentTime, trackId]);
 
   useEffect(() => {
-    waveRef.current = buildWaveform(trackId || 'default');
+    waveRef.current = resolveWaveform(peaks, trackId);
     baked.current = null;
     lastStartX.current = Number.NaN;
-  }, [trackId]);
+  }, [trackId, peaks]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

@@ -10,6 +10,7 @@ import {
 import SmartLightingPanel from './SmartLightingPanel';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { fetchPersonalTracks } from '../services/backendService';
+import { getCachedAnalysis, getOrComputeAnalysis } from '../services/djAnalysis';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -69,6 +70,12 @@ interface Props {
   initialTime?: number;             // Current playback position for Deck A
   initialTrackIndex?: number;       // Index in album.tracks for the current track
   onPauseGlobal?: () => void;       // Called immediately to hand off audio control
+  /** The global player's shared, always-unlocked AudioContext. When provided, the decks
+   *  build on THIS instead of a separate context — so DJ audio can't get stuck suspended. */
+  getSharedAudioContext?: () => AudioContext | null;
+  /** Hand playback back to the album view on exit so the song KEEPS playing, carrying the
+   *  deck's position, play-state, and filter setting. */
+  onExitToGlobal?: (track: Track, timeSec: number, opts: { playing: boolean; filter: number }) => void;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -77,6 +84,21 @@ const SAMPLE_COLORS = ['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF'];
 const DEFAULT_BPM = 128;
 const PITCH_RANGE = 6;
 const WAVEFORM_POINTS = 800;
+
+// ── DJ audio engine ────────────────────────────────────────────────────────────
+// DJ mode builds its decks on the GLOBAL player's shared AudioContext (passed in via
+// getSharedAudioContext) so it's the same always-unlocked engine the player already uses —
+// this is what stops the decks from being silent. primeDJAudio() is only a FALLBACK for the
+// rare case that context isn't available; it still must be called from a click (gesture) to
+// unlock, since an AudioContext born in a React effect stays suspended in Chrome.
+let sharedDJCtx: AudioContext | null = null;
+export function primeDJAudio(): AudioContext {
+  if (!sharedDJCtx || sharedDJCtx.state === 'closed') {
+    sharedDJCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  }
+  if (sharedDJCtx.state === 'suspended') sharedDJCtx.resume().catch(() => {});
+  return sharedDJCtx;
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -390,8 +412,9 @@ const JogWheel: React.FC<{
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime = 0, initialTrackIndex = 0, onPauseGlobal }) => {
+const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime = 0, initialTrackIndex = 0, onPauseGlobal, getSharedAudioContext, onExitToGlobal }) => {
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const isSharedCtxRef = useRef(false);   // true when audioCtxRef is the global player's shared context
   const masterGainRef = useRef<GainNode | null>(null);
   const nodesA = useRef<DeckAudioNodes | null>(null);
   const nodesB = useRef<DeckAudioNodes | null>(null);
@@ -431,8 +454,12 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
 
   const initAudio = useCallback(() => {
     if (audioCtxRef.current) return audioCtxRef.current;
-    const ctx = new AudioContext();
+    // Build the decks on the GLOBAL player's shared, always-unlocked context (the same one
+    // the player already outputs through). Fall back to a click-primed context only if it
+    // isn't available. This is what stops the decks from being silent.
+    const ctx = getSharedAudioContext?.() ?? primeDJAudio();
     audioCtxRef.current = ctx;
+    isSharedCtxRef.current = !!getSharedAudioContext?.();
 
     const master = ctx.createGain();
     master.gain.value = 1;
@@ -491,7 +518,8 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
     updateCrossfader(crossfader);
 
     return ctx;
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getSharedAudioContext]);
 
   const updateCrossfader = (value: number) => {
     if (!nodesA.current || !nodesB.current) return;
@@ -515,7 +543,11 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer  = await ctx.decodeAudioData(arrayBuffer);
       const peaks = extractPeaks(audioBuffer);
-      const bpm   = estimateBPM(audioBuffer);
+      // Prefer the precomputed BPM (proper beat detection, done at upload) over the cheap
+      // in-deck estimate — instant and far more accurate. Warm it in the background if absent.
+      const cached = getCachedAnalysis(track);
+      const bpm = cached?.bpm ?? estimateBPM(audioBuffer);
+      if (!cached) void getOrComputeAnalysis(track);
       const offset = Math.max(0, Math.min(opts?.startOffset ?? 0, audioBuffer.duration - 0.1));
       const setState = deckId === 'A' ? setDeckA : setDeckB;
       setState(prev => ({
@@ -957,9 +989,33 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
   useEffect(() => {
     return () => {
       cancelAnimationFrame(rafRef.current);
-      audioCtxRef.current?.close();
+      // NEVER close the context — it's the global player's shared engine (or a reused
+      // singleton). Just stop this session's deck sources and disconnect its own master,
+      // leaving the shared graph (and the player's own nodes) untouched.
+      try { nodesA.current?.sourceNode?.stop(); } catch { /* */ }
+      try { nodesB.current?.sourceNode?.stop(); } catch { /* */ }
+      try { masterGainRef.current?.disconnect(); } catch { /* */ }
     };
   }, []);
+
+  // ─── Seamless exit — keep the music playing back in the album view ────────────
+  // Hand the live deck (whichever is audible) back to the global player at its exact
+  // position, play-state, and filter setting, THEN unmount. So exiting DJ mode continues
+  // the song with the FX you had — and the Kill button resets it to dry.
+  const handleClose = useCallback(() => {
+    try {
+      const liveIsB = deckB.isPlaying && crossfader > 0.5;
+      const live = liveIsB ? deckB : deckA;
+      if (onExitToGlobal && live.track) {
+        const nodes = liveIsB ? nodesB.current : nodesA.current;
+        const ctx = audioCtxRef.current;
+        let t = live.currentTime;
+        if (ctx && nodes?.sourceNode) t = nodes.startOffset + (ctx.currentTime - nodes.startTime);
+        onExitToGlobal(live.track, Math.max(0, t), { playing: live.isPlaying, filter: live.fx.filter });
+      }
+    } catch { /* fall through to a normal close */ }
+    onClose();
+  }, [deckA, deckB, crossfader, onExitToGlobal, onClose]);
 
   // ─── Deck panel render helper ────────────────────────────────────────────────
 
@@ -1260,7 +1316,8 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
           </button>
 
           <button
-            onClick={onClose}
+            onClick={handleClose}
+            title="Exit DJ — keeps the song playing in the album view"
             className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
           >
             <X size={14} />
