@@ -3,10 +3,10 @@ import { motion } from 'motion/react';
 import {
   Search, LayoutGrid, List, Music2, Clapperboard, BookOpen, Film, FolderKanban,
   Pencil, Play, Globe, Lock, FileText, Clock, CheckSquare, Square, Download,
-  Loader2, Sparkles, Layers, Tv, Mic2, Filter, ArrowUpDown, X, ShoppingBag, Crown, Repeat,
+  Loader2, Sparkles, Layers, Tv, Mic2, Filter, ArrowUpDown, X, ShoppingBag, Crown, Repeat, Save,
 } from 'lucide-react';
 import { Album, Video, StoreProduct } from '../types';
-import { fetchUserAlbums, fetchUserVideos, updateAlbum } from '../services/backendService';
+import { fetchUserAlbums, fetchUserVideos, updateAlbum, updateVideo } from '../services/backendService';
 import { fetchUnifiedSellerProducts } from '../services/storeService';
 import { crossover, type MediaKind, type Recipe, type ConvertResult } from '../services/crossover';
 
@@ -203,6 +203,16 @@ const ContentAssetManager: React.FC<{
 
   const edit = (a: Asset) => { if (a.album) onEditAlbum(a.album); else if (a.product) onManageStore?.(); };
 
+  // Save edits to a Reello video's settings (title / description / visibility) right here in
+  // the asset manager — no need to open a separate editor.
+  const saveVideoAsset = async (id: string, patch: { title?: string; description?: string; isPrivate?: boolean; genre?: string }) => {
+    setBusy(true);
+    try {
+      await updateVideo(id, patch as any); // Video.isPrivate is the canonical visibility field
+      await load();
+    } finally { setBusy(false); }
+  };
+
   // Gate/ungate an asset behind the creator's Sanctuary (members-only exclusive).
   const toggleGate = async (a: Asset) => {
     if (!a.album) return;
@@ -291,27 +301,35 @@ const ContentAssetManager: React.FC<{
       ) : view === 'GRID' ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-7">
           {filtered.map(a => (
-            <AssetCard key={a.id} asset={a} selected={selected.has(a.id)} onToggle={() => toggleSel(a.id)} onEdit={() => edit(a)} onOpen={() => setDetail(a)} />
+            <React.Fragment key={a.id}>
+              <AssetCard asset={a} selected={selected.has(a.id)} open={detail?.id === a.id} onToggle={() => toggleSel(a.id)} onEdit={() => edit(a)} onOpen={() => setDetail(detail?.id === a.id ? null : a)} />
+              {detail?.id === a.id && (
+                <div className="col-span-full">
+                  <AssetDetail asset={a} busy={busy} onClose={() => setDetail(null)}
+                    onEdit={() => { setDetail(null); edit(a); }}
+                    onToggleGate={a.album ? () => toggleGate(a) : undefined}
+                    onManageSanctuary={onManageSanctuary}
+                    onSaveVideo={a.video ? (patch) => saveVideoAsset(a.id, patch) : undefined} />
+                </div>
+              )}
+            </React.Fragment>
           ))}
         </div>
       ) : (
         <div className="space-y-2">
           {filtered.map(a => (
-            <AssetRow key={a.id} asset={a} selected={selected.has(a.id)} onToggle={() => toggleSel(a.id)} onEdit={() => edit(a)} onOpen={() => setDetail(a)} />
+            <React.Fragment key={a.id}>
+              <AssetRow asset={a} selected={selected.has(a.id)} open={detail?.id === a.id} onToggle={() => toggleSel(a.id)} onEdit={() => edit(a)} onOpen={() => setDetail(detail?.id === a.id ? null : a)} />
+              {detail?.id === a.id && (
+                <AssetDetail asset={a} busy={busy} onClose={() => setDetail(null)}
+                  onEdit={() => { setDetail(null); edit(a); }}
+                  onToggleGate={a.album ? () => toggleGate(a) : undefined}
+                  onManageSanctuary={onManageSanctuary}
+                  onSaveVideo={a.video ? (patch) => saveVideoAsset(a.id, patch) : undefined} />
+              )}
+            </React.Fragment>
           ))}
         </div>
-      )}
-
-      {/* Detail / metadata panel (DAM) */}
-      {detail && (
-        <AssetDetail
-          asset={detail}
-          busy={busy}
-          onClose={() => setDetail(null)}
-          onEdit={() => { setDetail(null); edit(detail); }}
-          onToggleGate={detail.album ? () => toggleGate(detail) : undefined}
-          onManageSanctuary={onManageSanctuary}
-        />
       )}
     </div>
   );
@@ -320,19 +338,19 @@ const ContentAssetManager: React.FC<{
 // ── Cards / rows ────────────────────────────────────────────────────────────────
 const svcAccent = (s: ServiceKey) => SERVICES.find(x => x.key === s)?.accent || '#FF8C00';
 
-const AssetCard: React.FC<{ asset: Asset; selected: boolean; onToggle: () => void; onEdit: () => void; onOpen: () => void }> = ({ asset, selected, onToggle, onEdit, onOpen }) => (
+const AssetCard: React.FC<{ asset: Asset; selected: boolean; open?: boolean; onToggle: () => void; onEdit: () => void; onOpen: () => void }> = ({ asset, selected, open, onToggle, onEdit, onOpen }) => (
   <div className="group">
-    <div className={`relative aspect-video rounded-2xl overflow-hidden bg-white/[0.04] border transition-all ${selected ? 'border-[#FF8C00]' : 'border-white/10 group-hover:border-white/20'}`}>
+    <div className={`relative aspect-video rounded-2xl overflow-hidden bg-white/[0.04] border transition-all cursor-pointer ${open ? 'border-[#FF8C00] ring-2 ring-[#FF8C00]/40' : selected ? 'border-[#FF8C00]' : 'border-white/10 group-hover:border-white/20'}`} onClick={onOpen}>
       {asset.cover ? <img src={asset.cover} alt="" loading="lazy" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Film size={26} className="text-white/15" /></div>}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-      <button onClick={onToggle} className="absolute top-2 left-2 text-white/70 hover:text-white">{selected ? <CheckSquare size={17} className="text-[#FF8C00]" /> : <Square size={17} />}</button>
+      <button onClick={e => { e.stopPropagation(); onToggle(); }} className="absolute top-2 left-2 text-white/70 hover:text-white z-10">{selected ? <CheckSquare size={17} className="text-[#FF8C00]" /> : <Square size={17} />}</button>
       <div className="absolute top-2 right-2 flex items-center gap-1">
         {asset.gated && <span title="Sanctuary members-only" className="w-5 h-5 rounded bg-[#6B0099] flex items-center justify-center"><Crown size={11} className="text-white" /></span>}
         <span className="px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest" style={{ background: `${svcAccent(asset.service)}22`, color: svcAccent(asset.service) }}>{asset.typeLabel}</span>
       </div>
       <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
-        {asset.editable && <button onClick={onEdit} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FF8C00] text-black text-[9px] font-black uppercase tracking-widest"><Pencil size={11} /> Edit</button>}
-        <button onClick={onOpen} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 text-black text-[9px] font-black uppercase tracking-widest"><Layers size={11} /> Details</button>
+        {asset.editable && <button onClick={e => { e.stopPropagation(); onEdit(); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FF8C00] text-black text-[9px] font-black uppercase tracking-widest"><Pencil size={11} /> Edit</button>}
+        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 text-black text-[9px] font-black uppercase tracking-widest">{open ? <X size={11} /> : <Layers size={11} />} {open ? 'Close' : 'Details'}</span>
       </div>
     </div>
     <div className="flex items-center justify-between gap-2 mt-2">
@@ -342,9 +360,9 @@ const AssetCard: React.FC<{ asset: Asset; selected: boolean; onToggle: () => voi
   </div>
 );
 
-const AssetRow: React.FC<{ asset: Asset; selected: boolean; onToggle: () => void; onEdit: () => void; onOpen: () => void }> = ({ asset, selected, onToggle, onEdit, onOpen }) => (
-  <div className={`flex items-center gap-4 p-2.5 rounded-xl border transition-all ${selected ? 'border-[#FF8C00]/50 bg-[#FF8C00]/5' : 'border-white/8 bg-white/[0.02] hover:bg-white/[0.05]'}`}>
-    <button onClick={onToggle} className="text-white/50 hover:text-white shrink-0">{selected ? <CheckSquare size={17} className="text-[#FF8C00]" /> : <Square size={17} />}</button>
+const AssetRow: React.FC<{ asset: Asset; selected: boolean; open?: boolean; onToggle: () => void; onEdit: () => void; onOpen: () => void }> = ({ asset, selected, open, onToggle, onEdit, onOpen }) => (
+  <div onClick={onOpen} className={`flex items-center gap-4 p-2.5 rounded-xl border transition-all cursor-pointer ${open ? 'border-[#FF8C00] bg-[#FF8C00]/5 ring-1 ring-[#FF8C00]/30' : selected ? 'border-[#FF8C00]/50 bg-[#FF8C00]/5' : 'border-white/8 bg-white/[0.02] hover:bg-white/[0.05]'}`}>
+    <button onClick={e => { e.stopPropagation(); onToggle(); }} className="text-white/50 hover:text-white shrink-0">{selected ? <CheckSquare size={17} className="text-[#FF8C00]" /> : <Square size={17} />}</button>
     <div className="w-16 aspect-video rounded-lg overflow-hidden bg-white/5 shrink-0">
       {asset.cover ? <img src={asset.cover} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Film size={14} className="text-white/20" /></div>}
     </div>
@@ -353,8 +371,8 @@ const AssetRow: React.FC<{ asset: Asset; selected: boolean; onToggle: () => void
       <p className="text-[9px] font-black uppercase tracking-widest text-white/35">{asset.typeLabel} · {STATUS_STYLE[asset.status].label}{asset.plays ? ` · ${asset.plays.toLocaleString()} plays` : ''}</p>
     </div>
     <span className="hidden sm:block px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest shrink-0" style={{ background: `${svcAccent(asset.service)}22`, color: svcAccent(asset.service) }}>{SERVICES.find(s => s.key === asset.service)?.label}</span>
-    {asset.editable && <button onClick={onEdit} className="p-2 rounded-full text-white/40 hover:text-[#FF8C00] shrink-0" title="Edit"><Pencil size={15} /></button>}
-    <button onClick={onOpen} className="p-2 rounded-full text-white/40 hover:text-white shrink-0" title="Details"><Layers size={15} /></button>
+    {asset.editable && <button onClick={e => { e.stopPropagation(); onEdit(); }} className="p-2 rounded-full text-white/40 hover:text-[#FF8C00] shrink-0" title="Edit"><Pencil size={15} /></button>}
+    <span className="p-2 rounded-full text-white/40 shrink-0" title="Details">{open ? <X size={15} /> : <Layers size={15} />}</span>
   </div>
 );
 
@@ -433,61 +451,134 @@ const CrossoverConvertPanel: React.FC<{ asset: Asset }> = ({ asset }) => {
   );
 };
 
-const AssetDetail: React.FC<{ asset: Asset; busy?: boolean; onClose: () => void; onEdit: () => void; onToggleGate?: () => void; onManageSanctuary?: () => void }> = ({ asset, busy, onClose, onEdit, onToggleGate, onManageSanctuary }) => (
-  <div className="fixed inset-0 z-[130] flex items-center justify-end bg-black/60 backdrop-blur-sm" onClick={onClose}>
-    <div className="w-full max-w-md h-full bg-[#0c0c11] border-l border-white/10 overflow-y-auto p-6 space-y-5" onClick={e => e.stopPropagation()}>
-      <div className="flex items-center justify-between">
-        <span className="px-2 py-1 rounded-full text-[8px] font-black uppercase tracking-widest" style={{ background: `${svcAccent(asset.service)}22`, color: svcAccent(asset.service) }}>{SERVICES.find(s => s.key === asset.service)?.label} · {asset.typeLabel}</span>
-        <button onClick={onClose} className="text-white/40 hover:text-white"><X size={18} /></button>
-      </div>
-      <div className="aspect-video rounded-2xl overflow-hidden bg-white/5">
-        {asset.cover ? <img src={asset.cover} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Film size={30} className="text-white/15" /></div>}
-      </div>
-      <h2 className="text-2xl font-black text-white">{asset.title}</h2>
-      <div className="grid grid-cols-2 gap-2 text-[11px]">
-        {[
-          ['Status', STATUS_STYLE[asset.status].label],
-          ['Service', SERVICES.find(s => s.key === asset.service)?.label || ''],
-          ['Type', asset.typeLabel],
-          [asset.product ? 'Price' : 'Plays', asset.product ? `$${(asset.price ?? 0).toFixed(2)}` : asset.plays.toLocaleString()],
-          ['Updated', asset.updatedAt ? new Date(asset.updatedAt).toLocaleDateString() : '—'],
-          ['Access', asset.gated ? 'Sanctuary' : 'Open'],
-        ].map(([k, v]) => (
-          <div key={k} className="p-3 rounded-xl bg-white/[0.03] border border-white/8">
-            <p className="text-[7px] font-black uppercase tracking-widest text-white/25 mb-1">{k}</p>
-            <p className="text-white/80 font-bold truncate">{v}</p>
+const AssetDetail: React.FC<{
+  asset: Asset;
+  busy?: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+  onToggleGate?: () => void;
+  onManageSanctuary?: () => void;
+  onSaveVideo?: (patch: { title?: string; description?: string; isPrivate?: boolean; genre?: string }) => void;
+}> = ({ asset, busy, onClose, onEdit, onToggleGate, onManageSanctuary, onSaveVideo }) => {
+  const v = asset.video;
+  const [title, setTitle] = useState(v?.title || asset.title);
+  const [description, setDescription] = useState(v?.description || '');
+  const [isPrivate, setIsPrivate] = useState(!!v?.isPrivate);
+  // Re-seed the form whenever a different Reello asset is opened inline.
+  useEffect(() => {
+    setTitle(v?.title || asset.title);
+    setDescription(v?.description || '');
+    setIsPrivate(!!v?.isPrivate);
+  }, [asset.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const dirty = onSaveVideo && v && (
+    title !== (v.title || '') || description !== (v.description || '') || isPrivate !== !!v.isPrivate
+  );
+
+  return (
+    <div className="rounded-2xl bg-[#0c0c11] border border-white/10 overflow-hidden">
+      <div className="grid md:grid-cols-[minmax(0,340px)_1fr]">
+        {/* Cover */}
+        <div className="relative">
+          <div className="aspect-video md:h-full md:aspect-auto min-h-[180px] bg-white/5">
+            {asset.cover ? <img src={asset.cover} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Film size={30} className="text-white/15" /></div>}
           </div>
-        ))}
-      </div>
-
-      {/* Sanctuary gating — deep link between the asset manager and Sanctuary */}
-      {(onToggleGate || asset.product) && (
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-[#6B0099]/15 to-transparent border border-[#6B0099]/25 space-y-3">
-          <div className="flex items-center gap-2"><Crown size={14} className="text-[#D0A0FF]" /><p className="text-[10px] font-black uppercase tracking-widest text-white/70">Sanctuary</p></div>
-          {onToggleGate && (
-            <button onClick={onToggleGate} disabled={busy} className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${asset.gated ? 'bg-[#6B0099] text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>
-              {busy ? <Loader2 size={13} className="animate-spin" /> : (asset.gated ? <Lock size={12} /> : <Globe size={12} />)}
-              {asset.gated ? 'Members-only — tap to unlock' : 'Gate to Sanctuary (members-only)'}
-            </button>
-          )}
-          {onManageSanctuary && (
-            <button onClick={onManageSanctuary} className="w-full py-2 rounded-full bg-white/5 text-white/50 text-[9px] font-black uppercase tracking-widest hover:text-white">Manage tiers & à-la-carte in Sanctuary →</button>
-          )}
-          <p className="text-[8px] text-white/25 leading-relaxed">Gated assets are locked to your Sanctuary members (or à-la-carte buyers). Set tiers and pricing in Sanctuary.</p>
+          <span className="absolute top-3 left-3 px-2 py-1 rounded-full text-[8px] font-black uppercase tracking-widest backdrop-blur-sm" style={{ background: `${svcAccent(asset.service)}33`, color: svcAccent(asset.service) }}>{SERVICES.find(s => s.key === asset.service)?.label} · {asset.typeLabel}</span>
         </div>
-      )}
 
-      <div className="flex gap-2">
-        {asset.editable && <button onClick={onEdit} className="flex-1 py-3 rounded-full bg-[#FF8C00] text-black text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2"><Pencil size={13} /> {asset.product ? 'Edit in Store Manager' : 'Edit in studio'}</button>}
-        {(asset.album?.tracks?.[0]?.url || asset.video?.url) && (
-          <a href={asset.album?.tracks?.[0]?.url || asset.video?.url} target="_blank" rel="noreferrer" download className="px-4 py-3 rounded-full bg-white/10 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2" title="Download source"><Download size={13} /></a>
-        )}
+        {/* Body */}
+        <div className="p-5 sm:p-6 space-y-5 min-w-0">
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="text-xl sm:text-2xl font-black text-white leading-tight min-w-0">{asset.title}</h2>
+            <button onClick={onClose} className="text-white/40 hover:text-white shrink-0 -mt-1"><X size={18} /></button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
+            {[
+              ['Status', STATUS_STYLE[asset.status].label],
+              ['Type', asset.typeLabel],
+              [asset.product ? 'Price' : 'Plays', asset.product ? `$${(asset.price ?? 0).toFixed(2)}` : asset.plays.toLocaleString()],
+              ['Updated', asset.updatedAt ? new Date(asset.updatedAt).toLocaleDateString() : '—'],
+              ['Access', asset.gated ? 'Sanctuary' : 'Open'],
+              ['Visibility', v ? (v.isPrivate ? 'Private' : 'Public') : '—'],
+            ].map(([k, val]) => (
+              <div key={k} className="p-3 rounded-xl bg-white/[0.03] border border-white/8">
+                <p className="text-[7px] font-black uppercase tracking-widest text-white/25 mb-1">{k}</p>
+                <p className="text-white/80 font-bold truncate">{val}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Reello video editor — edit the canonical settings right here ── */}
+          {onSaveVideo && v && (
+            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-4">
+              <div className="flex items-center gap-2"><Clapperboard size={14} className="text-[#FF8C00]" /><p className="text-[10px] font-black uppercase tracking-widest text-white/70">Video settings</p></div>
+
+              <label className="block">
+                <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Title</span>
+                <input value={title} onChange={e => setTitle(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/10 text-white text-sm focus:border-[#FF8C00]/60 focus:outline-none" />
+              </label>
+
+              <label className="block">
+                <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Description</span>
+                <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/10 text-white text-sm resize-y focus:border-[#FF8C00]/60 focus:outline-none" placeholder="Tell viewers about this video…" />
+              </label>
+
+              {/* Public / Private toggle */}
+              <button
+                onClick={() => setIsPrivate(p => !p)}
+                className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border transition-all ${isPrivate ? 'bg-white/5 border-white/15' : 'bg-[#FF8C00]/10 border-[#FF8C00]/30'}`}
+              >
+                <span className="flex items-center gap-2 text-[11px] font-bold text-white/80">
+                  {isPrivate ? <Lock size={13} className="text-white/50" /> : <Globe size={13} className="text-[#FF8C00]" />}
+                  {isPrivate ? 'Private — only you can see it' : 'Public — anyone can watch'}
+                </span>
+                <span className={`relative w-9 h-5 rounded-full transition-colors ${isPrivate ? 'bg-white/15' : 'bg-[#FF8C00]'}`}>
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${isPrivate ? '' : 'translate-x-4'}`} />
+                </span>
+              </button>
+
+              <button
+                onClick={() => onSaveVideo({ title, description, isPrivate })}
+                disabled={busy || !dirty}
+                className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${dirty && !busy ? 'bg-[#FF8C00] text-black hover:brightness-110' : 'bg-white/10 text-white/40 cursor-not-allowed'}`}
+              >
+                {busy ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                {busy ? 'Saving…' : dirty ? 'Save changes' : 'Saved'}
+              </button>
+            </div>
+          )}
+
+          {/* Sanctuary gating — deep link between the asset manager and Sanctuary */}
+          {(onToggleGate || asset.product) && (
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-[#6B0099]/15 to-transparent border border-[#6B0099]/25 space-y-3">
+              <div className="flex items-center gap-2"><Crown size={14} className="text-[#D0A0FF]" /><p className="text-[10px] font-black uppercase tracking-widest text-white/70">Sanctuary</p></div>
+              {onToggleGate && (
+                <button onClick={onToggleGate} disabled={busy} className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${asset.gated ? 'bg-[#6B0099] text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>
+                  {busy ? <Loader2 size={13} className="animate-spin" /> : (asset.gated ? <Lock size={12} /> : <Globe size={12} />)}
+                  {asset.gated ? 'Members-only — tap to unlock' : 'Gate to Sanctuary (members-only)'}
+                </button>
+              )}
+              {onManageSanctuary && (
+                <button onClick={onManageSanctuary} className="w-full py-2 rounded-full bg-white/5 text-white/50 text-[9px] font-black uppercase tracking-widest hover:text-white">Manage tiers & à-la-carte in Sanctuary →</button>
+              )}
+              <p className="text-[8px] text-white/25 leading-relaxed">Gated assets are locked to your Sanctuary members (or à-la-carte buyers). Set tiers and pricing in Sanctuary.</p>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            {asset.editable && <button onClick={onEdit} className="flex-1 py-3 rounded-full bg-white/10 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-white/15"><Pencil size={13} /> {asset.product ? 'Edit in Store Manager' : 'Open in studio'}</button>}
+            {(asset.album?.tracks?.[0]?.url || asset.video?.url) && (
+              <a href={asset.album?.tracks?.[0]?.url || asset.video?.url} target="_blank" rel="noreferrer" download className="px-4 py-3 rounded-full bg-white/10 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2" title="Download source"><Download size={13} /></a>
+            )}
+          </div>
+          <CrossoverConvertPanel asset={asset} />
+          <p className="text-[9px] text-white/20 leading-relaxed">Digital asset record — the canonical entry for this work across Plajah. Editing opens the same authoring tool used to create it.</p>
+        </div>
       </div>
-      <CrossoverConvertPanel asset={asset} />
-      <p className="text-[9px] text-white/20 leading-relaxed">Digital asset record — the canonical entry for this work across Plajah. Editing opens the same authoring tool used to create it.</p>
     </div>
-  </div>
-);
+  );
+};
 
 const ProjectsPanel: React.FC<{ projects: ProjectRow[]; onOpenProject?: (kind: string) => void }> = ({ projects, onOpenProject }) => {
   const groups: { kind: string; icon: React.ComponentType<{ size?: number; className?: string }>; note: string }[] = [
