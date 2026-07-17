@@ -2752,6 +2752,7 @@ Rules:
 - Do NOT invent or guess lyrics — only transcribe words you can clearly hear in the audio.
 - Each "text" entry should be one sung phrase of roughly 3-8 words. Do not merge multiple lines into one entry.
 - Sort all entries by ascending time.
+- CRITICAL: keep timing accurate through the WHOLE song. A common failure is timestamps drifting behind (or ahead of) the audio after the first minute — re-anchor to what you actually hear every ~20 seconds, and never let a timestamp exceed the audio's real length.
 - The last entry must be close to the actual end of the audio — do not stop early.`;
       const response = await genai.models.generateContent({
         model: 'gemini-2.5-flash',
@@ -2780,6 +2781,29 @@ Rules:
         if (cut > 0) { try { captions = JSON.parse(raw.slice(0, cut + 1) + ']'); } catch { captions = []; } }
       }
       captions = Array.isArray(captions) ? captions.filter(c => typeof c?.time === 'number' && typeof c?.text === 'string') : [];
+
+      // Gemini audio timestamps drift, and often OVERSHOOT the song's real end — which makes
+      // the lyric highlight freeze partway (it's waiting for a timestamp that never arrives).
+      // Probe the true duration and compress the timeline to fit if it overshoots.
+      try {
+        if (captions.length) {
+          const tmpA = path.join(os.tmpdir(), `cap_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+          await fs.writeFile(tmpA, buf);
+          const { json } = await runFfprobe(tmpA);
+          fs.rm(tmpA, { force: true }).catch(() => {});
+          const dur = parseFloat(json?.format?.duration || '0') || 0;
+          const last = captions[captions.length - 1].time;
+          if (dur > 0 && last > dur * 1.02) {
+            const k = (dur * 0.99) / last;   // scale the whole timeline back inside the song
+            captions = captions.map(c => ({ ...c, time: Math.round(c.time * k * 100) / 100 }));
+          }
+        }
+      } catch { /* best-effort — captions still return */ }
+
+      // Enforce non-decreasing timestamps so a stray out-of-order entry can't scramble/stall the view.
+      let prev = -Infinity;
+      captions = captions.map(c => { const t = Math.max(prev, c.time); prev = t; return { time: t, text: c.text }; });
+
       res.json({ captions });
     } catch (err: any) {
       console.error('[AI] captions failed:', err?.message || err);
