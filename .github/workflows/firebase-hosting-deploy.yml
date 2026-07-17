@@ -31,6 +31,9 @@ jobs:
 
       - name: Build
         env:
+          # The bundle includes verovio's embedded WASM + onnxruntime — the default Node
+          # heap OOMs during the build, so give it plenty of headroom (runner has 16 GB).
+          NODE_OPTIONS: --max-old-space-size=8192
           VITE_MUX_TOKEN_ID: ${{ secrets.VITE_MUX_TOKEN_ID }}
           VITE_MUX_TOKEN_SECRET: ${{ secrets.VITE_MUX_TOKEN_SECRET }}
           # App Check site key — without this the client sends no App Check token; if App Check
@@ -133,6 +136,7 @@ jobs:
 
       - name: Build SPA (Dockerfile copies the prebuilt dist/)
         env:
+          NODE_OPTIONS: --max-old-space-size=8192
           VITE_MUX_TOKEN_ID: ${{ secrets.VITE_MUX_TOKEN_ID }}
           VITE_MUX_TOKEN_SECRET: ${{ secrets.VITE_MUX_TOKEN_SECRET }}
           VITE_APPCHECK_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_APPCHECK_RECAPTCHA_SITE_KEY }}
