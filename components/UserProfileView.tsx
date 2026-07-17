@@ -1773,10 +1773,11 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <VideoTab 
-                  profile={profile} 
-                  isOwner={isOwnProfile} 
+                <VideoTab
+                  profile={profile}
+                  isOwner={isOwnProfile}
                   onSelectVideo={onSelectAlbum}
+                  profileScoped
                 />
               </motion.div>
             ) : activeTab === 'THEMES' ? (

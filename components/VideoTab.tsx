@@ -43,6 +43,9 @@ interface VideoTabProps {
   onPlaylistOpened?: () => void;
   /** Set the autoplay queue when playing from a playlist. */
   onSetQueue?: (videos: Video[]) => void;
+  /** Embedded on a user PROFILE: show only that creator's videos (their channel),
+   *  not the global Reello discover page. */
+  profileScoped?: boolean;
 }
 
 const CATEGORIES = [
@@ -430,7 +433,7 @@ const LiveFeedCard: React.FC<{ feed: LiveFeed; onSelect: () => void }> = ({ feed
 };
 
 // â"€â"€ Main Component â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mode = 'VIDEOS', currentUser, onVisitUser, initialPlaylistId, onPlaylistOpened, onSetQueue }) => {
+const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mode = 'VIDEOS', currentUser, onVisitUser, initialPlaylistId, onPlaylistOpened, onSetQueue, profileScoped = false }) => {
   const { playVideo } = useGlobalPlayerState();
   const { uploadFile } = useUpload();
 
@@ -454,7 +457,9 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [heroVideo, setHeroVideo] = useState<any>(null);
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeView, setActiveView] = useState<'discover' | 'uploads' | 'live' | 'playlists' | 'channel' | 'shorts' | 'subscriptions' | 'history' | 'liked'>('discover');
+  // On a user profile, open straight to that creator's own videos ('uploads' = the profile
+  // owner's videos), never the global discover feed.
+  const [activeView, setActiveView] = useState<'discover' | 'uploads' | 'live' | 'playlists' | 'channel' | 'shorts' | 'subscriptions' | 'history' | 'liked'>(profileScoped ? 'uploads' : 'discover');
   // Deep-link: a shared playlist link opens straight to its detail under the Playlists tab.
   useEffect(() => {
     if (initialPlaylistId) {
@@ -824,7 +829,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   return (
     <div className="flex-1 min-h-0">
       {/* â"€â"€ Top Bar â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
-      <div className="sticky top-0 z-40 glass-nav border-b border-white/5 px-4 sm:px-6 lg:px-12 py-4">
+      <div className={`sticky top-0 z-40 glass-nav border-b border-white/5 px-4 sm:px-6 lg:px-12 py-4 ${profileScoped ? 'hidden' : ''}`}>
         <div className="max-w-7xl mx-auto flex items-center gap-4">
           <h1 className="text-xl font-black uppercase tracking-widest shrink-0 hidden lg:block">
             {mode === 'MOVIES_TV' ? 'Plajah Taleo' : 'Plajah Reello'}
@@ -883,13 +888,13 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
       </div>
 
       {/* Plajah+ Banner */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 pt-4 pb-2">
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 pt-4 pb-2 ${profileScoped ? 'hidden' : ''}`}>
         <PlajahPlusBanner variant="COMPACT" />
       </div>
 
       <div className="flex max-w-7xl mx-auto">
-        {/* Sidebar nav (desktop) */}
-        <div className="hidden lg:flex flex-col gap-1 w-44 shrink-0 sticky top-32 h-fit pt-8 px-6">
+        {/* Sidebar nav (desktop) — hidden when scoped to a single creator's profile */}
+        <div className={`${profileScoped ? 'hidden' : 'hidden lg:flex'} flex-col gap-1 w-44 shrink-0 sticky top-32 h-fit pt-8 px-6`}>
           {[
             { id: 'discover', label: 'Discover', icon: Sparkles },
             { id: 'subscriptions', label: 'Subscriptions', icon: Users },
@@ -915,7 +920,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         <div className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 lg:pl-0 space-y-2">
 
           {/* Mobile view tabs */}
-          <div className="flex gap-2 lg:hidden mb-6 overflow-x-auto no-scrollbar">
+          <div className={`gap-2 lg:hidden mb-6 overflow-x-auto no-scrollbar ${profileScoped ? 'hidden' : 'flex'}`}>
             {(['discover', 'subscriptions', 'shorts', 'uploads', 'live', 'playlists', 'liked', 'history', 'channel'] as const).map(v => (
               <button key={v} onClick={() => setActiveView(v)} className={`px-4 py-2 rounded-full font-black text-[9px] uppercase tracking-widest whitespace-nowrap shrink-0 transition-all ${activeView === v ? 'bg-white text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>{v}</button>
             ))}
@@ -1292,7 +1297,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
           {activeView === 'uploads' && (
             <div className="space-y-6 pt-2">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-black uppercase tracking-widest">My Videos <span className="text-white/20 ml-2">{userVideos.length}</span></h2>
+                <h2 className="text-lg font-black uppercase tracking-widest">{isOwner ? 'My Videos' : `${profile?.displayName || 'Creator'}'s Videos`} <span className="text-white/20 ml-2">{userVideos.length}</span></h2>
                 {isOwner && <button onClick={() => setShowUpload(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all"><Plus size={14} /> Upload</button>}
               </div>
               {userVideos.length > 0 ? (
@@ -1312,7 +1317,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               ) : (
                 <div className="py-32 bg-white/[0.02] border-2 border-dashed border-white/5 rounded-[3rem] flex flex-col items-center justify-center text-center">
                   <Film size={48} className="text-white/10 mb-6" />
-                  <p className="text-sm font-black uppercase tracking-widest text-white/20 mb-2">No videos uploaded yet</p>
+                  <p className="text-sm font-black uppercase tracking-widest text-white/20 mb-2">{isOwner ? 'No videos uploaded yet' : `${profile?.displayName || 'This creator'} hasn't posted any videos yet`}</p>
                   {isOwner && <button onClick={() => setShowUpload(true)} className="mt-6 px-10 py-4 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl">Upload First Video</button>}
                 </div>
               )}
