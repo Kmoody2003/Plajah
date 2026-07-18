@@ -172,18 +172,78 @@ const DATA: ScienceDisciplineData = {
   ],
 
   concepts: [
-    { id: 'stellar-evo', name: 'Stellar Evolution', blurb: 'The life cycle of a star — birth in a gas cloud, hydrogen fusion on the main sequence, and death as a white dwarf, neutron star or black hole — set mostly by its mass.', wikiSlug: 'Stellar_evolution', tags: ['stars', 'astrophysics'] },
-    { id: 'redshift', name: 'Redshift & Doppler', blurb: 'Motion and cosmic expansion stretch a source\'s light to longer wavelengths; measuring the shift yields velocities and distances across the universe.', wikiSlug: 'Redshift', tags: ['cosmology', 'spectroscopy'] },
-    { id: 'blackhole', name: 'Black Holes', blurb: 'Regions where gravity is so strong that nothing, not even light, escapes past the event horizon — the endpoints of the most massive stars.', wikiSlug: 'Black_hole', tags: ['relativity', 'astrophysics'] },
-    { id: 'distance-ladder', name: 'Cosmic Distance Ladder', blurb: 'A chain of overlapping methods — parallax, Cepheids, Type Ia supernovae — each calibrating the next to measure ever greater cosmic distances.', wikiSlug: 'Cosmic_distance_ladder', tags: ['cosmology', 'measurement'] },
+    {
+      id: 'stellar-evo', name: 'Stellar Evolution', blurb: 'The life cycle of a star — birth in a gas cloud, hydrogen fusion on the main sequence, and death as a white dwarf, neutron star or black hole — set mostly by its mass.', wikiSlug: 'Stellar_evolution', tags: ['stars', 'astrophysics'],
+      deepDive: 'A star spends most of its life fusing hydrogen to helium on the main sequence, balancing outward radiation pressure against gravity. Its mass sets its entire fate: low-mass stars swell to red giants and shed their envelopes as white dwarfs, while stars above about eight solar masses fuse ever-heavier elements and end in a supernova, leaving a neutron star or black hole. The Chandrasekhar limit — about 1.44 solar masses — decides whether a stellar core can settle as a white dwarf or must collapse.',
+      lawIds: ['stefan-boltzmann', 'chandrasekhar', 'jeans'], videoIds: ['udFxKZRyQt4', 'Y4L8AzTnBpo'],
+      evidence: [
+        { label: 'The Hertzsprung–Russell diagram (1910s)', detail: 'Plotting luminosity against temperature revealed the main sequence and the tracks stars follow as they evolve.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Hertzsprung%E2%80%93Russell_diagram' },
+        { label: 'SN 1987A', detail: 'The nearest naked-eye supernova in centuries let astronomers watch a massive star\'s death and detect its neutrinos.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/SN_1987A' },
+        { label: 'Eddington, The Internal Constitution of the Stars (1926)', detail: 'Established radiative equilibrium and the mass–luminosity relation for stellar interiors.', kind: 'document', url: 'https://en.wikipedia.org/wiki/Mass%E2%80%93luminosity_relation' },
+      ],
+    },
+    {
+      id: 'redshift', name: 'Redshift & Doppler', blurb: 'Motion and cosmic expansion stretch a source\'s light to longer wavelengths; measuring the shift yields velocities and distances across the universe.', wikiSlug: 'Redshift', tags: ['cosmology', 'spectroscopy'],
+      deepDive: 'When a source moves away, its light is stretched to longer (redder) wavelengths; the fractional shift z of known spectral lines measures the recession speed. For distant galaxies the stretching is cosmological — space itself expands while the light travels — so redshift becomes a direct probe of distance and cosmic history. Hubble\'s discovery that redshift rises with distance was the first observational evidence that the universe is expanding.',
+      lawIds: ['redshift', 'hubble'],
+      evidence: [
+        { label: "Slipher's spiral-nebula velocities (1912–1917)", detail: 'Vesto Slipher measured large redshifts in spiral nebulae, most receding from us.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Vesto_Slipher' },
+        { label: "Hubble's velocity–distance relation (1929)", detail: 'Edwin Hubble showed recession velocity rises linearly with distance — the signature of expansion.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Hubble%27s_law' },
+      ],
+    },
+    {
+      id: 'blackhole', name: 'Black Holes', blurb: 'Regions where gravity is so strong that nothing, not even light, escapes past the event horizon — the endpoints of the most massive stars.', wikiSlug: 'Black_hole', tags: ['relativity', 'astrophysics'],
+      deepDive: 'A black hole is a region where mass is compressed within its Schwarzschild radius, so escape would require exceeding the speed of light — nothing, not even light, gets out past the event horizon. Stellar-mass black holes form when massive cores collapse; supermassive ones, millions to billions of solar masses, anchor galaxy centres. Though invisible directly, they betray themselves through orbiting stars, superheated infalling gas, gravitational waves and, now, direct imaging of their shadows.',
+      lawIds: ['schwarzschild'], videoIds: ['QcNncQKfNjc', 'Tk9J5uSZ1JU'],
+      evidence: [
+        { label: 'LIGO GW150914 (2015)', detail: 'The first detected gravitational waves came from two merging black holes 1.3 billion light-years away.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/GW150914' },
+        { label: 'Event Horizon Telescope image of M87* (2019)', detail: 'The first direct image of a black hole\'s shadow, from a supermassive black hole in galaxy M87.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Messier_87' },
+        { label: 'Stellar orbits around Sagittarius A* (Nobel 2020)', detail: 'Tracking stars whipping around the Galactic Centre revealed a four-million-solar-mass black hole.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Sagittarius_A*' },
+      ],
+    },
+    {
+      id: 'distance-ladder', name: 'Cosmic Distance Ladder', blurb: 'A chain of overlapping methods — parallax, Cepheids, Type Ia supernovae — each calibrating the next to measure ever greater cosmic distances.', wikiSlug: 'Cosmic_distance_ladder', tags: ['cosmology', 'measurement'],
+      deepDive: 'No single technique reaches across the whole universe, so astronomers build a ladder of overlapping methods. Parallax gives direct geometric distances to nearby stars; those calibrate Cepheid variables, whose period reveals their luminosity; Cepheids in turn calibrate Type Ia supernovae, standard candles bright enough to see across billions of light-years. Each rung is anchored on the one below, so an error low down propagates all the way up.',
+      simulatorId: 'orbit', lawIds: ['parallax', 'distance-modulus'],
+      evidence: [
+        { label: "Leavitt's period–luminosity law (1908–1912)", detail: 'Henrietta Leavitt found a Cepheid\'s pulsation period predicts its true brightness — a standard candle.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Period-luminosity_relation' },
+        { label: 'Gaia parallax survey', detail: 'ESA\'s Gaia mission measured precise geometric distances to nearly two billion stars, anchoring the ladder.', kind: 'dataset', url: 'https://en.wikipedia.org/wiki/Gaia_(spacecraft)' },
+      ],
+    },
     { id: 'exoplanets', name: 'Exoplanets', blurb: 'Planets orbiting other stars, found by the tiny wobbles and dimming they cause; thousands are now known, some potentially habitable.', wikiSlug: 'Exoplanet', tags: ['planets', 'detection'] },
     { id: 'spectroscopy', name: 'Spectroscopy', blurb: 'Splitting light into its spectrum reveals a source\'s composition, temperature, motion and density — astronomy\'s single most powerful tool.', wikiSlug: 'Astronomical_spectroscopy', tags: ['spectroscopy', 'measurement'] },
-    { id: 'dark-matter', name: 'Dark Matter & Dark Energy', blurb: 'Most of the universe is invisible: unseen matter binds galaxies, while a mysterious dark energy accelerates cosmic expansion.', wikiSlug: 'Dark_matter', tags: ['cosmology'] },
-    { id: 'cmb', name: 'Cosmic Microwave Background', blurb: 'The faint afterglow of the Big Bang, released when the universe first became transparent — a snapshot of the cosmos at 380,000 years old.', wikiSlug: 'Cosmic_microwave_background', tags: ['cosmology'] },
+    {
+      id: 'dark-matter', name: 'Dark Matter & Dark Energy', blurb: 'Most of the universe is invisible: unseen matter binds galaxies, while a mysterious dark energy accelerates cosmic expansion.', wikiSlug: 'Dark_matter', tags: ['cosmology'],
+      deepDive: 'Galaxies rotate and clusters hold together far faster than their visible mass allows, implying vast amounts of unseen "dark matter" — roughly five times more than ordinary matter. Separately, distant supernovae show cosmic expansion is accelerating, driven by a "dark energy" that dominates the universe\'s energy budget. Together they make up about 95% of the cosmos, yet neither has been directly identified — among the deepest open problems in physics.',
+      videoIds: ['QAa2O_8wBUQ'],
+      evidence: [
+        { label: "Zwicky's Coma Cluster analysis (1933)", detail: 'Fritz Zwicky applied the virial theorem and found the cluster needed far more mass than its visible galaxies.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Galaxy_cluster' },
+        { label: "Rubin's galaxy rotation curves (1970s)", detail: 'Vera Rubin showed stars in spiral galaxies orbit too fast for the visible mass — strong evidence for dark matter.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Galaxy_rotation_curve' },
+        { label: 'The Bullet Cluster (2006)', detail: 'A cluster collision separated the gravitational mass from the visible gas, mapping dark matter directly.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Bullet_Cluster' },
+      ],
+    },
+    {
+      id: 'cmb', name: 'Cosmic Microwave Background', blurb: 'The faint afterglow of the Big Bang, released when the universe first became transparent — a snapshot of the cosmos at 380,000 years old.', wikiSlug: 'Cosmic_microwave_background', tags: ['cosmology'],
+      deepDive: 'About 380,000 years after the Big Bang the universe cooled enough for electrons and nuclei to combine, letting light travel freely for the first time. That light, stretched by expansion into microwaves, still bathes the whole sky as a near-perfect 2.7 K blackbody. Tiny temperature ripples in it are the seeds of galaxies and encode the universe\'s age, composition and geometry with remarkable precision.',
+      lawIds: ['planck'], videoIds: ['p9A5Cd7lQAg'],
+      evidence: [
+        { label: 'Penzias & Wilson detection (1965)', detail: 'An unexplained microwave hiss turned out to be the relic radiation of the Big Bang (Nobel 1978).', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Cosmic_microwave_background' },
+        { label: 'COBE blackbody spectrum & anisotropy (1992)', detail: 'COBE confirmed a perfect thermal spectrum and mapped the first temperature ripples.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Cosmic_Background_Explorer' },
+        { label: 'Planck satellite maps (2013–2018)', detail: 'Precise all-sky maps pinned down cosmological parameters and the universe\'s 13.8-billion-year age.', kind: 'dataset', url: 'https://en.wikipedia.org/wiki/Planck_(spacecraft)' },
+      ],
+    },
     { id: 'nucleosynthesis', name: 'Nucleosynthesis', blurb: 'How the elements are forged — hydrogen and helium in the Big Bang, heavier elements in stellar cores and supernovae. "We are made of star stuff."', wikiSlug: 'Nucleosynthesis', tags: ['astrophysics', 'stars'] },
     { id: 'gravity-waves', name: 'Gravitational Waves', blurb: 'Ripples in spacetime from accelerating masses like merging black holes, detected by measuring sub-atomic changes in kilometre-long laser arms.', wikiSlug: 'Gravitational_wave', tags: ['relativity'] },
     { id: 'hr-diagram', name: 'Hertzsprung–Russell Diagram', blurb: 'Plotting stars by luminosity against temperature reveals the main sequence, giants and dwarfs — the single most useful diagram in astrophysics.', wikiSlug: 'Hertzsprung%E2%80%93Russell_diagram', tags: ['stars'] },
-    { id: 'orbital-mechanics', name: 'Orbital Mechanics', blurb: 'Kepler\'s and Newton\'s laws govern how planets, moons and spacecraft move — the mathematics of orbits, transfers and gravitational slingshots.', wikiSlug: 'Orbital_mechanics', tags: ['dynamics', 'planets'] },
+    {
+      id: 'orbital-mechanics', name: 'Orbital Mechanics', blurb: 'Kepler\'s and Newton\'s laws govern how planets, moons and spacecraft move — the mathematics of orbits, transfers and gravitational slingshots.', wikiSlug: 'Orbital_mechanics', tags: ['dynamics', 'planets'],
+      deepDive: 'Kepler\'s three laws describe orbits as ellipses swept at constant areal velocity, with period tied to size; Newton\'s law of gravitation explains why. From these follow the working tools of spaceflight: Hohmann transfer orbits, escape velocity, and gravity assists that steal momentum from a planet to fling a probe onward. The same equations that predicted Neptune from Uranus\'s wobble now navigate spacecraft across the solar system.',
+      simulatorId: 'orbit', lawIds: ['kepler-3', 'gravitation', 'escape-velocity'],
+      evidence: [
+        { label: "Kepler's Astronomia nova (1609)", detail: 'Johannes Kepler derived elliptical orbits from Tycho Brahe\'s precise observations of Mars.', kind: 'document', url: 'https://en.wikipedia.org/wiki/Astronomia_nova' },
+        { label: 'Prediction and discovery of Neptune (1846)', detail: 'Le Verrier and Adams used gravitational theory to predict Neptune\'s position before it was observed.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Discovery_of_Neptune' },
+      ],
+    },
   ],
 
   eras: [
@@ -440,6 +500,27 @@ const DATA: ScienceDisciplineData = {
     { name: 'SkyView Virtual Observatory', org: 'NASA HEASARC', url: 'https://skyview.gsfc.nasa.gov/', desc: 'Generate images of any part of the sky across the whole electromagnetic spectrum from archival surveys.', kind: 'api', access: 'Open' },
     { name: 'Zooniverse', org: 'Zooniverse', url: 'https://www.zooniverse.org/', desc: 'Citizen-science platform where anyone can classify galaxies, hunt exoplanets and help real research.', kind: 'community', access: 'Free' },
     { name: 'Celestia', org: 'Celestia Project', url: 'https://celestiaproject.space/', desc: 'Free real-time 3D space simulator that lets you fly through an accurately modeled universe.', kind: 'software', access: 'Open' },
+  ],
+
+  videos: [
+    // Solar System
+    { id: 'yBmzR7Vk-3Q', title: 'How To Terraform Mars - WITH LASERS', channel: 'Kurzgesagt – In a Nutshell', topic: 'Solar System', blurb: 'What it would actually take to warm the Red Planet and give it an atmosphere.', query: 'How To Terraform Mars Kurzgesagt' },
+    { id: 'rzmjbq0AfRs', title: "Perseverance Rover's Descent and Touchdown on Mars", channel: 'NASA', topic: 'Solar System', blurb: 'Real onboard footage of the "seven minutes of terror" landing on Mars in 2021.', query: 'Perseverance Rover Descent and Touchdown on Mars NASA' },
+    { id: 'GoW8Tf7hTGA', title: 'The Largest Star in the Universe – Size Comparison', channel: 'Kurzgesagt – In a Nutshell', topic: 'Solar System', blurb: 'A scale tour from moons and planets out to the most gigantic known stars.', query: 'The Largest Star in the Universe Size Comparison Kurzgesagt' },
+    { id: 'zBBUq_bcv7c', title: 'Is Planet Nine Real?', channel: 'Anton Petrov', topic: 'Solar System', blurb: 'The clustered orbits in the outer solar system that hint at an undiscovered ninth planet.', query: 'Planet Nine evidence Anton Petrov' },
+    // Stars
+    { id: 'udFxKZRyQt4', title: 'Neutron Stars – The Most Extreme Things that are not Black Holes', channel: 'Kurzgesagt – In a Nutshell', topic: 'Stars', blurb: 'The bizarre physics of a Sun crushed into a city-sized sphere denser than an atomic nucleus.', query: 'Neutron Stars The Most Extreme Things Kurzgesagt' },
+    { id: 'Y4L8AzTnBpo', title: 'How Do Stars Die?', channel: 'Dr. Becky', topic: 'Stars', blurb: 'From peaceful white dwarfs to catastrophic supernovae — how a star\'s mass decides its end.', query: 'How do stars die stellar death Dr Becky' },
+    { id: 'P4L2GYguJfw', title: 'What Happens Right Before A Star Dies?', channel: 'PBS Space Time', topic: 'Stars', blurb: 'The final fusion stages that build heavy elements inside a dying massive star.', query: 'What happens before a star dies PBS Space Time' },
+    // Galaxies
+    { id: 'QcNncQKfNjc', title: 'Sagittarius A*: The Black Hole at the Centre of the Milky Way', channel: 'Dr. Becky', topic: 'Galaxies', blurb: 'How tracking stars whipping around an invisible mass proved a supermassive black hole exists.', query: 'Sagittarius A supermassive black hole Milky Way Dr Becky' },
+    { id: 'Tk9J5uSZ1JU', title: 'The Largest Black Hole in the Universe – Size Comparison', channel: 'Kurzgesagt – In a Nutshell', topic: 'Galaxies', blurb: 'A visual scale of black holes from stellar-mass up to the largest ultramassive giants.', query: 'The Largest Black Hole in the Universe Size Comparison Kurzgesagt' },
+    { id: 'Cqf7C0m3Kn4', title: 'How Big Is The Milky Way?', channel: 'PBS Space Time', topic: 'Galaxies', blurb: 'Measuring our galaxy\'s size, structure and our place within its spiral arms.', query: 'How big is the Milky Way PBS Space Time' },
+    { id: 'Hckxpq6xtcw', title: 'The Andromeda–Milky Way Collision', channel: 'PBS Space Time', topic: 'Galaxies', blurb: 'What happens when our galaxy merges with Andromeda in about four billion years.', query: 'Andromeda Milky Way collision galaxy merger PBS Space Time' },
+    // Cosmology
+    { id: 'wNDGgL73ihY', title: 'The Beginning of Everything – The Big Bang', channel: 'Kurzgesagt – In a Nutshell', topic: 'Cosmology', blurb: 'The origin of space, time, matter and energy from the first instant of the universe.', query: 'The Beginning of Everything The Big Bang Kurzgesagt' },
+    { id: 'QAa2O_8wBUQ', title: 'What Is Dark Matter and Dark Energy?', channel: 'Kurzgesagt – In a Nutshell', topic: 'Cosmology', blurb: 'The 95% of the cosmos we cannot see, inferred from how galaxies spin and the universe expands.', query: 'What is dark matter and dark energy Kurzgesagt' },
+    { id: 'p9A5Cd7lQAg', title: 'The Oldest Light in the Universe: The Cosmic Microwave Background', channel: 'PBS Space Time', topic: 'Cosmology', blurb: 'How the faint afterglow of the Big Bang encodes the shape and history of the cosmos.', query: 'Cosmic Microwave Background oldest light PBS Space Time' },
   ],
 };
 

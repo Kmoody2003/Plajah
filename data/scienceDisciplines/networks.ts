@@ -142,18 +142,82 @@ const DATA: ScienceDisciplineData = {
   ],
 
   concepts: [
-    { id: 'packet-switching', name: 'Packet Switching', blurb: 'Breaking data into independently routed packets that share links, rather than dedicating a circuit per conversation.', wikiSlug: 'Packet_switching', tags: ['foundations', 'architecture'] },
-    { id: 'tcp-ip', name: 'TCP/IP', blurb: 'The Internet protocol suite: IP delivers packets best-effort, TCP layers reliable, ordered streams on top.', wikiSlug: 'Internet_protocol_suite', tags: ['protocols', 'transport'] },
+    {
+      id: 'packet-switching', name: 'Packet Switching', blurb: 'Breaking data into independently routed packets that share links, rather than dedicating a circuit per conversation.', wikiSlug: 'Packet_switching', tags: ['foundations', 'architecture'],
+      deepDive: 'Packet switching chops a message into small, independently addressed packets that share links with everyone else\'s traffic, rather than tying up a dedicated circuit for the whole conversation. This statistical multiplexing is far more efficient for bursty computer traffic and, because packets can route around failures, far more survivable. Baran conceived it for a network that could withstand attack, and Kleinrock\'s queueing theory gave it a mathematical footing.',
+      lawIds: ['littles-law', 'queue-utilisation'],
+      evidence: [
+        { label: 'On Distributed Communications (Baran, 1964)', detail: 'Proposed distributed, message-block (packet) switching for survivable networks.', url: 'https://www.rand.org/pubs/research_memoranda/RM3420.html', kind: 'document' },
+        { label: 'Donald Davies\' NPL network', detail: 'Independently invented packet switching and coined the word "packet".', kind: 'document' },
+        { label: 'Kleinrock\'s queueing theory for networks', detail: 'Modelled delay and capacity in packet networks, validated on the ARPANET.', kind: 'proof' },
+      ],
+    },
+    {
+      id: 'tcp-ip', name: 'TCP/IP', blurb: 'The Internet protocol suite: IP delivers packets best-effort, TCP layers reliable, ordered streams on top.', wikiSlug: 'Internet_protocol_suite', tags: ['protocols', 'transport'],
+      deepDive: 'TCP/IP splits the job of internetworking into layers: IP moves packets best-effort between any two hosts, and TCP adds reliability, ordering and flow control on top so applications see a clean byte stream. The design follows the end-to-end principle, keeping the network core simple and pushing intelligence to the edges. When the ARPANET switched to TCP/IP on 1 January 1983, the modern Internet was born.',
+      lawIds: ['bandwidth-delay', 'throughput'],
+      videoIds: ['AEaKrq3SpW8'],
+      evidence: [
+        { label: 'A Protocol for Packet Network Intercommunication (Cerf & Kahn, 1974)', detail: 'Introduced the TCP/IP architecture for interconnecting heterogeneous networks.', url: 'https://ieeexplore.ieee.org/document/1092259', kind: 'document' },
+        { label: 'RFC 793: Transmission Control Protocol (1981)', detail: 'The specification that defined reliable, ordered TCP streams.', url: 'https://www.rfc-editor.org/rfc/rfc793', kind: 'document' },
+        { label: 'ARPANET flag day, 1 January 1983', detail: 'The whole network cut over to TCP/IP, marking the Internet\'s birth.', kind: 'experiment' },
+      ],
+    },
     { id: 'osi-model', name: 'OSI Model', blurb: 'A seven-layer reference model — physical to application — for describing and comparing network protocols.', wikiSlug: 'OSI_model', tags: ['architecture', 'model'] },
-    { id: 'routing', name: 'Routing', blurb: 'Choosing paths for packets across an internetwork using algorithms like shortest-path and distance-vector.', wikiSlug: 'Routing', tags: ['routing', 'algorithms'] },
+    {
+      id: 'routing', name: 'Routing', blurb: 'Choosing paths for packets across an internetwork using algorithms like shortest-path and distance-vector.', wikiSlug: 'Routing', tags: ['routing', 'algorithms'],
+      deepDive: 'Routing is the distributed problem of computing, at every hop, which neighbour to forward a packet to so it reaches its destination. Link-state protocols (OSPF) flood the topology and run Dijkstra\'s shortest-path algorithm locally, while distance-vector protocols (RIP, and BGP at Internet scale) exchange summaries with neighbours. The genius of the Internet is that no router knows the whole path — each just needs the next hop.',
+      evidence: [
+        { label: 'A Note on Two Problems in Connexion with Graphs (Dijkstra, 1959)', detail: 'The shortest-path algorithm at the heart of link-state routing.', kind: 'proof' },
+        { label: 'The Bellman–Ford algorithm', detail: 'Computes shortest paths by iterative relaxation, the basis of distance-vector routing.', kind: 'proof' },
+        { label: 'RFC 4271: Border Gateway Protocol 4', detail: 'The path-vector protocol that routes between the Internet\'s autonomous systems.', url: 'https://www.rfc-editor.org/rfc/rfc4271', kind: 'document' },
+      ],
+    },
     { id: 'bgp', name: 'BGP', blurb: 'The Border Gateway Protocol that exchanges reachability between autonomous systems — the glue of the global Internet.', wikiSlug: 'Border_Gateway_Protocol', tags: ['routing', 'internet'] },
-    { id: 'dns', name: 'DNS', blurb: 'The Domain Name System, a distributed hierarchy that resolves human-readable names to IP addresses.', wikiSlug: 'Domain_Name_System', tags: ['naming', 'application'] },
-    { id: 'congestion-control', name: 'Congestion Control', blurb: 'Algorithms that pace senders to avoid overwhelming the network, keeping throughput high and loss low.', wikiSlug: 'Network_congestion', tags: ['transport', 'performance'] },
+    {
+      id: 'dns', name: 'DNS', blurb: 'The Domain Name System, a distributed hierarchy that resolves human-readable names to IP addresses.', wikiSlug: 'Domain_Name_System', tags: ['naming', 'application'],
+      deepDive: 'DNS is a globally distributed, hierarchical database that translates names like example.com into IP addresses, delegating authority down the tree from the root to top-level domains to individual zones. Aggressive caching at resolvers keeps it fast and keeps load off the root servers, so a lookup usually finishes in milliseconds. It replaced a single hand-edited HOSTS.TXT file that could never have scaled to billions of names.',
+      videoIds: ['AEaKrq3SpW8'],
+      evidence: [
+        { label: 'RFC 1034 & 1035: Domain Names (Mockapetris, 1987)', detail: 'The specifications that defined the hierarchical, delegated DNS.', url: 'https://www.rfc-editor.org/rfc/rfc1034', kind: 'document' },
+        { label: 'The 13 root server identities', detail: 'Anycast-replicated roots anchor the global name hierarchy.', kind: 'document' },
+        { label: 'Caching and TTLs', detail: 'Time-to-live values let resolvers cache answers, cutting latency and root-server load.', kind: 'experiment' },
+      ],
+    },
+    {
+      id: 'congestion-control', name: 'Congestion Control', blurb: 'Algorithms that pace senders to avoid overwhelming the network, keeping throughput high and loss low.', wikiSlug: 'Network_congestion', tags: ['transport', 'performance'],
+      deepDive: 'Congestion control keeps senders from injecting more traffic than the network can carry, using packet loss (or delay) as an implicit signal to slow down. TCP\'s additive-increase/multiplicative-decrease rule grows the window gently but halves it on loss, letting many flows converge to a fair, stable share of a link. Van Jacobson\'s 1988 algorithms rescued the Internet from a series of congestion collapses that had cut throughput by orders of magnitude.',
+      lawIds: ['aimd', 'throughput'],
+      evidence: [
+        { label: 'Congestion Avoidance and Control (Jacobson, 1988)', detail: 'Introduced slow-start and congestion avoidance, ending Internet congestion collapse.', url: 'https://dl.acm.org/doi/10.1145/52324.52356', kind: 'document' },
+        { label: 'Chiu & Jain analysis of AIMD', detail: 'Proved additive-increase/multiplicative-decrease converges to fairness and efficiency.', kind: 'proof' },
+        { label: 'RFC 5681: TCP Congestion Control', detail: 'The standard defining slow-start, congestion avoidance, fast retransmit and recovery.', url: 'https://www.rfc-editor.org/rfc/rfc5681', kind: 'document' },
+      ],
+    },
     { id: 'ethernet', name: 'Ethernet & LANs', blurb: 'The dominant local-area link technology, using framing and (historically) CSMA/CD to share a medium.', wikiSlug: 'Ethernet', tags: ['link-layer', 'lan'] },
-    { id: 'tls', name: 'TLS & Network Security', blurb: 'Transport Layer Security encrypts and authenticates traffic, protecting data in transit across the Internet.', wikiSlug: 'Transport_Layer_Security', tags: ['security', 'transport'] },
+    {
+      id: 'tls', name: 'TLS & Network Security', blurb: 'Transport Layer Security encrypts and authenticates traffic, protecting data in transit across the Internet.', wikiSlug: 'Transport_Layer_Security', tags: ['security', 'transport'],
+      deepDive: 'TLS wraps ordinary TCP connections in encryption and authentication, so an eavesdropper on the path sees only ciphertext and a client can verify it is really talking to the intended server. The handshake uses public-key cryptography — Diffie–Hellman key exchange plus certificate-based identity — to agree a fresh symmetric key for the session. TLS 1.3 streamlined this to a single round trip and removed decades of legacy weak options, making encryption the default across the web.',
+      videoIds: ['0TLDTodL7Lc', 'GSIDS_lvRv4'],
+      evidence: [
+        { label: 'New Directions in Cryptography (Diffie & Hellman, 1976)', detail: 'Public-key key exchange, the foundation of the TLS handshake.', url: 'https://ee.stanford.edu/~hellman/publications/24.pdf', kind: 'document' },
+        { label: 'RFC 8446: TLS 1.3 (2018)', detail: 'The modern protocol with a faster handshake and forward secrecy by default.', url: 'https://www.rfc-editor.org/rfc/rfc8446', kind: 'document' },
+        { label: 'Certificate authorities and the chain of trust', detail: 'CAs vouch for server identities so clients can authenticate whom they connect to.', kind: 'document' },
+      ],
+    },
     { id: 'sdn', name: 'Software-Defined Networking', blurb: 'Separating the control plane from the data plane so networks can be programmed centrally.', wikiSlug: 'Software-defined_networking', tags: ['architecture', 'modern'] },
     { id: 'wireless', name: 'Wireless & Cellular', blurb: 'Radio networking — Wi-Fi and cellular (LTE/5G) — that connects mobile devices without wires.', wikiSlug: 'Wireless_network', tags: ['wireless', 'physical'] },
-    { id: 'error-correction', name: 'Error Detection & Correction', blurb: 'Checksums, CRCs and codes that detect or repair bit errors introduced by noisy links.', wikiSlug: 'Error_detection_and_correction', tags: ['link-layer', 'reliability'] },
+    {
+      id: 'error-correction', name: 'Error Detection & Correction', blurb: 'Checksums, CRCs and codes that detect or repair bit errors introduced by noisy links.', wikiSlug: 'Error_detection_and_correction', tags: ['link-layer', 'reliability'],
+      deepDive: 'Physical links corrupt bits, so networks add redundancy that lets receivers detect — and sometimes repair — errors without retransmission. A code\'s minimum Hamming distance determines how many errors it can catch or fix: cyclic redundancy checks reliably detect frame errors in Ethernet and Wi-Fi, while codes like Reed–Solomon actively correct them. Shannon proved that reliable communication is possible up to the channel capacity, and Hamming built the first codes that approach it.',
+      lawIds: ['hamming-distance', 'error-correction', 'crc'],
+      videoIds: ['X8jsijhllIA'],
+      evidence: [
+        { label: 'A Mathematical Theory of Communication (Shannon, 1948)', detail: 'Proved error-free transmission is possible below the channel capacity.', url: 'https://people.math.harvard.edu/~ctm/home/text/others/shannon/entropy/entropy.pdf', kind: 'proof' },
+        { label: 'Error Detecting and Error Correcting Codes (Hamming, 1950)', detail: 'Introduced the first practical error-correcting codes and Hamming distance.', kind: 'document' },
+        { label: 'Cyclic redundancy checks', detail: 'Polynomial-division checksums that catch virtually all real-world frame errors.', kind: 'document' },
+      ],
+    },
   ],
 
   eras: [
@@ -380,6 +444,27 @@ const DATA: ScienceDisciplineData = {
     { name: 'iperf3', org: 'ESnet', url: 'https://iperf.fr', desc: 'Open-source tool for actively measuring achievable network bandwidth.', kind: 'software', access: 'Open' },
     { name: 'IETF RFCs', org: 'IETF', url: 'https://www.rfc-editor.org', desc: 'The authoritative, free archive of Internet protocol standards and specifications.', kind: 'dataset', access: 'Open' },
     { name: 'ns-3', org: 'nsnam', url: 'https://www.nsnam.org', desc: 'Discrete-event network simulator for research and teaching.', kind: 'software', access: 'Open' },
+  ],
+
+  videos: [
+    // ── Foundations
+    { id: '3QhU9jd03a0', title: 'Computer Networks: Crash Course Computer Science #28', channel: 'CrashCourse', topic: 'Foundations', blurb: 'Bandwidth, latency, packets and how machines share a medium.', query: 'Computer Networks Crash Course Computer Science #28 CrashCourse' },
+    { id: 'X8jsijhllIA', title: 'But how do error correction codes actually work?', channel: '3Blue1Brown', topic: 'Foundations', blurb: 'Hamming codes: detecting and repairing bit errors on noisy links.', query: 'But how do error correction codes actually work Hamming codes 3Blue1Brown' },
+    { id: 'QZwneRb-zqA', title: 'Exploring How Computers Work', channel: 'Sebastian Lague', topic: 'Foundations', blurb: 'From signals and logic gates up to programmable machines.', query: 'Exploring How Computers Work Sebastian Lague' },
+    // ── Protocols
+    { id: 'Lc7ppwDljyE', title: 'The OSI Model - Networking Fundamentals', channel: 'PracticalNetworking', topic: 'Protocols', blurb: 'The seven-layer reference model, one layer at a time.', query: 'The OSI Model Networking Fundamentals PracticalNetworking' },
+    { id: 'jVLvj16lWCM', title: 'The TCP/IP Model - Networking Fundamentals', channel: 'PracticalNetworking', topic: 'Protocols', blurb: 'How the layered TCP/IP stack maps to real protocols.', query: 'The TCP/IP Model Networking Fundamentals PracticalNetworking' },
+    { id: 'Zq_2ThMgh94', title: 'IP Subnetting - Networking Fundamentals', channel: 'PracticalNetworking', topic: 'Protocols', blurb: 'CIDR, masks and carving an address block into subnets.', query: 'IP Subnetting Networking Fundamentals PracticalNetworking' },
+    { id: 'HrITVZLm3Sw', title: 'Networking tutorial: Ethernet & framing', channel: 'Ben Eater', topic: 'Protocols', blurb: 'How bits become Ethernet frames on a real wire.', query: 'Networking tutorial Ethernet Ben Eater' },
+    // ── The Internet
+    { id: 'AEaKrq3SpW8', title: 'The Internet: Crash Course Computer Science #29', channel: 'CrashCourse', topic: 'The Internet', blurb: 'Routing, IP addresses, DNS and how packets cross the globe.', query: 'The Internet Crash Course Computer Science #29 CrashCourse' },
+    { id: 'guvsH5OFizE', title: 'The World Wide Web: Crash Course Computer Science #30', channel: 'CrashCourse', topic: 'The Internet', blurb: 'HTTP, HTML and the application layer built atop the Internet.', query: 'The World Wide Web Crash Course Computer Science #30 CrashCourse' },
+    { id: 'A1KrOs1qhIk', title: 'How BGP Works - Networking Fundamentals', channel: 'PracticalNetworking', topic: 'The Internet', blurb: 'How autonomous systems exchange routes across the Internet.', query: 'BGP Networking Fundamentals PracticalNetworking' },
+    // ── Security
+    { id: 'GSIDS_lvRv4', title: 'Public Key Cryptography', channel: 'Computerphile', topic: 'Security', blurb: 'The asymmetric-key idea that secures traffic over open networks.', query: 'Public Key Cryptography Computerphile' },
+    { id: '0TLDTodL7Lc', title: 'Transport Layer Security (TLS)', channel: 'Computerphile', topic: 'Security', blurb: 'What actually happens in the TLS handshake behind HTTPS.', query: 'Transport Layer Security TLS Computerphile' },
+    { id: 'Yjrfm_oRO0w', title: 'Diffie Hellman - the Mathematics bit', channel: 'Computerphile', topic: 'Security', blurb: 'The maths of agreeing a shared secret over a public channel.', query: 'Diffie Hellman the Mathematics bit Computerphile' },
+    { id: 'iQsKdbjb5CM', title: 'HTTPS, SSL, TLS & Certificate Authorities Explained', channel: 'PracticalNetworking', topic: 'Security', blurb: 'How certificates and CAs authenticate the sites you visit.', query: 'HTTPS SSL TLS Certificate Authority PracticalNetworking' },
   ],
 };
 

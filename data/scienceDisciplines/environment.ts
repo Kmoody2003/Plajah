@@ -331,6 +331,29 @@ const DATA: ScienceDisciplineData = {
       blurb: 'Carbon moves between atmosphere, ocean, land and life; burning fossil fuels shifts it into the air faster than nature can remove it.',
       wikiSlug: 'Carbon_cycle',
       tags: ['climate', 'biogeochemistry'],
+      deepDive:
+        "Carbon constantly cycles between four great reservoirs — atmosphere, ocean, land biosphere and rock. Photosynthesis and respiration trade it with the air on a seasonal rhythm you can see as the sawtooth in the Keeling Curve. The problem is one of rate: burning fossil fuels transfers carbon locked away for hundreds of millions of years into the atmosphere within decades, far faster than weathering and ocean uptake can remove it. About half of our emissions stay airborne; most of the rest is absorbed by the ocean, which is why the sea is acidifying.",
+      lawIds: ['henry'],
+      videoIds: ['2D7hZpIYlCA'],
+      evidence: [
+        {
+          label: 'The Keeling Curve (1958–present)',
+          detail: 'Continuous Mauna Loa CO2 record showing the relentless rise and seasonal cycle.',
+          url: 'https://keelingcurve.ucsd.edu/',
+          kind: 'dataset',
+        },
+        {
+          label: 'Ice-core CO2 records (Vostok, EPICA)',
+          detail: 'Air bubbles trace 800,000 years of CO2, now far above any natural level in that span.',
+          url: 'https://en.wikipedia.org/wiki/Ice_core',
+          kind: 'dataset',
+        },
+        {
+          label: 'The Suess effect',
+          detail: 'A fall in atmospheric carbon-13 fingerprints the extra CO2 as fossil in origin.',
+          kind: 'observation',
+        },
+      ],
     },
     {
       id: 'greenhouse-effect',
@@ -338,6 +361,33 @@ const DATA: ScienceDisciplineData = {
       blurb: 'Gases like CO₂ and water vapour let sunlight in but trap outgoing infrared, warming the surface far above freezing.',
       wikiSlug: 'Greenhouse_effect',
       tags: ['climate', 'atmosphere'],
+      deepDive:
+        "The greenhouse effect is why Earth averages about +15C rather than a frozen -18C. Sunlight passes through the clear atmosphere and warms the surface, which re-radiates energy as infrared; greenhouse gases such as water vapour, CO2 and methane absorb that infrared and re-emit it in all directions, sending some back down. Adding CO2 raises the altitude from which the planet radiates to space, forcing the surface to warm to restore balance. The forcing grows with the logarithm of concentration — each doubling of CO2 adds roughly the same push.",
+      lawIds: ['stefan-boltzmann', 'equilibrium-temp', 'radiative-forcing-co2'],
+      videoIds: ['ztWHqUFJRTs', 'G4H1N_yXBiA'],
+      evidence: [
+        {
+          label: "Foote's experiment (1856)",
+          detail: 'Showed a jar of CO2 in sunlight heats more and cools slower than ordinary air.',
+          url: 'https://en.wikipedia.org/wiki/Eunice_Newton_Foote',
+          kind: 'experiment',
+        },
+        {
+          label: "Tyndall's gas measurements (1859)",
+          detail: 'Quantified the infrared absorption of water vapour and CO2 in the laboratory.',
+          kind: 'experiment',
+        },
+        {
+          label: "Arrhenius's climate calculation (1896)",
+          detail: 'First hand calculation of the warming expected from doubling atmospheric CO2.',
+          kind: 'document',
+        },
+        {
+          label: 'Satellite spectra of outgoing radiation (Harries et al., 2001)',
+          detail: 'Directly measured the greenhouse "fingerprint" deepening between 1970 and 1997.',
+          kind: 'observation',
+        },
+      ],
     },
     {
       id: 'biodiversity',
@@ -345,6 +395,35 @@ const DATA: ScienceDisciplineData = {
       blurb: 'The variety of life — genes, species and ecosystems — that underpins the resilience and productivity of the biosphere.',
       wikiSlug: 'Biodiversity',
       tags: ['ecology', 'conservation'],
+      deepDive:
+        "Biodiversity spans three levels — genes within a species, species within a community, and ecosystems across a landscape. It is not just a moral concern: diverse ecosystems are more productive and more resilient, because if one species falters another can fill its role. Habitat loss, climate change, overexploitation and invasive species are now driving extinctions hundreds of times faster than the background rate, prompting talk of a sixth mass extinction. The species-area relationship lets ecologists estimate how many species a shrinking habitat will lose.",
+      simulatorId: 'population',
+      lawIds: ['species-area-env', 'shannon-env'],
+      videoIds: ['GK_vRtHJZu4', 'xxnuqSZyhQg'],
+      evidence: [
+        {
+          label: 'IUCN Red List',
+          detail: 'The global assessment of extinction risk — tens of thousands of species now threatened.',
+          url: 'https://www.iucnredlist.org/',
+          kind: 'dataset',
+        },
+        {
+          label: 'IPBES Global Assessment (2019)',
+          detail: 'Estimated that around 1 million species face extinction, many within decades.',
+          url: 'https://www.ipbes.net/global-assessment',
+          kind: 'document',
+        },
+        {
+          label: 'Living Planet Index',
+          detail: 'Tracks a steep average decline in monitored wildlife populations since 1970.',
+          kind: 'dataset',
+        },
+        {
+          label: 'MacArthur & Wilson island biogeography (1967)',
+          detail: 'The theory linking habitat area to species number, central to reserve design.',
+          kind: 'document',
+        },
+      ],
     },
     {
       id: 'ecosystem',
@@ -352,6 +431,34 @@ const DATA: ScienceDisciplineData = {
       blurb: 'Communities of organisms bound to their physical environment by flows of energy and cycles of matter.',
       wikiSlug: 'Ecosystem',
       tags: ['ecology'],
+      deepDive:
+        "An ecosystem is a community of organisms plus the physical environment they exchange energy and matter with. Energy enters as sunlight, is fixed by producers, and flows up through herbivores and predators, losing roughly 90% at each trophic step — which is why food chains are short. Nutrients, unlike energy, cycle rather than flow, recycled by decomposers. Top predators can exert outsized control from above: removing or returning wolves to Yellowstone triggered a trophic cascade that reshaped vegetation and even rivers.",
+      simulatorId: 'population',
+      lawIds: ['logistic', 'sir'],
+      videoIds: ['v6ubvEJ3KGM', 'xxnuqSZyhQg'],
+      evidence: [
+        {
+          label: "Lindeman's trophic-dynamic ecology (1942)",
+          detail: 'Quantified energy flow between trophic levels, founding ecosystem ecology.',
+          kind: 'document',
+        },
+        {
+          label: 'Yellowstone wolf reintroduction (1995)',
+          detail: 'A textbook trophic cascade — returning wolves altered elk, vegetation and rivers.',
+          url: 'https://en.wikipedia.org/wiki/Wolves_in_Yellowstone',
+          kind: 'observation',
+        },
+        {
+          label: 'Cedar Creek biodiversity experiments (Tilman)',
+          detail: 'Long-term plots showing more diverse plots are more productive and stable.',
+          kind: 'experiment',
+        },
+        {
+          label: 'Hubbard Brook watershed study',
+          detail: 'Whole-catchment measurements of how deforestation disrupts nutrient cycling.',
+          kind: 'experiment',
+        },
+      ],
     },
     {
       id: 'biosphere',
@@ -366,6 +473,29 @@ const DATA: ScienceDisciplineData = {
       blurb: 'The long-term warming and disruption of Earth’s climate driven chiefly by human greenhouse-gas emissions.',
       wikiSlug: 'Climate_change',
       tags: ['climate'],
+      deepDive:
+        "Modern climate change is the warming and disruption of Earth's climate driven mainly by greenhouse gases from burning fossil fuels, deforestation and agriculture. The global surface has warmed more than 1C since pre-industrial times, and the fingerprints are unambiguous: nights warming faster than days, the stratosphere cooling while the surface warms, and the pattern matching CO2 rather than the sun. A warmer atmosphere also holds about 7% more water vapour per degree, intensifying both heavy rainfall and drought.",
+      lawIds: ['radiative-forcing-co2', 'stefan-boltzmann', 'clausius-clapeyron'],
+      videoIds: ['wbR-5mHI6bo', 'ldLBoErAhz4'],
+      evidence: [
+        {
+          label: 'IPCC Sixth Assessment Report (2021–2023)',
+          detail: 'The scientific consensus synthesis: warming is unequivocal and human-caused.',
+          url: 'https://www.ipcc.ch/report/ar6/',
+          kind: 'document',
+        },
+        {
+          label: 'Global surface-temperature records (GISTEMP, HadCRUT)',
+          detail: 'Independent instrumental datasets all show accelerating warming since ~1970.',
+          url: 'https://data.giss.nasa.gov/gistemp/',
+          kind: 'dataset',
+        },
+        {
+          label: 'Paleocene-Eocene Thermal Maximum',
+          detail: 'A past carbon-driven warming that offers a deep-time analogue for today.',
+          kind: 'observation',
+        },
+      ],
     },
     {
       id: 'nitrogen-cycle',
@@ -387,6 +517,28 @@ const DATA: ScienceDisciplineData = {
       blurb: 'As oceans absorb CO₂ they grow more acidic, threatening corals, shellfish and the marine food web.',
       wikiSlug: 'Ocean_acidification',
       tags: ['climate', 'ocean'],
+      deepDive:
+        "The ocean has absorbed roughly a quarter to a third of our CO2 emissions, and Henry's law guarantees it: more CO2 in the air means more dissolved in the sea. There it forms carbonic acid, releasing hydrogen ions and lowering pH. Surface-ocean pH has already fallen by about 0.1 units since pre-industrial times — because pH is logarithmic, that is roughly a 30% rise in acidity. The falling carbonate saturation makes it harder for corals, shellfish and plankton to build their calcium-carbonate skeletons.",
+      lawIds: ['henry', 'ocean-ph'],
+      videoIds: ['G4H1N_yXBiA'],
+      evidence: [
+        {
+          label: 'Ocean time-series (Station ALOHA, BATS)',
+          detail: 'Decades of measurements show surface-ocean pH declining in step with rising CO2.',
+          kind: 'dataset',
+        },
+        {
+          label: 'Aragonite saturation decline',
+          detail: 'Falling carbonate ion concentrations reduce the mineral shell-builders depend on.',
+          url: 'https://en.wikipedia.org/wiki/Ocean_acidification',
+          kind: 'observation',
+        },
+        {
+          label: 'Coral and shellfish calcification studies',
+          detail: 'Mesocosm and lab experiments show slower calcification under high-CO2 seawater.',
+          kind: 'experiment',
+        },
+      ],
     },
     {
       id: 'planetary-boundaries',
@@ -394,6 +546,27 @@ const DATA: ScienceDisciplineData = {
       blurb: 'Nine Earth-system limits — climate, biodiversity, nutrient flows and more — that define a safe operating space for humanity.',
       wikiSlug: 'Planetary_boundaries',
       tags: ['earth-systems', 'sustainability'],
+      deepDive:
+        "The planetary-boundaries framework, introduced by Johan Rockstrom and colleagues in 2009, identifies nine Earth-system processes that together keep the planet in the stable, Holocene-like state civilisation grew up in. For each — climate change, biosphere integrity, nutrient (nitrogen and phosphorus) flows, land use, freshwater, ocean acidification, novel entities and more — there is a boundary beyond which the risk of abrupt, large-scale change rises sharply. Staying inside all nine defines a 'safe operating space for humanity'; the 2023 update found six already transgressed.",
+      videoIds: ['yiw6_JakZFc'],
+      evidence: [
+        {
+          label: 'Rockstrom et al., Nature (2009)',
+          detail: 'The original paper defining the nine planetary boundaries.',
+          url: 'https://en.wikipedia.org/wiki/Planetary_boundaries',
+          kind: 'document',
+        },
+        {
+          label: 'Steffen et al., Science (2015)',
+          detail: 'Updated the framework and found several boundaries already crossed.',
+          kind: 'document',
+        },
+        {
+          label: 'Richardson et al. (2023)',
+          detail: 'Assessed all nine boundaries and reported six of them transgressed.',
+          kind: 'document',
+        },
+      ],
     },
     {
       id: 'ozone-layer',
@@ -809,6 +982,117 @@ const DATA: ScienceDisciplineData = {
       desc: 'The authoritative global assessment of the extinction risk of animal, plant and fungal species.',
       kind: 'dataset',
       access: 'Open',
+    },
+  ],
+
+  videos: [
+    // ── Climate ──────────────────────────────────────────────────────
+    {
+      id: 'wbR-5mHI6bo',
+      title: "Is It Too Late To Stop Climate Change? Well, it's Complicated.",
+      channel: 'Kurzgesagt – In a Nutshell',
+      topic: 'Climate',
+      blurb: 'The Kaya identity and the four levers that actually drive global emissions.',
+      query: 'Is It Too Late To Stop Climate Change Well Complicated Kurzgesagt',
+    },
+    {
+      id: 'G4H1N_yXBiA',
+      title: 'Causes and Effects of Climate Change',
+      channel: 'National Geographic',
+      topic: 'Climate',
+      blurb: 'A concise 101 on what warms the planet and what that warming does.',
+      query: 'Causes and Effects of Climate Change National Geographic',
+    },
+    {
+      id: 'ztWHqUFJRTs',
+      title: "Climate change: Earth's giant game of Tetris",
+      channel: 'TED-Ed',
+      topic: 'Climate',
+      blurb: 'Carbon as stacking Tetris blocks — a vivid picture of why CO2 accumulates.',
+      query: "Climate change Earth's giant game of Tetris TED-Ed Joss Fong",
+    },
+    {
+      id: 'ldLBoErAhz4',
+      title: 'The Last Time the Globe Warmed',
+      channel: 'PBS Eons',
+      topic: 'Climate',
+      blurb: 'The Paleocene-Eocene Thermal Maximum — deep-time evidence of rapid warming.',
+      query: 'The Last Time the Globe Warmed PBS Eons',
+    },
+    // ── Ecosystems ───────────────────────────────────────────────────
+    {
+      id: '2D7hZpIYlCA',
+      title: 'The Hydrologic and Carbon Cycles - Crash Course Ecology #8',
+      channel: 'CrashCourse',
+      topic: 'Ecosystems',
+      blurb: 'How water and carbon endlessly recycle through Earth and its living systems.',
+      query: 'Hydrologic and Carbon Cycles Crash Course Ecology #8',
+    },
+    {
+      id: 'v6ubvEJ3KGM',
+      title: 'Ecosystem Ecology: Links in the Chain - Crash Course Ecology #7',
+      channel: 'CrashCourse',
+      topic: 'Ecosystems',
+      blurb: 'Energy flow, trophic levels and how food webs move nutrients through an ecosystem.',
+      query: 'Ecosystem Ecology Links in the Chain Crash Course Ecology #7',
+    },
+    {
+      id: 'xxnuqSZyhQg',
+      title: 'How Wolves Change Rivers',
+      channel: 'Sustainable Human',
+      topic: 'Ecosystems',
+      blurb: 'The Yellowstone trophic cascade — how returning wolves reshaped the whole landscape.',
+      query: 'How Wolves Change Rivers Sustainable Human',
+    },
+    // ── Biodiversity ─────────────────────────────────────────────────
+    {
+      id: 'GK_vRtHJZu4',
+      title: 'Why is biodiversity so important?',
+      channel: 'TED-Ed',
+      topic: 'Biodiversity',
+      blurb: 'Why more diverse ecosystems are more stable — and more vulnerable to collapse.',
+      query: 'Why is biodiversity so important TED-Ed Kim Preshoff',
+    },
+    {
+      id: 'sjE-Pkjp3u4',
+      title: 'The History of Life on Earth - Crash Course Ecology #1',
+      channel: 'CrashCourse',
+      topic: 'Biodiversity',
+      blurb: 'Billions of years of diversifying life — and the five great mass extinctions.',
+      query: 'The History of Life on Earth Crash Course Ecology #1',
+    },
+    {
+      id: '-G64DagHuOg',
+      title: 'When Giant Fungi Ruled',
+      channel: 'PBS Eons',
+      topic: 'Biodiversity',
+      blurb: 'How fungi colonised the land and helped build the ecosystems we know.',
+      query: 'When Giant Fungi Ruled PBS Eons',
+    },
+    // ── Action ───────────────────────────────────────────────────────
+    {
+      id: 'yiw6_JakZFc',
+      title: 'Can YOU Fix Climate Change?',
+      channel: 'Kurzgesagt – In a Nutshell',
+      topic: 'Action',
+      blurb: 'Why individual action matters but systemic change is what moves the needle.',
+      query: 'Can YOU Fix Climate Change Kurzgesagt',
+    },
+    {
+      id: 'NxvQPzrg2Wg',
+      title: 'Why Meat is the Best Worst Thing in the World',
+      channel: 'Kurzgesagt – In a Nutshell',
+      topic: 'Action',
+      blurb: 'The land, water and emissions cost of meat — and how to make it sustainable.',
+      query: 'Why Meat is the Best Worst Thing in the World Kurzgesagt',
+    },
+    {
+      id: 'RS7IzU2VJIQ',
+      title: 'Plastic Pollution: How Humans are Turning the World into Plastic',
+      channel: 'Kurzgesagt – In a Nutshell',
+      topic: 'Action',
+      blurb: 'Where our plastic goes, why it persists, and what can actually be done.',
+      query: 'Plastic Pollution How Humans are Turning the World into Plastic Kurzgesagt',
     },
   ],
 };

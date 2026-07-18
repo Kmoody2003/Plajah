@@ -186,18 +186,76 @@ const DATA: ScienceDisciplineData = {
   ],
 
   concepts: [
-    { id: 'feedback', name: 'Feedback & Control', blurb: 'Measuring a system\'s output and feeding it back to drive the input toward a desired setpoint — the core of thermostats, autopilots and cruise control.', wikiSlug: 'Control_theory', tags: ['control', 'systems'] },
-    { id: 'stress-strain', name: 'Stress & Strain', blurb: 'How materials deform and fail under load. Stress is force per area; strain is fractional deformation; their ratio (within limits) is the material\'s stiffness.', wikiSlug: 'Stress–strain_analysis', tags: ['materials', 'mechanics'] },
-    { id: 'thermo', name: 'Thermodynamics', blurb: 'The laws governing heat, work and energy conversion — why no engine can be perfectly efficient and why heat flows only from hot to cold.', wikiSlug: 'Thermodynamics', tags: ['energy', 'thermodynamics'] },
+    {
+      id: 'feedback', name: 'Feedback & Control', blurb: 'Measuring a system\'s output and feeding it back to drive the input toward a desired setpoint — the core of thermostats, autopilots and cruise control.', wikiSlug: 'Control_theory', tags: ['control', 'systems'],
+      deepDive: 'A feedback controller continuously compares the measured output against a desired setpoint and acts on the difference (the error). Negative feedback stabilises and rejects disturbances; too much gain or delay makes the loop oscillate or go unstable. The same mathematics governs a steam-engine governor, a cruise-control loop and a chemical-plant temperature regulator.',
+      simulatorId: 'beam', lawIds: ['pid'], videoIds: ['wkfEZyHVMbE', 'yqTMw_zX8pg'],
+      evidence: [
+        { label: 'Watt centrifugal governor (1788)', detail: 'James Watt\'s flyball governor automatically regulated steam-engine speed — an early hardware feedback loop.', kind: 'document', url: 'https://en.wikipedia.org/wiki/Centrifugal_governor' },
+        { label: 'Maxwell, "On Governors" (1868)', detail: 'James Clerk Maxwell analysed governor stability mathematically, founding control theory.', kind: 'document', url: 'https://en.wikipedia.org/wiki/On_Governors' },
+        { label: "Black's negative-feedback amplifier (1927)", detail: 'Harold Black traded gain for stability, enabling low-distortion long-distance telephone repeaters.', kind: 'document', url: 'https://en.wikipedia.org/wiki/Negative-feedback_amplifier' },
+      ],
+    },
+    {
+      id: 'stress-strain', name: 'Stress & Strain', blurb: 'How materials deform and fail under load. Stress is force per area; strain is fractional deformation; their ratio (within limits) is the material\'s stiffness.', wikiSlug: 'Stress–strain_analysis', tags: ['materials', 'mechanics'],
+      deepDive: 'Stress is the internal force a material carries per unit area; strain is the fractional deformation it undergoes. Within the elastic range the two are proportional through Young\'s modulus (Hooke\'s law); beyond the yield point the material deforms permanently and eventually fractures. The full stress–strain curve — measured by pulling a specimen to failure — reveals stiffness, strength, ductility and toughness in a single plot.',
+      simulatorId: 'beam', lawIds: ['hooke', 'bending', 'axial-defl'], videoIds: ['aQf6Q8t1FQE'],
+      evidence: [
+        { label: 'Hooke\'s law, "ut tensio, sic vis" (1678)', detail: 'Robert Hooke published his elasticity law as an anagram, establishing stress–strain proportionality.', kind: 'document', url: 'https://en.wikipedia.org/wiki/Hooke%27s_law' },
+        { label: 'Uniaxial tensile testing (ASTM E8)', detail: 'Standardised machines pull specimens to failure to measure yield, ultimate strength and elastic modulus.', kind: 'experiment', url: 'https://en.wikipedia.org/wiki/Tensile_testing' },
+        { label: 'Galileo, Two New Sciences (1638)', detail: 'Galileo\'s analysis of how beams break founded the strength-of-materials tradition.', kind: 'document', url: 'https://en.wikipedia.org/wiki/Two_New_Sciences' },
+      ],
+    },
+    {
+      id: 'thermo', name: 'Thermodynamics', blurb: 'The laws governing heat, work and energy conversion — why no engine can be perfectly efficient and why heat flows only from hot to cold.', wikiSlug: 'Thermodynamics', tags: ['energy', 'thermodynamics'],
+      deepDive: 'The first law states energy is conserved: internal energy changes by heat added minus work done. The second law adds a direction — heat flows spontaneously only from hot to cold, and no cyclic engine can convert heat to work perfectly. Carnot\'s reversible cycle sets the absolute efficiency ceiling from the two reservoir temperatures alone, which is why power plants chase ever-higher combustion temperatures.',
+      lawIds: ['carnot-eff', 'first-law'],
+      evidence: [
+        { label: 'Carnot, Reflections on the Motive Power of Fire (1824)', detail: 'Defined the maximum efficiency of any heat engine from its reservoir temperatures.', kind: 'document', url: 'https://en.wikipedia.org/wiki/Reflections_on_the_Motive_Power_of_Fire' },
+        { label: "Joule's paddle-wheel experiment (1845)", detail: 'Measured the mechanical equivalent of heat, establishing that heat and work are interchangeable energy.', kind: 'experiment', url: 'https://en.wikipedia.org/wiki/Mechanical_equivalent_of_heat' },
+      ],
+    },
     { id: 'dsp', name: 'Signal Processing', blurb: 'Filtering, sampling and transforming signals — the mathematics that turns raw sensor data into audio, images and communications.', wikiSlug: 'Signal_processing', tags: ['signals', 'electronics'] },
     { id: 'materials', name: 'Materials Science', blurb: 'Choosing and engineering materials — steel, concrete, alloys, composites, semiconductors — by matching microstructure to the demands of the job.', wikiSlug: 'Materials_science', tags: ['materials'] },
-    { id: 'fluid', name: 'Fluid Mechanics', blurb: 'How liquids and gases flow, exert pressure and carry energy — the basis of pumps, turbines, pipelines, wings and hydraulics.', wikiSlug: 'Fluid_mechanics', tags: ['fluids', 'mechanics'] },
-    { id: 'circuits', name: 'Circuit Analysis', blurb: 'Predicting voltage and current in networks of resistors, capacitors, inductors and sources using Ohm\'s and Kirchhoff\'s laws.', wikiSlug: 'Network_analysis_(electrical_circuits)', tags: ['electronics', 'signals'] },
+    {
+      id: 'fluid', name: 'Fluid Mechanics', blurb: 'How liquids and gases flow, exert pressure and carry energy — the basis of pumps, turbines, pipelines, wings and hydraulics.', wikiSlug: 'Fluid_mechanics', tags: ['fluids', 'mechanics'],
+      deepDive: 'Fluid mechanics tracks how pressure, velocity and energy move through liquids and gases. Bernoulli\'s principle trades pressure for speed along a streamline — the basis of lift and flow metering — while the Reynolds number predicts whether flow stays smooth (laminar) or breaks into turbulence. These ideas size everything from aircraft wings to municipal pipe networks.',
+      lawIds: ['bernoulli', 'reynolds'],
+      evidence: [
+        { label: "Reynolds' pipe-flow experiment (1883)", detail: 'Osborne Reynolds injected dye into pipe flow to reveal the transition from laminar to turbulent motion.', kind: 'experiment', url: 'https://en.wikipedia.org/wiki/Reynolds_number' },
+        { label: 'Bernoulli, Hydrodynamica (1738)', detail: 'Daniel Bernoulli related pressure and flow speed along a streamline, founding fluid dynamics.', kind: 'document', url: 'https://en.wikipedia.org/wiki/Hydrodynamica' },
+      ],
+    },
+    {
+      id: 'circuits', name: 'Circuit Analysis', blurb: 'Predicting voltage and current in networks of resistors, capacitors, inductors and sources using Ohm\'s and Kirchhoff\'s laws.', wikiSlug: 'Network_analysis_(electrical_circuits)', tags: ['electronics', 'signals'],
+      deepDive: 'Circuit analysis predicts the voltage across and current through every element in a network. Ohm\'s law relates them in a resistor, while Kirchhoff\'s current and voltage laws — charge and energy conservation — provide enough equations to solve any linear circuit. The same node-and-loop bookkeeping scales from a flashlight to a microprocessor\'s power distribution.',
+      lawIds: ['ohm', 'kirchhoff', 'power'], videoIds: ['bHIhgxav9LY', 'oI_X2cMHNe0'],
+      evidence: [
+        { label: 'Ohm, Die galvanische Kette (1827)', detail: 'Georg Ohm established the proportionality of voltage and current in a conductor.', kind: 'document', url: 'https://en.wikipedia.org/wiki/Ohm%27s_law' },
+        { label: "Kirchhoff's circuit laws (1845)", detail: 'Gustav Kirchhoff formalised current and voltage conservation, making any network solvable.', kind: 'document', url: 'https://en.wikipedia.org/wiki/Kirchhoff%27s_circuit_laws' },
+      ],
+    },
     { id: 'statics', name: 'Statics & Equilibrium', blurb: 'Analysing structures at rest: for a body in equilibrium the sum of forces and moments is zero — the foundation of all structural design.', wikiSlug: 'Statics', tags: ['mechanics', 'structures'] },
-    { id: 'buckling', name: 'Buckling & Stability', blurb: 'Slender columns fail not by crushing but by suddenly bowing sideways at a critical load — a stability problem, not a strength one.', wikiSlug: 'Buckling', tags: ['structures', 'mechanics'] },
+    {
+      id: 'buckling', name: 'Buckling & Stability', blurb: 'Slender columns fail not by crushing but by suddenly bowing sideways at a critical load — a stability problem, not a strength one.', wikiSlug: 'Buckling', tags: ['structures', 'mechanics'],
+      deepDive: 'A slender column can carry far less than its crushing strength because it fails by buckling — suddenly bowing sideways once the axial load reaches Euler\'s critical value. The critical load grows with bending stiffness and falls with the square of the effective length, so long thin members are dangerously sensitive to their end conditions. Buckling is a stability failure, not a strength failure, and it drives the design of struts, shells and thin-walled structures.',
+      simulatorId: 'beam', lawIds: ['euler-buckling'],
+      evidence: [
+        { label: "Euler's critical-load derivation (1744)", detail: 'Leonhard Euler derived the axial load at which a slender elastic column buckles.', kind: 'proof', url: 'https://en.wikipedia.org/wiki/Euler%27s_critical_load' },
+        { label: 'Column compression tests', detail: 'Laboratory loading of slender struts confirms lateral bowing far below the material\'s crushing stress.', kind: 'experiment', url: 'https://en.wikipedia.org/wiki/Buckling' },
+      ],
+    },
     { id: 'optimization', name: 'Optimization', blurb: 'Finding the best design under constraints — minimum weight, maximum efficiency, lowest cost — the mathematical engine of modern engineering design.', wikiSlug: 'Mathematical_optimization', tags: ['systems', 'design'] },
     { id: 'reliability', name: 'Reliability & Safety Factors', blurb: 'Designing for uncertainty: safety factors, redundancy and failure analysis ensure structures and systems survive loads beyond their nominal rating.', wikiSlug: 'Factor_of_safety', tags: ['systems', 'design'] },
-    { id: 'semiconductor', name: 'Semiconductor Devices', blurb: 'Diodes, transistors and integrated circuits exploit controlled conduction in silicon to switch and amplify — the substrate of all digital technology.', wikiSlug: 'Semiconductor_device', tags: ['electronics'] },
+    {
+      id: 'semiconductor', name: 'Semiconductor Devices', blurb: 'Diodes, transistors and integrated circuits exploit controlled conduction in silicon to switch and amplify — the substrate of all digital technology.', wikiSlug: 'Semiconductor_device', tags: ['electronics'],
+      deepDive: 'Semiconductors like silicon conduct only when doped and biased, which lets a small voltage or current control a much larger one — the essence of switching and amplification. The transistor packaged this control into a solid-state device with no moving parts; the integrated circuit then printed millions of them onto one chip. Moore\'s-law scaling of that idea underlies every computer, phone and sensor.',
+      lawIds: ['ohm'], videoIds: ['Fxv3JoS1uY8'],
+      evidence: [
+        { label: 'The first transistor (Bell Labs, 1947)', detail: 'Bardeen, Brattain and Shockley demonstrated amplification in a point-contact germanium device.', kind: 'experiment', url: 'https://en.wikipedia.org/wiki/History_of_the_transistor' },
+        { label: 'Kilby & Noyce integrated circuit (1958–59)', detail: 'Placing many devices on a single chip launched microelectronics and the digital age.', kind: 'document', url: 'https://en.wikipedia.org/wiki/Integrated_circuit' },
+      ],
+    },
   ],
 
   eras: [
@@ -453,6 +511,27 @@ const DATA: ScienceDisciplineData = {
     { name: 'python-control', org: 'Python Control community', url: 'https://python-control.readthedocs.io/', desc: 'Open-source library for feedback control analysis: transfer functions, state space, Bode and root-locus plots.', kind: 'software', access: 'Open' },
     { name: 'OpenFOAM', org: 'The OpenFOAM Foundation', url: 'https://www.openfoam.com/', desc: 'Open-source computational fluid dynamics toolbox for aerodynamics, heat transfer and multiphase flow.', kind: 'software', access: 'Open' },
     { name: 'Tinkercad Circuits', org: 'Autodesk', url: 'https://www.tinkercad.com/circuits', desc: 'Browser-based Arduino and breadboard circuit simulator, ideal for prototyping and teaching electronics.', kind: 'software', access: 'Free' },
+  ],
+
+  videos: [
+    // Foundations
+    { id: 'aQf6Q8t1FQE', title: 'Understanding Stress and Strain', channel: 'The Efficient Engineer', topic: 'Foundations', blurb: 'How internal forces distribute through a loaded material and why the stress–strain curve is the DNA of every material.', query: 'Understanding Stress and Strain The Efficient Engineer' },
+    { id: 'p3jMR9nJmnk', title: 'Understanding the Factor of Safety', channel: 'The Efficient Engineer', topic: 'Foundations', blurb: 'Why engineers deliberately over-build, and how the safety factor absorbs uncertainty in loads and materials.', query: 'Understanding the Factor of Safety The Efficient Engineer' },
+    { id: 'cA3TxSXFXFo', title: 'Why Concrete Needs Reinforcement', channel: 'Practical Engineering', topic: 'Foundations', blurb: 'Concrete is strong in compression but weak in tension — steel rebar carries the loads it cannot.', query: 'Why Concrete Needs Reinforcement Practical Engineering' },
+    { id: '97t7Xj_iBv0', title: 'Why Machines That Bend Are Better', channel: 'Veritasium', topic: 'Foundations', blurb: 'Compliant mechanisms replace hinges and bearings with flexing material — fewer parts, no friction.', query: 'Why Machines That Bend Are Better Veritasium' },
+    // Mechanics
+    { id: 'C-FEVzI8oe8', title: 'Understanding Shear Force and Bending Moment Diagrams', channel: 'The Efficient Engineer', topic: 'Mechanics', blurb: 'The two diagrams every structural engineer draws to size a beam against bending failure.', query: 'Understanding Shear Force and Bending Moment Diagrams The Efficient Engineer' },
+    { id: 'W-Ov4dsGFVw', title: 'The Insane Engineering of the A-10 Warthog', channel: 'Real Engineering', topic: 'Mechanics', blurb: 'How a titanium bathtub, a giant cannon and redundant systems make an aircraft survive brutal punishment.', query: 'The Insane Engineering of the A-10 Warthog Real Engineering' },
+    { id: 'ZAvfrE-N4nc', title: 'The Surprising Genius of Sewing Machines', channel: 'Veritasium', topic: 'Mechanics', blurb: 'A tour of the clever linkage and timing that turns rotary motion into a locked stitch.', query: 'The Surprising Genius of Sewing Machines Veritasium' },
+    { id: 'aLHTZaicqfg', title: 'The Insane Engineering of the Space Shuttle', channel: 'Real Engineering', topic: 'Mechanics', blurb: 'Reusable rockets, thermal tiles and the compromises behind the most complex machine ever flown.', query: 'The Insane Engineering of the Space Shuttle Real Engineering' },
+    { id: 'PLuLQrKzoBQ', title: "Prince Rupert's Drop at 130,000 fps", channel: 'SmarterEveryDay', topic: 'Mechanics', blurb: 'High-speed footage reveals how residual stress makes a glass droplet nearly unbreakable — until it shatters.', query: "Prince Rupert's Drop 130000 fps SmarterEveryDay" },
+    // Electronics
+    { id: 'bHIhgxav9LY', title: 'The Big Misconception About Electricity', channel: 'Veritasium', topic: 'Electronics', blurb: 'Energy flows in the fields around a wire, not inside it — a counterintuitive look at how circuits really work.', query: 'The Big Misconception About Electricity Veritasium' },
+    { id: 'oI_X2cMHNe0', title: 'How Electricity Actually Works', channel: 'Veritasium', topic: 'Electronics', blurb: 'A follow-up unpacking drift velocity, the Poynting vector and the fields that carry electrical power.', query: 'How Electricity Actually Works Veritasium' },
+    { id: 'Fxv3JoS1uY8', title: 'How do Computer Chips Work?', channel: 'Branch Education', topic: 'Electronics', blurb: 'A photorealistic 3D walk from transistors and logic gates up to a working microprocessor.', query: 'How do Computer Chips Work Branch Education' },
+    // Control
+    { id: 'wkfEZyHVMbE', title: 'Understanding PID Control', channel: 'The Efficient Engineer', topic: 'Control', blurb: 'How the proportional, integral and derivative terms combine into the workhorse feedback controller.', query: 'Understanding PID Control The Efficient Engineer' },
+    { id: 'yqTMw_zX8pg', title: 'How Do Planes Fly Themselves? Autopilot Explained', channel: 'Real Engineering', topic: 'Control', blurb: 'Feedback loops, sensors and control laws that let an aircraft hold course and land in zero visibility.', query: 'How autopilot works planes fly themselves Real Engineering' },
   ],
 };
 

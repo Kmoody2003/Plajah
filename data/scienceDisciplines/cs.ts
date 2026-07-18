@@ -179,16 +179,84 @@ const DATA: ScienceDisciplineData = {
   ],
 
   concepts: [
-    { id: 'turing-machine', name: 'Turing Machine', blurb: 'An abstract machine that reads and writes symbols on an infinite tape according to a rule table — the formal model of computation.', wikiSlug: 'Turing_machine', tags: ['theory', 'computability'] },
-    { id: 'algorithm', name: 'Algorithm', blurb: 'A finite, unambiguous sequence of steps that solves a class of problems or performs a computation.', wikiSlug: 'Algorithm', tags: ['algorithms'] },
-    { id: 'complexity', name: 'Computational Complexity', blurb: 'The study of the resources — time and space — required to solve problems, and the classes P, NP and beyond.', wikiSlug: 'Computational_complexity_theory', tags: ['theory', 'complexity'] },
+    {
+      id: 'turing-machine', name: 'Turing Machine', blurb: 'An abstract machine that reads and writes symbols on an infinite tape according to a rule table — the formal model of computation.', wikiSlug: 'Turing_machine', tags: ['theory', 'computability'],
+      deepDive: 'A Turing machine is deliberately minimal — a head that reads and writes symbols on an unbounded tape under a finite table of rules — yet it captures everything we mean by "effective computation". The Church–Turing thesis holds that any function a human could compute by rote, a Turing machine can compute too, which is why it remains the yardstick for what is computable at all. Turing used it to prove that some problems, notably the halting problem, admit no algorithmic solution.',
+      videoIds: ['macM_MtS_w4', 'HeQX2HjkcNo'],
+      evidence: [
+        { label: 'On Computable Numbers, with an Application to the Entscheidungsproblem (Turing, 1936)', detail: 'Introduced the machine model and proved the halting problem undecidable.', url: 'https://www.cs.virginia.edu/~robins/Turing_Paper_1936.pdf', kind: 'proof' },
+        { label: 'The Church–Turing thesis', detail: 'Lambda calculus, general recursive functions and Turing machines all define the same class of computable functions.', kind: 'proof' },
+        { label: 'Undecidability of the halting problem', detail: 'No single program can decide, for every program and input, whether it halts.', kind: 'proof' },
+      ],
+    },
+    {
+      id: 'algorithm', name: 'Algorithm', blurb: 'A finite, unambiguous sequence of steps that solves a class of problems or performs a computation.', wikiSlug: 'Algorithm', tags: ['algorithms'],
+      deepDive: 'An algorithm is a finite recipe guaranteed to terminate with the right answer for every valid input. The discipline of analysing them — counting steps as the input grows — lets us compare methods independently of hardware, and asymptotic (big-O) notation is the shared language for doing so. Landmark algorithms such as Euclid\'s GCD, quicksort and Dijkstra\'s shortest path show how a clever ordering of steps turns an intractable brute force into something practical.',
+      simulatorId: 'sorting',
+      lawIds: ['big-o', 'comparison-sort', 'masters-theorem'],
+      videoIds: ['HtSuA80QTyo', 'ngCos392W4w'],
+      evidence: [
+        { label: "Euclid's algorithm (c. 300 BC)", detail: 'The oldest non-trivial algorithm still in daily use, computing the greatest common divisor.', kind: 'document' },
+        { label: 'Knuth, The Art of Computer Programming', detail: 'Established the rigorous mathematical analysis of algorithms and their asymptotic cost.', kind: 'document' },
+        { label: 'Comparison-sort lower bound', detail: 'A decision-tree argument proves any comparison sort needs Ω(n log n) comparisons in the worst case.', kind: 'proof' },
+      ],
+    },
+    {
+      id: 'complexity', name: 'Computational Complexity', blurb: 'The study of the resources — time and space — required to solve problems, and the classes P, NP and beyond.', wikiSlug: 'Computational_complexity_theory', tags: ['theory', 'complexity'],
+      deepDive: 'Complexity theory sorts problems by the resources — chiefly time and memory — that any algorithm must spend to solve them. The class P holds problems solvable in polynomial time; NP holds those whose solutions can be checked in polynomial time, and whether P equals NP is the field\'s defining open question and a Clay Millennium Prize problem. Cook\'s proof that Boolean satisfiability is NP-complete gave us a single hardest problem whose fast solution would collapse the whole class.',
+      simulatorId: 'big-o',
+      lawIds: ['big-o', 'p-vs-np', 'comparison-sort'],
+      evidence: [
+        { label: 'The Complexity of Theorem-Proving Procedures (Cook, 1971)', detail: 'Defined NP-completeness and proved SAT is NP-complete.', url: 'https://dl.acm.org/doi/10.1145/800157.805047', kind: 'proof' },
+        { label: 'Reducibility Among Combinatorial Problems (Karp, 1972)', detail: 'Showed 21 classic problems are all NP-complete, revealing how widespread intractability is.', kind: 'proof' },
+        { label: 'P versus NP', detail: 'One of the seven Clay Mathematics Millennium Prize Problems, still unresolved.', url: 'https://www.claymath.org/millennium/p-vs-np/', kind: 'document' },
+      ],
+    },
     { id: 'data-structure', name: 'Data Structures', blurb: 'Ways of organising data — arrays, trees, hash tables, graphs — chosen to make operations efficient.', wikiSlug: 'Data_structure', tags: ['algorithms', 'data-structures'] },
-    { id: 'recursion', name: 'Recursion', blurb: 'Defining a solution in terms of smaller instances of the same problem; the backbone of divide-and-conquer.', wikiSlug: 'Recursion_(computer_science)', tags: ['programming'] },
+    {
+      id: 'recursion', name: 'Recursion', blurb: 'Defining a solution in terms of smaller instances of the same problem; the backbone of divide-and-conquer.', wikiSlug: 'Recursion_(computer_science)', tags: ['programming'],
+      deepDive: 'Recursion solves a problem by reducing it to smaller instances of itself, with one or more base cases stopping the descent. It is the natural expression of divide-and-conquer algorithms — mergesort, quicksort, tree traversals — and maps directly onto the mathematical idea of induction. Church\'s lambda calculus showed that recursion alone, via fixed-point combinators, is enough to express any computable function.',
+      videoIds: ['ngCos392W4w'],
+      evidence: [
+        { label: 'The lambda calculus (Church, 1936)', detail: 'Defines computation purely through function abstraction and recursion.', kind: 'proof' },
+        { label: 'The Master Theorem', detail: 'Solves the running-time recurrences that recursive divide-and-conquer algorithms generate.', kind: 'proof' },
+        { label: 'The Ackermann function', detail: 'A total recursive function that is not primitive recursive, showing the full power of recursion.', kind: 'document' },
+      ],
+    },
     { id: 'compiler', name: 'Compilers', blurb: 'Programs that translate source code into machine code through lexing, parsing, optimisation and code generation.', wikiSlug: 'Compiler', tags: ['languages', 'systems'] },
     { id: 'operating-system', name: 'Operating Systems', blurb: 'The software layer that manages hardware, schedules processes and mediates access to memory, files and devices.', wikiSlug: 'Operating_system', tags: ['systems'] },
-    { id: 'machine-learning', name: 'Machine Learning', blurb: 'Algorithms that improve at a task by learning statistical patterns from data rather than explicit programming.', wikiSlug: 'Machine_learning', tags: ['ai', 'ml'] },
-    { id: 'neural-network', name: 'Neural Networks', blurb: 'Layered networks of weighted connections trained by gradient descent to approximate complex functions.', wikiSlug: 'Artificial_neural_network', tags: ['ai', 'ml', 'deep-learning'] },
-    { id: 'cryptography', name: 'Cryptography', blurb: 'The mathematics of secure communication: encryption, key exchange, hashing and digital signatures.', wikiSlug: 'Cryptography', tags: ['security', 'theory'] },
+    {
+      id: 'machine-learning', name: 'Machine Learning', blurb: 'Algorithms that improve at a task by learning statistical patterns from data rather than explicit programming.', wikiSlug: 'Machine_learning', tags: ['ai', 'ml'],
+      deepDive: 'Machine learning replaces hand-written rules with models that infer their own parameters from data, optimising a loss function that measures how wrong the predictions are. The central tension is generalisation: a model must fit the training data yet still perform on unseen examples, which is why regularisation and held-out validation matter as much as raw accuracy. Progress has come from better architectures, far larger datasets and cheap parallel compute — culminating in the Transformer, which now underpins large language models.',
+      lawIds: ['gradient-descent', 'cross-entropy', 'softmax'],
+      videoIds: ['CqOfi41LfDw'],
+      evidence: [
+        { label: 'Some Studies in Machine Learning Using the Game of Checkers (Samuel, 1959)', detail: 'Coined "machine learning" and demonstrated a program that improved with self-play.', kind: 'experiment' },
+        { label: 'ImageNet (Deng et al., 2009)', detail: 'The large labelled dataset that made data-driven deep learning possible.', url: 'https://www.image-net.org', kind: 'dataset' },
+        { label: 'Attention Is All You Need (Vaswani et al., 2017)', detail: 'Introduced the Transformer, the architecture behind modern LLMs.', url: 'https://arxiv.org/abs/1706.03762', kind: 'document' },
+      ],
+    },
+    {
+      id: 'neural-network', name: 'Neural Networks', blurb: 'Layered networks of weighted connections trained by gradient descent to approximate complex functions.', wikiSlug: 'Artificial_neural_network', tags: ['ai', 'ml', 'deep-learning'],
+      deepDive: 'A neural network stacks layers of simple weighted units whose nonlinear activations let the whole compose arbitrarily complex functions — the universal approximation theorem guarantees a large enough network can fit any continuous function. Training adjusts the weights by backpropagation, which applies the chain rule to push the loss gradient backward through every layer. The 2012 AlexNet result, a deep convolutional network trained on GPUs, cut the ImageNet error rate dramatically and ignited the modern deep-learning era.',
+      lawIds: ['sigmoid', 'relu', 'gradient-descent', 'cross-entropy'],
+      videoIds: ['aircAruvnKk', 'IHZwWFHWa-w'],
+      evidence: [
+        { label: 'The Perceptron (Rosenblatt, 1958)', detail: 'The first trainable single-layer neural model for pattern recognition.', kind: 'experiment' },
+        { label: 'Learning representations by back-propagating errors (Rumelhart, Hinton & Williams, 1986)', detail: 'Popularised backpropagation for training multi-layer networks.', url: 'https://www.nature.com/articles/323533a0', kind: 'document' },
+        { label: 'ImageNet Classification with Deep CNNs / AlexNet (Krizhevsky, Sutskever & Hinton, 2012)', detail: 'Deep learning wins ILSVRC by a wide margin, launching the field.', kind: 'experiment' },
+      ],
+    },
+    {
+      id: 'cryptography', name: 'Cryptography', blurb: 'The mathematics of secure communication: encryption, key exchange, hashing and digital signatures.', wikiSlug: 'Cryptography', tags: ['security', 'theory'],
+      deepDive: 'Modern cryptography rests on computational hardness: schemes are secure because breaking them would require solving a problem, such as factoring large integers or computing discrete logarithms, for which no efficient algorithm is known. Public-key cryptography, introduced by Diffie and Hellman in 1976, lets two parties agree on a secret over an open channel without ever sharing a private key first. These ideas underpin TLS, the padlock that secures essentially all web traffic today.',
+      videoIds: ['GSIDS_lvRv4'],
+      evidence: [
+        { label: 'Communication Theory of Secrecy Systems (Shannon, 1949)', detail: 'Put cryptography on a rigorous information-theoretic footing and defined perfect secrecy.', kind: 'document' },
+        { label: 'New Directions in Cryptography (Diffie & Hellman, 1976)', detail: 'Introduced public-key cryptography and secure key exchange.', url: 'https://ee.stanford.edu/~hellman/publications/24.pdf', kind: 'document' },
+        { label: 'A Method for Obtaining Digital Signatures / RSA (Rivest, Shamir & Adleman, 1978)', detail: 'The first practical public-key cryptosystem, based on integer factorisation.', kind: 'document' },
+      ],
+    },
     { id: 'concurrency', name: 'Concurrency', blurb: 'Structuring programs as independently executing parts, coordinating shared state with locks, semaphores and message passing.', wikiSlug: 'Concurrency_(computer_science)', tags: ['systems'] },
     { id: 'formal-language', name: 'Formal Languages & Automata', blurb: 'The hierarchy of grammars and machines — regular, context-free, recursive — underpinning parsing and computability.', wikiSlug: 'Automata_theory', tags: ['theory', 'languages'] },
   ],
@@ -414,6 +482,28 @@ const DATA: ScienceDisciplineData = {
     { name: 'Google Colab', org: 'Google', url: 'https://colab.research.google.com', desc: 'Free cloud Jupyter notebooks with GPU/TPU access for ML experiments.', kind: 'software', access: 'Freemium' },
     { name: 'Replit', org: 'Replit', url: 'https://replit.com', desc: 'Browser-based IDE for prototyping and running code in dozens of languages.', kind: 'software', access: 'Freemium' },
     { name: 'The Algorithms', org: 'The Algorithms', url: 'https://the-algorithms.com', desc: 'Open-source reference implementations of classic algorithms in many languages.', kind: 'community', access: 'Open' },
+  ],
+
+  videos: [
+    // ── Foundations
+    { id: 'macM_MtS_w4', title: 'Turing & The Halting Problem', channel: 'Computerphile', topic: 'Foundations', blurb: 'Why no program can decide, in general, whether another program will halt.', query: 'Turing & The Halting Problem Computerphile' },
+    { id: 'HeQX2HjkcNo', title: "Math's Fundamental Flaw", channel: 'Veritasium', topic: 'Foundations', blurb: 'Gödel, Turing and the limits of what mathematics and machines can prove.', query: "Math's Fundamental Flaw Veritasium" },
+    { id: 'O5nskjZ_GoI', title: 'Early Computing: Crash Course Computer Science #1', channel: 'CrashCourse', topic: 'Foundations', blurb: 'From the abacus and Babbage to the first electronic computers.', query: 'Early Computing Crash Course Computer Science #1 CrashCourse' },
+    { id: 'gI-qXk7XojA', title: 'Boolean Logic & Logic Gates: Crash Course Computer Science #3', channel: 'CrashCourse', topic: 'Foundations', blurb: 'How AND, OR and NOT gates build every computation from bits.', query: 'Boolean Logic & Logic Gates Crash Course Computer Science #3 CrashCourse' },
+    // ── Algorithms
+    { id: 'HtSuA80QTyo', title: '1. Algorithmic Thinking, Peak Finding', channel: 'MIT OpenCourseWare', topic: 'Algorithms', blurb: 'MIT 6.006 opens with divide-and-conquer and asymptotic analysis.', query: '1. Algorithmic Thinking, Peak Finding MIT OpenCourseWare 6.006' },
+    { id: 'ngCos392W4w', title: '5 Simple Steps for Solving Any Recursive Problem', channel: 'Reducible', topic: 'Algorithms', blurb: 'A practical framework for reasoning about recursion and base cases.', query: '5 Simple Steps for Solving Any Recursive Problem Reducible' },
+    { id: 'GSIDS_lvRv4', title: 'Public Key Cryptography', channel: 'Computerphile', topic: 'Algorithms', blurb: 'The padlock-and-key intuition behind asymmetric encryption.', query: 'Public Key Cryptography Computerphile' },
+    { id: '-uleG_Vecis', title: '100+ Computer Science Concepts Explained', channel: 'Fireship', topic: 'Algorithms', blurb: 'A rapid-fire tour of the vocabulary of computer science.', query: '100+ Computer Science Concepts Explained Fireship' },
+    // ── Machine Learning
+    { id: 'aircAruvnKk', title: 'But what is a neural network?', channel: '3Blue1Brown', topic: 'Machine Learning', blurb: 'The classic visual introduction to neurons, layers and weights.', query: 'But what is a neural network 3Blue1Brown' },
+    { id: 'IHZwWFHWa-w', title: 'Gradient descent, how neural networks learn', channel: '3Blue1Brown', topic: 'Machine Learning', blurb: 'How a network descends a cost surface to tune its parameters.', query: 'Gradient descent how neural networks learn 3Blue1Brown' },
+    { id: 'eMlx5fFNoYc', title: 'Attention in transformers, visually explained', channel: '3Blue1Brown', topic: 'Machine Learning', blurb: 'The attention mechanism at the heart of modern language models.', query: 'Attention in transformers visually explained 3Blue1Brown' },
+    { id: 'fNk_zzaMoSs', title: 'Vectors | Essence of linear algebra', channel: '3Blue1Brown', topic: 'Machine Learning', blurb: 'The linear-algebra intuition that underpins all of ML.', query: 'Vectors Essence of linear algebra 3Blue1Brown' },
+    { id: 'CqOfi41LfDw', title: 'Neural Networks Pt. 1: Inside the Black Box', channel: 'StatQuest with Josh Starmer', topic: 'Machine Learning', blurb: 'A gentle, step-by-step build-up of what a neural net computes.', query: 'Neural Networks Pt 1 Inside the Black Box StatQuest' },
+    // ── Systems
+    { id: 'QZwneRb-zqA', title: 'Exploring How Computers Work', channel: 'Sebastian Lague', topic: 'Systems', blurb: 'From transistors and logic gates up to a working CPU.', query: 'Exploring How Computers Work Sebastian Lague' },
+    { id: '1I5ZMmrOfnA', title: 'How Computers Calculate - the ALU: Crash Course Computer Science #5', channel: 'CrashCourse', topic: 'Systems', blurb: 'How the arithmetic logic unit does the machine\'s actual math.', query: 'How Computers Calculate the ALU Crash Course Computer Science #5 CrashCourse' },
   ],
 };
 

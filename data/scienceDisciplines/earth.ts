@@ -158,16 +158,75 @@ const DATA: ScienceDisciplineData = {
   ],
 
   concepts: [
-    { id: 'plate-tectonics', name: 'Plate Tectonics', blurb: 'Earth\'s rigid outer shell is broken into plates that drift on the mantle; their interactions build mountains, open oceans and drive earthquakes and volcanoes.', wikiSlug: 'Plate_tectonics', tags: ['tectonics', 'geophysics'] },
+    {
+      id: 'plate-tectonics', name: 'Plate Tectonics', blurb: 'Earth\'s rigid outer shell is broken into plates that drift on the mantle; their interactions build mountains, open oceans and drive earthquakes and volcanoes.', wikiSlug: 'Plate_tectonics', tags: ['tectonics', 'geophysics'],
+      deepDive: 'Earth\'s lithosphere is fractured into about a dozen rigid plates that ride on the slowly convecting mantle. New crust wells up and spreads at mid-ocean ridges, old crust sinks back into the mantle at subduction trenches, and plates grind past one another along transform faults. This single framework explains earthquakes, volcanoes, mountain belts and the matching coastlines Wegener first noticed — and GPS now measures the plates creeping a few centimetres a year.',
+      lawIds: ['geothermal', 'snell-seismic'], videoIds: ['RA2addLmQ2c', 'YM4boLdjrbo'],
+      evidence: [
+        { label: "Wegener's continental-drift evidence (1915)", detail: 'Matching coastlines, fossils and rock sequences across the Atlantic suggested the continents were once joined.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Continental_drift' },
+        { label: 'Vine–Matthews magnetic stripes (1963)', detail: 'Symmetric magnetic reversals recorded in seafloor basalt confirmed seafloor spreading.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Vine%E2%80%93Matthews%E2%80%93Morley_hypothesis' },
+        { label: 'GPS geodesy of plate motion', detail: 'Space-geodetic networks directly measure plates moving centimetres per year.', kind: 'dataset', url: 'https://en.wikipedia.org/wiki/Plate_tectonics' },
+      ],
+    },
     { id: 'rock-cycle', name: 'The Rock Cycle', blurb: 'Rocks continually transform among igneous, sedimentary and metamorphic forms through melting, weathering, burial and uplift over geologic time.', wikiSlug: 'Rock_cycle', tags: ['geology'] },
-    { id: 'seismology', name: 'Seismology', blurb: 'The study of elastic waves from earthquakes and explosions, used both to understand quakes and to X-ray the planet\'s hidden interior.', wikiSlug: 'Seismology', tags: ['geophysics', 'seismology'] },
-    { id: 'deep-time', name: 'Geologic Time', blurb: 'The 4.5-billion-year history of Earth, divided into eons, eras and periods and dated by radioactive decay and the succession of rock strata.', wikiSlug: 'Geologic_time_scale', tags: ['geology', 'dating'] },
-    { id: 'climate-system', name: 'The Climate System', blurb: 'The coupled interaction of atmosphere, oceans, ice, land and life that sets Earth\'s climate — and responds to greenhouse gases and orbital forcing.', wikiSlug: 'Climate_system', tags: ['climate', 'atmosphere'] },
+    {
+      id: 'seismology', name: 'Seismology', blurb: 'The study of elastic waves from earthquakes and explosions, used both to understand quakes and to X-ray the planet\'s hidden interior.', wikiSlug: 'Seismology', tags: ['geophysics', 'seismology'],
+      deepDive: 'Earthquakes launch elastic waves — fast compressional P-waves, slower shear S-waves, and surface waves — that seismometers record worldwide. Because these waves bend, reflect and slow at boundaries, their travel times X-ray the planet\'s hidden layers: the crust, mantle, and liquid outer and solid inner core. The same records give an earthquake\'s magnitude, whose modern measure (moment magnitude) is tied to the actual energy released.',
+      lawIds: ['richter', 'moment-magnitude', 'snell-seismic', 'gutenberg-richter'], videoIds: ['e1oXVsFCkGA'],
+      evidence: [
+        { label: 'Mohorovičić discontinuity (1909)', detail: 'A jump in wave speed revealed the sharp boundary between crust and mantle — the "Moho".', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Mohorovi%C4%8Di%C4%87_discontinuity' },
+        { label: "Lehmann's inner core (1936)", detail: 'Inge Lehmann traced waves reflecting inside the core to show a solid inner core within the liquid outer core.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Inge_Lehmann' },
+        { label: 'Global seismic networks (IRIS/FDSN)', detail: 'Thousands of stations stream real-time waveforms used to locate quakes and model the interior.', kind: 'dataset', url: 'https://www.iris.edu/hq/' },
+      ],
+    },
+    {
+      id: 'deep-time', name: 'Geologic Time', blurb: 'The 4.5-billion-year history of Earth, divided into eons, eras and periods and dated by radioactive decay and the succession of rock strata.', wikiSlug: 'Geologic_time_scale', tags: ['geology', 'dating'],
+      deepDive: 'Two independent clocks fix Earth\'s history. Relative dating orders events by the law of superposition and fossil succession within stacked strata; absolute dating measures the decay of radioactive isotopes to assign numeric ages. Together they place Earth\'s origin at about 4.54 billion years ago and divide its story into eons, eras and periods — a timescale so vast that human history is a thin film at the very top.',
+      lawIds: ['radio-decay', 'steno-superposition'], videoIds: ['rSMYt8Fpj6M'],
+      evidence: [
+        { label: "Hutton's Siccar Point unconformity (1788)", detail: 'Tilted strata beneath horizontal ones exposed a vast gap in time, evidence for an ancient Earth.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Siccar_Point' },
+        { label: "Patterson's meteorite age (1956)", detail: 'Clair Patterson dated meteorites by lead isotopes to fix Earth\'s age at 4.55 billion years.', kind: 'experiment', url: 'https://en.wikipedia.org/wiki/Clair_Cameron_Patterson' },
+      ],
+    },
+    {
+      id: 'climate-system', name: 'The Climate System', blurb: 'The coupled interaction of atmosphere, oceans, ice, land and life that sets Earth\'s climate — and responds to greenhouse gases and orbital forcing.', wikiSlug: 'Climate_system', tags: ['climate', 'atmosphere'],
+      deepDive: 'Climate emerges from the coupling of five subsystems — atmosphere, oceans, ice, land surface and biosphere — exchanging energy and matter. Incoming sunlight sets a baseline equilibrium temperature, but greenhouse gases trap outgoing infrared and warm the surface above it, while feedbacks from water vapour, ice albedo and clouds amplify or damp the change. Slow orbital variations pace the ice ages; the rapid rise of CO₂ since industrialisation is now the dominant forcing.',
+      lawIds: ['planetary-temp', 'clausius-clapeyron', 'lapse-rate'], videoIds: ['ipVxxxqwBQw', 'oqylUuxsFsc'],
+      evidence: [
+        { label: "Arrhenius' CO₂ warming calculation (1896)", detail: 'Svante Arrhenius first quantified how changing atmospheric CO₂ would alter surface temperature.', kind: 'document', url: 'https://en.wikipedia.org/wiki/Svante_Arrhenius' },
+        { label: 'Milankovitch orbital cycles', detail: 'Variations in eccentricity, tilt and precession pace the timing of glacial and interglacial periods.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Milankovitch_cycles' },
+        { label: 'Vostok and EPICA ice cores', detail: 'Trapped air bubbles record 800,000 years of CO₂ and temperature moving in lockstep.', kind: 'dataset', url: 'https://en.wikipedia.org/wiki/Ice_core' },
+      ],
+    },
     { id: 'hydrology', name: 'The Water Cycle', blurb: 'The continuous movement of water through evaporation, precipitation, runoff and groundwater flow that shapes landscapes and sustains life.', wikiSlug: 'Water_cycle', tags: ['hydrology'] },
     { id: 'weathering', name: 'Weathering & Erosion', blurb: 'The breakdown of rock by water, ice, wind and chemistry, and the transport of sediment that sculpts valleys, deltas and coastlines.', wikiSlug: 'Weathering', tags: ['geology', 'surface'] },
-    { id: 'volcanism', name: 'Volcanism & Magma', blurb: 'The rise and eruption of molten rock, building volcanoes and new crust and recycling material between the mantle and surface.', wikiSlug: 'Volcano', tags: ['tectonics', 'geology'] },
-    { id: 'ocean-circulation', name: 'Ocean Circulation', blurb: 'Wind-driven surface currents and density-driven deep circulation redistribute heat around the globe and regulate climate.', wikiSlug: 'Ocean_current', tags: ['oceanography', 'climate'] },
-    { id: 'carbon-cycle', name: 'The Carbon Cycle', blurb: 'The exchange of carbon among atmosphere, oceans, rocks and living things — the master control on greenhouse warming over short and long timescales.', wikiSlug: 'Carbon_cycle', tags: ['climate', 'geochemistry'] },
+    {
+      id: 'volcanism', name: 'Volcanism & Magma', blurb: 'The rise and eruption of molten rock, building volcanoes and new crust and recycling material between the mantle and surface.', wikiSlug: 'Volcano', tags: ['tectonics', 'geology'],
+      deepDive: 'Magma forms where the mantle melts — at spreading ridges, above subducting slabs, and over hotspot plumes — and rises because it is less dense than surrounding rock. Its viscosity and dissolved gas decide the eruption: runny basaltic lava builds gentle shield volcanoes, while gas-rich, sticky magma erupts explosively. Volcanism builds new crust, vents planetary heat and gases, and, over deep time, has repeatedly reshaped climate and life.',
+      lawIds: ['geothermal'], videoIds: ['l0Bjm5NJ89A'],
+      evidence: [
+        { label: 'Hawaiian hotspot island chain', detail: 'The age progression of the Hawaiian–Emperor seamounts traces a plate moving over a fixed mantle plume.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Hawaii_hotspot' },
+        { label: 'Volcanic Explosivity Index (VEI)', detail: 'A logarithmic scale classifying eruptions by erupted volume and plume height, from effusive to super-eruptions.', kind: 'document', url: 'https://en.wikipedia.org/wiki/Volcanic_Explosivity_Index' },
+      ],
+    },
+    {
+      id: 'ocean-circulation', name: 'Ocean Circulation', blurb: 'Wind-driven surface currents and density-driven deep circulation redistribute heat around the globe and regulate climate.', wikiSlug: 'Ocean_current', tags: ['oceanography', 'climate'],
+      deepDive: 'The ocean moves heat in two coupled systems. Surface winds drive great gyres — deflected into rotation by the Coriolis effect — that carry warm water poleward, as the Gulf Stream does. Beneath them, cold salty water sinking near the poles powers a slow global "conveyor" (the thermohaline circulation) that overturns the deep ocean on millennial timescales and buffers Earth\'s climate.',
+      lawIds: ['coriolis', 'wave-speed'], videoIds: ['6vgvTeuoDWY', 'B1Jc2SM9Yi8'],
+      evidence: [
+        { label: 'Argo float array', detail: 'Thousands of autonomous floats profile temperature and salinity, mapping currents and ocean heat content.', kind: 'dataset', url: 'https://en.wikipedia.org/wiki/Argo_(oceanography)' },
+        { label: 'Ekman transport (1905)', detail: 'Vagn Walfrid Ekman explained how wind, rotation and friction set the direction of surface currents.', kind: 'document', url: 'https://en.wikipedia.org/wiki/Ekman_transport' },
+      ],
+    },
+    {
+      id: 'carbon-cycle', name: 'The Carbon Cycle', blurb: 'The exchange of carbon among atmosphere, oceans, rocks and living things — the master control on greenhouse warming over short and long timescales.', wikiSlug: 'Carbon_cycle', tags: ['climate', 'geochemistry'],
+      deepDive: 'Carbon cycles through the atmosphere, oceans, soils, life and rocks on timescales from seasons to hundreds of millions of years. A fast biological loop of photosynthesis and respiration drives the annual sawtooth in atmospheric CO₂, while a slow geological loop of volcanism, weathering and burial governs it over deep time. Burning fossil fuels injects buried carbon back into the fast loop far quicker than natural sinks can absorb it — the core of modern climate change.',
+      lawIds: ['planetary-temp'], videoIds: ['RkdbSxyXftc'],
+      evidence: [
+        { label: 'The Keeling Curve (from 1958)', detail: 'Charles Keeling\'s Mauna Loa record shows the steady rise and seasonal breathing of atmospheric CO₂.', kind: 'dataset', url: 'https://gml.noaa.gov/ccgg/trends/' },
+        { label: 'Isotopic fingerprint of fossil carbon', detail: 'Falling ¹³C/¹²C ratios in the atmosphere trace the added CO₂ to fossil-fuel burning.', kind: 'observation', url: 'https://en.wikipedia.org/wiki/Suess_effect' },
+      ],
+    },
     { id: 'mineralogy', name: 'Minerals & Crystals', blurb: 'The naturally occurring inorganic solids, defined by composition and crystal structure, that are the building blocks of all rocks.', wikiSlug: 'Mineral', tags: ['geology'] },
     { id: 'radiometric', name: 'Radiometric Dating', blurb: 'Using the steady decay of radioactive isotopes as a clock to date rocks and fossils, from thousands to billions of years.', wikiSlug: 'Radiometric_dating', tags: ['geology', 'dating'] },
   ],
@@ -415,6 +474,27 @@ const DATA: ScienceDisciplineData = {
     { name: 'NOAA Global Monitoring (CO₂)', org: 'NOAA GML', url: 'https://gml.noaa.gov/ccgg/trends/', desc: 'The Mauna Loa CO₂ record (Keeling Curve) and global greenhouse-gas trends, freely downloadable.', kind: 'dataset', access: 'Open' },
     { name: 'Google Earth Engine', org: 'Google', url: 'https://earthengine.google.com/', desc: 'Cloud platform for planetary-scale analysis of satellite imagery and geospatial datasets; free for research and education.', kind: 'software', access: 'Free' },
     { name: 'PANGAEA Data Repository', org: 'AWI / MARUM', url: 'https://www.pangaea.de/', desc: 'Open archive of earth and environmental science datasets, from ice cores to ocean drilling records.', kind: 'dataset', access: 'Open' },
+  ],
+
+  videos: [
+    // Plate Tectonics
+    { id: 'RA2addLmQ2c', title: 'Plate Tectonics Explained', channel: 'Nick Zentner', topic: 'Plate Tectonics', blurb: 'A geologist walks through how the plates move and why the theory reorganised all of geology.', query: 'Plate Tectonics explained Nick Zentner' },
+    { id: 'Jii2bZaAcx0', title: 'How Mountains Are Made', channel: 'MinuteEarth', topic: 'Plate Tectonics', blurb: 'The collisions and uplift that raise mountain ranges over millions of years.', query: 'How mountains are made MinuteEarth' },
+    { id: 'YM4boLdjrbo', title: 'What Are Subduction Zones?', channel: 'GeologyHub', topic: 'Plate Tectonics', blurb: 'Where one plate dives beneath another, feeding the largest earthquakes and volcanic arcs.', query: 'subduction zones explained GeologyHub' },
+    { id: 'e1oXVsFCkGA', title: 'Why Earthquakes Are So Hard to Predict', channel: 'Practical Engineering', topic: 'Plate Tectonics', blurb: 'How faults store and release strain, and why timing a quake remains beyond us.', query: 'Why earthquakes are hard to predict Practical Engineering' },
+    // Geology
+    { id: 'HmqUmVLZExI', title: 'The Ice Age Floods of the Pacific Northwest', channel: 'Nick Zentner', topic: 'Geology', blurb: 'How catastrophic glacial-lake outbursts carved the scablands — and the debate that followed.', query: 'Ice Age Floods scablands Nick Zentner' },
+    { id: 'l0Bjm5NJ89A', title: 'The Yellowstone Supervolcano Explained', channel: 'GeologyHub', topic: 'Geology', blurb: 'The hotspot beneath Yellowstone, its past super-eruptions and what the risk really is.', query: 'Yellowstone supervolcano explained GeologyHub' },
+    { id: 'rSMYt8Fpj6M', title: 'How Do We Know the Age of the Earth?', channel: 'MinuteEarth', topic: 'Geology', blurb: 'Radiometric dating of the oldest rocks and meteorites pins Earth\'s age at 4.5 billion years.', query: 'How do we know the age of the Earth radiometric dating MinuteEarth' },
+    // Climate
+    { id: 'ipVxxxqwBQw', title: 'Is It Too Late To Stop Climate Change? Well, It\'s Complicated', channel: 'Kurzgesagt – In a Nutshell', topic: 'Climate', blurb: 'What the carbon budget is, and how far we can still steer the climate.', query: 'Is it too late to stop climate change Kurzgesagt' },
+    { id: 'RkdbSxyXftc', title: 'Who Is Responsible For Climate Change? – Who Needs To Fix It?', channel: 'Kurzgesagt – In a Nutshell', topic: 'Climate', blurb: 'Tracing historical and per-capita emissions to see where carbon actually comes from.', query: 'Who is responsible for climate change Kurzgesagt' },
+    { id: 'oqylUuxsFsc', title: 'How We Know Climate Change Is Real', channel: 'MinuteEarth', topic: 'Climate', blurb: 'The independent lines of evidence — CO₂, temperature, ice and oceans — that all point the same way.', query: 'How we know climate change is real MinuteEarth' },
+    // Oceans
+    { id: 'B4CWQXTPHIU', title: 'The Deep Sea Is Terrifying', channel: 'Kurzgesagt – In a Nutshell', topic: 'Oceans', blurb: 'A descent through the ocean\'s pressure zones and the strange life that survives there.', query: 'The deep sea is terrifying Kurzgesagt' },
+    { id: '6vgvTeuoDWY', title: 'How the Ocean\'s Currents Move Heat Around the Planet', channel: 'MinuteEarth', topic: 'Oceans', blurb: 'Wind-driven gyres and the deep thermohaline conveyor that redistribute the planet\'s heat.', query: 'ocean currents thermohaline circulation MinuteEarth' },
+    { id: 'Wx9vPv-T51I', title: 'The Physics of Tsunamis', channel: 'Practical Engineering', topic: 'Oceans', blurb: 'Why a barely noticeable ocean swell becomes a towering wall of water at the coast.', query: 'physics of tsunamis how tsunamis work Practical Engineering' },
+    { id: 'B1Jc2SM9Yi8', title: 'What Happens If the Gulf Stream Shuts Down?', channel: 'Anton Petrov', topic: 'Oceans', blurb: 'How a slowing Atlantic circulation could reshape climate across the Northern Hemisphere.', query: 'Gulf Stream AMOC shutdown Anton Petrov' },
   ],
 };
 

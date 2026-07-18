@@ -401,6 +401,36 @@ const DATA: ScienceDisciplineData = {
       blurb: 'Heritable variation plus differential survival and reproduction reshapes populations over generations — the organising principle of all biology.',
       wikiSlug: 'Natural_selection',
       tags: ['evolution', 'genetics'],
+      deepDive:
+        "Natural selection needs only three ingredients: variation among individuals, heritability of that variation, and differences in survival or reproduction. Where those hold, the traits that leave more descendants become more common each generation, and populations drift away from the neutral Hardy-Weinberg baseline. Selection is not random — it is the non-random filtering of random mutation — and given enough generations it can build structures as intricate as the eye. It is the single idea that ties genetics, ecology, palaeontology and molecular biology together.",
+      simulatorId: 'hardy-weinberg',
+      lawIds: ['hardy-weinberg', 'breeders-equation', 'heritability'],
+      videoIds: ['aTftyFboC_M', 'XX7PdJIGiCw'],
+      evidence: [
+        {
+          label: 'Darwin & Wallace, joint reading (1858)',
+          detail: 'The first public statement of evolution by natural selection, read to the Linnean Society.',
+          url: 'https://en.wikipedia.org/wiki/On_the_Origin_of_Species',
+          kind: 'document',
+        },
+        {
+          label: "The Grants' Galápagos finches (1973–present)",
+          detail: 'Measured beak size shifting within a single generation as drought changed the available seeds.',
+          url: 'https://en.wikipedia.org/wiki/Peter_and_Rosemary_Grant',
+          kind: 'observation',
+        },
+        {
+          label: "Lenski's Long-Term Evolution Experiment (1988–present)",
+          detail: 'Over 75,000 generations of E. coli, one lineage evolved the ability to metabolise citrate.',
+          url: 'https://en.wikipedia.org/wiki/E._coli_long-term_evolution_experiment',
+          kind: 'experiment',
+        },
+        {
+          label: 'Peppered moth industrial melanism',
+          detail: 'Dark moths rose and fell in frequency with soot pollution — selection observed in the wild.',
+          kind: 'observation',
+        },
+      ],
     },
     {
       id: 'cell-theory',
@@ -408,6 +438,32 @@ const DATA: ScienceDisciplineData = {
       blurb: 'All living things are composed of cells, the cell is the basic unit of life, and every cell arises from a pre-existing cell.',
       wikiSlug: 'Cell_theory',
       tags: ['cell', 'foundations'],
+      deepDive:
+        "Cell theory took nearly two centuries to assemble. Hooke saw the empty walls of dead cork cells; Leeuwenhoek saw living 'animalcules'; Schleiden and Schwann generalised that plants and animals alike are built of cells; and Virchow added the clinching principle omnis cellula e cellula — every cell comes from a pre-existing cell. Together these establish the cell as the fundamental unit of structure, function and heredity in all life, and they rule out spontaneous generation at the cellular scale.",
+      videoIds: ['f-ldPgEfAHI', '1Dx7LDwINLU'],
+      evidence: [
+        {
+          label: "Hooke's Micrographia (1665)",
+          detail: 'First use of the word "cell", describing the boxlike pores of cork under a microscope.',
+          url: 'https://en.wikipedia.org/wiki/Micrographia',
+          kind: 'document',
+        },
+        {
+          label: "Leeuwenhoek's letters to the Royal Society (1670s)",
+          detail: 'First observations of bacteria, protozoa and other single-celled life.',
+          kind: 'observation',
+        },
+        {
+          label: 'Schleiden & Schwann (1838–1839)',
+          detail: 'Proposed that all plants and animals are composed of cells — the core of cell theory.',
+          kind: 'document',
+        },
+        {
+          label: "Virchow's omnis cellula e cellula (1855)",
+          detail: 'Established that every cell arises only from the division of another cell.',
+          kind: 'document',
+        },
+      ],
     },
     {
       id: 'dna',
@@ -415,6 +471,34 @@ const DATA: ScienceDisciplineData = {
       blurb: 'A twin-stranded helix of paired bases stores hereditary information and copies itself with high fidelity.',
       wikiSlug: 'DNA',
       tags: ['molecular', 'genetics'],
+      deepDive:
+        "The double helix is a self-documenting molecule: two antiparallel strands whose bases pair specifically (A with T, G with C), so each strand is a template for the other. That complementarity is what lets DNA copy itself with astonishing fidelity — the Meselson-Stahl experiment showed replication is semiconservative, each daughter helix keeping one old strand. The structure, published in a one-page 1953 Nature paper, immediately suggested 'a possible copying mechanism for the genetic material'.",
+      videoIds: ['Qqe4thU-os8', 'X_tYrnv_o6A'],
+      evidence: [
+        {
+          label: 'Franklin & Gosling, Photo 51 (1952)',
+          detail: 'The X-ray diffraction image whose helical cross-pattern revealed DNA is a helix.',
+          url: 'https://en.wikipedia.org/wiki/Photo_51',
+          kind: 'experiment',
+        },
+        {
+          label: 'Watson & Crick, Nature (1953)',
+          detail: 'The double-helix model with complementary base pairing.',
+          url: 'https://en.wikipedia.org/wiki/Molecular_Structure_of_Nucleic_Acids:_A_Structure_for_Deoxyribose_Nucleic_Acid',
+          kind: 'document',
+        },
+        {
+          label: 'Avery–MacLeod–McCarty experiment (1944)',
+          detail: 'Showed DNA, not protein, is the molecule that carries heredity.',
+          kind: 'experiment',
+        },
+        {
+          label: 'Meselson–Stahl experiment (1958)',
+          detail: 'Density-gradient proof that DNA replication is semiconservative.',
+          url: 'https://en.wikipedia.org/wiki/Meselson%E2%80%93Stahl_experiment',
+          kind: 'experiment',
+        },
+      ],
     },
     {
       id: 'central-dogma',
@@ -422,6 +506,28 @@ const DATA: ScienceDisciplineData = {
       blurb: 'Genetic information flows from DNA to RNA to protein — transcription then translation build the machinery of the cell.',
       wikiSlug: 'Central_dogma_of_molecular_biology',
       tags: ['molecular'],
+      deepDive:
+        "Crick's central dogma states that sequence information flows DNA → RNA → protein, and — crucially — never back out of protein into nucleic acid. Transcription copies a gene into messenger RNA; translation reads that mRNA three bases at a time, each codon specifying one amino acid, on the ribosome. The genetic code that maps codons to amino acids was cracked in the 1960s and is very nearly universal across all life, strong evidence for a single common ancestor.",
+      videoIds: ['Qqe4thU-os8', '2LonjjINeU4'],
+      evidence: [
+        {
+          label: "Crick's 'On Protein Synthesis' (1958)",
+          detail: 'First formal statement of the central dogma and the sequence hypothesis.',
+          url: 'https://en.wikipedia.org/wiki/Central_dogma_of_molecular_biology',
+          kind: 'document',
+        },
+        {
+          label: 'Nirenberg & Matthaei poly-U experiment (1961)',
+          detail: 'A synthetic RNA of only uracil produced polyphenylalanine, decoding the first codon (UUU).',
+          url: 'https://en.wikipedia.org/wiki/Nirenberg_and_Matthaei_experiment',
+          kind: 'experiment',
+        },
+        {
+          label: 'Cracking the genetic code (1961–1966)',
+          detail: 'Nirenberg, Khorana and Holley mapped all 64 codons to amino acids and stop signals.',
+          kind: 'experiment',
+        },
+      ],
     },
     {
       id: 'genetics',
@@ -429,6 +535,34 @@ const DATA: ScienceDisciplineData = {
       blurb: 'Discrete units of heredity (genes) segregate and assort into offspring in predictable ratios.',
       wikiSlug: 'Mendelian_inheritance',
       tags: ['genetics'],
+      deepDive:
+        "Mendel's genius was to treat heredity quantitatively. Crossing true-breeding pea plants and counting thousands of offspring, he found that traits are carried by discrete factors (genes) that come in pairs, separate cleanly into gametes (the law of segregation), and are inherited independently of one another (independent assortment). The classic 3:1 and 9:3:3:1 ratios fall straight out of these rules. Ignored for 35 years, his work was rediscovered in 1900 and then physically located on the chromosomes.",
+      simulatorId: 'hardy-weinberg',
+      lawIds: ['hardy-weinberg', 'allele-sum'],
+      videoIds: ['zrKdz93WlVk'],
+      evidence: [
+        {
+          label: "Mendel's 'Experiments on Plant Hybridization' (1866)",
+          detail: 'Seven pea traits across ~28,000 plants yielding the laws of inheritance.',
+          url: 'https://en.wikipedia.org/wiki/Experiments_on_Plant_Hybridization',
+          kind: 'experiment',
+        },
+        {
+          label: 'Rediscovery of Mendel (1900)',
+          detail: 'De Vries, Correns and von Tschermak independently confirmed the ratios.',
+          kind: 'document',
+        },
+        {
+          label: 'Sutton–Boveri chromosome theory (1902–1903)',
+          detail: 'Linked Mendelian factors to the behaviour of chromosomes in meiosis.',
+          kind: 'observation',
+        },
+        {
+          label: "Morgan's Drosophila linkage maps (1911)",
+          detail: 'Fruit-fly crosses placed genes at ordered positions along the chromosome.',
+          kind: 'experiment',
+        },
+      ],
     },
     {
       id: 'homeostasis',
@@ -457,6 +591,34 @@ const DATA: ScienceDisciplineData = {
       blurb: 'Reproductive isolation splits one lineage into two, generating the branching tree of biodiversity.',
       wikiSlug: 'Speciation',
       tags: ['evolution'],
+      deepDive:
+        "Speciation is evolution branching in two. Most often it begins with geographic isolation (allopatry): a barrier splits a population, the halves accumulate different mutations, and eventually they can no longer interbreed. But reproductive isolation can also evolve without a barrier — through host shifts, chromosomal changes or divergent mate choice. Rapid bursts of speciation into many ecological niches, as in Darwin's finches or East African cichlids, are called adaptive radiations.",
+      simulatorId: 'population',
+      lawIds: ['species-area'],
+      videoIds: ['aTftyFboC_M', '-G64DagHuOg'],
+      evidence: [
+        {
+          label: "Darwin's finch adaptive radiation",
+          detail: 'One ancestral finch diversified into ~15 Galápagos species with distinct beaks and diets.',
+          url: 'https://en.wikipedia.org/wiki/Darwin%27s_finches',
+          kind: 'observation',
+        },
+        {
+          label: 'Lake Victoria cichlids',
+          detail: 'Hundreds of fish species arose in under ~15,000 years — speciation caught in the act.',
+          kind: 'observation',
+        },
+        {
+          label: 'Rhagoletis apple maggot fly',
+          detail: 'A host shift from hawthorn to apple is producing incipient sympatric species.',
+          kind: 'observation',
+        },
+        {
+          label: 'Ensatina ring species',
+          detail: 'Salamander populations that interbreed around a valley but not where the ends meet.',
+          kind: 'observation',
+        },
+      ],
     },
     {
       id: 'gene-expression',
@@ -478,6 +640,32 @@ const DATA: ScienceDisciplineData = {
       blurb: 'A bacterial immune system repurposed as programmable molecular scissors lets biologists rewrite DNA at will.',
       wikiSlug: 'CRISPR_gene_editing',
       tags: ['molecular', 'biotech'],
+      deepDive:
+        "CRISPR-Cas9 began as a bacterial defence: bacteria store snippets of viral DNA and use the Cas9 enzyme, guided by a matching RNA, to cut invading viruses. In 2012 Jennifer Doudna and Emmanuelle Charpentier showed the guide RNA could be reprogrammed to target any chosen sequence, turning the system into a general-purpose gene-editing tool. It has since moved from lab to clinic — the first CRISPR therapy, Casgevy for sickle-cell disease, was approved in 2023.",
+      videoIds: ['jAhjPd4uNFY'],
+      evidence: [
+        {
+          label: 'Ishino discovers CRISPR repeats (1987)',
+          detail: 'Odd repeated DNA sequences first noticed in E. coli, function then unknown.',
+          kind: 'observation',
+        },
+        {
+          label: 'Doudna & Charpentier, Science (2012)',
+          detail: 'Showed programmable RNA-guided DNA cutting by Cas9 — the birth of the tool.',
+          url: 'https://en.wikipedia.org/wiki/CRISPR_gene_editing',
+          kind: 'experiment',
+        },
+        {
+          label: 'Nobel Prize in Chemistry (2020)',
+          detail: 'Awarded to Charpentier and Doudna for developing CRISPR genome editing.',
+          kind: 'document',
+        },
+        {
+          label: 'Casgevy approval (2023)',
+          detail: 'First regulatory approval of a CRISPR-based medicine, for sickle-cell disease.',
+          kind: 'document',
+        },
+      ],
     },
   ],
 
@@ -878,6 +1066,117 @@ const DATA: ScienceDisciplineData = {
       desc: 'Freely accessible archive of annotated cell images, videos and animations for teaching and research.',
       kind: 'dataset',
       access: 'Open',
+    },
+  ],
+
+  videos: [
+    // ── Foundations ──────────────────────────────────────────────────
+    {
+      id: '1Dx7LDwINLU',
+      title: 'Biomolecules (Updated 2023)',
+      channel: 'Amoeba Sisters',
+      topic: 'Foundations',
+      blurb: 'The four molecules of life — carbohydrates, lipids, proteins and nucleic acids — explained simply.',
+      query: 'Biomolecules (Updated 2023) Amoeba Sisters',
+    },
+    {
+      id: 'QOCaacO8wus',
+      title: 'What Is Life? Is Death Real?',
+      channel: 'Kurzgesagt – In a Nutshell',
+      topic: 'Foundations',
+      blurb: 'A beautifully animated take on the hardest question in biology: what separates the living from the dead.',
+      query: 'What Is Life? Is Death Real? Kurzgesagt',
+    },
+    {
+      id: 'f-ldPgEfAHI',
+      title: 'Mitosis: The Amazing Cell Process that Uses Division to Multiply',
+      channel: 'Amoeba Sisters',
+      topic: 'Foundations',
+      blurb: 'How a single cell copies itself — the phases of mitosis with memorable mnemonics.',
+      query: 'Mitosis Amazing Cell Process Amoeba Sisters',
+    },
+    {
+      id: 'X_tYrnv_o6A',
+      title: "Your Body's Molecular Machines",
+      channel: 'Veritasium',
+      topic: 'Foundations',
+      blurb: 'Drew Berry animations of the real molecular machinery that divides your cells.',
+      query: "Your Body's Molecular Machines Veritasium",
+    },
+    // ── Evolution ────────────────────────────────────────────────────
+    {
+      id: 'aTftyFboC_M',
+      title: 'Natural Selection - Crash Course Biology #14',
+      channel: 'CrashCourse',
+      topic: 'Evolution',
+      blurb: 'Hank Green walks through the engine of evolution: variation, heritability and differential survival.',
+      query: 'Natural Selection Crash Course Biology #14',
+    },
+    {
+      id: 'XX7PdJIGiCw',
+      title: 'The Most Controversial Idea In Biology',
+      channel: 'Veritasium',
+      topic: 'Evolution',
+      blurb: 'Kin selection, altruism and why evolution can favour cooperation as well as competition.',
+      query: 'The Most Controversial Idea In Biology Veritasium',
+    },
+    {
+      id: '-G64DagHuOg',
+      title: 'When Giant Fungi Ruled',
+      channel: 'PBS Eons',
+      topic: 'Evolution',
+      blurb: 'The deep-time story of Prototaxites and how fungi helped make life on land possible.',
+      query: 'When Giant Fungi Ruled PBS Eons',
+    },
+    // ── Genetics ─────────────────────────────────────────────────────
+    {
+      id: 'Qqe4thU-os8',
+      title: 'DNA Replication (Updated)',
+      channel: 'Amoeba Sisters',
+      topic: 'Genetics',
+      blurb: 'Leading and lagging strands, helicase and polymerase — how DNA copies itself.',
+      query: 'DNA Replication Updated Amoeba Sisters',
+    },
+    {
+      id: '2LonjjINeU4',
+      title: 'Nucleic Acids',
+      channel: 'Amoeba Sisters',
+      topic: 'Genetics',
+      blurb: 'The structure of DNA and RNA and how the base-pairing code stores information.',
+      query: 'Nucleic Acids Amoeba Sisters',
+    },
+    {
+      id: 'jAhjPd4uNFY',
+      title: 'Genetic Engineering Will Change Everything Forever – CRISPR',
+      channel: 'Kurzgesagt – In a Nutshell',
+      topic: 'Genetics',
+      blurb: 'How a repurposed bacterial immune system became programmable molecular scissors.',
+      query: 'Genetic Engineering Will Change Everything Forever CRISPR Kurzgesagt',
+    },
+    {
+      id: 'zrKdz93WlVk',
+      title: 'Mitosis vs. Meiosis: Side by Side Comparison',
+      channel: 'Amoeba Sisters',
+      topic: 'Genetics',
+      blurb: 'Why sexual reproduction shuffles genes — segregation and independent assortment made visual.',
+      query: 'Mitosis vs Meiosis Side by Side Amoeba Sisters',
+    },
+    // ── Ecology ──────────────────────────────────────────────────────
+    {
+      id: 'sjE-Pkjp3u4',
+      title: 'The History of Life on Earth - Crash Course Ecology #1',
+      channel: 'CrashCourse',
+      topic: 'Ecology',
+      blurb: '4.5 billion years of life, from the first cells and the Great Oxidation to mass extinctions.',
+      query: 'The History of Life on Earth Crash Course Ecology #1',
+    },
+    {
+      id: '2D7hZpIYlCA',
+      title: 'The Hydrologic and Carbon Cycles - Crash Course Ecology #8',
+      channel: 'CrashCourse',
+      topic: 'Ecology',
+      blurb: 'How water and carbon endlessly recycle through the living and non-living world.',
+      query: 'Hydrologic and Carbon Cycles Crash Course Ecology #8',
     },
   ],
 };

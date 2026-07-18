@@ -150,16 +150,85 @@ const DATA: ScienceDisciplineData = {
 
   concepts: [
     { id: 'probability', name: 'Probability', blurb: 'The mathematics of uncertainty — assigning likelihoods to events and reasoning about randomness.', wikiSlug: 'Probability', tags: ['statistics', 'foundations'] },
-    { id: 'distribution', name: 'Probability Distributions', blurb: 'Functions describing how likely each outcome is — normal, binomial, Poisson and beyond.', wikiSlug: 'Probability_distribution', tags: ['statistics'] },
-    { id: 'regression', name: 'Regression', blurb: 'Modelling the relationship between variables to explain and predict continuous outcomes.', wikiSlug: 'Regression_analysis', tags: ['statistics', 'ml'] },
-    { id: 'bayesian', name: 'Bayesian Inference', blurb: 'Updating a probability (the prior) into a posterior as new evidence arrives, via Bayes’ theorem.', wikiSlug: 'Bayesian_inference', tags: ['inference', 'bayes'] },
-    { id: 'hypothesis-testing', name: 'Hypothesis Testing', blurb: 'A formal procedure for deciding whether data provide enough evidence to reject a null hypothesis.', wikiSlug: 'Statistical_hypothesis_test', tags: ['inference', 'statistics'] },
-    { id: 'overfitting', name: 'Overfitting & Regularisation', blurb: 'When a model memorises noise instead of signal; regularisation and validation guard against it.', wikiSlug: 'Overfitting', tags: ['ml', 'modelling'] },
-    { id: 'gradient-descent', name: 'Gradient Descent', blurb: 'An iterative optimiser that follows the slope of a loss function to fit model parameters.', wikiSlug: 'Gradient_descent', tags: ['ml', 'optimisation'] },
+    {
+      id: 'distribution', name: 'Probability Distributions', blurb: 'Functions describing how likely each outcome is — normal, binomial, Poisson and beyond.', wikiSlug: 'Probability_distribution', tags: ['statistics'],
+      deepDive: 'A distribution is the full description of a random variable — the probability of every outcome, summarised by parameters like a mean and variance. The normal (Gaussian) distribution is central because the Central Limit Theorem makes sums of many independent effects converge to it, which is why so much classical inference assumes normality. Recognising which distribution generated your data — count, heavy-tailed, bounded — is the first step of any honest analysis.',
+      simulatorId: 'function-plotter',
+      lawIds: ['normal-pdf', 'clt'],
+      videoIds: ['YAlJCEDH2uY'],
+      evidence: [
+        { label: 'Theoria Motus (Gauss, 1809)', detail: 'Derived the normal distribution as the law of observational errors.', kind: 'document' },
+        { label: 'The Central Limit Theorem', detail: 'Standardised sums of independent variables converge to the normal distribution.', kind: 'proof' },
+        { label: 'Galton\'s quincunx (bean machine)', detail: 'A physical device that lets balls fall through pegs into an approximate bell curve.', kind: 'experiment' },
+      ],
+    },
+    {
+      id: 'regression', name: 'Regression', blurb: 'Modelling the relationship between variables to explain and predict continuous outcomes.', wikiSlug: 'Regression_analysis', tags: ['statistics', 'ml'],
+      deepDive: 'Regression models a response as a function of one or more predictors, and its simplest form fits a straight line by minimising the sum of squared residuals. The fitted coefficients are interpretable — each is the effect of its predictor holding the others fixed — which is why regression bridges prediction and explanation. Galton discovered it while studying how children\'s heights "regress" toward the population mean, giving the method its name.',
+      simulatorId: 'function-plotter',
+      lawIds: ['linear-regression', 'ols', 'mse'],
+      videoIds: ['7ArmBVF2dCs'],
+      evidence: [
+        { label: 'Regression towards mediocrity in hereditary stature (Galton, 1886)', detail: 'Introduced regression and the phenomenon of regression to the mean.', kind: 'document' },
+        { label: 'The method of least squares (Gauss & Legendre)', detail: 'The closed-form estimator that minimises squared residuals.', kind: 'proof' },
+        { label: 'Ordinary least squares normal equations', detail: 'β̂ = (XᵀX)⁻¹Xᵀy gives the best linear unbiased estimator under Gauss–Markov assumptions.', kind: 'proof' },
+      ],
+    },
+    {
+      id: 'bayesian', name: 'Bayesian Inference', blurb: 'Updating a probability (the prior) into a posterior as new evidence arrives, via Bayes’ theorem.', wikiSlug: 'Bayesian_inference', tags: ['inference', 'bayes'],
+      deepDive: 'Bayesian inference treats unknown parameters as random variables with a prior distribution, then uses Bayes\' theorem to combine that prior with the data\'s likelihood into a posterior. Unlike a single point estimate, the posterior quantifies remaining uncertainty and can be updated incrementally as more evidence arrives. The framework is powerful but its conclusions depend on the prior, so choosing and justifying priors is part of the craft.',
+      lawIds: ['bayes-theorem', 'bayes-factor'],
+      videoIds: ['HZGCoVF3YvM', 'R13BD8qKeTg'],
+      evidence: [
+        { label: 'An Essay towards Solving a Problem in the Doctrine of Chances (Bayes, 1763)', detail: 'The posthumous paper that introduced what became Bayes\' theorem.', kind: 'document' },
+        { label: 'Théorie analytique des probabilités (Laplace, 1812)', detail: 'Developed the modern probabilistic (Bayesian) interpretation of inference.', kind: 'document' },
+        { label: 'The base-rate fallacy', detail: 'Diagnostic-test examples show why posterior probability can differ sharply from a test\'s accuracy.', kind: 'experiment' },
+      ],
+    },
+    {
+      id: 'hypothesis-testing', name: 'Hypothesis Testing', blurb: 'A formal procedure for deciding whether data provide enough evidence to reject a null hypothesis.', wikiSlug: 'Statistical_hypothesis_test', tags: ['inference', 'statistics'],
+      deepDive: 'A hypothesis test poses a null hypothesis, computes how surprising the observed data would be if it were true (the p-value), and rejects the null when that surprise crosses a chosen threshold. The Neyman–Pearson framework formalises the two error types — false positives and false negatives — and the power to detect a real effect. Misuse of p-values and multiple testing is a leading cause of the reproducibility crisis, so tests demand pre-registration and care.',
+      evidence: [
+        { label: 'The Design of Experiments (Fisher, 1935)', detail: 'Introduced significance testing, the null hypothesis and randomisation.', kind: 'document' },
+        { label: 'The Neyman–Pearson lemma (1933)', detail: 'Gives the most powerful test for a given false-positive rate.', kind: 'proof' },
+        { label: 'The Lady Tasting Tea experiment', detail: 'Fisher\'s thought experiment that motivated the modern significance test.', kind: 'experiment' },
+      ],
+    },
+    {
+      id: 'overfitting', name: 'Overfitting & Regularisation', blurb: 'When a model memorises noise instead of signal; regularisation and validation guard against it.', wikiSlug: 'Overfitting', tags: ['ml', 'modelling'],
+      deepDive: 'A model overfits when it captures the noise peculiar to its training set rather than the underlying signal, so it scores well in training but poorly on new data. The bias–variance decomposition frames the trade-off: flexible models have low bias but high variance. Regularisation (ridge/L2, lasso/L1) penalises complexity, while cross-validation estimates true out-of-sample error before deployment.',
+      lawIds: ['bias-variance', 'l2-regularisation'],
+      videoIds: ['sDv4f4s2SB8'],
+      evidence: [
+        { label: 'The bias–variance decomposition', detail: 'Expected error splits into bias, variance and irreducible noise.', kind: 'proof' },
+        { label: 'Regression Shrinkage and Selection via the Lasso (Tibshirani, 1996)', detail: 'L1 penalisation shrinks and selects coefficients, controlling overfitting.', url: 'https://www.jstor.org/stable/2346178', kind: 'document' },
+        { label: 'k-fold cross-validation', detail: 'Repeated train/test splits give an honest estimate of generalisation error.', kind: 'experiment' },
+      ],
+    },
+    {
+      id: 'gradient-descent', name: 'Gradient Descent', blurb: 'An iterative optimiser that follows the slope of a loss function to fit model parameters.', wikiSlug: 'Gradient_descent', tags: ['ml', 'optimisation'],
+      deepDive: 'Gradient descent minimises a loss by repeatedly stepping parameters in the direction of steepest descent, scaled by a learning rate. Stochastic and mini-batch variants estimate the gradient from small samples, making it scalable to enormous datasets and the default optimiser for neural networks. Getting the learning rate right — and adding momentum or adaptive schemes like Adam — is what makes training converge instead of diverge.',
+      lawIds: ['gradient-descent', 'mse'],
+      videoIds: ['sDv4f4s2SB8'],
+      evidence: [
+        { label: 'Méthode générale pour la résolution des systèmes d\'équations simultanées (Cauchy, 1847)', detail: 'The earliest description of the method of steepest descent.', kind: 'document' },
+        { label: 'A Stochastic Approximation Method (Robbins & Monro, 1951)', detail: 'Founded stochastic gradient methods, the basis of modern training.', kind: 'document' },
+        { label: 'Adam: A Method for Stochastic Optimization (Kingma & Ba, 2014)', detail: 'The adaptive optimiser used to train most deep networks.', url: 'https://arxiv.org/abs/1412.6980', kind: 'document' },
+      ],
+    },
     { id: 'neural-network', name: 'Neural Networks', blurb: 'Layered function approximators trained on data to model complex nonlinear relationships.', wikiSlug: 'Artificial_neural_network', tags: ['ml', 'deep-learning'] },
     { id: 'cross-validation', name: 'Cross-Validation', blurb: 'Estimating out-of-sample performance by repeatedly training and testing on data splits.', wikiSlug: 'Cross-validation_(statistics)', tags: ['ml', 'evaluation'] },
     { id: 'feature-engineering', name: 'Feature Engineering', blurb: 'Transforming raw data into informative inputs — scaling, encoding, and constructing predictive variables.', wikiSlug: 'Feature_engineering', tags: ['ml', 'data-prep'] },
-    { id: 'dimensionality-reduction', name: 'Dimensionality Reduction', blurb: 'Compressing many correlated variables into a few informative ones, e.g. with PCA.', wikiSlug: 'Dimensionality_reduction', tags: ['ml', 'statistics'] },
+    {
+      id: 'dimensionality-reduction', name: 'Dimensionality Reduction', blurb: 'Compressing many correlated variables into a few informative ones, e.g. with PCA.', wikiSlug: 'Dimensionality_reduction', tags: ['ml', 'statistics'],
+      deepDive: 'Real data often has hundreds of correlated features that hide a much lower-dimensional structure; dimensionality reduction finds that structure. Principal component analysis rotates the data onto the orthogonal axes of greatest variance, keeping only the few that matter, while nonlinear methods like t-SNE and UMAP preserve local neighbourhoods to reveal clusters. Beyond compression, these projections are how high-dimensional data becomes something the eye can actually see.',
+      videoIds: ['FgakZw6K1QQ', 'NEaUSP4YerM'],
+      evidence: [
+        { label: 'On Lines and Planes of Closest Fit (Pearson, 1901)', detail: 'The original formulation of principal component analysis.', kind: 'document' },
+        { label: 'Analysis of a complex of statistical variables into principal components (Hotelling, 1933)', detail: 'Developed PCA in its modern statistical form.', kind: 'document' },
+        { label: 'Visualizing Data using t-SNE (van der Maaten & Hinton, 2008)', detail: 'A nonlinear embedding that reveals cluster structure in high-dimensional data.', url: 'https://www.jmlr.org/papers/v9/vandermaaten08a.html', kind: 'document' },
+      ],
+    },
     { id: 'clustering', name: 'Clustering', blurb: 'Unsupervised grouping of data points by similarity — k-means, hierarchical and density-based methods.', wikiSlug: 'Cluster_analysis', tags: ['ml', 'unsupervised'] },
   ],
 
@@ -387,6 +456,27 @@ const DATA: ScienceDisciplineData = {
     { name: 'Hugging Face Datasets', org: 'Hugging Face', url: 'https://huggingface.co/datasets', desc: 'Thousands of open, ready-to-load datasets for machine learning.', kind: 'dataset', access: 'Freemium' },
     { name: 'UCI ML Repository', org: 'UC Irvine', url: 'https://archive.ics.uci.edu', desc: 'Classic curated benchmark datasets for machine-learning research.', kind: 'dataset', access: 'Open' },
     { name: 'Plotly', org: 'Plotly', url: 'https://plotly.com/python/', desc: 'Open-source interactive graphing library for Python, R and JavaScript.', kind: 'software', access: 'Open' },
+  ],
+
+  videos: [
+    // ── Foundations
+    { id: 'WUvTyaaNkzM', title: 'The essence of calculus', channel: '3Blue1Brown', topic: 'Foundations', blurb: 'Derivatives and integrals visualised — the maths behind fitting models.', query: 'The essence of calculus 3Blue1Brown' },
+    { id: 'aircAruvnKk', title: 'But what is a neural network?', channel: '3Blue1Brown', topic: 'Foundations', blurb: 'A visual introduction to the function approximators behind modern ML.', query: 'But what is a neural network 3Blue1Brown' },
+    // ── Statistics
+    { id: 'YAlJCEDH2uY', title: 'The Central Limit Theorem, Clearly Explained!!!', channel: 'StatQuest with Josh Starmer', topic: 'Statistics', blurb: 'Why sample means turn normal no matter the source distribution.', query: 'The Central Limit Theorem Clearly Explained StatQuest' },
+    { id: 'HZGCoVF3YvM', title: 'Bayes theorem, the geometry of changing beliefs', channel: '3Blue1Brown', topic: 'Statistics', blurb: 'A geometric picture of how evidence updates a prior into a posterior.', query: 'Bayes theorem the geometry of changing beliefs 3Blue1Brown' },
+    { id: 'XepXtl9YKwc', title: 'Maximum Likelihood, clearly explained!!!', channel: 'StatQuest with Josh Starmer', topic: 'Statistics', blurb: 'Choosing the parameters that make the observed data most probable.', query: 'Maximum Likelihood clearly explained StatQuest' },
+    { id: '7ArmBVF2dCs', title: 'Linear Regression, Clearly Explained!!!', channel: 'StatQuest with Josh Starmer', topic: 'Statistics', blurb: 'Fitting a line by least squares and reading off R-squared.', query: 'Linear Regression Clearly Explained StatQuest' },
+    { id: 'R13BD8qKeTg', title: 'The Bayesian Trap', channel: 'Veritasium', topic: 'Statistics', blurb: 'How base rates and Bayes\' theorem overturn medical-test intuition.', query: 'The Bayesian Trap Veritasium' },
+    // ── Machine Learning
+    { id: 'sDv4f4s2SB8', title: 'Gradient Descent, Step-by-Step', channel: 'StatQuest with Josh Starmer', topic: 'Machine Learning', blurb: 'The workhorse optimiser walked through by hand.', query: 'Gradient Descent Step-by-Step StatQuest' },
+    { id: 'CqOfi41LfDw', title: 'Neural Networks Pt. 1: Inside the Black Box', channel: 'StatQuest with Josh Starmer', topic: 'Machine Learning', blurb: 'A gentle build-up of what a neural network actually computes.', query: 'Neural Networks Pt 1 Inside the Black Box StatQuest' },
+    { id: 'efR1C6CvhmE', title: 'Support Vector Machines, Clearly Explained!!!', channel: 'StatQuest with Josh Starmer', topic: 'Machine Learning', blurb: 'Margins, kernels and the geometry of the SVM.', query: 'Support Vector Machines Clearly Explained StatQuest' },
+    { id: 'J4Wdy0Wc_xQ', title: 'Random Forests Part 1: Building, Using and Evaluating', channel: 'StatQuest with Josh Starmer', topic: 'Machine Learning', blurb: 'How bagging many decision trees produces a robust ensemble.', query: 'Random Forests Part 1 StatQuest' },
+    { id: '_L39rN6gz7Y', title: 'Decision and Classification Trees, Clearly Explained!!!', channel: 'StatQuest with Josh Starmer', topic: 'Machine Learning', blurb: 'How trees split data on the features that reduce impurity most.', query: 'Decision and Classification Trees Clearly Explained StatQuest' },
+    // ── Visualization
+    { id: 'FgakZw6K1QQ', title: 'Principal Component Analysis (PCA), Step-by-Step', channel: 'StatQuest with Josh Starmer', topic: 'Visualization', blurb: 'Projecting high-dimensional data onto its most informative axes.', query: 'Principal Component Analysis PCA Step-by-Step StatQuest' },
+    { id: 'NEaUSP4YerM', title: 't-SNE, Clearly Explained', channel: 'StatQuest with Josh Starmer', topic: 'Visualization', blurb: 'The nonlinear embedding that reveals clusters in complex data.', query: 't-SNE Clearly Explained StatQuest' },
   ],
 };
 

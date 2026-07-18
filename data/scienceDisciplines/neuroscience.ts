@@ -332,6 +332,30 @@ const DATA: ScienceDisciplineData = {
       blurb: 'A self-propagating wave of voltage — the all-or-nothing electrical spike by which neurons signal down their axons.',
       wikiSlug: 'Action_potential',
       tags: ['electrophysiology', 'neuron'],
+      deepDive:
+        "An action potential is a self-regenerating wave of voltage. When the membrane depolarises past threshold, voltage-gated sodium channels snap open and sodium floods in, driving the inside sharply positive; a fraction of a millisecond later those channels inactivate and potassium channels open, repolarising the cell. Because the spike is all-or-nothing and actively regenerated at each patch of membrane, it travels the length of an axon without fading. Hodgkin and Huxley captured all of this in a set of equations still taught today.",
+      simulatorId: 'neuron',
+      lawIds: ['hh-current', 'nernst', 'ohm-ionic'],
+      videoIds: ['W2hHt_PXe5o', '6qS83wD29PY'],
+      evidence: [
+        {
+          label: 'Hodgkin & Huxley squid axon papers (1952)',
+          detail: 'Voltage-clamp measurements yielding the quantitative model of the action potential.',
+          url: 'https://en.wikipedia.org/wiki/Hodgkin%E2%80%93Huxley_model',
+          kind: 'experiment',
+        },
+        {
+          label: 'The voltage clamp (Cole, Marmont, 1940s)',
+          detail: 'Held membrane voltage fixed so the underlying ionic currents could be measured directly.',
+          kind: 'experiment',
+        },
+        {
+          label: 'Patch clamp (Neher & Sakmann, 1976)',
+          detail: 'Recorded the current through a single ion channel, confirming their gating behaviour.',
+          url: 'https://en.wikipedia.org/wiki/Patch_clamp',
+          kind: 'experiment',
+        },
+      ],
     },
     {
       id: 'synapse',
@@ -339,6 +363,27 @@ const DATA: ScienceDisciplineData = {
       blurb: 'The junction where one neuron passes a signal to the next, usually by releasing chemical neurotransmitters across a tiny gap.',
       wikiSlug: 'Synapse',
       tags: ['electrophysiology', 'neuron'],
+      deepDive:
+        "At a chemical synapse the electrical signal is briefly converted to a chemical one. When an action potential reaches the terminal, voltage-gated calcium channels open; the calcium triggers synaptic vesicles to fuse with the membrane and release neurotransmitter into the cleft, where it binds receptors on the next cell. Katz showed that this release is quantal — it comes in discrete packets, one vesicle at a time. Sherrington named the junction the 'synapse' decades before anyone could see it under an electron microscope.",
+      videoIds: ['WhowH0kb7n0', 'FIIK2Gp5WzU'],
+      evidence: [
+        {
+          label: "Loewi's frog-heart experiment (1921)",
+          detail: 'Fluid from a stimulated vagus nerve slowed a second heart — proof of chemical transmission.',
+          url: 'https://en.wikipedia.org/wiki/Otto_Loewi',
+          kind: 'experiment',
+        },
+        {
+          label: 'Katz quantal release (1950s)',
+          detail: 'Miniature end-plate potentials revealed neurotransmitter is released in discrete packets.',
+          kind: 'experiment',
+        },
+        {
+          label: 'Electron microscopy of the synaptic cleft (Palade & Palay, 1954)',
+          detail: 'First direct images of synaptic vesicles and the ~20 nm gap between neurons.',
+          kind: 'observation',
+        },
+      ],
     },
     {
       id: 'neuroplasticity',
@@ -346,6 +391,29 @@ const DATA: ScienceDisciplineData = {
       blurb: 'The brain’s lifelong ability to rewire itself — strengthening, pruning and reforming connections with experience.',
       wikiSlug: 'Neuroplasticity',
       tags: ['learning', 'systems'],
+      deepDive:
+        "The adult brain is not fixed wiring. Synapses strengthen and weaken with use, new dendritic spines grow, and whole cortical maps can reorganise after injury or intense practice. Plasticity is strongest during early 'critical periods' — as Hubel and Wiesel showed by depriving a kitten of vision in one eye — but it never fully closes. It is the cellular basis of learning, recovery from stroke, and the way experience literally reshapes the brain's structure.",
+      lawIds: ['hebb'],
+      videoIds: ['Rx6kjzGPQ0c', 'yOgAbKJGrTA'],
+      evidence: [
+        {
+          label: 'Hubel & Wiesel monocular deprivation (1960s)',
+          detail: 'Closing one eye during a critical period permanently rewired the visual cortex.',
+          url: 'https://en.wikipedia.org/wiki/Critical_period',
+          kind: 'experiment',
+        },
+        {
+          label: 'Merzenich cortical remapping',
+          detail: 'Somatosensory maps reorganised after changes in sensory input, showing adult plasticity.',
+          kind: 'experiment',
+        },
+        {
+          label: 'London taxi-driver hippocampi (Maguire, 2000)',
+          detail: 'Years of navigation enlarged the posterior hippocampus of licensed cab drivers.',
+          url: 'https://en.wikipedia.org/wiki/Eleanor_Maguire',
+          kind: 'observation',
+        },
+      ],
     },
     {
       id: 'neuron-doctrine',
@@ -353,6 +421,28 @@ const DATA: ScienceDisciplineData = {
       blurb: 'The founding principle that the nervous system is made of discrete, individual cells rather than a continuous web.',
       wikiSlug: 'Neuron_doctrine',
       tags: ['foundations'],
+      deepDive:
+        "In the late 1800s two camps fought over the brain's basic structure. Golgi argued the nervous system was a continuous reticular net; Cajal, using Golgi's own silver stain, argued instead that it is built from discrete cells that merely touch. Cajal was right — the neuron doctrine holds that neurons are separate units, and that signals flow in one direction, from dendrites through the soma to the axon (his law of dynamic polarisation). The debate was so sharp that the two men shared the 1906 Nobel Prize while still disagreeing.",
+      videoIds: ['6qS83wD29PY'],
+      evidence: [
+        {
+          label: "Golgi's black reaction (1873)",
+          detail: 'A silver-nitrate stain that renders a few whole neurons visible against a clear background.',
+          url: 'https://en.wikipedia.org/wiki/Golgi%27s_method',
+          kind: 'experiment',
+        },
+        {
+          label: "Cajal's histological drawings (1888–1890s)",
+          detail: 'Detailed evidence that neurons are contiguous but not continuous — separate cells.',
+          url: 'https://en.wikipedia.org/wiki/Neuron_doctrine',
+          kind: 'observation',
+        },
+        {
+          label: 'Electron microscopy of the synapse (1950s)',
+          detail: 'Finally resolved the physical gap between neurons, settling the reticular debate.',
+          kind: 'observation',
+        },
+      ],
     },
     {
       id: 'neurotransmitter',
@@ -360,6 +450,28 @@ const DATA: ScienceDisciplineData = {
       blurb: 'Chemical messengers — dopamine, glutamate, GABA, serotonin — that carry signals across the synapse and tune mood, movement and learning.',
       wikiSlug: 'Neurotransmitter',
       tags: ['chemistry', 'synapse'],
+      deepDive:
+        "Neurotransmitters are the brain's chemical vocabulary. Glutamate is the main excitatory signal and GABA the main inhibitory one; modulators like dopamine, serotonin, noradrenaline and acetylcholine tune whole circuits for reward, mood, arousal and attention. Whether a transmitter excites or inhibits depends on its receptor, not the molecule itself, and most psychiatric drugs work by nudging these systems. Loewi's discovery of acetylcholine in 1921 was the first proof that neurons speak chemically at all.",
+      videoIds: ['FIIK2Gp5WzU', 'Wa8_nLwQIpg'],
+      evidence: [
+        {
+          label: 'Loewi identifies acetylcholine (1921)',
+          detail: 'The "Vagusstoff" that slowed the heart — the first known neurotransmitter.',
+          url: 'https://en.wikipedia.org/wiki/Acetylcholine',
+          kind: 'experiment',
+        },
+        {
+          label: 'Carlsson establishes dopamine as a transmitter (1957)',
+          detail: 'Showed dopamine is a signalling molecule, not just a noradrenaline precursor.',
+          url: 'https://en.wikipedia.org/wiki/Arvid_Carlsson',
+          kind: 'experiment',
+        },
+        {
+          label: 'von Euler discovers noradrenaline (1946)',
+          detail: 'Identified the principal transmitter of the sympathetic nervous system.',
+          kind: 'experiment',
+        },
+      ],
     },
     {
       id: 'connectome',
@@ -374,6 +486,29 @@ const DATA: ScienceDisciplineData = {
       blurb: 'The steady negative voltage a neuron maintains at rest, set by ion gradients and selective membrane permeability.',
       wikiSlug: 'Resting_potential',
       tags: ['electrophysiology'],
+      deepDive:
+        "At rest a neuron sits at roughly -70 mV inside relative to outside. This voltage is set by ion gradients — high potassium inside, high sodium outside, maintained by the sodium-potassium pump — combined with a membrane that at rest is far more permeable to potassium than to sodium. Each ion has an equilibrium (Nernst) potential; the resting voltage is a permeability-weighted blend of them, given by the Goldman-Hodgkin-Katz equation. This stored electrochemical energy is the battery every action potential discharges.",
+      simulatorId: 'neuron',
+      lawIds: ['nernst', 'ghk'],
+      videoIds: ['W2hHt_PXe5o'],
+      evidence: [
+        {
+          label: "Bernstein's membrane hypothesis (1902)",
+          detail: 'Proposed that the resting potential arises from selective potassium permeability.',
+          kind: 'document',
+        },
+        {
+          label: 'Hodgkin & Katz potassium experiments (1949)',
+          detail: 'Showed the membrane potential tracks the external potassium concentration as predicted.',
+          kind: 'experiment',
+        },
+        {
+          label: 'Skou discovers the Na+/K+-ATPase (1957)',
+          detail: 'Identified the pump that maintains the ion gradients underlying the resting potential.',
+          url: 'https://en.wikipedia.org/wiki/Na%2B/K%2B-ATPase',
+          kind: 'experiment',
+        },
+      ],
     },
     {
       id: 'ltp',
@@ -381,6 +516,28 @@ const DATA: ScienceDisciplineData = {
       blurb: 'A lasting strengthening of synapses following intense activity — a leading cellular model of learning and memory.',
       wikiSlug: 'Long-term_potentiation',
       tags: ['learning', 'memory'],
+      deepDive:
+        "Long-term potentiation (LTP) is the leading cellular model of memory. When a synapse is stimulated strongly and repeatedly, its response can be enhanced for hours, days or longer. The key detector is the NMDA receptor, which opens only when the presynaptic cell fires and the postsynaptic cell is already depolarised — a molecular coincidence detector that implements Hebb's 'cells that fire together, wire together'. Blocking NMDA receptors blocks both LTP and spatial learning, tying the mechanism directly to behaviour.",
+      lawIds: ['hebb'],
+      videoIds: ['yOgAbKJGrTA', '5EyaGR8GGhs'],
+      evidence: [
+        {
+          label: 'Bliss & Lømo discover LTP (1973)',
+          detail: 'High-frequency stimulation lastingly strengthened synapses in the rabbit hippocampus.',
+          url: 'https://en.wikipedia.org/wiki/Long-term_potentiation',
+          kind: 'experiment',
+        },
+        {
+          label: 'NMDA-receptor dependence of LTP',
+          detail: 'The receptor acts as a coincidence detector required to induce potentiation.',
+          kind: 'experiment',
+        },
+        {
+          label: 'Morris water-maze APV block',
+          detail: 'Blocking NMDA receptors impaired spatial memory, linking LTP to learning.',
+          kind: 'experiment',
+        },
+      ],
     },
     {
       id: 'localization',
@@ -797,6 +954,125 @@ const DATA: ScienceDisciplineData = {
       desc: 'Platform for large-scale, automated meta-analysis of human functional neuroimaging (fMRI) studies.',
       kind: 'dataset',
       access: 'Open',
+    },
+  ],
+
+  videos: [
+    // ── Foundations ──────────────────────────────────────────────────
+    {
+      id: 'qPix_X-9t7E',
+      title: 'The Nervous System, Part 1 - Crash Course A&P #8',
+      channel: 'CrashCourse',
+      topic: 'Foundations',
+      blurb: 'The big picture: central and peripheral systems, sensory input, integration and motor output.',
+      query: 'The Nervous System Part 1 Crash Course Anatomy Physiology #8',
+    },
+    {
+      id: '6qS83wD29PY',
+      title: '2-Minute Neuroscience: The Neuron',
+      channel: 'Neuroscientifically Challenged',
+      topic: 'Foundations',
+      blurb: 'The parts of a neuron — dendrites, soma, axon and terminals — in two minutes.',
+      query: '2-Minute Neuroscience The Neuron',
+    },
+    {
+      id: 'Rx6kjzGPQ0c',
+      title: 'Neuroplasticity',
+      channel: 'Sentis',
+      topic: 'Foundations',
+      blurb: 'A short animation of how the brain rewires itself throughout life.',
+      query: 'Neuroplasticity Sentis',
+    },
+    // ── Neurons ──────────────────────────────────────────────────────
+    {
+      id: 'W2hHt_PXe5o',
+      title: '2-Minute Neuroscience: Action Potential',
+      channel: 'Neuroscientifically Challenged',
+      topic: 'Neurons',
+      blurb: 'The ionic choreography of the all-or-nothing nerve impulse.',
+      query: '2-Minute Neuroscience Action Potential',
+    },
+    {
+      id: 'WhowH0kb7n0',
+      title: '2-Minute Neuroscience: Synaptic Transmission',
+      channel: 'Neuroscientifically Challenged',
+      topic: 'Neurons',
+      blurb: 'How a signal crosses the synaptic cleft from one neuron to the next.',
+      query: '2-Minute Neuroscience Synaptic Transmission',
+    },
+    {
+      id: 'FIIK2Gp5WzU',
+      title: '2-Minute Neuroscience: Neurotransmitter Release',
+      channel: 'Neuroscientifically Challenged',
+      topic: 'Neurons',
+      blurb: 'Calcium, vesicles and the machinery that dumps neurotransmitter into the synapse.',
+      query: '2-Minute Neuroscience Neurotransmitter Release',
+    },
+    {
+      id: 'Wa8_nLwQIpg',
+      title: '2-Minute Neuroscience: Dopamine',
+      channel: 'Neuroscientifically Challenged',
+      topic: 'Neurons',
+      blurb: 'Dopamine synthesis, pathways and its roles in movement, reward and motivation.',
+      query: '2-Minute Neuroscience Dopamine',
+    },
+    // ── Cognition ────────────────────────────────────────────────────
+    {
+      id: 'UBVV8pch1dM',
+      title: 'The Science of Thinking',
+      channel: 'Veritasium',
+      topic: 'Cognition',
+      blurb: 'Fast System 1 and slow System 2 — how the brain thinks and why it makes mistakes.',
+      query: 'The Science of Thinking Veritasium',
+    },
+    {
+      id: 'yOgAbKJGrTA',
+      title: 'How memories form and how we lose them',
+      channel: 'TED-Ed',
+      topic: 'Cognition',
+      blurb: 'Long-term potentiation, encoding and the fragility of memory, animated.',
+      query: 'How memories form and how we lose them TED-Ed',
+    },
+    {
+      id: '5EyaGR8GGhs',
+      title: '2-Minute Neuroscience: The Hippocampus',
+      channel: 'Neuroscientifically Challenged',
+      topic: 'Cognition',
+      blurb: 'The seahorse-shaped structure at the centre of learning and memory.',
+      query: '2-Minute Neuroscience The Hippocampus',
+    },
+    {
+      id: 'MMmOLN5zBLY',
+      title: 'The benefits of a bilingual brain',
+      channel: 'TED-Ed',
+      topic: 'Cognition',
+      blurb: 'How speaking more than one language reshapes and strengthens the brain.',
+      query: 'The benefits of a bilingual brain TED-Ed Mia Nacamulli',
+    },
+    // ── Methods ──────────────────────────────────────────────────────
+    {
+      id: 'rJjHjnzmvDI',
+      title: '2-Minute Neuroscience: Functional MRI (fMRI)',
+      channel: 'Neuroscientifically Challenged',
+      topic: 'Methods',
+      blurb: 'How blood-flow signals let us image the working human brain.',
+      query: '2-Minute Neuroscience Functional Magnetic Resonance Imaging fMRI',
+    },
+    {
+      id: 'B_tTymvDWXk',
+      title: 'How does anesthesia work?',
+      channel: 'TED-Ed',
+      topic: 'Methods',
+      blurb: 'What we do — and do not — know about switching consciousness off.',
+      query: 'How does anesthesia work TED-Ed Steven Zheng',
+    },
+    {
+      id: 'xvjK-4NXRsM',
+      title: 'What happens when you have a concussion?',
+      channel: 'TED-Ed',
+      topic: 'Methods',
+      blurb: 'The mechanics of brain injury and why repeated concussions are so dangerous.',
+      query: 'What happens when you have a concussion TED-Ed Clifford Robbins',
     },
   ],
 };
