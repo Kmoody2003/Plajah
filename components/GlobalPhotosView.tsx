@@ -25,11 +25,12 @@ import SpatialImage from './SpatialImage';
 import DepthAnalyzer from './DepthAnalyzer';
 import SpatialMedia from './SpatialMedia';
 import PhotoEditPanel from './PhotoEditPanel';
+import FromSocialGallery from './FromSocialGallery';
 import { PHOTO_IMPORT_SOURCES, PHOTOGRAPHER_PRO_FEATURES } from '../services/photoEditingService';
 
 interface GlobalPhotosViewProps {
   onVisitUser: (uid: string) => void;
-  initialMode?: 'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO';
+  initialMode?: 'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL';
   /** Opens the classical Art Museum (ArtGalleryView) — masters + open-access collections. */
   onOpenArtMuseum?: () => void;
 }
@@ -37,7 +38,7 @@ interface GlobalPhotosViewProps {
 const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initialMode = 'WATERFALL', onOpenArtMuseum }) => {
   const { isSpatialMode } = useSpatial();
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [mode, setMode] = useState<'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO'>(initialMode);
+  const [mode, setMode] = useState<'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL'>(initialMode);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
@@ -48,6 +49,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
 
   useEffect(() => {
     const loadData = async () => {
+      if (mode === 'SOCIAL') { setIsLoading(false); return; } // FromSocialGallery loads its own data
       setIsLoading(true);
       if (mode === 'THEMES') {
         const data = await fetchThemePresets();
@@ -124,6 +126,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
               { id: 'IMPORTS', label: 'Import', icon: Cloud },
               { id: 'PRO', label: 'Pro', icon: Wand2 },
               { id: 'THEMES', label: 'Themes', icon: ImageIcon },
+              { id: 'SOCIAL', label: 'From Social', icon: Share2 },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -150,7 +153,11 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
 
       {/* Main Mode Rendering */}
       <main className="px-6 lg:px-12">
-        {mode === 'IMPORTS' ? (
+        {mode === 'SOCIAL' ? (
+          <div className="max-w-6xl mx-auto">
+            <FromSocialGallery uid={auth.currentUser?.uid || ''} kinds={['PHOTO', 'GIF', 'STICKER']} emptyLabel="No photos shared to your feed yet" />
+          </div>
+        ) : mode === 'IMPORTS' ? (
           <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {PHOTO_IMPORT_SOURCES.map(source => (

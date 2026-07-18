@@ -31,6 +31,7 @@ import PlajahPlusBanner from './PlajahPlusBanner';
 import WorldBadge from './WorldBadge';
 import ReelloChannelHeader from './ReelloChannelHeader';
 import FastChannelPlayer from './FastChannelPlayer';
+import FromSocialGallery from './FromSocialGallery';
 import { thumb as thumbUrl, onThumbError, THUMB } from '../src/lib/imageThumb';
 
 interface VideoTabProps {
@@ -461,7 +462,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [searchTerm, setSearchTerm] = useState('');
   // On a user profile, open straight to that creator's own videos ('uploads' = the profile
   // owner's videos), never the global discover feed.
-  const [activeView, setActiveView] = useState<'discover' | 'uploads' | 'live' | 'playlists' | 'channel' | 'shorts' | 'subscriptions' | 'history' | 'liked'>(profileScoped ? 'uploads' : 'discover');
+  const [activeView, setActiveView] = useState<'discover' | 'uploads' | 'live' | 'playlists' | 'channel' | 'shorts' | 'subscriptions' | 'history' | 'liked' | 'social'>(profileScoped ? 'uploads' : 'discover');
   const [channelSearch, setChannelSearch] = useState('');   // creator/channel directory search (Subscriptions)
   // Deep-link: a shared playlist link opens straight to its detail under the Playlists tab.
   useEffect(() => {
@@ -1082,6 +1083,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
             { id: 'playlists', label: 'Playlists', icon: List },
             { id: 'liked', label: 'Liked', icon: Heart },
             { id: 'history', label: 'History', icon: Clock },
+            { id: 'social', label: 'From Social', icon: Share2 },
             { id: 'channel', label: 'My Channel', icon: Layers },
           ].map(item => (
             <button
@@ -1118,8 +1120,8 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
           {/* Mobile view tabs */}
           <div className={`gap-2 lg:hidden mb-6 overflow-x-auto no-scrollbar ${profileScoped ? 'hidden' : 'flex'}`}>
-            {(['discover', 'subscriptions', 'shorts', 'uploads', 'live', 'playlists', 'liked', 'history', 'channel'] as const).map(v => (
-              <button key={v} onClick={() => setActiveView(v)} className={`px-4 py-2 rounded-full font-black text-[9px] uppercase tracking-widest whitespace-nowrap shrink-0 transition-all ${activeView === v ? 'bg-white text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>{v === 'channel' ? 'My Channel' : v === 'uploads' ? 'My Videos' : v}</button>
+            {(['discover', 'subscriptions', 'shorts', 'uploads', 'live', 'playlists', 'liked', 'history', 'social', 'channel'] as const).map(v => (
+              <button key={v} onClick={() => setActiveView(v)} className={`px-4 py-2 rounded-full font-black text-[9px] uppercase tracking-widest whitespace-nowrap shrink-0 transition-all ${activeView === v ? 'bg-white text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>{v === 'channel' ? 'My Channel' : v === 'uploads' ? 'My Videos' : v === 'social' ? 'From Social' : v}</button>
             ))}
           </div>
 
@@ -1658,6 +1660,14 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
           {/* ── HISTORY ── */}
           {activeView === 'history' && (
             <HistorySection onPlay={(v) => handlePlay(v)} />
+          )}
+
+          {/* ── FROM SOCIAL — videos you've shared to Plajah Social ── */}
+          {activeView === 'social' && (
+            <div className="pt-2">
+              <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2.5 mb-5"><Share2 className="text-small-orange" size={16} /> From Social</h2>
+              <FromSocialGallery uid={(profile || currentUser)?.uid || auth.currentUser?.uid || ''} kinds={['VIDEO']} emptyLabel="No videos shared to your feed yet" />
+            </div>
           )}
 
           {/* â"€â"€ MY CHANNEL â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
