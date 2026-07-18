@@ -829,6 +829,21 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAuthenticated();
     }
+    match /photoCritiques/{photoId}/entries/{critiqueId} {
+      // Structured photo critique (composition / light / story, 1–5) — the doc id IS the
+      // critic's uid, so a person can only ever write their own critique and re-submitting
+      // updates rather than duplicating. Public read so aggregates are visible to everyone.
+      allow read: if true;
+      allow create, update: if isAuthenticated()
+                            && request.auth.uid == critiqueId
+                            && request.resource.data.composition is int
+                            && request.resource.data.composition >= 1 && request.resource.data.composition <= 5
+                            && request.resource.data.light is int
+                            && request.resource.data.light >= 1 && request.resource.data.light <= 5
+                            && request.resource.data.story is int
+                            && request.resource.data.story >= 1 && request.resource.data.story <= 5;
+      allow delete: if isAuthenticated() && request.auth.uid == critiqueId;
+    }
     match /smartProductions/{productionId} {
       // Smart Director multi-camera productions. Public read so any viewer can render the
       // live PROGRAM feed the director state points at; any signed-in user may create a

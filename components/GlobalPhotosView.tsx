@@ -16,7 +16,8 @@ import {
   Wand2,
   Layers,
   Upload,
-  Landmark
+  Landmark,
+  GraduationCap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { fetchGlobalPhotos, favoritePhoto, followUser, auth, fetchThemePresets, updateUserProfile, fetchUserProfile } from '../services/backendService';
@@ -26,11 +27,14 @@ import DepthAnalyzer from './DepthAnalyzer';
 import SpatialMedia from './SpatialMedia';
 import PhotoEditPanel from './PhotoEditPanel';
 import FromSocialGallery from './FromSocialGallery';
+import PhotoCritiquePanel from './PhotoCritiquePanel';
+import SchoolView from './school/SchoolView';
+import { PHOTO_ART_SCHOOL } from '../data/photoArtCurriculum';
 import { PHOTO_IMPORT_SOURCES, PHOTOGRAPHER_PRO_FEATURES } from '../services/photoEditingService';
 
 interface GlobalPhotosViewProps {
   onVisitUser: (uid: string) => void;
-  initialMode?: 'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL';
+  initialMode?: 'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL' | 'SCHOOL';
   /** Opens the classical Art Museum (ArtGalleryView) — masters + open-access collections. */
   onOpenArtMuseum?: () => void;
 }
@@ -38,7 +42,7 @@ interface GlobalPhotosViewProps {
 const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initialMode = 'WATERFALL', onOpenArtMuseum }) => {
   const { isSpatialMode } = useSpatial();
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [mode, setMode] = useState<'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL'>(initialMode);
+  const [mode, setMode] = useState<'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL' | 'SCHOOL'>(initialMode);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
@@ -50,6 +54,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
   useEffect(() => {
     const loadData = async () => {
       if (mode === 'SOCIAL') { setIsLoading(false); return; } // FromSocialGallery loads its own data
+      if (mode === 'SCHOOL') { setIsLoading(false); return; } // SchoolView loads its own progress
       setIsLoading(true);
       if (mode === 'THEMES') {
         const data = await fetchThemePresets();
@@ -104,7 +109,9 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
               Plajah Photos
             </PageHeader>
             <p className="text-lg font-medium text-white/40 italic max-w-2xl">
-              {mode === 'THEMES'
+              {mode === 'SCHOOL'
+                 ? 'A complete education in the visual arts — photography and art, beginner to master, taught with the world’s open museum collections.'
+                 : mode === 'THEMES'
                  ? 'A curated collection of visual aesthetics to transform your space.'
                  : mode === 'GALLERY' 
                 ? 'A curated art-gallery view inside the unified Plajah photo experience.'
@@ -127,6 +134,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
               { id: 'PRO', label: 'Pro', icon: Wand2 },
               { id: 'THEMES', label: 'Themes', icon: ImageIcon },
               { id: 'SOCIAL', label: 'From Social', icon: Share2 },
+              { id: 'SCHOOL', label: 'School', icon: GraduationCap },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -153,7 +161,9 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
 
       {/* Main Mode Rendering */}
       <main className="px-6 lg:px-12">
-        {mode === 'SOCIAL' ? (
+        {mode === 'SCHOOL' ? (
+          <SchoolView curriculum={PHOTO_ART_SCHOOL} embedded />
+        ) : mode === 'SOCIAL' ? (
           <div className="max-w-6xl mx-auto">
             <FromSocialGallery uid={auth.currentUser?.uid || ''} kinds={['PHOTO', 'GIF', 'STICKER']} emptyLabel="No photos shared to your feed yet" />
           </div>
@@ -472,6 +482,9 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                     <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Edit</span>
                   </div>
                 </div>
+
+                {/* Critique circle — structured, opt-in peer feedback (Part 3C) */}
+                <PhotoCritiquePanel photoId={selectedPhoto.id} ownerId={selectedPhoto.ownerId} />
 
                 <div className="mt-auto pt-8 border-t border-white/10">
                   <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/20 mb-2">Signal Timestamp</p>
