@@ -21,6 +21,8 @@ export interface ComposerAttachment {
   title?: string;
   thumbnail?: string;   // poster for MODEL3D embeds
   file?: File;
+  reused?: boolean;     // this file is already in the user's library (will be reused, not re-uploaded)
+  forceNew?: boolean;   // user chose to upload a fresh copy anyway
 }
 
 export interface AssetEmbed {
@@ -304,7 +306,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   // ── File helpers ─────────────────────────────────────────────────────────────
 
   const processFiles = useCallback((files: FileList | File[]) => {
-    Array.from(files).forEach(file => {
+    Array.from(files).forEach(async file => {
       const url = URL.createObjectURL(file);
       const type: ComposerAttachment['type'] = file.type.startsWith('video/')
         ? 'VIDEO'
@@ -312,8 +314,21 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         ? 'AUDIO'
         : 'PHOTO';
       setAttachments(prev => [...prev, { type, url, title: file.name, file }]);
+      // Is this file already in the user's library? If so, flag it so we reuse instead of
+      // uploading a duplicate — the user can still choose a fresh copy per attachment.
+      const uid = (currentUser as any)?.uid;
+      if (uid && (type === 'PHOTO' || type === 'VIDEO')) {
+        try {
+          const { fingerprintFile, lookupMedia } = await import('../services/mediaDedup');
+          const fp = await fingerprintFile(file);
+          if (fp) {
+            const hit = await lookupMedia(uid, fp);
+            if (hit) setAttachments(prev => prev.map(a => a.url === url ? { ...a, reused: true } : a));
+          }
+        } catch { /* dedup is best-effort */ }
+      }
     });
-  }, []);
+  }, [currentUser]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) processFiles(e.target.files);
@@ -714,6 +729,20 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
               >
                 <X size={10} />
               </button>
+              {att.reused && (
+                <div className="absolute bottom-0 inset-x-0 bg-black/75 backdrop-blur-sm px-1.5 py-1 flex items-center justify-between gap-1">
+                  <span className="text-[7px] font-black uppercase tracking-widest text-emerald-300 leading-none" title="Already in your library — will be reused, not re-uploaded">
+                    {att.forceNew ? 'New copy' : 'In library'}
+                  </span>
+                  <button
+                    onClick={() => setAttachments(prev => prev.map((a, idx) => idx === i ? { ...a, forceNew: !a.forceNew } : a))}
+                    className="text-[7px] font-black uppercase tracking-widest text-white/60 hover:text-white leading-none shrink-0"
+                    title={att.forceNew ? 'Reuse the copy already in your library' : 'Upload a fresh copy instead'}
+                  >
+                    {att.forceNew ? 'Reuse' : 'New copy'}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

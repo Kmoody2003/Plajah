@@ -742,6 +742,12 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // Media dedup index (services/mediaDedup) — fingerprint → uploaded url, so identical
+      // re-uploads reuse the existing asset. Owner-only.
+      match /mediaIndex/{fingerprint} {
+        allow read, write: if isOwner(userId);
+      }
+
       // Fediverse accounts (Mastodon, Bluesky, Threads) — server writes on
       // behalf of the user using their Firebase ID token. Credentials are
       // AES-256-GCM encrypted at rest; the raw token never leaves the server.

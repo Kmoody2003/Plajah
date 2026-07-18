@@ -2607,7 +2607,13 @@ const toggleFavoriteTeam = async (team: string) => {
                   if (att.file && att.url.startsWith('blob:')) {
                     try {
                       const { uploadFile } = await import('../services/backendService');
-                      const url = await uploadFile(`posts/${currentUser.uid}/${Date.now()}_${att.file.name}`, att.file);
+                      const { uploadOrReuse } = await import('../services/mediaDedup');
+                      const { url } = await uploadOrReuse(
+                        currentUser.uid,
+                        `posts/${currentUser.uid}/${Date.now()}_${att.file.name}`,
+                        att.file, uploadFile,
+                        { type: att.type, title: att.title, forceNew: (att as any).forceNew },
+                      );
                       return { type: att.type, url, title: att.title };
                     } catch { return null; }
                   }
@@ -3058,7 +3064,13 @@ const toggleFavoriteTeam = async (team: string) => {
                     if (att.file && att.url.startsWith('blob:')) {
                       try {
                         const { uploadFile } = await import('../services/backendService');
-                        const url = await uploadFile(`posts/${currentUser.uid}/${Date.now()}_${att.file.name}`, att.file);
+                        const { uploadOrReuse } = await import('../services/mediaDedup');
+                        const { url } = await uploadOrReuse(
+                          currentUser.uid,
+                          `posts/${currentUser.uid}/${Date.now()}_${att.file.name}`,
+                          att.file, uploadFile,
+                          { type: att.type, title: att.title, forceNew: (att as any).forceNew },
+                        );
                         return { type: att.type, url, title: att.title };
                       } catch { return null; }
                     }
