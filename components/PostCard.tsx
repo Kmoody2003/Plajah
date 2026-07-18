@@ -15,6 +15,7 @@ import { Trash2, Zap } from 'lucide-react';
 import CommentSection from './CommentSection';
 import MediaWaterfallView, { WaterfallMediaItem } from './MediaWaterfallView';
 import PostMediaCarousel from './PostMediaCarousel';
+import LearnChip from './LearnChip';
 import { buildShareUrl } from '../services/deepLinkService';
 import RoomBanner from './RoomBanner';
 import SignInPrompt from './SignInPrompt';
@@ -691,6 +692,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
 
           {/* Rich Media */}
           {renderMedia()}
+
+          {/* Learn chip — education as a discovery surface (only renders on a real match) */}
+          <LearnChip tags={post.tags} text={post.text} className="mt-3" compact />
 
           {/* Poll */}
           {(post as any).poll?.question && (

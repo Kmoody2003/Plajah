@@ -26,7 +26,8 @@ import {
 } from '../data/educationStandards';
 
 export type LearningRecordSource =
-  | 'reading-quest' | 'science-quest' | 'math-classroom' | 'teacher-assessment' | 'creative-artifact' | 'import';
+  | 'reading-quest' | 'science-quest' | 'math-classroom' | 'teacher-assessment' | 'creative-artifact' | 'import'
+  | 'school-lesson';   // any curriculum built on the shared School chassis (Film, Photo/Art, Chora, Academia)
 
 export interface LearningRecord {
   id: string;

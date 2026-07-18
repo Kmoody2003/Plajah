@@ -559,6 +559,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [pixelsPayload, setPixelsPayload] = useState<{ album?: any; track?: any } | null>(null);
   const [smartDirectorPayload, setSmartDirectorPayload] = useState<{ productionId?: string; event?: any } | null>(null);
+  const [labsDiscipline, setLabsDiscipline] = useState<string | null>(null);
   // Shared-track landing: shows the 5s auto-play countdown, then plays that track.
   const [autoPlayShare, setAutoPlayShare] = useState<{ album: any; track: any } | null>(null);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
@@ -773,6 +774,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const handleOpenSmartDirector = (e: Event) => { setSmartDirectorPayload((e as CustomEvent)?.detail || {}); setView('SMART_DIRECTOR' as AppView); };
     window.addEventListener('OPEN_SMART_DIRECTOR', handleOpenSmartDirector);
 
+    // Learn chips — deep-link any content into its Labs discipline. detail: { disciplineId }.
+    const handleOpenLabsDiscipline = (e: Event) => {
+      const id = (e as CustomEvent)?.detail?.disciplineId;
+      if (id) { setLabsDiscipline(id); setView('PLAJAH_LABS' as AppView); }
+    };
+    window.addEventListener('OPEN_LABS_DISCIPLINE', handleOpenLabsDiscipline);
+
     const handleOpenBrandActivation = () => { if (!user) { loginWithGoogle(); return; } setShowBrandActivation(true); };
     window.addEventListener('OPEN_BRAND_ACTIVATION', handleOpenBrandActivation);
 
@@ -816,6 +824,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_SPATIAL_MIXER', handleOpenSpatialMixer);
       window.removeEventListener('OPEN_MEDIA_CONVERTER', handleOpenMediaConverter);
       window.removeEventListener('OPEN_SMART_DIRECTOR', handleOpenSmartDirector);
+      window.removeEventListener('OPEN_LABS_DISCIPLINE', handleOpenLabsDiscipline);
       window.removeEventListener('OPEN_BRAND_ACTIVATION', handleOpenBrandActivation);
       window.removeEventListener('audius-artist', handleAudiusArtist);
       window.removeEventListener('OPEN_ALBUM_CREATOR', handleOpenAlbumCreator);
@@ -3636,6 +3645,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   currentUser={userProfile}
                   onNavigate={setView}
                   onVisitUser={handleVisitUser}
+                  initialDiscipline={labsDiscipline}
+                  onDisciplineConsumed={() => setLabsDiscipline(null)}
                 />
               </Suspense>
             )}

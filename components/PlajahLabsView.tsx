@@ -55,6 +55,9 @@ interface PlajahLabsViewProps {
   currentUser: UserProfile | null;
   onNavigate: (view: AppView) => void;
   onVisitUser?: (uid: string) => void;
+  /** Deep-link straight into a discipline studio (set by Learn chips). */
+  initialDiscipline?: string | null;
+  onDisciplineConsumed?: () => void;
 }
 
 const DISCIPLINES = [
@@ -118,7 +121,7 @@ const DISC_ID_MAP: Record<string, LabsDisciplineId> = {
   history: 'history', architecture: 'architecture',
 };
 
-const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate }) => {
+const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate, initialDiscipline, onDisciplineConsumed }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeDisc, setActiveDisc] = useState<string | null>(null);
   const [activeLivesCat, setActiveLivesCat] = useState<ScienceCategory | 'ALL'>('ALL');
@@ -133,6 +136,11 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
     { label: 'Curated Videos',  value: `${sci.reduce((n, d) => n + (d.videos?.length || 0), 0)}+` },
   ];
   const [openDiscipline, setOpenDiscipline] = useState<LabsDisciplineId | null>(null);
+
+  // A Learn chip deep-linked us straight into a discipline studio.
+  React.useEffect(() => {
+    if (initialDiscipline) { setOpenDiscipline(initialDiscipline as LabsDisciplineId); onDisciplineConsumed?.(); }
+  }, [initialDiscipline]); // eslint-disable-line react-hooks/exhaustive-deps
   type LabsTool = 'notebook' | 'citations' | 'formula' | 'grants' | 'teams' | null;
   const [openTool, setOpenTool] = useState<LabsTool>(null);
 
