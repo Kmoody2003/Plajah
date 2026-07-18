@@ -272,6 +272,14 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
               <Radio size={18} className="text-white" /> Go Live
             </button>
             <MobileGoLiveButton onClick={() => setShowMobileLive(true)} />
+            {/* Smart Director — multi-camera auto-production for amateur sports */}
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('OPEN_SMART_DIRECTOR', { detail: {} }))}
+              className="flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-[#FF8C00] to-[#D40055] hover:brightness-110 rounded-2xl font-black text-xs uppercase tracking-widest transition-all group"
+              title="Turn a sporting event into a professional multi-camera broadcast"
+            >
+              <Tv size={18} className="text-white group-hover:scale-110 transition-transform" /> Smart Director
+            </button>
             {/* Ambient presence — who else is in the Live Hub right now */}
             <PresenceBadge roomKey="livehub" verb="here now"
               className="inline-flex items-center gap-1.5 px-4 py-3 rounded-2xl bg-white/5 border border-white/10" />

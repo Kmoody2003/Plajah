@@ -189,6 +189,7 @@ const PlajahPixelsView = retryLazy(() => import('./components/PlajahPixelsView')
 const TeleprompterApp = retryLazy(() => import('./components/teleprompter/TeleprompterApp'));
 const SpatialMixer = retryLazy(() => import('./components/spatialMixer/SpatialMixer'));
 const MediaConverter = retryLazy(() => import('./components/MediaConverter'));
+const SmartDirectorView = retryLazy(() => import('./components/SmartDirectorView'));
 const ComicMangaMuseum = retryLazy(() => import('./components/ComicMangaMuseum'));
 const AudiusArtistPage = retryLazy(() => import('./components/AudiusArtistPage'));
 const BrandActivationPanel = retryLazy(() => import('./components/BrandActivationPanel'));
@@ -557,6 +558,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | undefined>(undefined);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [pixelsPayload, setPixelsPayload] = useState<{ album?: any; track?: any } | null>(null);
+  const [smartDirectorPayload, setSmartDirectorPayload] = useState<{ productionId?: string; event?: any } | null>(null);
   // Shared-track landing: shows the 5s auto-play countdown, then plays that track.
   const [autoPlayShare, setAutoPlayShare] = useState<{ album: any; track: any } | null>(null);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
@@ -767,6 +769,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const handleOpenMediaConverter = () => setView('MEDIA_CONVERTER' as AppView);
     window.addEventListener('OPEN_MEDIA_CONVERTER', handleOpenMediaConverter);
 
+    // Smart Director — multi-camera auto-production. detail: { productionId?, event? }.
+    const handleOpenSmartDirector = (e: Event) => { setSmartDirectorPayload((e as CustomEvent)?.detail || {}); setView('SMART_DIRECTOR' as AppView); };
+    window.addEventListener('OPEN_SMART_DIRECTOR', handleOpenSmartDirector);
+
     const handleOpenBrandActivation = () => { if (!user) { loginWithGoogle(); return; } setShowBrandActivation(true); };
     window.addEventListener('OPEN_BRAND_ACTIVATION', handleOpenBrandActivation);
 
@@ -809,6 +815,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
       window.removeEventListener('OPEN_SPATIAL_MIXER', handleOpenSpatialMixer);
       window.removeEventListener('OPEN_MEDIA_CONVERTER', handleOpenMediaConverter);
+      window.removeEventListener('OPEN_SMART_DIRECTOR', handleOpenSmartDirector);
       window.removeEventListener('OPEN_BRAND_ACTIVATION', handleOpenBrandActivation);
       window.removeEventListener('audius-artist', handleAudiusArtist);
       window.removeEventListener('OPEN_ALBUM_CREATOR', handleOpenAlbumCreator);
@@ -4266,6 +4273,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'MEDIA_CONVERTER' && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <MediaConverter onClose={() => setView('APPS')} />
+              </Suspense>
+            )}
+            {view === 'SMART_DIRECTOR' && (
+              <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <SmartDirectorView productionId={smartDirectorPayload?.productionId} event={smartDirectorPayload?.event} currentUser={userProfile} onBack={() => setView('DASHBOARD')} />
               </Suspense>
             )}
             {view === 'BIBLE' && <BibleExperience onBack={() => setView('BOOKS')} />}

@@ -823,6 +823,14 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAuthenticated();
     }
+    match /smartProductions/{productionId} {
+      // Smart Director multi-camera productions. Public read so any viewer can render the
+      // live PROGRAM feed the director state points at; any signed-in user may create a
+      // production, join as a contributor, and update the shared direction state.
+      allow read: if true;
+      allow create, update: if isAuthenticated();
+      allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+    }
     match /loginIssues/{id} {
       // Login failures happen while LOGGED OUT, so create must not require auth.
       // Guarded to a well-formed, size-capped login-issue doc so it can't be abused
