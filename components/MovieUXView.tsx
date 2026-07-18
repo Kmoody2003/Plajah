@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Video, Album, Character, IPWorld, WhatIfBranchPoint, WhatIfChoice, CharacterTimestamp, Club } from '../types';
+import { Video, Album, Character, IPWorld, LoreEntry, TimelineEvent, WhatIfBranchPoint, WhatIfChoice, CharacterTimestamp, Club } from '../types';
 import {
   Play, Plus, Share2, ArrowLeft, Star, Pencil,
   Info, Film, Globe, MessageCircle,
@@ -7,7 +7,7 @@ import {
   Bookmark, Sparkles, RefreshCw, Calendar,
   Pause, Volume2, VolumeX, Award, ChevronRight,
   RotateCcw, RotateCw, Gauge, PictureInPicture2, Captions, SkipForward,
-  ThumbsUp, ThumbsDown,
+  ThumbsUp, ThumbsDown, ScrollText, Milestone, ShieldCheck,
 } from 'lucide-react';
 import CommentSection from './CommentSection';
 import WorldBadge from './WorldBadge';
@@ -20,6 +20,8 @@ import { recordProgress, getResumePosition } from '../services/watchHistoryServi
 import {
   db, auth,
   fetchWorldCharacters,
+  fetchWorldLore,
+  fetchWorldTimeline,
   fetchWorldContentByWorldId,
   addToWatchlist, removeFromWatchlist, isInWatchlist,
   fetchUserClubs, createClubEvent,
@@ -629,6 +631,10 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
   const [world, setWorld] = useState<IPWorld | null>(null);
   const [worldCharacters, setWorldCharacters] = useState<Character[]>([]);
   const [worldContent, setWorldContent] = useState<{ albums: Album[]; videos: Video[] } | null>(null);
+  // Universe rail (Blueprint 2D) — lore + timeline surfaced inline on the film page.
+  const [worldLore, setWorldLore] = useState<LoreEntry[]>([]);
+  const [worldTimeline, setWorldTimeline] = useState<TimelineEvent[]>([]);
+  const [openLore, setOpenLore] = useState<LoreEntry | null>(null);
   const [comments, setComments] = useState<any[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
@@ -732,13 +738,21 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
 
   useEffect(() => {
     const worldId = (item as any).worldId;
-    if (worldId) {
-      getDoc(doc(db, 'worlds', worldId)).then(s => {
-        if (s.exists()) setWorld({ id: s.id, ...s.data() } as IPWorld);
-      });
-      fetchWorldCharacters(worldId).then(setWorldCharacters);
-      fetchWorldContentByWorldId(worldId).then(setWorldContent);
+    // Degrade silently: a film with no worldId simply has no Universe rail.
+    if (!worldId) {
+      setWorld(null); setWorldCharacters([]); setWorldContent(null);
+      setWorldLore([]); setWorldTimeline([]); setOpenLore(null);
+      return;
     }
+    let alive = true;
+    getDoc(doc(db, 'worlds', worldId)).then(s => {
+      if (alive && s.exists()) setWorld({ id: s.id, ...s.data() } as IPWorld);
+    }).catch(() => {});
+    fetchWorldCharacters(worldId).then(c => { if (alive) setWorldCharacters(c); }).catch(() => {});
+    fetchWorldContentByWorldId(worldId).then(c => { if (alive) setWorldContent(c); }).catch(() => {});
+    fetchWorldLore(worldId).then(l => { if (alive) setWorldLore(l); }).catch(() => {});
+    fetchWorldTimeline(worldId).then(t => { if (alive) setWorldTimeline(t); }).catch(() => {});
+    return () => { alive = false; };
   }, [item]);
 
   useEffect(() => {
@@ -945,6 +959,13 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
   const worldAlbums = (worldContent?.albums || []).filter(a => a.id !== item.id).slice(0, 4);
   const hasWorldContent = worldVideos.length > 0 || worldAlbums.length > 0;
 
+  // Universe rail (Blueprint 2D). Only renders when the film is actually tied to a world.
+  const railLore = worldLore.filter(l => !l.discarded).slice(0, 6);
+  const railTimeline = [...worldTimeline].sort((a, b) => (a.year || 0) - (b.year || 0)).slice(0, 12);
+  const hasUniverseRail = !!(item as any).worldId && !!world && (railLore.length > 0 || railTimeline.length > 0);
+  const timelineUnit = world?.timelineConfig?.unitName || '';
+  const SIGNIFICANCE_COLOR: Record<string, string> = { PIVOTAL: '#FFB68D', MAJOR: '#D0BCFF', MINOR: 'rgba(255,255,255,0.25)' };
+
   return (
     <>
       {/* ── Character World View overlay ─────────────────────────────────────── */}
@@ -1121,7 +1142,12 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                       <Star fill="currentColor" size={12} /> 9.8
                     </span>
                     {releaseYear && <span className="text-white/40">{releaseYear}</span>}
-                    <span className="border border-white/12 px-2 py-0.5 rounded text-white/35">{maturity}</span>
+                    <span
+                      title={`Content rating: ${maturity}`}
+                      className="inline-flex items-center gap-1.5 border border-white/15 bg-white/[0.05] px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest text-white/50"
+                    >
+                      <ShieldCheck size={11} className="text-white/35" /> {maturity}
+                    </span>
                     {artist && (
                       <span>Directed by <span className="text-white/55">{artist}</span></span>
                     )}
@@ -1317,6 +1343,88 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                 </section>
               )}
 
+              {/* ── UNIVERSE RAIL (lore + timeline) ───────────────────────────── */}
+              {hasUniverseRail && (
+                <section className="mt-14 space-y-6">
+                  <div className="flex items-end justify-between gap-3">
+                    <div className="border-l-2 border-[#FFB68D] pl-3 min-w-0">
+                      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#FFB68D] mb-1">Universe</p>
+                      <h3 className="text-xl font-black uppercase tracking-[0.15em] text-white truncate">{world?.name}</h3>
+                    </div>
+                    {onNavigateToWorld && (
+                      <button
+                        onClick={() => onNavigateToWorld((item as any).worldId)}
+                        className="shrink-0 h-9 px-4 bg-[#FFB68D]/15 hover:bg-[#FFB68D]/25 border border-[#FFB68D]/35 text-[#FFB68D] font-black text-[9px] uppercase tracking-widest rounded-full flex items-center gap-2 transition-all"
+                      >
+                        <Globe size={13} /> Open World Hub
+                      </button>
+                    )}
+                  </div>
+
+                  {world?.description && (
+                    <p className="text-sm text-white/45 leading-relaxed max-w-2xl">{world.description}</p>
+                  )}
+
+                  {/* Lore */}
+                  {railLore.length > 0 && (
+                    <div className="space-y-3">
+                      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 flex items-center gap-2">
+                        <ScrollText size={12} className="text-[#FFB68D]" /> Lore
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {railLore.map(entry => (
+                          <motion.button
+                            key={entry.id}
+                            whileHover={{ y: -3 }}
+                            onClick={() => setOpenLore(entry)}
+                            className="text-left bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] hover:border-[#FFB68D]/35 rounded-2xl p-4 transition-colors"
+                          >
+                            <span className="text-[8px] font-black uppercase tracking-widest text-[#FFB68D]/70">
+                              {(entry.type || 'LORE').replace(/_/g, ' ')}
+                            </span>
+                            <p className="text-sm font-black text-white leading-tight mt-1.5 line-clamp-2">{entry.title}</p>
+                            {entry.content && (
+                              <p className="text-[11px] text-white/40 leading-relaxed mt-2 line-clamp-3">{entry.content}</p>
+                            )}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Timeline */}
+                  {railTimeline.length > 0 && (
+                    <div className="space-y-3">
+                      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 flex items-center gap-2">
+                        <Milestone size={12} className="text-[#FFB68D]" /> Timeline
+                      </p>
+                      <div className="relative pl-5">
+                        <div className="absolute left-[3px] top-1 bottom-1 w-px bg-gradient-to-b from-[#FFB68D]/50 via-white/10 to-transparent" />
+                        <div className="flex flex-col gap-4">
+                          {railTimeline.map(ev => (
+                            <div key={ev.id} className="relative">
+                              <span
+                                className="absolute -left-5 top-1.5 w-[7px] h-[7px] rounded-full"
+                                style={{ background: SIGNIFICANCE_COLOR[ev.significance || 'MINOR'] || 'rgba(255,255,255,0.25)' }}
+                              />
+                              <div className="flex items-baseline gap-2.5 flex-wrap">
+                                <span className="text-[10px] font-black tabular-nums text-[#FFB68D]/80 uppercase tracking-widest">
+                                  {ev.year}{timelineUnit ? ` ${timelineUnit}` : ''}
+                                </span>
+                                <span className="text-sm font-black text-white leading-tight">{ev.title}</span>
+                              </div>
+                              {ev.description && (
+                                <p className="text-[12px] text-white/45 leading-relaxed mt-1 max-w-2xl">{ev.description}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </section>
+              )}
+
               {/* ── CAST & CREW (movieMetadata) ───────────────────────────────── */}
               {castMembers.length > 0 && (
                 <section className="mt-12 space-y-4">
@@ -1344,7 +1452,7 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                       <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#FFB68D] mb-1">
                         {world?.name || 'World'}
                       </p>
-                      <h3 className="text-xl font-black uppercase tracking-[0.15em] text-white">More From This World</h3>
+                      <h3 className="text-xl font-black uppercase tracking-[0.15em] text-white">More From This Universe</h3>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -1410,6 +1518,74 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                 </div>
               </section>
             </motion.main>
+          )}
+        </AnimatePresence>
+
+        {/* ── Lore Entry Modal (Universe rail) ──────────────────────────────── */}
+        <AnimatePresence>
+          {openLore && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[220] bg-black/70 backdrop-blur-md flex items-center justify-center p-4"
+              onClick={() => setOpenLore(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.92, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.92, y: 20 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+                className="bg-[#0E0E1A] border border-white/10 rounded-3xl p-5 sm:p-8 w-full max-w-lg max-h-[85dvh] overflow-y-auto space-y-4 shadow-2xl"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-[#FFB68D] mb-1.5">
+                      {(openLore.type || 'LORE').replace(/_/g, ' ')}
+                    </p>
+                    <h3 className="text-xl font-black uppercase tracking-tight text-white leading-tight">{openLore.title}</h3>
+                  </div>
+                  <button
+                    onClick={() => setOpenLore(null)}
+                    className="shrink-0 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                {openLore.gallery && openLore.gallery.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                    {openLore.gallery.slice(0, 6).map((src, i) => (
+                      <img key={i} src={src} alt="" loading="lazy" className="h-28 rounded-xl object-cover border border-white/8 shrink-0" />
+                    ))}
+                  </div>
+                )}
+
+                {openLore.content && (
+                  <p className="text-sm text-white/65 leading-relaxed whitespace-pre-wrap">{openLore.content}</p>
+                )}
+
+                {openLore.tags?.length ? (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {openLore.tags.slice(0, 8).map(t => (
+                      <span key={t} className="px-2.5 py-1 rounded-full bg-white/[0.06] border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/45">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+
+                {onNavigateToWorld && (item as any).worldId && (
+                  <button
+                    onClick={() => { setOpenLore(null); onNavigateToWorld((item as any).worldId); }}
+                    className="w-full h-11 bg-[#FFB68D] hover:bg-[#FFC9A0] text-[#1C1B1F] font-black text-[10px] uppercase tracking-widest rounded-full flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <Globe size={14} /> Explore {world?.name || 'this world'}
+                  </button>
+                )}
+              </motion.div>
+            </motion.div>
           )}
         </AnimatePresence>
 

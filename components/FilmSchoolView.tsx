@@ -3,15 +3,17 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Film, BookOpen, Archive, Clock, ChevronRight, ArrowLeft, X,
   Check, ExternalLink, Sparkles, Clapperboard, Pen, Camera,
-  Users, Star, Globe, Play,
+  Users, Star, Globe, Play, GraduationCap,
 } from 'lucide-react';
+import SchoolView from './school/SchoolView';
+import { FILM_SCHOOL } from '../data/filmSchoolCurriculum';
 
 interface Props {
   onBack: () => void;
   user: any;
 }
 
-type Tab = 'MODULES' | 'SCRIPT_VAULT' | 'HISTORY';
+type Tab = 'CURRICULUM' | 'MODULES' | 'SCRIPT_VAULT' | 'HISTORY';
 
 // ── Module data ────────────────────────────────────────────────────────────────
 interface ModuleSection { heading: string; body: string; callout?: string }
@@ -405,7 +407,7 @@ const CATEGORY_ICONS: Record<string, React.FC<any>> = {
 };
 
 const FilmSchoolView: React.FC<Props> = ({ onBack }) => {
-  const [tab, setTab] = useState<Tab>('MODULES');
+  const [tab, setTab] = useState<Tab>('CURRICULUM');
   const [selectedModule, setSelectedModule] = useState<FilmModule | null>(null);
   const [completedIds, setCompletedIds] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem('plajah_filmschool_completed') || '[]')); }
@@ -437,17 +439,24 @@ const FilmSchoolView: React.FC<Props> = ({ onBack }) => {
             <p className="text-[9px] text-white/40 font-black uppercase tracking-widest">Taleo — Learn Filmmaking</p>
           </div>
         </div>
-        <div className="flex gap-1 border-b border-white/5 pb-1">
-          {([['MODULES', 'Modules', Clapperboard], ['SCRIPT_VAULT', 'Script Vault', BookOpen], ['HISTORY', 'Film History', Film]] as const).map(([id, label, Icon]) => (
+        <div className="flex gap-1 border-b border-white/5 pb-1 overflow-x-auto no-scrollbar">
+          {([['CURRICULUM', 'Curriculum', GraduationCap], ['MODULES', 'Modules', Clapperboard], ['SCRIPT_VAULT', 'Script Vault', BookOpen], ['HISTORY', 'Film History', Film]] as const).map(([id, label, Icon]) => (
             <button key={id} onClick={() => setTab(id)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-[9px] font-black uppercase tracking-widest rounded-t-lg transition-all ${tab === id ? 'text-amber-400 border-b-2 border-amber-400' : 'text-white/40 hover:text-white/70'}`}>
+              className={`shrink-0 flex items-center gap-1.5 px-3 py-2 text-[9px] font-black uppercase tracking-widest rounded-t-lg transition-all ${tab === id ? 'text-amber-400 border-b-2 border-amber-400' : 'text-white/40 hover:text-white/70'}`}>
               <Icon size={12} />{label}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto p-4">
+      {/* ── CURRICULUM (shared school chassis) ── */}
+      {tab === 'CURRICULUM' && (
+        <div className="pt-4">
+          <SchoolView curriculum={FILM_SCHOOL} embedded />
+        </div>
+      )}
+
+      <div className={`max-w-4xl mx-auto p-4 ${tab === 'CURRICULUM' ? 'hidden' : ''}`}>
 
         {/* ── MODULES ── */}
         {tab === 'MODULES' && (

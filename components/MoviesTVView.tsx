@@ -116,6 +116,29 @@ const SectionHeader: React.FC<{
   </div>
 );
 
+// ── Content-rating badge ───────────────────────────────────────────────────────
+// `contentRating` already exists on Video (G / PG / PG-13 / R / NC-17 / TV-MA …).
+// Mature ratings are tinted so they read at a glance in a poster row.
+const MATURE_RATINGS = new Set(['R', 'NC-17', 'TV-MA', 'TV-14', '18', '16']);
+
+const RatingBadge: React.FC<{ rating: string }> = ({ rating }) => {
+  const label = String(rating).trim().toUpperCase();
+  if (!label) return null;
+  const mature = MATURE_RATINGS.has(label);
+  return (
+    <span
+      title={`Content rating: ${label}`}
+      className={`px-1.5 py-0.5 rounded-md backdrop-blur-sm border text-[7px] font-black uppercase tracking-widest ${
+        mature
+          ? 'bg-rose-950/70 border-rose-400/40 text-rose-200'
+          : 'bg-black/60 border-white/15 text-white/60'
+      }`}
+    >
+      {label}
+    </span>
+  );
+};
+
 // ── Generic poster card ────────────────────────────────────────────────────────
 const PosterCard: React.FC<{
   title: string;
@@ -127,11 +150,14 @@ const PosterCard: React.FC<{
   accentBorder?: boolean;
   /** When provided, hovering the poster plays a short muted trailer/preview. */
   previewItem?: any;
-}> = ({ title, subtitle, image, genre, onPlay, width = 'w-36 flex-shrink-0', accentBorder, previewItem }) => {
+  /** Content rating (G / PG-13 / R / TV-MA …). Rendered as a corner badge when present. */
+  rating?: string;
+}> = ({ title, subtitle, image, genre, onPlay, width = 'w-36 flex-shrink-0', accentBorder, previewItem, rating }) => {
   const preview = previewItem ? previewSourceFor(previewItem) : null;
+  const badge = rating ? <RatingBadge rating={rating} /> : null;
   if (preview) {
     return (
-      <div className={width}>
+      <div className={`${width} relative`}>
         <HoverPreviewThumb
           poster={image || undefined}
           title={title}
@@ -142,6 +168,7 @@ const PosterCard: React.FC<{
           onClick={onPlay}
           fallbackIcon={<Film size={28} className="text-white/10" />}
         />
+        {badge && <div className="absolute top-2 right-2 pointer-events-none">{badge}</div>}
       </div>
     );
   }
@@ -165,6 +192,7 @@ const PosterCard: React.FC<{
           <span className="text-[7px] font-black uppercase tracking-widest text-white/50">{genre}</span>
         </div>
       )}
+      {badge && <div className="absolute top-2 right-2">{badge}</div>}
     </div>
     <h4 className="mt-2 text-[10px] font-black uppercase tracking-tight truncate text-white/70 group-hover:text-white transition-colors">{title}</h4>
     {subtitle && <p className="text-[8px] text-white/30 font-black uppercase tracking-widest mt-0.5 truncate">{subtitle}</p>}
@@ -253,10 +281,18 @@ const HomeView: React.FC<{
     for (const aid of _taleoAlbumIds) if (id.startsWith(`sys_${aid}_`)) return false;
     return true;
   });
-  const newToTaleo = [...localContent, ..._standaloneVideos]
-    .sort((a: any, b: any) => (b.timestamp || b.createdAt || 0) - (a.timestamp || a.createdAt || 0))
-    .slice(0, 12);
+  const _byNewest = [...localContent, ..._standaloneVideos]
+    .sort((a: any, b: any) => (b.timestamp || b.createdAt || 0) - (a.timestamp || a.createdAt || 0));
+  const newToTaleo = _byNewest.slice(0, 12);
   const creatorFilms    = platformVideos;
+
+  // "New This Week" editorial row (Blueprint 2E). Strictly the last 7 days; when nothing
+  // landed this week the row hides rather than faking freshness.
+  const newThisWeek = useMemo(() => {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return _byNewest.filter((v: any) => (v.timestamp || v.createdAt || 0) >= cutoff).slice(0, 12);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localContent, platformVideos]);
 
   // Continue Watching (resume) — Taleo watch progress.
   const [continueWatching, setContinueWatching] = useState<WatchEntry[]>([]);
@@ -466,6 +502,27 @@ const HomeView: React.FC<{
           </section>
         )}
 
+        {/* New This Week — editorial freshness row (2E) */}
+        {newThisWeek.length > 0 && (
+          <section>
+            <SectionHeader label="Fresh · Last 7 Days" title="New This Week" accent="#3FBE85" />
+            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
+              {newThisWeek.map((v: any) => (
+                <PosterCard
+                  key={`ntw-${v.identifier || v.id}`}
+                  title={v.title}
+                  subtitle={v._original?.ownerName || v.ownerName}
+                  image={v.thumbnailUrl || v.coverImage}
+                  genre={v.genre}
+                  rating={v._original?.contentRating || v.contentRating}
+                  previewItem={v._original || v}
+                  onPlay={() => onSelectMovie(v._original || v)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* New to Taleo */}
         {newToTaleo.length > 0 && (
           <section>
@@ -478,6 +535,7 @@ const HomeView: React.FC<{
                   subtitle={(v as any)._original?.ownerName || (v as any).ownerName}
                   image={v.thumbnailUrl || v.coverImage}
                   genre={v.genre}
+                  rating={(v as any)._original?.contentRating || (v as any).contentRating}
                   previewItem={(v as any)._original || v}
                   onPlay={() => onSelectMovie((v as any)._original || v)}
                   accentBorder
@@ -575,6 +633,11 @@ const HomeView: React.FC<{
                       {ownerName && (
                         <div className="absolute bottom-0 inset-x-0 p-2 bg-gradient-to-t from-black/85 to-transparent">
                           <p className="text-[8px] text-[#D0BCFF] font-black uppercase tracking-widest truncate">{ownerName}</p>
+                        </div>
+                      )}
+                      {(orig.contentRating || (v as any).contentRating) && (
+                        <div className="absolute top-2 right-2">
+                          <RatingBadge rating={orig.contentRating || (v as any).contentRating} />
                         </div>
                       )}
                     </div>
@@ -1011,6 +1074,9 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
     description: (v as any).description || '',
     year: v.timestamp ? new Date(v.timestamp).getFullYear().toString() : '',
     ownerName: (v as any).ownerName || '',
+    // Streaming polish (2E): carry the content rating through so poster rows can badge it.
+    contentRating: (v as any).contentRating || (v as any).filmDistribution?.contentRating || '',
+    timestamp: (v as any).timestamp || 0,
     _isPlatform: true as const,
     _original: v,
   })), [platformVideos]);
