@@ -160,7 +160,7 @@ const ScienceDisciplineView: React.FC<Props> = ({ data, onBack, currentUser }) =
   const shownLaws = lawCat === 'all' ? data.laws : data.laws.filter(l => l.category === lawCat);
 
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen text-white bg-black/40 backdrop-blur-2xl">
       {/* Hero */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
@@ -236,7 +236,7 @@ const ScienceDisciplineView: React.FC<Props> = ({ data, onBack, currentUser }) =
         {tab === 'pioneers' && (
           <MuseumHall eyebrow={`The Makers of ${label}`} title={`Pioneers of ${label}`}
             intro="The thinkers and builders who shaped the field — each enriched with a live biography and portrait."
-            halls={data.figureHalls} figures={data.figures} accent={accent} icon={HeroIcon} shareDiscipline={label} />
+            halls={data.figureHalls} figures={data.figures} accent={accent} icon={HeroIcon} shareDiscipline={label} disciplineId={id} />
         )}
 
         {/* CONCEPTS */}

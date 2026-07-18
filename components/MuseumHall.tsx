@@ -1,4 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, Suspense } from 'react';
+
+// Lazy to avoid an eager circular import (FigureDetail imports fetchWiki from this module).
+const FigureDetail = React.lazy(() => import('./labs/FigureDetail'));
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Star, X, ExternalLink, Play, Landmark } from 'lucide-react';
@@ -53,6 +56,8 @@ export interface MuseumHallProps {
   icon?: React.ComponentType<{ size?: number; className?: string }>;
   /** Discipline label (e.g. 'Archaeology') used to tag shares/notebook/interests. */
   shareDiscipline?: string;
+  /** Discipline id (e.g. 'physics'); when set, the full-page pioneer view enables Findings. */
+  disciplineId?: string;
 }
 
 // ── Wikipedia summary (portrait + extract), cached across the session ─────────
@@ -222,13 +227,21 @@ const DocModal: React.FC<{ videoId: string; title: string; onClose: () => void }
 };
 
 // ── The museum ────────────────────────────────────────────────────────────────
-const MuseumHall: React.FC<MuseumHallProps> = ({ eyebrow, title, intro, halls, figures, accent = DEFAULT_ACCENT, icon: Icon = Landmark, shareDiscipline }) => {
+const MuseumHall: React.FC<MuseumHallProps> = ({ eyebrow, title, intro, halls, figures, accent = DEFAULT_ACCENT, icon: Icon = Landmark, shareDiscipline, disciplineId }) => {
   const [activeHall, setActiveHall] = useState<string>(halls[0]?.id ?? 'all');
   const [open, setOpen] = useState<MuseumFigure | null>(null);
-  const [doc, setDoc] = useState<{ videoId: string; title: string } | null>(null);
 
   const hall = halls.find(h => h.id === activeHall);
   const shown = useMemo(() => figures.filter(f => f.hall === activeHall), [figures, activeHall]);
+
+  // Tapping a card opens the full-screen pioneer deep dive (the cards stay; the modal is gone).
+  if (open) {
+    return (
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white/30 text-sm">Opening…</div>}>
+        <FigureDetail figure={open} accent={accent} disciplineLabel={shareDiscipline || eyebrow} disciplineId={disciplineId} onBack={() => setOpen(null)} />
+      </Suspense>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -269,10 +282,6 @@ const MuseumHall: React.FC<MuseumHallProps> = ({ eyebrow, title, intro, halls, f
         </div>
       )}
 
-      <AnimatePresence>
-        {open && <FigureModal figure={open} accent={accent} shareDiscipline={shareDiscipline} onClose={() => setOpen(null)} onPlayDoc={(videoId, title) => setDoc({ videoId, title })} />}
-        {doc && <DocModal videoId={doc.videoId} title={doc.title} onClose={() => setDoc(null)} />}
-      </AnimatePresence>
     </div>
   );
 };

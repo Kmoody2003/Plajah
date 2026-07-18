@@ -14,6 +14,7 @@ import { auth, updatePost, deletePost, togglePostLike, processDonation, fetchUse
 import { Trash2, Zap } from 'lucide-react';
 import CommentSection from './CommentSection';
 import MediaWaterfallView, { WaterfallMediaItem } from './MediaWaterfallView';
+import PostMediaCarousel from './PostMediaCarousel';
 import { buildShareUrl } from '../services/deepLinkService';
 import RoomBanner from './RoomBanner';
 import SignInPrompt from './SignInPrompt';
@@ -354,33 +355,18 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
     }
     if (!post.media || post.media.length === 0) return null;
 
+    // Photos + videos become an inline gallery/carousel with per-asset fullscreen; everything
+    // else (audio, links, 3D) stays in its own stacked card below.
+    const GALLERY_TYPES = new Set(['PHOTO', 'GIF', 'STICKER', 'VIDEO']);
+    const gallery = post.media.filter(m => GALLERY_TYPES.has(m.type));
+    const others = post.media.filter(m => !GALLERY_TYPES.has(m.type));
+
     return (
-      <div className="mt-4 space-y-4">
-        {post.media.map((item, idx) => {
+      <>
+        {gallery.length > 0 && <PostMediaCarousel items={gallery as any} />}
+        {others.length > 0 && <div className="mt-4 space-y-4">
+        {others.map((item, idx) => {
           switch (item.type) {
-            case 'PHOTO':
-            case 'GIF':
-            case 'STICKER':
-              return (
-                <div
-                  key={idx}
-                  className="media-lift cursor-zoom-in"
-                  onClick={() => item.url && setLightboxUrl(item.url)}
-                >
-                  <ThreeDImage
-                    src={item.url}
-                    alt={item.title || "Post media"}
-                    className="w-full h-auto max-h-[600px] object-cover"
-                    containerClassName="rounded-3xl overflow-hidden border border-white/10 bg-white/5 shadow-2xl"
-                  />
-                </div>
-              );
-            case 'VIDEO':
-              return (
-                <div key={idx} className="rounded-3xl overflow-hidden border border-white/10 bg-black aspect-video relative group media-lift cursor-pointer">
-                  <video src={item.url || undefined} preload="metadata" playsInline className="w-full h-full object-contain" controls />
-                </div>
-              );
             case 'MODEL3D':
               return (
                 <Model3DEmbed key={idx} url={item.url || ''} title={item.title} poster={item.thumbnail} />
@@ -444,7 +430,8 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
               return null;
           }
         })}
-      </div>
+        </div>}
+      </>
     );
   };
 

@@ -717,7 +717,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
   }
 
   return (
-    <div className="min-h-screen bg-transparent p-6 lg:p-12 text-[var(--text-primary)]">
+    <div className="min-h-screen bg-black/40 backdrop-blur-2xl p-6 lg:p-12 text-[var(--text-primary)]">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-12">

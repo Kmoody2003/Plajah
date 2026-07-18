@@ -2019,7 +2019,7 @@ const toggleFavoriteTeam = async (team: string) => {
 
   return (
     <>
-    <div className={`flex-1 ${activeTab === 'GLOBAL' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto custom-scrollbar'} bg-transparent`}>
+    <div className={`flex-1 ${activeTab === 'GLOBAL' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto custom-scrollbar'} bg-black/40 backdrop-blur-2xl`}>
       <div className={`${activeTab === 'GLOBAL' ? 'flex flex-col flex-1 overflow-hidden' : ''} p-3 sm:p-4 md:p-8 max-w-full mx-auto w-full`}>
         {/* BOLDER HEADER */}
         <header className={`${activeTab === 'GLOBAL' ? 'mb-3 shrink-0' : 'mb-20'} space-y-12`}>

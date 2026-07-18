@@ -187,7 +187,7 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
   if (openTool === 'teams')     return <LabsTeamSpaces currentUser={currentUser} onBack={() => setOpenTool(null)} />;
 
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen text-white bg-black/40 backdrop-blur-2xl">
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <div className="relative overflow-hidden">
