@@ -99,7 +99,8 @@ const ConceptDetail: React.FC<Props> = ({ concept, data, onBack, currentUser }) 
   };
 
   return (
-    <div className="min-h-screen text-white pb-24 bg-black/40 backdrop-blur-2xl">
+    <div className="relative z-10 min-h-screen text-white pb-24">
+      <div aria-hidden className="fixed inset-0 -z-10 pointer-events-none bg-black/40 backdrop-blur-2xl" />
       {/* Hero */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">

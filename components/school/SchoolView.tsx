@@ -33,7 +33,8 @@ const LessonReader: React.FC<{
 }> = ({ curriculum, track, lesson, done, onToggleDone, onBack }) => {
   const accent = curriculum.accent;
   return (
-    <div className="min-h-screen text-white pb-24 bg-black/40 backdrop-blur-2xl">
+    <div className="relative z-10 min-h-screen text-white pb-24">
+      <div aria-hidden className="fixed inset-0 -z-10 pointer-events-none bg-black/40 backdrop-blur-2xl" />
       <div className="max-w-3xl mx-auto px-5 sm:px-6 pt-7">
         <button onClick={onBack} className="inline-flex items-center gap-2 text-white/40 hover:text-white transition-colors mb-6">
           <ArrowLeft size={16} /> <span className="text-[10px] font-black uppercase tracking-widest">{track.title}</span>
@@ -235,7 +236,12 @@ const SchoolView: React.FC<Props> = ({ curriculum, onBack, embedded }) => {
     </div>
   );
 
-  return embedded ? Body : <div className="min-h-screen text-white bg-black/40 backdrop-blur-2xl pt-7">{Body}</div>;
+  return embedded ? Body : (
+    <div className="relative z-10 min-h-screen text-white pt-7">
+      <div aria-hidden className="fixed inset-0 -z-10 pointer-events-none bg-black/40 backdrop-blur-2xl" />
+      {Body}
+    </div>
+  );
 };
 
 export default SchoolView;

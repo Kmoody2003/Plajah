@@ -41,6 +41,9 @@ import PostDebateModal from './PostDebateModal';
 import DebateView from './DebateView';
 import DebatePulseFeed from './DebatePulseFeed';
 import Portal from './Portal';
+// Blueprint 1B.4 ("Today" — 24h ephemeral posts) + Part 2B student walls.
+import { TODAY_TTL_MS, withoutExpiredTodays } from '../services/todayPosts';
+import { StudentWallRow } from './StudentWall';
 const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
 const LiveTalkView = lazy(() => import('./LiveTalkView'));
 
@@ -1253,6 +1256,18 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [simplePostText, setSimplePostText] = useState('');
   const [isSimplePosting, setIsSimplePosting] = useState(false);
   const [composerExpanded, setComposerExpanded] = useState(false);
+  /**
+   * "Post to Today" (Blueprint 1B.4). When armed, the next post from this composer is
+   * written as a 24h ephemeral Today (`isToday` + `expiresAt`) instead of a permanent
+   * post — same `Post`, same collection, same createPost path, just a TTL. Disarms
+   * itself after each post so it can never silently make everything ephemeral.
+   */
+  const [postToToday, setPostToToday] = useState(false);
+  /** Fields the composer's createPost call spreads when Today is armed. */
+  const todayFields = useCallback(
+    () => (postToToday ? { isToday: true, expiresAt: Date.now() + TODAY_TTL_MS } : {}),
+    [postToToday],
+  );
   const [composerMedia, setComposerMedia] = useState<{ type: 'PHOTO'|'VIDEO'|'AUDIO'|'GIF'; url: string; title?: string }[]>([]);
   const [showPlatformPicker, setShowPlatformPicker] = useState(false);
   const [gifSearch, setGifSearch] = useState('');
@@ -1332,7 +1347,11 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const personalizedFeedItems = React.useMemo(() => filterPostsForViewer(discoveryFeedItems, viewerProfile), [discoveryFeedItems, viewerProfile]);
 
   // Compute at render scope so React always sees changes — avoids IIFE-in-JSX issues
-  const displayedPosts = plajahFilter === 'LIKED' ? likedPosts : globalPosts;
+  // Expired "Today" posts are dropped on read. Firestore has no query-time TTL and its
+  // native TTL policy deletes lazily, so this client guard is what users actually
+  // experience. `withoutExpiredTodays` returns the same array when nothing is filtered,
+  // so ordinary feeds keep referential equality.
+  const displayedPosts = withoutExpiredTodays(plajahFilter === 'LIKED' ? likedPosts : globalPosts);
 
   const getThemeStyles = () => {
     switch (theme) {
@@ -1573,7 +1592,9 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
         ...(selectedSong && globalComposerTheme === 'MUSIC_PLAYER' ? { songUrl: selectedSong.url, songTitle: selectedSong.title, imageUrl: selectedSong.albumCover } : {}),
         ...(pages.length > 0 && globalComposerTheme === 'SCRAPBOOK' ? { pages } : {}),
         ...(selectedBackgroundId ? { backgroundId: selectedBackgroundId } : {}),
+        ...todayFields(),
       });
+      setPostToToday(false);
       setSimplePostText('');
       setComposerMedia([]);
       setComposerExpanded(false);
@@ -2019,7 +2040,11 @@ const toggleFavoriteTeam = async (team: string) => {
 
   return (
     <>
-    <div className={`flex-1 ${activeTab === 'GLOBAL' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto custom-scrollbar'} bg-black/40 backdrop-blur-2xl`}>
+    {/* Frosted backdrop — FIXED to the viewport, not the content box. Painting it on the
+        flex-1 container gave the dark layer and the blur a hard rectangular edge wherever the
+        container ended, which read as a rendering mistake. Full-bleed has no seam. */}
+    <div aria-hidden className="fixed inset-0 z-0 pointer-events-none bg-black/40 backdrop-blur-2xl" />
+    <div className={`relative z-10 flex-1 ${activeTab === 'GLOBAL' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto custom-scrollbar'}`}>
       <div className={`${activeTab === 'GLOBAL' ? 'flex flex-col flex-1 overflow-hidden' : ''} p-3 sm:p-4 md:p-8 max-w-full mx-auto w-full`}>
         {/* HEADER */}
         <header className={`${activeTab === 'GLOBAL' ? 'mb-3 shrink-0' : 'mb-8'} space-y-5`}>
@@ -2630,7 +2655,9 @@ const toggleFavoriteTeam = async (team: string) => {
                 ...(data.sanctuaryGate ? { sanctuaryGate: data.sanctuaryGate } : {}),
                 ...embedFields,
                 ...(activeOrg ? { authorName: activeOrg.name, authorPhoto: activeOrg.logoUrl || '', authorOrgId: activeOrg.id } : {}),
+                ...todayFields(),
               } as any);
+              setPostToToday(false);
             }}
             onMakeStory={() => setShowStoryCreator(true)}
           />
@@ -3053,9 +3080,38 @@ const toggleFavoriteTeam = async (team: string) => {
 
           {/* ── Composer ── */}
           {currentUser && (
+            <>
+            {/* "Post to Today" — arms the next post as a 24h ephemeral Today (1B.4). */}
+            <div className="flex items-center gap-2 px-1 pb-2">
+              <button
+                onClick={() => setPostToToday(v => !v)}
+                aria-pressed={postToToday}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest transition-all ${
+                  postToToday
+                    ? 'bg-small-orange text-black border-small-orange shadow-[0_4px_14px_rgba(255,140,0,0.25)]'
+                    : 'bg-white/5 text-white/35 border-white/10 hover:text-white/70 hover:bg-white/10'
+                }`}
+                title="Post to Today — disappears after 24 hours"
+              >
+                <Clock size={10} />
+                Post to Today
+              </button>
+              <AnimatePresence>
+                {postToToday && (
+                  <motion.span
+                    initial={{ opacity: 0, x: -6 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -6 }}
+                    className="text-[9px] font-bold uppercase tracking-widest text-small-orange/70"
+                  >
+                    Disappears in 24h
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </div>
             <UniversalPostComposer
               currentUser={currentUser}
-              placeholder="What's on your mind?"
+              placeholder={postToToday ? 'Share a Today — gone in 24 hours…' : "What's on your mind?"}
               avatarUrl={currentUser.photoURL || undefined}
               userAlbums={userAlbums}
               onPost={async (data) => {
@@ -3085,10 +3141,13 @@ const toggleFavoriteTeam = async (team: string) => {
                   ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
                   ...embedFields,
                   ...(activeOrg ? { authorName: activeOrg.name, authorPhoto: activeOrg.logoUrl || '', authorOrgId: activeOrg.id } : {}),
+                  ...todayFields(),
                 } as any);
+                setPostToToday(false);
               }}
               onMakeStory={() => setShowStoryCreator(true)}
             />
+            </>
           )}
 
             </div>{/* end frosted glass panel */}
@@ -3148,6 +3207,12 @@ const toggleFavoriteTeam = async (team: string) => {
           {/* SINGLE mode: Timeline header + posts */}
           {feedPanelMode === 'SINGLE' && (
             <>
+          {/* Student walls — published assignment work from the Film / Photo / Art /
+              Chora schools. Self-hiding: renders nothing until a wall has work. */}
+          <div className="px-4 pt-1">
+            <StudentWallRow onVisitUser={onVisitUser} />
+          </div>
+
           {/* Timeline header */}
           {displayedPosts.length > 0 && (
             <div className="flex items-center gap-3 px-4 py-3 mt-3">

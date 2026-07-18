@@ -3,7 +3,7 @@ import { Post, Album, Club, UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 const PollCard = lazy(() => import('./PollCard'));
 const LabsDataVisualizer = lazy(() => import('./LabsDataVisualizer'));
-import { Heart, MessageSquare, Share2, MoreHorizontal, ExternalLink, Play, Volume2, Image as ImageIcon, Link as LinkIcon, Edit2, Check, X as XIcon, ChevronRight, Gift, Banknote, Layers, Users, Maximize2, Swords } from 'lucide-react';
+import { Heart, MessageSquare, Share2, MoreHorizontal, ExternalLink, Play, Volume2, Image as ImageIcon, Link as LinkIcon, Edit2, Check, X as XIcon, ChevronRight, Gift, Banknote, Layers, Users, Maximize2, Swords, Clock } from 'lucide-react';
 import PostDebateModal from './PostDebateModal';
 import Portal from './Portal';
 import MiniMusicPlayer from './MiniMusicPlayer';
@@ -25,6 +25,7 @@ import { SensitiveContentGate, MutedContentGate, CleanText } from './safety/Safe
 import { useGateAccess, SanctuaryGateLock } from './sanctuary/SanctuaryGate';
 const CommunityNoteBadge = lazy(() => import('./notes/CommunityNotes'));
 import { TYPE } from '../src/lib/designSystem';
+import { isActiveToday, formatTodayCountdown, todayProgress } from '../services/todayPosts';
 
 interface PostCardProps {
   post: Post;
@@ -223,6 +224,19 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
   }));
 
   const isAuthor = auth.currentUser?.uid === post.authorId;
+
+  // "Today" (Blueprint 1B.4) — a 24h ephemeral post. Ticks once a minute so the
+  // countdown chip stays honest, and self-removes the card the moment it expires.
+  // The interval only ever runs on Today posts; every other post pays nothing.
+  const [todayNow, setTodayNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!post.isToday) return;
+    const t = setInterval(() => setTodayNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, [post.isToday]);
+  const todayLive = post.isToday ? isActiveToday(post, todayNow) : false;
+  const todayExpired = !!post.isToday && !todayLive;
+
   // Sanctuary gate — only engages when a post carries one (existing posts do not).
   const gateAccess = useGateAccess(post.sanctuaryGate, post.id);
   const gated = !!post.sanctuaryGate && !gateAccess.allowed && !isAuthor;
@@ -436,6 +450,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
     );
   };
 
+  // An expired "Today" never renders. Feeds filter these out upstream, but a stale
+  // realtime snapshot or a surface that hasn't adopted the filter must not leak one —
+  // this is the last-line guard. Placed after every hook so hook order stays stable.
+  if (todayExpired) return null;
+
   return (
     <>
     <div className="relative group/card rounded-2xl border border-white/[0.06] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(0,0,0,0.35),_0_-4px_10px_rgba(0,0,0,0.18)] hover:border-white/[0.1] hover:z-10 will-change-transform">
@@ -493,6 +512,24 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
               <span className="text-[13px] text-white/30 leading-tight flex-shrink-0">
                 · {formatDistanceToNow(post.timestamp)}ago
               </span>
+              {todayLive && (
+                <span
+                  className="flex items-center gap-1 flex-shrink-0 px-2 py-0.5 rounded-full bg-small-orange/10 border border-small-orange/25 text-small-orange"
+                  title={`This Today disappears ${post.expiresAt ? new Date(post.expiresAt).toLocaleString() : 'in 24h'}`}
+                >
+                  {/* 24h drain ring — fills as the window closes */}
+                  <span className="relative w-2.5 h-2.5 rounded-full border border-small-orange/40 overflow-hidden">
+                    <span
+                      className="absolute inset-x-0 bottom-0 bg-small-orange/70"
+                      style={{ height: `${Math.round((1 - todayProgress(post, todayNow)) * 100)}%` }}
+                    />
+                  </span>
+                  <Clock size={9} />
+                  <span className="text-[9px] font-black uppercase tracking-widest tabular-nums">
+                    {formatTodayCountdown(post, todayNow)}
+                  </span>
+                </span>
+              )}
               {post.modifiedAt && (
                 <span className="flex items-center gap-1 text-small-orange text-[11px]">
                   <span className="w-1.5 h-1.5 bg-small-orange rounded-full animate-pulse" />

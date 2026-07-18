@@ -10,17 +10,18 @@ import {
   Sparkles, 
   Camera, 
   Image as ImageIcon,
-  Eye,
   Cloud,
   QrCode,
   Wand2,
   Layers,
   Upload,
   Landmark,
-  GraduationCap
+  GraduationCap,
+  Frame,
+  Trophy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchGlobalPhotos, favoritePhoto, followUser, auth, fetchThemePresets, updateUserProfile, fetchUserProfile } from '../services/backendService';
+import { fetchGlobalPhotos, favoritePhoto, followUser, auth, fetchThemePresets, updateUserProfile, fetchUserProfile, fetchUserPhotos } from '../services/backendService';
 import { useSpatial } from '../contexts/SpatialContext';
 import SpatialImage from './SpatialImage';
 import DepthAnalyzer from './DepthAnalyzer';
@@ -29,12 +30,14 @@ import PhotoEditPanel from './PhotoEditPanel';
 import FromSocialGallery from './FromSocialGallery';
 import PhotoCritiquePanel from './PhotoCritiquePanel';
 import SchoolView from './school/SchoolView';
+import PortfolioRoom from './photo/PortfolioRoom';
+import WeeklySalon from './photo/WeeklySalon';
 import { PHOTO_ART_SCHOOL } from '../data/photoArtCurriculum';
 import { PHOTO_IMPORT_SOURCES, PHOTOGRAPHER_PRO_FEATURES } from '../services/photoEditingService';
 
 interface GlobalPhotosViewProps {
   onVisitUser: (uid: string) => void;
-  initialMode?: 'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL' | 'SCHOOL';
+  initialMode?: 'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL' | 'SCHOOL' | 'SALON';
   /** Opens the classical Art Museum (ArtGalleryView) — masters + open-access collections. */
   onOpenArtMuseum?: () => void;
 }
@@ -42,7 +45,7 @@ interface GlobalPhotosViewProps {
 const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initialMode = 'WATERFALL', onOpenArtMuseum }) => {
   const { isSpatialMode } = useSpatial();
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [mode, setMode] = useState<'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL' | 'SCHOOL'>(initialMode);
+  const [mode, setMode] = useState<'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL' | 'SCHOOL' | 'SALON'>(initialMode);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
@@ -51,10 +54,45 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
   const [themes, setThemes] = useState<any[]>([]);
   const [selectedTheme, setSelectedTheme] = useState<any | null>(null);
 
+  // ── Portfolio room (Part 3C) ────────────────────────────────────────────────
+  // The chrome-free presentation layer. A room is opened either for one photographer
+  // (their whole body of work, fetched on demand) or for the currently loaded feed.
+  const [room, setRoom] = useState<{
+    photos: Photo[]; name: string; statement?: string; index: number;
+  } | null>(null);
+  const [openingRoom, setOpeningRoom] = useState(false);
+
+  /** Open a photographer's own room — their full library, presented as prints. */
+  const openPhotographerRoom = async (ownerId: string, startPhoto?: Photo) => {
+    if (openingRoom) return;
+    setOpeningRoom(true);
+    try {
+      const [profile, owned] = await Promise.all([
+        fetchUserProfile(ownerId).catch(() => null),
+        fetchUserPhotos(ownerId).catch(() => [] as Photo[]),
+      ]);
+      const works = (owned || []).filter(p => p?.url && p.mediaType !== 'VIDEO');
+      // Degrade to whatever we already have on screen if their library can't be read.
+      const fallback = startPhoto ? [startPhoto] : photos.filter(p => p.ownerId === ownerId);
+      const list = works.length ? works : fallback;
+      if (!list.length) return;
+      const startIndex = startPhoto ? Math.max(0, list.findIndex(p => p.id === startPhoto.id)) : 0;
+      setRoom({
+        photos: list,
+        name: profile?.displayName || 'Photographer',
+        ...(profile?.bio ? { statement: profile.bio } : {}),
+        index: startIndex,
+      });
+    } finally {
+      setOpeningRoom(false);
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       if (mode === 'SOCIAL') { setIsLoading(false); return; } // FromSocialGallery loads its own data
       if (mode === 'SCHOOL') { setIsLoading(false); return; } // SchoolView loads its own progress
+      if (mode === 'SALON') { setIsLoading(false); return; }  // WeeklySalon loads its own entries
       setIsLoading(true);
       if (mode === 'THEMES') {
         const data = await fetchThemePresets();
@@ -109,7 +147,9 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
               Plajah Photos
             </PageHeader>
             <p className="text-lg font-medium text-white/40 italic max-w-2xl">
-              {mode === 'SCHOOL'
+              {mode === 'SALON'
+                 ? 'A themed challenge every week, judged by nobody and hung by everybody — the photographic salon, revived.'
+                 : mode === 'SCHOOL'
                  ? 'A complete education in the visual arts — photography and art, beginner to master, taught with the world’s open museum collections.'
                  : mode === 'THEMES'
                  ? 'A curated collection of visual aesthetics to transform your space.'
@@ -135,6 +175,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
               { id: 'THEMES', label: 'Themes', icon: ImageIcon },
               { id: 'SOCIAL', label: 'From Social', icon: Share2 },
               { id: 'SCHOOL', label: 'School', icon: GraduationCap },
+              { id: 'SALON', label: 'Salon', icon: Trophy },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -161,7 +202,9 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
 
       {/* Main Mode Rendering */}
       <main className="px-6 lg:px-12">
-        {mode === 'SCHOOL' ? (
+        {mode === 'SALON' ? (
+          <WeeklySalon />
+        ) : mode === 'SCHOOL' ? (
           <SchoolView curriculum={PHOTO_ART_SCHOOL} embedded />
         ) : mode === 'SOCIAL' ? (
           <div className="max-w-6xl mx-auto">
@@ -213,6 +256,37 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                     {feature}
                   </div>
                 ))}
+              </div>
+
+              {/* Portfolio room — the chrome-free presentation layer (Part 3C) */}
+              <div className="mt-8 p-6 bg-black/40 border border-white/10 rounded-2xl">
+                <div className="flex items-center gap-3 mb-3">
+                  <Frame size={18} className="text-small-orange" />
+                  <h4 className="text-sm font-black uppercase tracking-widest">Portfolio Room</h4>
+                </div>
+                <p className="text-xs font-bold text-white/40 leading-relaxed mb-6 max-w-xl">
+                  Your work, full bleed, on black — no grid, no buttons, no feed. Arrow keys or swipe to move,
+                  <span className="text-white/60"> i </span> for the wall label and capture data, <span className="text-white/60">esc</span> to leave.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => auth.currentUser && openPhotographerRoom(auth.currentUser.uid)}
+                    disabled={!auth.currentUser || openingRoom}
+                    className="px-6 py-4 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-30 hover:scale-[1.02] transition-all"
+                  >
+                    {openingRoom ? 'Hanging the room…' : 'Enter my portfolio room'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const stills = photos.filter(p => p.mediaType !== 'VIDEO');
+                      if (stills.length) setRoom({ photos: stills, name: 'The Gallery', statement: 'Selected work from the community archive.', index: 0 });
+                    }}
+                    disabled={!photos.some(p => p.mediaType !== 'VIDEO')}
+                    className="px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white disabled:opacity-30 transition-all"
+                  >
+                    Present this gallery
+                  </button>
+                </div>
               </div>
             </div>
             <div className="p-8 bg-white/5 border border-white/10 rounded-2xl">
@@ -466,11 +540,19 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                     <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Share</span>
                   </div>
 
+                  {/* Portfolio room — this photographer's body of work, chrome-free (Part 3C) */}
                   <div className="flex flex-col items-center gap-1">
-                    <button className="w-14 h-14 rounded-full bg-white/5 text-white/40 flex items-center justify-center hover:text-white hover:bg-white/10 transition-all">
-                      <Eye size={24} />
+                    <button
+                      onClick={() => openPhotographerRoom(selectedPhoto.ownerId, selectedPhoto)}
+                      disabled={openingRoom}
+                      title="Open this photographer's portfolio room"
+                      className="w-14 h-14 rounded-full bg-white/5 text-white/40 flex items-center justify-center hover:text-white hover:bg-white/10 transition-all disabled:opacity-40"
+                    >
+                      <Frame size={24} />
                     </button>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-white/40">View Full</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white/40">
+                      {openingRoom ? 'Hanging…' : 'The Room'}
+                    </span>
                   </div>
                   <div className="flex flex-col items-center gap-1">
                     <button
@@ -497,6 +579,17 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
           </motion.div>
         )}
       </AnimatePresence>, document.body)}
+      {/* Portfolio room — full-bleed, above everything (Part 3C) */}
+      {room && (
+        <PortfolioRoom
+          photos={room.photos}
+          photographerName={room.name}
+          statement={room.statement}
+          initialIndex={room.index}
+          onClose={() => setRoom(null)}
+        />
+      )}
+
       {editingPhoto && (
         <PhotoEditPanel
           photo={editingPhoto}

@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   X, Music2, Zap, BookOpen, Download, ChevronRight,
   BarChart2, Waves, Hash, Disc, Sparkles, ChevronDown, Activity, Eye, EyeOff,
+  Compass, Gauge, Layers, Mic2, Speaker, Ear,
 } from 'lucide-react';
 import { Track, Album } from '../types';
 import { useGlobalPlayer, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
@@ -23,6 +24,10 @@ import { detectBeats, type BeatAnalysis } from '../services/audioBeatDetection';
 import { getOrComputeAnalysis, toBeatAnalysis } from '../services/djAnalysis';
 import { transcribeTrack, type Transcription } from '../services/audioTranscription';
 import { buildNotation, notationToMusicXML, type Notation } from '../services/musicNotation';
+import {
+  buildGuidedTour, activeStopIndex, activeBarIndex,
+  type GuidedTour, type TourStop, type BarChord,
+} from '../services/guidedListening';
 import { quickStems, separateStemsCloud } from '../services/fabula/stemSeparation';
 import { demucsCapability, isDemucsModelAvailable, separateStemsLocal, type DemucsTier } from '../services/demucsClient';
 import SheetMusic from './SheetMusic';
@@ -1190,6 +1195,260 @@ const TheoryCard: React.FC<{
   </motion.div>
 );
 
+// ─── Guided tour (Part 4.4 — "listen like a musician") ────────────────────────
+//
+// The transcription engine already knows the key, the meter, the beat grid and every note
+// it could find. Until now that came out as a score — which is only legible if you already
+// read music. This panel is the same data addressed to a listener instead of a player:
+// what the home note is, how the bar is counted, where the arrangement thickens, and which
+// chord is under the playhead right now. Nothing here re-analyses anything; see
+// services/guidedListening.ts.
+
+const STOP_ICON: Record<TourStop['icon'], React.ReactNode> = {
+  key:    <Hash size={13} />,
+  pulse:  <Gauge size={13} />,
+  form:   <Layers size={13} />,
+  chords: <Music2 size={13} />,
+  melody: <Mic2 size={13} />,
+  bass:   <Speaker size={13} />,
+};
+
+const FN_COLOR: Record<'home' | 'away' | 'tension', string> = {
+  home:    '#10b981',
+  away:    '#38bdf8',
+  tension: '#f97316',
+};
+
+const fmtTime = (s: number) =>
+  `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
+
+/** The bar-by-bar chord ribbon. Click a bar to jump the playhead there. */
+const ChordRibbon: React.FC<{
+  map: BarChord[]; currentTime: number; onSeek: (t: number) => void;
+}> = ({ map, currentTime, onSeek }) => {
+  const activeBar = activeBarIndex(map, currentTime);
+  const scroller = useRef<HTMLDivElement | null>(null);
+
+  // Keep the playhead's bar in view without hijacking the page scroll.
+  useEffect(() => {
+    const el = scroller.current?.querySelector<HTMLElement>(`[data-bar="${activeBar}"]`);
+    if (el && scroller.current) {
+      const box = scroller.current.getBoundingClientRect();
+      const cell = el.getBoundingClientRect();
+      if (cell.left < box.left || cell.right > box.right) {
+        scroller.current.scrollTo({ left: el.offsetLeft - box.width / 2, behavior: 'smooth' });
+      }
+    }
+  }, [activeBar]);
+
+  if (!map.length) return null;
+
+  return (
+    <div ref={scroller} className="flex gap-1 overflow-x-auto custom-scrollbar pb-2 -mx-1 px-1">
+      {map.map((b, i) => {
+        const isActive = i === activeBar;
+        const color = b.chord ? FN_COLOR[b.chord.fn] : 'rgba(255,255,255,0.12)';
+        return (
+          <button
+            key={b.bar}
+            data-bar={i}
+            onClick={() => onSeek(b.startSec)}
+            title={b.chord
+              ? `Bar ${b.bar} · ${b.chord.label} (${b.chord.roman}) · ${Math.round(b.confidence * 100)}% fit`
+              : `Bar ${b.bar} · too little transcribed material to call`}
+            className="shrink-0 w-14 rounded-xl border px-1 py-2 transition-all text-center"
+            style={{
+              borderColor: isActive ? color : 'rgba(255,255,255,0.06)',
+              background: isActive ? `${color}1f` : 'rgba(255,255,255,0.02)',
+            }}
+          >
+            <p className="text-[7px] font-black uppercase tracking-widest text-white/20 leading-none">
+              {b.bar}
+            </p>
+            <p
+              className="mt-1 text-[11px] font-black leading-none truncate"
+              style={{ color: b.chord ? color : 'rgba(255,255,255,0.15)' }}
+            >
+              {b.chord ? b.chord.label : '—'}
+            </p>
+            <p className="mt-1 text-[7px] font-bold text-white/20 leading-none truncate">
+              {b.chord ? b.chord.roman : ''}
+            </p>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+const GuidedTourPanel: React.FC<{
+  tour: GuidedTour;
+  currentTime: number;
+  duration: number;
+  transcribing: boolean;
+  onSeek: (t: number) => void;
+}> = ({ tour, currentTime, duration, transcribing, onSeek }) => {
+  const activeIdx = activeStopIndex(tour.stops, currentTime);
+  const active = activeIdx >= 0 ? tour.stops[activeIdx] : null;
+
+  return (
+    <div className="space-y-4">
+      {/* Provenance — the tour must never look more certain than the analysis is. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span
+          className="px-2.5 py-1 rounded-lg text-[7px] font-black uppercase tracking-[0.2em] border"
+          style={tour.isReal
+            ? { color: '#34d399', borderColor: '#34d39933', background: '#34d39912' }
+            : { color: 'rgba(255,255,255,0.3)', borderColor: 'rgba(255,255,255,0.08)' }}
+        >
+          {tour.isReal ? 'From the transcription' : transcribing ? 'Transcribing — estimate for now' : 'Genre estimate'}
+        </span>
+        <span className="text-[7px] font-bold uppercase tracking-[0.2em] text-white/20">
+          {tour.key} {tour.mode} · {tour.bpm} BPM · {tour.meter}
+        </span>
+      </div>
+
+      {/* The stop you are inside right now */}
+      <AnimatePresence mode="wait">
+        {active && (
+          <motion.div
+            key={active.id}
+            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.35 }}
+            className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-5"
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-orange-500/12 text-orange-400 flex items-center justify-center shrink-0">
+                {STOP_ICON[active.icon]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-[7px] font-black uppercase tracking-[0.25em] text-orange-400/70">
+                    Stop {activeIdx + 1} of {tour.stops.length}
+                  </p>
+                  <span className="text-[7px] font-mono text-white/20">{active.evidence}</span>
+                </div>
+                <p className="mt-1.5 text-sm font-black text-white leading-snug">{active.title}</p>
+                <p className="mt-2 text-[11px] text-white/60 leading-relaxed">{active.body}</p>
+                <div className="mt-3 flex items-start gap-2 bg-black/40 border border-white/[0.06] rounded-xl px-3 py-2.5">
+                  <Ear size={11} className="text-emerald-400/70 shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-emerald-200/70 leading-relaxed italic">{active.listenFor}</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Every stop — click to hear it */}
+      <div className="flex flex-wrap gap-1.5">
+        {tour.stops.map((s, i) => (
+          <button
+            key={s.id}
+            onClick={() => onSeek(s.atSec)}
+            title={`${s.title} — jump to ${fmtTime(s.atSec)}`}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 border transition-all ${
+              i === activeIdx
+                ? 'bg-orange-500/12 border-orange-500/30 text-orange-300'
+                : 'bg-white/[0.02] border-white/[0.05] text-white/30 hover:text-white/70'
+            }`}
+          >
+            <span className="shrink-0">{STOP_ICON[s.icon]}</span>
+            <span className="text-[7px] font-black uppercase tracking-[0.15em]">
+              {s.id}
+            </span>
+            <span className="text-[7px] font-mono text-white/20">{fmtTime(s.atSec)}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* The chord vocabulary of this key */}
+      <div>
+        <p className="text-[7px] font-black uppercase tracking-[0.25em] text-white/25 mb-2">
+          Everything available in {tour.key} {tour.mode}
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+          {tour.chords.map(c => (
+            <div
+              key={c.roman}
+              title={c.feel}
+              className="rounded-xl border px-2.5 py-2"
+              style={{ borderColor: `${FN_COLOR[c.fn]}22`, background: `${FN_COLOR[c.fn]}0d` }}
+            >
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-[12px] font-black" style={{ color: FN_COLOR[c.fn] }}>{c.label}</span>
+                <span className="text-[8px] font-mono text-white/25">{c.roman}</span>
+              </div>
+              <p className="mt-0.5 text-[7px] font-black uppercase tracking-[0.15em] text-white/20">
+                {c.fn === 'home' ? 'rest' : c.fn === 'away' ? 'travel' : 'tension'}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Bar-by-bar chord map */}
+      {tour.chordMap.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <p className="text-[7px] font-black uppercase tracking-[0.25em] text-white/25">Chord map</p>
+            <span className="text-[7px] text-white/15 font-mono">
+              estimated per bar from the transcribed notes · click a bar to jump
+            </span>
+          </div>
+          <ChordRibbon map={tour.chordMap} currentTime={currentTime} onSeek={onSeek} />
+        </div>
+      )}
+
+      {/* Measured arrangement shape */}
+      {tour.form.length > 1 && (
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <p className="text-[7px] font-black uppercase tracking-[0.25em] text-white/25">Shape</p>
+            <span className="text-[7px] text-white/15 font-mono">
+              measured note density — not song-form labels
+            </span>
+          </div>
+          <div className="flex gap-1 h-9 rounded-xl overflow-hidden border border-white/[0.06]">
+            {tour.form.map((sec, i) => {
+              const span = Math.max(0.001, (sec.endSec - sec.startSec));
+              const total = duration > 0 ? duration : (tour.form[tour.form.length - 1]?.endSec || 1);
+              const isHere = currentTime >= sec.startSec && currentTime < sec.endSec;
+              const color = sec.weight === 'full' ? '#f97316' : sec.weight === 'steady' ? '#38bdf8' : '#6366f1';
+              return (
+                <button
+                  key={i}
+                  onClick={() => onSeek(sec.startSec)}
+                  title={`Bars ${sec.startBar}–${sec.endBar} · ${sec.density} notes per bar · ${fmtTime(sec.startSec)}`}
+                  className="min-w-[2rem] flex items-center justify-center transition-all"
+                  style={{
+                    flexGrow: span / total,
+                    background: isHere ? `${color}30` : `${color}12`,
+                    borderBottom: isHere ? `2px solid ${color}` : '2px solid transparent',
+                  }}
+                >
+                  <span className="text-[7px] font-black uppercase tracking-widest truncate px-1"
+                    style={{ color: isHere ? color : 'rgba(255,255,255,0.25)' }}>
+                    {sec.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {!tour.isReal && (
+        <p className="text-[9px] text-white/25 italic leading-relaxed">
+          {transcribing
+            ? 'The transcription is still running — the tour will sharpen (real chord map, real shape) the moment it lands.'
+            : 'Play the track so it can be transcribed; the chord map and shape need real notes.'}
+        </p>
+      )}
+    </div>
+  );
+};
+
 // ─── Main modal ───────────────────────────────────────────────────────────────
 
 export interface TrackBreakdownModalProps {
@@ -1202,7 +1461,7 @@ export interface TrackBreakdownModalProps {
 const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
   track, album, onClose, onOpenTheoryStudio,
 }) => {
-  const { currentTime, duration } = useGlobalPlayerProgress();
+  const { currentTime, duration, seek } = useGlobalPlayerProgress();
   const hashTheory = useMemo(() => buildHashedTheory(track), [track.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const { theory, isReal, analyzing } = useRealAudioAnalysis(track, hashTheory);
   const progress = duration > 0 ? currentTime / duration : 0;
@@ -1437,6 +1696,23 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
   const mode = detectMode(displayTheory);
   const cof  = circleOfFifthsPos(displayTheory.key);
 
+  // ── Guided tour (Part 4.4) ────────────────────────────────────────────────
+  // Presentation only — everything below reads the transcription that already ran.
+  const [tourOpen, setTourOpen] = useState(false);
+  const tour = useMemo<GuidedTour>(() => {
+    const [tsBeats, tsUnit] = (displayTheory.timeSignature || '4/4').split('/');
+    return buildGuidedTour(transcription, {
+      key: displayTheory.key,
+      mode: /minor|blues/i.test(displayTheory.scale) ? 'minor' : 'major',
+      bpm: displayTheory.tempo,
+      beatsPerMeasure: Number(tsBeats) || 4,
+      beatUnit: Number(tsUnit) || 4,
+      durationSec: duration,
+    });
+    // `duration` only feeds stop clamping — re-deriving on every tick would be wasteful.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transcription, displayTheory.key, displayTheory.scale, displayTheory.tempo, displayTheory.timeSignature, duration > 0]);
+
   return (
     <AnimatePresence>
       <motion.div
@@ -1493,6 +1769,45 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-5 space-y-5">
+
+          {/* ── Guided Tour — the Breakdown addressed to a listener, not a player (Part 4.4) ── */}
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }}
+            className="bg-[#0d0d0d] border border-white/[0.06] rounded-3xl overflow-hidden">
+            <button
+              onClick={() => setTourOpen(o => !o)}
+              className="w-full flex items-center gap-3 px-5 py-4 hover:bg-white/[0.02] transition-colors text-left"
+            >
+              <div className="w-8 h-8 rounded-xl bg-orange-500/12 flex items-center justify-center shrink-0">
+                <Compass size={14} className="text-orange-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[8px] font-black uppercase tracking-[0.25em] text-orange-400/70">
+                  Guided Tour
+                </p>
+                <p className="text-xs font-black text-white mt-0.5 truncate">
+                  {tourOpen ? 'Listen like a musician' : `What you're hearing: ${tour.key} ${tour.mode} · ${tour.bpm} BPM`}
+                </p>
+                {!tourOpen && (
+                  <p className="text-[9px] text-white/30 mt-0.5 truncate">
+                    The key, the count, the shape and the chord map — in plain language, synced to playback
+                  </p>
+                )}
+              </div>
+              <ChevronDown size={13} className="text-white/25 transition-transform duration-200 shrink-0"
+                style={{ transform: tourOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
+            </button>
+            {tourOpen && (
+              <div className="border-t border-white/[0.05] px-5 py-5">
+                <GuidedTourPanel
+                  tour={tour}
+                  currentTime={currentTime}
+                  duration={duration}
+                  transcribing={transcribing}
+                  onSeek={seek}
+                />
+              </div>
+            )}
+          </motion.div>
 
           {/* Arrangement timeline */}
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}

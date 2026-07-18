@@ -195,7 +195,9 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
   if (openTool === 'teams')     return <LabsTeamSpaces currentUser={currentUser} onBack={() => setOpenTool(null)} />;
 
   return (
-    <div className="min-h-screen text-white bg-black/40 backdrop-blur-2xl">
+    <div className="relative z-10 min-h-screen text-white">
+      {/* Frosted backdrop, fixed to the viewport so it has no hard rectangular edge. */}
+      <div aria-hidden className="fixed inset-0 -z-10 pointer-events-none bg-black/40 backdrop-blur-2xl" />
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <div className="relative overflow-hidden">

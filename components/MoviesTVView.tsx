@@ -29,6 +29,7 @@ import { getContinueWatching, WatchEntry } from '../services/watchHistoryService
 import PersonalVideoLocker from './PersonalVideoLocker';
 import type { Club } from '../types';
 import TaleoFilmMuseum from './TaleoFilmMuseum';
+import TaleoUniverseBrowser from './TaleoUniverseBrowser';
 import { Landmark } from 'lucide-react';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 
@@ -869,55 +870,9 @@ const HomeView: React.FC<{
   );
 };
 
-// ── HiveView ───────────────────────────────────────────────────────────────────
-const HiveView: React.FC<{
-  universes: Universe[];
-  setCurrentSubView: (view: SubView) => void;
-  setActiveAllyUrl: (url: string | null) => void;
-}> = ({ universes, setCurrentSubView, setActiveAllyUrl }) => {
-  const partnerUniverses = universes.filter(u => u.type === 'ALLY');
-  return (
-    <main className="pt-8 pb-40 px-4 sm:px-6 md:px-12 container mx-auto">
-      <div className="mb-6 sm:mb-12">
-        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#FFB68D] mb-3">Streaming Partners</p>
-        <h2 className="text-3xl sm:text-5xl md:text-7xl font-black leading-[0.9] uppercase tracking-tight text-white">
-          Discovery Partner<br />
-          <span className="text-[#D0BCFF]">Ecosystems</span>
-        </h2>
-        <p className="mt-5 text-white/45 max-w-lg text-sm leading-relaxed">
-          Step outside the platform and explore our partner streaming worlds — curated gateways to independent and mainstream content.
-        </p>
-      </div>
-
-      {partnerUniverses.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl">
-          {partnerUniverses.map(u => (
-            <motion.div
-              key={u.id}
-              whileHover={{ scale: 1.02, y: -4 }}
-              className="group cursor-pointer bg-white/4 border border-white/8 hover:border-[#D0BCFF]/30 rounded-2xl p-4 sm:p-8 flex items-center gap-4 sm:gap-6 transition-all duration-400"
-              onClick={() => { setActiveAllyUrl(u.url || null); setCurrentSubView('ALLY_VIEW'); }}
-            >
-              <div className="w-14 h-14 rounded-2xl bg-[#D0BCFF]/10 flex items-center justify-center shrink-0 group-hover:bg-[#D0BCFF]/20 transition-all">
-                <ExploreIcon className="text-[#D0BCFF]" size={24} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-black text-lg uppercase tracking-tight text-white group-hover:text-[#D0BCFF] transition-colors">{u.name}</h3>
-                <p className="text-white/30 text-[10px] font-black uppercase tracking-widest mt-1">Partner Ecosystem</p>
-              </div>
-              <ChevronRight size={17} className="text-white/20 group-hover:text-[#D0BCFF] group-hover:translate-x-1 transition-all" />
-            </motion.div>
-          ))}
-        </div>
-      ) : (
-        <div className="py-24 text-center border-2 border-dashed border-white/5 rounded-3xl max-w-lg">
-          <Globe className="text-white/10 mx-auto mb-4" size={48} />
-          <p className="text-white/20 font-black text-xl uppercase tracking-widest">No partner ecosystems configured yet.</p>
-        </div>
-      )}
-    </main>
-  );
-};
+// NOTE: the old `HiveView` (partner-ecosystem list) that used to own the UNIVERSE tab
+// has been folded into `TaleoUniverseBrowser` as its "Streaming partners" section —
+// blueprint 2D turns UNIVERSE into the cross-world browser.
 
 // ── LibraryView ────────────────────────────────────────────────────────────────
 const LibraryView: React.FC<{
@@ -1411,7 +1366,17 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
           {currentSubView === 'UNIVERSE' && (
             <div className="pt-16">
               {tabNavEl}
-              <HiveView universes={universes} setCurrentSubView={setCurrentSubView} setActiveAllyUrl={setActiveAllyUrl} />
+              {/* Blueprint 2D: the UNIVERSE tab is now the cross-world browser (worlds with
+                  linked films + characters across titles). Partner ecosystems, which used to
+                  be the whole tab, are kept as its closing section. */}
+              <TaleoUniverseBrowser
+                worlds={worlds}
+                videos={platformVideos}
+                universes={universes}
+                onSelectVideo={onSelectMovie}
+                onOpenAlly={(url) => { setActiveAllyUrl(url); setCurrentSubView('ALLY_VIEW'); }}
+                onOpenWorlds={onNavigate ? () => onNavigate('WORLDS') : undefined}
+              />
             </div>
           )}
           {currentSubView === 'HIVE' && (

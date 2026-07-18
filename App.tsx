@@ -143,6 +143,7 @@ const PodcastListen = retryLazy(() => import('./components/PodcastListen'));
 const ClassPointsView = retryLazy(() => import('./components/ClassPointsView'));
 const ReadingQuestView = retryLazy(() => import('./components/ReadingQuestView'));
 const ScienceQuestView = retryLazy(() => import('./components/ScienceQuestView'));
+const HistoryQuestView = retryLazy(() => import('./components/HistoryQuestView'));
 const LearnerLedgerView = retryLazy(() => import('./components/LearnerLedgerView'));
 const TeacherToolsView = retryLazy(() => import('./components/TeacherToolsView'));
 const KidsLibraryView = retryLazy(() => import('./components/KidsLibraryView'));
@@ -1097,6 +1098,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('CLASS_POINTS');
     } else if (target === 'READING_QUEST') {
       setView('READING_QUEST');
+    } else if (target === 'HISTORY_QUEST') {
+      setView('HISTORY_QUEST');
     } else if (target === 'SCIENCE_QUEST') {
       setView('SCIENCE_QUEST');
     } else if (target === 'LEARNER_LEDGER') {
@@ -3625,6 +3628,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'SCIENCE_QUEST' && (
               <ScienceQuestView onBack={() => setView('CLASSROOMS')} user={user} />
+            )}
+
+            {view === 'HISTORY_QUEST' && (
+              <HistoryQuestView onBack={() => setView('CLASSROOMS')} user={user} />
             )}
 
             {view === 'LEARNER_LEDGER' && (

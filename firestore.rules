@@ -675,8 +675,51 @@ service cloud.firestore {
       match /comments/{commentId} {
         allow read: if true;
         allow create: if isAuthenticated() && isValidVideoComment(request.resource.data) && request.resource.data.userId == request.auth.uid;
+        // Creator reply-with-video: the VIDEO's owner may attach/clear replyVideoId on a
+        // comment — and ONLY that key, so this can't become a general comment-edit hole.
+        allow update: if isAuthenticated()
+                      && get(/databases/$(database)/documents/videos/$(videoId)).data.ownerId == request.auth.uid
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyVideoId']);
         allow delete: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
       }
+    }
+
+    // Music tracks. NOTE: this collection had NO rule at all, so every write was denied by
+    // default — backendService.updateTrack has been silently failing. Owner-scoped where the
+    // doc carries an artistId.
+    match /tracks/{trackId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated()
+                            && (!('artistId' in resource.data) || resource.data.artistId == request.auth.uid || isAdmin());
+    }
+
+    // Sounds registry — "use this sound" resolves a sound's title in one read.
+    match /sounds/{trackId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // Live → Short clip records.
+    match /live_clips/{clipId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.clippedBy == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.clippedBy == request.auth.uid;
+    }
+
+    // Weekly photo salons — one entry per photographer (doc id IS their uid).
+    match /photoSalons/{salonId}/entries/{entryId} {
+      allow read: if true;
+      allow create: if isAuthenticated()
+                    && request.auth.uid == entryId
+                    && request.resource.data.ownerId == request.auth.uid
+                    && request.resource.data.photoUrl is string;
+      allow delete: if isAuthenticated() && request.auth.uid == entryId;
+      // Own entry edit, OR a cross-user applause write that may touch nothing but `applause`.
+      allow update: if isAuthenticated() && (
+                      (request.auth.uid == entryId && request.resource.data.ownerId == request.auth.uid)
+                      || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['applause'])
+                    );
     }
 
     match /video_playlists/{playlistId} {

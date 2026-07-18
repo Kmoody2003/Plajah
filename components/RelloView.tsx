@@ -5,8 +5,25 @@ import { fetchAllVideos, fetchVideoById, fetchVideosByInterests, fetchFollowedVi
 import { shareAsset } from '../services/deepLinkService';
 import { blendRelloFeed } from '../services/relloFeedService';
 import { recordProgress } from '../services/watchHistoryService';
-import { Video } from '../types';
+import { likeVideo, unlikeVideo, checkIfLiked, fetchUserProfile } from '../services/backendService';
+// Blueprint 1A.7 — the Reello feed respects the EXISTING kids-mode / content-safety
+// engine (services/contentSafety.ts). No new safety logic lives here: we resolve the
+// viewer's profile and run the assembled feed through the shared filter, which already
+// force-clamps child accounts and reads the isExplicit/isNSFW/contentRating flags.
+import { filterForViewer, isContentAllowed } from '../services/contentSafety';
+import { Video, UserProfile } from '../types';
 import { SCIENCE_STREAMS, ScienceStream } from './scienceStreams';
+import ShortsGestureLayer from './reello/ShortsGestureLayer';
+import ShortsCommentSheet, { SHEET_VH } from './reello/ShortsCommentSheet';
+import { SubtitleTracks, usableSubtitles } from './reello/CaptionTracks';
+
+/**
+ * Vertical-first: a creator may supply a pre-rendered 9:16 master. It isn't on the `Video`
+ * interface yet, so read it structurally — when absent this is simply undefined and the
+ * feed falls back to the Mux stream / landscape URL exactly as before.
+ */
+const verticalUrlOf = (v: Video | null | undefined): string | undefined =>
+  (v as unknown as { verticalVideoUrl?: string } | null | undefined)?.verticalVideoUrl || undefined;
 
 const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
 
@@ -27,6 +44,10 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
   const [showScienceBanner, setShowScienceBanner] = useState(!initialVideoId);
   const [activeStream, setActiveStream] = useState<ScienceStream | null>(null);
   const [shared, setShared] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeBusy, setLikeBusy] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [commentCount, setCommentCount] = useState<number | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const liveStreams = SCIENCE_STREAMS.filter(s => s.isLive && s.isEmbeddable).slice(0, 5);
@@ -34,6 +55,16 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Resolve the viewer's profile first — the content-safety engine needs the
+      // UserProfile (child flag + parental controls), not just the auth user. A failed
+      // lookup yields null, which resolveControls() treats as an unrestricted adult;
+      // that matches every other surface's behaviour for signed-out viewers.
+      let viewer: UserProfile | null = null;
+      if (currentUser?.uid) {
+        viewer = await fetchUserProfile(currentUser.uid).catch(() => null);
+        if (cancelled) return;
+      }
+
       // FOCUSED SHARE MODE — a shared Reello link opens THAT video's own page and nothing else:
       // fetch it by id, show it alone, skip the whole personalized feed + all discovery chrome.
       // (Playlist/channel shares never reach here — they route to VideoTab / the profile.)
@@ -41,8 +72,10 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
         let target: Video | undefined;
         try { target = (await fetchVideoById(initialVideoId)) || undefined; } catch { /* fall back below */ }
         if (cancelled) return;
+        // A deep link must not become a hole in the filter — gate the single video too.
+        if (target && !isContentAllowed(target, viewer)) target = undefined;
         if (target) { setVideos([target]); setCurrentIndex(0); setLoading(false); return; }
-        // Unknown/removed id → fall through to the normal feed so it isn't a dead end.
+        // Unknown/removed/blocked id → fall through to the normal feed so it isn't a dead end.
       }
       const all = await fetchAllVideos();
       if (cancelled) return;
@@ -51,7 +84,11 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
       // Reello UGC unless it's clearly a Taleo cinema item (movie/TV genre) or a live replay.
       const CINEMA_GENRES = ['Movie', 'Short Film', 'TV Series', 'Short', 'Teaser', 'Trailer', 'Feature Film'];
       const isRelloVideo = (v: Video) => v.isRello === true || (v.isRello == null && !v.isLiveRecording && !(v.genre && CINEMA_GENRES.includes(v.genre)));
-      const recentRello = all.filter(isRelloVideo);
+      // Kids-mode / content-rating gate (1A.7). Applied to the feed INPUTS, not just the
+      // output, so the personalization blend doesn't spend its quota on items that are
+      // about to be dropped. For an unrestricted adult this is a no-op fast path.
+      const safe = (vs: Video[]) => filterForViewer(vs, viewer);
+      const recentRello = safe(all.filter(isRelloVideo));
       let relloVideos = recentRello;
 
       // Personalize the initial order: blend interest-scored + followed-creator
@@ -65,7 +102,7 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
             fetchFollowedVideos(uid).catch(() => [] as Video[]),
           ]);
           if (cancelled) return;
-          const onlyRello = (vs: Video[]) => vs.filter(isRelloVideo);
+          const onlyRello = (vs: Video[]) => safe(vs.filter(isRelloVideo));
           const blended = blendRelloFeed({
             interestVideos: onlyRello(interested),
             followedVideos: onlyRello(followed),
@@ -74,7 +111,8 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
           if (blended.length > 0) relloVideos = blended;
         } catch { /* keep flat recent list */ }
       }
-      setVideos(relloVideos);
+      // Belt and braces: the blender may reorder/merge, so gate the final list too.
+      setVideos(safe(relloVideos));
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -123,8 +161,11 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
     if (!v || !current) return;
     let hls: any;
     let cancelled = false;
-    const pid = (current as any).muxPlaybackId as string | undefined;
-    const direct = current.url;
+    // Vertical-first: a pre-rendered 9:16 master beats both the Mux ladder and the
+    // landscape original — it needs no cropping and is already framed for this feed.
+    const vertical = verticalUrlOf(current);
+    const pid = vertical ? undefined : ((current as any).muxPlaybackId as string | undefined);
+    const direct = vertical || current.url;
     (async () => {
       try {
         if (pid) {
@@ -150,12 +191,12 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
     })();
     return () => { cancelled = true; try { hls?.destroy(); } catch { /* */ } };
     // Re-run when the Mux id (or url) resolves so a still-transcoding shared video starts on its own.
-  }, [current?.id, (current as any)?.muxPlaybackId, current?.url]);
+  }, [current?.id, (current as any)?.muxPlaybackId, current?.url, verticalUrlOf(current)]);
 
   // If the current video (e.g. a link shared right after publishing) has no playable source yet,
   // watch its doc so it plays the moment Mux finishes transcoding — no manual reload needed.
   useEffect(() => {
-    if (!current || (current as any).muxPlaybackId || current.url) return;
+    if (!current || (current as any).muxPlaybackId || current.url || verticalUrlOf(current)) return;
     const id = current.id;
     let unsub: (() => void) | undefined;
     (async () => {
@@ -172,6 +213,33 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
     })();
     return () => { try { unsub?.(); } catch { /* */ } };
   }, [current?.id, (current as any)?.muxPlaybackId, current?.url]);
+
+  // Reset per-clip interaction state and pull this viewer's like status.
+  useEffect(() => {
+    setShowComments(false);
+    setCommentCount(null);
+    setIsLiked(false);
+    if (!current?.id || !currentUser) return;
+    let alive = true;
+    checkIfLiked(current.id).then(l => { if (alive) setIsLiked(!!l); }).catch(() => {});
+    return () => { alive = false; };
+  }, [current?.id, currentUser?.uid]);
+
+  // Double-tap-to-like (and the action-bar heart). Optimistic; reverts on failure.
+  const toggleLike = async () => {
+    if (!current?.id || !currentUser || likeBusy) return;
+    const next = !isLiked;
+    setIsLiked(next);
+    setLikeBusy(true);
+    try {
+      if (next) await likeVideo(current.id);
+      else await unlikeVideo(current.id);
+    } catch {
+      setIsLiked(!next);
+    } finally {
+      setLikeBusy(false);
+    }
+  };
 
   const shareCurrent = async () => {
     if (!current) return;
@@ -298,15 +366,34 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
               ref={videoRef}
               key={current.id}
               poster={(current as any).thumbnailUrl || (current as any).coverImageUrl || undefined}
-              className="w-full h-full object-cover absolute inset-0"
+              crossOrigin={usableSubtitles(current).length ? 'anonymous' : undefined}
+              // With the comment sheet open the clip is SCALED INTO the band above it rather
+              // than hidden behind it — you keep watching while you read and type.
+              style={showComments
+                ? { height: `${100 - SHEET_VH}vh`, top: 0, bottom: 'auto', objectFit: 'contain' }
+                : undefined}
+              className="w-full h-full object-cover absolute inset-0 transition-[height] duration-300"
               autoPlay
               loop
               playsInline
               muted={false}
+            >
+              <SubtitleTracks video={current} />
+            </video>
+          )}
+
+          {/* Vertical gesture vocabulary: tap = play/pause, double-tap = like, hold = 2×. */}
+          {current && (
+            <ShortsGestureLayer
+              videoElRef={videoRef}
+              isLiked={isLiked}
+              onLike={toggleLike}
+              disabled={showComments || !!activeStream}
             />
           )}
+
           {/* Nothing playable yet (e.g. a Mux upload still transcoding) — show a hint, not a black void */}
-          {current && !current.url && !(current as any).muxPlaybackId && (
+          {current && !current.url && !(current as any).muxPlaybackId && !verticalUrlOf(current) && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 text-white/50 pointer-events-none">
               <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
               <p className="text-[9px] font-black uppercase tracking-widest">Processing video…</p>
@@ -336,18 +423,23 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
           </div>
 
           {/* Right action bar */}
-          <div className="absolute right-3 sm:right-4 bottom-32 z-20 flex flex-col gap-5 items-center">
-            <button className="flex flex-col items-center gap-1 text-white group">
-              <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur flex items-center justify-center group-hover:bg-white/20 transition-all">
-                <Heart size={18} />
+          <div
+            style={showComments ? { bottom: `calc(${SHEET_VH}vh + 1rem)` } : undefined}
+            className="absolute right-3 sm:right-4 bottom-32 z-40 flex flex-col gap-5 items-center transition-[bottom] duration-300"
+          >
+            <button onClick={toggleLike} className="flex flex-col items-center gap-1 text-white group">
+              <div className={`w-10 h-10 rounded-full backdrop-blur flex items-center justify-center transition-all ${isLiked ? 'bg-[#D40055]/25' : 'bg-white/10 group-hover:bg-white/20'}`}>
+                <Heart size={18} className={isLiked ? 'text-[#FF3D7F]' : undefined} fill={isLiked ? 'currentColor' : 'none'} />
               </div>
-              <span className="text-[8px] font-black uppercase tracking-widest text-white/60">Like</span>
+              <span className="text-[8px] font-black uppercase tracking-widest text-white/60">{isLiked ? 'Liked' : 'Like'}</span>
             </button>
-            <button className="flex flex-col items-center gap-1 text-white group">
+            <button onClick={() => setShowComments(o => !o)} className="flex flex-col items-center gap-1 text-white group">
               <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur flex items-center justify-center group-hover:bg-white/20 transition-all">
                 <MessageCircle size={18} />
               </div>
-              <span className="text-[8px] font-black uppercase tracking-widest text-white/60">Comment</span>
+              <span className="text-[8px] font-black uppercase tracking-widest text-white/60">
+                {commentCount !== null ? commentCount : 'Comment'}
+              </span>
             </button>
             <button onClick={shareCurrent} className="flex flex-col items-center gap-1 text-white group">
               <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur flex items-center justify-center group-hover:bg-white/20 transition-all">
@@ -357,8 +449,8 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
             </button>
           </div>
 
-          {/* Bottom overlay: title + artist */}
-          {current && (
+          {/* Bottom overlay: title + artist — yields to the comment sheet */}
+          {current && !showComments && (
             <div className="absolute bottom-6 left-4 right-20 z-20 space-y-1">
               <p className="text-white font-black text-lg leading-tight line-clamp-2">{current.title}</p>
               {current.artist && (
@@ -372,6 +464,17 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
                 {currentIndex + 1} / {videos.length}
               </p>
             </div>
+          )}
+
+          {/* Comments — occupies the bottom band; the clip scales into the band above it. */}
+          {current && (
+            <ShortsCommentSheet
+              video={current}
+              open={showComments}
+              onClose={() => setShowComments(false)}
+              currentUser={currentUser}
+              onCountChange={setCommentCount}
+            />
           )}
         </>
       )}

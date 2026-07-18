@@ -6,15 +6,17 @@ import {
   publishToCloud, fetchAllLiveFeeds, fetchSystemSettingsConfig, fetchVideoPlaylistsByIds,
   fetchVideosByIds, fetchUserWorlds, fetchWorldCharacters, fetchUserProfile, updateVideo,
   fetchAllUsers, fetchFollowedArtists, followUser, unfollowUser,
-  fetchUserClubs, createClubPost,
+  fetchUserClubs, createClubPost, fetchUserStreamArchives,
 } from '../services/backendService';
+import { StreamArchive } from '../types';
 import { captureVideoFrame } from '../src/lib/videoUtils';
 import { getContinueWatching, WatchEntry } from '../services/watchHistoryService';
 import {
   Play, Heart, MessageCircle, Share2, Plus, Search, Upload, X, Check, Users,
   TrendingUp, Radio, Clock, Sparkles, Globe, Music2, Camera, Image as ImageIcon,
   Film, Tv, Monitor, Settings2, ChevronRight, MoreVertical, Mic2, Gamepad2,
-  BookOpen, List, Layers, Lock, Smartphone, ChevronUp, ChevronDown, Volume2, VolumeX, ListPlus, Flame
+  BookOpen, List, Layers, Lock, Smartphone, ChevronUp, ChevronDown, Volume2, VolumeX, ListPlus, Flame,
+  Scissors
 } from 'lucide-react';
 import { AddToPlaylistModal, VideoPlaylistSection, VideoPlaylistDetailView } from './VideoPlaylistKit';
 import { SubscriptionsSection, LikedVideosSection, HistorySection } from './VideoLibraryKit';
@@ -36,6 +38,10 @@ import { thumb as thumbUrl, onThumbError, THUMB } from '../src/lib/imageThumb';
 import LearnChip from './LearnChip';
 import WatchLaterButton from './reello/WatchLaterButton';
 import { TrendingSection, WatchLaterSection } from './reello/ReelloDiscoverySections';
+// Sounds (blueprint 1B.2) — the Chora ↔ Reello "use this sound" link.
+import { SoundChip, SoundRailSheet, UseThisSoundButton } from './reello/SoundsRail';
+// Live → Short (blueprint 1C.3) — "clip this" on a live or just-ended stream.
+import { LiveClipStudio, ClipThisButton, MyClipsSection } from './reello/LiveClipStudio';
 
 interface VideoTabProps {
   profile: UserProfile | null;
@@ -86,7 +92,9 @@ const VideoCard: React.FC<{
   onAssignWorld?: () => void;
   onShareToClub?: () => void;
   onSave?: () => void;
-}> = ({ video, onPlay, size = 'default', showChannel = true, currentUser, onAssignWorld, onShareToClub, onSave }) => {
+  /** Sounds (1B.2) — opens the "videos using this sound" rail. Chip self-hides without a sound. */
+  onOpenSound?: (trackId: string) => void;
+}> = ({ video, onPlay, size = 'default', showChannel = true, currentUser, onAssignWorld, onShareToClub, onSave, onOpenSound }) => {
   const [isHovered, setIsHovered] = React.useState(false);
   const muxId = (video as any).muxPlaybackId as string | undefined;
   const thumb = muxId
@@ -233,6 +241,12 @@ const VideoCard: React.FC<{
       <div className="mt-2 empty:mt-0" onClick={e => e.stopPropagation()}>
         <LearnChip tags={(video as any).tags} text={video.title} compact />
       </div>
+      {/* Sounds — renders only when this video carries a soundTrackId */}
+      {onOpenSound && (
+        <div className="mt-2 empty:mt-0" onClick={e => e.stopPropagation()}>
+          <SoundChip video={video} onOpen={onOpenSound} />
+        </div>
+      )}
       {(video as any).worldId && (
         <div className="mt-2" onClick={e => e.stopPropagation()}>
           <WorldBadge worldId={(video as any).worldId} contentTitle={video.title} compact />
@@ -506,6 +520,12 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
   // Continue Watching shelf — resume in-progress videos.
   const [continueWatching, setContinueWatching] = useState<WatchEntry[]>([]);
+  // ── Sounds — the trackId whose "videos using this sound" rail is open (null = closed).
+  const [openSoundTrackId, setOpenSoundTrackId] = useState<string | null>(null);
+  // ── Live → Short — archived streams that can be clipped, and the active composer target.
+  const [streamArchives, setStreamArchives] = useState<StreamArchive[]>([]);
+  const [clipTarget, setClipTarget] = useState<StreamArchive | null>(null);
+  const [clipsRefresh, setClipsRefresh] = useState(0);
   useEffect(() => {
     let alive = true;
     getContinueWatching('VIDEO')
@@ -513,6 +533,19 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
       .catch(() => { if (alive) setContinueWatching([]); });
     return () => { alive = false; };
   }, [currentUser?.uid]);
+
+  // Live → Short: the archives a creator can clip from. Only fetched when the Live
+  // tab is actually open so we don't spend a read on every Reello visit.
+  useEffect(() => {
+    if (activeView !== 'live') return;
+    const uid = profile?.uid || currentUser?.uid;
+    if (!uid) { setStreamArchives([]); return; }
+    let alive = true;
+    fetchUserStreamArchives(uid)
+      .then(a => { if (alive) setStreamArchives(a || []); })
+      .catch(() => { if (alive) setStreamArchives([]); });
+    return () => { alive = false; };
+  }, [activeView, profile?.uid, currentUser?.uid]);
 
   // Open a Continue Watching card: prefer the loaded Video object; fall back to a
   // minimal Video shape so the player can still resume by id.
@@ -1226,7 +1259,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                   {filteredVideos.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
                       {filteredVideos.map(v => (
-                        <VideoCard key={v.id} video={v} onPlay={() => handlePlay(v)} showChannel currentUser={currentUser} onShareToClub={auth.currentUser ? () => setShareToClubVideo(v) : undefined} onSave={auth.currentUser ? () => setSaveVideo(v as Video) : undefined} />
+                        <VideoCard key={v.id} video={v} onPlay={() => handlePlay(v)} showChannel currentUser={currentUser} onOpenSound={(id) => setOpenSoundTrackId(id)} onShareToClub={auth.currentUser ? () => setShareToClubVideo(v) : undefined} onSave={auth.currentUser ? () => setSaveVideo(v as Video) : undefined} />
                       ))}
                     </div>
                   ) : (
@@ -1571,6 +1604,36 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                 <button onClick={() => setShowGoLiveModal(true)} className={`px-6 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${isLiveStreamActive ? 'bg-red-600 text-white' : 'bg-white text-black hover:bg-small-orange hover:text-white'}`}>{isLiveStreamActive ? 'End Broadcast' : 'Go Live'}</button>
               </div>
               <VideoRow title="Past Live Streams" icon={Radio} videos={userVideos.filter(v => v.isLiveRecording || v.genre === 'Live')} onSelect={handlePlay} emptyMessage="No past live streams yet — saved replays land here when you end a stream." />
+
+              {/* ── LIVE → SHORT (blueprint 1C.3): clip a just-ended stream ── */}
+              {streamArchives.length > 0 && (
+                <div>
+                  <h2 className="text-lg font-black uppercase tracking-widest flex items-center gap-2.5 mb-5">
+                    <Scissors className="text-small-orange" size={18} /> Clip a stream
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {streamArchives.map(a => (
+                      <div key={a.id} className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
+                        <div className="min-w-0">
+                          <h3 className="text-[11px] font-black uppercase tracking-tight text-white truncate">{a.title || 'Live stream'}</h3>
+                          <p className="text-[8px] font-bold uppercase tracking-widest text-white/30 mt-0.5">
+                            {a.ownerName}{a.durationMs ? ` · ${Math.round(a.durationMs / 60000)} min` : ''}
+                            {!a.muxPlaybackId ? ' · still preparing' : ''}
+                          </p>
+                        </div>
+                        <ClipThisButton onClick={() => setClipTarget(a)} className="w-full justify-center" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <h2 className="text-lg font-black uppercase tracking-widest flex items-center gap-2.5 mb-5">
+                  <Scissors className="text-small-orange" size={18} /> My Clips
+                </h2>
+                <MyClipsSection key={clipsRefresh} onPlay={(v) => handlePlay(v as any)} />
+              </div>
             </div>
           )}
 
@@ -1617,6 +1680,13 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                     <p className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-1">{short?.artist || short?.ownerName || 'Creator'}</p>
                     <h3 className="text-base font-black uppercase tracking-tight text-white leading-tight line-clamp-2 mb-2">{short?.title}</h3>
                     {short?.description && <p className="text-[10px] text-white/40 line-clamp-2 leading-relaxed">{short.description}</p>}
+                    {/* Sounds (1B.2) — a tappable sound chip when this short has one,
+                        otherwise the affordance to turn its audio into a sound.
+                        Both render nothing when they don't apply. */}
+                    <div className="mt-3 flex items-center gap-2 flex-wrap">
+                      <SoundChip video={short} onOpen={(id) => setOpenSoundTrackId(id)} />
+                      <UseThisSoundButton video={short} onCreated={(id) => setOpenSoundTrackId(id)} />
+                    </div>
                   </div>
                   <div className="absolute top-4 left-0 right-0 flex justify-center gap-1 z-[4]">
                     {shortVideos.slice(0, Math.min(shortVideos.length, 8)).map((_, i) => (
@@ -2287,6 +2357,22 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── SOUNDS (1B.2) — "videos using this sound" rail, opened by any sound chip ── */}
+      <SoundRailSheet
+        trackId={openSoundTrackId}
+        onClose={() => setOpenSoundTrackId(null)}
+        onPlay={(v) => handlePlay(v)}
+      />
+
+      {/* ── LIVE → SHORT (1C.3) — in/out picker + clip record + attribution ── */}
+      <LiveClipStudio
+        open={!!clipTarget}
+        archive={clipTarget}
+        onClose={() => setClipTarget(null)}
+        onClipped={() => setClipsRefresh(n => n + 1)}
+        onPublished={() => setClipsRefresh(n => n + 1)}
+      />
     </div>
   );
 };

@@ -717,7 +717,8 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
   }
 
   return (
-    <div className="min-h-screen bg-black/40 backdrop-blur-2xl p-6 lg:p-12 text-[var(--text-primary)]">
+    <div className="relative z-10 min-h-screen p-6 lg:p-12 text-[var(--text-primary)]">
+      <div aria-hidden className="fixed inset-0 -z-10 pointer-events-none bg-black/40 backdrop-blur-2xl" />
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-12">
@@ -811,6 +812,22 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
               <div className="text-[11px] text-white/50">Pre-K–Grade 7 NGSS science practices — observe, analyze, explain. Same engine as Reading Quest; writes the learner ledger + Turbo.</div>
             </div>
             <span className="text-[10px] font-black uppercase tracking-widest text-[#36c5f0]">Play →</span>
+          </button>
+        )}
+
+        {/* History Quest — C3 cartridge on the same chassis */}
+        {onNavigate && (
+          <button
+            onClick={() => onNavigate('HISTORY_QUEST')}
+            className="w-full mb-4 flex items-center gap-3 rounded-2xl px-5 py-4 text-left transition-all hover:scale-[1.005]"
+            style={{ border: '1px solid rgba(232,89,12,0.3)', background: 'linear-gradient(120deg, rgba(232,89,12,0.12), rgba(255,140,0,0.12))' }}
+          >
+            <span className="text-2xl">🏛️</span>
+            <div className="flex-1">
+              <div className="text-sm font-black text-white flex items-center gap-2">History Quest <span className="bg-black/40 text-[#FFD24A] text-[8px] font-black tracking-widest px-2 py-0.5 rounded-full">BETA</span></div>
+              <div className="text-[11px] text-white/50">Pre-K–Grade 7 C3 history practices — eras, figures, civilisations and primary sources, drawn from the World History studio. Writes the learner ledger + Turbo.</div>
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#E8590C]">Play →</span>
           </button>
         )}
 

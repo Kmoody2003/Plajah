@@ -18,6 +18,11 @@ import { AddToPlaylistModal } from './VideoPlaylistKit';
 import LearnChip from './LearnChip';
 import LoreLayer from './reello/LoreLayer';
 import WatchLaterButton from './reello/WatchLaterButton';
+import WhatIfBranching from './reello/WhatIfBranching';
+import RepriseButton from './reello/RepriseButton';
+import SourceCreditChip from './reello/SourceCreditChip';
+import OriginBadge from './OriginBadge';
+import { SubtitleTracks, CaptionToggle, usableSubtitles } from './reello/CaptionTracks';
 import CommentSection from './CommentSection';
 import PlajahPlusButton from './PlajahPlusButton';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -38,10 +43,13 @@ interface MuxHlsVideoProps {
   onPause: () => void;
   onError: () => void;
   onEnded?: () => void;
+  /** WebVTT <track> children. Cross-origin VTT requires CORS, hence crossOrigin below. */
+  children?: React.ReactNode;
+  hasSubtitles?: boolean;
 }
 
 const MuxHlsVideo = React.memo(React.forwardRef<HTMLVideoElement, MuxHlsVideoProps>(
-  ({ playbackId, muted, poster, className, onVideoReady, onPlay, onPause, onError, onEnded }, _ref) => {
+  ({ playbackId, muted, poster, className, onVideoReady, onPlay, onPause, onError, onEnded, children, hasSubtitles }, _ref) => {
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const hlsRef   = useRef<any>(null);
 
@@ -102,12 +110,15 @@ const MuxHlsVideo = React.memo(React.forwardRef<HTMLVideoElement, MuxHlsVideoPro
         muted={muted}
         poster={poster}
         playsInline
+        crossOrigin={hasSubtitles ? 'anonymous' : undefined}
         className={className}
         onPlay={onPlay}
         onPause={onPause}
         onError={onError}
         onEnded={onEnded}
-      />
+      >
+        {children}
+      </video>
     );
   }
 ));
@@ -436,6 +447,19 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
   const isOwner = !!(currentUser?.uid && currentUser.uid === video.ownerId);
   const thumbnail = video.thumbnailUrl || video.coverImageUrl || '';
   const progress  = (currentTime / duration) * 100 || 0;
+  // Subtitles are opt-in per video; when present the element needs CORS for cross-origin VTT.
+  const hasSubtitles = usableSubtitles(video).length > 0;
+
+  // A What-If branch may hand the player a different video (alternate scene / ending),
+  // optionally at an in-point. Swapping `video` re-runs every id-keyed effect below.
+  // Tagged with the target video id so a stale `duration` from the OUTGOING video can't
+  // consume the seek before the new source has actually loaded.
+  const pendingBranchSeek = useRef<{ videoId: string; sec: number } | null>(null);
+  const handleBranchTo = useCallback((next: Video, startSec?: number) => {
+    pendingBranchSeek.current = typeof startSec === 'number' ? { videoId: next.id, sec: startSec } : null;
+    setVideo(next);
+    playVideo(next);
+  }, [playVideo]);
 
   // Register this video as the active VIDEO source in GlobalPlayerContext on mount.
   // activateVideoSource stops audio and sets audioSource='VIDEO' without clearing the
@@ -636,9 +660,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // A What-If branch in-point wins over the watch-history resume position.
+  useEffect(() => {
+    const target = pendingBranchSeek.current;
+    if (!target || target.videoId !== video?.id) return;
+    if (!(duration > 0) || isNaN(duration)) return;
+    pendingBranchSeek.current = null;
+    resumeAppliedRef.current = true;          // don't also jump to the resume position
+    seek(Math.min(target.sec, Math.max(0, duration - 1)));
+  }, [video?.id, duration, seek]);
+
   // Resume from last position once the duration is known (skip if near the end).
   useEffect(() => {
     if (resumeAppliedRef.current) return;
+    if (pendingBranchSeek.current) return;   // a branch jump owns the in-point
     if (!video?.id || !(duration > 0) || isNaN(duration)) return;
     resumeAppliedRef.current = true;
     const pos = getResumePosition(video.id);
@@ -768,7 +803,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
           onPause={() => pause()}
           onError={() => setVideoError(true)}
           onEnded={handleVideoEnded}
-        />
+          hasSubtitles={hasSubtitles}
+        >
+          <SubtitleTracks video={video} />
+        </MuxHlsVideo>
       );
     }
 
@@ -779,6 +817,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
           ref={el => { setVideoElement(el); localVideoRef.current = el; }}
           src={url}
           playsInline
+          crossOrigin={hasSubtitles ? 'anonymous' : undefined}
           className="w-full h-full object-contain cursor-pointer"
           onClick={togglePlay}
           autoPlay
@@ -797,7 +836,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
           onPause={() => pause()}
           onError={() => setVideoError(true)}
           onEnded={handleVideoEnded}
-        />
+        >
+          <SubtitleTracks video={video} />
+        </video>
       );
     }
 
@@ -895,6 +936,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
           {/* Lore Layer — Worlds-native character chips. Silent when the video isn't tagged. */}
           <LoreLayer video={video} currentTime={currentTime} onCardToggle={setLoreCardOpen} />
 
+          {/* What-If branching — interactive format. Silent when the video has no branch points. */}
+          <WhatIfBranching
+            video={video}
+            currentTime={currentTime}
+            onPause={() => { localVideoRef.current?.pause(); pause(); }}
+            onResume={() => {
+              const el = localVideoRef.current;
+              if (el) el.play().then(() => resume()).catch(() => resume());
+              else resume();
+            }}
+            onSeek={seek}
+            onPlayVideo={handleBranchTo}
+          />
+
           {/* Controls overlay */}
           <AnimatePresence>
             {controlsVisible && (
@@ -941,6 +996,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
                       </button>
                     </>
                   )}
+
+                  {/* CC — self-hides when the video carries no subtitle tracks */}
+                  <CaptionToggle video={video} videoElRef={localVideoRef} />
 
                   <button onClick={() => setIsMuted(m => !m)} className="p-2.5 text-white hover:text-white/80 transition-colors">
                     {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
@@ -1021,6 +1079,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
           {/* "Go deeper" — self-hides when the video maps to no discipline */}
           <LearnChip tags={video.tags} text={`${video.title} ${video.genre || ''}`} />
 
+          {/* Reprise attribution — self-hides unless this video remixes another */}
+          <SourceCreditChip video={video} onOpenSource={v => handleBranchTo(v)} />
+          <OriginBadge video={video} />
+
           {/* Channel + action buttons */}
           <div className="flex items-center gap-4 flex-wrap">
             {/* Channel */}
@@ -1068,6 +1130,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
                 <Bookmark size={15} /> Save
               </button>
               <WatchLaterButton video={video} variant="pill" />
+              {/* Reprise — self-hides unless the source is licensed for derivatives */}
+              <RepriseButton
+                video={video}
+                duration={duration}
+                currentTime={currentTime}
+                ownerName={ownerProfile?.displayName}
+                onPause={() => { localVideoRef.current?.pause(); pause(); }}
+                variant="pill"
+              />
               <button className="p-2.5 rounded-full border border-white/10 bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-all">
                 <MoreVertical size={15} />
               </button>

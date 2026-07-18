@@ -87,6 +87,8 @@ export const saveBibleNote = async (uid: string, ref: string, text: string): Pro
 };
 import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest, PodcastRssSettings, ImportedRssEpisode, AccountType, NotifyLevel } from '../types';
 import { accountFlagUpdate } from './accountCapabilities';
+// Creator Passport provenance (blueprint 1C.5) — attribution record, not crypto proof.
+import { buildProvenance, stampVideo } from './creatorPassport';
 
 export const getPrivateBoards = async (uid: string): Promise<PrivateBoard[]> => {
   const q = query(collection(db, 'privateBoards'), where('ownerId', '==', uid));
@@ -6703,11 +6705,24 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
     ...((video as any).subType ? { subType: (video as any).subType } : {}),
     ...(Array.isArray(video.tags) && video.tags.length ? { tags: video.tags } : {}),
     ...(typeof video.duration === 'number' ? { duration: video.duration } : {}),
+    // Remix lineage must survive the write — provenance below depends on it.
+    ...(video.remixOfVideoId ? { remixOfVideoId: video.remixOfVideoId } : {}),
+    // Creator Passport provenance (blueprint 1C.5). For an ORIGINAL upload the record
+    // is knowable inline and costs nothing extra. A REMIX needs its source's origin,
+    // which is an async read — that case is stamped just after the write below.
+    // NB: this is an attribution record, NOT cryptographic proof — see
+    // services/creatorPassport.ts before writing any UI copy about it.
+    ...(video.remixOfVideoId ? {} : { provenance: buildProvenance({ videoId: id, ownerId: uploaderUid }) }),
   } as any;
   
   // Save to Firestore immediately so the creator can see the video right away.
   try {
     await setDoc(doc(db, 'videos', id), newVideo);
+    // Remix uploads: resolve the source's origin and stamp provenance. Fire-and-forget —
+    // a failed stamp must never fail an upload that already succeeded.
+    if (video.remixOfVideoId) {
+      stampVideo(id, uploaderUid, { remixOfVideoId: video.remixOfVideoId }).catch(() => {});
+    }
     // New video is new content — notify the creator's followers (unless it's a private upload).
     if (!newVideo.isPrivate) {
       notifyFollowers(uploaderUid, 'CONTENT', 'New Video', `${auth.currentUser.displayName || 'A creator'} posted a new video: ${newVideo.title}`, 'FEED', id, { highlight: true });
