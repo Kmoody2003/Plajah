@@ -461,9 +461,12 @@ interface LabsDisciplineViewProps {
   disciplineId: LabsDisciplineId;
   onBack: () => void;
   currentUser?: any;
+  /** Embedded inside a parent studio (e.g. ScienceDisciplineView's "Research & Live Data" tab):
+   *  drop the full-screen hero/back chrome and render just the search + live data + content tabs. */
+  embedded?: boolean;
 }
 
-const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, onBack, currentUser }) => {
+const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, onBack, currentUser, embedded }) => {
   const meta = DISC_META[disciplineId];
   const cfg = DISCIPLINE_CONFIG[disciplineId];
   const Icon = meta.icon as any;
@@ -547,42 +550,49 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
   }
 
   return (
-    <div className="min-h-screen text-white">
+    <div className={embedded ? 'text-white' : 'min-h-screen text-white'}>
 
       {/* ── HERO ── */}
       <div className="relative overflow-hidden">
         {/* Background atmospheric glow */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full blur-[120px] opacity-20"
-            style={{ background: meta.color }} />
-          <div className="absolute bottom-0 right-1/4 w-64 h-64 rounded-full blur-[100px] opacity-10"
-            style={{ background: meta.secondaryColor }} />
-        </div>
-
-        <div className="relative z-10 px-6 pt-8 pb-12 max-w-5xl mx-auto">
-          {/* Back + breadcrumb */}
-          <button onClick={onBack}
-            className="flex items-center gap-2 mb-8 text-white/30 hover:text-white transition-colors group">
-            <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
-            <span className="text-xs font-black uppercase tracking-widest">Plajah Labs</span>
-          </button>
-
-          <div className="flex items-end gap-6 mb-6">
-            <div className="w-16 h-16 rounded-3xl flex items-center justify-center shrink-0 shadow-2xl"
-              style={{ background: `${meta.color}20`, border: `1px solid ${meta.color}30` }}>
-              <Icon size={28} style={{ color: meta.color }} />
-            </div>
-            <div>
-              <p className={`${TYPE.labelSm} tracking-[0.3em] mb-1`} style={{ color: meta.color }}>
-                Plajah Labs · {meta.label}
-              </p>
-              <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tight text-white leading-none">
-                {meta.label}
-              </h1>
-            </div>
+        {!embedded && (
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full blur-[120px] opacity-20"
+              style={{ background: meta.color }} />
+            <div className="absolute bottom-0 right-1/4 w-64 h-64 rounded-full blur-[100px] opacity-10"
+              style={{ background: meta.secondaryColor }} />
           </div>
+        )}
 
-          <p className="text-sm text-white/50 leading-relaxed max-w-lg mb-6">{meta.description}</p>
+        <div className={`relative z-10 max-w-5xl mx-auto ${embedded ? 'px-0 pt-0 pb-4' : 'px-6 pt-8 pb-12'}`}>
+          {/* Back + breadcrumb — hidden when embedded (the parent studio owns navigation) */}
+          {!embedded && (
+            <button onClick={onBack}
+              className="flex items-center gap-2 mb-8 text-white/30 hover:text-white transition-colors group">
+              <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+              <span className="text-xs font-black uppercase tracking-widest">Plajah Labs</span>
+            </button>
+          )}
+
+          {!embedded && (
+            <>
+              <div className="flex items-end gap-6 mb-6">
+                <div className="w-16 h-16 rounded-3xl flex items-center justify-center shrink-0 shadow-2xl"
+                  style={{ background: `${meta.color}20`, border: `1px solid ${meta.color}30` }}>
+                  <Icon size={28} style={{ color: meta.color }} />
+                </div>
+                <div>
+                  <p className={`${TYPE.labelSm} tracking-[0.3em] mb-1`} style={{ color: meta.color }}>
+                    Plajah Labs · {meta.label}
+                  </p>
+                  <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tight text-white leading-none">
+                    {meta.label}
+                  </h1>
+                </div>
+              </div>
+              <p className="text-sm text-white/50 leading-relaxed max-w-lg mb-6">{meta.description}</p>
+            </>
+          )}
 
           {/* Keywords */}
           <div className="flex flex-wrap gap-2 mb-8">
@@ -687,8 +697,8 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
       )}
 
       {/* ── CONTENT TABS ── */}
-      <div className="sticky top-0 z-10 bg-[#080808]/90 backdrop-blur-xl border-b border-white/6 px-6">
-        <div className="max-w-5xl mx-auto flex gap-1 py-2 overflow-x-auto no-scrollbar">
+      <div className={`${embedded ? '' : 'sticky top-0'} z-10 bg-[#080808]/90 backdrop-blur-xl border-b border-white/6 ${embedded ? 'px-0' : 'px-6'} rounded-2xl`}>
+        <div className={`${embedded ? '' : 'max-w-5xl'} mx-auto flex gap-1 py-2 overflow-x-auto no-scrollbar`}>
           {CONTENT_TABS.map(t => {
             const TIcon = t.icon as any;
             return (

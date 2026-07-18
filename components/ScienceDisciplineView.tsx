@@ -22,6 +22,10 @@ import UniversalPostComposer from './UniversalPostComposer';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
 
 const BookReader = lazy(() => import('./BookReader'));
+// The existing generic discipline view — embedded here so the rich studio keeps ALL of its
+// live-data features (arXiv/PubMed papers + AI explain, HF models, datasets, NASA/USGS/CERN
+// live data, textbooks, social) on top of the new curated content.
+const LabsDisciplineView = lazy(() => import('./LabsDisciplineView'));
 
 // Icon name → component (discipline hero + concepts). Falls back to Compass.
 const ICONS: Record<string, React.ComponentType<any>> = {
@@ -59,7 +63,7 @@ const Katex: React.FC<{ latex: string }> = ({ latex }) => {
     : <code className="text-[12px] text-white/50 font-mono">{latex}</code>;
 };
 
-type Tab = 'overview' | 'pioneers' | 'concepts' | 'timeline' | 'laws' | 'simulate' | 'toolbox' | 'library' | 'feed';
+type Tab = 'overview' | 'pioneers' | 'concepts' | 'timeline' | 'laws' | 'simulate' | 'toolbox' | 'research' | 'feed';
 type IconC = React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>;
 
 // ── Concept card + modal (optional live Wikipedia) ───────────────────────────────
@@ -114,7 +118,6 @@ const ScienceDisciplineView: React.FC<Props> = ({ data, onBack, currentUser }) =
   const { accent, accent2, id, label } = data;
   const HeroIcon = ICONS[data.icon] || Compass;
   const sims = useMemo(() => resolveSimulators(data.simulators), [data.simulators]);
-  const books = useMemo(() => data.openStaxSubject ? OPENSTAX_BOOKS.filter(b => b.subject === data.openStaxSubject) : [], [data.openStaxSubject]);
   const lawCategories = useMemo(() => Array.from(new Set(data.laws.map(l => l.category))), [data.laws]);
 
   const ALL_TABS: { id: Tab; label: string; icon: React.ComponentType<any>; show: boolean }[] = [
@@ -125,7 +128,7 @@ const ScienceDisciplineView: React.FC<Props> = ({ data, onBack, currentUser }) =
     { id: 'laws',      label: 'Laws & Formulas', icon: Sigma,   show: data.laws.length > 0 },
     { id: 'simulate',  label: 'Simulate',  icon: FlaskConical,  show: sims.length > 0 },
     { id: 'toolbox',   label: 'Tools & APIs', icon: Wrench,     show: data.tools.length > 0 },
-    { id: 'library',   label: 'Library',   icon: FileText,      show: true },
+    { id: 'research',  label: 'Research & Live Data', icon: FileText, show: true },
     { id: 'feed',      label: 'Feed',      icon: MessageSquare, show: true },
   ];
   const TABS = ALL_TABS.filter(t => t.show);
@@ -133,31 +136,13 @@ const ScienceDisciplineView: React.FC<Props> = ({ data, onBack, currentUser }) =
   const [tab, setTab] = useState<Tab>('overview');
   const [openConcept, setOpenConcept] = useState<Concept | null>(null);
   const [lawCat, setLawCat] = useState<string>('all');
-  const [papers, setPapers] = useState<ArxivPaper[]>([]);
-  const [papersLoading, setPapersLoading] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [readerBook, setReaderBook] = useState<Album | null>(null);
 
   useEffect(() => { setTab('overview'); }, [id]);
-
-  // arXiv papers — lazy on Library open
-  useEffect(() => {
-    if (tab !== 'library' || papers.length || papersLoading) return;
-    setPapersLoading(true);
-    searchArxiv(data.arXivQuery, data.arXivCategory, 12).then(setPapers).finally(() => setPapersLoading(false));
-  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Dedicated discipline feed — only posts tagged with this discipline id
   useEffect(() => { if (tab !== 'feed') return; return listenToGlobalPosts(setPosts); }, [tab]);
   const discPosts = useMemo(() => posts.filter(p => p.tags?.includes(id)), [posts, id]);
-
-  if (readerBook) {
-    return (
-      <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white/30">Opening reader…</div>}>
-        <BookReader book={readerBook} onBack={() => setReaderBook(null)} currentUser={currentUser} />
-      </Suspense>
-    );
-  }
 
   const shownLaws = lawCat === 'all' ? data.laws : data.laws.filter(l => l.category === lawCat);
 
@@ -222,7 +207,7 @@ const ScienceDisciplineView: React.FC<Props> = ({ data, onBack, currentUser }) =
                 { t: 'The Timeline', d: 'How the field developed, era by era, with its turning points.', icon: Clock, to: 'timeline' as Tab },
                 ...(data.laws.length ? [{ t: 'Laws & Formulas', d: 'The equations that govern it, beautifully typeset.', icon: Sigma, to: 'laws' as Tab }] : []),
                 ...(sims.length ? [{ t: 'Simulate', d: 'Interactive, hands-on models you can play with right now.', icon: FlaskConical, to: 'simulate' as Tab }] : []),
-                { t: 'The Library', d: 'Free textbooks and the latest open research from arXiv.', icon: Library, to: 'library' as Tab },
+                { t: 'Research & Live Data', d: 'Live papers, models, datasets and real-time feeds (arXiv, NASA, USGS, Hugging Face) plus free textbooks.', icon: Library, to: 'research' as Tab },
               ].map(c => (
                 <button key={c.t} onClick={() => setTab(c.to)} className="rounded-2xl border border-white/8 bg-white/[0.03] p-5 text-left hover:bg-white/[0.06] transition-all group">
                   <c.icon size={22} style={{ color: accent }} />
@@ -331,44 +316,12 @@ const ScienceDisciplineView: React.FC<Props> = ({ data, onBack, currentUser }) =
           </div>
         )}
 
-        {/* LIBRARY */}
-        {tab === 'library' && (
-          <div className="space-y-6">
-            {books.length > 0 && (
-              <div>
-                <p className={`${TYPE.labelSm} font-black tracking-[0.3em] text-white/40 mb-3`}>Free Textbooks · OpenStax</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {books.map(b => (
-                    <div key={b.id} className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 hover:bg-white/[0.06] transition-all">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="type-body-md font-black text-white leading-tight">{b.title}</p>
-                        <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[8px] font-black uppercase tracking-widest text-emerald-400 shrink-0">Free</span>
-                      </div>
-                      {b.description && <p className="type-body-sm text-white/45 mt-1.5 leading-relaxed line-clamp-2">{b.description}</p>}
-                      <div className="flex flex-wrap gap-2 mt-3">
-                        {b.epubUrl && <button onClick={() => setReaderBook(textbookToAlbum(b))} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest" style={{ background: `${accent}22`, border: `1px solid ${accent}44`, color: accent }}>Read in Lorea <BookOpen size={10} /></button>}
-                        <a href={b.pdfLink || b.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white">Source <ExternalLink size={10} /></a>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div>
-              <p className={`${TYPE.labelSm} font-black tracking-[0.3em] text-white/40 mb-3`}>Latest Research · arXiv</p>
-              {papersLoading && <p className="text-[11px] text-white/30">Loading the latest papers…</p>}
-              <div className="grid grid-cols-1 gap-2.5">
-                {papers.map(p => (
-                  <a key={p.id} href={p.pdfLink || p.link} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 hover:bg-white/[0.06] transition-all block">
-                    <p className="type-body-md font-black text-white leading-tight">{p.title}</p>
-                    <p className="text-[10px] text-white/35 mt-1">{p.authors?.slice(0, 4).join(', ')}{(p.authors?.length || 0) > 4 ? ' et al.' : ''}</p>
-                    <p className="type-body-sm text-white/45 mt-1.5 leading-relaxed line-clamp-2">{p.abstract}</p>
-                  </a>
-                ))}
-                {!papersLoading && papers.length === 0 && <p className="text-[11px] text-white/25">No papers loaded — the arXiv feed may be unreachable from here.</p>}
-              </div>
-            </div>
-          </div>
+        {/* RESEARCH & LIVE DATA — the full generic Labs studio embedded, so nothing is lost:
+            live papers (+ AI explain), HF models, datasets, NASA/USGS/CERN feeds, textbooks, social. */}
+        {tab === 'research' && (
+          <Suspense fallback={<div className="py-16 text-center text-white/30 text-sm">Loading live research data…</div>}>
+            <LabsDisciplineView disciplineId={id as any} embedded onBack={onBack} currentUser={currentUser} />
+          </Suspense>
         )}
 
         {/* FEED — dedicated discipline feed (posts tagged with this discipline id) */}
