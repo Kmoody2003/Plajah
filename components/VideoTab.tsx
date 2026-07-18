@@ -30,6 +30,7 @@ import StoriesBar from './StoriesBar';
 import PlajahPlusBanner from './PlajahPlusBanner';
 import WorldBadge from './WorldBadge';
 import ReelloChannelHeader from './ReelloChannelHeader';
+import FastChannelPlayer from './FastChannelPlayer';
 import { thumb as thumbUrl, onThumbError, THUMB } from '../src/lib/imageThumb';
 
 interface VideoTabProps {
@@ -488,6 +489,8 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
   const [signInAction, setSignInAction] = useState<string | null>(null);
   const [activeLiveStream, setActiveLiveStream] = useState<{ streamId: string; title: string; ownerName: string } | null>(null);
+  // The creator whose FAST/TV channel is open in the full-screen player (null = closed).
+  const [fastChannelProfile, setFastChannelProfile] = useState<UserProfile | null>(null);
 
   // Continue Watching shelf — resume in-progress videos.
   const [continueWatching, setContinueWatching] = useState<WatchEntry[]>([]);
@@ -931,7 +934,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
           <section>
             <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2.5 mb-5"><Tv className="text-small-orange" size={16} /> FAST Channel</h2>
             <button
-              onClick={() => { if (fast.liveStreamUrl) handlePlay({ id: fast.id, title: fast.title, url: fast.liveStreamUrl, ownerId: me.uid } as any); else window.dispatchEvent(new CustomEvent('OPEN_TV_CHANNEL', { detail: { channelId: fast.id } })); }}
+              onClick={() => setFastChannelProfile(me)}
               className="w-full sm:max-w-xl text-left flex items-center gap-4 p-4 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-small-orange/40 hover:bg-white/[0.07] transition-all group"
             >
               <div className="w-16 h-16 rounded-xl shrink-0 flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#6B0099,#D40055,#FF8C00)' }}><Tv size={26} className="text-white" /></div>
@@ -949,7 +952,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
           <section>
             <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2.5 mb-5"><Radio className="text-small-orange" size={16} /> Radio Station</h2>
             <button
-              onClick={() => window.dispatchEvent(new CustomEvent('OPEN_ARTIST_RADIO', { detail: { artistId: me.uid } }))}
+              onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'RADIO', params: { artistId: me.uid } } }))}
               className="w-full sm:max-w-xl text-left flex items-center gap-4 p-4 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-small-orange/40 hover:bg-white/[0.07] transition-all group"
             >
               <div className="w-16 h-16 rounded-xl shrink-0 flex items-center justify-center overflow-hidden">
@@ -2136,6 +2139,10 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
           ownerName={activeLiveStream.ownerName}
           onClose={() => setActiveLiveStream(null)}
         />
+      )}
+
+      {fastChannelProfile && (
+        <FastChannelPlayer profile={fastChannelProfile} onClose={() => setFastChannelProfile(null)} />
       )}
 
       <AnimatePresence>
