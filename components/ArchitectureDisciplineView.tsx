@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Building2, Landmark, Ruler, Sigma, Boxes, Wrench,
   BookOpen, MessageSquare, Compass, ExternalLink, X, FileText,
-  Cpu, Globe, Star, ChevronRight, Grid3x3,
+  Cpu, Globe, Star, ChevronRight, Grid3x3, DraftingCompass, HardHat,
 } from 'lucide-react';
 import MuseumHall, { fetchWiki } from './MuseumHall';
 import AssetActions from './AssetActions';
@@ -14,6 +14,7 @@ import {
   ARCH_SOFTWARE, ARCH_APIS, ARCH_TEXTBOOKS,
   type ArchStyle, type ArchFormula,
 } from '../data/architectureData';
+import { BLUEPRINTS } from '../data/blueprintArchive';
 import { searchArxiv, type ArxivPaper } from '../services/labsApiService';
 import { listenToGlobalPosts, createPost, auth, uploadFile } from '../services/backendService';
 import { Post } from '../types';
@@ -23,6 +24,8 @@ import UniversalPostComposer from './UniversalPostComposer';
 import { TYPE } from '../src/lib/designSystem';
 
 const ArchitectureStudio = lazy(() => import('./architecture/ArchitectureStudio'));
+const BlueprintArchive = lazy(() => import('./architecture/BlueprintArchive'));
+const PractitionerShelf = lazy(() => import('./architecture/PractitionerShelf'));
 const BookReader = lazy(() => import('./BookReader'));
 
 const ACCENT = '#B08968';
@@ -67,15 +70,17 @@ const Katex: React.FC<{ latex: string }> = ({ latex }) => {
 };
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
-type Tab = 'overview' | 'architects' | 'styles' | 'history' | 'formulas' | 'simulate' | 'toolbox' | 'library' | 'feed';
+type Tab = 'overview' | 'architects' | 'styles' | 'history' | 'blueprints' | 'formulas' | 'simulate' | 'practice' | 'toolbox' | 'library' | 'feed';
 type IconC = React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>;
 const TABS: { id: Tab; label: string; icon: IconC }[] = [
   { id: 'overview',   label: 'Overview',   icon: Compass },
   { id: 'architects', label: 'Architects', icon: Landmark },
   { id: 'styles',     label: 'Styles',     icon: Grid3x3 },
   { id: 'history',    label: 'History',    icon: BookOpen },
+  { id: 'blueprints', label: 'Blueprints', icon: DraftingCompass },
   { id: 'formulas',   label: 'Formulas',   icon: Sigma },
   { id: 'simulate',   label: 'Simulate',   icon: Ruler },
+  { id: 'practice',   label: 'Practice',   icon: HardHat },
   { id: 'toolbox',    label: 'Software & APIs', icon: Wrench },
   { id: 'library',    label: 'Library',    icon: FileText },
   { id: 'feed',       label: 'Feed',       icon: MessageSquare },
@@ -252,11 +257,12 @@ const ArchitectureDisciplineView: React.FC<Props> = ({ onBack, currentUser }) =>
         {/* OVERVIEW */}
         {tab === 'overview' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {[
                 { label: 'Architects', value: ARCHITECT_FIGURES.length, icon: Landmark, to: 'architects' as Tab },
                 { label: 'Styles', value: ARCH_STYLES.length, icon: Grid3x3, to: 'styles' as Tab },
                 { label: 'Formulas', value: ARCH_FORMULAS.length, icon: Sigma, to: 'formulas' as Tab },
+                { label: 'Blueprints', value: BLUEPRINTS.length, icon: DraftingCompass, to: 'blueprints' as Tab },
                 { label: 'Tools & APIs', value: ARCH_SOFTWARE.length + ARCH_APIS.length, icon: Wrench, to: 'toolbox' as Tab },
               ].map(s => (
                 <button key={s.label} onClick={() => setTab(s.to)} className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 text-left hover:bg-white/[0.06] transition-all">
@@ -273,6 +279,8 @@ const ArchitectureDisciplineView: React.FC<Props> = ({ onBack, currentUser }) =>
                 { t: 'A History of Building', d: 'The arch, the dome, the flying buttress, the steel frame, reinforced concrete — how we learned to build.', icon: BookOpen, to: 'history' as Tab },
                 { t: 'The Mathematics', d: 'The structural formulas that hold buildings up — statics, beams, columns, loads and materials.', icon: Sigma, to: 'formulas' as Tab },
                 { t: 'Structural Studio', d: 'Run real beam & column calculations, upload and inspect a 3D model, and connect to simulation engines.', icon: Ruler, to: 'simulate' as Tab },
+                { t: 'The Blueprint Archive', d: 'Public-domain measured drawings of America’s landmark buildings and bridges, from the Library of Congress HABS/HAER survey.', icon: DraftingCompass, to: 'blueprints' as Tab },
+                { t: 'The Practitioner Shelf', d: 'A sun-path and daylighting calculator, span and load tables, and the working glossary of architecture, engineering and construction.', icon: HardHat, to: 'practice' as Tab },
                 { t: 'Software & APIs', d: 'The open-source toolchain and open data APIs of modern architecture and structural engineering.', icon: Wrench, to: 'toolbox' as Tab },
               ].map(c => (
                 <button key={c.t} onClick={() => setTab(c.to)} className="rounded-2xl border border-white/8 bg-white/[0.03] p-5 text-left hover:bg-white/[0.06] transition-all group">
@@ -323,6 +331,20 @@ const ArchitectureDisciplineView: React.FC<Props> = ({ onBack, currentUser }) =>
               </motion.div>
             ))}
           </div>
+        )}
+
+        {/* BLUEPRINTS — the Library of Congress HABS/HAER measured-drawing archive */}
+        {tab === 'blueprints' && (
+          <Suspense fallback={<div className="py-24 text-center"><div className="w-10 h-10 border-2 rounded-full animate-spin mx-auto" style={{ borderColor: `${ACCENT}33`, borderTopColor: ACCENT }} /><p className="text-[10px] font-black uppercase tracking-widest text-white/30 mt-3">Opening the archive…</p></div>}>
+            <BlueprintArchive accent={ACCENT} />
+          </Suspense>
+        )}
+
+        {/* PRACTICE — sun path, span & load tables, AEC glossary */}
+        {tab === 'practice' && (
+          <Suspense fallback={<div className="py-24 text-center"><div className="w-10 h-10 border-2 rounded-full animate-spin mx-auto" style={{ borderColor: `${ACCENT}33`, borderTopColor: ACCENT }} /><p className="text-[10px] font-black uppercase tracking-widest text-white/30 mt-3">Loading the shelf…</p></div>}>
+            <PractitionerShelf accent={ACCENT} />
+          </Suspense>
         )}
 
         {/* FORMULAS */}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { motion } from 'motion/react';
 import {
   ArrowLeft, Globe, Landmark, MessageSquare, Compass,
-  ExternalLink, FileText, ChevronRight, Boxes, ScrollText, Clock, Users, Library, BookOpen,
+  ExternalLink, FileText, ChevronRight, Boxes, ScrollText, Clock, Users, Library, BookOpen, Map,
 } from 'lucide-react';
 import MuseumHall, { fetchWiki } from './MuseumHall';
 import ArtifactBrowser from './ArtifactBrowser';
@@ -20,6 +20,7 @@ import UniversalPostComposer from './UniversalPostComposer';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
 
 const BookReader = lazy(() => import('./BookReader'));
+const ErasAtlas = lazy(() => import('./history/ErasAtlas'));
 
 const ACCENT = '#E8590C';
 const ACCENT_2 = '#B24608';
@@ -27,12 +28,13 @@ const ACCENT_2 = '#B24608';
 const HISTORY_BOOKS = OPENSTAX_BOOKS.filter(b => b.subject === 'history');
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
-type Tab = 'overview' | 'figures' | 'civilizations' | 'timeline' | 'artifacts' | 'sources' | 'library' | 'feed';
+type Tab = 'overview' | 'figures' | 'civilizations' | 'eras' | 'timeline' | 'artifacts' | 'sources' | 'library' | 'feed';
 type IconC = React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>;
 const TABS: { id: Tab; label: string; icon: IconC }[] = [
   { id: 'overview',      label: 'Overview',        icon: Compass },
   { id: 'figures',       label: 'Figures',         icon: Users },
   { id: 'civilizations', label: 'Civilizations',   icon: Landmark },
+  { id: 'eras',          label: 'Eras Atlas',      icon: Map },
   { id: 'timeline',      label: 'Timeline',        icon: Clock },
   { id: 'artifacts',     label: 'Artifacts',       icon: Boxes },
   { id: 'sources',       label: 'Primary Sources', icon: ScrollText },
@@ -200,6 +202,7 @@ const WorldHistoryDisciplineView: React.FC<Props> = ({ onBack, currentUser }) =>
               {[
                 { t: 'The People', d: 'From Hammurabi to Mandela — the rulers, thinkers, explorers and revolutionaries who bent the arc of history, each with a live biography.', icon: Users, to: 'figures' as Tab },
                 { t: 'Civilizations', d: 'Mesopotamia to the Ottomans — read every great civilisation through its hallmarks, span and living Wikipedia record.', icon: Landmark, to: 'civilizations' as Tab },
+                { t: 'The Eras Atlas', d: 'Scrub through nine eras of human history and watch each one pull in its own figures, civilisations and turning points.', icon: Map, to: 'eras' as Tab },
                 { t: 'The Timeline', d: 'Prehistory to the present in nine eras — the developments and turning points that link one age to the next.', icon: Clock, to: 'timeline' as Tab },
                 { t: 'Artifacts', d: 'A live wall of objects from the world’s great museums — Egyptian, classical, Islamic, Mesoamerican and more.', icon: Boxes, to: 'artifacts' as Tab },
                 { t: 'Primary Sources', d: 'The open archives and free APIs where the raw record of history lives — from the Library of Congress to Europeana.', icon: ScrollText, to: 'sources' as Tab },
@@ -227,6 +230,13 @@ const WorldHistoryDisciplineView: React.FC<Props> = ({ onBack, currentUser }) =>
           <AdaptiveGrid phone={2} tablet={3} desktop={4} gap="0.75rem">
             {CIVILIZATIONS.map(c => <CivCard key={c.id} civ={c} onOpen={() => setOpenCiv(c)} />)}
           </AdaptiveGrid>
+        )}
+
+        {/* ERAS ATLAS — scrubbable era timeline with its figures & civilisations */}
+        {tab === 'eras' && (
+          <Suspense fallback={<div className="py-24 text-center"><div className="w-10 h-10 border-2 rounded-full animate-spin mx-auto" style={{ borderColor: `${ACCENT}33`, borderTopColor: ACCENT }} /><p className="text-[10px] font-black uppercase tracking-widest text-white/30 mt-3">Loading the atlas…</p></div>}>
+            <ErasAtlas accent={ACCENT} />
+          </Suspense>
         )}
 
         {/* TIMELINE */}
