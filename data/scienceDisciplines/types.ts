@@ -9,6 +9,14 @@
 
 import type { MuseumFigure, MuseumHallDef } from '../../components/MuseumHall';
 
+/** A piece of primary/historical evidence for a concept — an experiment, a document, a dataset. */
+export interface Evidence {
+  label: string;          // 'The Michelson–Morley experiment (1887)'
+  detail?: string;        // one-line explanation of what it showed
+  url?: string;           // link to the paper / archive / museum object
+  kind?: 'experiment' | 'document' | 'dataset' | 'observation' | 'proof';
+}
+
 /** A core idea / principle in the discipline. Optional wikiSlug lights up a live thumbnail + bio. */
 export interface Concept {
   id: string;
@@ -16,6 +24,23 @@ export interface Concept {
   blurb: string;
   wikiSlug?: string;
   tags?: string[];        // e.g. ['quantum', 'thermodynamics'] — also seeds interest chips
+  // ── Deep-dive fields (all optional; the full-page view shows whatever is present) ──
+  deepDive?: string;      // 2–4 sentence richer explanation for the detail page
+  simulatorId?: string;   // an interactive experiment from the Simulators registry
+  lawIds?: string[];      // ids of ScienceLaw entries in this discipline that formalise it
+  videoIds?: string[];    // curated YouTube ids (from this discipline's `videos`) to feature
+  evidence?: Evidence[];  // the experiments / documents / data that established it
+}
+
+/** A curated YouTube video for a discipline's Watch library. `id` embeds; `query` is the
+ *  reliable fallback (opens a YouTube search) so a stale id never becomes a dead end. */
+export interface CuratedVideo {
+  id: string;             // YouTube video id
+  title: string;
+  channel: string;
+  topic?: string;         // grouping label, e.g. 'Quantum', 'Foundations'
+  blurb?: string;
+  query?: string;         // fallback search string (title + channel); defaults to `${title} ${channel}`
 }
 
 /** A period in the discipline's development (parallels World History's HistoryEra). */
@@ -68,4 +93,5 @@ export interface ScienceDisciplineData {
   eras: DisciplineEra[];
   laws: ScienceLaw[];
   tools: ToolLink[];
+  videos?: CuratedVideo[];          // curated YouTube library for the Watch tab
 }

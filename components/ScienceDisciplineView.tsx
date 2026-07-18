@@ -7,7 +7,7 @@ import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { motion } from 'motion/react';
 import {
   ArrowLeft, Compass, Users, Lightbulb, Clock, Sigma, FlaskConical, Wrench, FileText,
-  MessageSquare, ChevronRight, ExternalLink, BookOpen, Boxes, Library,
+  MessageSquare, ChevronRight, ExternalLink, BookOpen, Boxes, Library, Play,
   Atom, Dna, Binary, Cpu, Brain, Globe, Telescope, TrendingUp, Leaf, Network,
 } from 'lucide-react';
 import MuseumHall, { fetchWiki } from './MuseumHall';
@@ -26,6 +26,8 @@ const BookReader = lazy(() => import('./BookReader'));
 // live-data features (arXiv/PubMed papers + AI explain, HF models, datasets, NASA/USGS/CERN
 // live data, textbooks, social) on top of the new curated content.
 const LabsDisciplineView = lazy(() => import('./LabsDisciplineView'));
+const ConceptDetail = lazy(() => import('./labs/ConceptDetail'));
+import YouTubeEmbed from './labs/YouTubeEmbed';
 
 // Icon name → component (discipline hero + concepts). Falls back to Compass.
 const ICONS: Record<string, React.ComponentType<any>> = {
@@ -63,7 +65,7 @@ const Katex: React.FC<{ latex: string }> = ({ latex }) => {
     : <code className="text-[12px] text-white/50 font-mono">{latex}</code>;
 };
 
-type Tab = 'overview' | 'pioneers' | 'concepts' | 'timeline' | 'laws' | 'simulate' | 'toolbox' | 'research' | 'feed';
+type Tab = 'overview' | 'pioneers' | 'concepts' | 'timeline' | 'laws' | 'simulate' | 'watch' | 'toolbox' | 'research' | 'feed';
 type IconC = React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>;
 
 // ── Concept card + modal (optional live Wikipedia) ───────────────────────────────
@@ -127,6 +129,7 @@ const ScienceDisciplineView: React.FC<Props> = ({ data, onBack, currentUser }) =
     { id: 'timeline',  label: 'Timeline',  icon: Clock,         show: data.eras.length > 0 },
     { id: 'laws',      label: 'Laws & Formulas', icon: Sigma,   show: data.laws.length > 0 },
     { id: 'simulate',  label: 'Simulate',  icon: FlaskConical,  show: sims.length > 0 },
+    { id: 'watch',     label: 'Watch',     icon: Play,          show: (data.videos?.length || 0) > 0 },
     { id: 'toolbox',   label: 'Tools & APIs', icon: Wrench,     show: data.tools.length > 0 },
     { id: 'research',  label: 'Research & Live Data', icon: FileText, show: true },
     { id: 'feed',      label: 'Feed',      icon: MessageSquare, show: true },
@@ -143,6 +146,16 @@ const ScienceDisciplineView: React.FC<Props> = ({ data, onBack, currentUser }) =
   // Dedicated discipline feed — only posts tagged with this discipline id
   useEffect(() => { if (tab !== 'feed') return; return listenToGlobalPosts(setPosts); }, [tab]);
   const discPosts = useMemo(() => posts.filter(p => p.tags?.includes(id)), [posts, id]);
+
+  // Opening a concept opens a full-page deep dive (big readable text, the experiment, the math,
+  // the evidence, video and Findings) instead of the cramped modal.
+  if (openConcept) {
+    return (
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white/30 text-sm">Opening deep dive…</div>}>
+        <ConceptDetail concept={openConcept} data={data} onBack={() => setOpenConcept(null)} currentUser={currentUser} />
+      </Suspense>
+    );
+  }
 
   const shownLaws = lawCat === 'all' ? data.laws : data.laws.filter(l => l.category === lawCat);
 
@@ -316,6 +329,23 @@ const ScienceDisciplineView: React.FC<Props> = ({ data, onBack, currentUser }) =
           </div>
         )}
 
+        {/* WATCH — curated YouTube library, grouped by topic (robust facade embeds) */}
+        {tab === 'watch' && data.videos && (
+          <div className="space-y-8">
+            <p className="type-body-md text-white/50 leading-relaxed max-w-2xl">A hand-picked library of the best lectures and explainers on {label.toLowerCase()} — click to play inline. Every card falls back to a YouTube search, so nothing is a dead end.</p>
+            {Array.from(new Set(data.videos.map(v => v.topic || 'Featured'))).map(topic => (
+              <div key={topic}>
+                <p className={`${TYPE.labelSm} font-black tracking-[0.3em] text-white/40 mb-3`}>{topic}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {data.videos!.filter(v => (v.topic || 'Featured') === topic).map(v => (
+                    <YouTubeEmbed key={v.id} id={v.id} title={v.title} channel={v.channel} query={v.query} blurb={v.blurb} accent={accent} compact />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* RESEARCH & LIVE DATA — the full generic Labs studio embedded, so nothing is lost:
             live papers (+ AI explain), HF models, datasets, NASA/USGS/CERN feeds, textbooks, social. */}
         {tab === 'research' && (
@@ -357,7 +387,6 @@ const ScienceDisciplineView: React.FC<Props> = ({ data, onBack, currentUser }) =
         )}
       </div>
 
-      {openConcept && <ConceptModal concept={openConcept} accent={accent} discipline={label} onClose={() => setOpenConcept(null)} />}
     </div>
   );
 };
