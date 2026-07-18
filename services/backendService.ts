@@ -85,7 +85,7 @@ export const saveBibleNote = async (uid: string, ref: string, text: string): Pro
     else await deleteDoc(doc(db, 'bibleNotes', id)).catch(() => {});
   } catch (e) { console.warn('[backendService] saveBibleNote failed:', (e as Error)?.message); }
 };
-import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest, PodcastRssSettings, ImportedRssEpisode, AccountType } from '../types';
+import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest, PodcastRssSettings, ImportedRssEpisode, AccountType, NotifyLevel } from '../types';
 import { accountFlagUpdate } from './accountCapabilities';
 
 export const getPrivateBoards = async (uid: string): Promise<PrivateBoard[]> => {
@@ -140,7 +140,7 @@ export const createLiveTalk = async (talk: Partial<LiveTalk>) => {
     await setDoc(docRef, removeUndefined(newTalk));
     
     // Notify followers
-    notifyFollowers(auth.currentUser.uid, 'CONTENT', 'Live Talk Started', `${auth.currentUser.displayName} is LIVE now: ${newTalk.title}`, 'LIVETALK', docRef.id);
+    notifyFollowers(auth.currentUser.uid, 'CONTENT', 'Live Talk Started', `${auth.currentUser.displayName} is LIVE now: ${newTalk.title}`, 'LIVETALK', docRef.id, { highlight: true });
     
     return newTalk;
   } catch (e) {
@@ -4304,6 +4304,54 @@ export const isFollowing = async (targetUserId: string): Promise<boolean> => {
   return d.exists();
 };
 
+// --- Subscription bell (per-follow notify level) ---
+// A follow with no notifyLevel behaves as 'ALL' so existing subscriptions keep working.
+
+/** Set how loudly a followed creator may notify the caller. No-op if not following. */
+export const setNotifyLevel = async (targetUserId: string, level: NotifyLevel): Promise<void> => {
+  if (!auth.currentUser) return;
+  const path = 'follows';
+  const followId = `${auth.currentUser.uid}_${targetUserId}`;
+  try {
+    await setDoc(doc(db, path, followId), { notifyLevel: level }, { merge: true });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, path);
+  }
+};
+
+/** Read the caller's bell setting for a creator. Defaults to 'ALL'. */
+export const getNotifyLevel = async (targetUserId: string): Promise<NotifyLevel> => {
+  if (!auth.currentUser) return 'NONE';
+  const followId = `${auth.currentUser.uid}_${targetUserId}`;
+  try {
+    const d = await getDoc(doc(db, 'follows', followId));
+    if (!d.exists()) return 'NONE';
+    return ((d.data() as any)?.notifyLevel as NotifyLevel) || 'ALL';
+  } catch {
+    return 'ALL';
+  }
+};
+
+/**
+ * Followers of `userId` paired with their bell level (missing === 'ALL').
+ * Used by notifyFollowers to honour the bell without a second read per follower.
+ */
+export const fetchFollowersWithNotifyLevel = async (
+  userId: string,
+): Promise<{ followerId: string; notifyLevel: NotifyLevel }[]> => {
+  const path = 'follows';
+  try {
+    const snapshot = await getDocs(query(collection(db, path), where('followingId', '==', userId)));
+    return snapshot.docs.map(d => {
+      const data = d.data() as any;
+      return { followerId: data.followerId as string, notifyLevel: (data.notifyLevel as NotifyLevel) || 'ALL' };
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, path);
+    return [];
+  }
+};
+
 // --- PUSH NOTIFICATIONS ---
 // The FCM token for THIS device (web or native), remembered so sign-out can detach it
 // from the user — otherwise a signed-out user keeps getting pushes on a shared device.
@@ -4563,13 +4611,26 @@ Plajah exists to be the best place in the world for creators to share their work
   }
 };
 
-export const notifyFollowers = async (senderId: string, type: AppNotification['type'], title: string, message: string, link?: string, targetId?: string) => {
+export const notifyFollowers = async (
+  senderId: string,
+  type: AppNotification['type'],
+  title: string,
+  message: string,
+  link?: string,
+  targetId?: string,
+  /** Mark this as a "highlight" (new upload / going live) so HIGHLIGHTS-bell followers get it. */
+  opts?: { highlight?: boolean },
+) => {
   try {
-    const followers = await fetchFollowers(senderId);
+    const withLevels = await fetchFollowersWithNotifyLevel(senderId);
     const senderProfile = await fetchUserProfile(senderId);
+    // Bell semantics: NONE never; HIGHLIGHTS only for highlight-flagged events; ALL always.
+    const followers = withLevels
+      .filter(f => f.notifyLevel !== 'NONE' && (f.notifyLevel !== 'HIGHLIGHTS' || !!opts?.highlight))
+      .map(f => f.followerId);
     if (!senderProfile || followers.length === 0) return;
 
-    const promises = followers.map(followerId => 
+    const promises = followers.map(followerId =>
       createNotification({
         userId: followerId,
         senderId,
@@ -6649,7 +6710,7 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
     await setDoc(doc(db, 'videos', id), newVideo);
     // New video is new content — notify the creator's followers (unless it's a private upload).
     if (!newVideo.isPrivate) {
-      notifyFollowers(uploaderUid, 'CONTENT', 'New Video', `${auth.currentUser.displayName || 'A creator'} posted a new video: ${newVideo.title}`, 'FEED', id);
+      notifyFollowers(uploaderUid, 'CONTENT', 'New Video', `${auth.currentUser.displayName || 'A creator'} posted a new video: ${newVideo.title}`, 'FEED', id, { highlight: true });
     }
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
@@ -7010,6 +7071,39 @@ export const addToWatchLater = async (video: Video | string): Promise<void> => {
   } catch (e) {
     handleFirestoreError(e, OperationType.WRITE, 'video_playlists/watch_later');
   }
+};
+
+/** The caller's "Watch Later" system playlist, or null if they've never saved anything. */
+export const fetchWatchLaterPlaylist = async (): Promise<VideoPlaylist | null> => {
+  if (!auth.currentUser) return null;
+  try {
+    const found = (await fetchUserVideoPlaylists(auth.currentUser.uid)).find(p => p.system === 'WATCH_LATER');
+    return found || null;
+  } catch {
+    return null;
+  }
+};
+
+/** Remove a video from Watch Later. Silent no-op when the playlist doesn't exist yet. */
+export const removeFromWatchLater = async (videoId: string): Promise<void> => {
+  const pl = await fetchWatchLaterPlaylist();
+  if (pl?.id) await removeVideoFromPlaylist(pl.id, videoId);
+};
+
+/**
+ * One-tap Watch Later toggle used by video cards.
+ * Returns the resulting saved-state so the caller can flip its icon optimistically.
+ */
+export const toggleWatchLater = async (video: Video | string): Promise<boolean> => {
+  if (!auth.currentUser) return false;
+  const videoId = typeof video === 'string' ? video : video.id;
+  const pl = await fetchWatchLaterPlaylist();
+  if (pl?.videoIds?.includes(videoId)) {
+    await removeVideoFromPlaylist(pl.id, videoId);
+    return false;
+  }
+  await addToWatchLater(video);
+  return true;
 };
 
 /** Hydrate a playlist's videoIds into full Video objects, preserving order. */

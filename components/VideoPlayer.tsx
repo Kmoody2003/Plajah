@@ -15,6 +15,9 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { AddToPlaylistModal } from './VideoPlaylistKit';
+import LearnChip from './LearnChip';
+import LoreLayer from './reello/LoreLayer';
+import WatchLaterButton from './reello/WatchLaterButton';
 import CommentSection from './CommentSection';
 import PlajahPlusButton from './PlajahPlusButton';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -592,6 +595,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
   const resumeAppliedRef = useRef(false);
   const [resumeHint, setResumeHint] = useState<number | null>(null);
 
+  // Lore Layer: while a character card is open, clicks on the stage must not toggle playback.
+  const [loreCardOpen, setLoreCardOpen] = useState(false);
+
   const doRecord = useCallback(() => {
     if (!video?.id) return;
     if (!(duration > 0) || isNaN(duration)) return;      // guard NaN / 0 duration
@@ -674,6 +680,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
   useEffect(() => { setUpNextIn(null); }, [video?.id]);
 
   const togglePlay = useCallback(() => {
+    if (loreCardOpen) return;   // the lore card owns the stage while it's open
     const el = localVideoRef.current;
     if (el) {
       if (el.paused) {
@@ -687,7 +694,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
     } else {
       isPlaying ? pause() : resume();
     }
-  }, [isPlaying, pause, resume]);
+  }, [isPlaying, pause, resume, loreCardOpen]);
 
   const handleLike = async () => {
     if (!currentUser) return;
@@ -885,6 +892,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
         >
           <div className="absolute inset-0">{renderVideo()}</div>
 
+          {/* Lore Layer — Worlds-native character chips. Silent when the video isn't tagged. */}
+          <LoreLayer video={video} currentTime={currentTime} onCardToggle={setLoreCardOpen} />
+
           {/* Controls overlay */}
           <AnimatePresence>
             {controlsVisible && (
@@ -1008,6 +1018,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
             {video.tags?.length ? <><span>·</span><span>{video.tags.slice(0, 3).join(', ')}</span></> : null}
           </div>
 
+          {/* "Go deeper" — self-hides when the video maps to no discipline */}
+          <LearnChip tags={video.tags} text={`${video.title} ${video.genre || ''}`} />
+
           {/* Channel + action buttons */}
           <div className="flex items-center gap-4 flex-wrap">
             {/* Channel */}
@@ -1054,6 +1067,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
               >
                 <Bookmark size={15} /> Save
               </button>
+              <WatchLaterButton video={video} variant="pill" />
               <button className="p-2.5 rounded-full border border-white/10 bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-all">
                 <MoreVertical size={15} />
               </button>

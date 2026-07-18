@@ -3,9 +3,10 @@
 // purple→magenta→orange gradient, a big gradient-ringed avatar, bold stats, and a Subscribe CTA.
 
 import React from 'react';
-import { UserProfile } from '../types';
-import { BadgeCheck, Bell, Check, Share2, Upload, Radio } from 'lucide-react';
+import { UserProfile, NotifyLevel } from '../types';
+import { BadgeCheck, Bell, BellOff, BellRing, Check, ChevronDown, Share2, Upload, Radio } from 'lucide-react';
 import { thumb as thumbUrl, onThumbError, THUMB } from '../src/lib/imageThumb';
+import { getNotifyLevel, setNotifyLevel } from '../services/backendService';
 
 const BRAND = 'linear-gradient(115deg,#6B0099 0%,#B4008C 42%,#D40055 66%,#FF8C00 100%)';
 
@@ -14,6 +15,84 @@ const fmt = (n?: number) => {
   if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1)}M`;
   if (v >= 1_000) return `${(v / 1_000).toFixed(v % 1_000 === 0 ? 0 : 1)}K`;
   return `${v}`;
+};
+
+// ── Subscription bell ────────────────────────────────────────────────────────
+// YouTube's bell, Plajah-flavoured: All / Highlights / None, persisted per-follow on the
+// follow_relations doc. Only rendered once you're actually subscribed.
+type BellIcon = React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>;
+const BELL_OPTIONS: { level: NotifyLevel; label: string; hint: string; icon: BellIcon }[] = [
+  { level: 'ALL',        label: 'All',        hint: 'Every upload and every post',  icon: BellRing },
+  { level: 'HIGHLIGHTS', label: 'Highlights', hint: 'New videos and going live only', icon: Bell },
+  { level: 'NONE',       label: 'None',       hint: 'Subscribed, but stay quiet',   icon: BellOff },
+];
+
+const SubscriptionBell: React.FC<{ targetUid: string }> = ({ targetUid }) => {
+  const [level, setLevel] = React.useState<NotifyLevel>('ALL');
+  const [open, setOpen] = React.useState(false);
+  const wrapRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    let alive = true;
+    getNotifyLevel(targetUid).then(l => { if (alive && l !== 'NONE') setLevel(l); }).catch(() => {});
+    return () => { alive = false; };
+  }, [targetUid]);
+
+  // Close on outside click.
+  React.useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
+  const pick = async (next: NotifyLevel) => {
+    setLevel(next);           // optimistic
+    setOpen(false);
+    try { await setNotifyLevel(targetUid, next); } catch { /* non-critical */ }
+  };
+
+  const Active = BELL_OPTIONS.find(o => o.level === level)?.icon || Bell;
+
+  return (
+    <div className="relative" ref={wrapRef}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        title="Notification settings"
+        className={`flex items-center gap-1.5 px-3 py-2.5 rounded-full border font-black text-[9px] uppercase tracking-widest transition-all ${
+          level === 'NONE' ? 'bg-white/5 border-white/10 text-white/40 hover:text-white/70'
+                           : 'bg-white/10 border-white/15 text-white/85 hover:bg-white/15'
+        }`}
+      >
+        <Active size={13} />
+        <ChevronDown size={11} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-2 z-50 w-60 p-1.5 bg-[#0a0a0a]/98 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.85)]">
+          <p className="px-3 pt-2 pb-2 text-[7.5px] font-black uppercase tracking-[0.25em] text-white/30">Notify me</p>
+          {BELL_OPTIONS.map(opt => (
+            <button
+              key={opt.level}
+              onClick={() => pick(opt.level)}
+              className={`w-full flex items-start gap-2.5 px-3 py-2.5 rounded-xl text-left transition-colors ${
+                level === opt.level ? 'bg-white/10' : 'hover:bg-white/5'
+              }`}
+            >
+              <opt.icon size={13} className={`mt-0.5 shrink-0 ${level === opt.level ? 'text-small-orange' : 'text-white/40'}`} />
+              <span className="flex-1 min-w-0">
+                <span className="block text-[9.5px] font-black uppercase tracking-widest text-white">{opt.label}</span>
+                <span className="block text-[9px] text-white/35 mt-0.5 leading-snug">{opt.hint}</span>
+              </span>
+              {level === opt.level && <Check size={12} className="text-small-orange mt-0.5 shrink-0" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 };
 
 const Stat: React.FC<{ value: string; label: string }> = ({ value, label }) => (
@@ -108,6 +187,8 @@ const ReelloChannelHeader: React.FC<Props> = ({
                 {isFollowing ? <><Check size={13} /> Following</> : <><Bell size={13} /> Subscribe</>}
               </button>
             )}
+            {/* Bell — only meaningful once subscribed */}
+            {!isOwner && isFollowing && profile.uid && <SubscriptionBell targetUid={profile.uid} />}
             <button onClick={onShare} title="Share channel" className="w-10 h-10 rounded-full bg-white/8 border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/12 transition-all shrink-0">
               <Share2 size={15} />
             </button>

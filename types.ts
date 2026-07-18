@@ -1604,10 +1604,15 @@ export interface Membership {
   expiryDate?: number;
 }
 
+/** Subscription bell level — how loudly a followed creator may notify you. */
+export type NotifyLevel = 'ALL' | 'HIGHLIGHTS' | 'NONE';
+
 export interface FollowRelation {
   id: string;
   followerId: string;
   followingId: string;
+  /** Per-follow bell setting. Absent === 'ALL' (legacy follows stay noisy-by-default). */
+  notifyLevel?: NotifyLevel;
   timestamp: number;
 }
 

@@ -14,7 +14,7 @@ import {
   Play, Heart, MessageCircle, Share2, Plus, Search, Upload, X, Check, Users,
   TrendingUp, Radio, Clock, Sparkles, Globe, Music2, Camera, Image as ImageIcon,
   Film, Tv, Monitor, Settings2, ChevronRight, MoreVertical, Mic2, Gamepad2,
-  BookOpen, List, Layers, Lock, Smartphone, ChevronUp, ChevronDown, Volume2, VolumeX, ListPlus
+  BookOpen, List, Layers, Lock, Smartphone, ChevronUp, ChevronDown, Volume2, VolumeX, ListPlus, Flame
 } from 'lucide-react';
 import { AddToPlaylistModal, VideoPlaylistSection, VideoPlaylistDetailView } from './VideoPlaylistKit';
 import { SubscriptionsSection, LikedVideosSection, HistorySection } from './VideoLibraryKit';
@@ -33,6 +33,9 @@ import ReelloChannelHeader from './ReelloChannelHeader';
 import FastChannelPlayer from './FastChannelPlayer';
 import FromSocialGallery from './FromSocialGallery';
 import { thumb as thumbUrl, onThumbError, THUMB } from '../src/lib/imageThumb';
+import LearnChip from './LearnChip';
+import WatchLaterButton from './reello/WatchLaterButton';
+import { TrendingSection, WatchLaterSection } from './reello/ReelloDiscoverySections';
 
 interface VideoTabProps {
   profile: UserProfile | null;
@@ -212,6 +215,10 @@ const VideoCard: React.FC<{
             <Users size={13} />
           </button>
         )}
+        {/* One-tap Watch Later — self-hides when signed out */}
+        <div onClick={e => e.stopPropagation()} className="shrink-0">
+          <WatchLaterButton video={video} />
+        </div>
         {onSave && (
           <button
             onClick={e => { e.stopPropagation(); onSave(); }}
@@ -221,6 +228,10 @@ const VideoCard: React.FC<{
             <ListPlus size={14} />
           </button>
         )}
+      </div>
+      {/* "Go deeper" — renders only when the video's tags/title map to a discipline */}
+      <div className="mt-2 empty:mt-0" onClick={e => e.stopPropagation()}>
+        <LearnChip tags={(video as any).tags} text={video.title} compact />
       </div>
       {(video as any).worldId && (
         <div className="mt-2" onClick={e => e.stopPropagation()}>
@@ -462,7 +473,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [searchTerm, setSearchTerm] = useState('');
   // On a user profile, open straight to that creator's own videos ('uploads' = the profile
   // owner's videos), never the global discover feed.
-  const [activeView, setActiveView] = useState<'discover' | 'uploads' | 'live' | 'playlists' | 'channel' | 'shorts' | 'subscriptions' | 'history' | 'liked' | 'social'>(profileScoped ? 'uploads' : 'discover');
+  const [activeView, setActiveView] = useState<'discover' | 'uploads' | 'live' | 'playlists' | 'channel' | 'shorts' | 'subscriptions' | 'history' | 'liked' | 'social' | 'trending' | 'watchlater'>(profileScoped ? 'uploads' : 'discover');
   const [channelSearch, setChannelSearch] = useState('');   // creator/channel directory search (Subscriptions)
   // Deep-link: a shared playlist link opens straight to its detail under the Playlists tab.
   useEffect(() => {
@@ -1076,12 +1087,14 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         <div className={`${profileScoped ? 'hidden' : 'hidden lg:flex'} flex-col gap-1 w-44 shrink-0 sticky top-32 h-fit pt-8 px-6`}>
           {[
             { id: 'discover', label: 'Discover', icon: Sparkles },
+            { id: 'trending', label: 'Trending', icon: Flame },
             { id: 'subscriptions', label: 'Subscriptions', icon: Users },
             { id: 'shorts', label: 'Shorts', icon: Smartphone },
             { id: 'uploads', label: 'My Videos', icon: Film },
             { id: 'live', label: 'Live', icon: Radio },
             { id: 'playlists', label: 'Playlists', icon: List },
             { id: 'liked', label: 'Liked', icon: Heart },
+            { id: 'watchlater', label: 'Watch Later', icon: Clock },
             { id: 'history', label: 'History', icon: Clock },
             { id: 'social', label: 'From Social', icon: Share2 },
             { id: 'channel', label: 'My Channel', icon: Layers },
@@ -1120,8 +1133,8 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
           {/* Mobile view tabs */}
           <div className={`gap-2 lg:hidden mb-6 overflow-x-auto no-scrollbar ${profileScoped ? 'hidden' : 'flex'}`}>
-            {(['discover', 'subscriptions', 'shorts', 'uploads', 'live', 'playlists', 'liked', 'history', 'social', 'channel'] as const).map(v => (
-              <button key={v} onClick={() => setActiveView(v)} className={`px-4 py-2 rounded-full font-black text-[9px] uppercase tracking-widest whitespace-nowrap shrink-0 transition-all ${activeView === v ? 'bg-white text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>{v === 'channel' ? 'My Channel' : v === 'uploads' ? 'My Videos' : v === 'social' ? 'From Social' : v}</button>
+            {(['discover', 'trending', 'subscriptions', 'shorts', 'uploads', 'live', 'playlists', 'liked', 'watchlater', 'history', 'social', 'channel'] as const).map(v => (
+              <button key={v} onClick={() => setActiveView(v)} className={`px-4 py-2 rounded-full font-black text-[9px] uppercase tracking-widest whitespace-nowrap shrink-0 transition-all ${activeView === v ? 'bg-white text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>{v === 'channel' ? 'My Channel' : v === 'uploads' ? 'My Videos' : v === 'social' ? 'From Social' : v === 'watchlater' ? 'Watch Later' : v}</button>
             ))}
           </div>
 
@@ -1650,6 +1663,16 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                 {renderChannelDirectory(channelSearch)}
               </div>
             </div>
+          )}
+
+          {/* ── TRENDING — 7-day engagement velocity, computed client-side ── */}
+          {activeView === 'trending' && (
+            <TrendingSection videos={videos} onPlay={(v) => handlePlay(v)} />
+          )}
+
+          {/* ── WATCH LATER — the reserved system playlist ── */}
+          {activeView === 'watchlater' && (
+            <WatchLaterSection onPlay={(v) => handlePlay(v)} />
           )}
 
           {/* ── LIKED ── */}
