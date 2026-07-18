@@ -183,6 +183,54 @@ function runFfprobe(input: string, timeoutMs = 30000): Promise<{ ok: boolean; js
   });
 }
 
+/**
+ * Transcribe ONE short audio window into captions whose timestamps are RELATIVE to the
+ * start of the clip (0.0 = first sample). Short windows are the whole point: an LLM aligns
+ * accurately inside ~45s but drifts badly over a full song, so we align locally and let the
+ * caller add each window's exact (ffmpeg-extracted) start offset to recover absolute time.
+ */
+async function transcribeAudioWindow(
+  genai: any, Type: any, base64: string, mimeType: string,
+  meta: { title?: string; artist?: string; kind?: string; windowSec: number },
+): Promise<{ time: number; text: string }[]> {
+  const isSpeech = meta.kind === 'speech';
+  const secs = Math.round(meta.windowSec);
+  const prompt = `You are a precise audio transcription engine. This is a ${secs}-second EXCERPT clipped from "${(meta.title || '').slice(0, 160)}"${meta.artist ? ` by "${(meta.artist || '').slice(0, 160)}"` : ''}.
+Transcribe ${isSpeech ? 'every spoken phrase' : 'every sung or spoken line'} you can clearly hear in THIS excerpt.
+Rules:
+- Timestamps are RELATIVE TO THE START OF THIS EXCERPT: 0.0 is the clip's first sample. Precise to 0.1s.
+- The clip is only ${secs} seconds long, so NO timestamp may be negative or exceed ${secs}.
+- Each "text" entry is one natural ${isSpeech ? 'phrase or sentence clause (~6-15 words)' : 'line (~3-8 words)'}. Do not merge multiple lines.
+- The clip may begin or end mid-line — still transcribe the partial lines you clearly hear.
+- Do NOT invent, guess, or summarise. Only transcribe clearly audible words. If the clip is purely instrumental or silent, return [].
+- Sort entries by ascending time.`;
+  const response = await genai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: [
+      { inlineData: { data: base64, mimeType } },
+      { text: prompt },
+    ],
+    config: {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.ARRAY,
+        items: { type: Type.OBJECT, properties: { time: { type: Type.NUMBER }, text: { type: Type.STRING } }, required: ['time', 'text'] },
+      },
+      maxOutputTokens: 8192,
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  });
+  const raw = (response as any).text || '[]';
+  let arr: any[] = [];
+  try { arr = JSON.parse(raw); }
+  catch { const cut = raw.lastIndexOf('}'); if (cut > 0) { try { arr = JSON.parse(raw.slice(0, cut + 1) + ']'); } catch { arr = []; } } }
+  return Array.isArray(arr)
+    ? arr.filter(c => typeof c?.time === 'number' && !isNaN(c.time) && typeof c?.text === 'string' && c.text.trim())
+         // Clamp any stray out-of-clip timestamps back into [0, windowSec].
+         .map(c => ({ time: Math.min(Math.max(0, c.time), meta.windowSec), text: c.text.trim() }))
+    : [];
+}
+
 /** Shape an ffprobe JSON result into a Crossover MediaProbe. */
 function ffprobeToProbe(json: any, stderr: string): CxProbe {
   const warnings: string[] = [];
@@ -2724,18 +2772,84 @@ async function startServer() {
     if (!geminiKey) return res.status(503).json({ error: 'Gemini not configured' });
     const { audioUrl, title, artist, kind } = (req.body || {}) as { audioUrl?: string; title?: string; artist?: string; kind?: string };
     if (!audioUrl || !/^https?:\/\//.test(audioUrl)) return res.status(400).json({ error: 'audioUrl required' });
+    const stamp = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const inputPath = path.join(os.tmpdir(), `capin_${stamp}`);
+    const tmpChunks: string[] = [];
     try {
       const aRes = await fetch(audioUrl, { signal: AbortSignal.timeout(25000) });
       if (!aRes.ok) return res.status(502).json({ error: `audio fetch ${aRes.status}` });
       const mimeType = (aRes.headers.get('content-type') || 'audio/mpeg').split(';')[0];
       const buf = Buffer.from(await aRes.arrayBuffer());
       if (buf.length > 22 * 1024 * 1024) return res.status(413).json({ error: 'audio too large to transcribe' });
-      const audioBase64 = buf.toString('base64');
 
       const { GoogleGenAI, Type } = await import('@google/genai');
       const genai = new GoogleGenAI({ apiKey: geminiKey });
-      // Spoken-word (sermons, talks, podcasts) vs sung lyrics use different prompts.
-      const speechPrompt = `You are a precise speech transcription engine. Transcribe the spoken audio titled "${(title || '').slice(0, 200)}"${artist ? ` by "${(artist || '').slice(0, 200)}"` : ''} into time-coded captions covering the ENTIRE duration from first word to last.
+
+      // Probe the true duration once (also the anchor for overshoot clamping / windowing).
+      let dur = 0;
+      try {
+        await fs.writeFile(inputPath, buf);
+        const { json } = await runFfprobe(inputPath);
+        dur = parseFloat(json?.format?.duration || '0') || 0;
+      } catch { /* probe is best-effort */ }
+
+      let captions: { time: number; text: string }[] = [];
+
+      // ── Primary path: WINDOWED transcription ──────────────────────────────────────────
+      // The whole-song single-shot approach drifts — an LLM aligns well inside ~45s but its
+      // timestamps wander (and often stall then jump) over a full track, which is exactly the
+      // "lyrics freeze at 25% then resume out of sync" failure. Instead we slice the audio into
+      // short overlapping windows with ffmpeg (whose -ss start is ground truth), transcribe each
+      // window with 0-based local timestamps, add the window's exact start, and tile them. The
+      // absolute timing never accumulates error because every window is re-anchored to real time.
+      // Bounded to ≤10 min so the sequential window calls stay inside the Cloud Run request budget;
+      // longer audio (sermons) uses the single-shot path below.
+      const canWindow = dur > 55 && dur <= 600;
+      if (canWindow) {
+        const OVERLAP = 8;                 // seconds shared between neighbours
+        const winLen = 45;                 // short enough that the LLM stays aligned
+        const step = winLen - OVERLAP;     // 37s of unique coverage per window
+        const half = OVERLAP / 2;
+        const starts: number[] = [];
+        for (let s = 0; s < dur - 1; s += step) starts.push(Math.round(s * 100) / 100);
+
+        const perWindow: { time: number; text: string }[][] = [];
+        let windowFailures = 0;
+        for (let i = 0; i < starts.length; i++) {
+          const start = starts[i];
+          const thisLen = Math.min(winLen, dur - start + 0.5);
+          const chunkPath = path.join(os.tmpdir(), `capw_${stamp}_${i}.mp3`);
+          tmpChunks.push(chunkPath);
+          // Accurate seek + downmix to mono 16 kHz mp3 (tiny payload, plenty for transcription).
+          const { ok } = await runFfmpeg(
+            ['-y', '-accurate_seek', '-ss', String(start), '-i', inputPath, '-t', String(Math.ceil(thisLen)),
+             '-ac', '1', '-ar', '16000', '-b:a', '48k', '-f', 'mp3', chunkPath], 30000);
+          if (!ok) { windowFailures++; perWindow.push([]); continue; }
+          try {
+            const cbuf = await fs.readFile(chunkPath);
+            const local = await transcribeAudioWindow(genai, Type, cbuf.toString('base64'), 'audio/mpeg',
+              { title, artist, kind, windowSec: thisLen });
+            // Lift local (clip-relative) timestamps into absolute song time.
+            perWindow.push(local.map(c => ({ time: Math.round((c.time + start) * 100) / 100, text: c.text })));
+          } catch { windowFailures++; perWindow.push([]); }
+        }
+
+        // Tile: give each window a non-overlapping "claim" region so the shared overlap can't
+        // double-list a line. Region i = [start_i + half, start_i + step + half); the first window
+        // opens at -inf and the last closes at +inf, so the regions cover the song edge-to-edge.
+        for (let i = 0; i < perWindow.length; i++) {
+          const start = starts[i];
+          const claimStart = i === 0 ? -Infinity : start + half;
+          const claimEnd = i === perWindow.length - 1 ? Infinity : start + step + half;
+          for (const c of perWindow[i]) if (c.time >= claimStart && c.time < claimEnd) captions.push(c);
+        }
+        captions.sort((a, b) => a.time - b.time);
+        if (windowFailures) console.warn(`[AI] captions: ${windowFailures}/${starts.length} windows failed`);
+      }
+
+      // ── Fallback: single-shot (short clips, long spoken word, no ffmpeg, or windows empty) ──
+      if (captions.length === 0) {
+        const speechPrompt = `You are a precise speech transcription engine. Transcribe the spoken audio titled "${(title || '').slice(0, 200)}"${artist ? ` by "${(artist || '').slice(0, 200)}"` : ''} into time-coded captions covering the ENTIRE duration from first word to last.
 
 Rules:
 - Timestamps precise to 0.1 seconds; each marks the exact moment that phrase BEGINS.
@@ -2743,7 +2857,7 @@ Rules:
 - Preserve any Bible passages / scripture references exactly as spoken (e.g. "John 3:16").
 - Each "text" entry is one natural spoken phrase or sentence clause (~6-15 words).
 - Sort by ascending time; the final entry must be near the true end — do not stop early.`;
-      const lyricPrompt = `You are a precise audio transcription engine. Listen to every second of this audio titled "${(title || '').slice(0, 200)}" by "${(artist || '').slice(0, 200)}" and generate time-coded captions covering the ENTIRE duration from first word to last.
+        const lyricPrompt = `You are a precise audio transcription engine. Listen to every second of this audio titled "${(title || '').slice(0, 200)}" by "${(artist || '').slice(0, 200)}" and generate time-coded captions covering the ENTIRE duration from first word to last.
 
 Rules:
 - Timestamps must be precise to 0.1 seconds (e.g. 14.3, not 14). Each timestamp marks the exact moment that line BEGINS being sung or spoken.
@@ -2754,60 +2868,55 @@ Rules:
 - Sort all entries by ascending time.
 - CRITICAL: keep timing accurate through the WHOLE song. A common failure is timestamps drifting behind (or ahead of) the audio after the first minute — re-anchor to what you actually hear every ~20 seconds, and never let a timestamp exceed the audio's real length.
 - The last entry must be close to the actual end of the audio — do not stop early.`;
-      const response = await genai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: [
-          { inlineData: { data: audioBase64, mimeType } },
-          { text: kind === 'speech' ? speechPrompt : lyricPrompt },
-        ],
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.ARRAY,
-            items: { type: Type.OBJECT, properties: { time: { type: Type.NUMBER }, text: { type: Type.STRING } }, required: ['time', 'text'] },
+        const response = await genai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: [
+            { inlineData: { data: buf.toString('base64'), mimeType } },
+            { text: kind === 'speech' ? speechPrompt : lyricPrompt },
+          ],
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.ARRAY,
+              items: { type: Type.OBJECT, properties: { time: { type: Type.NUMBER }, text: { type: Type.STRING } }, required: ['time', 'text'] },
+            },
+            maxOutputTokens: 65536,
+            thinkingConfig: { thinkingBudget: 0 },
           },
-          // A full song's time-coded JSON is long — without a high cap the model
-          // truncates and the lyrics stop half-way. 2.5-flash allows up to 65536.
-          maxOutputTokens: 65536,
-          thinkingConfig: { thinkingBudget: 0 },
-        },
-      });
-      const raw = (response as any).text || '[]';
-      let captions: any[] = [];
-      try { captions = JSON.parse(raw); }
-      catch {
-        // Salvage a truncated array by closing it at the last complete object.
-        const cut = raw.lastIndexOf('}');
-        if (cut > 0) { try { captions = JSON.parse(raw.slice(0, cut + 1) + ']'); } catch { captions = []; } }
-      }
-      captions = Array.isArray(captions) ? captions.filter(c => typeof c?.time === 'number' && typeof c?.text === 'string') : [];
-
-      // Gemini audio timestamps drift, and often OVERSHOOT the song's real end — which makes
-      // the lyric highlight freeze partway (it's waiting for a timestamp that never arrives).
-      // Probe the true duration and compress the timeline to fit if it overshoots.
-      try {
-        if (captions.length) {
-          const tmpA = path.join(os.tmpdir(), `cap_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
-          await fs.writeFile(tmpA, buf);
-          const { json } = await runFfprobe(tmpA);
-          fs.rm(tmpA, { force: true }).catch(() => {});
-          const dur = parseFloat(json?.format?.duration || '0') || 0;
+        });
+        const raw = (response as any).text || '[]';
+        let arr: any[] = [];
+        try { arr = JSON.parse(raw); }
+        catch { const cut = raw.lastIndexOf('}'); if (cut > 0) { try { arr = JSON.parse(raw.slice(0, cut + 1) + ']'); } catch { arr = []; } } }
+        captions = Array.isArray(arr)
+          ? arr.filter(c => typeof c?.time === 'number' && !isNaN(c.time) && typeof c?.text === 'string' && c.text.trim())
+               .map(c => ({ time: c.time, text: c.text.trim() }))
+          : [];
+        // The single-shot path is the drift-prone one, so keep the overshoot compression here.
+        if (captions.length && dur > 0) {
           const last = captions[captions.length - 1].time;
-          if (dur > 0 && last > dur * 1.02) {
-            const k = (dur * 0.99) / last;   // scale the whole timeline back inside the song
-            captions = captions.map(c => ({ ...c, time: Math.round(c.time * k * 100) / 100 }));
-          }
+          if (last > dur * 1.02) { const k = (dur * 0.99) / last; captions = captions.map(c => ({ time: Math.round(c.time * k * 100) / 100, text: c.text })); }
         }
-      } catch { /* best-effort — captions still return */ }
+      }
 
-      // Enforce non-decreasing timestamps so a stray out-of-order entry can't scramble/stall the view.
+      // ── Common post-processing: drop adjacent near-duplicate lines, enforce non-decreasing time.
+      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      const deduped: { time: number; text: string }[] = [];
+      for (const c of captions) {
+        const p = deduped[deduped.length - 1];
+        if (p && norm(p.text) === norm(c.text) && Math.abs(c.time - p.time) < 2.5) continue; // overlap echo
+        deduped.push(c);
+      }
       let prev = -Infinity;
-      captions = captions.map(c => { const t = Math.max(prev, c.time); prev = t; return { time: t, text: c.text }; });
+      captions = deduped.map(c => { const t = Math.max(prev, c.time); prev = t; return { time: Math.round(t * 100) / 100, text: c.text }; });
 
       res.json({ captions });
     } catch (err: any) {
       console.error('[AI] captions failed:', err?.message || err);
       res.status(502).json({ error: 'caption generation failed' });
+    } finally {
+      fs.rm(inputPath, { force: true }).catch(() => {});
+      for (const f of tmpChunks) fs.rm(f, { force: true }).catch(() => {});
     }
   });
 
