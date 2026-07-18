@@ -2021,18 +2021,18 @@ const toggleFavoriteTeam = async (team: string) => {
     <>
     <div className={`flex-1 ${activeTab === 'GLOBAL' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto custom-scrollbar'} bg-black/40 backdrop-blur-2xl`}>
       <div className={`${activeTab === 'GLOBAL' ? 'flex flex-col flex-1 overflow-hidden' : ''} p-3 sm:p-4 md:p-8 max-w-full mx-auto w-full`}>
-        {/* BOLDER HEADER */}
-        <header className={`${activeTab === 'GLOBAL' ? 'mb-3 shrink-0' : 'mb-20'} space-y-12`}>
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b-8 border-white/5 pb-12">
-            <div>
-              <div className="flex items-center gap-6 mb-6">
-                <button 
-                  onClick={onBack} 
-                  className={`p-4 rounded-[1.5rem] transition-all border ${theme === 'LIGHT' ? 'bg-black text-white border-black/5 hover:bg-black/90' : 'bg-white text-black border-white/5 hover:bg-white/90'}`}
+        {/* HEADER */}
+        <header className={`${activeTab === 'GLOBAL' ? 'mb-3 shrink-0' : 'mb-8'} space-y-5`}>
+          <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-5">
+            <div className="min-w-0">
+              <div className="flex items-center gap-3 mb-3">
+                <button
+                  onClick={onBack}
+                  className={`p-2.5 rounded-2xl transition-all border ${theme === 'LIGHT' ? 'bg-black text-white border-black/5 hover:bg-black/90' : 'bg-white/8 text-white border-white/10 hover:bg-white/15'}`}
                 >
-                  <ArrowLeft size={24} />
+                  <ArrowLeft size={18} />
                 </button>
-                <span className="text-[10px] md:text-[12px] font-black uppercase tracking-[1em] text-white/20 block px-4">Connections: The Signal</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.45em] text-white/30">The Signal</span>
               </div>
               <PageHeader>
                 {activeTab === 'SOCIAL' ? 'Interstellar' :
@@ -2042,13 +2042,13 @@ const toggleFavoriteTeam = async (team: string) => {
                  activeTab === 'PULSE' ? 'Platform Pulse' : 'Signal'}
               </PageHeader>
             </div>
-            <div className="flex flex-col items-end gap-3 px-4">
-               <span className="text-[12px] font-black uppercase tracking-[0.5em] text-small-orange">Uplink: Active</span>
-               <div className="w-48 h-2 bg-gradient-to-r from-transparent via-small-orange to-transparent" />
+            <div className="hidden sm:flex items-center gap-2 shrink-0 mt-1">
+               <span className="w-1.5 h-1.5 rounded-full bg-small-orange animate-pulse" />
+               <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Live</span>
             </div>
           </div>
 
-          <nav className="flex gap-1.5 px-1 overflow-x-auto no-scrollbar pb-1">
+          <nav className="flex gap-1.5 px-0.5 overflow-x-auto no-scrollbar pb-1">
             {[
               { id: 'SOCIAL',   label: 'Interstellar', icon: Globe },
               { id: 'GLOBAL',   label: 'Plajah Social', icon: Cloud },
@@ -2076,8 +2076,8 @@ const toggleFavoriteTeam = async (team: string) => {
           </nav>
 
           {activeTab === 'GLOBAL' && (
-            <div className="flex flex-wrap items-center gap-4 px-4 mt-8">
-              <div className="flex p-1 bg-white/5 rounded-full border border-white/10 mr-4">
+            <div className="flex flex-wrap items-center gap-4 px-0.5 mt-1">
+              <div className="flex p-1 bg-white/5 rounded-full border border-white/10">
                 <button
                   onClick={() => setPlajahFilter('ALL')}
                   className={`px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${plajahFilter === 'ALL' ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}
@@ -2579,7 +2579,7 @@ const toggleFavoriteTeam = async (team: string) => {
       )}
 
       {currentUser && activeTab === 'SOCIAL' && (
-        <div className="mb-16 max-w-4xl mx-auto w-full">
+        <div className="mb-6 max-w-2xl mx-auto w-full">
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('plajah:start-room'))}
             className="w-full mb-3 flex items-center gap-3 rounded-2xl px-5 py-3.5 text-left transition-all hover:scale-[1.005]"
