@@ -48,6 +48,8 @@ const LabsDisciplineView = lazy(() => import('./LabsDisciplineView'));
 const ArchitectureDisciplineView = lazy(() => import('./ArchitectureDisciplineView'));
 const WorldHistoryDisciplineView = lazy(() => import('./WorldHistoryDisciplineView'));
 const ArchaeologyDisciplineView = lazy(() => import('./ArchaeologyDisciplineView'));
+const ScienceDisciplineView = lazy(() => import('./ScienceDisciplineView'));
+import { SCIENCE_DISCIPLINES } from '../data/scienceDisciplines';
 
 interface ClassroomsViewProps {
   onBack: () => void;
@@ -678,6 +680,17 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
           </div>
         }>
           <ArchaeologyDisciplineView onBack={() => setSelectedModule(null)} currentUser={user} />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
+  // The twelve data-driven science studios (module url = discipline id, e.g. 'physics').
+  if (selectedModule && SCIENCE_DISCIPLINES[selectedModule.toLowerCase()]) {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center text-white/30 text-sm">Loading the studio…</div>}>
+          <ScienceDisciplineView data={SCIENCE_DISCIPLINES[selectedModule.toLowerCase()]} onBack={() => setSelectedModule(null)} currentUser={user} />
         </Suspense>
       </ErrorBoundary>
     );

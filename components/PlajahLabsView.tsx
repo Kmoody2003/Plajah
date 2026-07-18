@@ -14,12 +14,14 @@ import LabsDisciplineView from './LabsDisciplineView';
 const ArchitectureDisciplineView = React.lazy(() => import('./ArchitectureDisciplineView'));
 const WorldHistoryDisciplineView = React.lazy(() => import('./WorldHistoryDisciplineView'));
 const ArchaeologyDisciplineView = React.lazy(() => import('./ArchaeologyDisciplineView'));
+const ScienceDisciplineView = React.lazy(() => import('./ScienceDisciplineView'));
 import LabsNotebook from './LabsNotebook';
 import LabsCitationManager from './LabsCitationManager';
 import LabsFormulaEditor from './LabsFormulaEditor';
 import LabsGrantTracker from './LabsGrantTracker';
 import LabsTeamSpaces from './LabsTeamSpaces';
 import type { LabsDisciplineId } from '../services/labsApiService';
+import { SCIENCE_DISCIPLINES } from '../data/scienceDisciplines';
 
 interface PlajahLabsViewProps {
   currentUser: UserProfile | null;
@@ -120,7 +122,16 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
     );
   }
 
-  // Discipline view
+  // The twelve science disciplines get the shared, data-driven rich studio.
+  if (openDiscipline && SCIENCE_DISCIPLINES[openDiscipline]) {
+    return (
+      <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white/30 text-sm">Loading the studio…</div>}>
+        <ScienceDisciplineView data={SCIENCE_DISCIPLINES[openDiscipline]} onBack={() => setOpenDiscipline(null)} currentUser={currentUser} />
+      </React.Suspense>
+    );
+  }
+
+  // Fallback: any remaining discipline uses the generic chassis.
   if (openDiscipline) {
     return (
       <LabsDisciplineView
