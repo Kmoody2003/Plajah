@@ -9,12 +9,13 @@
 // Rendered as a tab inside <ChoraConservatory>.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  ChevronLeft, ExternalLink, Search, Gauge, Users, Waves, Loader2, AudioLines,
+  ChevronLeft, ExternalLink, Search, Gauge, Users, Waves, Loader2, AudioLines, Play, Square,
 } from 'lucide-react';
 import { fetchWiki } from '../MuseumHall';
+import { playInstrumentDemo } from '../../services/instrumentSynth';
 import YouTubeEmbed from '../labs/YouTubeEmbed';
 import {
   INSTRUMENT_FAMILIES, INSTRUMENTS,
@@ -79,6 +80,11 @@ const InstrumentDetail: React.FC<{ instrument: Instrument; onBack: () => void }>
               {instrument.name}
             </h2>
             <p className="text-sm text-white/55 leading-relaxed mt-3">{instrument.blurb}</p>
+
+            <div className="mt-4 flex items-center gap-3 flex-wrap">
+              <HearIt instrument={instrument} />
+              <span className="text-[10px] text-white/30 leading-snug">Synthesised live in this instrument’s written range</span>
+            </div>
 
             <div className="mt-5 grid sm:grid-cols-2 gap-3">
               <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3.5">
@@ -153,17 +159,64 @@ const InstrumentCard: React.FC<{ instrument: Instrument; index: number; onOpen: 
   >
     <div className="flex items-start justify-between gap-3">
       <h3 className="text-[15px] font-black uppercase tracking-tight leading-tight">{instrument.name}</h3>
-      <span
-        className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center"
-        style={{ background: `${ACCENT}1a`, border: `1px solid ${ACCENT}3a` }}
-      >
-        <AudioLines size={13} style={{ color: ACCENT }} />
-      </span>
+      <HearIt instrument={instrument} variant="icon" />
     </div>
     <p className="text-[11px] font-bold tabular-nums mt-2" style={{ color: ACCENT }}>{instrument.range}</p>
     <p className="text-[12.5px] text-white/50 leading-relaxed mt-2 line-clamp-3">{instrument.role}</p>
   </motion.button>
 );
+
+// ── "Hear it" — synthesises a short solo phrase in the instrument's own range ──
+const HearIt: React.FC<{ instrument: Instrument; variant?: 'pill' | 'icon' }> = ({ instrument, variant = 'pill' }) => {
+  const [playing, setPlaying] = useState(false);
+  const handleRef = useRef<{ stop: () => void } | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => { handleRef.current?.stop(); if (timerRef.current) clearTimeout(timerRef.current); }, []);
+
+  const toggle = (e: React.MouseEvent) => {
+    e.stopPropagation();          // never let this trigger the card's open handler
+    if (playing) {
+      handleRef.current?.stop(); handleRef.current = null;
+      if (timerRef.current) clearTimeout(timerRef.current);
+      setPlaying(false);
+      return;
+    }
+    // Created inside the click so the AudioContext is born unlocked.
+    const h = playInstrumentDemo(instrument);
+    if (!h) return;
+    handleRef.current = h;
+    setPlaying(true);
+    timerRef.current = setTimeout(() => { setPlaying(false); handleRef.current = null; }, h.durationMs);
+  };
+
+  if (variant === 'icon') {
+    return (
+      <button
+        onClick={toggle}
+        title={playing ? 'Stop' : `Hear the ${instrument.name}`}
+        aria-label={playing ? 'Stop' : `Hear the ${instrument.name}`}
+        className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all hover:brightness-125"
+        style={{ background: playing ? ACCENT : `${ACCENT}1a`, border: `1px solid ${ACCENT}3a` }}
+      >
+        {playing
+          ? <Square size={11} className="text-black" fill="currentColor" />
+          : <Play size={12} style={{ color: ACCENT }} fill="currentColor" className="translate-x-[1px]" />}
+      </button>
+    );
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all hover:brightness-110"
+      style={playing ? { background: ACCENT, color: '#000' } : { background: `${ACCENT}1f`, border: `1px solid ${ACCENT}4d`, color: ACCENT }}
+      title="Synthesised in your browser, in this instrument's written range"
+    >
+      {playing ? <><Square size={12} fill="currentColor" /> Stop</> : <><Play size={12} fill="currentColor" /> Hear it</>}
+    </button>
+  );
+};
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 const ALL = '__all__';
