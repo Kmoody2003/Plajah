@@ -198,6 +198,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const ytPlayerRef = useRef<any | null>(null);
   const stateRef = useRef({ repeatMode, isShuffle, currentAlbum, currentTrack, currentVideo, isPlaying, audioSource, currentTime, ytPlayer: null as any });
   const audioRef = useRef<HTMLAudioElement>(audioElement);
+  const choraHistoryRef = useRef(0);
   const preloaderAudioRef = useRef<HTMLAudioElement>(new Audio());
   const hlsRef = useRef<Hls | null>(null); // active hls.js instance (transcoded HLS streams)
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -1471,6 +1472,32 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setAudioSource(null);
     setIsPlaying(false);
   }, []);
+
+  // Blueprint Thread 3: ONE watch/listen-history model serves Reello, Taleo AND Chora.
+  // Record listening progress (throttled) so "Continue listening" works like Continue Watching.
+  useEffect(() => {
+    if (!isPlaying || !currentTrack || audioSource === 'VIDEO' || audioSource === 'RADIO') return;
+    const save = async () => {
+      const audio = audioRef.current;
+      const positionSec = audio?.currentTime || 0;
+      const durationSec = audio?.duration || 0;
+      if (!(positionSec > 5 && durationSec > 0)) return;
+      choraHistoryRef.current = Date.now();
+      try {
+        const { recordProgress } = await import('../services/watchHistoryService');
+        await recordProgress({
+          id: currentTrack.id,
+          kind: 'CHORA',
+          title: currentTrack.title,
+          thumbnailUrl: (currentAlbum as any)?.coverArt || (currentTrack as any)?.coverArt || undefined,
+          ownerName: (currentAlbum as any)?.artistName || (currentTrack as any)?.artist || undefined,
+          positionSec, durationSec,
+        });
+      } catch { /* best-effort */ }
+    };
+    const iv = setInterval(save, 15000);
+    return () => { clearInterval(iv); void save(); };   // also save on pause / track change
+  }, [isPlaying, currentTrack?.id, audioSource]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const contextValue: GlobalPlayerContextType = useMemo(() => ({
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
