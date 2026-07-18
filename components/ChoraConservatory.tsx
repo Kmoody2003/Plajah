@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, Music, Landmark, BookOpen, Ear, Sparkles } from 'lucide-react';
+import { ChevronLeft, Music, Landmark, BookOpen, Ear, Sparkles, GraduationCap, AudioLines, Library } from 'lucide-react';
 import MuseumHall from './MuseumHall';
 import { CONSERVATORY_HALLS, CONSERVATORY_FIGURES } from '../data/musicFigures';
 import { MUSIC_HISTORY_ERAS } from '../data/musicHistory';
 import { TYPE } from '../src/lib/designSystem';
+import SchoolView from './school/SchoolView';
+import { CHORA_CURRICULUM } from '../data/choraCurriculum';
+import InstrumentPrimers from './chora/InstrumentPrimers';
+import RepertoireLibrary from './chora/RepertoireLibrary';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ChoraConservatory — the humanities half of Plajah Chora.
@@ -20,7 +24,7 @@ import { TYPE } from '../src/lib/designSystem';
 
 const ACCENT = '#E0A458';
 
-type ConservatoryTab = 'HALL' | 'HISTORY';
+type ConservatoryTab = 'HALL' | 'HISTORY' | 'CURRICULUM' | 'INSTRUMENTS' | 'REPERTOIRE';
 
 const HistoryCard: React.FC<{ era: typeof MUSIC_HISTORY_ERAS[number]; index: number }> = ({ era, index }) => (
   <motion.article
@@ -101,10 +105,13 @@ const ChoraConservatory: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         </div>
 
         {/* Tab switch */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 flex-wrap">
           {([
             { id: 'HALL' as const, label: 'Conservatory Hall', icon: Music },
+            { id: 'CURRICULUM' as const, label: 'Curriculum', icon: GraduationCap },
             { id: 'HISTORY' as const, label: 'Music History', icon: BookOpen },
+            { id: 'INSTRUMENTS' as const, label: 'Instruments', icon: AudioLines },
+            { id: 'REPERTOIRE' as const, label: 'Repertoire', icon: Library },
           ]).map(t => {
             const active = tab === t.id;
             const Icon = t.icon;
@@ -137,6 +144,18 @@ const ChoraConservatory: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 icon={Music}
                 shareDiscipline="Music"
               />
+            </motion.div>
+          ) : tab === 'CURRICULUM' ? (
+            <motion.div key="curriculum" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="-mx-4 sm:-mx-6 lg:-mx-10">
+              <SchoolView curriculum={CHORA_CURRICULUM} embedded />
+            </motion.div>
+          ) : tab === 'INSTRUMENTS' ? (
+            <motion.div key="instruments" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <InstrumentPrimers />
+            </motion.div>
+          ) : tab === 'REPERTOIRE' ? (
+            <motion.div key="repertoire" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <RepertoireLibrary />
             </motion.div>
           ) : (
             <motion.div key="history" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-5">
