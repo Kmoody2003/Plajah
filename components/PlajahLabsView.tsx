@@ -23,6 +23,34 @@ import LabsTeamSpaces from './LabsTeamSpaces';
 import type { LabsDisciplineId } from '../services/labsApiService';
 import { SCIENCE_DISCIPLINES } from '../data/scienceDisciplines';
 
+// Plajah brand gradient — the platform aesthetic.
+const BRAND = 'linear-gradient(115deg,#8a2be0 0%,#B4008C 40%,#D40055 64%,#FF8C00 100%)';
+
+/**
+ * Extract a real YouTube VIDEO id from an embed url. Returns null for the retired
+ * `live_stream?channel=` format and for non-YouTube urls — those can't be iframed reliably
+ * (or at all, for frame-blocked agency pages), so the hub opens them as external launchers
+ * instead of showing a blank iframe.
+ */
+function ytVideoId(url: string): string | null {
+  const m = url.match(/(?:youtube(?:-nocookie)?\.com\/embed\/|youtu\.be\/|[?&]v=)([A-Za-z0-9_-]{11})(?:[?&/]|$)/);
+  return m ? m[1] : null;
+}
+
+// Bold, high-contrast section header in the Plajah house style — gradient bar + heavy uppercase.
+const SectionHeader: React.FC<{ kicker?: string; title: string; action?: React.ReactNode }> = ({ kicker, title, action }) => (
+  <div className="flex items-end justify-between gap-3 mb-5">
+    <div className="flex items-center gap-3">
+      <span className="w-1.5 h-8 rounded-full shrink-0" style={{ background: BRAND }} />
+      <div>
+        {kicker && <p className="text-[9px] font-black uppercase tracking-[0.32em] text-white/40">{kicker}</p>}
+        <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white leading-none mt-0.5">{title}</h2>
+      </div>
+    </div>
+    {action}
+  </div>
+);
+
 interface PlajahLabsViewProps {
   currentUser: UserProfile | null;
   onNavigate: (view: AppView) => void;
@@ -95,6 +123,15 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
   const [activeDisc, setActiveDisc] = useState<string | null>(null);
   const [activeLivesCat, setActiveLivesCat] = useState<ScienceCategory | 'ALL'>('ALL');
   const [fullScreenStream, setFullScreenStream] = useState<ScienceStream | null>(null);
+
+  // Real counts from the data — honest numbers beat invented ones for a place scientists trust.
+  const sci = Object.values(SCIENCE_DISCIPLINES);
+  const stats = [
+    { label: 'Disciplines',     value: `${DISCIPLINES.length}` },
+    { label: 'Pioneers',        value: `${sci.reduce((n, d) => n + d.figures.length, 0)}+` },
+    { label: 'Live Experiments', value: `${new Set(sci.flatMap(d => d.simulators || [])).size}` },
+    { label: 'Curated Videos',  value: `${sci.reduce((n, d) => n + (d.videos?.length || 0), 0)}+` },
+  ];
   const [openDiscipline, setOpenDiscipline] = useState<LabsDisciplineId | null>(null);
   type LabsTool = 'notebook' | 'citations' | 'formula' | 'grants' | 'teams' | null;
   const [openTool, setOpenTool] = useState<LabsTool>(null);
@@ -178,30 +215,26 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
             className="font-black uppercase tracking-tighter leading-[0.85] mb-5"
           >
             <span className="text-white">Plajah</span>{' '}
-            <span className="bg-gradient-to-r from-[#00B4D8] to-[#90E0EF] bg-clip-text text-transparent">Labs</span>
+            <span className="bg-clip-text text-transparent" style={{ backgroundImage: BRAND }}>Labs</span>
           </motion.h1>
 
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.13 }}
-            className="type-body-lg text-white/45 max-w-2xl mb-8"
+            className="type-body-lg text-white/60 max-w-2xl mb-8"
           >
-            A dedicated landing board for the scientific, engineering, and academic communities.
-            Discover research, connect with peers, explore STEM content, and build on the shoulders of giants.
+            The most beautiful place online for scientists, enthusiasts and academics to learn,
+            experiment and discover together — live experiments, deep dives into the evidence, and
+            a social layer where every finding sparks the next conversation.
           </motion.p>
 
-          {/* Quick stats */}
+          {/* Quick stats — real counts from the library */}
           <div className="flex flex-wrap gap-8 mb-8">
-            {[
-              { label: 'Research Threads', value: '2.4K+' },
-              { label: 'STEM Classrooms',  value: '340+'  },
-              { label: 'Science Books',    value: '1.8K+' },
-              { label: 'Researchers',      value: '12K+'  },
-            ].map(s => (
+            {stats.map(s => (
               <div key={s.label}>
-                <p className="type-headline-md font-black" style={{ color: '#00B4D8' }}>{s.value}</p>
-                <p className={`${TYPE.labelSm} text-white/25`}>{s.label}</p>
+                <p className="text-3xl sm:text-4xl font-black tabular-nums bg-clip-text text-transparent" style={{ backgroundImage: BRAND }}>{s.value}</p>
+                <p className="text-[9px] font-black uppercase tracking-[0.25em] text-white/40 mt-1">{s.label}</p>
               </div>
             ))}
           </div>
@@ -222,7 +255,7 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
 
       {/* ── Connected Resources ──────────────────────────────────────────── */}
       <div className="px-6 py-8 max-w-7xl mx-auto">
-        <p className={`${TYPE.labelSm} text-white/30 mb-4`}>Connected Resources</p>
+        <SectionHeader kicker="Jump across the platform" title="Connected Resources" />
         <AdaptiveGrid phone={2} tablet={3} desktop={4} gap="0.75rem">
           {PLATFORM_CONNECTIONS.map(conn => {
             const Icon = conn.icon;
@@ -230,16 +263,16 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
               <button
                 key={conn.id}
                 onClick={() => onNavigate(conn.id)}
-                className="group p-4 bg-white/[0.04] border border-white/8 rounded-2xl text-left hover:border-white/18 hover:bg-white/[0.06] transition-all"
+                className="group p-4 bg-white/[0.05] border border-white/10 rounded-2xl text-left hover:border-white/25 hover:bg-white/[0.08] transition-all"
               >
                 <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center mb-3"
-                  style={{ backgroundColor: `${conn.color}18`, border: `1px solid ${conn.color}30` }}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
+                  style={{ backgroundColor: `${conn.color}22`, border: `1px solid ${conn.color}40` }}
                 >
-                  <Icon size={16} style={{ color: conn.color }} />
+                  <Icon size={17} style={{ color: conn.color }} />
                 </div>
-                <p className={`${TYPE.titleSm} text-white mb-0.5`}>{conn.label}</p>
-                <p className="type-body-sm text-white/30 leading-tight">{conn.desc}</p>
+                <p className="text-[13px] font-black text-white mb-0.5">{conn.label}</p>
+                <p className="text-[11px] text-white/50 leading-tight">{conn.desc}</p>
                 <ChevronRight size={11} className="mt-2 text-white/20 group-hover:text-white/45 group-hover:translate-x-0.5 transition-all" />
               </button>
             );
@@ -249,17 +282,8 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
 
       {/* ── Science Live Hub ─────────────────────────────────────────────── */}
       <div className="px-6 py-8 max-w-7xl mx-auto">
-        <div className="flex items-center gap-3 mb-5">
-          <Radio size={14} className="text-[#00B4D8]" />
-          <p className={`${TYPE.labelSm} text-white/30`}>Science Live Hub</p>
-          <div className="h-px flex-1 bg-white/5" />
-          <button
-            onClick={() => onNavigate('LIVE_HUB' as AppView)}
-            className={`tap flex items-center gap-1 ${TYPE.labelSm} text-[#00B4D8] hover:opacity-70 transition-opacity`}
-          >
-            See all <ChevronRight size={10} />
-          </button>
-        </div>
+        <SectionHeader kicker="Live from space, earth & the deep" title="Science Live Hub"
+          action={<button onClick={() => onNavigate('LIVE_HUB' as AppView)} className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white transition-colors">See all <ChevronRight size={11} /></button>} />
 
         {/* Category pills */}
         <div className="flex flex-wrap gap-2 mb-5">
@@ -285,40 +309,41 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
         <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar" style={{ scrollbarWidth: 'none' }}>
           {SCIENCE_STREAMS
             .filter(s => activeLivesCat === 'ALL' || s.category === activeLivesCat)
-            .map(stream => (
+            .map(stream => {
+              // Only a real YouTube video can be played inline; everything else opens its source.
+              const vid = ytVideoId(stream.embedUrl);
+              const playsInline = !!vid;
+              return (
               <div
                 key={stream.id}
-                onClick={() => {
-                  if (stream.isEmbeddable) {
-                    setFullScreenStream(stream);
-                  } else {
-                    window.open(stream.directUrl, '_blank', 'noopener');
-                  }
-                }}
-                className="group flex-shrink-0 w-64 bg-white/[0.04] border border-white/8 rounded-2xl overflow-hidden cursor-pointer hover:border-white/18 hover:bg-white/[0.06] transition-all"
+                onClick={() => playsInline ? setFullScreenStream(stream) : window.open(stream.directUrl, '_blank', 'noopener')}
+                className="group flex-shrink-0 w-64 bg-white/[0.05] border border-white/12 rounded-2xl overflow-hidden cursor-pointer hover:border-white/25 hover:bg-white/[0.08] transition-all"
               >
-                {/* Color swatch / preview placeholder */}
-                <div className="relative h-36 flex items-center justify-center"
-                     style={{ background: `linear-gradient(135deg, ${stream.accent}25, ${stream.accent}08)` }}>
-                  <span className="text-4xl">{stream.emoji}</span>
-                  <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[7px] font-black uppercase text-white"
-                       style={{ backgroundColor: stream.isLive ? '#dc2626' : `${stream.accent}cc` }}>
+                {/* Preview — YouTube thumbnail when we can play inline, else a branded swatch */}
+                <div className="relative h-36 flex items-center justify-center overflow-hidden"
+                     style={{ background: `linear-gradient(135deg, ${stream.accent}30, ${stream.accent}0a)` }}>
+                  {playsInline
+                    ? <img src={`https://i.ytimg.com/vi/${vid}/hqdefault.jpg`} alt={stream.title} loading="lazy"
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                    : <span className="text-5xl drop-shadow-lg">{stream.emoji}</span>}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                  <div className="absolute top-2.5 left-2.5 flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider text-white"
+                       style={{ backgroundColor: stream.isLive ? '#dc2626' : `${stream.accent}dd` }}>
                     {stream.isLive && <span className="w-1 h-1 rounded-full bg-white animate-ping mr-0.5" />}
-                    {stream.isLive ? 'Live 24/7' : 'Event'}
+                    {stream.isLive ? 'Live' : 'Event'}
                   </div>
-                  {!stream.isEmbeddable && (
-                    <div className="absolute top-2 right-2 tap p-1 bg-black/40 rounded-full">
-                      <ExternalLink size={10} className="text-white/50" />
-                    </div>
-                  )}
+                  <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1 px-2 py-1 rounded-full bg-black/55 backdrop-blur-sm text-[8px] font-black uppercase tracking-widest text-white/85">
+                    {playsInline ? <>▶ Watch</> : <>Open <ExternalLink size={9} /></>}
+                  </div>
                 </div>
                 <div className="p-3">
-                  <p className="text-[7px] font-black uppercase tracking-widest mb-0.5" style={{ color: stream.accent }}>{stream.source}</p>
-                  <p className="text-[11px] font-black text-white leading-tight mb-1">{stream.title}</p>
-                  <p className="text-[9px] text-white/30 leading-relaxed line-clamp-2">{stream.description}</p>
+                  <p className="text-[8px] font-black uppercase tracking-widest mb-0.5" style={{ color: stream.accent }}>{stream.source}</p>
+                  <p className="text-[12px] font-black text-white leading-tight mb-1">{stream.title}</p>
+                  <p className="text-[10px] text-white/45 leading-relaxed line-clamp-2">{stream.description}</p>
                 </div>
               </div>
-            ))}
+            );})}
         </div>
       </div>
 
@@ -342,19 +367,35 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
             </div>
           </div>
           <div className="flex-1">
-            <iframe
-              src={fullScreenStream.embedUrl}
-              className="w-full h-full border-none"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
+            {(() => {
+              const vid = ytVideoId(fullScreenStream.embedUrl);
+              return vid ? (
+                <iframe
+                  title={fullScreenStream.title}
+                  src={`https://www.youtube-nocookie.com/embed/${vid}?autoplay=1&rel=0&modestbranding=1`}
+                  className="w-full h-full border-none"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                // Safety net: if a non-embeddable stream ever reaches here, don't show a blank iframe.
+                <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-center px-6">
+                  <span className="text-6xl">{fullScreenStream.emoji}</span>
+                  <p className="text-white/50 text-sm max-w-md">{fullScreenStream.description}</p>
+                  <a href={fullScreenStream.directUrl} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-full text-black text-[11px] font-black uppercase tracking-widest" style={{ background: BRAND }}>
+                    Watch live at {fullScreenStream.source} <ExternalLink size={13} />
+                  </a>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
 
       {/* ── Disciplines grid ─────────────────────────────────────────────── */}
       <div className="px-6 py-8 max-w-7xl mx-auto">
-        <p className={`${TYPE.labelSm} text-white/30 mb-4`}>Explore Disciplines</p>
+        <SectionHeader kicker="15 fields, each a full studio" title="Explore Disciplines" />
         <AdaptiveGrid phone={2} tablet={4} desktop={6} gap="0.5rem">
           {DISCIPLINES.map(disc => {
             const Icon = disc.icon;
@@ -364,17 +405,17 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
               <button
                 key={disc.id}
                 onClick={() => mappedId ? setOpenDiscipline(mappedId) : setActiveDisc(isActive ? null : disc.id)}
-                className="group p-3 rounded-xl text-center border transition-all duration-200 hover:scale-[1.02]"
+                className="group p-3.5 rounded-xl text-center border transition-all duration-200 hover:scale-[1.03]"
                 style={{
-                  backgroundColor: isActive ? `${disc.color}12` : 'rgba(255,255,255,0.025)',
-                  borderColor: isActive ? `${disc.color}40` : 'rgba(255,255,255,0.06)',
+                  backgroundColor: isActive ? `${disc.color}1f` : 'rgba(255,255,255,0.05)',
+                  borderColor: isActive ? `${disc.color}55` : 'rgba(255,255,255,0.1)',
                 }}
               >
-                <Icon size={20} className="mx-auto mb-2" style={{ color: disc.color }} />
-                <p className={`${TYPE.labelSm} text-white leading-tight`}>{disc.label}</p>
-                <p className="type-body-sm text-white/22 mt-0.5 hidden sm:block">{disc.desc}</p>
+                <Icon size={22} className="mx-auto mb-2" style={{ color: disc.color }} />
+                <p className="text-[11px] font-black uppercase tracking-wide text-white leading-tight">{disc.label}</p>
+                <p className="text-[10px] text-white/45 mt-1 hidden sm:block leading-tight">{disc.desc}</p>
                 {mappedId && (
-                  <p className={`${TYPE.labelSm} text-white/15 mt-1 hidden sm:block`}>Explore →</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest mt-1.5 hidden sm:block bg-clip-text text-transparent" style={{ backgroundImage: BRAND }}>Explore →</p>
                 )}
               </button>
             );
@@ -384,7 +425,7 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
 
       {/* ── Labs Toolkit ─────────────────────────────────────────────────── */}
       <div className="px-6 py-8 max-w-7xl mx-auto">
-        <p className={`${TYPE.labelSm} text-white/30 mb-4`}>Labs Toolkit</p>
+        <SectionHeader kicker="Your research bench" title="Labs Toolkit" />
         <AdaptiveGrid phone={1} tablet={1} desktop={3} gap="1rem">
           {TOOLS.map((tool, i) => {
             const Icon = tool.icon;
@@ -395,16 +436,16 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.08 }}
                 onClick={() => onNavigate(tool.navigate)}
-                className="p-6 rounded-[1.5rem] border border-white/8 bg-white/[0.04] hover:border-white/16 hover:bg-white/[0.06] transition-all group cursor-pointer"
+                className="p-6 rounded-[1.5rem] border border-white/10 bg-white/[0.05] hover:border-white/22 hover:bg-white/[0.08] transition-all group cursor-pointer"
               >
                 <div
                   className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5"
-                  style={{ backgroundColor: `${tool.color}14`, border: `1px solid ${tool.color}25` }}
+                  style={{ backgroundColor: `${tool.color}22`, border: `1px solid ${tool.color}3a` }}
                 >
                   <Icon size={22} style={{ color: tool.color }} />
                 </div>
-                <h3 className="text-base font-black text-white mb-2">{tool.title}</h3>
-                <p className="text-xs text-white/35 leading-relaxed mb-5">{tool.desc}</p>
+                <h3 className="text-lg font-black text-white mb-2">{tool.title}</h3>
+                <p className="text-xs text-white/50 leading-relaxed mb-5">{tool.desc}</p>
                 <div
                   className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all group-hover:gap-3"
                   style={{ color: tool.color }}
@@ -449,12 +490,8 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
 
       {/* ── Labs Researcher Toolkit — live tools ─────────────────────────── */}
       <div className="px-6 pb-16 max-w-7xl mx-auto">
-        <div className="flex items-center gap-3 mb-5">
-          <FlaskConical size={14} className="text-[#00B4D8]" />
-          <p className={`${TYPE.labelSm} text-white/30`}>Researcher Toolkit</p>
-          <div className="h-px flex-1 bg-white/5" />
-          <span className={`px-2 py-0.5 bg-[#34d399]/15 text-[#34d399] border border-[#34d399]/25 rounded-full ${TYPE.labelSm}`}>All Live</span>
-        </div>
+        <SectionHeader kicker="Notebook · Citations · Formulas · Grants · Teams" title="Researcher Toolkit"
+          action={<span className="flex items-center gap-1.5 px-2.5 py-1 bg-[#34d399]/15 text-[#34d399] border border-[#34d399]/30 rounded-full text-[9px] font-black uppercase tracking-widest"><span className="w-1.5 h-1.5 rounded-full bg-[#34d399] animate-pulse" /> All Live</span>} />
 
         <AdaptiveGrid phone={1} tablet={2} desktop={3} gap="1rem">
           {[
