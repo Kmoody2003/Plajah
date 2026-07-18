@@ -172,6 +172,16 @@ export interface AudioAnalysis {
   peaks: number[];
   /** Beat timestamps in seconds. Capped to keep the doc small; DJ can re-derive from bpm+phase. */
   beats?: number[];
+  /** Detected meter — beats per measure (4, 3, …). Persisted so the bar grid loads with the song. */
+  beatsPerMeasure?: number;
+  /** Time (seconds) of the first detected downbeat (beat 1 of a bar) — bar-line anchor. */
+  downbeatSec?: number;
+  /** Index into `beats` of the first downbeat. */
+  downbeatIndex?: number;
+  /** 0–1 confidence in the meter/downbeat estimate. */
+  meterConfidence?: number;
+  /** Decode sample rate — lets consumers rebuild a full BeatAnalysis without re-decoding. */
+  sampleRate?: number;
 }
 
 export interface Photo {

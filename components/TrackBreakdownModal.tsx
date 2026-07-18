@@ -20,6 +20,7 @@ import {
 import { Track, Album } from '../types';
 import { useGlobalPlayer, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { detectBeats, type BeatAnalysis } from '../services/audioBeatDetection';
+import { getOrComputeAnalysis, toBeatAnalysis } from '../services/djAnalysis';
 import { transcribeTrack, type Transcription } from '../services/audioTranscription';
 import { buildNotation, notationToMusicXML, type Notation } from '../services/musicNotation';
 import { quickStems, separateStemsCloud } from '../services/fabula/stemSeparation';
@@ -213,8 +214,14 @@ function useRealAudioAnalysis(track: Track, fallback: TrackTheory): {
     beatRef.current = null;
     if (!track.url) return;
     const ac = new AbortController();
-    detectBeats(track.url, ac.signal)
-      .then(a => { if (a.bpm && a.confidence > 0.12) beatRef.current = a; })
+    // Reuse the track's SAVED audio analysis (computed once, persisted to trackAnalysis, loaded
+    // with the song) so opening the Breakdown doesn't re-decode the whole file every time. Only
+    // fall back to a fresh decode if this track has never been analysed.
+    getOrComputeAnalysis(track, { signal: ac.signal })
+      .then(a => {
+        if (a && a.bpm && a.confidence > 0.12) { beatRef.current = toBeatAnalysis(a); return; }
+        return detectBeats(track.url!, ac.signal).then(b => { if (b.bpm && b.confidence > 0.12) beatRef.current = b; });
+      })
       .catch(() => { /* CORS/format/decoding — fall back to live estimate */ });
     return () => ac.abort();
   }, [track.id, track.url]);

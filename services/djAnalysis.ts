@@ -7,11 +7,13 @@
 
 import { db, auth } from './backendService';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { decodeMono, detectBeatsFromBuffer } from './audioBeatDetection';
+import { decodeMono, detectBeatsFromBuffer, type BeatAnalysis } from './audioBeatDetection';
 import type { AudioAnalysis, Track } from '../types';
 
-// Bump when the peak/beat algorithm changes so stale docs recompute.
-export const ANALYSIS_VERSION = 1;
+// Bump when the peak/beat algorithm or stored shape changes so stale docs recompute.
+// v2: persist the detected meter (beatsPerMeasure/downbeat) + sampleRate so the full beat
+// grid loads with the song and consumers (Breakdown, DJ) never re-decode.
+export const ANALYSIS_VERSION = 2;
 const PEAK_BUCKETS = 1024;   // waveform resolution stored per track (compact, Firestore-friendly)
 const MAX_STORED_BEATS = 2048;
 
@@ -50,6 +52,31 @@ export function analysisFromMono(data: Float32Array, sampleRate: number, duratio
     duration,
     peaks: extractPeaks(data),
     beats: beat.beats.slice(0, MAX_STORED_BEATS),
+    // Persist the meter so the bar grid is part of the saved analysis (loads with the song).
+    beatsPerMeasure: beat.beatsPerMeasure ?? 4,
+    downbeatSec: beat.downbeatSec ?? beat.firstBeatSec,
+    downbeatIndex: beat.downbeatIndex ?? 0,
+    meterConfidence: beat.meterConfidence ?? 0,
+    sampleRate,
+  };
+}
+
+/**
+ * Rebuild a full BeatAnalysis from a stored/loaded AudioAnalysis — NO decode. Lets the Breakdown
+ * (and any beat-grid consumer) reuse the track's saved analysis instead of re-analysing on open.
+ */
+export function toBeatAnalysis(a: AudioAnalysis): BeatAnalysis {
+  return {
+    bpm: a.bpm,
+    confidence: a.confidence,
+    beats: a.beats || [],
+    firstBeatSec: a.firstBeatSec,
+    durationSec: a.duration,
+    sampleRate: a.sampleRate || 44100,
+    beatsPerMeasure: a.beatsPerMeasure,
+    downbeatSec: a.downbeatSec,
+    downbeatIndex: a.downbeatIndex,
+    meterConfidence: a.meterConfidence,
   };
 }
 
@@ -67,7 +94,11 @@ function isFresh(a: AudioAnalysis | undefined | null): a is AudioAnalysis {
 export async function persistAnalysis(trackId: string, analysis: AudioAnalysis): Promise<void> {
   memCache.set(trackId, analysis);
   if (!trackId || !auth.currentUser) return;
-  try { await setDoc(doc(db, 'trackAnalysis', trackId), analysis as any); } catch { /* best-effort */ }
+  // Firestore THROWS on any undefined field — a single undefined would silently drop the whole
+  // write (best-effort catch), so the analysis would recompute every play. Strip undefined via a
+  // JSON round-trip (also guarantees a plain, serializable doc).
+  const clean = JSON.parse(JSON.stringify(analysis));
+  try { await setDoc(doc(db, 'trackAnalysis', trackId), clean); } catch { /* best-effort */ }
 }
 
 /**
