@@ -21,6 +21,8 @@ export const LyricItem = React.memo(React.forwardRef<HTMLDivElement, LyricItemPr
         x: isActive ? 10 : 0,
       }}
       transition={{ duration: 0.35, ease: 'easeOut' }}
+      // Grow from the left so the 1.05 active scale never pushes text past the viewport's left edge.
+      style={{ transformOrigin: 'left center' }}
       className={isResyncMode ? 'cursor-crosshair hover:opacity-80' : 'cursor-pointer'}
       onClick={onClick}
     >
@@ -147,7 +149,7 @@ export const TimeCodedLyrics: React.FC<{
           transition: 'transform 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
           willChange: 'transform',
         }}
-        className={paintMode ? 'space-y-7 py-4 pl-3' : 'space-y-6 py-4'}
+        className={paintMode ? 'space-y-7 py-4 px-4' : 'space-y-6 py-4 px-6'}
       >
         {sortedTracks.map((line, idx) => {
           const translation = translations?.[line.text];
@@ -161,6 +163,8 @@ export const TimeCodedLyrics: React.FC<{
                 x:       idx === activeIndex ? 0 : -10,
               }}
               transition={{ duration: 0.40, ease: 'easeOut' }}
+              // Anchor scale to the left edge so the enlarged active line never clips left.
+              style={{ transformOrigin: 'left center' }}
               className={isResyncMode ? 'cursor-crosshair' : 'cursor-pointer'}
               onClick={() => handleLineClick(line)}
             >
