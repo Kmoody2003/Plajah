@@ -14,6 +14,18 @@ export interface PlatformInfo {
   screenClass: ScreenClass;
   /** Apply this as a body className to activate the correct CSS theme */
   themeClass: 'theme-phone' | 'theme-big-screen' | '';
+  /** Which detection tier(s) fired. Diagnostic only — inspect via getPlatformInfo(). */
+  tvSignals: Record<string, boolean>;
+}
+
+/** Force TV mode off-device: `?tv=1` in the URL, or localStorage `plajah:tvnav='1'`.
+ *  The only way to review the TV experience without a TV; never true on a real device
+ *  unless someone deliberately set it. */
+function forcedTV(): boolean {
+  try {
+    if (new URLSearchParams(window.location.search).get('tv') === '1') return true;
+    return localStorage.getItem('plajah:tvnav') === '1';
+  } catch { return false; }
 }
 
 function detect(): PlatformInfo {
@@ -44,21 +56,41 @@ function detect(): PlatformInfo {
     ua.includes('echo') ||
     !!(window as any).Alexa;
 
-  // Android TV / Google TV — incl. TCL, Sony Bravia, Sharp Aquos, Xiaomi Mi Box,
-  // Chromecast-with-Google-TV, and the Android Studio TV emulator. Their WebView UA
-  // often lacks a clean "TV" token AND CSS screen.width is density-scaled below 1920,
-  // so the old `screen.width >= 1920` check missed them entirely. The strongest
-  // signal is that a leanback device has NO touchscreen (real Android phones/tablets
-  // always report maxTouchPoints > 0), backed up by UA brand/leanback tokens.
-  const isAndroidTV =
-    isAndroid && (
-      /google\s?tv|android\s?tv|smart-?tv|smarttv|leanback|\btv\b|bravia|aquos|\btcl\b|mibox|chromecast|sabrina|adt-3/.test(ua) ||
-      (typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints === 0)
-    );
+  // ── TIER 1: the OS's own verdict ────────────────────────────────────────────
+  // MainActivity appends `PlajahTV/1` to the WebView UA when Android reports
+  // UI_MODE_TYPE_TELEVISION or FEATURE_LEANBACK. That is the only *authoritative* signal
+  // available — everything below it is inference. Present only in the native TV app.
+  const isNativeTV = ua.includes('plajahtv/1');
 
+  // ── TIER 2: platform + OEM tokens ───────────────────────────────────────────
+  // Android TV / Google TV incl. TCL, Sony Bravia, Sharp Aquos, Xiaomi Mi Box,
+  // Chromecast-with-Google-TV, Nvidia Shield, and the Android Studio TV emulator.
+  const hasTvToken =
+    /google\s?tv|android\s?tv|smart-?tv|smarttv|leanback|\btv\b|bravia|aquos|\btcl\b|mibox|chromecast|sabrina|adt-3|shield|philips|hisense|vidaa|netcast|webos|hbbtv/.test(ua);
+
+  // ── TIER 3: input + display shape ───────────────────────────────────────────
+  // A leanback device has no touchscreen and no hover-capable pointer. Phones and tablets
+  // always report maxTouchPoints > 0; desktops report a fine, hoverable pointer. A device
+  // with neither, on a big screen, is a TV. `screen.width` alone is useless here — TV
+  // WebViews are density-scaled well below 1920.
+  const noTouch = typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints === 0;
+  const noHover = matchMedia?.('(hover: none) and (pointer: coarse)').matches
+    || matchMedia?.('(pointer: none)').matches
+    || false;
+  const bigScreen = window.screen.width >= 1280;
+  const looksLeanback = isAndroid && noTouch && (noHover || bigScreen);
+
+  const isForced = forcedTV();
   const isTV =
-    isFireTV || isTizen || isRoku || isAndroidTV ||
-    (isAndroid && window.screen.width >= 1920);
+    isForced ||                                     // explicit override (TV-sim / testing)
+    isNativeTV ||                                   // tier 1 — trusted outright
+    isFireTV || isTizen || isRoku ||                // dedicated TV platforms
+    (isAndroid && hasTvToken) ||                    // tier 2
+    looksLeanback;                                  // tier 3
+
+  // Kept so a real device can be debugged from the console (`getPlatformInfo().tvSignals`)
+  // instead of guessing which tier fired — the previous detection was opaque when it failed.
+  const tvSignals = { forced: isForced, native: isNativeTV, firetv: isFireTV, tizen: isTizen, roku: isRoku, uaToken: isAndroid && hasTvToken, leanbackShape: looksLeanback, noTouch, noHover };
 
   let type: PlatformType = 'web';
   if (isFireTV) type = 'firetv';
@@ -68,6 +100,9 @@ function detect(): PlatformInfo {
   else if (isCapacitor && isAndroid) type = 'android';
   else if (isCapacitor && isIOS) type = 'ios';
 
+  // TV always wins. This ordering is the whole bug that shipped: App.tsx tested "is mobile"
+  // first, that test matched /Android/i, and every Android TV took the phone branch before the
+  // TV check was ever reached.
   const isMobile = !isTV && (isCapacitor || /mobi|android|tablet|ipad|iphone/.test(ua));
   const hasTouch = !isTV && navigator.maxTouchPoints > 0;
   const hasDpad = isTV;
@@ -94,6 +129,7 @@ function detect(): PlatformInfo {
     hasVoice,
     screenClass,
     themeClass,
+    tvSignals,
   };
 }
 

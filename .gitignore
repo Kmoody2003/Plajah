@@ -35,3 +35,5 @@ dist-ssr
 .claude/worktrees/
 
 tsc_out.txt
+public/models/demucs/*.onnx
+public/models/demucs/ort/

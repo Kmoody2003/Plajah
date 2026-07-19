@@ -104,6 +104,7 @@ import ExperiencePicker from './components/ExperiencePicker';
 import GlobalPlayer from './components/GlobalPlayer';
 import AutoPlayCountdown from './components/AutoPlayCountdown';
 import TVNavigationLayer from './components/TVNavigationLayer';
+import { getPlatformInfo } from './hooks/usePlatform';
 import TooltipSuppressor from './components/TooltipSuppressor';
 import ResumeUploadPrompt from './components/ResumeUploadPrompt';
 import SanctuaryDemoView from './components/sanctuary/SanctuaryDemoView';
@@ -866,16 +867,19 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         (ua.includes('Mac') && navigator.maxTouchPoints > 1) || // iPad OS 13+
         window.innerWidth < 768
       );
-      setIsMobile(mobile);
+      // TV is decided by usePlatform (native leanback flag → OEM tokens → input shape),
+      // NOT by a UA keyword list here. The old local copy tested "mobile" first, that test
+      // matches /Android/i, and so every Android TV took the phone branch and never reached
+      // the TV check — which is exactly why the APK booted into the mobile UI on a TV.
+      const isTV = getPlatformInfo().isTV;
+      setIsMobile(mobile && !isTV);
 
-      const tvKeywords = ['tv', 'smarttv', 'googletv', 'appletv', 'tizen', 'webos', 'hbbtv', 'pov_tv', 'netcast.tv'];
-      const isTV = tvKeywords.some(keyword => ua.toLowerCase().includes(keyword));
-
-      if (mobile) {
+      if (isTV) {
+        // Hard TV-first: on a television this is the only layout, at every size.
+        setTheme('BIG_SCREEN');
+      } else if (mobile) {
         // Force PHONE layout on any mobile/tablet width — but remember the desktop theme.
         setTheme(prev => prev === 'PHONE' ? prev : 'PHONE');
-      } else if (isTV && view === 'LANDING') {
-        setTheme('BIG_SCREEN');
       } else {
         // Resized back up to desktop → restore the desktop theme so the layout reflows.
         setTheme(prev => prev === 'PHONE' ? lastDesktopThemeRef.current : prev);
@@ -933,20 +937,23 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     };
     setView(expRouteMap[mode]);
     // Show feature highlights tour immediately after experience picker
-    setTimeout(() => setShowOnboarding(true), 400);
+    // The feature tour is off by default on TV: it is built for taps, it traps a remote in a
+    // flow that is hard to dismiss with a D-pad, and it is the first thing a viewer sees on a
+    // 10-foot screen. Reachable from settings if someone wants it.
+    if (!getPlatformInfo().isTV) setTimeout(() => setShowOnboarding(true), 400);
   };
 
   const handleEnterApp = () => {
-    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 640;
-    const tvKeywords = ['tv', 'smarttv', 'googletv', 'appletv', 'tizen', 'webos', 'hbbtv', 'pov_tv', 'netcast.tv'];
-    const isTV = tvKeywords.some(keyword => navigator.userAgent.toLowerCase().includes(keyword));
+    const isTV = getPlatformInfo().isTV;
+    const isMobileDevice = !isTV && (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 640);
 
-    if (isMobileDevice) {
-      setView('MUSIC');
-      setTheme('PHONE');
-    } else if (isTV) {
+    if (isTV) {
+      // TV is checked FIRST — see checkDevice(); the mobile regex matches Android TVs too.
       setView('LIVE_HUB');
       setTheme('BIG_SCREEN');
+    } else if (isMobileDevice) {
+      setView('MUSIC');
+      setTheme('PHONE');
     } else {
       const expRouteMap: Record<ExperienceMode, AppView> = {
         RAW_DOG:          'DASHBOARD',
@@ -1185,14 +1192,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         setViewInternal(prev => {
           if (prev === 'LANDING') {
             const ua = navigator.userAgent;
+            // TV first — the mobile regex below matches Android TVs, so testing it first
+            // silently sent every TV to the phone layout.
+            if (getPlatformInfo().isTV) { setTheme('BIG_SCREEN'); return 'LIVE_HUB'; }
             const isMobileDevice =
               /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
               (ua.includes('Mac') && navigator.maxTouchPoints > 1) ||
               window.innerWidth < 768;
-            const tvKeywords = ['tv', 'smarttv', 'googletv', 'appletv', 'tizen', 'webos', 'hbbtv', 'pov_tv', 'netcast.tv'];
-            const isTV = tvKeywords.some(keyword => ua.toLowerCase().includes(keyword));
             if (isMobileDevice) { setTheme('PHONE'); return 'MUSIC'; }
-            if (isTV) { setTheme('BIG_SCREEN'); return 'LIVE_HUB'; }
             return 'DASHBOARD';
           }
           return prev;
@@ -1552,7 +1559,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     // Preserve has-custom-background — className= replaces everything,
     // so we re-add it after the theme class is applied.
     const hadCustomBg = document.body.classList.contains('has-custom-background');
-    document.body.className = themeClasses[theme];
+    // Hard TV-first: on a television the big-screen theme is the ONLY theme. Anything that
+    // tries to set a phone/desktop theme (a resize handler, a restored preference, a stray
+    // setTheme) is overridden here rather than at each call site, so a remote can never end
+    // up driving a touch layout.
+    const platform = getPlatformInfo();
+    document.body.className = platform.isTV ? 'theme-big-screen' : themeClasses[theme];
     if (hadCustomBg) document.body.classList.add('has-custom-background');
   }, [theme]);
 
