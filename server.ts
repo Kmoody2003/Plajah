@@ -4631,62 +4631,100 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     } catch (e: any) { res.status(502).end(); }
   });
 
-  // ── Server-side Demucs 4-stem separation (the "studio quality for everyone" tier) ──
-  // OFF by default → returns 501 so the client falls back to on-device / instant stems.
-  // To enable on a deploy: `pip install demucs` (+ torch) on the box and set
-  // ENABLE_DEMUCS_STEMS=1 (optionally DEMUCS_PYTHON=python3). GPU makes it ~seconds/song;
-  // CPU is a few minutes. Stems are uploaded to GCS and streamed back same-origin.
-  const runDemucs = (inPath: string, outDir: string): Promise<{ ok: boolean; err?: string }> => new Promise(resolve => {
-    let p: ReturnType<typeof spawn>;
-    try { p = spawn(process.env.DEMUCS_PYTHON || 'python3', ['-m', 'demucs', '-n', 'htdemucs', '-o', outDir, inPath], { stdio: ['ignore', 'ignore', 'pipe'] }); }
-    catch (e: any) { return resolve({ ok: false, err: `spawn failed: ${e?.message || e}` }); }
-    let err = '';
-    p.stderr?.on('data', (d: Buffer) => { if (err.length < 4000) err += d.toString(); });
-    p.on('close', code => resolve(code === 0 ? { ok: true } : { ok: false, err: err.slice(-500) }));
-  });
+  // ── Demucs 4-stem separation (the "studio quality for everyone" tier) ──────────────
+  //
+  // The separation itself runs in the plajah-demucs WORKER service, not here. Demucs needs
+  // minutes of saturated CPU and ~8GB per song; running it in-process would blow this service's
+  // 300s request timeout and an OOM would take the whole API down with it. See worker/DEPLOY.md.
+  //
+  // This service stays the only thing the browser talks to: it authenticates the user, vets the
+  // source URL, and hands a job to the worker over service-to-service auth. Disabled until
+  // DEMUCS_WORKER_URL is set, in which case the client falls back to on-device / instant stems.
+
+  /** Hosts we'll pull source audio from. Without this the endpoint is an SSRF primitive: any
+   *  signed-in user could make the worker fetch an arbitrary URL, including GCP metadata and
+   *  anything else reachable from inside the VPC. */
+  const stemSourceAllowed = (raw: string): boolean => {
+    let u: URL;
+    try { u = new URL(raw); } catch { return false; }
+    if (u.protocol !== 'https:') return false;
+    const extra = (process.env.DEMUCS_ALLOWED_HOSTS || '').split(',').map(h => h.trim()).filter(Boolean);
+    const allowed = [
+      'firebasestorage.googleapis.com',
+      'storage.googleapis.com',
+      `${STORAGE_BUCKET}.storage.googleapis.com`,
+      ...extra,
+    ];
+    return allowed.includes(u.hostname);
+  };
+
+  /** Mint an identity token for the worker. Cloud Run rejects anything else, so the worker is
+   *  unreachable from the open internet even though its stems land in a shared bucket. */
+  const workerIdToken = async (audience: string): Promise<string | null> => {
+    try {
+      const res = await fetch(
+        `http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=${encodeURIComponent(audience)}`,
+        { headers: { 'Metadata-Flavor': 'Google' } },
+      );
+      return res.ok ? (await res.text()).trim() : null;
+    } catch { return null; }
+  };
 
   app.post('/api/crossover/stems', apiLimiter, authMiddleware, express.json(), async (req: any, res) => {
-    if (process.env.ENABLE_DEMUCS_STEMS !== '1') {
-      return res.status(501).json({ ok: false, message: 'Server Demucs tier not enabled (set ENABLE_DEMUCS_STEMS=1 with demucs installed).' });
+    const worker = (process.env.DEMUCS_WORKER_URL || '').replace(/\/+$/, '');
+    if (!worker) {
+      return res.status(501).json({ ok: false, message: 'Studio separation not enabled (set DEMUCS_WORKER_URL).' });
     }
     const url = req.body?.url;
     if (!url || typeof url !== 'string') return res.status(400).json({ ok: false, message: 'url required' });
-    const jobId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const inPath = await fetchToTmp(url, 'wav');
-    if (!inPath) return res.status(400).json({ ok: false, message: 'could not fetch audio' });
-    const outDir = path.join(os.tmpdir(), `demucs_${jobId}`);
+    if (!stemSourceAllowed(url)) return res.status(400).json({ ok: false, message: 'audio must be hosted on Plajah storage' });
+
+    // Alphanumeric only: the id becomes a GCS path segment and a URL param on the way back.
+    const jobId = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`.replace(/[^a-z0-9]/gi, '');
     try {
-      const r = await runDemucs(inPath, outDir);
-      if (!r.ok) return res.status(500).json({ ok: false, message: 'demucs failed: ' + (r.err || '') });
-      const modelDir = path.join(outDir, 'htdemucs');
-      const subs = await fs.readdir(modelDir).catch(() => [] as string[]);
-      if (!subs.length) return res.status(500).json({ ok: false, message: 'no demucs output' });
-      const stemDir = path.join(modelDir, subs[0]);
-      const publicBase = (process.env.PUBLIC_API_BASE || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
-      const out: any = { ok: true };
-      for (const stem of ['vocals', 'drums', 'bass', 'other']) {
-        const buf = await fs.readFile(path.join(stemDir, `${stem}.wav`)).catch(() => null);
-        if (buf && await gcsUpload(`demucs-stems/${jobId}/${stem}.wav`, buf, 'audio/wav')) {
-          out[stem] = `${publicBase}/api/crossover/stems/${jobId}/${stem}`;
-        }
-      }
-      res.json(out);
+      const token = await workerIdToken(worker);
+      const r = await fetch(`${worker}/jobs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ jobId, url }),
+      });
+      if (!r.ok) return res.status(502).json({ ok: false, message: `worker rejected job (${r.status})` });
+      // Deliberately not awaiting the separation — it outlives this request by minutes. The
+      // client polls the status route below.
+      res.status(202).json({ ok: true, jobId, status: 'queued' });
     } catch (e: any) {
-      res.status(500).json({ ok: false, message: String(e?.message || e) });
-    } finally {
-      fs.rm(outDir, { recursive: true, force: true }).catch(() => {});
-      fs.rm(inPath, { force: true }).catch(() => {});
+      res.status(502).json({ ok: false, message: String(e?.message || e) });
     }
   });
 
-  // Stream a separated stem back (same-origin → no CORS headaches for the client).
-  app.get('/api/crossover/stems/:job/:stem', async (req: any, res: any) => {
+  // Poll a separation. Reads the status doc the worker writes beside the stems, so it stays
+  // correct across worker restarts and scale-to-zero.
+  app.get('/api/crossover/stems/job/:jobId', apiLimiter, authMiddleware, async (req: any, res: any) => {
+    const { jobId } = req.params;
+    if (!/^[a-z0-9]+$/i.test(jobId)) return res.status(400).json({ ok: false, message: 'bad jobId' });
+    const buf = await gcsDownload(`demucs-stems/${jobId}/status.json`);
+    if (!buf) return res.json({ ok: true, status: 'queued' });
+    let status: any;
+    try { status = JSON.parse(buf.toString()); } catch { return res.json({ ok: true, status: 'queued' }); }
+    if (status?.status === 'done') {
+      const base = (process.env.PUBLIC_API_BASE || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+      const out: any = { ok: true, status: 'done' };
+      for (const stem of (status.stems || [])) out[stem] = `${base}/api/crossover/stems/${jobId}/${stem}`;
+      return res.json(out);
+    }
+    res.json({ ok: true, ...status });
+  });
+
+  // Stream a separated stem back (same-origin → no CORS headaches for the client). Behind auth:
+  // stems are a paid-tier product derived from a user's own audio, and a bare jobId is not a
+  // credential — this route previously served them to anyone who could guess one.
+  app.get('/api/crossover/stems/:job/:stem', apiLimiter, authMiddleware, async (req: any, res: any) => {
     const { job, stem } = req.params;
     if (!/^[\w]+$/.test(job) || !['vocals', 'drums', 'bass', 'other'].includes(stem)) return res.status(400).end();
     const buf = await gcsDownload(`demucs-stems/${job}/${stem}.wav`);
     if (!buf) return res.status(404).end();
     res.setHeader('Content-Type', 'audio/wav');
-    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
     res.send(buf);
   });
 

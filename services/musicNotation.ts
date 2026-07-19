@@ -5,7 +5,7 @@
 // result opens in MuseScore / Finale / Sibelius — i.e. actual sheet music for
 // composers and musicians, not a bitmap.
 
-import type { Transcription, TNote, Voice } from './audioTranscription';
+import type { Transcription, Voice } from './audioTranscription';
 
 const DIV = 4;                 // divisions per quarter note (sixteenth = 1)
 const MAX_MEASURES = 64;
@@ -32,6 +32,21 @@ const DUR_TABLE: { div: number; type: string; dots: number }[] = [
 ];
 
 export interface NPitch { midi: number; step: string; alter: number; octave: number }
+
+/** A drum/percussion hit: no real pitch, just a staff position + a GM sound. */
+export interface NUnpitched {
+  /** Where the notehead sits on the staff ('A'…'G'), not a sounding pitch. */
+  displayStep: string;
+  displayOctave: number;
+  /** GM percussion MIDI note number (36 = acoustic bass drum, 38 = snare, …).
+   *  Serialized as <midi-unpitched>, which is 1-based, so we emit midiNote + 1. */
+  midiNote: number;
+  /** <instrument-name>, which MusicXML requires; falls back to a neutral label. */
+  name?: string;
+  /** MusicXML <instrument-sound>, e.g. 'drum.bass-drum'. */
+  sound?: string;
+}
+
 export interface NElement {
   rest: boolean;
   /** One pitch = single note; many = chord; empty = rest. */
@@ -41,9 +56,79 @@ export interface NElement {
   dots: number;
   tieStart?: boolean;
   tieStop?: boolean;
+  /** Percussion hits sounding at this position; parallel to (and normally
+   *  exclusive with) `pitches`. */
+  unpitched?: NUnpitched[];
+  /** Sung text for this position. Only emitted on the head of a tie chain. */
+  lyric?: string;
 }
 export interface NMeasure { number: number; elements: NElement[] }
-export interface NStaff { name: string; clef: 'treble' | 'bass'; voice: Voice; measures: NMeasure[] }
+
+export type NClef = 'treble' | 'bass' | 'alto' | 'tenor' | 'percussion';
+
+export interface NStaff {
+  name: string;
+  /** Kept narrow because the on-screen SheetMusic renderer only draws these two;
+   *  anything else is carried in `clefKind` and is MusicXML-export only. */
+  clef: 'treble' | 'bass';
+  voice?: Voice;
+  measures: NMeasure[];
+  /** Explicit MusicXML clef when the part is not a plain treble/bass staff. */
+  clefKind?: NClef;
+  /** <part id> / <score-part id>. Defaults to P1, P2, … by position. */
+  id?: string;
+  /** Consecutive staves sharing a groupId are wrapped in one <part-group>. */
+  groupId?: string;
+  groupSymbol?: 'brace' | 'bracket';
+  groupName?: string;
+  /** MusicXML <instrument-sound> for a pitched part, e.g. 'keyboard.piano'. */
+  instrumentSound?: string;
+  /** Distinct percussion instruments used by this staff, collected from its
+   *  notes so <score-part> and <instrument> refs can never disagree. */
+  instruments?: NUnpitched[];
+}
+
+/** Note input for buildNotation. TNote satisfies this structurally, so existing
+ *  transcriptions feed straight through; drum detection adds `unpitched`. */
+export interface NInputNote {
+  midi: number;
+  startBeat: number;
+  durBeats: number;
+  voice?: Voice;
+  unpitched?: NUnpitched;
+  lyric?: string;
+}
+
+/** Describes one part of a multi-part score. */
+export interface NPartSpec {
+  /** <part id>. Defaults to P1, P2, … by position. */
+  id?: string;
+  /** <part-name>. */
+  label: string;
+  clef?: NClef;
+  /** Take notes of this transcription voice. Ignored when `filter` is given. */
+  voice?: Voice;
+  /** Arbitrary selector, for parts that are not one of the two voices. */
+  filter?: (n: NInputNote) => boolean;
+  /** Note source for this part; defaults to the transcription's own notes. */
+  notes?: NInputNote[];
+  instrumentSound?: string;
+  groupId?: string;
+  groupSymbol?: 'brace' | 'bracket';
+  groupName?: string;
+}
+
+/** Optional score credits. Every field is omitted from the output when absent. */
+export interface NCredits {
+  composer?: string;
+  arranger?: string;
+  lyricist?: string;
+  /** <rights> — copyright line. */
+  rights?: string;
+  /** <source> — free-form attribution for where the music came from. */
+  source?: string;
+}
+
 export interface Notation {
   staves: NStaff[];
   key: string;
@@ -78,19 +163,29 @@ function splitDuration(divisions: number): { div: number; type: string; dots: nu
 
 const MAX_CHORD = 5;
 
-/** Build one staff's measures from a voice's quantized notes, grouping
- *  simultaneous notes into chords (homophonic reduction by onset). */
-function buildStaff(notes: TNote[], voice: Voice, clef: 'treble' | 'bass', name: string, fifths: number, measureLen: number): NStaff {
-  const voiced = notes
-    .filter(n => n.voice === voice)
-    .map(n => ({ start: Math.round(n.startBeat * DIV), dur: Math.max(1, Math.round(n.durBeats * DIV)), midi: n.midi }));
+/** One sounding thing at an onset: a pitch, or a percussion hit. */
+interface Hit { midi: number; un?: NUnpitched; lyric?: string }
 
-  // Group notes that share a quantized onset into a chord.
-  const byStart = new Map<number, { start: number; midis: number[]; maxEnd: number }>();
+/** Build one staff's measures from a part's quantized notes, grouping
+ *  simultaneous notes into chords (homophonic reduction by onset). */
+function buildStaff(notes: NInputNote[], spec: NPartSpec, fifths: number, measureLen: number): NStaff {
+  // No selector at all (e.g. a part with its own `notes`) means take everything.
+  const select = spec.filter ?? (spec.voice ? (n: NInputNote) => n.voice === spec.voice : () => true);
+  const voiced = (spec.notes ?? notes)
+    .filter(select)
+    .map(n => ({
+      start: Math.round(n.startBeat * DIV), dur: Math.max(1, Math.round(n.durBeats * DIV)),
+      midi: n.midi, un: n.unpitched, lyric: n.lyric,
+    }));
+
+  // Group notes that share a quantized onset into a chord. Percussion hits are
+  // keyed by their GM note so two drums can share one onset.
+  const byStart = new Map<number, { start: number; hits: Hit[]; keys: Set<string>; maxEnd: number }>();
   for (const n of voiced) {
     let g = byStart.get(n.start);
-    if (!g) { g = { start: n.start, midis: [], maxEnd: 0 }; byStart.set(n.start, g); }
-    if (!g.midis.includes(n.midi)) g.midis.push(n.midi);
+    if (!g) { g = { start: n.start, hits: [], keys: new Set(), maxEnd: 0 }; byStart.set(n.start, g); }
+    const key = n.un ? `u${n.un.midiNote}` : `p${n.midi}`;
+    if (!g.keys.has(key)) { g.keys.add(key); g.hits.push({ midi: n.midi, un: n.un, lyric: n.lyric }); }
     g.maxEnd = Math.max(g.maxEnd, n.start + n.dur);
   }
   const groups = [...byStart.values()].sort((a, b) => a.start - b.start);
@@ -100,8 +195,10 @@ function buildStaff(notes: TNote[], voice: Voice, clef: 'treble' | 'bass', name:
   const events = groups.map((g, i) => {
     const nextStart = i + 1 < groups.length ? groups[i + 1].start : g.maxEnd;
     const dur = Math.max(1, Math.min(g.maxEnd - g.start, nextStart - g.start) || (g.maxEnd - g.start));
-    const midis = [...g.midis].sort((a, b) => a - b).slice(0, MAX_CHORD);
-    return { start: g.start, dur, midis };
+    const hits = [...g.hits]
+      .sort((a, b) => (a.un?.midiNote ?? a.midi) - (b.un?.midiNote ?? b.midi))
+      .slice(0, MAX_CHORD);
+    return { start: g.start, dur, hits };
   });
 
   const lastEnd = events.length ? events[events.length - 1].start + events[events.length - 1].dur : measureLen;
@@ -109,11 +206,14 @@ function buildStaff(notes: TNote[], voice: Voice, clef: 'treble' | 'bass', name:
   const measureCount = Math.max(1, Math.ceil(totalDiv / measureLen));
   const measures: NMeasure[] = Array.from({ length: measureCount }, (_, i) => ({ number: i + 1, elements: [] }));
 
-  // Emit a span [pos, pos+dur) as a rest (midis null) or a (possibly chord) note,
+  // Emit a span [pos, pos+dur) as a rest (hits null) or a (possibly chord) note,
   // split across barlines (ties) and into representable durations.
-  const emit = (pos: number, dur: number, midis: number[] | null) => {
+  const emit = (pos: number, dur: number, hits: Hit[] | null) => {
     let p = pos, remaining = dur;
-    const isNote = midis !== null && midis.length > 0;
+    const isNote = hits !== null && hits.length > 0;
+    const pitched = isNote ? (hits as Hit[]).filter(h => !h.un) : [];
+    const struck = isNote ? (hits as Hit[]).filter(h => h.un).map(h => h.un as NUnpitched) : [];
+    const lyric = isNote ? (hits as Hit[]).find(h => h.lyric)?.lyric : undefined;
     let first = true;
     while (remaining > 0) {
       const mIndex = Math.floor(p / measureLen);
@@ -126,14 +226,17 @@ function buildStaff(notes: TNote[], voice: Voice, clef: 'treble' | 'bass', name:
         const lastUnitOfNote = first && u === units.length - 1 && chunk === remaining;
         const el: NElement = {
           rest: !isNote,
-          pitches: isNote ? (midis as number[]).map(m => ({ midi: m, ...spell(m, fifths) })) : [],
+          pitches: pitched.map(h => ({ midi: h.midi, ...spell(h.midi, fifths) })),
           divisions: unit.div,
           type: unit.type,
           dots: unit.dots,
         };
+        if (struck.length) el.unpitched = struck;
         if (isNote) {
           el.tieStop = !first || u > 0;
           el.tieStart = !lastUnitOfNote;
+          // Lyrics belong to the head of a tie chain only.
+          if (lyric && !el.tieStop) el.lyric = lyric;
         }
         measures[mIndex].elements.push(el);
       }
@@ -145,22 +248,47 @@ function buildStaff(notes: TNote[], voice: Voice, clef: 'treble' | 'bass', name:
   for (const ev of events) {
     if (ev.start > cursor) emit(cursor, ev.start - cursor, null);   // gap → rest
     if (ev.start < cursor) continue;                                // overlap guard
-    emit(ev.start, ev.dur, ev.midis);
+    emit(ev.start, ev.dur, ev.hits);
     cursor = ev.start + ev.dur;
   }
   const fill = measureCount * measureLen - cursor;
   if (fill > 0) emit(cursor, fill, null);
 
-  return { name, clef, voice, measures };
+  // Collect the distinct percussion instruments this staff actually plays, so
+  // the <score-part> declarations and the per-note <instrument> refs match.
+  const byNote = new Map<number, NUnpitched>();
+  for (const n of voiced) if (n.un && !byNote.has(n.un.midiNote)) byNote.set(n.un.midiNote, n.un);
+  const instruments = [...byNote.values()].sort((a, b) => a.midiNote - b.midiNote);
+
+  const clefKind = spec.clef ?? 'treble';
+  const staff: NStaff = {
+    name: spec.label,
+    clef: clefKind === 'bass' ? 'bass' : 'treble',
+    measures,
+  };
+  if (spec.voice) staff.voice = spec.voice;
+  if (clefKind !== 'treble' && clefKind !== 'bass') staff.clefKind = clefKind;
+  if (spec.id) staff.id = spec.id;
+  if (spec.groupId) {
+    staff.groupId = spec.groupId;
+    if (spec.groupSymbol) staff.groupSymbol = spec.groupSymbol;
+    if (spec.groupName) staff.groupName = spec.groupName;
+  }
+  if (spec.instrumentSound) staff.instrumentSound = spec.instrumentSound;
+  if (instruments.length) staff.instruments = instruments;
+  return staff;
 }
 
-export function buildNotation(t: Transcription): Notation {
+const DEFAULT_PARTS: NPartSpec[] = [
+  { label: 'Melody', clef: 'treble', voice: 'melody' },
+  { label: 'Bass', clef: 'bass', voice: 'bass' },
+];
+
+export function buildNotation(t: Transcription, parts?: NPartSpec[]): Notation {
   const measureLen = t.beatsPerMeasure * DIV * (4 / t.beatUnit);
+  const specs = parts && parts.length ? parts : DEFAULT_PARTS;
   return {
-    staves: [
-      buildStaff(t.notes, 'melody', 'treble', 'Melody', t.keyFifths, measureLen),
-      buildStaff(t.notes, 'bass', 'bass', 'Bass', t.keyFifths, measureLen),
-    ],
+    staves: specs.map(spec => buildStaff(t.notes, spec, t.keyFifths, measureLen)),
     key: t.key,
     mode: t.mode,
     keyFifths: t.keyFifths,
@@ -175,7 +303,46 @@ export function buildNotation(t: Transcription): Notation {
 
 const ACCIDENTAL: Record<number, string> = { 1: 'sharp', 2: 'double-sharp', [-1]: 'flat', [-2]: 'flat-flat' };
 
-function noteXml(el: NElement, _fifths: number): string {
+/** <lyric> sits after <notations> in the MusicXML note content model. We only
+ *  ever emit syllabic "single" — we do no hyphenation, and claiming
+ *  begin/middle/end without it would engrave wrong. */
+function lyricXml(text: string): string[] {
+  return [
+    '        <lyric number="1">',
+    '          <syllabic>single</syllabic>',
+    `          <text>${escapeXml(text)}</text>`,
+    '        </lyric>',
+  ];
+}
+
+function noteXml(el: NElement, _fifths: number, partId: string): string {
+  // Percussion: <unpitched> + an <instrument> ref in place of <pitch>.
+  if (!el.rest && el.unpitched?.length) {
+    return el.unpitched.map((u, idx) => {
+      const lines: string[] = ['      <note>'];
+      if (idx > 0) lines.push('        <chord/>');
+      lines.push('        <unpitched>');
+      lines.push(`          <display-step>${u.displayStep}</display-step>`);
+      lines.push(`          <display-octave>${u.displayOctave}</display-octave>`);
+      lines.push('        </unpitched>');
+      lines.push(`        <duration>${el.divisions}</duration>`);
+      if (el.tieStop) lines.push('        <tie type="stop"/>');
+      if (el.tieStart) lines.push('        <tie type="start"/>');
+      lines.push(`        <instrument id="${instrumentId(partId, u)}"/>`);
+      lines.push('        <voice>1</voice>');
+      lines.push(`        <type>${el.type}</type>`);
+      for (let d = 0; d < el.dots; d++) lines.push('        <dot/>');
+      if (el.tieStart || el.tieStop) {
+        lines.push('        <notations>');
+        if (el.tieStop) lines.push('          <tied type="stop"/>');
+        if (el.tieStart) lines.push('          <tied type="start"/>');
+        lines.push('        </notations>');
+      }
+      if (idx === 0 && el.lyric) lines.push(...lyricXml(el.lyric));
+      lines.push('      </note>');
+      return lines.join('\n');
+    }).join('\n');
+  }
   // Rest → a single <note><rest/>.
   if (el.rest || el.pitches.length === 0) {
     return [
@@ -210,42 +377,132 @@ function noteXml(el: NElement, _fifths: number): string {
       if (el.tieStart) lines.push('          <tied type="start"/>');
       lines.push('        </notations>');
     }
+    if (idx === 0 && el.lyric) lines.push(...lyricXml(el.lyric));
     lines.push('      </note>');
     return lines.join('\n');
   }).join('\n');
 }
 
+const CLEF_XML: Record<NClef, string> = {
+  treble: '<clef><sign>G</sign><line>2</line></clef>',
+  bass: '<clef><sign>F</sign><line>4</line></clef>',
+  alto: '<clef><sign>C</sign><line>3</line></clef>',
+  tenor: '<clef><sign>C</sign><line>4</line></clef>',
+  percussion: '<clef><sign>percussion</sign><line>2</line></clef>',
+};
+
+/** Instrument ids are derived, never stored, so <score-instrument id> and the
+ *  <instrument id> refs on notes cannot drift apart. */
+function instrumentId(partId: string, u: NUnpitched): string {
+  return `${partId}-I${u.midiNote}`;
+}
+
 function partXml(staff: NStaff, n: Notation, partId: string): string {
-  const clefXml = staff.clef === 'bass'
-    ? '          <clef><sign>F</sign><line>4</line></clef>'
-    : '          <clef><sign>G</sign><line>2</line></clef>';
+  const clefKind: NClef = staff.clefKind ?? staff.clef;
+  const clefXml = `          ${CLEF_XML[clefKind]}`;
   const body = staff.measures.map((m, i) => {
     const attrs = i === 0
       ? [
           '        <attributes>',
           `          <divisions>${n.divisions}</divisions>`,
-          `          <key><fifths>${n.keyFifths}</fifths><mode>${n.mode}</mode></key>`,
+          // A percussion staff has no key signature to engrave.
+          clefKind === 'percussion'
+            ? ''
+            : `          <key><fifths>${n.keyFifths}</fifths><mode>${n.mode}</mode></key>`,
           `          <time><beats>${n.beats}</beats><beat-type>${n.beatType}</beat-type></time>`,
           clefXml,
           '        </attributes>',
           i === 0 ? `        <direction placement="above"><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>${n.tempo}</per-minute></metronome></direction-type></direction>` : '',
         ].filter(Boolean).join('\n')
       : '';
-    const notes = m.elements.map(el => noteXml(el, n.keyFifths)).join('\n');
+    const notes = m.elements.map(el => noteXml(el, n.keyFifths, partId)).join('\n');
     return `    <measure number="${m.number}">\n${attrs ? attrs + '\n' : ''}${notes}\n    </measure>`;
   }).join('\n');
   return `  <part id="${partId}">\n${body}\n  </part>`;
 }
 
-export function notationToMusicXML(n: Notation, title: string, composer: string): string {
-  const parts = n.staves.map((s, i) => partXml(s, n, `P${i + 1}`)).join('\n');
-  const partList = n.staves.map((s, i) =>
-    `    <score-part id="P${i + 1}"><part-name>${escapeXml(s.name)}</part-name></score-part>`).join('\n');
+const partIdOf = (s: NStaff, i: number) => s.id || `P${i + 1}`;
+
+/** <score-part> content order is fixed: part-name, then score-instrument*, then
+ *  midi-instrument*. Percussion parts declare one instrument per drum, with
+ *  <midi-unpitched> on channel 10 (the GM percussion channel). */
+function scorePartXml(staff: NStaff, partId: string): string {
+  const name = `<part-name>${escapeXml(staff.name)}</part-name>`;
+  const instruments = staff.instruments ?? [];
+  if (!instruments.length && !staff.instrumentSound) {
+    return `    <score-part id="${partId}">${name}</score-part>`;
+  }
+  const lines = [`    <score-part id="${partId}">`, `      ${name}`];
+  if (instruments.length) {
+    for (const u of instruments) {
+      const id = instrumentId(partId, u);
+      const label = u.name || `Unpitched ${u.midiNote}`;
+      const sound = u.sound ? `<instrument-sound>${escapeXml(u.sound)}</instrument-sound>` : '';
+      lines.push(`      <score-instrument id="${id}"><instrument-name>${escapeXml(label)}</instrument-name>${sound}</score-instrument>`);
+    }
+    for (const u of instruments) {
+      // <midi-unpitched> is 1-based against MIDI note numbers.
+      lines.push(`      <midi-instrument id="${instrumentId(partId, u)}"><midi-channel>10</midi-channel><midi-unpitched>${u.midiNote + 1}</midi-unpitched></midi-instrument>`);
+    }
+  } else if (staff.instrumentSound) {
+    lines.push(`      <score-instrument id="${partId}-I1"><instrument-name>${escapeXml(staff.name)}</instrument-name><instrument-sound>${escapeXml(staff.instrumentSound)}</instrument-sound></score-instrument>`);
+  }
+  lines.push('    </score-part>');
+  return lines.join('\n');
+}
+
+/** Wrap runs of staves that share a groupId in <part-group start/stop>. */
+function partListXml(staves: NStaff[]): string {
+  const out: string[] = [];
+  let open: string | null = null;
+  let groupNum = 0;
+  staves.forEach((s, i) => {
+    const gid = s.groupId ?? null;
+    if (gid !== open) {
+      if (open !== null) out.push(`    <part-group type="stop" number="${groupNum}"/>`);
+      open = gid;
+      if (gid) {
+        groupNum++;
+        const inner = [
+          s.groupName ? `      <group-name>${escapeXml(s.groupName)}</group-name>` : '',
+          `      <group-symbol>${s.groupSymbol ?? 'brace'}</group-symbol>`,
+          '      <group-barline>yes</group-barline>',
+        ].filter(Boolean).join('\n');
+        out.push(`    <part-group type="start" number="${groupNum}">\n${inner}\n    </part-group>`);
+      }
+    }
+    out.push(scorePartXml(s, partIdOf(s, i)));
+  });
+  if (open !== null) out.push(`    <part-group type="stop" number="${groupNum}"/>`);
+  return out.join('\n');
+}
+
+/** <identification> content order: creator*, rights*, encoding?, source?.
+ *  Source attribution uses the real <source> element rather than an
+ *  encoding-description or a miscellaneous-field — it is the element MusicXML
+ *  defines for exactly this, so importers surface it as the score's source. */
+function identificationXml(composer: string, credits?: NCredits): string {
+  const creator = (type: string, v?: string) =>
+    v ? `<creator type="${type}">${escapeXml(v)}</creator>` : '';
+  const composerName = credits?.composer ?? composer;
+  return [
+    `<creator type="composer">${escapeXml(composerName)}</creator>`,
+    creator('arranger', credits?.arranger),
+    creator('lyricist', credits?.lyricist),
+    credits?.rights ? `<rights>${escapeXml(credits.rights)}</rights>` : '',
+    '<encoding><software>Plajah Cora</software></encoding>',
+    credits?.source ? `<source>${escapeXml(credits.source)}</source>` : '',
+  ].join('');
+}
+
+export function notationToMusicXML(n: Notation, title: string, composer: string, credits?: NCredits): string {
+  const parts = n.staves.map((s, i) => partXml(s, n, partIdOf(s, i))).join('\n');
+  const partList = partListXml(n.staves);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
 <score-partwise version="3.1">
   <work><work-title>${escapeXml(title)}</work-title></work>
-  <identification><creator type="composer">${escapeXml(composer)}</creator><encoding><software>Plajah Cora</software></encoding></identification>
+  <identification>${identificationXml(composer, credits)}</identification>
   <part-list>
 ${partList}
   </part-list>

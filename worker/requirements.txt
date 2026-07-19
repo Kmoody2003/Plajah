@@ -1,0 +1,6 @@
+demucs==4.0.1
+torch==2.5.1
+torchaudio==2.5.1
+flask==3.0.3
+gunicorn==23.0.0
+google-cloud-storage==2.18.2

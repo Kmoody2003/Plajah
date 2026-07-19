@@ -58,27 +58,62 @@ export async function quickStems(blob: Blob, mode: StemMode = 'both'): Promise<{
 
 export interface CloudStemResult { vocals?: string; drums?: string; bass?: string; other?: string; voices?: string[]; ok: boolean; message?: string; }
 
-/** High-quality separation on the Crossover tier. Contract (see docs/fabula/AUDIO_SEPARATION_PLAN.md):
- *  POST /api/crossover/stems { url, mode:'4stem'|'voices' } → { vocals, drums, bass, other } URLs
- *  (Demucs) or { voices:[urls] } (pyannote diarization + per-speaker isolate). Not yet deployed →
- *  returns { ok:false } so the caller can fall back to quickStems and tell the user. */
-export async function separateStemsCloud(url: string, mode: '4stem' | 'voices'): Promise<CloudStemResult> {
+/** How the cloud separation is progressing, for callers that want to show more than a spinner. */
+export type CloudStemStage = 'queued' | 'fetching' | 'separating' | 'uploading';
+
+/**
+ * High-quality separation on the Crossover tier.
+ *
+ * Demucs takes minutes per song, far longer than any request can stay open, so the contract is
+ * asynchronous: POST /api/crossover/stems { url } → 202 { jobId }, then poll
+ * GET /api/crossover/stems/job/:jobId until it reports done or error.
+ *
+ * Returns { ok:false } on any failure — not deployed, not signed in, timed out, worker error —
+ * so every caller can fall back to quickStems and tell the user something true.
+ */
+export async function separateStemsCloud(
+  url: string,
+  mode: '4stem' | 'voices',
+  opts?: { onStage?: (stage: CloudStemStage) => void; signal?: AbortSignal; timeoutMs?: number },
+): Promise<CloudStemResult> {
+  // The endpoint is behind authMiddleware, which hard-requires a Bearer token.
+  const { auth } = await import('../backendService');
+  const token = auth.currentUser ? await auth.currentUser.getIdToken().catch(() => null) : null;
+  if (!token) return { ok: false, message: 'Sign in to use studio separation' };
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+
+  let jobId: string;
   try {
-    // The endpoint is behind authMiddleware, which hard-requires a Bearer token. Without this
-    // header every call 401s the moment the server tier is enabled — a failure currently masked
-    // by the 501 the disabled flag returns first.
-    const { auth } = await import('../backendService');
-    const token = auth.currentUser ? await auth.currentUser.getIdToken().catch(() => null) : null;
-    if (!token) return { ok: false, message: 'Sign in to use high-quality separation' };
     const res = await fetch('/api/crossover/stems', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ url, mode }),
+      method: 'POST', headers, body: JSON.stringify({ url, mode }), signal: opts?.signal,
     });
-    if (!res.ok) return { ok: false, message: `stems endpoint ${res.status}` };
-    const j = await res.json();
-    return { ok: true, ...j };
+    const j = await res.json().catch(() => ({} as any));
+    if (!res.ok || !j?.jobId) return { ok: false, message: j?.message || `stems endpoint ${res.status}` };
+    jobId = j.jobId;
   } catch (e) {
-    return { ok: false, message: (e as Error)?.message || 'Crossover stems tier unavailable' };
+    return { ok: false, message: (e as Error)?.message || 'Studio separation unavailable' };
   }
+
+  // Cap the wait so a stuck worker surfaces as a clear failure instead of an endless spinner.
+  const deadline = Date.now() + (opts?.timeoutMs ?? 15 * 60 * 1000);
+  let delay = 2000;
+  while (Date.now() < deadline) {
+    if (opts?.signal?.aborted) return { ok: false, message: 'cancelled' };
+    await new Promise(r => setTimeout(r, delay));
+    // Back off gently: separation takes minutes, so polling every 2s the whole way is wasteful.
+    delay = Math.min(delay * 1.4, 10000);
+    try {
+      const res = await fetch(`/api/crossover/stems/job/${jobId}`, { headers, signal: opts?.signal });
+      if (!res.ok) continue;   // transient — keep polling until the deadline
+      const j = await res.json();
+      if (j.status === 'done') return { ok: true, vocals: j.vocals, drums: j.drums, bass: j.bass, other: j.other };
+      if (j.status === 'error') return { ok: false, message: j.message || 'separation failed' };
+      if (j.stage) opts?.onStage?.(j.stage as CloudStemStage);
+      else if (j.status === 'queued') opts?.onStage?.('queued');
+    } catch (e) {
+      if (opts?.signal?.aborted) return { ok: false, message: 'cancelled' };
+      /* transient network blip — keep polling */
+    }
+  }
+  return { ok: false, message: 'separation timed out' };
 }

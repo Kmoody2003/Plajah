@@ -23,7 +23,8 @@ import { useGlobalPlayer, useGlobalPlayerProgress } from '../contexts/GlobalPlay
 import { detectBeats, type BeatAnalysis } from '../services/audioBeatDetection';
 import { getOrComputeAnalysis, toBeatAnalysis, loadTrackTheory, persistTrackTheory } from '../services/djAnalysis';
 import { transcribeTrack, type Transcription } from '../services/audioTranscription';
-import { buildNotation, notationToMusicXML, type Notation } from '../services/musicNotation';
+import { buildNotation, notationToMusicXML, type Notation, type NPartSpec, type NInputNote } from '../services/musicNotation';
+import { transcribeDrums, type DrumTranscription, type DrumClass, type DrumHit } from '../services/drumTranscription';
 import {
   buildGuidedTour, activeStopIndex, activeBarIndex,
   type GuidedTour, type TourStop, type BarChord,
@@ -539,6 +540,41 @@ const STEMS: StemDef[] = [
   { id: 'synth',   label: 'Synth / Lead',  emoji: '🎛️', color: '#ec4899', binStart: 9,   binEnd: 190, isDrum: false, canvasHeight: 68, minMidi: 48, maxMidi: 96, threshold: 35, roles: ['MELODY']             },
 ];
 
+// ─── Detected drums → notation ────────────────────────────────────────────────
+//
+// Standard percussion-clef placement, and the General MIDI numbers a DAW expects when it
+// opens the exported MusicXML. Display step/octave is a staff POSITION, not a sounding pitch.
+const DRUM_NOTATION: Record<DrumClass, { displayStep: string; displayOctave: number; midiNote: number; name: string; sound: string }> = {
+  KICK:  { displayStep: 'F', displayOctave: 4, midiNote: 36, name: 'Bass Drum',  sound: 'drum.bass-drum' },
+  SNARE: { displayStep: 'C', displayOctave: 5, midiNote: 38, name: 'Snare Drum', sound: 'drum.snare-drum' },
+  HIHAT: { displayStep: 'G', displayOctave: 5, midiNote: 42, name: 'Hi-Hat',     sound: 'drum.hi-hat' },
+};
+
+/** Build the percussion part spec for a score, or null when nothing was detected.
+ *  Returning null (rather than an empty staff) keeps the old two-staff score intact for
+ *  material with no drums — an empty percussion stave would just be noise on the page. */
+function drumPartSpecs(t: Transcription, d: DrumTranscription | null): NPartSpec[] | undefined {
+  if (!d?.hits?.length) return undefined;
+  const secPerBeat = 60 / (t.bpm || 120);
+  const notes: NInputNote[] = d.hits.map(h => {
+    const beat = Math.max(0, (h.time - t.firstBeatSec) / secPerBeat);
+    return {
+      midi: 0,
+      startSec: h.time, durSec: secPerBeat / 2,
+      // Drums are struck, not sustained: a uniform short value reads correctly and avoids
+      // implying a decay length the detector never measured.
+      startBeat: beat, durBeats: 0.5,
+      voice: 'melody' as const, velocity: h.confidence,
+      unpitched: DRUM_NOTATION[h.drum],
+    };
+  });
+  return [
+    { label: 'Melody', clef: 'treble', voice: 'melody', groupId: 'p', groupSymbol: 'brace', groupName: 'Piano' },
+    { label: 'Bass', clef: 'bass', voice: 'bass', groupId: 'p' },
+    { label: 'Drums', clef: 'percussion', notes, filter: () => true },
+  ];
+}
+
 // ─── Per-stem score sheet (SVG notation for that stem's role) ─────────────────
 
 const StemScoreNotes: React.FC<{
@@ -551,7 +587,11 @@ const StemScoreNotes: React.FC<{
    *  window around this live beat (true transcription mode). */
   currentBeatReal?: number;
   windowBeats?: number;
-}> = ({ stem, notes, progress, lyrics, duration = 0, currentBeatReal, windowBeats = 8 }) => {
+  /** Detected percussion hits (drum staff only), with the grid needed to place them. */
+  drumHits?: DrumHit[];
+  beatSec?: number;
+  firstBeatSec?: number;
+}> = ({ stem, notes, progress, lyrics, duration = 0, currentBeatReal, windowBeats = 8, drumHits, beatSec = 0, firstBeatSec = 0 }) => {
   const currentBeat = progress * notes.length;
   const real = currentBeatReal != null;
   const cbr = currentBeatReal as number;
@@ -580,13 +620,17 @@ const StemScoreNotes: React.FC<{
 
         {real
           ? (() => {
-              // No drum transcription — show a tempo-synced beat guide in the window.
-              const hits: { pos: number; type: 1 | 2 | 3 }[] = [];
-              for (let b = Math.floor(viewStart); b <= viewStart + win + 1; b += 0.5) {
-                if (b < 0) continue;
-                hits.push({ pos: b, type: 3 });                                   // hi-hat on eighths
-                if (Number.isInteger(b)) hits.push({ pos: b, type: (b % 2 === 0 ? 1 : 2) }); // kick/snare
-              }
+              // Detected hits, converted from seconds to the beat axis this staff scrolls on.
+              // When detection found nothing we draw nothing: the previous behaviour here was a
+              // tempo-derived grid (hi-hat on every eighth, kick/snare alternating) that looked
+              // like transcription but was invented — it showed the same pattern for every song.
+              const secPerBeat = beatSec || 0;
+              const hits: { pos: number; type: 1 | 2 | 3 }[] = (secPerBeat > 0 ? (drumHits || []) : [])
+                .map(h => ({
+                  pos: (h.time - firstBeatSec) / secPerBeat,
+                  type: (h.drum === 'KICK' ? 1 : h.drum === 'SNARE' ? 2 : 3) as 1 | 2 | 3,
+                }))
+                .filter(h => h.pos >= viewStart - 1 && h.pos <= viewStart + win + 1);
               return hits.map(h => {
                 const x = xForBeat(h.pos);
                 if (x < 24 || x > 546) return null;
@@ -1496,6 +1540,13 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
   // Pitch (Spotify CNN) is an opt-in "Enhance" pass that lazy-loads tfjs.
   const [transcription, setTranscription] = useState<Transcription | null>(null);
   const [notation, setNotation] = useState<Notation | null>(null);
+  const [drums, setDrums] = useState<DrumTranscription | null>(null);
+  // Rebuilt whenever either pass lands, so the score picks up drums the moment they're
+  // detected without the pitched staves waiting on them.
+  useEffect(() => {
+    if (!transcription) { setNotation(null); return; }
+    setNotation(buildNotation(transcription, drumPartSpecs(transcription, drums)));
+  }, [transcription, drums]);
   const [transcribing, setTranscribing] = useState(false);
   const [transProgress, setTransProgress] = useState(0);
   const [enhanceState, setEnhanceState] = useState<'idle' | 'running' | 'fallback'>('idle');
@@ -1587,11 +1638,15 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
     resolveSourceUrl(source, ac.signal)
       .then(url => {
         if (!url || ac.signal.aborted) return undefined;
+        // Percussion runs alongside the pitched pass off the same URL. Best-effort and
+        // independent: a track whose drums can't be read still gets its melody staff.
+        transcribeDrums(url, ac.signal)
+          .then(d => { if (!ac.signal.aborted) setDrums(d); })
+          .catch(() => { /* leave the drum staff empty rather than invent hits */ });
         return transcribeTrack(url, { signal: ac.signal, backend, onProgress: (_s, p) => setTransProgress(p) })
           .then(t => {
             if (ac.signal.aborted) return;
-            setTranscription(t);
-            setNotation(buildNotation(t));
+            setTranscription(t);   // the notation itself is rebuilt below, once drums are in too
             if (backend === 'basic-pitch') setEnhanceState(t.backend === 'basic-pitch' ? 'idle' : 'fallback');
           });
       })
@@ -2101,7 +2156,15 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
                           currentBeatReal={staffCurrentBeat}
                           lyrics={track.timeCodedLyrics}
                           duration={duration}
+                          drumHits={stem.isDrum ? drums?.hits : undefined}
+                          beatSec={transcription ? 60 / (transcription.bpm || 120) : 0}
+                          firstBeatSec={transcription?.firstBeatSec ?? 0}
                         />
+                        {stem.isDrum && drums && drums.hits.length === 0 && (
+                          <p className="text-[7px] text-white/25 font-bold mt-1">
+                            No percussion detected{drums.note ? ` — ${drums.note}` : ''}. Isolate the drum stem for a cleaner read.
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
