@@ -475,6 +475,49 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     if (text) updateTrack(track.id, { lyrics: text });
   }, [updateTrack]);
 
+  /**
+   * Carry a lyrics-box correction onto the already-synced timings.
+   *
+   * The album-page viewer renders `timeCodedLyrics[].text` and never falls back to
+   * `track.lyrics`, so once a track was synced, fixing a typo in the lyrics box changed
+   * nothing on playback — the old misspelling kept showing. This keeps the two in step,
+   * preserving every timestamp exactly as it was synced.
+   *
+   * Only applies to a *correction*: same number of lines, and most lines untouched. A
+   * wholesale rewrite, or added/removed lines, can't be mapped onto the old timings without
+   * guessing which line belongs to which moment — those are left alone and surfaced in the
+   * UI as needing a re-sync, rather than silently mangled.
+   */
+  const reconcileTimedLyricText = useCallback((track: Partial<Track>, lyrics: string): { timeCodedLyrics: NonNullable<Track['timeCodedLyrics']> } | null => {
+    const timed = track.timeCodedLyrics;
+    if (!timed || timed.length === 0) return null;
+    const lines = lyrics.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length !== timed.length) return null;
+    const changed = lines.reduce((n, line, i) => n + (line !== (timed[i].text || '').trim() ? 1 : 0), 0);
+    if (changed === 0) return null;
+    if (changed > Math.max(1, Math.floor(lines.length / 2))) return null; // a rewrite, not a fix
+    return { timeCodedLyrics: timed.map((l, i) => ({ ...l, text: lines[i] })) };
+  }, []);
+
+  /** Whether the lyrics box and the synced captions have drifted apart, and how badly. */
+  const timedLyricDrift = useCallback((track: Partial<Track>): 'none' | 'text' | 'count' => {
+    const timed = track.timeCodedLyrics;
+    if (!timed || timed.length === 0) return 'none';
+    const lines = (track.lyrics || '').split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) return 'none';           // nothing typed yet — not a divergence
+    if (lines.length !== timed.length) return 'count';
+    return lines.some((l, i) => l !== (timed[i].text || '').trim()) ? 'text' : 'none';
+  }, []);
+
+  /** Force the typed words onto the existing timings by line order (user-confirmed). */
+  const applyLyricsToTimings = useCallback((track: Track) => {
+    const timed = track.timeCodedLyrics;
+    if (!timed || timed.length === 0) return;
+    const lines = (track.lyrics || '').split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length !== timed.length) return;
+    updateTrack(track.id, { timeCodedLyrics: timed.map((l, i) => ({ ...l, text: lines[i] })) });
+  }, [updateTrack]);
+
   /** Nudge one line's timestamp by delta seconds, keeping the list ordered and non-negative. */
   const nudgeLyricTime = useCallback((track: Track, index: number, delta: number) => {
     const list = [...(track.timeCodedLyrics || [])];
@@ -1532,7 +1575,12 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                     </div>
                     <textarea
                       value={track.lyrics || ''}
-                      onChange={(e) => updateTrack(track.id, { lyrics: e.target.value })}
+                      onChange={(e) => {
+                        const lyrics = e.target.value;
+                        // Keep synced captions in step with corrections typed here — the album
+                        // page reads the captions, not this box.
+                        updateTrack(track.id, { lyrics, ...(reconcileTimedLyricText(track, lyrics) || {}) });
+                      }}
                       placeholder="Paste or write lyrics here — each line becomes a caption…"
                       className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-[11px] font-medium text-white/80 outline-none h-28 resize-none focus:border-white/20 transition-colors"
                     />
@@ -1545,6 +1593,9 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                     // Transcribed lines exist but nothing has been pasted into the lyrics box —
                     // this is the case that used to lock manual syncing out entirely.
                     const transcriptOnly = hasSynced && !hasLyrics;
+                    // Words in the lyrics box no longer match the synced captions the album
+                    // page actually displays. 'text' is alignable by line order; 'count' isn't.
+                    const drift = timedLyricDrift(track);
                     const canSync = hasLyrics || hasSynced;
                     const fmtT = (s: number) => { const m = Math.floor(s / 60); const ss = Math.floor(s % 60); return `${m}:${ss.toString().padStart(2,'0')}`; };
                     const fmtExact = (s: number) => { const m = Math.floor(s / 60); const ss = (s % 60).toFixed(1).padStart(4, '0'); return `${m}:${ss}`; };
@@ -1606,6 +1657,26 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                               <p className="text-[7px] font-black uppercase tracking-[0.25em] text-white/25 mb-1.5">
                                 Timestamps — nudge or type to correct
                               </p>
+                              {/* The album page shows these captions, not the lyrics box — say so
+                                  plainly when the two have drifted, and offer the safe fix. */}
+                              {drift !== 'none' && (
+                                <div className="mb-2 px-2.5 py-2 rounded-lg bg-amber-500/[0.07] border border-amber-500/25 space-y-1.5">
+                                  <p className="text-[8px] text-amber-200/80 font-bold leading-relaxed">
+                                    {drift === 'count'
+                                      ? `Your lyrics have ${(track.lyrics || '').split('\n').filter(l => l.trim()).length} lines but there are ${track.timeCodedLyrics!.length} timed captions. Line counts must match to carry the words over — re-sync to retime.`
+                                      : 'These captions still show the old words. The album page plays these, not the lyrics box.'}
+                                  </p>
+                                  {drift === 'text' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => applyLyricsToTimings(track)}
+                                      className="px-2.5 py-1 rounded-md bg-amber-500/20 hover:bg-amber-500/35 text-amber-100 text-[7.5px] font-black uppercase tracking-widest transition-colors"
+                                    >
+                                      Apply my lyrics to these timings
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                               <div className="space-y-0.5">
                                 {track.timeCodedLyrics!.map((l, i) => (
                                   <div key={i} className="flex items-center gap-1.5 group/line rounded-lg px-1 py-0.5 hover:bg-white/[0.04]">
