@@ -4819,10 +4819,22 @@ export const fetchUserPhotos = async (uid: string): Promise<Photo[]> => {
       orderBy('timestamp', 'desc')
     );
     const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as Photo);
+    // Fall back to the doc id when the stored payload doesn't carry one — otherwise the
+    // Content Manager would key photo assets on `undefined` and edits would target nothing.
+    return snap.docs.map(d => ({ id: d.id, ...(d.data() as Photo) }));
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
+  }
+};
+
+/** Edit a photo's own fields (title / description / visibility) from the Content Manager. */
+export const updatePhoto = async (photoId: string, updates: Partial<Photo>) => {
+  const path = `photos/${photoId}`;
+  try {
+    await updateDoc(doc(db, 'photos', photoId), removeUndefined(updates));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, path);
   }
 };
 

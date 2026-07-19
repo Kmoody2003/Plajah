@@ -4,14 +4,15 @@ import {
   Search, LayoutGrid, List, Music2, Clapperboard, BookOpen, Film, FolderKanban,
   Pencil, Play, Globe, Lock, FileText, Clock, CheckSquare, Square, Download,
   Loader2, Sparkles, Layers, Tv, Mic2, Filter, ArrowUpDown, X, ShoppingBag, Crown, Repeat, Save,
+  Camera, Image as ImageIcon,
 } from 'lucide-react';
-import { Album, Video, StoreProduct } from '../types';
-import { fetchUserAlbums, fetchUserVideos, updateAlbum, updateVideo } from '../services/backendService';
+import { Album, Video, StoreProduct, Photo } from '../types';
+import { fetchUserAlbums, fetchUserVideos, fetchUserPhotos, updateAlbum, updateVideo, updatePhoto } from '../services/backendService';
 import { fetchUnifiedSellerProducts } from '../services/storeService';
 import { crossover, type MediaKind, type Recipe, type ConvertResult } from '../services/crossover';
 
 // ── Unified asset model — one normalized record across every Plajah service ──────
-type ServiceKey = 'CHORA' | 'TALEO' | 'LOREA' | 'REELLO' | 'STORE' | 'OTHER';
+type ServiceKey = 'CHORA' | 'TALEO' | 'LOREA' | 'REELLO' | 'PHOTOS' | 'STORE' | 'OTHER';
 type AssetStatus = 'PUBLIC' | 'DRAFT' | 'PRIVATE' | 'SCHEDULED';
 
 interface Asset {
@@ -29,6 +30,7 @@ interface Asset {
   album?: Album;          // source (albums-backed)
   video?: Video;          // source (Reello video docs)
   product?: StoreProduct; // source (unified store product — canonical + folded-in legacy merch)
+  photo?: Photo;          // source (Plajah Photos — stills and short clips in the user's library)
 }
 
 const SERVICES: { key: ServiceKey | 'ALL' | 'PROJECTS'; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; accent: string }[] = [
@@ -37,6 +39,7 @@ const SERVICES: { key: ServiceKey | 'ALL' | 'PROJECTS'; label: string; icon: Rea
   { key: 'TALEO',    label: 'Taleo',    icon: Clapperboard, accent: '#D0BCFF' },
   { key: 'LOREA',    label: 'Lorea',    icon: BookOpen,     accent: '#F0A868' },
   { key: 'REELLO',   label: 'Reello',   icon: Film,         accent: '#FF6B9D' },
+  { key: 'PHOTOS',   label: 'Photos',   icon: Camera,       accent: '#5EC8F2' },
   { key: 'STORE',    label: 'Store',    icon: ShoppingBag,  accent: '#FFB000' },
   { key: 'PROJECTS', label: 'Projects', icon: FolderKanban, accent: '#7CA9FF' },
 ];
@@ -109,6 +112,7 @@ const ContentAssetManager: React.FC<{
   const [albums, setAlbums] = useState<Album[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
   const [products, setProducts] = useState<StoreProduct[]>([]);
+  const [photos, setPhotos] = useState<Photo[]>([]);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<ServiceKey | 'ALL' | 'PROJECTS'>('ALL');
@@ -122,14 +126,16 @@ const ContentAssetManager: React.FC<{
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [al, vi, pr] = await Promise.all([
+    const [al, vi, pr, ph] = await Promise.all([
       fetchUserAlbums(uid).catch(() => []),
       fetchUserVideos(uid).catch(() => []),
       fetchUnifiedSellerProducts(uid).catch(() => []),
+      fetchUserPhotos(uid).catch(() => [] as Photo[]),
     ]);
     setAlbums(al || []);
     setVideos(vi || []);
     setProducts(pr || []);
+    setPhotos(ph || []);
     setProjects(loadProjects());
     setLoading(false);
   }, [uid]);
@@ -167,8 +173,24 @@ const ContentAssetManager: React.FC<{
         plays: p.reviewCount || 0, updatedAt: p.updatedAt || p.createdAt || 0, editable: true, price: p.price, product: p,
       });
     }
+    // Plajah Photos library — stills and short clips. Photos carry `isPublic` (not `isPrivate`),
+    // and a photo with no visibility flag set has never been shared, so it reads as PRIVATE.
+    for (const ph of photos) {
+      if (!ph?.id) continue;
+      const isClip = ph.mediaType === 'VIDEO';
+      out.push({
+        id: ph.id, service: 'PHOTOS', typeLabel: isClip ? 'Photo Clip' : 'Photo',
+        title: ph.title || (isClip ? 'Untitled clip' : 'Untitled photo'),
+        // A clip's `url` is a video file — feeding it to an <img> would render broken, so
+        // leave the cover unset and let the placeholder stand in on cards.
+        cover: isClip ? undefined : ph.url,
+        status: ph.isPublic ? 'PUBLIC' : 'PRIVATE',
+        plays: ph.likesCount || 0, updatedAt: ph.timestamp || 0,
+        editable: false, photo: ph,
+      });
+    }
     return out;
-  }, [albums, videos, products]);
+  }, [albums, videos, products, photos]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { ALL: assets.length, PROJECTS: projects.length };
@@ -194,6 +216,8 @@ const ContentAssetManager: React.FC<{
       await Promise.all([...selected].map(id => {
         const a = assets.find(x => x.id === id);
         if (a?.album) return updateAlbum(id, { isPublic: makePublic, isDraft: makePublic ? false : (a.album.isDraft ?? true), isPrivate: !makePublic } as any);
+        if (a?.photo) return updatePhoto(id, { isPublic: makePublic });
+        if (a?.video) return updateVideo(id, { isPrivate: !makePublic } as any);
         return Promise.resolve();
       }));
       clearSel();
@@ -209,6 +233,16 @@ const ContentAssetManager: React.FC<{
     setBusy(true);
     try {
       await updateVideo(id, patch as any); // Video.isPrivate is the canonical visibility field
+      await load();
+    } finally { setBusy(false); }
+  };
+
+  // Same inline-edit treatment for Photos library items. Photo visibility is `isPublic`,
+  // the inverse of Video's `isPrivate` — don't unify these, the stored fields really differ.
+  const savePhotoAsset = async (id: string, patch: { title?: string; description?: string; isPublic?: boolean }) => {
+    setBusy(true);
+    try {
+      await updatePhoto(id, patch);
       await load();
     } finally { setBusy(false); }
   };
@@ -309,7 +343,8 @@ const ContentAssetManager: React.FC<{
                     onEdit={() => { setDetail(null); edit(a); }}
                     onToggleGate={a.album ? () => toggleGate(a) : undefined}
                     onManageSanctuary={onManageSanctuary}
-                    onSaveVideo={a.video ? (patch) => saveVideoAsset(a.id, patch) : undefined} />
+                    onSaveVideo={a.video ? (patch) => saveVideoAsset(a.id, patch) : undefined}
+                    onSavePhoto={a.photo ? (patch) => savePhotoAsset(a.id, patch) : undefined} />
                 </div>
               )}
             </React.Fragment>
@@ -325,7 +360,8 @@ const ContentAssetManager: React.FC<{
                   onEdit={() => { setDetail(null); edit(a); }}
                   onToggleGate={a.album ? () => toggleGate(a) : undefined}
                   onManageSanctuary={onManageSanctuary}
-                  onSaveVideo={a.video ? (patch) => saveVideoAsset(a.id, patch) : undefined} />
+                  onSaveVideo={a.video ? (patch) => saveVideoAsset(a.id, patch) : undefined}
+                    onSavePhoto={a.photo ? (patch) => savePhotoAsset(a.id, patch) : undefined} />
               )}
             </React.Fragment>
           ))}
@@ -459,20 +495,28 @@ const AssetDetail: React.FC<{
   onToggleGate?: () => void;
   onManageSanctuary?: () => void;
   onSaveVideo?: (patch: { title?: string; description?: string; isPrivate?: boolean; genre?: string }) => void;
-}> = ({ asset, busy, onClose, onEdit, onToggleGate, onManageSanctuary, onSaveVideo }) => {
+  onSavePhoto?: (patch: { title?: string; description?: string; isPublic?: boolean }) => void;
+}> = ({ asset, busy, onClose, onEdit, onToggleGate, onManageSanctuary, onSaveVideo, onSavePhoto }) => {
   const v = asset.video;
-  const [title, setTitle] = useState(v?.title || asset.title);
-  const [description, setDescription] = useState(v?.description || '');
-  const [isPrivate, setIsPrivate] = useState(!!v?.isPrivate);
-  // Re-seed the form whenever a different Reello asset is opened inline.
+  const ph = asset.photo;
+  const isClip = ph?.mediaType === 'VIDEO';
+  // One form drives both editors. Photos store `isPublic`, videos store `isPrivate`, so the
+  // shared control tracks "private" and the photo save inverts it on the way out.
+  const src = v || ph;
+  const seedPrivate = ph ? !ph.isPublic : !!v?.isPrivate;
+  const [title, setTitle] = useState(src?.title || asset.title);
+  const [description, setDescription] = useState(src?.description || '');
+  const [isPrivate, setIsPrivate] = useState(seedPrivate);
+  // Re-seed the form whenever a different asset is opened inline.
   useEffect(() => {
-    setTitle(v?.title || asset.title);
-    setDescription(v?.description || '');
-    setIsPrivate(!!v?.isPrivate);
+    setTitle(src?.title || asset.title);
+    setDescription(src?.description || '');
+    setIsPrivate(ph ? !ph.isPublic : !!v?.isPrivate);
   }, [asset.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const dirty = onSaveVideo && v && (
-    title !== (v.title || '') || description !== (v.description || '') || isPrivate !== !!v.isPrivate
+  const dirty = !!(
+    (onSaveVideo && v && (title !== (v.title || '') || description !== (v.description || '') || isPrivate !== !!v.isPrivate)) ||
+    (onSavePhoto && ph && (title !== (ph.title || '') || description !== (ph.description || '') || isPrivate !== !ph.isPublic))
   );
 
   return (
@@ -481,7 +525,11 @@ const AssetDetail: React.FC<{
         {/* Cover */}
         <div className="relative">
           <div className="aspect-video md:h-full md:aspect-auto min-h-[180px] bg-white/5">
-            {asset.cover ? <img src={asset.cover} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Film size={30} className="text-white/15" /></div>}
+            {isClip && ph?.url
+              ? <video src={ph.url} controls playsInline className="w-full h-full object-contain bg-black" />
+              : asset.cover
+                ? <img src={asset.cover} alt="" className="w-full h-full object-cover" />
+                : <div className="w-full h-full flex items-center justify-center">{React.createElement(asset.service === 'PHOTOS' ? ImageIcon : Film, { size: 30, className: 'text-white/15' })}</div>}
           </div>
           <span className="absolute top-3 left-3 px-2 py-1 rounded-full text-[8px] font-black uppercase tracking-widest backdrop-blur-sm" style={{ background: `${svcAccent(asset.service)}33`, color: svcAccent(asset.service) }}>{SERVICES.find(s => s.key === asset.service)?.label} · {asset.typeLabel}</span>
         </div>
@@ -497,10 +545,10 @@ const AssetDetail: React.FC<{
             {[
               ['Status', STATUS_STYLE[asset.status].label],
               ['Type', asset.typeLabel],
-              [asset.product ? 'Price' : 'Plays', asset.product ? `$${(asset.price ?? 0).toFixed(2)}` : asset.plays.toLocaleString()],
-              ['Updated', asset.updatedAt ? new Date(asset.updatedAt).toLocaleDateString() : '—'],
+              [asset.product ? 'Price' : ph ? 'Likes' : 'Plays', asset.product ? `$${(asset.price ?? 0).toFixed(2)}` : asset.plays.toLocaleString()],
+              [ph ? 'Captured' : 'Updated', asset.updatedAt ? new Date(asset.updatedAt).toLocaleDateString() : '—'],
               ['Access', asset.gated ? 'Sanctuary' : 'Open'],
-              ['Visibility', v ? (v.isPrivate ? 'Private' : 'Public') : '—'],
+              ['Visibility', v ? (v.isPrivate ? 'Private' : 'Public') : ph ? (ph.isPublic ? 'Public' : 'Private') : '—'],
             ].map(([k, val]) => (
               <div key={k} className="p-3 rounded-xl bg-white/[0.03] border border-white/8">
                 <p className="text-[7px] font-black uppercase tracking-widest text-white/25 mb-1">{k}</p>
@@ -509,10 +557,13 @@ const AssetDetail: React.FC<{
             ))}
           </div>
 
-          {/* ── Reello video editor — edit the canonical settings right here ── */}
-          {onSaveVideo && v && (
+          {/* ── Inline editor — edit the canonical settings right here (Reello video or Photos item) ── */}
+          {((onSaveVideo && v) || (onSavePhoto && ph)) && (
             <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-4">
-              <div className="flex items-center gap-2"><Clapperboard size={14} className="text-[#FF8C00]" /><p className="text-[10px] font-black uppercase tracking-widest text-white/70">Video settings</p></div>
+              <div className="flex items-center gap-2">
+                {React.createElement(ph ? (isClip ? Film : ImageIcon) : Clapperboard, { size: 14, className: 'text-[#FF8C00]' })}
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/70">{ph ? (isClip ? 'Clip settings' : 'Photo settings') : 'Video settings'}</p>
+              </div>
 
               <label className="block">
                 <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Title</span>
@@ -521,7 +572,7 @@ const AssetDetail: React.FC<{
 
               <label className="block">
                 <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Description</span>
-                <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/10 text-white text-sm resize-y focus:border-[#FF8C00]/60 focus:outline-none" placeholder="Tell viewers about this video…" />
+                <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="mt-1 w-full px-3 py-2 rounded-lg bg-black/40 border border-white/10 text-white text-sm resize-y focus:border-[#FF8C00]/60 focus:outline-none" placeholder={ph ? 'Add a caption, location or story…' : 'Tell viewers about this video…'} />
               </label>
 
               {/* Public / Private toggle */}
@@ -531,7 +582,7 @@ const AssetDetail: React.FC<{
               >
                 <span className="flex items-center gap-2 text-[11px] font-bold text-white/80">
                   {isPrivate ? <Lock size={13} className="text-white/50" /> : <Globe size={13} className="text-[#FF8C00]" />}
-                  {isPrivate ? 'Private — only you can see it' : 'Public — anyone can watch'}
+                  {isPrivate ? 'Private — only you can see it' : ph ? (isClip ? 'Public — anyone can watch' : 'Public — anyone can view') : 'Public — anyone can watch'}
                 </span>
                 <span className={`relative w-9 h-5 rounded-full transition-colors ${isPrivate ? 'bg-white/15' : 'bg-[#FF8C00]'}`}>
                   <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${isPrivate ? '' : 'translate-x-4'}`} />
@@ -539,7 +590,9 @@ const AssetDetail: React.FC<{
               </button>
 
               <button
-                onClick={() => onSaveVideo({ title, description, isPrivate })}
+                onClick={() => ph
+                  ? onSavePhoto?.({ title, description, isPublic: !isPrivate })
+                  : onSaveVideo?.({ title, description, isPrivate })}
                 disabled={busy || !dirty}
                 className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${dirty && !busy ? 'bg-[#FF8C00] text-black hover:brightness-110' : 'bg-white/10 text-white/40 cursor-not-allowed'}`}
               >
