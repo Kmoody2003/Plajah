@@ -401,8 +401,12 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const rr = resumeRecoveryRef.current;
     if (rr.timer) return;
     if (stateRef.current.audioSource === 'VIDEO' || usingDecodeFallbackRef.current) return;
-    if (rr.tries >= 6) { rr.tries = 0; return; }
-    const delay = Math.min(2000, 300 * (rr.tries + 1));
+    // 6 tries capped at 2s spent the whole budget in ~7 seconds, so any outage longer than a
+    // brief hiccup — a tunnel, a Wi-Fi handover, a laptop waking — left the track silently
+    // stopped with nothing left to restart it. Longer ceiling, more attempts, and the 'online'
+    // listener below re-arms this the moment connectivity actually returns.
+    if (rr.tries >= 12) { rr.tries = 0; return; }
+    const delay = Math.min(10000, 300 * (rr.tries + 1));
     rr.timer = setTimeout(() => {
       rr.timer = null;
       const audio = audioRef.current;
@@ -673,12 +677,40 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
               } else if (Hls.isSupported()) {
                 audio.removeAttribute('src');
                 const hls = new Hls({ maxBufferLength: 30, enableWorker: true });
+                // A "fatal" hls.js error is usually NOT terminal. A dropped segment request or a
+                // buffer-append hiccup — a lift, a Wi-Fi roam, a moment of congestion — arrives
+                // here as fatal, and tearing the player down on the first one is why music
+                // stopped mid-song at random. Try what hls.js is built to recover from first,
+                // and only fall back to the original master once recovery is genuinely spent.
+                let netRetries = 0, mediaRetries = 0;
+                const bailToOriginal = () => {
+                  try { hls.destroy(); } catch { /* */ }
+                  hlsRef.current = null;
+                  const at = audio.currentTime || 0;
+                  try {
+                    audio.src = track.url!;
+                    // Resume where the stream died rather than restarting the song.
+                    const seek = () => { try { if (at > 0.5) audio.currentTime = at; } catch { /* */ } audio.removeEventListener('loadedmetadata', seek); };
+                    audio.addEventListener('loadedmetadata', seek);
+                    audio.play().catch(() => {});
+                  } catch { /* */ }
+                };
                 hls.on(Hls.Events.ERROR, (_evt, data) => {
-                  if (data?.fatal) { // fall back to the original file so playback never dies
-                    try { hls.destroy(); } catch { /* */ }
-                    hlsRef.current = null;
-                    try { audio.src = track.url!; audio.play().catch(() => {}); } catch { /* */ }
+                  if (!data?.fatal) return;
+                  if (data.type === Hls.ErrorTypes.NETWORK_ERROR && netRetries < 3) {
+                    netRetries++;
+                    try { hls.startLoad(); return; } catch { /* fall through to bail */ }
                   }
+                  if (data.type === Hls.ErrorTypes.MEDIA_ERROR && mediaRetries < 2) {
+                    mediaRetries++;
+                    try {
+                      // First a plain recover; a second failure usually means a codec swap is needed.
+                      if (mediaRetries === 1) hls.recoverMediaError();
+                      else { hls.swapAudioCodec(); hls.recoverMediaError(); }
+                      return;
+                    } catch { /* fall through to bail */ }
+                  }
+                  bailToOriginal();
                 });
                 hls.loadSource(streamPick.url);
                 hls.attachMedia(audio);
@@ -698,8 +730,29 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
             if (Hls.isSupported()) {
               audio.removeAttribute('src');
               const hls = new Hls({ maxBufferLength: 30, enableWorker: true });
+              // Same reasoning as the transcoded path above, but a live stream has no original
+              // file to fall back to — recovery is the only option, so it retries harder and
+              // keeps trying on network errors rather than giving the listener silence.
+              let liveNet = 0, liveMedia = 0;
               hls.on(Hls.Events.ERROR, (_evt, data) => {
-                if (data?.fatal) { try { hls.destroy(); } catch { /* */ } hlsRef.current = null; }
+                if (!data?.fatal) return;
+                if (data.type === Hls.ErrorTypes.NETWORK_ERROR && liveNet < 6) {
+                  liveNet++;
+                  // Back off a little — a station that dropped out needs a moment, and hammering
+                  // startLoad() in a tight loop just burns battery on a phone or a TV.
+                  setTimeout(() => { try { hls.startLoad(); } catch { /* */ } }, Math.min(4000, 400 * liveNet));
+                  return;
+                }
+                if (data.type === Hls.ErrorTypes.MEDIA_ERROR && liveMedia < 2) {
+                  liveMedia++;
+                  try {
+                    if (liveMedia === 1) hls.recoverMediaError();
+                    else { hls.swapAudioCodec(); hls.recoverMediaError(); }
+                    return;
+                  } catch { /* fall through */ }
+                }
+                try { hls.destroy(); } catch { /* */ }
+                hlsRef.current = null;
               });
               hls.loadSource(track.url);
               hls.attachMedia(audio);
@@ -1231,6 +1284,20 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     window.addEventListener('chora:quality-changed', onQualityChanged);
     return () => window.removeEventListener('chora:quality-changed', onQualityChanged);
   }, [playTrack]);
+
+  // Connectivity returning is the single best moment to retry: the retry ladder may already have
+  // given up, and without this the track stays stopped until the listener notices and presses
+  // play. Also covers a laptop waking or a phone leaving a dead zone.
+  useEffect(() => {
+    const onOnline = () => {
+      const audio = audioRef.current;
+      if (!intendedPlayingRef.current || !audio || audio.ended || !audio.paused) return;
+      resumeRecoveryRef.current.tries = 0;   // fresh budget: the cause of the failure is gone
+      scheduleResumeRecovery();
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [scheduleResumeRecovery]);
 
   // Console helper for triggering + backfilling transcodes on production (source .ts files aren't
   // served in a prod build, so `import()` fails — use these instead). Reuses the app's auth token.

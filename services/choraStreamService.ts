@@ -16,6 +16,22 @@ export interface ChoraStream {
   flac?: string;  // lossless
   loudnessLufs?: number;
   durationSec?: number;
+  /** Server-written epoch ms. Needed to tell a live transcode from one that died mid-run. */
+  updatedAt?: number;
+  error?: string;
+}
+
+/** How long a 'processing' doc may sit before we assume the job died and allow a retry.
+ *  Comfortably above Cloud Run's 300s request timeout — the longest a real job can survive —
+ *  so a genuinely running transcode is never interrupted by a competing retry. */
+const PROCESSING_STALE_MS = 15 * 60 * 1000;
+
+/** Did this 'processing' job die without ever writing its result? */
+export function isStaleProcessing(s: ChoraStream | null | undefined): boolean {
+  if (!s || s.status !== 'processing') return false;
+  // No timestamp at all means it predates updatedAt being written — old enough by definition.
+  if (!s.updatedAt) return true;
+  return Date.now() - s.updatedAt > PROCESSING_STALE_MS;
 }
 
 const cache = new Map<string, ChoraStream | null>();   // trackId → stream (null = looked up, none)
@@ -77,29 +93,50 @@ export function setQuality(q: ChoraQuality): void {
   try { window.dispatchEvent(new CustomEvent('chora:quality-changed', { detail: q })); } catch { /* SSR / no window */ }
 }
 
-/** Enqueue a track for transcode on the server (fire-and-forget from upload/backfill). */
+/** Enqueue a track for transcode on the server.
+ *
+ *  NOTE: /api/chora/transcode is SYNCHRONOUS — it runs the whole ffmpeg job inside the request,
+ *  so this resolves only when the transcode finishes (or the platform kills it). That is why the
+ *  timeout below matters: without it a hung request blocks forever, and because the backfill loop
+ *  is sequential, ONE hung track silently stalls the entire catalogue run. */
 export async function enqueueTranscode(trackId: string, srcUrl: string): Promise<boolean> {
   try {
     const token = await auth.currentUser?.getIdToken();
     if (!token) return false;
-    const res = await fetch('/api/chora/transcode', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ trackId, srcUrl }),
-    });
-    return res.ok;
+    // Slightly beyond Cloud Run's own 300s ceiling: past that the request is already dead and
+    // waiting longer only holds up every track behind it.
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 320_000);
+    try {
+      const res = await fetch('/api/chora/transcode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ trackId, srcUrl }),
+        signal: ac.signal,
+      });
+      return res.ok;
+    } finally { clearTimeout(timer); }
   } catch { return false; }
 }
 
 /** Backfill: enqueue an album's not-yet-transcoded music tracks, throttled. Returns how many were
- *  queued. Skips tracks already 'ready'/'processing'. Call from an admin action per album, or loop
- *  over `fetchAllPublicAlbums()`. Sequential + gentle so it never stampedes the transcode server. */
+ *  queued. Skips tracks already 'ready', and 'processing' ones that are still plausibly alive —
+ *  a 'processing' doc older than PROCESSING_STALE_MS is treated as a dead job and retried.
+ *  Call from an admin action per album, or loop over `fetchAllPublicAlbums()`. Sequential +
+ *  gentle so it never stampedes the transcode server. */
 export async function enqueueAlbumTranscodes(tracks: { id?: string; url?: string }[], gapMs = 1500): Promise<number> {
   let n = 0;
   for (const t of tracks || []) {
     if (!t?.id || typeof t.url !== 'string' || !/^https?:/i.test(t.url)) continue;
     const s = await getTrackStream(t.id);
-    if (s && (s.status === 'ready' || s.status === 'processing')) continue;
+    if (s?.status === 'ready') continue;
+    // 'processing' is written BEFORE the transcode starts and only overwritten when it finishes.
+    // Cloud Run kills the request at 300s, and an instance restart or a crash kills it sooner —
+    // in every one of those cases neither the success nor the failure write ever happens and the
+    // doc is pinned to 'processing' forever. Skipping those unconditionally meant one timeout
+    // permanently removed a track from every future backfill, which is why backfill appeared to
+    // do nothing: it was skipping exactly the tracks that still needed the work.
+    if (s?.status === 'processing' && !isStaleProcessing(s)) continue;
     if (await enqueueTranscode(t.id, t.url)) { n++; cache.delete(t.id); await new Promise(r => setTimeout(r, gapMs)); }
   }
   return n;
