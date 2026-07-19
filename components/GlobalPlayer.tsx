@@ -295,7 +295,8 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   }, [radioStats.songCount, audioSource]);
 
   useEffect(() => {
-    // Docked nano manages its own collapse via the 20s idle timer in App.tsx
+    // The docked nano runs its own wake-on-activity rule in App.tsx (it starts collapsed and
+    // never auto-shrinks on a timer), so leave it alone here.
     if (isNanoDocked) return;
     const nonMusicViews = ['CHAT', 'USER_PROFILE', 'SEARCH', 'FEED', 'DASHBOARD', 'SETTINGS', 'HELP_CENTER'];
     if (nonMusicViews.includes(view) && !isPlaying) {

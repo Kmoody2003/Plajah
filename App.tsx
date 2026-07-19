@@ -684,18 +684,21 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     setGlobalView(view);
   }, [view, setGlobalView]);
 
-  // Docked nano: collapse to compact after 20s of no playback, expand when playing
+  // Docked nano: it loads collapsed and only WAKES when there's something to control —
+  // playback starting, or the user loading a different asset. There is deliberately no idle
+  // timer: the old 20s auto-shrink made the UI feel like it was fighting you and stole space
+  // mid-task. Collapsing is now an explicit action (the red minimize dash) only.
+  const nanoSeenTrackRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
     if (!isNanoDocked) return;
-    if (isPlaying) {
-      setIsMinimized(false);
-      return;
-    }
-    if (!currentTrack) {
-      const t = setTimeout(() => setIsMinimized(true), 20000);
-      return () => clearTimeout(t);
-    }
-  }, [isNanoDocked, isPlaying, currentTrack, setIsMinimized]);
+    const id = currentTrack?.id ?? null;
+    const firstRun = nanoSeenTrackRef.current === undefined;
+    // A track restored from a previous session shouldn't pop the player open on arrival —
+    // only a genuine change after mount counts as "the user picked something".
+    const pickedSomethingNew = !firstRun && id !== null && id !== nanoSeenTrackRef.current;
+    nanoSeenTrackRef.current = id;
+    if (isPlaying || pickedSomethingNew) setIsMinimized(false);
+  }, [isNanoDocked, isPlaying, currentTrack?.id, setIsMinimized]);
 
   // Persist transcribed scores exported from the Breakdown into Lorea.
   useEffect(() => initLoreaScoreListener(), []);
@@ -3182,7 +3185,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                                       <button onClick={() => setIsThreeDEnabled(!isThreeDEnabled)} className={`p-1.5 rounded-lg transition-all ${isThreeDEnabled ? 'text-small-orange bg-small-orange/10' : 'text-white/20 hover:text-white hover:bg-white/5'}`} title="3D Depth"><Box size={12} /></button>
                                       <button onClick={() => setSpatialAudioEnabled(!isSpatialAudioEnabled)} className={`p-1.5 rounded-lg transition-all ${isSpatialAudioEnabled ? 'text-violet-400 bg-violet-500/10' : 'text-white/20 hover:text-white hover:bg-white/5'}`} title="Spatial Audio"><Headphones size={12} /></button>
                                     </div>
-                                    <button onClick={() => setIsMinimized(true)} className="p-1.5 rounded-lg text-white/20 hover:text-white/50 transition-all hover:bg-white/5" title="Compact"><ChevronDown size={12} /></button>
+                                    {/* Minimize — deliberately the loudest control in the row.
+                                        Bold red dash + a subtle pulse so the way out is always
+                                        obvious now that the player never collapses itself. */}
+                                    <button
+                                      onClick={() => setIsMinimized(true)}
+                                      className="group/min p-1.5 rounded-lg transition-all hover:bg-red-500/15 active:scale-90"
+                                      title="Minimize player"
+                                      aria-label="Minimize player"
+                                    >
+                                      <span className="block w-4 h-[3px] rounded-full bg-red-500 group-hover/min:bg-red-400 shadow-[0_0_8px_rgba(239,68,68,0.65)] animate-pulse" />
+                                    </button>
                                   </div>
                                 </motion.div>
                               )}

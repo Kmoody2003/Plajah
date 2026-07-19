@@ -186,7 +186,10 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [isPlayerExpanded, setIsPlayerExpanded] = useState(false);
   const [isPhoneMode, setIsPhoneMode] = useState(false);
   const [isShrunk, setIsShrunk] = useState(true);
-  const [isMinimized, setIsMinimized] = useState(false);
+  // The nano controller LOADS COLLAPSED. It only wakes when there's actually something to
+  // control (playback starting, or the user loading an asset) — an empty player shouldn't
+  // occupy the screen on arrival.
+  const [isMinimized, setIsMinimized] = useState(true);
   // When true, the mobile transport bar is shown even on non-music views (revealed by a
   // double-tap of the Chora nav icon or a swipe-up on the persistent now-playing pill).
   const [transportForced, setTransportForced] = useState(false);
