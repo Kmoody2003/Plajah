@@ -7,6 +7,7 @@ import { detectDolbySupport, isLikelyAtmosUrl } from '../services/dolbyDetection
 import { saveProgress } from '../services/episodeProgressService';
 import { getCachedMedia } from '../services/offlineStorageService';
 import { getOrComputeAnalysis, getCachedAnalysis } from '../services/djAnalysis';
+import { hasRealSlides } from '../services/slideshow';
 import Hls from 'hls.js';
 import { peekTrackStream, prefetchTrackStreams, pickStreamUrl, getQuality as getAudioQuality, enqueueTranscode, enqueueAlbumTranscodes, getTrackStream } from '../services/choraStreamService';
 
@@ -61,6 +62,10 @@ interface GlobalPlayerContextType {
   setVisualizerType: (t: 'FLOW' | 'PAINT') => void;
   isSlideshowActive: boolean;
   setIsSlideshowActive: (val: boolean) => void;
+  /** True when the slideshow was started by the creator's toggle rather than by the listener.
+   *  Ambient surfaces (nano back face, album backdrop) honor it; the full-screen takeover
+   *  does not — nobody asked for that, so it stays an explicit choice. */
+  isSlideshowAuto: boolean;
   isNanoView: boolean;
   setIsNanoView: (val: boolean) => void;
   isNanoDocked: boolean;
@@ -167,7 +172,14 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const shuffleOrderRef = useRef<string[]>([]); // stable shuffled id order so the "next" pick doesn't jitter
   const [isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled] = useState(true);
   const [visualizerType, setVisualizerType] = useState<'FLOW' | 'PAINT'>('FLOW');
-  const [isSlideshowActive, setIsSlideshowActive] = useState(false);
+  const [isSlideshowActive, setSlideshowActiveRaw] = useState(false);
+  const [isSlideshowAuto, setIsSlideshowAuto] = useState(false);
+  // Every explicit listener toggle drops the auto marker — once they've chosen, the choice is
+  // theirs and the creator's default stops speaking for them.
+  const setIsSlideshowActive = useCallback((val: boolean) => {
+    setIsSlideshowAuto(false);
+    setSlideshowActiveRaw(val);
+  }, []);
   const [isNanoView, setIsNanoView] = useState(true);
   const [isNanoDocked, setIsNanoDocked] = useState(true);
   const [isUserActive, setIsUserActive] = useState(true);
@@ -1162,6 +1174,21 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (ids?.length) prefetchTrackStreams(ids);
   }, [currentAlbum?.id]); // eslint-disable-line
 
+  // Honor the creator's "Slideshow" toggle. `isSlideshowEnabled` is set in the uploader but was
+  // read by nothing, so turning it on had no effect anywhere — the nano player stayed on its cover
+  // face and the album view kept the plain backdrop. Now it opens the album ON the slideshow.
+  //
+  // Keyed on album id so this fires once per release: the listener can still flip back to the
+  // cover/visualizer, and that choice sticks until they move to a different album.
+  useEffect(() => {
+    if (!currentAlbum) return;
+    // Only auto-start when there are real images to show — falling back to a lone cover image
+    // would be a "slideshow" of one frame, which just hides the cover art behind a worse version.
+    const on = !!currentAlbum.isSlideshowEnabled && hasRealSlides(currentAlbum, currentAlbum.tracks);
+    setSlideshowActiveRaw(on);
+    setIsSlideshowAuto(on);
+  }, [currentAlbum?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Live quality switch: when the listener changes their audio-quality tier (data/high/lossless),
   // re-resolve the CURRENTLY-playing track at the new tier and seek back to where they were — but
   // only when a ready transcoded stream exists (otherwise quality is moot, it's the original file)
@@ -1526,7 +1553,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
     isShuffle, setIsShuffle, nextTrackId,
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev, beginScratch, scratchBy, endScratch,
-    analyser: analyserRef.current, getAudioContext, setDjFilter, resetAudioFx, isFxActive, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive,
+    analyser: analyserRef.current, getAudioContext, setDjFilter, resetAudioFx, isFxActive, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isSlideshowAuto,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme, isBigScreen: theme === 'BIG_SCREEN',
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, transportForced, setTransportForced, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,
@@ -1537,7 +1564,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
     isShuffle, setIsShuffle, nextTrackId,
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev, beginScratch, scratchBy, endScratch,
-    getAudioContext, setDjFilter, resetAudioFx, isFxActive, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive,
+    getAudioContext, setDjFilter, resetAudioFx, isFxActive, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isSlideshowAuto,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme,
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, transportForced, setTransportForced, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,

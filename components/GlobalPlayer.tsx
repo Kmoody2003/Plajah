@@ -12,6 +12,7 @@ import { UserProfile, ChatRoom } from '../types';
 import Visualizer from './Visualizer';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
 import AnimatedSlideshow from './AnimatedSlideshow';
+import { resolveSlideshowImages } from '../services/slideshow';
 import ThreeDImage from './ThreeDImage';
 
 import { useAchievements } from '../contexts/AchievementContext';
@@ -100,6 +101,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
     setVisualizerType,
     isSlideshowActive,
     setIsSlideshowActive,
+    isSlideshowAuto,
     setIsUserActive,
     isUserActive,
     nanoPosition,
@@ -720,9 +722,12 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
             style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
           >
             <div className="flex-1 relative overflow-hidden">
-              {currentAlbum?.slideshow && currentAlbum.slideshow.length > 0 ? (
+              {resolveSlideshowImages(currentAlbum, currentTrack).length > 0 ? (
                 <div className="w-full h-full relative">
-                  <Slideshow images={currentAlbum.slideshow} />
+                  {/* Track images take priority over the album set, matching every other
+                      slideshow surface — this face used to read album.slideshow alone and
+                      claimed "no assets" for albums whose slides live on their tracks. */}
+                  <Slideshow images={resolveSlideshowImages(currentAlbum, currentTrack)} />
                 </div>
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center text-white/20 gap-4">
@@ -776,7 +781,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
           >
              <div className="absolute inset-0 opacity-80">
                <AnimatedSlideshow 
-                 images={(currentTrack?.images && currentTrack.images.length > 0) ? currentTrack.images : (currentAlbum?.slideshow && currentAlbum.slideshow.length > 0) ? currentAlbum.slideshow : [currentAlbum?.coverImage || '', 'https://picsum.photos/seed/slide1/1920/1080', 'https://picsum.photos/seed/slide2/1920/1080']} 
+                 images={resolveSlideshowImages(currentAlbum, currentTrack)} 
                  isPlaying={isPlaying} 
                  themeColor={currentAlbum?.themeColor || '#FF8C00'} 
                  artistNotes={currentTrack?.artistNotes || []}
@@ -840,13 +845,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
             {/* Slideshow fills the main area */}
             <div className="flex-1 relative overflow-hidden">
               <AnimatedSlideshow
-                images={
-                  (currentTrack?.images && currentTrack.images.length > 0)
-                    ? currentTrack.images
-                    : (currentAlbum?.slideshow && currentAlbum.slideshow.length > 0)
-                    ? currentAlbum.slideshow
-                    : [currentAlbum?.coverImage || '']
-                }
+                images={resolveSlideshowImages(currentAlbum, currentTrack)}
                 isPlaying={isPlaying}
                 themeColor={currentAlbum?.themeColor || '#FF8C00'}
                 artistNotes={currentTrack?.artistNotes || []}
@@ -1988,7 +1987,9 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
         </div>
       </motion.div>
     <AnimatePresence>
-      {isSlideshowActive && !isNanoView && currentAlbum?.slideshow && currentAlbum.slideshow.length > 0 && (
+      {/* Full-screen takeover stays an explicit choice — a creator's auto-started slideshow
+          should fill the nano back face and the album backdrop, not seize the whole app. */}
+      {isSlideshowActive && !isSlideshowAuto && !isNanoView && currentAlbum?.slideshow && currentAlbum.slideshow.length > 0 && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

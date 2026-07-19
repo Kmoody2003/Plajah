@@ -6,6 +6,7 @@ import WorldBadge from './WorldBadge';
 import ImmersiveBadge from './ImmersiveBadge';
 import Visualizer from './Visualizer';
 import AnimatedSlideshow from './AnimatedSlideshow';
+import { resolveSlideshowImages } from '../services/slideshow';
 import ScrollingWaveform from './ScrollingWaveform';
 import { getCachedAnalysis, getOrComputeAnalysis } from '../services/djAnalysis';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
@@ -1156,7 +1157,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               {isFlipped ? (
                 <div className="w-full h-full animate-in fade-in duration-500">
                   <AnimatedSlideshow
-                    images={(currentTrack?.images && currentTrack.images.length > 0) ? currentTrack.images : (album.slideshow && album.slideshow.length > 0) ? album.slideshow : [album.coverImage]}
+                    images={resolveSlideshowImages(album, currentTrack)}
                     isPlaying={globalIsPlaying && isCurrentTrackGlobal}
                     themeColor={album.themeColor}
                   />
@@ -1903,7 +1904,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                   <div className="w-full h-full relative">
                     {isSlideshowActive ? (
                       <AnimatedSlideshow
-                        images={(currentTrack?.images && currentTrack.images.length > 0) ? currentTrack.images : (album.slideshow && album.slideshow.length > 0) ? album.slideshow : [album.coverImage]}
+                        images={resolveSlideshowImages(album, currentTrack)}
                         isPlaying={globalIsPlaying && isCurrentTrackGlobal}
                         themeColor={album.themeColor}
                       />
@@ -2153,7 +2154,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               className="absolute inset-0"
             >
               <AnimatedSlideshow
-                images={(currentTrack?.images && currentTrack.images.length > 0) ? currentTrack.images : (album.slideshow && album.slideshow.length > 0) ? album.slideshow : [album.coverImage]}
+                images={resolveSlideshowImages(album, currentTrack)}
                 isPlaying={globalIsPlaying && isCurrentTrackGlobal}
                 themeColor={album.themeColor}
                 artistNotes={undefined}
