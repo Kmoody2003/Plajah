@@ -141,6 +141,67 @@ export async function getOrComputeAnalysis(track: Pick<Track, 'id' | 'url' | 'au
   try { return await job; } finally { inflight.delete(track.id); }
 }
 
+// ── Derived music theory (key / scale / tempo / chord quality / score) ───────────────
+//
+// The Breakdown derives these by sampling the live analyser during playback, which costs the
+// listener ~6 seconds of "Analyzing…" every time. That result was thrown away on close, so
+// every visit — and every new session — paid for it again. Cache it next to the waveform.
+//
+// Stored on the SAME `trackAnalysis/{trackId}` doc under `theory`, written with merge so it
+// can't clobber the peaks/beat grid that live alongside it.
+
+/** Bump when the theory-derivation algorithm or shape changes so stale results recompute. */
+export const THEORY_VERSION = 1;
+
+export interface StoredTrackTheory {
+  version: number;
+  key: string;
+  scale: string;
+  tempo: number;
+  chordQuality: string;
+  timeSignature: string;
+  notes: { midi: number; role: string; beat: number }[];
+}
+
+const theoryCache = new Map<string, StoredTrackTheory>();
+const theoryInflight = new Map<string, Promise<StoredTrackTheory | null>>();
+
+const isFreshTheory = (t: any): t is StoredTrackTheory =>
+  !!t && t.version === THEORY_VERSION && Array.isArray(t.notes) && t.notes.length > 0 && !!t.key;
+
+/** Save a derived theory so the Breakdown opens instantly next time (best-effort). */
+export async function persistTrackTheory(trackId: string, theory: Omit<StoredTrackTheory, 'version'>): Promise<void> {
+  if (!trackId) return;
+  const withVersion: StoredTrackTheory = { ...theory, version: THEORY_VERSION };
+  theoryCache.set(trackId, withVersion);
+  if (!auth.currentUser) return;
+  // Same undefined-field hazard as persistAnalysis: one undefined would throw and drop the
+  // whole write. merge:true so this never overwrites the peaks/beat grid on the doc.
+  const clean = JSON.parse(JSON.stringify(withVersion));
+  try { await setDoc(doc(db, 'trackAnalysis', trackId), { theory: clean }, { merge: true }); } catch { /* best-effort */ }
+}
+
+/** Load a previously derived theory: memory, then Firestore. Null when never analysed. */
+export async function loadTrackTheory(trackId: string): Promise<StoredTrackTheory | null> {
+  if (!trackId) return null;
+  const cached = theoryCache.get(trackId);
+  if (isFreshTheory(cached)) return cached;
+  const existing = theoryInflight.get(trackId);
+  if (existing) return existing;
+
+  const job = (async (): Promise<StoredTrackTheory | null> => {
+    try {
+      const snap = await getDoc(doc(db, 'trackAnalysis', trackId));
+      const t = snap.exists() ? (snap.data() as any)?.theory : null;
+      if (isFreshTheory(t)) { theoryCache.set(trackId, t); return t; }
+    } catch { /* unreadable — caller derives it live */ }
+    return null;
+  })();
+
+  theoryInflight.set(trackId, job);
+  try { return await job; } finally { theoryInflight.delete(trackId); }
+}
+
 /** Synchronous peek at whatever analysis is already resolved (inline or cached) — no I/O. */
 export function getCachedAnalysis(track: Pick<Track, 'id' | 'url' | 'audioAnalysis'>): AudioAnalysis | null {
   if (isFresh(track.audioAnalysis)) return track.audioAnalysis!;

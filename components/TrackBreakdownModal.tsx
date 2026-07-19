@@ -21,7 +21,7 @@ import {
 import { Track, Album } from '../types';
 import { useGlobalPlayer, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { detectBeats, type BeatAnalysis } from '../services/audioBeatDetection';
-import { getOrComputeAnalysis, toBeatAnalysis } from '../services/djAnalysis';
+import { getOrComputeAnalysis, toBeatAnalysis, loadTrackTheory, persistTrackTheory } from '../services/djAnalysis';
 import { transcribeTrack, type Transcription } from '../services/audioTranscription';
 import { buildNotation, notationToMusicXML, type Notation } from '../services/musicNotation';
 import {
@@ -231,8 +231,29 @@ function useRealAudioAnalysis(track: Track, fallback: TrackTheory): {
     return () => ac.abort();
   }, [track.id, track.url]);
 
+  // Load the theory derived on a previous visit (or in a previous session). Deriving it costs
+  // the listener ~6s of playback under an "Analyzing…" label, and the result used to be thrown
+  // away on close — so every reopen paid again. `savedTheory` short-circuits that entirely.
+  const [savedTheory, setSavedTheory] = useState<TrackTheory | null>(null);
+  const [theoryChecked, setTheoryChecked] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    setSavedTheory(null); setTheoryChecked(false);
+    loadTrackTheory(track.id)
+      .then(t => {
+        if (!alive) return;
+        if (t) setSavedTheory({ key: t.key, scale: t.scale, tempo: t.tempo, chordQuality: t.chordQuality, timeSignature: t.timeSignature, notes: t.notes as ScoreNote[] });
+      })
+      .catch(() => { /* never analysed, or unreadable — derive it live below */ })
+      .finally(() => { if (alive) setTheoryChecked(true); });
+    return () => { alive = false; };
+  }, [track.id]);
+
   useEffect(() => {
     if (!isCurrentTrack) { setRealTheory(null); setAnalyzing(false); return; }
+    // Wait for the lookup, then skip the whole live derivation if we already have the answer.
+    if (!theoryChecked) return;
+    if (savedTheory) { setRealTheory(savedTheory); setAnalyzing(false); return; }
     const pitchHistogram = new Array(12).fill(0);
     const onsetTimes: number[] = [];
     const beatPitchMap = new Map<number, number[]>();
@@ -318,12 +339,16 @@ function useRealAudioAnalysis(track: Track, fallback: TrackTheory): {
         if (hasSeventh && !isMinor) chordQuality = 'Major 7th';
         if (topDegs.includes(5) && !topDegs.includes(4) && !topDegs.includes(3)) chordQuality = 'Suspended 4th';
         finished = true; clearInterval(intervalId); setAnalyzing(false);
-        setRealTheory({ key: keyName, scale: scaleName, tempo, chordQuality, timeSignature: '4/4', notes });
+        const derived: TrackTheory = { key: keyName, scale: scaleName, tempo, chordQuality, timeSignature: '4/4', notes };
+        setRealTheory(derived);
+        // Save it so this track never costs the listener another 6 seconds of "Analyzing…",
+        // in this session or any future one.
+        void persistTrackTheory(track.id, derived);
       }
     }, 200);
 
     return () => { finished = true; clearInterval(intervalId); };
-  }, [track.id, isCurrentTrack]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [track.id, isCurrentTrack, theoryChecked, savedTheory]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { theory: realTheory ?? fallback, isReal: realTheory !== null, analyzing: isCurrentTrack && analyzing };
 }

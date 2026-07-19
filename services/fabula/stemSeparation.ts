@@ -64,8 +64,15 @@ export interface CloudStemResult { vocals?: string; drums?: string; bass?: strin
  *  returns { ok:false } so the caller can fall back to quickStems and tell the user. */
 export async function separateStemsCloud(url: string, mode: '4stem' | 'voices'): Promise<CloudStemResult> {
   try {
+    // The endpoint is behind authMiddleware, which hard-requires a Bearer token. Without this
+    // header every call 401s the moment the server tier is enabled — a failure currently masked
+    // by the 501 the disabled flag returns first.
+    const { auth } = await import('../backendService');
+    const token = auth.currentUser ? await auth.currentUser.getIdToken().catch(() => null) : null;
+    if (!token) return { ok: false, message: 'Sign in to use high-quality separation' };
     const res = await fetch('/api/crossover/stems', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ url, mode }),
     });
     if (!res.ok) return { ok: false, message: `stems endpoint ${res.status}` };
