@@ -492,6 +492,52 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     updateTrack(track.id, { timeCodedLyrics: list });
   }, [updateTrack]);
 
+  /**
+   * Transcribe + time-code an album's music tracks AFTER publish, when each track has a real
+   * https URL the server can fetch. Uses the same `/api/ai/captions` endpoint as the player's
+   * "Sync Lyrics" (windowed transcription — short audio windows anchored by ffmpeg, so timings
+   * can't accumulate drift). Best-effort and fully non-fatal: a track that fails simply keeps
+   * its plain lyrics, which is far better than confidently wrong timings.
+   */
+  const syncCaptionsAfterPublish = useCallback(async (album: any) => {
+    const list: Track[] = Array.isArray(album?.tracks) ? album.tracks : [];
+    const targets = list.filter(t =>
+      typeof t?.url === 'string' && /^https?:/i.test(t.url) &&
+      (t.mediaKind !== 'VIDEO') &&
+      (!t.timeCodedLyrics || t.timeCodedLyrics.length === 0)
+    );
+    if (targets.length === 0 || !album?.id) return;
+
+    const token = auth.currentUser ? await auth.currentUser.getIdToken().catch(() => null) : null;
+    const updated = [...list];
+    let changed = false;
+
+    for (const track of targets) {
+      try {
+        const res = await fetch('/api/ai/captions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ audioUrl: track.url, title: track.title, artist: album.artist }),
+        });
+        if (!res.ok) continue;
+        const data = await res.json().catch(() => ({}));
+        const captions = data?.captions;
+        if (Array.isArray(captions) && captions.length > 0) {
+          const i = updated.findIndex(t => t.id === track.id);
+          if (i >= 0) { updated[i] = { ...updated[i], timeCodedLyrics: captions }; changed = true; }
+        }
+      } catch { /* leave this track unsynced rather than fabricate timings */ }
+    }
+
+    if (changed) {
+      try {
+        const { updateAlbum } = await import('../services/backendService');
+        await updateAlbum(album.id, { tracks: updated } as any);
+        onCreated({ ...album, tracks: updated });
+      } catch { /* best-effort */ }
+    }
+  }, [onCreated]);
+
   const openTapSync = useCallback((track: Track) => {
     stopPreview();
     if (tapAudioRef.current) { tapAudioRef.current.pause(); tapAudioRef.current = null; }
@@ -686,31 +732,14 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
 
       const trackNames = type === 'BOOK' ? bookChapters.map(c => c.title) : tracks.map(t => t.title);
 
-      // Auto-sync captions for MUSIC tracks that have lyrics but no manual sync
-      let autoSyncedTracks = tracks;
-      if (type === 'MUSIC') {
-        const needsSync = tracks.some(t => t.lyrics && (!t.timeCodedLyrics || t.timeCodedLyrics.length === 0));
-        if (needsSync) {
-          setStatus({ text: 'Auto-syncing captions…', percent: 15 });
-        }
-        autoSyncedTracks = tracks.map(track => {
-          if (track.lyrics && (!track.timeCodedLyrics || track.timeCodedLyrics.length === 0)) {
-            const lines = track.lyrics.split('\n').filter((l: string) => l.trim());
-            if (lines.length > 0) {
-              const dur = track.duration ?? lines.length * 3.5;
-              const interval = dur / lines.length;
-              return {
-                ...track,
-                timeCodedLyrics: lines.map((text: string, i: number) => ({
-                  time: Math.round(i * interval * 10) / 10,
-                  text: text.trim(),
-                })),
-              };
-            }
-          }
-          return track;
-        });
-      }
+      // NOTE: this used to fabricate timings by dividing the duration by the line count and
+      // spacing lines evenly. That is arithmetic, not synchronisation — it never listens to the
+      // audio, so it drifts immediately and any intro/solo/bridge throws it out completely
+      // (captions "stop", then coincidentally realign later). That was the random-drift bug.
+      // Real transcription needs a URL the server can fetch, and at this point track.url is
+      // still a local blob — so the sync now runs AFTER publish, in onDone below, against the
+      // uploaded https URL. Tracks publish with plain lyrics until it lands.
+      const autoSyncedTracks = tracks;
 
       let description = initialAlbum?.description || "";
       let themeColor = initialAlbum?.themeColor || "#ffffff";
@@ -867,6 +896,10 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             for (const t of finalAlbum.tracks) {
               if (t?.id && typeof t.url === 'string' && /^https?:/i.test(t.url)) enqueueTranscode(t.id, t.url).catch(() => {});
             }
+            // REAL caption sync, now that the audio has a URL the server can fetch. This hits the
+            // same windowed-transcription endpoint the player's "Sync Lyrics" uses (short audio
+            // windows anchored to real timestamps), instead of guessing evenly-spaced times.
+            void syncCaptionsAfterPublish(finalAlbum);
           }
         },
       });
