@@ -106,6 +106,8 @@ import AutoPlayCountdown from './components/AutoPlayCountdown';
 import TVNavigationLayer from './components/TVNavigationLayer';
 import { getPlatformInfo } from './hooks/usePlatform';
 import { measurePerfTier, subscribePerfTier, shouldEnableEffect, getPerfTier } from './services/tvPerformance';
+import TvUnavailableNotice from './components/TvUnavailableNotice';
+import { type TvDisabledFeature } from './services/tvCapabilities';
 import TooltipSuppressor from './components/TooltipSuppressor';
 import ResumeUploadPrompt from './components/ResumeUploadPrompt';
 import SanctuaryDemoView from './components/sanctuary/SanctuaryDemoView';
@@ -186,6 +188,32 @@ const BroadcastChannelView = retryLazy(() => import('./components/BroadcastChann
 const CloseFriendsView = retryLazy(() => import('./components/CloseFriendsView'));
 const PollResultsArchive = retryLazy(() => import('./components/PollResultsArchive'));
 const SocialInsightsDashboard = retryLazy(() => import('./components/SocialInsightsDashboard'));
+/**
+ * Views that are switched off on a television, and which explanation each one gets.
+ *
+ * These are mouse-and-keyboard tools: timelines, mixers, file pickers, text editors. Opening
+ * one on a TV produces a screen a remote cannot drive, so the router shows the reason instead
+ * — see components/TvUnavailableNotice.tsx for why this is a notice and not a hidden button.
+ */
+const TV_BLOCKED_VIEWS: Partial<Record<string, { feature: TvDisabledFeature; title: string }>> = {
+  FABULA:          { feature: 'creatorStudio', title: 'Fabula' },
+  PLAJAH_STUDIO:   { feature: 'creatorStudio', title: 'Studio' },
+  PLAJAH_PIXELS:   { feature: 'creatorStudio', title: 'Pixels' },
+  TV_STUDIO:       { feature: 'creatorStudio', title: 'TV Studio' },
+  MEDIA_ROUTER:    { feature: 'creatorStudio', title: 'Router & Switcher' },
+  AVATAR_STUDIO:   { feature: 'camera',        title: 'Avatar Studio' },
+  PODCAST_STUDIO:  { feature: 'creatorStudio', title: 'Podcast Studio' },
+  EVENT_PRODUCTION_STUDIO: { feature: 'creatorStudio', title: 'Event Production' },
+  TICKET_DESIGNER: { feature: 'creatorStudio', title: 'Ticket Designer' },
+  CROSSOVER:       { feature: 'fileConversion', title: 'Crossover' },
+  MEDIA_CONVERTER: { feature: 'fileConversion', title: 'Media Converter' },
+  SPATIAL_MIXER:   { feature: 'creatorStudio', title: 'Spatial Mixer' },
+  TELEPROMPTER:    { feature: 'documentEditing', title: 'Teleprompter' },
+  ARTICLE_EDITOR:  { feature: 'documentEditing', title: 'The editor' },
+  CREATOR:         { feature: 'upload',         title: 'Uploading' },
+  UPLOAD:          { feature: 'upload',         title: 'Uploading' },
+};
+
 const AppsView = retryLazy(() => import('./components/AppsView'));
 const CrossoverView = retryLazy(() => import('./components/CrossoverView'));
 const PlajahPixelsView = retryLazy(() => import('./components/PlajahPixelsView'));
@@ -1553,6 +1581,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     measurePerfTier();
     return subscribePerfTier(() => setPerfTick(t => t + 1));
   }, []);
+
+  // Is the CURRENT view one we refuse to open on a TV? Computed once per render and used both
+  // to suppress the real component and to render the explanation in its place, so the two can
+  // never disagree (a mounted studio behind a notice, or a notice over a working screen).
+  const tvBlocked = getPlatformInfo().isTV ? TV_BLOCKED_VIEWS[view] : undefined;
 
   // CSS-level blur kill switch. index.css has ~30 backdrop-filter declarations, many !important,
   // that no component-level gate can reach — and backdrop-filter is the single worst offender on
@@ -4069,13 +4102,22 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
 
-            {view === 'PLAJAH_STUDIO' && user && userProfile && (
+            {/* A view we deliberately don't run on TV — say so, and say where it does live. */}
+            {tvBlocked && (
+              <TvUnavailableNotice
+                feature={tvBlocked.feature}
+                title={tvBlocked.title}
+                onBack={() => setView('DASHBOARD')}
+              />
+            )}
+
+            {view === 'PLAJAH_STUDIO' && user && userProfile && !tvBlocked && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <StudioView />
               </Suspense>
             )}
 
-            {view === 'FABULA' && user && (
+            {view === 'FABULA' && user && !tvBlocked && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <Fabula />
               </Suspense>
@@ -4319,14 +4361,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'MOVIES_TV' && <MoviesTVView onBack={() => setView('DASHBOARD')} onSelectMovie={(m) => { setSelectedMovieItem(m); setView('MOVIE_UX'); }} onNavigate={(v) => setView(v as any)} />}
             {view === 'GAMES' && <GamesView onBack={() => setView('DASHBOARD')} onSelectGame={handleSelectGame} />}
             {view === 'APPS' && <AppsView onBack={() => setView('DASHBOARD')} currentUser={userProfile} />}
-            {view === 'CROSSOVER' && (
+            {view === 'CROSSOVER' && !tvBlocked && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <CrossoverView onBack={() => setView('DASHBOARD')} userProfile={userProfile} onNavigate={(v) => setView(v as any)} enabled={crossoverSystemEnabled} />
               </Suspense>
             )}
-            {view === 'PLAJAH_PIXELS' && <PlajahPixelsView payload={pixelsPayload} onClose={() => { setPixelsPayload(null); setView(pixelsPayload?.album || pixelsPayload?.track ? 'PLAYER' : 'APPS'); }} />}
+            {view === 'PLAJAH_PIXELS' && !tvBlocked && <PlajahPixelsView payload={pixelsPayload} onClose={() => { setPixelsPayload(null); setView(pixelsPayload?.album || pixelsPayload?.track ? 'PLAYER' : 'APPS'); }} />}
 
-            {view === 'TELEPROMPTER' && (
+            {view === 'TELEPROMPTER' && !tvBlocked && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <TeleprompterApp onClose={() => setView('APPS')} />
               </Suspense>
@@ -4563,7 +4605,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </div>
             )}
             {/* ── TV Studio ── */}
-            {view === 'TV_STUDIO' && (
+            {view === 'TV_STUDIO' && !tvBlocked && (
               <Suspense fallback={<div className="fixed inset-0 bg-[#0b0b0b] flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#6B0099]/30 border-t-[#6B0099] rounded-full animate-spin" /></div>}>
                 <TVStudio
                   currentUser={user}

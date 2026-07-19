@@ -123,6 +123,7 @@ import ShareButton from './ShareButton';
 import PayItForwardButton from './PayItForwardButton';
 import HideNSeekManager from './HideNSeekManager';
 import { uploadFile, fetchUpcomingAlbums } from '../services/backendService';
+import { unavailableReason } from '../services/tvCapabilities';
 import SignInPrompt from './SignInPrompt';
 import UserAnalyticsDashboard from './UserAnalyticsDashboard';
 import PlajahPlusButton from './PlajahPlusButton';
@@ -793,16 +794,24 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               <p className="text-white/80 text-xs lg:text-sm font-medium">Upload new albums, videos, or articles to your profile.</p>
             </div>
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-              <button
-                onClick={() => {
-                  const event = new CustomEvent('NAVIGATE', { detail: { target: 'CREATOR' } });
-                  window.dispatchEvent(event);
-                }}
-                className="w-full sm:w-auto px-8 py-4 bg-white text-black rounded-full font-black uppercase tracking-widest text-[10px] lg:text-xs hover:scale-105 transition-transform flex items-center justify-center gap-2 whitespace-nowrap"
-              >
-                <Plus size={16} />
-                Upload Content
-              </button>
+              {/* A TV has no file picker and nothing worth picking. Rather than a button that
+                  opens a dead end, say where uploading actually happens. */}
+              {unavailableReason('upload') ? (
+                <p className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-white/[0.04] border border-white/10 text-white/50 text-[11px] lg:text-xs font-medium text-center max-w-md">
+                  {unavailableReason('upload')}
+                </p>
+              ) : (
+                <button
+                  onClick={() => {
+                    const event = new CustomEvent('NAVIGATE', { detail: { target: 'CREATOR' } });
+                    window.dispatchEvent(event);
+                  }}
+                  className="w-full sm:w-auto px-8 py-4 bg-white text-black rounded-full font-black uppercase tracking-widest text-[10px] lg:text-xs hover:scale-105 transition-transform flex items-center justify-center gap-2 whitespace-nowrap"
+                >
+                  <Plus size={16} />
+                  Upload Content
+                </button>
+              )}
               <button
                 onClick={() => {
                   const event = new CustomEvent('NAVIGATE', { detail: { target: 'CONTENT_MANAGER' } });

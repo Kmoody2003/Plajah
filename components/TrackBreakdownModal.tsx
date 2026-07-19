@@ -25,6 +25,7 @@ import { getOrComputeAnalysis, toBeatAnalysis, loadTrackTheory, persistTrackTheo
 import { transcribeTrack, type Transcription } from '../services/audioTranscription';
 import { buildNotation, notationToMusicXML, type Notation, type NPartSpec, type NInputNote } from '../services/musicNotation';
 import { transcribeDrums, type DrumTranscription, type DrumClass, type DrumHit } from '../services/drumTranscription';
+import { isFeatureAvailable, unavailableReason } from '../services/tvCapabilities';
 import {
   buildGuidedTour, activeStopIndex, activeBarIndex,
   type GuidedTour, type TourStop, type BarChord,
@@ -1601,6 +1602,9 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
   // else falls back silently (the instant quickStems options stay available).
   const runStudioSeparation = useCallback(async () => {
     if (!track.url || studioState === 'running') return;
+    // Minutes of saturated CPU. A TV has none to spare and would just stutter playback, so this
+    // reports why instead of starting work it cannot finish.
+    if (!isFeatureAvailable('stemSeparation')) { setStudioState('unavailable'); return; }
     setStudioState('running'); setStudioProgress(0);
     try {
       // On-device path (audio never leaves the machine).
@@ -1990,7 +1994,10 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
                       {onDevice ? `separating on your device… ${Math.round(studioProgress * 100)}%` : 'separating stems…'}
                     </span>
                   ) : studioState === 'unavailable' ? (
-                    <span className="text-[7px] text-white/25">studio tier offline — using instant split</span>
+                    // On a TV this is a deliberate product decision, not an outage — say which.
+                    <span className="text-[7px] text-white/25">
+                      {unavailableReason('stemSeparation') ?? 'studio tier offline — using instant split'}
+                    </span>
                   ) : demucsCap.tier !== 'blocked' ? (
                     <button
                       onClick={runStudioSeparation}
