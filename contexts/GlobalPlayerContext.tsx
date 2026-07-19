@@ -9,6 +9,7 @@ import { getCachedMedia } from '../services/offlineStorageService';
 import { getOrComputeAnalysis, getCachedAnalysis } from '../services/djAnalysis';
 import { hasRealSlides } from '../services/slideshow';
 import { getPlatformInfo } from '../hooks/usePlatform';
+import { trackStart, trackProgress, trackComplete } from '../services/contentMetrics';
 import { skipOnTV } from '../services/tvCapabilities';
 import Hls from 'hls.js';
 import { peekTrackStream, prefetchTrackStreams, pickStreamUrl, getQuality as getAudioQuality, enqueueTranscode, enqueueAlbumTranscodes, getTrackStream } from '../services/choraStreamService';
@@ -1029,16 +1030,14 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const timer = setTimeout(() => {
       if (stateRef.current.currentTrack?.id === trackId && stateRef.current.isPlaying) {
         playCountedTrackRef.current = trackId;
-        const albumId = stateRef.current.currentAlbum?.id;
-        setDoc(doc(db, 'track_stats', trackId), {
-          trackId,
-          albumId: albumId || null,
-          playCount: increment(1),
-          lastPlayed: Date.now(),
-        }, { merge: true }).catch(() => {});
-        if (albumId) {
-          updateDoc(doc(db, 'albums', albumId), { playCount: increment(1) }).catch(() => {});
-        }
+        const album = stateRef.current.currentAlbum;
+        // Counted server-side. The direct writes that used to live here were BOTH being denied:
+        // the track_stats rule permits only ['playCount'] to change and this also sent
+        // lastPlayed, while the albums rule requires the document owner — so a listener who
+        // wasn't the artist could never increment it. Both failures were swallowed by
+        // .catch(() => {}), which is why play counts looked real but were near zero.
+        trackStart(trackId, 'track', (album as any)?.ownerId);
+        if (album?.id) trackStart(album.id, 'album', (album as any)?.ownerId);
       }
     }, 15000);
 
@@ -1122,6 +1121,11 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const onEnded = useCallback(() => {
     const state = stateRef.current;
+    // Reaching the end is the clearest completion signal there is — record it before any
+    // repeat/advance logic changes the current track out from under us.
+    if (state.currentTrack?.id && state.audioSource !== 'VIDEO') {
+      trackComplete(state.currentTrack.id, 'track', undefined, (state.currentAlbum as any)?.ownerId);
+    }
     if (state.repeatMode === 'ONE') {
       if (state.audioSource === 'VIDEO') {
         seek(0);
@@ -1284,6 +1288,17 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     window.addEventListener('chora:quality-changed', onQualityChanged);
     return () => window.removeEventListener('chora:quality-changed', onQualityChanged);
   }, [playTrack]);
+
+  // Feed the retention curve. Only newly-covered ground is ever reported (contentMetrics
+  // dedupes by decile), so this is safe to run on the normal progress tick and a listener
+  // scrubbing back and forth cannot inflate anything.
+  useEffect(() => {
+    const t = stateRef.current.currentTrack;
+    if (!t?.id || audioSource === 'VIDEO') return;
+    const dur = duration || (t as any)?.duration || 0;
+    if (!(dur > 0) || !isPlaying) return;
+    trackProgress(t.id, 'track', currentTime, dur, (stateRef.current.currentAlbum as any)?.ownerId);
+  }, [currentTime, isPlaying, duration, audioSource]);
 
   // Connectivity returning is the single best moment to retry: the retry ladder may already have
   // given up, and without this the track stays stopped until the listener notices and presses

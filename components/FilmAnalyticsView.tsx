@@ -7,7 +7,25 @@ import type { FilmVideoAnalytics } from '../types';
 
 // ── Drop-off heatmap bar ───────────────────────────────────────────────────────
 
+/** Shown wherever a metric has no real data yet. Deliberately plain: an empty chart axis reads
+ *  as "zero", which is a claim. This reads as "not measured yet", which is the truth. */
+function NoDataYet({ label, note }: { label: string; note?: string }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/20 mb-3">{label}</p>
+      <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-6 text-center">
+        <p className="text-[10px] font-bold text-white/40">Not enough data yet</p>
+        <p className="text-[8px] text-white/25 mt-1 leading-relaxed">
+          {note || 'This fills in as people watch. Figures appear once viewing is recorded.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function DropOffHeatmap({ segments }: { segments: FilmVideoAnalytics['dropOffSegments'] }) {
+  // Empty means "we have not measured this", not "nobody dropped off".
+  if (!segments.length) return <NoDataYet label="Viewer Drop-off by 10% Segments" note="Retention is measured from playback as it happens. Nothing recorded for this title yet." />;
   const maxRate = Math.max(...segments.map(s => s.dropOffRate), 0.01);
   return (
     <div className="space-y-1.5">
@@ -41,6 +59,7 @@ function DropOffHeatmap({ segments }: { segments: FilmVideoAnalytics['dropOffSeg
 // ── Source attribution mini-chart ─────────────────────────────────────────────
 
 function SourceChart({ sources }: { sources: FilmVideoAnalytics['sourceAttribution'] }) {
+  if (!sources.length) return <NoDataYet label="Viewer Source Attribution" note="Where viewers arrive from is not tracked yet." />;
   const total = sources.reduce((a, s) => a + s.conversions, 0) || 1;
   const colors = ['#FF8C00', '#818cf8', '#22c55e', '#f472b6', '#38bdf8'];
   return (

@@ -754,6 +754,60 @@ async function firestoreWrite(collection: string, id: string, data: object) {
   if (!res.ok) console.error(`[Firestore] write ${collection}/${id} failed: HTTP ${res.status}${process.env.GOOGLE_SERVICE_ACCOUNT_JSON ? '' : ' (GOOGLE_SERVICE_ACCOUNT_JSON not set — server writes are unauthenticated)'}`);
 }
 
+/**
+ * Atomically increment numeric fields on a doc, creating it if absent.
+ *
+ * firestoreWrite() is a PATCH and cannot increment — read-modify-write from a request handler
+ * would drop counts under concurrency, which is exactly the situation a play counter lives in.
+ * This uses the commit API's fieldTransforms, which Firestore applies atomically server-side.
+ *
+ * `set` fields are written alongside (last-write-wins) so a rollup can carry its own identity
+ * (ownerId, contentType) without a second round trip.
+ */
+async function firestoreIncrement(
+  path: string,
+  increments: Record<string, number>,
+  set: Record<string, string | number> = {},
+): Promise<boolean> {
+  const projectId = 'gen-lang-client-0665118474';
+  const dbId = 'plajah-prod';
+  const docName = `projects/${projectId}/databases/${dbId}/documents/${path}`;
+  const fieldTransforms = Object.entries(increments).map(([field, by]) => ({
+    fieldPath: field,
+    increment: { integerValue: String(Math.round(by)) },
+  }));
+  const writes: any[] = [];
+  if (Object.keys(set).length) {
+    const fields: any = {};
+    for (const [k, v] of Object.entries(set)) {
+      fields[k] = typeof v === 'number' ? { integerValue: String(Math.round(v)) } : { stringValue: String(v) };
+    }
+    writes.push({
+      update: { name: docName, fields },
+      updateMask: { fieldPaths: Object.keys(set) },
+      // Transform in the SAME write so the doc is created by this operation if missing —
+      // a bare transform on a nonexistent doc fails.
+      updateTransforms: fieldTransforms,
+    });
+  } else {
+    writes.push({ transform: { document: docName, fieldTransforms } });
+  }
+  try {
+    const res = await fetch(
+      `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents:commit`,
+      { method: 'POST', headers: await firestoreAuthHeaders(), body: JSON.stringify({ writes }) },
+    );
+    if (!res.ok) {
+      console.error(`[Metrics] increment ${path} failed: HTTP ${res.status} ${(await res.text()).slice(0, 300)}`);
+      return false;
+    }
+    return true;
+  } catch (e: any) {
+    console.error(`[Metrics] increment ${path} threw:`, e?.message || e);
+    return false;
+  }
+}
+
 async function firestoreCreate(collection: string, data: object) {
   const projectId = 'gen-lang-client-0665118474';
   const dbId = 'plajah-prod';
@@ -4565,6 +4619,85 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     } finally {
       cleanup();
     }
+  });
+
+  // ── Creator metrics ingestion ────────────────────────────────────────────────
+  //
+  // Every play/view/read counter is written HERE, never by the client. Three reasons:
+  //   1. The client writes were silently failing. `track_stats` update rules allow only
+  //      ['playCount'] to change but the writer also sent lastPlayed, so every play after the
+  //      first was denied; `albums` update requires the doc OWNER, so a listener's increment was
+  //      denied outright; `videos.playCount` was never incremented by anything at all. All three
+  //      failures were swallowed by empty .catch() blocks, so nothing ever surfaced them.
+  //   2. A client-writable counter is a forgeable counter — anyone signed in could inflate any
+  //      creator's numbers, which makes the whole dashboard worthless.
+  //   3. Retention needs aggregation the client cannot do without reading other users' data.
+  //
+  // Events are AGGREGATED ON ARRIVAL into per-content rollups. Raw per-viewer events are
+  // deliberately not retained: creators get counts and curves, never individuals.
+
+  const METRIC_CONTENT_TYPES = new Set(['track', 'album', 'video', 'film', 'book', 'article', 'post', 'podcast']);
+  const ymd = (t: number) => new Date(t).toISOString().slice(0, 10);
+
+  app.post('/api/metrics/events', apiLimiter, authMiddleware, express.json({ limit: '64kb' }), async (req: any, res) => {
+    const events = Array.isArray(req.body?.events) ? req.body.events.slice(0, 50) : [];
+    if (!events.length) return res.json({ ok: true, accepted: 0 });
+
+    let accepted = 0;
+    for (const ev of events) {
+      const contentId = String(ev?.contentId || '').trim();
+      const contentType = String(ev?.contentType || '').trim();
+      if (!contentId || !/^[\w-]{1,128}$/.test(contentId) || !METRIC_CONTENT_TYPES.has(contentType)) continue;
+
+      const day = ymd(Date.now());
+      const inc: Record<string, number> = {};
+      const dayInc: Record<string, number> = {};
+
+      // A "play" is only counted once per session by the client; the server still bounds the
+      // damage a bad actor can do by capping what one request can add.
+      if (ev.type === 'start') { inc.plays = 1; dayInc.plays = 1; }
+
+      // Seconds actually consumed, clamped: a client claiming an hour of listening to a
+      // three-minute song is either broken or lying.
+      const secs = Number(ev.secondsPlayed);
+      const dur = Number(ev.durationSec);
+      if (Number.isFinite(secs) && secs > 0) {
+        const capped = Math.min(secs, Number.isFinite(dur) && dur > 0 ? dur * 1.5 : 3600);
+        inc.secondsPlayed = capped;
+        dayInc.secondsPlayed = capped;
+      }
+
+      if (ev.type === 'complete') { inc.completions = 1; dayInc.completions = 1; }
+
+      // Retention: which deciles of the piece this session actually reached. Storing reach
+      // counts per decile (not per viewer) is what makes a real curve possible while keeping
+      // the data aggregate — r10..r100 are "how many sessions got at least this far".
+      // Credit ONLY the deciles newly reached since the last report. Crediting 1..reached on
+      // every event would count one listener into r10 once per progress tick — a single play
+      // would render as a dozen, and the curve would be meaningless.
+      const reached = Number(ev.reachedDecile);
+      const from = Number(ev.fromDecile);
+      if (Number.isFinite(reached) && reached >= 1 && reached <= 10) {
+        const lo = Number.isFinite(from) && from >= 0 ? Math.min(Math.floor(from), 10) : 0;
+        for (let d = lo + 1; d <= Math.floor(reached); d++) {
+          inc[`r${d * 10}`] = 1;
+          dayInc[`r${d * 10}`] = 1;
+        }
+      }
+
+      if (!Object.keys(inc).length) continue;
+
+      const identity: Record<string, string> = { contentId, contentType };
+      if (typeof ev.ownerId === 'string' && /^[\w-]{1,128}$/.test(ev.ownerId)) identity.ownerId = ev.ownerId;
+
+      // Lifetime rollup + the day bucket that makes trends possible. Both keyed by content,
+      // never by viewer.
+      await firestoreIncrement(`contentStats/${contentId}`, inc, { ...identity, updatedAt: Date.now() });
+      await firestoreIncrement(`contentStats/${contentId}/daily/${day}`, dayInc, { ...identity, day });
+      accepted++;
+    }
+
+    res.json({ ok: true, accepted });
   });
 
   // ── Chora — transcode a track's master to the streaming ladder (Step 1) ──────

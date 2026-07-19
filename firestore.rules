@@ -1446,6 +1446,22 @@ service cloud.firestore {
       }
     }
 
+    // Aggregated creator metrics. Written ONLY by the server (service account bypasses rules);
+    // the client is denied outright, because a client-writable counter is a forgeable counter and
+    // that is precisely how the old track_stats/albums increments were being attempted.
+    // Readable by the content owner only — these are business metrics, not public numbers.
+    match /contentStats/{contentId} {
+      allow read: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow write: if false;
+
+      // Per-day buckets behind the same ownership check. Rules do not inherit, so the parent
+      // condition has to be restated here or these would be unreachable.
+      match /daily/{day} {
+        allow read: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+        allow write: if false;
+      }
+    }
+
     match /track_stats/{id} {
       allow read: if true;
       allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['playCount']) &&

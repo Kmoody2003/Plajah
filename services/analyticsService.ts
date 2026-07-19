@@ -455,39 +455,27 @@ export async function fetchFilmAnalytics(uid: string): Promise<FilmVideoAnalytic
   ];
 
   return filmVideos.map((v: any): FilmVideoAnalytics => {
-    const plays         = v.playCount   || v.playsCount || 0;
-    const duration      = v.duration    || 5400; // default 90 min
-    const avgWatch      = v.avgWatchDuration || Math.round(duration * 0.45); // synthetic default
 
-    // Build synthetic drop-off segments (10% increments) weighted toward early drop-off
-    const dropOffSegments = Array.from({ length: 10 }, (_, i) => {
-      const pct = (i + 1) * 10;
-      // Real platforms show heavy drop-off in first 10%, then gradual
-      const baseDrop = i === 0 ? 0.28 : i < 3 ? 0.08 : i < 7 ? 0.04 : 0.02;
-      const noise = (Math.random() - 0.5) * 0.03;
-      return { pct, dropOffRate: Math.max(0, Math.min(1, baseDrop + noise)) };
-    });
-
-    // Completion rate from stored field or computed
-    const completionRate = v.completionRate ?? (plays > 0 ? avgWatch / duration : 0);
-
+    // Everything below used to be INVENTED when the real field was missing: dropOffSegments were
+    // generated with Math.random() (so the "retention heatmap" showed different numbers on every
+    // page load), avgWatchDuration defaulted to duration * 0.45, and sourceAttribution was a
+    // fixed percentage split of the play count dressed up as traffic sources. A creator studying
+    // that heatmap to decide where their film loses people was reading noise.
+    //
+    // Real equivalents now come from contentStats, populated by /api/metrics/events. Until a
+    // title has accumulated data, these stay EMPTY and the UI says so — an honest blank beats a
+    // confident fiction.
     return {
       videoId:          v.id,
       title:            v.title || 'Untitled',
-      completionRate:   Math.min(1, completionRate),
-      avgWatchDuration: avgWatch,
-      dropOffSegments,
-      rentalCount:      v.rentalCount     || 0,
-      purchaseCount:    v.purchaseCount   || 0,
-      ppvCount:         v.ppvCount        || 0,
-      uniqueViewers:    v.uniqueViewers   || plays,
-      sourceAttribution: v.sourceAttribution || [
-        { source: 'Plajah Feed',  conversions: Math.floor(plays * 0.45) },
-        { source: 'Direct Link',  conversions: Math.floor(plays * 0.25) },
-        { source: 'Mastodon',     conversions: Math.floor(plays * 0.15) },
-        { source: 'Bluesky',      conversions: Math.floor(plays * 0.10) },
-        { source: 'Other',        conversions: Math.floor(plays * 0.05) },
-      ].filter(s => s.conversions > 0),
+      completionRate:   typeof v.completionRate === 'number' ? v.completionRate : 0,
+      avgWatchDuration: typeof v.avgWatchDuration === 'number' ? v.avgWatchDuration : 0,
+      dropOffSegments:  [],
+      rentalCount:      v.rentalCount   || 0,
+      purchaseCount:    v.purchaseCount || 0,
+      ppvCount:         v.ppvCount      || 0,
+      uniqueViewers:    typeof v.uniqueViewers === 'number' ? v.uniqueViewers : 0,
+      sourceAttribution: [],
     };
   });
 }
