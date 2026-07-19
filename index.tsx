@@ -132,6 +132,24 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   // which interrupts video, audio, and games with no warning.
   const updateSW = registerSW({
     onNeedRefresh() {
+      // TVs and the native shell get the update applied UNCONDITIONALLY.
+      //
+      // The toast fallback below assumes someone can see and tap it. On a television that
+      // assumption breaks: a D-pad user may never reach a corner toast, so the WebView kept
+      // serving its cached bundle forever and deploy after deploy simply never arrived. That
+      // is exactly how three shipped TV fixes failed to reach the device while the older
+      // cached build kept running. The one thing worse than an interrupted screen here is an
+      // app permanently frozen on stale code.
+      try {
+        const ua = navigator.userAgent.toLowerCase();
+        const isTvOrNative =
+          ua.includes('plajahtv/1') ||
+          ua.includes('plajah/2.0 android') ||          // the Capacitor shell's appendUserAgent
+          /smart-?tv|smarttv|googletv|android\s?tv|leanback|aftt|aftmm|aftb|kfapwi|silk|tizen|web0s|webos|roku|bravia|hbbtv/.test(ua) ||
+          (navigator.maxTouchPoints === 0 && /android/.test(ua));
+        if (isTvOrNative) { setTimeout(() => updateSW(true), 0); return; }
+      } catch { /* fall through to the normal path */ }
+
       // If the user just arrived (page loaded under 10 seconds ago) AND nothing
       // is playing yet, silently reload to apply the update — feels like normal
       // page load to the user. Use setTimeout so updateSW is definitely assigned.

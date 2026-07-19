@@ -5,11 +5,14 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.os.Bundle;
+import android.util.Log;
 import android.webkit.WebSettings;
 
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+
+    private static final String TAG = "PlajahTV";
 
     /**
      * Tell the web layer, authoritatively, that this is a television.
@@ -28,22 +31,26 @@ public class MainActivity extends BridgeActivity {
      * after the app had already picked a layout — the same race that made this unreliable.
      */
     private boolean isTelevision() {
+        boolean uiMode = false, leanback = false, tvFeature = false;
         try {
             UiModeManager ui = (UiModeManager) getSystemService(Context.UI_MODE_SERVICE);
-            if (ui != null && ui.getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION) {
-                return true;
-            }
-        } catch (Exception ignored) { /* fall through to the feature check */ }
-
+            uiMode = ui != null && ui.getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION;
+        } catch (Exception ignored) { /* leave false */ }
         try {
             PackageManager pm = getPackageManager();
-            if (pm != null && (pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
-                    || pm.hasSystemFeature("android.hardware.type.television"))) {
-                return true;
+            if (pm != null) {
+                leanback  = pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK);
+                tvFeature = pm.hasSystemFeature("android.hardware.type.television");
             }
-        } catch (Exception ignored) { /* not a TV, or the query failed — treat as not-TV */ }
+        } catch (Exception ignored) { /* leave false */ }
 
-        return false;
+        // Logged because this verdict has been wrong on real hardware and there is no other way
+        // to see it on a TV: `adb logcat -s PlajahTV` gives the ground truth in one line.
+        Log.i(TAG, "TV detection: uiModeTelevision=" + uiMode
+                + " leanback=" + leanback + " televisionFeature=" + tvFeature
+                + " -> isTV=" + (uiMode || leanback || tvFeature));
+
+        return uiMode || leanback || tvFeature;
     }
 
     @Override
@@ -56,6 +63,7 @@ public class MainActivity extends BridgeActivity {
             // Idempotent: onCreate runs again after a configuration change.
             if (ua != null && !ua.contains("PlajahTV/1")) {
                 settings.setUserAgentString(ua + " PlajahTV/1");
+                Log.i(TAG, "UA tagged: " + settings.getUserAgentString());
             }
         } catch (Exception ignored) {
             // Worst case the UA is untouched and the web layer falls back to its heuristics.
