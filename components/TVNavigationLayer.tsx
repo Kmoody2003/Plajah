@@ -1,6 +1,13 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { usePlatform } from '../hooks/usePlatform';
-import { findInDirection, getFocusables } from '../hooks/useDpadNavigation';
+import {
+  findInDirection,
+  focusTVElement,
+  getFocusables,
+  getFocusableElements,
+  invalidateFocusables,
+  type Dir,
+} from '../hooks/useDpadNavigation';
 
 // ── Modal detection (for focus-trapping + Back-to-close) ──────────────────────
 // A "modal scope" is an explicit dialog, or a heuristic full-screen fixed overlay
@@ -63,20 +70,29 @@ const closeModal = (modal: HTMLElement): void => {
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 };
 
+/** True while the app still has an in-app view to return to (App.tsx pushes {view} per screen). */
+const canGoBackInApp = (): boolean => window.history.length > 1 && !!window.history.state;
+
+// Long-press on a remote fires the browser's native key-repeat, which on a TV overshoots by
+// several items before the user's thumb lifts. Gate repeats to a deliberate ramp instead:
+// slow for the first few, then faster, never faster than ~10/sec.
+const repeatInterval = (run: number): number => (run < 2 ? 300 : run < 6 ? 170 : 100);
+
 /**
  * Global D-pad / 10-foot navigation layer.
  *
- * Renders nothing. When active it:
+ * Renders nothing but an exit confirmation. When active it:
  *  - adds a `tv-nav` class to <html> (drives the strong focus-ring CSS),
  *  - moves DOM focus spatially with the arrow keys (auto-discovering native
  *    focusables — no per-element tagging required),
- *  - activates custom (non-native) focusables on Enter,
- *  - emits a `tv:back` window event on the remote Back button.
+ *  - guarantees something is always focused, so the remote can never appear frozen,
+ *  - scrolls the focused element clear of the TV's overscan edges,
+ *  - activates custom (non-native) focusables on Enter / DPAD_CENTER,
+ *  - resolves Back against a strict layer stack (modal → view → exit confirm).
  *
- * It is deliberately *yielding*: it never touches a key that a component already
- * handled (`defaultPrevented`), that targets a text field, or that lands inside a
- * `[data-tv-capture]` zone (readers / editors that own the arrows). So it is safe
- * to mount app-wide without fighting the surfaces that manage their own keys.
+ * It is deliberately *yielding*: it never touches a key that targets a text field, or that
+ * lands inside a `[data-tv-capture]` zone (readers / editors that own the arrows). So it is
+ * safe to mount app-wide without fighting the surfaces that manage their own keys.
  *
  * Activation: real D-pad devices (usePlatform().hasDpad), or `?tv=1` in the URL,
  * or localStorage `plajah:tvnav = '1'` (handy for testing on a desktop). A global
@@ -96,6 +112,16 @@ const TVNavigationLayer = () => {
   };
 
   const [active, setActive] = useState<boolean>(initialActive);
+  const [confirmExit, setConfirmExit] = useState(false);
+
+  // Last element that genuinely held focus. This is the anchor for the focus invariant: when a
+  // re-render destroys the focused node, React drops focus to <body> and every further keypress
+  // is a no-op — the "TV is frozen" report. Tracked via focusin (cheap) rather than polling.
+  const lastFocusedRef = useRef<HTMLElement | null>(null);
+  // Guards against our own `plajah:hardware-back` dispatch re-entering our own listener.
+  const dispatchingBackRef = useRef(false);
+  const repeatRunRef = useRef(0);
+  const lastMoveAtRef = useRef(0);
 
   // Expose a manual toggle for testing / a future settings switch.
   useEffect(() => {
@@ -134,21 +160,98 @@ const TVNavigationLayer = () => {
     return () => window.removeEventListener('keydown', onFirstKey, true);
   }, [active, platform.isNative, platform.isTV]);
 
-  const move = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
-    const activeEl = document.activeElement as HTMLElement | null;
-    const rootedActive = activeEl && activeEl !== document.body ? activeEl : null;
-    // Focus-trap: while focus is INSIDE a modal, confine navigation to its
-    // focusables so the remote can't wander onto the page behind it. (We only
-    // scope when already inside — never yank focus around the page.)
-    const scope = modalScopeOf(rootedActive);
-    const candidates = scope ? getFocusables(scope) : getFocusables();
-    const target = findInDirection(rootedActive, direction, candidates)
-      || (scope ? candidates[0] ?? null : null); // wrap to the modal's first item at an edge
-    if (target) {
-      target.focus();
-      target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  // Remember the real focus owner so it can be restored after a re-render.
+  useEffect(() => {
+    if (!active) return;
+    const onFocusIn = (e: FocusEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && t !== document.body) lastFocusedRef.current = t;
+    };
+    window.addEventListener('focusin', onFocusIn, true);
+    return () => window.removeEventListener('focusin', onFocusIn, true);
+  }, [active]);
+
+  /**
+   * The focus invariant. Returns the element focus should move FROM, or null when the screen
+   * has nothing focusable at all. `seeded` means we had to re-establish focus from scratch, in
+   * which case the caller should consume the keypress: the user sees the ring reappear rather
+   * than focus teleporting from wherever it silently was.
+   */
+  const ensureFocus = useCallback((): { el: HTMLElement | null; seeded: boolean } => {
+    const el = document.activeElement as HTMLElement | null;
+    if (el && el !== document.body && el.isConnected) return { el, seeded: false };
+
+    // Focus was lost (re-render destroyed the node, a modal closed, a route changed).
+    const last = lastFocusedRef.current;
+    if (last && last.isConnected && last.getClientRects().length > 0) {
+      focusTVElement(last);
+      return { el: last, seeded: false }; // still the same element — the move can proceed
     }
+
+    const scope = topScope();
+    const first = getFocusables(scope ?? document)[0];
+    if (first) {
+      focusTVElement(first);
+      return { el: first, seeded: true };
+    }
+    return { el: null, seeded: true };
   }, []);
+
+  const move = useCallback((direction: Dir) => {
+    const { el: origin, seeded } = ensureFocus();
+    if (!origin || seeded) return;
+
+    // Focus-trap: while focus is INSIDE a modal, confine navigation to its focusables so the
+    // remote can't wander onto the page behind it. (We only scope when already inside — never
+    // yank focus around the page.)
+    const scope = modalScopeOf(origin);
+    const candidates = scope ? getFocusableElements(scope) : getFocusableElements();
+    const target = findInDirection(origin, direction, candidates)
+      || (scope ? getFocusables(scope)[0] ?? null : null); // wrap to the modal's first item at an edge
+    if (target && target !== origin) focusTVElement(target);
+  }, [ensureFocus]);
+
+  /**
+   * Back resolves against a strict layer stack, so the same press always means the same thing:
+   *   1. close the top-most modal/overlay,
+   *   2. let any other overlay that listens for `plajah:hardware-back` absorb it,
+   *   3. go to the previous in-app view,
+   *   4. at the root, ASK before leaving — a remote Back at root killing the app outright is
+   *      the single most jarring TV behaviour.
+   * `fromNative` skips step 2 because useHardwareBack has already dispatched that event.
+   */
+  const handleBack = useCallback((fromNative: boolean): boolean => {
+    const modal = modalScopeOf(document.activeElement as HTMLElement) || topScope();
+    if (modal) { closeModal(modal); return true; }
+
+    if (!fromNative) {
+      dispatchingBackRef.current = true;
+      const consumed = !window.dispatchEvent(new CustomEvent('plajah:hardware-back', { cancelable: true }));
+      dispatchingBackRef.current = false;
+      if (consumed) return true;
+    }
+
+    if (canGoBackInApp()) { window.history.back(); return true; }
+
+    setConfirmExit(true);
+    return true;
+  }, []);
+
+  // Native (Capacitor) back button. useHardwareBack owns the plumbing and would otherwise
+  // exitApp() straight from the root; we consume the event for the two cases it can't see —
+  // an open modal, and the root-screen confirmation.
+  useEffect(() => {
+    if (!active) return;
+    const onNativeBack = (e: Event) => {
+      if (dispatchingBackRef.current) return; // our own dispatch — don't recurse
+      const modal = modalScopeOf(document.activeElement as HTMLElement) || topScope();
+      if (modal) { e.preventDefault(); closeModal(modal); return; }
+      if (!canGoBackInApp()) { e.preventDefault(); setConfirmExit(true); }
+      // else: fall through and let useHardwareBack run history.back()
+    };
+    window.addEventListener('plajah:hardware-back', onNativeBack);
+    return () => window.removeEventListener('plajah:hardware-back', onNativeBack);
+  }, [active]);
 
   useEffect(() => {
     if (!active) return;
@@ -156,47 +259,45 @@ const TVNavigationLayer = () => {
     // Grab an initial focus so there's always something to move from, and so a
     // remote can act on a freshly-loaded / just-changed screen. Retries because
     // the page (and modals) mount asynchronously — otherwise a slow route could
-    // leave the D-pad with nothing to focus. Scrolls the target into view in case
-    // it's below the fold (e.g. the landing page's sign-in buttons).
+    // leave the D-pad with nothing to focus.
     let seedTimer = 0;
     let tries = 0;
     const seedFocus = () => {
       const el = document.activeElement as HTMLElement | null;
-      // If a modal opened while focus sat on the page behind it, pull focus in.
       const scope = topScope();
-      if (el && el !== document.body && !(scope && !scope.contains(el))) return; // already focused in the right place
+      if (el && el !== document.body && el.isConnected && !(scope && !scope.contains(el))) return;
       const target = getFocusables(scope ?? document)[0];
-      if (target) {
-        target.focus();
-        target.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
-        return;
-      }
+      if (target) { focusTVElement(target); return; }
       if (tries++ < 24) seedTimer = window.setTimeout(seedFocus, 250); // keep trying as content loads
     };
     seedTimer = window.setTimeout(seedFocus, 300);
 
-    // Re-seed when focus is fully lost (route change unmounts the focused element)
-    // so the remote never gets stuck with nothing focused. Kept cheap: the only
-    // work per debounced tick is an activeElement check; the (heavier) seedFocus —
-    // which prefers an open modal — runs only when focus has actually dropped to
-    // <body>. This deliberately does NOT yank focus into a modal that opens while
-    // the page still holds focus (that risks churn on this mutation-heavy app);
-    // the modal's buttons are still reachable by arrow, and Back closes it.
-    let reseedScheduled = false;
-    const reseedObserver = new MutationObserver(() => {
-      if (reseedScheduled) return;
-      reseedScheduled = true;
+    const reseedSoon = (delay: number) => {
+      tries = 0;
+      window.clearTimeout(seedTimer);
+      seedTimer = window.setTimeout(seedFocus, delay);
+    };
+
+    // The DOM changed: the cached focusable set is stale, and the focused node may have been
+    // destroyed by the re-render that caused this. Both checks are deliberately cheap — a flag
+    // flip and an activeElement comparison — because this app mutates constantly and this
+    // observer runs on a TV SoC.
+    let scheduled = false;
+    const observer = new MutationObserver(() => {
+      invalidateFocusables();
+      if (scheduled) return;
+      scheduled = true;
       window.setTimeout(() => {
-        reseedScheduled = false;
+        scheduled = false;
         const el = document.activeElement as HTMLElement | null;
-        if (!el || el === document.body) {
-          tries = 0;
-          window.clearTimeout(seedTimer);
-          seedTimer = window.setTimeout(seedFocus, 60);
-        }
+        if (!el || el === document.body || !el.isConnected) reseedSoon(60);
       }, 200);
     });
-    reseedObserver.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    // A route change swaps the whole screen; re-seed rather than waiting for a mutation tick.
+    const onRoute = () => { invalidateFocusables(); lastFocusedRef.current = null; reseedSoon(120); };
+    window.addEventListener('popstate', onRoute);
 
     // Capture phase: we run BEFORE the app's own global key handlers so spatial
     // nav can claim the arrows (many surfaces preventDefault arrows for their own
@@ -211,19 +312,31 @@ const TVNavigationLayer = () => {
         tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !!t?.isContentEditable;
 
       // Some Android TV / Fire TV WebViews deliver the D-pad as keyCodes without a
-      // standard `key` (or a vendor `key`), so fall back to keyCode 37–40.
+      // standard `key` (or a vendor `key`), so fall back to keyCodes. 19-22 are the
+      // Android DPAD codes; 37-40 are what most WebView builds actually report.
       const kc = e.keyCode || e.which;
-      const dir =
-        (e.key === 'ArrowUp' || kc === 38) ? 'up' :
-        (e.key === 'ArrowDown' || kc === 40) ? 'down' :
-        (e.key === 'ArrowLeft' || kc === 37) ? 'left' :
-        (e.key === 'ArrowRight' || kc === 39) ? 'right' : null;
+      const dir: Dir | null =
+        (e.key === 'ArrowUp' || kc === 38 || kc === 19) ? 'up' :
+        (e.key === 'ArrowDown' || kc === 40 || kc === 20) ? 'down' :
+        (e.key === 'ArrowLeft' || kc === 37 || kc === 21) ? 'left' :
+        (e.key === 'ArrowRight' || kc === 39 || kc === 22) ? 'right' : null;
 
       if (dir) {
         if (inField) return;                          // arrows move the caret / adjust value
         if (t?.closest('[data-tv-capture]')) return;  // reader/editor owns the arrows
         e.preventDefault();
         e.stopImmediatePropagation();
+
+        // Throttle held-down repeats so a long press steps deliberately instead of
+        // flying past the target at the WebView's native repeat rate.
+        const now = Date.now();
+        if (e.repeat) {
+          if (now - lastMoveAtRef.current < repeatInterval(repeatRunRef.current)) return;
+          repeatRunRef.current++;
+        } else {
+          repeatRunRef.current = 0;
+        }
+        lastMoveAtRef.current = now;
         move(dir);
         return;
       }
@@ -232,8 +345,8 @@ const TVNavigationLayer = () => {
       const isOk = e.key === 'Enter' || e.key === 'Select' || kc === 13 || kc === 23;
       if (isOk) {
         if (inField) return;
-        const el = document.activeElement as HTMLElement | null;
-        if (!el || el === document.body) return;
+        const { el, seeded } = ensureFocus();
+        if (!el || seeded) { e.preventDefault(); e.stopImmediatePropagation(); return; }
         const nativeActivates = ['A', 'BUTTON', 'INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
         // Native controls fire their own click on a real Enter. But DPAD_CENTER (23) and
         // vendor 'Select' often DON'T auto-activate in a WebView, so synth-click them —
@@ -246,26 +359,69 @@ const TVNavigationLayer = () => {
         return;
       }
 
-      if ((e.key === 'Backspace' || e.key === 'XF86Back' || e.key === 'Menu') && !inField) {
+      // Back: Android KEYCODE_BACK (4), Tizen/desktop names, Apple TV Menu.
+      const isBack =
+        kc === 4 || e.key === 'Backspace' || e.key === 'XF86Back' ||
+        e.key === 'GoBack' || e.key === 'BrowserBack' || e.key === 'Menu';
+      if (isBack && !inField) {
         e.preventDefault();
         e.stopImmediatePropagation();
-        // Back closes an open modal first (so the remote can dismiss the popup that
-        // was previously un-exitable); otherwise it's an app-level "back".
-        const modal = modalScopeOf(document.activeElement as HTMLElement) || topScope();
-        if (modal) closeModal(modal);
-        else window.dispatchEvent(new CustomEvent('tv:back'));
+        handleBack(false);
       }
     };
 
     window.addEventListener('keydown', onKey, true);
     return () => {
       window.clearTimeout(seedTimer);
-      reseedObserver.disconnect();
+      observer.disconnect();
+      window.removeEventListener('popstate', onRoute);
       window.removeEventListener('keydown', onKey, true);
     };
-  }, [active, move]);
+  }, [active, move, ensureFocus, handleBack]);
 
-  return null;
+  const doExit = useCallback(() => {
+    setConfirmExit(false);
+    // Kept as a best-effort chain: the native exit on device, and the legacy `tv:back` event
+    // for any surface that still listens for it on the TV web builds.
+    import('@capacitor/app')
+      .then(({ App }) => App.exitApp())
+      .catch(() => { window.dispatchEvent(new CustomEvent('tv:back')); });
+  }, []);
+
+  if (!active || !confirmExit) return null;
+
+  // Rendered here rather than in App.tsx so the layer owns its whole Back contract. role=dialog
+  // + a viewport-covering fixed overlay is exactly what modalScopeOf detects, so the D-pad is
+  // trapped inside it and Back cancels it, with no special-casing.
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Exit Plajah"
+      className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-8"
+    >
+      <div className="bg-neutral-900 border border-white/15 rounded-2xl p-8 max-w-lg w-full text-center shadow-2xl">
+        <h2 className="text-2xl font-semibold text-white mb-2">Exit Plajah?</h2>
+        <p className="text-neutral-400 mb-8">You're at the home screen. Close the app?</p>
+        <div className="flex gap-4 justify-center">
+          <button
+            data-tv-close
+            autoFocus
+            onClick={() => setConfirmExit(false)}
+            className="px-8 py-3 rounded-xl bg-white/10 text-white font-medium hover:bg-white/20 focus:bg-white/20"
+          >
+            Stay
+          </button>
+          <button
+            onClick={doExit}
+            className="px-8 py-3 rounded-xl bg-red-600 text-white font-medium hover:bg-red-500 focus:bg-red-500"
+          >
+            Exit
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default TVNavigationLayer;

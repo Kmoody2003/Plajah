@@ -105,6 +105,7 @@ import GlobalPlayer from './components/GlobalPlayer';
 import AutoPlayCountdown from './components/AutoPlayCountdown';
 import TVNavigationLayer from './components/TVNavigationLayer';
 import { getPlatformInfo } from './hooks/usePlatform';
+import { measurePerfTier, subscribePerfTier, shouldEnableEffect, getPerfTier } from './services/tvPerformance';
 import TooltipSuppressor from './components/TooltipSuppressor';
 import ResumeUploadPrompt from './components/ResumeUploadPrompt';
 import SanctuaryDemoView from './components/sanctuary/SanctuaryDemoView';
@@ -1544,6 +1545,24 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     init();
   }, []);
 
+  // Measure what this device can actually render, then re-render once the verdict lands so a
+  // capable machine UPGRADES out of its conservative provisional tier. Self-defers to idle
+  // after first paint, so it never competes with startup.
+  const [, setPerfTick] = useState(0);
+  useEffect(() => {
+    measurePerfTier();
+    return subscribePerfTier(() => setPerfTick(t => t + 1));
+  }, []);
+
+  // CSS-level blur kill switch. index.css has ~30 backdrop-filter declarations, many !important,
+  // that no component-level gate can reach — and backdrop-filter is the single worst offender on
+  // a TV compositor. One class on <html> lets one stylesheet rule switch them all off.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle('perf-no-blur', !shouldEnableEffect('blur'));
+    root.classList.toggle('perf-low', getPerfTier() === 'low');
+  });
+
   useEffect(() => {
     const themeClasses: Record<ThemeType, string> = {
       'DARK': '',
@@ -2088,6 +2107,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               />
               <AnimatePresence mode="wait">
                 {(() => {
+                  // A looping video under blur-[40px] plus a full-viewport backdrop-blur is the
+                  // single most expensive thing on the page, and TV compositors handle it worst.
+                  // The base gradient above stays unconditional, so dropping this is never blank.
+                  if (!shouldEnableEffect('customBackground')) return null;
                   const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
                   if (!activeProfile) return null;
 
@@ -2158,7 +2181,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         />
                       ) : null}
                       
-                      {videoBackgroundFrosted !== false && (
+                      {videoBackgroundFrosted !== false && shouldEnableEffect('blur') && (
                         <div className="absolute inset-0 backdrop-blur-[100px] bg-black/30" />
                       )}
                     </motion.div>
@@ -2167,14 +2190,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </AnimatePresence>
             </div>
 
-            <BackgroundFrequencyGraph />
+            {shouldEnableEffect('visualizer') && <BackgroundFrequencyGraph />}
 
-            {theme === 'CITRUS' && <CitrusWaterDrops />}
+            {theme === 'CITRUS' && shouldEnableEffect('parallax') && <CitrusWaterDrops />}
             {theme === 'NEBULA' && (
               <>
-                <NebulaBackground />
+                {shouldEnableEffect('parallax') && <NebulaBackground />}
                 {view !== 'VIDEOS' && view !== 'MOVIES_TV' && view !== 'MOVIE_UX' && view !== 'PLAYER' && view !== 'AVATAR_STUDIO' && (
-                  <NebulaVisualizer analyser={analyser} isPlaying={isPlaying} />
+                  shouldEnableEffect('visualizer') && <NebulaVisualizer analyser={analyser} isPlaying={isPlaying} />
                 )}
               </>
             )}

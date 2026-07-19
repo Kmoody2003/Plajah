@@ -9,6 +9,7 @@ import { getCachedMedia } from '../services/offlineStorageService';
 import { getOrComputeAnalysis, getCachedAnalysis } from '../services/djAnalysis';
 import { hasRealSlides } from '../services/slideshow';
 import { getPlatformInfo } from '../hooks/usePlatform';
+import { skipOnTV } from '../services/tvCapabilities';
 import Hls from 'hls.js';
 import { peekTrackStream, prefetchTrackStreams, pickStreamUrl, getQuality as getAudioQuality, enqueueTranscode, enqueueAlbumTranscodes, getTrackStream } from '../services/choraStreamService';
 
@@ -1171,6 +1172,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // When an album loads, warm the transcoded-stream cache for its tracks so the FIRST play is
   // already HLS (not the cold original). Cheap Firestore reads, cached + deduped.
   useEffect(() => {
+    // Prefetching a whole album's stream manifests is cheap on a laptop and not on a TV SoC,
+    // where the same cores are decoding video. Playback resolves per-track instead.
+    if (skipOnTV('transcode')) return;
     const ids = currentAlbum?.tracks?.map(t => t.id).filter(Boolean) as string[] | undefined;
     if (ids?.length) prefetchTrackStreams(ids);
   }, [currentAlbum?.id]); // eslint-disable-line

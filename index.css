@@ -1430,3 +1430,40 @@ body:not(.theme-big-screen):not(.theme-phone) {
   }
 }
 
+
+/* ── TV / low-power performance escapes ──────────────────────────────────────
+   App.tsx puts these on <html> from the measured performance tier (services/
+   tvPerformance.ts). They exist because ~30 backdrop-filter declarations live in
+   this file, many behind !important, where no component-level gate can reach them
+   — and backdrop-filter is the single most expensive thing a TV compositor does. */
+html.perf-no-blur [class*="backdrop-blur"],
+html.perf-no-blur .glass,
+html.perf-no-blur .glass-high,
+html.perf-no-blur .glass-low {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Without a solid-ish fallback, killing the blur leaves unreadable transparent panels. */
+html.perf-no-blur .glass,
+html.perf-no-blur .glass-high,
+html.perf-no-blur .glass-low {
+  background-color: rgba(10, 10, 16, 0.92) !important;
+}
+
+/* On a genuinely weak device, stop paying for animation the viewer didn't ask for.
+   Scoped to decorative transitions — focus movement still animates, because on a
+   remote that motion is the feedback that tells you the press registered. */
+html.perf-low *:not([data-tv-focusable]):not(:focus-visible) {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.08s !important;
+}
+
+/* D-pad focus must never sit flush against the screen edge — TV overscan can crop it
+   outright. Pairs with the conditional scrollIntoView in hooks/useDpadNavigation.ts. */
+html.tv-nav [class*="overflow-"],
+html.tv-nav main,
+html.tv-nav body {
+  scroll-padding: 8% 8%;
+}
