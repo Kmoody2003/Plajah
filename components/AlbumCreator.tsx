@@ -457,6 +457,41 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     setPreviewingId(track.id);
   }, [previewingId, stopPreview]);
 
+  /**
+   * The lines to time-code. Prefer the typed lyrics, but fall back to the TRANSCRIPTION's own
+   * text — a track that was auto-transcribed but never had lyrics pasted in used to be locked
+   * out of manual syncing entirely (the editor read `track.lyrics`, found nothing, and refused
+   * to open), which is why hand-timing appeared to "default" instead of loading the transcript.
+   */
+  const lyricLinesFor = useCallback((track: Partial<Track>): string[] => {
+    const typed = (track.lyrics || '').split('\n').map(l => l.trim()).filter(Boolean);
+    if (typed.length) return typed;
+    return (track.timeCodedLyrics || []).map(l => (l.text || '').trim()).filter(Boolean);
+  }, []);
+
+  /** Pull the transcribed text into the editable lyrics field so it can be corrected by hand. */
+  const importTranscription = useCallback((track: Track) => {
+    const text = (track.timeCodedLyrics || []).map(l => (l.text || '').trim()).filter(Boolean).join('\n');
+    if (text) updateTrack(track.id, { lyrics: text });
+  }, [updateTrack]);
+
+  /** Nudge one line's timestamp by delta seconds, keeping the list ordered and non-negative. */
+  const nudgeLyricTime = useCallback((track: Track, index: number, delta: number) => {
+    const list = [...(track.timeCodedLyrics || [])];
+    if (!list[index]) return;
+    const next = Math.max(0, Math.round((list[index].time + delta) * 100) / 100);
+    list[index] = { ...list[index], time: next };
+    updateTrack(track.id, { timeCodedLyrics: list });
+  }, [updateTrack]);
+
+  /** Set one line's timestamp outright (typed input, mm:ss or seconds). */
+  const setLyricTime = useCallback((track: Track, index: number, seconds: number) => {
+    const list = [...(track.timeCodedLyrics || [])];
+    if (!list[index] || !isFinite(seconds)) return;
+    list[index] = { ...list[index], time: Math.max(0, Math.round(seconds * 100) / 100) };
+    updateTrack(track.id, { timeCodedLyrics: list });
+  }, [updateTrack]);
+
   const openTapSync = useCallback((track: Track) => {
     stopPreview();
     if (tapAudioRef.current) { tapAudioRef.current.pause(); tapAudioRef.current = null; }
@@ -472,8 +507,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const closeTapSync = useCallback((savePartial = false) => {
     if (savePartial && tapSyncTrackId && tapTimes.length > 0) {
       const track = tracks.find(t => t.id === tapSyncTrackId);
-      if (track?.lyrics) {
-        const lines = track.lyrics.split('\n').filter((l: string) => l.trim());
+      if (track) {
+        const lines = lyricLinesFor(track);
         const timeCodedLyrics = lines.slice(0, tapTimes.length).map((text: string, i: number) => ({ time: tapTimes[i], text: text.trim() }));
         if (timeCodedLyrics.length > 0) updateTrack(tapSyncTrackId, { timeCodedLyrics });
       }
@@ -528,7 +563,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const handleTap = useCallback((track: Track) => {
     if (!tapAudioRef.current) return;
     const time = tapAudioRef.current.currentTime;
-    const lines = (track.lyrics || '').split('\n').filter((l: string) => l.trim());
+    const lines = lyricLinesFor(track);
     const newTimes = [...tapTimes, time];
     const nextLine = tapCurrentLine + 1;
     if (nextLine >= lines.length) {
@@ -540,7 +575,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       setTapTimes(newTimes);
       setTapCurrentLine(nextLine);
     }
-  }, [tapTimes, tapCurrentLine, updateTrack, closeTapSync]);
+  }, [tapTimes, tapCurrentLine, updateTrack, closeTapSync, lyricLinesFor]);
 
   const runQcForTrack = useCallback(async (track: Track): Promise<TrackQcResult> => {
     // Video tracks get real video verification (decode a frame, catch corruption).
@@ -1474,7 +1509,17 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                   {(() => {
                     const hasSynced = (track.timeCodedLyrics?.length ?? 0) > 0;
                     const hasLyrics = !!track.lyrics?.trim();
+                    // Transcribed lines exist but nothing has been pasted into the lyrics box —
+                    // this is the case that used to lock manual syncing out entirely.
+                    const transcriptOnly = hasSynced && !hasLyrics;
+                    const canSync = hasLyrics || hasSynced;
                     const fmtT = (s: number) => { const m = Math.floor(s / 60); const ss = Math.floor(s % 60); return `${m}:${ss.toString().padStart(2,'0')}`; };
+                    const fmtExact = (s: number) => { const m = Math.floor(s / 60); const ss = (s % 60).toFixed(1).padStart(4, '0'); return `${m}:${ss}`; };
+                    const parseT = (v: string): number => {
+                      const t = v.trim();
+                      if (t.includes(':')) { const [m, s] = t.split(':'); return (parseInt(m, 10) || 0) * 60 + (parseFloat(s) || 0); }
+                      return parseFloat(t);
+                    };
                     return (
                       <div className={`rounded-2xl border overflow-hidden transition-all ${hasSynced ? 'border-small-orange/25 bg-small-orange/[0.04]' : 'border-white/[0.08] bg-white/[0.02]'}`}>
                         {/* Header */}
@@ -1489,34 +1534,72 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                             <div>
                               <p className="text-[9px] font-black uppercase tracking-widest text-white">Caption Sync</p>
                               <p className="text-[8px] text-white/30 mt-0.5">
-                                {hasSynced
-                                  ? `${track.timeCodedLyrics!.length} lines synced — tap to re-sync`
-                                  : hasLyrics
-                                    ? 'Auto-sync will run on publish · or tap to sync manually'
-                                    : 'Add lyrics above to unlock caption sync'}
+                                {transcriptOnly
+                                  ? `${track.timeCodedLyrics!.length} transcribed lines — edit times below, or import them to correct the words`
+                                  : hasSynced
+                                    ? `${track.timeCodedLyrics!.length} lines synced — edit times below, or re-sync`
+                                    : hasLyrics
+                                      ? 'Auto-sync will run on publish · or tap to sync manually'
+                                      : 'Add lyrics above, or run a transcription, to unlock caption sync'}
                               </p>
                             </div>
                           </div>
-                          {hasLyrics && (
-                            <button
-                              type="button"
-                              onClick={() => openTapSync(track)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-small-orange/15 border border-small-orange/30 text-small-orange rounded-full text-[8px] font-black uppercase tracking-widest hover:bg-small-orange/25 active:scale-95 transition-all"
-                            >
-                              <Mic2 size={10} /> Tap to Sync
-                            </button>
-                          )}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {transcriptOnly && (
+                              <button
+                                type="button"
+                                onClick={() => importTranscription(track)}
+                                title="Copy the transcribed words into the lyrics box so you can correct them"
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/8 border border-white/15 text-white/70 rounded-full text-[8px] font-black uppercase tracking-widest hover:bg-white/15 active:scale-95 transition-all"
+                              >
+                                <Mic2 size={10} /> Import Transcript
+                              </button>
+                            )}
+                            {canSync && (
+                              <button
+                                type="button"
+                                onClick={() => openTapSync(track)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-small-orange/15 border border-small-orange/30 text-small-orange rounded-full text-[8px] font-black uppercase tracking-widest hover:bg-small-orange/25 active:scale-95 transition-all"
+                              >
+                                <Mic2 size={10} /> {hasSynced ? 'Re-sync' : 'Tap to Sync'}
+                              </button>
+                            )}
+                          </div>
                         </div>
                         {/* Existing synced lines preview */}
                         {hasSynced && (
-                          <div className="px-4 pb-3 max-h-28 overflow-y-auto custom-scrollbar">
-                            <div className="border-t border-white/[0.06] pt-2 space-y-1">
-                              {track.timeCodedLyrics!.map((l, i) => (
-                                <div key={i} className="flex items-baseline gap-2.5">
-                                  <span className="text-[7px] font-mono text-small-orange/50 shrink-0 tabular-nums w-8">{fmtT(l.time)}</span>
-                                  <span className="text-[8px] text-white/45 truncate">{l.text}</span>
-                                </div>
-                              ))}
+                          <div className="px-4 pb-3 max-h-56 overflow-y-auto custom-scrollbar">
+                            <div className="border-t border-white/[0.06] pt-2">
+                              <p className="text-[7px] font-black uppercase tracking-[0.25em] text-white/25 mb-1.5">
+                                Timestamps — nudge or type to correct
+                              </p>
+                              <div className="space-y-0.5">
+                                {track.timeCodedLyrics!.map((l, i) => (
+                                  <div key={i} className="flex items-center gap-1.5 group/line rounded-lg px-1 py-0.5 hover:bg-white/[0.04]">
+                                    <button
+                                      type="button"
+                                      onClick={() => nudgeLyricTime(track, i, -0.1)}
+                                      title="0.1s earlier"
+                                      className="w-5 h-5 shrink-0 rounded-md bg-white/5 text-white/35 hover:text-white hover:bg-white/12 text-[10px] font-black leading-none transition-all"
+                                    >−</button>
+                                    <input
+                                      type="text"
+                                      defaultValue={fmtExact(l.time)}
+                                      onBlur={e => { const v = parseT(e.target.value); if (isFinite(v)) setLyricTime(track, i, v); else e.target.value = fmtExact(l.time); }}
+                                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
+                                      title="m:ss.s — or plain seconds"
+                                      className="w-14 shrink-0 bg-black/40 border border-white/10 focus:border-small-orange/50 rounded-md px-1 py-0.5 text-[8px] font-mono text-small-orange text-center tabular-nums outline-none"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => nudgeLyricTime(track, i, 0.1)}
+                                      title="0.1s later"
+                                      className="w-5 h-5 shrink-0 rounded-md bg-white/5 text-white/35 hover:text-white hover:bg-white/12 text-[10px] font-black leading-none transition-all"
+                                    >+</button>
+                                    <span className="text-[8px] text-white/50 truncate flex-1 min-w-0">{l.text}</span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         )}
@@ -3089,7 +3172,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       {tapSyncTrackId && (() => {
         const track = tracks.find(t => t.id === tapSyncTrackId);
         if (!track) return null;
-        const lines = (track.lyrics || '').split('\n').filter((l: string) => l.trim());
+        const lines = lyricLinesFor(track);   // falls back to the transcription
         if (lines.length === 0) return null;
         const pct = tapDuration > 0 ? (tapCurrentTime / tapDuration) * 100 : 0;
         const fmtT = (s: number) => { const m = Math.floor(s / 60); const ss = Math.floor(s % 60); return `${m}:${ss.toString().padStart(2,'0')}`; };
