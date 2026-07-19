@@ -787,6 +787,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     // (from the Apps page) opens the standalone studio. The wrapper handles any
     // seamless playback start via the global player.
     const handleOpenPixels = (e: any) => {
+      // Pixels is a real-time GPU compositor. On a TV it is both undrivable with a remote and
+      // far beyond the SoC's budget, so the event is answered with the explanation rather than
+      // by opening a view that would crawl. Routing through the view keeps one code path:
+      // TV_BLOCKED_VIEWS turns PLAJAH_PIXELS into the notice.
       setPixelsPayload(e?.detail || {});
       setView('PLAJAH_PIXELS');
     };

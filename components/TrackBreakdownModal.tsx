@@ -25,7 +25,7 @@ import { getOrComputeAnalysis, toBeatAnalysis, loadTrackTheory, persistTrackTheo
 import { transcribeTrack, type Transcription } from '../services/audioTranscription';
 import { buildNotation, notationToMusicXML, type Notation, type NPartSpec, type NInputNote } from '../services/musicNotation';
 import { transcribeDrums, type DrumTranscription, type DrumClass, type DrumHit } from '../services/drumTranscription';
-import { isFeatureAvailable, unavailableReason } from '../services/tvCapabilities';
+import { isFeatureAvailable, unavailableReason, canComputeBreakdown } from '../services/tvCapabilities';
 import {
   buildGuidedTour, activeStopIndex, activeBarIndex,
   type GuidedTour, type TourStop, type BarChord,
@@ -256,6 +256,9 @@ function useRealAudioAnalysis(track: Track, fallback: TrackTheory): {
     // Wait for the lookup, then skip the whole live derivation if we already have the answer.
     if (!theoryChecked) return;
     if (savedTheory) { setRealTheory(savedTheory); setAnalyzing(false); return; }
+    // No saved theory and no budget to derive one: show the static fallback rather than pinning
+    // a TV's CPU to an analyser loop for six seconds and stuttering the music.
+    if (!canComputeBreakdown()) { setAnalyzing(false); return; }
     const pitchHistogram = new Array(12).fill(0);
     const onsetTimes: number[] = [];
     const beatPitchMap = new Map<number, number[]>();
@@ -1634,6 +1637,10 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
 
   const runTranscription = useCallback((backend: 'poly-dsp' | 'basic-pitch', source: StemSource) => {
     if (!track.url) return;
+    // Transcription decodes the whole file and runs pitch detection on the main thread. A TV
+    // cannot do that and keep audio smooth. Anything already computed and saved still DISPLAYS
+    // (see the saved-theory load above) — this only blocks new computation.
+    if (!canComputeBreakdown()) return;
     abortRef.current?.abort();
     const ac = new AbortController();
     abortRef.current = ac;
@@ -1644,6 +1651,7 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
         if (!url || ac.signal.aborted) return undefined;
         // Percussion runs alongside the pitched pass off the same URL. Best-effort and
         // independent: a track whose drums can't be read still gets its melody staff.
+        if (!canComputeBreakdown()) return undefined;
         transcribeDrums(url, ac.signal)
           .then(d => { if (!ac.signal.aborted) setDrums(d); })
           .catch(() => { /* leave the drum staff empty rather than invent hits */ });
@@ -1906,7 +1914,12 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
               <div>
                 <div className="flex items-center gap-2">
                   <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">Full Score</p>
-                  {analyzing ? (
+                  {/* On a TV/low-tier device we never compute — say so once, here, so an
+                      unanalysed score doesn't just look like it failed. A SAVED score still
+                      renders normally and reports itself as real below. */}
+                  {!canComputeBreakdown() && !isReal ? (
+                    <span className="text-[7px] font-bold text-white/35">{unavailableReason('breakdown')}</span>
+                  ) : analyzing ? (
                     <span className="text-[7px] font-bold text-orange-400/80 animate-pulse">Analyzing…</span>
                   ) : isReal ? (
                     <span className="flex items-center gap-1">

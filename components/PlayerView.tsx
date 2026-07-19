@@ -9,6 +9,7 @@ import AnimatedSlideshow from './AnimatedSlideshow';
 import { resolveSlideshowImages } from '../services/slideshow';
 import ScrollingWaveform from './ScrollingWaveform';
 import { getCachedAnalysis, getOrComputeAnalysis } from '../services/djAnalysis';
+import { preferSlideshowOverVisualizer } from '../services/tvCapabilities';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
 import FxStageVisualizers, { type FxEngine, fxPresetName, FX_ENGINE_PRESETS, loadMilkdropNames } from './FxStageVisualizers';
 import Logo from './Logo';
@@ -1931,7 +1932,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 <div className="absolute bottom-12 right-12 flex flex-col gap-2 items-end opacity-0 group-hover:opacity-100 transition-all duration-500">
                   <span className="text-[10px] font-black uppercase tracking-widest text-white/60">View Features</span>
                   <div className="flex items-center gap-3 bg-black/40 backdrop-blur-xl p-2 rounded-full border border-white/10">
-                    <button onClick={() => setIsSlideshowActive(false)} className={`px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest transition-all ${!isSlideshowActive ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}>Visualizer</button>
+                    {/* Where the GPU can't drive a per-frame visualizer, the slideshow IS the
+                        ambient visual — offering a choice that stutters helps nobody. */}
+                    {!preferSlideshowOverVisualizer() && (
+                      <button onClick={() => setIsSlideshowActive(false)} className={`px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest transition-all ${!isSlideshowActive ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}>Visualizer</button>
+                    )}
                     <button onClick={() => setIsSlideshowActive(true)} className={`px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest transition-all ${isSlideshowActive ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}>Slideshow</button>
                   </div>
                 </div>
@@ -2389,12 +2394,17 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                  >
                    Slideshow
                  </button>
-                 <button
-                   onClick={() => { setIsVisualizerLayout(true); setIsSlideshowActive(false); }}
-                   className="px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border bg-white/[0.06] border-white/10 text-white/40 hover:text-white hover:border-small-orange/50 hover:bg-small-orange/10 flex items-center gap-2"
-                 >
-                   <Activity size={10} /> FX Stage
-                 </button>
+                 {/* FX Stage is a continuous full-screen shader. It is the single heaviest
+                     thing this view can do, so it is not offered where the GPU can't sustain
+                     it — every TV, and any device measured as low-tier. */}
+                 {!preferSlideshowOverVisualizer() && (
+                   <button
+                     onClick={() => { setIsVisualizerLayout(true); setIsSlideshowActive(false); }}
+                     className="px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border bg-white/[0.06] border-white/10 text-white/40 hover:text-white hover:border-small-orange/50 hover:bg-small-orange/10 flex items-center gap-2"
+                   >
+                     <Activity size={10} /> FX Stage
+                   </button>
+                 )}
                </div>
 
                {/* Share This Album — centered below the Art / Slideshow / FX Stage row */}
