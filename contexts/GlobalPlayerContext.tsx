@@ -673,6 +673,26 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
             } else if (audio.src !== streamPick.url) {
               audio.src = streamPick.url; // progressive low/flac rendition
             }
+          } else if (/\.m3u8(\?|$)/i.test(track.url)) {
+            // ── raw HLS source (live radio stations, external streams) ──
+            // Same treatment the transcode pipeline gets, for URLs that arrive already-HLS.
+            // NOTE: canPlayType('application/vnd.apple.mpegurl') is NOT a reliable native-HLS
+            // test — Chromium answers "maybe" and then fails with DEMUXER_ERROR_COULD_NOT_PARSE.
+            // So try hls.js FIRST wherever it's supported, and only fall back to a native src.
+            discardPrewarm();
+            audio.crossOrigin = 'anonymous';
+            if (Hls.isSupported()) {
+              audio.removeAttribute('src');
+              const hls = new Hls({ maxBufferLength: 30, enableWorker: true });
+              hls.on(Hls.Events.ERROR, (_evt, data) => {
+                if (data?.fatal) { try { hls.destroy(); } catch { /* */ } hlsRef.current = null; }
+              });
+              hls.loadSource(track.url);
+              hls.attachMedia(audio);
+              hlsRef.current = hls;
+            } else if (audio.src !== track.url) {
+              audio.src = track.url;   // Safari/iOS play HLS natively
+            }
           } else {
             // ── original-file path (no transcode yet) ──
             if (isExternal) audio.crossOrigin = 'anonymous'; else audio.removeAttribute('crossorigin');

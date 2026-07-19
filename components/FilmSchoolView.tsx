@@ -3,10 +3,16 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Film, BookOpen, Archive, Clock, ChevronRight, ArrowLeft, X,
   Check, ExternalLink, Sparkles, Clapperboard, Pen, Camera,
-  Users, Star, Globe, Play, GraduationCap,
+  Users, Star, Globe, Play, GraduationCap, ShieldCheck, ScrollText,
+  Link2, Search,
 } from 'lucide-react';
 import SchoolView from './school/SchoolView';
 import { FILM_SCHOOL } from '../data/filmSchoolCurriculum';
+import ScriptReader from './ScriptReader';
+import {
+  PUBLIC_DOMAIN_SCRIPTS, scriptsByTradition, TRADITIONS,
+  type PublicDomainScript, type TraditionId,
+} from '../data/publicDomainScripts';
 
 interface Props {
   onBack: () => void;
@@ -181,7 +187,12 @@ const FILM_MODULES: FilmModule[] = [
   },
 ];
 
-// ── Script Vault ───────────────────────────────────────────────────────────────
+// ── Script Vault — "Read at source" shelf ─────────────────────────────────────
+//
+// ⚠️ These screenplays are still in copyright. Plajah LINKS to them and never
+// mirrors them: the studios, not us, are the ones publishing the text. Anything
+// we host on-platform must be verifiably public domain and lives in
+// data/publicDomainScripts.ts instead. Do not add a "read on Plajah" path here.
 interface ScriptEntry {
   title: string;
   year: number;
@@ -193,7 +204,7 @@ interface ScriptEntry {
   color: string;
 }
 
-const SCRIPT_VAULT: ScriptEntry[] = [
+const LINKED_SCRIPTS: ScriptEntry[] = [
   {
     title: 'Chinatown',
     year: 1974,
@@ -302,6 +313,11 @@ const SCRIPT_VAULT: ScriptEntry[] = [
     color: 'from-cyan-900 to-teal-900',
   },
 ];
+
+/** Host a link-out card is sending the reader to — shown so the hand-off is explicit. */
+const hostOf = (url: string) => {
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return 'external site'; }
+};
 
 // ── Film History Timeline ──────────────────────────────────────────────────────
 const HISTORY_EVENTS = [
@@ -413,8 +429,31 @@ const FilmSchoolView: React.FC<Props> = ({ onBack }) => {
     try { return new Set(JSON.parse(localStorage.getItem('plajah_filmschool_completed') || '[]')); }
     catch { return new Set(); }
   });
+  // Script Vault: two clearly-separated shelves.
+  //   ON_PLATFORM — public-domain works Plajah is allowed to host and render.
+  //   AT_SOURCE   — in-copyright screenplays we only ever link to.
+  const [shelf, setShelf] = useState<'ON_PLATFORM' | 'AT_SOURCE'>('ON_PLATFORM');
+  const [readerScript, setReaderScript] = useState<PublicDomainScript | null>(null);
+  const [pdQuery, setPdQuery] = useState('');
+  const [traditionFilter, setTraditionFilter] = useState<TraditionId | 'ALL'>('ALL');
   const [scriptFilter, setScriptFilter] = useState('All');
-  const genres = ['All', ...Array.from(new Set(SCRIPT_VAULT.map(s => s.genre.split(' / ')[0])))];
+  const genres = ['All', ...Array.from(new Set(LINKED_SCRIPTS.map(s => s.genre.split(' / ')[0])))];
+
+  const pdGroups = React.useMemo(() => {
+    const q = pdQuery.trim().toLowerCase();
+    return scriptsByTradition()
+      .filter(g => traditionFilter === 'ALL' || g.tradition.id === traditionFilter)
+      .map(g => ({
+        ...g,
+        scripts: q
+          ? g.scripts.filter(s =>
+              s.title.toLowerCase().includes(q) ||
+              s.author.toLowerCase().includes(q) ||
+              s.genre.toLowerCase().includes(q))
+          : g.scripts,
+      }))
+      .filter(g => g.scripts.length > 0);
+  }, [pdQuery, traditionFilter]);
 
   const markComplete = (id: string) => {
     setCompletedIds(prev => {
@@ -424,7 +463,7 @@ const FilmSchoolView: React.FC<Props> = ({ onBack }) => {
     });
   };
 
-  const filteredScripts = scriptFilter === 'All' ? SCRIPT_VAULT : SCRIPT_VAULT.filter(s => s.genre.includes(scriptFilter));
+  const filteredScripts = scriptFilter === 'All' ? LINKED_SCRIPTS : LINKED_SCRIPTS.filter(s => s.genre.includes(scriptFilter));
 
   return (
     <div className="min-h-screen bg-black/60 backdrop-blur-sm text-white">
@@ -495,58 +534,192 @@ const FilmSchoolView: React.FC<Props> = ({ onBack }) => {
         {/* ── SCRIPT VAULT ── */}
         {tab === 'SCRIPT_VAULT' && (
           <div className="pt-2">
-            <div className="bg-amber-900/20 border border-amber-500/20 rounded-2xl p-4 mb-4">
-              <p className="text-xs text-amber-200/80 font-bold leading-relaxed">
-                These scripts are sourced from publicly accessible archives maintained by film schools, screenwriting databases, and digital libraries. They are provided for study and educational purposes. Always verify the rights status in your jurisdiction before any commercial use.
-              </p>
+            {/* Shelf switch — the distinction is the point, so it leads the tab */}
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <button onClick={() => setShelf('ON_PLATFORM')}
+                className={`text-left p-4 rounded-[1.25rem] border transition-all ${shelf === 'ON_PLATFORM' ? 'bg-emerald-500/10 border-emerald-400/40' : 'bg-white/[0.03] border-white/[0.08] hover:border-white/20'}`}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <ScrollText size={12} className={shelf === 'ON_PLATFORM' ? 'text-emerald-300' : 'text-white/40'} />
+                  <span className={`text-[9px] font-black uppercase tracking-widest ${shelf === 'ON_PLATFORM' ? 'text-emerald-300' : 'text-white/40'}`}>Read on Plajah</span>
+                </div>
+                <p className="text-[11px] text-white/50 leading-snug">
+                  {PUBLIC_DOMAIN_SCRIPTS.length} public-domain works, free to everyone, opened in Lorea's reader.
+                </p>
+              </button>
+              <button onClick={() => setShelf('AT_SOURCE')}
+                className={`text-left p-4 rounded-[1.25rem] border transition-all ${shelf === 'AT_SOURCE' ? 'bg-amber-500/10 border-amber-400/40' : 'bg-white/[0.03] border-white/[0.08] hover:border-white/20'}`}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Link2 size={12} className={shelf === 'AT_SOURCE' ? 'text-amber-300' : 'text-white/40'} />
+                  <span className={`text-[9px] font-black uppercase tracking-widest ${shelf === 'AT_SOURCE' ? 'text-amber-300' : 'text-white/40'}`}>Read at source</span>
+                </div>
+                <p className="text-[11px] text-white/50 leading-snug">
+                  {LINKED_SCRIPTS.length} landmark screenplays still in copyright — we link, we don't host.
+                </p>
+              </button>
             </div>
 
-            {/* Genre filter */}
-            <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 mb-4">
-              {genres.map(g => (
-                <button key={g} onClick={() => setScriptFilter(g)}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${scriptFilter === g ? 'bg-amber-600 text-white' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}>
-                  {g}
-                </button>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {filteredScripts.map(script => (
-                <motion.div
-                  key={script.title}
-                  whileHover={{ scale: 1.01 }}
-                  className={`relative overflow-hidden rounded-[1.5rem] bg-gradient-to-br ${script.color} border border-white/10 p-5 flex flex-col gap-3`}
-                >
+            {/* ── Shelf 1: public domain, hosted and readable here ── */}
+            {shelf === 'ON_PLATFORM' && (
+              <>
+                <div className="bg-emerald-900/20 border border-emerald-500/20 rounded-2xl p-4 mb-4 flex gap-3">
+                  <ShieldCheck size={16} className="text-emerald-300 shrink-0 mt-0.5" />
                   <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-black text-white text-lg leading-tight">{script.title}</h3>
-                      <span className="shrink-0 text-[9px] font-black bg-black/30 rounded-full px-2 py-0.5 text-white/70">{script.year}</span>
-                    </div>
-                    <p className="text-[10px] text-white/60 mt-0.5">{script.writer}</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-emerald-300/80 mb-1">Why these are here</p>
+                    <p className="text-xs text-emerald-100/70 leading-relaxed">
+                      Every script on this shelf is a work in the public domain, fetched from Project Gutenberg — which publishes only texts it has verified as public domain in the United States. That is why Plajah can render them in full, for free, to anyone. Each reader shows the specific basis for its own text.
+                    </p>
                   </div>
-                  <p className="text-xs text-white/70 leading-relaxed flex-1">{script.logline}</p>
-                  {script.awards && (
-                    <div className="flex items-center gap-1.5">
-                      <Star size={10} className="text-amber-400" />
-                      <span className="text-[9px] text-amber-300/80">{script.awards}</span>
-                    </div>
+                </div>
+
+                {/* Search + tradition filter */}
+                <div className="flex items-center gap-2 bg-white/5 rounded-full px-3 py-2 mb-3">
+                  <Search size={13} className="text-white/30 shrink-0" />
+                  <input
+                    value={pdQuery}
+                    onChange={e => setPdQuery(e.target.value)}
+                    placeholder="Search by title, author or genre…"
+                    className="flex-1 bg-transparent outline-none text-xs text-white placeholder:text-white/25"
+                  />
+                  {pdQuery && (
+                    <button onClick={() => setPdQuery('')} className="text-white/30 hover:text-white/60 transition-colors">
+                      <X size={13} />
+                    </button>
                   )}
-                  <div className="flex items-center justify-between">
-                    <span className="text-[8px] font-black bg-black/30 rounded-full px-2 py-0.5 text-white/50 uppercase tracking-wider">{script.genre}</span>
-                    <a
-                      href={script.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-full text-[9px] font-black uppercase tracking-widest text-white transition-all"
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <ExternalLink size={10} /> Read Script
-                    </a>
+                </div>
+
+                <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 mb-4">
+                  <button onClick={() => setTraditionFilter('ALL')}
+                    className={`shrink-0 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${traditionFilter === 'ALL' ? 'bg-emerald-600 text-white' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}>
+                    All traditions
+                  </button>
+                  {TRADITIONS.map(t => (
+                    <button key={t.id} onClick={() => setTraditionFilter(t.id)}
+                      className={`shrink-0 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${traditionFilter === t.id ? 'bg-emerald-600 text-white' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                {pdGroups.length === 0 && (
+                  <p className="text-xs text-white/30 px-1 py-8 text-center">No scripts match “{pdQuery}”.</p>
+                )}
+
+                <div className="flex flex-col gap-8">
+                  {pdGroups.map(({ tradition, scripts }) => (
+                    <div key={tradition.id}>
+                      <div className="mb-3 px-1">
+                        <h3 className={`text-[10px] font-black uppercase tracking-widest ${tradition.accent}`}>{tradition.label}</h3>
+                        <p className="text-[11px] text-white/35 mt-0.5">{tradition.note}</p>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {scripts.map(script => (
+                          <motion.button
+                            key={script.id}
+                            whileHover={{ scale: 1.01 }}
+                            whileTap={{ scale: 0.99 }}
+                            onClick={() => setReaderScript(script)}
+                            className={`text-left relative overflow-hidden rounded-[1.5rem] bg-gradient-to-br ${tradition.gradient} border border-white/10 hover:border-white/30 p-5 flex flex-col gap-3 transition-colors`}
+                          >
+                            <div>
+                              <div className="flex items-start justify-between gap-2">
+                                <h4 className="font-black text-white text-base leading-tight">{script.title}</h4>
+                                <span className="shrink-0 text-[9px] font-black bg-black/30 rounded-full px-2 py-0.5 text-white/70">{script.year}</span>
+                              </div>
+                              <p className="text-[10px] text-white/60 mt-0.5">
+                                {script.author}{script.translator ? ` · trans. ${script.translator}` : ''}
+                              </p>
+                            </div>
+                            <p className="text-xs text-white/70 leading-relaxed">{script.blurb}</p>
+                            <div className="flex items-start gap-1.5">
+                              <Star size={10} className="text-amber-300 shrink-0 mt-0.5" />
+                              <span className="text-[10px] text-amber-100/70 leading-relaxed">{script.whyRead}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 pt-1 border-t border-white/10">
+                              <ShieldCheck size={10} className="text-emerald-300/80 shrink-0 mt-2" />
+                              <span className="text-[9px] text-emerald-100/60 leading-relaxed pt-2">{script.licenseBasis}</span>
+                            </div>
+                            <div className="flex items-center justify-between mt-auto pt-1">
+                              <span className="text-[8px] font-black bg-black/30 rounded-full px-2 py-0.5 text-white/50 uppercase tracking-wider">{script.genre}</span>
+                              <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 rounded-full text-[9px] font-black uppercase tracking-widest text-white">
+                                <BookOpen size={10} /> Read on Plajah
+                              </span>
+                            </div>
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* ── Shelf 2: in copyright — link out only ── */}
+            {shelf === 'AT_SOURCE' && (
+              <>
+                <div className="bg-amber-900/20 border border-amber-500/20 rounded-2xl p-4 mb-4 flex gap-3">
+                  <Link2 size={16} className="text-amber-300 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-amber-300/80 mb-1">Hosted elsewhere, on purpose</p>
+                    <p className="text-xs text-amber-100/70 leading-relaxed">
+                      These screenplays are still in copyright, so Plajah does not host, mirror or reformat them — each card opens the archive that publishes it. Study them freely; verify the rights status in your jurisdiction before any commercial use.
+                    </p>
                   </div>
-                </motion.div>
-              ))}
-            </div>
+                </div>
+
+                {/* Genre filter */}
+                <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 mb-4">
+                  {genres.map(g => (
+                    <button key={g} onClick={() => setScriptFilter(g)}
+                      className={`shrink-0 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${scriptFilter === g ? 'bg-amber-600 text-white' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}>
+                      {g}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {filteredScripts.map(script => (
+                    <motion.div
+                      key={script.title}
+                      whileHover={{ scale: 1.01 }}
+                      className={`relative overflow-hidden rounded-[1.5rem] bg-gradient-to-br ${script.color} border border-white/10 p-5 flex flex-col gap-3`}
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="font-black text-white text-lg leading-tight">{script.title}</h3>
+                          <span className="shrink-0 text-[9px] font-black bg-black/30 rounded-full px-2 py-0.5 text-white/70">{script.year}</span>
+                        </div>
+                        <p className="text-[10px] text-white/60 mt-0.5">{script.writer}</p>
+                      </div>
+                      <p className="text-xs text-white/70 leading-relaxed flex-1">{script.logline}</p>
+                      {script.awards && (
+                        <div className="flex items-center gap-1.5">
+                          <Star size={10} className="text-amber-400" />
+                          <span className="text-[9px] text-amber-300/80">{script.awards}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1.5 pt-1 border-t border-white/10">
+                        <Link2 size={10} className="text-white/40 shrink-0 mt-2" />
+                        <span className="text-[9px] text-white/50 leading-relaxed pt-2">
+                          In copyright — read at {hostOf(script.sourceUrl)}. Not hosted on Plajah.
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-black bg-black/30 rounded-full px-2 py-0.5 text-white/50 uppercase tracking-wider">{script.genre}</span>
+                        <a
+                          href={script.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-full text-[9px] font-black uppercase tracking-widest text-white transition-all"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <ExternalLink size={10} /> Read at source
+                        </a>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -588,6 +761,13 @@ const FilmSchoolView: React.FC<Props> = ({ onBack }) => {
             module={selectedModule}
             onClose={() => { markComplete(selectedModule.id); setSelectedModule(null); }}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Read-only public-domain script reader — never writes to the user's scripts */}
+      <AnimatePresence>
+        {readerScript && (
+          <ScriptReader script={readerScript} onBack={() => setReaderScript(null)} />
         )}
       </AnimatePresence>
     </div>

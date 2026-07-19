@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, Music, Landmark, BookOpen, Ear, Sparkles, GraduationCap, AudioLines, Library } from 'lucide-react';
+import { ChevronLeft, Music, Landmark, BookOpen, Ear, Sparkles, GraduationCap, AudioLines, Library, Disc3 } from 'lucide-react';
 import MuseumHall from './MuseumHall';
 import { CONSERVATORY_HALLS, CONSERVATORY_FIGURES } from '../data/musicFigures';
 import { MUSIC_HISTORY_ERAS } from '../data/musicHistory';
@@ -9,6 +9,7 @@ import SchoolView from './school/SchoolView';
 import { CHORA_CURRICULUM } from '../data/choraCurriculum';
 import InstrumentPrimers from './chora/InstrumentPrimers';
 import RepertoireLibrary from './chora/RepertoireLibrary';
+import PublicDomainLibrary from './chora/PublicDomainLibrary';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ChoraConservatory — the humanities half of Plajah Chora.
@@ -24,7 +25,7 @@ import RepertoireLibrary from './chora/RepertoireLibrary';
 
 const ACCENT = '#E0A458';
 
-type ConservatoryTab = 'HALL' | 'HISTORY' | 'CURRICULUM' | 'INSTRUMENTS' | 'REPERTOIRE';
+type ConservatoryTab = 'HALL' | 'HISTORY' | 'CURRICULUM' | 'INSTRUMENTS' | 'REPERTOIRE' | 'PUBLIC_DOMAIN';
 
 const HistoryCard: React.FC<{ era: typeof MUSIC_HISTORY_ERAS[number]; index: number }> = ({ era, index }) => (
   <motion.article
@@ -112,6 +113,7 @@ const ChoraConservatory: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             { id: 'HISTORY' as const, label: 'Music History', icon: BookOpen },
             { id: 'INSTRUMENTS' as const, label: 'Instruments', icon: AudioLines },
             { id: 'REPERTOIRE' as const, label: 'Repertoire', icon: Library },
+            { id: 'PUBLIC_DOMAIN' as const, label: 'Public Domain', icon: Disc3 },
           ]).map(t => {
             const active = tab === t.id;
             const Icon = t.icon;
@@ -156,6 +158,10 @@ const ChoraConservatory: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           ) : tab === 'REPERTOIRE' ? (
             <motion.div key="repertoire" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <RepertoireLibrary />
+            </motion.div>
+          ) : tab === 'PUBLIC_DOMAIN' ? (
+            <motion.div key="public-domain" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <PublicDomainLibrary />
             </motion.div>
           ) : (
             <motion.div key="history" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-5">

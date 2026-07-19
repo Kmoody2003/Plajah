@@ -9,6 +9,11 @@
 // Where a work page could not be pinned with confidence, the entry links the
 // composer's IMSLP category page instead — still a real, free destination that
 // lands the learner one click from the score.
+//
+// SEE ALSO data/repertoireScores.ts — for a growing subset of these works we now
+// carry the score NATIVELY (CC0 MusicXML, engraved in-app by Verovio) and a
+// playable public-domain recording, so the learner never has to leave Plajah.
+// IMSLP remains the "full edition" fallback for every entry.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type RepertoireEra =
@@ -315,6 +320,123 @@ export const REPERTOIRE: RepertoireWork[] = [
     wikiSlug: 'Three_Piano_Pieces_(Schoenberg)',
     note: 'Among the first freely atonal works. Try to find a key signature or a cadence — there is nowhere for the ear to rest, and that is the intent.',
   },
+  // ── The song shelf ─────────────────────────────────────────────────────────
+  // These works are here because we can put the *actual engraved score* in front
+  // of you, natively, without leaving Plajah — the OpenScore Lieder Corpus has
+  // hand-engraved, CC0 MusicXML for every one of them. See data/repertoireScores.ts.
+  {
+    id: 'schubert-schoene-muellerin',
+    composer: 'Franz Schubert', title: 'Die schöne Müllerin (D. 795)', era: 'Romantic', year: '1823',
+    forces: 'Voice and piano',
+    imslpUrl: 'https://imslp.org/wiki/Die_sch%C3%B6ne_M%C3%BCllerin,_D.795_(Schubert,_Franz)',
+    wikiSlug: 'Die_sch%C3%B6ne_M%C3%BCllerin',
+    note: 'The first great song cycle. Twenty songs, one narrator, one brook — and the brook has its own piano figuration that never stops moving until the last song, when it becomes a lullaby.',
+  },
+  {
+    id: 'schubert-schwanengesang',
+    composer: 'Franz Schubert', title: 'Schwanengesang (D. 957)', era: 'Romantic', year: '1828',
+    forces: 'Voice and piano',
+    imslpUrl: 'https://imslp.org/wiki/Schwanengesang,_D.957_(Schubert,_Franz)',
+    wikiSlug: 'Schwanengesang',
+    note: 'Not a cycle Schubert assembled — his publisher gathered the last songs after his death. "Der Doppelgänger" is fourteen bars of the same bass repeated under a voice that barely moves.',
+  },
+  {
+    id: 'schubert-erlkonig',
+    composer: 'Franz Schubert', title: 'Erlkönig (D. 328)', era: 'Romantic', year: '1815',
+    forces: 'Voice and piano',
+    imslpUrl: 'https://imslp.org/wiki/Erlk%C3%B6nig,_D.328_(Schubert,_Franz)',
+    wikiSlug: 'Erlk%C3%B6nig_(Schubert)',
+    note: 'Written at eighteen. One singer plays four characters, and you can see each one arrive in the score — the father low and plain, the child rising a step higher each time he cries out.',
+  },
+  {
+    id: 'schubert-gretchen',
+    composer: 'Franz Schubert', title: 'Gretchen am Spinnrade (D. 118)', era: 'Romantic', year: '1814',
+    forces: 'Voice and piano',
+    imslpUrl: 'https://imslp.org/wiki/Gretchen_am_Spinnrade,_D.118_(Schubert,_Franz)',
+    wikiSlug: 'Gretchen_am_Spinnrade',
+    note: 'Schubert was seventeen, and the German Lied effectively starts here. The right hand is the spinning wheel — watch the exact bar where it stops, and read the text at that moment.',
+  },
+  {
+    id: 'schumann-dichterliebe',
+    composer: 'Robert Schumann', title: 'Dichterliebe (Op. 48)', era: 'Romantic', year: '1840',
+    forces: 'Voice and piano',
+    imslpUrl: 'https://imslp.org/wiki/Dichterliebe,_Op.48_(Schumann,_Robert)',
+    wikiSlug: 'Dichterliebe',
+    note: 'Sixteen Heine settings from Schumann\'s "year of song". The first song never resolves, and the cycle ends with a long piano postlude that says what the poet cannot.',
+  },
+  {
+    id: 'schumann-frauenliebe',
+    composer: 'Robert Schumann', title: 'Frauenliebe und -leben (Op. 42)', era: 'Romantic', year: '1840',
+    forces: 'Voice and piano',
+    imslpUrl: 'https://imslp.org/wiki/Frauenliebe_und_Leben,_Op.42_(Schumann,_Robert)',
+    wikiSlug: 'Frauenliebe_und_-leben',
+    note: 'Eight songs tracking one life. The piano quotes the opening song verbatim at the very end — the score makes the return visible in a way listening alone rarely does.',
+  },
+  {
+    id: 'schumann-liederkreis-39',
+    composer: 'Robert Schumann', title: 'Liederkreis (Op. 39)', era: 'Romantic', year: '1840',
+    forces: 'Voice and piano',
+    imslpUrl: 'https://imslp.org/wiki/Liederkreis,_Op.39_(Schumann,_Robert)',
+    wikiSlug: 'Liederkreis,_Op._39_(Schumann)',
+    note: 'Twelve Eichendorff settings about forests, night and homesickness. "Mondnacht" is built on a chord that hovers for eight bars before it agrees to be a tonic.',
+  },
+  {
+    id: 'wolf-eichendorff',
+    composer: 'Hugo Wolf', title: 'Eichendorff-Lieder', era: 'Romantic', year: '1886–1888',
+    forces: 'Voice and piano',
+    imslpUrl: 'https://imslp.org/wiki/Eichendorff-Lieder_(Wolf,_Hugo)',
+    wikiSlug: 'Hugo_Wolf',
+    note: 'Wolf treats the poem as the score\'s master: the vocal line follows German speech rhythm almost exactly, and the piano carries the harmony on its own terms.',
+  },
+  {
+    id: 'brahms-lieder-op32',
+    composer: 'Johannes Brahms', title: '9 Lieder und Gesänge (Op. 32)', era: 'Romantic', year: '1864',
+    forces: 'Voice and piano',
+    imslpUrl: 'https://imslp.org/wiki/Category:Brahms,_Johannes',
+    wikiSlug: 'Johannes_Brahms',
+    note: 'Brahms at his most inward. The piano writing is thick and low, and the songs repeatedly place the voice inside the texture rather than above it.',
+  },
+  {
+    id: 'beethoven-lieder-op52',
+    composer: 'Ludwig van Beethoven', title: '8 Lieder (Op. 52)', era: 'Classical', year: '1805',
+    forces: 'Voice and piano',
+    imslpUrl: 'https://imslp.org/wiki/8_Lieder,_Op.52_(Beethoven,_Ludwig_van)',
+    wikiSlug: 'Ludwig_van_Beethoven',
+    note: 'Early, mostly strophic and deliberately simple — useful as a "before" picture against which Schubert\'s and Schumann\'s songs read as a revolution.',
+  },
+  {
+    id: 'hensel-lieder-op1',
+    composer: 'Fanny Hensel', title: '6 Lieder (Op. 1)', era: 'Romantic', year: '1846',
+    forces: 'Voice and piano',
+    imslpUrl: 'https://imslp.org/wiki/6_Lieder,_Op.1_(Hensel,_Fanny)',
+    wikiSlug: 'Fanny_Mendelssohn',
+    note: 'Her first publication under her own name, at forty-one, after a lifetime of writing. The songs were never the problem; the byline was.',
+  },
+  {
+    id: 'clara-schumann-op13',
+    composer: 'Clara Schumann', title: '6 Lieder (Op. 13)', era: 'Romantic', year: '1844',
+    forces: 'Voice and piano',
+    imslpUrl: 'https://imslp.org/wiki/6_Lieder,_Op.13_(Schumann,_Clara)',
+    wikiSlug: 'Clara_Schumann',
+    note: 'A working concert pianist\'s songwriting: the accompaniments are pianistically idiomatic in a way most Lieder of the period are not.',
+  },
+  {
+    id: 'boulanger-clairieres',
+    composer: 'Lili Boulanger', title: 'Clairières dans le ciel', era: 'Modern', year: '1914',
+    forces: 'Voice and piano',
+    imslpUrl: 'https://imslp.org/wiki/Clairi%C3%A8res_dans_le_ciel_(Boulanger,_Lili)',
+    wikiSlug: 'Lili_Boulanger',
+    note: 'Thirteen songs written by a twenty-year-old who had just become the first woman to win the Prix de Rome, and who would be dead within four years.',
+  },
+  {
+    id: 'schoenberg-op15',
+    composer: 'Arnold Schoenberg', title: 'Das Buch der hängenden Gärten (Op. 15)', era: 'Modern', year: '1909',
+    forces: 'Voice and piano',
+    imslpUrl: 'https://imslp.org/wiki/Das_Buch_der_h%C3%A4ngenden_G%C3%A4rten,_Op.15_(Schoenberg,_Arnold)',
+    wikiSlug: 'Das_Buch_der_h%C3%A4ngenden_G%C3%A4rten',
+    note: 'Schoenberg said of this cycle that he had broken all barriers of a past aesthetic. Read it next to the Op. 11 piano pieces — same year, same decision.',
+  },
+
   {
     id: 'joplin-maple-leaf',
     composer: 'Scott Joplin', title: 'Maple Leaf Rag', era: 'Ragtime', year: '1899',

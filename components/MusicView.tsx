@@ -22,7 +22,11 @@ import ThreeDImage from './ThreeDImage';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
 import { PodcastsView } from './PodcastsView';
-import { fetchArchiveMusic, fetchWikimediaAudio, fetchJamendoMusic, fetchArchiveAudiobooks, fetchArchivePodcasts, ArchiveTrack } from '../services/archiveContentService';
+import {
+  fetchArchiveMusic, fetchWikimediaAudio, fetchJamendoMusic, fetchArchiveAudiobooks, fetchArchivePodcasts,
+  ArchiveTrack, AudioKind, VaultSort, VaultShelf,
+  VAULT_TAXONOMY, VAULT_SHELVES, vaultKind, fetchVaultTracks, sortVaultTracks,
+} from '../services/archiveContentService';
 import {
   fetchAudiusTrending, searchAudius,
   loadAudiusCuration, fetchAudiusPlaylistTracks, fetchAudiusArtistTracks, fetchAudiusArtistById,
@@ -45,6 +49,44 @@ const shareTrack = (albumId: string, track: { id: string; title?: string; artist
     extra: { track: track.id },
   });
 };
+// Short, human labels for the Vault's archive sources.
+const SOURCE_LABEL: Record<string, string> = {
+  INTERNET_ARCHIVE: 'Internet Archive',
+  LIBRARY_OF_CONGRESS: 'Library of Congress',
+  WIKIMEDIA: 'Wikimedia',
+  JAMENDO: 'Jamendo',
+  AUDIUS: 'Audius',
+  SOUND_CLOUD: 'SoundCloud',
+};
+const SOURCE_SHORT: Record<string, string> = {
+  INTERNET_ARCHIVE: 'ARCHIVE',
+  LIBRARY_OF_CONGRESS: 'LOC',
+  WIKIMEDIA: 'WIKI',
+  JAMENDO: 'JAMENDO',
+  AUDIUS: 'AUDIUS',
+  SOUND_CLOUD: 'SC',
+};
+
+// The PRIMARY Vault axis, given a face. Order matches VAULT_TAXONOMY.
+// Concrete ComponentType, not React.ElementType — the latter collapses JSX props to `never`.
+type KindIcon = React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>;
+const KIND_META: Record<string, { icon: KindIcon; accent: string }> = {
+  MUSIC:           { icon: Music2,     accent: '#ff8c00' },
+  HISTORIC:        { icon: History,    accent: '#fbbf24' },
+  SPEECH:          { icon: Mic2,       accent: '#60a5fa' },
+  AUDIOBOOK:       { icon: BookOpen,   accent: '#a78bfa' },
+  PODCAST:         { icon: Radio,      accent: '#f472b6' },
+  FIELD_RECORDING: { icon: Waves,      accent: '#34d399' },
+  INTERVIEW:       { icon: Headphones, accent: '#f87171' },
+};
+
+const VAULT_SORTS: { id: VaultSort; label: string }[] = [
+  { id: 'TRENDING', label: 'Popular' },
+  { id: 'RECENT',   label: 'Newest' },
+  { id: 'OLDEST',   label: 'Earliest' },
+  { id: 'AZ',       label: 'A–Z' },
+];
+
 const AudiusArtistPage = lazy(() => import('./AudiusArtistPage'));
 const AudiusAlbumView  = lazy(() => import('./AudiusAlbumView'));
 const ChoraConservatory = lazy(() => import('./ChoraConservatory'));
@@ -236,8 +278,19 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   });
   const [personalTracks, setPersonalTracks] = useState<Track[]>([]);
   const [pendingSyncReqs, setPendingSyncReqs] = useState(0);
-  const [vaultSource, setVaultSource] = useState<'ALL' | 'INTERNET_ARCHIVE' | 'WIKIMEDIA' | 'JAMENDO' | 'AUDIUS'>('ALL');
-  const [vaultCategory, setVaultCategory] = useState<'ALL' | 'JAZZ' | 'CLASSICAL' | 'AUDIOBOOKS' | 'PODCASTS' | 'TRENDING'>('ALL');
+  const [vaultSource, setVaultSource] = useState<'ALL' | 'INTERNET_ARCHIVE' | 'LIBRARY_OF_CONGRESS' | 'WIKIMEDIA' | 'JAMENDO' | 'AUDIUS'>('ALL');
+  // ── Vault: two orthogonal axes + an independent sort ────────────────────
+  //   PRIMARY   what kind of audio this is        (null = the featured view)
+  //   SECONDARY genre/subcategory, scoped to kind (null = all of that kind)
+  //   SORT      a ranking, never a category
+  const [vaultKindSel, setVaultKindSel] = useState<AudioKind | null>(null);
+  const [vaultSub, setVaultSub] = useState<string | null>(null);
+  const [vaultSort, setVaultSort] = useState<VaultSort>('TRENDING');
+  const [vaultLoading, setVaultLoading] = useState(false);
+  const [vaultShelves, setVaultShelves] = useState<Array<VaultShelf & { items: ArchiveTrack[] }>>([]);
+  const [shelvesLoading, setShelvesLoading] = useState(false);
+  const [vaultDetail, setVaultDetail] = useState<ArchiveTrack | null>(null);
+  const shelvesStarted = useRef(false);
   const [album3D, setAlbum3D] = useState<Album | null>(null);
   const [vaultSearchQuery, setVaultSearchQuery] = useState('');
   const [audiusSearchResults, setAudiusSearchResults] = useState<ArchiveTrack[]>([]);
@@ -308,45 +361,90 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     return () => clearInterval(id);
   }, [upcomingAlbums.length]);
 
+  // Featured shelves — the editorial rail. Loaded once, independent of the
+  // kind/subgenre selection so switching filters never costs a refetch.
+  //
+  // Each shelf resolves on its own rather than behind a single Promise.all:
+  // archive.org's advancedsearch regularly takes ~20s while loc.gov answers in
+  // ~2s, and waiting on the slowest would hide the whole rail behind it.
+  // Shelves are re-sorted into their declared order as they land.
   useEffect(() => {
+    if (activeTab !== 'VAULT' || shelvesStarted.current) return;
+    shelvesStarted.current = true;
+    let cancelled = false;
+    const order = new Map(VAULT_SHELVES.map((s, i) => [s.id, i]));
+    let pending = VAULT_SHELVES.length;
+    setShelvesLoading(true);
+
+    VAULT_SHELVES.forEach(shelf => {
+      shelf.fetch(12)
+        .then(items => {
+          if (cancelled || !items.length) return;
+          setVaultShelves(prev =>
+            [...prev.filter(s => s.id !== shelf.id), { ...shelf, items }]
+              .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+          );
+        })
+        .catch(err => console.error(`[Vault] shelf "${shelf.id}" failed:`, err))
+        .finally(() => { if (!cancelled && --pending === 0) setShelvesLoading(false); });
+    });
+
+    return () => { cancelled = true; };
+  }, [activeTab]);
+
+  // Browse grid — resolves the two-axis selection through the taxonomy.
+  useEffect(() => {
+    if (activeTab !== 'VAULT') return;
+    let cancelled = false;
+
+    const settle = async (jobs: Array<Promise<ArchiveTrack[]>>) => {
+      const rs = await Promise.allSettled(jobs);
+      return rs.flatMap(r => (r.status === 'fulfilled' ? r.value : []));
+    };
+
     const loadVault = async () => {
+      setVaultLoading(true);
+      setVaultTracks([]);
       try {
-        let tracks: ArchiveTrack[] = [];
-        if (vaultCategory === 'TRENDING') {
-          tracks = await fetchAudiusTrending(undefined, 50);
-        } else if (vaultCategory === 'JAZZ') {
-          const [ia, audius] = await Promise.all([
-            fetchArchiveMusic('Jazz', 30),
-            fetchAudiusTrending('Jazz', 20),
+        if (!vaultKindSel) {
+          // No kind picked → a broad cross-section. loc.gov answers in ~2s while
+          // archive.org's search can take ~20s, so show the fast spine first and
+          // fold the slower sources in behind it rather than blocking on them.
+          const fast = await settle([
+            fetchVaultTracks('HISTORIC', 'jukebox', 16),
+            fetchVaultTracks('SPEECH', null, 8),
           ]);
-          tracks = [...ia, ...audius];
-        } else if (vaultCategory === 'CLASSICAL') {
-          const [ia, audius] = await Promise.all([
-            fetchArchiveMusic('Classical', 30),
-            fetchAudiusTrending('Classical', 20),
+          if (cancelled) return;
+          setVaultTracks(fast);
+          setVaultLoading(false);
+
+          const slow = await settle([
+            fetchVaultTracks('MUSIC', null, 16),
+            fetchAudiusTrending(undefined, 16) as Promise<ArchiveTrack[]>,
           ]);
-          tracks = [...ia, ...audius];
-        } else if (vaultCategory === 'AUDIOBOOKS') {
-          tracks = await fetchArchiveAudiobooks(40);
-        } else if (vaultCategory === 'PODCASTS') {
-          tracks = await fetchArchivePodcasts(40);
-        } else {
-          // ALL — mix all sources including Audius
-          const [ia, wiki, jam, audius] = await Promise.all([
-            fetchArchiveMusic('All', 15),
-            fetchWikimediaAudio('Classical', 10),
-            fetchJamendoMusic(15),
-            fetchAudiusTrending(undefined, 20),
-          ]);
-          tracks = [...ia, ...wiki, ...jam, ...audius];
+          if (!cancelled && slow.length) setVaultTracks(prev => [...prev, ...slow]);
+          return;
         }
-        setVaultTracks(tracks.sort(() => Math.random() - 0.5));
+
+        let tracks = await fetchVaultTracks(vaultKindSel, vaultSub, 40);
+        // Audius is a living catalogue, so it only makes sense under MUSIC.
+        if (vaultKindSel === 'MUSIC') {
+          const sub = vaultKind('MUSIC')?.subgenres.find(s => s.id === vaultSub);
+          const audius = await fetchAudiusTrending(sub?.label, 16).catch(() => [] as ArchiveTrack[]);
+          tracks = [...tracks, ...audius];
+        }
+        if (!cancelled) setVaultTracks(tracks);
       } catch (err) {
-        console.error("Vault load error:", err);
+        console.error('[Vault] load error:', err);
+        if (!cancelled) setVaultTracks([]);
+      } finally {
+        if (!cancelled) setVaultLoading(false);
       }
     };
-    if (activeTab === 'VAULT') loadVault();
-  }, [activeTab, vaultCategory]);
+
+    loadVault();
+    return () => { cancelled = true; };
+  }, [activeTab, vaultKindSel, vaultSub]);
 
   // Audius live search when source = AUDIUS
   useEffect(() => {
@@ -595,9 +693,12 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
       tracks: [vaultTrack],
       createdAt: Date.now(),
       themeColor: '#ff8c00',
+      // Carry the archive's own words through to the player, not a generic stub.
       description: track.source === 'AUDIUS'
         ? `Streaming via Audius — the decentralized music network. Artist earns on every play.`
-        : `Public domain recording from ${track.source}.`
+        : [track.description, track.context, track.collection && `Collection: ${track.collection}`]
+            .filter(Boolean).join('\n\n')
+          || `Public domain recording from ${SOURCE_LABEL[track.source] ?? track.source}.`
     };
     playTrack(vaultTrack, vaultAlbum, 'RADIO');
   };
@@ -669,20 +770,31 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     if (vaultSearchQuery && !(vaultSource === 'AUDIUS' && audiusSearchResults.length)) {
       const q = vaultSearchQuery.toLowerCase();
       filteredVault = filteredVault.filter(t =>
-        t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q)
+        t.title.toLowerCase().includes(q) ||
+        t.artist.toLowerCase().includes(q) ||
+        (t.description || '').toLowerCase().includes(q) ||
+        (t.collection || '').toLowerCase().includes(q)
       );
     }
+    filteredVault = sortVaultTracks(filteredVault, vaultSort);
+
+    const activeKind = vaultKindSel ? vaultKind(vaultKindSel) : null;
+    const activeAccent = vaultKindSel ? KIND_META[vaultKindSel]?.accent ?? '#ff8c00' : '#ff8c00';
+    const showFeatured = !vaultKindSel && !vaultSearchQuery;
 
     const sourceBadge = (track: ArchiveTrack) => {
       const isAudius = track.source === 'AUDIUS';
+      const isLoc = track.source === 'LIBRARY_OF_CONGRESS';
       return (
         <div
           className="absolute top-2 right-2 px-2 py-1 backdrop-blur-md rounded-lg text-[7px] font-black uppercase tracking-widest"
           style={isAudius
             ? { background: 'rgba(126,34,206,0.85)', color: '#e9d5ff' }
-            : { background: 'rgba(0,0,0,0.6)', color: 'rgba(255,255,255,0.8)' }}
+            : isLoc
+              ? { background: 'rgba(30,58,138,0.85)', color: '#bfdbfe' }
+              : { background: 'rgba(0,0,0,0.6)', color: 'rgba(255,255,255,0.8)' }}
         >
-          {isAudius ? 'AUDIUS' : track.source.split('_')[0]}
+          {SOURCE_SHORT[track.source] ?? track.source.split('_')[0]}
         </div>
       );
     };
@@ -690,11 +802,11 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
           <div className="shrink-0">
             <PageHeader wrapperClassName="mb-12">Plajah Vault</PageHeader>
             <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-2 px-1">
-              Public Domain · Creative Commons · Audius Decentralized
+              Library of Congress · Internet Archive · Wikimedia · Audius
             </p>
           </div>
 
@@ -703,7 +815,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               <Search size={16} className="text-white/20" />
               <input
                 type="text"
-                placeholder={vaultSource === 'AUDIUS' ? 'Search Audius…' : 'Search Archive Artists & Tracks…'}
+                placeholder={vaultSource === 'AUDIUS' ? 'Search Audius…' : 'Search titles, people, collections…'}
                 value={vaultSearchQuery}
                 onChange={e => setVaultSearchQuery(e.target.value)}
                 className="bg-transparent border-none outline-none text-xs font-bold w-full placeholder:text-white/10"
@@ -711,76 +823,227 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
             </div>
           </div>
 
-          <div className="flex flex-col gap-3">
-            {/* Category chips */}
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-              {(['ALL', 'TRENDING', 'JAZZ', 'CLASSICAL', 'AUDIOBOOKS', 'PODCASTS'] as const).map(cat => (
+          {/* Sort is its own axis — never a category */}
+          <div className="flex flex-col gap-1.5 shrink-0">
+            <p className="text-[7px] font-black uppercase tracking-[0.4em] text-white/25 px-1">Sort</p>
+            <div className="flex items-center gap-1 p-1 rounded-2xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              {VAULT_SORTS.map(s => (
                 <button
-                  key={cat}
-                  onClick={() => { setVaultCategory(cat); if (cat === 'TRENDING') setVaultSource('ALL'); }}
-                  className="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all"
-                  style={vaultCategory === cat
-                    ? cat === 'TRENDING'
-                      ? { background: '#7e22ce', borderColor: '#7e22ce', color: '#e9d5ff' }
-                      : { background: 'var(--color-small-orange, #ff8c00)', borderColor: 'var(--color-small-orange, #ff8c00)', color: '#000' }
-                    : { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
+                  key={s.id}
+                  onClick={() => setVaultSort(s.id)}
+                  className="px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all whitespace-nowrap"
+                  style={vaultSort === s.id
+                    ? { background: 'rgba(255,255,255,0.92)', color: '#000' }
+                    : { color: 'rgba(255,255,255,0.4)' }}
                 >
-                  {cat === 'TRENDING' ? '⚡ Trending' : cat}
-                </button>
-              ))}
-            </div>
-            {/* Source chips */}
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-              {(['ALL', 'AUDIUS', 'INTERNET_ARCHIVE', 'WIKIMEDIA', 'JAMENDO'] as const).map(source => (
-                <button
-                  key={source}
-                  onClick={() => setVaultSource(source)}
-                  className="px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all"
-                  style={vaultSource === source
-                    ? source === 'AUDIUS'
-                      ? { background: '#7e22ce', borderColor: '#7e22ce', color: '#e9d5ff' }
-                      : { background: '#fff', borderColor: '#fff', color: '#000' }
-                    : { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
-                >
-                  {source === 'AUDIUS' ? '◈ Audius' : source.replace(/_/g, ' ')}
+                  {s.label}
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Audius hero strip when TRENDING or AUDIUS source selected */}
-        {(vaultCategory === 'TRENDING' || vaultSource === 'AUDIUS') && (
-          <div className="flex items-center gap-4 px-6 py-4 rounded-2xl"
-            style={{ background: 'linear-gradient(135deg,rgba(126,34,206,0.25),rgba(168,85,247,0.1))', border: '1px solid rgba(168,85,247,0.25)' }}>
-            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: '#7e22ce' }}>
-              <Music2 size={14} className="text-purple-200" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-purple-400 mb-0.5">Audius — Decentralized Music</p>
-              <p className="text-[10px] text-white/50 leading-tight truncate">
-                {vaultCategory === 'TRENDING' ? 'Top trending tracks on the Audius blockchain network · streams pay artists directly' : 'Streaming live from the Audius decentralized network · zero middlemen'}
+        {/* ── PRIMARY axis: what kind of audio ─────────────────────────── */}
+        <div className="space-y-3">
+          <p className="text-[7px] font-black uppercase tracking-[0.4em] text-white/25 px-1">Type of audio</p>
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+            <button
+              onClick={() => { setVaultKindSel(null); setVaultSub(null); }}
+              className="flex items-center gap-2 px-4 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest border transition-all whitespace-nowrap shrink-0"
+              style={!vaultKindSel
+                ? { background: '#fff', borderColor: '#fff', color: '#000' }
+                : { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.45)' }}
+            >
+              <Sparkles size={11} /> Featured
+            </button>
+            {VAULT_TAXONOMY.map(k => {
+              const meta = KIND_META[k.id];
+              const Icon = meta?.icon ?? Disc;
+              const on = vaultKindSel === k.id;
+              return (
+                <button
+                  key={k.id}
+                  onClick={() => { setVaultKindSel(k.id); setVaultSub(null); }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest border transition-all whitespace-nowrap shrink-0"
+                  style={on
+                    ? { background: meta.accent, borderColor: meta.accent, color: '#000' }
+                    : { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.45)' }}
+                >
+                  <Icon size={11} /> {k.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* ── SECONDARY axis: genre/subcategory, scoped to the kind ───── */}
+          {activeKind && activeKind.subgenres.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
+              <p className="text-[7px] font-black uppercase tracking-[0.4em] text-white/25 px-1">
+                {activeKind.label} · Subcategory
               </p>
-            </div>
-            <a href="https://audius.co" target="_blank" rel="noopener noreferrer"
-              className="shrink-0 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest"
-              style={{ background: '#7e22ce', color: '#e9d5ff' }}>
-              Open Audius
-            </a>
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                <button
+                  onClick={() => setVaultSub(null)}
+                  className="px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all whitespace-nowrap shrink-0"
+                  style={!vaultSub
+                    ? { background: activeAccent, borderColor: activeAccent, color: '#000' }
+                    : { background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
+                >
+                  All {activeKind.label}
+                </button>
+                {activeKind.subgenres.map(sub => (
+                  <button
+                    key={sub.id}
+                    onClick={() => setVaultSub(sub.id)}
+                    className="px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all whitespace-nowrap shrink-0"
+                    style={vaultSub === sub.id
+                      ? { background: activeAccent, borderColor: activeAccent, color: '#000' }
+                      : { background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
+                  >
+                    {sub.label}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Source chips — an independent filter over whatever is loaded */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+            {(['ALL', 'LIBRARY_OF_CONGRESS', 'INTERNET_ARCHIVE', 'AUDIUS', 'WIKIMEDIA', 'JAMENDO'] as const).map(source => (
+              <button
+                key={source}
+                onClick={() => setVaultSource(source)}
+                className="px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all whitespace-nowrap shrink-0"
+                style={vaultSource === source
+                  ? source === 'AUDIUS'
+                    ? { background: '#7e22ce', borderColor: '#7e22ce', color: '#e9d5ff' }
+                    : { background: '#fff', borderColor: '#fff', color: '#000' }
+                  : { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
+              >
+                {source === 'ALL' ? 'All sources' : SOURCE_LABEL[source] ?? source}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* What the selected kind actually is */}
+        {activeKind && (
+          <div className="flex items-start gap-3 px-5 py-3 rounded-2xl"
+            style={{ background: `${activeAccent}12`, border: `1px solid ${activeAccent}33` }}>
+            <Library size={13} className="shrink-0 mt-0.5" style={{ color: activeAccent }} />
+            <p className="text-[10px] text-white/55 leading-relaxed">{activeKind.tagline}</p>
+          </div>
+        )}
+
+        {/* ── Featured / why this matters ──────────────────────────────── */}
+        {showFeatured && (
+          <div className="space-y-10">
+            {shelvesLoading && (
+              <div className="flex items-center gap-3 px-1">
+                <div className="w-4 h-4 border-2 border-small-orange border-t-transparent rounded-full animate-spin" />
+                <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/25">
+                  {vaultShelves.length === 0
+                    ? 'Opening the archives…'
+                    : `Loading more shelves… ${vaultShelves.length}/${VAULT_SHELVES.length}`}
+                </p>
+              </div>
+            )}
+            {vaultShelves.map(shelf => (
+              <section key={shelf.id} className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-1 self-stretch rounded-full shrink-0" style={{ background: shelf.accent }} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[7px] font-black uppercase tracking-[0.5em] mb-1" style={{ color: shelf.accent }}>
+                      Why this matters
+                    </p>
+                    <h3 className="text-base font-black text-white leading-snug">{shelf.title}</h3>
+                    <p className="text-[10px] text-white/45 leading-relaxed mt-1 max-w-2xl">{shelf.blurb}</p>
+                  </div>
+                  <button
+                    onClick={() => { setVaultKindSel(shelf.kind); setVaultSub(null); }}
+                    className="shrink-0 px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all hover:bg-white/10"
+                    style={{ borderColor: `${shelf.accent}55`, color: shelf.accent }}
+                  >
+                    Browse
+                  </button>
+                </div>
+                <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+                  {shelf.items.map(track => (
+                    <div key={`${shelf.id}-${track.id}`} className="w-40 sm:w-44 shrink-0 group">
+                      <div
+                        className="aspect-square rounded-2xl overflow-hidden relative cursor-pointer mb-2"
+                        style={{ background: 'rgba(255,255,255,0.04)' }}
+                        onClick={() => handlePlayVaultTrack(track)}
+                      >
+                        {track.thumbnailUrl
+                          ? <img src={thumb(track.thumbnailUrl, THUMB.small) || undefined} onError={onThumbError(track.thumbnailUrl)} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                          : <div className="w-full h-full flex items-center justify-center"><Disc size={26} style={{ color: `${shelf.accent}66` }} /></div>}
+                        <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center text-black" style={{ background: shelf.accent }}>
+                            <Play size={18} fill="currentColor" className="ml-0.5" />
+                          </div>
+                        </div>
+                        {track.year && (
+                          <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md text-[7px] font-black tracking-widest backdrop-blur-md"
+                            style={{ background: 'rgba(0,0,0,0.65)', color: 'rgba(255,255,255,0.85)' }}>
+                            {track.year}
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-[10px] font-black text-white leading-snug line-clamp-2">{track.title}</p>
+                      <p className="text-[8px] text-white/35 uppercase tracking-widest truncate mt-0.5">{track.artist}</p>
+                      {track.description && (
+                        <button
+                          onClick={() => setVaultDetail(track)}
+                          className="mt-1 text-left text-[8px] leading-relaxed text-white/30 hover:text-white/60 transition-colors line-clamp-2"
+                        >
+                          {track.description}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+            {vaultShelves.length > 0 && (
+              <div className="flex items-center gap-3 px-1 pt-2">
+                <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.07)' }} />
+                <p className="text-[7px] font-black uppercase tracking-[0.5em] text-white/20">Browse everything</p>
+                <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.07)' }} />
+              </div>
+            )}
           </div>
         )}
 
         {/* Track grid */}
+        {vaultLoading && filteredVault.length === 0 && (
+          <div className="flex items-center gap-3 px-1 py-8">
+            <div className="w-4 h-4 border-2 border-small-orange border-t-transparent rounded-full animate-spin" />
+            <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/25">Retrieving recordings…</p>
+          </div>
+        )}
+        {!vaultLoading && filteredVault.length === 0 && (
+          <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+            <Archive size={22} className="text-white/15" />
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/25">Nothing here</p>
+            <p className="text-[9px] text-white/25 max-w-xs leading-relaxed">
+              No recordings matched this combination. Try a different subcategory, or widen the source filter.
+            </p>
+          </div>
+        )}
+
         <AdaptiveGrid phone={1} tablet={2} desktop={4} gap="1.5rem">
           {filteredVault.map(track => (
             <motion.div
               key={track.id}
               whileHover={{ y: -5 }}
-              className="group bg-white/[0.03] border border-white/5 rounded-3xl p-4 transition-all hover:bg-white/[0.08]"
+              className="group bg-white/[0.03] border border-white/5 rounded-3xl p-4 transition-all hover:bg-white/[0.08] flex flex-col"
               style={track.source === 'AUDIUS' ? { borderColor: 'rgba(168,85,247,0.15)' } : undefined}
             >
-              <div className="aspect-square rounded-2xl overflow-hidden mb-4 relative cursor-pointer" onClick={() => handlePlayVaultTrack(track)}>
-                <img src={thumb(track.thumbnailUrl, THUMB.small) || undefined} className="w-full h-full object-cover transition-transform group-hover:scale-110" loading="lazy" decoding="async" />
+              <div className="aspect-square rounded-2xl overflow-hidden mb-4 relative cursor-pointer shrink-0" style={{ background: 'rgba(255,255,255,0.04)' }} onClick={() => handlePlayVaultTrack(track)}>
+                {track.thumbnailUrl
+                  ? <img src={thumb(track.thumbnailUrl, THUMB.small) || undefined} onError={onThumbError(track.thumbnailUrl)} className="w-full h-full object-cover transition-transform group-hover:scale-110" loading="lazy" decoding="async" />
+                  : <div className="w-full h-full flex items-center justify-center"><Disc size={30} className="text-white/15" /></div>}
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
                   <div className="w-12 h-12 rounded-full flex items-center justify-center text-black"
                     style={{ background: track.source === 'AUDIUS' ? '#a855f7' : 'var(--color-small-orange,#ff8c00)' }}>
@@ -788,8 +1051,22 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   </div>
                 </div>
                 {sourceBadge(track)}
+                {track.year && (
+                  <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md text-[7px] font-black tracking-widest backdrop-blur-md"
+                    style={{ background: 'rgba(0,0,0,0.65)', color: 'rgba(255,255,255,0.85)' }}>
+                    {track.year}
+                  </div>
+                )}
+                {track.conservatory && (
+                  <div className="absolute top-2 left-2 px-2 py-1 rounded-lg text-[7px] font-black uppercase tracking-widest backdrop-blur-md flex items-center gap-1"
+                    style={{ background: 'rgba(56,189,248,0.85)', color: '#00232f' }}>
+                    <Star size={7} fill="currentColor" /> Study
+                  </div>
+                )}
               </div>
-              <h4 className="text-xs font-black uppercase tracking-widest truncate mb-1">{track.title}</h4>
+
+              <h4 className="text-xs font-black uppercase tracking-widest line-clamp-2 mb-1">{track.title}</h4>
+
               <div className="flex items-center justify-between gap-1">
                 <button
                   onClick={() => setSelectedArchiveArtist(track.artist)}
@@ -809,9 +1086,117 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   </button>
                 )}
               </div>
+
+              {/* Provenance — label, matrix/take, collection, format */}
+              {track.context && (
+                <p className="text-[8px] uppercase tracking-widest text-white/25 truncate mt-1.5">{track.context}</p>
+              )}
+              {/* The archive's own description of what this recording is */}
+              {track.description && (
+                <button
+                  onClick={() => setVaultDetail(track)}
+                  className="text-left text-[9px] leading-relaxed text-white/40 hover:text-white/70 transition-colors line-clamp-2 mt-1.5"
+                >
+                  {track.description}
+                </button>
+              )}
+              {(track.description || track.sourcePageUrl) && (
+                <button
+                  onClick={() => setVaultDetail(track)}
+                  className="mt-auto pt-2 text-left text-[7px] font-black uppercase tracking-[0.3em] text-white/20 hover:text-white/50 transition-colors"
+                >
+                  Details
+                </button>
+              )}
             </motion.div>
           ))}
         </AdaptiveGrid>
+
+        {/* Recording detail — full context, provenance and a link to the source record */}
+        <AnimatePresence>
+          {vaultDetail && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+              style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(8px)' }}
+              onClick={() => setVaultDetail(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.94, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.94, opacity: 0 }}
+                onClick={e => e.stopPropagation()}
+                className="w-full max-w-lg max-h-[85dvh] overflow-y-auto rounded-3xl p-6 space-y-5"
+                style={{ background: '#0d0d14', border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                    {vaultDetail.thumbnailUrl
+                      ? <img src={thumb(vaultDetail.thumbnailUrl, THUMB.small) || undefined} onError={onThumbError(vaultDetail.thumbnailUrl)} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center"><Disc size={24} className="text-white/20" /></div>}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[7px] font-black uppercase tracking-[0.4em] text-small-orange mb-1">
+                      {SOURCE_LABEL[vaultDetail.source] ?? vaultDetail.source}
+                    </p>
+                    <h3 className="text-sm font-black text-white leading-snug">{vaultDetail.title}</h3>
+                    <p className="text-[9px] text-white/40 uppercase tracking-widest mt-1">{vaultDetail.artist}</p>
+                  </div>
+                  <button onClick={() => setVaultDetail(null)} className="shrink-0 text-white/30 hover:text-white"><X size={15} /></button>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {vaultDetail.year && <span className="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest" style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.6)' }}>{vaultDetail.year}</span>}
+                  {vaultDetail.kind && <span className="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest" style={{ background: `${KIND_META[vaultDetail.kind]?.accent ?? '#ff8c00'}22`, color: KIND_META[vaultDetail.kind]?.accent ?? '#ff8c00' }}>{vaultKind(vaultDetail.kind)?.label ?? vaultDetail.kind}</span>}
+                  {vaultDetail.subgenre && <span className="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest" style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.6)' }}>{vaultDetail.subgenre}</span>}
+                  {vaultDetail.conservatory && <span className="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest flex items-center gap-1" style={{ background: 'rgba(56,189,248,0.18)', color: '#7dd3fc' }}><Star size={8} fill="currentColor" /> Conservatory</span>}
+                </div>
+
+                {vaultDetail.description && (
+                  <div>
+                    <p className="text-[7px] font-black uppercase tracking-[0.4em] text-white/25 mb-1.5">About this recording</p>
+                    <p className="text-[11px] text-white/65 leading-relaxed whitespace-pre-wrap">{vaultDetail.description}</p>
+                  </div>
+                )}
+                {vaultDetail.context && (
+                  <div>
+                    <p className="text-[7px] font-black uppercase tracking-[0.4em] text-white/25 mb-1.5">Provenance</p>
+                    <p className="text-[11px] text-white/50 leading-relaxed">{vaultDetail.context}</p>
+                  </div>
+                )}
+                {vaultDetail.collection && (
+                  <div>
+                    <p className="text-[7px] font-black uppercase tracking-[0.4em] text-white/25 mb-1.5">Collection</p>
+                    <p className="text-[11px] text-white/50 leading-relaxed">{vaultDetail.collection}</p>
+                  </div>
+                )}
+                {vaultDetail.rights && (
+                  <div>
+                    <p className="text-[7px] font-black uppercase tracking-[0.4em] text-white/25 mb-1.5">Rights</p>
+                    <p className="text-[10px] text-white/40 leading-relaxed break-words">{vaultDetail.rights}</p>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    onClick={() => { handlePlayVaultTrack(vaultDetail); setVaultDetail(null); }}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest text-black"
+                    style={{ background: 'var(--color-small-orange,#ff8c00)' }}
+                  >
+                    <Play size={12} fill="currentColor" /> Play
+                  </button>
+                  {vaultDetail.sourcePageUrl && (
+                    <a
+                      href={vaultDetail.sourcePageUrl} target="_blank" rel="noopener noreferrer"
+                      className="px-4 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all hover:bg-white/10"
+                      style={{ border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)' }}
+                    >
+                      Source record
+                    </a>
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       {/* External track → playlist picker */}
       <AnimatePresence>
         {externalTrackPicker && (

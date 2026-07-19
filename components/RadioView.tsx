@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Radio, Play, Pause, SkipForward, Heart, Plus, HeartHandshake, Volume2, Info, Share2, ChevronLeft, Sparkles, Clock } from 'lucide-react';
+import { Radio, Play, Pause, SkipForward, Heart, Plus, HeartHandshake, Volume2, Info, Share2, ChevronLeft, Sparkles, Clock, Globe } from 'lucide-react';
 import PageHeader from './PageHeader';
 import { motion, AnimatePresence } from 'motion/react';
 import { Track, UserProfile, Album } from '../types';
 import { fetchRadioTracks, likeTrack, addToLibrary, auth, processDonation, fetchUserProfile } from '../services/backendService';
 import DonationModal from './DonationModal';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
+import LiveRadioBrowser from './radio/LiveRadioBrowser';
 
 // ── Satellite radio helpers ───────────────────────────────────────────────────
 // The station runs continuously 24/7. When you tune in, you join wherever
@@ -118,6 +119,9 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
   const [artistProfile, setArtistProfile] = useState<UserProfile | null>(null);
   const [artistStations, setArtistStations] = useState<UserProfile[]>([]);
   const [activeStationId, setActiveStationId] = useState<string | null>(artistId || null);
+  // Live broadcast radio (real-world stations via the Radio Browser directory)
+  // lives alongside Plajah's own artist stations rather than replacing them.
+  const [showLiveRadio, setShowLiveRadio] = useState(false);
   const seekScheduledRef = useRef(false);
 
   useEffect(() => {
@@ -246,6 +250,12 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
     }
   };
 
+  // Live broadcast radio takes the whole surface when selected — it has its own
+  // shelf rail, and it plays through the same global transport as Plajah FM.
+  if (showLiveRadio) {
+    return <LiveRadioBrowser onBack={onBack} onExit={() => setShowLiveRadio(false)} />;
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-theme text-white">
@@ -276,6 +286,20 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
             <div className="text-left">
               <p className="text-xs font-black uppercase tracking-tight">Plajah FM</p>
               <p className={`text-[8px] font-bold uppercase tracking-widest ${!activeStationId ? 'text-black/60' : 'text-white/40'}`}>Global Stream</p>
+            </div>
+          </button>
+
+          {/* Real-world broadcast radio, alongside Plajah's own stations. */}
+          <button
+            onClick={() => setShowLiveRadio(true)}
+            className="w-full mt-2 p-4 rounded-2xl flex items-center gap-4 transition-all hover:bg-white/5"
+          >
+            <div className="p-2 rounded-xl bg-[#00DAF3]/20">
+              <Globe size={18} className="text-[#00DAF3]" />
+            </div>
+            <div className="text-left">
+              <p className="text-xs font-black uppercase tracking-tight">Live Radio</p>
+              <p className="text-[8px] font-bold uppercase tracking-widest text-white/40">Broadcast Worldwide</p>
             </div>
           </button>
         </div>
