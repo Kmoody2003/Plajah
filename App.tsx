@@ -4127,19 +4127,6 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 </div>
               </div>
             )}
-            {/* Reello on a television is its own screen, modelled on the YouTube TV app —
-                landscape rows, a fixed destination rail, and selection going straight to
-                fullscreen playback. VideoTab is a pointer-and-scroll surface and does not
-                survive a D-pad. */}
-            {view === 'VIDEOS' && getPlatformInfo().isTV && (
-              <Suspense fallback={null}>
-                <ReelloTvView
-                  userProfile={userProfile}
-                  onSelectVideo={handleSelectItem}
-                  onVisitChannel={(p) => handleVisitUser(p.uid)}
-                />
-              </Suspense>
-            )}
             {view === 'VIDEOS' && !getPlatformInfo().isTV && <VideoTab profile={userProfile} isOwner={false} onSelectVideo={handleSelectItem} currentUser={userProfile} onVisitUser={handleVisitUser} initialPlaylistId={videoPlaylistInitialId} onPlaylistOpened={() => setVideoPlaylistInitialId(undefined)} onSetQueue={setVideoQueue} />}
             {view === 'ADMIN_AD_DASHBOARD' && (userProfile?.role === 'admin' || userProfile?.role === 'staff') && (
               <AdminAdDashboard onBack={() => setView('DASHBOARD')} />
@@ -4165,7 +4152,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
 
             {/* On a TV the four tabs ARE the navigation — see TvTopTabs for why a sidebar is the
-                wrong shape for a remote. */}
+                wrong shape for a remote.
+                ORDER MATTERS: every TV screen must render AFTER this block. The screens are
+                h-full, so anything rendered above the bar takes the whole viewport and pushes the
+                bar off the top — which is exactly what happened to Reello. */}
             {getPlatformInfo().isTV && (
               <TvTopTabs
                 activeView={view}
@@ -4183,6 +4173,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   setView('PLAYER' as AppView);
                 }}
               />
+            )}
+
+            {/* Reello on a television is its own screen, modelled on the YouTube TV app —
+                landscape rows, a fixed destination rail, and selection going straight to
+                fullscreen playback. VideoTab is a pointer-and-scroll surface and does not
+                survive a D-pad. */}
+            {view === 'VIDEOS' && getPlatformInfo().isTV && (
+              <Suspense fallback={null}>
+                <ReelloTvView
+                  userProfile={userProfile}
+                  onSelectVideo={handleSelectItem}
+                  onVisitChannel={(p) => handleVisitUser(p.uid)}
+                />
+              </Suspense>
             )}
 
             {/* Profile on a TV is the short settings list, not the full desktop surface. */}

@@ -68,7 +68,11 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, onExitTop, e
   // depends on an effect running, so for one press after the handoff it is ambiguous which side
   // is listening — which showed up on the TV as needing two presses to come back. A ref updated
   // in the store callback is already correct by the time the next key arrives.
-  const shellFocusedRef = useRef(isShellFocused());
+  // A content screen that has just mounted owns the remote. Claiming it here removes any
+  // dependence on the order in which the shell released focus and this screen subscribed — if
+  // that ordering ever slipped, the screen mounted deaf and no key did anything.
+  const shellFocusedRef = useRef(false);
+  useEffect(() => { setShellFocus(false); }, []);
   const [, setShellFocusedState] = useState(shellFocusedRef.current);
   useEffect(() => subscribeShellFocus(v => { shellFocusedRef.current = v; setShellFocusedState(v); }), []);
   const [pos, setPos] = useState<TvGridPosition>({ row: 0, col: 0 });
@@ -186,7 +190,14 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, onExitTop, e
           setZone('PANEL');
           return;
         }
-        if (onBack?.()) { e.preventDefault(); e.stopImmediatePropagation(); }
+        if (onBack?.()) { e.preventDefault(); e.stopImmediatePropagation(); return; }
+        // From the panel, Back goes UP to the shell's tab bar. Without this it fell through to
+        // the hardware-back handler, which runs history.back() and drops the viewer out of the
+        // screen entirely — or out of the app. Back should walk you out one level at a time.
+        if (panelCountRef.current > 0 && !isShellFocused()) {
+          e.preventDefault(); e.stopImmediatePropagation();
+          setShellFocus(true);
+        }
       }
     };
     // Capture phase, so this wins before the global layer sees the key.

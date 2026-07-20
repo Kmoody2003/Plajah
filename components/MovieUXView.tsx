@@ -108,9 +108,12 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
     onVideoRefLatest.current?.(el);
   }, []);
 
+  // 5s, and the same on every input. 3s was tuned for a mouse, where the pointer moving IS the
+  // reveal; on a remote each press is a discrete act and the controls were vanishing between
+  // presses — you could not step from Play to the scrubber without losing the bar.
   const scheduleControlHide = useCallback(() => {
     if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
-    controlsTimerRef.current = setTimeout(() => setShowControls(false), 3000);
+    controlsTimerRef.current = setTimeout(() => setShowControls(false), 5000);
   }, []);
 
   const revealControls = useCallback(() => {
@@ -119,6 +122,14 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
   }, [scheduleControlHide]);
 
   useEffect(() => () => { if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current); }, []);
+
+  // A D-pad press counts as activity. Without this only mouse movement kept the bar alive, so on
+  // a television the controls hid themselves while they were being used.
+  useEffect(() => {
+    const onKey = () => revealControls();
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [revealControls]);
 
   // ── Firestore snapshot — mirrors VideoPlayer.tsx ──────────────────────────
   useEffect(() => {

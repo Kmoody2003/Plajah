@@ -493,11 +493,21 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
     return () => { if (controlsTimer.current) clearTimeout(controlsTimer.current); };
   }, [isPlaying]);
 
-  const handleMouseMove = () => {
+  // 5s rather than 3s, and any input counts — see the note in MovieUXView. On a remote the
+  // controls were disappearing between presses, mid-use.
+  const revealControls = useCallback(() => {
     setControlsVisible(true);
     if (controlsTimer.current) clearTimeout(controlsTimer.current);
-    if (isPlaying) controlsTimer.current = setTimeout(() => setControlsVisible(false), 3000);
-  };
+    if (isPlaying) controlsTimer.current = setTimeout(() => setControlsVisible(false), 5000);
+  }, [isPlaying]);
+
+  const handleMouseMove = revealControls;
+
+  useEffect(() => {
+    const onKey = () => revealControls();
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [revealControls]);
 
   // YouTube player setup
   useEffect(() => {
