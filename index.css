@@ -1511,7 +1511,11 @@ html.tv-nav body {
    reappeared alongside the TV tab bar. That hybrid is usable with a mouse on a PC plugged
    into a TV and unusable with a remote, which is the wrong default for an Android TV.
    TvTopTabs is the navigation here; the pillar is hidden outright. */
-.theme-big-screen aside.hidden.lg\:flex { display: none !important; }
+/* Matches BOTH pillar variants. The first attempt targeted only `lg:flex` and missed the
+   real one, which is `hidden lg:block` — verified on the device, it was still 300px wide.
+   Any aside that is hidden by default and revealed at the lg breakpoint is desktop chrome by
+   definition, so match on that shape rather than a specific display value. */
+.theme-big-screen aside.hidden[class*="lg\:"] { display: none !important; }
 
 /* Nothing should reserve space for it either. */
 .theme-big-screen main,
