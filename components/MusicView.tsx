@@ -255,7 +255,7 @@ const ChoraRadio = React.lazy(() => import('./RadioView'));
 /** Which Chora tabs this device shows. */
 const CHORA_TABS = (): readonly TabType[] =>
   getPlatformInfo().isTV
-    ? (['NEW', 'FOR_YOU', 'RADIO', 'ARTISTS', 'ALBUMS', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'PLAYLISTS'] as const)
+    ? (['NEW', 'FOR_YOU', 'RADIO', 'MY_LIBRARY', 'ARTISTS', 'ALBUMS', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'PLAYLISTS'] as const)
     : (['NEW', 'FOR_YOU', 'ARTISTS', 'ALBUMS', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'MY_LIBRARY', 'PLAYLISTS'] as const);
 
 type TabType = 'NEW' | 'FOR_YOU' | 'ARTISTS' | 'ALBUMS' | 'GENRES' | 'VAULT' | 'PODCASTS' | 'AUDIO_BOOKS' | 'MY_LIBRARY' | 'PLAYLISTS' | 'RADIO';

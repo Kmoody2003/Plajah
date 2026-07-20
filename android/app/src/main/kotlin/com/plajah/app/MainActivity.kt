@@ -56,6 +56,27 @@ class MainActivity : BridgeActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         if (!isTelevision()) return
+
+        // Keep D-pad keys inside the WebView.
+        //
+        // Observed on the TCL: pressing Left at the leftmost element walked focus OUT of the app
+        // and into the system UI. The web layer already consumes arrow keys (preventDefault +
+        // stopImmediatePropagation in TVNavigationLayer), but that only runs if the WebView holds
+        // Android focus. When it doesn't, the framework routes the key to the Activity and then
+        // out of the app, and a viewer browsing Chora can fall out of Plajah entirely by pressing
+        // left one time too many.
+        try {
+            bridge?.webView?.apply {
+                isFocusable = true
+                isFocusableInTouchMode = true
+                // The WebView is the only focusable thing here; taking focus explicitly stops the
+                // framework looking for a "next" view outside it.
+                requestFocus()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "WebView focus setup failed: ${e.message}")
+        }
+
         try {
             val settings = bridge?.webView?.settings ?: run {
                 Log.w(TAG, "TV detected but WebView unavailable — web layer falls back to heuristics")
