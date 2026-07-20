@@ -107,7 +107,7 @@ import TVNavigationLayer from './components/TVNavigationLayer';
 import { getPlatformInfo } from './hooks/usePlatform';
 import { measurePerfTier, subscribePerfTier, shouldEnableEffect, getPerfTier } from './services/tvPerformance';
 import TvUnavailableNotice from './components/TvUnavailableNotice';
-import { type TvDisabledFeature } from './services/tvCapabilities';
+import { type TvDisabledFeature, TV_NAV_VIEWS, getTvHome, isViewAllowedOnTv, themesAllowed } from './services/tvCapabilities';
 import TooltipSuppressor from './components/TooltipSuppressor';
 import ResumeUploadPrompt from './components/ResumeUploadPrompt';
 import SanctuaryDemoView from './components/sanctuary/SanctuaryDemoView';
@@ -437,7 +437,14 @@ const App: React.FC = () => {
 
   const setView = useCallback((newView: AppView | ((prev: AppView) => AppView), path?: string) => {
     setViewInternal((prev) => {
-      const nextView = typeof newView === 'function' ? newView(prev) : newView;
+      let nextView = typeof newView === 'function' ? newView(prev) : newView;
+      // One choke point for the whole TV surface. A stray deep link, a recommendation card, a
+      // notification tap — anything aimed at a destination a television doesn't serve lands on
+      // the TV home instead of mounting a view the remote cannot drive. Doing it HERE rather
+      // than at each call site is what makes the guarantee hold: there is no other way in.
+      // TV_BLOCKED_VIEWS still handles the studios, which show an explanation rather than
+      // silently redirecting, because the viewer asked for those by name.
+      if (!isViewAllowedOnTv(nextView) && !TV_BLOCKED_VIEWS[nextView]) nextView = getTvHome() as AppView;
       if (prev !== nextView || path) {
         window.history.pushState({ view: nextView }, '', path || window.location.pathname);
       }
@@ -981,8 +988,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const isMobileDevice = !isTV && (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 640);
 
     if (isTV) {
-      // TV is checked FIRST — see checkDevice(); the mobile regex matches Android TVs too.
-      setView('LIVE_HUB');
+      // A television opens on its home destination — Taleo by default, so the app behaves like
+      // a streaming service rather than dropping the viewer into a creation hub.
+      setView(getTvHome());
       setTheme('BIG_SCREEN');
     } else if (isMobileDevice) {
       setView('MUSIC');
@@ -1227,7 +1235,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             const ua = navigator.userAgent;
             // TV first — the mobile regex below matches Android TVs, so testing it first
             // silently sent every TV to the phone layout.
-            if (getPlatformInfo().isTV) { setTheme('BIG_SCREEN'); return 'LIVE_HUB'; }
+            if (getPlatformInfo().isTV) { setTheme('BIG_SCREEN'); return getTvHome(); }
             const isMobileDevice =
               /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
               (ua.includes('Mac') && navigator.maxTouchPoints > 1) ||
@@ -1620,7 +1628,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     // setTheme) is overridden here rather than at each call site, so a remote can never end
     // up driving a touch layout.
     const platform = getPlatformInfo();
-    document.body.className = platform.isTV ? 'theme-big-screen' : themeClasses[theme];
+    // Themes are desktop personalisation. A TV gets one high-contrast look built for distance
+    // viewing — and pinning it means the alternate themes' gradients and background media are
+    // never requested at all, which on a 2GB TV matters more than the styling does.
+    document.body.className = platform.isTV || !themesAllowed() ? 'theme-big-screen' : themeClasses[theme];
     if (hadCustomBg) document.body.classList.add('has-custom-background');
   }, [theme]);
 
@@ -2838,7 +2849,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               {sidebarMode === 'grouped' && (
                 <nav className="flex-1 flex flex-col overflow-y-auto pr-1 custom-scrollbar overflow-x-hidden w-full">
                   {(() => {
-                    const navItems: { [k: string]: { label: string; icon: any } } = {
+                    const allNavItems: { [k: string]: { label: string; icon: any } } = {
                       USER_PROFILE: { label: 'My Profile', icon: User }, DASHBOARD: { label: 'Global Archive', icon: Settings },
                       MUSIC: { label: 'Chora', icon: Music2 }, WORLDS: { label: 'Worlds', icon: Globe },
                       VIDEOS: { label: 'Reello', icon: VideoIcon }, MOVIES_TV: { label: 'Taleo', icon: Film },
@@ -2860,6 +2871,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       PLAJAH_STUDIO: { label: 'Creator Tool Bag', icon: Sparkles },
                       CREATOR: { label: 'Creator Hub', icon: Clapperboard },
                     };
+                    // A television gets five destinations, in TV order. Everything else is
+                    // uncontrollable with a remote, meaningless at ten feet, or too costly to
+                    // keep resident — and on a 2GB TV, "never mounted" is the cheapest
+                    // optimisation available.
+                    const navItems: { [k: string]: { label: string; icon: any } } = getPlatformInfo().isTV
+                      ? Object.fromEntries(TV_NAV_VIEWS.filter(v => allNavItems[v]).map(v => [v, allNavItems[v]]))
+                      : allNavItems;
                     const handleNavClick = (id: string) => {
                       if (id === 'PAY_IT_FORWARD') { setIsPIFModalOpen(true); return; }
                       if (id === 'USER_PROFILE') { if (user) { handleVisitUser(user.uid); } else { loginWithGoogle(); } return; }

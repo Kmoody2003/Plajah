@@ -10,7 +10,23 @@
 // and no reprocessing of existing images. Pair with onThumbError() so a CDN
 // hiccup transparently falls back to the original.
 
+import { getPlatformInfo } from '../../hooks/usePlatform';
+
 const CDN = 'https://wsrv.nl/';
+
+/**
+ * Television image budget.
+ *
+ * Decoded image memory is width x height x 4 bytes, so `dpr: 2` costs FOUR TIMES the RAM of
+ * dpr 1 — and buys nothing on a TV, which is a ~1x display viewed from ten feet. A grid of
+ * thirty album covers at dpr 2 / 320px is roughly 78MB decoded; the same grid at dpr 1 / 224px
+ * is about 19MB. On a 2GB TV with a 192MB per-app heap that difference is the whole budget.
+ *
+ * Width is also capped: a TV never needs the 'large' hero preset for a grid cell, and the
+ * biggest single win is simply refusing to decode artwork bigger than it will ever be shown.
+ */
+const TV_MAX_WIDTH = 224;
+const TV_QUALITY = 70;
 
 /** Width presets for common contexts. */
 export const THUMB = {
@@ -28,8 +44,14 @@ export function thumb(url?: string | null, width: number = THUMB.card, quality =
   if (!url) return '';
   if (!/^https?:\/\//i.test(url)) return url;     // data: / blob: / relative
   if (url.includes('wsrv.nl')) return url;        // already transformed
-  // dpr 2 for crisp art on retina without ballooning bytes (CDN caps source).
-  const q = new URLSearchParams({ url, w: String(width), q: String(quality), output: 'webp', we: '', dpr: '2', fit: 'cover' });
+
+  let isTV = false;
+  try { isTV = getPlatformInfo().isTV; } catch { /* pre-boot / SSR — assume not a TV */ }
+  const w = isTV ? Math.min(width, TV_MAX_WIDTH) : width;
+  const q0 = isTV ? Math.min(quality, TV_QUALITY) : quality;
+  // dpr 2 for crisp art on retina without ballooning bytes (CDN caps source); dpr 1 on a TV,
+  // where the extra pixels are invisible and the memory is not affordable.
+  const q = new URLSearchParams({ url, w: String(w), q: String(q0), output: 'webp', we: '', dpr: isTV ? '1' : '2', fit: 'cover' });
   return `${CDN}?${q.toString()}`;
 }
 

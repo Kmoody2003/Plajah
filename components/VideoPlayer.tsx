@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Video, VideoComment, UserProfile } from '../types';
+import { getPlatformInfo } from '../hooks/usePlatform';
 import {
   likeVideo, unlikeVideo, postVideoComment, listenToVideoComments,
   fetchUserProfile, checkIfLiked, updateVideo, auth,
@@ -752,6 +753,21 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
       el?.requestFullscreen?.() ?? el?.webkitRequestFullscreen?.();
     }
   };
+
+  // On a television, playing a video IS the experience — a windowed player inside a page of
+  // chrome is a phone/desktop idea. Going fullscreen on first play makes Taleo and Reello
+  // behave like the streaming apps sitting next to them on the same home screen.
+  //
+  // Fires once per mount and only forward: if the viewer deliberately exits fullscreen we do
+  // not drag them back in, which would make the Back button feel broken.
+  const autoFullscreenDone = useRef(false);
+  useEffect(() => {
+    if (!getPlatformInfo().isTV || autoFullscreenDone.current) return;
+    if (!isPlaying || isFullscreen) return;
+    autoFullscreenDone.current = true;
+    const el = videoWrapRef.current as any;
+    try { el?.requestFullscreen?.() ?? el?.webkitRequestFullscreen?.(); } catch { /* denied — stay windowed */ }
+  }, [isPlaying, isFullscreen]);
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();

@@ -101,3 +101,38 @@ export function canReplaySavedNotation(): boolean {
  *  they get names rather than being re-derived from `isFeatureAvailable` at every button. */
 export const canUpload = (): boolean => isFeatureAvailable('upload');
 export const canGoLive = (): boolean => isFeatureAvailable('liveStream');
+
+// ─── What a television actually shows ────────────────────────────────────────
+//
+// A TV is a streaming appliance, not a platform browser. Everything outside this list is
+// either uncontrollable with a remote, pointless on a 10-foot screen, or too expensive to
+// keep resident — and on a 2GB TV with a 192MB per-app heap, "not loaded" is a feature.
+
+/** The only destinations reachable on a TV, in the order they should appear. */
+export const TV_NAV_VIEWS = ['MOVIES_TV', 'MUSIC', 'VIDEOS', 'GLOBAL_PHOTOS', 'USER_PROFILE'] as const;
+
+/** Where a television opens. Taleo behaves like a streaming service, so it leads. */
+export type TvHomeView = 'MOVIES_TV' | 'MUSIC' | 'VIDEOS';
+const TV_HOME_KEY = 'plajah:tvHome';
+
+export function getTvHome(): TvHomeView {
+  try {
+    const v = localStorage.getItem(TV_HOME_KEY);
+    if (v === 'MUSIC' || v === 'VIDEOS' || v === 'MOVIES_TV') return v;
+  } catch { /* private mode */ }
+  return 'MOVIES_TV';
+}
+
+export function setTvHome(v: TvHomeView): void {
+  try { localStorage.setItem(TV_HOME_KEY, v); } catch { /* private mode */ }
+}
+
+/** Is this destination reachable on this device? Non-TV devices keep everything. */
+export function isViewAllowedOnTv(view: string): boolean {
+  if (!getPlatformInfo().isTV) return true;
+  return (TV_NAV_VIEWS as readonly string[]).includes(view);
+}
+
+/** Themes are a desktop personalisation. A TV gets one high-contrast look built for
+ *  distance viewing, and skipping the alternates avoids loading their assets at all. */
+export const themesAllowed = (): boolean => !getPlatformInfo().isTV;
