@@ -1,6 +1,7 @@
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
-// Compose Compiler plugin — bundled with Kotlin 2.x (no separate artifact needed)
+// Compose Compiler plugin — standalone Gradle plugin since Kotlin 2.0; its
+// classpath is declared in the root build.gradle (compose-compiler-gradle-plugin).
 apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 android {
@@ -24,12 +25,15 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = '17'
+        // Match the Java target below; JDK 21 (Android Studio JBR) is the toolchain
+        // here, and AGP compiles Java at 21, so Kotlin must agree to avoid the
+        // "Inconsistent JVM-target compatibility" error.
+        jvmTarget = '21'
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
     }
 
     buildTypes {
@@ -63,6 +67,10 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation "androidx.core:core-ktx:$androidxCoreVersion"
+
+    // Material Components — supplies the XML Theme.Material3.* themes referenced
+    // by res/values/styles.xml (the Compose material3 artifact does not).
+    implementation "com.google.android.material:material:$materialVersion"
 
     // Jetpack Compose 3 BOM — pins all Compose artifact versions together
     def composeBom = platform("androidx.compose:compose-bom:$composeBomVersion")

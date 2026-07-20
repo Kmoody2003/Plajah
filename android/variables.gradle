@@ -18,6 +18,11 @@ ext {
     coreSplashScreenVersion = '1.2.0'
     androidxWebkitVersion = '1.14.0'
 
+    // Material Components — provides the XML Theme.Material3.* themes + M3 color
+    // attrs that res/values/styles.xml (AppTheme) inherits from. Distinct from
+    // the Compose 'material3' artifact, which does not ship the XML themes.
+    materialVersion = '1.12.0'
+
     // Lifecycle (Compose-aware)
     lifecycleVersion = '2.9.0'
 
