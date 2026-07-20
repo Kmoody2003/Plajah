@@ -107,6 +107,8 @@ import TVNavigationLayer from './components/TVNavigationLayer';
 import { getPlatformInfo } from './hooks/usePlatform';
 import { measurePerfTier, subscribePerfTier, shouldEnableEffect, getPerfTier } from './services/tvPerformance';
 import TvUnavailableNotice from './components/TvUnavailableNotice';
+import TvTopTabs from './components/TvTopTabs';
+const TvSettingsView = retryLazy(() => import('./components/TvSettingsView'));
 import { type TvDisabledFeature, TV_NAV_VIEWS, getTvHome, isViewAllowedOnTv, themesAllowed } from './services/tvCapabilities';
 import TooltipSuppressor from './components/TooltipSuppressor';
 import ResumeUploadPrompt from './components/ResumeUploadPrompt';
@@ -4121,6 +4123,25 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'ARTIST_MANAGER' && user && userProfile && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <ArtistProjectManager currentUser={userProfile} />
+              </Suspense>
+            )}
+
+            {/* On a TV the four tabs ARE the navigation — see TvTopTabs for why a sidebar is the
+                wrong shape for a remote. */}
+            {getPlatformInfo().isTV && (
+              <TvTopTabs activeView={view} onSelect={(v) => setView(v as AppView)} />
+            )}
+
+            {/* Profile on a TV is the short settings list, not the full desktop surface. */}
+            {getPlatformInfo().isTV && view === 'USER_PROFILE' && (
+              <Suspense fallback={null}>
+                <TvSettingsView
+                  userProfile={userProfile}
+                  subscriptionLabel={(userProfile as any)?.subscriptionTier || 'Free'}
+                  onSignOut={() => { try { logout(); } catch { /* ignore */ } }}
+                  onSwitchAccount={() => { try { logout(); } catch { /* ignore */ } }}
+                  onOpenPurchases={() => setView('CREATOR_PAYMENTS' as AppView)}
+                />
               </Suspense>
             )}
 

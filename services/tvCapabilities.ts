@@ -108,8 +108,23 @@ export const canGoLive = (): boolean => isFeatureAvailable('liveStream');
 // either uncontrollable with a remote, pointless on a 10-foot screen, or too expensive to
 // keep resident — and on a 2GB TV with a 192MB per-app heap, "not loaded" is a feature.
 
-/** The only destinations reachable on a TV, in the order they should appear. */
-export const TV_NAV_VIEWS = ['MOVIES_TV', 'MUSIC', 'VIDEOS', 'GLOBAL_PHOTOS', 'USER_PROFILE'] as const;
+/** Destinations shown in the TV's top tab bar, in order. */
+export const TV_NAV_VIEWS = ['MOVIES_TV', 'MUSIC', 'VIDEOS', 'USER_PROFILE'] as const;
+
+/**
+ * Views a TV may REACH but which are not tabs — playback, detail pages, the things a viewer
+ * lands on after choosing something.
+ *
+ * These were missing, and the omission broke the core interaction: the setView choke point sent
+ * every play attempt straight back to the home screen, so pressing OK on "Watch Now" appeared to
+ * do nothing. The click was firing correctly the whole time; the navigation was being undone one
+ * frame later. A consumption device that cannot reach its player is the one thing this must
+ * never get wrong.
+ */
+const TV_REACHABLE_VIEWS = [
+  'PLAYER', 'MOVIE_UX', 'PREVIEW', 'BOOK_READER', 'SEARCH',
+  'GLOBAL_PHOTOS', 'ART_GALLERY', 'PODCAST_LISTEN', 'RADIO', 'LIVE_HUB', 'LIVE_TV',
+] as const;
 
 /** Where a television opens. Taleo behaves like a streaming service, so it leads. */
 export type TvHomeView = 'MOVIES_TV' | 'MUSIC' | 'VIDEOS';
@@ -130,7 +145,8 @@ export function setTvHome(v: TvHomeView): void {
 /** Is this destination reachable on this device? Non-TV devices keep everything. */
 export function isViewAllowedOnTv(view: string): boolean {
   if (!getPlatformInfo().isTV) return true;
-  return (TV_NAV_VIEWS as readonly string[]).includes(view);
+  return (TV_NAV_VIEWS as readonly string[]).includes(view)
+      || (TV_REACHABLE_VIEWS as readonly string[]).includes(view);
 }
 
 /** Themes are a desktop personalisation. A TV gets one high-contrast look built for

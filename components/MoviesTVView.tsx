@@ -10,6 +10,7 @@ import {
   MoreHorizontal, X,
 } from 'lucide-react';
 import { Album, Video, Universe, VideoPlaylist, IPWorld, Character } from '../types';
+import { getPlatformInfo } from '../hooks/usePlatform';
 import {
   fetchAllPublicAlbums, fetchUniverses, syncPublicDomainAsset,
   fetchSystemSettingsConfig, fetchVideoPlaylistsByIds, fetchAllVideos, auth,
@@ -241,14 +242,24 @@ const HomeView: React.FC<{
   // Auto-advance hero every 6s
   useEffect(() => {
     if (heroItems.length <= 1) return;
-    const t = setInterval(() => setHeroIdx(i => (i + 1) % heroItems.length), 6000);
+    // A 6s hero rotation is fine with a mouse and hostile with a remote: by the time a viewer
+    // has walked focus to Watch Now the item underneath has changed, so they select something
+    // they weren't looking at. On a TV the carousel slows right down, and stops entirely while
+    // focus is inside it — the viewer is choosing, not browsing.
+    const isTv = getPlatformInfo().isTV;
+    const t = setInterval(() => {
+      // Any focus at all means the viewer is navigating with the remote. Rotating the hero
+      // under them is how you end up selecting something you weren't looking at.
+      if (isTv && document.activeElement && document.activeElement !== document.body) return;
+      setHeroIdx(i => (i + 1) % heroItems.length);
+    }, isTv ? 15000 : 6000);
     return () => clearInterval(t);
   }, [heroItems.length]);
 
   // Auto-advance worlds banner every 5s
   useEffect(() => {
     if (worlds.length <= 1) return;
-    const t = setInterval(() => setWorldBannerIdx(i => (i + 1) % Math.min(worlds.length, 8)), 5000);
+    const t = setInterval(() => setWorldBannerIdx(i => (i + 1) % Math.min(worlds.length, 8)), getPlatformInfo().isTV ? 14000 : 5000);
     return () => clearInterval(t);
   }, [worlds.length]);
 

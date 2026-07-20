@@ -261,7 +261,51 @@ export const pickInDirection = (origin: NavRect, candidates: NavRect[], dir: Dir
     }
   }
 
-  if (strict !== -1) return strict;
+  // Nearest ROW first, then best aligned within it.
+  //
+  // Scoring alone overshoots badly: cross-axis offset is weighted 6x while forward distance is
+  // weighted 1x, so a candidate 900px below but perfectly aligned (score 900) beats one 100px
+  // below and slightly offset (100 + 200*6 = 1300). One press then skips whole rails — the
+  // "down arrow jumps way too far" report.
+  //
+  // Banding fixes it without touching the weights that make alignment work: take the closest
+  // forward distance available, keep only candidates within a row's height of it, and let the
+  // existing score choose among those. Adjacent rows stay reachable; distant ones stop winning.
+  if (strict !== -1) {
+    const originH = Math.max(origin.bottom - origin.top, origin.right - origin.left, 1);
+    const band = Math.max(originH * 1.5, 120);
+    let bestForward = Infinity;
+    for (let i = 0; i < candidates.length; i++) {
+      const rect = candidates[i];
+      if (contains(rect, origin) || contains(origin, rect)) continue;
+      const c = project(rect, dir);
+      if (c.mainStart < o.mainEnd - EDGE_TOL) continue;
+      const fwd = Math.max(c.mainStart - o.mainEnd, 0);
+      const ov = Math.min(o.crossEnd, c.crossEnd) - Math.max(o.crossStart, c.crossStart);
+      const cg = ov > 0 ? 0 : -ov;
+      // Only STRICT-qualified candidates set the band. Something 500px to the side with 10px
+      // of forward travel is beside the origin, not below it — letting it define "the nearest
+      // row" is what reintroduced the diagonal jump this algorithm exists to prevent.
+      if (!(ov > 0 || cg <= fwd * CONE_SLOPE)) continue;
+      bestForward = Math.min(bestForward, fwd);
+    }
+    let banded = -1, bandedScore = Infinity;
+    for (let i = 0; i < candidates.length; i++) {
+      const rect = candidates[i];
+      if (contains(rect, origin) || contains(origin, rect)) continue;
+      const c = project(rect, dir);
+      if (c.mainStart < o.mainEnd - EDGE_TOL) continue;
+      const forward = Math.max(c.mainStart - o.mainEnd, 0);
+      const overlap = Math.min(o.crossEnd, c.crossEnd) - Math.max(o.crossStart, c.crossStart);
+      const crossGap = overlap > 0 ? 0 : -overlap;
+      if (!(overlap > 0 || crossGap <= forward * CONE_SLOPE)) continue;   // same strict gate
+      if (forward > bestForward + band) continue;          // a further row — not this press
+      const centerDelta = Math.abs((c.crossStart + c.crossEnd) - (o.crossStart + o.crossEnd)) / 2;
+      const sc = forward + crossGap * CROSS_WEIGHT + centerDelta * CENTER_WEIGHT;
+      if (sc < bandedScore) { bandedScore = sc; banded = i; }
+    }
+    return banded !== -1 ? banded : strict;
+  }
   if (relaxed !== -1) return relaxed;
   return staggered;
 };
