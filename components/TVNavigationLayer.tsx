@@ -7,6 +7,7 @@ import {
   getFocusableElements,
   invalidateFocusables,
   type Dir,
+  makeCardsFocusable,
 } from '../hooks/useDpadNavigation';
 
 // ── Modal detection (for focus-trapping + Back-to-close) ──────────────────────
@@ -163,6 +164,22 @@ const TVNavigationLayer = () => {
     };
     return () => { delete (window as any).__tvNav; };
   }, []);
+
+  // Promote clickable-but-unfocusable cards so the D-pad can reach them, and keep doing it as
+  // content streams in. Debounced: a rail of album art mounts in bursts, and re-walking the DOM
+  // per mutation would cost more than the navigation it enables.
+  useEffect(() => {
+    if (!active) return;
+    let raf = 0;
+    const promote = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => { try { makeCardsFocusable(document); invalidateFocusables(); } catch { /* ignore */ } });
+    };
+    promote();
+    const mo = new MutationObserver(promote);
+    mo.observe(document.body, { childList: true, subtree: true });
+    return () => { mo.disconnect(); cancelAnimationFrame(raf); };
+  }, [active]);
 
   // Toggle the CSS hook on <html>.
   useEffect(() => {

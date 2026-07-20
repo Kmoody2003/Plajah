@@ -82,6 +82,16 @@ class MainActivity : BridgeActivity() {
                 Log.w(TAG, "TV detected but WebView unavailable — web layer falls back to heuristics")
                 return
             }
+            // Honour the page's viewport meta.
+            //
+            // Android WebView IGNORES `width=` in <meta name="viewport"> unless wide-viewport
+            // mode is on. Without this the WebView reports a 960px CSS viewport (1920 physical
+            // at density 320) no matter what the page asks for — which is why setting
+            // width=1280 and then 1600 changed nothing on the device, and why the UI kept
+            // rendering at roughly 2x. Verified over CDP: window.innerWidth was still 960.
+            settings.useWideViewPort = true
+            settings.loadWithOverviewMode = true
+
             val ua = settings.userAgentString
             // Idempotent: onCreate runs again after a configuration change.
             if (ua != null && !ua.contains(TV_TOKEN)) {

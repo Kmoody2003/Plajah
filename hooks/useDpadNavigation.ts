@@ -102,6 +102,47 @@ export const useDpadNavigation = (handlers: DpadHandlers) => {
 
 // ── Focusable discovery ──────────────────────────────────────────────────────
 
+/**
+ * Cards that are clickable but not focusable.
+ *
+ * Measured on the TCL: of 100 album covers rendered in Chora, only 2 sat inside a button or
+ * link — the other 98 were plain <div>s carrying an onClick. A mouse doesn't care; a D-pad
+ * cannot reach them at all, which is the whole "albums don't highlight and can't be selected"
+ * report. Rather than hunt every card component across the app and convert it to a <button>,
+ * make them focusable at runtime: a TV needs this everywhere, and the alternative is a
+ * migration that silently misses the next card someone writes.
+ *
+ * Runs on the TV path only. Everywhere else the DOM is left exactly as authored.
+ */
+export function makeCardsFocusable(root: ParentNode = document): number {
+  let promoted = 0;
+  // `[tabindex]` alone also matches tabindex="-1", which means the OPPOSITE of focusable —
+  // treating those as reachable is what made the first version promote 1 card instead of ~100.
+  const already = 'button,a[href],[role=button],[tabindex]:not([tabindex="-1"])';
+  const imgs = Array.from(root.querySelectorAll<HTMLImageElement>('img'));
+  for (const img of imgs) {
+    const r = img.getBoundingClientRect();
+    if (r.width < 70 || r.height < 70) continue;          // not a card cover
+    if (img.closest(already)) continue;                    // already reachable
+    // Walk up to the card box: the nearest ancestor that is meaningfully bigger than the image
+    // and is not the scroll container itself.
+    let card: HTMLElement | null = img.parentElement;
+    for (let hops = 0; card && hops < 3; hops++) {
+      const cr = card.getBoundingClientRect();
+      if (cr.height >= r.height && cr.width >= r.width && cr.height < window.innerHeight * 0.9) break;
+      card = card.parentElement;
+      }
+    if (!card || card.closest(already) || card.hasAttribute('data-tv-card')) continue;
+    const cs = getComputedStyle(card);
+    if (cs.position === 'fixed') continue;                 // decorative backdrop, not a card
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('data-tv-card', '1');
+    card.setAttribute('role', 'button');
+    promoted++;
+  }
+  return promoted;
+}
+
 const FOCUSABLE_SELECTOR = [
   'a[href]',
   'button:not([disabled])',
@@ -145,7 +186,19 @@ export const getFocusables = (root: ParentNode = document): HTMLElement[] =>
     // its rect can land BELOW the focused element and swallow a downward press — focus jumps
     // from mid-page back up to the tabs. It is reachable by pressing up from the top of the
     // content, which is where a viewer expects it, so it does not belong in spatial scoring.
-    .filter(el => !el.closest('[data-tv-navbar]'));
+    .filter(el => !el.closest('[data-tv-navbar]'))
+    // Text fields are not spatial destinations on a TV. Focusing one makes Android throw up the
+    // on-screen keyboard, which covers the content and hijacks every subsequent press — a viewer
+    // scrolling toward the albums hits a search box and gets a keyboard instead. Search is
+    // entered deliberately (via its own control), never by walking into it.
+    .filter(el => {
+      const tag = el.tagName;
+      if (tag === 'TEXTAREA' || el.isContentEditable) return false;
+      if (tag !== 'INPUT') return true;
+      // Checkboxes/radios/buttons-as-inputs are fine — it is TYPING fields that summon the IME.
+      const type = (el.getAttribute('type') || 'text').toLowerCase();
+      return ['button', 'submit', 'checkbox', 'radio', 'range', 'color'].includes(type);
+    });
 
 // ── Document-wide focusable cache ────────────────────────────────────────────
 // `querySelectorAll` over this app's DOM plus a `getClientRects()` per hit is far too
