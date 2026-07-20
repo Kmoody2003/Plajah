@@ -126,6 +126,30 @@ function showUpdateToast(onReload: () => void) {
   (document.body || document.documentElement).appendChild(card);
 }
 
+
+// ─── Television viewport ──────────────────────────────────────────────────────
+//
+// A 1920x1080 TV panel at Android density 320 gives the WebView a CSS viewport of only 960px
+// — tablet width — which it then stretches 2x across the screen. `theme-big-screen` was scaling
+// type UP another 1.25x on top of that, so text landed at roughly 2.5x and a page's worth of
+// content no longer fit on a page.
+//
+// Widening the viewport to 1280 lets the app lay out as it does on a small desktop and scale
+// 1.5x to fill the panel: everything gets proportionally smaller, more fits, and it still reads
+// comfortably from ten feet. Done here rather than in index.html because the decision needs the
+// native TV token, which only exists on a television.
+(function applyTvViewport() {
+  try {
+    const ua = navigator.userAgent.toLowerCase();
+    const isTv = ua.includes('plajahtv/1') ||
+      /smart-?tv|smarttv|googletv|android\s?tv|leanback|aftt|aftmm|aftb|kfapwi|silk|tizen|web0s|webos|roku|bravia|hbbtv/.test(ua);
+    if (!isTv) return;
+    const el = document.querySelector('meta[name="viewport"]');
+    if (el) el.setAttribute('content', 'width=1280, initial-scale=1.0, user-scalable=no, viewport-fit=cover');
+    document.documentElement.classList.add('tv-viewport');
+  } catch { /* leave the default viewport */ }
+})();
+
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   // Use 'prompt' mode so we control exactly when the update is applied.
   // autoUpdate would call location.reload() the moment any new deploy lands,
