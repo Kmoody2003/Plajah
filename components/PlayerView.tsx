@@ -11,6 +11,7 @@ import ScrollingWaveform from './ScrollingWaveform';
 import { getCachedAnalysis, getOrComputeAnalysis } from '../services/djAnalysis';
 import { preferSlideshowOverVisualizer } from '../services/tvCapabilities';
 import { getPlatformInfo } from '../hooks/usePlatform';
+import AlbumTvView from './tv/AlbumTvView';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
 import FxStageVisualizers, { type FxEngine, fxPresetName, FX_ENGINE_PRESETS, loadMilkdropNames } from './FxStageVisualizers';
 import Logo from './Logo';
@@ -1800,6 +1801,29 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           )}
         </div>
       </div>
+    );
+  }
+
+  // A real television gets the purpose-built album screen: large art, a constrained tracklist,
+  // and declared D-pad navigation. The block below remains for the manual "TV Mode" toggle on a
+  // desktop, which is a different thing — a big-screen preview driven by a mouse.
+  if (isTVMode && getPlatformInfo().isTV) {
+    return (
+      <AlbumTvView
+        album={album}
+        currentTrackId={currentTrack?.id}
+        isPlaying={globalIsPlaying && isCurrentTrackGlobal}
+        onPlayTrack={(t, i) => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }}
+        onPlayAll={() => { if (album.tracks?.length) { setCurrentTrackIndex(0); playTrack(album.tracks[0], album, 'LIBRARY'); } }}
+        onShuffle={() => {
+          if (!album.tracks?.length) return;
+          setIsShuffle(true);
+          const i = Math.floor(Math.random() * album.tracks.length);
+          setCurrentTrackIndex(i);
+          playTrack(album.tracks[i], album, 'LIBRARY');
+        }}
+        onBack={onBack}
+      />
     );
   }
 

@@ -243,6 +243,8 @@ const TVNavigationLayer = () => {
    * than focus teleporting from wherever it silently was.
    */
   const ensureFocus = useCallback((): { el: HTMLElement | null; seeded: boolean } => {
+    // Same reasoning as seedFocus: never impose DOM focus on a screen that manages its own.
+    if (document.querySelector('[data-tv-capture]')) return { el: null, seeded: false };
     const el = document.activeElement as HTMLElement | null;
     if (el && el !== document.body && el.isConnected) return { el, seeded: false };
 
@@ -334,6 +336,10 @@ const TVNavigationLayer = () => {
     let seedTimer = 0;
     let tries = 0;
     const seedFocus = () => {
+      // A capture screen owns its own focus and deliberately keeps activeElement on <body>.
+      // Seeding here would yank DOM focus onto its first card and drag the ring back there
+      // mid-navigation — the "something keeps selecting the first album" behaviour.
+      if (document.querySelector('[data-tv-capture]')) return;
       const el = document.activeElement as HTMLElement | null;
       const scope = topScope();
       if (el && el !== document.body && el.isConnected && !(scope && !scope.contains(el))) return;
