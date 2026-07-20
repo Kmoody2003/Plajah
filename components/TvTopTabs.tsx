@@ -22,7 +22,10 @@ const TvTopTabs: React.FC<{
   onSelect: (view: string) => void;
 }> = ({ activeView, onSelect }) => (
   <nav
-    className="flex items-center gap-2 px-8 py-3 bg-black/80 border-b border-white/10"
+    // z-[60] and opaque: several views mount their own `fixed top-0 z-50` header, which drew
+    // straight through this bar. Sitting above them and painting solid keeps one nav visible
+    // instead of two overlapping ones.
+    className="sticky top-0 z-[60] flex items-center gap-2 px-8 py-3 bg-[#0a0a0c] border-b border-white/10"
     // Marks this as a nav row so the D-pad layer treats it as one band rather than
     // hunting for the "nearest" tab across the whole screen.
     data-tv-navbar
