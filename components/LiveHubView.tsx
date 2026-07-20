@@ -3,6 +3,7 @@ import { LiveFeed, UserProfile, StreamArchive } from '../types';
 import PageHeader from './PageHeader';
 import { fetchAllLiveFeeds, publishLiveFeed, deleteLiveFeed, searchLiveChannels, fetchStreamArchives } from '../services/backendService';
 import { ArrowLeft, Radio, Plus, X, User, ExternalLink, Trash2, Search, Tv, Maximize2, VolumeX, Play, FlaskConical, Clock, PlayCircle } from 'lucide-react';
+import { canGoLive } from '../services/tvCapabilities';
 import { User as FirebaseUser } from 'firebase/auth';
 import { SCIENCE_STREAMS, SCIENCE_CATEGORIES, ScienceCategory, ScienceStream } from './scienceStreams';
 
@@ -264,26 +265,34 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
         
         {activeTab === 'STREAMS' && (
           <div className="flex flex-wrap gap-4 items-center">
-            <button
-              onClick={() => setShowGoLiveWizard(true)}
-              className="flex items-center justify-center gap-3 px-8 py-4 bg-red-600 hover:bg-red-700 rounded-2xl font-black text-xs uppercase tracking-widest transition-all group"
-            >
-              <div className="w-2 h-2 bg-white rounded-full animate-ping group-hover:animate-none" />
-              <Radio size={18} className="text-white" /> Go Live
-            </button>
-            <MobileGoLiveButton onClick={() => setShowMobileLive(true)} />
-            {/* Smart Director — multi-camera auto-production for amateur sports */}
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent('OPEN_SMART_DIRECTOR', { detail: {} }))}
-              className="flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-[#FF8C00] to-[#D40055] hover:brightness-110 rounded-2xl font-black text-xs uppercase tracking-widest transition-all group"
-              title="Turn a sporting event into a professional multi-camera broadcast"
-            >
-              <Tv size={18} className="text-white group-hover:scale-110 transition-transform" /> Smart Director
-            </button>
+            {/* Every control in this row starts or produces a broadcast. On a television none of
+                them can work — no camera, no capture, no way to run a show with a remote — so
+                the whole creation row collapses and the Hub becomes what a TV actually wants it
+                to be: a list of things to watch. */}
+            {canGoLive() && (
+              <>
+                <button
+                  onClick={() => setShowGoLiveWizard(true)}
+                  className="flex items-center justify-center gap-3 px-8 py-4 bg-red-600 hover:bg-red-700 rounded-2xl font-black text-xs uppercase tracking-widest transition-all group"
+                >
+                  <div className="w-2 h-2 bg-white rounded-full animate-ping group-hover:animate-none" />
+                  <Radio size={18} className="text-white" /> Go Live
+                </button>
+                <MobileGoLiveButton onClick={() => setShowMobileLive(true)} />
+                {/* Smart Director — multi-camera auto-production for amateur sports */}
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('OPEN_SMART_DIRECTOR', { detail: {} }))}
+                  className="flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-[#FF8C00] to-[#D40055] hover:brightness-110 rounded-2xl font-black text-xs uppercase tracking-widest transition-all group"
+                  title="Turn a sporting event into a professional multi-camera broadcast"
+                >
+                  <Tv size={18} className="text-white group-hover:scale-110 transition-transform" /> Smart Director
+                </button>
+              </>
+            )}
             {/* Ambient presence — who else is in the Live Hub right now */}
             <PresenceBadge roomKey="livehub" verb="here now"
               className="inline-flex items-center gap-1.5 px-4 py-3 rounded-2xl bg-white/5 border border-white/10" />
-            {onOpenTVStudio && (
+            {onOpenTVStudio && canGoLive() && (
               <button
                 onClick={onOpenTVStudio}
                 className="flex items-center justify-center gap-3 px-8 py-4 bg-[#6B0099]/80 hover:bg-[#7d00b4] border border-[#6B0099] rounded-2xl font-black text-xs uppercase tracking-widest transition-all group"
