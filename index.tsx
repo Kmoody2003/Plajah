@@ -134,9 +134,10 @@ function showUpdateToast(onReload: () => void) {
 // type UP another 1.25x on top of that, so text landed at roughly 2.5x and a page's worth of
 // content no longer fit on a page.
 //
-// Widening the viewport to 1280 lets the app lay out as it does on a small desktop and scale
-// 1.5x to fill the panel: everything gets proportionally smaller, more fits, and it still reads
-// comfortably from ten feet. Done here rather than in index.html because the decision needs the
+// Widening the viewport makes everything proportionally smaller and fits more on screen. 1280
+// was still too large in practice; 1600 takes another ~20% off and raises content density,
+// which is what a TV wants — a wall of things to browse, not four huge cards. The panel scales
+// 1600 -> 1920 (1.2x), and text still reads comfortably from ten feet. Done here rather than in index.html because the decision needs the
 // native TV token, which only exists on a television.
 (function applyTvViewport() {
   try {
@@ -145,7 +146,7 @@ function showUpdateToast(onReload: () => void) {
       /smart-?tv|smarttv|googletv|android\s?tv|leanback|aftt|aftmm|aftb|kfapwi|silk|tizen|web0s|webos|roku|bravia|hbbtv/.test(ua);
     if (!isTv) return;
     const el = document.querySelector('meta[name="viewport"]');
-    if (el) el.setAttribute('content', 'width=1280, initial-scale=1.0, user-scalable=no, viewport-fit=cover');
+    if (el) el.setAttribute('content', 'width=1600, initial-scale=1.0, user-scalable=no, viewport-fit=cover');
     document.documentElement.classList.add('tv-viewport');
   } catch { /* leave the default viewport */ }
 })();

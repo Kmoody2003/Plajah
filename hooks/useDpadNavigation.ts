@@ -139,7 +139,13 @@ const isVisible = (el: HTMLElement): boolean => {
  * container, or force-include a custom element with `data-tv-focusable`.
  */
 export const getFocusables = (root: ParentNode = document): HTMLElement[] =>
-  Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(isVisible);
+  Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+    .filter(isVisible)
+    // The TV tab bar is `sticky top-0`: it travels with the scroll, so once the page has moved
+    // its rect can land BELOW the focused element and swallow a downward press — focus jumps
+    // from mid-page back up to the tabs. It is reachable by pressing up from the top of the
+    // content, which is where a viewer expects it, so it does not belong in spatial scoring.
+    .filter(el => !el.closest('[data-tv-navbar]'));
 
 // ── Document-wide focusable cache ────────────────────────────────────────────
 // `querySelectorAll` over this app's DOM plus a `getClientRects()` per hit is far too

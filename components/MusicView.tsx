@@ -275,6 +275,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const [artists, setArtists] = useState<UserProfile[]>([]);
   const [curatedPlaylists, setCuratedPlaylists] = useState<Playlist[]>([]);
   const [vaultTracks, setVaultTracks] = useState<ArchiveTrack[]>([]);
+  const isTvUi = getPlatformInfo().isTV;
   const [activeTab, setActiveTab] = useState<TabType>(initialTab ?? 'NEW');
   const [isLoading, setIsLoading] = useState(true);
   const [sortOrder, setSortOrder] = useState<'RECENT' | 'ALPHA'>('RECENT');
@@ -1392,11 +1393,16 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
         <div className="flex-1 min-w-0">
           <div className="px-4 sm:px-6 lg:px-12 pt-8 mb-6 relative z-10" style={{ opacity: 0.82 }}>
             <PageHeader>Plajah Chora</PageHeader>
-            <div className="mt-4">
-              <PlajahPlusBanner variant="COMPACT" />
-            </div>
-            {/* ── World Cup Anthems Banner ─────────────────────────────────── */}
-            <WcAnthemBanner onOpenPlaylist={() => { setActiveTab('PLAYLISTS'); }} />
+            {/* Both banners are off on TV. The Plajah+ promo belongs in the side panel, not
+                stacked above the content a viewer came for; and the World Cup anthems banner is
+                for a tournament that has finished — the playlist still lives in Playlists, which
+                is where a finished event's music belongs. */}
+            {!isTvUi && (
+              <div className="mt-4">
+                <PlajahPlusBanner variant="COMPACT" />
+              </div>
+            )}
+            {!isTvUi && <WcAnthemBanner onOpenPlaylist={() => { setActiveTab('PLAYLISTS'); }} />}
           </div>
           <nav className={`px-4 lg:px-12 mb-6 lg:mb-12 sticky top-0 backdrop-blur-2xl bg-black/40 border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.5)] z-40 py-3 ${s.nav} transition-all duration-500`}>
             {/* Row 1: swipeable tabs — always full-width */}
@@ -1431,7 +1437,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   ))}
                 </div>
               )}
-              <button
+              {canUpload() && <button
                 onClick={toggleAudiusEnabled}
                 className="flex items-center gap-2 px-3 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap"
                 style={audiusEnabled
@@ -1440,7 +1446,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               >
                 <Music2 size={12} />
                 {audiusLoading ? 'Loading…' : 'Audius'}
-              </button>
+              </button>}
               {userProfile && onNavigate && canUpload() && (
                 <button
                   onClick={() => onNavigate('LICENSE_REQUESTS')}
@@ -1455,7 +1461,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   )}
                 </button>
               )}
-              {onUploadMusic && (
+              {onUploadMusic && canUpload() && (
                 <button
                   onClick={onUploadMusic}
                   className="flex items-center gap-2 px-3 py-2 bg-small-orange text-black rounded-full text-[9px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-[0_0_16px_rgba(255,140,0,0.4)] whitespace-nowrap"
@@ -1761,14 +1767,16 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
               <div className="space-y-8 flex flex-col">
 
-                {/* ── History Moment Pulse ── */}
-                <HistoryMomentPulseCard
+                {/* Platform pulse is a lean-in widget: it rotates on a timer and competes with
+                    the D-pad for attention. Off on TV — the moment-in-history material belongs
+                    in the top showcase instead. */}
+                {!isTvUi && <HistoryMomentPulseCard
                   uid={auth.currentUser?.uid}
                   category="MUSIC"
                   size="sidebar"
                   onNavigate={onNavigate}
                   rotationIntervalSeconds={12}
-                />
+                />}
 
                 {/* ── Platform Pulse ── */}
                 {upcomingAlbums.length > 0 && (
