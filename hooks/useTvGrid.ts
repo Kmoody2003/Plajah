@@ -63,8 +63,14 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, onExitTop, e
 
   // While the shell holds the remote this grid must be genuinely deaf, not merely dimmed: if
   // both listen, one press moves two things and the screen feels haunted.
-  const [shellFocused, setShellFocused] = useState(isShellFocused);
-  useEffect(() => subscribeShellFocus(setShellFocused), []);
+  //
+  // Gated on a REF read inside the handler, not by binding and unbinding the listener. Rebinding
+  // depends on an effect running, so for one press after the handoff it is ambiguous which side
+  // is listening — which showed up on the TV as needing two presses to come back. A ref updated
+  // in the store callback is already correct by the time the next key arrives.
+  const shellFocusedRef = useRef(isShellFocused());
+  const [, setShellFocusedState] = useState(shellFocusedRef.current);
+  useEffect(() => subscribeShellFocus(v => { shellFocusedRef.current = v; setShellFocusedState(v); }), []);
   const [pos, setPos] = useState<TvGridPosition>({ row: 0, col: 0 });
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
@@ -139,8 +145,9 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, onExitTop, e
   }, [rows, clampToRow]);
 
   useEffect(() => {
-    if (!enabled || shellFocused) return;
+    if (!enabled) return;
     const onKey = (e: KeyboardEvent) => {
+      if (shellFocusedRef.current) return;   // the tab bar has the remote
       const kc = e.keyCode || e.which;
       const t = e.target as HTMLElement | null;
       // Never fight a text field.
@@ -185,7 +192,7 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, onExitTop, e
     // Capture phase, so this wins before the global layer sees the key.
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [enabled, shellFocused, move, onSelect, onBack]);
+  }, [enabled, move, onSelect, onBack]);
 
   const focus = useCallback((row: number, col = 0) => {
     setZone('CONTENT');

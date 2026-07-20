@@ -5,6 +5,7 @@ import { fetchAllPublicAlbums, fetchUpcomingAlbums, searchUsers } from '../../se
 import { thumb, THUMB } from '../../src/lib/imageThumb';
 import { useTvGrid, isFocused } from '../../hooks/useTvGrid';
 import { useGlobalPlayer } from '../../contexts/GlobalPlayerContext';
+import { useTvShellFocus } from '../../hooks/useTvShellFocus';
 
 /**
  * Chora for television — built for the ten-foot view, not adapted to it.
@@ -61,6 +62,9 @@ const ChoraTvView: React.FC<{
   const [section, setSection] = useState<SectionId>('NEW');
   const [loading, setLoading] = useState(true);
   const { currentAlbum, isPlaying } = useGlobalPlayer();
+  // Two focus rings on screen at once reads as a bug, so the panel drops to its 'active'
+  // treatment while the tab bar holds the remote.
+  const shellFocused = useTvShellFocus();
 
   useEffect(() => {
     let alive = true;
@@ -217,7 +221,7 @@ const ChoraTvView: React.FC<{
         <nav className="flex-1 overflow-y-auto px-3 space-y-1">
           {SECTIONS.map((s, i) => {
             const Icon = s.icon;
-            const focused = zone === 'PANEL' && panelIndex === i;
+            const focused = zone === 'PANEL' && panelIndex === i && !shellFocused;
             const active = section === s.id;
             return (
               <div
@@ -245,11 +249,11 @@ const ChoraTvView: React.FC<{
           ref={el => { panelRefs.current[SECTIONS.length] = el; }}
           onClick={onOpenPlus}
           className={`mx-3 mt-3 px-4 py-3 rounded-xl cursor-pointer transition-colors ${
-            zone === 'PANEL' && panelIndex === SECTIONS.length
+            zone === 'PANEL' && panelIndex === SECTIONS.length && !shellFocused
               ? 'bg-white text-black'
               : 'text-white'
           }`}
-          style={zone === 'PANEL' && panelIndex === SECTIONS.length ? undefined : { background: BRAND }}
+          style={zone === 'PANEL' && panelIndex === SECTIONS.length && !shellFocused ? undefined : { background: BRAND }}
         >
           <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest">
             <Crown size={14} /> Plajah+

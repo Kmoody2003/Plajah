@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Film, Music2, Video, User, Play, Pause } from 'lucide-react';
 import { TV_NAV_VIEWS } from '../services/tvCapabilities';
 import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
@@ -37,6 +37,13 @@ const TvTopTabs: React.FC<{
   const items = [...TV_NAV_VIEWS, ...(currentTrack ? ['NOW_PLAYING'] : [])];
   const [idx, setIdx] = useState(0);
 
+  // Refs so the handler can stay bound and read current values. Rebinding on every change of
+  // `focused`/`idx`/`items` made the listener order depend on render timing, which is what put a
+  // one-press lag on the way back down into the screen.
+  const focusedRef = useRef(focused); focusedRef.current = focused;
+  const idxRef = useRef(idx); idxRef.current = idx;
+  const itemsRef = useRef(items); itemsRef.current = items;
+
   // Start on the tab you're already in, so arriving here doesn't lose your place.
   useEffect(() => {
     if (!focused) return;
@@ -45,23 +52,23 @@ const TvTopTabs: React.FC<{
   }, [focused, activeView]);
 
   useEffect(() => {
-    if (!focused) return;
     const onKey = (e: KeyboardEvent) => {
+      if (!focusedRef.current) return;
       const kc = e.keyCode || e.which;
       const stop = () => { e.preventDefault(); e.stopImmediatePropagation(); };
-      if (e.key === 'ArrowRight' || kc === 39 || kc === 22) { stop(); setIdx(i => Math.min(items.length - 1, i + 1)); return; }
+      if (e.key === 'ArrowRight' || kc === 39 || kc === 22) { stop(); setIdx(i => Math.min(itemsRef.current.length - 1, i + 1)); return; }
       if (e.key === 'ArrowLeft'  || kc === 37 || kc === 21) { stop(); setIdx(i => Math.max(0, i - 1)); return; }
       if (e.key === 'ArrowDown'  || kc === 40 || kc === 20) { stop(); onExitDown?.(); return; }
       if (e.key === 'Enter' || e.key === 'Select' || kc === 13 || kc === 23) {
         stop();
-        const target = items[idx];
+        const target = itemsRef.current[idxRef.current];
         if (target === 'NOW_PLAYING') onOpenNowPlaying?.();
         else { onSelect(target); onExitDown?.(); }
       }
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [focused, idx, items, onSelect, onOpenNowPlaying, onExitDown]);
+  }, [onSelect, onOpenNowPlaying, onExitDown]);
 
   return (
   <nav
