@@ -1467,3 +1467,33 @@ html.tv-nav main,
 html.tv-nav body {
   scroll-padding: 8% 8%;
 }
+
+/* ── Television display type ─────────────────────────────────────────────────
+   The app sizes its big display headings with viewport units — `clamp(2.5rem, 12vw, 12rem)`
+   and similar appear at 33 sites. At the TV's 1280 viewport that resolves to ~153px for a
+   single word, which is why a page's worth of content stopped fitting on a page.
+
+   Capping the RESULT rather than editing 33 call sites: the headings stay fluid everywhere
+   else, and on a TV they land at a size that still reads from ten feet without eating the
+   screen. !important is required because the sizes are inline styles. */
+.theme-big-screen h1[style*="vw"],
+.theme-big-screen h2[style*="vw"],
+.theme-big-screen h3[style*="vw"] {
+  font-size: clamp(1.75rem, 4vw, 3.25rem) !important;
+  line-height: 1.05 !important;
+}
+
+/* Tailwind's largest display sizes have the same problem on a 1280 viewport. */
+.theme-big-screen .text-\[12rem\],
+.theme-big-screen .md\:text-\[12rem\],
+.theme-big-screen .text-8xl,
+.theme-big-screen .text-7xl { font-size: 3rem !important; line-height: 1.05 !important; }
+.theme-big-screen .text-6xl { font-size: 2.5rem !important; }
+.theme-big-screen .text-5xl { font-size: 2rem !important; }
+
+/* Grid density: a TV shows a LOT at once — that is what makes it feel like a streaming app
+   rather than a blown-up phone. Cover art is also box-capped so a 4096px master can never
+   paint huge; pairs with the 224px CDN cap in src/lib/imageThumb.ts (bytes vs layout). */
+.theme-big-screen [class*="grid-cols-"] > * { min-width: 0; }
+.theme-big-screen [class*="aspect-square"] img,
+.theme-big-screen [class*="aspect-video"] img { object-fit: cover; }

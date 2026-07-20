@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import HistoryMomentPulseCard from './HistoryMomentPulseCard';
 import { Album, Track, UserProfile, Playlist } from '../types';
+import { getPlatformInfo } from '../hooks/usePlatform';
+import { canUpload } from '../services/tvCapabilities';
 import PageHeader from './PageHeader';
 const AlbumArt3DViewer = lazy(() => import('./AlbumArt3DViewer'));
 import {
@@ -248,7 +250,15 @@ const WcAnthemPlaylist: React.FC<{ onOpenAlbum?: (album: Album) => void }> = ({ 
   );
 };
 
-type TabType = 'NEW' | 'FOR_YOU' | 'ARTISTS' | 'ALBUMS' | 'GENRES' | 'VAULT' | 'PODCASTS' | 'AUDIO_BOOKS' | 'MY_LIBRARY' | 'PLAYLISTS';
+const ChoraRadio = React.lazy(() => import('./RadioView'));
+
+/** Which Chora tabs this device shows. */
+const CHORA_TABS = (): readonly TabType[] =>
+  getPlatformInfo().isTV
+    ? (['NEW', 'FOR_YOU', 'RADIO', 'ARTISTS', 'ALBUMS', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'PLAYLISTS'] as const)
+    : (['NEW', 'FOR_YOU', 'ARTISTS', 'ALBUMS', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'MY_LIBRARY', 'PLAYLISTS'] as const);
+
+type TabType = 'NEW' | 'FOR_YOU' | 'ARTISTS' | 'ALBUMS' | 'GENRES' | 'VAULT' | 'PODCASTS' | 'AUDIO_BOOKS' | 'MY_LIBRARY' | 'PLAYLISTS' | 'RADIO';
 
 interface MusicViewProps {
   onBack: () => void;
@@ -1391,7 +1401,10 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
           <nav className={`px-4 lg:px-12 mb-6 lg:mb-12 sticky top-0 backdrop-blur-2xl bg-black/40 border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.5)] z-40 py-3 ${s.nav} transition-all duration-500`}>
             {/* Row 1: swipeable tabs — always full-width */}
             <div className="flex items-center gap-6 overflow-x-auto no-scrollbar pb-2">
-              {(['NEW', 'FOR_YOU', 'ARTISTS', 'ALBUMS', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'MY_LIBRARY', 'PLAYLISTS'] as const).map((tab) => (
+              {/* On a TV, Chora IS the audio app: Radio folds in as a tab rather than living as a
+                  separate destination, and the creator-facing tabs drop out — there is nothing to
+                  manage from a remote. Everywhere else the full set stays. */}
+              {(CHORA_TABS()).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => { setActiveTab(tab); setSelectedArchiveArtist(null); setSelectedAudiusArtist(null); setSelectedAudiusAlbum(null); setShowConservatory(false); }}
@@ -1428,7 +1441,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                 <Music2 size={12} />
                 {audiusLoading ? 'Loading…' : 'Audius'}
               </button>
-              {userProfile && onNavigate && (
+              {userProfile && onNavigate && canUpload() && (
                 <button
                   onClick={() => onNavigate('LICENSE_REQUESTS')}
                   title="Filmmakers requesting to license your tracks"
@@ -2026,6 +2039,15 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
             {selectedArchiveArtist ? renderArchiveArtistInfo() : (
               <>
                 {activeTab === 'PODCASTS' && <PodcastsView />}
+                {/* Radio lives inside Chora on TV. Lazy + Suspense because RadioView is a whole
+                    view and there is no reason to carry it until the tab is chosen. onBack drops
+                    to the previous tab rather than leaving Chora — on a remote, a Back that exits
+                    the app you're in reads as broken. */}
+                {activeTab === 'RADIO' && (
+                  <React.Suspense fallback={<div className="py-20 text-center text-white/30 text-xs font-black uppercase tracking-widest">Loading radio…</div>}>
+                    <ChoraRadio onBack={() => setActiveTab('NEW')} />
+                  </React.Suspense>
+                )}
                 {activeTab === 'VAULT' && renderVault()}
                 
                 {activeTab === 'PLAYLISTS' && (
