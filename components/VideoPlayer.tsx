@@ -990,15 +990,29 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
 
         {/* ── VIDEO PLAYER ──────────────────────────────────────────────── */}
         {/* On a TV the video fills the screen with layout, not with the Fullscreen API — see the
-            note above the back handler. h-[100dvh] rather than aspect-video, so the picture is
-            the screen and the page below it is simply out of view until you scroll. */}
+            note above the back handler.
+            It has to LEAVE THE FLOW to do that. h-[100dvh] was full-height but still sat below
+            this view's header bar, so the picture was merely large — pushed down the page with
+            chrome above it. fixed inset-0 takes the screen outright, which is what MovieUXView
+            already does for cinema and why that path looked right while this one did not. */}
         <div
           ref={videoWrapRef}
-          className={`relative w-full bg-black shrink-0 ${tvFullBleed ? 'h-[100dvh]' : 'aspect-video'}`}
+          className={`relative bg-black ${tvFullBleed ? 'fixed inset-0 z-[200]' : 'w-full shrink-0 aspect-video'}`}
           onMouseMove={handleMouseMove}
           onClick={togglePlay}
         >
           <div className="absolute inset-0">{renderVideo()}</div>
+
+          {/* The page's own header sits behind the takeover now, so Back needs to exist here.
+              Rides the same auto-hide timer as the rest of the controls. */}
+          {tvFullBleed && controlsVisible && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onBack(); }}
+              className="absolute top-6 left-6 z-10 flex items-center gap-2 px-4 py-2.5 rounded-full bg-black/70 text-white text-[11px] font-black uppercase tracking-widest"
+            >
+              <ArrowLeft size={16} /> Back
+            </button>
+          )}
 
           {/* Lore Layer — Worlds-native character chips. Silent when the video isn't tagged. */}
           <LoreLayer video={video} currentTime={currentTime} onCardToggle={setLoreCardOpen} />
