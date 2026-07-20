@@ -754,20 +754,58 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
     }
   };
 
-  // On a television, playing a video IS the experience — a windowed player inside a page of
-  // chrome is a phone/desktop idea. Going fullscreen on first play makes Taleo and Reello
-  // behave like the streaming apps sitting next to them on the same home screen.
+  // A television does NOT use the Fullscreen API.
   //
-  // Fires once per mount and only forward: if the viewer deliberately exits fullscreen we do
-  // not drag them back in, which would make the Back button feel broken.
-  const autoFullscreenDone = useRef(false);
+  // This used to call requestFullscreen() on first play, reasoning that playback should fill the
+  // screen like the streaming apps next to it. On Android that routes through the WebView's
+  // onShowCustomView, which swaps the page for a native fullscreen surface. Back then unmounted
+  // the React player underneath while that native surface stayed up — leaving a dead fullscreen
+  // view with no UI and no way out. The app looked frozen, and it was: you could not get back.
+  //
+  // On a TV the app is already the whole screen, so the API bought nothing and cost everything.
+  // The player is laid out full-bleed with CSS instead (see `tvFullBleed` below), which cannot
+  // trap anyone because there is no native surface involved.
+
+  // Back must escape, from anywhere, always.
+  //
+  // Two paths, in order: if we somehow ARE in element fullscreen (the manual button on desktop,
+  // or a browser that auto-fullscreened on play), leave that first — otherwise leaving the
+  // player would strand that surface. Only once we are out of fullscreen does Back leave the
+  // player. Both consume the press so the app does not also navigate underneath.
   useEffect(() => {
-    if (!getPlatformInfo().isTV || autoFullscreenDone.current) return;
-    if (!isPlaying || isFullscreen) return;
-    autoFullscreenDone.current = true;
-    const el = videoWrapRef.current as any;
-    try { el?.requestFullscreen?.() ?? el?.webkitRequestFullscreen?.(); } catch { /* denied — stay windowed */ }
-  }, [isPlaying, isFullscreen]);
+    const onHardwareBack = (e: Event) => {
+      if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
+        e.preventDefault();
+        document.exitFullscreen?.() ?? (document as any).webkitExitFullscreen?.();
+        return;
+      }
+      e.preventDefault();
+      onBack();
+    };
+    const onKey = (ev: KeyboardEvent) => {
+      const kc = ev.keyCode || ev.which;
+      if (kc === 4 || ev.key === 'Backspace' || ev.key === 'XF86Back' || ev.key === 'GoBack') {
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        onHardwareBack(new Event('x', { cancelable: true }));
+      }
+    };
+    window.addEventListener('plajah:hardware-back', onHardwareBack);
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('plajah:hardware-back', onHardwareBack);
+      window.removeEventListener('keydown', onKey, true);
+    };
+  }, [onBack]);
+
+  // Belt and braces: never leave a fullscreen surface standing when this player goes away.
+  useEffect(() => () => {
+    if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
+      try { document.exitFullscreen?.() ?? (document as any).webkitExitFullscreen?.(); } catch { /* already gone */ }
+    }
+  }, []);
+
+  const tvFullBleed = getPlatformInfo().isTV;
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -941,9 +979,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
         </div>
 
         {/* ── VIDEO PLAYER ──────────────────────────────────────────────── */}
+        {/* On a TV the video fills the screen with layout, not with the Fullscreen API — see the
+            note above the back handler. h-[100dvh] rather than aspect-video, so the picture is
+            the screen and the page below it is simply out of view until you scroll. */}
         <div
           ref={videoWrapRef}
-          className="relative w-full bg-black aspect-video shrink-0"
+          className={`relative w-full bg-black shrink-0 ${tvFullBleed ? 'h-[100dvh]' : 'aspect-video'}`}
           onMouseMove={handleMouseMove}
           onClick={togglePlay}
         >

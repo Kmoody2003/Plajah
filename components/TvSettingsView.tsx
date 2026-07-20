@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LogOut, Users, CreditCard, Receipt, Home, Monitor, Check } from 'lucide-react';
+import { LogOut, Users, CreditCard, Receipt, Home, Monitor, Check, RotateCw } from 'lucide-react';
 import { getTvHome, setTvHome, type TvHomeView } from '../services/tvCapabilities';
 
 /**
@@ -99,6 +99,14 @@ const TvSettingsView: React.FC<{
 
       <section className="space-y-3">
         <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 px-1">Session</h2>
+        {/* A way out when the app has wedged. On a television there is no swipe-up task
+            switcher and no address bar, so without this the only recovery is unplugging the set —
+            which is what viewers were actually resorting to. */}
+        <Row
+          icon={RotateCw}
+          label="Restart app"
+          onClick={() => { try { window.location.reload(); } catch { /* nothing else to try */ } }}
+        />
         <Row icon={LogOut} label="Sign out" onClick={onSignOut} danger />
       </section>
 
