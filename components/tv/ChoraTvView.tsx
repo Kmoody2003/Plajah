@@ -404,7 +404,11 @@ const ChoraTvView: React.FC<{
           rails.map((rail, rIdx) => (
             <section key={rail.id} className="mb-8">
               <RailHeading>{rail.title}</RailHeading>
-              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+              {/* px-2 -mx-2: a focused card scales up by 4%, and `overflow-x` clips BOTH axes —
+                  so at column 0 the growth was cut off at the rail's left edge, shaving the
+                  title. The padding gives the scaled card room; the negative margin keeps the
+                  rail visually aligned with the heading above it. */}
+              <div className="flex gap-4 overflow-x-auto no-scrollbar px-2 py-2 -mx-2">
                 {rail.items.map((item, i) => (
                   <Card
                     key={`${rail.id}-${item.id}-${i}`}

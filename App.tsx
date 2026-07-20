@@ -5012,7 +5012,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           }}
         />
       )}
-      {user && <PersistentChatDrawer currentView={view} onNotificationNavigate={handleNotificationNavigate} externalTrigger={notifDrawerTrigger} />}
+      {/* Not on a television: the drawer's pull-tab floats over every screen at the right edge,
+          no D-pad can reach it, and chat without a keyboard is not something anyone wants from a
+          sofa. Gated here rather than inside the component, which would mean returning before its
+          hooks. */}
+      {user && !getPlatformInfo().isTV && <PersistentChatDrawer currentView={view} onNotificationNavigate={handleNotificationNavigate} externalTrigger={notifDrawerTrigger} />}
 
       {/* Start a Room composer (global overlay; opened via plajah:start-room) */}
       {showStartRoom && <StartRoomModal user={user} onClose={() => setShowStartRoom(false)} />}
