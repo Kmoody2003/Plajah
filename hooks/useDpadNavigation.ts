@@ -103,38 +103,32 @@ export const useDpadNavigation = (handlers: DpadHandlers) => {
 // ── Focusable discovery ──────────────────────────────────────────────────────
 
 /**
- * Cards that are clickable but not focusable.
+ * Promote a clickable card that a D-pad genuinely cannot reach.
  *
- * Measured on the TCL: of 100 album covers rendered in Chora, only 2 sat inside a button or
- * link — the other 98 were plain <div>s carrying an onClick. A mouse doesn't care; a D-pad
- * cannot reach them at all, which is the whole "albums don't highlight and can't be selected"
- * report. Rather than hunt every card component across the app and convert it to a <button>,
- * make them focusable at runtime: a TV needs this everywhere, and the alternative is a
- * migration that silently misses the next card someone writes.
+ * DELIBERATELY CONSERVATIVE, because the first version made things worse. It walked up to three
+ * ancestors from each cover image and promoted whatever it found — on Chora that was a container
+ * wrapping 201 real album BUTTONs. Focus then landed on that wrapper instead of any album, so
+ * the rail scrolled (looking like navigation) while nothing highlighted and nothing could be
+ * selected. The album cards had been focusable buttons all along.
  *
- * Runs on the TV path only. Everywhere else the DOM is left exactly as authored.
+ * So the rule now: only promote an element that has NO focusable descendants and NO focusable
+ * ancestor. If a card contains a button, that button is the target and this must not compete
+ * with it.
  */
 export function makeCardsFocusable(root: ParentNode = document): number {
+  // `[tabindex]` alone also matches tabindex="-1", which means the OPPOSITE of focusable.
+  const focusableSel = 'button,a[href],[role=button],[tabindex]:not([tabindex="-1"])';
   let promoted = 0;
-  // `[tabindex]` alone also matches tabindex="-1", which means the OPPOSITE of focusable —
-  // treating those as reachable is what made the first version promote 1 card instead of ~100.
-  const already = 'button,a[href],[role=button],[tabindex]:not([tabindex="-1"])';
-  const imgs = Array.from(root.querySelectorAll<HTMLImageElement>('img'));
-  for (const img of imgs) {
+  for (const img of Array.from(root.querySelectorAll<HTMLImageElement>('img'))) {
     const r = img.getBoundingClientRect();
-    if (r.width < 70 || r.height < 70) continue;          // not a card cover
-    if (img.closest(already)) continue;                    // already reachable
-    // Walk up to the card box: the nearest ancestor that is meaningfully bigger than the image
-    // and is not the scroll container itself.
-    let card: HTMLElement | null = img.parentElement;
-    for (let hops = 0; card && hops < 3; hops++) {
-      const cr = card.getBoundingClientRect();
-      if (cr.height >= r.height && cr.width >= r.width && cr.height < window.innerHeight * 0.9) break;
-      card = card.parentElement;
-      }
-    if (!card || card.closest(already) || card.hasAttribute('data-tv-card')) continue;
-    const cs = getComputedStyle(card);
-    if (cs.position === 'fixed') continue;                 // decorative backdrop, not a card
+    if (r.width < 70 || r.height < 70) continue;
+    if (img.closest(focusableSel)) continue;               // already reachable
+    const card = img.parentElement;
+    if (!card || card.hasAttribute('data-tv-card')) continue;
+    if (card.querySelector(focusableSel)) continue;        // contains real targets — leave it
+    if (getComputedStyle(card).position === 'fixed') continue;
+    const cr = card.getBoundingClientRect();
+    if (cr.height > window.innerHeight * 0.6) continue;    // a section, not a card
     card.setAttribute('tabindex', '0');
     card.setAttribute('data-tv-card', '1');
     card.setAttribute('role', 'button');

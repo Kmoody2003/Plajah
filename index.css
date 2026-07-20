@@ -1504,3 +1504,15 @@ html.tv-nav body {
    duplicate what the top bar already offers. Hide the inner chrome so a remote has one
    place to be. Scoped to the big-screen theme, so phone and desktop keep both. */
 .theme-big-screen header.fixed.top-0 { display: none !important; }
+
+/* ── TV: no desktop sidebar ──────────────────────────────────────────────────
+   The desktop pillar is `hidden lg:flex`, and lg is 1024px — widening the TV viewport to
+   1600 to get sane scaling pushed us over that breakpoint, so the pointer-era sidebar
+   reappeared alongside the TV tab bar. That hybrid is usable with a mouse on a PC plugged
+   into a TV and unusable with a remote, which is the wrong default for an Android TV.
+   TvTopTabs is the navigation here; the pillar is hidden outright. */
+.theme-big-screen aside.hidden.lg\:flex { display: none !important; }
+
+/* Nothing should reserve space for it either. */
+.theme-big-screen main,
+.theme-big-screen .flex-1 { min-width: 0; }
