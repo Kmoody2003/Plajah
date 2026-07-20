@@ -20,7 +20,8 @@ export type TvDisabledFeature =
   | 'camera'            // VTuber / live / video calls
   | 'documentEditing'   // Lorea authoring, screenplay editing — heavy text entry
   | 'fileConversion'    // Crossover — a desktop job
-  | 'breakdown';        // transcription/notation compute — heavy DSP on the main thread
+  | 'breakdown'         // transcription/notation compute — heavy DSP on the main thread
+  | 'liveStream';       // broadcasting — a TV has no camera and no way to run a show
 
 /** Why each feature is off, in the viewer's language. Shown verbatim in the UI, so these are
  *  written as explanations rather than error messages — nothing here is a failure. */
@@ -34,6 +35,7 @@ const REASONS: Record<TvDisabledFeature, string> = {
   documentEditing: 'Writing and editing work best with a keyboard. Open Plajah on a computer.',
   fileConversion:  'File conversion is a desktop feature.',
   breakdown:       'Analysis runs on your phone or computer. Scores you’ve already saved still play here.',
+  liveStream:      'Go live from your phone or computer. You can watch live streams here.',
 };
 
 /**
@@ -94,3 +96,8 @@ export function canComputeBreakdown(): boolean {
 export function canReplaySavedNotation(): boolean {
   return true;
 }
+
+/** A TV is for consumption, not creation. These are the two questions the UI asks most, so
+ *  they get names rather than being re-derived from `isFeatureAvailable` at every button. */
+export const canUpload = (): boolean => isFeatureAvailable('upload');
+export const canGoLive = (): boolean => isFeatureAvailable('liveStream');

@@ -15,6 +15,7 @@ import {
   Wand2, PanelLeft, PanelTop, Columns2, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { canUpload, canGoLive } from '../services/tvCapabilities';
 import type { NavLayoutPref } from '../hooks/useNavLayout';
 
 export interface NavPage { id: string; label: string; icon: LucideIcon; }
@@ -103,17 +104,20 @@ export function ChoraAddPillar({
       className="hidden lg:flex fixed right-0 top-0 bottom-0 z-40 w-16 flex-col items-center justify-center gap-3 glass-high border-l border-white/[0.08]"
       aria-label="Create"
     >
-      <button onClick={onCreate} aria-label="Create"
-        className="w-11 h-11 rounded-2xl bg-small-orange text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-lg">
-        <Plus size={20} strokeWidth={2.5} />
-      </button>
-      {onUpload && (
+      {/* Create/upload/go-live are all creation. A TV is for consumption — see tvCapabilities. */}
+      {canUpload() && (
+        <button onClick={onCreate} aria-label="Create"
+          className="w-11 h-11 rounded-2xl bg-small-orange text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-lg">
+          <Plus size={20} strokeWidth={2.5} />
+        </button>
+      )}
+      {onUpload && canUpload() && (
         <button onClick={onUpload} aria-label="Upload" title="Upload"
           className="w-11 h-11 rounded-2xl bg-white/[0.05] text-white/50 hover:text-white hover:bg-white/[0.1] flex items-center justify-center transition-colors">
           <Upload size={18} />
         </button>
       )}
-      {onGoLive && (
+      {onGoLive && canGoLive() && (
         <button onClick={onGoLive} aria-label="Go live" title="Go live"
           className="w-11 h-11 rounded-2xl bg-white/[0.05] text-white/50 hover:text-white hover:bg-white/[0.1] flex items-center justify-center transition-colors">
           <RadioIcon size={18} />

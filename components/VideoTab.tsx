@@ -10,6 +10,7 @@ import {
 } from '../services/backendService';
 import { StreamArchive } from '../types';
 import { captureVideoFrame } from '../src/lib/videoUtils';
+import { canUpload, canGoLive } from '../services/tvCapabilities';
 import { getContinueWatching, WatchEntry } from '../services/watchHistoryService';
 import {
   Play, Heart, MessageCircle, Share2, Plus, Search, Upload, X, Check, Users,
@@ -1084,7 +1085,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               </button>
             )}
             <button
-              onClick={() => { if (!auth.currentUser) { setSignInAction('upload videos'); return; } setShowUpload(true); }}
+              onClick={() => { if (!canUpload()) return; if (!auth.currentUser) { setSignInAction('upload videos'); return; } setShowUpload(true); }}
               className="flex items-center gap-2 px-4 py-2.5 bg-white text-black rounded-xl hover:bg-small-orange hover:text-white transition-all font-black text-[9px] uppercase tracking-widest shadow-lg"
             >
               <Upload size={14} /> Upload
@@ -1185,9 +1186,11 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                     <button onClick={() => setShowGoLiveModal(true)} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-600/80 text-white font-black text-[9px] uppercase tracking-widest hover:bg-red-600 transition-all">
                       <Radio size={12} /> Go Live
                     </button>
-                    <button onClick={() => setShowUpload(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black font-black text-[9px] uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all shadow-lg">
-                      <Upload size={12} /> Upload Video
-                    </button>
+                    {canUpload() && (
+                      <button onClick={() => setShowUpload(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black font-black text-[9px] uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all shadow-lg">
+                        <Upload size={12} /> Upload Video
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -1548,7 +1551,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
             <div className="space-y-10 pt-2">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-black uppercase tracking-widest">{profileScoped ? 'Videos' : (isOwner ? 'My Videos' : `${profile?.displayName || 'Creator'}'s Videos`)} <span className="text-white/20 ml-2">{userReello.length}</span></h2>
-                {isOwner && <button onClick={() => setShowUpload(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all"><Plus size={14} /> Upload</button>}
+                {isOwner && canUpload() && <button onClick={() => setShowUpload(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all"><Plus size={14} /> Upload</button>}
               </div>
               {userReello.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -1568,7 +1571,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                 <div className="py-32 bg-white/[0.02] border-2 border-dashed border-white/5 rounded-[3rem] flex flex-col items-center justify-center text-center">
                   <Film size={48} className="text-white/10 mb-6" />
                   <p className="text-sm font-black uppercase tracking-widest text-white/20 mb-2">{isOwner ? 'No videos uploaded yet' : `${profile?.displayName || 'This creator'} hasn't posted any videos yet`}</p>
-                  {isOwner && <button onClick={() => setShowUpload(true)} className="mt-6 px-10 py-4 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl">Upload First Video</button>}
+                  {isOwner && canUpload() && <button onClick={() => setShowUpload(true)} className="mt-6 px-10 py-4 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl">Upload First Video</button>}
                 </div>
               ) : null}
 
@@ -1601,7 +1604,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                   <h3 className="font-black uppercase tracking-widest text-sm mb-1">{isLiveStreamActive ? 'Broadcast is Live' : 'Currently Offline'}</h3>
                   <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">{isLiveStreamActive ? 'You are broadcasting right now.' : 'Start a broadcast to go live.'}</p>
                 </div>
-                <button onClick={() => setShowGoLiveModal(true)} className={`px-6 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${isLiveStreamActive ? 'bg-red-600 text-white' : 'bg-white text-black hover:bg-small-orange hover:text-white'}`}>{isLiveStreamActive ? 'End Broadcast' : 'Go Live'}</button>
+                {(canGoLive() || isLiveStreamActive) && <button onClick={() => setShowGoLiveModal(true)} className={`px-6 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${isLiveStreamActive ? 'bg-red-600 text-white' : 'bg-white text-black hover:bg-small-orange hover:text-white'}`}>{isLiveStreamActive ? 'End Broadcast' : 'Go Live'}</button>}
               </div>
               <VideoRow title="Past Live Streams" icon={Radio} videos={userVideos.filter(v => v.isLiveRecording || v.genre === 'Live')} onSelect={handlePlay} emptyMessage="No past live streams yet — saved replays land here when you end a stream." />
 

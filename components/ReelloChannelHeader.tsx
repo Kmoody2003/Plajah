@@ -5,6 +5,7 @@
 import React from 'react';
 import { UserProfile, NotifyLevel } from '../types';
 import { BadgeCheck, Bell, BellOff, BellRing, Check, ChevronDown, Share2, Upload, Radio } from 'lucide-react';
+import { canUpload, canGoLive } from '../services/tvCapabilities';
 import { thumb as thumbUrl, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { getNotifyLevel, setNotifyLevel } from '../services/backendService';
 
@@ -169,12 +170,16 @@ const ReelloChannelHeader: React.FC<Props> = ({
           <div className="flex items-center gap-2.5 shrink-0">
             {isOwner ? (
               <>
-                <button onClick={onGoLive} className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-red-600/90 text-white font-black text-[9px] uppercase tracking-widest hover:bg-red-600 transition-all">
-                  <Radio size={13} /> Go Live
-                </button>
-                <button onClick={onUpload} className="flex items-center gap-2 px-5 py-2.5 rounded-full text-white font-black text-[9px] uppercase tracking-widest shadow-lg hover:brightness-110 transition-all" style={{ background: BRAND }}>
-                  <Upload size={13} /> Upload
-                </button>
+                {canGoLive() && (
+                  <button onClick={onGoLive} className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-red-600/90 text-white font-black text-[9px] uppercase tracking-widest hover:bg-red-600 transition-all">
+                    <Radio size={13} /> Go Live
+                  </button>
+                )}
+                {canUpload() && (
+                  <button onClick={onUpload} className="flex items-center gap-2 px-5 py-2.5 rounded-full text-white font-black text-[9px] uppercase tracking-widest shadow-lg hover:brightness-110 transition-all" style={{ background: BRAND }}>
+                    <Upload size={13} /> Upload
+                  </button>
+                )}
               </>
             ) : (
               <button
