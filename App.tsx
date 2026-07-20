@@ -109,6 +109,7 @@ import { measurePerfTier, subscribePerfTier, shouldEnableEffect, getPerfTier } f
 import TvUnavailableNotice from './components/TvUnavailableNotice';
 import TvTopTabs from './components/TvTopTabs';
 const TvSignInView = retryLazy(() => import('./components/TvSignInView'));
+const ChoraTvView = retryLazy(() => import('./components/tv/ChoraTvView'));
 const TvLinkApproval = retryLazy(() => import('./components/TvLinkApproval'));
 const TvSettingsView = retryLazy(() => import('./components/TvSettingsView'));
 import { type TvDisabledFeature, TV_NAV_VIEWS, getTvHome, isViewAllowedOnTv, themesAllowed } from './services/tvCapabilities';
@@ -4259,7 +4260,22 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 currentUser={userProfile}
               />
             )}
-            {view === 'MUSIC' && (
+            {/* Chora on a television is a separate screen, not the web view with things hidden.
+                It declares its own D-pad model (see hooks/useTvGrid) instead of relying on
+                geometric inference, which is what made the adapted version unpredictable.
+                Album playback still uses the existing TV album/player layout. */}
+            {view === 'MUSIC' && getPlatformInfo().isTV && (
+              <Suspense fallback={<div className="h-full grid place-items-center text-white/30 text-xs font-black uppercase tracking-[0.3em]">Loading Chora…</div>}>
+                <ChoraTvView
+                  userProfile={userProfile}
+                  onSelectAlbum={handleSelectItem}
+                  onOpenSection={() => { /* sections render in-place; nothing to route yet */ }}
+                  onOpenPlus={() => setView('SANCTUARY_HUB' as AppView)}
+                />
+              </Suspense>
+            )}
+
+            {view === 'MUSIC' && !getPlatformInfo().isTV && (
               <MusicView
                 onBack={() => setView('DASHBOARD')}
                 onSelectAlbum={handleSelectItem}

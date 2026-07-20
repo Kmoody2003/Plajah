@@ -74,6 +74,22 @@ const topScope = (): HTMLElement | null => {
  * The last step is the safety net: if the overlay is still up after everything else, leave the
  * screen entirely. Being sent back a page is a bad outcome; being unable to leave is a broken TV.
  */
+/**
+ * Does a screen on this page own the arrows?
+ *
+ * `t.closest('[data-tv-capture]')` alone is not enough. A screen that tracks focus in state
+ * rather than in the DOM — like the Chora TV view — leaves e.target as <body>, so closest()
+ * finds nothing and this layer would act on the same press the screen just handled. Two
+ * navigation systems on one keypress is precisely the unpredictability the capture zone exists
+ * to prevent. So: yield if the event is inside a capture zone, OR if the page has one at all
+ * and the event has no real target to speak of.
+ */
+const inCaptureZone = (t: HTMLElement | null): boolean => {
+  if (t?.closest('[data-tv-capture]')) return true;
+  const bodyLevel = !t || t === document.body || t === document.documentElement;
+  return bodyLevel && !!document.querySelector('[data-tv-capture]');
+};
+
 const closeModal = (modal: HTMLElement): void => {
   const explicit = modal.querySelector<HTMLElement>(
     '[data-tv-close],button[aria-label*="close" i],button[title*="close" i],button[title*="dismiss" i]'
@@ -397,7 +413,7 @@ const TVNavigationLayer = () => {
           try { input?.blur(); } catch { /* ignore */ }
           // fall through to move(): focus leaves the field in the pressed direction
         }
-        if (t?.closest('[data-tv-capture]')) return;  // reader/editor owns the arrows
+        if (inCaptureZone(t)) return;                 // that screen owns the arrows
         e.preventDefault();
         e.stopImmediatePropagation();
 
@@ -418,6 +434,8 @@ const TVNavigationLayer = () => {
       // OK / center button: 'Enter' (13), KEYCODE_DPAD_CENTER (23), or vendor 'Select'.
       const isOk = e.key === 'Enter' || e.key === 'Select' || kc === 13 || kc === 23;
       if (isOk) {
+        // Same rule for OK: a screen that owns its arrows owns its selection.
+        if (inCaptureZone(t)) return;
         // In a field, OK means "start typing" — surface the system keyboard rather than doing
         // nothing. Enter (13) still submits, which is what a search box expects.
         if (inField) {
