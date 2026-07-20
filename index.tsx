@@ -146,7 +146,11 @@ function showUpdateToast(onReload: () => void) {
       /smart-?tv|smarttv|googletv|android\s?tv|leanback|aftt|aftmm|aftb|kfapwi|silk|tizen|web0s|webos|roku|bravia|hbbtv/.test(ua);
     if (!isTv) return;
     const el = document.querySelector('meta[name="viewport"]');
-    if (el) el.setAttribute('content', 'width=1600, initial-scale=1.0, user-scalable=no, viewport-fit=cover');
+    // NO initial-scale. Verified live over CDP: with `initial-scale=1.0` present the WebView
+    // pins the layout viewport to the device width (960) and ignores `width` entirely —
+    // innerWidth stayed 960 through two deploys. Dropping it, innerWidth becomes 1600 on the
+    // same page with no other change.
+    if (el) el.setAttribute('content', 'width=1600, user-scalable=no, viewport-fit=cover');
     document.documentElement.classList.add('tv-viewport');
   } catch { /* leave the default viewport */ }
 })();
