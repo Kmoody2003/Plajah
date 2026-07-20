@@ -6,7 +6,7 @@ import {
   fetchRadioTracks,
   fetchUserLibraryTracks,
 } from '../../services/backendService';
-import { fetchArchiveAudiobooks, fetchVaultShelves, type ArchiveTrack } from '../../services/archiveContentService';
+import { fetchArchiveAudiobooks, VAULT_SHELVES, type ArchiveTrack } from '../../services/archiveContentService';
 import { fetchTrending, type RadioStation } from '../../services/radioBrowser';
 import { MUSIC_HISTORY_ERAS } from '../../data/musicHistory';
 
@@ -196,8 +196,19 @@ export function syncRails(section: string, base: BaseData): TvRail[] | null {
   }
 }
 
-/** Sections that reach the network. Called once per section and cached by the view. */
-export async function asyncRails(section: string, base: BaseData): Promise<TvRail[]> {
+/**
+  * Sections that reach the network. Called once per section and cached by the view.
+  *
+  * `onPartial` lets a section publish rails as they arrive instead of only at the end. The Vault
+  * needs it: its shelves come from different archives, and archive.org answers in ~20s while
+  * loc.gov answers in ~2s. Waiting for all of them means staring at a blank screen for the
+  * slowest one when most of the content was ready almost immediately.
+  */
+export async function asyncRails(
+  section: string,
+  base: BaseData,
+  onPartial?: (rails: TvRail[]) => void,
+): Promise<TvRail[]> {
   switch (section) {
     case 'RADIO': {
       const [platform, live] = await Promise.all([
@@ -238,11 +249,16 @@ export async function asyncRails(section: string, base: BaseData): Promise<TvRai
     }
 
     case 'VAULT': {
-      // Each shelf resolves independently on the phone because archive.org takes ~20s while
-      // loc.gov takes ~2s. fetchVaultShelves already fans out internally, so one await here does
-      // not serialise them — but do not "optimise" this into a per-shelf sequential loop.
-      const shelves = await fetchVaultShelves(12).catch(() => []);
-      return nonEmpty(shelves.map(s => ({ id: s.id, title: s.title, items: (s.items || []).map(archiveItem) })));
+      // Fired independently and published as each lands, in the shelf order declared by the
+      // taxonomy so the list does not reshuffle itself as the slow ones arrive.
+      const got: Record<string, TvRail> = {};
+      await Promise.all(VAULT_SHELVES.map(async shelf => {
+        const items = await shelf.fetch(12).catch(() => [] as ArchiveTrack[]);
+        if (!items.length) return;
+        got[shelf.id] = { id: shelf.id, title: shelf.title, items: items.map(archiveItem) };
+        onPartial?.(VAULT_SHELVES.map(s => got[s.id]).filter(Boolean));
+      }));
+      return VAULT_SHELVES.map(s => got[s.id]).filter(Boolean);
     }
 
     case 'AUDIO_BOOKS': {

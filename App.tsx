@@ -110,6 +110,7 @@ import TvUnavailableNotice from './components/TvUnavailableNotice';
 import TvTopTabs from './components/TvTopTabs';
 const TvSignInView = retryLazy(() => import('./components/TvSignInView'));
 const ChoraTvView = retryLazy(() => import('./components/tv/ChoraTvView'));
+const ReelloTvView = retryLazy(() => import('./components/tv/ReelloTvView'));
 const TvLinkApproval = retryLazy(() => import('./components/TvLinkApproval'));
 const TvSettingsView = retryLazy(() => import('./components/TvSettingsView'));
 import { type TvDisabledFeature, TV_NAV_VIEWS, getTvHome, isViewAllowedOnTv, themesAllowed } from './services/tvCapabilities';
@@ -4126,7 +4127,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 </div>
               </div>
             )}
-            {view === 'VIDEOS' && <VideoTab profile={userProfile} isOwner={false} onSelectVideo={handleSelectItem} currentUser={userProfile} onVisitUser={handleVisitUser} initialPlaylistId={videoPlaylistInitialId} onPlaylistOpened={() => setVideoPlaylistInitialId(undefined)} onSetQueue={setVideoQueue} />}
+            {/* Reello on a television is its own screen, modelled on the YouTube TV app —
+                landscape rows, a fixed destination rail, and selection going straight to
+                fullscreen playback. VideoTab is a pointer-and-scroll surface and does not
+                survive a D-pad. */}
+            {view === 'VIDEOS' && getPlatformInfo().isTV && (
+              <Suspense fallback={null}>
+                <ReelloTvView
+                  userProfile={userProfile}
+                  onSelectVideo={handleSelectItem}
+                  onVisitChannel={(p) => handleVisitUser(p.uid)}
+                />
+              </Suspense>
+            )}
+            {view === 'VIDEOS' && !getPlatformInfo().isTV && <VideoTab profile={userProfile} isOwner={false} onSelectVideo={handleSelectItem} currentUser={userProfile} onVisitUser={handleVisitUser} initialPlaylistId={videoPlaylistInitialId} onPlaylistOpened={() => setVideoPlaylistInitialId(undefined)} onSetQueue={setVideoQueue} />}
             {view === 'ADMIN_AD_DASHBOARD' && (userProfile?.role === 'admin' || userProfile?.role === 'staff') && (
               <AdminAdDashboard onBack={() => setView('DASHBOARD')} />
             )}

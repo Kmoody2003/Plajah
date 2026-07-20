@@ -114,7 +114,13 @@ const ChoraTvView: React.FC<{
     let alive = true;
     inFlight.current[section] = true;
     setSectionLoading(true);
-    asyncRails(section, { ...base, albums })
+    asyncRails(section, { ...base, albums }, partial => {
+      // Publish rails as they arrive so a slow archive does not hold up the fast ones.
+      if (alive && partial.length) {
+        setCache(c => ({ ...c, [section]: partial }));
+        setSectionLoading(false);
+      }
+    })
       .then(r => { if (alive && r.length) setCache(c => ({ ...c, [section]: r })); })
       .catch(() => { /* leave uncached: revisiting the section retries */ })
       .finally(() => {
@@ -270,6 +276,38 @@ const ChoraTvView: React.FC<{
     </div>
   );
 
+  // A grey rail in the shape of the real thing. On a television a spinner in the middle of a
+  // black screen gives no sense of whether anything is coming; a rail that is already the right
+  // size and position tells you what is about to appear and stops the layout jumping when it does.
+  const SkeletonRail: React.FC<{ large?: boolean }> = ({ large }) => (
+    <section className="mb-8">
+      <div className="mb-3">
+        <div className="h-2 w-28 rounded-full bg-white/[0.07] animate-pulse" />
+        <span className="block mt-1.5 h-[2px] w-11 rounded-full bg-white/10" />
+      </div>
+      <div className="flex gap-4">
+        {Array.from({ length: large ? 6 : 8 }).map((_, i) => (
+          <div key={i} className={`shrink-0 ${large ? 'w-64' : 'w-40'}`}>
+            <div
+              className="rounded-2xl bg-white/[0.05] animate-pulse"
+              style={{ aspectRatio: '1', animationDelay: `${i * 90}ms` }}
+            />
+            <div className="mt-2 h-2.5 w-3/4 rounded-full bg-white/[0.06]" />
+            <div className="mt-1.5 h-2 w-1/2 rounded-full bg-white/[0.04]" />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+
+  const Skeleton: React.FC = () => (
+    <>
+      <SkeletonRail large />
+      <SkeletonRail />
+      <SkeletonRail />
+    </>
+  );
+
   const era = openEra ? MUSIC_HISTORY_ERAS.find(e => e.id === openEra) : null;
 
   return (
@@ -348,8 +386,8 @@ const ChoraTvView: React.FC<{
           </button>
         )}
 
-        {loading || sectionLoading ? (
-          <div className="h-full grid place-items-center text-white/30 text-xs font-black uppercase tracking-[0.3em]">Loading…</div>
+        {(loading || sectionLoading) && rails.length === 0 ? (
+          <Skeleton />
         ) : rails.length === 0 ? (
           <div className="h-full grid place-items-center text-center">
             <div>
@@ -375,6 +413,10 @@ const ChoraTvView: React.FC<{
             </section>
           ))
         )}
+
+        {/* More shelves still landing: keep the page height stable rather than letting content
+            jump up as each archive answers. */}
+        {sectionLoading && rails.length > 0 && <SkeletonRail />}
       </main>
 
       {/* ── Era reader ──
