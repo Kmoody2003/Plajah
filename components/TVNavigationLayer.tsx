@@ -189,7 +189,13 @@ const TVNavigationLayer = () => {
     }
 
     const scope = topScope();
-    const first = getFocusables(scope ?? document)[0];
+    const candidates = getFocusables(scope ?? document);
+    // Skip text inputs when choosing where to put focus. Landing a remote in a search box is
+    // never what the viewer wanted, and before the escape logic above it was unrecoverable.
+    const first = candidates.find(el => {
+      const tg = el.tagName;
+      return tg !== 'INPUT' && tg !== 'TEXTAREA' && !el.isContentEditable;
+    }) ?? candidates[0];
     if (first) {
       focusTVElement(first);
       return { el: first, seeded: true };
@@ -322,7 +328,26 @@ const TVNavigationLayer = () => {
         (e.key === 'ArrowRight' || kc === 39 || kc === 22) ? 'right' : null;
 
       if (dir) {
-        if (inField) return;                          // arrows move the caret / adjust value
+        // A text field must never be a one-way door. `inField` used to bail for BOTH arrows and
+        // OK, so once focus landed in a search box — which is exactly what happened on the TCL —
+        // neither key did anything and the viewer was stuck with no way out and no way to select
+        // anything. On a TV, up/down always leave the field; left/right only move the caret while
+        // there is still text to move through, and leave once the caret reaches the edge.
+        if (inField) {
+          const input = t as HTMLInputElement | null;
+          const isText = tag === 'INPUT' || tag === 'TEXTAREA';
+          const caret = isText ? (input?.selectionStart ?? 0) : 0;
+          const len = isText ? (input?.value?.length ?? 0) : 0;
+          const atStart = caret <= 0;
+          const atEnd = caret >= len;
+          const escaping =
+            dir === 'up' || dir === 'down' ||
+            (dir === 'left' && atStart) ||
+            (dir === 'right' && atEnd);
+          if (!escaping) return;                      // still editing — let the caret move
+          try { input?.blur(); } catch { /* ignore */ }
+          // fall through to move(): focus leaves the field in the pressed direction
+        }
         if (t?.closest('[data-tv-capture]')) return;  // reader/editor owns the arrows
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -344,7 +369,16 @@ const TVNavigationLayer = () => {
       // OK / center button: 'Enter' (13), KEYCODE_DPAD_CENTER (23), or vendor 'Select'.
       const isOk = e.key === 'Enter' || e.key === 'Select' || kc === 13 || kc === 23;
       if (isOk) {
-        if (inField) return;
+        // In a field, OK means "start typing" — surface the system keyboard rather than doing
+        // nothing. Enter (13) still submits, which is what a search box expects.
+        if (inField) {
+          if (kc === 23 || e.key === 'Select') {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            try { (t as HTMLElement)?.focus(); (t as HTMLElement)?.click(); } catch { /* ignore */ }
+          }
+          return;
+        }
         const { el, seeded } = ensureFocus();
         if (!el || seeded) { e.preventDefault(); e.stopImmediatePropagation(); return; }
         const nativeActivates = ['A', 'BUTTON', 'INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
