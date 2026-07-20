@@ -4,6 +4,7 @@ import type { UserProfile, Video } from '../../types';
 import { thumb, THUMB } from '../../src/lib/imageThumb';
 import { useTvGrid, isFocused } from '../../hooks/useTvGrid';
 import { useTvShellFocus } from '../../hooks/useTvShellFocus';
+import TvBrandBackdrop from './TvBrandBackdrop';
 import {
   asyncVideoRails, syncVideoRails, fetchAllVideos, fetchUserVideos, videoItem,
   type ReelloBase, type TvVideoItem, type TvVideoRail,
@@ -251,15 +252,19 @@ const ReelloTvView: React.FC<{
   );
 
   return (
-    <div className="relative flex h-full bg-[#07070a]" data-tv-capture>
-      <div
-        className="pointer-events-none absolute inset-0"
-        aria-hidden
-        style={{ background: 'radial-gradient(85% 55% at 60% -8%, rgba(124,92,255,0.14) 0%, rgba(107,0,153,0.10) 45%, transparent 74%)' }}
-      />
+    <div className="relative flex h-full" data-tv-capture>
+      <TvBrandBackdrop />
 
       {/* ── Destinations ── */}
-      <aside className="relative w-56 shrink-0 border-r border-white/[0.07] flex flex-col py-6 bg-black/40">
+      {/* A brand-tinted scrim, not a blur: TV runs with html.perf-no-blur, which forces
+          backdrop-filter to none, and the readable fallback only covers .glass classes. A
+          translucent panel would sit unblurred on top of the 0.85-alpha purple bloom and eat the
+          labels. Violet-black rather than neutral black so the rail still belongs to the gradient. */
+      }
+      <aside
+        className="relative w-56 shrink-0 border-r border-white/[0.07] flex flex-col py-6"
+        style={{ background: 'linear-gradient(90deg, rgba(9,0,15,0.88) 0%, rgba(9,0,15,0.72) 100%)' }}
+      >
         <div className="px-6 mb-7">
           <p
             className="text-2xl font-black italic tracking-tighter leading-none"

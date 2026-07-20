@@ -6,6 +6,7 @@ import { thumb, THUMB } from '../../src/lib/imageThumb';
 import { useTvGrid, isFocused } from '../../hooks/useTvGrid';
 import { useGlobalPlayerState } from '../../contexts/GlobalPlayerContext';
 import { useTvShellFocus } from '../../hooks/useTvShellFocus';
+import TvBrandBackdrop from './TvBrandBackdrop';
 import { asyncRails, syncRails, MUSIC_HISTORY_ERAS, type BaseData, type TvItem, type TvRail } from './choraTvSections';
 
 /**
@@ -318,18 +319,20 @@ const ChoraTvView: React.FC<{
   return (
     // data-tv-capture tells the global spatial layer to keep its hands off: this screen owns
     // its arrows, and two navigation systems acting on one press is how the old one broke.
-    <div className="relative flex h-full bg-[#07070a]" data-tv-capture>
+    <div className="relative flex h-full" data-tv-capture>
       <style>{`@keyframes choraTvBar { from { height: 4px } to { height: 14px } }`}</style>
-      {/* Brand atmosphere: one wide bloom behind the content, well under the type. On an OLED panel
-          a flat black field reads as switched-off; this gives it depth without competing. */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        aria-hidden
-        style={{ background: 'radial-gradient(90% 55% at 62% -8%, rgba(212,0,85,0.16) 0%, rgba(107,0,153,0.10) 42%, transparent 72%)' }}
-      />
+      <TvBrandBackdrop />
 
       {/* ── Sections rail ── */}
-      <aside className="relative w-60 shrink-0 border-r border-white/[0.07] flex flex-col py-6 bg-black/40">
+      {/* A brand-tinted scrim, not a blur: TV runs with html.perf-no-blur, which forces
+          backdrop-filter to none, and the readable fallback only covers .glass classes. A
+          translucent panel would sit unblurred on top of the 0.85-alpha purple bloom and eat the
+          labels. Violet-black rather than neutral black so the rail still belongs to the gradient. */
+      }
+      <aside
+        className="relative w-60 shrink-0 border-r border-white/[0.07] flex flex-col py-6"
+        style={{ background: 'linear-gradient(90deg, rgba(9,0,15,0.88) 0%, rgba(9,0,15,0.72) 100%)' }}
+      >
         <div className="px-6 mb-7">
           <p
             className="text-2xl font-black italic tracking-tighter leading-none"
