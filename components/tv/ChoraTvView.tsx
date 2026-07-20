@@ -54,9 +54,7 @@ const ChoraTvView: React.FC<{
   onSelectAlbum: (album: Album) => void;
   onOpenSection?: (id: SectionId) => void;
   onOpenPlus?: () => void;
-  /** Pressing up at the top hands focus to the app's tab bar. */
-  onExitTop?: () => boolean;
-}> = ({ userProfile, onSelectAlbum, onOpenSection, onOpenPlus, onExitTop }) => {
+}> = ({ userProfile, onSelectAlbum, onOpenSection, onOpenPlus }) => {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [upcoming, setUpcoming] = useState<Album[]>([]);
   const [artists, setArtists] = useState<UserProfile[]>([]);
@@ -102,7 +100,6 @@ const ChoraTvView: React.FC<{
 
   const { pos, zone, panelIndex, setPanelIndex, setZone } = useTvGrid({
     rows,
-    onExitTop,
     panelCount: SECTIONS.length + 1,        // + the Plajah+ entry pinned at the bottom
     onSelect: (p, rowId) => {
       if (rowId === 'PANEL') {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isShellFocused, setShellFocus, subscribeShellFocus } from './useTvShellFocus';
 
 /**
  * Deterministic D-pad navigation for a TV screen.
@@ -38,6 +39,9 @@ interface Options {
    *
    * A capture screen owns every key, which means the shell's navigation becomes unreachable
    * unless the screen hands it back deliberately. Return true if the caller took focus.
+   *
+   * Defaults to handing focus to the shell, so a screen gets this for free. Pass one only to
+   * override — e.g. a screen with nothing above it that should swallow the press instead.
    */
   onExitTop?: () => boolean;
   enabled?: boolean;
@@ -53,7 +57,14 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, onExitTop, e
   const zoneRef = useRef(zone); zoneRef.current = zone;
   const panelRef = useRef(panelIndex); panelRef.current = panelIndex;
   const panelCountRef = useRef(panelCount); panelCountRef.current = panelCount;
-  const onExitTopRef = useRef(onExitTop); onExitTopRef.current = onExitTop;
+  // Default: hand focus to the shell's tab bar. Screens do not have to opt in.
+  const exitTop = onExitTop ?? (() => { setShellFocus(true); return true; });
+  const onExitTopRef = useRef(exitTop); onExitTopRef.current = exitTop;
+
+  // While the shell holds the remote this grid must be genuinely deaf, not merely dimmed: if
+  // both listen, one press moves two things and the screen feels haunted.
+  const [shellFocused, setShellFocused] = useState(isShellFocused);
+  useEffect(() => subscribeShellFocus(setShellFocused), []);
   const [pos, setPos] = useState<TvGridPosition>({ row: 0, col: 0 });
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
@@ -128,7 +139,7 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, onExitTop, e
   }, [rows, clampToRow]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || shellFocused) return;
     const onKey = (e: KeyboardEvent) => {
       const kc = e.keyCode || e.which;
       const t = e.target as HTMLElement | null;
@@ -174,7 +185,7 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, onExitTop, e
     // Capture phase, so this wins before the global layer sees the key.
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [enabled, move, onSelect, onBack]);
+  }, [enabled, shellFocused, move, onSelect, onBack]);
 
   const focus = useCallback((row: number, col = 0) => {
     setZone('CONTENT');

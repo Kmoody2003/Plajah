@@ -113,6 +113,7 @@ const ChoraTvView = retryLazy(() => import('./components/tv/ChoraTvView'));
 const TvLinkApproval = retryLazy(() => import('./components/TvLinkApproval'));
 const TvSettingsView = retryLazy(() => import('./components/TvSettingsView'));
 import { type TvDisabledFeature, TV_NAV_VIEWS, getTvHome, isViewAllowedOnTv, themesAllowed } from './services/tvCapabilities';
+import { useTvShellFocus, setShellFocus } from './hooks/useTvShellFocus';
 import TooltipSuppressor from './components/TooltipSuppressor';
 import ResumeUploadPrompt from './components/ResumeUploadPrompt';
 import SanctuaryDemoView from './components/sanctuary/SanctuaryDemoView';
@@ -546,7 +547,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [showCreator, setShowCreator] = useState(false);
   // True while a capture screen has handed keyboard focus up to the TV tab bar.
-  const [tvTabsFocused, setTvTabsFocused] = useState(false);
+  // Owned by hooks/useTvShellFocus so every capture screen can hand the remote up without
+  // each one having to be wired for it individually.
+  const tvTabsFocused = useTvShellFocus();
   const [showBrandActivation, setShowBrandActivation] = useState(false);
   const [licenseForFilm, setLicenseForFilm] = useState<{ track: any; album: any } | null>(null);
   const [audiusArtist, setAudiusArtist] = useState<AudiusArtist | null>(null);
@@ -4154,13 +4157,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 activeView={view}
                 onSelect={(v) => setView(v as AppView)}
                 focused={tvTabsFocused}
-                onExitDown={() => setTvTabsFocused(false)}
+                onExitDown={() => setShellFocus(false)}
                 onOpenNowPlaying={() => {
+                  setShellFocus(false);
                   // Go back to the SOURCE that is playing, not a generic player: an album
                   // returns to its album screen, radio to Radio. Landing somewhere that isn't
                   // what you're hearing is disorienting on a TV, where there is no address bar
                   // to tell you where you are.
-                  setTvTabsFocused(false);
                   if (audioSource === 'RADIO') { setView('RADIO' as AppView); return; }
                   if (currentAlbum) { handleSelectItem(currentAlbum); return; }
                   setView('PLAYER' as AppView);
@@ -4282,7 +4285,6 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <ChoraTvView
                   userProfile={userProfile}
                   onSelectAlbum={handleSelectItem}
-                  onExitTop={() => { setTvTabsFocused(true); return true; }}
                   onOpenSection={() => { /* sections render in-place; nothing to route yet */ }}
                   onOpenPlus={() => setView('SANCTUARY_HUB' as AppView)}
                 />
