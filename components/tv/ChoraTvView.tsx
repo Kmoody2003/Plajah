@@ -98,18 +98,29 @@ const ChoraTvView: React.FC<{
     [albums, upcoming, artists, userProfile],
   );
 
-  // Sections that need the network fetch once and are then cached. The guard on `cache` means
-  // walking the rail up and down does not re-hit archive.org on every pass.
+  // Sections that need the network fetch once and are then cached, so walking the rail up and
+  // down does not re-hit archive.org on every pass.
+  //
+  // ONLY SUCCESSFUL RESULTS ARE CACHED. Caching an empty result was a real bug on the TV: a
+  // transient failure during boot — which is exactly when the network is busiest — left the
+  // section permanently blank until the app was restarted, because the cache entry said "already
+  // fetched, nothing there". An empty result is now left uncached so revisiting retries, guarded
+  // by inFlight so staying on the section does not spin.
+  const inFlight = useRef<Record<string, boolean>>({});
   useEffect(() => {
     if (loading) return;
     if (syncRails(section, base)) return;              // resolved locally, nothing to fetch
-    if (cache[section]) return;                        // already have it
+    if (cache[section] || inFlight.current[section]) return;
     let alive = true;
+    inFlight.current[section] = true;
     setSectionLoading(true);
     asyncRails(section, { ...base, albums })
-      .then(r => { if (alive) setCache(c => ({ ...c, [section]: r })); })
-      .catch(() => { if (alive) setCache(c => ({ ...c, [section]: [] })); })
-      .finally(() => { if (alive) setSectionLoading(false); });
+      .then(r => { if (alive && r.length) setCache(c => ({ ...c, [section]: r })); })
+      .catch(() => { /* leave uncached: revisiting the section retries */ })
+      .finally(() => {
+        inFlight.current[section] = false;
+        if (alive) setSectionLoading(false);
+      });
     return () => { alive = false; };
   }, [section, loading, base, albums, cache]);
 
@@ -343,7 +354,7 @@ const ChoraTvView: React.FC<{
           <div className="h-full grid place-items-center text-center">
             <div>
               <p className="text-white/45 text-sm font-bold">Nothing here yet.</p>
-              <p className="text-white/25 text-xs mt-1">This section fills in as content is added.</p>
+              <p className="text-white/25 text-xs mt-1">Leave and come back to try again.</p>
             </div>
           </div>
         ) : (
