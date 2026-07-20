@@ -1,27 +1,31 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Music2, Radio as RadioIcon, Library, Users, Disc3, Sparkles, Archive, Mic2, BookOpen, ListMusic, GraduationCap, Crown, Play } from 'lucide-react';
+import { Music2, Radio as RadioIcon, Library, Users, Disc3, Sparkles, Archive, Mic2, BookOpen, ListMusic, GraduationCap, Crown, Play, ArrowLeft } from 'lucide-react';
 import type { Album, UserProfile } from '../../types';
 import { fetchAllPublicAlbums, fetchUpcomingAlbums, searchUsers } from '../../services/backendService';
 import { thumb, THUMB } from '../../src/lib/imageThumb';
 import { useTvGrid, isFocused } from '../../hooks/useTvGrid';
-import { useGlobalPlayer } from '../../contexts/GlobalPlayerContext';
+import { useGlobalPlayerState } from '../../contexts/GlobalPlayerContext';
 import { useTvShellFocus } from '../../hooks/useTvShellFocus';
+import { asyncRails, syncRails, MUSIC_HISTORY_ERAS, type BaseData, type TvItem, type TvRail } from './choraTvSections';
 
 /**
  * Chora for television — built for the ten-foot view, not adapted to it.
  *
  * Structure follows Apple Music and Amazon Music on TV, which converged on the same shape for
  * good reason: a fixed vertical rail of sections on the left, horizontal content rails on the
- * right, and a showcase at the top. Nothing is hidden behind a menu, so the shortest path to any
- * section is "left, then up or down" — two presses, always the same two.
+ * right. Nothing is hidden behind a menu, so the shortest path to any section is "left, then up
+ * or down" — two presses, always the same two.
  *
  * NAVIGATION IS DECLARED, NOT INFERRED. The screen tells useTvGrid its row lengths and the hook
  * moves an index. The generic spatial layer guesses from geometry, which is what made the old
  * screen jump around: overlapping rails and re-rendering cards changed the answer between
  * identical presses. Here the same press always does the same thing.
  *
+ * Every section renders the same shape — titled rails of square cards — so switching sections
+ * never changes how the remote behaves. What each section contains lives in choraTvSections.ts.
+ *
  * No banners: the promos and the moment-in-history card that used to stack above the content are
- * folded into the showcase, which is the one place a TV viewer looks first.
+ * folded into the first rail, which is the one place a TV viewer looks first.
  */
 
 const SECTIONS = [
@@ -48,8 +52,6 @@ const ACCENT_WARM = '#FF8C00';      // Plajah orange, used for the focus ring
 // else would make everything shout and nothing read.
 const BRAND = 'linear-gradient(135deg, #FF8C00 0%, #D40055 52%, #6B0099 100%)';
 
-interface Rail { id: string; title: string; items: Album[]; }
-
 const ChoraTvView: React.FC<{
   userProfile: UserProfile | null;
   onSelectAlbum: (album: Album) => void;
@@ -61,7 +63,15 @@ const ChoraTvView: React.FC<{
   const [artists, setArtists] = useState<UserProfile[]>([]);
   const [section, setSection] = useState<SectionId>('NEW');
   const [loading, setLoading] = useState(true);
-  const { currentAlbum, isPlaying } = useGlobalPlayer();
+  const [sectionLoading, setSectionLoading] = useState(false);
+  /** Fetched sections, kept so returning to one is instant rather than another spinner. */
+  const [cache, setCache] = useState<Record<string, TvRail[]>>({});
+  const [openEra, setOpenEra] = useState<string | null>(null);
+  const [drillArtist, setDrillArtist] = useState<UserProfile | null>(null);
+
+  // useGlobalPlayer merges the progress context, which ticks several times a second — using it
+  // here re-rendered this whole screen continuously while music played.
+  const { currentAlbum, currentTrack, isPlaying, playTrack } = useGlobalPlayerState();
   // Two focus rings on screen at once reads as a bug, so the panel drops to its 'active'
   // treatment while the tab bar holds the remote.
   const shellFocused = useTvShellFocus();
@@ -75,57 +85,100 @@ const ChoraTvView: React.FC<{
         searchUsers('').catch(() => [] as UserProfile[]),
       ]);
       if (!alive) return;
-      setAlbums((all || []).filter(a => a.type === 'MUSIC'));
+      setAlbums((all || []).filter(a => a.type === 'MUSIC' || (a as any).subType === 'PODCAST'));
       setUpcoming(up || []);
-      setArtists((people || []).filter(u => (u as any).isArtist).slice(0, 20));
+      setArtists((people || []).filter(u => (u as any).isArtist));
       setLoading(false);
     })();
     return () => { alive = false; };
   }, []);
 
-  // The showcase carries what the banners used to: what's coming, what just landed, who to hear.
-  const showcase = useMemo(() => [...upcoming.slice(0, 4), ...albums.slice(0, 6)].slice(0, 8), [upcoming, albums]);
+  const base: BaseData = useMemo(
+    () => ({ albums: albums.filter(a => a.type === 'MUSIC'), upcoming, artists, userProfile }),
+    [albums, upcoming, artists, userProfile],
+  );
 
-  const rails: Rail[] = useMemo(() => {
-    const recent = [...albums].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    const byPlays = [...albums].sort((a, b) => ((b as any).playCount || 0) - ((a as any).playCount || 0));
-    return [
-      { id: 'recent',  title: 'Just Added',      items: recent.slice(0, 20) },
-      { id: 'charts',  title: 'Charts',          items: byPlays.slice(0, 20) },
-      { id: 'trending',title: 'Trending Now',    items: byPlays.slice(0, 20).reverse() },
-    ].filter(r => r.items.length > 0);
-  }, [albums]);
+  // Sections that need the network fetch once and are then cached. The guard on `cache` means
+  // walking the rail up and down does not re-hit archive.org on every pass.
+  useEffect(() => {
+    if (loading) return;
+    if (syncRails(section, base)) return;              // resolved locally, nothing to fetch
+    if (cache[section]) return;                        // already have it
+    let alive = true;
+    setSectionLoading(true);
+    asyncRails(section, { ...base, albums })
+      .then(r => { if (alive) setCache(c => ({ ...c, [section]: r })); })
+      .catch(() => { if (alive) setCache(c => ({ ...c, [section]: [] })); })
+      .finally(() => { if (alive) setSectionLoading(false); });
+    return () => { alive = false; };
+  }, [section, loading, base, albums, cache]);
 
-  // Rows the grid navigates: showcase first, then each rail. Declared, so nothing is guessed.
-  const rows = useMemo(() => [
-    { id: 'showcase', count: showcase.length },
-    ...rails.map(r => ({ id: r.id, count: r.items.length })),
-  ], [showcase.length, rails]);
+  const rails: TvRail[] = useMemo(() => {
+    if (drillArtist) {
+      const own = albums.filter(a => a.ownerId === drillArtist.uid);
+      return own.length
+        ? [{ id: 'artist-albums', title: `${(drillArtist as any).displayName || 'Artist'} — Releases`,
+             items: own.map(a => ({ id: a.id, title: a.title, subtitle: a.artist, image: a.coverImage,
+                                    action: { kind: 'ALBUM' as const, album: a } })) }]
+        : [];
+    }
+    return syncRails(section, base) ?? cache[section] ?? [];
+  }, [drillArtist, albums, section, base, cache]);
+
+  const rows = useMemo(() => rails.map(r => ({ id: r.id, count: r.items.length })), [rails]);
+
+  const run = (item: TvItem) => {
+    const a = item.action;
+    if (a.kind === 'ALBUM') { onSelectAlbum(a.album); return; }
+    if (a.kind === 'TRACK') { playTrack(a.track, a.album, a.source); return; }
+    if (a.kind === 'ARTIST') { setDrillArtist(a.artist); return; }
+    if (a.kind === 'ERA' && a.eraId) setOpenEra(a.eraId);
+  };
 
   const { pos, zone, panelIndex, setPanelIndex, setZone } = useTvGrid({
     rows,
-    panelCount: SECTIONS.length + 1,        // + the Plajah+ entry pinned at the bottom
+    enabled: !openEra,                       // the reader owns the remote while it is open
+    panelCount: SECTIONS.length + 1,         // + the Plajah+ entry pinned at the bottom
     onSelect: (p, rowId) => {
       if (rowId === 'PANEL') {
         if (p.col === SECTIONS.length) { onOpenPlus?.(); return; }   // the pinned entry
         const s = SECTIONS[p.col];
+        setDrillArtist(null);
         setSection(s.id);
         onOpenSection?.(s.id);
         setZone('CONTENT');
         return;
       }
-      const item = rowId === 'showcase' ? showcase[p.col] : rails.find(r => r.id === rowId)?.items[p.col];
-      if (item) onSelectAlbum(item);
+      const item = rails.find(r => r.id === rowId)?.items[p.col];
+      if (item) run(item);
+    },
+    onBack: () => {
+      if (drillArtist) { setDrillArtist(null); return true; }
+      return false;
     },
   });
+
+  // The era reader takes the remote entirely: Back or OK closes it. Bound only while open, so it
+  // cannot interfere with the grid the rest of the time.
+  useEffect(() => {
+    if (!openEra) return;
+    const onKey = (e: KeyboardEvent) => {
+      const kc = e.keyCode || e.which;
+      if (kc === 4 || kc === 13 || kc === 23 || e.key === 'Enter' || e.key === 'Backspace' || e.key === 'XF86Back') {
+        e.preventDefault(); e.stopImmediatePropagation();
+        setOpenEra(null);
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [openEra]);
 
   // Keep the focused card on screen. Scrolls the RAIL horizontally and the page vertically,
   // rather than relying on the browser to guess which axis mattered.
   const cellRefs = useRef<Record<string, HTMLElement | null>>({});
   useEffect(() => {
     if (zone !== 'CONTENT') return;
-    const el = cellRefs.current[`${pos.row}:${pos.col}`];
-    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    cellRefs.current[`${pos.row}:${pos.col}`]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
   }, [pos, zone]);
 
   const panelRefs = useRef<Record<number, HTMLElement | null>>({});
@@ -134,67 +187,79 @@ const ChoraTvView: React.FC<{
     panelRefs.current[panelIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [panelIndex, zone]);
 
-  const Card: React.FC<{ album: Album; focused: boolean; large?: boolean; refKey: string }> = ({ album, focused, large, refKey }) => {
-    const playing = !!currentAlbum && (currentAlbum as any).id === album.id;
+  const isItemPlaying = (item: TvItem) => {
+    const a = item.action;
+    if (a.kind === 'ALBUM') return !!currentAlbum && currentAlbum.id === a.album.id;
+    if (a.kind === 'TRACK') return !!currentTrack && currentTrack.id === a.track.id;
+    return false;
+  };
+
+  const Card: React.FC<{ item: TvItem; focused: boolean; large?: boolean; refKey: string }> = ({ item, focused, large, refKey }) => {
+    const playing = isItemPlaying(item);
     return (
-    <div
-      ref={el => { cellRefs.current[refKey] = el; }}
-      className={`shrink-0 transition-transform duration-150 ${large ? 'w-64' : 'w-40'} ${focused ? 'scale-105' : ''}`}
-    >
       <div
-        className="relative rounded-2xl overflow-hidden bg-white/[0.05]"
-        style={{
-          aspectRatio: '1',
-          // The ring is drawn INSIDE the card, not as an outline. An outline with an offset gets
-          // clipped by the rail's overflow and disappears exactly when you need it.
-          // Focus outranks the playing ring: you always need to see where you are more than you
-          // need to see what is playing.
-          boxShadow: focused
-            ? `inset 0 0 0 4px ${ACCENT_WARM}, 0 12px 32px rgba(0,0,0,0.55)`
-            : playing ? `inset 0 0 0 3px ${ACCENT}` : 'none',
-        }}
+        ref={el => { cellRefs.current[refKey] = el; }}
+        className={`shrink-0 transition-transform duration-150 ${large ? 'w-64' : 'w-40'} ${focused ? 'scale-105' : ''}`}
       >
-        {album.coverImage
-          ? <img src={thumb(album.coverImage, large ? THUMB.card : THUMB.small)} alt="" className="w-full h-full object-cover" loading="lazy" />
-          : <div className="w-full h-full grid place-items-center"><Music2 size={28} className="text-white/20" /></div>}
-        {focused && (
-          <span className="absolute bottom-2 right-2 w-9 h-9 rounded-full grid place-items-center" style={{ background: ACCENT_WARM }}>
-            <Play size={16} className="text-black ml-0.5" fill="black" />
-          </span>
-        )}
-        {playing && !focused && (
-          // Three bars rather than a label: at ten feet the shape reads before any word does.
-          <span className="absolute bottom-2 left-2 flex items-end gap-[3px] h-6 px-2 rounded-full bg-black/70">
-            {[0, 1, 2].map(b => (
-              <span
-                key={b}
-                className="w-[3px] rounded-full self-center"
-                style={{
-                  background: ACCENT,
-                  height: isPlaying ? undefined : '5px',
-                  animation: isPlaying ? `choraTvBar 0.9s ease-in-out ${b * 0.18}s infinite alternate` : 'none',
-                }}
-              />
-            ))}
-          </span>
-        )}
+        <div
+          className="relative rounded-2xl overflow-hidden bg-white/[0.05]"
+          style={{
+            aspectRatio: '1',
+            // The ring is drawn INSIDE the card, not as an outline. An outline with an offset gets
+            // clipped by the rail's overflow and disappears exactly when you need it. Focus
+            // outranks the playing ring: seeing where you are matters more than what is playing.
+            boxShadow: focused
+              ? `inset 0 0 0 4px ${ACCENT_WARM}, 0 12px 32px rgba(0,0,0,0.55)`
+              : playing ? `inset 0 0 0 3px ${ACCENT}` : 'none',
+          }}
+        >
+          {item.image
+            ? <img src={thumb(item.image, large ? THUMB.card : THUMB.small)} alt="" className="w-full h-full object-cover" loading="lazy" />
+            : <div className="w-full h-full grid place-items-center" style={{ background: item.action.kind === 'ERA' ? BRAND : undefined }}>
+                {item.action.kind === 'ERA'
+                  ? <GraduationCap size={30} className="text-white/85" />
+                  : <Music2 size={28} className="text-white/20" />}
+              </div>}
+          {focused && (
+            <span className="absolute bottom-2 right-2 w-9 h-9 rounded-full grid place-items-center" style={{ background: ACCENT_WARM }}>
+              <Play size={16} className="text-black ml-0.5" fill="black" />
+            </span>
+          )}
+          {playing && !focused && (
+            // Three bars rather than a label: at ten feet the shape reads before any word does.
+            <span className="absolute bottom-2 left-2 flex items-center gap-[3px] h-6 px-2 rounded-full bg-black/70">
+              {[0, 1, 2].map(b => (
+                <span
+                  key={b}
+                  className="w-[3px] rounded-full"
+                  style={{
+                    background: ACCENT,
+                    height: isPlaying ? undefined : '5px',
+                    animation: isPlaying ? `choraTvBar 0.9s ease-in-out ${b * 0.18}s infinite alternate` : 'none',
+                  }}
+                />
+              ))}
+            </span>
+          )}
+        </div>
+        <p className={`mt-2 font-bold truncate ${focused ? 'text-white' : 'text-white/65'} ${large ? 'text-sm' : 'text-xs'}`}>
+          {item.title}
+        </p>
+        <p className="text-[11px] text-white/40 truncate">{item.subtitle || ''}</p>
       </div>
-      <p className={`mt-2 font-bold truncate ${focused ? 'text-white' : 'text-white/65'} ${large ? 'text-sm' : 'text-xs'}`}>
-        {album.title || 'Untitled'}
-      </p>
-      <p className="text-[11px] text-white/40 truncate">{album.artist || ''}</p>
-    </div>
     );
   };
 
-  // A short rule under each section title, tinted with the brand gradient. It gives the rails a
+  // A short rule under each rail title, tinted with the brand gradient. It gives the rails a
   // spine without adding another box, and it is the one place the full gradient repeats.
-  const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  const RailHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="mb-3">
       <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/45">{children}</h2>
       <span className="block mt-1.5 h-[2px] w-11 rounded-full" style={{ background: BRAND }} />
     </div>
   );
+
+  const era = openEra ? MUSIC_HISTORY_ERAS.find(e => e.id === openEra) : null;
 
   return (
     // data-tv-capture tells the global spatial layer to keep its hands off: this screen owns
@@ -208,6 +273,7 @@ const ChoraTvView: React.FC<{
         aria-hidden
         style={{ background: 'radial-gradient(90% 55% at 62% -8%, rgba(212,0,85,0.16) 0%, rgba(107,0,153,0.10) 42%, transparent 72%)' }}
       />
+
       {/* ── Sections rail ── */}
       <aside className="relative w-60 shrink-0 border-r border-white/[0.07] flex flex-col py-6 bg-black/40">
         <div className="px-6 mb-7">
@@ -227,7 +293,7 @@ const ChoraTvView: React.FC<{
               <div
                 key={s.id}
                 ref={el => { panelRefs.current[i] = el; }}
-                onClick={() => { setPanelIndex(i); setSection(s.id); onOpenSection?.(s.id); }}
+                onClick={() => { setPanelIndex(i); setDrillArtist(null); setSection(s.id); onOpenSection?.(s.id); }}
                 className={`relative flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors ${
                   focused ? 'bg-white text-black' : active ? 'bg-white/[0.08] text-white' : 'text-white/50'
                 }`}
@@ -249,9 +315,7 @@ const ChoraTvView: React.FC<{
           ref={el => { panelRefs.current[SECTIONS.length] = el; }}
           onClick={onOpenPlus}
           className={`mx-3 mt-3 px-4 py-3 rounded-xl cursor-pointer transition-colors ${
-            zone === 'PANEL' && panelIndex === SECTIONS.length && !shellFocused
-              ? 'bg-white text-black'
-              : 'text-white'
+            zone === 'PANEL' && panelIndex === SECTIONS.length && !shellFocused ? 'bg-white text-black' : 'text-white'
           }`}
           style={zone === 'PANEL' && panelIndex === SECTIONS.length && !shellFocused ? undefined : { background: BRAND }}
         >
@@ -263,38 +327,81 @@ const ChoraTvView: React.FC<{
 
       {/* ── Content ── */}
       <main className="relative flex-1 overflow-y-auto px-10 py-7">
-        {loading ? (
+        {drillArtist && (
+          <button
+            onClick={() => setDrillArtist(null)}
+            tabIndex={-1}
+            className="flex items-center gap-2 mb-5 text-[11px] font-black uppercase tracking-widest text-white/50"
+          >
+            <ArrowLeft size={14} /> Back to Artists
+          </button>
+        )}
+
+        {loading || sectionLoading ? (
           <div className="h-full grid place-items-center text-white/30 text-xs font-black uppercase tracking-[0.3em]">Loading…</div>
+        ) : rails.length === 0 ? (
+          <div className="h-full grid place-items-center text-center">
+            <div>
+              <p className="text-white/45 text-sm font-bold">Nothing here yet.</p>
+              <p className="text-white/25 text-xs mt-1">This section fills in as content is added.</p>
+            </div>
+          </div>
         ) : (
-          <>
-            <section className="mb-9">
-              <SectionHeading>Featured</SectionHeading>
-              <div className="flex gap-5 overflow-x-auto no-scrollbar pb-2">
-                {showcase.map((a, i) => (
-                  <Card key={a.id} album={a} large refKey={`0:${i}`}
-                        focused={zone === 'CONTENT' && isFocused(pos, 0, i)} />
+          rails.map((rail, rIdx) => (
+            <section key={rail.id} className="mb-8">
+              <RailHeading>{rail.title}</RailHeading>
+              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+                {rail.items.map((item, i) => (
+                  <Card
+                    key={`${rail.id}-${item.id}-${i}`}
+                    item={item}
+                    large={rIdx === 0}
+                    refKey={`${rIdx}:${i}`}
+                    focused={zone === 'CONTENT' && isFocused(pos, rIdx, i)}
+                  />
                 ))}
               </div>
             </section>
-
-            {rails.map((rail, rIdx) => (
-              <section key={rail.id} className="mb-8">
-                <SectionHeading>{rail.title}</SectionHeading>
-                <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
-                  {rail.items.map((a, i) => (
-                    <Card key={a.id} album={a} refKey={`${rIdx + 1}:${i}`}
-                          focused={zone === 'CONTENT' && isFocused(pos, rIdx + 1, i)} />
-                  ))}
-                </div>
-              </section>
-            ))}
-
-            {rails.length === 0 && (
-              <p className="text-white/35 text-sm">Nothing here yet.</p>
-            )}
-          </>
+          ))
         )}
       </main>
+
+      {/* ── Era reader ──
+          The Conservatory's history is prose, and prose at ten feet needs a column, not a page.
+          Opens over everything and closes on Back or OK. */}
+      {era && (
+        <div className="absolute inset-0 z-20 bg-[#07070a]/97 overflow-y-auto px-24 py-14">
+          <p className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: ACCENT }}>{era.span}</p>
+          <h1 className="text-4xl font-black tracking-tight mt-2 mb-1 text-white">{era.title}</h1>
+          <span className="block h-[3px] w-20 rounded-full mb-7" style={{ background: BRAND }} />
+          <p className="max-w-3xl text-[17px] leading-relaxed text-white/75">{era.essay}</p>
+
+          <div className="mt-9 grid grid-cols-2 gap-10 max-w-4xl">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/40 mb-3">What Changed</p>
+              <ul className="space-y-2">
+                {era.developments.map((d, i) => (
+                  <li key={i} className="flex gap-3 text-[15px] text-white/70">
+                    <span className="mt-2 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: ACCENT }} />{d}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/40 mb-3">Listen For</p>
+              <ul className="space-y-2">
+                {era.listenFor.map((d, i) => (
+                  <li key={i} className="flex gap-3 text-[15px] text-white/70">
+                    <span className="mt-2 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: ACCENT_WARM }} />{d}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <p className="mt-12 text-[11px] font-black uppercase tracking-[0.25em] text-white/30">Press Back to return</p>
+        </div>
+      )}
     </div>
   );
 };
