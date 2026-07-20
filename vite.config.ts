@@ -70,6 +70,10 @@ export default defineConfig(({ mode }) => {
               // keep them OUT of the install precache (they exceed the size limit and would
               // bloat every install). Cached on first real use by the runtime rule below.
               '**/verovio-*.js',
+              '**/vendor-verovio-*.js',
+              '**/vendor-ml-*.js',
+              '**/vendor-onnx-*.js',
+              '**/vendor-three-*.js',
               '**/ort-*.wasm',
               '**/ort-*.mjs',
               '**/ort.bundle*.js',
@@ -145,6 +149,41 @@ export default defineConfig(({ mode }) => {
           '@tensorflow/tfjs', '@tensorflow/tfjs-core',
           '@tensorflow/tfjs-backend-webgl', '@tensorflow/tfjs-backend-cpu',
         ],
+      },
+      build: {
+        rollupOptions: {
+          output: {
+            /**
+             * Split the big vendors out of the entry chunk.
+             *
+             * Without this every dependency lands in one ~4.6MB index chunk that a TV must
+             * download, parse and hold resident before it can paint anything — and on the TCL
+             * that showed up as 44MB PSS of Code, the single largest app-controlled allocation.
+             *
+             * Splitting does not by itself remove work: a chunk still loads if something
+             * eagerly imports it. What it buys is (a) anything reachable only from a lazy route
+             * genuinely stays unfetched, and (b) vendors cache independently, so a Plajah
+             * deploy no longer invalidates React and Firebase along with it.
+             */
+            manualChunks(id: string) {
+              if (!id.includes('node_modules')) return undefined;
+              // three is ~38MB on disk and only used by the 3D/visualizer surfaces.
+              if (id.includes('/three/') || id.includes('three-vrm') || id.includes('@react-three')) return 'vendor-three';
+              if (id.includes('@tensorflow') || id.includes('basic-pitch')) return 'vendor-ml';
+              if (id.includes('onnxruntime')) return 'vendor-onnx';
+              if (id.includes('verovio')) return 'vendor-verovio';
+              if (id.includes('/firebase/') || id.includes('@firebase')) return 'vendor-firebase';
+              if (id.includes('/react-dom/') || id.includes('/react/') || id.includes('scheduler')) return 'vendor-react';
+              if (id.includes('motion') || id.includes('framer')) return 'vendor-motion';
+              if (id.includes('hls.js')) return 'vendor-hls';
+              if (id.includes('lucide-react')) return 'vendor-icons';
+              // Everything else: let Rollup split naturally. A catch-all 'vendor' bucket
+              // produced ONE 5.65MB chunk — strictly worse than per-entry splitting, since a
+              // lazy route then drags in every unrelated dependency with it.
+              return undefined;
+            },
+          },
+        },
       },
       optimizeDeps: {
         // Pre-bundle App Check alongside the other firebase modules so they
