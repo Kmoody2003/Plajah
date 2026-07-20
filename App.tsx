@@ -108,6 +108,8 @@ import { getPlatformInfo } from './hooks/usePlatform';
 import { measurePerfTier, subscribePerfTier, shouldEnableEffect, getPerfTier } from './services/tvPerformance';
 import TvUnavailableNotice from './components/TvUnavailableNotice';
 import TvTopTabs from './components/TvTopTabs';
+const TvSignInView = retryLazy(() => import('./components/TvSignInView'));
+const TvLinkApproval = retryLazy(() => import('./components/TvLinkApproval'));
 const TvSettingsView = retryLazy(() => import('./components/TvSettingsView'));
 import { type TvDisabledFeature, TV_NAV_VIEWS, getTvHome, isViewAllowedOnTv, themesAllowed } from './services/tvCapabilities';
 import TooltipSuppressor from './components/TooltipSuppressor';
@@ -2138,7 +2140,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             </div>
           </div>
         }>
-          {view === 'LANDING' ? (
+          {/* A television never sees the marketing landing page. It gets the sign-in screen a TV
+              actually needs — logo, saved profiles, QR — because the alternative is asking
+              someone to type a password with a D-pad. */}
+          {view === 'LANDING' && getPlatformInfo().isTV && !user ? (
+          <Suspense fallback={null}>
+            <TvSignInView
+              savedProfiles={(userProfile as any)?.linkedAccounts || []}
+              onSignedIn={() => setView(getTvHome() as AppView)}
+            />
+          </Suspense>
+        ) : view === 'LANDING' ? (
           <LandingPage 
             onEnter={handleEnterApp} 
             onVisitUser={handleVisitUser}
@@ -4124,6 +4136,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <ArtistProjectManager currentUser={userProfile} />
               </Suspense>
+            )}
+
+            {/* /link is the phone half of TV sign-in. It renders on any device and ahead of the
+                normal routing, because the whole point is to reach it from a QR scan. */}
+            {typeof window !== 'undefined' && window.location.pathname.startsWith('/link') && (
+              <Suspense fallback={null}><TvLinkApproval /></Suspense>
             )}
 
             {/* On a TV the four tabs ARE the navigation — see TvTopTabs for why a sidebar is the

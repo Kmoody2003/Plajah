@@ -4621,6 +4621,112 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     }
   });
 
+  // ── TV device login (QR / pairing code) ──────────────────────────────────────
+  //
+  // The standard TV sign-in flow: the television shows a short code and a QR pointing at
+  // /link, the viewer opens it on a phone that is already signed in and approves, and the TV
+  // exchanges the code for a Firebase custom token. Nobody types a password with a D-pad.
+  //
+  // SECURITY. This grants full access to the approving account, so:
+  //  - The phone must present a valid Firebase ID token. Approval is authenticated; the code
+  //    alone is worthless.
+  //  - Codes live 5 minutes, are single-use, and are deleted the moment they are redeemed.
+  //  - The polling endpoint returns the token EXACTLY once. A replayed poll gets nothing.
+  //  - Codes are 8 chars from an unambiguous alphabet drawn with crypto randomness — no 0/O,
+  //    1/I/L confusion on a screen read from across a room.
+  //  - Failed polls are counted; a code being hammered is dropped rather than left to be
+  //    brute-forced for its remaining lifetime.
+  // Deliberately in memory: these are single-use and expire in minutes, so persisting them
+  // would create a durable store of credential-grade material for no benefit. An instance
+  // restart simply means the viewer taps refresh on the TV.
+
+  interface TvPairing {
+    createdAt: number;
+    uid?: string;          // set once a phone approves
+    customToken?: string;  // minted at approval, handed over exactly once
+    polls: number;
+  }
+  const tvPairings = new Map<string, TvPairing>();
+  const TV_CODE_TTL_MS = 5 * 60 * 1000;
+  const TV_MAX_POLLS = 200;                       // ~5 min at 1.5s intervals
+  const TV_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';   // no O/0, I/1/L
+
+  const sweepPairings = () => {
+    const now = Date.now();
+    for (const [code, p] of tvPairings) if (now - p.createdAt > TV_CODE_TTL_MS) tvPairings.delete(code);
+  };
+
+  const newPairingCode = (): string => {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const bytes = nodeCrypto.randomBytes(8);
+      let code = '';
+      for (let i = 0; i < 8; i++) code += TV_ALPHABET[bytes[i] % TV_ALPHABET.length];
+      if (!tvPairings.has(code)) return code;
+    }
+    return nodeCrypto.randomBytes(6).toString('hex').toUpperCase();
+  };
+
+  /** Mint a Firebase custom token for `uid`, signed with the service account. */
+  const mintCustomToken = async (uid: string): Promise<string | null> => {
+    const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+    if (!raw) { console.error('[TVAuth] GOOGLE_SERVICE_ACCOUNT_JSON not set — cannot mint'); return null; }
+    try {
+      const sa = JSON.parse(raw);
+      const now = Math.floor(Date.now() / 1000);
+      const b64url = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+      const header = b64url({ alg: 'RS256', typ: 'JWT' });
+      const payload = b64url({
+        iss: sa.client_email,
+        sub: sa.client_email,
+        aud: 'https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit',
+        iat: now,
+        exp: now + 3600,
+        uid,
+      });
+      const signer = nodeCrypto.createSign('RSA-SHA256');
+      signer.update(`${header}.${payload}`);
+      return `${header}.${payload}.${signer.sign(sa.private_key).toString('base64url')}`;
+    } catch (e: any) {
+      console.error('[TVAuth] custom token mint failed:', e?.message || e);
+      return null;
+    }
+  };
+
+  /** TV asks for a code to display. No auth — nothing is granted until a phone approves. */
+  app.post('/api/tv/pair/start', apiLimiter, express.json({ limit: '4kb' }), (_req: any, res) => {
+    sweepPairings();
+    const code = newPairingCode();
+    tvPairings.set(code, { createdAt: Date.now(), polls: 0 });
+    res.json({ ok: true, code, expiresInSec: TV_CODE_TTL_MS / 1000 });
+  });
+
+  /** Phone approves. Requires a real signed-in user — this is the authorising step. */
+  app.post('/api/tv/pair/approve', apiLimiter, authMiddleware, express.json({ limit: '4kb' }), async (req: any, res) => {
+    sweepPairings();
+    const code = String(req.body?.code || '').trim().toUpperCase();
+    const p = tvPairings.get(code);
+    if (!p) return res.status(404).json({ ok: false, message: 'That code has expired. Refresh the TV and try again.' });
+    if (p.uid) return res.status(409).json({ ok: false, message: 'That code was already used.' });
+    const token = await mintCustomToken(req.uid);
+    if (!token) return res.status(500).json({ ok: false, message: 'Could not sign in this TV. Try again shortly.' });
+    p.uid = req.uid;
+    p.customToken = token;
+    res.json({ ok: true });
+  });
+
+  /** TV polls. Hands the token over exactly once, then destroys the pairing. */
+  app.get('/api/tv/pair/poll', apiLimiter, (req: any, res) => {
+    sweepPairings();
+    const code = String(req.query?.code || '').trim().toUpperCase();
+    const p = tvPairings.get(code);
+    if (!p) return res.json({ ok: true, status: 'expired' });
+    if (++p.polls > TV_MAX_POLLS) { tvPairings.delete(code); return res.json({ ok: true, status: 'expired' }); }
+    if (!p.customToken) return res.json({ ok: true, status: 'pending' });
+    const token = p.customToken;
+    tvPairings.delete(code);            // single use — a replayed poll gets nothing
+    res.json({ ok: true, status: 'approved', customToken: token });
+  });
+
   // ── Creator metrics ingestion ────────────────────────────────────────────────
   //
   // Every play/view/read counter is written HERE, never by the client. Three reasons:
