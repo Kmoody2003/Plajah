@@ -107,10 +107,15 @@ const ChoraTvView: React.FC<{
   // fetched, nothing there". An empty result is now left uncached so revisiting retries, guarded
   // by inFlight so staying on the section does not spin.
   const inFlight = useRef<Record<string, boolean>>({});
+  // `cache` is read through a ref rather than closed over, and is NOT a dependency. Publishing a
+  // partial calls setCache, and if cache were a dep that would tear this effect down mid-flight —
+  // cancelling the very fetch that was about to deliver the full result. The symptom was a
+  // section stuck showing only its first partial rail forever.
+  const cacheRef = useRef(cache); cacheRef.current = cache;
   useEffect(() => {
     if (loading) return;
     if (syncRails(section, base)) return;              // resolved locally, nothing to fetch
-    if (cache[section] || inFlight.current[section]) return;
+    if (cacheRef.current[section] || inFlight.current[section]) return;
     let alive = true;
     inFlight.current[section] = true;
     setSectionLoading(true);
@@ -128,7 +133,7 @@ const ChoraTvView: React.FC<{
         if (alive) setSectionLoading(false);
       });
     return () => { alive = false; };
-  }, [section, loading, base, albums, cache]);
+  }, [section, loading, base, albums]);
 
   const rails: TvRail[] = useMemo(() => {
     if (drillArtist) {

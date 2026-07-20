@@ -82,10 +82,15 @@ const ReelloTvView: React.FC<{
   // a transient failure as though it were the answer left Chora's Radio section permanently blank
   // until an app restart; the same trap applies here.
   const inFlight = useRef<Record<string, boolean>>({});
+  // `cache` is read through a ref rather than closed over, and is NOT a dependency. Publishing a
+  // partial calls setCache, and if cache were a dep that would tear this effect down mid-flight —
+  // cancelling the very fetch that was about to deliver the full result. The symptom was a
+  // section stuck showing only its first partial rail forever.
+  const cacheRef = useRef(cache); cacheRef.current = cache;
   useEffect(() => {
     if (loading || drillChannel) return;
     if (syncVideoRails(section, base)) return;
-    if (cache[section] || inFlight.current[section]) return;
+    if (cacheRef.current[section] || inFlight.current[section]) return;
     let alive = true;
     inFlight.current[section] = true;
     setSectionLoading(true);
@@ -96,7 +101,7 @@ const ReelloTvView: React.FC<{
       .catch(() => { /* leave uncached so revisiting retries */ })
       .finally(() => { inFlight.current[section] = false; if (alive) setSectionLoading(false); });
     return () => { alive = false; };
-  }, [section, loading, base, cache, drillChannel]);
+  }, [section, loading, base, drillChannel]);
 
   // A channel opens as its own list of that creator's videos, the way the YouTube TV app treats a
   // channel: a destination you enter and Back out of, not a separate app mode.
