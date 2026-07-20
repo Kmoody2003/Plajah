@@ -116,12 +116,9 @@ import { DEMO_SANCTUARY_ID, DEMO_STORE_ID, DEMO_STORE_PRODUCTS } from './data/de
 import PlajahAgent from './components/PlajahAgent';
 import { resolveAgentTier } from './services/agentService';
 
-const NebulaBackground = retryLazy(() => import('./components/NebulaBackground'));
-// Lazy: NebulaVisualizer imports three.js directly, which lands the whole 3D engine in the
-// main chunk for an effect that only runs on the NEBULA theme and never on a TV. Deferring it
-// keeps three out of first paint for everyone who isn't using that theme.
-const NebulaVisualizer = retryLazy(() => import('./components/NebulaVisualizer'));
-const BackgroundFrequencyGraph = retryLazy(() => import('./components/BackgroundFrequencyGraph'));
+import NebulaBackground from './components/NebulaBackground';
+import NebulaVisualizer from './components/NebulaVisualizer';
+import BackgroundFrequencyGraph from './components/BackgroundFrequencyGraph';
 const VideoTab = retryLazy(() => import('./components/VideoTab'));
 const VideoPlayer = retryLazy(() => import('./components/VideoPlayer'));
 const BookTab = retryLazy(() => import('./components/BookTab'));
@@ -2241,16 +2238,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </AnimatePresence>
             </div>
 
-            {/* Suspense with a null fallback: these are ambient decoration, so appearing a
-                frame late is invisible — but without a boundary a lazy component throws. */}
-            {shouldEnableEffect('visualizer') && <Suspense fallback={null}><BackgroundFrequencyGraph /></Suspense>}
+            {shouldEnableEffect('visualizer') && <BackgroundFrequencyGraph />}
 
             {theme === 'CITRUS' && shouldEnableEffect('parallax') && <CitrusWaterDrops />}
             {theme === 'NEBULA' && (
               <>
-                {shouldEnableEffect('parallax') && <Suspense fallback={null}><NebulaBackground /></Suspense>}
+                {shouldEnableEffect('parallax') && <NebulaBackground />}
                 {view !== 'VIDEOS' && view !== 'MOVIES_TV' && view !== 'MOVIE_UX' && view !== 'PLAYER' && view !== 'AVATAR_STUDIO' && (
-                  shouldEnableEffect('visualizer') && <Suspense fallback={null}><NebulaVisualizer analyser={analyser} isPlaying={isPlaying} /></Suspense>
+                  shouldEnableEffect('visualizer') && <NebulaVisualizer analyser={analyser} isPlaying={isPlaying} />
                 )}
               </>
             )}

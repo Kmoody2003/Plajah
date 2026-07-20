@@ -4,11 +4,7 @@ import { loginWithGoogle, loginWithTwitter, loginWithFacebook, loginWithMicrosof
 import { ArrowRight, Sparkles, LogIn, X as XIcon, Facebook, Minimize2, Mail } from 'lucide-react';
 import { LandingBgAsset, LandingBgConfig, UserProfile } from '../types';
 import ThreeDImage from './ThreeDImage';
-// Lazy: EarthGlobe imports three.js, and a static import here puts the entire 3D engine
-// (2.55MB) into the entry graph — Vite then modulepreloads it, so every device downloads and
-// parses three before first paint even when the landing never shows the globe. It is one
-// branch of one background mode; loading it on demand is strictly better.
-const EarthGlobe = React.lazy(() => import('./EarthGlobe'));
+import EarthGlobe from './EarthGlobe';
 import Logo from './Logo';
 import SignInPrompt from './SignInPrompt';
 import AuthExperience from './AuthExperience';
@@ -41,7 +37,7 @@ const LandingBackground: React.FC<{ config: LandingBgConfig }> = ({ config }) =>
   if (config.mode === 'EARTH' || selected.length === 0) {
     return (
       <>
-        <React.Suspense fallback={null}><EarthGlobe /></React.Suspense>
+        <EarthGlobe />
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-[#1a0026]/30 to-[#020202]" />
       </>
     );
