@@ -61,13 +61,45 @@ const topScope = (): HTMLElement | null => {
   return best;
 };
 
+/**
+ * Dismiss a modal with a remote.
+ *
+ * Escalates, because no single strategy covers the app's modals. Observed on the TCL: the
+ * Plajah+ paywall's close control is an icon-only button with no text, no aria-label and no
+ * title, and the modal doesn't listen for Escape — so the original selector found nothing, the
+ * Escape dispatch did nothing, and Back left the viewer stuck in an overlay they could not
+ * dismiss. That is a harder trap than the one it replaced.
+ *
+ * The last step is the safety net: if the overlay is still up after everything else, leave the
+ * screen entirely. Being sent back a page is a bad outcome; being unable to leave is a broken TV.
+ */
 const closeModal = (modal: HTMLElement): void => {
-  const closeBtn = modal.querySelector<HTMLElement>(
+  const explicit = modal.querySelector<HTMLElement>(
     '[data-tv-close],button[aria-label*="close" i],button[title*="close" i],button[title*="dismiss" i]'
   );
-  if (closeBtn) closeBtn.click();
-  // Also fire Escape so modals that only listen for it (and any backdrop handlers) close too.
+  if (explicit) { explicit.click(); return; }
+
+  // Icon-only button in the modal's top-right — the near-universal close affordance, and the
+  // only thing identifying the Plajah+ control.
+  const box = modal.getBoundingClientRect();
+  const iconOnly = Array.from(modal.querySelectorAll<HTMLElement>('button')).find(b => {
+    if ((b.textContent || '').trim().length > 0) return false;   // has a label: not a close X
+    const r = b.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return false;
+    if (r.width > 96 || r.height > 96) return false;             // a big blank button isn't an X
+    return r.top < box.top + box.height * 0.25 && r.right > box.left + box.width * 0.6;
+  });
+  if (iconOnly) { iconOnly.click(); return; }
+
+  // Modals that only listen for Escape, plus any backdrop handler.
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+
+  // Safety net: still there a beat later? Leave the screen rather than trap the viewer.
+  window.setTimeout(() => {
+    if (modal.isConnected && modal.getClientRects().length > 0) {
+      try { window.history.back(); } catch { /* nothing else to try */ }
+    }
+  }, 250);
 };
 
 /** True while the app still has an in-app view to return to (App.tsx pushes {view} per screen). */
