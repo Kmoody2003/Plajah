@@ -196,7 +196,14 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     a.preload = 'auto';
     return a;
   });
-  const [isTVMode, setIsTVMode] = useState(false);
+  // A television starts in TV mode.
+  //
+  // This was a manual toggle defaulting to false, so on a real TV it stayed OFF and the player
+  // fell through to the phone/desktop layouts — which is why album views arrived as phone UI on
+  // a 4K panel. The dedicated big-screen layout has existed all along (PlayerView branches on
+  // isTVMode); nothing was driving it. A viewer can still turn it off, but the DEFAULT should
+  // follow the hardware.
+  const [isTVMode, setIsTVMode] = useState(() => getPlatformInfo().isTV);
   const [isMiniPlayerActive, setIsMiniPlayerActive] = useState(false);
   const [isPlayerExpanded, setIsPlayerExpanded] = useState(false);
   const [isPhoneMode, setIsPhoneMode] = useState(false);

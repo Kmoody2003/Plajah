@@ -10,6 +10,7 @@ import { resolveSlideshowImages } from '../services/slideshow';
 import ScrollingWaveform from './ScrollingWaveform';
 import { getCachedAnalysis, getOrComputeAnalysis } from '../services/djAnalysis';
 import { preferSlideshowOverVisualizer } from '../services/tvCapabilities';
+import { getPlatformInfo } from '../hooks/usePlatform';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
 import FxStageVisualizers, { type FxEngine, fxPresetName, FX_ENGINE_PRESETS, loadMilkdropNames } from './FxStageVisualizers';
 import Logo from './Logo';
@@ -517,10 +518,18 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   // Detect mobile: touch devices (foldables, phones, tablets) always get mobile UI
   // regardless of width. pointer:coarse is true on all mobile browsers even when
   // a Samsung Z Fold's inner screen is wider than 1024px.
+  // A television is never "mobile", whatever its user-agent says.
+  //
+  // This is the bug that delivered PHONE album views on a 4K TV: the TCL's WebView UA contains
+  // "Android", it reports pointer:coarse (no mouse), and at the old 960px viewport it was also
+  // under 1024 — so all three tests fired. Every local copy of this heuristic in the app has
+  // the same flaw; usePlatform is the one place that knows about televisions.
   const detectMobile = () =>
-    window.matchMedia('(pointer: coarse)').matches ||
-    /Mobi|Android|iPhone|iPad|iPod|IEMobile/i.test(navigator.userAgent) ||
-    window.innerWidth < 1024;
+    !getPlatformInfo().isTV && (
+      window.matchMedia('(pointer: coarse)').matches ||
+      /Mobi|Android|iPhone|iPad|iPod|IEMobile/i.test(navigator.userAgent) ||
+      window.innerWidth < 1024
+    );
 
   const [isMobile, setIsMobile] = useState(detectMobile);
   const [isVisualizerLayout, setIsVisualizerLayout] = useState(false);

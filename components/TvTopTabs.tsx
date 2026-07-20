@@ -1,6 +1,8 @@
 import React from 'react';
-import { Film, Music2, Video, User } from 'lucide-react';
+import { Film, Music2, Video, User, Play, Pause } from 'lucide-react';
 import { TV_NAV_VIEWS } from '../services/tvCapabilities';
+import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
+import { thumb, THUMB } from '../src/lib/imageThumb';
 
 /**
  * The television's entire top-level navigation: four tabs, always visible, always reachable.
@@ -20,7 +22,13 @@ const TAB_META: Record<string, { label: string; icon: React.ComponentType<{ size
 const TvTopTabs: React.FC<{
   activeView: string;
   onSelect: (view: string) => void;
-}> = ({ activeView, onSelect }) => (
+  /** Jump back to whatever is playing. */
+  onOpenNowPlaying?: () => void;
+}> = ({ activeView, onSelect, onOpenNowPlaying }) => {
+  const { currentTrack, currentAlbum, isPlaying } = useGlobalPlayer();
+  const art = (currentTrack as any)?.albumCover || (currentAlbum as any)?.coverImage;
+
+  return (
   <nav
     // z-[60] and opaque: several views mount their own `fixed top-0 z-50` header, which drew
     // straight through this bar. Sitting above them and painting solid keeps one nav visible
@@ -54,7 +62,30 @@ const TvTopTabs: React.FC<{
         </button>
       );
     })}
+
+    {/* Now Playing lives here rather than in a corner overlay: once you leave the player to
+        browse, this is the way back, and on a remote the way back must be somewhere you can
+        always reach. Only appears when something is actually playing. */}
+    {currentTrack && (
+      <button
+        data-tv-focusable
+        onClick={onOpenNowPlaying}
+        className="ml-auto flex items-center gap-3 pl-1.5 pr-5 py-1.5 rounded-full bg-white/[0.07] border border-white/12 hover:bg-white/[0.14] transition-colors max-w-[22rem]"
+        title="Back to what's playing"
+      >
+        <span className="w-9 h-9 rounded-full overflow-hidden bg-white/10 shrink-0 grid place-items-center">
+          {art ? <img src={thumb(art, THUMB.micro)} alt="" className="w-full h-full object-cover" />
+               : <Music2 size={14} className="text-white/50" />}
+        </span>
+        {isPlaying ? <Play size={13} className="text-emerald-400 shrink-0" /> : <Pause size={13} className="text-white/40 shrink-0" />}
+        <span className="min-w-0 text-left">
+          <span className="block text-[11px] font-bold text-white truncate">{(currentTrack as any).title || 'Now playing'}</span>
+          <span className="block text-[9px] text-white/45 truncate">{(currentAlbum as any)?.artist || (currentTrack as any).artist || ''}</span>
+        </span>
+      </button>
+    )}
   </nav>
-);
+  );
+};
 
 export default TvTopTabs;

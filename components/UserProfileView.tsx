@@ -95,6 +95,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import FastChannelPlayer from './FastChannelPlayer';
 import FastChannelManager from './FastChannelManager';
 import { Article, SystemSettingsConfig } from '../types';
+import { getPlatformInfo } from '../hooks/usePlatform';
 import MerchStore from './MerchStore';
 import StoreView from './StoreView';
 import DonationModal from './DonationModal';
@@ -284,7 +285,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [isSubscribed, setIsSubscribed] = useState(false);
   const detectMobile = () =>
     window.matchMedia('(pointer: coarse)').matches ||
-    /Mobi|Android|iPhone|iPad|iPod|IEMobile/i.test(navigator.userAgent) ||
+    (!getPlatformInfo().isTV && /Mobi|Android|iPhone|iPad|iPod|IEMobile/i.test(navigator.userAgent)) ||
     window.innerWidth < 1024;
   const [isMobile, setIsMobile] = useState(detectMobile);
   const [showMoreActions, setShowMoreActions] = useState(false);

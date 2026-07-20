@@ -4147,7 +4147,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {/* On a TV the four tabs ARE the navigation — see TvTopTabs for why a sidebar is the
                 wrong shape for a remote. */}
             {getPlatformInfo().isTV && (
-              <TvTopTabs activeView={view} onSelect={(v) => setView(v as AppView)} />
+              <TvTopTabs
+                activeView={view}
+                onSelect={(v) => setView(v as AppView)}
+                onOpenNowPlaying={() => setView('PLAYER' as AppView)}
+              />
             )}
 
             {/* Profile on a TV is the short settings list, not the full desktop surface. */}

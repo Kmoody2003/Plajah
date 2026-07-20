@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit, FilmDistribution, FilmVersion } from '../types';
+import { getPlatformInfo } from '../hooks/usePlatform';
 import { generateAlbumMetadata, generateTrackLyrics } from '../services/geminiService';
 import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, uploadFile as storageUpload, uploadVideo } from '../services/backendService';
 import { enqueueTranscode } from '../services/choraStreamService';
@@ -126,7 +127,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [isCapturing, setIsCapturing] = useState(false);
   const detectMobile = () =>
     window.matchMedia('(pointer: coarse)').matches ||
-    /Mobi|Android|iPhone|iPad|iPod|IEMobile/i.test(navigator.userAgent) ||
+    (!getPlatformInfo().isTV && /Mobi|Android|iPhone|iPad|iPod|IEMobile/i.test(navigator.userAgent)) ||
     window.innerWidth < 1024;
   const [isMobile, setIsMobile] = useState(detectMobile);
   const [newPlaylistTitle, setNewPlaylistTitle] = useState('');
