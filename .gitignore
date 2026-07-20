@@ -37,3 +37,8 @@ dist-ssr
 tsc_out.txt
 public/models/demucs/*.onnx
 public/models/demucs/ort/
+
+# Built APKs — large binaries, not source
+dist-apk/
+
+dist-tizen/

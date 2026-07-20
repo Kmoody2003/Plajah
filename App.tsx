@@ -545,6 +545,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [showCreator, setShowCreator] = useState(false);
+  // True while a capture screen has handed keyboard focus up to the TV tab bar.
+  const [tvTabsFocused, setTvTabsFocused] = useState(false);
   const [showBrandActivation, setShowBrandActivation] = useState(false);
   const [licenseForFilm, setLicenseForFilm] = useState<{ track: any; album: any } | null>(null);
   const [audiusArtist, setAudiusArtist] = useState<AudiusArtist | null>(null);
@@ -693,7 +695,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   const tooltipsActive = userProfile?.tooltipsEnabled ?? isFirstWeek;
 
-  const { isShrunk, setIsShrunk, setView: setGlobalView, analyser, isPlaying, isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, currentTrack, currentAlbum, playTrack, pause, resume, next, prev, isMinimized, setIsMinimized, transportForced, setTransportForced, repeatMode, setRepeatMode, volume, setVolume, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, isSlideshowActive, setIsSlideshowActive, isMiniPlayerActive, setIsMiniPlayerActive, isThreeDEnabled, setIsThreeDEnabled, isSpatialAudioEnabled, setSpatialAudioEnabled } = useGlobalPlayerState();
+  const { isShrunk, setIsShrunk, setView: setGlobalView, analyser, isPlaying, isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, currentTrack, currentAlbum, playTrack, pause, resume, next, prev, isMinimized, setIsMinimized, transportForced, setTransportForced, repeatMode, setRepeatMode, volume, setVolume, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, isSlideshowActive, setIsSlideshowActive, isMiniPlayerActive, setIsMiniPlayerActive, isThreeDEnabled, setIsThreeDEnabled, isSpatialAudioEnabled, setSpatialAudioEnabled, audioSource } = useGlobalPlayerState();
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
   // Persistent now-playing pill: tap → tracklist, swipe-up → extra-settings drawer.
   const nowPlayingTouchY = useRef<number | null>(null);
@@ -4151,7 +4153,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <TvTopTabs
                 activeView={view}
                 onSelect={(v) => setView(v as AppView)}
-                onOpenNowPlaying={() => setView('PLAYER' as AppView)}
+                focused={tvTabsFocused}
+                onExitDown={() => setTvTabsFocused(false)}
+                onOpenNowPlaying={() => {
+                  // Go back to the SOURCE that is playing, not a generic player: an album
+                  // returns to its album screen, radio to Radio. Landing somewhere that isn't
+                  // what you're hearing is disorienting on a TV, where there is no address bar
+                  // to tell you where you are.
+                  setTvTabsFocused(false);
+                  if (audioSource === 'RADIO') { setView('RADIO' as AppView); return; }
+                  if (currentAlbum) { handleSelectItem(currentAlbum); return; }
+                  setView('PLAYER' as AppView);
+                }}
               />
             )}
 
@@ -4269,6 +4282,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <ChoraTvView
                   userProfile={userProfile}
                   onSelectAlbum={handleSelectItem}
+                  onExitTop={() => { setTvTabsFocused(true); return true; }}
                   onOpenSection={() => { /* sections render in-place; nothing to route yet */ }}
                   onOpenPlus={() => setView('SANCTUARY_HUB' as AppView)}
                 />

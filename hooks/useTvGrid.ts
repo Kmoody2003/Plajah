@@ -33,10 +33,17 @@ interface Options {
   onSelect?: (pos: TvGridPosition, rowId: string) => void;
   /** Called on Back. Return true if handled. */
   onBack?: () => boolean;
+  /**
+   * Pressing up at the top row leaves the screen upward — to the app's tab bar.
+   *
+   * A capture screen owns every key, which means the shell's navigation becomes unreachable
+   * unless the screen hands it back deliberately. Return true if the caller took focus.
+   */
+  onExitTop?: () => boolean;
   enabled?: boolean;
 }
 
-export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, enabled = true }: Options) {
+export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, onExitTop, enabled = true }: Options) {
   // Two zones, because that is the shape of every music TV app: a vertical rail of sections on
   // the left, a grid of content on the right. Left from column 0 returns to the panel; right
   // from the panel enters the content. Nothing else crosses the boundary, so the viewer always
@@ -46,6 +53,7 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, enabled = tr
   const zoneRef = useRef(zone); zoneRef.current = zone;
   const panelRef = useRef(panelIndex); panelRef.current = panelIndex;
   const panelCountRef = useRef(panelCount); panelCountRef.current = panelCount;
+  const onExitTopRef = useRef(onExitTop); onExitTopRef.current = onExitTop;
   const [pos, setPos] = useState<TvGridPosition>({ row: 0, col: 0 });
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
@@ -73,7 +81,11 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, enabled = tr
     // ── Side panel ──
     if (zoneRef.current === 'PANEL') {
       const n = panelCountRef.current;
-      if (dir === 'up')    { setPanelIndex(i => Math.max(0, i - 1)); return; }
+      if (dir === 'up') {
+        if (panelRef.current === 0 && onExitTopRef.current?.()) return;   // leave upward
+        setPanelIndex(i => Math.max(0, i - 1));
+        return;
+      }
       if (dir === 'down')  { setPanelIndex(i => Math.min(n - 1, i + 1)); return; }
       if (dir === 'right') { setZone('CONTENT'); return; }
       return;   // left at the panel edge: stay put rather than leaving the app
@@ -99,7 +111,8 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, enabled = tr
     const step = dir === 'down' ? 1 : -1;
     let r = cur.row + step;
     while (r >= 0 && r < list.length && (list[r]?.count ?? 0) === 0) r += step;
-    if (r < 0 || r >= list.length) return;
+    if (r < 0) { onExitTopRef.current?.(); return; }   // above the first row: hand focus up
+    if (r >= list.length) return;
     const targetRow = list[r];
     // Carry the current column into the new row, clamped to its length — moving down should keep
     // you roughly where you were horizontally, which is what every TV app does and what the eye
