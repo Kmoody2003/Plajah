@@ -666,6 +666,19 @@ const CombatAtlasView: React.FC<Props> = ({ onBack, currentUser }) => {
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-[-60px] left-[8%] w-[460px] h-[460px] rounded-full blur-[120px]" style={{ background: `${ACCENT_2}20` }} />
           <div className="absolute bottom-[-80px] right-[4%] w-[380px] h-[380px] rounded-full blur-[100px]" style={{ background: `${ACCENT}1c` }} />
+          {/* Baqet III's wrestlers, drifting behind the title — the museum's own
+              holding doing the atmospheric work. Masked so the text stays clean. */}
+          <div
+            aria-hidden
+            className="absolute inset-x-0 top-6 h-[62%] opacity-[0.09]"
+            style={{
+              backgroundImage: 'url(/atlas/hero-wrestlers.png)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center 30%',
+              WebkitMaskImage: 'linear-gradient(180deg, transparent, #000 40%, #000 70%, transparent)',
+              maskImage: 'linear-gradient(180deg, transparent, #000 40%, #000 70%, transparent)',
+            }}
+          />
         </div>
         <div className="relative px-5 sm:px-6 pt-8 pb-4 max-w-7xl mx-auto">
           <button onClick={onBack} className="inline-flex items-center gap-2 text-white/40 hover:text-white transition-colors mb-5">
@@ -681,13 +694,29 @@ const CombatAtlasView: React.FC<Props> = ({ onBack, currentUser }) => {
             Asia’s systematized canons, Europe’s fight books, the Americas’ creole inventions, and the Pacific’s warrior knowledge —
             every tradition given the same museum treatment.
           </p>
-          {/* signature strike-arc */}
-          <svg viewBox="0 0 1000 160" className="w-full mt-4 max-w-3xl" style={{ maxHeight: 90 }} aria-hidden="true">
-            <path d="M20 140 Q 260 20 520 80 T 980 30" stroke={ACCENT_2} strokeWidth="3" fill="none" strokeLinecap="round" />
-            <path d="M60 150 Q 320 85 620 120 T 980 85" stroke={ACCENT} strokeWidth="1.6" fill="none" strokeLinecap="round" opacity={0.8} />
-            <circle cx="980" cy="30" r="6" fill={ACCENT_2} />
-            <circle cx="980" cy="85" r="4" fill={ACCENT} />
-          </svg>
+          {/* The signature band: Baqet III's wrestling registers, cut from our own
+              1893 plate and tinted in the museum's laterite→ochre. Sits below the
+              text so it reads at full strength without fighting the title. */}
+          <div className="relative mt-6 -mx-5 sm:-mx-6">
+            <div
+              aria-hidden
+              className="h-[92px] sm:h-[130px]"
+              style={{
+                WebkitMaskImage: 'url(/atlas/hero-wrestlers.png), linear-gradient(90deg, transparent, #000 8%, #000 88%, transparent)',
+                maskImage: 'url(/atlas/hero-wrestlers.png), linear-gradient(90deg, transparent, #000 8%, #000 88%, transparent)',
+                WebkitMaskSize: 'auto 100%, 100% 100%',
+                maskSize: 'auto 100%, 100% 100%',
+                WebkitMaskRepeat: 'repeat-x, no-repeat',
+                maskRepeat: 'repeat-x, no-repeat',
+                WebkitMaskComposite: 'source-in',
+                maskComposite: 'intersect',
+                background: `linear-gradient(90deg, ${ACCENT_2} 0%, ${ACCENT_2} 30%, ${ACCENT} 72%, #E9E4D6 100%)`,
+              }}
+            />
+            <p className={`${TYPE.labelSm} font-black tracking-[0.2em] px-5 sm:px-6 mt-1.5`} style={{ color: 'rgba(255,255,255,0.28)' }}>
+              BAQET III, TOMB 15, BENI HASAN · c. 2000 BCE · PLAJAH HOLDINGS
+            </p>
+          </div>
         </div>
       </div>
 
@@ -729,7 +758,7 @@ const CombatAtlasView: React.FC<Props> = ({ onBack, currentUser }) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {[
                 { t: 'The Collection', d: 'Every accession — from tomb-wall stick fencing to stadium wrestling — with verified imagery, documentary film, ritual context and cited sources.', icon: Boxes, to: 'collection' as Tab },
-                { t: 'The Plate Room', d: 'Beni Hasan, Tomb 15: the wall that teaches wrestling — a facsimile sequence after Newberry’s 1893 plates, with the full public-domain volumes in holdings.', icon: Layers, to: 'plates' as Tab },
+                { t: 'The Plate Room', d: 'Beni Hasan, Tomb 15: the wall that teaches wrestling. Read the real 1893 plates register by register at scan resolution — every hold, entry and throw.', icon: Layers, to: 'plates' as Tab },
                 { t: 'The Motion Lab', d: 'Technique as living data — a playable motion prototype, the open mocap shelf, and the three-tier capture program toward volumetric exhibits.', icon: Activity, to: 'motion' as Tab },
                 { t: 'Four Thousand Years', d: 'From the Beni Hasan murals to the Arène Nationale: the timeline from tomb wall to stadium stream.', icon: Clock, to: 'timeline' as Tab },
                 { t: 'Masters & Keepers', d: 'Bimba and Pastinha, Shaka and Mandela, champions and scholars — the people who carried the arts, with living biographies.', icon: Users, to: 'masters' as Tab },
