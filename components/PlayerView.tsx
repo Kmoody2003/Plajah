@@ -9,7 +9,7 @@ import AnimatedSlideshow from './AnimatedSlideshow';
 import { resolveSlideshowImages } from '../services/slideshow';
 import ScrollingWaveform from './ScrollingWaveform';
 import { getCachedAnalysis, getOrComputeAnalysis } from '../services/djAnalysis';
-import { preferSlideshowOverVisualizer } from '../services/tvCapabilities';
+import { canUseFxStage } from '../services/tvCapabilities';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import AlbumTvView from './tv/AlbumTvView';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
@@ -1965,9 +1965,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 <div className="absolute bottom-12 right-12 flex flex-col gap-2 items-end opacity-0 group-hover:opacity-100 transition-all duration-500">
                   <span className="text-[10px] font-black uppercase tracking-widest text-white/60">View Features</span>
                   <div className="flex items-center gap-3 bg-black/40 backdrop-blur-xl p-2 rounded-full border border-white/10">
-                    {/* Where the GPU can't drive a per-frame visualizer, the slideshow IS the
-                        ambient visual — offering a choice that stutters helps nobody. */}
-                    {!preferSlideshowOverVisualizer() && (
+                    {/* Offered everywhere except a TV — see canUseFxStage for why this is not
+                        judged on the measured performance tier. */}
+                    {canUseFxStage() && (
                       <button onClick={() => setIsSlideshowActive(false)} className={`px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest transition-all ${!isSlideshowActive ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}>Visualizer</button>
                     )}
                     <button onClick={() => setIsSlideshowActive(true)} className={`px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest transition-all ${isSlideshowActive ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}>Slideshow</button>
@@ -2427,10 +2427,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                  >
                    Slideshow
                  </button>
-                 {/* FX Stage is a continuous full-screen shader. It is the single heaviest
-                     thing this view can do, so it is not offered where the GPU can't sustain
-                     it — every TV, and any device measured as low-tier. */}
-                 {!preferSlideshowOverVisualizer() && (
+                 {/* FX Stage is a continuous full-screen shader and the heaviest thing this
+                     view can do, so a television does not offer it. Everything else does — a
+                     listener asking for it on their own machine should get it. */}
+                 {canUseFxStage() && (
                    <button
                      onClick={() => { setIsVisualizerLayout(true); setIsSlideshowActive(false); }}
                      className="px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border bg-white/[0.06] border-white/10 text-white/40 hover:text-white hover:border-small-orange/50 hover:bg-small-orange/10 flex items-center gap-2"

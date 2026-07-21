@@ -82,6 +82,23 @@ export function preferSlideshowOverVisualizer(): boolean {
 }
 
 /**
+ * Can this device OFFER the FX Stage?
+ *
+ * Deliberately not `shouldEnableEffect('visualizer')`. That gate requires tier === 'high' and
+ * also folds in prefers-reduced-motion, which is right for an effect the app starts BY ITSELF —
+ * ambient motion nobody asked for should not run on a modest machine. The FX Stage is the
+ * opposite: a control the listener presses on purpose. Judging it by the same rule silently
+ * deleted the button from every desktop measured as 'medium', with no way for the owner of that
+ * machine to find out why, and none of that had anything to do with television.
+ *
+ * So the boundary here is the one that is actually true: everywhere except a TV, where a
+ * continuous full-screen shader genuinely cannot hold a frame rate alongside audio decode.
+ */
+export function canUseFxStage(): boolean {
+  return !getPlatformInfo().isTV;
+}
+
+/**
  * Can this device compute a track breakdown (transcription, stem analysis, notation)?
  *
  * All of it is heavy DSP on the main thread. A TV has no budget for it while also decoding
