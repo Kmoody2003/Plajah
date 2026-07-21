@@ -12,7 +12,7 @@ export type LabsDisciplineId =
   | 'astronomy' | 'physics' | 'chemistry' | 'biology' | 'cs'
   | 'engineering' | 'mathematics' | 'neuroscience' | 'earth'
   | 'data' | 'environment' | 'medicine' | 'networks'
-  | 'archaeology' | 'linguistics' | 'history' | 'architecture';
+  | 'archaeology' | 'linguistics' | 'history' | 'architecture' | 'combat';
 
 export interface DisciplineConfig {
   arXivCategory: string;       // primary arXiv category code
@@ -43,6 +43,7 @@ export const DISCIPLINE_CONFIG: Record<LabsDisciplineId, DisciplineConfig> = {
   linguistics:  { arXivCategory: 'cs.CL',       arXivQuery: 'linguistics language morphology syntax', hfTasks: ['translation', 'text-classification', 'token-classification'] },
   history:      { arXivCategory: 'physics.hist-ph', arXivQuery: 'history civilization empire ancient society', openStaxSubject: 'history' },
   architecture: { arXivCategory: 'cs.CE',       arXivQuery: 'structural engineering building design seismic construction', usgs: true },
+  combat:       { arXivCategory: 'physics.hist-ph', arXivQuery: 'martial arts history combat sport anthropology ritual' },
 };
 
 // ── Shared types ──────────────────────────────────────────────────────────────

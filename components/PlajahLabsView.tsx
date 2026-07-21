@@ -5,7 +5,7 @@ import {
   TrendingUp, Newspaper, Globe, Microscope, Calculator,
   Cpu, Leaf, Star, ChevronRight, Search, Users, Brain,
   Binary, Dna, Network, Gauge, Telescope, ExternalLink, Radio,
-  Landmark, Building2, Amphora,
+  Landmark, Building2, Amphora, Swords,
 } from 'lucide-react';
 import { UserProfile, AppView } from '../types';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
@@ -14,6 +14,7 @@ import LabsDisciplineView from './LabsDisciplineView';
 const ArchitectureDisciplineView = React.lazy(() => import('./ArchitectureDisciplineView'));
 const WorldHistoryDisciplineView = React.lazy(() => import('./WorldHistoryDisciplineView'));
 const ArchaeologyDisciplineView = React.lazy(() => import('./ArchaeologyDisciplineView'));
+const CombatAtlasView = React.lazy(() => import('./CombatAtlasView'));
 const ScienceDisciplineView = React.lazy(() => import('./ScienceDisciplineView'));
 import LabsNotebook from './LabsNotebook';
 import LabsCitationManager from './LabsCitationManager';
@@ -76,6 +77,7 @@ const DISCIPLINES = [
   { id: 'history',     label: 'World History',     icon: Landmark,    color: '#E8590C', desc: 'Civilizations & eras' },
   { id: 'architecture',label: 'Architecture',      icon: Building2,   color: '#B08968', desc: 'The built environment' },
   { id: 'archaeology', label: 'Archaeology',       icon: Amphora,     color: '#D4A017', desc: 'Sites, artifacts & digs' },
+  { id: 'combat',      label: 'Combat Atlas',      icon: Swords,      color: '#C24D2C', desc: 'Martial arts heritage museum' },
 ];
 
 const PLATFORM_CONNECTIONS = [
@@ -118,7 +120,7 @@ const DISC_ID_MAP: Record<string, LabsDisciplineId> = {
   mathematics: 'mathematics', neuroscience: 'neuroscience', earth: 'earth',
   data: 'data', environment: 'environment', medicine: 'medicine',
   networks: 'networks', archaeology: 'archaeology', linguistics: 'linguistics',
-  history: 'history', architecture: 'architecture',
+  history: 'history', architecture: 'architecture', combat: 'combat',
 };
 
 const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate, initialDiscipline, onDisciplineConsumed }) => {
@@ -163,6 +165,13 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
     return (
       <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white/30 text-sm">Loading the studio…</div>}>
         <ArchaeologyDisciplineView onBack={() => setOpenDiscipline(null)} currentUser={currentUser} />
+      </React.Suspense>
+    );
+  }
+  if (openDiscipline === 'combat') {
+    return (
+      <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white/30 text-sm">Opening the archive…</div>}>
+        <CombatAtlasView onBack={() => setOpenDiscipline(null)} currentUser={currentUser} />
       </React.Suspense>
     );
   }

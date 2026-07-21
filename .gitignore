@@ -42,3 +42,12 @@ public/models/demucs/ort/
 dist-apk/
 
 dist-tizen/
+
+# Combat Atlas acquisitions — downloaded source archives (~760MB: Beni Hasan
+# scans, Met CC0 batch, UMONS-TAICHI mocap zip). Re-fetchable via
+# acquisitions/ingest.mjs; destined for Firebase Storage, not git.
+# NOTE: the app-served clips in public/motion/ ARE tracked — the Motion Lab
+# needs them at runtime.
+acquisitions/holdings/
+acquisitions/motion/
+acquisitions/work/

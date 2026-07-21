@@ -1,0 +1,107 @@
+{
+  "collection": "Plajah Heritage Archive — First Acquisitions",
+  "generated": "2026-07-20",
+  "note": "All identifiers below verified live via web search on the generation date. Run ingest.mjs to download assets and produce per-asset rights records.",
+  "acquisitions": [
+    {
+      "id": "acq-newberry-beni-hasan-v1",
+      "title": "Beni Hasan, Part I (Archaeological Survey of Egypt)",
+      "creator": "Percy E. Newberry; plans by G. Willoughby Fraser",
+      "published": "1893, Egypt Exploration Fund, London",
+      "relevance": "Tombs of Amenemhat (BH2) & Khnumhotep II — context volume for the Middle Kingdom tomb corpus.",
+      "source": "Internet Archive",
+      "iaIdentifier": "beni-hasan-v.-1",
+      "iaUrl": "https://archive.org/details/beni-hasan-v.-1",
+      "rights": {
+        "tier": "public-domain",
+        "license": "PD (published 1893; authors d. 1949/1934/—)",
+        "attribution": "Newberry, Beni Hasan I (EEF, 1893). Scan: Internet Archive.",
+        "dateVerified": "2026-07-20"
+      }
+    },
+    {
+      "id": "acq-newberry-beni-hasan-v2",
+      "title": "Beni Hasan, Part II (Archaeological Survey of Egypt)",
+      "creator": "Percy E. Newberry; appendix & plans by G. Willoughby Fraser",
+      "published": "1893, Egypt Exploration Fund, London",
+      "relevance": "PRIORITY VOLUME — covers the tombs of Baqet III (BH15) and Khety (BH17): the sequential wrestling-scene plates. These are the 'fight manual plates' for the museum's Egypt wing.",
+      "source": "Internet Archive",
+      "iaIdentifier": "beni-hasan-v.-2",
+      "iaUrl": "https://archive.org/details/beni-hasan-v.-2",
+      "rights": {
+        "tier": "public-domain",
+        "license": "PD (published 1893)",
+        "attribution": "Newberry, Beni Hasan II (EEF, 1893). Scan: Internet Archive.",
+        "dateVerified": "2026-07-20"
+      }
+    },
+    {
+      "id": "acq-newberry-beni-hasan-v3",
+      "title": "Beni Hasan, Part III (Archaeological Survey of Egypt)",
+      "creator": "F. Ll. Griffith",
+      "published": "1896, Egypt Exploration Fund, London",
+      "relevance": "Hieroglyphic & detail studies from the site.",
+      "source": "Internet Archive",
+      "iaIdentifier": "beni-hasan-v.-3",
+      "iaUrl": "https://archive.org/details/beni-hasan-v.-3",
+      "rights": {
+        "tier": "public-domain",
+        "license": "PD (published 1896)",
+        "attribution": "Griffith, Beni Hasan III (EEF, 1896). Scan: Internet Archive.",
+        "dateVerified": "2026-07-20"
+      }
+    },
+    {
+      "id": "acq-newberry-beni-hasan-v4",
+      "title": "Beni Hasan, Part IV (Archaeological Survey of Egypt)",
+      "creator": "Facsimiles by Howard Carter, M. W. Blackden, Percy Brown, Percy Buckman; ed. Griffith",
+      "published": "1900, Egypt Exploration Fund, London",
+      "relevance": "Color facsimile details — includes work by Howard Carter before Tutankhamun fame. Strong exhibit-caption material.",
+      "source": "Internet Archive",
+      "iaIdentifier": "beni-hasan-v.-4",
+      "iaUrl": "https://archive.org/details/beni-hasan-v.-4",
+      "rights": {
+        "tier": "public-domain",
+        "license": "PD (published 1900)",
+        "attribution": "Beni Hasan IV (EEF, 1900). Scan: Internet Archive.",
+        "dateVerified": "2026-07-20"
+      }
+    },
+    {
+      "id": "acq-newberry-beni-hasan-combined",
+      "title": "Beni Hasan Pts. 1 & 2 (combined scan, alternate copy)",
+      "creator": "Newberry / Griffith / Fraser",
+      "published": "1893, Egypt Exploration Fund",
+      "relevance": "Backup/alternate scan of the two Newberry volumes in one item.",
+      "source": "Internet Archive",
+      "iaIdentifier": "BeniHasanvols.12",
+      "iaUrl": "https://archive.org/details/BeniHasanvols.12",
+      "rights": {
+        "tier": "public-domain",
+        "license": "PD",
+        "attribution": "Newberry, Beni Hasan I–II (EEF, 1893). Scan: Internet Archive.",
+        "dateVerified": "2026-07-20"
+      }
+    },
+    {
+      "id": "acq-met-open-access-batch-001",
+      "title": "Met Open Access — Arms & Armor and Egyptian Art (CC0 image batch)",
+      "creator": "The Metropolitan Museum of Art",
+      "relevance": "CC0 artifact photography: shields, staves, edged weapons, Egyptian reliefs. Feeds the artifact layer across wings. Fetched live by ingest.mjs via the Met Collection API.",
+      "source": "Met Collection API (collectionapi.metmuseum.org, launched 2018; 406,000+ CC0 images)",
+      "apiNote": "Script resolves department IDs by name at runtime and filters isPublicDomain=true only.",
+      "rights": {
+        "tier": "open-license",
+        "license": "CC0 (Met Open Access, per-object isPublicDomain flag)",
+        "attribution": "Courtesy The Metropolitan Museum of Art (CC0) — attribution appreciated, not required.",
+        "dateVerified": "2026-07-20"
+      }
+    }
+  ],
+  "citationOnlyShelf": [
+    { "title": "Desch-Obi, Fighting for Honor (USC Press, 2008)", "use": "cite & summarize" },
+    { "title": "Green, Martial Arts of the World: An Encyclopedia (ABC-CLIO, 2001/2010)", "use": "cite & summarize" },
+    { "title": "EJMAS Kronos chronology (Svinth, © all rights reserved)", "use": "research map only — rebuild timeline from primary facts" },
+    { "title": "Wiktenauer (European wing backbone)", "use": "PD manuscripts ingestable; check per-page CC license on translations" }
+  ]
+}
