@@ -30,6 +30,8 @@ import {
 import The411 from './The411';
 import { shareAsset } from '../services/deepLinkService';
 import CharacterWorldView from './CharacterWorldView';
+import { createPortal } from 'react-dom';
+import { hlsTuning, capLevelsToPanel } from '../services/hlsTuning';
 
 interface MovieUXViewProps {
   item: Video | Album;
@@ -181,16 +183,18 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
         const { default: Hls } = await import('hls.js');
         if (torn) return;
         if (Hls.isSupported()) {
-          const hls = new Hls({
-            enableWorker: true, startLevel: -1, maxBufferLength: 30,
+          // Shared tuning, keeping this surface's own retry policy: the Mux attempt fails fast
+          // on purpose so it can fall through to another source rather than stall on a dead one.
+          const hls = new Hls(hlsTuning({
             fragLoadingMaxRetry:     strategy === 'mux' ? 1 : 3,
             manifestLoadingMaxRetry: strategy === 'mux' ? 1 : 2,
             levelLoadingMaxRetry:    strategy === 'mux' ? 1 : 2,
-          });
+          }));
           hlsRef.current = hls;
           hls.loadSource(hlsUrl);
           hls.attachMedia(el);
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            capLevelsToPanel(hls as any);
             if (!torn) el.play().catch(() => { el.muted = true; el.play().catch(() => {}); });
           });
           hls.on(Hls.Events.ERROR, (_: any, data: any) => {
@@ -1000,9 +1004,13 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
         )}
       </AnimatePresence>
 
-      {/* ── Video player — z-[200], outside scroll stacking context ─────────── */}
-      {activeVideo && (
-        <div ref={videoContainerRef} className="fixed inset-0 z-[200] bg-black">
+      {/* ── Video player — portalled to <body> ────────────────────────────────
+          z-[200] alone is not enough. `position: fixed` is resolved against the nearest
+          ancestor with a transform, and this view sits inside animated wrappers — so the
+          player was being contained instead of covering the viewport, leaving the TV top
+          tabs and page chrome visible around a playing film. A portal has no such ancestor. */}
+      {activeVideo && createPortal(
+        <div ref={videoContainerRef} className="fixed inset-0 z-[200] bg-black" data-tv-no-trap>
           <CinemaPlayer
             key={activeVideo.id || activeVideo.url}
             video={activeVideo}
@@ -1060,7 +1068,8 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
             <ArrowLeft size={16} className="shrink-0" />
             <span className="text-[10px] font-black uppercase tracking-widest truncate">{activeVideo.title || 'Back'}</span>
           </button>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* ── What If achievement toast ─────────────────────────────────────────── */}
