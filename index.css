@@ -430,12 +430,25 @@ body.theme-big-screen {
   letter-spacing: 0.02em;
 }
 
+/* The focus ring may land on anything, but the 1.08 lift must not.
+   `* :focus-visible` also matches layout containers — and #root took focus during
+   D-pad navigation, which scaled the ENTIRE page to 108%. That cropped the UI at
+   the screen edges and, worse, forced the compositor to render a 1728x972 layer
+   and downscale it to 1600x900 every frame. With a video playing that alone cost
+   ~7% dropped frames on the TV's Mali GPU — the "stuttery Reello" report.
+   Ring on everything; lift only on real controls. */
 .theme-big-screen *:focus-visible {
   outline: 6px solid #3b82f6 !important;
   outline-offset: 6px;
-  transform: scale(1.08);
   z-index: 100;
   box-shadow: 0 0 50px rgba(59, 130, 246, 0.6);
+}
+
+.theme-big-screen :is(a, button, input, select, textarea, summary,
+                      [role="button"], [role="link"], [role="tab"],
+                      [role="menuitem"], [role="option"],
+                      [data-tv-focusable]):focus-visible {
+  transform: scale(1.08);
   background-color: rgba(59, 130, 246, 0.1) !important;
 }
 
