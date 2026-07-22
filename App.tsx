@@ -111,6 +111,7 @@ import TvTopTabs from './components/TvTopTabs';
 const TvSignInView = retryLazy(() => import('./components/TvSignInView'));
 const ChoraTvView = retryLazy(() => import('./components/tv/ChoraTvView'));
 const ReelloTvView = retryLazy(() => import('./components/tv/ReelloTvView'));
+const TvSlideshowSurface = retryLazy(() => import('./components/tv/TvSlideshowSurface'));
 const TvLinkApproval = retryLazy(() => import('./components/TvLinkApproval'));
 const TvSettingsView = retryLazy(() => import('./components/TvSettingsView'));
 import { type TvDisabledFeature, TV_NAV_VIEWS, getTvHome, isViewAllowedOnTv, themesAllowed } from './services/tvCapabilities';
@@ -4206,6 +4207,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onOpenPurchases={() => setView('CREATOR_PAYMENTS' as AppView)}
                 />
               </Suspense>
+            )}
+
+            {/* Lean-back slideshow. The context already starts one after twenty seconds of
+                uninterrupted TV playback; until now nothing on television drew it. Mounted
+                outside the view switch because it belongs to playback, not to whichever screen
+                the viewer happens to have left open. */}
+            {getPlatformInfo().isTV && (
+              <Suspense fallback={null}><TvSlideshowSurface /></Suspense>
             )}
 
             {/* A view we deliberately don't run on TV — say so, and say where it does live. */}

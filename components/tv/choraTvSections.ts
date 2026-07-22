@@ -3,6 +3,7 @@ import {
   fetchAllPublicPlaylists,
   fetchPersonalAlbums,
   fetchPersonalPlaylists,
+  fetchPersonalTracks,
   fetchRadioTracks,
   fetchUserLibraryTracks,
 } from '../../services/backendService';
@@ -224,14 +225,25 @@ export async function asyncRails(
     }
 
     case 'MY_LIBRARY': {
+      // Mirrors the desktop Music Vault's four groups (Saved / Locker / Uploads / Playlists).
+      // The locker (`personal_tracks`) was missing entirely on TV, which is why the library
+      // collapsed to a single rail for anyone whose music lives there: nonEmpty() drops empty
+      // rails, so "saved tracks and nothing else" rendered as one lonely row with nowhere to
+      // navigate. Fetching the locker restores the shape the viewer actually has.
       const ids = base.userProfile?.library || [];
-      const [saved, personalAlbums, personalPlaylists] = await Promise.all([
+      const [saved, locker, personalAlbums, personalPlaylists] = await Promise.all([
         ids.length ? fetchUserLibraryTracks(ids).catch(() => [] as Track[]) : Promise.resolve([] as Track[]),
+        fetchPersonalTracks().catch(() => [] as Track[]),
         fetchPersonalAlbums().catch(() => [] as Album[]),
         fetchPersonalPlaylists().catch(() => [] as Playlist[]),
       ]);
+      // Newest first within each group — on a remote, "what I added last" is the thing being
+      // reached for, and it is the desktop vault's default sort too.
+      const recentFirst = (list: Track[]) =>
+        [...list].sort((a, b) => ((b as any).timestamp || 0) - ((a as any).timestamp || 0));
       return nonEmpty([
         { id: 'saved', title: 'Saved Tracks', items: (saved || []).map(t => trackItem(t)) },
+        { id: 'locker', title: 'Music Locker', items: recentFirst(locker || []).map(t => trackItem(t)) },
         { id: 'mine', title: 'My Uploads', items: (personalAlbums || []).map(albumItem) },
         { id: 'lists', title: 'My Playlists', items: (personalPlaylists || []).map(playlistItem) },
       ]);
