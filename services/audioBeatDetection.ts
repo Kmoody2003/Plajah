@@ -33,21 +33,34 @@ export interface BeatAnalysis {
   meterConfidence?: number;
 }
 
+import { shouldFetchDirect, probeContentLength, maxDecodeBytes } from './mediaFetchPolicy';
+
 const MIN_BPM = 60;
 const MAX_BPM = 200;
 
 /** Fetch + decode an audio URL to a mono Float32 PCM buffer. Cross-origin URLs
  *  go through Plajah's /api/proxy so decodeAudioData isn't blocked by CORS. */
 export async function decodeMono(url: string, signal?: AbortSignal): Promise<{ data: Float32Array; sampleRate: number; duration: number }> {
-  const sameOrigin = url.startsWith('/') || url.startsWith(location.origin);
   // Audius stream URLs (and other CORS-open audio) must be fetched DIRECTLY: the
   // /api/proxy chokes on Audius's 302→streaming redirect (500), while a direct fetch
   // decodes fine (Audius sends CORS). Proxy stays the default for CORS-restricted sources.
   const corsOpen = /\/v1\/tracks\/[^/]+\/stream/i.test(url) || /(^|[./])audius\b/i.test(url);
-  const proxied = !sameOrigin && /^https?:\/\//i.test(url) && !corsOpen;
-  let res = await fetch(proxied ? `/api/proxy?url=${encodeURIComponent(url)}` : url, { signal }).catch(() => null as Response | null);
+  const direct = corsOpen || shouldFetchDirect(url);
+  const target = direct ? url : `/api/proxy?url=${encodeURIComponent(url)}`;
+
+  // Size first. A Chora master is a ~62 MiB WAV, and decodeAudioData expands 16-bit
+  // PCM to Float32 — roughly 250 MiB of live heap. On the TV the OS killed the whole
+  // WebView before the JS heap limit came close, which read to the viewer as the app
+  // crashing when they opened an album. Refuse loudly instead.
+  const size = await probeContentLength(target, signal);
+  const cap = maxDecodeBytes();
+  if (size !== null && size > cap) {
+    throw new Error(`audio too large to decode: ${Math.round(size / 1048576)} MiB > ${Math.round(cap / 1048576)} MiB cap`);
+  }
+
+  let res = await fetch(target, { signal }).catch(() => null as Response | null);
   // If the proxy failed, the source may actually be CORS-open — try it directly.
-  if ((!res || !res.ok) && proxied) res = await fetch(url, { signal }).catch(() => res);
+  if ((!res || !res.ok) && !direct) res = await fetch(url, { signal }).catch(() => res);
   if (!res || !res.ok) throw new Error(`audio fetch ${res?.status ?? 'failed'}`);
   const arrayBuf = await res.arrayBuffer();
   const Ctx: typeof OfflineAudioContext = (window as any).OfflineAudioContext || (window as any).webkitOfflineAudioContext;

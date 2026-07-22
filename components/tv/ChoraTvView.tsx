@@ -7,6 +7,7 @@ import { useTvGrid, isFocused } from '../../hooks/useTvGrid';
 import { useGlobalPlayerState } from '../../contexts/GlobalPlayerContext';
 import { useTvShellFocus } from '../../hooks/useTvShellFocus';
 import TvBrandBackdrop from './TvBrandBackdrop';
+import { tvCardRing, RAIL_GUTTER } from './tvFocusRing';
 import { asyncRails, syncRails, MUSIC_HISTORY_ERAS, type BaseData, type TvItem, type TvRail } from './choraTvSections';
 
 /**
@@ -228,12 +229,9 @@ const ChoraTvView: React.FC<{
           className="relative rounded-2xl overflow-hidden bg-white/[0.05]"
           style={{
             aspectRatio: '1',
-            // The ring is drawn INSIDE the card, not as an outline. An outline with an offset gets
-            // clipped by the rail's overflow and disappears exactly when you need it. Focus
-            // outranks the playing ring: seeing where you are matters more than what is playing.
-            boxShadow: focused
-              ? `inset 0 0 0 4px ${ACCENT_WARM}, 0 12px 32px rgba(0,0,0,0.55)`
-              : playing ? `inset 0 0 0 3px ${ACCENT}` : 'none',
+            // Shared with Taleo — see tvFocusRing.ts. Focus outranks the playing ring:
+            // seeing where you are matters more than what is playing.
+            boxShadow: tvCardRing(focused, playing, ACCENT),
           }}
         >
           {item.image
@@ -407,11 +405,11 @@ const ChoraTvView: React.FC<{
           rails.map((rail, rIdx) => (
             <section key={rail.id} className="mb-8">
               <RailHeading>{rail.title}</RailHeading>
-              {/* px-2 -mx-2: a focused card scales up by 4%, and `overflow-x` clips BOTH axes —
-                  so at column 0 the growth was cut off at the rail's left edge, shaving the
-                  title. The padding gives the scaled card room; the negative margin keeps the
-                  rail visually aligned with the heading above it. */}
-              <div className="flex gap-4 overflow-x-auto no-scrollbar px-2 py-2 -mx-2">
+              {/* The gutter exists because `overflow-x` clips BOTH axes: without it a focused
+                  card's 4% growth AND its focus ring get shaved off at the rail's edge, exactly
+                  when you need to see them. RAIL_GUTTER is sized to the ring (see tvFocusRing.ts);
+                  the negative margin keeps the rail aligned with the heading above it. */}
+              <div className={`flex gap-4 overflow-x-auto no-scrollbar ${RAIL_GUTTER}`}>
                 {rail.items.map((item, i) => (
                   <Card
                     key={`${rail.id}-${item.id}-${i}`}

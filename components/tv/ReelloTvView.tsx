@@ -5,6 +5,7 @@ import { thumb, THUMB } from '../../src/lib/imageThumb';
 import { useTvGrid, isFocused } from '../../hooks/useTvGrid';
 import { useTvShellFocus } from '../../hooks/useTvShellFocus';
 import TvBrandBackdrop from './TvBrandBackdrop';
+import { tvCardRing, RAIL_GUTTER } from './tvFocusRing';
 import {
   asyncVideoRails, syncVideoRails, fetchAllVideos, fetchUserVideos, videoItem,
   type ReelloBase, type TvVideoItem, type TvVideoRail,
@@ -183,9 +184,8 @@ const ReelloTvView: React.FC<{
           className={`relative overflow-hidden bg-white/[0.05] ${isChannel ? 'rounded-full' : 'rounded-xl'}`}
           style={{
             aspectRatio: isChannel ? '1' : '16 / 9',
-            // Drawn inside the card: an outline with an offset gets clipped by the rail's
-            // overflow and vanishes exactly when it is needed.
-            boxShadow: focused ? `inset 0 0 0 4px ${ACCENT}, 0 14px 34px rgba(0,0,0,0.6)` : 'none',
+            // Shared with Taleo — see tvFocusRing.ts.
+            boxShadow: tvCardRing(focused),
           }}
         >
           {item.image
@@ -330,11 +330,10 @@ const ReelloTvView: React.FC<{
           rails.map((rail, rIdx) => (
             <section key={rail.id} className="mb-8">
               <RailHeading>{rail.title}</RailHeading>
-              {/* px-2 -mx-2: a focused card scales up by 4%, and `overflow-x` clips BOTH axes —
-                  so at column 0 the growth was cut off at the rail's left edge, shaving the
-                  title. The padding gives the scaled card room; the negative margin keeps the
-                  rail visually aligned with the heading above it. */}
-              <div className="flex gap-4 overflow-x-auto no-scrollbar px-2 py-2 -mx-2">
+              {/* The gutter exists because `overflow-x` clips BOTH axes: without it a focused
+                  card's growth AND its focus ring get shaved off at the rail's edge, exactly when
+                  you need to see them. RAIL_GUTTER is sized to the ring (see tvFocusRing.ts). */}
+              <div className={`flex gap-4 overflow-x-auto no-scrollbar ${RAIL_GUTTER}`}>
                 {rail.items.map((item, i) => (
                   <Card
                     key={`${rail.id}-${item.id}-${i}`}
