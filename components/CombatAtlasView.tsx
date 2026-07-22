@@ -257,16 +257,29 @@ function samplePose(clip: MotionClip, t: number) {
   };
 }
 
-// Real capture clips served from /public/motion. CMU Graphics Lab data is free
-// for any use; UMONS-TAICHI is CC BY 4.0 on Zenodo (labeled research preview).
-interface CaptureClip { name: string; art: string; color: string; url: string; kind: 'bvh' | 'kinect'; credit: string }
-const CAPTURE_CLIPS: Record<string, CaptureClip> = {
+// Real capture clips served from /public/motion.
+//
+// LICENCE GATE — read before adding a clip.
+// CMU Graphics Lab data is free for any use, including commercial: it ships.
+// UMONS-TAICHI is CC BY-NC-SA 4.0, which a commercial platform cannot satisfy,
+// so it is withheld from public builds until the authors grant terms (see
+// docs/outreach/01-umons-taichi-licence-request.md). Flip SHOW_NC_PREVIEW to
+// true only in local research builds, never in a deployed one.
+const SHOW_NC_PREVIEW = false;
+
+interface CaptureClip { name: string; art: string; color: string; url: string; kind: 'bvh' | 'kinect'; credit: string; nonCommercial?: boolean }
+const ALL_CAPTURE_CLIPS: Record<string, CaptureClip> = {
   cmuFrontKick: { name: 'Mae-geri (front kick)', art: 'Karate · CMU Subject 135', color: '#C24D2C', url: '/motion/cmu_135_04_frontkick.bvh', kind: 'bvh', credit: 'CMU GRAPHICS LAB · FREE LICENSE' },
   cmuMawashi: { name: 'Mawashi-geri', art: 'Karate · CMU Subject 135', color: '#C24D2C', url: '/motion/cmu_135_07_mawashigeri.bvh', kind: 'bvh', credit: 'CMU GRAPHICS LAB · FREE LICENSE' },
   cmuYoko: { name: 'Yoko-geri (side kick)', art: 'Karate · CMU Subject 135', color: '#8FA08A', url: '/motion/cmu_135_11_yokogeri.bvh', kind: 'bvh', credit: 'CMU GRAPHICS LAB · FREE LICENSE' },
   cmuBoxing: { name: 'Boxing', art: 'Pugilism · CMU Subject 13', color: '#D9A441', url: '/motion/cmu_13_17_boxing.bvh', kind: 'bvh', credit: 'CMU GRAPHICS LAB · FREE LICENSE' },
-  umonsTaichi: { name: 'Taijiquan (Kinect capture)', art: 'Taijiquan · UMONS-TAICHI', color: '#5B6EA8', url: '/motion/umons_taichi_sample.txt', kind: 'kinect', credit: 'UMONS-TAICHI · CC BY-NC-SA · RESEARCH PREVIEW' },
+  umonsTaichi: { name: 'Taijiquan (Kinect capture)', art: 'Taijiquan · UMONS-TAICHI', color: '#5B6EA8', url: '/motion/umons_taichi_sample.txt', kind: 'kinect', credit: 'UMONS-TAICHI · CC BY-NC-SA · RESEARCH PREVIEW', nonCommercial: true },
 };
+
+/** What the public build may actually play. */
+const CAPTURE_CLIPS: Record<string, CaptureClip> = Object.fromEntries(
+  Object.entries(ALL_CAPTURE_CLIPS).filter(([, c]) => SHOW_NC_PREVIEW || !c.nonCommercial),
+);
 
 const MotionLabPlayer: React.FC = () => {
   const [clipKey, setClipKey] = useState<string>('cmuFrontKick');
@@ -331,12 +344,22 @@ const MotionLabPlayer: React.FC = () => {
     else if (motion === 'error') statusLine = 'CAPTURE UNAVAILABLE';
     else {
       const m = motion as PlayableMotion;
-      const frameIdx = Math.floor(t / m.frameTime) % m.frames.length;
+      // Defensive: a bad frameTime (0/NaN from a malformed header) would make
+      // frameIdx NaN and index off the end. Never let playback crash the museum.
+      const n = m.frames.length;
+      const step = m.frameTime > 0 ? Math.floor(t / m.frameTime) : 0;
+      const frameIdx = n > 0 && Number.isFinite(step) ? ((step % n) + n) % n : 0;
       const pts = m.frames[frameIdx];
-      boneLines = m.bones.map(([a, b]) => [pts[a], pts[b]]);
-      markers = pts;
-      head = pts[m.headIndex];
-      statusLine = `FR ${String(frameIdx).padStart(4, '0')}/${m.frames.length} · ${capture.kind.toUpperCase()} STREAM`;
+      if (pts) {
+        boneLines = m.bones
+          .filter(([a, b]) => pts[a] && pts[b])
+          .map(([a, b]) => [pts[a], pts[b]]);
+        markers = pts;
+        head = pts[m.headIndex] ?? null;
+        statusLine = `FR ${String(frameIdx).padStart(4, '0')}/${n} · ${capture.kind.toUpperCase()} STREAM`;
+      } else {
+        statusLine = 'CAPTURE UNAVAILABLE';
+      }
     }
   } else if (keyframe) {
     const pose = samplePose(keyframe, t);
@@ -926,11 +949,11 @@ const CombatAtlasView: React.FC<Props> = ({ onBack, currentUser }) => {
               <SectionLabel accent={ACCENT}>THE MOTION LAB</SectionLabel>
               <h2 className="text-2xl font-black uppercase tracking-tight mt-1">Technique as living data</h2>
               <p className="text-[13px] text-white/50 leading-relaxed mt-2 max-w-2xl">
-                The archive’s kinetic layer: techniques rendered as playable motion, not still images. The player now
-                streams <span className="text-white/80 font-bold">real capture data</span> — CMU Graphics Lab fighting
-                sequences (free-license, forward-kinematics BVH) and a UMONS-TAICHI optical-capture preview — alongside
-                the original keyframe sketches. Next: Plajah’s own commissioned captures of the African arts, with
-                4D volumetric playback as the flagship exhibit format.
+                The archive’s kinetic layer: techniques rendered as playable motion, not still images. The player
+                streams <span className="text-white/80 font-bold">real capture data</span> — fighting sequences from the
+                CMU Graphics Lab, decoded through a forward-kinematics BVH parser — alongside the original keyframe
+                sketches. Next: Plajah’s own commissioned captures of the African arts, with 4D volumetric playback as
+                the flagship exhibit format.
               </p>
             </div>
             <MotionLabPlayer />
@@ -938,13 +961,14 @@ const CombatAtlasView: React.FC<Props> = ({ onBack, currentUser }) => {
               <div className="rounded-xl p-4 border border-white/8 bg-white/[0.02]">
                 <p className={`${TYPE.labelSm} font-black tracking-[0.16em]`} style={{ color: ACCENT }}>VERIFIED OPEN DATA — NOW PLAYING</p>
                 <p className="text-[12px] text-white/50 leading-relaxed mt-1.5">
-                  The four karate and boxing clips above stream from the CMU Graphics Lab Motion Capture Database
-                  (~2,500 motions, free for any use) — the production-legal shelf. The Taijiquan clip is one segmented
-                  Kinect V2 sequence from UMONS-TAICHI (2,200 captures, 68 markers @ 179 Hz), CC BY-NC-SA:
-                  research preview only, never shipped as product.
+                  The karate and boxing clips above stream from the CMU Graphics Lab Motion Capture Database
+                  (~2,500 motions, free for any use) — the production-legal shelf. UMONS-TAICHI, the finest kinetic
+                  record of any traditional art (2,200 captures, 68 markers @ 179 Hz, skill-ranked by teachers), is
+                  <span className="text-white/70"> licensed CC BY-NC-SA and therefore withheld here</span> — we have
+                  asked its authors for terms rather than stretch theirs.
                 </p>
                 <p className="text-[10px] text-white/30 leading-relaxed mt-2">
-                  Data from mocap.cs.cmu.edu, funded by NSF EIA-0196217 · UMONS-TAICHI, numediart / Université de Mons
+                  Data from mocap.cs.cmu.edu, funded by NSF EIA-0196217
                 </p>
               </div>
               <div className="rounded-xl p-4 border border-white/8 bg-white/[0.02]">
