@@ -7,7 +7,7 @@ import {
   FileText, Database, Package, Users, Clock,
   Telescope, FlaskConical, Dna, Binary, Atom, Calculator,
   AlertCircle, TrendingUp, Microscope, Leaf, MessageSquare,
-  Landmark, Building2,
+  Landmark, Building2, Swords,
 } from 'lucide-react';
 import { motion as m } from 'motion/react';
 import {
@@ -54,6 +54,7 @@ const DISC_META: Record<LabsDisciplineId, DisciplineMeta> = {
   linguistics:  { label: 'Linguistics',      color: '#94D82D', secondaryColor: '#74B816', description: 'Language structure, semantics, computational linguistics, and NLP', icon: Binary, keywords: ['syntax', 'morphology', 'NLP', 'language'] },
   history:      { label: 'World History',    color: '#E8590C', secondaryColor: '#A63E08', description: 'Civilizations, empires, revolutions, and the forces that shaped the modern world', icon: Landmark, keywords: ['civilization', 'empire', 'revolution', 'ancient'] },
   architecture: { label: 'Architecture',     color: '#B08968', secondaryColor: '#8A6A4F', description: 'Building design, structural engineering, construction, codes, and the built environment', icon: Building2, keywords: ['structural', 'building', 'urbanism', 'construction'] },
+  combat:       { label: 'Combat Atlas',     color: '#C1440E', secondaryColor: '#8A2F09', description: 'World martial arts — technique, lineage, iconography, and motion capture', icon: Swords, keywords: ['martial arts', 'wrestling', 'biomechanics', 'lineage'] },
 };
 
 // ── Source badge ──────────────────────────────────────────────────────────────

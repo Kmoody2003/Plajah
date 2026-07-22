@@ -30,6 +30,7 @@ import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'fire
 import { doc } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
 import { db } from '../services/firebase';
+import { hlsTuning, capLevelsToPanel } from '../services/hlsTuning';
 
 // ── Mux HLS player ────────────────────────────────────────────────────────────
 // Uses a native <video> element + HLS.js so the Plajah player UI is always on
@@ -67,25 +68,14 @@ const MuxHlsVideo = React.memo(React.forwardRef<HTMLVideoElement, MuxHlsVideoPro
         try {
           const { default: Hls } = await import('hls.js');
           if (Hls.isSupported()) {
-            const hls = new Hls({
-              enableWorker: true,
-              maxBufferLength: 30,
-              maxMaxBufferLength: 60,
-              maxBufferSize: 60 * 1000 * 1000,
-              backBufferLength: 30,
-              startLevel: -1,
-              abrEwmaDefaultEstimate: 1_000_000,
-              abrBandWidthFactor: 0.95,
-              abrBandWidthUpFactor: 0.7,
-              nudgeMaxRetry: 5,
-              fragLoadingMaxRetry: 4,
-              manifestLoadingMaxRetry: 3,
-              levelLoadingMaxRetry: 3,
-            });
+            const hls = new Hls(hlsTuning());
             hlsRef.current = hls;
             hls.loadSource(streamUrl);
             hls.attachMedia(video);
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
+              // Never decode more pixels than the panel shows — on a TV that is the difference
+              // between smooth playback and a GPU asked to scale 4K down to 1080p in real time.
+              capLevelsToPanel(hls as any);
               video.play().catch(() => { video.muted = true; video.play().catch(() => {}); });
             });
             hls.on(Hls.Events.ERROR, (_: any, data: any) => { if (data.fatal) onError(); });
