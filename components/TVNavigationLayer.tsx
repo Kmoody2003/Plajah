@@ -9,6 +9,7 @@ import {
   type Dir,
   makeCardsFocusable,
 } from '../hooks/useDpadNavigation';
+import { isShellFocused } from '../hooks/useTvShellFocus';
 
 // ── Modal detection (for focus-trapping + Back-to-close) ──────────────────────
 // A "modal scope" is an explicit dialog, or a heuristic full-screen fixed overlay
@@ -78,16 +79,24 @@ const topScope = (): HTMLElement | null => {
  * Does a screen on this page own the arrows?
  *
  * `t.closest('[data-tv-capture]')` alone is not enough. A screen that tracks focus in state
- * rather than in the DOM — like the Chora TV view — leaves e.target as <body>, so closest()
- * finds nothing and this layer would act on the same press the screen just handled. Two
- * navigation systems on one keypress is precisely the unpredictability the capture zone exists
- * to prevent. So: yield if the event is inside a capture zone, OR if the page has one at all
- * and the event has no real target to speak of.
+ * rather than in the DOM — like the Chora TV view — has no focusable nodes of its own, so the
+ * event target is whatever this layer last focused. Two navigation systems on one keypress is
+ * precisely the unpredictability the capture zone exists to prevent.
+ *
+ * Testing for a body-level target used to be the stand-in for "the screen is handling this in
+ * state". It is not sufficient: entering Chora from the tab bar leaves real DOM focus on the tab
+ * button, which is neither inside the capture zone nor body-level — so this layer kept the arrows,
+ * found nothing focusable below (the capture screens expose none), and the viewer was stuck in the
+ * tab bar. Taleo escaped that because it is an ordinary view full of real buttons.
+ *
+ * The shell-focus store is already the designed arbiter of who owns the remote, so ask it: a
+ * mounted capture screen owns the arrows unless the shell has explicitly claimed them back
+ * (useTvGrid's onExitTop, i.e. the viewer arrowed up out of the grid).
  */
 const inCaptureZone = (t: HTMLElement | null): boolean => {
   if (t?.closest('[data-tv-capture]')) return true;
-  const bodyLevel = !t || t === document.body || t === document.documentElement;
-  return bodyLevel && !!document.querySelector('[data-tv-capture]');
+  if (!document.querySelector('[data-tv-capture]')) return false;
+  return !isShellFocused();
 };
 
 const closeModal = (modal: HTMLElement): void => {
@@ -189,7 +198,13 @@ const TVNavigationLayer = () => {
     let raf = 0;
     const promote = () => {
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => { try { makeCardsFocusable(document); invalidateFocusables(); } catch { /* ignore */ } });
+      raf = requestAnimationFrame(() => {
+        // A capture screen navigates from its own model, so nothing here can help it — and this
+        // walk measures every image in the document, which is a forced layout per mutation burst
+        // on exactly the content-heavy screens (Chora, Reello) that can least afford it.
+        if (document.querySelector('[data-tv-capture]')) return;
+        try { makeCardsFocusable(document); invalidateFocusables(); } catch { /* ignore */ }
+      });
     };
     promote();
     const mo = new MutationObserver(promote);
