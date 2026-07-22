@@ -422,6 +422,10 @@ const App: React.FC = () => {
   const hasDeepLink = (() => {
     const sp = new URLSearchParams(window.location.search);
     if (['id', 'type', 'org', 'elevate', 'debate', 'club', 'livestream', 'stream', 'room', 'callin', 'listen', 'invite', 'pitch', 'view'].some(k => sp.get(k))) return true;
+    // /link (TV sign-in approval) must not bounce a signed-out visitor to LANDING — they may
+    // need to sign in on the phone first and then approve, and losing the ?c= code mid-flow
+    // means walking back to the television for a new one.
+    if (window.location.pathname.startsWith('/link')) return true;
     return /^\/(profile|release|event|clubs|athlete|book)\//.test(window.location.pathname);
   })();
 
@@ -2147,10 +2151,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             </div>
           </div>
         }>
-          {/* A television never sees the marketing landing page. It gets the sign-in screen a TV
+          {/* /link is the phone half of TV sign-in, reached by scanning the QR on the television.
+              It is tested FIRST, before any view routing, because a fresh page load computes
+              view = 'LANDING' — which used to render the marketing page instead, leaving the
+              approval screen unreachable and the TV waiting forever. It renders signed-in or
+              not; TvLinkApproval itself asks the viewer to sign in when there is no session. */}
+          {typeof window !== 'undefined' && window.location.pathname.startsWith('/link') ? (
+            <Suspense fallback={null}><TvLinkApproval /></Suspense>
+          ) : /* A television never sees the marketing landing page. It gets the sign-in screen a TV
               actually needs — logo, saved profiles, QR — because the alternative is asking
-              someone to type a password with a D-pad. */}
-          {view === 'LANDING' && getPlatformInfo().isTV && !user ? (
+              someone to type a password with a D-pad. */
+          view === 'LANDING' && getPlatformInfo().isTV && !user ? (
           <Suspense fallback={null}>
             <TvSignInView
               savedProfiles={(userProfile as any)?.linkedAccounts || []}
@@ -4145,11 +4156,6 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
 
-            {/* /link is the phone half of TV sign-in. It renders on any device and ahead of the
-                normal routing, because the whole point is to reach it from a QR scan. */}
-            {typeof window !== 'undefined' && window.location.pathname.startsWith('/link') && (
-              <Suspense fallback={null}><TvLinkApproval /></Suspense>
-            )}
 
             {/* On a TV the four tabs ARE the navigation — see TvTopTabs for why a sidebar is the
                 wrong shape for a remote.

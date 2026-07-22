@@ -807,6 +807,11 @@ service cloud.firestore {
     match /claimTokens/{code}                 { allow read, write: if false; }
     match /accountAudit/{eventId}             { allow read, write: if false; }
     match /teacherVerificationRequests/{uid}  { allow read, write: if false; }
+    // TV sign-in pairing codes. A doc here briefly holds a Firebase custom token, so it is
+    // credential-grade: readable only by the backend service account. Default-deny would cover
+    // this already; it is written out because "nobody added a rule" is a weaker guarantee than
+    // "someone wrote deny on purpose".
+    match /tvPairings/{code}                  { allow read, write: if false; }
 
     // ── Education: the Learner Ledger. A student owns their record; a guardian may read it. ──
     function isGuardianOf(studentId) {

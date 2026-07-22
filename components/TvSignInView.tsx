@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
-import { RefreshCw, Smartphone, Check } from 'lucide-react';
-import { auth } from '../services/backendService';
+import { RefreshCw, Smartphone, Check, AlertCircle } from 'lucide-react';
+import { auth, loginWithGoogle, loginWithMicrosoft, loginWithTwitter } from '../services/backendService';
 
 /**
  * Signing in to a television.
@@ -30,6 +30,8 @@ const TvSignInView: React.FC<{
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [status, setStatus] = useState<'loading' | 'waiting' | 'approved' | 'expired' | 'error'>('loading');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [directBusy, setDirectBusy] = useState<string | null>(null);
+  const [directError, setDirectError] = useState('');
 
   const stopPolling = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
 
@@ -149,6 +151,58 @@ const TvSignInView: React.FC<{
             )}
           </div>
         </div>
+      </section>
+
+      {/* Sign in on the television itself.
+          The phone hand-off is still the best path — nobody wants to drive an account picker
+          with a remote — but it is a two-device flow, and when it fails (no phone to hand, a
+          code that will not take) it fails into a dead end. These are the way out.
+          On the native TV build Google/Microsoft/X go through the Capacitor plugin rather than
+          a web popup, which a WebView blocks outright. */}
+      <section className="w-full max-w-4xl space-y-4">
+        <div className="flex items-center gap-4">
+          <span className="h-px flex-1 bg-white/10" />
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">Or sign in here</span>
+          <span className="h-px flex-1 bg-white/10" />
+        </div>
+
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {([
+            { id: 'google',    label: 'Google',    fn: () => loginWithGoogle(),    cls: 'bg-white text-black' },
+            { id: 'microsoft', label: 'Microsoft', fn: () => loginWithMicrosoft(), cls: 'bg-[#0078D4] text-white' },
+            { id: 'twitter',   label: 'X',         fn: () => loginWithTwitter(),   cls: 'bg-black text-white border border-white/25' },
+          ] as const).map(p => (
+            <button
+              key={p.id}
+              data-tv-focusable
+              disabled={!!directBusy}
+              onClick={async () => {
+                setDirectBusy(p.id); setDirectError('');
+                try {
+                  await p.fn();
+                  // Ask auth, not the return value: these helpers disagree about what they
+                  // resolve to (loginWithTwitter returns an X handle, and null on a perfectly
+                  // successful sign-in that simply had no handle to report). The session is the
+                  // only honest signal. A cancelled picker leaves currentUser null — say nothing.
+                  if (auth.currentUser) { stopPolling(); setStatus('approved'); onSignedIn?.(); }
+                } catch (e) {
+                  setDirectError((e as Error)?.message || `${p.label} sign-in did not complete.`);
+                } finally {
+                  setDirectBusy(null);
+                }
+              }}
+              className={`px-7 py-3 rounded-full text-sm font-black transition-transform focus:scale-105 focus:outline-none focus:ring-4 focus:ring-white/30 disabled:opacity-50 ${p.cls}`}
+            >
+              {directBusy === p.id ? 'Signing in…' : `Continue with ${p.label}`}
+            </button>
+          ))}
+        </div>
+
+        {directError && (
+          <p className="flex items-center justify-center gap-2 text-amber-400/90 text-xs font-bold">
+            <AlertCircle size={13} /> {directError}
+          </p>
+        )}
       </section>
     </div>
   );

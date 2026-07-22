@@ -21,6 +21,7 @@ import os from 'node:os';
 import Stripe from 'stripe';
 import { coraRouter } from './routes/cora';
 import { learnerAuthRouter } from './routes/learnerAuth';
+import { createCustomToken, fsGet, fsSet, fsPatch, fsDelete } from './services/firebaseAdminRest';
 import { buildFfmpegArgs } from './services/crossover/engine';
 import { extFor } from './services/crossover/formats';
 import type { Recipe as CxRecipe, MediaKind as CxKind, MediaProbe as CxProbe } from './services/crossover/types';
@@ -4636,9 +4637,18 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   //    1/I/L confusion on a screen read from across a room.
   //  - Failed polls are counted; a code being hammered is dropped rather than left to be
   //    brute-forced for its remaining lifetime.
-  // Deliberately in memory: these are single-use and expire in minutes, so persisting them
-  // would create a durable store of credential-grade material for no benefit. An instance
-  // restart simply means the viewer taps refresh on the TV.
+  // STORAGE. This was an in-process Map, on the reasoning that single-use codes expiring in
+  // minutes are not worth persisting. That reasoning assumed one long-lived process, and this
+  // API runs on Cloud Run with min-instances unset (scale to zero) and max-instances 20. So
+  // `start` would write the code to instance A's memory and the poll two seconds later could
+  // land on instance B, which had never heard of it and answered "expired" — the TV appeared to
+  // generate codes that were dead on arrival, and a phone approving against a third instance got
+  // "That code has expired." Pairing could only ever work by luck.
+  //
+  // So the codes live in Firestore instead, in a collection that is server-only (no client rule
+  // grants access) with a 5-minute TTL. The security properties are unchanged — single use,
+  // deleted on redemption, authenticated approval — and the record now outlives the instance
+  // that created it, which is the whole point.
 
   interface TvPairing {
     createdAt: number;
@@ -4646,30 +4656,51 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     customToken?: string;  // minted at approval, handed over exactly once
     polls: number;
   }
-  const tvPairings = new Map<string, TvPairing>();
+  const TV_PAIR_COLL = 'tvPairings';
   const TV_CODE_TTL_MS = 5 * 60 * 1000;
   const TV_MAX_POLLS = 200;                       // ~5 min at 1.5s intervals
   const TV_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';   // no O/0, I/1/L
 
-  const sweepPairings = () => {
-    const now = Date.now();
-    for (const [code, p] of tvPairings) if (now - p.createdAt > TV_CODE_TTL_MS) tvPairings.delete(code);
+  const readPairing = async (code: string): Promise<TvPairing | null> => {
+    if (!code) return null;
+    const doc = await fsGet(`${TV_PAIR_COLL}/${encodeURIComponent(code)}`);
+    if (!doc) return null;
+    const p: TvPairing = {
+      createdAt: Number(doc.createdAt) || 0,
+      uid: doc.uid || undefined,
+      customToken: doc.customToken || undefined,
+      polls: Number(doc.polls) || 0,
+    };
+    // Expiry is enforced on read rather than by a sweep: there is no shared timer across
+    // instances, and a stale doc must never be honoured just because nobody swept it.
+    if (Date.now() - p.createdAt > TV_CODE_TTL_MS) {
+      void fsDelete(`${TV_PAIR_COLL}/${encodeURIComponent(code)}`);
+      return null;
+    }
+    return p;
   };
 
-  const newPairingCode = (): string => {
+  const newPairingCode = async (): Promise<string> => {
     for (let attempt = 0; attempt < 10; attempt++) {
       const bytes = nodeCrypto.randomBytes(8);
       let code = '';
       for (let i = 0; i < 8; i++) code += TV_ALPHABET[bytes[i] % TV_ALPHABET.length];
-      if (!tvPairings.has(code)) return code;
+      if (!(await readPairing(code))) return code;
     }
     return nodeCrypto.randomBytes(6).toString('hex').toUpperCase();
   };
 
-  /** Mint a Firebase custom token for `uid`, signed with the service account. */
+  /**
+   * Mint a Firebase custom token for `uid`.
+   *
+   * Prefers the service-account key when one is configured, and falls back to
+   * services/firebaseAdminRest's createCustomToken, which signs via IAM using the runtime's
+   * own credentials — so this keeps working if GOOGLE_SERVICE_ACCOUNT_JSON is ever unset on
+   * the service, instead of failing every TV sign-in with a 500.
+   */
   const mintCustomToken = async (uid: string): Promise<string | null> => {
     const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-    if (!raw) { console.error('[TVAuth] GOOGLE_SERVICE_ACCOUNT_JSON not set — cannot mint'); return null; }
+    if (!raw) return createCustomToken(uid);
     try {
       const sa = JSON.parse(raw);
       const now = Math.floor(Date.now() / 1000);
@@ -4687,43 +4718,52 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       signer.update(`${header}.${payload}`);
       return `${header}.${payload}.${signer.sign(sa.private_key).toString('base64url')}`;
     } catch (e: any) {
-      console.error('[TVAuth] custom token mint failed:', e?.message || e);
-      return null;
+      console.error('[TVAuth] key-based mint failed, falling back to IAM:', e?.message || e);
+      return createCustomToken(uid);
     }
   };
 
   /** TV asks for a code to display. No auth — nothing is granted until a phone approves. */
-  app.post('/api/tv/pair/start', apiLimiter, express.json({ limit: '4kb' }), (_req: any, res) => {
-    sweepPairings();
-    const code = newPairingCode();
-    tvPairings.set(code, { createdAt: Date.now(), polls: 0 });
+  app.post('/api/tv/pair/start', apiLimiter, express.json({ limit: '4kb' }), async (_req: any, res) => {
+    const code = await newPairingCode();
+    const ok = await fsSet(`${TV_PAIR_COLL}/${encodeURIComponent(code)}`, {
+      createdAt: Date.now(), polls: 0,
+    });
+    // If the store is unreachable the code would be dead on arrival, so say so rather than
+    // printing a number on the television that can never be approved.
+    if (!ok) return res.status(503).json({ ok: false, message: 'Could not start sign-in. Try again shortly.' });
     res.json({ ok: true, code, expiresInSec: TV_CODE_TTL_MS / 1000 });
   });
 
   /** Phone approves. Requires a real signed-in user — this is the authorising step. */
   app.post('/api/tv/pair/approve', apiLimiter, authMiddleware, express.json({ limit: '4kb' }), async (req: any, res) => {
-    sweepPairings();
     const code = String(req.body?.code || '').trim().toUpperCase();
-    const p = tvPairings.get(code);
+    const p = await readPairing(code);
     if (!p) return res.status(404).json({ ok: false, message: 'That code has expired. Refresh the TV and try again.' });
     if (p.uid) return res.status(409).json({ ok: false, message: 'That code was already used.' });
     const token = await mintCustomToken(req.uid);
     if (!token) return res.status(500).json({ ok: false, message: 'Could not sign in this TV. Try again shortly.' });
-    p.uid = req.uid;
-    p.customToken = token;
+    const saved = await fsPatch(`${TV_PAIR_COLL}/${encodeURIComponent(code)}`, {
+      uid: req.uid, customToken: token,
+    });
+    if (!saved) return res.status(500).json({ ok: false, message: 'Could not sign in this TV. Try again shortly.' });
     res.json({ ok: true });
   });
 
   /** TV polls. Hands the token over exactly once, then destroys the pairing. */
-  app.get('/api/tv/pair/poll', apiLimiter, (req: any, res) => {
-    sweepPairings();
+  app.get('/api/tv/pair/poll', apiLimiter, async (req: any, res) => {
     const code = String(req.query?.code || '').trim().toUpperCase();
-    const p = tvPairings.get(code);
+    const path = `${TV_PAIR_COLL}/${encodeURIComponent(code)}`;
+    const p = await readPairing(code);
     if (!p) return res.json({ ok: true, status: 'expired' });
-    if (++p.polls > TV_MAX_POLLS) { tvPairings.delete(code); return res.json({ ok: true, status: 'expired' }); }
-    if (!p.customToken) return res.json({ ok: true, status: 'pending' });
+    if (p.polls + 1 > TV_MAX_POLLS) { await fsDelete(path); return res.json({ ok: true, status: 'expired' }); }
+    if (!p.customToken) {
+      // Count the poll, but never let a bookkeeping write failure stall a pending pairing.
+      void fsPatch(path, { polls: p.polls + 1 });
+      return res.json({ ok: true, status: 'pending' });
+    }
     const token = p.customToken;
-    tvPairings.delete(code);            // single use — a replayed poll gets nothing
+    await fsDelete(path);               // single use — a replayed poll gets nothing
     res.json({ ok: true, status: 'approved', customToken: token });
   });
 
