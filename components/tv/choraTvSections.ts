@@ -6,9 +6,10 @@ import {
   fetchPersonalTracks,
   fetchRadioTracks,
   fetchUserLibraryTracks,
+  fetchUserProfile,
 } from '../../services/backendService';
 import { fetchArchiveAudiobooks, VAULT_SHELVES, type ArchiveTrack } from '../../services/archiveContentService';
-import { fetchTrending, type RadioStation } from '../../services/radioBrowser';
+import { fetchTopVoted, fetchTrending, type RadioStation } from '../../services/radioBrowser';
 import { MUSIC_HISTORY_ERAS } from '../../data/musicHistory';
 
 /**
@@ -128,6 +129,11 @@ const artistItem = (u: UserProfile): TvItem => ({
 
 const GENRES = ['Hip Hop', 'R&B', 'Electronic', 'Jazz', 'Rock', 'Pop', 'Lo-Fi', 'Ambient', 'Classical', 'Folk', 'World'];
 
+/** Genre rails for live radio, matched against the tags stations already carry. Broadcast radio
+ *  labels itself differently from a music catalogue — "news" and "talk" have no album equivalent
+ *  but are a large share of what is on air — so this is its own list rather than GENRES. */
+const RADIO_GENRES = ['Jazz', 'Classical', 'Rock', 'Pop', 'Electronic', 'Hip Hop', 'Country', 'Reggae', 'Gospel', 'News', 'Talk'];
+
 const byPlays = (list: Album[]) => [...list].sort((a, b) => (b.playCount || 0) - (a.playCount || 0));
 const byRecent = (list: Album[]) => [...list].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 const nonEmpty = (rails: TvRail[]) => rails.filter(r => r.items.length > 0);
@@ -212,15 +218,49 @@ export async function asyncRails(
 ): Promise<TvRail[]> {
   switch (section) {
     case 'RADIO': {
-      const [platform, live] = await Promise.all([
+      // The desktop Radio view is a directory — Plajah FM, then artist stations, then live
+      // broadcast — and the television had flattened all of that into two undifferentiated
+      // rails. This restores the directory's shape: the platform's own stations first (they are
+      // the reason someone opens Chora rather than a tuner), then the artists who switched
+      // their station on, then live radio grouped by genre the way the desktop groups it.
+      const [platform, live, topVoted] = await Promise.all([
         fetchRadioTracks().catch(() => [] as Track[]),
-        fetchTrending(40).catch(() => [] as RadioStation[]),
+        fetchTrending(60).catch(() => [] as RadioStation[]),
+        fetchTopVoted(60).catch(() => [] as RadioStation[]),
       ]);
+
+      // A station whose stream is plain http cannot play inside an https page. Showing it would
+      // be offering a button that is guaranteed to fail.
+      const playable = (list: RadioStation[]) => list.filter(s => !s.blockedMixedContent);
+
+      // Artist stations, derived the same way the desktop derives them: the distinct artists
+      // behind the platform's radio tracks, kept only where the artist opted in.
+      const artistIds = Array.from(new Set((platform || []).map(t => (t as any).artistId).filter(Boolean))).slice(0, 24);
+      const artistStations = artistIds.length
+        ? (await Promise.all(artistIds.map(id => fetchUserProfile(id as string).catch(() => null))))
+            .filter((p): p is UserProfile => !!p && !!(p as any).radioSettings?.enabled)
+        : [];
+
+      // Genre rails, from the tags the live stations already carry — no extra round trips, and
+      // the groups reflect what is actually tuneable right now rather than a fixed menu.
+      const pool = playable([...topVoted, ...live]);
+      const seen = new Set<string>();
+      const byGenre: TvRail[] = RADIO_GENRES.map(g => {
+        const needle = g.toLowerCase();
+        const items = pool
+          .filter(s => s.tags?.some(t => t.toLowerCase().includes(needle)))
+          .filter(s => !seen.has(s.uuid))
+          .slice(0, 20);
+        items.forEach(s => seen.add(s.uuid));
+        return { id: `genre-${needle.replace(/\s+/g, '-')}`, title: g, items: items.map(stationItem) };
+      });
+
       return nonEmpty([
-        // A station whose stream is plain http cannot play inside an https page. Showing it would
-        // be offering a button that is guaranteed to fail.
-        { id: 'live', title: 'Live Radio', items: live.filter(s => !s.blockedMixedContent).map(stationItem) },
         { id: 'platform', title: 'Chora Radio', items: (platform || []).slice(0, 30).map(t => trackItem(t, 'RADIO')) },
+        { id: 'artists', title: 'Artist Stations', items: artistStations.map(artistItem) },
+        { id: 'live', title: 'Trending Live', items: playable(live).slice(0, 24).map(stationItem) },
+        { id: 'voted', title: 'Most Loved', items: playable(topVoted).slice(0, 24).map(stationItem) },
+        ...byGenre,
       ]);
     }
 
