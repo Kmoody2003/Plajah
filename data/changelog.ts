@@ -33,9 +33,15 @@ export interface ChangelogEntry {
  * The ledger — newest first. `APP_BUILD` is bumped whenever a release should
  * re-trigger the "what's new" notification for users.
  */
-export const APP_BUILD = '2026.07.01-07';
+export const APP_BUILD = '2026.07.21-01';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    id: '322af42', date: '2026-07-21', time: '11:58', level: 'major', area: 'Academia',
+    title: 'The Living Combat Atlas — a museum of world martial arts',
+    technical: 'New bespoke Labs discipline (`combat`) alongside World History/Architecture/Archaeology. 50 accessions across five wings (Africa 17, Asia 12, Europe 9, Americas 8, Oceania 4) in data/combatAtlasData.ts; CombatAtlasView with 8 tabs. Plate Room (labs/PlateViewer) serves the real Beni Hasan plates extracted from our own JP2 holdings — wrestling registers render as native-res scrollable filmstrips. Motion Lab streams real capture data through a hand-written forward-kinematics BVH parser (labs/motionParsers) — four CMU Graphics Lab clips; the CC BY-NC-SA UMONS-TAICHI clip is filtered from public builds via SHOW_NC_PREVIEW. Holdings pipeline in acquisitions/: 302MB of PD/CC0 source in Storage, 94 rights records in the archiveAssets Firestore collection.',
+    plain: 'A new museum in Academia: fifty martial arts from every continent — how each is fought, what it means, who carried it, and where the evidence lives. Read the actual four-thousand-year-old wrestling wall from an Egyptian tomb, register by register, and watch real motion-capture of technique instead of looking at still photographs. Every image carries its licence and photographer credit, and the two "martial arts" we found circulating online that turned out to be invented are documented as such rather than quietly dropped.',
+  },
   {
     id: '195cffe', date: '2026-07-01', time: '15:22', level: 'minor', area: 'Sharing',
     title: 'Films get shareable previews too',

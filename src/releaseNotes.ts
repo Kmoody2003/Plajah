@@ -13,6 +13,15 @@ export interface ReleaseNote {
 
 export const RELEASES: ReleaseNote[] = [
   {
+    version: 'July 2026 — The Living Combat Atlas',
+    highlights: [
+      'New in Academia: a museum of fifty martial arts from every continent — history, technique, ritual and the people who carried them.',
+      'Read the real four-thousand-year-old wrestling wall from an Egyptian tomb, one register at a time.',
+      'Watch technique as motion capture in the Motion Lab, not just still photographs.',
+      'Every image credits its photographer and licence — and the martial arts we found were invented are documented as such.',
+    ],
+  },
+  {
     version: 'July 2026',
     highlights: [
       'Calls: ring anyone in DMs — 1:1 or group — with fullscreen, in-call chat, and live camera/mic switching.',
