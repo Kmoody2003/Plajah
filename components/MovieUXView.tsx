@@ -1087,6 +1087,11 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
       {/* ── Main detail panel ─────────────────────────────────────────────────── */}
       <div
         ref={containerRef}
+        // This is a screen, not a dialog. Without the marker the D-pad layer sees
+        // `fixed inset-0 z-[100]` covering the viewport, classifies it as a modal, and confines
+        // focus to it — which left the tab bar unreachable and made hardware Back the only way
+        // out of a Taleo section.
+        data-tv-no-trap
         className="fixed inset-0 bg-black/35 text-white overflow-y-auto custom-scrollbar z-[100]"
       >
         {/* Cover art blurred backdrop — dimmer so platform bg shows through */}

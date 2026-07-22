@@ -325,8 +325,18 @@ export const pickInDirection = (origin: NavRect, candidates: NavRect[], dir: Dir
   // forward distance available, keep only candidates within a row's height of it, and let the
   // existing score choose among those. Adjacent rows stay reachable; distant ones stop winning.
   if (strict !== -1) {
-    const originH = Math.max(origin.bottom - origin.top, origin.right - origin.left, 1);
-    const band = Math.max(originH * 1.5, 120);
+    // Measure the band along the axis being pressed. This used to take
+    // max(height, width) — the LARGER side — so a wide origin (a full-width hero, a promoted
+    // section, a long rail item) produced a band of a thousand pixels or more, the cull below
+    // never fired, and the 6x cross-axis weight went straight back to winning with a target
+    // several rails away. That is the "skips rows fast" report: banding silently no-opped for
+    // exactly the wide elements Taleo is full of.
+    const vertical = dir === 'up' || dir === 'down';
+    const originExtent = Math.max(
+      vertical ? origin.bottom - origin.top : origin.right - origin.left,
+      1,
+    );
+    const band = Math.max(originExtent * 1.5, 120);
     let bestForward = Infinity;
     for (let i = 0; i < candidates.length; i++) {
       const rect = candidates[i];

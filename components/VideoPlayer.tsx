@@ -711,8 +711,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
 
   const handleVideoEnded = useCallback(() => {
     doRecord();
-    if (autoplayNext && nextInQueue && onPlayQueued) setUpNextIn(5);
-  }, [doRecord, autoplayNext, nextInQueue, onPlayQueued]);
+    if (autoplayNext && nextInQueue && onPlayQueued) { setUpNextIn(5); return; }
+    // Nothing queued: give the screen back rather than parking on a frozen last frame with no
+    // obvious way out. On a TV that dead end is worse than on desktop — there is no cursor to
+    // reach for, and the takeover covers the tab bar. Leave element fullscreen too if the
+    // desktop Maximize button put us there.
+    if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
+      try { document.exitFullscreen?.() ?? (document as any).webkitExitFullscreen?.(); } catch { /* ignore */ }
+    }
+    onBack?.();
+  }, [doRecord, autoplayNext, nextInQueue, onPlayQueued, onBack]);
 
   // Countdown tick for the "Up next" card.
   useEffect(() => {
@@ -995,9 +1003,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
             this view's header bar, so the picture was merely large — pushed down the page with
             chrome above it. fixed inset-0 takes the screen outright, which is what MovieUXView
             already does for cinema and why that path looked right while this one did not. */}
+        {/* The position class MUST come from one branch only. `relative` used to sit in the base
+            string alongside the branch's `fixed`, and Tailwind emits `.relative` after `.fixed`,
+            so `relative` won the cascade no matter how the classes were ordered here. `inset-0`
+            on a relative box only sets offsets — it sizes nothing — and the TV branch carries no
+            width/height of its own, while every child inside is absolutely positioned. The stage
+            therefore collapsed to zero height: HLS still attached and still played AUDIO, with no
+            picture anywhere. That is the "black where the video should be" report. */}
         <div
           ref={videoWrapRef}
-          className={`relative bg-black ${tvFullBleed ? 'fixed inset-0 z-[200]' : 'w-full shrink-0 aspect-video'}`}
+          className={`bg-black ${tvFullBleed ? 'fixed inset-0 z-[200]' : 'relative w-full shrink-0 aspect-video'}`}
           onMouseMove={handleMouseMove}
           onClick={togglePlay}
         >

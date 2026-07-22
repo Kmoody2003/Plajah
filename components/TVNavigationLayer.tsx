@@ -16,6 +16,12 @@ import { isShellFocused } from '../hooks/useTvShellFocus';
 // with a high z-index (how nearly every modal in this app is built). Spatial nav
 // is confined to it while open, and the remote Back button closes it.
 const isOverlay = (el: HTMLElement): boolean => {
+  // A full-screen SCREEN is not a modal. Several views lay themselves out as `fixed inset-0`
+  // simply to take the display — Taleo's detail panel among them — and the size/z-index
+  // heuristic below cannot tell those apart from a dialog. Trapping focus in one costs the
+  // viewer the tab bar: there is no way back up, and the hardware Back button becomes the only
+  // exit. Screens that are pages rather than dialogs say so explicitly.
+  if (el.hasAttribute('data-tv-no-trap')) return false;
   const cs = getComputedStyle(el);
   if (cs.position !== 'fixed') return false;
   const z = parseInt(cs.zIndex || '0', 10) || 0;
@@ -135,6 +141,11 @@ const canGoBackInApp = (): boolean => window.history.length > 1 && !!window.hist
 // several items before the user's thumb lifts. Gate repeats to a deliberate ramp instead:
 // slow for the first few, then faster, never faster than ~10/sec.
 const repeatInterval = (run: number): number => (run < 2 ? 300 : run < 6 ? 170 : 100);
+
+// Two presses closer together than this are treated as one held run, even when the remote
+// reports repeat === false. Comfortably longer than the fastest ramp step (100ms) so a genuine
+// held press stays throttled, and short enough that two deliberate taps still both register.
+const RUN_GAP_MS = 250;
 
 /**
  * Global D-pad / 10-foot navigation layer.
@@ -440,9 +451,18 @@ const TVNavigationLayer = () => {
 
         // Throttle held-down repeats so a long press steps deliberately instead of
         // flying past the target at the WebView's native repeat rate.
+        //
+        // The gate used to be inside `if (e.repeat)`, which meant it never ran on a TV: Android
+        // remotes deliver auto-repeat as a stream of DISCRETE keydowns with `repeat === false`
+        // (the repeat comes from the input driver, not the WebView's own key-repeat path). Every
+        // press took the else branch, reset the run counter and moved unthrottled — one thumb
+        // press flew several rows. So gate on elapsed time always, and treat `e.repeat` as only
+        // one of the signals that we are in a run.
         const now = Date.now();
-        if (e.repeat) {
-          if (now - lastMoveAtRef.current < repeatInterval(repeatRunRef.current)) return;
+        const sinceLast = now - lastMoveAtRef.current;
+        const inRun = e.repeat || sinceLast < RUN_GAP_MS;
+        if (inRun) {
+          if (sinceLast < repeatInterval(repeatRunRef.current)) return;
           repeatRunRef.current++;
         } else {
           repeatRunRef.current = 0;
