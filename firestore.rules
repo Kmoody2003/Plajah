@@ -35,6 +35,17 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // Chora transcode manifests (status + AAC-HLS / progressive / FLAC rendition URLs). The player
+    // reads these to prefer a small, hardware-decodable stream over the raw WAV master — the whole
+    // point of the transcode pipeline. WITHOUT a read rule the collection defaulted to deny, so
+    // getTrackStream() silently caught permission-denied and fell back to WAV, and every transcode
+    // was invisible to playback. Public read (the rendition URLs are already served openly via
+    // /api/chora/media); only the server (service account, rules-exempt) writes them.
+    match /choraStreams/{trackId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /sports_game_event_research/{docId} {
       allow read: if true;
       allow write: if isAdmin();
