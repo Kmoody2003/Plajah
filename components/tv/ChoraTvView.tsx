@@ -73,7 +73,7 @@ const ChoraTvView: React.FC<{
 
   // useGlobalPlayer merges the progress context, which ticks several times a second — using it
   // here re-rendered this whole screen continuously while music played.
-  const { currentAlbum, currentTrack, isPlaying, playTrack } = useGlobalPlayerState();
+  const { currentAlbum, currentTrack, isPlaying, playTrack, audioSource } = useGlobalPlayerState();
   // Two focus rings on screen at once reads as a bug, so the panel drops to its 'active'
   // treatment while the tab bar holds the remote.
   const shellFocused = useTvShellFocus();
@@ -402,7 +402,32 @@ const ChoraTvView: React.FC<{
             </div>
           </div>
         ) : (
-          rails.map((rail, rIdx) => (
+          <>
+          {/* Radio, like the web, leads with a NOW-PLAYING hero — the station on air, big, with a
+              live pulse — instead of dropping straight into browse rails. The station picker (Chora
+              Radio / Artist Stations / Live) stays below as the rails. No blur: TV fill-rate. */}
+          {section === 'RADIO' && (() => {
+            const onAir = audioSource === 'RADIO' && !!currentTrack;
+            const art = onAir ? ((currentTrack as any)?.albumCover || (currentTrack as any)?.images?.[0]) : undefined;
+            return (
+              <div className="mb-9 flex items-center gap-7 rounded-3xl p-6 bg-black/30 border border-white/10">
+                <div className="w-40 h-40 rounded-2xl overflow-hidden bg-white/[0.06] shrink-0 shadow-[0_24px_60px_rgba(0,0,0,0.6)] grid place-items-center">
+                  {art ? <img src={art} alt="" className="w-full h-full object-cover" /> : <RadioIcon size={44} className="text-white/25" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <span className={`w-2.5 h-2.5 rounded-full ${onAir && isPlaying ? 'bg-red-500 animate-pulse' : 'bg-white/30'}`} />
+                    <span className={`text-[11px] font-black uppercase tracking-[0.3em] ${onAir && isPlaying ? 'text-red-400' : 'text-white/40'}`}>
+                      {onAir && isPlaying ? 'On Air · Chora Radio' : 'Chora Radio'}
+                    </span>
+                  </div>
+                  <h2 className="text-4xl font-black leading-none truncate">{onAir ? (currentTrack?.title || 'Now playing') : 'Live Site-Wide Broadcast'}</h2>
+                  <p className="text-lg text-white/55 truncate mt-2">{onAir ? (currentTrack?.artist || '') : 'Pick a station below to tune in'}</p>
+                </div>
+              </div>
+            );
+          })()}
+          {rails.map((rail, rIdx) => (
             <section key={rail.id} className="mb-8">
               <RailHeading>{rail.title}</RailHeading>
               {/* The gutter exists because `overflow-x` clips BOTH axes: without it a focused
@@ -421,7 +446,8 @@ const ChoraTvView: React.FC<{
                 ))}
               </div>
             </section>
-          ))
+          ))}
+          </>
         )}
 
         {/* More shelves still landing: keep the page height stable rather than letting content
