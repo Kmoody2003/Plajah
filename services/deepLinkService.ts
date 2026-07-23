@@ -66,7 +66,9 @@ export function buildShareUrl(asset: ShareAsset, id: string, extra?: Record<stri
  *  the typed text and the link-preview card read the same: "Check out X by Y on Plajah.com". */
 export function shareText(title?: string, artist?: string): string {
   const t = (title || '').trim();
-  const a = (artist || '').trim();
+  let a = (artist || '').trim();
+  // Placeholder artists read badly as "…by Unknown Artist" — drop them for clean copy.
+  if (/^(unknown artist|unknown|various artists?|n\/?a|na|null|undefined)$/i.test(a)) a = '';
   if (t && a) return `Check out ${t} by ${a} on Plajah.com`;
   if (t)      return `Check out ${t} on Plajah.com`;
   return 'Check out this on Plajah.com';

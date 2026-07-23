@@ -635,6 +635,9 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
        const fallback = type === 'book' ? 'Book' : type === 'game' ? 'Game' : type === 'article' ? 'Article' : type === 'video' ? 'Video' : type === 'videoPlaylist' ? 'Playlist' : type === 'movie' ? 'Film' : 'Album';
        title = pick(['title', 'name']) || fallback;
      }
+     // Placeholder artists ("Unknown Artist" etc.) read badly as "…by Unknown Artist" —
+     // treat them as no artist so the copy falls back to a clean "Check out X on Plajah.com".
+     if (/^(unknown artist|unknown|various artists?|n\/?a|na|null|undefined)$/i.test(artist.trim())) artist = '';
      image = pick(IMG);
      if (type === 'videoPlaylist') {
        const count = f?.videoIds?.arrayValue?.values?.length || 0;
