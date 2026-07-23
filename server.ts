@@ -309,6 +309,89 @@ async function generateSocialVideoMp4(coverUrl: string, audioUrl: string): Promi
   catch (e: any) { return { buf: null, err: `read failed: ${e?.message || e}` }; }
 }
 
+/** Cover image → a gorgeous, Meta-safe 1200×630 JPEG social card. The crisp full album
+ *  art is centered over a blurred fill of itself, so nothing is cropped and the card grabs
+ *  attention on both X (summary_large_image) and Facebook. Raw covers are 20–30 MB PNGs that
+ *  Facebook silently drops (>8 MB) — this is the #1 reason album art wasn't previewing. */
+async function generateSocialImageJpg(coverUrl: string): Promise<{ buf: Buffer | null; err: string }> {
+  const coverPath = await fetchToTmp(coverUrl, 'img');
+  if (!coverPath) return { buf: null, err: 'cover download failed' };
+  const out = path.join(os.tmpdir(), `si_${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
+  const cleanup = () => { for (const p of [coverPath, out]) fs.unlink(p).catch(() => {}); };
+  // Blurred-fill background + centered sharp art. One decode, split into two paths.
+  const fancy = '[0:v]split=2[a][b];[a]scale=1200:630:force_original_aspect_ratio=increase,crop=1200:630,gblur=sigma=30[bg];[b]scale=606:606:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,format=yuv420p';
+  let enc = await runFfmpeg(['-y', '-i', coverPath, '-filter_complex', fancy, '-frames:v', '1', '-q:v', '3', out], 30000);
+  if (!enc.ok) {
+    // Fallback (no gblur dependency): letterbox the whole art onto a black 1200×630.
+    enc = await runFfmpeg(['-y', '-i', coverPath, '-vf', 'scale=1200:630:force_original_aspect_ratio=decrease,pad=1200:630:(ow-iw)/2:(oh-ih)/2:color=black', '-frames:v', '1', '-q:v', '3', out], 30000);
+  }
+  fs.unlink(coverPath).catch(() => {});
+  if (!enc.ok) { cleanup(); return { buf: null, err: `image render: ${enc.err}` }; }
+  try { const buf = await fs.readFile(out); fs.unlink(out).catch(() => {}); return { buf, err: '' }; }
+  catch (e: any) { return { buf: null, err: `read failed: ${e?.message || e}` }; }
+}
+
+/** Ensure the social card JPEG: serve from Storage cache, else render + cache. Image
+ *  rendering is fast (single frame), so this runs synchronously within the request. */
+async function ensureSocialImage(objectPath: string, coverUrl: string): Promise<{ buf: Buffer | null; err: string }> {
+  const cached = await gcsDownload(objectPath);
+  if (cached && cached.length > 500) return { buf: cached, err: '' };
+  const { buf, err } = await generateSocialImageJpg(coverUrl);
+  if (!buf) return { buf: null, err };
+  gcsUpload(objectPath, buf, 'image/jpeg').catch(() => {}); // cache; don't block serving
+  return { buf, err: '' };
+}
+
+/** Branded 1200×630 default social card (brand gradient) — used as the site-wide default
+ *  og:image so generic/homepage shares never fall back to a dead placeholder (the old
+ *  via.placeholder.com returned 503). Rendered by ffmpeg on the server; no static asset. */
+async function generateDefaultCardJpg(): Promise<{ buf: Buffer | null; err: string }> {
+  const out = path.join(os.tmpdir(), `ogdef_${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
+  // Tier 1: a diagonal brand gradient (violet → blue). `gradients` lavfi source (ffmpeg 5.1+).
+  let enc = await runFfmpeg(['-y', '-f', 'lavfi', '-i',
+    'gradients=s=1200x630:c0=0x6D28D9:c1=0x2563EB:x0=0:y0=0:x1=1200:y1=630',
+    '-frames:v', '1', '-q:v', '3', out], 20000);
+  if (!enc.ok) {
+    // Fallback: a solid brand-indigo card (no dependency on the gradients source).
+    enc = await runFfmpeg(['-y', '-f', 'lavfi', '-i', 'color=c=0x312E81:s=1200x630',
+      '-frames:v', '1', '-q:v', '3', out], 20000);
+  }
+  if (!enc.ok) return { buf: null, err: `default card: ${enc.err}` };
+  try { const buf = await fs.readFile(out); fs.unlink(out).catch(() => {}); return { buf, err: '' }; }
+  catch (e: any) { return { buf: null, err: `read failed: ${e?.message || e}` }; }
+}
+
+async function ensureDefaultCard(objectPath: string): Promise<{ buf: Buffer | null; err: string }> {
+  const cached = await gcsDownload(objectPath);
+  if (cached && cached.length > 500) return { buf: cached, err: '' };
+  const { buf, err } = await generateDefaultCardJpg();
+  if (!buf) return { buf: null, err };
+  gcsUpload(objectPath, buf, 'image/jpeg').catch(() => {});
+  return { buf, err: '' };
+}
+
+/** Resolve the best cover/thumbnail URL for a shareable asset (by type/id, optional track). */
+async function resolveShareCover(type: string, id: string, track?: string): Promise<string> {
+  const collectionFor: Record<string, string> = {
+    video: 'videos', album: 'albums', track: 'albums', book: 'albums', movie: 'albums',
+    article: 'articles', game: 'games', videoPlaylist: 'video_playlists',
+  };
+  const collection = collectionFor[type];
+  if (!collection) return '';
+  const doc = await fetchFirebaseDoc(collection, id);
+  const f = doc?.fields;
+  if (!f) return '';
+  if ((type === 'album' || type === 'track') && track) {
+    const arr = f?.tracks?.arrayValue?.values || [];
+    const tf = arr.find((t: any) => t.mapValue?.fields?.id?.stringValue === track)?.mapValue?.fields;
+    const tc = tf?.coverImage?.stringValue || tf?.coverImageUrl?.stringValue || tf?.artworkUrl?.stringValue;
+    if (tc) return tc;
+  }
+  const IMG = ['thumbnailUrl', 'coverImageUrl', 'coverImage', 'coverUrl', 'artworkUrl', 'imageUrl', 'videoThumbnail', 'posterUrl'];
+  for (const k of IMG) { const v = f?.[k]?.stringValue; if (v) return v; }
+  return '';
+}
+
 const socialVideoInFlight = new Set<string>();
 /** Ensure the social MP4 (cover+audio): serve from Storage cache, else generate + cache async. */
 async function ensureSocialVideo(objectPath: string, coverUrl: string, audioUrl: string): Promise<{ buf: Buffer | null; err: string }> {
@@ -541,10 +624,13 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
    } else {
      // Content assets (song/track, album, book, video, article, game) →
      // title = the asset's own name; description = Experience "Name" now on Plajah.
+     let artist = pick(['artist', 'artistName', 'creatorName', 'ownerName', 'authorName', 'displayName']);
      if ((type === 'album' || type === 'track') && track) {
        const tracksArray = f?.tracks?.arrayValue?.values || [];
        const trackObj = tracksArray.find((t: any) => t.mapValue?.fields?.id?.stringValue === track);
-       title = trackObj?.mapValue?.fields?.title?.stringValue || pick(['title', 'name']) || 'Track';
+       const tf = trackObj?.mapValue?.fields;
+       title = tf?.title?.stringValue || pick(['title', 'name']) || 'Track';
+       if (tf?.artist?.stringValue) artist = tf.artist.stringValue; // the track's own artist wins
      } else {
        const fallback = type === 'book' ? 'Book' : type === 'game' ? 'Game' : type === 'article' ? 'Article' : type === 'video' ? 'Video' : type === 'videoPlaylist' ? 'Playlist' : type === 'movie' ? 'Film' : 'Album';
        title = pick(['title', 'name']) || fallback;
@@ -553,6 +639,9 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
      if (type === 'videoPlaylist') {
        const count = f?.videoIds?.arrayValue?.values?.length || 0;
        desc = `Playlist · ${count} video${count === 1 ? '' : 's'} on Plajah`;
+     } else if (artist) {
+       // The requested share body: creator-forward, drives back to the app.
+       desc = `Check out ${title} by ${artist} on Plajah.com`;
      } else {
        desc = `Experience "${title}" now on Plajah`;
      }
@@ -560,9 +649,16 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
      if (!(type === 'video' || type === 'album' || type === 'track')) playerUrl = '';
    }
 
+   // Route the cover through /social-image so the crawler always gets a Meta-safe
+   // (<8 MB, correctly-dimensioned 1200×630) JPEG. Raw covers are 20–30 MB PNGs that
+   // Facebook silently drops — the #1 reason album art wasn't previewing.
+   const resizable = new Set(['album', 'track', 'video', 'movie', 'book', 'game', 'article', 'videoPlaylist']);
+   const cardImage = (image && resizable.has(String(type)))
+     ? `https://${host}/social-image?type=${encodeURIComponent(String(type))}&id=${encodeURIComponent(String(id))}${track ? `&track=${encodeURIComponent(String(track))}` : ''}`
+     : image;
    const safeTitle = htmlEscape(title);
    const safeDesc  = htmlEscape(desc);
-   const safeImage = htmlEscape(image);
+   const safeImage = htmlEscape(cardImage);
    const safeHost  = htmlEscape(host);
    const safeType  = htmlEscape(String(type));
    const safeId    = htmlEscape(String(id));
@@ -5098,6 +5194,44 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     } catch { return res.status(500).send('Error'); }
   });
 
+  // Meta-safe social card image — a gorgeous 1200×630 JPEG of the album/track/video
+  // cover, rendered + cached in Cloud Storage. og:image / twitter:image point here so
+  // Facebook & X always get a valid, correctly-sized image (raw covers are 20–30 MB
+  // PNGs Facebook drops). ?debug=1 surfaces the ffmpeg error instead of redirecting.
+  app.get('/social-image', async (req, res) => {
+    const { type, id, track } = req.query as any;
+    // Site-wide default card (used by index.html's default og:image).
+    if (req.query.default || !id) {
+      try {
+        const { buf, err } = await ensureDefaultCard('socialImages/_default.jpg');
+        if (!buf) {
+          if (req.query.debug) return res.status(500).type('text/plain').send(`default card err:\n${err}`);
+          return res.status(404).send('No image');
+        }
+        res.setHeader('Content-Type', 'image/jpeg');
+        res.setHeader('Cache-Control', 'public, max-age=604800');
+        res.setHeader('Content-Length', String(buf.length));
+        return res.end(buf);
+      } catch { return res.status(500).send('Error'); }
+    }
+    try {
+      const t = String(type || 'album');
+      const cover = await resolveShareCover(t, String(id), track ? String(track) : undefined);
+      if (!cover) return res.status(404).send('No image');
+      const key = `${t}__${String(id)}${track ? `__${String(track)}` : ''}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const objectPath = `socialImages/${key}.jpg`;
+      const { buf, err } = await ensureSocialImage(objectPath, cover);
+      if (!buf) {
+        if (req.query.debug) return res.status(500).type('text/plain').send(`cover: ${cover}\n\nffmpeg err:\n${err}`);
+        return res.redirect(302, cover); // last resort: original cover (better than a broken card)
+      }
+      res.setHeader('Content-Type', 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Content-Length', String(buf.length));
+      return res.end(buf);
+    } catch { return res.status(500).send('Error'); }
+  });
+
   // Share landing — serves the SPA shell with OG/twitter:player meta injected so
   // a shared track link renders an inline player card on social. Crawlers read
   // the meta; humans are bounced to the canonical app URL so the full app loads.
@@ -5109,7 +5243,12 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       try { html = await fs.readFile(path.join(__dirname, 'index.html'), 'utf-8'); }
       catch { html = '<!DOCTYPE html><html><head></head><body></body></html>'; }
     }
-    try { html = await injectMetaTags(html, req.query, host); } catch {}
+    // Track whether asset-specific meta actually got injected. If injection throws or
+    // no-ops (a transient Firestore blip), the html is the raw shell with the GENERIC
+    // default tags — we must NOT let the CDN cache that for 5 min, or one bad scrape
+    // poisons the preview for everyone until it expires (this is what bit us on Meta).
+    let injected = false;
+    try { const out = await injectMetaTags(html, req.query, host); if (out && out !== html) { html = out; injected = true; } } catch {}
 
     const { type, id } = req.query as any;
     if (type && id) {
@@ -5120,7 +5259,10 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const redirect = `<script>try{if(!/(bot|crawl|spider|facebookexternalhit|twitterbot|slackbot|discordbot|whatsapp|telegrambot|embedly|linkedinbot|pinterest|redditbot|googlebot|bingbot|applebot|skypeuripreview|vkshare|w3c_validator)/i.test(navigator.userAgent)){location.replace(${JSON.stringify(canonical)});}}catch(e){}</script>`;
       html = html.replace('</head>', `${redirect}\n</head>`);
     }
-    res.set('Cache-Control', 'public, max-age=300');
+    // Cache successful cards for 5 min; never cache a failed/generic fallback (so a retry
+    // or re-scrape immediately gets the real card instead of a stuck broken one).
+    if (type && id && !injected) res.set('Cache-Control', 'no-store, max-age=0');
+    else res.set('Cache-Control', 'public, max-age=300');
     res.send(html);
   });
 
