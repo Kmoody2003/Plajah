@@ -984,6 +984,17 @@ body.has-custom-background::after {
   .brand-shimmer { animation: none; background-position: 50% 0; }
 }
 
+/* TV slideshow Ken Burns: transform-only (GPU-composited, no repaint), so it stays smooth on the
+   Mali-G31 where the old animated blur did not. */
+@keyframes tv-kenburns {
+  from { transform: scale(1); }
+  to   { transform: scale(1.06); }
+}
+.tv-kenburns {
+  animation: tv-kenburns 14s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
 /* Live poll card: flowing brand-gradient top bar */
 @keyframes gradient-x {
   0%   { background-position: 0% 50%; }

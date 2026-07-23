@@ -210,8 +210,12 @@ const AlbumTvView: React.FC<{
                   key={t.id || i}
                   ref={el => { rowRefs.current[i + 1] = el; }}
                   onClick={() => onPlayTrack(t, i)}
+                  // The now-playing row wears the same living purple→orange sweep the phone and
+                  // desktop trackbars use (index.css .track-gradient-active) — so "what's playing"
+                  // reads identically across every surface. The D-pad focus (solid white) still
+                  // wins when you're pointed at it.
                   className={`flex items-center gap-5 px-5 py-3 rounded-xl cursor-pointer transition-colors ${
-                    focused ? 'bg-white text-black' : nowPlaying ? 'bg-white/[0.07]' : ''
+                    focused ? 'bg-white text-black' : nowPlaying ? 'track-gradient-active' : ''
                   }`}
                 >
                   <span className={`w-7 text-right text-[13px] font-bold tabular-nums shrink-0 ${
