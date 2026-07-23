@@ -6,6 +6,7 @@
 
 import { db, auth } from './firebase';
 import { collection, doc, setDoc, deleteDoc, getDocs, query, orderBy, limit as qlimit } from 'firebase/firestore';
+import { upsertWatchNext, removeWatchNext, type WatchNextItem } from './watchNextBridge';
 
 export type WatchKind = 'RELLO' | 'TALEO' | 'CHORA' | 'VIDEO';
 
@@ -39,6 +40,39 @@ function writeLocal(entries: WatchEntry[]): void {
   } catch { /* quota — non-fatal */ }
 }
 
+// Canonical origin: the Android autoVerify intent-filter is bound to plajah.com, so a Watch Next
+// tile must deep-link there to relaunch the app rather than open a browser.
+const DEEP_LINK_ORIGIN = 'https://plajah.com';
+
+/** Map a watch entry to a home-row tile — or null for kinds the TV row shouldn't carry (audio). */
+function toWatchNextItem(e: WatchEntry): WatchNextItem | null {
+  // Chora is audio; the Watch Next "continue watching" row is video-only. VIDEO/RELLO route to the
+  // Reello player (type=video); TALEO routes to the film page (type=movie).
+  const linkType = e.kind === 'TALEO' ? 'movie' : (e.kind === 'RELLO' || e.kind === 'VIDEO') ? 'video' : null;
+  if (!linkType) return null;
+  return {
+    id: e.id,
+    title: e.title || 'Continue watching',
+    contentType: e.kind === 'TALEO' ? 'MOVIE' : 'CLIP',
+    deepLink: `${DEEP_LINK_ORIGIN}/?id=${encodeURIComponent(e.id)}&type=${linkType}`,
+    positionSec: e.positionSec,
+    durationSec: e.durationSec,
+    posterUri: e.thumbnailUrl,
+    description: e.ownerName,
+    updatedAt: e.updatedAt,
+    aspect: e.kind === 'TALEO' ? 'MOVIE_POSTER' : 'ASPECT_16_9',
+  };
+}
+
+/** Mirror one entry into the TV home row (no-op off-TV). Finished titles are pulled from the row. */
+function syncWatchNext(entry: WatchEntry): void {
+  const item = toWatchNextItem(entry);
+  if (!item) return;
+  // Fire-and-forget: the home row must never slow or break progress recording.
+  if (entry.completed) void removeWatchNext([entry.id]);
+  else void upsertWatchNext([item]);
+}
+
 /** Record (upsert) playback progress. Safe to call frequently; caller throttles. */
 export async function recordProgress(entry: Omit<WatchEntry, 'updatedAt' | 'completed'> & { updatedAt?: number }): Promise<void> {
   const completed = entry.durationSec > 0 && entry.positionSec / entry.durationSec >= COMPLETE_RATIO;
@@ -49,11 +83,28 @@ export async function recordProgress(entry: Omit<WatchEntry, 'updatedAt' | 'comp
   local.unshift(full);
   writeLocal(local);
 
+  // Reflect it in the Android TV home-screen "continue watching" row.
+  syncWatchNext(full);
+
   const uid = auth.currentUser?.uid;
   if (!uid) return;
   try {
     await setDoc(doc(db, 'users', uid, 'watchHistory', full.id), full, { merge: true });
   } catch { /* network — localStorage already holds it */ }
+}
+
+/**
+ * Reconcile the whole home row against current continue-watching. Call once on TV startup so the
+ * row reflects progress made on other devices (Firestore sync) and drops anything now finished.
+ * No-op off-TV.
+ */
+export async function reconcileWatchNext(max = 20): Promise<void> {
+  try {
+    const items = (await getContinueWatching(undefined, max))
+      .map(toWatchNextItem)
+      .filter((x): x is WatchNextItem => x !== null);
+    if (items.length) await upsertWatchNext(items);
+  } catch { /* non-fatal */ }
 }
 
 /** Merge Firestore history into the local cache and return the unified list. */
@@ -98,12 +149,14 @@ export function getResumePosition(id: string): number {
 
 export async function removeEntry(id: string): Promise<void> {
   writeLocal(readLocal().filter(e => e.id !== id));
+  void removeWatchNext([id]);
   const uid = auth.currentUser?.uid;
   if (!uid) return;
   try { await deleteDoc(doc(db, 'users', uid, 'watchHistory', id)); } catch { /* non-fatal */ }
 }
 
 export async function clearHistory(): Promise<void> {
+  void removeWatchNext(readLocal().map(e => e.id));
   writeLocal([]);
   const uid = auth.currentUser?.uid;
   if (!uid) return;

@@ -1008,6 +1008,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       // a streaming service rather than dropping the viewer into a creation hub.
       setView(getTvHome());
       setTheme('BIG_SCREEN');
+      // Refresh the Android TV home-screen "continue watching" row from cross-device history.
+      // No-op on non-Android-TV; deferred so it never competes with first paint.
+      import('./services/watchHistoryService')
+        .then(m => setTimeout(() => m.reconcileWatchNext().catch(() => {}), 3000))
+        .catch(() => {});
     } else if (isMobileDevice) {
       setView('MUSIC');
       setTheme('PHONE');

@@ -101,6 +101,9 @@ dependencies {
     // Google Cast SDK (for Google Home / Chromecast)
     implementation "com.google.android.gms:play-services-cast-framework:$castFrameworkVersion"
 
+    // AndroidX TvProvider — powers WatchNextPlugin (home-screen "continue watching" row)
+    implementation "androidx.tvprovider:tvprovider:$tvProviderVersion"
+
     // Capacitor
     implementation project(':capacitor-android')
     implementation project(':capacitor-cordova-android-plugins')

@@ -50,6 +50,12 @@ class MainActivity : BridgeActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Capacitor requires custom plugins to be registered BEFORE super.onCreate builds the
+        // bridge — after that the registry is sealed and the JS `WatchNext` proxy resolves to
+        // nothing. It writes the TV home-screen "continue watching" row (Reello + Taleo); on a
+        // phone the plugin loads but every method reports unsupported, so this is harmless there.
+        registerPlugin(WatchNextPlugin::class.java)
+
         installSplashScreen()
         super.onCreate(savedInstanceState)
         // Render edge-to-edge — Compose and the WebView both respect system bar insets
