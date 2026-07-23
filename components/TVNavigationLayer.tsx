@@ -100,9 +100,16 @@ const topScope = (): HTMLElement | null => {
  * (useTvGrid's onExitTop, i.e. the viewer arrowed up out of the grid).
  */
 const inCaptureZone = (t: HTMLElement | null): boolean => {
-  if (t?.closest('[data-tv-capture]')) return true;
-  if (!document.querySelector('[data-tv-capture]')) return false;
-  return !isShellFocused();
+  // The shell-focus store is the arbiter of who owns the remote. When the tab bar has claimed it,
+  // THIS layer must always yield — otherwise it grabs the arrows, tries to navigate from the tab
+  // (which is data-tv-navbar and filtered out) to a capture screen (which exposes no focusables),
+  // finds nothing, and consumes the key anyway. The result is a hard deadlock: the geometric layer
+  // eats every press, TvTopTabs is starved and can never hand focus back down, and the grid stays
+  // inert because the shell holds focus. The old `!isShellFocused()` had this exactly backwards.
+  if (isShellFocused()) return true;
+  if (t?.closest('[data-tv-capture]')) return true;   // inside a capture screen → it owns the arrows
+  if (!document.querySelector('[data-tv-capture]')) return false;  // ordinary page → geometry navigates
+  return true;   // a capture screen is mounted and the shell is idle → its useTvGrid owns the arrows
 };
 
 const closeModal = (modal: HTMLElement): void => {
