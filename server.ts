@@ -639,12 +639,12 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
      // album owner's display name so the real creator's name shows in the share card.
      const isPlaceholderArtist = (s: string) => !s || /^(unknown artist|unknown|various artists?|n\/?a|na|null|undefined)$/i.test(s.trim());
      if (isPlaceholderArtist(artist)) {
-       const ownerId = f?.ownerId?.stringValue;
+       const ownerId = f?.ownerId?.stringValue || f?.ownerUid?.stringValue || f?.uid?.stringValue || f?.creatorUid?.stringValue || f?.artistId?.stringValue;
        if (ownerId) {
          try {
            const owner = await fetchFirebaseDoc('users', ownerId);
            const of = owner?.fields;
-           const ownerName = of?.artistName?.stringValue || of?.displayName?.stringValue || of?.name?.stringValue || of?.username?.stringValue || '';
+           const ownerName = of?.artistName?.stringValue || of?.artistDisplayName?.stringValue || of?.displayName?.stringValue || of?.name?.stringValue || of?.username?.stringValue || of?.handle?.stringValue || '';
            if (ownerName && !isPlaceholderArtist(ownerName)) artist = ownerName;
          } catch { /* keep whatever we had */ }
        }
@@ -658,7 +658,8 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
        // The requested share body: creator-forward, drives back to the app.
        desc = `Check out ${title} by ${artist} on Plajah.com`;
      } else {
-       desc = `Experience "${title}" now on Plajah`;
+       // No resolvable artist — keep the same on-brand copy, just without the "by".
+       desc = `Check out ${title} on Plajah.com`;
      }
      // Only audio/video get an inline player card; the rest use a large-image card.
      if (!(type === 'video' || type === 'album' || type === 'track')) playerUrl = '';
@@ -5252,6 +5253,18 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // the meta; humans are bounced to the canonical app URL so the full app loads.
   app.get('/share', async (req, res) => {
     const host = publicHost(req);
+    // ?probe=meta — dump the resolved share fields (artist/owner) as JSON for debugging.
+    if (req.query.probe === 'meta' && req.query.type && req.query.id) {
+      try {
+        const coll: Record<string, string> = { album: 'albums', track: 'albums', book: 'albums', movie: 'albums', video: 'videos', article: 'articles', game: 'games' };
+        const doc = await fetchFirebaseDoc(coll[String(req.query.type)] || 'albums', String(req.query.id));
+        const f: any = doc?.fields || {};
+        const ownerId = f.ownerId?.stringValue || f.ownerUid?.stringValue || f.uid?.stringValue || f.creatorUid?.stringValue || f.artistId?.stringValue || null;
+        let owner: any = null;
+        if (ownerId) { const o = await fetchFirebaseDoc('users', ownerId); const of = o?.fields || {}; owner = { displayName: of.displayName?.stringValue, name: of.name?.stringValue, artistName: of.artistName?.stringValue, username: of.username?.stringValue, handle: of.handle?.stringValue }; }
+        return res.json({ title: f.title?.stringValue, artist: f.artist?.stringValue, ownerId, owner });
+      } catch (e: any) { return res.status(500).json({ error: String(e?.message || e) }); }
+    }
     let html = '';
     try { html = await fs.readFile(path.join(__dirname, 'dist', 'index.html'), 'utf-8'); }
     catch {
