@@ -265,11 +265,12 @@ export async function asyncRails(
     }
 
     case 'MY_LIBRARY': {
-      // Mirrors the desktop Music Vault's four groups (Saved / Locker / Uploads / Playlists).
-      // The locker (`personal_tracks`) was missing entirely on TV, which is why the library
-      // collapsed to a single rail for anyone whose music lives there: nonEmpty() drops empty
-      // rails, so "saved tracks and nothing else" rendered as one lonely row with nowhere to
-      // navigate. Fetching the locker restores the shape the viewer actually has.
+      // Organised the way a music library actually is — by Album, by Artist, by Playlist — plus a
+      // Singles shelf for the tracks that belong to no album, rather than the old flat "saved /
+      // locker" rails. Everything a viewer has (saved + private locker + their own uploads) is
+      // pooled and then re-cut through those three lenses, so the same track is reachable however
+      // you think of it. A grouped card is a pseudo-album that opens the normal album screen, so no
+      // new view is needed and playback / the trackbar just work.
       const ids = base.userProfile?.library || [];
       const [saved, locker, personalAlbums, personalPlaylists] = await Promise.all([
         ids.length ? fetchUserLibraryTracks(ids).catch(() => [] as Track[]) : Promise.resolve([] as Track[]),
@@ -277,15 +278,42 @@ export async function asyncRails(
         fetchPersonalAlbums().catch(() => [] as Album[]),
         fetchPersonalPlaylists().catch(() => [] as Playlist[]),
       ]);
-      // Newest first within each group — on a remote, "what I added last" is the thing being
-      // reached for, and it is the desktop vault's default sort too.
       const recentFirst = (list: Track[]) =>
         [...list].sort((a, b) => ((b as any).timestamp || 0) - ((a as any).timestamp || 0));
+
+      // Loose tracks (saved + locker); the uploaded albums come through personalAlbums whole.
+      const loose = [...(saved || []), ...(locker || [])];
+      const cover = (t: Track) => (t as any).albumCover || (t as any).coverImage;
+
+      // Group a track list into pseudo-album cards keyed by album title or by artist.
+      const group = (tracks: Track[], keyOf: (t: Track) => string, prefix: string): TvItem[] => {
+        const map = new Map<string, Track[]>();
+        for (const t of tracks) {
+          const k = (keyOf(t) || '').trim();
+          if (!k) continue;
+          const arr = map.get(k); if (arr) arr.push(t); else map.set(k, [t]);
+        }
+        return [...map.entries()].map(([k, ts]) => ({
+          id: `${prefix}:${k}`,
+          title: k,
+          subtitle: prefix === 'artist' ? `${ts.length} track${ts.length === 1 ? '' : 's'}` : (ts[0].artist || ''),
+          image: cover(ts[0]),
+          action: {
+            kind: 'ALBUM' as const,
+            album: { id: `${prefix}:${k}`, title: k, artist: prefix === 'artist' ? k : (ts[0].artist || ''), coverImage: cover(ts[0]), tracks: recentFirst(ts) } as Album,
+          },
+        }));
+      };
+
+      const looseAlbums = group(loose.filter(t => (t as any).albumTitle), t => (t as any).albumTitle, 'album');
+      const artistAlbums = group(loose, t => t.artist || '', 'artist');
+      const singles = loose.filter(t => !(t as any).albumTitle && !(t as any).albumId);
+
       return nonEmpty([
-        { id: 'saved', title: 'Saved Tracks', items: (saved || []).map(t => trackItem(t)) },
-        { id: 'locker', title: 'Music Locker', items: recentFirst(locker || []).map(t => trackItem(t)) },
-        { id: 'mine', title: 'My Uploads', items: (personalAlbums || []).map(albumItem) },
-        { id: 'lists', title: 'My Playlists', items: (personalPlaylists || []).map(playlistItem) },
+        { id: 'albums',  title: 'Albums',    items: [...(personalAlbums || []).map(albumItem), ...looseAlbums] },
+        { id: 'artists', title: 'Artists',   items: artistAlbums },
+        { id: 'lists',   title: 'Playlists', items: (personalPlaylists || []).map(playlistItem) },
+        { id: 'singles', title: 'Singles',   items: recentFirst(singles).map(t => trackItem(t)) },
       ]);
     }
 
