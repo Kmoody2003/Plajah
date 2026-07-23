@@ -319,6 +319,10 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   useEffect(() => {
     const t = currentTrack;
     if (!t?.url || getCachedAnalysis(t)) return;
+    // Never on a TV: the DJ decks and waveform this feeds do not exist at ten feet, and computing
+    // it means decoding the whole master — which on a 2 GB box is pure memory pressure that gets
+    // the audio decoder evicted mid-song. This is the biggest single lever for smooth TV playback.
+    if (getPlatformInfo().isTV) return;
     let cancelled = false;
     const id = setTimeout(() => { if (!cancelled) getOrComputeAnalysis(t).catch(() => {}); }, 4000);
     return () => { cancelled = true; clearTimeout(id); };
@@ -855,8 +859,11 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
               // Run diagnostics to explain the failure
               diagnoseAudioUrl(track.url || '').catch(() => {});
 
-              // Tier 2: try AudioContext.decodeAudioData (handles 24-bit WAV, AIFF, etc.)
-              if (track.url) {
+              // Tier 2: try AudioContext.decodeAudioData (handles 24-bit WAV, AIFF, etc.).
+              // NOT on a TV: decoding a whole master is ~250 MB of live heap on a 2 GB box, which
+              // OOM-evicts the very decoder we are trying to feed. A TV goes straight to a fresh,
+              // bare element — the path that plays smoothly there.
+              if (track.url && !getPlatformInfo().isTV) {
                 await tryDecodeFallback(track.url);
                 return;
               }
