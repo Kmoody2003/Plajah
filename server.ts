@@ -635,9 +635,21 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
        const fallback = type === 'book' ? 'Book' : type === 'game' ? 'Game' : type === 'article' ? 'Article' : type === 'video' ? 'Video' : type === 'videoPlaylist' ? 'Playlist' : type === 'movie' ? 'Film' : 'Album';
        title = pick(['title', 'name']) || fallback;
      }
-     // Placeholder artists ("Unknown Artist" etc.) read badly as "…by Unknown Artist" —
-     // treat them as no artist so the copy falls back to a clean "Check out X on Plajah.com".
-     if (/^(unknown artist|unknown|various artists?|n\/?a|na|null|undefined)$/i.test(artist.trim())) artist = '';
+     // When the artist is missing or a placeholder ("Unknown Artist"), fall back to the
+     // album owner's display name so the real creator's name shows in the share card.
+     const isPlaceholderArtist = (s: string) => !s || /^(unknown artist|unknown|various artists?|n\/?a|na|null|undefined)$/i.test(s.trim());
+     if (isPlaceholderArtist(artist)) {
+       const ownerId = f?.ownerId?.stringValue;
+       if (ownerId) {
+         try {
+           const owner = await fetchFirebaseDoc('users', ownerId);
+           const of = owner?.fields;
+           const ownerName = of?.artistName?.stringValue || of?.displayName?.stringValue || of?.name?.stringValue || of?.username?.stringValue || '';
+           if (ownerName && !isPlaceholderArtist(ownerName)) artist = ownerName;
+         } catch { /* keep whatever we had */ }
+       }
+     }
+     if (isPlaceholderArtist(artist)) artist = ''; // still nothing usable → clean "Check out X on Plajah.com"
      image = pick(IMG);
      if (type === 'videoPlaylist') {
        const count = f?.videoIds?.arrayValue?.values?.length || 0;
