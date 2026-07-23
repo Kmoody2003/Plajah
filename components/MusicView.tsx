@@ -40,14 +40,14 @@ import PlajahPlusBanner from './PlajahPlusBanner';
 import { WC26_TEAMS } from '../data/worldCup2026';
 import { ANTHEM_LYRICS } from '../data/anthemLyrics';
 import { WC_ANTHEM_ALBUM } from '../data/wcAnthemAlbum';
-import { shareAsset } from '../services/deepLinkService';
+import { shareAsset, shareText } from '../services/deepLinkService';
 
 // Share a single Chora track — the link lands on the track's album page and (via the
 // AutoPlayCountdown) offers a 5s auto-play. `albumId` is the track's parent album.
 const shareTrack = (albumId: string, track: { id: string; title?: string; artist?: string }) => {
   shareAsset('track', albumId, {
     title: track.title,
-    text: `🎵 ${track.title || 'This track'} — ${track.artist || 'Plajah'} on Plajah`,
+    text: shareText(track.title, track.artist),
     extra: { track: track.id },
   });
 };

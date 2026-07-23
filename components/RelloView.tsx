@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { ArrowLeft, Heart, MessageCircle, Share2, ChevronUp, ChevronDown, Radio, FlaskConical, ExternalLink, X } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { fetchAllVideos, fetchVideoById, fetchVideosByInterests, fetchFollowedVideos } from '../services/backendService';
-import { shareAsset } from '../services/deepLinkService';
+import { shareAsset, shareText } from '../services/deepLinkService';
 import { blendRelloFeed } from '../services/relloFeedService';
 import { recordProgress } from '../services/watchHistoryService';
 import { likeVideo, unlikeVideo, checkIfLiked, fetchUserProfile } from '../services/backendService';
@@ -243,7 +243,7 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
 
   const shareCurrent = async () => {
     if (!current) return;
-    await shareAsset('video', current.id, { title: current.title, text: `${current.title} on Plajah` });
+    await shareAsset('video', current.id, { title: current.title, text: shareText(current.title, (current as any).channelName || (current as any).creatorName || (current as any).uploaderName) });
     setShared(true);
     setTimeout(() => setShared(false), 2000);
   };

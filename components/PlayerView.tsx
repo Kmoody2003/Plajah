@@ -1490,7 +1490,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                           <ShareButton
                             title={t.title}
                             artist={t.artist || album.artist}
-                            text={`🎵 ${t.title} — ${t.artist || album.artist} on Plajah`}
+                            text={`Check out ${t.title} by ${t.artist || album.artist} on Plajah.com`}
                             url={buildShareUrl('album', album.id, { track: t.id })}
                             imageUrl={album.coverImage}
                             plajahLabel="Share to Plajah feed"
@@ -2882,7 +2882,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                      <ShareButton
                        title={currentTrack?.title || album.title}
                        artist={album.artist}
-                       text={`🎵 ${currentTrack?.title || album.title} — ${album.artist} on Plajah`}
+                       text={`Check out ${currentTrack?.title || album.title} by ${album.artist} on Plajah.com`}
                        url={buildShareUrl('album', album.id, { track: currentTrack?.id })}
                        imageUrl={album.coverImage}
                        plajahLabel="Share to Plajah feed"
@@ -3712,9 +3712,13 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       </AnimatePresence>
 
       {showShareModal && (() => {
-        const shareText = `Listen to ${album.title} by ${album.artist} on Plajah`;
-        const albumUrl = publicUrl || `${window.location.origin}/?type=album&id=${album.id}`;
-        const embedCode = `<iframe src="${albumUrl}&embed=1" width="420" height="160" frameborder="0" allow="autoplay; encrypted-media" style="border-radius:16px;border:none;overflow:hidden"></iframe>`;
+        const shareText = `Check out ${album.title} by ${album.artist} on Plajah.com`;
+        // Social shares MUST use the /share route so X/Facebook/etc. crawl the rich album
+        // card. A plain /?type= link hits static index.html and previews as generic Plajah.
+        const albumUrl = buildShareUrl('album', album.id, { track: currentTrack?.id, video: activeVideoId || undefined });
+        // The embed iframe needs a directly-playable URL (not /share, which bounces humans).
+        const embedUrl = publicUrl || `${window.location.origin}/?type=album&id=${album.id}`;
+        const embedCode = `<iframe src="${embedUrl}${embedUrl.includes('?') ? '&' : '?'}embed=1" width="420" height="160" frameborder="0" allow="autoplay; encrypted-media" style="border-radius:16px;border:none;overflow:hidden"></iframe>`;
 
         const openShare = (url: string) => window.open(url, '_blank', 'noopener,noreferrer');
         const copyClipboard = async (text: string, onDone: () => void) => {

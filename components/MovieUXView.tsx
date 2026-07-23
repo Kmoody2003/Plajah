@@ -28,7 +28,7 @@ import {
   fetchDiscussionPostsByContentId,
 } from '../services/backendService';
 import The411 from './The411';
-import { shareAsset } from '../services/deepLinkService';
+import { shareAsset, shareText } from '../services/deepLinkService';
 import CharacterWorldView from './CharacterWorldView';
 import { createPortal } from 'react-dom';
 import { hlsTuning, capLevelsToPanel } from '../services/hlsTuning';
@@ -1254,9 +1254,9 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                     <button
                       onClick={() => {
                         const archiveId = (item as any).identifier;
-                        if (archiveId) shareAsset('archive', archiveId, { title: item.title, text: `${item.title} on Plajah` });
+                        if (archiveId) shareAsset('archive', archiveId, { title: item.title, text: shareText(item.title, (item as any).creator || (item as any).director) });
                         // A Taleo film opens on its Taleo movie page (MOVIE_UX), not the Reello player.
-                        else if (item.id) shareAsset('movie', item.id, { title: item.title, text: `${item.title} on Plajah` });
+                        else if (item.id) shareAsset('movie', item.id, { title: item.title, text: shareText(item.title, (item as any).creator || (item as any).director) });
                       }}
                       title="Share"
                       className="h-12 w-12 bg-white/[0.07] hover:bg-white/[0.12] backdrop-blur-sm border border-white/[0.10] rounded-full flex items-center justify-center text-white/45 hover:text-white transition-all">
