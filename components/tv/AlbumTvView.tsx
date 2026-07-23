@@ -3,6 +3,7 @@ import { Play, Pause, Shuffle, ArrowLeft, Music2 } from 'lucide-react';
 import type { Album, Track } from '../../types';
 import { thumb, THUMB } from '../../src/lib/imageThumb';
 import { useTvGrid } from '../../hooks/useTvGrid';
+import TvBrandBackdrop from './TvBrandBackdrop';
 
 /**
  * An album on television.
@@ -65,7 +66,10 @@ const AlbumTvView: React.FC<{
   const totalSec = tracks.reduce((a, t) => a + ((t as any).duration || 0), 0);
 
   return (
-    <div className="h-[100dvh] bg-[#07070a] text-white flex overflow-hidden" data-tv-capture>
+    <div className="relative h-[100dvh] text-white flex overflow-hidden" data-tv-capture>
+      {/* Same brand ground as the Chora home and the phone/desktop app — the album view was flat
+          near-black, which read as a different, lesser product the moment you opened a release. */}
+      <TvBrandBackdrop />
       {/* ── Art ── */}
       <div className="w-[46%] shrink-0 p-12 flex flex-col justify-center">
         <button
