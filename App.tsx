@@ -4836,7 +4836,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         />
 
          {/* Custom Delete Confirmation Modal */}
-        {user && !isMobile && (
+        {/* Not on TV: the floating chat widget is a 10-foot irrelevance, and worse, its focusable
+            controls sit in a fixed off-screen overlay that trapped D-pad focus — the remote could
+            walk into it and never get out. */}
+        {user && !isMobile && !getPlatformInfo().isTV && (
           <ChatFlyout
             onNavigateToChat={() => setView('CHAT')}
             onSelectRoom={(roomId) => setSelectedChatRoomId(roomId)}

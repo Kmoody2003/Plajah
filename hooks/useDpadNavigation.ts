@@ -152,6 +152,25 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
+/**
+ * True when the element is genuinely paintable — not display:none, visibility:hidden,
+ * opacity:0, or content-visibility-hidden. `checkVisibility` (Chrome 105+) settles all of
+ * those in one native call; the older WebViews we still support fall back to the layout test.
+ *
+ * This is the fix for "focus catching hidden elements": an element with visibility:hidden or
+ * opacity:0 keeps a non-zero bounding rect, so the geometry test alone happily targets it — a
+ * card mid-exit-animation, an inactive-but-rendered tab panel, a faded-out overlay. The remote
+ * then appears to land on nothing.
+ */
+const isPaintable = (el: HTMLElement): boolean => {
+  const cv = (el as any).checkVisibility;
+  if (typeof cv === 'function') {
+    return cv.call(el, { checkOpacity: true, checkVisibilityCSS: true, contentVisibilityAuto: true }) as boolean;
+  }
+  const s = getComputedStyle(el);
+  return s.visibility !== 'hidden' && s.display !== 'none' && parseFloat(s.opacity || '1') > 0.01;
+};
+
 /** True when the element is actually rendered (not hidden / zero-size / detached). */
 const isVisible = (el: HTMLElement): boolean => {
   if (el.hasAttribute('disabled') || el.getAttribute('aria-hidden') === 'true') return false;
@@ -160,11 +179,11 @@ const isVisible = (el: HTMLElement): boolean => {
   if (rects.length === 0) return false;            // display:none / detached / in a collapsed ancestor
   const r = el.getBoundingClientRect();
   if (r.width < 2 || r.height < 2) return false;   // zero-size
-  // NOTE: intentionally NOT filtering by viewport intersection. Spatial nav must
+  if (!isPaintable(el)) return false;              // visibility:hidden / opacity:0 keep a rect
+  // NOTE: intentionally NOT filtering by viewport intersection here. Spatial nav must
   // be able to move focus to OFF-SCREEN (scrolled) controls and scroll them into
   // view — that's how a D-pad reaches below-the-fold buttons (e.g. the sign-in
-  // buttons on the landing page). Only truly hidden / zero-size / detached
-  // elements are excluded here.
+  // buttons on the landing page). measureCandidates applies a GENEROUS margin cull.
   return true;
 };
 
@@ -383,12 +402,24 @@ export const measureCandidates = (
   exclude: HTMLElement | null
 ): { el: HTMLElement; rect: NavRect }[] => {
   const out: { el: HTMLElement; rect: NavRect }[] = [];
+  const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+  const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+  // Asymmetric slack. VERTICAL is generous (a full viewport) because below-the-fold controls are
+  // reached by scrolling down — that was the whole reason viewport-culling was avoided. HORIZONTAL
+  // is tight: a rail auto-scrolls the focused item on-screen, so its reachable neighbours are only
+  // ~half a screen out; anything further off the left/right edge is either a distant rail card or,
+  // worse, a fixed off-screen widget (a closed drawer) that must never be a target. Culling those
+  // is both the "focus stuck off-screen" fix and the perf win (fewer rects to score).
+  const marginX = vw * 0.4, marginY = vh;
   for (const el of els) {
     if (el === exclude || !el.isConnected) continue;
     if (el.hasAttribute('disabled') || el.getAttribute('aria-hidden') === 'true') continue;
     const r = el.getBoundingClientRect();
     if (r.width < 2 || r.height < 2) continue;      // hidden / collapsed / zero-size
+    // Entirely outside the generous window — unreachable in one move, so not a candidate.
+    if (r.bottom < -marginY || r.top > vh + marginY || r.right < -marginX || r.left > vw + marginX) continue;
     if (el.closest('[data-tv-ignore]')) continue;
+    if (!isPaintable(el)) continue;                 // visibility:hidden / opacity:0 keep a rect
     out.push({ el, rect: { left: r.left, top: r.top, right: r.right, bottom: r.bottom } });
   }
   return out;

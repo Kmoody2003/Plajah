@@ -62,6 +62,7 @@ interface CinemaPlayerProps {
   onToggleFullscreen?: () => void;
   onWhatIfParticipation?: (branchId: string, choiceId: string) => void;
   onEnded?: () => void;
+  onBack?: () => void;
 }
 
 type CinemaStrategy = 'mux' | 'hls' | 'direct' | 'embed' | 'processing' | 'error';
@@ -74,6 +75,7 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
   onToggleFullscreen,
   onWhatIfParticipation,
   onEnded,
+  onBack,
 }) => {
   const videoElRef = useRef<HTMLVideoElement | null>(null);
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
@@ -479,6 +481,19 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
         style={{ pointerEvents: showControls ? 'auto' : 'none' }}
         onClick={e => e.stopPropagation()}
       >
+        {/* Back — lives INSIDE the auto-hiding overlay so the title chrome disappears while the
+            film plays, instead of parking permanently in the top-left over the picture. */}
+        {onBack && (
+          <button
+            onClick={onBack}
+            data-tv-focusable
+            className="absolute top-4 left-4 z-10 flex items-center gap-2 pl-3 pr-4 py-2.5 bg-black/60 backdrop-blur-md rounded-full text-white hover:bg-black/80 transition-all border border-white/10 max-w-[70vw]"
+            title="Back to details (Esc)"
+          >
+            <ArrowLeft size={16} className="shrink-0" />
+            <span className="text-[10px] font-black uppercase tracking-widest truncate">{initialVideo.title || 'Back'}</span>
+          </button>
+        )}
         <div className="bg-gradient-to-t from-black/85 via-black/40 to-transparent pt-20 pb-4 px-3 sm:px-5">
           {/* Progress bar */}
           <div className="mb-4">
@@ -942,8 +957,12 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
   }, [nextEpisode]);
 
   const handleEpisodeEnded = useCallback(() => {
+    // A series with a next episode offers the up-next countdown; anything else (a film, or the
+    // last episode) returns to the detail page rather than freezing on the final frame — which,
+    // on a TV with the chrome now hidden, is a dead end with no obvious way out.
     if (autoplayNextEp && nextEpisode) setUpNextEpIn(8);
-  }, [autoplayNextEp, nextEpisode]);
+    else exitPlayer();
+  }, [autoplayNextEp, nextEpisode, exitPlayer]);
 
   useEffect(() => {
     if (upNextEpIn === null) return;
@@ -1020,6 +1039,7 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
             onToggleFullscreen={toggleFullscreen}
             onWhatIfParticipation={handleWhatIfParticipation}
             onEnded={handleEpisodeEnded}
+            onBack={exitPlayer}
           />
 
           {/* Up next episode (autoplay) */}
@@ -1059,15 +1079,6 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
             </div>
           )}
 
-          {/* Back — clear exit from the player to the title's detail page (always visible, works in fullscreen) */}
-          <button
-            onClick={exitPlayer}
-            className="absolute top-4 left-4 z-20 flex items-center gap-2 pl-3 pr-4 py-2.5 bg-black/60 backdrop-blur-md rounded-full text-white hover:bg-black/80 transition-all border border-white/10 max-w-[70vw]"
-            title="Back to details (Esc)"
-          >
-            <ArrowLeft size={16} className="shrink-0" />
-            <span className="text-[10px] font-black uppercase tracking-widest truncate">{activeVideo.title || 'Back'}</span>
-          </button>
         </div>,
         document.body,
       )}
