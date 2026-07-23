@@ -624,20 +624,23 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
    } else {
      // Content assets (song/track, album, book, video, article, game) →
      // title = the asset's own name; description = Experience "Name" now on Plajah.
+     // Artist precedence: a REAL track artist > the album's artist > the owner's name.
+     // A placeholder ("Unknown Artist") at the track level must NOT clobber a real album
+     // artist (that bug made shares read "by <uploader account>" instead of the artist).
+     const isPlaceholderArtist = (s: string) => !s || /^(unknown artist|unknown|various artists?|n\/?a|na|null|undefined)$/i.test((s || '').trim());
      let artist = pick(['artist', 'artistName', 'creatorName', 'ownerName', 'authorName', 'displayName']);
      if ((type === 'album' || type === 'track') && track) {
        const tracksArray = f?.tracks?.arrayValue?.values || [];
        const trackObj = tracksArray.find((t: any) => t.mapValue?.fields?.id?.stringValue === track);
        const tf = trackObj?.mapValue?.fields;
        title = tf?.title?.stringValue || pick(['title', 'name']) || 'Track';
-       if (tf?.artist?.stringValue) artist = tf.artist.stringValue; // the track's own artist wins
+       const ta = tf?.artist?.stringValue;
+       if (ta && !isPlaceholderArtist(ta)) artist = ta; // only a real track artist wins
      } else {
        const fallback = type === 'book' ? 'Book' : type === 'game' ? 'Game' : type === 'article' ? 'Article' : type === 'video' ? 'Video' : type === 'videoPlaylist' ? 'Playlist' : type === 'movie' ? 'Film' : 'Album';
        title = pick(['title', 'name']) || fallback;
      }
-     // When the artist is missing or a placeholder ("Unknown Artist"), fall back to the
-     // album owner's display name so the real creator's name shows in the share card.
-     const isPlaceholderArtist = (s: string) => !s || /^(unknown artist|unknown|various artists?|n\/?a|na|null|undefined)$/i.test(s.trim());
+     // Still missing or a placeholder → fall back to the album owner's display name.
      if (isPlaceholderArtist(artist)) {
        const ownerId = f?.ownerId?.stringValue || f?.ownerUid?.stringValue || f?.uid?.stringValue || f?.creatorUid?.stringValue || f?.artistId?.stringValue;
        if (ownerId) {
@@ -4965,6 +4968,38 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   app.post('/api/chora/transcode', apiLimiter, authMiddleware, express.json({ limit: '256kb' }), async (req: any, res) => {
     const trackId = String(req.body?.trackId || '').trim();
     const srcUrl = String(req.body?.srcUrl || '').trim();
+    if (!trackId || !srcUrl) return res.status(400).json({ error: 'trackId and srcUrl required' });
+    const publicBase = (process.env.PUBLIC_API_BASE || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+    firestoreWrite('choraStreams', trackId, { status: 'processing', updatedAt: Date.now() }).catch(() => {});
+    let inPath: string | null = null;
+    try {
+      inPath = await fetchToTmp(srcUrl, 'audio');
+      if (!inPath) throw new Error('source fetch failed');
+      const r = await choraTranscodeToGcs(inPath, trackId, publicBase);
+      await firestoreWrite('choraStreams', trackId, {
+        status: r.status, hls: r.hls, low: r.low, flac: r.flac,
+        loudnessLufs: Math.round(r.loudnessLufs), durationSec: Math.round(r.durationSec),
+        rungs: ['low', 'high', 'lossless'], updatedAt: Date.now(),
+      });
+      res.json(r);
+    } catch (e: any) {
+      firestoreWrite('choraStreams', trackId, { status: 'failed', error: String(e?.message || e).slice(0, 300), updatedAt: Date.now() }).catch(() => {});
+      res.status(500).json({ error: String(e?.message || e) });
+    } finally { if (inPath) fs.unlink(inPath).catch(() => {}); }
+  });
+
+  // Backend-only transcode for the catalogue backfill. Identical work to the route above, but
+  // gated by a shared key instead of a Firebase ID token — so it can be driven entirely from the
+  // server side (a script / cron) with NO signed-in browser or TV in the loop. This is why the
+  // backfill never needed a device: the transcoding was always here on Cloud Run; the only thing a
+  // signed-in session provided was the token, which this key replaces. No apiLimiter — a backfill
+  // is a deliberate, rate-controlled admin loop, not user traffic.
+  app.post('/api/chora/transcode-admin', express.json({ limit: '256kb' }), async (req: any, res) => {
+    const key = String(req.query.key || req.headers['x-backfill-key'] || '');
+    const expected = process.env.CHORA_BACKFILL_KEY || '';
+    if (!expected || key !== expected) return res.status(403).json({ error: 'forbidden' });
+    const trackId = String(req.body?.trackId || req.query.trackId || '').trim();
+    const srcUrl = String(req.body?.srcUrl || req.query.srcUrl || '').trim();
     if (!trackId || !srcUrl) return res.status(400).json({ error: 'trackId and srcUrl required' });
     const publicBase = (process.env.PUBLIC_API_BASE || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
     firestoreWrite('choraStreams', trackId, { status: 'processing', updatedAt: Date.now() }).catch(() => {});
