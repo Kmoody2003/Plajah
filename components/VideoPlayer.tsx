@@ -7,6 +7,7 @@ import {
 } from '../services/backendService';
 import { buildShareUrl } from '../services/deepLinkService';
 import { recordProgress, getResumePosition } from '../services/watchHistoryService';
+import TvVideoUpNext from './tv/TvVideoUpNext';
 import {
   Heart, MessageCircle, Share2, X, ArrowLeft, Volume2, VolumeX,
   Play, Pause, Maximize2, Minimize2, Settings, Camera, Tag, Globe,
@@ -420,6 +421,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
   const [isMuted, setIsMuted]       = useState(false);
   const [autoplayNext, setAutoplayNext] = useState(true);
   const [upNextIn, setUpNextIn]     = useState<number | null>(null);  // countdown seconds
+  const [showUpNext, setShowUpNext] = useState(false);                // TV end-of-video overlay
   const [isFullscreen, setIsFullscreen]     = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [descExpanded, setDescExpanded]       = useState(false);
@@ -702,10 +704,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
   const handleVideoEnded = useCallback(() => {
     doRecord();
     if (autoplayNext && nextInQueue && onPlayQueued) { setUpNextIn(5); return; }
-    // Nothing queued: give the screen back rather than parking on a frozen last frame with no
-    // obvious way out. On a TV that dead end is worse than on desktop — there is no cursor to
-    // reach for, and the takeover covers the tab bar. Leave element fullscreen too if the
-    // desktop Maximize button put us there.
+    // On a TV, don't dead-end on a frozen last frame — offer an "up next" (suggest next + more from
+    // this world + characters). The overlay itself falls back to a plain exit if it has nothing to
+    // show, so this is safe for any video.
+    if (getPlatformInfo().isTV) {
+      if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
+        try { document.exitFullscreen?.() ?? (document as any).webkitExitFullscreen?.(); } catch { /* ignore */ }
+      }
+      setShowUpNext(true);
+      return;
+    }
+    // Desktop/phone: give the screen back rather than parking on a frozen last frame. Leave element
+    // fullscreen too if the desktop Maximize button put us there.
     if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
       try { document.exitFullscreen?.() ?? (document as any).webkitExitFullscreen?.(); } catch { /* ignore */ }
     }
@@ -791,6 +801,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
       onBack();
     };
     const onKey = (ev: KeyboardEvent) => {
+      // While the up-next overlay owns the screen, Back belongs to it (dismiss the overlay), not to
+      // the player underneath — otherwise Back would blow straight past the overlay and exit.
+      if (showUpNext) return;
       const kc = ev.keyCode || ev.which;
       if (kc === 4 || ev.key === 'Backspace' || ev.key === 'XF86Back' || ev.key === 'GoBack') {
         ev.preventDefault();
@@ -804,7 +817,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
       window.removeEventListener('plajah:hardware-back', onHardwareBack);
       window.removeEventListener('keydown', onKey, true);
     };
-  }, [onBack]);
+  }, [onBack, showUpNext]);
 
   // Belt and braces: never leave a fullscreen surface standing when this player goes away.
   useEffect(() => () => {
@@ -934,6 +947,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
 
   return (
     <div ref={playerContainerRef} className="fixed inset-0 z-[200] overflow-hidden flex flex-col lg:flex-row bg-[#050505]">
+      {/* TV end-of-video "up next": suggest next (relevant + random) + more from this world +
+          characters. Dismisses to the Reello grid, or falls back to a plain exit if empty. */}
+      {showUpNext && (
+        <TvVideoUpNext
+          video={video}
+          onPlay={(v) => { setShowUpNext(false); if (onPlayQueued) onPlayQueued(v); else onBack(); }}
+          onDismiss={() => { setShowUpNext(false); onBack(); }}
+        />
+      )}
+
       {/* Blurred thumbnail background (non-fullscreen only) */}
       {!isFullscreen && thumbnail && (
         <div
