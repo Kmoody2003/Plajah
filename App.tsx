@@ -111,6 +111,7 @@ import TvTopTabs from './components/TvTopTabs';
 const TvSignInView = retryLazy(() => import('./components/TvSignInView'));
 const ChoraTvView = retryLazy(() => import('./components/tv/ChoraTvView'));
 const TvSearchView = retryLazy(() => import('./components/tv/TvSearchView'));
+const TvNowPlayingBar = retryLazy(() => import('./components/tv/TvNowPlayingBar'));
 const ReelloTvView = retryLazy(() => import('./components/tv/ReelloTvView'));
 const TvSlideshowSurface = retryLazy(() => import('./components/tv/TvSlideshowSurface'));
 const TvLinkApproval = retryLazy(() => import('./components/TvLinkApproval'));
@@ -4236,6 +4237,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 the viewer happens to have left open. */}
             {getPlatformInfo().isTV && (
               <Suspense fallback={null}><TvSlideshowSurface /></Suspense>
+            )}
+
+            {/* The persistent TV transport — always at the bottom once something is playing, so the
+                viewer never loses pause/play wherever they browse. Suppressed on the Chora album
+                screen (it draws its own bottom transport) and during the slideshow (its own controls),
+                so there is never a second transport on screen — the bar handles that itself, but we
+                also tell it when the album view owns the screen. */}
+            {getPlatformInfo().isTV && (
+              <Suspense fallback={null}>
+                <TvNowPlayingBar albumViewActive={view === 'PLAYER' || view === 'PREVIEW'} />
+              </Suspense>
             )}
 
             {/* A view we deliberately don't run on TV — say so, and say where it does live. */}
