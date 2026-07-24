@@ -60,7 +60,7 @@ const AlbumTvView: React.FC<{
 
   // Transport + progress come straight from the global player so the bar reflects real playback
   // (including tracks started elsewhere), not a local copy that would drift.
-  const { currentTrack, isPlaying: globalPlaying, togglePlay, next, prev, repeatMode, setRepeatMode, isShuffle, setIsShuffle } = useGlobalPlayerState();
+  const { currentTrack, isPlaying: globalPlaying, togglePlay, next, prev, repeatMode, setRepeatMode, isShuffle, setIsShuffle, isSlideshowActive } = useGlobalPlayerState();
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
 
   // The transport controls this album's playing track only when the album is what's on.
@@ -251,10 +251,15 @@ const AlbumTvView: React.FC<{
         </div>
       </div>
 
-      {/* ── Now-playing transport bar ── the platform's trackbar, at TV scale. */}
+      {/* ── Now-playing transport bar ── the platform's trackbar, at TV scale.
+          Hidden while the slideshow owns the screen: the slideshow is a fullscreen takeover with
+          its OWN transport, so leaving this one mounted showed two sets of controls (its
+          backdrop-blur made a compositor layer that painted over the fixed slideshow). A solid
+          scrim replaces the blur too — backdrop-blur is a Mali-G31 fill-rate killer on TV. */}
+      {!isSlideshowActive && (
       <div
         ref={el => { rowRefs.current[transportRow] = el; }}
-        className="relative shrink-0 px-12 py-6 flex items-center gap-6 border-t border-white/10 bg-black/40 backdrop-blur-xl"
+        className="relative shrink-0 px-12 py-6 flex items-center gap-6 border-t border-white/10 bg-[#0a0510]/90"
       >
         {/* current track label */}
         <div className="w-[24%] min-w-0 shrink-0">
@@ -297,6 +302,7 @@ const AlbumTvView: React.FC<{
           </TransportBtn>
         </div>
       </div>
+      )}
     </div>
   );
 };
