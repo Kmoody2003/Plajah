@@ -79,15 +79,14 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
       <AnimatePresence mode={tv ? 'sync' : 'wait'}>
         <motion.div key={index} {...(slideMotion as any)} className="absolute inset-0 w-full h-full">
           {tv ? (
-            // object-CONTAIN so the whole photograph shows (cover was clipping top/bottom of
-            // anything not 16:9). Ken Burns kept: on a contained image the zoom starts with the
-            // full photo visible and drifts in gently — and because the image is letterboxed, its
-            // edges never touch the viewport, so the sub-pixel edge shimmer that cover produced is
-            // gone. heroImage() keeps it off the raw-original decode path.
+            // Full-bleed (object-COVER) so a non-16:9 photo fills the screen — but anchored to the
+            // TOP (object-top), so an over-tall image spills off the BOTTOM only and never clips a
+            // subject's head. Ken Burns kept; tv-kenburns is pinned to its own GPU layer so the
+            // scaling edges don't shimmer. heroImage() keeps it off the raw-original decode path.
             <img
               src={heroImage(images[index]) || undefined}
               alt={`Slide ${index}`}
-              className="w-full h-full object-contain tv-kenburns"
+              className="w-full h-full object-cover object-top tv-kenburns"
               loading="eager"
               decoding="async"
             />
