@@ -86,7 +86,8 @@ const TvSlideshowSurface: React.FC = () => {
                 className={`font-black leading-tight transition-all duration-500 ${
                   ln.on ? 'text-4xl' : 'text-2xl text-white/30'
                 }`}
-                style={ln.on ? { color: '#FFB68D' } : undefined}
+                // The website's active lyric is text-small-orange — the brand orange (#FF8C00).
+                style={ln.on ? { color: '#FF8C00' } : undefined}
               >
                 {ln.text || '♪'}
               </p>

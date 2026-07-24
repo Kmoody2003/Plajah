@@ -4,6 +4,7 @@ import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import ThreeDImage from './ThreeDImage';
 import { Sparkles, Zap } from 'lucide-react';
 import { getPlatformInfo } from '../hooks/usePlatform';
+import { heroImage } from '../src/lib/imageThumb';
 
 interface AnimatedSlideshowProps {
   images: string[];
@@ -43,6 +44,16 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
     return () => clearInterval(interval);
   }, [artistNotes.length]);
 
+  // Preload the NEXT couple of (resized) images so a slide never arrives half-drawn or after a
+  // black gap — the browser has them decoded and cached before the crossfade begins.
+  useEffect(() => {
+    if (!tv || images.length < 2) return;
+    for (let k = 1; k <= 2; k++) {
+      const nextUrl = images[(index + k) % images.length];
+      if (nextUrl) { const im = new Image(); im.decoding = 'async'; im.src = heroImage(nextUrl); }
+    }
+  }, [index, images, tv]);
+
   if (!images.length) return null;
 
   // TV: opacity-only crossfade, no blur. Desktop: the original blur-in reveal.
@@ -63,12 +74,15 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-black">
-      <AnimatePresence mode="wait">
+      {/* TV crossfades (mode sync): old and new overlap so there is no black gap between slides.
+          Desktop keeps the blur-in reveal (mode wait). */}
+      <AnimatePresence mode={tv ? 'sync' : 'wait'}>
         <motion.div key={index} {...(slideMotion as any)} className="absolute inset-0 w-full h-full">
           {tv ? (
-            // Plain image + a GPU-composited Ken Burns zoom (transform only, no repaint).
+            // Resized (heroImage) + a GPU-composited Ken Burns zoom (transform only, no repaint).
+            // The full-res original would be tens of MB to decode on the audio thread.
             <img
-              src={images[index] || undefined}
+              src={heroImage(images[index]) || undefined}
               alt={`Slide ${index}`}
               className="w-full h-full object-cover tv-kenburns"
               loading="eager"

@@ -56,6 +56,25 @@ export function thumb(url?: string | null, width: number = THUMB.card, quality =
 }
 
 /**
+ * Fullscreen / hero variant — the slideshow and now-playing takeover need a SHARP image, so the
+ * grid's 224px TV cap would ruin them; but the originals are multi-MB 4096² masters, and decoding
+ * one is width×height×4 bytes of MAIN-THREAD work (a 4096² image ≈ 67 MB decoded). On a TV that
+ * stalls the very audio thread the slideshow plays over — which is exactly why music went choppy
+ * and images arrived half-drawn with long black gaps. Resize to the panel's real size instead: a
+ * 1080p TV never shows more than ~1600px across, and 1600px WebP is a fraction of the bytes and
+ * decode time while staying crisp at ten feet (5.7 MB decoded vs 67 MB).
+ */
+export function heroImage(url?: string | null, width = 1600, quality = 72): string {
+  if (!url) return '';
+  if (!/^https?:\/\//i.test(url)) return url;
+  if (url.includes('wsrv.nl')) return url;
+  let isTV = false;
+  try { isTV = getPlatformInfo().isTV; } catch { /* pre-boot / SSR */ }
+  const q = new URLSearchParams({ url, w: String(width), q: String(quality), output: 'webp', we: '', dpr: isTV ? '1' : '2', fit: 'cover' });
+  return `${CDN}?${q.toString()}`;
+}
+
+/**
  * onError handler for an <img> whose src is a thumb(): swap to the original
  * URL once, so a CDN failure degrades to the (slower) full image instead of a
  * broken cover. Usage: onError={onThumbError(originalUrl)}
