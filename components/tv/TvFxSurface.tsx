@@ -61,8 +61,16 @@ const TvFxSurface: React.FC = () => {
       else if (e.key === 'ArrowDown' || kc === 40 || kc === 20) { setEngineIdx(i => (i + 1) % TV_ENGINES.length); setPresetIndex(0); }
       else if (e.key === 'Enter' || e.key === 'Select' || kc === 13 || kc === 23) setPresetIndex(i => i + 1);
     };
+    // Native TV hardware Back arrives as this event, not a keydown. preventDefault() to CONSUME it,
+    // else useHardwareBack falls through to history.back() and navigates the app out to login.
+    const onHwBack = (e: Event) => { e.preventDefault(); setIsTvFxActive(false); };
     window.addEventListener('keydown', onKey, true);
-    return () => { window.removeEventListener('keydown', onKey, true); if (hideTimer.current) clearTimeout(hideTimer.current); };
+    window.addEventListener('plajah:hardware-back', onHwBack);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('plajah:hardware-back', onHwBack);
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+    };
   }, [showing, wake, setIsTvFxActive, togglePlay]);
 
   // Reset the controls each time the surface opens.

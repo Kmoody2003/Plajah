@@ -78,11 +78,15 @@ const TvSlideshowSurface: React.FC = () => {
     };
     // On the native TV app the hardware Back is delivered as this event, NOT as a keydown — without
     // listening for it the slideshow could not be exited with the remote's Back button at all.
+    // CRUCIAL: preventDefault() to CONSUME the press. useHardwareBack treats a non-consumed event as
+    // "nothing handled it" and falls through to window.history.back(), which navigated the whole app
+    // out to the login page instead of just closing the slideshow.
+    const onHwBack = (e: Event) => { e.preventDefault(); exit(); };
     window.addEventListener('keydown', onKey, true);
-    window.addEventListener('plajah:hardware-back', exit as EventListener);
+    window.addEventListener('plajah:hardware-back', onHwBack);
     return () => {
       window.removeEventListener('keydown', onKey, true);
-      window.removeEventListener('plajah:hardware-back', exit as EventListener);
+      window.removeEventListener('plajah:hardware-back', onHwBack);
       if (hideTimer.current) clearTimeout(hideTimer.current);
     };
   }, [showing, controls, wake, exit, prev, next, togglePlay]);
