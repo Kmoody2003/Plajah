@@ -70,16 +70,21 @@ const AlbumTvView: React.FC<{
   const [characters, setCharacters] = useState<Character[]>([]);
   const [worldItems, setWorldItems] = useState<(Album | Video)[]>([]);
   useEffect(() => {
-    const wid = (album as any).worldId as string | undefined;
-    if (!wid) { setCharacters([]); setWorldItems([]); return; }
     let alive = true;
-    fetchWorldCharacters(wid).then(c => { if (alive) setCharacters(c || []); }).catch(() => {});
-    fetchWorldContentByWorldId(wid).then(c => {
-      if (!alive) return;
-      const vids = (c?.videos || []).filter(v => v.id !== album.id);
-      const albs = (c?.albums || []).filter(a => a.id !== album.id);
-      setWorldItems([...vids, ...albs].slice(0, 12));
-    }).catch(() => {});
+    // World-data enrichment must NEVER crash the album screen — it is a nicety on top of playback.
+    // Promise.resolve() around each call means a synchronous throw (or an unexpectedly-undefined
+    // service) becomes a caught rejection instead of an error that bubbles to the boundary.
+    try {
+      const wid = (album as any).worldId as string | undefined;
+      if (!wid) { setCharacters([]); setWorldItems([]); return () => { alive = false; }; }
+      Promise.resolve(fetchWorldCharacters(wid)).then(c => { if (alive) setCharacters(c || []); }).catch(() => {});
+      Promise.resolve(fetchWorldContentByWorldId(wid)).then((c: any) => {
+        if (!alive) return;
+        const vids = (c?.videos || []).filter((v: any) => v.id !== album.id);
+        const albs = (c?.albums || []).filter((a: any) => a.id !== album.id);
+        setWorldItems([...vids, ...albs].slice(0, 12));
+      }).catch(() => {});
+    } catch { setCharacters([]); setWorldItems([]); }
     return () => { alive = false; };
   }, [(album as any).worldId, album.id]);
 

@@ -9,6 +9,8 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  /** First meaningful frame of the React component stack — names the component that threw. */
+  culprit: string | null;
 }
 
 // Known firebase-js-sdk defect: after a quota/permission error on its Watch
@@ -18,44 +20,62 @@ interface State {
 const isRecoverableBackendError = (error: Error | null): boolean =>
   !!error && /FIRESTORE.*INTERNAL ASSERTION|code=resource-exhausted|code=permission-denied/i.test(error.message || '');
 
+/** Pull the first `at <Component>` frame out of a React component stack. */
+const firstFrame = (stack?: string | null): string | null => {
+  if (!stack) return null;
+  const m = stack.split('\n').map(s => s.trim()).find(s => /^(at |in )\w/.test(s));
+  return m ? m.replace(/^(at|in)\s+/, '').replace(/\s*\(.*$/, '') : null;
+};
+
 class ErrorBoundary extends React.Component<Props, State> {
   private autoRecoveries: number[] = [];
+  private btnRef = React.createRef<HTMLButtonElement>();
 
   constructor(props: Props) {
     super(props);
-    this.state = {
-      hasError: false,
-      error: null
-    };
+    this.state = { hasError: false, error: null, culprit: null };
   }
 
-  public static getDerivedStateFromError(error: Error): State {
+  public static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error:', error, errorInfo);
+    this.setState({ culprit: firstFrame(errorInfo?.componentStack) });
     if (isRecoverableBackendError(error)) {
-      // Backend stream noise is categorically not an app bug — keep
-      // recovering, with growing delay so a tight rethrow loop can't peg
-      // the CPU. Genuine app crashes don't match the pattern and still
-      // show the interruption screen immediately.
       const now = Date.now();
       this.autoRecoveries = this.autoRecoveries.filter(t => now - t < 30_000);
       this.autoRecoveries.push(now);
       const delay = Math.min(5_000, 100 * Math.pow(2, this.autoRecoveries.length - 1));
       console.warn(`[ErrorBoundary] Auto-recovering from backend stream error (retry in ${delay}ms).`);
-      setTimeout(() => this.setState({ hasError: false, error: null }), delay);
+      setTimeout(() => this.setState({ hasError: false, error: null, culprit: null }), delay);
     }
   }
 
-  private handleReset = () => {
-    this.setState({ hasError: false, error: null });
-    if (this.props.onReset) {
-      this.props.onReset();
-      return;
+  // A television has no pointer: the recovery control must answer the remote. OK / Enter reboots,
+  // Back does the same (there is nowhere further to go from a crash), so the viewer is never stranded
+  // on a dead screen. Bound in capture so nothing behind the fallback can eat the key.
+  private onKey = (e: KeyboardEvent) => {
+    if (!this.state.hasError) return;
+    const kc = e.keyCode || e.which;
+    if (e.key === 'Enter' || e.key === 'Select' || kc === 13 || kc === 23 ||
+        kc === 4 || e.key === 'Backspace' || e.key === 'XF86Back' || e.key === 'GoBack') {
+      e.preventDefault(); e.stopImmediatePropagation();
+      this.handleReset();
     }
-    // Prevent infinite reload loop
+  };
+
+  public componentDidMount() { window.addEventListener('keydown', this.onKey, true); }
+  public componentWillUnmount() { window.removeEventListener('keydown', this.onKey, true); }
+  public componentDidUpdate(_p: Props, prev: State) {
+    // Focus the recovery button as soon as the crash screen appears, so a D-pad OK acts on it.
+    if (this.state.hasError && !prev.hasError) { try { this.btnRef.current?.focus(); } catch { /* */ } }
+  }
+
+  private handleReset = () => {
+    this.setState({ hasError: false, error: null, culprit: null });
+    if (this.props.onReset) { this.props.onReset(); return; }
     const lastErrorTime = sessionStorage.getItem('last_error_time');
     const now = Date.now();
     if (lastErrorTime && now - parseInt(lastErrorTime) < 5000) {
@@ -72,11 +92,9 @@ class ErrorBoundary extends React.Component<Props, State> {
       try {
         if (this.state.error?.message) {
           const parsed = JSON.parse(this.state.error.message);
-          if (parsed.error) {
-            errorMessage = `Cloud Error: ${parsed.error}`;
-          }
+          if (parsed.error) errorMessage = `Cloud Error: ${parsed.error}`;
         }
-      } catch (e) {
+      } catch {
         errorMessage = this.state.error?.message || errorMessage;
       }
 
@@ -86,16 +104,22 @@ class ErrorBoundary extends React.Component<Props, State> {
             <ShieldAlert size={40} className="text-red-500" />
           </div>
           <h1 className="text-2xl font-black uppercase tracking-[0.2em] mb-4">System Interruption</h1>
-          <p className="text-white/40 text-sm max-w-md mb-10 font-medium leading-relaxed">
+          <p className="text-white/40 text-sm max-w-md mb-3 font-medium leading-relaxed">
             {errorMessage}
           </p>
+          {this.state.culprit && (
+            <p className="text-white/25 text-[11px] font-mono mb-10">in {this.state.culprit}</p>
+          )}
           <button
+            ref={this.btnRef}
+            autoFocus
             onClick={this.handleReset}
-            className="flex items-center gap-3 px-8 py-4 bg-white text-black rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-[1.05] transition-all shadow-2xl"
+            className="flex items-center gap-3 px-8 py-4 bg-white text-black rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-[1.05] focus:scale-[1.05] focus:outline-none focus:ring-4 focus:ring-[#FF8C00] transition-all shadow-2xl"
           >
             <RefreshCw size={16} />
             {this.props.onReset ? 'Go Back' : 'Reboot Instance'}
           </button>
+          <p className="text-white/20 text-[10px] font-black uppercase tracking-[0.25em] mt-5">Press OK to continue</p>
         </div>
       );
     }
