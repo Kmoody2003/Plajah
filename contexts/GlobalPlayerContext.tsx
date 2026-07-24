@@ -66,6 +66,9 @@ interface GlobalPlayerContextType {
   setVisualizerType: (t: 'FLOW' | 'PAINT') => void;
   isSlideshowActive: boolean;
   setIsSlideshowActive: (val: boolean) => void;
+  /** The TV FX Stage (audio-reactive visualizer) fullscreen takeover. */
+  isTvFxActive: boolean;
+  setIsTvFxActive: (val: boolean) => void;
   /** True when the slideshow was started by the creator's toggle rather than by the listener.
    *  Ambient surfaces (nano back face, album backdrop) honor it; the full-screen takeover
    *  does not — nobody asked for that, so it stays an explicit choice. */
@@ -177,6 +180,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled] = useState(true);
   const [visualizerType, setVisualizerType] = useState<'FLOW' | 'PAINT'>('FLOW');
   const [isSlideshowActive, setSlideshowActiveRaw] = useState(false);
+  const [isTvFxActive, setIsTvFxActive] = useState(false);
   const [isSlideshowAuto, setIsSlideshowAuto] = useState(false);
   // Every explicit listener toggle drops the auto marker — once they've chosen, the choice is
   // theirs and the creator's default stops speaking for them.
@@ -1295,7 +1299,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const platform = getPlatformInfo();
     if (!platform.isTV) return;                       // lean-back behaviour only
     if (!isPlaying || audioSource !== 'LIBRARY') return;
-    if (isSlideshowActive) return;                    // already showing
+    if (isSlideshowActive || isTvFxActive) return;    // already showing, or FX Stage owns the screen
     if (!currentAlbum || !hasRealSlides(currentAlbum, currentAlbum.tracks)) return;
     const t = setTimeout(() => {
       // Re-check on fire: 20s is long enough for the listener to have paused, skipped, or
@@ -1707,7 +1711,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
     isShuffle, setIsShuffle, nextTrackId,
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev, beginScratch, scratchBy, endScratch,
-    analyser: analyserRef.current, getAudioContext, setDjFilter, resetAudioFx, isFxActive, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isSlideshowAuto,
+    analyser: analyserRef.current, getAudioContext, setDjFilter, resetAudioFx, isFxActive, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme, isBigScreen: theme === 'BIG_SCREEN',
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, transportForced, setTransportForced, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,
@@ -1718,7 +1722,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
     isShuffle, setIsShuffle, nextTrackId,
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev, beginScratch, scratchBy, endScratch,
-    getAudioContext, setDjFilter, resetAudioFx, isFxActive, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isSlideshowAuto,
+    getAudioContext, setDjFilter, resetAudioFx, isFxActive, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme,
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, transportForced, setTransportForced, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,

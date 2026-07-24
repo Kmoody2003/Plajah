@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Play, Pause, Shuffle, ArrowLeft, Music2, SkipBack, SkipForward, Repeat, Repeat1, Users, Globe } from 'lucide-react';
+import { Play, Pause, Shuffle, ArrowLeft, Music2, SkipBack, SkipForward, Repeat, Repeat1, Users, Globe, Sparkles } from 'lucide-react';
 import type { Album, Track, Character, Video } from '../../types';
 import { thumb, THUMB } from '../../src/lib/imageThumb';
 import { useTvGrid } from '../../hooks/useTvGrid';
@@ -85,7 +85,7 @@ const AlbumTvView: React.FC<{
 
   // Transport + progress come straight from the global player so the bar reflects real playback
   // (including tracks started elsewhere), not a local copy that would drift.
-  const { currentTrack, isPlaying: globalPlaying, togglePlay, next, prev, repeatMode, setRepeatMode, isShuffle, setIsShuffle, isSlideshowActive } = useGlobalPlayerState();
+  const { currentTrack, isPlaying: globalPlaying, togglePlay, next, prev, repeatMode, setRepeatMode, isShuffle, setIsShuffle, isSlideshowActive, setIsTvFxActive } = useGlobalPlayerState();
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
 
   // The transport controls this album's playing track only when the album is what's on.
@@ -98,7 +98,7 @@ const AlbumTvView: React.FC<{
   // is the transport bar (5 controls). The world rails are always present in the array — useTvGrid
   // skips a count-0 row — so these indices stay fixed whether or not the album is part of a world.
   const rows = useMemo(() => [
-    { id: 'actions', count: 2 },
+    { id: 'actions', count: 3 },
     ...tracks.map((t, i) => ({ id: `track-${t.id || i}`, count: 1 })),
     { id: 'characters', count: characters.length },
     { id: 'world', count: worldItems.length },
@@ -113,7 +113,7 @@ const AlbumTvView: React.FC<{
   const { pos, zone, setPos } = useTvGrid({
     rows,
     onSelect: (p) => {
-      if (p.row === 0) { p.col === 0 ? onPlayAll() : onShuffle(); return; }
+      if (p.row === 0) { if (p.col === 0) onPlayAll(); else if (p.col === 1) onShuffle(); else setIsTvFxActive(true); return; }
       if (p.row === transportRow) {
         // [prev, play/pause, next, repeat, shuffle]
         if (p.col === 0) prev();
@@ -139,6 +139,10 @@ const AlbumTvView: React.FC<{
       if (t) onPlayTrack(t, idx);
     },
     onBack: () => { onBack(); return true; },
+    // Go inert while a fullscreen takeover owns the remote (slideshow or FX Stage), so this grid
+    // doesn't consume the arrow keys those overlays need — capture-phase listeners otherwise race
+    // by registration order, which is exactly the kind of nondeterminism the TV must not have.
+    enabled: !isSlideshowActive && !isTvFxActive,
   });
 
   // Keep the focused row visible without yanking the whole page around; and, inside a horizontal
@@ -224,13 +228,14 @@ const AlbumTvView: React.FC<{
             {[
               { label: 'Play All', icon: Play, primary: true },
               { label: 'Shuffle', icon: Shuffle, primary: false },
+              { label: 'FX Stage', icon: Sparkles, primary: false },
             ].map((a, i) => {
               const Icon = a.icon;
               const focused = zone === 'CONTENT' && pos.row === 0 && pos.col === i;
               return (
                 <div
                   key={a.label}
-                  onClick={() => (i === 0 ? onPlayAll() : onShuffle())}
+                  onClick={() => (i === 0 ? onPlayAll() : i === 1 ? onShuffle() : setIsTvFxActive(true))}
                   className={`flex items-center gap-2.5 px-7 py-3 rounded-full font-black uppercase tracking-widest text-[11px] cursor-pointer transition-transform ${
                     focused ? 'scale-105' : ''
                   } ${a.primary ? 'text-black' : 'text-white/75'}`}

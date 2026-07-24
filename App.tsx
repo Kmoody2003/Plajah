@@ -112,6 +112,7 @@ const TvSignInView = retryLazy(() => import('./components/TvSignInView'));
 const ChoraTvView = retryLazy(() => import('./components/tv/ChoraTvView'));
 const TvSearchView = retryLazy(() => import('./components/tv/TvSearchView'));
 const TvNowPlayingBar = retryLazy(() => import('./components/tv/TvNowPlayingBar'));
+const TvFxSurface = retryLazy(() => import('./components/tv/TvFxSurface'));
 const ReelloTvView = retryLazy(() => import('./components/tv/ReelloTvView'));
 const TvSlideshowSurface = retryLazy(() => import('./components/tv/TvSlideshowSurface'));
 const TvLinkApproval = retryLazy(() => import('./components/TvLinkApproval'));
@@ -4237,6 +4238,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 the viewer happens to have left open. */}
             {getPlatformInfo().isTV && (
               <Suspense fallback={null}><TvSlideshowSurface /></Suspense>
+            )}
+
+            {/* FX Stage on TV — the audio-reactive visualizer, opened from the Chora album screen.
+                A fullscreen takeover like the slideshow; renders only when isTvFxActive. */}
+            {getPlatformInfo().isTV && (
+              <Suspense fallback={null}><TvFxSurface /></Suspense>
             )}
 
             {/* The persistent TV transport — always at the bottom once something is playing, so the

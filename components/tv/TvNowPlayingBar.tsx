@@ -30,7 +30,7 @@ const fmt = (s?: number): string => {
 
 const TvNowPlayingBar: React.FC<{ albumViewActive?: boolean }> = ({ albumViewActive }) => {
   const {
-    currentTrack, currentAlbum, audioSource, isPlaying, isSlideshowActive,
+    currentTrack, currentAlbum, audioSource, isPlaying, isSlideshowActive, isTvFxActive,
     currentTime, duration, togglePlay, next, prev,
     repeatMode, setRepeatMode, isShuffle, setIsShuffle,
   } = useGlobalPlayer();
@@ -56,8 +56,9 @@ const TvNowPlayingBar: React.FC<{ albumViewActive?: boolean }> = ({ albumViewAct
     return () => window.removeEventListener('keydown', onKey, true);
   }, [active, isPlaying, togglePlay, next, prev]);
 
-  // Draw the bar everywhere EXCEPT where another transport already owns the screen.
-  const visible = active && !isSlideshowActive && !albumViewActive;
+  // Draw the bar everywhere EXCEPT where another transport already owns the screen (album view or
+  // the slideshow) or a fullscreen visual takeover is up (FX Stage).
+  const visible = active && !isSlideshowActive && !isTvFxActive && !albumViewActive;
   if (!visible) return null;
 
   const pct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
