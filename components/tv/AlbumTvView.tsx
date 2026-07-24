@@ -90,7 +90,7 @@ const AlbumTvView: React.FC<{
 
   // Transport + progress come straight from the global player so the bar reflects real playback
   // (including tracks started elsewhere), not a local copy that would drift.
-  const { currentTrack, isPlaying: globalPlaying, togglePlay, next, prev, repeatMode, setRepeatMode, isShuffle, setIsShuffle, isSlideshowActive, setIsTvFxActive } = useGlobalPlayerState();
+  const { currentTrack, isPlaying: globalPlaying, togglePlay, next, prev, repeatMode, setRepeatMode, isShuffle, setIsShuffle, isSlideshowActive, isTvFxActive, setIsTvFxActive } = useGlobalPlayerState();
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
 
   // The transport controls this album's playing track only when the album is what's on.
