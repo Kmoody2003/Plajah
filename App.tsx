@@ -4620,6 +4620,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 }}
                 onPurchase={handlePurchase}
                 onVisitUser={handleVisitUser}
+                onOpenItem={handleSelectItem}
                 onNavigateToWorld={(worldId, characterId) => { setViewedUserId(selectedAlbum.ownerId || user?.uid || ''); setWorldFocus({ worldId, characterId }); setView('WORLDS'); }}
                 isPublic={isPublicView}
                 isPreview={view === 'PREVIEW'}

@@ -1,9 +1,11 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { Play, Pause, Shuffle, ArrowLeft, Music2, SkipBack, SkipForward, Repeat, Repeat1 } from 'lucide-react';
-import type { Album, Track } from '../../types';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Play, Pause, Shuffle, ArrowLeft, Music2, SkipBack, SkipForward, Repeat, Repeat1, Users, Globe } from 'lucide-react';
+import type { Album, Track, Character, Video } from '../../types';
 import { thumb, THUMB } from '../../src/lib/imageThumb';
 import { useTvGrid } from '../../hooks/useTvGrid';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../../contexts/GlobalPlayerContext';
+import { fetchWorldCharacters, fetchWorldContentByWorldId } from '../../services/backendService';
+import { tvCardRing, RAIL_GUTTER } from './tvFocusRing';
 import TvBrandBackdrop from './TvBrandBackdrop';
 
 /**
@@ -55,8 +57,31 @@ const AlbumTvView: React.FC<{
   onPlayAll: () => void;
   onShuffle: () => void;
   onBack: () => void;
-}> = ({ album, currentTrackId, isPlaying, onPlayTrack, onPlayAll, onShuffle, onBack }) => {
+  /** Open a character's world (same as the desktop album page). */
+  onNavigateToWorld?: (worldId: string, characterId?: string) => void;
+  /** Open another album/video from this world. */
+  onOpenItem?: (item: Album | Video) => void;
+}> = ({ album, currentTrackId, isPlaying, onPlayTrack, onPlayAll, onShuffle, onBack, onNavigateToWorld, onOpenItem }) => {
   const tracks = useMemo(() => album.tracks || [], [album.tracks]);
+
+  // "Featured Characters" + "More From This World" — the same two rows the phone and desktop album
+  // pages carry, driven by the same two services keyed on the album's worldId. Only fetched when the
+  // album is actually part of a world, so a plain release adds no work and shows no empty rows.
+  const [characters, setCharacters] = useState<Character[]>([]);
+  const [worldItems, setWorldItems] = useState<(Album | Video)[]>([]);
+  useEffect(() => {
+    const wid = (album as any).worldId as string | undefined;
+    if (!wid) { setCharacters([]); setWorldItems([]); return; }
+    let alive = true;
+    fetchWorldCharacters(wid).then(c => { if (alive) setCharacters(c || []); }).catch(() => {});
+    fetchWorldContentByWorldId(wid).then(c => {
+      if (!alive) return;
+      const vids = (c?.videos || []).filter(v => v.id !== album.id);
+      const albs = (c?.albums || []).filter(a => a.id !== album.id);
+      setWorldItems([...vids, ...albs].slice(0, 12));
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [(album as any).worldId, album.id]);
 
   // Transport + progress come straight from the global player so the bar reflects real playback
   // (including tracks started elsewhere), not a local copy that would drift.
@@ -69,13 +94,19 @@ const AlbumTvView: React.FC<{
 
   const cycleRepeat = () => setRepeatMode(repeatMode === 'OFF' ? 'ALL' : repeatMode === 'ALL' ? 'ONE' : 'OFF');
 
-  // Row 0 = action pair; each track is a row; the final row is the transport bar (5 controls).
+  // Row 0 = action pair; each track is a row; then the two world rails (horizontal); the final row
+  // is the transport bar (5 controls). The world rails are always present in the array — useTvGrid
+  // skips a count-0 row — so these indices stay fixed whether or not the album is part of a world.
   const rows = useMemo(() => [
     { id: 'actions', count: 2 },
     ...tracks.map((t, i) => ({ id: `track-${t.id || i}`, count: 1 })),
+    { id: 'characters', count: characters.length },
+    { id: 'world', count: worldItems.length },
     { id: 'transport', count: 5 },
-  ], [tracks]);
-  const transportRow = tracks.length + 1;
+  ], [tracks, characters.length, worldItems.length]);
+  const charactersRow = tracks.length + 1;
+  const worldRow = tracks.length + 2;
+  const transportRow = tracks.length + 3;
 
   // Seek by ±10s when scrubbing on the progress control (transport col 0 handles it via left/right;
   // handled here so the grid's own left/right still works for the 5-button row).
@@ -92,6 +123,17 @@ const AlbumTvView: React.FC<{
         else setIsShuffle(!isShuffle);
         return;
       }
+      if (p.row === charactersRow) {
+        const c = characters[p.col];
+        const wid = (album as any).worldId as string | undefined;
+        if (c && wid) onNavigateToWorld?.(wid, c.id);
+        return;
+      }
+      if (p.row === worldRow) {
+        const it = worldItems[p.col];
+        if (it) onOpenItem?.(it);
+        return;
+      }
       const idx = p.row - 1;
       const t = tracks[idx];
       if (t) onPlayTrack(t, idx);
@@ -99,10 +141,13 @@ const AlbumTvView: React.FC<{
     onBack: () => { onBack(); return true; },
   });
 
-  // Keep the focused row visible without yanking the whole page around.
+  // Keep the focused row visible without yanking the whole page around; and, inside a horizontal
+  // world rail, keep the focused card centred along it.
   const rowRefs = useRef<Record<number, HTMLElement | null>>({});
+  const focusedCellRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     rowRefs.current[pos.row]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    focusedCellRef.current?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   }, [pos]);
 
   const totalSec = tracks.reduce((a, t) => a + ((t as any).duration || 0), 0);
@@ -246,6 +291,59 @@ const AlbumTvView: React.FC<{
 
             {tracks.length === 0 && (
               <p className="text-white/35 text-sm px-5 py-8">This release has no tracks yet.</p>
+            )}
+
+            {/* ── Featured Characters ── same row the phone/desktop album carries. */}
+            {characters.length > 0 && (
+              <div ref={el => { rowRefs.current[charactersRow] = el; }} className="pt-8">
+                <div className="flex items-center gap-2 mb-3 text-white/60 px-1">
+                  <Users size={15} /><h3 className="text-[11px] font-black uppercase tracking-[0.2em]">Featured Characters</h3>
+                </div>
+                <div className={`flex gap-4 overflow-x-auto no-scrollbar ${RAIL_GUTTER}`}>
+                  {characters.map((c, col) => {
+                    const focused = zone === 'CONTENT' && pos.row === charactersRow && pos.col === col;
+                    return (
+                      <div key={c.id || col} ref={focused ? focusedCellRef : undefined}
+                        className="shrink-0 w-24 text-center cursor-pointer transition-transform"
+                        style={focused ? { transform: 'scale(1.06)' } : undefined}
+                        onClick={() => { const wid = (album as any).worldId; if (wid) onNavigateToWorld?.(wid, c.id); }}>
+                        <div className="w-24 h-24 rounded-full overflow-hidden bg-white/[0.06] grid place-items-center" style={{ boxShadow: tvCardRing(focused) }}>
+                          {c.imageUrl ? <img src={thumb(c.imageUrl, THUMB.small)} alt="" className="w-full h-full object-cover" /> : <Users size={22} className="text-white/20" />}
+                        </div>
+                        <p className="mt-2 text-[12px] font-bold truncate">{c.name}</p>
+                        {(c as any).role && <p className="text-[10px] text-white/40 truncate">{(c as any).role}</p>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ── More From This World ── other albums/videos in the same universe. */}
+            {worldItems.length > 0 && (
+              <div ref={el => { rowRefs.current[worldRow] = el; }} className="pt-8 pb-4">
+                <div className="flex items-center gap-2 mb-3 text-white/60 px-1">
+                  <Globe size={15} /><h3 className="text-[11px] font-black uppercase tracking-[0.2em]">More From This World</h3>
+                </div>
+                <div className={`flex gap-4 overflow-x-auto no-scrollbar ${RAIL_GUTTER}`}>
+                  {worldItems.map((it, col) => {
+                    const focused = zone === 'CONTENT' && pos.row === worldRow && pos.col === col;
+                    const src = (it as any).coverImage || (it as any).coverImageUrl || (it as any).thumbnailUrl;
+                    return (
+                      <div key={(it as any).id || col} ref={focused ? focusedCellRef : undefined}
+                        className="shrink-0 w-40 cursor-pointer transition-transform"
+                        style={focused ? { transform: 'scale(1.05)' } : undefined}
+                        onClick={() => onOpenItem?.(it)}>
+                        <div className="relative w-40 aspect-square rounded-xl overflow-hidden bg-white/[0.05]" style={{ boxShadow: tvCardRing(focused) }}>
+                          {src ? <img src={thumb(src, THUMB.card)} alt="" className="w-full h-full object-cover" /> : <Music2 size={26} className="text-white/15" />}
+                        </div>
+                        <p className="mt-2 text-[13px] font-bold truncate">{(it as any).title}</p>
+                        <p className="text-[11px] text-white/40 truncate">{(it as any).subType || (it as any).type || ((it as any).tracks ? 'Album' : 'Video')}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </div>
         </div>

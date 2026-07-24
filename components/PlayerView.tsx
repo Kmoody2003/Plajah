@@ -342,6 +342,8 @@ interface PlayerViewProps {
   onPurchase?: (item: any, isAlbum: boolean) => void;
   onVisitUser?: (uid: string) => void;
   onNavigateToWorld?: (worldId: string, characterId?: string) => void;
+  /** Open another album/video (e.g. from the TV album's "More From This World" row). */
+  onOpenItem?: (item: any) => void;
   isPublic?: boolean;
   isPreview?: boolean;
   user: FirebaseUser | null;
@@ -434,6 +436,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   onPurchase,
   onVisitUser,
   onNavigateToWorld,
+  onOpenItem,
   isPublic = false,
   isPreview = false,
   user
@@ -1823,6 +1826,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           playTrack(album.tracks[i], album, 'LIBRARY');
         }}
         onBack={onBack}
+        onNavigateToWorld={onNavigateToWorld}
+        onOpenItem={onOpenItem}
       />
     );
   }
