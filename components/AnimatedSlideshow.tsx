@@ -79,12 +79,14 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
       <AnimatePresence mode={tv ? 'sync' : 'wait'}>
         <motion.div key={index} {...(slideMotion as any)} className="absolute inset-0 w-full h-full">
           {tv ? (
-            // Resized (heroImage) + a GPU-composited Ken Burns zoom (transform only, no repaint).
-            // The full-res original would be tens of MB to decode on the audio thread.
+            // object-CONTAIN: show the whole photograph — object-cover was clipping the top and
+            // bottom of anything not 16:9. No Ken Burns here: a zoom on a contained image would
+            // re-crop it (defeating the point) and its sub-pixel scaling was the edge jitter. The
+            // 8s crossfade carries the motion. heroImage() keeps it off the raw-original decode path.
             <img
               src={heroImage(images[index]) || undefined}
               alt={`Slide ${index}`}
-              className="w-full h-full object-cover tv-kenburns"
+              className="w-full h-full object-contain"
               loading="eager"
               decoding="async"
             />

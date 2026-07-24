@@ -13,6 +13,7 @@ import { trackStart, trackProgress, trackComplete } from '../services/contentMet
 import { skipOnTV } from '../services/tvCapabilities';
 import Hls from 'hls.js';
 import { peekTrackStream, prefetchTrackStreams, pickStreamUrl, getQuality as getAudioQuality, enqueueTranscode, enqueueAlbumTranscodes, getTrackStream } from '../services/choraStreamService';
+import { auth as fbAuth } from '../services/firebase';
 
 interface GlobalPlayerProgressContextType {
   currentTime: number;
@@ -1213,21 +1214,39 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // froze synced lyrics mid-song and then jumped them out of sync. Driving the
   // clock from requestAnimationFrame against audio.currentTime keeps the lyrics and
   // scrubber progressing continuously. (Video/Radio use the YouTube poll above.)
+  const onEndedRef = useRef(onEnded); onEndedRef.current = onEnded;
+  const stallRef = useRef({ lastT: -1, since: 0 });
   useEffect(() => {
     if (!isPlaying || audioSource === 'VIDEO' || audioSource === 'RADIO') return;
     let raf = 0;
     let lastUpdate = 0;
+    stallRef.current = { lastT: -1, since: 0 };
     const tick = (now: number) => {
       const audio = audioRef.current;
       if (audio && !audio.paused && !audio.ended) {
         const t = audio.currentTime;
         stateRef.current.currentTime = t;              // exact, every frame
+        // End-of-track stall watchdog. A raw WAV on a memory-pressured TV can freeze a beat before
+        // the end (currentTime stops, paused=false, ended=false, no error) and never fire 'ended',
+        // so the album stops mid-way and never advances. If the clock hasn't moved for ~3.5s while
+        // "playing" and we're within 8s of the end, treat it as ended and advance.
+        const dur = audio.duration;
+        if (Math.abs(t - stallRef.current.lastT) < 0.02) {
+          if (!stallRef.current.since) stallRef.current.since = now;
+          else if (now - stallRef.current.since > 3500 && dur && isFinite(dur) && dur - t < 8) {
+            stallRef.current = { lastT: -1, since: 0 };
+            onEndedRef.current();
+            raf = requestAnimationFrame(tick);
+            return;
+          }
+        } else {
+          stallRef.current.lastT = t; stallRef.current.since = 0;
+        }
         if (now - lastUpdate >= 60) {                  // ~16fps state updates: smooth + cheap
           lastUpdate = now;
           setCurrentTime(prev => (Math.abs(prev - t) >= 0.03 ? t : prev));
           // Gapless: once we're within ~20s of the end, prewarm the next track's bytes so the
           // hand-off is instant. Self-dedupes + bounded, so this cheap call is safe here.
-          const dur = audio.duration;
           if (dur && isFinite(dur) && dur - t <= 20 && dur - t > 0.3) warmNextTrack();
         }
       }
@@ -1240,12 +1259,13 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Release any prewarmed next-track blob + in-flight warm on unmount (no leaks).
   useEffect(() => () => { discardPrewarm(); if (hlsRef.current) { try { hlsRef.current.destroy(); } catch { /* */ } hlsRef.current = null; } }, []);
 
-  // When an album loads, warm the transcoded-stream cache for its tracks so the FIRST play is
-  // already HLS (not the cold original). Cheap Firestore reads, cached + deduped.
+  // When an album loads, warm the transcoded-stream cache for its tracks so play is HLS, not the
+  // cold original. This is ESPECIALLY important on TV: the synchronous peek at play time is the
+  // only thing standing between a track and the raw WAV master, and a WAV on this SoC both
+  // pressures memory AND stalls near the end without firing `ended` — so it stops mid-album and
+  // never advances. The prefetch is just cheap Firestore getDocs (one per track, cached+deduped);
+  // it was wrongly gated off TV, which meant the TV never used the transcodes at all.
   useEffect(() => {
-    // Prefetching a whole album's stream manifests is cheap on a laptop and not on a TV SoC,
-    // where the same cores are decoding video. Playback resolves per-track instead.
-    if (skipOnTV('transcode')) return;
     const ids = currentAlbum?.tracks?.map(t => t.id).filter(Boolean) as string[] | undefined;
     if (ids?.length) prefetchTrackStreams(ids);
   }, [currentAlbum?.id]); // eslint-disable-line
@@ -1337,6 +1357,11 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   useEffect(() => {
     (window as any).__chora = {
       transcode: (trackId: string, srcUrl: string) => enqueueTranscode(trackId, srcUrl),
+      // Admin-only helper for the transcode backfill: returns a fresh ID token so a controlled
+      // script can call the Cloud Run transcode endpoint DIRECTLY, bypassing Firebase Hosting's
+      // 60 s rewrite timeout (each transcode runs ~150 s, so a Hosting-routed call always
+      // "fails" at 60 s even though the job completes). Same token the app already sends.
+      getToken: () => fbAuth.currentUser?.getIdToken(),
       transcodeCurrentAlbum: () => enqueueAlbumTranscodes((stateRef.current.currentAlbum?.tracks as any) || []),
       backfillAlbum: (tracks: any[]) => enqueueAlbumTranscodes(tracks),
       getStream: (trackId: string) => getTrackStream(trackId),

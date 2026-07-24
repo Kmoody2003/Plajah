@@ -235,7 +235,7 @@ const ChoraTvView: React.FC<{
           }}
         >
           {item.image
-            ? <img src={thumb(item.image, large ? THUMB.card : THUMB.small)} alt="" className="w-full h-full object-cover" loading="lazy" />
+            ? <img src={thumb(item.image, large ? THUMB.card : 224)} alt="" className="w-full h-full object-cover" loading="lazy" />
             : <div className="w-full h-full grid place-items-center" style={{ background: item.action.kind === 'ERA' ? BRAND : undefined }}>
                 {item.action.kind === 'ERA'
                   ? <GraduationCap size={30} className="text-white/85" />

@@ -25,7 +25,10 @@ const CDN = 'https://wsrv.nl/';
  * Width is also capped: a TV never needs the 'large' hero preset for a grid cell, and the
  * biggest single win is simply refusing to decode artwork bigger than it will ever be shown.
  */
-const TV_MAX_WIDTH = 224;
+// 340, not 224: the CSS→device ratio on the 1080p panel is 1.2, and a focused hero card (w-64,
+// scaled 1.05) is ~322 device px — a 224 source there is visibly soft. 340 covers it while the
+// small grid cards, which request less, stay small. This is the "fuzzy album art" fix.
+const TV_MAX_WIDTH = 340;
 const TV_QUALITY = 70;
 
 /** Width presets for common contexts. */
