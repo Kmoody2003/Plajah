@@ -8,6 +8,7 @@ import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import MuxPlayer from '@mux/mux-player-react';
 import { auth, listenToChatRooms } from '../services/backendService';
+import { buildShareUrl, shareText } from '../services/deepLinkService';
 import { UserProfile, ChatRoom } from '../types';
 import Visualizer from './Visualizer';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
@@ -341,20 +342,19 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   const progress = (currentTime / duration) * 100 || 0;
 
   const handleShare = () => {
+    // Route through /share so Facebook/X crawl the rich card. A plain /?type= link hits
+    // static index.html and previews as the generic Plajah default graphic.
     let shareUrl = window.location.href;
-    const baseUrl = window.location.origin;
     if (currentVideo) {
-      shareUrl = `${baseUrl}/?type=video&id=${currentVideo.id}`;
+      shareUrl = buildShareUrl('video', currentVideo.id);
     } else if (currentAlbum) {
-      shareUrl = `${baseUrl}/?type=album&id=${currentAlbum.id}${currentTrack ? `&track=${currentTrack.id}` : ''}`;
+      shareUrl = buildShareUrl('album', currentAlbum.id, { track: currentTrack?.id });
     }
+    const title = currentTrack?.title || currentVideo?.title || currentAlbum?.title || 'Check this out!';
+    const artist = currentTrack?.artist || currentAlbum?.artist;
 
     if (navigator.share) {
-      navigator.share({
-        title: currentTrack?.title || currentVideo?.title || currentAlbum?.title || 'Check this out!',
-        text: `Check out ${currentTrack?.title || currentVideo?.title || currentAlbum?.title} by ${currentTrack?.artist || currentAlbum?.artist || 'Unknown'} on Plajah!`,
-        url: shareUrl,
-      }).catch(console.error);
+      navigator.share({ title, text: shareText(title, artist), url: shareUrl }).catch(console.error);
     } else {
       navigator.clipboard.writeText(shareUrl);
       alert('Link copied to clipboard!');

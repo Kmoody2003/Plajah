@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit, FilmDistribution, FilmVersion } from '../types';
 import { getPlatformInfo } from '../hooks/usePlatform';
+import { buildShareUrl, shareText } from '../services/deepLinkService';
 import { generateAlbumMetadata, generateTrackLyrics } from '../services/geminiService';
 import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, uploadFile as storageUpload, uploadVideo } from '../services/backendService';
 import { enqueueTranscode } from '../services/choraStreamService';
@@ -3064,9 +3065,10 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               type="button"
               onClick={async (e) => {
                 e.stopPropagation();
-                const shareData = { title: title || 'Check out this album on Plajah', text: artist ? `${title} by ${artist}` : title || 'Check out this album on Plajah', url: initialAlbum?.id ? `${window.location.origin}/?type=album&id=${initialAlbum.id}` : window.location.origin };
+                const shareLink = initialAlbum?.id ? buildShareUrl('album', initialAlbum.id) : window.location.origin;
+                const shareData = { title: title || 'Check out this album on Plajah', text: shareText(title, artist), url: shareLink };
                 if (navigator.share) { try { await navigator.share(shareData); } catch {} }
-                else { await navigator.clipboard.writeText(initialAlbum?.id ? `${window.location.origin}/?type=album&id=${initialAlbum.id}` : window.location.origin); }
+                else { await navigator.clipboard.writeText(shareLink); }
               }}
               className="absolute top-2.5 right-2.5 z-10 w-9 h-9 rounded-xl bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-black/80 hover:border-white/40 transition-all opacity-0 group-hover:opacity-100"
             >
@@ -3179,15 +3181,16 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             <button
               type="button"
               onClick={async () => {
+                const shareLink = initialAlbum?.id ? buildShareUrl('album', initialAlbum.id) : window.location.origin;
                 const shareData = {
                   title: title || 'Check out this album on Plajah',
-                  text: artist ? `${title} by ${artist}` : title || 'Check out this album on Plajah',
-                  url: initialAlbum?.id ? `${window.location.origin}/?type=album&id=${initialAlbum.id}` : window.location.origin,
+                  text: shareText(title, artist),
+                  url: shareLink,
                 };
                 if (navigator.share) {
                   try { await navigator.share(shareData); } catch {}
                 } else {
-                  await navigator.clipboard.writeText(initialAlbum?.id ? `${window.location.origin}/?type=album&id=${initialAlbum.id}` : window.location.origin);
+                  await navigator.clipboard.writeText(shareLink);
                 }
               }}
               className="w-full flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95"
