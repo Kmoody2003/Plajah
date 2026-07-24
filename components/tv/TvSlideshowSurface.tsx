@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Play, Pause, SkipBack, SkipForward, Music2 } from 'lucide-react';
 import AnimatedSlideshow from '../AnimatedSlideshow';
 import { useGlobalPlayer } from '../../contexts/GlobalPlayerContext';
@@ -82,7 +83,11 @@ const TvSlideshowSurface: React.FC = () => {
   const pct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
   const art = (currentTrack as any)?.albumCover || (currentAlbum as any)?.coverImage;
 
-  return (
+  // Portalled to document.body: `fixed inset-0` is contained to the nearest transformed/filtered
+  // ancestor, and the TV content area has one that stops short of the screen bottom — which clipped
+  // the slideshow above the bottom edge. Rendering straight into <body> makes inset-0 mean the real
+  // viewport, so it fills the whole screen (same reason the Taleo player is portalled).
+  return createPortal(
     <div
       className="fixed inset-0 z-[300] bg-black"
       data-tv-no-trap
@@ -148,7 +153,8 @@ const TvSlideshowSurface: React.FC = () => {
           ◀ ▶ skip · OK play/pause · Back to return
         </p>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 
