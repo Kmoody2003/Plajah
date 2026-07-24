@@ -1457,7 +1457,14 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const onError = (e: any) => {
       if (!audio.src || audio.src === window.location.href) return;
 
-      const errorMsg = audio.error ? 
+      // hls.js drives the element through MSE, so audio.src is a detached blob: URL and hls.js
+      // owns error recovery (see playTrack's Hls.Events.ERROR handler: retry → bail to original).
+      // The element-swap recovery below would copy that dead MSE blob URL into a fresh <audio>
+      // while hls.js stays attached to the OLD element — silence mid-song, and the track never
+      // reaches 'ended' so the album stops and won't advance. Let hls.js handle its own errors.
+      if (hlsRef.current) return;
+
+      const errorMsg = audio.error ?
         `Code: ${audio.error.code}, Message: ${audio.error.message}` : 
         (e.message || "Unknown Audio Error");
 
