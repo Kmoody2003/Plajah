@@ -987,12 +987,20 @@ body.has-custom-background::after {
 /* TV slideshow Ken Burns: transform-only (GPU-composited, no repaint), so it stays smooth on the
    Mali-G31 where the old animated blur did not. */
 @keyframes tv-kenburns {
-  from { transform: scale(1); }
-  to   { transform: scale(1.06); }
+  from { transform: scale(1) translateZ(0); }
+  to   { transform: scale(1.06) translateZ(0); }
 }
 .tv-kenburns {
   animation: tv-kenburns 14s ease-in-out infinite alternate;
   will-change: transform;
+  /* Force a clean, isolated GPU layer so the scale composites without repainting, and pin the
+     origin/backface so the sub-pixel edges stay put — this is what kills the edge shimmer the
+     effect used to have (that came from object-cover's edges scaling against the viewport; with
+     object-contain the image is letterboxed, and these keep its own edges from crawling). */
+  transform-origin: center center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 /* Live poll card: flowing brand-gradient top bar */

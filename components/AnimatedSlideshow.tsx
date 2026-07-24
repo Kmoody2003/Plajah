@@ -79,14 +79,15 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
       <AnimatePresence mode={tv ? 'sync' : 'wait'}>
         <motion.div key={index} {...(slideMotion as any)} className="absolute inset-0 w-full h-full">
           {tv ? (
-            // object-CONTAIN: show the whole photograph — object-cover was clipping the top and
-            // bottom of anything not 16:9. No Ken Burns here: a zoom on a contained image would
-            // re-crop it (defeating the point) and its sub-pixel scaling was the edge jitter. The
-            // 8s crossfade carries the motion. heroImage() keeps it off the raw-original decode path.
+            // object-CONTAIN so the whole photograph shows (cover was clipping top/bottom of
+            // anything not 16:9). Ken Burns kept: on a contained image the zoom starts with the
+            // full photo visible and drifts in gently — and because the image is letterboxed, its
+            // edges never touch the viewport, so the sub-pixel edge shimmer that cover produced is
+            // gone. heroImage() keeps it off the raw-original decode path.
             <img
               src={heroImage(images[index]) || undefined}
               alt={`Slide ${index}`}
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain tv-kenburns"
               loading="eager"
               decoding="async"
             />
