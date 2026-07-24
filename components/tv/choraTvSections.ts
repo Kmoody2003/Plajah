@@ -9,7 +9,8 @@ import {
   fetchUserProfile,
 } from '../../services/backendService';
 import { fetchArchiveAudiobooks, VAULT_SHELVES, type ArchiveTrack } from '../../services/archiveContentService';
-import { fetchTopVoted, fetchTrending, type RadioStation } from '../../services/radioBrowser';
+import { fetchTopVoted, fetchTrending, searchStations, type RadioStation } from '../../services/radioBrowser';
+import { PUBLIC_RADIO_SHELVES, GENRE_SHELVES } from '../../data/radioShelves';
 import { MUSIC_HISTORY_ERAS } from '../../data/musicHistory';
 
 /**
@@ -129,11 +130,6 @@ const artistItem = (u: UserProfile): TvItem => ({
 
 const GENRES = ['Hip Hop', 'R&B', 'Electronic', 'Jazz', 'Rock', 'Pop', 'Lo-Fi', 'Ambient', 'Classical', 'Folk', 'World'];
 
-/** Genre rails for live radio, matched against the tags stations already carry. Broadcast radio
- *  labels itself differently from a music catalogue — "news" and "talk" have no album equivalent
- *  but are a large share of what is on air — so this is its own list rather than GENRES. */
-const RADIO_GENRES = ['Jazz', 'Classical', 'Rock', 'Pop', 'Electronic', 'Hip Hop', 'Country', 'Reggae', 'Gospel', 'News', 'Talk'];
-
 const byPlays = (list: Album[]) => [...list].sort((a, b) => (b.playCount || 0) - (a.playCount || 0));
 const byRecent = (list: Album[]) => [...list].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 const nonEmpty = (rails: TvRail[]) => rails.filter(r => r.items.length > 0);
@@ -241,26 +237,29 @@ export async function asyncRails(
             .filter((p): p is UserProfile => !!p && !!(p as any).radioSettings?.enabled)
         : [];
 
-      // Genre rails, from the tags the live stations already carry — no extra round trips, and
-      // the groups reflect what is actually tuneable right now rather than a fixed menu.
-      const pool = playable([...topVoted, ...live]);
+      // Curated shelves — the SAME ones the desktop Live Radio browser leads with (see
+      // data/radioShelves.ts): public broadcasters first (NPR, BBC, CBC, ABC, public-radio tag),
+      // then genre/format shelves (classical, jazz, news). Each is a real Radio Browser query, run
+      // in parallel and de-duplicated so a station never shows up under two shelves. This is what
+      // brought the TV radio to parity with web — it was deriving genres from whatever tags the
+      // trending pool happened to carry rather than showing the curated directory.
+      const shelfDefs = [...PUBLIC_RADIO_SHELVES, ...GENRE_SHELVES];
+      const shelfResults = await Promise.all(
+        shelfDefs.map(s => (s.query ? searchStations(s.query).catch(() => [] as RadioStation[]) : Promise.resolve([] as RadioStation[]))),
+      );
       const seen = new Set<string>();
-      const byGenre: TvRail[] = RADIO_GENRES.map(g => {
-        const needle = g.toLowerCase();
-        const items = pool
-          .filter(s => s.tags?.some(t => t.toLowerCase().includes(needle)))
-          .filter(s => !seen.has(s.uuid))
-          .slice(0, 20);
-        items.forEach(s => seen.add(s.uuid));
-        return { id: `genre-${needle.replace(/\s+/g, '-')}`, title: g, items: items.map(stationItem) };
+      const shelfRails: TvRail[] = shelfDefs.map((s, i) => {
+        const items = playable(shelfResults[i]).filter(st => !seen.has(st.uuid)).slice(0, 20);
+        items.forEach(st => seen.add(st.uuid));
+        return { id: `shelf-${s.id}`, title: s.title, items: items.map(stationItem) };
       });
 
       return nonEmpty([
         { id: 'platform', title: 'Chora Radio', items: (platform || []).slice(0, 30).map(t => trackItem(t, 'RADIO')) },
         { id: 'artists', title: 'Artist Stations', items: artistStations.map(artistItem) },
+        ...shelfRails,
         { id: 'live', title: 'Trending Live', items: playable(live).slice(0, 24).map(stationItem) },
         { id: 'voted', title: 'Most Loved', items: playable(topVoted).slice(0, 24).map(stationItem) },
-        ...byGenre,
       ]);
     }
 

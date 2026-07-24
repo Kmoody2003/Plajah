@@ -990,6 +990,18 @@ body.has-custom-background::after {
   from { transform: scale(1) translateZ(0); }
   to   { transform: scale(1.06) translateZ(0); }
 }
+/* Radio "on air" equaliser bars — transform: scaleY only, so it composites on the GPU and costs
+   the fill-rate-bound TV nothing. transform-origin bottom so the bars grow from the baseline. */
+@keyframes tv-eq {
+  0%, 100% { transform: scaleY(0.25); }
+  50%      { transform: scaleY(1); }
+}
+.tv-eq-bar {
+  transform-origin: bottom;
+  animation: tv-eq 900ms ease-in-out infinite;
+  will-change: transform;
+}
+
 .tv-kenburns {
   animation: tv-kenburns 14s ease-in-out infinite alternate;
   will-change: transform;

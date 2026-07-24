@@ -411,8 +411,16 @@ const ChoraTvView: React.FC<{
             const art = onAir ? ((currentTrack as any)?.albumCover || (currentTrack as any)?.images?.[0]) : undefined;
             return (
               <div className="mb-9 flex items-center gap-7 rounded-3xl p-6 bg-black/30 border border-white/10">
-                <div className="w-40 h-40 rounded-2xl overflow-hidden bg-white/[0.06] shrink-0 shadow-[0_24px_60px_rgba(0,0,0,0.6)] grid place-items-center">
-                  {art ? <img src={art} alt="" className="w-full h-full object-cover" /> : <RadioIcon size={44} className="text-white/25" />}
+                <div className="relative w-40 h-40 rounded-2xl overflow-hidden bg-white/[0.06] shrink-0 shadow-[0_24px_60px_rgba(0,0,0,0.6)] grid place-items-center">
+                  {art ? <img src={thumb(art, THUMB.card)} alt="" className="w-full h-full object-cover" /> : <RadioIcon size={44} className="text-white/25" />}
+                  {/* Live equaliser over the art while actually on air — the web hero's signature. */}
+                  {onAir && isPlaying && (
+                    <div className="absolute bottom-0 left-0 right-0 h-2/5 flex items-end justify-center gap-1.5 px-3 pb-3 bg-gradient-to-t from-black/70 to-transparent">
+                      {[0, 120, 240, 90, 200].map((d, i) => (
+                        <span key={i} className="tv-eq-bar w-1.5 h-full rounded-full bg-[#FF8C00]" style={{ animationDelay: `${d}ms` }} />
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2.5 mb-3">
