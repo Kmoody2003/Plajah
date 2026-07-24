@@ -491,7 +491,7 @@ const HomeView: React.FC<{
         {continueWatching.length > 0 && (
           <section>
             <SectionHeader label="Jump Back In" title="Continue Watching" accent="#3FBE85" />
-            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
+            <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
               {continueWatching.map(e => {
                 const pct = e.durationSec > 0 ? Math.min(100, (e.positionSec / e.durationSec) * 100) : 0;
                 return (
@@ -518,7 +518,7 @@ const HomeView: React.FC<{
         {newThisWeek.length > 0 && (
           <section>
             <SectionHeader label="Fresh · Last 7 Days" title="New This Week" accent="#3FBE85" />
-            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
+            <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
               {newThisWeek.map((v: any) => (
                 <PosterCard
                   key={`ntw-${v.identifier || v.id}`}
@@ -539,7 +539,7 @@ const HomeView: React.FC<{
         {newToTaleo.length > 0 && (
           <section>
             <SectionHeader label="Just Added" title="New to Taleo" accent="#D0BCFF" />
-            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
+            <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
               {newToTaleo.map(v => (
                 <PosterCard
                   key={v.identifier || v.id}
@@ -617,7 +617,7 @@ const HomeView: React.FC<{
         {creatorFilms.length > 0 && (
           <section>
             <SectionHeader label="Platform Originals" title="Films & Series by Creators" accent="#D0BCFF" />
-            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
+            <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
               {creatorFilms.map(v => {
                 const orig = (v as any)._original || v;
                 const ownerName = orig.ownerName || (v as any).ownerName || '';
@@ -702,7 +702,7 @@ const HomeView: React.FC<{
         {trendingContent.length > 0 && (
           <section>
             <SectionHeader label="Popular Right Now" title="Trending" accent="#D0BCFF" />
-            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
+            <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
               {trendingContent.map((v, i) => (
                 <PosterCard
                   key={(v as any).identifier || (v as any).id || i}
@@ -725,7 +725,7 @@ const HomeView: React.FC<{
         {acclaimed.length > 0 && (
           <section>
             <SectionHeader label="Must Watch" title="Critically Acclaimed" accent="#FFB68D" />
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {acclaimed.slice(0, 8).map(m => (
                 <motion.div
                   key={m.identifier}
@@ -759,7 +759,7 @@ const HomeView: React.FC<{
         {belovedByUsers.length > 0 && (
           <section>
             <SectionHeader label="Highly Rated" title="Beloved by Users" accent="#D0BCFF" />
-            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
+            <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
               {belovedByUsers.map(v => (
                 <PosterCard
                   key={v.identifier || v.id}
@@ -779,7 +779,7 @@ const HomeView: React.FC<{
         {filmClubs.length > 0 && (
           <section>
             <SectionHeader label="Fan Communities" title="Film Clubs" accent="#D0BCFF" />
-            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
+            <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
               {filmClubs.map(club => (
                 <motion.div
                   key={club.id}
@@ -860,7 +860,7 @@ const HomeView: React.FC<{
                 </div>
                 <span className="text-[9px] font-black uppercase tracking-widest text-white/20 border border-white/10 px-2 py-0.5 rounded-lg">Archive.org</span>
               </div>
-              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
+              <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
                 {items.map(item => (
                   <PosterCard
                     key={item.identifier}

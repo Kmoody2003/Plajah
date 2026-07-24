@@ -1,0 +1,7 @@
+
+# Keep binary artifacts from being line-ending mangled on checkout
+*.jar binary
+*.keystore binary
+*.png binary
+*.jpg binary
+*.webp binary

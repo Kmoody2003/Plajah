@@ -1,0 +1,53 @@
+{
+  "name": "Plajah",
+  "short_name": "Plajah",
+  "description": "Music, videos, live, sports, news and more — all in one place.",
+  "theme_color": "#020202",
+  "background_color": "#020202",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "start_url": "/?source=pwa",
+  "id": "plajah-pwa",
+  "categories": ["entertainment", "music", "video"],
+  "prefer_related_applications": false,
+  "handle_links": "preferred",
+  "icons": [
+    {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Circle-icons-dev.svg/192px-Circle-icons-dev.svg.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Circle-icons-dev.svg/512px-Circle-icons-dev.svg.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Music",
+      "short_name": "Music",
+      "url": "/?view=MUSIC&source=shortcut",
+      "description": "Jump straight to music"
+    },
+    {
+      "name": "Live Hub",
+      "short_name": "Live",
+      "url": "/?view=LIVE_HUB&source=shortcut",
+      "description": "See what's live right now"
+    }
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
+}

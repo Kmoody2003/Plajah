@@ -110,6 +110,7 @@ import TvUnavailableNotice from './components/TvUnavailableNotice';
 import TvTopTabs from './components/TvTopTabs';
 const TvSignInView = retryLazy(() => import('./components/TvSignInView'));
 const ChoraTvView = retryLazy(() => import('./components/tv/ChoraTvView'));
+const TvSearchView = retryLazy(() => import('./components/tv/TvSearchView'));
 const ReelloTvView = retryLazy(() => import('./components/tv/ReelloTvView'));
 const TvSlideshowSurface = retryLazy(() => import('./components/tv/TvSlideshowSurface'));
 const TvLinkApproval = retryLazy(() => import('./components/TvLinkApproval'));
@@ -4174,6 +4175,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onSelect={(v) => setView(v as AppView)}
                 focused={tvTabsFocused}
                 onExitDown={() => setShellFocus(false)}
+                onOpenSearch={() => { setShellFocus(false); setView('TV_SEARCH' as AppView); }}
                 onOpenNowPlaying={() => {
                   setShellFocus(false);
                   // Go back to the SOURCE that is playing, not a generic player: an album
@@ -4197,6 +4199,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   userProfile={userProfile}
                   onSelectVideo={handleSelectItem}
                   onVisitChannel={(p) => handleVisitUser(p.uid)}
+                />
+              </Suspense>
+            )}
+
+            {/* Global TV search — reachable from the top bar's Search chip. handleSelectItem is the
+                universal router (album→player, film→MOVIE_UX, video→player), so all three catalogues
+                open exactly where their own home screens would send them. */}
+            {view === 'TV_SEARCH' && getPlatformInfo().isTV && (
+              <Suspense fallback={null}>
+                <TvSearchView
+                  onBack={() => setView('MOVIES_TV' as AppView)}
+                  onSelectAlbum={handleSelectItem}
+                  onSelectMovie={handleSelectItem}
+                  onSelectVideo={handleSelectItem}
                 />
               </Suspense>
             )}

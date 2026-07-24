@@ -333,7 +333,7 @@ const ReelloTvView: React.FC<{
               {/* The gutter exists because `overflow-x` clips BOTH axes: without it a focused
                   card's growth AND its focus ring get shaved off at the rail's edge, exactly when
                   you need to see them. RAIL_GUTTER is sized to the ring (see tvFocusRing.ts). */}
-              <div className={`flex gap-4 overflow-x-auto no-scrollbar ${RAIL_GUTTER}`}>
+              <div className={`flex gap-6 overflow-x-auto no-scrollbar ${RAIL_GUTTER}`}>
                 {rail.items.map((item, i) => (
                   <Card
                     key={`${rail.id}-${item.id}-${i}`}

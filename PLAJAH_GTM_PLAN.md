@@ -1,5 +1,5 @@
 # Plajah — Go-to-Market & Creator Acquisition Strategy
-**Updated: June 11, 2026 · Reflects actual codebase (250+ components, 30+ services). Latest reassessment in §24 (Studio, FABULA, real music transcription, infra hardening).**
+**Updated: July 10, 2026 · Reflects actual codebase (250+ components, 30+ services). Latest reassessment in §27 (state of platform + the uniquely-Plajah plays already latent in the code: the record-as-product, ambient reach, make-once-publish-everything, institutions-as-networks, global-from-day-one, the safe full-lifecycle family account).**
 
 > ## ⬆️ GTM UPDATE — June 29, 2026 (Education vertical now LIVE in production)
 > Since this doc was written, the **entire education stack shipped and deployed**: Reading/Science/Math **Quests** (standards-aligned, K-7+), the **Learner Ledger** + portable **Academic Passport** (Open Badges 3.0 verifiable-credential export), **Class Points** (the generic, trademark-safe behavior/attendance/parent system — *renamed off "ClassDojo/Dojo" for legal reasons*), parent/child/teacher **identity & safeguards** (emailless child login via Cloud Run runtime SA), **two teaching tracks** (academic *Teacher* vs creator-economy *Instructor*), and an **8-tool Teacher Console** (Plan-from-Mastery · Planner · QTI Checks · Gradebook · Assess Work · print-ready Reports · CASE/Clever/LTI Integrations · homeschool/pod/overlay Context).
@@ -44,6 +44,34 @@
 > All AI moved **server-side** (Anthropic + Gemini proxies) so keys never ship in the browser — this fixed **auto-captions and every client-side Gemini feature** (album metadata/liner notes, lyric generation, sermon transcription, content-safety moderation, module insights) that had been silently dark in production. A platform-wide **thumbnail-resize pass** (CDN WebP, ~10–100× smaller) removed the biggest load-time drag, especially in Chora.
 >
 > **Why it reframes the GTM:** near-**zero content cost** (it's the open record), a moat **no competitor assembles** (nobody puts the Met + Smithsonian + Europeana + OpenStax + arXiv + Wikipedia + working structural tools inside one *social* learning destination), and a set of **new segments** the original beachheads didn't cover — lifelong learners, homeschoolers, museum/heritage enthusiasts, arts/film/music educators, and working professionals (architects, engineers, archaeologists). It **deepens Education** into "learn *and experience* anything," and it hands **Institutions (Elevate)** — especially museums, cultural centers and schools — a native reason to live here. **Fronts are now: Education (incl. Knowledge/Heritage), Sports, Creator, Institutions — over one identity/record/social/AI spine.** Full build detail in **§25**.
+
+---
+
+> ## ⬆️ GTM UPDATE — July 10, 2026 (State of the platform + the unique plays hiding in the code)
+> This update does three things: says **where everything actually stands now**, names **what has structurally strengthened**, and — the important part — surfaces **holistic opportunities that only Plajah can do**, because the pieces to do them are *already built* and just haven't been named as a strategy.
+>
+> ### 📍 Where it stands (July 2026)
+> The platform is **broad and, increasingly, deep and reliable**. Recent work moved Chora from "a music page" toward "a real streaming service": **playback now recovers from interruptions** (audio-focus loss, Bluetooth/headphone handoffs, AudioContext suspends) and publishes **full lock-screen / car metadata** (title, artist, artwork, position, controls) to **Android Auto, CarPlay and Bluetooth AVRCP**. Content now reaches **off the screen** — a live **Alexa skill** (*"ask Chora to play …"*, cert-grade request-signature verification, public-catalog search + album auto-advance), plus **Cast/TV** targets. The **Comics & Manga Museum** became a first-class reader via a server-side **JP2→JPEG ingestion pipeline** that caches public-domain scans into our own storage (reliable where archive.org's live image service is not). A full **push-notification stack** (native + web FCM, per-category prefs, deep-link taps) landed for retention, and **Firebase email sign-up + a showcase onboarding** opened the top of the funnel. The honest constraint is **unchanged: users, not features, are the bottleneck** — everything below makes the wedge *stickier and more defensible*, not automatically louder.
+>
+> ### 💪 What structurally strengthened
+> - **Reliability as a moat.** Streaming resilience + car/lock-screen controls + self-healing + a 5-minute bug-trace are the **credibility floor** institutions and schools require before they'll trust an "everything platform." That floor is now real.
+> - **Distribution surface widened.** Alexa + car + Cast + TV + rich link previews + native builds (Android/FireTV/Tizen) mean a creation is reachable on voice, dashboards, and living rooms — not just a browser tab.
+> - **Monetization consolidated.** A canonical **StoreProduct** commerce system (variants/SKU/inventory/fulfillment, auction↔fundraiser, brand activation) + the **Sanctuary hybrid** (Patreon/Kickstarter/GoFundMe behaviors for *any* account, gate *any* content) turned scattered payment features into one storefront/patronage spine.
+> - **The asset graph exists.** The cross-service **Content Asset Manager** (a DAM spanning Chora/Taleo/Lorea/Reello/Projects) quietly made "one asset, many products" *technically real* — see Opportunity #3.
+>
+> ### 🌐 The unique plays hiding in the code (what you may have overlooked)
+> These aren't new features to build so much as **strategies that the already-built pieces unlock** — each is something **no single competitor can copy**, because they each own only one slice:
+> 1. **The product is the RECORD, not the apps.** Plajah is the only place with a **portable, verifiable life-record** spanning *learning* (Academic Passport / Open Badges 3.0), *athletics* (Athlete State Card, verify-then-mint), and *creative work* (Creator Passport, Bitcoin-timestamped) — on **one identity**. LinkedIn is work-only, Credly is credentials-only, Spotify/YouTube have none. Reframe the moat and the pitch around **"one verifiable record from kindergarten through your creative career."** A shared credential is itself an acquisition link.
+> 2. **Ambient distribution — newly unlocked, uniquely open.** Now that Alexa + car + Cast + TV are live, an **indie** creator's catalog is voice/car/TV-reachable — surfaces the majors gate. *"The only platform where 'Alexa, play [your indie artist] on Chora' works — and your sermon or lecture rides the car dashboard."* Near-zero marginal cost, and a fresh, concrete differentiator to lead with for musicians and Elevate institutions.
+> 3. **Make once, publish as everything.** Content Asset Manager + Fabula (AI film NLE) + Pixels (GPU render/VJ) + Lorea (comic studio) + Chora + real transcription mean **one creation fans out** into song → notation → comic → music video → FAST broadcast → social clip → spatial mix, from **one asset graph**. Nobody spans audio+notation+comic+film+broadcast under one identity. Sell the **multiplication** — it annihilates the creator's #1 tooling-fragmentation pain at a level Linktree/Patreon can't reach.
+> 4. **Institutions as broadcast networks with native records + giving.** A church/school/museum onboards its whole community **and** runs a multicam broadcast (switcher + teleprompter + titles + stream) **and** issues verifiable records **and** collects giving — **one motion, on the page the community already follows**. That's vMix + ProPresenter + Credly + Tithe.ly + a website, collapsed. Highest-leverage funded front.
+> 5. **Global from day one.** On-device **Live Translation** (Whisper→NLLB→Kokoro) + auto-lyrics in 30+ languages *including ancient ones* make every song/sermon/lecture instantly multilingual with **no localization budget**. Uniquely Plajah (on-device pipeline). Lead the Academia/Elevate pitch with it.
+> 6. **The safe full-lifecycle family account.** One identity + safety spine (content-safety engine, age gating, screen-time, kids-mode) safely spans a child's **Reading Quest** → a teen's creator account → an adult's **Intimate Mode** → a parent's **church** — under one roof. Competitors serve one slice; Plajah is the only platform a **whole family** can use together across every life stage. That's household acquisition and retention, not per-seat.
+> 7. **Digitize the open record, socially.** The new museum ingestion + the Met/Smithsonian/Europeana/arXiv/OpenStax spine let Plajah turn the world's **public-domain and open** record (books, comics, art, artifacts, papers) into a first-class **social** reading/learning destination at **near-zero content cost** — a standalone acquisition surface (heritage SEO + shareable cultural links) no content platform assembles.
+> 8. **"Right Now" (still unbuilt, still the sharpest fan wedge).** Cross-vertical real-time presence is *uniquely* possible here because all content + the social graph + live infra share one session. It remains the strongest answer to the #1 fan pain (loneliness/doom-scroll) and no major platform can replicate it. See **§14**.
+> 9. **Plajah Play — indie game distribution (a planned front for *later in 2026*).** Turn today's game-embed directory into an itch-flavored **buy/download/play store at a flat 10%** for bedroom devs — riding rails that already exist (Stripe Connect, resumable uploads, entitlements, notifications, Sanctuary tips). Feasibility verdict: **viable, but only on zero-egress storage (Cloudflare R2)** — the margin math ($410 vs $170 net on a $10 game; free demos $0 vs ~$900 loss) hinges entirely on it. Uniquely Plajah because the game sits **next to the dev's music, film, comics, following, records and giving on one identity**, and its **web-playable titles run on mobile — which Steam can't.** Full economics/architecture/phasing in **`docs/PLAJAH_PLAY_GAMES_FEASIBILITY.md`**; folded into the calculus in **§27** (Opportunity #9), deliberately sequenced after the ambient/payments and make-once gates.
+>
+> **The one-line reframe:** Plajah's real moat isn't any single app — it's the **one identity + verifiable record + asset graph + ambient reach + safety spine** underneath all of them. Keep entering the market on a **single wedge** (a musician doesn't buy "the spine"), but *build, price and retain* around the spine — that's the part competitors structurally cannot assemble. Full detail + the honest gaps that gate each play in **§27**.
 
 ---
 
@@ -1782,3 +1810,91 @@ No new paywall primitive — value routes through **Plajah+ / Sanctuary / Elevat
 - **Expansion:** the identical engine serves museums, universities, and nonprofits (lectures → articles/books), so Elevate's build doubles as the Cultural-org GTM.
 
 *Added July 5, 2026. Reflects the shipped Church Elevate functional layer (prayer wall, announcements, demos, Clergy account type, Sanctuary hybrid) and introduces the Ministry Content Synergy Engine (stream → Fabula clean-feed project + transcript → ARIA-authored article/podcast/book drafts with scripture & fact supplements, timecoded stills, and geo-triggered event photo pools). Technical spec in `docs/MINISTRY_CONTENT_SYNERGY_BLUEPRINT.md`. Prior sections intact.*
+
+---
+
+## 27. State of the Platform + Uniquely-Plajah Opportunities — July 10, 2026
+
+This section grounds the top-of-doc July 10 update in the actual codebase: what materially changed since §26, and — the part worth the most — the **holistic plays that only Plajah can run**, because the pieces already exist and simply haven't been named as strategy. Each play closes with the **honest gate** that must clear before it converts, so this stays a plan, not a highlight reel.
+
+### 27.1 State of the platform (honest read)
+
+- **Chora is now a credible streaming service, not a music page.** Playback recovers from interruptions (audio-focus loss, Bluetooth/headphone handoffs, AudioContext suspend on device/route change) with bounded auto-recovery; the next-track preloader no longer starves the current stream on cellular; and the player publishes **full Media Session metadata** — title, artist, artwork (multi-size, absolute-URL, with a no-artwork retry so head units don't drop the payload), position and playback state — to **Android Auto, CarPlay and Bluetooth AVRCP**. This is the "does it actually work in my car" bar, and it now clears it.
+- **Content reaches off the screen.** A **live Alexa skill** (`/api/alexa`) verifies Amazon's SHA1-RSA request signature against the cert chain, searches the **public** Chora catalog, and streams with **album auto-advance** + pause/resume/next/previous. Cast/TV targets and native TV builds (Android TV/FireTV/Tizen) are prepped. Ambient reach is real, not roadmap.
+- **The open-record reader got deep.** The **Comics & Manga Museum** now reads natively via a server pipeline that pulls public-domain scans from archive.org's reliable download server, **ffmpeg-decodes JP2→JPEG, and caches the pages in Plajah storage** (first view ~2s, every later view instant for all users). This is the template for turning the *entire* open record into first-class social reading.
+- **Retention + funnel infrastructure landed.** Full push-notification stack (native `@capacitor/push-notifications` + web FCM, multi-device tokens, per-category prefs, deep-link taps), Firebase **email sign-up + a features-showcase onboarding**, feed/DM/new-content notifications, and privacy defaults (relationship status private-by-default) — the plumbing that makes an acquired user *stay*.
+- **The bottleneck is unchanged and must stay named: users, not features.** None of the above generates demand by itself. Their job is to make the wedge **stickier, more defensible, and more shareable** — which is exactly what the plays below monetize.
+
+### 27.2 What structurally strengthened
+
+| Lever | What shipped | Why it matters to GTM |
+|---|---|---|
+| **Reliability floor** | Streaming resilience, car/lock-screen controls, 5-min bug-trace, per-user health + self-healing | The non-negotiable credibility bar for institutions/schools — now met |
+| **Distribution surface** | Alexa, car, Cast, TV, native builds, rich link previews | A creation is reachable on voice, dashboards, living rooms — not just a tab |
+| **Monetization spine** | Canonical **StoreProduct** commerce (variants/SKU/inventory/fulfillment, auction↔fundraiser, brand activation) + **Sanctuary hybrid** (Patreon/Kickstarter/GoFundMe for any account, gate any content) | Scattered payment features became one storefront + patronage spine |
+| **Asset graph** | Cross-service **Content Asset Manager** DAM (Chora/Taleo/Lorea/Reello/Projects) | Makes "one asset → many products" technically real (see 27.3 #3) |
+| **Global reach** | On-device Live Translation (Whisper→NLLB→Kokoro) + auto-lyrics in 30+ languages incl. ancient | Every creator/institution is multilingual with no localization budget |
+
+### 27.3 The unique plays (holistic, and only Plajah can run them)
+
+Framed as reframes of **already-built** capability. Each names *why a competitor structurally cannot copy it*, the **GTM motion**, and the **gate**.
+
+**1. The product is the RECORD, not the apps.**
+Plajah is the only place with a **portable, verifiable life-record** across three domains on one identity: **Academic Passport** (Open Badges 3.0 verifiable credentials), **Athlete State Card** (verify-then-mint achievements), and **Creator Passport** (self-sovereign, AT-Proto base, Bitcoin-timestamped provenance).
+*Why only Plajah:* LinkedIn = work only; Credly = credentials only; Spotify/YouTube = none; nobody spans **learn → compete → create → earn** for one human across a lifetime.
+*Motion:* position the moat and long-term pitch around **"one verifiable record from kindergarten through your creative career."** A shared credential is itself an acquisition link (referral loop baked into the artifact).
+*Gate:* needs real **issuers** (schools/orgs/leagues actually minting) — chicken-and-egg with the Institutions front; sequence it *behind* institution onboarding, not ahead.
+
+**2. Ambient distribution — newly unlocked, uniquely open.**
+With Alexa + car MediaSession + Cast + TV live, an **indie** creator's catalog is voice/car/TV-reachable — surfaces the majors gate behind catalog deals.
+*Why only Plajah:* Spotify/Apple own the ambient endpoints and won't surface a bedroom artist by name; Plajah's own skill + player *do*.
+*Motion:* lead the musician and Elevate pitches with it — *"the only platform where 'Alexa, play [your indie artist] on Chora' works, and your sermon rides the car dashboard."* Near-zero marginal cost per surface.
+*Gate:* requires the console/store steps done (Alexa skill **published** beyond dev mode via certification; TV store submissions) and **payments fully live** to convert reach into revenue.
+
+**3. Make once, publish as everything (the asset flywheel).**
+Content Asset Manager + **Fabula** (AI film NLE) + **Pixels** (GPU render/VJ) + **Lorea** (comic studio) + Chora + real **transcription (YIN→MusicXML)** mean one creation fans out: **song → notation → comic → music video → FAST broadcast → social clip → spatial mix**, from one asset graph.
+*Why only Plajah:* nobody spans audio + notation + comic + film + broadcast under one identity and one asset store.
+*Motion:* sell the **multiplication** ("upload once, ship six formats") — it dissolves the creator's #1 tooling-fragmentation pain at a level Linktree/Patreon/Canva can't reach. Great demo-video material.
+*Gate:* the cross-vertical "send to" seams exist but are uneven; pick **one** high-wow chain (song → lyric video → FAST) and make it one-click before marketing the whole flywheel.
+
+**4. Institutions as broadcast networks with native records + giving.**
+A church/school/museum onboards its whole community **and** runs a multicam broadcast (Media Engine switcher + teleprompter + titles + stream) **and** issues verifiable records **and** collects giving — one motion, on the page the community already follows.
+*Why only Plajah:* that's vMix + ProPresenter + Credly + Tithe.ly + a website, collapsed into one identity/record/giving/production spine.
+*Motion:* the highest-leverage **funded** front — *"run your service / assembly / gallery night like a broadcast, from the same page your community already follows."* Bundle Elevate + Media Engine; upsell the desktop app for NDI/capture-card multicam. Ties to Sponsor-a-Congregation / Sponsor-a-Classroom cross-subsidy.
+*Gate:* the browser Media Engine is a WebRTC/WHEP subset today; true multicam needs the desktop (Tauri/GStreamer) app shipped — lead with what browser does, upsell the rest.
+
+**5. Global from day one.**
+On-device Live Translation + ancient-and-modern auto-lyrics make every song/sermon/lecture instantly multilingual with **no localization budget**.
+*Why only Plajah:* the on-device pipeline (WebGPU) means it's free per-item at scale; DSPs and LMS vendors don't ship this.
+*Motion:* lead Academia + Elevate pitches with it — a single small church or lone educator reaches a global audience the day they publish.
+*Gate:* Phase-1 is synthetic-voice/subtitle; voice-match + tight lip-sync are native-app work — set expectations at "readable/listenable," not "broadcast dub," until then.
+
+**6. The safe full-lifecycle family account.**
+One identity + safety spine (content-safety engine, age gating, screen-time, kids-mode) safely spans a child's **Reading Quest** → a teen's creator account → an adult's **Intimate Mode** → a parent's **church**.
+*Why only Plajah:* competitors serve one life-stage; Plajah is the only platform a **whole family** can use together across every stage, with correct gating between them.
+*Motion:* **household** acquisition and retention (families, not seats) — a ClassDojo-safe front door that grows *with* the child instead of aging out.
+*Gate:* the gating must be provably airtight before this is marketed (one leak between kids-mode and adult content is fatal to the whole story) — treat safety verification as a launch blocker for this specific pitch.
+
+**7. Digitize the open record, socially.**
+The museum ingestion pipeline + the Met/Smithsonian/Europeana/arXiv/OpenStax spine let Plajah turn the world's **public-domain and open** record (books, comics, art, artifacts, papers) into a first-class **social** reading/learning destination at near-zero content cost.
+*Why only Plajah:* no content platform assembles the open record *inside a social reader with creator tooling next to it*.
+*Motion:* a standalone **acquisition surface** — heritage SEO (every ingested work is an indexable, shareable cultural page) that funnels into Academia and the creator tools.
+*Gate:* provenance/rights hygiene (public-domain only), and ingestion cost/caching discipline so it doesn't become a storage sink.
+
+**8. "Right Now" — the sharpest fan-side wedge (still unbuilt).**
+Cross-vertical real-time presence ("see what your people are listening to / watching right now, one tap to join") is uniquely possible here because all content + the social graph + live infra share one session.
+*Why only Plajah:* Spotify/YouTube/TikTok can't show a *cross-medium* shared moment; Plajah can.
+*Motion:* the strongest answer to the #1 fan pain (loneliness/doom-scroll) and a viral "shared moment" mechanic. Full scope in **§14**.
+*Gate:* it's the one item here that still needs building (~3–4 weeks, presence service + feed + join). Highest fan-side ROI of anything unbuilt.
+
+**9. Plajah Play — indie game distribution (a planned front for later in 2026).**
+Today "Games" is a web-embed iframe directory (a `games` doc + `GamePlayerView`) — no store, purchase, payout or cut. The plan turns it into an **itch-flavored store for small & bedroom devs** — buy / download / play at a **flat 10%** — and it slots cleanly onto rails that already exist (**Stripe Connect, resumable uploads, entitlements, update notifications, Sanctuary tips**). The whole model hinges on **one line item: egress.** Verdict from the feasibility work: **viable, but only on zero-egress storage.** On a $10 / 2 GB game × 1,000 sales, Plajah nets **≈ $410 on Cloudflare R2 vs ≈ $170 on GCS** (egress erases 58% of the post-Stripe margin); on **free demos** — the bedroom-dev on-ramp — 5,000 × 1.5 GB is **$0 on R2 vs ~$900 of pure loss on GCS.**
+*Why only Plajah:* a game store that also carries the dev's **music, film, comics, following, records and giving** on one identity — and whose **web-playable** titles run **on mobile, which Steam can't**. Not a standalone store fighting Steam/itch on their turf; a games surface *inside a creator's whole home.*
+*Motion:* start with the **web-playable paid store** (fast, mobile, cheap), then the **downloadable-PC host** (R2 builds, signed expiring URLs, malware scan), then community/polish. Beachhead: game-jam / bedroom devs who live on free demos.
+*Gate:* the enabling infra decision is **stand up a Cloudflare R2 (or B2-via-Cloudflare) build bucket** — the whole margin depends on it; do **not** serve builds from Firebase/GCS. Plus malware-scan + dev-verification before hosting arbitrary `.exe`. Full economics, architecture and phasing in **`docs/PLAJAH_PLAY_GAMES_FEASIBILITY.md`**. Explicitly **sequenced for later in 2026** — after the ambient/payments gates (#2) and one make-once chain (#3) are converting.
+
+### 27.4 How to sequence these (so breadth doesn't dilute)
+
+The reframe is **enter on one wedge, build/price/retain on the spine.** A musician buys "get paid + your catalog plays in the car and on Alexa" (#2), not "the identity spine." An institution buys "broadcast + giving + records in one place" (#4). But *underneath*, every wedge deposits into the same identity + record + asset graph + safety spine — the part no competitor can assemble. Practical order: **(a)** finish the gates on #2 (publish the Alexa skill, payments live) since it's the freshest, cheapest differentiator; **(b)** ship one one-click chain of #3 for a killer demo; **(c)** run #4 as the funded institution motion with #5 as its headline; **(d)** treat #1 and #6 as *retention/moat* narratives that mature as issuers and families accumulate; **(e)** build #8 when a fan-side growth push is warranted; **(f)** **Plajah Play (#9) is the deliberate later-in-2026 front** — a contained, high-margin expansion once the wedges above are converting. Its one hard prerequisite is an infra decision, not a market one: **stand up zero-egress build storage (Cloudflare R2) first** — the 10% only works there. It reuses Stripe Connect, resumable uploads, entitlements and notifications, so the incremental build is small relative to the new revenue surface.
+
+*Added July 10, 2026. Reflects shipped playback resilience + full car/lock-screen Media Session, the live Alexa skill (`/api/alexa`, signature-verified, public-catalog + album auto-advance), the Comics & Manga Museum JP2→JPEG ingestion/caching reader, the push-notification stack, email sign-up + onboarding, StoreProduct commerce + Sanctuary hybrid consolidation, and the Content Asset Manager. Also folds in **Plajah Play** (indie game distribution) as Opportunity #9 / a planned later-in-2026 front — full feasibility in `docs/PLAJAH_PLAY_GAMES_FEASIBILITY.md`. All prior sections intact.*

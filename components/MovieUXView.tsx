@@ -32,6 +32,7 @@ import { shareAsset, shareText } from '../services/deepLinkService';
 import CharacterWorldView from './CharacterWorldView';
 import { createPortal } from 'react-dom';
 import { hlsTuning, capLevelsToPanel } from '../services/hlsTuning';
+import { getPlatformInfo } from '../hooks/usePlatform';
 
 interface MovieUXViewProps {
   item: Video | Album;
@@ -1133,7 +1134,10 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.4 }}
-              className="relative z-20 pt-28 px-5 lg:px-16 pb-32 max-w-6xl mx-auto"
+              // On a television the max-w-6xl reading column left half the 1080p+ screen empty and
+              // the page looked crammed into the middle. Give the TV a much wider column and larger
+              // side gutters so the film page actually fills the wall; desktop keeps its reading width.
+              className={`relative z-20 pt-28 pb-32 mx-auto ${getPlatformInfo().isTV ? 'px-16 max-w-[1720px]' : 'px-5 lg:px-16 max-w-6xl'}`}
             >
               {/* Close panel */}
               <button

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Samsung Tizen Smart TV — Hosted Web App config
+  Build target: Tizen 6.5+ (2022 TVs and up), supports 4K UHD panels
+  Submission: Samsung Seller Portal → TV category
+
+  Workflow:
+  1. Install Tizen Studio + TV Extension SDK
+  2. Open this project in Tizen Studio
+  3. Point <content src> at your production URL
+  4. Run on emulator: Ctrl+F5 → TV emulator profile
+  5. Package as .wgt for Seller Portal submission
+-->
+<widget xmlns="http://www.w3.org/ns/widgets"
+        xmlns:tizen="http://tizen.org/ns/widgets"
+        id="http://plajah.com/tizen"
+        version="2.0.0">
+
+  <!-- App identity -->
+  <tizen:application
+    id="plajahapp.Plajah"
+    package="plajahapp"
+    required_version="6.5"
+    ambient_support="disable" />
+
+  <!-- Hosted web app — Tizen loads this URL in its Chromium browser engine -->
+  <content src="https://plajah.com" />
+
+  <!-- Allow the hosted page to load all subresources -->
+  <tizen:content-security-policy>
+    default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;
+    media-src * blob:;
+    img-src * data: blob:;
+  </tizen:content-security-policy>
+  <access origin="*" subdomains="true" />
+
+  <!-- Required Tizen privileges -->
+  <tizen:privilege name="http://tizen.org/privilege/internet" />
+  <tizen:privilege name="http://tizen.org/privilege/mediacapture" />
+  <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice" />
+
+  <!-- Register remote-control keys used by D-pad navigation -->
+  <tizen:app-control>
+    <src name="index.html" />
+    <operation name="http://tizen.org/appcontrol/operation/default" />
+  </tizen:app-control>
+
+  <!-- App icons (required sizes for Samsung Seller Portal) -->
+  <icon src="icon_117x117.png" width="117" height="117" />
+  <icon src="icon_512x512.png" width="512" height="512" />
+
+  <!-- Splash / background image -->
+  <tizen:splash src="splash_1920x1080.png" />
+
+  <name>Plajah</name>
+  <description>Music, film, books and worlds — one creator platform. Run your own 24/7 TV channel.</description>
+
+  <!-- Enable Samsung TV browser engine features -->
+  <tizen:metadata key="http://samsung.com/tv/metadata/use.browser" value="Y" />
+  <tizen:metadata key="http://samsung.com/tv/metadata/category" value="StreamingService" />
+
+  <!-- Screen size declarations for certification -->
+  <feature name="http://tizen.org/feature/screen.size.normal.1080p" />
+  <feature name="http://tizen.org/feature/screen.size.normal.4k" />
+
+</widget>
