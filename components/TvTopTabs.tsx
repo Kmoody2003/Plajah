@@ -122,13 +122,17 @@ const TvTopTabs: React.FC<{
             onClick={() => onSelect(view)}
             className={`flex items-center gap-2.5 px-6 py-2.5 rounded-full font-black uppercase tracking-widest text-[11px] transition-all ${
               active
-                ? 'bg-white text-black'
+                ? 'bg-white/[0.08]'
                 : 'text-white/55 hover:text-white hover:bg-white/10'
             }`}
             style={ringStyle(view)}
           >
-            <Icon size={16} />
-            {meta.label}
+            {/* Selected tab wears the brand: magenta→orange gradient text + an orange icon, instead
+                of the old dark-on-white that read as "greyed out" against the black bar. */}
+            <Icon size={16} style={active ? { color: '#FF8C00' } : undefined} />
+            {active
+              ? <span className="bg-gradient-to-r from-[#D40055] to-[#FF8C00] bg-clip-text text-transparent">{meta.label}</span>
+              : meta.label}
           </button>
         );
       })}

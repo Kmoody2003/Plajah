@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Play, Pause, SkipBack, SkipForward, Music2 } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Music2, X } from 'lucide-react';
 import AnimatedSlideshow from '../AnimatedSlideshow';
 import { useGlobalPlayer } from '../../contexts/GlobalPlayerContext';
 import { resolveSlideshowImages } from '../../services/slideshow';
@@ -53,15 +53,20 @@ const TvSlideshowSurface: React.FC = () => {
     return { lines: lyrics.slice(from, from + 6).map((l, i) => ({ text: l.text, on: from + i === active })) };
   }, [lyrics, currentTime]);
 
+  const exit = useCallback(() => setIsSlideshowActive(false), [setIsSlideshowActive]);
+
   useEffect(() => {
     if (!showing) return;
     const onKey = (e: KeyboardEvent) => {
       const kc = e.keyCode || e.which;
       if (kc === 24 || kc === 25 || kc === 26 || kc === 164) return;   // volume / power — system's
       const stop = () => { e.preventDefault(); e.stopImmediatePropagation(); };
-      // BACK is the only way out — deliberate, not any-key-accidental.
-      if (kc === 4 || e.key === 'Backspace' || e.key === 'Escape' || e.key === 'XF86Back' || e.key === 'GoBack') {
-        stop(); setIsSlideshowActive(false); return;
+      // Multiple ways out, because the ONE that used to be the only way out — hardware Back — never
+      // reaches this WebView on Android TV (the Activity eats it; see the hardware-back listener
+      // below). UP always exits, and any Back keycode we DO see exits too.
+      if (kc === 4 || kc === 27 || e.key === 'Backspace' || e.key === 'Escape' || e.key === 'XF86Back' || e.key === 'GoBack' ||
+          e.key === 'ArrowUp' || kc === 38 || kc === 19) {
+        stop(); exit(); return;
       }
       stop();
       // First press just wakes the controls; a woken remote operates playback.
@@ -71,9 +76,16 @@ const TvSlideshowSurface: React.FC = () => {
       else if (e.key === 'ArrowRight' || kc === 39 || kc === 22) next();
       else if (e.key === 'Enter' || e.key === 'Select' || kc === 13 || kc === 23) togglePlay();
     };
+    // On the native TV app the hardware Back is delivered as this event, NOT as a keydown — without
+    // listening for it the slideshow could not be exited with the remote's Back button at all.
     window.addEventListener('keydown', onKey, true);
-    return () => { window.removeEventListener('keydown', onKey, true); if (hideTimer.current) clearTimeout(hideTimer.current); };
-  }, [showing, controls, wake, setIsSlideshowActive, prev, next, togglePlay]);
+    window.addEventListener('plajah:hardware-back', exit as EventListener);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('plajah:hardware-back', exit as EventListener);
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+    };
+  }, [showing, controls, wake, exit, prev, next, togglePlay]);
 
   // Reset the controls each time the surface opens.
   useEffect(() => { if (!showing) setControls(false); }, [showing]);
@@ -121,6 +133,18 @@ const TvSlideshowSurface: React.FC = () => {
         </div>
       )}
 
+      {/* Explicit EXIT affordance — a big X, top-right, shown with the controls. Hardware Back does
+          not reach this WebView on the native TV app, so a visible, unmistakable "leave" control is
+          the reliable way out. Clicking it or pressing Up/Back all exit. */}
+      <button
+        onClick={exit}
+        aria-label="Close slideshow"
+        className="absolute top-8 right-10 z-10 flex items-center gap-2.5 pl-4 pr-5 py-2.5 rounded-full bg-black/60 border border-white/20 text-white transition-opacity duration-300"
+        style={{ opacity: controls ? 1 : 0 }}
+      >
+        <X size={20} /><span className="text-[11px] font-black uppercase tracking-widest">Close</span>
+      </button>
+
       {/* Transport overlay — wakes on a press, auto-hides. Progress + prev / play-pause / next. */}
       <div
         className="absolute left-0 right-0 bottom-0 px-12 pb-9 pt-24 bg-gradient-to-t from-black/85 via-black/45 to-transparent transition-opacity duration-300"
@@ -150,7 +174,7 @@ const TvSlideshowSurface: React.FC = () => {
           <span className="text-[11px] tabular-nums text-white/45 w-11">{fmt(duration)}</span>
         </div>
         <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/30 mt-4 text-center">
-          ◀ ▶ skip · OK play/pause · Back to return
+          ◀ ▶ skip · OK play/pause · ▲ or Back to return
         </p>
       </div>
     </div>,
