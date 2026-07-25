@@ -111,6 +111,7 @@ import TvTopTabs from './components/TvTopTabs';
 const TvSignInView = retryLazy(() => import('./components/TvSignInView'));
 const ChoraTvView = retryLazy(() => import('./components/tv/ChoraTvView'));
 const TvSearchView = retryLazy(() => import('./components/tv/TvSearchView'));
+const MoviesTvView = retryLazy(() => import('./components/tv/MoviesTvView'));
 const TvNowPlayingBar = retryLazy(() => import('./components/tv/TvNowPlayingBar'));
 const TvFxSurface = retryLazy(() => import('./components/tv/TvFxSurface'));
 const ReelloTvView = retryLazy(() => import('./components/tv/ReelloTvView'));
@@ -4528,7 +4529,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               />
             )}
             {view === 'RADIO' && <RadioView onBack={() => setView('DASHBOARD')} artistId={selectedRadioArtistId} />}
-            {view === 'MOVIES_TV' && <MoviesTVView onBack={() => setView('DASHBOARD')} onSelectMovie={(m) => { setSelectedMovieItem(m); setView('MOVIE_UX'); }} onNavigate={(v) => setView(v as any)} />}
+            {/* Taleo on a TV gets the purpose-built declarative-grid screen (like Chora/Reello);
+                pointer/desktop keeps the geometric MoviesTVView. Selection is identical. */}
+            {view === 'MOVIES_TV' && getPlatformInfo().isTV && (
+              <Suspense fallback={null}>
+                <MoviesTvView onBack={() => setView('DASHBOARD')} onSelectMovie={(m) => { setSelectedMovieItem(m); setView('MOVIE_UX'); }} />
+              </Suspense>
+            )}
+            {view === 'MOVIES_TV' && !getPlatformInfo().isTV && <MoviesTVView onBack={() => setView('DASHBOARD')} onSelectMovie={(m) => { setSelectedMovieItem(m); setView('MOVIE_UX'); }} onNavigate={(v) => setView(v as any)} />}
             {view === 'GAMES' && <GamesView onBack={() => setView('DASHBOARD')} onSelectGame={handleSelectGame} />}
             {view === 'APPS' && <AppsView onBack={() => setView('DASHBOARD')} currentUser={userProfile} />}
             {view === 'CROSSOVER' && !tvBlocked && (
