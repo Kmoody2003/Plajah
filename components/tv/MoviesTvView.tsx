@@ -5,8 +5,9 @@ import { useTvGrid, isFocused } from '../../hooks/useTvGrid';
 import { tvCardRing, RAIL_GUTTER } from './tvFocusRing';
 import { thumb, THUMB, onThumbError } from '../../src/lib/imageThumb';
 import TvBrandBackdrop from './TvBrandBackdrop';
-import { loadTaleoRails, type TaleoRail } from './moviesTvSections';
-import { fetchVideoById } from '../../services/backendService';
+import { loadPlatformRails, loadArchiveRails, type TaleoRail } from './moviesTvSections';
+import { fetchVideoById, syncPublicDomainAsset } from '../../services/backendService';
+import { getArchiveItemFiles, getBestVideoUrl } from '../../services/archiveContentService';
 
 /**
  * Taleo on a television — the declarative twin of the pointer-driven MoviesTVView, built on the
@@ -25,10 +26,18 @@ const MoviesTvView: React.FC<{
 }> = ({ onBack, onSelectMovie }) => {
   const [rails, setRails] = useState<TaleoRail[]>([]);
   const [loading, setLoading] = useState(true);
+  const opening = useRef(false);   // guards the async archive open against a double-press
 
   useEffect(() => {
     let alive = true;
-    loadTaleoRails().then(r => { if (alive) { setRails(r); setLoading(false); } }).catch(() => { if (alive) setLoading(false); });
+    // Platform rails first (fast) so the screen appears immediately; then append the ~20 Internet
+    // Archive genre rails when they arrive — the screen never blocks on the slow public-domain scan.
+    loadPlatformRails()
+      .then(r => { if (alive) { setRails(r); setLoading(false); } })
+      .catch(() => { if (alive) setLoading(false); });
+    loadArchiveRails(50)
+      .then(a => { if (alive && a.length) setRails(prev => [...prev, ...a]); })
+      .catch(() => {});
     return () => { alive = false; };
   }, []);
 
@@ -37,9 +46,35 @@ const MoviesTvView: React.FC<{
   const run = (rowId: string, col: number) => {
     const item = rails.find(r => r.id === rowId)?.items[col];
     if (!item) return;
-    if (item.action.kind === 'ITEM') { onSelectMovie(item.action.item); return; }
-    // Continue watching → re-fetch the full video, then open (mirrors MoviesTVView.resumeItem).
-    fetchVideoById(item.action.id).then(v => { if (v) onSelectMovie(v); }).catch(() => {});
+    const a = item.action;
+    if (a.kind === 'ITEM') { onSelectMovie(a.item); return; }
+    if (a.kind === 'RESUME') {
+      // Continue watching → re-fetch the full video, then open (mirrors MoviesTVView.resumeItem).
+      fetchVideoById(a.id).then(v => { if (v) onSelectMovie(v); }).catch(() => {});
+      return;
+    }
+    // Internet Archive → resolve a playable derivative + synthesize the VIDEO album MovieUXView
+    // expects (mirrors MoviesTVView.handleSelectArchiveItem). Async, so guard against re-entry.
+    if (a.kind === 'ARCHIVE') {
+      if (opening.current) return;
+      opening.current = true;
+      const v = a.archive;
+      getArchiveItemFiles(v.identifier)
+        .then(files => {
+          const url = getBestVideoUrl(v.identifier, files);
+          if (url) syncPublicDomainAsset(v, url, 'VIDEO').catch(() => {});
+          onSelectMovie({
+            id: v.identifier, title: v.title, artist: v.genre || 'Classic Cinema',
+            coverImage: v.thumbnailUrl || '', headerImage: v.thumbnailUrl,
+            description: v.description, type: 'VIDEO', subType: 'MOVIE',
+            ownerId: 'internet-archive', createdAt: parseInt(v.year || '0'), themeColor: '#000000',
+            tracks: url ? [{ id: v.identifier, title: v.title, artist: v.genre || 'Classic Cinema', url, albumCover: v.thumbnailUrl || '' }] : [],
+            customVideoUrl: url || undefined,
+          } as any);
+        })
+        .catch(() => {})
+        .finally(() => { opening.current = false; });
+    }
   };
 
   const { pos, zone } = useTvGrid({

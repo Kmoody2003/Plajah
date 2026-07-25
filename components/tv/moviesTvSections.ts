@@ -6,6 +6,7 @@
 import type { Album, Video } from '../../types';
 import { fetchAllPublicAlbums, fetchAllVideos } from '../../services/backendService';
 import { getContinueWatching } from '../../services/watchHistoryService';
+import { fetchArchiveByAllGenres, type ArchiveVideo } from '../../services/archiveContentService';
 
 // The genres that ARE cinema (the inverse of what Reello keeps). Same list MoviesTVView uses.
 const TALEO_GENRES = ['Movie', 'Short Film', 'TV Series', 'Short', 'Teaser', 'Trailer', 'Feature Film'];
@@ -14,7 +15,8 @@ const isCinema = (v: Video): boolean =>
 
 export type TaleoAction =
   | { kind: 'ITEM'; item: Video | Album }   // open directly in MovieUXView
-  | { kind: 'RESUME'; id: string };          // continue-watching: re-fetch by id, then open
+  | { kind: 'RESUME'; id: string }           // continue-watching: re-fetch by id, then open
+  | { kind: 'ARCHIVE'; archive: ArchiveVideo }; // Internet Archive: resolve a playable url, then open
 
 export interface TaleoItem {
   id: string;
@@ -37,9 +39,17 @@ const aItem = (a: Album): TaleoItem => ({
   image: (a as any).coverImage || (a as any).coverImageUrl, action: { kind: 'ITEM', item: a },
 });
 const ts = (x: any) => x?.timestamp || x?.createdAt || 0;
+const archItem = (v: ArchiveVideo): TaleoItem => ({
+  id: v.identifier, title: v.title, subtitle: v.genre || v.year || '',
+  image: v.thumbnailUrl, action: { kind: 'ARCHIVE', archive: v },
+});
+const dedupe = (rails: TaleoRail[]): TaleoRail[] =>
+  rails
+    .map(r => { const seen = new Set<string>(); return { ...r, items: r.items.filter(i => (i.id && !seen.has(i.id)) ? (seen.add(i.id), true) : false) }; })
+    .filter(r => r.items.length > 0);
 
-/** Build the Taleo rails from the platform catalogue. Empty rails are dropped by the caller. */
-export async function loadTaleoRails(): Promise<TaleoRail[]> {
+/** The platform rails — fast (Firestore). Loaded first so the screen appears immediately. */
+export async function loadPlatformRails(): Promise<TaleoRail[]> {
   const [albums, videos, cont] = await Promise.all([
     fetchAllPublicAlbums().catch(() => [] as Album[]),
     fetchAllVideos().catch(() => [] as Video[]),
@@ -52,7 +62,7 @@ export async function loadTaleoRails(): Promise<TaleoRail[]> {
   const series = cinema.filter(v => v.subType === 'TV_SERIES' || v.genre === 'TV Series');
   const newest = [...videoAlbums, ...cinema].sort((a, b) => ts(b) - ts(a)).slice(0, 14);
 
-  const rails: TaleoRail[] = [
+  return dedupe([
     {
       id: 'continue', title: 'Continue Watching',
       items: (cont as any[]).map(e => ({
@@ -66,12 +76,20 @@ export async function loadTaleoRails(): Promise<TaleoRail[]> {
     { id: 'series', title: 'TV Series', items: series.map(vItem) },
     { id: 'creators', title: 'Films & Series by Creators', items: cinema.map(vItem) },
     { id: 'uploads', title: 'Film Uploads', items: videoAlbums.map(aItem) },
-  ];
-  // De-dupe by id within each rail (a video can match more than one predicate).
-  return rails
-    .map(r => {
-      const seen = new Set<string>();
-      return { ...r, items: r.items.filter(i => (i.id && !seen.has(i.id)) ? (seen.add(i.id), true) : false) };
-    })
-    .filter(r => r.items.length > 0);
+  ]);
+}
+
+/** The Internet Archive rails — one per movie/TV genre collection, pulled generously so the screen
+ *  reflects the full public-domain catalogue Archive.org has that fits film & TV. Loaded AFTER the
+ *  platform rails (it's ~20 network queries) and appended, so the screen never waits on it.
+ *  fetchArchiveByAllGenres walks ARCHIVE_GENRE_SOURCES (Feature Films, Classic TV, Animation,
+ *  Horror, Comedy, Drama, Action, Romance, Sci-Fi, Western, Documentary, Thriller, Adventure,
+ *  Musical, Film Noir, Silent, Short, Sports, Prelinger, TV Archive) and is cached for an hour. */
+export async function loadArchiveRails(limitPerGenre = 50): Promise<TaleoRail[]> {
+  const collections = await fetchArchiveByAllGenres(limitPerGenre).catch(() => []);
+  return dedupe(collections.map(c => ({
+    id: `arch-${c.genre.toLowerCase().replace(/\s+/g, '-')}`,
+    title: c.genre,
+    items: c.items.map(archItem),
+  })));
 }
