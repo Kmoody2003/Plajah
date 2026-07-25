@@ -183,26 +183,35 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, onExitTop, e
       }
 
       if (kc === 4 || e.key === 'Backspace' || e.key === 'XF86Back' || e.key === 'GoBack') {
-        // Back from the content returns to the panel before it leaves the screen — one more
-        // step out, rather than dumping the viewer somewhere else entirely.
-        if (zoneRef.current === 'CONTENT' && panelCountRef.current > 0) {
-          e.preventDefault(); e.stopImmediatePropagation();
-          setZone('PANEL');
-          return;
-        }
-        if (onBack?.()) { e.preventDefault(); e.stopImmediatePropagation(); return; }
-        // From the panel, Back goes UP to the shell's tab bar. Without this it fell through to
-        // the hardware-back handler, which runs history.back() and drops the viewer out of the
-        // screen entirely — or out of the app. Back should walk you out one level at a time.
-        if (panelCountRef.current > 0 && !isShellFocused()) {
-          e.preventDefault(); e.stopImmediatePropagation();
-          setShellFocus(true);
-        }
+        if (doBack()) { e.preventDefault(); e.stopImmediatePropagation(); }
       }
+    };
+    // Back from the content returns to the panel before it leaves the screen; from the panel it goes
+    // UP to the shell's tab bar; a panel-less screen delegates to onBack. Returns true when it took a
+    // step, so the caller knows to consume the event. Shared by keydown AND the native hardware-back
+    // event below.
+    const doBack = (): boolean => {
+      if (zoneRef.current === 'CONTENT' && panelCountRef.current > 0) { setZone('PANEL'); return true; }
+      if (onBack?.()) return true;
+      if (panelCountRef.current > 0 && !isShellFocused()) { setShellFocus(true); return true; }
+      return false;
+    };
+    // THE fix for "Back exits to the sign-in page on the native TV app": hardware Back is NOT
+    // delivered as a keydown there (the Android Activity consumes it), it arrives as this cancelable
+    // event. Without handling it, useHardwareBack fell through to window.history.back() and, with a
+    // shallow history, dropped the viewer on LANDING/login. Run the same one-level-out logic and
+    // preventDefault() to consume it so the screen walks out step by step instead.
+    const onHwBack = (e: Event) => {
+      if (!enabled || shellFocusedRef.current) return;
+      if (doBack()) e.preventDefault();
     };
     // Capture phase, so this wins before the global layer sees the key.
     window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    window.addEventListener('plajah:hardware-back', onHwBack);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('plajah:hardware-back', onHwBack);
+    };
   }, [enabled, move, onSelect, onBack]);
 
   const focus = useCallback((row: number, col = 0) => {
