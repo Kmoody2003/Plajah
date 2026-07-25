@@ -154,7 +154,26 @@ const ChoraTvView: React.FC<{
   const run = (item: TvItem) => {
     const a = item.action;
     if (a.kind === 'ALBUM') { onSelectAlbum(a.album); return; }
-    if (a.kind === 'TRACK') { playTrack(a.track, a.album, a.source); return; }
+    if (a.kind === 'TRACK') {
+      playTrack(a.track, a.album, a.source);
+      // Open the now-playing album screen so the transport is reachable by D-pad — the fix for
+      // "can't get onto play/pause after starting a single from My Library". Radio has no album and
+      // stays on the tuner (its On Air hero is the now-playing surface). A loose single carries no
+      // album, so wrap it in a one-track pseudo-album purely so the now-playing view has something
+      // to render; the track itself is already playing from playTrack above.
+      if (a.source === 'LIBRARY') {
+        const alb = a.album || ({
+          id: `single-${(a.track as any).id}`,
+          title: a.track.title,
+          artist: (a.track as any).artist || '',
+          coverImage: (a.track as any).albumCover || (a.track as any).coverImage,
+          tracks: [a.track],
+          type: 'MUSIC',
+        } as any);
+        onSelectAlbum(alb);
+      }
+      return;
+    }
     if (a.kind === 'ARTIST') { setDrillArtist(a.artist); return; }
     if (a.kind === 'ERA' && a.eraId) setOpenEra(a.eraId);
   };
