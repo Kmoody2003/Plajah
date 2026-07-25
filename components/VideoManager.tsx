@@ -26,6 +26,7 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
   const [showFastChannelManager, setShowFastChannelManager] = useState(false);
   const [showRightsModal, setShowRightsModal] = useState(false);
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
+  const [migratingId, setMigratingId] = useState<string | null>(null);   // video being sent to Mux
   const [uploadForm, setUploadForm] = useState({
     title: '',
     description: '',
@@ -460,8 +461,13 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
                     
                     <div className="flex flex-col gap-4">
                       {!video.muxPlaybackId && !video.url.includes('youtube.com') && !video.url.includes('youtu.be') && !video.url.includes('vimeo.com') && (
-                        <button 
+                        <button
+                          disabled={migratingId === video.id}
                           onClick={async () => {
+                            // Raw uploads stream progressively (choppy on TVs). This ingests the file
+                            // into Mux for adaptive HLS and writes the playback id back, so playback
+                            // switches to smooth adaptive streaming.
+                            setMigratingId(video.id);
                             try {
                               const { createMuxAssetFromUrl } = await import('../services/backendService');
                               const { updateDoc, doc } = await import('firebase/firestore');
@@ -470,20 +476,24 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
                               if (res.playbackId) {
                                 await updateDoc(doc(db, 'videos', video.id), {
                                   muxPlaybackId: res.playbackId,
-                                  muxAssetId: res.assetId
+                                  muxAssetId: res.assetId,
                                 });
-                                // the local state won't instantly update unless we do fetch again or update React state.
-                                alert("Migrating! Please wait a moment or reload to see Mux stream.")
+                                // Reflect it immediately: patch local state so the button clears and
+                                // playback uses the new HLS stream without a reload.
+                                setVideos(prev => prev.map(v => v.id === video.id ? { ...v, muxPlaybackId: res.playbackId, muxAssetId: res.assetId } : v));
                               } else {
-                                alert("Mux asset created but no playback ID returned yet.");
+                                alert('Mux is still processing — reload in a minute and the stream will appear.');
                               }
                             } catch (e: any) {
-                              alert("Failed to migrate: " + e.message);
+                              alert('Streaming optimization failed: ' + (e?.message || e));
+                            } finally {
+                              setMigratingId(null);
                             }
                           }}
-                          className="w-full py-4 bg-purple-500/10 text-purple-400 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-purple-500/20 transition-all flex items-center justify-center gap-2"
+                          className="w-full py-4 bg-purple-500/10 text-purple-400 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-purple-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                          title="Convert this raw upload to adaptive HLS streaming via Mux — fixes choppy TV playback"
                         >
-                          <Tv size={16} /> Migrate to Mux
+                          <Tv size={16} /> {migratingId === video.id ? 'Optimizing…' : 'Optimize for Streaming (HLS)'}
                         </button>
                       )}
                       <button 
