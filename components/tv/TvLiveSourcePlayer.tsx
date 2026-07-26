@@ -5,6 +5,7 @@ import { X, Radio, Lock } from 'lucide-react';
 import type { ChannelSource } from '../../types';
 import { auth } from '../../services/backendService';
 import { checkMembership } from '../../services/sanctuaryService';
+import { hlsTuning, capLevelsToPanel } from '../../services/hlsTuning';
 
 /**
  * A single live SOURCE, fullscreen on TV — the External 24/7 feed or a Reello live show.
@@ -65,9 +66,11 @@ const TvLiveSourcePlayer: React.FC<{ ownerId: string; source: ChannelSource; onC
     if (v.canPlayType('application/vnd.apple.mpegurl')) {
       v.src = hlsSrc; v.play().catch(() => {});
     } else if (Hls.isSupported()) {
-      const hls = new Hls({ maxBufferLength: 30, enableWorker: true, liveSyncDurationCount: 3 });
+      // Shared device-tuned config + per-panel rendition cap: adaptive/auto that never decodes more
+      // pixels than the panel (keeps a live feed smooth on the TV GPU and off the top bitrate).
+      const hls = new Hls({ ...hlsTuning(), liveSyncDurationCount: 3 });
       hls.loadSource(hlsSrc); hls.attachMedia(v); hlsRef.current = hls;
-      v.play().catch(() => {});
+      hls.on(Hls.Events.MANIFEST_PARSED, () => { capLevelsToPanel(hls as any); v.play().catch(() => {}); });
     } else {
       v.src = hlsSrc; v.play().catch(() => {});
     }

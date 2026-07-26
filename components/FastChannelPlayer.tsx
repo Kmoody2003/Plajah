@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Play, Pause, Volume2, VolumeX, SkipForward, SkipBack, Tv, X, Radio, Wifi } from 'lucide-react';
-import MuxPlayer from '@mux/mux-player-react';
 import Hls from 'hls.js';
 import { UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { fetchFastChannelVideos, fetchFastChannelSchedule, auth } from '../services/backendService';
 import { checkMembership } from '../services/sanctuaryService';
 import { linearPosition, resolveSlotMedia, slotIsPlayable, slotsFromVideos } from '../services/fastChannelTimeline';
+import { hlsTuning, capLevelsToPanel } from '../services/hlsTuning';
 
 interface FastChannelPlayerProps {
   profile: UserProfile;
@@ -52,7 +52,6 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
   const [channelSchedule, setChannelSchedule] = useState<FastChannelSchedule | null>(null);
   const [viewerIsMember, setViewerIsMember] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const muxRef = useRef<any>(null);
   const hlsRef = useRef<Hls | null>(null);
   const joinOffsetRef = useRef(0);   // seconds to seek into the joined slot (consumed once)
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -129,7 +128,14 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
 
   const currentSlot = slots[currentIndex];
   const media = currentSlot ? resolveSlotMedia(currentSlot) : null;
-  const usingMux = Boolean(media?.muxPlaybackId);
+  // All FAST video plays through ONE adaptive HLS.js path (like VideoPlayer) rather than MuxPlayer —
+  // so it honors the app's per-panel rendition cap (capLevelsToPanel) on the TV instead of letting a
+  // web component authorise a 4K rendition on a 1080p Mali GPU. Mux ids become their master .m3u8.
+  const hlsSrc = media?.kind === 'MEDIA'
+    ? (media.muxPlaybackId ? `https://stream.mux.com/${media.muxPlaybackId}.m3u8` : (media.isHls ? media.url : undefined))
+    : undefined;
+  const mp4Src = media?.kind === 'MEDIA' && !hlsSrc ? media.url : undefined;
+  const isHlsMedia = Boolean(hlsSrc);
 
   const advance = useCallback(() => {
     setCurrentIndex(prev => (slots.length ? (prev + 1) % slots.length : 0));
@@ -145,27 +151,33 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
     setIsPaused(false);
   }, [slots.length]);
 
-  // Raw <video> / HLS setup — for MEDIA slots that aren't Mux (mp4 uploads or non-Mux .m3u8).
+  // Video setup for MEDIA slots. HLS (Mux master or a non-Mux .m3u8) → hls.js with the shared,
+  // device-tuned config + per-panel rendition cap (adaptive/auto: startLevel -1, ABR picks up, never
+  // decodes more pixels than the panel). Plain mp4 → the element plays it directly.
   useEffect(() => {
-    if (!media || media.kind !== 'MEDIA' || media.muxPlaybackId) return;
+    if (!media || media.kind !== 'MEDIA') return;
     const v = videoRef.current;
-    if (!v || !media.url) return;
-    if (media.isHls) {
+    if (!v) return;
+    if (hlsSrc) {
       if (v.canPlayType('application/vnd.apple.mpegurl')) {
-        v.src = media.url;
+        v.src = hlsSrc;                       // Safari — native adaptive HLS
+        v.play().catch(() => {});
       } else if (Hls.isSupported()) {
-        const hls = new Hls({ maxBufferLength: 30, enableWorker: true });
-        hls.loadSource(media.url); hls.attachMedia(v); hlsRef.current = hls;
+        const hls = new Hls(hlsTuning());
+        hlsRef.current = hls;
+        hls.loadSource(hlsSrc); hls.attachMedia(v);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => { capLevelsToPanel(hls as any); v.play().catch(() => {}); });
       } else {
-        v.src = media.url;
+        v.src = hlsSrc;
+        v.play().catch(() => {});
       }
-    } else {
-      v.src = media.url;
+    } else if (mp4Src) {
+      v.src = mp4Src;
+      v.load?.();
+      v.play().catch(() => {});
     }
-    v.load?.();
-    v.play().catch(() => {});
     return () => { if (hlsRef.current) { try { hlsRef.current.destroy(); } catch { /* */ } hlsRef.current = null; } };
-  }, [currentIndex, media?.url, media?.muxPlaybackId, media?.isHls]);
+  }, [currentIndex, hlsSrc, mp4Src]);
 
   // Advance driver. MEDIA slots normally advance on the element's `ended` event, but a safety timer
   // guarantees the loop never stalls if `ended` never fires (HLS stall / decode error on a TV). AD
@@ -194,16 +206,10 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
   }, []);
 
   const togglePlayback = useCallback(() => {
-    if (usingMux) {
-      const el = muxRef.current as HTMLVideoElement | null;
-      if (!el) return;
-      isPaused ? el.play() : el.pause();
-    } else {
-      const v = videoRef.current;
-      if (!v) return;
-      isPaused ? v.play() : v.pause();
-    }
-  }, [usingMux, isPaused]);
+    const v = videoRef.current;
+    if (!v) return;
+    isPaused ? v.play() : v.pause();
+  }, [isPaused]);
 
   // Program guide entries — only the real content slots (skip bumpers/ads), each pointing at its slot.
   const contentEntries = slots
@@ -341,27 +347,9 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
             <p className="text-white/40 text-sm font-black uppercase tracking-widest">Live programme starting…</p>
           </div>
         )
-      ) : usingMux ? (
-        <MuxPlayer
-          key={`mux-${currentIndex}`}
-          ref={muxRef}
-          playbackId={media!.muxPlaybackId!}
-          autoPlay
-          muted={isMuted}
-          className="w-full h-full"
-          onTimeUpdate={(e: any) => setCurrentTime(e.target.currentTime)}
-          onLoadedMetadata={(e: any) => {
-            setDuration(e.target.duration);
-            if (joinOffsetRef.current > 0 && joinOffsetRef.current < e.target.duration - 2) {
-              try { e.target.currentTime = joinOffsetRef.current; } catch { /* */ }
-            }
-            joinOffsetRef.current = 0;   // only the initial join seeks; auto-advance starts at 0
-          }}
-          onEnded={advance}
-          onPlay={() => setIsPaused(false)}
-          onPause={() => setIsPaused(true)}
-        />
       ) : (
+        // One adaptive <video> for every MEDIA slot (Mux master, non-Mux HLS, or mp4). The hls.js
+        // setup effect above attaches the stream; this element owns join-seek + auto-advance.
         <video
           key={`vid-${currentIndex}`}
           ref={videoRef}
@@ -377,7 +365,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
             if (joinOffsetRef.current > 0 && joinOffsetRef.current < el.duration - 2) {
               try { el.currentTime = joinOffsetRef.current; } catch { /* */ }
             }
-            joinOffsetRef.current = 0;
+            joinOffsetRef.current = 0;   // only the initial join seeks; auto-advance starts at 0
           }}
           onEnded={advance}
           onPlay={() => setIsPaused(false)}
@@ -432,7 +420,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <p className="text-[8px] font-black uppercase tracking-[0.4em] text-white/40">Now Playing</p>
-                  {usingMux && (
+                  {isHlsMedia && (
                     <span className="text-[7px] font-black uppercase tracking-widest bg-white/10 px-1.5 py-0.5 rounded-full text-white/40">HLS</span>
                   )}
                   {media?.isBumper && (
