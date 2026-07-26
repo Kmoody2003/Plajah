@@ -3018,15 +3018,23 @@ async function startServer() {
       if (!aRes.ok) return res.status(502).json({ error: `audio fetch ${aRes.status}` });
       const mimeType = (aRes.headers.get('content-type') || 'audio/mpeg').split(';')[0];
       const buf = Buffer.from(await aRes.arrayBuffer());
-      if (buf.length > 22 * 1024 * 1024) return res.status(413).json({ error: 'audio too large to transcribe' });
+      // Generous ceiling that only guards the Cloud Run instance's memory against a runaway
+      // download — NOT the old 22MB gate that silently rejected large WAV masters. Older Chora
+      // tracks never got a compressed rendition, so they arrive here as ~40-60MB uncompressed
+      // masters; ffmpeg downsamples them below Gemini's inline limit before transcription (the
+      // windowed path re-encodes each slice from disk; the single-shot path transcodes the whole
+      // file — see below), so raw size no longer needs to block the request.
+      if (buf.length > 250 * 1024 * 1024) return res.status(413).json({ error: 'audio too large to transcribe' });
 
       const { GoogleGenAI, Type } = await import('@google/genai');
       const genai = new GoogleGenAI({ apiKey: geminiKey });
 
-      // Probe the true duration once (also the anchor for overshoot clamping / windowing).
+      // Write to disk once — both the duration probe and every ffmpeg slice/transcode below read
+      // from here, so the raw buffer never has to be small.
+      await fs.writeFile(inputPath, buf);
+      // Probe the true duration (also the anchor for overshoot clamping / windowing).
       let dur = 0;
       try {
-        await fs.writeFile(inputPath, buf);
         const { json } = await runFfprobe(inputPath);
         dur = parseFloat(json?.format?.duration || '0') || 0;
       } catch { /* probe is best-effort */ }
@@ -3106,10 +3114,36 @@ Rules:
 - Sort all entries by ascending time.
 - CRITICAL: keep timing accurate through the WHOLE song. A common failure is timestamps drifting behind (or ahead of) the audio after the first minute — re-anchor to what you actually hear every ~20 seconds, and never let a timestamp exceed the audio's real length.
 - The last entry must be close to the actual end of the audio — do not stop early.`;
+        // Send a compact, downmixed copy rather than the raw bytes: a mono 16 kHz mp3 is a fraction
+        // of a WAV master and stays under Gemini's ~20MB inline-data limit — which is what makes
+        // this path work for older large-file tracks. Bitrate drops for very long spoken word so
+        // even an hour-long sermon fits. Falls back to the raw bytes only if the transcode fails
+        // (e.g. ffmpeg missing) and they're already small enough.
+        let ssData = buf.toString('base64');
+        let ssMime = mimeType;
+        const INLINE_CAP = 19 * 1024 * 1024;
+        {
+          const fullPath = path.join(os.tmpdir(), `capfull_${stamp}.mp3`);
+          tmpChunks.push(fullPath);
+          const bitrate = dur > 1500 ? '24k' : dur > 700 ? '32k' : '48k';
+          const { ok } = await runFfmpeg(
+            ['-y', '-i', inputPath, '-ac', '1', '-ar', '16000', '-b:a', bitrate, '-f', 'mp3', fullPath], 120000);
+          if (ok) {
+            try {
+              const fbuf = await fs.readFile(fullPath);
+              if (fbuf.length <= INLINE_CAP) { ssData = fbuf.toString('base64'); ssMime = 'audio/mpeg'; }
+            } catch { /* keep raw */ }
+          }
+        }
+        // If even the compressed copy (or an un-transcodable raw file) is over the inline limit, we
+        // genuinely can't send it — report it clearly instead of letting Gemini reject it opaquely.
+        if (Buffer.byteLength(ssData, 'base64') > INLINE_CAP) {
+          return res.status(413).json({ error: 'audio too large to transcribe' });
+        }
         const response = await genai.models.generateContent({
           model: 'gemini-2.5-flash',
           contents: [
-            { inlineData: { data: buf.toString('base64'), mimeType } },
+            { inlineData: { data: ssData, mimeType: ssMime } },
             { text: kind === 'speech' ? speechPrompt : lyricPrompt },
           ],
           config: {
