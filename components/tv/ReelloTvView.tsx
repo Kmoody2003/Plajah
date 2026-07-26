@@ -5,6 +5,7 @@ import { thumb, THUMB } from '../../src/lib/imageThumb';
 import { useTvGrid, isFocused } from '../../hooks/useTvGrid';
 import { useTvShellFocus } from '../../hooks/useTvShellFocus';
 import TvBrandBackdrop from './TvBrandBackdrop';
+import TvHeroCarousel from './TvHeroCarousel';
 import { tvCardRing, RAIL_GUTTER } from './tvFocusRing';
 import {
   asyncVideoRails, syncVideoRails, fetchAllVideos, fetchUserVideos, videoItem, fastChannelItem,
@@ -353,7 +354,17 @@ const ReelloTvView: React.FC<{
             </div>
           </div>
         ) : (
-          rails.map((rail, rIdx) => (
+          <>
+          {/* Reello's own hero — featured thumbnails from the current section (its 16:9 perspective,
+              violet-accented). Hidden inside a channel drill-down. */}
+          {!drillChannel && (() => {
+            const seen = new Set<string>();
+            const heroItems = rails.flatMap(r => r.items)
+              .filter(i => (i as any).image && i.id && !seen.has(i.id) && (seen.add(i.id), true))
+              .slice(0, 8).map(i => ({ id: i.id, title: i.title, subtitle: (i as any).subtitle, image: (i as any).image }));
+            return heroItems.length ? <div className="mb-8"><TvHeroCarousel items={heroItems} accent="#7C5CFF" eyebrow="Featured on Reello" /></div> : null;
+          })()}
+          {rails.map((rail, rIdx) => (
             <section key={rail.id} className="mb-8">
               <RailHeading>{rail.title}</RailHeading>
               {/* The gutter exists because `overflow-x` clips BOTH axes: without it a focused
@@ -370,7 +381,8 @@ const ReelloTvView: React.FC<{
                 ))}
               </div>
             </section>
-          ))
+          ))}
+          </>
         )}
 
         {sectionLoading && rails.length > 0 && <SkeletonRail />}

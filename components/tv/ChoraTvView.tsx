@@ -7,6 +7,7 @@ import { useTvGrid, isFocused } from '../../hooks/useTvGrid';
 import { useGlobalPlayerState } from '../../contexts/GlobalPlayerContext';
 import { useTvShellFocus } from '../../hooks/useTvShellFocus';
 import TvBrandBackdrop from './TvBrandBackdrop';
+import TvHeroCarousel from './TvHeroCarousel';
 import { tvCardRing, RAIL_GUTTER } from './tvFocusRing';
 import { asyncRails, syncRails, MUSIC_HISTORY_ERAS, type BaseData, type TvItem, type TvRail } from './choraTvSections';
 
@@ -422,6 +423,15 @@ const ChoraTvView: React.FC<{
           </div>
         ) : (
           <>
+          {/* Chora's own hero — featured cover art from the current section, its own perspective on
+              the marquee (Radio keeps the On Air hero below instead). */}
+          {section !== 'RADIO' && !drillArtist && (() => {
+            const seen = new Set<string>();
+            const heroItems = rails.flatMap(r => r.items)
+              .filter(i => (i as any).image && i.id && !seen.has(i.id) && (seen.add(i.id), true))
+              .slice(0, 8).map(i => ({ id: i.id, title: i.title, subtitle: (i as any).subtitle, image: (i as any).image }));
+            return heroItems.length ? <div className="mb-8"><TvHeroCarousel items={heroItems} accent="#7C5CFF" eyebrow="Featured on Chora" /></div> : null;
+          })()}
           {/* Radio, like the web, leads with a NOW-PLAYING hero — the station on air, big, with a
               live pulse — instead of dropping straight into browse rails. The station picker (Chora
               Radio / Artist Stations / Live) stays below as the rails. No blur: TV fill-rate. */}

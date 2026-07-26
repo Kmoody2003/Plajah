@@ -6,6 +6,7 @@ import { tvCardRing, RAIL_GUTTER } from './tvFocusRing';
 import { thumb, THUMB, onThumbError } from '../../src/lib/imageThumb';
 import TvBrandBackdrop from './TvBrandBackdrop';
 import { loadPlatformRails, loadArchiveRails, loadLiveRail, type TaleoRail } from './moviesTvSections';
+import TvHeroCarousel from './TvHeroCarousel';
 import { fetchVideoById, syncPublicDomainAsset } from '../../services/backendService';
 import { getArchiveItemFiles, getBestVideoUrl } from '../../services/archiveContentService';
 
@@ -56,6 +57,14 @@ const MoviesTvView: React.FC<{
   }, [channel]);
 
   const rows = useMemo(() => rails.map(r => ({ id: r.id, count: r.items.length })), [rails]);
+
+  // Featured backdrops for the hero — drawn from the marquee rails (not Live/Continue).
+  const heroItems = useMemo(() => {
+    const pool = rails.filter(r => ['new', 'movies', 'creators', 'series'].includes(r.id)).flatMap(r => r.items);
+    const seen = new Set<string>();
+    return pool.filter(i => i.image && i.id && !seen.has(i.id) && (seen.add(i.id), true))
+      .slice(0, 8).map(i => ({ id: i.id, title: i.title, subtitle: i.subtitle, image: i.image }));
+  }, [rails]);
 
   const run = (rowId: string, col: number) => {
     const item = rails.find(r => r.id === rowId)?.items[col];
@@ -113,6 +122,7 @@ const MoviesTvView: React.FC<{
       </div>
 
       <div className="relative flex-1 overflow-y-auto no-scrollbar px-12 pb-16 space-y-9">
+        {heroItems.length > 0 && <TvHeroCarousel items={heroItems} accent="#FF8C00" eyebrow="Featured on Taleo" />}
         {loading && (
           <div className="space-y-9">
             {[0, 1, 2].map(r => (
