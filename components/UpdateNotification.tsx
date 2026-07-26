@@ -1,10 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Rocket, Wrench, X, Sparkles, ArrowRight } from 'lucide-react';
-import { APP_BUILD, entriesSince, majorEntries, minorEntries, ChangelogEntry } from '../data/changelog';
+import { LATEST_ENTRY_ID, entriesSince, majorEntries, minorEntries, ChangelogEntry } from '../data/changelog';
 import { getPlatformInfo } from '../hooks/usePlatform';
 
-const LAST_SEEN_KEY = 'plajah_last_seen_build_v1';
+// v2: we now store the newest changelog ENTRY id the user has acknowledged (not the hand-bumped
+// APP_BUILD string). Bumping the key name migrates everyone cleanly — a v1 build string can no
+// longer be mistaken for "unseen" and trigger a spurious one-time popup on this release.
+const LAST_SEEN_KEY = 'plajah_last_seen_entry_v2';
+
+/** Persist the acknowledged entry id to both stores (one flaky store can't make it recur). */
+function markSeen() {
+  try { localStorage.setItem(LAST_SEEN_KEY, LATEST_ENTRY_ID); } catch { /* */ }
+  try { sessionStorage.setItem(LAST_SEEN_KEY, LATEST_ENTRY_ID); } catch { /* */ }
+}
 
 // Survives component REMOUNTS within a session (module scope, not React state). Without this, if the
 // app subtree remounts — an ErrorBoundary auto-recovery, an app-reset — and localStorage.setItem is
@@ -28,21 +37,30 @@ const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onOpenChangelog
 
   useEffect(() => {
     if (SHOWN_THIS_SESSION) return;
+    SHOWN_THIS_SESSION = true;
     // Never on a TV: this is a pointer-designed modal (click-to-dismiss, not D-pad focusable), and a
     // 10-foot viewer can't easily close it. The What's-New history stays reachable in Settings.
     try { if (getPlatformInfo().isTV) return; } catch { /* */ }
     let lastSeen: string | null = null;
-    // Read from BOTH stores; write below goes to both — so a flaky localStorage can't make it recur.
+    // Read from BOTH stores; writes go to both — so a flaky localStorage can't make it recur.
     try { lastSeen = localStorage.getItem(LAST_SEEN_KEY); } catch { /* */ }
     if (!lastSeen) { try { lastSeen = sessionStorage.getItem(LAST_SEEN_KEY); } catch { /* */ } }
     const fresh = entriesSince(lastSeen);
-    if (fresh.length > 0) { setEntries(fresh); setShow(true); SHOWN_THIS_SESSION = true; }
+    if (fresh.length > 0) {
+      setEntries(fresh);
+      setShow(true);
+      // Record "seen" the moment we SHOW it — not only when the user clicks dismiss. Closing the tab,
+      // reloading, or ignoring the panel used to leave it unrecorded, so it reappeared every load.
+      markSeen();
+    } else {
+      // Nothing genuinely new (already current / first visit / cleared storage): sync the marker
+      // silently so the NEXT real entry is what triggers the panel, and this load stays quiet.
+      markSeen();
+    }
   }, []);
 
   const dismiss = () => {
-    SHOWN_THIS_SESSION = true;
-    try { localStorage.setItem(LAST_SEEN_KEY, APP_BUILD); } catch { /* */ }
-    try { sessionStorage.setItem(LAST_SEEN_KEY, APP_BUILD); } catch { /* */ }
+    markSeen();
     setShow(false);
   };
 

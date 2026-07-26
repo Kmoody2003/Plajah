@@ -30,8 +30,11 @@ export interface ChangelogEntry {
 }
 
 /**
- * The ledger — newest first. `APP_BUILD` is bumped whenever a release should
- * re-trigger the "what's new" notification for users.
+ * The ledger — newest first. `APP_BUILD` is a human-readable release tag kept for
+ * the What's-New page header; it is NO LONGER what drives the update notification.
+ * The notification now keys off the newest ENTRY id below (see LATEST_ENTRY_ID /
+ * entriesSince), so it can only ever fire when a genuinely new entry is prepended —
+ * never on a redeploy that shipped no user-facing changelog line.
  */
 export const APP_BUILD = '2026.07.21-01';
 
@@ -176,12 +179,21 @@ export const getPublicChangelog = (): ChangelogEntry[] => CHANGELOG;
 export const majorEntries = (entries: ChangelogEntry[] = CHANGELOG) => entries.filter(e => e.level === 'major');
 export const minorEntries = (entries: ChangelogEntry[] = CHANGELOG) => entries.filter(e => e.level === 'minor');
 
-/** Entries the user hasn't seen yet (since a stored build id). */
-export const entriesSince = (lastSeenBuild: string | null): ChangelogEntry[] => {
-  if (!lastSeenBuild || lastSeenBuild !== APP_BUILD) {
-    // Surface the current release window: entries from the newest date.
-    const newestDate = CHANGELOG[0]?.date;
-    return CHANGELOG.filter(e => e.date === newestDate);
-  }
-  return [];
+/** The id of the newest shipped entry — the marker the update notification records as "seen". */
+export const LATEST_ENTRY_ID = CHANGELOG[0]?.id || '';
+
+/**
+ * Entries the user genuinely hasn't seen yet, given the last entry id they acknowledged.
+ *
+ * Returns ONLY the entries prepended since that id — so the notification fires exactly once per
+ * real new entry and never on a redeploy that added no changelog line. Returns [] (show nothing)
+ * when the user is already current, when the stored marker is unrecognized (a legacy build string
+ * or a pruned entry), or on a first-ever visit — in every one of those cases the caller silently
+ * records LATEST_ENTRY_ID, so the NEXT genuinely-new entry is what triggers the panel.
+ */
+export const entriesSince = (lastSeenId: string | null): ChangelogEntry[] => {
+  if (!lastSeenId) return [];                              // first run / cleared storage → nothing is "new"
+  const seenIdx = CHANGELOG.findIndex(e => e.id === lastSeenId);
+  if (seenIdx <= 0) return [];                             // already current (0) or unknown marker (-1)
+  return CHANGELOG.slice(0, seenIdx);                      // the entries added since they last acknowledged
 };
