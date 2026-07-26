@@ -17,6 +17,7 @@ import { readFileSync } from 'fs';
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { buildProgramGuide, buildXmltv, buildMrss, nowAndNext, type EpgSlot, type EpgChannel, type MrssItem } from './services/fastChannelEpg';
 import { slotDurationSec } from './services/fastChannelTimeline';
+import { buildLinearMediaPlaylist, currentProgrammeMasterUrl, buildM3uLineup, type M3uChannel } from './services/fastChannelHls';
 import nodeCrypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
@@ -2733,6 +2734,54 @@ async function startServer() {
       res.set('Cache-Control', 'no-store');
       res.json({ channel: { id: `plajah.${ownerId}`, name: meta.name || 'Channel', number: meta.number, category: meta.category }, now: now || null, next: next || null });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Linear HLS origin (external carriage) — see services/fastChannelHls.ts. In-app playback does
+  //    NOT use these; they exist so a TV platform / IPTV aggregator can pull a standard M3U + HLS.
+  // Mux VOD playlists are static, so cache the fetched text briefly to cut egress + latency.
+  const muxPlaylistCache = new Map<string, { text: string; exp: number }>();
+  const fetchPlaylistCached = async (url: string): Promise<string> => {
+    const hit = muxPlaylistCache.get(url);
+    if (hit && hit.exp > Date.now()) return hit.text;
+    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    const text = r.ok ? await r.text() : '';
+    if (text) { muxPlaylistCache.set(url, { text, exp: Date.now() + 5 * 60_000 }); if (muxPlaylistCache.size > 500) muxPlaylistCache.clear(); }
+    return text;
+  };
+  const rawSlotsFor = async (ownerId: string): Promise<any[]> => {
+    const sched: any = await firestoreRead('fast_channel_schedules', ownerId);
+    return Array.isArray(sched?.slots) ? sched.slots : [];
+  };
+
+  // GET /api/fast/lineup.m3u8 — standards M3U channel lineup (companion to epg.xml; tvg-id matches).
+  app.get('/api/fast/lineup.m3u8', async (req, res) => {
+    try {
+      const channels = await fastChannelsPublished();
+      const list: M3uChannel[] = channels
+        .map(c => ({ ownerId: c.id.replace(/^plajah\./, ''), name: c.name, number: c.number, category: c.category, logoUrl: c.logoUrl }))
+        .sort((a, b) => (a.number ?? 9999) - (b.number ?? 9999) || a.name.localeCompare(b.name));
+      res.set('Access-Control-Allow-Origin', '*');
+      res.type('application/x-mpegURL').send(buildM3uLineup(list, `https://${publicHost(req)}/api/fast`));
+    } catch (e: any) { res.status(500).send(`#EXTM3U\n# error: ${e.message}\n`); }
+  });
+
+  // GET /api/fast/:ownerId/stream.m3u8 — the channel's linear HLS origin. Stitches the Mux content
+  // programmes into one rolling live playlist; falls back to a redirect to the current programme.
+  app.get('/api/fast/:ownerId/stream.m3u8', async (req, res) => {
+    try {
+      const ownerId = String(req.params.ownerId);
+      const meta: any = await firestoreRead('fast_channels', ownerId);
+      if (!meta || meta.isPublished === false) return res.status(404).type('application/x-mpegURL').send('#EXTM3U\n# channel not found\n');
+      const slots = await rawSlotsFor(ownerId);
+      const now = Date.now();
+      const playlist = await buildLinearMediaPlaylist({ slots: slots as any, atMs: now, fetchText: fetchPlaylistCached }).catch(() => null);
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Cache-Control', 'no-store');
+      if (playlist) return res.type('application/x-mpegURL').send(playlist);
+      const fallback = currentProgrammeMasterUrl(slots as any, now);
+      if (fallback) return res.redirect(302, fallback);
+      res.status(404).type('application/x-mpegURL').send('#EXTM3U\n# no playable content\n');
+    } catch (e: any) { res.status(500).type('application/x-mpegURL').send(`#EXTM3U\n# error: ${e.message}\n`); }
   });
 
   app.get('/api/mux/playback', authMiddleware, async (req, res) => {
