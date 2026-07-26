@@ -10,7 +10,7 @@ import {
   asyncVideoRails, syncVideoRails, fetchAllVideos, fetchUserVideos, videoItem, fastChannelItem,
   type ReelloBase, type TvVideoItem, type TvVideoRail,
 } from './reelloTvSections';
-import { fetchAllFastChannels } from '../../services/backendService';
+import { fetchAllFastChannels, type FastChannelListing } from '../../services/backendService';
 
 const FastChannelPlayer = React.lazy(() => import('../FastChannelPlayer'));
 
@@ -69,7 +69,7 @@ const ReelloTvView: React.FC<{
   const [cache, setCache] = useState<Record<string, TvVideoRail[]>>({});
   const [drillChannel, setDrillChannel] = useState<UserProfile | null>(null);
   const [drillRails, setDrillRails] = useState<TvVideoRail[]>([]);
-  const [fastChannels, setFastChannels] = useState<UserProfile[]>([]);
+  const [fastChannels, setFastChannels] = useState<FastChannelListing[]>([]);
   const [channelPlayer, setChannelPlayer] = useState<UserProfile | null>(null);   // open FAST player
 
   useEffect(() => {

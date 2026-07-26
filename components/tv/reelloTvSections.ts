@@ -1,4 +1,5 @@
 import type { UserProfile, Video, VideoPlaylist } from '../../types';
+import type { FastChannelListing } from '../../services/backendService';
 import {
   fetchAllVideos,
   fetchFollowedArtists,
@@ -79,12 +80,12 @@ const channelItem = (u: UserProfile): TvVideoItem => ({
 });
 
 /** A creator FAST channel card for Reello's Live section — opens the looping FastChannelPlayer. */
-export const fastChannelItem = (u: UserProfile): TvVideoItem => ({
-  id: `fast-${u.uid}`,
-  title: (u as any).displayName ? `${(u as any).displayName}'s Channel` : 'Channel',
-  subtitle: 'FAST · Live',
-  image: (u as any).photoURL || (u as any).headerImage,
-  action: { kind: 'FASTCHANNEL', profile: u },
+export const fastChannelItem = (c: FastChannelListing): TvVideoItem => ({
+  id: `fast-${c.ownerId}`,
+  title: c.number ? `${c.number} · ${c.name}` : c.name,
+  subtitle: c.category ? `${c.category} · FAST` : 'FAST · Live',
+  image: c.logoUrl,
+  action: { kind: 'FASTCHANNEL', profile: c.profile },
 });
 
 const playlistItem = (p: VideoPlaylist): TvVideoItem => ({

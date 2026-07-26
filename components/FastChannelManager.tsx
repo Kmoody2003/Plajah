@@ -6,11 +6,13 @@ import {
   Zap, Film, Music2, AlertCircle, Eye, Share2, Lock, DollarSign,
   Shuffle, RefreshCw, CalendarClock, StopCircle
 } from 'lucide-react';
-import { Video, UserProfile, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry } from '../types';
+import { Video, UserProfile, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, FastChannel, FastChannelCategory } from '../types';
 import {
   fetchFastChannelVideos,
   fetchFastChannelSchedule,
   saveFastChannelSchedule,
+  fetchFastChannelMeta,
+  saveFastChannelMeta,
   autoGenerateFastChannelSchedule,
   fetchChannelBumpers,
   saveChannelBumper,
@@ -37,7 +39,9 @@ interface FastChannelManagerProps {
   onBack: () => void;
 }
 
-type Tab = 'SCHEDULE' | 'BUMPERS' | 'ADS' | 'ASSETS' | 'LIBRARY';
+type Tab = 'CHANNEL' | 'SCHEDULE' | 'BUMPERS' | 'ADS' | 'ASSETS' | 'LIBRARY';
+
+const FAST_CATEGORIES: FastChannelCategory[] = ['Film', 'TV', 'Music', 'News', 'Sports', 'Kids', 'Comedy', 'Documentary', 'Faith', 'Lifestyle', 'Gaming', 'Variety', 'Education'];
 
 const SLOT_TYPE_COLORS: Record<string, string> = {
   VIDEO: 'bg-blue-500/20 border-blue-500/30 text-blue-300',
@@ -98,8 +102,11 @@ const SlotRow: React.FC<{
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack }) => {
-  const [activeTab, setActiveTab] = useState<Tab>('SCHEDULE');
+  const [activeTab, setActiveTab] = useState<Tab>('CHANNEL');
   const [schedule, setSchedule] = useState<FastChannelSchedule | null>(null);
+  const [meta, setMeta] = useState<Partial<FastChannel>>({ ownerId: user.uid, name: `${user.displayName || 'My'} Channel`, category: 'Variety', isPublished: true });
+  const [savingMeta, setSavingMeta] = useState(false);
+  const [metaSaved, setMetaSaved] = useState(false);
   const [myVideos, setMyVideos] = useState<Video[]>([]);
   const [bumpers, setBumpers] = useState<ChannelBumper[]>([]);
   const [grants, setGrants] = useState<FastChannelAssetGrant[]>([]);
@@ -139,13 +146,15 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
 
   const loadAll = async () => {
     setIsLoading(true);
-    const [sched, vids, bumpList, grantList, lib] = await Promise.all([
+    const [sched, vids, bumpList, grantList, lib, channelMeta] = await Promise.all([
       fetchFastChannelSchedule(user.uid),
       fetchFastChannelVideos(user.uid),
       fetchChannelBumpers(user.uid),
       fetchMyFastChannelGrants(user.uid),
       fetchFastChannelLibrary(),
+      fetchFastChannelMeta(user.uid),
     ]);
+    if (channelMeta) setMeta(channelMeta);
     setSchedule(sched);
     setMyVideos(vids);
     setBumpers(bumpList);
@@ -324,7 +333,22 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
     setSchedule(empty);
   };
 
+  const handleSaveMeta = async () => {
+    setSavingMeta(true);
+    setMetaSaved(false);
+    try {
+      await saveFastChannelMeta({ ...meta, ownerId: user.uid } as any);
+      setMetaSaved(true);
+      setTimeout(() => setMetaSaved(false), 2500);
+    } catch (e: any) {
+      alert('Could not save channel: ' + (e?.message || e));
+    } finally {
+      setSavingMeta(false);
+    }
+  };
+
   const TABS: { id: Tab; label: string; icon: React.ComponentType<any> }[] = [
+    { id: 'CHANNEL', label: 'Channel', icon: Tv },
     { id: 'SCHEDULE', label: 'Schedule', icon: CalendarClock },
     { id: 'BUMPERS', label: 'Bumpers', icon: Film },
     { id: 'ADS', label: 'Ads & Breaks', icon: DollarSign },
@@ -395,6 +419,77 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
       <div className="max-w-6xl mx-auto px-6 pt-8">
         <AnimatePresence mode="wait">
           <motion.div key={activeTab} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.18 }}>
+
+            {/* ── CHANNEL TAB (identity / branding) ────────────────────────── */}
+            {activeTab === 'CHANNEL' && (
+              <div className="max-w-3xl">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-2xl font-black uppercase tracking-tight">Channel Identity</h2>
+                    <p className="text-[9px] text-white/40 uppercase tracking-widest font-bold mt-1">Name, number, category & logo — how your channel appears in guides and the Live sections</p>
+                  </div>
+                  <button onClick={handleSaveMeta} disabled={savingMeta}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#6B0099] to-[#D40055] rounded-xl text-[9px] font-black uppercase tracking-widest hover:opacity-90 disabled:opacity-40 shadow-lg">
+                    {savingMeta ? <RefreshCw size={13} className="animate-spin" /> : <Check size={13} />}{metaSaved ? 'Saved' : 'Save Channel'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-6">
+                  {/* Logo */}
+                  <div>
+                    <div className="aspect-square rounded-2xl bg-white/[0.04] border border-white/10 overflow-hidden grid place-items-center relative">
+                      {meta.logoUrl ? <img src={meta.logoUrl} alt="" className="w-full h-full object-cover" /> : <Tv size={40} className="text-white/20" />}
+                    </div>
+                    <label className="mt-3 flex items-center justify-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-white/10 cursor-pointer transition-colors">
+                      <Upload size={13} /> Logo
+                      <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                        const f = e.target.files?.[0]; if (!f) return;
+                        try { const url = await uploadFileService(`fast_channels/${user.uid}/logo_${Date.now()}_${f.name}`, f); setMeta(m => ({ ...m, logoUrl: url })); }
+                        catch (err: any) { alert('Logo upload failed: ' + (err?.message || err)); }
+                      }} />
+                    </label>
+                  </div>
+
+                  {/* Fields */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/40">Channel name</label>
+                      <input value={meta.name || ''} onChange={e => setMeta(m => ({ ...m, name: e.target.value }))} placeholder="e.g. Midnight Movies"
+                        className="mt-1.5 w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-white/30" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-white/40">Channel number</label>
+                        <input type="number" value={meta.number ?? ''} onChange={e => setMeta(m => ({ ...m, number: e.target.value === '' ? undefined : Number(e.target.value) }))} placeholder="e.g. 501"
+                          className="mt-1.5 w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-white/30" />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-white/40">Category</label>
+                        <select value={meta.category || 'Variety'} onChange={e => setMeta(m => ({ ...m, category: e.target.value as FastChannelCategory }))}
+                          className="mt-1.5 w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-white/30 [&>option]:bg-[#111]">
+                          {FAST_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/40">Tagline</label>
+                      <input value={meta.tagline || ''} onChange={e => setMeta(m => ({ ...m, tagline: e.target.value }))} placeholder="A short one-liner"
+                        className="mt-1.5 w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-white/30" />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/40">Description</label>
+                      <textarea value={meta.description || ''} onChange={e => setMeta(m => ({ ...m, description: e.target.value }))} rows={3} placeholder="What this channel is about"
+                        className="mt-1.5 w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-white/30 resize-none" />
+                    </div>
+                    <button onClick={() => setMeta(m => ({ ...m, isPublished: !(m.isPublished ?? true) }))}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors w-full ${meta.isPublished ?? true ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-white/5 border-white/10 text-white/50'}`}>
+                      {meta.isPublished ?? true ? <Eye size={15} /> : <Lock size={15} />}
+                      <span className="text-[10px] font-black uppercase tracking-widest">{meta.isPublished ?? true ? 'Published — visible in Live sections & guides' : 'Unpublished — hidden'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* ── SCHEDULE TAB ─────────────────────────────────────────────── */}
             {activeTab === 'SCHEDULE' && (

@@ -3355,6 +3355,32 @@ export interface FastChannelSlot {
   isPublicDomain?: boolean;
 }
 
+/** FAST channel categories — the genre buckets platform guides (Roku/Samsung/LG) expect. */
+export type FastChannelCategory =
+  | 'Film' | 'TV' | 'Music' | 'News' | 'Sports' | 'Kids' | 'Comedy'
+  | 'Documentary' | 'Faith' | 'Lifestyle' | 'Gaming' | 'Variety' | 'Education';
+
+/**
+ * The first-class identity of a creator's FAST channel — its brand, not its schedule. One per
+ * creator for now (doc id === ownerId, aligning with fast_channel_schedules/{uid}). This is what a
+ * program guide and the Live rails show: a real name, logo, number, and category rather than the
+ * old "<displayName>'s Channel" fallback.
+ */
+export interface FastChannel {
+  id: string;            // === ownerId
+  ownerId: string;
+  name: string;
+  number?: number;       // LCN — the channel number in a guide
+  category?: FastChannelCategory;
+  logoUrl?: string;
+  tagline?: string;
+  description?: string;
+  language?: string;     // BCP-47, e.g. 'en'
+  isPublished: boolean;  // appears in Live sections + feeds
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface FastChannelSchedule {
   userId: string;
   slots: FastChannelSlot[];

@@ -85,7 +85,7 @@ export const saveBibleNote = async (uid: string, ref: string, text: string): Pro
     else await deleteDoc(doc(db, 'bibleNotes', id)).catch(() => {});
   } catch (e) { console.warn('[backendService] saveBibleNote failed:', (e as Error)?.message); }
 };
-import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest, PodcastRssSettings, ImportedRssEpisode, AccountType, NotifyLevel } from '../types';
+import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannel, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest, PodcastRssSettings, ImportedRssEpisode, AccountType, NotifyLevel } from '../types';
 import { accountFlagUpdate } from './accountCapabilities';
 // Creator Passport provenance (blueprint 1C.5) — attribution record, not crypto proof.
 import { buildProvenance, stampVideo } from './creatorPassport';
@@ -7396,6 +7396,42 @@ export const updateFastChannelEnabled = async (uid: string, enabled: boolean) =>
 
 // ── FAST CHANNEL SCHEDULE ─────────────────────────────────────────────────────
 
+// ─── FAST channel identity (fast_channels/{ownerId}) ────────────────────────────
+export const fetchFastChannelMeta = async (uid: string): Promise<FastChannel | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'fast_channels', uid));
+    return snap.exists() ? (snap.data() as FastChannel) : null;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.GET, `fast_channels/${uid}`);
+    return null;
+  }
+};
+
+export const saveFastChannelMeta = async (channel: Partial<FastChannel> & { ownerId: string }): Promise<void> => {
+  try {
+    const now = Date.now();
+    const existing = await fetchFastChannelMeta(channel.ownerId);
+    const merged: FastChannel = {
+      id: channel.ownerId,
+      ownerId: channel.ownerId,
+      name: channel.name ?? existing?.name ?? 'My Channel',
+      number: channel.number ?? existing?.number,
+      category: channel.category ?? existing?.category,
+      logoUrl: channel.logoUrl ?? existing?.logoUrl,
+      tagline: channel.tagline ?? existing?.tagline,
+      description: channel.description ?? existing?.description,
+      language: channel.language ?? existing?.language ?? 'en',
+      isPublished: channel.isPublished ?? existing?.isPublished ?? true,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    };
+    await setDoc(doc(db, 'fast_channels', channel.ownerId), removeUndefined(merged) as any);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, `fast_channels/${channel.ownerId}`);
+    throw e;
+  }
+};
+
 export const fetchFastChannelSchedule = async (uid: string): Promise<FastChannelSchedule | null> => {
   try {
     const snap = await getDoc(doc(db, 'fast_channel_schedules', uid));
@@ -7855,15 +7891,44 @@ export const fetchAllUsers = async (): Promise<UserProfile[]> => {
   }
 };
 
+/** A channel as a Live rail wants it: the branded identity (fast_channels doc, if any) plus the
+ *  owner profile FastChannelPlayer needs to play it. Display fields fall back to the profile. */
+export interface FastChannelListing {
+  ownerId: string;
+  name: string;
+  number?: number;
+  category?: string;
+  logoUrl?: string;
+  profile: UserProfile;
+}
+
 /**
- * Every creator whose FAST channel is switched on — the lineup for a "Live" rail on TV. Returns the
- * owner profiles so a channel can be handed straight to FastChannelPlayer (which derives the channel
- * name/logo from the profile). A creator with the flag but no content just renders an offline card.
+ * Every creator whose FAST channel is switched on, as branded listings. Merges each owner's
+ * fast_channels identity doc (name/number/category/logo) over the profile fallback, and drops any
+ * channel explicitly unpublished. The owner profile rides along so a listing plays straight through
+ * FastChannelPlayer.
  */
-export const fetchAllFastChannels = async (max = 60): Promise<UserProfile[]> => {
+export const fetchAllFastChannels = async (max = 60): Promise<FastChannelListing[]> => {
   try {
     const snap = await getDocs(query(collection(db, 'users'), where('fastChannelEnabled', '==', true), limit(max)));
-    return snap.docs.map(d => ({ uid: d.id, ...(d.data() as any) } as UserProfile));
+    const profiles = snap.docs.map(d => ({ uid: d.id, ...(d.data() as any) } as UserProfile));
+    const metas = await Promise.all(profiles.map(p => fetchFastChannelMeta((p as any).uid).catch(() => null)));
+    const listings: FastChannelListing[] = [];
+    profiles.forEach((p, i) => {
+      const m = metas[i];
+      if (m && m.isPublished === false) return;   // explicitly unpublished → hide
+      listings.push({
+        ownerId: (p as any).uid,
+        name: m?.name || ((p as any).displayName ? `${(p as any).displayName}'s Channel` : 'Channel'),
+        number: m?.number,
+        category: m?.category,
+        logoUrl: m?.logoUrl || (p as any).photoURL || (p as any).headerImage,
+        profile: p,
+      });
+    });
+    // Guide-style ordering: numbered channels first (by number), then the rest by name.
+    return listings.sort((a, b) =>
+      (a.number ?? 9999) - (b.number ?? 9999) || a.name.localeCompare(b.name));
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, 'users(fastChannelEnabled)');
     return [];

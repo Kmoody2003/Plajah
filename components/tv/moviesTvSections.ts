@@ -84,16 +84,16 @@ export async function loadPlatformRails(): Promise<TaleoRail[]> {
  *  FastChannelPlayer. This is the Taleo Live section the viewer asked for. Loaded separately (a
  *  users query) and prepended so it leads the screen. */
 export async function loadLiveRail(): Promise<TaleoRail | null> {
-  const channels = await fetchAllFastChannels(60).catch(() => [] as UserProfile[]);
+  const channels = await fetchAllFastChannels(60).catch(() => []);
   if (!channels.length) return null;
   return {
     id: 'live', title: 'Live Channels',
-    items: channels.map(p => ({
-      id: (p as any).uid,
-      title: p.displayName ? `${p.displayName}'s Channel` : 'Channel',
-      subtitle: 'FAST · Live',
-      image: (p as any).photoURL || (p as any).headerImage,
-      action: { kind: 'CHANNEL', channel: p } as TaleoAction,
+    items: channels.map(c => ({
+      id: c.ownerId,
+      title: c.number ? `${c.number} · ${c.name}` : c.name,
+      subtitle: c.category ? `${c.category} · FAST` : 'FAST · Live',
+      image: c.logoUrl,
+      action: { kind: 'CHANNEL', channel: c.profile } as TaleoAction,
     })),
   };
 }
