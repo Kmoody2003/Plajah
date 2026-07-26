@@ -36,6 +36,20 @@ function resolveVideoSrc(video: Video): { muxId?: string; url?: string } {
   return { url: video.url || '' };
 }
 
+// A FAST channel is LINEAR: everyone tuning in should land on the same programme at the same
+// wall-clock, not each start from video #1. Anchored to epoch and each video's duration, this is
+// deterministic — so it matches the EPG (services/fastChannelEpg.ts, same idea) and two viewers see
+// the same thing. Returns which video is "on now" and how far into it to seek.
+const DEFAULT_VID_SEC = 600;
+const vidDurSec = (v: Video): number => Math.max(30, Math.round((v as any).duration || 0)) || DEFAULT_VID_SEC;
+const joinPosition = (vids: Video[], atMs: number): { index: number; offsetSec: number } => {
+  const total = vids.reduce((a, v) => a + vidDurSec(v), 0);
+  if (!vids.length || total <= 0) return { index: 0, offsetSec: 0 };
+  let pos = Math.floor(atMs / 1000) % total;
+  for (let i = 0; i < vids.length; i++) { const d = vidDurSec(vids[i]); if (pos < d) return { index: i, offsetSec: pos }; pos -= d; }
+  return { index: 0, offsetSec: 0 };
+};
+
 const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose }) => {
   const [videos, setVideos] = useState<Video[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -52,6 +66,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
   const [channelSchedule, setChannelSchedule] = useState<FastChannelSchedule | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const muxRef = useRef<any>(null);
+  const joinOffsetRef = useRef(0);   // seconds to seek into the joined programme (consumed once)
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const interruptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const returnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -68,7 +83,12 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
       ]);
       const playable = vids.filter(v => v.muxPlaybackId || v.url);
       if (playable.length > 0) {
+        // Join the linear channel at the deterministic "now" programme, so it plays live-to-clock
+        // and matches the guide — not from video #1 every time.
+        const { index, offsetSec } = joinPosition(playable, Date.now());
+        joinOffsetRef.current = offsetSec;
         setVideos(playable);
+        setCurrentIndex(index);
         setHasExternalUrl(false);
       } else if (profile.liveStreamConfig?.fastChannelUrl) {
         setHasExternalUrl(true);
@@ -282,7 +302,13 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
           muted={isMuted}
           className="w-full h-full"
           onTimeUpdate={(e: any) => setCurrentTime(e.target.currentTime)}
-          onLoadedMetadata={(e: any) => setDuration(e.target.duration)}
+          onLoadedMetadata={(e: any) => {
+            setDuration(e.target.duration);
+            if (joinOffsetRef.current > 0 && joinOffsetRef.current < e.target.duration - 2) {
+              try { e.target.currentTime = joinOffsetRef.current; } catch { /* */ }
+            }
+            joinOffsetRef.current = 0;   // only the initial join seeks; auto-advance starts at 0
+          }}
           onEnded={advance}
           onPlay={() => setIsPaused(false)}
           onPause={() => setIsPaused(true)}
@@ -297,7 +323,14 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
           playsInline
           preload="auto"
           onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime)}
-          onLoadedMetadata={e => setDuration(e.currentTarget.duration)}
+          onLoadedMetadata={e => {
+            const el = e.currentTarget;
+            setDuration(el.duration);
+            if (joinOffsetRef.current > 0 && joinOffsetRef.current < el.duration - 2) {
+              try { el.currentTime = joinOffsetRef.current; } catch { /* */ }
+            }
+            joinOffsetRef.current = 0;
+          }}
           onEnded={advance}
           onPlay={() => setIsPaused(false)}
           onPause={() => setIsPaused(true)}
