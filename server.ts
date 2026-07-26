@@ -15,6 +15,7 @@ import fs from 'fs/promises';
 import { Readable } from 'stream';
 import { readFileSync } from 'fs';
 import { lookup as dnsLookup } from 'node:dns/promises';
+import { buildProgramGuide, buildXmltv, buildMrss, type EpgSlot, type EpgChannel, type MrssItem } from './services/fastChannelEpg';
 import nodeCrypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
@@ -2649,6 +2650,73 @@ async function startServer() {
       console.error('[Mux] create-asset-from-url error:', error.message);
       res.status(500).json({ error: error.message });
     }
+  });
+
+  // ─── FAST channel feeds — the industry formats platform guides (Roku/Samsung/LG/Google/Fire)
+  //     ingest. PUBLIC (no auth): the platforms PULL these over HTTP. Only PUBLISHED channels
+  //     (a fast_channels doc with isPublished !== false) appear. See services/fastChannelEpg.ts.
+  const fastChannelsPublished = async (): Promise<EpgChannel[]> => {
+    const docs = await queryFirebase('fast_channels', [{ field: 'isPublished', value: true }], 200);
+    return (docs || [])
+      .filter((c: any) => c && c.ownerId)
+      .map((c: any) => ({ id: `plajah.${c.ownerId}`, name: c.name || 'Channel', number: c.number, category: c.category, logoUrl: c.logoUrl }));
+  };
+  const slotsFor = async (ownerId: string): Promise<EpgSlot[]> => {
+    const sched: any = await firestoreRead('fast_channel_schedules', ownerId);
+    const slots: any[] = Array.isArray(sched?.slots) ? sched.slots : [];
+    return slots
+      .map(s => ({
+        title: s.videoTitle || s.bumperTitle || (s.type === 'AD_BREAK' ? 'Ad Break' : 'Program'),
+        durationSec: Number(s.videoDurationSeconds || s.bumperDurationSeconds || s.adDurationSeconds) || undefined,
+      }))
+      .filter(s => s.title);
+  };
+
+  // GET /api/fast/lineup.json — the channel lineup (number/name/category/logo).
+  app.get('/api/fast/lineup.json', async (_req, res) => {
+    try {
+      const channels = await fastChannelsPublished();
+      res.set('Access-Control-Allow-Origin', '*');
+      res.json({ channels: channels.sort((a, b) => (a.number ?? 9999) - (b.number ?? 9999) || a.name.localeCompare(b.name)) });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // GET /api/fast/epg.xml — XMLTV guide for every published channel, next 24h.
+  app.get('/api/fast/epg.xml', async (_req, res) => {
+    try {
+      const channels = await fastChannelsPublished();
+      const from = Date.now();
+      const entries = await Promise.all(channels.map(async (channel) => {
+        const ownerId = channel.id.replace(/^plajah\./, '');
+        const programmes = buildProgramGuide(await slotsFor(ownerId), from, 24);
+        return { channel, programmes };
+      }));
+      res.set('Access-Control-Allow-Origin', '*');
+      res.type('application/xml').send(buildXmltv(entries.filter(e => e.programmes.length)));
+    } catch (e: any) { res.status(500).send(`<!-- epg error: ${e.message} -->`); }
+  });
+
+  // GET /api/fast/:ownerId/feed.mrss — MRSS content feed for one channel (its FAST-opted videos).
+  app.get('/api/fast/:ownerId/feed.mrss', async (req, res) => {
+    try {
+      const ownerId = String(req.params.ownerId);
+      const meta: any = await firestoreRead('fast_channels', ownerId);
+      if (!meta || meta.isPublished === false) return res.status(404).type('application/xml').send('<!-- channel not found -->');
+      const channel: EpgChannel = { id: `plajah.${ownerId}`, name: meta.name || 'Channel', number: meta.number, category: meta.category, logoUrl: meta.logoUrl };
+      const vids = await queryFirebase('videos', [{ field: 'ownerId', value: ownerId }, { field: 'allowInFastChannel', value: true }], 300);
+      const items: MrssItem[] = (vids || [])
+        .map((v: any) => {
+          const url = v.muxPlaybackId ? `https://stream.mux.com/${v.muxPlaybackId}.m3u8` : v.url;
+          if (!url) return null;
+          return { id: v.id || v.identifier || url, title: v.title || 'Untitled', description: v.description, url,
+            thumbnailUrl: v.muxPlaybackId ? `https://image.mux.com/${v.muxPlaybackId}/thumbnail.png?width=640&height=360&time=5` : (v.thumbnailUrl || v.coverImageUrl),
+            durationSec: Number(v.duration) || undefined };
+        })
+        .filter(Boolean) as MrssItem[];
+      const host = publicHost(req);
+      res.set('Access-Control-Allow-Origin', '*');
+      res.type('application/xml').send(buildMrss(channel, items, `https://${host}/c/${ownerId}`));
+    } catch (e: any) { res.status(500).type('application/xml').send(`<!-- mrss error: ${e.message} -->`); }
   });
 
   app.get('/api/mux/playback', authMiddleware, async (req, res) => {
