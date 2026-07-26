@@ -7,9 +7,12 @@ import { useTvShellFocus } from '../../hooks/useTvShellFocus';
 import TvBrandBackdrop from './TvBrandBackdrop';
 import { tvCardRing, RAIL_GUTTER } from './tvFocusRing';
 import {
-  asyncVideoRails, syncVideoRails, fetchAllVideos, fetchUserVideos, videoItem,
+  asyncVideoRails, syncVideoRails, fetchAllVideos, fetchUserVideos, videoItem, fastChannelItem,
   type ReelloBase, type TvVideoItem, type TvVideoRail,
 } from './reelloTvSections';
+import { fetchAllFastChannels } from '../../services/backendService';
+
+const FastChannelPlayer = React.lazy(() => import('../FastChannelPlayer'));
 
 /**
  * Reello for television, modelled on the YouTube app for TV.
@@ -66,6 +69,22 @@ const ReelloTvView: React.FC<{
   const [cache, setCache] = useState<Record<string, TvVideoRail[]>>({});
   const [drillChannel, setDrillChannel] = useState<UserProfile | null>(null);
   const [drillRails, setDrillRails] = useState<TvVideoRail[]>([]);
+  const [fastChannels, setFastChannels] = useState<UserProfile[]>([]);
+  const [channelPlayer, setChannelPlayer] = useState<UserProfile | null>(null);   // open FAST player
+
+  useEffect(() => {
+    let alive = true;
+    fetchAllFastChannels(60).then(c => { if (alive) setFastChannels(c || []); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  // Hardware Back closes the FAST channel player (consume it, else it navigates the app to login).
+  useEffect(() => {
+    if (!channelPlayer) return;
+    const onHwBack = (e: Event) => { e.preventDefault(); setChannelPlayer(null); };
+    window.addEventListener('plajah:hardware-back', onHwBack);
+    return () => window.removeEventListener('plajah:hardware-back', onHwBack);
+  }, [channelPlayer]);
 
   const shellFocused = useTvShellFocus();
   const uid = (userProfile as any)?.uid || null;
@@ -125,14 +144,20 @@ const ReelloTvView: React.FC<{
 
   const rails: TvVideoRail[] = useMemo(() => {
     if (drillChannel) return drillRails;
-    return syncVideoRails(section, base) ?? cache[section] ?? [];
-  }, [drillChannel, drillRails, section, base, cache]);
+    const sectionRails = syncVideoRails(section, base) ?? cache[section] ?? [];
+    // The Live section leads with a "FAST Channels" rail of every creator channel that's switched on.
+    if (section === 'LIVE' && fastChannels.length) {
+      return [{ id: 'fast-channels', title: 'FAST Channels', items: fastChannels.map(fastChannelItem) }, ...sectionRails];
+    }
+    return sectionRails;
+  }, [drillChannel, drillRails, section, base, cache, fastChannels]);
 
   const rows = useMemo(() => rails.map(r => ({ id: r.id, count: r.items.length })), [rails]);
 
   const run = (item: TvVideoItem) => {
     const a = item.action;
     if (a.kind === 'VIDEO') { onSelectVideo(a.video); return; }
+    if (a.kind === 'FASTCHANNEL') { setChannelPlayer(a.profile); return; }
     if (a.kind === 'CHANNEL') { setDrillChannel(a.profile); return; }
     if (a.kind === 'PLAYLIST') {
       // Playing a playlist means playing its first video; the queue is the player's concern.
@@ -159,6 +184,7 @@ const ReelloTvView: React.FC<{
       if (drillChannel) { setDrillChannel(null); return true; }
       return false;
     },
+    enabled: !channelPlayer,   // the FAST channel player owns the remote while it's open
   });
 
   const cellRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -349,6 +375,14 @@ const ReelloTvView: React.FC<{
 
         {sectionLoading && rails.length > 0 && <SkeletonRail />}
       </main>
+
+      {/* A selected FAST channel plays fullscreen over Reello; Back (handled above) or the player's
+          own close returns to the Live section. */}
+      {channelPlayer && (
+        <React.Suspense fallback={null}>
+          <FastChannelPlayer profile={channelPlayer} onClose={() => setChannelPlayer(null)} />
+        </React.Suspense>
+      )}
     </div>
   );
 };

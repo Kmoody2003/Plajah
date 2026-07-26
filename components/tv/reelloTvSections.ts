@@ -38,7 +38,8 @@ export interface TvVideoItem {
 
 export type TvVideoAction =
   | { kind: 'VIDEO'; video: Video }
-  | { kind: 'CHANNEL'; profile: UserProfile }
+  | { kind: 'CHANNEL'; profile: UserProfile }         // drill into a creator's video list
+  | { kind: 'FASTCHANNEL'; profile: UserProfile }     // open the creator's FAST channel (live player)
   | { kind: 'PLAYLIST'; playlist: VideoPlaylist };
 
 export interface TvVideoRail { id: string; title: string; items: TvVideoItem[] }
@@ -75,6 +76,15 @@ const channelItem = (u: UserProfile): TvVideoItem => ({
   subtitle: `${(u as any).followerCount || 0} subscribers`,
   image: (u as any).photoURL,
   action: { kind: 'CHANNEL', profile: u },
+});
+
+/** A creator FAST channel card for Reello's Live section — opens the looping FastChannelPlayer. */
+export const fastChannelItem = (u: UserProfile): TvVideoItem => ({
+  id: `fast-${u.uid}`,
+  title: (u as any).displayName ? `${(u as any).displayName}'s Channel` : 'Channel',
+  subtitle: 'FAST · Live',
+  image: (u as any).photoURL || (u as any).headerImage,
+  action: { kind: 'FASTCHANNEL', profile: u },
 });
 
 const playlistItem = (p: VideoPlaylist): TvVideoItem => ({
