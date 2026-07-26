@@ -7,13 +7,15 @@ import { useTvShellFocus } from '../../hooks/useTvShellFocus';
 import TvBrandBackdrop from './TvBrandBackdrop';
 import TvHeroCarousel from './TvHeroCarousel';
 import { tvCardRing, RAIL_GUTTER } from './tvFocusRing';
+import type { ChannelSource } from '../../types';
 import {
-  asyncVideoRails, syncVideoRails, fetchAllVideos, fetchUserVideos, videoItem, fastChannelItem,
+  asyncVideoRails, syncVideoRails, fetchAllVideos, fetchUserVideos, videoItem, fastChannelItem, liveSourceItem,
   type ReelloBase, type TvVideoItem, type TvVideoRail,
 } from './reelloTvSections';
-import { fetchAllFastChannels, type FastChannelListing } from '../../services/backendService';
+import { fetchAllFastChannels, fetchActiveLiveSources, type FastChannelListing } from '../../services/backendService';
 
 const FastChannelPlayer = React.lazy(() => import('../FastChannelPlayer'));
+const TvLiveSourcePlayer = React.lazy(() => import('./TvLiveSourcePlayer'));
 
 /**
  * Reello for television, modelled on the YouTube app for TV.
@@ -71,11 +73,14 @@ const ReelloTvView: React.FC<{
   const [drillChannel, setDrillChannel] = useState<UserProfile | null>(null);
   const [drillRails, setDrillRails] = useState<TvVideoRail[]>([]);
   const [fastChannels, setFastChannels] = useState<FastChannelListing[]>([]);
+  const [liveSources, setLiveSources] = useState<{ ownerId: string; source: ChannelSource }[]>([]);
   const [channelPlayer, setChannelPlayer] = useState<UserProfile | null>(null);   // open FAST player
+  const [livePlaying, setLivePlaying] = useState<{ ownerId: string; source: ChannelSource } | null>(null);
 
   useEffect(() => {
     let alive = true;
     fetchAllFastChannels(60).then(c => { if (alive) setFastChannels(c || []); }).catch(() => {});
+    fetchActiveLiveSources(120).then(s => { if (alive) setLiveSources(s || []); }).catch(() => {});
     return () => { alive = false; };
   }, []);
 
@@ -146,12 +151,15 @@ const ReelloTvView: React.FC<{
   const rails: TvVideoRail[] = useMemo(() => {
     if (drillChannel) return drillRails;
     const sectionRails = syncVideoRails(section, base) ?? cache[section] ?? [];
-    // The Live section leads with a "FAST Channels" rail of every creator channel that's switched on.
-    if (section === 'LIVE' && fastChannels.length) {
-      return [{ id: 'fast-channels', title: 'FAST Channels', items: fastChannels.map(fastChannelItem) }, ...sectionRails];
+    // The Live section leads with live-now sources, then the FAST channels lineup.
+    if (section === 'LIVE') {
+      const extra: TvVideoRail[] = [];
+      if (liveSources.length) extra.push({ id: 'live-now', title: 'Live Now', items: liveSources.map(liveSourceItem) });
+      if (fastChannels.length) extra.push({ id: 'fast-channels', title: 'FAST Channels', items: fastChannels.map(fastChannelItem) });
+      if (extra.length) return [...extra, ...sectionRails];
     }
     return sectionRails;
-  }, [drillChannel, drillRails, section, base, cache, fastChannels]);
+  }, [drillChannel, drillRails, section, base, cache, fastChannels, liveSources]);
 
   const rows = useMemo(() => rails.map(r => ({ id: r.id, count: r.items.length })), [rails]);
 
@@ -159,6 +167,7 @@ const ReelloTvView: React.FC<{
     const a = item.action;
     if (a.kind === 'VIDEO') { onSelectVideo(a.video); return; }
     if (a.kind === 'FASTCHANNEL') { setChannelPlayer(a.profile); return; }
+    if (a.kind === 'LIVESOURCE') { setLivePlaying({ ownerId: a.ownerId, source: a.source }); return; }
     if (a.kind === 'CHANNEL') { setDrillChannel(a.profile); return; }
     if (a.kind === 'PLAYLIST') {
       // Playing a playlist means playing its first video; the queue is the player's concern.
@@ -185,7 +194,7 @@ const ReelloTvView: React.FC<{
       if (drillChannel) { setDrillChannel(null); return true; }
       return false;
     },
-    enabled: !channelPlayer,   // the FAST channel player owns the remote while it's open
+    enabled: !channelPlayer && !livePlaying,   // a fullscreen player owns the remote while it's open
   });
 
   const cellRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -393,6 +402,11 @@ const ReelloTvView: React.FC<{
       {channelPlayer && (
         <React.Suspense fallback={null}>
           <FastChannelPlayer profile={channelPlayer} onClose={() => setChannelPlayer(null)} />
+        </React.Suspense>
+      )}
+      {livePlaying && (
+        <React.Suspense fallback={null}>
+          <TvLiveSourcePlayer ownerId={livePlaying.ownerId} source={livePlaying.source} onClose={() => setLivePlaying(null)} />
         </React.Suspense>
       )}
     </div>

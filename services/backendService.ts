@@ -7416,6 +7416,29 @@ export const fetchChannelSourceSet = async (uid: string): Promise<{ sources: Cha
 export const fetchChannelSources = async (uid: string): Promise<ChannelSource[]> =>
   (await fetchChannelSourceSet(uid)).sources;
 
+/** Every account's currently-live sources (EXTERNAL_LIVE / REELLO_LIVE, isActive) for the TV Live
+ *  rails. Firestore can't query inside the `sources[]` array, so we page the collection and flatten
+ *  client-side (small N). Members-only sources ride along; the player gates them at play time. */
+export const fetchActiveLiveSources = async (max = 120): Promise<{ ownerId: string; source: ChannelSource }[]> => {
+  try {
+    const snap = await getDocs(query(collection(db, 'channel_sources'), limit(max)));
+    const out: { ownerId: string; source: ChannelSource }[] = [];
+    snap.docs.forEach(d => {
+      const set = d.data() as ChannelSourceSet;
+      const ownerId = (set as any).ownerId || d.id;
+      (set.sources || []).forEach(s => {
+        if (s.isActive && (s.type === 'EXTERNAL_LIVE' || s.type === 'REELLO_LIVE') && (s.url || s.muxPlaybackId)) {
+          out.push({ ownerId, source: s });
+        }
+      });
+    });
+    return out;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'channel_sources(active)');
+    return [];
+  }
+};
+
 /** Persist sources + library. `maxSources` caps concurrent broadcasts (3 for a regular account,
  *  higher for BRAND/ORGANIZATION/PARTNER — the caller decides). The library is uncapped. */
 export const saveChannelSources = async (ownerId: string, sources: ChannelSource[], savedFeeds: SavedFeed[] = [], maxSources = 3): Promise<void> => {

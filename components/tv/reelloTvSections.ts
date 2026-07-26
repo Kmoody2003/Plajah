@@ -1,4 +1,4 @@
-import type { UserProfile, Video, VideoPlaylist } from '../../types';
+import type { UserProfile, Video, VideoPlaylist, ChannelSource } from '../../types';
 import type { FastChannelListing } from '../../services/backendService';
 import {
   fetchAllVideos,
@@ -41,6 +41,7 @@ export type TvVideoAction =
   | { kind: 'VIDEO'; video: Video }
   | { kind: 'CHANNEL'; profile: UserProfile }         // drill into a creator's video list
   | { kind: 'FASTCHANNEL'; profile: UserProfile }     // open the creator's FAST channel (live player)
+  | { kind: 'LIVESOURCE'; ownerId: string; source: ChannelSource } // a live external/Reello source
   | { kind: 'PLAYLIST'; playlist: VideoPlaylist };
 
 export interface TvVideoRail { id: string; title: string; items: TvVideoItem[] }
@@ -86,6 +87,15 @@ export const fastChannelItem = (c: FastChannelListing): TvVideoItem => ({
   subtitle: c.category ? `${c.category} · FAST` : 'FAST · Live',
   image: c.logoUrl,
   action: { kind: 'FASTCHANNEL', profile: c.profile },
+});
+
+/** A live source card (External 24/7 feed or a Reello live show) for the Live section. */
+export const liveSourceItem = (x: { ownerId: string; source: ChannelSource }): TvVideoItem => ({
+  id: `live-${x.source.id}`,
+  title: x.source.name || (x.source.type === 'REELLO_LIVE' ? 'Live Show' : 'Live Feed'),
+  subtitle: x.source.type === 'REELLO_LIVE' ? 'Reello Live' : 'Live · 24/7',
+  image: (x.source as any).logoUrl,
+  action: { kind: 'LIVESOURCE', ownerId: x.ownerId, source: x.source },
 });
 
 const playlistItem = (p: VideoPlaylist): TvVideoItem => ({
