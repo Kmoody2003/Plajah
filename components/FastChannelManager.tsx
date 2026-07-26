@@ -135,6 +135,7 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
   // Live interrupt scheduling
   const [interruptTime, setInterruptTime] = useState('');
   const [interruptMaxDuration, setInterruptMaxDuration] = useState('300');
+  const [interruptMembersOnly, setInterruptMembersOnly] = useState(false);
 
   // Ad settings editing
   const [editAdFreq, setEditAdFreq] = useState(20);
@@ -229,8 +230,8 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
     if (!interruptTime) return;
     const scheduledAt = new Date(interruptTime).getTime();
     const maxSecs = parseInt(interruptMaxDuration) || 300;
-    await scheduleLiveInterrupt(user.uid, scheduledAt, maxSecs);
-    setSchedule(prev => prev ? { ...prev, pendingLiveInterrupt: { scheduledAt, maxDurationSeconds: maxSecs } } : prev);
+    await scheduleLiveInterrupt(user.uid, scheduledAt, maxSecs, interruptMembersOnly);
+    setSchedule(prev => prev ? { ...prev, pendingLiveInterrupt: { scheduledAt, maxDurationSeconds: maxSecs, membersOnly: interruptMembersOnly } } : prev);
     setInterruptTime('');
   };
 
@@ -592,6 +593,10 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
                           <input type="number" min="60" max="7200" value={interruptMaxDuration} onChange={e => setInterruptMaxDuration(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-[10px] text-white outline-none focus:border-red-500/50" />
                         </div>
+                        <button onClick={() => setInterruptMembersOnly(v => !v)}
+                          className={`w-full flex items-center gap-2 py-2 px-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-colors border ${interruptMembersOnly ? 'bg-violet-500/15 border-violet-400/30 text-violet-200' : 'bg-white/5 border-white/10 text-white/50'}`}>
+                          <Lock size={12} /> {interruptMembersOnly ? 'Members-only live event' : 'Open to everyone'}
+                        </button>
                         <button onClick={handleScheduleLiveInterrupt} disabled={!interruptTime}
                           className="w-full flex items-center justify-center gap-2 py-2 bg-red-600/80 hover:bg-red-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-colors disabled:opacity-40">
                           <CalendarClock size={12} /> Schedule Interrupt

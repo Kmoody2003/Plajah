@@ -3396,6 +3396,8 @@ export interface FastChannelSchedule {
   pendingLiveInterrupt?: {
     scheduledAt: number; // unix ms
     maxDurationSeconds: number;
+    /** Members-only live event — only Sanctuary members switch to it; others keep the regular loop. */
+    membersOnly?: boolean;
   };
   lastUpdated: number;
 }

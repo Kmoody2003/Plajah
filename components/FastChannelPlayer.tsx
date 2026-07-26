@@ -112,7 +112,9 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
   // Schedule live interrupt auto-switch
   useEffect(() => {
     if (!channelSchedule?.pendingLiveInterrupt || !hasLiveFeed) return;
-    const { scheduledAt, maxDurationSeconds } = channelSchedule.pendingLiveInterrupt;
+    const { scheduledAt, maxDurationSeconds, membersOnly } = channelSchedule.pendingLiveInterrupt;
+    // A members-only live event only pulls Sanctuary members over — everyone else keeps the loop.
+    if (membersOnly && !viewerIsMember) return;
     const msUntil = scheduledAt - Date.now();
     if (msUntil < 0) return;
 
@@ -131,7 +133,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
       if (interruptTimerRef.current) clearTimeout(interruptTimerRef.current);
       if (returnTimerRef.current) clearTimeout(returnTimerRef.current);
     };
-  }, [channelSchedule, hasLiveFeed]);
+  }, [channelSchedule, hasLiveFeed, viewerIsMember]);
 
   const currentVideo = videos[currentIndex];
   const currentSrc = currentVideo ? resolveVideoSrc(currentVideo) : {};

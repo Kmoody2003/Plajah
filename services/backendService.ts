@@ -7452,11 +7452,11 @@ export const saveFastChannelSchedule = async (schedule: FastChannelSchedule): Pr
   }
 };
 
-export const scheduleLiveInterrupt = async (uid: string, scheduledAt: number, maxDurationSeconds: number): Promise<void> => {
+export const scheduleLiveInterrupt = async (uid: string, scheduledAt: number, maxDurationSeconds: number, membersOnly = false): Promise<void> => {
   const scheduleRef = doc(db, 'fast_channel_schedules', uid);
   try {
     await updateDoc(scheduleRef, {
-      pendingLiveInterrupt: { scheduledAt, maxDurationSeconds },
+      pendingLiveInterrupt: { scheduledAt, maxDurationSeconds, membersOnly },
       lastUpdated: Date.now(),
     });
   } catch (e) {
