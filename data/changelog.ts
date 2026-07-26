@@ -40,6 +40,12 @@ export const APP_BUILD = '2026.07.26-01';
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '68b2edb', date: '2026-07-26', time: '19:45', level: 'major', area: 'Live TV',
+    title: 'Turn on your channel in one tap',
+    technical: 'One-tap FAST activation (activateFastChannel): flipping the toggle enables the channel, creates its published identity, auto-opts-in up to 100 of your recent playable videos when none are selected, and auto-generates the looping schedule — no manual setup. Idempotent; the manager also auto-builds a schedule on open when videos are opted in but none exists. Manual arrange/prune/ads remain in Manage Channel.',
+    plain: 'Starting your own channel is now a single switch — Plajah instantly builds a 24/7 channel from your videos, ready to watch. You can rearrange the line-up, drop videos, or add ad breaks whenever you like, but you never have to set it up first.',
+  },
+  {
     id: '257e9fc', date: '2026-07-26', time: '19:10', level: 'minor', area: 'Live TV',
     title: 'Smoother, lighter channel playback',
     technical: 'FAST + live playback unified on one adaptive hls.js path (shared hlsTuning + capLevelsToPanel) instead of MuxPlayer — startLevel -1 ABR that never decodes more pixels than the panel. Also completes the carriage feed set: /api/fast/lineup.m3u8 + a linear /api/fast/:ownerId/stream.m3u8 HLS origin (see docs/FAST_CHANNEL_CARRIAGE.md).',
