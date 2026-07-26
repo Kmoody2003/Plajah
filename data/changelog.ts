@@ -36,9 +36,51 @@ export interface ChangelogEntry {
  * entriesSince), so it can only ever fire when a genuinely new entry is prepended —
  * never on a redeploy that shipped no user-facing changelog line.
  */
-export const APP_BUILD = '2026.07.21-01';
+export const APP_BUILD = '2026.07.26-01';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    id: 'fe31117', date: '2026-07-26', time: '16:40', level: 'minor', area: 'Platform',
+    title: 'What\'s New alerts only when there\'s real news',
+    technical: 'UpdateNotification now keys off the newest changelog ENTRY id (LATEST_ENTRY_ID), not the hand-bumped APP_BUILD string; entriesSince returns only entries prepended since the id the user acknowledged; "seen" is recorded on SHOW (markSeen), not only on dismiss; storage key bumped plajah_last_seen_build_v1 → plajah_last_seen_entry_v2 for a clean migration.',
+    plain: 'The "What\'s New" popup now appears only when we\'ve actually shipped something new — no more seeing it again after a reload or when nothing has changed.',
+  },
+  {
+    id: 'fb1b25e', date: '2026-07-26', time: '16:10', level: 'major', area: 'Chora',
+    title: 'Sync Lyrics works for every song',
+    technical: '/api/ai/captions no longer rejects large masters (dropped the 22MB gate for a 250MB memory ceiling). The windowed path re-encodes each slice from disk; the single-shot path transcodes the whole file to a compact mono-16kHz mp3 before Gemini — so any track transcribes regardless of whether the Chora transcode pipeline ran. Client prefers the small rendition and surfaces the real failure reason.',
+    plain: 'The "Sync Lyrics" button now turns any song into time-coded captions — including older tracks that used to silently do nothing — and tells you clearly if something goes wrong.',
+  },
+  {
+    id: 'e1c2216', date: '2026-07-26', time: '15:30', level: 'major', area: 'Live TV',
+    title: 'Run your own always-on TV channel',
+    technical: 'Per-creator FAST channels: first-class channel entity (fast_channels collection — name/logo/category/number) + FastChannelManager; auto-built schedules with real per-asset durations and an optional commercial-free mode; deterministic linear-to-clock FastChannelPlayer (epoch-anchored "on now" so everyone sees the same programme); Live Channels rails in Taleo (MoviesTvView) and Reello (ReelloTvView) on TV. Industry EPG feeds emitted server-side (XMLTV / MRSS / lineup.json).',
+    plain: 'You can now run your own 24/7 channel of your content on Plajah. It builds a schedule from your videos automatically, plays the same thing for everyone like real TV, and shows up in the Live sections of Taleo and Reello on the big screen.',
+  },
+  {
+    id: 'd810792', date: '2026-07-26', time: '15:00', level: 'major', area: 'Live TV',
+    title: 'Go live — with multiple simultaneous feeds',
+    technical: 'Up to 3 concurrent sources per account (FAST loop / external 24/7 live / Reello live show), each independently active. TvLiveSourcePlayer prioritises HLS → YouTube/Twitch embed → Mux. A saved Feed Library (name + URL, on-platform streams listed first, unlimited saves, pick from a dropdown). BRAND/ORGANIZATION/PARTNER accounts run multiple concurrent feeds (main + ASL + languages, up to 8). "Live Now" rail added to Taleo + Reello.',
+    plain: 'Creators can now broadcast live — from a link (HLS, YouTube or Twitch) or a Plajah live show — and save their favourite feeds to pick from a dropdown. Businesses, brands and organisations can send several feeds of one event at once, so it can carry a main feed plus sign-language and other-language versions side by side.',
+  },
+  {
+    id: '54aa0a0', date: '2026-07-26', time: '14:30', level: 'minor', area: 'Live TV',
+    title: 'Members get special channel programming',
+    technical: 'FastChannelPlayer runs checkMembership(creatorId) at load — Sanctuary members see members-only special programming (per-video isExclusive) in the loop plus members-only live interrupts; non-members get the regular schedule. Linear semantics (filter, not paywall); the deterministic join runs on the gated list.',
+    plain: 'If you hold a Sanctuary membership with a creator, their channel now shows you special members-only programming; everyone else sees the regular schedule.',
+  },
+  {
+    id: '464c9dd', date: '2026-07-26', time: '14:00', level: 'minor', area: 'Taleo',
+    title: 'Smoother film & video streaming',
+    technical: 'One-click "Optimize for Streaming (HLS)" per video plus a bulk optimizer that transcodes an entire catalogue to Mux HLS, fixing progressive-playback choppiness (e.g. the "astrocats" title) by moving it onto adaptive HLS.',
+    plain: 'Films and videos stream more smoothly now — creators can optimise a single title or their whole catalogue in one click, so playback stops stuttering.',
+  },
+  {
+    id: '717e369', date: '2026-07-26', time: '13:30', level: 'major', area: 'TV Apps',
+    title: 'A big-screen experience built for the living room',
+    technical: 'TV overhaul: persistent Plajah branding (logo + gradient chevron + Early Access badge), centered Taleo/Chora/Reello tabs, an always-present playback transport + now-playing bar, a full-bleed album art slideshow, an FX Stage visualiser (reduced-res upscaled, channel-up/down presets), reusable hero carousels, declarative D-pad navigation (useTvGrid) with reliable hardware-Back handling, and "More From This World" / character rows across Chora, Taleo and Reello.',
+    plain: 'The Plajah TV app got a big living-room upgrade — clearer branding and navigation, a full-screen album slideshow and an FX visual stage, controls you never lose while a song plays, and rows that suggest more from the same world and characters.',
+  },
   {
     id: '322af42', date: '2026-07-21', time: '11:58', level: 'major', area: 'Academia',
     title: 'The Living Combat Atlas — a museum of world martial arts',
