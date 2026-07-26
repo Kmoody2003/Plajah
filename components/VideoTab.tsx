@@ -1594,7 +1594,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
             <div className="space-y-8 pt-2">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-black uppercase tracking-widest">Live Studio</h2>
-                <button onClick={() => setShowGoLiveModal(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-white/10 transition-all"><Settings2 size={14} /> Broadcast Studio</button>
+                <button onClick={() => setShowGoLiveModal(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-white/10 transition-all"><Settings2 size={14} /> Master Control</button>
               </div>
               <div className={`p-4 sm:p-8 rounded-3xl border flex items-center gap-4 sm:gap-6 ${isLiveStreamActive ? 'bg-green-500/10 border-green-500/30' : 'bg-white/[0.02] border-white/5 border-dashed'}`}>
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isLiveStreamActive ? 'bg-green-500' : 'bg-white/5'}`}>

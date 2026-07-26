@@ -270,7 +270,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
             { id: 'WORLDS', label: 'My Worlds', icon: Globe },
             { id: 'ASSETS', label: 'My Assets', icon: Database },
             { id: 'PHOTOS', label: 'Photo Gallery', icon: ImageIcon },
-            { id: 'BROADCAST', label: 'Broadcast Studio', icon: Tv, cap: 'LIVE_STREAM' as Capability },
+            { id: 'BROADCAST', label: 'Master Control', icon: Tv, cap: 'LIVE_STREAM' as Capability },
             { id: 'MAILING_LIST', label: 'Mailing List', icon: Mail },
             { id: 'RADIO_MANAGER', label: 'Artist Radio Station', icon: Radio, cap: 'RUN_RADIO' as Capability },
             { id: 'SIDEBAR', label: 'Sidebar Config', icon: LayoutGrid },
@@ -1577,7 +1577,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
           {activeTab === 'BROADCAST' && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
               <header>
-                <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">TV & Broadcast Studio</h1>
+                <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">TV & Master Control</h1>
                 <p className="text-white/40 text-sm font-bold uppercase tracking-widest">Manage your live stream, FAST channel, and global broadcast status</p>
               </header>
 

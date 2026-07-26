@@ -35,7 +35,7 @@ const SECTIONS: Section[] = [
     { id: 'MAILING_LIST', label: 'Mailing List', icon: Send, tint: '#38bdf8' },
   ] },
   { title: 'Broadcast', items: [
-    { id: 'BROADCAST', label: 'Broadcast Studio', icon: Tv, cap: 'LIVE_STREAM', tint: '#ef4444' },
+    { id: 'BROADCAST', label: 'Master Control', icon: Tv, cap: 'LIVE_STREAM', tint: '#ef4444' },
     { id: 'RADIO_MANAGER', label: 'Artist Radio Station', icon: Radio, cap: 'RUN_RADIO', tint: '#a78bfa' },
   ] },
   { title: 'Creator Studios', items: [
