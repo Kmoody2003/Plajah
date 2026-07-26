@@ -40,6 +40,12 @@ export const APP_BUILD = '2026.07.26-01';
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '257e9fc', date: '2026-07-26', time: '19:10', level: 'minor', area: 'Live TV',
+    title: 'Smoother, lighter channel playback',
+    technical: 'FAST + live playback unified on one adaptive hls.js path (shared hlsTuning + capLevelsToPanel) instead of MuxPlayer — startLevel -1 ABR that never decodes more pixels than the panel. Also completes the carriage feed set: /api/fast/lineup.m3u8 + a linear /api/fast/:ownerId/stream.m3u8 HLS origin (see docs/FAST_CHANNEL_CARRIAGE.md).',
+    plain: 'Channels and live feeds now adapt their quality to your screen and connection — smoother on a TV and lighter on data — instead of always pulling the biggest version.',
+  },
+  {
     id: '090947f', date: '2026-07-26', time: '18:20', level: 'minor', area: 'Live TV',
     title: 'FAST channels play their real schedule',
     technical: 'Player + EPG unified on services/fastChannelTimeline (deterministic epoch-anchored linearPosition + slotDurationSec). FastChannelPlayer now walks the slot schedule (bumpers, ad breaks, commercial-free, public-domain, and scheduled live all air) via MuxPlayer / hls.js with a safety advance timer; the program guide is built from the same slots so "on now" matches the screen. Blank REELLO_LIVE sources resolve from the owner\'s live config; new /api/fast/:ownerId/now.json.',
