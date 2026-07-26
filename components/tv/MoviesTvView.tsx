@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import { Film, Play, Radio } from 'lucide-react';
-import type { Video, Album, UserProfile } from '../../types';
+import type { Video, Album, UserProfile, ChannelSource } from '../../types';
 import { useTvGrid, isFocused } from '../../hooks/useTvGrid';
 import { tvCardRing, RAIL_GUTTER } from './tvFocusRing';
 import { thumb, THUMB, onThumbError } from '../../src/lib/imageThumb';
@@ -11,6 +11,7 @@ import { fetchVideoById, syncPublicDomainAsset } from '../../services/backendSer
 import { getArchiveItemFiles, getBestVideoUrl } from '../../services/archiveContentService';
 
 const FastChannelPlayer = React.lazy(() => import('../FastChannelPlayer'));
+const TvLiveSourcePlayer = React.lazy(() => import('./TvLiveSourcePlayer'));
 
 /**
  * Taleo on a television — the declarative twin of the pointer-driven MoviesTVView, built on the
@@ -30,6 +31,7 @@ const MoviesTvView: React.FC<{
   const [rails, setRails] = useState<TaleoRail[]>([]);
   const [loading, setLoading] = useState(true);
   const [channel, setChannel] = useState<UserProfile | null>(null);   // open FAST channel, if any
+  const [livePlaying, setLivePlaying] = useState<{ ownerId: string; source: ChannelSource } | null>(null);
   const opening = useRef(false);   // guards the async archive open against a double-press
 
   useEffect(() => {
@@ -55,6 +57,7 @@ const MoviesTvView: React.FC<{
     window.addEventListener('plajah:hardware-back', onHwBack);
     return () => window.removeEventListener('plajah:hardware-back', onHwBack);
   }, [channel]);
+  // (TvLiveSourcePlayer handles its own hardware-back; grid is disabled while it's open.)
 
   const rows = useMemo(() => rails.map(r => ({ id: r.id, count: r.items.length })), [rails]);
 
@@ -77,6 +80,7 @@ const MoviesTvView: React.FC<{
       return;
     }
     if (a.kind === 'CHANNEL') { setChannel(a.channel); return; }
+    if (a.kind === 'LIVESOURCE') { setLivePlaying({ ownerId: a.ownerId, source: a.source }); return; }
     // Internet Archive → resolve a playable derivative + synthesize the VIDEO album MovieUXView
     // expects (mirrors MoviesTVView.handleSelectArchiveItem). Async, so guard against re-entry.
     if (a.kind === 'ARCHIVE') {
@@ -105,7 +109,7 @@ const MoviesTvView: React.FC<{
     rows,
     onSelect: (p, rowId) => run(rowId, p.col),
     onBack: () => { onBack(); return true; },
-    enabled: !channel,   // the FAST channel player owns the remote while it's open
+    enabled: !channel && !livePlaying,   // a fullscreen player owns the remote while it's open
   });
 
   // Keep the focused card centred along its rail and its row in view.
@@ -180,6 +184,11 @@ const MoviesTvView: React.FC<{
       {channel && (
         <Suspense fallback={null}>
           <FastChannelPlayer profile={channel} onClose={() => setChannel(null)} />
+        </Suspense>
+      )}
+      {livePlaying && (
+        <Suspense fallback={null}>
+          <TvLiveSourcePlayer ownerId={livePlaying.ownerId} source={livePlaying.source} onClose={() => setLivePlaying(null)} />
         </Suspense>
       )}
     </div>

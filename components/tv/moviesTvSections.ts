@@ -3,8 +3,8 @@
 // screen navigates as one declared useTvGrid (no geometric guessing, which is what made the old
 // Taleo nav jump). Selection returns the raw Video / VIDEO-Album that MovieUXView expects.
 
-import type { Album, Video, UserProfile } from '../../types';
-import { fetchAllPublicAlbums, fetchAllVideos, fetchAllFastChannels } from '../../services/backendService';
+import type { Album, Video, UserProfile, ChannelSource } from '../../types';
+import { fetchAllPublicAlbums, fetchAllVideos, fetchAllFastChannels, fetchActiveLiveSources } from '../../services/backendService';
 import { getContinueWatching } from '../../services/watchHistoryService';
 import { fetchArchiveByAllGenres, type ArchiveVideo } from '../../services/archiveContentService';
 
@@ -17,7 +17,8 @@ export type TaleoAction =
   | { kind: 'ITEM'; item: Video | Album }   // open directly in MovieUXView
   | { kind: 'RESUME'; id: string }           // continue-watching: re-fetch by id, then open
   | { kind: 'ARCHIVE'; archive: ArchiveVideo } // Internet Archive: resolve a playable url, then open
-  | { kind: 'CHANNEL'; channel: UserProfile }; // a creator FAST channel: open FastChannelPlayer
+  | { kind: 'CHANNEL'; channel: UserProfile }  // a creator FAST channel: open FastChannelPlayer
+  | { kind: 'LIVESOURCE'; ownerId: string; source: ChannelSource }; // a live external/Reello source
 
 export interface TaleoItem {
   id: string;
@@ -84,18 +85,26 @@ export async function loadPlatformRails(): Promise<TaleoRail[]> {
  *  FastChannelPlayer. This is the Taleo Live section the viewer asked for. Loaded separately (a
  *  users query) and prepended so it leads the screen. */
 export async function loadLiveRail(): Promise<TaleoRail | null> {
-  const channels = await fetchAllFastChannels(60).catch(() => []);
-  if (!channels.length) return null;
-  return {
-    id: 'live', title: 'Live Channels',
-    items: channels.map(c => ({
-      id: c.ownerId,
-      title: c.number ? `${c.number} · ${c.name}` : c.name,
-      subtitle: c.category ? `${c.category} · FAST` : 'FAST · Live',
-      image: c.logoUrl,
-      action: { kind: 'CHANNEL', channel: c.profile } as TaleoAction,
-    })),
-  };
+  const [channels, liveSources] = await Promise.all([
+    fetchAllFastChannels(60).catch(() => []),
+    fetchActiveLiveSources(120).catch(() => []),
+  ]);
+  const liveItems: TaleoItem[] = liveSources.map(x => ({
+    id: `live-${x.source.id}`,
+    title: x.source.name || (x.source.type === 'REELLO_LIVE' ? 'Live Show' : 'Live Feed'),
+    subtitle: x.source.type === 'REELLO_LIVE' ? 'Reello Live' : 'Live · 24/7',
+    image: (x.source as any).logoUrl,
+    action: { kind: 'LIVESOURCE', ownerId: x.ownerId, source: x.source } as TaleoAction,
+  }));
+  const channelItems: TaleoItem[] = channels.map(c => ({
+    id: c.ownerId,
+    title: c.number ? `${c.number} · ${c.name}` : c.name,
+    subtitle: c.category ? `${c.category} · FAST` : 'FAST · Live',
+    image: c.logoUrl,
+    action: { kind: 'CHANNEL', channel: c.profile } as TaleoAction,
+  }));
+  const items = [...liveItems, ...channelItems];
+  return items.length ? { id: 'live', title: 'Live Channels', items } : null;
 }
 
 /** The Internet Archive rails — one per movie/TV genre collection, pulled generously so the screen
