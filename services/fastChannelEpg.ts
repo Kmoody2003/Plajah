@@ -15,7 +15,11 @@ export interface EpgChannel {
 export interface MrssItem { id: string; title: string; description?: string; url: string; thumbnailUrl?: string; durationSec?: number; }
 
 const DEFAULT_SLOT_SEC = 30 * 60;   // fallback when a slot carries no duration
-const slotDur = (s: EpgSlot) => Math.max(60, Math.round(s.durationSec || DEFAULT_SLOT_SEC));
+// Floor of 1s (not 60): the caller passes EXACT per-slot seconds computed by the shared
+// slotDurationSec (services/fastChannelTimeline), so the guide loop must total the same seconds as
+// the player's loop — otherwise short bumpers/ads would be rounded up here and the guide's "now"
+// would drift away from what actually plays.
+const slotDur = (s: EpgSlot) => Math.max(1, Math.round(s.durationSec || DEFAULT_SLOT_SEC));
 
 /**
  * Deterministic looping guide. Anchored to epoch 0 so every viewer/guide computes the same

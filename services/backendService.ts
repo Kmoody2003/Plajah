@@ -7423,15 +7423,37 @@ export const fetchActiveLiveSources = async (max = 120): Promise<{ ownerId: stri
   try {
     const snap = await getDocs(query(collection(db, 'channel_sources'), limit(max)));
     const out: { ownerId: string; source: ChannelSource }[] = [];
+    // A REELLO_LIVE source can be saved with a blank playback id and "use my active live stream" —
+    // those need the owner's liveStreamConfig to become playable, so collect them for a second pass.
+    const needResolve: { ownerId: string; source: ChannelSource }[] = [];
     snap.docs.forEach(d => {
       const set = d.data() as ChannelSourceSet;
       const ownerId = (set as any).ownerId || d.id;
       (set.sources || []).forEach(s => {
-        if (s.isActive && (s.type === 'EXTERNAL_LIVE' || s.type === 'REELLO_LIVE') && (s.url || s.muxPlaybackId)) {
-          out.push({ ownerId, source: s });
-        }
+        if (!s.isActive || (s.type !== 'EXTERNAL_LIVE' && s.type !== 'REELLO_LIVE')) return;
+        if (s.url || s.muxPlaybackId) out.push({ ownerId, source: s });
+        else if (s.type === 'REELLO_LIVE') needResolve.push({ ownerId, source: s });
       });
     });
+
+    // Fill blank REELLO_LIVE sources from each owner's active live stream (small N; unique owners).
+    if (needResolve.length) {
+      const owners = Array.from(new Set(needResolve.map(x => x.ownerId)));
+      const configs = new Map<string, any>();
+      await Promise.all(owners.map(async id => {
+        try {
+          const us = await getDoc(doc(db, 'users', id));
+          configs.set(id, us.exists() ? (us.data() as any)?.liveStreamConfig : null);
+        } catch { configs.set(id, null); }
+      }));
+      needResolve.forEach(({ ownerId, source }) => {
+        const lc = configs.get(ownerId);
+        if (!lc?.isActive) return;
+        const muxPlaybackId = lc.muxPlaybackId || source.muxPlaybackId;
+        const url = !muxPlaybackId ? (lc.streamUrl || source.url) : source.url;
+        if (muxPlaybackId || url) out.push({ ownerId, source: { ...source, muxPlaybackId, url } });
+      });
+    }
     return out;
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, 'channel_sources(active)');
@@ -7576,9 +7598,12 @@ export const autoGenerateFastChannelSchedule = async (uid: string): Promise<Fast
 
     // The video itself — prefer the Mux HLS rendition (smooth), else the raw url. (The old ternary
     // had an operator-precedence bug that produced stream.mux.com/undefined.m3u8 for raw uploads.)
+    // When the channel opts to surface public-domain content, a CC0-licensed title is tagged as a
+    // PUBLIC_DOMAIN slot (the player badges it and guides can categorise it) rather than a plain VIDEO.
+    const isPD = includePublicDomain && (video as any).license === 'CC0';
     const videoSlot: FastChannelSlot = {
       id: `slot_${order}`,
-      type: 'VIDEO',
+      type: isPD ? 'PUBLIC_DOMAIN' : 'VIDEO',
       order,
       videoId: video.id,
       videoUrl: (video as any).muxPlaybackId ? `https://stream.mux.com/${(video as any).muxPlaybackId}.m3u8` : video.url,
@@ -7586,6 +7611,7 @@ export const autoGenerateFastChannelSchedule = async (uid: string): Promise<Fast
       videoThumbnail: video.thumbnailUrl || video.coverImageUrl,
       videoDurationSeconds: durationSec,
       sourceUserId: uid,
+      isPublicDomain: isPD || undefined,
     };
     // Copy ad markers from video metadata
     if (video.adMarkers?.length) {

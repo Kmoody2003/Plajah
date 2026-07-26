@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Play, Pause, Volume2, VolumeX, SkipForward, SkipBack, Tv, X, Radio, Wifi } from 'lucide-react';
 import MuxPlayer from '@mux/mux-player-react';
-import { Video, UserProfile, FastChannelSchedule } from '../types';
+import Hls from 'hls.js';
+import { UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { fetchFastChannelVideos, fetchFastChannelSchedule, auth } from '../services/backendService';
 import { checkMembership } from '../services/sanctuaryService';
+import { linearPosition, resolveSlotMedia, slotIsPlayable, slotsFromVideos } from '../services/fastChannelTimeline';
 
 interface FastChannelPlayerProps {
   profile: UserProfile;
@@ -31,28 +33,11 @@ function buildEmbedUrl(url: string): string {
   return url;
 }
 
-// Resolve the best playable URL for a video — mux HLS takes priority
-function resolveVideoSrc(video: Video): { muxId?: string; url?: string } {
-  if (video.muxPlaybackId) return { muxId: video.muxPlaybackId };
-  return { url: video.url || '' };
-}
-
-// A FAST channel is LINEAR: everyone tuning in should land on the same programme at the same
-// wall-clock, not each start from video #1. Anchored to epoch and each video's duration, this is
-// deterministic — so it matches the EPG (services/fastChannelEpg.ts, same idea) and two viewers see
-// the same thing. Returns which video is "on now" and how far into it to seek.
-const DEFAULT_VID_SEC = 600;
-const vidDurSec = (v: Video): number => Math.max(30, Math.round((v as any).duration || 0)) || DEFAULT_VID_SEC;
-const joinPosition = (vids: Video[], atMs: number): { index: number; offsetSec: number } => {
-  const total = vids.reduce((a, v) => a + vidDurSec(v), 0);
-  if (!vids.length || total <= 0) return { index: 0, offsetSec: 0 };
-  let pos = Math.floor(atMs / 1000) % total;
-  for (let i = 0; i < vids.length; i++) { const d = vidDurSec(vids[i]); if (pos < d) return { index: i, offsetSec: pos }; pos -= d; }
-  return { index: 0, offsetSec: 0 };
-};
-
 const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose }) => {
-  const [videos, setVideos] = useState<Video[]>([]);
+  // The channel is now driven by its SLOT SCHEDULE (video / bumper / ad / public-domain / live),
+  // not the raw video list — so bumpers, ad breaks, commercial-free and scheduled live all actually
+  // air, and the on-screen "now" is computed the same deterministic way the EPG computes the guide.
+  const [slots, setSlots] = useState<FastChannelSlot[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
@@ -68,7 +53,8 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
   const [viewerIsMember, setViewerIsMember] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const muxRef = useRef<any>(null);
-  const joinOffsetRef = useRef(0);   // seconds to seek into the joined programme (consumed once)
+  const hlsRef = useRef<Hls | null>(null);
+  const joinOffsetRef = useRef(0);   // seconds to seek into the joined slot (consumed once)
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const interruptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const returnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -83,37 +69,43 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
       const [vids, schedule, isMember] = await Promise.all([
         fetchFastChannelVideos(profile.uid),
         fetchFastChannelSchedule(profile.uid).catch(() => null),
-        // Sanctuary gate: a member (or the owner) of this creator's Sanctuary sees the SPECIAL
-        // programming; everyone else gets the regular loop. Same membership check as the rest of the
-        // platform (services/sanctuaryService). Linear channel → we FILTER members-only slots for
-        // non-members rather than paywall mid-stream.
+        // Sanctuary gate: a member (or the owner) sees the SPECIAL programming; everyone else gets
+        // the regular loop. Linear channel → we FILTER members-only slots rather than paywall.
         (me && me === profile.uid) ? Promise.resolve(true) : checkMembership(profile.uid).then(m => !!m).catch(() => false),
       ]);
       setViewerIsMember(isMember);
-      const gated = isMember ? vids : vids.filter(v => !(v as any).isExclusive);
-      const playable = gated.filter(v => v.muxPlaybackId || v.url);
-      if (playable.length > 0) {
-        // Join the linear channel at the deterministic "now" programme, so it plays live-to-clock
-        // and matches the guide — not from video #1 every time.
-        const { index, offsetSec } = joinPosition(playable, Date.now());
+      if (schedule) setChannelSchedule(schedule);
+
+      // Which videos are members-only? Used to drop their slots for non-members.
+      const exclusiveIds = new Set(vids.filter(v => (v as any).isExclusive).map(v => v.id));
+
+      // Prefer the generated slot schedule; fall back to an ad-hoc video-only schedule so a channel
+      // that hasn't been generated yet still plays. Then gate + keep only playable slots.
+      let built: FastChannelSlot[] = schedule?.slots?.length
+        ? [...schedule.slots].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        : slotsFromVideos(vids as any);
+      if (!isMember) built = built.filter(s => !(s.videoId && exclusiveIds.has(s.videoId)));
+      built = built.filter(slotIsPlayable);
+
+      if (built.length > 0) {
+        const { index, offsetSec } = linearPosition(built, Date.now());
         joinOffsetRef.current = offsetSec;
-        setVideos(playable);
+        setSlots(built);
         setCurrentIndex(index);
         setHasExternalUrl(false);
       } else if (profile.liveStreamConfig?.fastChannelUrl) {
         setHasExternalUrl(true);
       }
-      if (schedule) setChannelSchedule(schedule);
       setIsLoading(false);
     };
     load();
   }, [profile.uid]);
 
-  // Schedule live interrupt auto-switch
+  // Ad-hoc scheduled live interrupt (pendingLiveInterrupt) — separate from LIVE_INTERRUPT slots in
+  // the schedule (those air inline as the loop reaches them). This is the "cut to live NOW" path.
   useEffect(() => {
     if (!channelSchedule?.pendingLiveInterrupt || !hasLiveFeed) return;
     const { scheduledAt, maxDurationSeconds, membersOnly } = channelSchedule.pendingLiveInterrupt;
-    // A members-only live event only pulls Sanctuary members over — everyone else keeps the loop.
     if (membersOnly && !viewerIsMember) return;
     const msUntil = scheduledAt - Date.now();
     if (msUntil < 0) return;
@@ -135,31 +127,60 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
     };
   }, [channelSchedule, hasLiveFeed, viewerIsMember]);
 
-  const currentVideo = videos[currentIndex];
-  const currentSrc = currentVideo ? resolveVideoSrc(currentVideo) : {};
-  const usingMux = Boolean(currentSrc.muxId);
+  const currentSlot = slots[currentIndex];
+  const media = currentSlot ? resolveSlotMedia(currentSlot) : null;
+  const usingMux = Boolean(media?.muxPlaybackId);
 
   const advance = useCallback(() => {
-    setCurrentIndex(prev => (prev + 1) % videos.length);
+    setCurrentIndex(prev => (slots.length ? (prev + 1) % slots.length : 0));
     setCurrentTime(0);
     setDuration(0);
-  }, [videos.length]);
+    setIsPaused(false); // AD/LIVE slots have no media play event to clear a stale paused state
+  }, [slots.length]);
 
   const goBack = useCallback(() => {
-    setCurrentIndex(prev => (prev - 1 + videos.length) % videos.length);
+    setCurrentIndex(prev => (slots.length ? (prev - 1 + slots.length) % slots.length : 0));
     setCurrentTime(0);
     setDuration(0);
-  }, [videos.length]);
+    setIsPaused(false);
+  }, [slots.length]);
 
-  // For raw <video> fallback only
+  // Raw <video> / HLS setup — for MEDIA slots that aren't Mux (mp4 uploads or non-Mux .m3u8).
   useEffect(() => {
-    if (usingMux) return;
+    if (!media || media.kind !== 'MEDIA' || media.muxPlaybackId) return;
     const v = videoRef.current;
-    if (!v || !currentSrc.url) return;
-    v.src = currentSrc.url;
-    v.load();
+    if (!v || !media.url) return;
+    if (media.isHls) {
+      if (v.canPlayType('application/vnd.apple.mpegurl')) {
+        v.src = media.url;
+      } else if (Hls.isSupported()) {
+        const hls = new Hls({ maxBufferLength: 30, enableWorker: true });
+        hls.loadSource(media.url); hls.attachMedia(v); hlsRef.current = hls;
+      } else {
+        v.src = media.url;
+      }
+    } else {
+      v.src = media.url;
+    }
+    v.load?.();
     v.play().catch(() => {});
-  }, [currentIndex, currentSrc.url, usingMux]);
+    return () => { if (hlsRef.current) { try { hlsRef.current.destroy(); } catch { /* */ } hlsRef.current = null; } };
+  }, [currentIndex, media?.url, media?.muxPlaybackId, media?.isHls]);
+
+  // Advance driver. MEDIA slots normally advance on the element's `ended` event, but a safety timer
+  // guarantees the loop never stalls if `ended` never fires (HLS stall / decode error on a TV). AD
+  // and LIVE slots have no media end event, so their timer IS the advance. All timers honor the join
+  // offset so a mid-slot join only waits out the remaining time.
+  useEffect(() => {
+    if (!media || isPaused) return;
+    const off = joinOffsetRef.current || 0;
+    const remaining = Math.max(1, media.durationSec - off);
+    // For AD/LIVE the offset is consumed here (no metadata handler will); MEDIA consumes it on seek.
+    if (media.kind !== 'MEDIA') joinOffsetRef.current = 0;
+    const ms = (media.kind === 'MEDIA' ? remaining + 5 : remaining) * 1000; // +5s grace for MEDIA
+    const t = setTimeout(advance, ms);
+    return () => clearTimeout(t);
+  }, [currentIndex, media?.kind, media?.durationSec, isPaused, advance]);
 
   const resetControlsTimer = useCallback(() => {
     if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
@@ -184,12 +205,10 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
     }
   }, [usingMux, isPaused]);
 
-  const epgSchedule = videos.map((v, i) => ({
-    video: v,
-    index: i,
-    isCurrent: i === currentIndex,
-    isPast: i < currentIndex,
-  }));
+  // Program guide entries — only the real content slots (skip bumpers/ads), each pointing at its slot.
+  const contentEntries = slots
+    .map((s, i) => ({ slot: s, index: i }))
+    .filter(({ slot }) => slot.type === 'VIDEO' || slot.type === 'PUBLIC_DOMAIN' || slot.type === 'LIVE_INTERRUPT');
 
   const channelName = profile.displayName ? `${profile.displayName}'s Channel` : 'FAST Channel';
 
@@ -227,7 +246,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
     );
   }
 
-  // Live Feed view
+  // Live Feed view (manual tab or an ad-hoc interrupt)
   if (activeView === 'LIVE') {
     return (
       <div className="fixed inset-0 bg-black z-[200] flex flex-col">
@@ -264,9 +283,6 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
           <div className="flex items-center gap-3">
             <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-white/80">{channelName}</span>
-            {viewerIsMember && (currentVideo as any)?.isExclusive && (
-              <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest text-black" style={{ background: 'linear-gradient(120deg,#6B0099,#D40055 55%,#FF8C00)' }}>Members</span>
-            )}
           </div>
           <button onClick={onClose} className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
             <X size={16} className="text-white" />
@@ -282,7 +298,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
     );
   }
 
-  if (videos.length === 0) {
+  if (slots.length === 0) {
     return (
       <div className="fixed inset-0 bg-black z-[200] flex flex-col items-center justify-center gap-6 p-8">
         {FeedTabs}
@@ -307,12 +323,29 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
       onMouseMove={resetControlsTimer}
       onClick={resetControlsTimer}
     >
-      {/* Video layer — Mux player or raw <video> fallback */}
-      {usingMux ? (
+      {/* Media layer — the current slot decides what renders. */}
+      {media?.kind === 'AD' ? (
+        // House ad break / commercial break — a branded interstitial for the slot's duration.
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-gradient-to-br from-[#1a0033] via-black to-[#33001a]">
+          {profile.photoURL && <img src={profile.photoURL} className="w-16 h-16 rounded-2xl object-cover border border-white/15" alt="" />}
+          <p className="text-[10px] font-black uppercase tracking-[0.5em] text-white/40">We'll be right back</p>
+          <p className="text-2xl font-black uppercase tracking-tight text-white">{channelName}</p>
+        </div>
+      ) : media?.kind === 'LIVE' ? (
+        // A scheduled live programme in the loop — show the creator's live feed for its window.
+        liveEmbedUrl ? (
+          <iframe src={liveEmbedUrl} className="absolute inset-0 w-full h-full border-none" allowFullScreen allow="autoplay; fullscreen" title="Live programme" />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+            <Wifi size={44} className="text-white/20" />
+            <p className="text-white/40 text-sm font-black uppercase tracking-widest">Live programme starting…</p>
+          </div>
+        )
+      ) : usingMux ? (
         <MuxPlayer
           key={`mux-${currentIndex}`}
           ref={muxRef}
-          playbackId={currentSrc.muxId!}
+          playbackId={media!.muxPlaybackId!}
           autoPlay
           muted={isMuted}
           className="w-full h-full"
@@ -402,16 +435,19 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
                   {usingMux && (
                     <span className="text-[7px] font-black uppercase tracking-widest bg-white/10 px-1.5 py-0.5 rounded-full text-white/40">HLS</span>
                   )}
+                  {media?.isBumper && (
+                    <span className="text-[7px] font-black uppercase tracking-widest bg-white/10 px-1.5 py-0.5 rounded-full text-white/40">Bumper</span>
+                  )}
+                  {media?.isPublicDomain && (
+                    <span className="text-[7px] font-black uppercase tracking-widest bg-white/10 px-1.5 py-0.5 rounded-full text-white/40">Public Domain</span>
+                  )}
                 </div>
                 <h3 className="text-2xl md:text-4xl font-black uppercase tracking-tight text-white line-clamp-1">
-                  {currentVideo?.title}
+                  {media?.title}
                 </h3>
-                {currentVideo?.genre && (
-                  <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mt-1">{currentVideo.genre}</p>
-                )}
               </div>
 
-              {duration > 0 && (
+              {duration > 0 && media?.kind === 'MEDIA' && (
                 <div className="space-y-1">
                   <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
                     <div
@@ -446,7 +482,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
                   {isMuted ? <VolumeX size={18} className="text-white" /> : <Volume2 size={18} className="text-white" />}
                 </button>
                 <div className="text-[9px] font-black uppercase tracking-widest text-white/40">
-                  {currentIndex + 1} / {videos.length}
+                  {currentIndex + 1} / {slots.length}
                 </div>
               </div>
             </div>
@@ -454,7 +490,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
         )}
       </AnimatePresence>
 
-      {/* EPG Panel */}
+      {/* EPG Panel — the channel's content line-up. */}
       <AnimatePresence>
         {showEPG && (
           <motion.div
@@ -474,51 +510,56 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
               </button>
             </div>
             <div className="flex-1 overflow-y-auto">
-              {epgSchedule.map(({ video, index, isCurrent, isPast }) => (
-                <button
-                  key={video.id}
-                  onClick={() => { setCurrentIndex(index); setShowEPG(false); }}
-                  className={`w-full flex items-start gap-4 px-6 py-4 border-b border-white/5 transition-colors text-left ${
-                    isCurrent ? 'bg-white/10' : 'hover:bg-white/5'
-                  } ${isPast ? 'opacity-40' : ''}`}
-                >
-                  <div className="relative w-16 h-10 rounded-lg overflow-hidden shrink-0 bg-white/5">
-                    {video.thumbnailUrl ? (
-                      <img src={video.thumbnailUrl} className="w-full h-full object-cover" alt="" />
-                    ) : video.muxPlaybackId ? (
-                      <img
-                        src={`https://image.mux.com/${video.muxPlaybackId}/thumbnail.jpg?width=128&time=5`}
-                        className="w-full h-full object-cover"
-                        alt=""
-                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Tv size={16} className="text-white/20" />
-                      </div>
-                    )}
-                    {isCurrent && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                        <Play size={12} className="text-white" fill="white" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-[10px] font-black uppercase tracking-tight truncate ${isCurrent ? 'text-white' : 'text-white/60'}`}>
-                      {video.title}
-                    </p>
-                    {video.genre && (
-                      <p className="text-[8px] font-black uppercase tracking-widest text-white/25 mt-0.5">{video.genre}</p>
-                    )}
-                    {isCurrent && (
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-                        <span className="text-[8px] font-black uppercase tracking-widest text-red-400">Now Playing</span>
-                      </div>
-                    )}
-                  </div>
-                </button>
-              ))}
+              {contentEntries.map(({ slot, index }) => {
+                const m = resolveSlotMedia(slot);
+                const isCurrent = index === currentIndex;
+                const isPast = index < currentIndex;
+                return (
+                  <button
+                    key={slot.id}
+                    onClick={() => { joinOffsetRef.current = 0; setCurrentIndex(index); setShowEPG(false); }}
+                    className={`w-full flex items-start gap-4 px-6 py-4 border-b border-white/5 transition-colors text-left ${
+                      isCurrent ? 'bg-white/10' : 'hover:bg-white/5'
+                    } ${isPast ? 'opacity-40' : ''}`}
+                  >
+                    <div className="relative w-16 h-10 rounded-lg overflow-hidden shrink-0 bg-white/5">
+                      {m.thumbnail ? (
+                        <img src={m.thumbnail} className="w-full h-full object-cover" alt="" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      ) : m.muxPlaybackId ? (
+                        <img
+                          src={`https://image.mux.com/${m.muxPlaybackId}/thumbnail.jpg?width=128&time=5`}
+                          className="w-full h-full object-cover"
+                          alt=""
+                          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Tv size={16} className="text-white/20" />
+                        </div>
+                      )}
+                      {isCurrent && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                          <Play size={12} className="text-white" fill="white" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-[10px] font-black uppercase tracking-tight truncate ${isCurrent ? 'text-white' : 'text-white/60'}`}>
+                        {m.title}
+                      </p>
+                      {slot.type === 'LIVE_INTERRUPT' && (
+                        <p className="text-[8px] font-black uppercase tracking-widest text-red-400/70 mt-0.5">Live programme</p>
+                      )}
+                      {isCurrent && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                          <span className="text-[8px] font-black uppercase tracking-widest text-red-400">Now Playing</span>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </motion.div>
         )}

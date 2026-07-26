@@ -15,7 +15,8 @@ import fs from 'fs/promises';
 import { Readable } from 'stream';
 import { readFileSync } from 'fs';
 import { lookup as dnsLookup } from 'node:dns/promises';
-import { buildProgramGuide, buildXmltv, buildMrss, type EpgSlot, type EpgChannel, type MrssItem } from './services/fastChannelEpg';
+import { buildProgramGuide, buildXmltv, buildMrss, nowAndNext, type EpgSlot, type EpgChannel, type MrssItem } from './services/fastChannelEpg';
+import { slotDurationSec } from './services/fastChannelTimeline';
 import nodeCrypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
@@ -2666,8 +2667,9 @@ async function startServer() {
     const slots: any[] = Array.isArray(sched?.slots) ? sched.slots : [];
     return slots
       .map(s => ({
-        title: s.videoTitle || s.bumperTitle || (s.type === 'AD_BREAK' ? 'Ad Break' : 'Program'),
-        durationSec: Number(s.videoDurationSeconds || s.bumperDurationSeconds || s.adDurationSeconds) || undefined,
+        title: s.videoTitle || s.bumperTitle || (s.type === 'AD_BREAK' ? 'Ad Break' : s.type === 'LIVE_INTERRUPT' ? 'Live' : 'Program'),
+        // EXACT seconds via the shared resolver, so the guide's wall-clock matches the player's.
+        durationSec: slotDurationSec(s),
       }))
       .filter(s => s.title);
   };
@@ -2717,6 +2719,20 @@ async function startServer() {
       res.set('Access-Control-Allow-Origin', '*');
       res.type('application/xml').send(buildMrss(channel, items, `https://${host}/c/${ownerId}`));
     } catch (e: any) { res.status(500).type('application/xml').send(`<!-- mrss error: ${e.message} -->`); }
+  });
+
+  // GET /api/fast/:ownerId/now.json — deterministic "on now + next" for one channel, from the same
+  // epoch-anchored loop the player and the XMLTV guide use. Handy for a guide UI or a poster overlay.
+  app.get('/api/fast/:ownerId/now.json', async (req, res) => {
+    try {
+      const ownerId = String(req.params.ownerId);
+      const meta: any = await firestoreRead('fast_channels', ownerId);
+      if (!meta || meta.isPublished === false) return res.status(404).json({ error: 'channel not found' });
+      const { now, next } = nowAndNext(await slotsFor(ownerId), Date.now());
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Cache-Control', 'no-store');
+      res.json({ channel: { id: `plajah.${ownerId}`, name: meta.name || 'Channel', number: meta.number, category: meta.category }, now: now || null, next: next || null });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   app.get('/api/mux/playback', authMiddleware, async (req, res) => {
