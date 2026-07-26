@@ -2,8 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Rocket, Wrench, X, Sparkles, ArrowRight } from 'lucide-react';
 import { APP_BUILD, entriesSince, majorEntries, minorEntries, ChangelogEntry } from '../data/changelog';
+import { getPlatformInfo } from '../hooks/usePlatform';
 
 const LAST_SEEN_KEY = 'plajah_last_seen_build_v1';
+
+// Survives component REMOUNTS within a session (module scope, not React state). Without this, if the
+// app subtree remounts — an ErrorBoundary auto-recovery, an app-reset — and localStorage.setItem is
+// flaky (some TV WebViews / private mode), the panel re-appeared on every remount. Once we've shown
+// it this session we never show it again, whatever the storage does.
+let SHOWN_THIS_SESSION = false;
 
 interface UpdateNotificationProps {
   /** Open the full What's-New history page. */
@@ -20,14 +27,22 @@ const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onOpenChangelog
   const [show, setShow] = useState(false);
 
   useEffect(() => {
+    if (SHOWN_THIS_SESSION) return;
+    // Never on a TV: this is a pointer-designed modal (click-to-dismiss, not D-pad focusable), and a
+    // 10-foot viewer can't easily close it. The What's-New history stays reachable in Settings.
+    try { if (getPlatformInfo().isTV) return; } catch { /* */ }
     let lastSeen: string | null = null;
+    // Read from BOTH stores; write below goes to both — so a flaky localStorage can't make it recur.
     try { lastSeen = localStorage.getItem(LAST_SEEN_KEY); } catch { /* */ }
+    if (!lastSeen) { try { lastSeen = sessionStorage.getItem(LAST_SEEN_KEY); } catch { /* */ } }
     const fresh = entriesSince(lastSeen);
-    if (fresh.length > 0) { setEntries(fresh); setShow(true); }
+    if (fresh.length > 0) { setEntries(fresh); setShow(true); SHOWN_THIS_SESSION = true; }
   }, []);
 
   const dismiss = () => {
+    SHOWN_THIS_SESSION = true;
     try { localStorage.setItem(LAST_SEEN_KEY, APP_BUILD); } catch { /* */ }
+    try { sessionStorage.setItem(LAST_SEEN_KEY, APP_BUILD); } catch { /* */ }
     setShow(false);
   };
 
