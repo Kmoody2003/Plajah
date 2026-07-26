@@ -1981,6 +1981,18 @@ service cloud.firestore {
       allow write: if isOwner(userId) || isAdmin();
     }
 
+    // FAST channel identity (name/number/category/logo) — public read for Live rails & EPG feeds.
+    match /fast_channels/{ownerId} {
+      allow read: if true;
+      allow write: if isOwner(ownerId) || isAdmin();
+    }
+
+    // Up-to-3 concurrent sources + the saved-feed library — public read for the "Live Now" rails.
+    match /channel_sources/{ownerId} {
+      allow read: if true;
+      allow write: if isOwner(ownerId) || isAdmin();
+    }
+
     // ===============================================================
     // CHANNEL BUMPERS
     // ===============================================================
