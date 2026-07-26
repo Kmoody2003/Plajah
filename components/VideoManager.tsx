@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Video, VideoPlaylist, Album, Track } from '../types';
-import { fetchUserVideos, deleteVideo, updateVideoSettings, fetchVideoPlaylists, createVideoPlaylist, fetchUserAlbums, updateAlbum, updateUserProfile, uploadVideo } from '../services/backendService';
+import { fetchUserVideos, deleteVideo, updateVideoSettings, fetchVideoPlaylists, createVideoPlaylist, fetchUserAlbums, updateAlbum, updateUserProfile, uploadVideo, activateFastChannel, updateFastChannelEnabled } from '../services/backendService';
 import { Video as VideoIcon, Plus, Trash2, ArrowLeft, Play, Settings, ListMusic, Check, X, Globe, Lock, Tv, Layers, Radio, ShieldCheck, Upload, Film, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import UploadManager from './UploadManager';
 import PodcastManager from './PodcastManager';
@@ -23,6 +23,8 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
   const [editingPodcastVideo, setEditingPodcastVideo] = useState<Video | null>(null);
   const [newPlaylist, setNewPlaylist] = useState({ title: '', description: '' });
   const [fastChannelEnabled, setFastChannelEnabled] = useState<boolean>(user?.fastChannelEnabled ?? false);
+  const [isActivatingFast, setIsActivatingFast] = useState(false);
+  const [fastActivationMsg, setFastActivationMsg] = useState<string | null>(null);
   const [showFastChannelManager, setShowFastChannelManager] = useState(false);
   const [showRightsModal, setShowRightsModal] = useState(false);
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
@@ -104,7 +106,28 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
   const handleToggleFastChannel = async () => {
     const next = !fastChannelEnabled;
     setFastChannelEnabled(next);
-    await updateUserProfile(user.uid, { fastChannelEnabled: next } as any);
+    setFastActivationMsg(null);
+    if (next) {
+      // One-tap: enable + auto-build a real, playable, published channel from their videos so there's
+      // nothing to set up. They get manual control (rearrange, prune, ads) in Manage Channel after.
+      setIsActivatingFast(true);
+      try {
+        const { seededVideoCount } = await activateFastChannel(user.uid, { displayName: user.displayName });
+        await loadData(); // reflect the auto-opted-in videos in the list
+        setFastActivationMsg(
+          seededVideoCount > 0
+            ? `Channel built with ${seededVideoCount} of your videos — rearrange or fine-tune it anytime in Manage Channel.`
+            : 'Channel enabled. Upload or add videos and they’ll appear on your channel automatically.',
+        );
+      } catch (e) {
+        console.error('FAST activation failed', e);
+        setFastActivationMsg('Channel enabled, but auto-setup hit a snag — open Manage Channel to build the schedule.');
+      } finally {
+        setIsActivatingFast(false);
+      }
+    } else {
+      await updateFastChannelEnabled(user.uid, false);
+    }
   };
 
   const loadData = async () => {
@@ -246,36 +269,44 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
         </div>
 
         {/* FAST Channel Toggle */}
-        <div className="mb-10 p-6 bg-gradient-to-r from-[#6B0099]/10 to-[#D40055]/10 border border-[#6B0099]/20 rounded-2xl flex items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6B0099] to-[#D40055] flex items-center justify-center shrink-0">
-              <Tv size={18} className="text-white" />
+        <div className="mb-10 p-6 bg-gradient-to-r from-[#6B0099]/10 to-[#D40055]/10 border border-[#6B0099]/20 rounded-2xl">
+          <div className="flex items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6B0099] to-[#D40055] flex items-center justify-center shrink-0">
+                <Tv size={18} className="text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-black uppercase tracking-widest text-white">FAST Channel</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mt-0.5">
+                  {isActivatingFast
+                    ? 'Building your channel…'
+                    : fastChannelEnabled
+                      ? `${videos.filter(v => v.allowInFastChannel).length} videos in channel · Always-on broadcast for your fans`
+                      : 'Flip on and we build your 24/7 channel automatically — fans watch without signing in'}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-black uppercase tracking-widest text-white">FAST Channel</p>
-              <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mt-0.5">
-                {fastChannelEnabled
-                  ? `${videos.filter(v => v.allowInFastChannel).length} videos in channel · Always-on broadcast for your fans`
-                  : 'Enable your 24/7 free ad-supported channel — fans can watch without signing in'}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            {fastChannelEnabled && (
+            <div className="flex items-center gap-3 shrink-0">
+              {fastChannelEnabled && !isActivatingFast && (
+                <button
+                  onClick={() => setShowFastChannelManager(true)}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white/10 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white hover:bg-white/20 transition-all"
+                >
+                  <Radio size={13} /> Manage Channel
+                </button>
+              )}
               <button
-                onClick={() => setShowFastChannelManager(true)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-white/10 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white hover:bg-white/20 transition-all"
+                onClick={handleToggleFastChannel}
+                disabled={isActivatingFast}
+                className={`relative w-14 h-7 rounded-full transition-all duration-300 disabled:opacity-60 ${fastChannelEnabled ? 'bg-gradient-to-r from-[#6B0099] to-[#D40055]' : 'bg-white/10'}`}
               >
-                <Radio size={13} /> Manage Channel
+                <div className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow-lg transition-all duration-300 ${isActivatingFast ? 'left-4 animate-pulse' : fastChannelEnabled ? 'left-8' : 'left-1'}`} />
               </button>
-            )}
-            <button
-              onClick={handleToggleFastChannel}
-              className={`relative w-14 h-7 rounded-full transition-all duration-300 ${fastChannelEnabled ? 'bg-gradient-to-r from-[#6B0099] to-[#D40055]' : 'bg-white/10'}`}
-            >
-              <div className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow-lg transition-all duration-300 ${fastChannelEnabled ? 'left-8' : 'left-1'}`} />
-            </button>
+            </div>
           </div>
+          {fastActivationMsg && (
+            <p className="mt-4 text-[11px] font-semibold text-white/70 leading-snug border-t border-white/10 pt-3">{fastActivationMsg}</p>
+          )}
         </div>
 
         {/* Tabs */}

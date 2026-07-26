@@ -177,15 +177,23 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
     if (channelMeta) setMeta(channelMeta);
     setSources(srcs.sources);
     setSavedFeeds(srcs.savedFeeds);
-    setSchedule(sched);
     setMyVideos(vids);
     setBumpers(bumpList);
     setGrants(grantList);
     setLibrary(lib);
-    if (sched) {
-      setEditAdFreq(sched.adFrequencyMinutes);
-      setEditAdDur(sched.adDurationSeconds);
-      setCommercialFree(!!sched.commercialFree);
+
+    // Belt-and-suspenders: a channel that has opted-in videos but no schedule yet (e.g. it was
+    // enabled before one-tap activation existed) builds one automatically on open — never an empty
+    // manager. The empty-library case still shows the manual generate button.
+    let effective = sched;
+    if (!effective && vids.length > 0) {
+      try { effective = await autoGenerateFastChannelSchedule(user.uid); } catch { /* keep manual generate */ }
+    }
+    setSchedule(effective);
+    if (effective) {
+      setEditAdFreq(effective.adFrequencyMinutes);
+      setEditAdDur(effective.adDurationSeconds);
+      setCommercialFree(!!effective.commercialFree);
     }
     setIsLoading(false);
   };

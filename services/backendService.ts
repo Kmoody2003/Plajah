@@ -7650,6 +7650,54 @@ export const autoGenerateFastChannelSchedule = async (uid: string): Promise<Fast
   return schedule;
 };
 
+/**
+ * One-tap FAST channel activation — the "don't make them think about it" path. Flipping the channel
+ * ON should immediately give a creator a real, playable, published channel; everything after is
+ * optional manual control (rearrange slots, prune videos, ads/bumpers in the manager).
+ *   1. sets fastChannelEnabled (so it shows in the Live rails),
+ *   2. creates the channel identity (fast_channels meta, published) if absent — powers the EPG +
+ *      carriage feeds and a real channel name,
+ *   3. seeds content: if nothing is opted in yet, auto-opts-in up to `seedLimit` of their most recent
+ *      playable videos (they can toggle any off afterward),
+ *   4. auto-generates the looping schedule.
+ * Idempotent: re-running won't clobber a name they've set or re-seed once videos are opted in.
+ */
+export const activateFastChannel = async (
+  uid: string,
+  opts: { displayName?: string; seedLimit?: number } = {},
+): Promise<{ schedule: FastChannelSchedule | null; seededVideoCount: number }> => {
+  const seedLimit = Math.max(1, Math.min(opts.seedLimit ?? 100, 400)); // Firestore batch cap is 500
+  await updateFastChannelEnabled(uid, true);
+
+  // Channel identity — create once, never overwrite a name/logo they've already set.
+  const meta = await fetchFastChannelMeta(uid);
+  if (!meta) {
+    await saveFastChannelMeta({
+      ownerId: uid,
+      name: opts.displayName ? `${opts.displayName}'s Channel` : 'My Channel',
+      isPublished: true,
+    });
+  }
+
+  // Seed content on first activation so the channel isn't empty — opt in recent playable videos.
+  let optedIn = await fetchFastChannelVideos(uid);
+  let seededVideoCount = 0;
+  if (optedIn.length === 0) {
+    const all = await fetchUserVideos(uid);
+    const playable = all.filter(v => (v as any).muxPlaybackId || v.url).slice(0, seedLimit);
+    if (playable.length) {
+      const batch = writeBatch(db);
+      playable.forEach(v => batch.update(doc(db, 'videos', v.id), { allowInFastChannel: true } as any));
+      await batch.commit();
+      optedIn = playable;
+      seededVideoCount = playable.length;
+    }
+  }
+
+  const schedule = optedIn.length > 0 ? await autoGenerateFastChannelSchedule(uid) : null;
+  return { schedule, seededVideoCount };
+};
+
 // ── CHANNEL BUMPERS ───────────────────────────────────────────────────────────
 
 export const fetchChannelBumpers = async (uid: string): Promise<ChannelBumper[]> => {
