@@ -40,6 +40,12 @@ export const APP_BUILD = '2026.07.26-01';
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '090947f', date: '2026-07-26', time: '18:20', level: 'minor', area: 'Live TV',
+    title: 'FAST channels play their real schedule',
+    technical: 'Player + EPG unified on services/fastChannelTimeline (deterministic epoch-anchored linearPosition + slotDurationSec). FastChannelPlayer now walks the slot schedule (bumpers, ad breaks, commercial-free, public-domain, and scheduled live all air) via MuxPlayer / hls.js with a safety advance timer; the program guide is built from the same slots so "on now" matches the screen. Blank REELLO_LIVE sources resolve from the owner\'s live config; new /api/fast/:ownerId/now.json.',
+    plain: 'Channels now play exactly the line-up their owner arranged — station IDs, ad breaks (or commercial-free), and scheduled live segments all air in order — and the on-screen "now playing" always matches the program guide.',
+  },
+  {
     id: 'fe31117', date: '2026-07-26', time: '16:40', level: 'minor', area: 'Platform',
     title: 'What\'s New alerts only when there\'s real news',
     technical: 'UpdateNotification now keys off the newest changelog ENTRY id (LATEST_ENTRY_ID), not the hand-bumped APP_BUILD string; entriesSince returns only entries prepended since the id the user acknowledged; "seen" is recorded on SHOW (markSeen), not only on dismiss; storage key bumped plajah_last_seen_build_v1 → plajah_last_seen_entry_v2 for a clean migration.',
