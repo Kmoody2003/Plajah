@@ -3381,6 +3381,33 @@ export interface FastChannel {
   updatedAt: number;
 }
 
+/**
+ * A single video source an account broadcasts. An account may run up to THREE at once, each its own
+ * channel in the Live sections:
+ *   • FAST          — the looping VOD channel (schedule lives in fast_channel_schedules).
+ *   • EXTERNAL_LIVE — a 24/7 re-broadcast of an outside feed (HLS/RTMP/YouTube/Twitch url).
+ *   • REELLO_LIVE   — the account's own live show (Mux live; muxPlaybackId).
+ */
+export type ChannelSourceType = 'FAST' | 'EXTERNAL_LIVE' | 'REELLO_LIVE';
+export interface ChannelSource {
+  id: string;
+  type: ChannelSourceType;
+  name: string;
+  isActive: boolean;
+  url?: string;            // EXTERNAL_LIVE — the outside feed
+  muxPlaybackId?: string;  // REELLO_LIVE — the account's live playback id
+  logoUrl?: string;
+  /** Sanctuary-gate this source — only members see it live; others don't get it in the lineup. */
+  membersOnly?: boolean;
+  updatedAt: number;
+}
+/** Up to three sources per account (doc id === ownerId). */
+export interface ChannelSourceSet {
+  ownerId: string;
+  sources: ChannelSource[];   // max 3
+  updatedAt: number;
+}
+
 export interface FastChannelSchedule {
   userId: string;
   slots: FastChannelSlot[];
