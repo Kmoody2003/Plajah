@@ -9,6 +9,7 @@ import AnimatedSlideshow from './AnimatedSlideshow';
 import { resolveSlideshowImages } from '../services/slideshow';
 import ScrollingWaveform from './ScrollingWaveform';
 import { getCachedAnalysis, getOrComputeAnalysis } from '../services/djAnalysis';
+import { getTrackStream } from '../services/choraStreamService';
 import { canUseFxStage } from '../services/tvCapabilities';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import AlbumTvView from './tv/AlbumTvView';
@@ -491,6 +492,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
   const [showCaptions, setShowCaptions] = useState(true);
   const [isGeneratingCaptions, setIsGeneratingCaptions] = useState(false);
+  const [captionError, setCaptionError] = useState<string | null>(null);
   const [lyricsOffset, setLyricsOffset] = useState(0);
   const [isResyncMode, setIsResyncMode] = useState(false);
   // Lyric auto-translation (Chora): detected source language + original→translated map.
@@ -857,16 +859,38 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     if (!currentTrack.url || isGeneratingCaptions) return;
 
     setIsGeneratingCaptions(true);
+    setCaptionError(null);
     try {
+      // The raw master (currentTrack.url) is often a 40–60MB WAV, which the transcription endpoint
+      // rejects with 413 ("audio too large"). Prefer the SMALL transcoded rendition — the progressive
+      // AAC 'low' stream — which is a fraction of the size and plenty for Gemini to transcribe.
+      // Falls back to the raw url when there's no transcode (small files transcribe fine directly).
+      let audioUrl = currentTrack.url;
+      try {
+        const stream = currentTrack.id ? await getTrackStream(currentTrack.id) : null;
+        if (stream?.status === 'ready' && stream.low) audioUrl = stream.low;
+      } catch { /* fall back to the raw url */ }
+
       // Server-side Gemini transcription: send the audio URL (the server fetches
       // it and returns time-coded captions), so the API key stays off the client.
       const token = auth.currentUser ? await auth.currentUser.getIdToken().catch(() => null) : null;
       const res = await fetch('/api/ai/captions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ audioUrl: currentTrack.url, title: currentTrack.title, artist: album.artist }),
+        body: JSON.stringify({ audioUrl, title: currentTrack.title, artist: album.artist }),
       });
-      if (!res.ok) throw new Error(`captions ${res.status}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const reason = body?.error || `error ${res.status}`;
+        // Turn the server's terse codes into something a creator can act on.
+        const friendly =
+          res.status === 413 || /too large/i.test(reason) ? 'This track is too large to transcribe — publish it (or re-sync after it finishes optimizing) so the compressed version can be used.'
+          : res.status === 503 ? 'Transcription is temporarily unavailable. Try again shortly.'
+          : res.status === 401 ? 'Sign in to sync captions.'
+          : /audio fetch/i.test(reason) ? "Couldn't reach this track's audio — make sure it's uploaded and public."
+          : `Couldn't sync captions (${reason}).`;
+        throw new Error(friendly);
+      }
       const data = await res.json().catch(() => ({}));
       const captions = data?.captions;
 
@@ -879,10 +903,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         }
         onUpdate?.(updatedAlbum);
       } else {
-        console.warn('Caption generation returned no lines.');
+        setCaptionError('Transcription came back empty — the audio may be instrumental or too quiet.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to generate captions:", error);
+      setCaptionError(error?.message || 'Caption sync failed.');
     } finally {
       setIsGeneratingCaptions(false);
     }
@@ -2902,6 +2927,15 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                      />
                    </div>
                 </div>
+                {/* Surface the real reason a caption sync failed (large-file 413, fetch, quota) so the
+                    creator can act on it instead of the button silently doing nothing. */}
+                {isOwner && captionError && (
+                  <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/25 text-[11px] font-semibold text-red-200 leading-snug">
+                    <Sparkles size={13} className="text-red-300 shrink-0 mt-0.5" />
+                    <span>{captionError}</span>
+                    <button onClick={() => setCaptionError(null)} className="ml-auto text-red-300/60 hover:text-red-200 shrink-0" aria-label="Dismiss">✕</button>
+                  </div>
+                )}
                 <h1 className={`font-black uppercase tracking-tighter leading-[0.9] text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] ${isVisualizerLayout ? 'text-lg lg:text-2xl' : 'text-3xl lg:text-5xl'}`}>{currentTrack?.title || album.title}</h1>
                 {!isVisualizerLayout && (
                   <p className="text-lg lg:text-2xl font-display font-black italic tracking-tight bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#6B0099] bg-clip-text text-transparent w-fit drop-shadow-[0_1px_8px_rgba(0,0,0,0.4)]">{album.artist}</p>

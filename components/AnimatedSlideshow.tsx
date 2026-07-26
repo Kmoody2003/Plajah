@@ -32,7 +32,7 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
     if (!images.length) return;
     const interval = setInterval(() => {
       setIndex((prev) => (prev + 1) % images.length);
-    }, 6000); // 6s per slide — within the 5–7s the viewer asked for
+    }, 8000); // 8 seconds per slide for more "editorial" feel
     return () => clearInterval(interval);
   }, [images.length]);
 
