@@ -1,5 +1,6 @@
 import React, { ErrorInfo, ReactNode } from 'react';
 import { ShieldAlert, RefreshCw } from 'lucide-react';
+import { isChunkLoadError, recoverFromStaleChunk } from '../src/lib/staleChunk';
 
 interface Props {
   children: ReactNode;
@@ -43,6 +44,9 @@ class ErrorBoundary extends React.Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error:', error, errorInfo);
     this.setState({ culprit: firstFrame(errorInfo?.componentStack) });
+    // Stale-deploy chunk error → bust the SW/caches and hard-reload automatically so the
+    // user never has to see (or tap through) the crash screen. Loop-guarded internally.
+    if (isChunkLoadError(error)) { recoverFromStaleChunk(); return; }
     if (isRecoverableBackendError(error)) {
       const now = Date.now();
       this.autoRecoveries = this.autoRecoveries.filter(t => now - t < 30_000);
@@ -74,6 +78,9 @@ class ErrorBoundary extends React.Component<Props, State> {
   }
 
   private handleReset = () => {
+    // If the crash was a stale-deploy chunk error, the only real fix is busting the SW
+    // cache and hard-reloading — a soft reset would just re-mount into the same dead chunk.
+    if (isChunkLoadError(this.state.error)) { recoverFromStaleChunk(); return; }
     this.setState({ hasError: false, error: null, culprit: null });
     if (this.props.onReset) { this.props.onReset(); return; }
     const lastErrorTime = sessionStorage.getItem('last_error_time');

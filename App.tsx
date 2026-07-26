@@ -2,6 +2,7 @@ import React, { useState, useEffect, lazy, Suspense, useCallback, useRef } from 
 import { Album, AppView, ThemeType, Game, IPWorld } from './types';
 import Logo from './components/Logo';
 import { motion, AnimatePresence } from 'motion/react';
+import { recoverFromStaleChunk } from './src/lib/staleChunk';
 
 // Suppress Firestore SDK internal assertion errors that occur during onSnapshot teardown.
 // This is a known Firestore SDK bug (ID: b815/ca9) where the watch stream delivers
@@ -30,12 +31,10 @@ const retryLazy = <T extends React.ComponentType<any>>(
       } catch (error: any) {
         console.warn(`Retry lazy load failed (${i + 1}/${retriesLeft}). Error:`, error);
         if (i === retriesLeft - 1) {
-          // Chunk URL changed (Vite re-optimized) — force a hard reload once
-          const key = 'plajah_chunk_reload';
-          if (!sessionStorage.getItem(key)) {
-            sessionStorage.setItem(key, '1');
-            window.location.reload();
-          }
+          // Chunk is gone (a newer deploy rehashed assets and a stale SW is serving the
+          // old index.html). Bust the SW + caches and hard-reload — a plain reload would
+          // just re-serve the same stale shell. Loop-guarded inside recoverFromStaleChunk.
+          recoverFromStaleChunk();
           throw error;
         }
         await new Promise(resolve => setTimeout(resolve, 800 * (i + 1)));

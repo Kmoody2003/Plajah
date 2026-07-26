@@ -5,8 +5,23 @@ import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 import { GlobalPlayerProvider } from './contexts/GlobalPlayerContext';
 import { LATEST_RELEASE } from './src/releaseNotes';
+import { isChunkLoadError, recoverFromStaleChunk } from './src/lib/staleChunk';
 // @ts-ignore
 import { registerSW } from 'virtual:pwa-register';
+
+// Stale-deploy self-heal. Vite fires `vite:preloadError` when a dynamically imported
+// chunk fails to load — almost always because a newer deploy rehashed assets while a
+// service worker keeps serving the old index.html. Bust the SW + caches and reload so
+// the fresh shell loads, instead of dead-ending on the crash screen. preventDefault()
+// stops Vite from rethrowing while we recover.
+window.addEventListener('vite:preloadError', (e: any) => {
+  try { e.preventDefault(); } catch { /* */ }
+  recoverFromStaleChunk();
+});
+// Belt-and-suspenders: catch chunk errors that surface as unhandled rejections.
+window.addEventListener('unhandledrejection', (e: any) => {
+  if (isChunkLoadError(e?.reason)) recoverFromStaleChunk();
+});
 
 // Plajah Pixels external program-output window. Opened with ?programOut=1, this
 // is its OWN minimal entry — it must NOT boot the whole platform (auth, router,
