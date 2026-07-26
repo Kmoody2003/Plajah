@@ -3,8 +3,8 @@
 // screen navigates as one declared useTvGrid (no geometric guessing, which is what made the old
 // Taleo nav jump). Selection returns the raw Video / VIDEO-Album that MovieUXView expects.
 
-import type { Album, Video } from '../../types';
-import { fetchAllPublicAlbums, fetchAllVideos } from '../../services/backendService';
+import type { Album, Video, UserProfile } from '../../types';
+import { fetchAllPublicAlbums, fetchAllVideos, fetchAllFastChannels } from '../../services/backendService';
 import { getContinueWatching } from '../../services/watchHistoryService';
 import { fetchArchiveByAllGenres, type ArchiveVideo } from '../../services/archiveContentService';
 
@@ -16,7 +16,8 @@ const isCinema = (v: Video): boolean =>
 export type TaleoAction =
   | { kind: 'ITEM'; item: Video | Album }   // open directly in MovieUXView
   | { kind: 'RESUME'; id: string }           // continue-watching: re-fetch by id, then open
-  | { kind: 'ARCHIVE'; archive: ArchiveVideo }; // Internet Archive: resolve a playable url, then open
+  | { kind: 'ARCHIVE'; archive: ArchiveVideo } // Internet Archive: resolve a playable url, then open
+  | { kind: 'CHANNEL'; channel: UserProfile }; // a creator FAST channel: open FastChannelPlayer
 
 export interface TaleoItem {
   id: string;
@@ -77,6 +78,24 @@ export async function loadPlatformRails(): Promise<TaleoRail[]> {
     { id: 'creators', title: 'Films & Series by Creators', items: cinema.map(vItem) },
     { id: 'uploads', title: 'Film Uploads', items: videoAlbums.map(aItem) },
   ]);
+}
+
+/** The "Live" rail — every creator FAST channel that's switched on, as a channel card that opens
+ *  FastChannelPlayer. This is the Taleo Live section the viewer asked for. Loaded separately (a
+ *  users query) and prepended so it leads the screen. */
+export async function loadLiveRail(): Promise<TaleoRail | null> {
+  const channels = await fetchAllFastChannels(60).catch(() => [] as UserProfile[]);
+  if (!channels.length) return null;
+  return {
+    id: 'live', title: 'Live Channels',
+    items: channels.map(p => ({
+      id: (p as any).uid,
+      title: p.displayName ? `${p.displayName}'s Channel` : 'Channel',
+      subtitle: 'FAST · Live',
+      image: (p as any).photoURL || (p as any).headerImage,
+      action: { kind: 'CHANNEL', channel: p } as TaleoAction,
+    })),
+  };
 }
 
 /** The Internet Archive rails — one per movie/TV genre collection, pulled generously so the screen

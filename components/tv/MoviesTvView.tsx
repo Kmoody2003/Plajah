@@ -1,13 +1,15 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Film, Play } from 'lucide-react';
-import type { Video, Album } from '../../types';
+import React, { useEffect, useMemo, useRef, useState, Suspense } from 'react';
+import { Film, Play, Radio } from 'lucide-react';
+import type { Video, Album, UserProfile } from '../../types';
 import { useTvGrid, isFocused } from '../../hooks/useTvGrid';
 import { tvCardRing, RAIL_GUTTER } from './tvFocusRing';
 import { thumb, THUMB, onThumbError } from '../../src/lib/imageThumb';
 import TvBrandBackdrop from './TvBrandBackdrop';
-import { loadPlatformRails, loadArchiveRails, type TaleoRail } from './moviesTvSections';
+import { loadPlatformRails, loadArchiveRails, loadLiveRail, type TaleoRail } from './moviesTvSections';
 import { fetchVideoById, syncPublicDomainAsset } from '../../services/backendService';
 import { getArchiveItemFiles, getBestVideoUrl } from '../../services/archiveContentService';
+
+const FastChannelPlayer = React.lazy(() => import('../FastChannelPlayer'));
 
 /**
  * Taleo on a television — the declarative twin of the pointer-driven MoviesTVView, built on the
@@ -26,20 +28,32 @@ const MoviesTvView: React.FC<{
 }> = ({ onBack, onSelectMovie }) => {
   const [rails, setRails] = useState<TaleoRail[]>([]);
   const [loading, setLoading] = useState(true);
+  const [channel, setChannel] = useState<UserProfile | null>(null);   // open FAST channel, if any
   const opening = useRef(false);   // guards the async archive open against a double-press
 
   useEffect(() => {
     let alive = true;
-    // Platform rails first (fast) so the screen appears immediately; then append the ~20 Internet
-    // Archive genre rails when they arrive — the screen never blocks on the slow public-domain scan.
+    // Platform rails first (fast) so the screen appears immediately; then prepend the Live channels
+    // rail and append the ~20 Internet Archive genre rails as they arrive — the screen never blocks.
     loadPlatformRails()
       .then(r => { if (alive) { setRails(r); setLoading(false); } })
       .catch(() => { if (alive) setLoading(false); });
+    loadLiveRail()
+      .then(live => { if (alive && live) setRails(prev => [live, ...prev.filter(r => r.id !== 'live')]); })
+      .catch(() => {});
     loadArchiveRails(50)
       .then(a => { if (alive && a.length) setRails(prev => [...prev, ...a]); })
       .catch(() => {});
     return () => { alive = false; };
   }, []);
+
+  // Hardware Back closes the FAST channel player (consume it, else it navigates the app to login).
+  useEffect(() => {
+    if (!channel) return;
+    const onHwBack = (e: Event) => { e.preventDefault(); setChannel(null); };
+    window.addEventListener('plajah:hardware-back', onHwBack);
+    return () => window.removeEventListener('plajah:hardware-back', onHwBack);
+  }, [channel]);
 
   const rows = useMemo(() => rails.map(r => ({ id: r.id, count: r.items.length })), [rails]);
 
@@ -53,6 +67,7 @@ const MoviesTvView: React.FC<{
       fetchVideoById(a.id).then(v => { if (v) onSelectMovie(v); }).catch(() => {});
       return;
     }
+    if (a.kind === 'CHANNEL') { setChannel(a.channel); return; }
     // Internet Archive → resolve a playable derivative + synthesize the VIDEO album MovieUXView
     // expects (mirrors MoviesTVView.handleSelectArchiveItem). Async, so guard against re-entry.
     if (a.kind === 'ARCHIVE') {
@@ -81,6 +96,7 @@ const MoviesTvView: React.FC<{
     rows,
     onSelect: (p, rowId) => run(rowId, p.col),
     onBack: () => { onBack(); return true; },
+    enabled: !channel,   // the FAST channel player owns the remote while it's open
   });
 
   // Keep the focused card centred along its rail and its row in view.
@@ -148,6 +164,14 @@ const MoviesTvView: React.FC<{
           </section>
         ))}
       </div>
+
+      {/* A selected FAST channel plays fullscreen over the grid; Back (hardware event handled above,
+          or the player's own close) returns to Taleo. */}
+      {channel && (
+        <Suspense fallback={null}>
+          <FastChannelPlayer profile={channel} onClose={() => setChannel(null)} />
+        </Suspense>
+      )}
     </div>
   );
 };

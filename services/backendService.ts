@@ -7855,6 +7855,21 @@ export const fetchAllUsers = async (): Promise<UserProfile[]> => {
   }
 };
 
+/**
+ * Every creator whose FAST channel is switched on — the lineup for a "Live" rail on TV. Returns the
+ * owner profiles so a channel can be handed straight to FastChannelPlayer (which derives the channel
+ * name/logo from the profile). A creator with the flag but no content just renders an offline card.
+ */
+export const fetchAllFastChannels = async (max = 60): Promise<UserProfile[]> => {
+  try {
+    const snap = await getDocs(query(collection(db, 'users'), where('fastChannelEnabled', '==', true), limit(max)));
+    return snap.docs.map(d => ({ uid: d.id, ...(d.data() as any) } as UserProfile));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'users(fastChannelEnabled)');
+    return [];
+  }
+};
+
 export const fetchFeaturedProfiles = async (): Promise<UserProfile[]> => {
   try {
     const q = query(collection(db, 'users'), where('isArtist', '==', true), limit(30));
