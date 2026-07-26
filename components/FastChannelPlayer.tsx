@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Play, Pause, Volume2, VolumeX, SkipForward, SkipBack, Tv, X, Radio, Wifi } from 'lucide-react';
 import MuxPlayer from '@mux/mux-player-react';
 import { Video, UserProfile, FastChannelSchedule } from '../types';
-import { fetchFastChannelVideos, fetchFastChannelSchedule } from '../services/backendService';
+import { fetchFastChannelVideos, fetchFastChannelSchedule, auth } from '../services/backendService';
+import { checkMembership } from '../services/sanctuaryService';
 
 interface FastChannelPlayerProps {
   profile: UserProfile;
@@ -64,6 +65,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
   const [activeView, setActiveView] = useState<'FAST' | 'LIVE'>('FAST');
   const [liveInterruptActive, setLiveInterruptActive] = useState(false);
   const [channelSchedule, setChannelSchedule] = useState<FastChannelSchedule | null>(null);
+  const [viewerIsMember, setViewerIsMember] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const muxRef = useRef<any>(null);
   const joinOffsetRef = useRef(0);   // seconds to seek into the joined programme (consumed once)
@@ -77,11 +79,19 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
-      const [vids, schedule] = await Promise.all([
+      const me = auth.currentUser?.uid;
+      const [vids, schedule, isMember] = await Promise.all([
         fetchFastChannelVideos(profile.uid),
         fetchFastChannelSchedule(profile.uid).catch(() => null),
+        // Sanctuary gate: a member (or the owner) of this creator's Sanctuary sees the SPECIAL
+        // programming; everyone else gets the regular loop. Same membership check as the rest of the
+        // platform (services/sanctuaryService). Linear channel → we FILTER members-only slots for
+        // non-members rather than paywall mid-stream.
+        (me && me === profile.uid) ? Promise.resolve(true) : checkMembership(profile.uid).then(m => !!m).catch(() => false),
       ]);
-      const playable = vids.filter(v => v.muxPlaybackId || v.url);
+      setViewerIsMember(isMember);
+      const gated = isMember ? vids : vids.filter(v => !(v as any).isExclusive);
+      const playable = gated.filter(v => v.muxPlaybackId || v.url);
       if (playable.length > 0) {
         // Join the linear channel at the deterministic "now" programme, so it plays live-to-clock
         // and matches the guide — not from video #1 every time.
@@ -252,6 +262,9 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
           <div className="flex items-center gap-3">
             <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-white/80">{channelName}</span>
+            {viewerIsMember && (currentVideo as any)?.isExclusive && (
+              <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest text-black" style={{ background: 'linear-gradient(120deg,#6B0099,#D40055 55%,#FF8C00)' }}>Members</span>
+            )}
           </div>
           <button onClick={onClose} className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
             <X size={16} className="text-white" />

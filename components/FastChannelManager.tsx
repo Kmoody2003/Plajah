@@ -488,6 +488,14 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
                       {meta.isPublished ?? true ? <Eye size={15} /> : <Lock size={15} />}
                       <span className="text-[10px] font-black uppercase tracking-widest">{meta.isPublished ?? true ? 'Published — visible in Live sections & guides' : 'Unpublished — hidden'}</span>
                     </button>
+
+                    {/* Sanctuary-gated special programming. */}
+                    <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10">
+                      <Lock size={14} className="text-white/40 mt-0.5 shrink-0" />
+                      <p className="text-[10px] text-white/45 leading-relaxed">
+                        <span className="font-black uppercase tracking-widest text-white/60">Members-only programming.</span> Any video you mark <span className="text-white/70 font-bold">"Members only"</span> becomes special programming for your Sanctuary members — they see it in the loop, everyone else keeps getting your regular schedule. Gated by the viewer's Sanctuary membership to your channel.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
