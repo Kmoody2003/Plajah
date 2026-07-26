@@ -27,6 +27,7 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
   const [showRightsModal, setShowRightsModal] = useState(false);
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [migratingId, setMigratingId] = useState<string | null>(null);   // video being sent to Mux
+  const [bulkOpt, setBulkOpt] = useState<{ running: boolean; done: number; total: number; current?: string; result?: { eligible: number; optimized: number; failed: number } } | null>(null);
   const [uploadForm, setUploadForm] = useState({
     title: '',
     description: '',
@@ -44,6 +45,31 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
   useEffect(() => {
     loadData();
   }, [user.uid]);
+
+  // Videos that would benefit from a Mux transcode: a raw upload with a URL, not already on Mux,
+  // not an external embed Mux can't ingest.
+  const eligibleForMux = videos.filter(v =>
+    !v.muxPlaybackId && !(v as any).muxUploadId && !!v.url &&
+    !v.url.includes('youtube.com') && !v.url.includes('youtu.be') && !v.url.includes('vimeo.com'));
+
+  const handleBulkOptimize = async () => {
+    if (!eligibleForMux.length || bulkOpt?.running) return;
+    if (!window.confirm(
+      `Optimize ${eligibleForMux.length} film${eligibleForMux.length === 1 ? '' : 's'} for smooth HLS streaming?\n\n` +
+      `Each is ingested into Mux for adaptive streaming (fixes choppy TV playback). This creates a Mux asset per film, ` +
+      `which has encoding + storage cost. Continue?`)) return;
+    setBulkOpt({ running: true, done: 0, total: eligibleForMux.length });
+    try {
+      const { bulkOptimizeVideosToMux } = await import('../services/backendService');
+      const result = await bulkOptimizeVideosToMux(videos, (done, total, current) =>
+        setBulkOpt({ running: true, done, total, current }));
+      await loadData();   // reflect the new muxPlaybackIds
+      setBulkOpt({ running: false, done: result.eligible, total: result.eligible, result });
+    } catch (e: any) {
+      setBulkOpt(null);
+      alert('Bulk optimize failed: ' + (e?.message || e));
+    }
+  };
 
   const handleSubmitUpload = async () => {
     if (!uploadFile || !uploadForm.title.trim()) return;
@@ -425,6 +451,37 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
               </div>
             </motion.div>
           ) : activeTab === 'VIDEOS' ? (
+            <>
+            {/* Bulk "Optimize for Streaming" — Mux-transcode every raw upload in one go so the whole
+                catalogue plays smoothly (esp. on TV), instead of hunting title by title. */}
+            {(eligibleForMux.length > 0 || bulkOpt) && (
+              <div className="mb-8 p-6 rounded-[2rem] bg-purple-500/10 border border-purple-400/20 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-black uppercase tracking-widest text-purple-300 flex items-center gap-2"><Tv size={16} /> Optimize catalogue for streaming</p>
+                  {bulkOpt?.running ? (
+                    <p className="text-[11px] text-white/55 mt-1 truncate">Optimizing {bulkOpt.done + 1} of {bulkOpt.total}{bulkOpt.current ? ` — ${bulkOpt.current}` : ''}…</p>
+                  ) : bulkOpt?.result ? (
+                    <p className="text-[11px] text-white/55 mt-1">Done — {bulkOpt.result.optimized} optimized{bulkOpt.result.failed ? `, ${bulkOpt.result.failed} failed` : ''}. Mux finishes encoding in the background; reload in a minute.</p>
+                  ) : (
+                    <p className="text-[11px] text-white/55 mt-1">{eligibleForMux.length} raw upload{eligibleForMux.length === 1 ? '' : 's'} would stream smoother on TV via Mux HLS.</p>
+                  )}
+                  {bulkOpt?.running && (
+                    <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden max-w-md">
+                      <div className="h-full bg-purple-400 transition-all" style={{ width: `${bulkOpt.total ? Math.round((bulkOpt.done / bulkOpt.total) * 100) : 0}%` }} />
+                    </div>
+                  )}
+                </div>
+                {!bulkOpt?.result && (
+                  <button
+                    onClick={handleBulkOptimize}
+                    disabled={bulkOpt?.running || eligibleForMux.length === 0}
+                    className="shrink-0 px-7 py-4 bg-purple-500/20 text-purple-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-purple-500/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <Tv size={15} /> {bulkOpt?.running ? 'Optimizing…' : `Optimize all (${eligibleForMux.length})`}
+                  </button>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {videos.map(video => (
                 <motion.div 
@@ -539,6 +596,7 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
                 </div>
               )}
             </div>
+            </>
           ) : (
             <div className="space-y-8">
               <div className="flex justify-between items-center">

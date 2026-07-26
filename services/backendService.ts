@@ -8298,6 +8298,38 @@ export const createMuxAssetFromUrl = async (url: string): Promise<{ assetId: str
   throw new Error('Mux processing unavailable. Check the server MUX_TOKEN_ID/MUX_TOKEN_SECRET configuration.');
 };
 
+/**
+ * Bulk-optimize a whole catalogue to Mux HLS so every raw upload streams smoothly (esp. on TV).
+ * Sequential + gently paced so it never stampedes Mux, tolerant of individual failures, and writes
+ * the playback id back per video as it resolves. Skips anything already on Mux, still uploading, or
+ * an external embed (YouTube/Vimeo) that Mux can't ingest. Returns a summary.
+ */
+export const bulkOptimizeVideosToMux = async (
+  videos: Video[],
+  onProgress?: (done: number, total: number, currentTitle?: string) => void,
+  gapMs = 800,
+): Promise<{ eligible: number; optimized: number; failed: number }> => {
+  const eligible = (videos || []).filter(v =>
+    !v.muxPlaybackId && !(v as any).muxUploadId && !!v.url &&
+    !v.url.includes('youtube.com') && !v.url.includes('youtu.be') && !v.url.includes('vimeo.com'),
+  );
+  let optimized = 0, failed = 0;
+  for (let i = 0; i < eligible.length; i++) {
+    const v = eligible[i];
+    onProgress?.(i, eligible.length, v.title);
+    try {
+      const { assetId, playbackId } = await createMuxAssetFromUrl(v.url);
+      if (playbackId || assetId) {
+        await updateDoc(doc(db, 'videos', v.id), removeUndefined({ muxPlaybackId: playbackId, muxAssetId: assetId }) as any);
+        optimized++;
+      } else { failed++; }
+    } catch { failed++; }
+    if (i < eligible.length - 1) await new Promise(r => setTimeout(r, gapMs));
+  }
+  onProgress?.(eligible.length, eligible.length);
+  return { eligible: eligible.length, optimized, failed };
+};
+
 
 
 
