@@ -6,13 +6,15 @@ import {
   Zap, Film, Music2, AlertCircle, Eye, Share2, Lock, DollarSign,
   Shuffle, RefreshCw, CalendarClock, StopCircle
 } from 'lucide-react';
-import { Video, UserProfile, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, FastChannel, FastChannelCategory } from '../types';
+import { Video, UserProfile, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, FastChannel, FastChannelCategory, ChannelSource, ChannelSourceType } from '../types';
 import {
   fetchFastChannelVideos,
   fetchFastChannelSchedule,
   saveFastChannelSchedule,
   fetchFastChannelMeta,
   saveFastChannelMeta,
+  fetchChannelSources,
+  saveChannelSources,
   autoGenerateFastChannelSchedule,
   fetchChannelBumpers,
   saveChannelBumper,
@@ -39,9 +41,10 @@ interface FastChannelManagerProps {
   onBack: () => void;
 }
 
-type Tab = 'CHANNEL' | 'SCHEDULE' | 'BUMPERS' | 'ADS' | 'ASSETS' | 'LIBRARY';
+type Tab = 'CHANNEL' | 'SOURCES' | 'SCHEDULE' | 'BUMPERS' | 'ADS' | 'ASSETS' | 'LIBRARY';
 
 const FAST_CATEGORIES: FastChannelCategory[] = ['Film', 'TV', 'Music', 'News', 'Sports', 'Kids', 'Comedy', 'Documentary', 'Faith', 'Lifestyle', 'Gaming', 'Variety', 'Education'];
+const SOURCE_TYPE_LABEL: Record<ChannelSourceType, string> = { FAST: 'FAST Channel', EXTERNAL_LIVE: 'External 24/7 Live', REELLO_LIVE: 'Reello Live Show' };
 
 const SLOT_TYPE_COLORS: Record<string, string> = {
   VIDEO: 'bg-blue-500/20 border-blue-500/30 text-blue-300',
@@ -107,6 +110,8 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
   const [meta, setMeta] = useState<Partial<FastChannel>>({ ownerId: user.uid, name: `${user.displayName || 'My'} Channel`, category: 'Variety', isPublished: true });
   const [savingMeta, setSavingMeta] = useState(false);
   const [metaSaved, setMetaSaved] = useState(false);
+  const [sources, setSources] = useState<ChannelSource[]>([]);
+  const [savingSources, setSavingSources] = useState(false);
   const [myVideos, setMyVideos] = useState<Video[]>([]);
   const [bumpers, setBumpers] = useState<ChannelBumper[]>([]);
   const [grants, setGrants] = useState<FastChannelAssetGrant[]>([]);
@@ -148,15 +153,17 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
 
   const loadAll = async () => {
     setIsLoading(true);
-    const [sched, vids, bumpList, grantList, lib, channelMeta] = await Promise.all([
+    const [sched, vids, bumpList, grantList, lib, channelMeta, srcs] = await Promise.all([
       fetchFastChannelSchedule(user.uid),
       fetchFastChannelVideos(user.uid),
       fetchChannelBumpers(user.uid),
       fetchMyFastChannelGrants(user.uid),
       fetchFastChannelLibrary(),
       fetchFastChannelMeta(user.uid),
+      fetchChannelSources(user.uid),
     ]);
     if (channelMeta) setMeta(channelMeta);
+    setSources(srcs);
     setSchedule(sched);
     setMyVideos(vids);
     setBumpers(bumpList);
@@ -350,8 +357,23 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
     }
   };
 
+  const addSource = (type: ChannelSourceType) => {
+    if (sources.length >= 3) return;
+    setSources(s => [...s, { id: `src_${Date.now()}`, type, name: SOURCE_TYPE_LABEL[type], isActive: true, updatedAt: Date.now() }]);
+  };
+  const updateSource = (id: string, patch: Partial<ChannelSource>) =>
+    setSources(s => s.map(x => x.id === id ? { ...x, ...patch } : x));
+  const removeSource = (id: string) => setSources(s => s.filter(x => x.id !== id));
+  const handleSaveSources = async () => {
+    setSavingSources(true);
+    try { await saveChannelSources(user.uid, sources); }
+    catch (e: any) { alert('Could not save sources: ' + (e?.message || e)); }
+    finally { setSavingSources(false); }
+  };
+
   const TABS: { id: Tab; label: string; icon: React.ComponentType<any> }[] = [
     { id: 'CHANNEL', label: 'Channel', icon: Tv },
+    { id: 'SOURCES', label: 'Sources', icon: Radio },
     { id: 'SCHEDULE', label: 'Schedule', icon: CalendarClock },
     { id: 'BUMPERS', label: 'Bumpers', icon: Film },
     { id: 'ADS', label: 'Ads & Breaks', icon: DollarSign },
@@ -498,6 +520,67 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
                       </p>
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── SOURCES TAB (up to 3 concurrent per account) ─────────────── */}
+            {activeTab === 'SOURCES' && (
+              <div className="max-w-3xl">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-2xl font-black uppercase tracking-tight">Channel Sources</h2>
+                    <p className="text-[9px] text-white/40 uppercase tracking-widest font-bold mt-1">Run up to 3 at once — your FAST loop, an external 24/7 feed, and a Reello live show. Each shows in the Live sections.</p>
+                  </div>
+                  <button onClick={handleSaveSources} disabled={savingSources}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#6B0099] to-[#D40055] rounded-xl text-[9px] font-black uppercase tracking-widest hover:opacity-90 disabled:opacity-40 shadow-lg">
+                    {savingSources ? <RefreshCw size={13} className="animate-spin" /> : <Check size={13} />} Save Sources
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {sources.map(src => (
+                    <div key={src.id} className="p-5 rounded-2xl bg-white/[0.03] border border-white/10">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-white/70">{SOURCE_TYPE_LABEL[src.type]}</span>
+                        <button onClick={() => removeSource(src.id)} className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20"><Trash2 size={13} /></button>
+                      </div>
+                      <input value={src.name} onChange={e => updateSource(src.id, { name: e.target.value })} placeholder="Source name"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-white/30 mb-3" />
+                      {src.type === 'EXTERNAL_LIVE' && (
+                        <input value={src.url || ''} onChange={e => updateSource(src.id, { url: e.target.value })} placeholder="Feed URL (HLS .m3u8 / YouTube / Twitch)"
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-white/30 mb-3" />
+                      )}
+                      {src.type === 'REELLO_LIVE' && (
+                        <input value={src.muxPlaybackId || ''} onChange={e => updateSource(src.id, { muxPlaybackId: e.target.value })} placeholder="Mux playback ID (or leave blank to use your active live stream)"
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-white/30 mb-3" />
+                      )}
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => updateSource(src.id, { isActive: !src.isActive })}
+                          className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border ${src.isActive ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-white/5 border-white/10 text-white/40'}`}>
+                          {src.isActive ? 'Live' : 'Off'}
+                        </button>
+                        <button onClick={() => updateSource(src.id, { membersOnly: !src.membersOnly })}
+                          className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border flex items-center gap-1.5 ${src.membersOnly ? 'bg-violet-500/15 border-violet-400/30 text-violet-200' : 'bg-white/5 border-white/10 text-white/40'}`}>
+                          <Lock size={11} /> {src.membersOnly ? 'Members-only' : 'Everyone'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {sources.length < 3 && (
+                    <div className="flex flex-wrap gap-2">
+                      {(['FAST', 'EXTERNAL_LIVE', 'REELLO_LIVE'] as ChannelSourceType[])
+                        .filter(t => t !== 'FAST' || !sources.some(s => s.type === 'FAST'))
+                        .map(t => (
+                        <button key={t} onClick={() => addSource(t)}
+                          className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/5 border border-dashed border-white/15 text-[9px] font-black uppercase tracking-widest text-white/60 hover:bg-white/10">
+                          <Plus size={13} /> {SOURCE_TYPE_LABEL[t]}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {sources.length === 0 && <p className="text-[10px] text-white/30 uppercase tracking-widest">No extra sources yet — add up to 3.</p>}
                 </div>
               </div>
             )}
