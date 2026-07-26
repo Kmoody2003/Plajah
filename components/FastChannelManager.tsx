@@ -6,14 +6,14 @@ import {
   Zap, Film, Music2, AlertCircle, Eye, Share2, Lock, DollarSign,
   Shuffle, RefreshCw, CalendarClock, StopCircle
 } from 'lucide-react';
-import { Video, UserProfile, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, FastChannel, FastChannelCategory, ChannelSource, ChannelSourceType } from '../types';
+import { Video, UserProfile, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, FastChannel, FastChannelCategory, ChannelSource, ChannelSourceType, SavedFeed } from '../types';
 import {
   fetchFastChannelVideos,
   fetchFastChannelSchedule,
   saveFastChannelSchedule,
   fetchFastChannelMeta,
   saveFastChannelMeta,
-  fetchChannelSources,
+  fetchChannelSourceSet,
   saveChannelSources,
   autoGenerateFastChannelSchedule,
   fetchChannelBumpers,
@@ -111,7 +111,19 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
   const [savingMeta, setSavingMeta] = useState(false);
   const [metaSaved, setMetaSaved] = useState(false);
   const [sources, setSources] = useState<ChannelSource[]>([]);
+  const [savedFeeds, setSavedFeeds] = useState<SavedFeed[]>([]);
+  const [newFeed, setNewFeed] = useState({ name: '', url: '' });
   const [savingSources, setSavingSources] = useState(false);
+
+  // BRAND / ORGANIZATION / PARTNER accounts may run MULTIPLE live feeds of one event (main + ASL +
+  // other languages); a regular account runs the standard 3 concurrent sources with a single feed.
+  const isMultiFeedAccount = ['BRAND', 'ORGANIZATION', 'PARTNER'].includes((user as any).accountType || '');
+  const maxSources = isMultiFeedAccount ? 8 : 3;
+  // On-platform live feeds come FIRST in the pick list — the account's own active live stream.
+  const onPlatformFeeds: SavedFeed[] = (user as any).liveStreamConfig?.isActive
+    ? [{ id: 'onplatform', name: `${user.displayName || 'My'} — Live (on Plajah)`, url: (user as any).liveStreamConfig?.streamUrl || '', origin: 'ON_PLATFORM', muxPlaybackId: (user as any).liveStreamConfig?.muxPlaybackId }]
+    : [];
+  const feedOptions = [...onPlatformFeeds, ...savedFeeds];
   const [myVideos, setMyVideos] = useState<Video[]>([]);
   const [bumpers, setBumpers] = useState<ChannelBumper[]>([]);
   const [grants, setGrants] = useState<FastChannelAssetGrant[]>([]);
@@ -160,10 +172,11 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
       fetchMyFastChannelGrants(user.uid),
       fetchFastChannelLibrary(),
       fetchFastChannelMeta(user.uid),
-      fetchChannelSources(user.uid),
+      fetchChannelSourceSet(user.uid),
     ]);
     if (channelMeta) setMeta(channelMeta);
-    setSources(srcs);
+    setSources(srcs.sources);
+    setSavedFeeds(srcs.savedFeeds);
     setSchedule(sched);
     setMyVideos(vids);
     setBumpers(bumpList);
@@ -358,15 +371,26 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
   };
 
   const addSource = (type: ChannelSourceType) => {
-    if (sources.length >= 3) return;
+    if (sources.length >= maxSources) return;
+    // Multiple concurrent live feeds are a business/brand/org capability.
+    if (type === 'EXTERNAL_LIVE' && !isMultiFeedAccount && sources.some(s => s.type === 'EXTERNAL_LIVE')) {
+      alert('Running multiple live feeds at once (e.g. main + ASL + other languages) is available on Brand, Organization and Partner accounts.');
+      return;
+    }
     setSources(s => [...s, { id: `src_${Date.now()}`, type, name: SOURCE_TYPE_LABEL[type], isActive: true, updatedAt: Date.now() }]);
   };
   const updateSource = (id: string, patch: Partial<ChannelSource>) =>
     setSources(s => s.map(x => x.id === id ? { ...x, ...patch } : x));
   const removeSource = (id: string) => setSources(s => s.filter(x => x.id !== id));
+  const addSavedFeed = () => {
+    if (!newFeed.name.trim() || !newFeed.url.trim()) return;
+    setSavedFeeds(f => [...f, { id: `feed_${Date.now()}`, name: newFeed.name.trim(), url: newFeed.url.trim(), origin: 'EXTERNAL' }]);
+    setNewFeed({ name: '', url: '' });
+  };
+  const removeSavedFeed = (id: string) => setSavedFeeds(f => f.filter(x => x.id !== id));
   const handleSaveSources = async () => {
     setSavingSources(true);
-    try { await saveChannelSources(user.uid, sources); }
+    try { await saveChannelSources(user.uid, sources, savedFeeds, maxSources); }
     catch (e: any) { alert('Could not save sources: ' + (e?.message || e)); }
     finally { setSavingSources(false); }
   };
@@ -548,8 +572,13 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
                       <input value={src.name} onChange={e => updateSource(src.id, { name: e.target.value })} placeholder="Source name"
                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-white/30 mb-3" />
                       {src.type === 'EXTERNAL_LIVE' && (
-                        <input value={src.url || ''} onChange={e => updateSource(src.id, { url: e.target.value })} placeholder="Feed URL (HLS .m3u8 / YouTube / Twitch)"
-                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-white/30 mb-3" />
+                        <select value={src.url || ''} onChange={e => {
+                          const f = feedOptions.find(o => o.url === e.target.value);
+                          updateSource(src.id, { url: e.target.value, muxPlaybackId: f?.muxPlaybackId, name: f?.name || src.name });
+                        }} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-white/30 mb-3 [&>option]:bg-[#111]">
+                          <option value="">Pick a feed from your library…</option>
+                          {feedOptions.map(o => <option key={o.id} value={o.url}>{o.origin === 'ON_PLATFORM' ? '📡 ' : ''}{o.name}</option>)}
+                        </select>
                       )}
                       {src.type === 'REELLO_LIVE' && (
                         <input value={src.muxPlaybackId || ''} onChange={e => updateSource(src.id, { muxPlaybackId: e.target.value })} placeholder="Mux playback ID (or leave blank to use your active live stream)"
@@ -568,7 +597,7 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
                     </div>
                   ))}
 
-                  {sources.length < 3 && (
+                  {sources.length < maxSources && (
                     <div className="flex flex-wrap gap-2">
                       {(['FAST', 'EXTERNAL_LIVE', 'REELLO_LIVE'] as ChannelSourceType[])
                         .filter(t => t !== 'FAST' || !sources.some(s => s.type === 'FAST'))
@@ -580,7 +609,39 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
                       ))}
                     </div>
                   )}
-                  {sources.length === 0 && <p className="text-[10px] text-white/30 uppercase tracking-widest">No extra sources yet — add up to 3.</p>}
+                  {sources.length === 0 && <p className="text-[10px] text-white/30 uppercase tracking-widest">No extra sources yet — add up to {maxSources}.</p>}
+                </div>
+
+                {/* ── Feed library — save named live URLs once, then pick them from the dropdown above. */}
+                <div className="mt-10">
+                  <h3 className="text-sm font-black uppercase tracking-widest mb-1">Feed Library</h3>
+                  <p className="text-[9px] text-white/40 uppercase tracking-widest font-bold mb-4">Save any live URL with a name — HLS (.m3u8) preferred, YouTube/Twitch/Mux also work. Your on-platform live streams appear first automatically.{isMultiFeedAccount ? ' Your account can broadcast several at once (main + ASL + languages).' : ''}</p>
+
+                  <div className="space-y-2 mb-4">
+                    {onPlatformFeeds.map(f => (
+                      <div key={f.id} className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-emerald-500/[0.06] border border-emerald-500/20">
+                        <Radio size={13} className="text-emerald-400 shrink-0" />
+                        <span className="text-[11px] font-bold text-white truncate flex-1">{f.name}</span>
+                        <span className="text-[8px] font-black uppercase tracking-widest text-emerald-400/70">On Platform</span>
+                      </div>
+                    ))}
+                    {savedFeeds.map(f => (
+                      <div key={f.id} className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10">
+                        <span className="text-[11px] font-bold text-white truncate w-40 shrink-0">{f.name}</span>
+                        <span className="text-[10px] text-white/40 truncate flex-1">{f.url}</span>
+                        <button onClick={() => removeSavedFeed(f.id)} className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 shrink-0"><Trash2 size={12} /></button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input value={newFeed.name} onChange={e => setNewFeed(f => ({ ...f, name: e.target.value }))} placeholder="Feed name (e.g. Main, ASL, Español)"
+                      className="sm:w-56 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:border-white/30" />
+                    <input value={newFeed.url} onChange={e => setNewFeed(f => ({ ...f, url: e.target.value }))} placeholder="https://…/stream.m3u8  (or YouTube / Twitch)"
+                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-white/30" />
+                    <button onClick={addSavedFeed} disabled={!newFeed.name.trim() || !newFeed.url.trim()}
+                      className="px-5 py-2.5 bg-white/10 border border-white/15 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-white/20 disabled:opacity-40 flex items-center justify-center gap-2"><Plus size={13} /> Save Feed</button>
+                  </div>
                 </div>
               </div>
             )}

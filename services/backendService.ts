@@ -85,7 +85,7 @@ export const saveBibleNote = async (uid: string, ref: string, text: string): Pro
     else await deleteDoc(doc(db, 'bibleNotes', id)).catch(() => {});
   } catch (e) { console.warn('[backendService] saveBibleNote failed:', (e as Error)?.message); }
 };
-import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannel, ChannelSource, ChannelSourceSet, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest, PodcastRssSettings, ImportedRssEpisode, AccountType, NotifyLevel } from '../types';
+import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannel, ChannelSource, ChannelSourceSet, SavedFeed, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest, PodcastRssSettings, ImportedRssEpisode, AccountType, NotifyLevel } from '../types';
 import { accountFlagUpdate } from './accountCapabilities';
 // Creator Passport provenance (blueprint 1C.5) — attribution record, not crypto proof.
 import { buildProvenance, stampVideo } from './creatorPassport';
@@ -7396,22 +7396,33 @@ export const updateFastChannelEnabled = async (uid: string, enabled: boolean) =>
 
 // ── FAST CHANNEL SCHEDULE ─────────────────────────────────────────────────────
 
-// ─── Channel sources — up to 3 concurrent per account (channel_sources/{ownerId}) ──
-export const fetchChannelSources = async (uid: string): Promise<ChannelSource[]> => {
+// ─── Channel sources + saved-feed library (channel_sources/{ownerId}) ──
+/** The full set — sources (active broadcasts) + savedFeeds (the reusable library). */
+export const fetchChannelSourceSet = async (uid: string): Promise<{ sources: ChannelSource[]; savedFeeds: SavedFeed[] }> => {
   try {
     const snap = await getDoc(doc(db, 'channel_sources', uid));
     const data = snap.exists() ? (snap.data() as ChannelSourceSet) : null;
-    return Array.isArray(data?.sources) ? data!.sources.slice(0, 3) : [];
+    return {
+      sources: Array.isArray(data?.sources) ? data!.sources : [],
+      savedFeeds: Array.isArray(data?.savedFeeds) ? data!.savedFeeds : [],
+    };
   } catch (e) {
     handleFirestoreError(e, OperationType.GET, `channel_sources/${uid}`);
-    return [];
+    return { sources: [], savedFeeds: [] };
   }
 };
 
-export const saveChannelSources = async (ownerId: string, sources: ChannelSource[]): Promise<void> => {
+/** Back-compat: just the active sources. */
+export const fetchChannelSources = async (uid: string): Promise<ChannelSource[]> =>
+  (await fetchChannelSourceSet(uid)).sources;
+
+/** Persist sources + library. `maxSources` caps concurrent broadcasts (3 for a regular account,
+ *  higher for BRAND/ORGANIZATION/PARTNER — the caller decides). The library is uncapped. */
+export const saveChannelSources = async (ownerId: string, sources: ChannelSource[], savedFeeds: SavedFeed[] = [], maxSources = 3): Promise<void> => {
   try {
-    const capped = (sources || []).slice(0, 3).map(s => removeUndefined({ ...s, updatedAt: Date.now() }));
-    await setDoc(doc(db, 'channel_sources', ownerId), { ownerId, sources: capped, updatedAt: Date.now() } as any);
+    const capped = (sources || []).slice(0, Math.max(1, maxSources)).map(s => removeUndefined({ ...s, updatedAt: Date.now() }));
+    const feeds = (savedFeeds || []).map(f => removeUndefined(f));
+    await setDoc(doc(db, 'channel_sources', ownerId), { ownerId, sources: capped, savedFeeds: feeds, updatedAt: Date.now() } as any);
   } catch (e) {
     handleFirestoreError(e, OperationType.WRITE, `channel_sources/${ownerId}`);
     throw e;

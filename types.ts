@@ -3401,10 +3401,24 @@ export interface ChannelSource {
   membersOnly?: boolean;
   updatedAt: number;
 }
-/** Up to three sources per account (doc id === ownerId). */
+/** A named, reusable live feed URL in the account's library — picked from a dropdown when wiring an
+ *  EXTERNAL_LIVE source, so a creator saves a link once (name + url) and reuses it. */
+export interface SavedFeed {
+  id: string;
+  name: string;
+  url: string;
+  /** ON_PLATFORM = one of the account's own live streams; EXTERNAL = an outside url. */
+  origin?: 'ON_PLATFORM' | 'EXTERNAL';
+  muxPlaybackId?: string;
+}
+
+/** The account's sources + saved-feed library (doc id === ownerId). A regular account runs up to 3
+ *  concurrent sources; BRAND / ORGANIZATION / PARTNER accounts may run more (multiple live feeds of
+ *  one event — e.g. main + ASL + other languages). The library itself is unlimited for anyone. */
 export interface ChannelSourceSet {
   ownerId: string;
-  sources: ChannelSource[];   // max 3
+  sources: ChannelSource[];
+  savedFeeds?: SavedFeed[];
   updatedAt: number;
 }
 
