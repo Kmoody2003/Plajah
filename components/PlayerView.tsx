@@ -3105,7 +3105,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                   onDragLeave={() => setDragOverTrackIndex(null)}
                                   onDrop={(e) => { e.preventDefault(); const from = dragTrackIndexRef.current; setDragOverTrackIndex(null); if (from !== null && from !== i) reorderTracks(from, i); dragTrackIndexRef.current = null; }}
                                   onDragEnd={() => { dragTrackIndexRef.current = null; setDragOverTrackIndex(null); }}
-                                  className={`relative overflow-hidden rounded-2xl border transition-all ${isNextUp ? 'track-next-glow' : ''} ${dragOverTrackIndex === i ? 'scale-[1.01] border-small-orange/60' : isActive ? 'border-[#FF8C00]/50' : 'border-white/5'}`}
+                                  className={`relative shrink-0 min-h-[3.25rem] overflow-hidden rounded-2xl border transition-all ${isNextUp ? 'track-next-glow' : ''} ${dragOverTrackIndex === i ? 'scale-[1.01] border-small-orange/60' : isActive ? 'border-[#FF8C00]/50' : 'border-white/5'}`}
                                 >
                                   <div className={`flex items-center gap-3 px-3 py-[9px] relative overflow-hidden rounded-2xl group ${isActive ? 'backdrop-blur-2xl shadow-[0_0_30px_rgba(107,0,153,0.3)]' : 'bg-gradient-to-r from-[#6B0099]/10 via-transparent to-[#FF8C00]/10 backdrop-blur-xl hover:from-[#6B0099]/20 hover:to-[#FF8C00]/20'} ${isExpanded ? '!rounded-b-none' : ''}`}>
                                     {/* Active row: animated brand gradient + repeat-one green + final-10s red flash */}
