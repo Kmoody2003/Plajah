@@ -40,6 +40,12 @@ export const APP_BUILD = '2026.07.26-01';
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '5fb4820', date: '2026-07-27', time: '02:30', level: 'major', area: 'Social',
+    title: 'Watch, read & listen together — in perfect sync',
+    technical: 'New synchronized-party primitive (services/partyService + hooks/useParty): the host broadcasts playback STATE (play/pause/seek/track/page) via a parties/{id} Firestore doc; every guest\'s OWN local player follows it with drift-compensated seeking — content streams locally per viewer, not relayed from the host, so one host scales to an unlimited audience. Wired into VideoPlayer (watch party), BookReader (read-along, chapter+page sync) and the Chora PlayerView (listening party, track+position). Shareable ?party= deep-link auto-joins and follows. Live viewer count via presence.',
+    plain: 'You can now host a watch party, a read-along, or a listening party and everyone follows you in real time — when you play, pause, skip, scrub, or turn the page, everyone\'s screen does the same, instantly. Each person streams the movie, book, or song on their own device in full quality; they\'re just kept in sync with you. Share one link and friends drop straight into the session.',
+  },
+  {
     id: '68b2edb', date: '2026-07-26', time: '19:45', level: 'major', area: 'Live TV',
     title: 'Turn on your channel in one tap',
     technical: 'One-tap FAST activation (activateFastChannel): flipping the toggle enables the channel, creates its published identity, auto-opts-in up to 100 of your recent playable videos when none are selected, and auto-generates the looping schedule — no manual setup. Idempotent; the manager also auto-builds a schedule on open when videos are opted in but none exists. Manual arrange/prune/ads remain in Manage Channel.',
