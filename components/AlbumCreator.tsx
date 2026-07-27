@@ -74,8 +74,10 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   // Save Now + unsaved-changes guard. projectIdRef is stable across saves so repeated
   // "Save Now" on a NEW project updates the same draft instead of creating duplicates.
   const keepOpenAfterSaveRef = useRef(false);
+  const quietSaveRef = useRef(false); // autosave: save silently, no overlay/QC/alerts
   const projectIdRef = useRef<string>(initialAlbum?.id || `album_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [autosaveState, setAutosaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [isDirty, setIsDirty] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [genre, setGenre] = useState(initialAlbum?.genre || '');
@@ -742,26 +744,27 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title) return;
+    // Autosave runs "quiet": no deploy overlay, no QC gate, no alerts — just persist a draft.
+    const quiet = quietSaveRef.current; quietSaveRef.current = false;
+    // "Save as draft" sets this ref; a draft is unlisted and can be resumed + refined later.
+    const asDraft = saveAsDraftRef.current; saveAsDraftRef.current = false;
+    const draftMode = isDraft || asDraft;
     // ── Content-type gate ───────────────────────────────────────────────────
-    // A video must be categorized (Reello / Movie / TV / Podcast) before it can
-    // publish or propagate to the Taleo (film/TV) or Reello (UGC) surfaces.
-    if (type === 'VIDEO' && !subType) {
+    // A video must be categorized before PUBLISH (drafts/autosave can save uncategorized).
+    if (type === 'VIDEO' && !subType && !draftMode) {
       setPageDir(-1);
       setStep(1); // subtype selection
       alert('Choose a video content type — Reello, Movie, TV, or Podcast — before publishing.');
       return;
     }
-    // "Save as draft" sets this ref; a draft is unlisted and can be resumed + refined
-    // later (before or after publishing), exactly like a music album.
-    const asDraft = saveAsDraftRef.current; saveAsDraftRef.current = false;
-    const draftMode = isDraft || asDraft;
-    setIsDeploying(true);
-    setStatus({ text: initialAlbum ? "Updating Cloud Index..." : "Synthesizing Metadata...", percent: 5 });
+    if (!quiet) {
+      setIsDeploying(true);
+      setStatus({ text: initialAlbum ? "Updating Cloud Index..." : "Synthesizing Metadata...", percent: 5 });
+    }
     try {
       // ── Video verification gate ──────────────────────────────────────────
-      // Auto-QC every video before it can propagate. A corrupt / unreadable /
-      // audio-only file is blocked here so it never reaches Taleo or Reello.
-      if (type === 'VIDEO') {
+      // Auto-QC every video before PUBLISH (skipped for drafts/autosave — it's a publish gate).
+      if (type === 'VIDEO' && !draftMode) {
         setStatus({ text: 'Verifying video…', percent: 3 });
         const vids = tracks.filter(t => t.file || t.url);
         for (const t of vids) {
@@ -957,10 +960,10 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       });
       setIsDirty(false);
       if (keepOpenAfterSaveRef.current) {
-        // "Save Now" — persist a draft but stay in the editor.
+        // "Save Now" / autosave — persist a draft but stay in the editor.
         keepOpenAfterSaveRef.current = false;
-        setSavedFlash(true);
-        setTimeout(() => setSavedFlash(false), 2500);
+        if (quiet) { setAutosaveState('saved'); }
+        else { setSavedFlash(true); setTimeout(() => setSavedFlash(false), 2500); }
       } else {
         onCancel?.();
       }
@@ -968,7 +971,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     } catch (err: any) {
       console.error("Deployment Error:", err);
       keepOpenAfterSaveRef.current = false;
-      alert(`Error: ${err?.message || "Deployment failed."}`);
+      setAutosaveState('idle');
+      if (!quiet) alert(`Error: ${err?.message || "Deployment failed."}`);
     } finally {
       setIsDeploying(false);
     }
@@ -981,6 +985,28 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     keepOpenAfterSaveRef.current = true;
     saveAsDraftRef.current = true;
     handleSubmit(new Event('submit') as unknown as React.FormEvent);
+  };
+
+  // Silent autosave (draft). Skipped while there are pending local file uploads — those are
+  // persisted by explicit Save Now / Publish; autosave keeps metadata + track order safe instantly.
+  const autosave = () => {
+    if (isDeploying) return;
+    if (!title.trim()) return;
+    if (coverFile || artistFile || tracks.some(t => !!t.file)) return;
+    quietSaveRef.current = true;
+    keepOpenAfterSaveRef.current = true;
+    saveAsDraftRef.current = true;
+    setAutosaveState('saving');
+    handleSubmit(new Event('submit') as unknown as React.FormEvent);
+  };
+
+  // Move a track up/down — obvious, accessible reordering (no drag needed).
+  const moveTrack = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= tracks.length) return;
+    const r = [...tracks];
+    [r[i], r[j]] = [r[j], r[i]];
+    setTracks(r);
   };
 
   // Close the editor, but guard unsaved work: prompt to save a draft or discard.
@@ -1006,6 +1032,17 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     window.addEventListener('beforeunload', h);
     return () => window.removeEventListener('beforeunload', h);
   }, [isDirty]);
+
+  // Debounced autosave — persist a draft ~3.5s after the last change (guards live in autosave()).
+  const autosaveInitRef = useRef(true);
+  useEffect(() => {
+    if (autosaveInitRef.current) { autosaveInitRef.current = false; return; }
+    if (!title.trim() || isDeploying) return;
+    const t = setTimeout(() => autosave(), 3500);
+    return () => clearTimeout(t);
+  }, [title, artist, type, subType, genre, price, isPaywalled, artistBio, linerNotes, artistImage, coverImage,
+      JSON.stringify(tracks), JSON.stringify(bookChapters), JSON.stringify(slideshow), JSON.stringify(musicVideos),
+      JSON.stringify(videoPlaylists), JSON.stringify(socialLinks), JSON.stringify(tags)]);
 
   if (isMinimized) return null;
 
@@ -1508,7 +1545,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           {/* Affordance hint */}
           {tracks.length > 0 && (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5 rounded-2xl" style={{ background: 'rgba(255,140,0,0.06)', border: '1px solid rgba(255,140,0,0.14)' }}>
-              <span className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-white/40"><GripVertical size={10} className="text-small-orange" />Drag to reorder</span>
+              <span className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-white/40"><ChevronUp size={10} className="text-small-orange -mr-1" /><ChevronDown size={10} className="text-small-orange" />Use ↑ ↓ on each track to reorder</span>
               <span className="text-white/15">·</span>
               <span className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-white/40"><RefreshCw size={10} className="text-small-orange" />Replace file</span>
               <span className="text-white/15">·</span>
@@ -1529,6 +1566,15 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  {/* Reorder — obvious up/down arrows (touch-friendly; no drag needed) */}
+                  {tracks.length > 1 && (
+                    <div className="flex flex-col mr-1 shrink-0 rounded-lg bg-small-orange/[0.07] border border-small-orange/20">
+                      <button type="button" disabled={i === 0} onClick={() => moveTrack(i, -1)} title="Move track up"
+                        className="px-1 pt-0.5 rounded-t-lg text-small-orange/80 hover:text-small-orange hover:bg-small-orange/15 disabled:opacity-20 disabled:hover:bg-transparent transition-all"><ChevronUp size={15} /></button>
+                      <button type="button" disabled={i === tracks.length - 1} onClick={() => moveTrack(i, 1)} title="Move track down"
+                        className="px-1 pb-0.5 rounded-b-lg text-small-orange/80 hover:text-small-orange hover:bg-small-orange/15 disabled:opacity-20 disabled:hover:bg-transparent transition-all"><ChevronDown size={15} /></button>
+                    </div>
+                  )}
                   {/* Preview — inline video player for video tracks, audio scrub otherwise */}
                   {track.mediaKind === 'VIDEO' ? (
                     <button type="button" onClick={() => setPreviewVideoId(id => id === track.id ? null : track.id)} title={previewVideoId === track.id ? 'Hide preview' : 'Play video preview'} className={`p-3 rounded-full transition-all ${previewVideoId === track.id ? 'text-green-400 bg-green-500/10' : 'text-white/20 hover:text-green-400 hover:bg-green-400/10'}`}>
@@ -3261,6 +3307,13 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               <Check size={14} className={savedFlash ? '' : 'opacity-70'} />
               {isDeploying ? 'Saving…' : savedFlash ? 'Saved' : 'Save Now'}
             </button>
+            {/* Live autosave status */}
+            {autosaveState !== 'idle' && !savedFlash && (
+              <span className="shrink-0 hidden sm:flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/35">
+                <span className={`w-1.5 h-1.5 rounded-full ${autosaveState === 'saving' ? 'bg-yellow-400 animate-pulse' : 'bg-green-400'}`} />
+                {autosaveState === 'saving' ? 'Autosaving…' : 'All changes saved'}
+              </span>
+            )}
             {step > 0 && (
               <button type="button" onClick={goBack} className="flex items-center gap-2 px-8 py-4 bg-white/5 rounded-full text-white font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all active:scale-95 border border-white/10">
                 <ChevronLeft size={16} /> Back
