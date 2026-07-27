@@ -71,14 +71,35 @@ export function prefetchTrackStreams(trackIds: string[]): void {
   for (const id of trackIds) if (id && !cache.has(id) && !inflight.has(id)) getTrackStream(id).catch(() => {});
 }
 
+/** Re-home a stored media URL onto the current secure origin.
+ *
+ *  The server-side backfill (/api/chora/transcode-admin) built these URLs from the request's
+ *  own protocol+host, which resolved to the INTERNAL Cloud Run host over http — so docs got
+ *  baked with `http://plajah-api-….run.app/api/chora/media/…`. On the https app the browser
+ *  blocks that as mixed content and the track silently won't play. Rewrite any chora media URL
+ *  back onto window.location.origin (→ https://plajah.com, which Hosting proxies to Cloud Run),
+ *  and upgrade any other http URL to https. Fixes every already-transcoded track with no data
+ *  migration, and is a no-op for URLs that were already correct. */
+function secureMediaUrl(u?: string): string | undefined {
+  if (!u) return u;
+  try {
+    const origin = (typeof window !== 'undefined' && window.location?.origin) || 'https://plajah.com';
+    const parsed = new URL(u, origin);
+    const idx = parsed.pathname.indexOf('/api/chora/media');
+    if (idx !== -1) return origin + parsed.pathname.slice(idx) + parsed.search;
+    if (parsed.protocol === 'http:') { parsed.protocol = 'https:'; return parsed.toString(); }
+    return u;
+  } catch { return u; }
+}
+
 /** Pick the playable URL for a ready stream at the chosen quality; null if not ready. */
 export function pickStreamUrl(s: ChoraStream | null | undefined, quality: ChoraQuality): { url: string; isHls: boolean } | null {
   if (!s || s.status !== 'ready') return null;
-  if (quality === 'lossless' && s.flac) return { url: s.flac, isHls: false };
-  if (quality === 'data' && s.low) return { url: s.low, isHls: false };
-  if (s.hls) return { url: s.hls, isHls: true };           // 'high' default
-  if (s.low) return { url: s.low, isHls: false };
-  if (s.flac) return { url: s.flac, isHls: false };
+  if (quality === 'lossless' && s.flac) return { url: secureMediaUrl(s.flac)!, isHls: false };
+  if (quality === 'data' && s.low) return { url: secureMediaUrl(s.low)!, isHls: false };
+  if (s.hls) return { url: secureMediaUrl(s.hls)!, isHls: true };           // 'high' default
+  if (s.low) return { url: secureMediaUrl(s.low)!, isHls: false };
+  if (s.flac) return { url: secureMediaUrl(s.flac)!, isHls: false };
   return null;
 }
 
