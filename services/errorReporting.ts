@@ -30,6 +30,13 @@ export async function reportError(err: unknown, opts: ReportOpts = {}): Promise<
 
     trace('error', message); // breadcrumb: errors show in the session trace too
 
+    // Attach the last-5-min breadcrumb trail so EVERY report (esp. health "Degraded
+    // experience" escalations) names the actual failed-request URLs + user actions that
+    // led here — instead of just a count. This is what turns "failed reqs 43" from a
+    // mystery into a diagnosis. Capped + bounded, same as user bug reports.
+    const events = getTrace();
+    const netFails = events.filter(ev => ev.type === 'net').slice(-25);
+
     const u = auth.currentUser;
     await addDoc(collection(db, 'errorReports'), {
       message,
@@ -38,6 +45,9 @@ export async function reportError(err: unknown, opts: ReportOpts = {}): Promise<
       context: opts.context || '',
       severity: opts.severity || 'error',
       url: typeof location !== 'undefined' ? location.href.slice(0, 500) : '',
+      trace: events.slice(-200),                          // structured breadcrumbs
+      traceText: formatTrace(events).slice(0, 8000),      // readable transcript
+      netFailures: netFails.map(ev => ev.label),          // the actual failed-request URLs+statuses
       userId: u?.uid || null,
       userEmail: u?.email || null,
       userName: u?.displayName || null,
