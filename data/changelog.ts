@@ -40,6 +40,12 @@ export const APP_BUILD = '2026.07.26-01';
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '4e48dc5', date: '2026-07-27', time: '03:15', level: 'major', area: 'Live',
+    title: 'Bring guests on stage in your live stream',
+    technical: 'rtcCore per-peer identity: useRtcSession exposes remotePeers (streams joined with each peer\'s role/name) so the viewer renders the host as main video and guests as tiles instead of guessing "first stream". Reello live moved to \'stage\' topology; viewers "Ask to join" → streams/{id}.guestRequests → host approves (guests[]) → the viewer re-keys as a publisher with on-stage mic/cam + leave.',
+    plain: 'Going live on Reello now works like a real talk show — viewers can ask to join, and with one tap you bring them on screen with their own camera and mic. Everyone sees you as the main video with your guests alongside; you can remove a guest anytime.',
+  },
+  {
     id: '5fb4820', date: '2026-07-27', time: '02:30', level: 'major', area: 'Social',
     title: 'Watch, read & listen together — in perfect sync',
     technical: 'New synchronized-party primitive (services/partyService + hooks/useParty): the host broadcasts playback STATE (play/pause/seek/track/page) via a parties/{id} Firestore doc; every guest\'s OWN local player follows it with drift-compensated seeking — content streams locally per viewer, not relayed from the host, so one host scales to an unlimited audience. Wired into VideoPlayer (watch party), BookReader (read-along, chapter+page sync) and the Chora PlayerView (listening party, track+position). Shareable ?party= deep-link auto-joins and follows. Live viewer count via presence.',
