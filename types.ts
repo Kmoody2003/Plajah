@@ -2128,6 +2128,14 @@ export interface ClubEvent {
   isExclusive: boolean;
   isActive: boolean;
   attendeeIds: string[];
+  /** WATCH_PARTY: the movie/video/book/album this event plays, so the card + launcher know it. */
+  linkedContentId?: string;
+  linkedContentTitle?: string;
+  linkedContentThumb?: string;
+  /** Virtual (synced watch party) vs in-person. */
+  isVirtual?: boolean;
+  /** When live, the synchronized party (parties/{id}) attendees join to follow the host. */
+  partyId?: string;
   timestamp: number;
 }
 
@@ -2294,6 +2302,8 @@ export interface LiveTalk {
   isActive: boolean;
   speakers: Array<{ uid: string; name: string; photoURL: string; isMuted: boolean }>;
   listeners: string[]; // UIDs
+  /** UIDs of listeners requesting to speak (host approves → promoted to a speaker). */
+  raisedHands?: string[];
   sharedAssets: SharedAsset[];
   timestamp: number;
 }

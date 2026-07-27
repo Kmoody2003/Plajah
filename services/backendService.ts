@@ -190,8 +190,11 @@ export const joinLiveTalk = async (talkId: string, isSpeaker: boolean = false) =
   try {
     const talkRef = doc(db, 'liveTalks', talkId);
     if (isSpeaker) {
+      // `speakers` holds objects {uid,name,photoURL,isMuted} — push a real one, not a bare uid,
+      // so promoted speakers carry their identity (matches the shape the room UI builds).
+      const speaker = { uid: auth.currentUser.uid, name: auth.currentUser.displayName || 'Speaker', photoURL: auth.currentUser.photoURL || '', isMuted: false };
       await updateDoc(talkRef, {
-        speakers: arrayUnion(auth.currentUser.uid),
+        speakers: arrayUnion(speaker),
         listeners: arrayRemove(auth.currentUser.uid)
       });
     } else {
@@ -206,12 +209,20 @@ export const joinLiveTalk = async (talkId: string, isSpeaker: boolean = false) =
 
 export const leaveLiveTalk = async (talkId: string) => {
   if (!auth.currentUser) return;
+  const uid = auth.currentUser.uid;
   const path = `liveTalks/${talkId}`;
   try {
     const talkRef = doc(db, 'liveTalks', talkId);
+    // `speakers` are OBJECTS, so arrayRemove(uid-string) never matched and a departing speaker's
+    // tile/stream lingered forever. Read-modify-write to filter by uid; listeners are uid strings
+    // so arrayRemove still works for them.
+    const snap = await getDoc(talkRef);
+    const speakers = Array.isArray((snap.data() as any)?.speakers)
+      ? (snap.data() as any).speakers.filter((s: any) => (s?.uid ?? s) !== uid)
+      : [];
     await updateDoc(talkRef, {
-      speakers: arrayRemove(auth.currentUser.uid),
-      listeners: arrayRemove(auth.currentUser.uid)
+      speakers,
+      listeners: arrayRemove(uid),
     });
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
@@ -9654,7 +9665,12 @@ export const deleteClubGalleryItem = async (itemId: string) => {
 
 // ── Club Events ───────────────────────────────────────────────────────────────
 
-export const createClubEvent = async (event: Partial<ClubEvent>): Promise<ClubEvent | null> => {
+export const createClubEvent = async (
+  // Accept the `eventType`/`date` aliases some callers (e.g. MovieUXView) use, plus the content-link
+  // fields — previously these were silently dropped, so a scheduled movie watch party lost its date,
+  // its linked movie, and defaulted to type LIVE_TALK.
+  event: Partial<ClubEvent> & { eventType?: ClubEvent['type']; date?: number; rsvps?: string[] },
+): Promise<ClubEvent | null> => {
   if (!auth.currentUser) return null;
   const docRef = doc(collection(db, 'clubEvents'));
   const newEvent: ClubEvent = {
@@ -9663,11 +9679,16 @@ export const createClubEvent = async (event: Partial<ClubEvent>): Promise<ClubEv
     hostId: auth.currentUser.uid,
     title: event.title || 'Untitled Event',
     description: event.description,
-    type: event.type || 'LIVE_TALK',
-    scheduledAt: event.scheduledAt || Date.now(),
+    type: event.type || event.eventType || 'LIVE_TALK',
+    scheduledAt: event.scheduledAt || event.date || Date.now(),
     isExclusive: event.isExclusive ?? false,
     isActive: false,
-    attendeeIds: [],
+    attendeeIds: event.rsvps || [],
+    linkedContentId: event.linkedContentId,
+    linkedContentTitle: event.linkedContentTitle,
+    linkedContentThumb: event.linkedContentThumb,
+    isVirtual: event.isVirtual,
+    partyId: event.partyId,
     timestamp: Date.now(),
   };
   await setDoc(docRef, removeUndefined(newEvent));

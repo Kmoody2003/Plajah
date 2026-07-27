@@ -20,6 +20,7 @@ import {
   listenToMessages,
   sendMessage,
   listenToActiveLiveTalks,
+  fetchUserProfile,
   db
 } from '../services/backendService';
 import { collection, doc, setDoc, updateDoc, deleteDoc, query, where, arrayUnion } from 'firebase/firestore';
@@ -30,12 +31,8 @@ import LanguageChannels from './LanguageChannels';
 import { saveSessionRecording } from '../services/liveStreamService';
 import { saveStudioEpisode } from '../services/podcastStudio/studioService';
 
-const rtcConfig = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
-  ]
-};
+// NOTE: the live audio runs through rtcCore, which already supplies STUN+TURN via
+// services/iceConfig.getIceServers() — no per-component ICE config is needed here.
 
 // Sub-component to play remote audio track
 const RemoteAudioPlayer: React.FC<{ stream: MediaStream; muted?: boolean }> = ({ stream, muted }) => {
@@ -582,12 +579,11 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse, initialShowSetup,
   const handleApproveHand = async (uid: string) => {
     if (!activeTalk || !isHost) return;
     const newRaisedHands = raisedHands.filter(id => id !== uid);
-    const newSpeakers = [...(activeTalk.speakers), {
-      uid: uid,
-      name: 'Speaker',
-      photoURL: `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid}`,
-      isMuted: false
-    }];
+    // Use the promoted user's REAL name/photo, not a hardcoded "Speaker" + dicebear avatar.
+    let name = 'Speaker';
+    let photoURL = `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid}`;
+    try { const p = await fetchUserProfile(uid); if (p) { name = p.displayName || name; photoURL = p.photoURL || photoURL; } } catch { /* fall back to generated */ }
+    const newSpeakers = [...(activeTalk.speakers), { uid, name, photoURL, isMuted: false }];
     await updateLiveTalk(activeTalk.id, { raisedHands: newRaisedHands, speakers: newSpeakers as any } as any);
   };
 
