@@ -16,13 +16,17 @@ interface ShareButtonProps {
   /** Artist/creator — drawn on the auto-generated share card. */
   artist?: string;
   className?: string;
+  /** Optional visible text next to the icon (turns the icon-only control into a labeled pill). */
+  label?: string;
+  /** Icon size (px). Defaults to 18. */
+  iconSize?: number;
   /** When provided, the menu shows a "Post to Plajah feed" action that runs this
    *  (e.g. createPost). The button then always opens the menu so it's reachable. */
   onPostToPlajah?: () => void | Promise<void>;
   plajahLabel?: string;
 }
 
-const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, artist, className, onPostToPlajah, plajahLabel }) => {
+const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, artist, className, label, iconSize = 18, onPostToPlajah, plajahLabel }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [posting, setPosting] = useState(false);
@@ -177,7 +181,8 @@ const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, a
         onClick={handleButtonClick}
         className={className || 'p-2 text-white/40 hover:text-white transition-all'}
       >
-        <Share2 size={18} />
+        <Share2 size={iconSize} />
+        {label && <span>{label}</span>}
       </button>
 
       <Portal>

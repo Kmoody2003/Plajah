@@ -931,6 +931,21 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 })}
               </h1>
 
+              {/* Share profile — directly under the name so it's the first thing you can do. Works
+                  for anyone viewing (share this profile); labeled for the owner as "my profile". */}
+              <div className={`mt-3 ${isMobile ? 'flex justify-center' : ''}`}>
+                <ShareButton
+                  title={`${profile.displayName}'s Profile`}
+                  text={`Check out ${profile.displayName} on Plajah!`}
+                  url={`${window.location.origin}/profile/${profile.uid}`}
+                  imageUrl={profile.photoURL || profile.coverArt}
+                  artist={profile.displayName}
+                  label={isOwnProfile ? 'Share my profile' : 'Share profile'}
+                  iconSize={15}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[10px] font-black uppercase tracking-widest transition-all"
+                />
+              </div>
+
               {/* Pill buttons are now rendered in the dedicated strip above the bio — removed from here */}
 
               </div>
