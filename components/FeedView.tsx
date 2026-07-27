@@ -1288,6 +1288,7 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   });
   const [showGoLive, setShowGoLive] = useState(false);
   const [showStartTalk, setShowStartTalk] = useState(false);
+  const [joinTalkId, setJoinTalkId] = useState<string | null>(null);   // room to auto-join in the overlay
   const [globalActiveTalks, setGlobalActiveTalks] = useState<LiveTalk[]>([]);
   const [subscribedPodcasts, setSubscribedPodcasts] = useState<Album[]>([]);
   const [clockTime, setClockTime] = useState(() => new Date());
@@ -2179,10 +2180,8 @@ const toggleFavoriteTeam = async (team: string) => {
         <div className="pt-4 lg:pt-12 px-1 sm:px-6 lg:px-20 max-w-[1600px] mx-auto w-full">
            <LiveTalkDiscovery
              currentUser={currentUser}
-             onJoin={(id) => {
-               window.dispatchEvent(new CustomEvent('open-drawer', { detail: { tab: 'LIVETALK', talkId: id } }));
-             }}
-             onStartTalk={() => setShowStartTalk(true)}
+             onJoin={(id) => { setJoinTalkId(id); setShowStartTalk(true); }}
+             onStartTalk={() => { setJoinTalkId(null); setShowStartTalk(true); }}
            />
         </div>
       ) : activeTab === 'NEWS' ? (
@@ -2954,7 +2953,7 @@ const toggleFavoriteTeam = async (team: string) => {
                 {globalActiveTalks.slice(0, 10).map(talk => (
                   <button
                     key={talk.id}
-                    onClick={() => window.dispatchEvent(new CustomEvent('open-drawer', { detail: { tab: 'LIVETALK', talkId: talk.id } }))}
+                    onClick={() => { setJoinTalkId(talk.id); setShowStartTalk(true); }}
                     className="flex-shrink-0 flex items-center gap-2.5 bg-red-500/10 border border-red-500/20 hover:border-red-500/40 rounded-2xl px-3.5 py-2 transition-all group"
                   >
                     <div className="relative shrink-0">
@@ -3297,7 +3296,7 @@ const toggleFavoriteTeam = async (team: string) => {
                       isPosting={isPosting}
                       onSelectGame={onSelectGame}
                       availableBackgrounds={availableBackgrounds}
-                      onStartTalk={() => setShowStartTalk(true)}
+                      onStartTalk={() => { setJoinTalkId(null); setShowStartTalk(true); }}
                     />
                   </RolodexCard>
                 ];
@@ -3433,8 +3432,9 @@ const toggleFavoriteTeam = async (team: string) => {
      <div className="fixed inset-0 z-[500] bg-black">
        <Suspense fallback={<div className="w-full h-full flex items-center justify-center"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
          <LiveTalkView
-           initialShowSetup={true}
-           onBrowse={() => setShowStartTalk(false)}
+           initialShowSetup={!joinTalkId}
+           initialTalkId={joinTalkId || undefined}
+           onBrowse={() => { setShowStartTalk(false); setJoinTalkId(null); }}
          />
        </Suspense>
      </div>
