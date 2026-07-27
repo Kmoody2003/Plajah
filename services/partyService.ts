@@ -38,8 +38,10 @@ export interface PartyPlaybackState {
   isPlaying: boolean;
   /** host playhead in seconds at the moment this state was written (video / audio). */
   positionSec: number;
-  /** read-along: the host's current page (0-based or 1-based — the surface decides, just be consistent). */
+  /** read-along: the host's current page within the chapter (0-based index). */
   currentPage?: number;
+  /** read-along: the host's current chapter index (books are a compound chapter+page position). */
+  chapterIndex?: number;
   /** listening party: index of the track in the album the host is on. */
   trackIndex?: number;
   /** content id currently loaded (album track id, or the movie/book id) — lets the audience swap item. */

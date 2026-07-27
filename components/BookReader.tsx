@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { Album, BookChapter, BookPage, Comment, BookNote } from '../types';
 import ComicReader from './ComicReader';
 import { buildShareUrl } from '../services/deepLinkService';
+import { createParty, partyShareUrl } from '../services/partyService';
+import { useParty } from '../hooks/useParty';
 import { ChevronLeft, ChevronRight, X, Maximize2, Minimize2, ZoomIn, ZoomOut, Grid, Bookmark, Settings, MessageSquare, Edit3, Mic, Link as LinkIcon, Play, Pause, Users, Video as VideoIcon, Highlighter, RefreshCw, List, Book as BookIcon, Type, Smartphone, Monitor, Moon, Sun, Coffee, Columns, Square, Download, Loader2, BookOpen as BookOpenIcon, Share2, Trash2, Headphones, ChevronDown, Volume2, Sparkles, AlertCircle, ExternalLink } from 'lucide-react';
 import { MAI_VOICES, synthesizeParagraphs, estimateNarrationDurationMs } from '../services/microsoftAIService';
 import { motion, AnimatePresence } from 'motion/react';
@@ -131,6 +133,8 @@ interface BookReaderProps {
   currentUser: any;
   onVisitUser?: (uid: string) => void;
   onOpenAudioStudio?: () => void;
+  /** If opened from a shared read-along link, the party to auto-join and follow. */
+  partyId?: string;
 }
 
 const POSITION_KEY = (bookId: string) => `lorea_pos_${bookId}`;
@@ -145,7 +149,7 @@ function loadSavedPosition(bookId: string): { chapter: number; page: number } {
   } catch { return { chapter: 0, page: 0 }; }
 }
 
-const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVisitUser, onOpenAudioStudio }) => {
+const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVisitUser, onOpenAudioStudio, partyId }) => {
   const { theme } = useGlobalPlayerState();
 
   // Restore last-read position from localStorage
@@ -329,9 +333,14 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const modeMaxW    = resolvedMode === 'TV' ? 'max-w-6xl' : resolvedMode === 'DESKTOP' ? 'max-w-3xl' : 'max-w-xl';
   const modeLeading = resolvedMode === 'TV' ? 'leading-[2.1]' : 'leading-[1.9]';
 
-  // Read Along (Book Club) State
-  const [isReadAlongActive, setIsReadAlongActive] = useState(false);
-  const [isHost, setIsHost] = useState(false);
+  // Read Along (Book Club) — a synchronized reading party. The host's page is broadcast; every
+  // reader's own book follows to that chapter+page (content is local — see services/partyService).
+  const [activePartyId, setActivePartyId] = useState<string | null>(partyId ?? null);
+  useEffect(() => { setActivePartyId(partyId ?? null); }, [partyId]);
+  const party = useParty(activePartyId);
+  const isReadAlongActive = !!activePartyId;
+  const isHost = party.isHost;
+  const followingRef = useRef(false);   // guard: don't re-broadcast a page turn we made to follow
   
   // Narration State
   const [isNarrating, setIsNarrating] = useState(false);
@@ -898,10 +907,43 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     setIsNarrating(!isNarrating);
   };
 
-  const toggleReadAlong = () => {
-    setIsReadAlongActive(!isReadAlongActive);
-    setIsHost(Math.random() > 0.5);
+  const toggleReadAlong = async () => {
+    if (activePartyId) {
+      // Leave / end the current read-along.
+      if (party.isHost) party.end();
+      setActivePartyId(null);
+      return;
+    }
+    // Host a new read-along from the current position, then share the join link.
+    try {
+      const id = await createParty({
+        kind: 'READ',
+        content: { type: 'BOOK', id: book.id, title: book.title, thumbnail: book.coverImage },
+        initial: { currentPage: currentPageIndex, chapterIndex: currentChapterIndex },
+      });
+      setActivePartyId(id);
+      const url = partyShareUrl(id);
+      if (navigator.share) navigator.share({ title: `Read “${book.title}” along with me on Plajah`, url }).catch(() => {});
+      else navigator.clipboard?.writeText(url).catch(() => {});
+    } catch (e) { console.error('start read-along failed', e); }
   };
+
+  // HOST: broadcast the current chapter+page whenever it changes (skip turns we made to follow).
+  useEffect(() => {
+    if (!activePartyId || !party.isHost) return;
+    if (followingRef.current) { followingRef.current = false; return; }
+    party.broadcast({ currentPage: currentPageIndex, chapterIndex: currentChapterIndex, contentId: book.id });
+  }, [activePartyId, party.isHost, currentPageIndex, currentChapterIndex]);
+
+  // FOLLOWER: navigate to the host's chapter+page whenever the host turns.
+  useEffect(() => {
+    if (!activePartyId || !party.isFollower) return;
+    const pb = party.playback;
+    if (!pb) return;
+    followingRef.current = true;
+    if (typeof pb.chapterIndex === 'number' && pb.chapterIndex !== currentChapterIndex) setCurrentChapterIndex(pb.chapterIndex);
+    if (typeof pb.currentPage === 'number' && pb.currentPage !== currentPageIndex) setCurrentPageIndex(pb.currentPage);
+  }, [activePartyId, party.isFollower, party.playback?.seq]);
 
   // Generate AI narration for current chapter using MAI Voice 2
   const generateAINarration = async () => {
@@ -2024,12 +2066,19 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                 </div>
                 <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 backdrop-blur-md rounded text-[8px] font-black uppercase tracking-widest text-white flex items-center gap-2">
                   <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-                  {isHost ? 'Host (You)' : 'Host'}
+                  {isHost ? 'Host (You)' : `Following ${party.party?.hostName || 'Host'}`}
                 </div>
               </div>
-              <div className={`p-3 ${theme === 'LIGHT' ? 'bg-black/5' : 'bg-white/5'} flex justify-between items-center`}>
-                <span className={`text-[9px] font-black uppercase tracking-widest ${s.subtext}`}>Read Along</span>
-                <span className="text-[9px] font-black uppercase tracking-widest text-blue-400">12 Viewers</span>
+              <div className={`p-3 ${theme === 'LIGHT' ? 'bg-black/5' : 'bg-white/5'} flex justify-between items-center gap-2`}>
+                <span className={`text-[9px] font-black uppercase tracking-widest ${s.subtext} flex items-center gap-1.5`}>
+                  <Users size={11} /> {party.viewerCount} {party.viewerCount === 1 ? 'Reader' : 'Readers'}
+                </span>
+                <button
+                  onClick={toggleReadAlong}
+                  className="text-[9px] font-black uppercase tracking-widest text-red-400 hover:text-red-300 transition-colors"
+                >
+                  {isHost ? 'End' : 'Leave'}
+                </button>
               </div>
             </motion.div>
           )}

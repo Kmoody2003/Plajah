@@ -22,6 +22,8 @@ import ChoraQualityButton from './ChoraQualityButton';
 import OfflineDownloadButton from './OfflineDownloadButton';
 import PlaylistPickerModal from './PlaylistPickerModal';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
+import { createParty, partyShareUrl, shouldResync } from '../services/partyService';
+import { useParty } from '../hooks/useParty';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Play, Pause, ArrowLeft, Disc, Globe,
@@ -348,6 +350,8 @@ interface PlayerViewProps {
   isPublic?: boolean;
   isPreview?: boolean;
   user: FirebaseUser | null;
+  /** If opened from a shared listening-party link, the party to auto-join and follow. */
+  partyId?: string;
 }
 
 // Amplitude-reactive bars — reads directly from Web Audio AnalyserNode via RAF
@@ -440,7 +444,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   onOpenItem,
   isPublic = false,
   isPreview = false,
-  user
+  user,
+  partyId,
 }) => {
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
   const {
@@ -484,6 +489,72 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const { currentTime: globalCurrentTime, duration: globalDuration, seek } = useGlobalPlayerProgress();
 
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+
+  // ── Listening party (synchronized premiere) ───────────────────────────────
+  // The host premieres an album/track; every listener's own player follows the host's track +
+  // position (audio streams locally per listener — see services/partyService.ts). Same primitive
+  // as watch-along/read-along.
+  const [activePartyId, setActivePartyId] = useState<string | null>(partyId ?? null);
+  useEffect(() => { setActivePartyId(partyId ?? null); }, [partyId]);
+  const party = useParty(activePartyId);
+
+  // Live snapshot of local playback (refs so the follower interval below never re-creates on tick).
+  const listenLocalRef = useRef<{ trackId?: string; isPlaying: boolean; time: number }>({ isPlaying: false, time: 0 });
+  listenLocalRef.current = { trackId: globalTrack?.id, isPlaying: globalIsPlaying, time: globalCurrentTime || 0 };
+  const hostStateRef = useRef<any>({});
+  hostStateRef.current = { isPlaying: globalIsPlaying, positionSec: globalCurrentTime || 0, contentId: globalTrack?.id, trackIndex: currentTrackIndex };
+
+  // HOST: broadcast on play/pause/track change, plus a heartbeat that also catches seeks.
+  useEffect(() => {
+    if (!activePartyId || !party.isHost) return;
+    party.broadcast(hostStateRef.current);
+  }, [activePartyId, party.isHost, globalIsPlaying, globalTrack?.id, currentTrackIndex]);
+  useEffect(() => {
+    if (!activePartyId || !party.isHost) return;
+    const iv = setInterval(() => { if (hostStateRef.current.isPlaying) party.broadcast(hostStateRef.current); }, 3000);
+    return () => clearInterval(iv);
+  }, [activePartyId, party.isHost]);
+
+  // FOLLOWER: slave the local Chora player to the host's track + position.
+  useEffect(() => {
+    if (!activePartyId || !party.isFollower) return;
+    const apply = () => {
+      const pb = party.playback;
+      if (!pb) return;
+      const { targetPositionSec, shouldPlay } = party.getTarget();
+      const tracks = album?.tracks || [];
+      const target = (typeof pb.trackIndex === 'number' && tracks[pb.trackIndex]) ? tracks[pb.trackIndex] : (pb.contentId ? tracks.find(t => t.id === pb.contentId) : null);
+      const local = listenLocalRef.current;
+      if (target && local.trackId !== target.id) {
+        playTrack(target, album, 'LIBRARY', targetPositionSec);         // switch track + seek in one
+        if (typeof pb.trackIndex === 'number') setCurrentTrackIndex(pb.trackIndex);
+        return;
+      }
+      if (shouldResync(local.time, targetPositionSec)) seek(targetPositionSec);
+      if (shouldPlay && !local.isPlaying) resume();
+      else if (!shouldPlay && local.isPlaying) pause();
+    };
+    apply();
+    const iv = setInterval(apply, 2000);
+    return () => clearInterval(iv);
+  }, [activePartyId, party.isFollower, party.playback?.seq, album]);
+
+  const startListeningParty = useCallback(async () => {
+    try {
+      const track = globalTrack || album?.tracks?.[currentTrackIndex] || album?.tracks?.[0];
+      const id = await createParty({
+        kind: 'LISTEN',
+        content: { type: 'ALBUM', id: album.id, title: album.title, thumbnail: album.coverImage },
+        initial: { isPlaying: globalIsPlaying, positionSec: globalCurrentTime || 0, contentId: track?.id, trackIndex: currentTrackIndex },
+      });
+      setActivePartyId(id);
+      const url = partyShareUrl(id);
+      if (navigator.share) navigator.share({ title: `Listen to “${album.title}” with me on Plajah`, url }).catch(() => {});
+      else navigator.clipboard?.writeText(url).catch(() => {});
+    } catch (e) { console.error('start listening party failed', e); }
+  }, [album, globalTrack, globalIsPlaying, globalCurrentTime, currentTrackIndex]);
+
+  const leaveListeningParty = useCallback(() => { if (party.isHost) party.end(); setActivePartyId(null); }, [party]);
   const [playlistPickerTrack, setPlaylistPickerTrack] = useState<Track | null>(null);
   const [activeHUD, setActiveHUD] = useState<'INFO' | 'COMMENTS' | 'TRACKS' | 'ABOUT' | 'MEDIA' | 'LYRICS'>('TRACKS');
   const [isFlipped, setIsFlipped] = useState(false);
@@ -2907,6 +2978,17 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                      </button>
                    )}
 
+                   {/* Listening Party — premiere/showcase this album, listeners sync to your playback */}
+                   {!isPreview && !activePartyId && (
+                     <button
+                       onClick={() => auth.currentUser ? startListeningParty() : alert('Sign in to host a listening party.')}
+                       title="Premiere this album — invited listeners sync to your playback"
+                       className="flex items-center gap-2 px-3 py-1 bg-[#D40055]/10 hover:bg-[#D40055]/20 border border-[#D40055]/25 rounded-md text-[10px] font-black tracking-widest text-[#ff5c9d] uppercase transition-all"
+                     >
+                       <Users size={13} /> Listening Party
+                     </button>
+                   )}
+
                    {/* Share — to the Plajah feed or out to social sites */}
                    <div className={currentTrack ? '' : 'ml-auto'}>
                      <ShareButton
@@ -2927,6 +3009,31 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                      />
                    </div>
                 </div>
+                {/* Listening-party status — host/follower, live listener count, invite/leave. */}
+                {activePartyId && (
+                  <div className="flex items-center gap-3 px-3 py-2 rounded-xl border border-[#D40055]/30 bg-gradient-to-r from-[#6B0099]/20 to-[#D40055]/20">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+                    <Radio size={13} className="text-[#ff5c9d] shrink-0" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white flex-1 min-w-0 truncate">
+                      {party.isHost ? 'Hosting listening party' : `Following ${party.party?.hostName || 'the host'}`}
+                      <span className="text-white/50"> · </span>
+                      <span className="inline-flex items-center gap-1 text-white/70"><Users size={11} /> {party.viewerCount} listening</span>
+                      {party.isFollower && <span className="text-white/40 normal-case tracking-normal"> — synced to host</span>}
+                    </p>
+                    {party.isHost && (
+                      <button
+                        onClick={() => { const u = partyShareUrl(activePartyId); if (navigator.share) navigator.share({ title: `Listen to “${album.title}” with me on Plajah`, url: u }).catch(() => {}); else navigator.clipboard?.writeText(u).catch(() => {}); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-[9px] font-black uppercase tracking-widest transition-all shrink-0"
+                      >
+                        <Share2 size={12} /> Invite
+                      </button>
+                    )}
+                    <button onClick={leaveListeningParty} className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-[9px] font-black uppercase tracking-widest transition-all shrink-0">
+                      {party.isHost ? 'End' : 'Leave'}
+                    </button>
+                  </div>
+                )}
+
                 {/* Surface the real reason a caption sync failed (large-file 413, fetch, quota) so the
                     creator can act on it instead of the button silently doing nothing. */}
                 {isOwner && captionError && (

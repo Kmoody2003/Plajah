@@ -549,6 +549,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [countdownInitialAlbum, setCountdownInitialAlbum] = useState<Album | null>(null);
   const [selectedMovieItem, setSelectedMovieItem] = useState<any | null>(null);
   const [selectedBook, setSelectedBook] = useState<Album | null>(null);
+  const [partyIdForReader, setPartyIdForReader] = useState<string | null>(null);
+  const [partyIdForAlbum, setPartyIdForAlbum] = useState<string | null>(null);
   const [selectedScriptId, setSelectedScriptId] = useState<string | undefined>(undefined);
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [selectedPoolId, setSelectedPoolId] = useState<string | null>(null);
@@ -1464,8 +1466,25 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             setSelectedVideo(vid);
             setView('PLAYER');
             document.title = `Watch Party · ${vid.title} | Plajah`;
+          } else if (p && p.isActive !== false && p.kind === 'READ') {
+            const m = await import('./services/backendService');
+            const book = await m.fetchAlbumById(p.content.id).catch(() => null);
+            if (book) {
+              setPartyIdForReader(partyParam);
+              setSelectedBook(book);
+              setView('BOOK_READER');
+              document.title = `Read-Along · ${book.title} | Plajah`;
+            }
+          } else if (p && p.isActive !== false && p.kind === 'LISTEN') {
+            const m = await import('./services/backendService');
+            const alb = await m.fetchAlbumById(p.content.id).catch(() => null);
+            if (alb) {
+              setPartyIdForAlbum(partyParam);
+              setSelectedAlbum(alb);
+              setView('PLAYER');
+              document.title = `Listening Party · ${alb.title} | Plajah`;
+            }
           }
-          // READ / LISTEN parties open once those surfaces are party-aware (later phases).
           setIsLoading(false);
         }).catch(() => setIsLoading(false));
         return;
@@ -1854,6 +1873,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     setSelectedGame(null);
     setSelectedVideo(null);
     setSelectedBook(null);
+    setPartyIdForAlbum(null);
     if (isPublicView) setIsPublicView(false);
     setView('MUSIC', isPublicView ? '/' : undefined);
     loadAlbums();
@@ -4516,10 +4536,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 }>
                   <BookReader
                     book={selectedBook}
-                    onBack={() => { setSelectedBook(null); setView('BOOKS'); }}
+                    onBack={() => { setSelectedBook(null); setPartyIdForReader(null); setView('BOOKS'); }}
                     currentUser={user}
                     onVisitUser={handleVisitUser}
                     onOpenAudioStudio={() => setView('AUDIO_BOOK_STUDIO')}
+                    partyId={partyIdForReader || undefined}
                   />
                 </Suspense>
               </ErrorBoundary>
@@ -4660,6 +4681,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 isPublic={isPublicView}
                 isPreview={view === 'PREVIEW'}
                 user={user}
+                partyId={partyIdForAlbum || undefined}
               />
             )}
             {view === 'MOVIE_UX' && selectedMovieItem && (
