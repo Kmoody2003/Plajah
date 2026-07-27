@@ -9,14 +9,26 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
-  RtcSession, RtcSessionConfig, RtcParticipant, RtcDataMessage,
+  RtcSession, RtcSessionConfig, RtcParticipant, RtcDataMessage, RtcRole,
 } from '../services/rtcCore';
 import { SessionRecorder, SessionRecorderOptions } from '../services/sessionRecorder';
+
+/** A remote peer's stream WITH its identity — the join of remoteStreams × participants. This is
+ *  what lets a consumer tell the host apart from guests (e.g. the Reello viewer renders the host's
+ *  stream as the main video and each 'participant' as a guest tile) instead of guessing "first". */
+export interface RemotePeer {
+  peerId: string;
+  stream: MediaStream;
+  role?: RtcRole;
+  name?: string;
+}
 
 export interface UseRtcSession {
   localStream: MediaStream | null;
   /** peerId → MediaStream */
   remoteStreams: Map<string, MediaStream>;
+  /** remote streams joined with per-peer role/name (host vs participant/guest vs …). */
+  remotePeers: RemotePeer[];
   participants: RtcParticipant[];
   /** peerId → connection state */
   peerStates: Map<string, RTCPeerConnectionState>;
@@ -191,6 +203,13 @@ export function useRtcSession(
   const setAudio = useCallback((on: boolean) => { sessionRef.current?.setAudioEnabled(on); setAudioEnabled(on); }, []);
   const setVideo = useCallback((on: boolean) => { sessionRef.current?.setVideoEnabled(on); setVideoEnabled(on); }, []);
 
+  // Correlate each remote stream with its participant identity (role/name). Recomputed on any
+  // stream/participant change — cheap, and the source of truth for "who is this stream?".
+  const remotePeers: RemotePeer[] = Array.from(remoteStreams.entries()).map(([peerId, stream]) => {
+    const p = participants.find(pp => pp.id === peerId);
+    return { peerId, stream, role: p?.role, name: p?.name };
+  });
+
   // Keep the recorder's stream source current.
   useEffect(() => {
     streamsRef.current = [localStream, ...remoteStreams.values()].filter(Boolean) as MediaStream[];
@@ -224,7 +243,7 @@ export function useRtcSession(
   }, []);
 
   return {
-    localStream, remoteStreams, participants, peerStates, error,
+    localStream, remoteStreams, remotePeers, participants, peerStates, error,
     audioEnabled, videoEnabled, sharingScreen,
     toggleAudio, toggleVideo, setAudio, setVideo, switchCamera, cycleCamera, publishExternalVideo, publishExternalAudio, toggleScreenShare, leave,
     isRecording, startRecording, stopRecording, sendData,

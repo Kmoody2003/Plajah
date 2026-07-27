@@ -40,7 +40,7 @@ import { buildShareUrl } from '../services/deepLinkService';
 import { useRtcSession } from '../hooks/useRtcSession';
 import {
   doc, collection, addDoc, setDoc, updateDoc, increment, deleteDoc,
-  query, orderBy, limit,
+  query, orderBy, limit, arrayUnion, arrayRemove,
 } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
 
@@ -442,6 +442,22 @@ async function cropSheetFace(blob: Blob, crop: DemoAvatar['crop']): Promise<Blob
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+/** A remote peer's live video in a compact tile (guest on stage). Attaches the MediaStream to a
+ *  <video> and shows the name + an optional remove (host) control. */
+const PeerTile: React.FC<{ stream: MediaStream; name?: string; onRemove?: () => void }> = ({ stream, name, onRemove }) => {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => { if (ref.current && ref.current.srcObject !== stream) ref.current.srcObject = stream; }, [stream]);
+  return (
+    <div className="relative w-24 h-32 rounded-xl overflow-hidden bg-black border border-white/20 shrink-0 shadow-lg">
+      <video ref={ref} autoPlay playsInline className="w-full h-full object-cover" />
+      <div className="absolute bottom-1 left-1 right-1 flex items-center justify-between gap-1">
+        <span className="text-[7px] font-black uppercase tracking-widest text-white bg-black/60 px-1 py-0.5 rounded truncate">{name || 'Guest'}</span>
+        {onRemove && <button onClick={onRemove} className="text-white bg-red-500/90 rounded-full w-4 h-4 flex items-center justify-center text-[9px] leading-none shrink-0">×</button>}
+      </div>
+    </div>
+  );
+};
+
 const MobileLiveStreamer: React.FC<MobileLiveStreamerProps> = ({
   mode, streamId: initStreamId, title: initTitle, ownerName, clubId, isPrivate, onClose,
 }) => {
@@ -738,13 +754,40 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   // ── Media + peers now run on the unified rtcCore backbone (broadcast topology:
   //    this host publishes, viewers subscribe). The session is live from mount so
   //    the setup-screen preview works; viewers connect once they join. ──────────
+  // 'stage' topology (not 'broadcast'): the host still publishes to every viewer exactly as before,
+  // but it ALSO lets an approved viewer publish — that's how a guest comes "on stage". Viewers stay
+  // recv-only ('viewer' role) until the host promotes them (streams/{id}.guests).
   const rtc = useRtcSession({
     sessionId: streamId,
-    topology: 'broadcast',
+    topology: 'stage',
     role: 'host',
     media: { audio: true, video: { facingMode: facing } },
     displayName: auth.currentUser?.displayName || 'Creator',
   });
+
+  // ── Guests on stage ────────────────────────────────────────────────────────
+  const [guestRequests, setGuestRequests] = useState<Array<{ uid: string; name: string; photo?: string }>>([]);
+  const [guests, setGuests] = useState<Array<{ uid: string; name: string; photo?: string }>>([]);
+  const [showGuestPanel, setShowGuestPanel] = useState(false);
+  useEffect(() => {
+    if (!streamId) return;
+    return onSnapshot(doc(db, 'streams', streamId), (snap: any) => {
+      const d = snap.data() || {};
+      setGuestRequests(Array.isArray(d.guestRequests) ? d.guestRequests : []);
+      setGuests(Array.isArray(d.guests) ? d.guests : []);
+    });
+  }, [streamId]);
+  const approveGuest = async (g: { uid: string; name: string; photo?: string }) => {
+    try { await updateDoc(doc(db, 'streams', streamId), { guests: arrayUnion(g), guestRequests: arrayRemove(g) }); } catch { /* */ }
+  };
+  const denyRequest = async (g: { uid: string; name: string; photo?: string }) => {
+    try { await updateDoc(doc(db, 'streams', streamId), { guestRequests: arrayRemove(g) }); } catch { /* */ }
+  };
+  const removeGuest = async (g: { uid: string; name: string; photo?: string }) => {
+    try { await updateDoc(doc(db, 'streams', streamId), { guests: arrayRemove(g) }); } catch { /* */ }
+  };
+  // Live guest video tiles — remote publishers that are participants (not the host = us).
+  const guestPeers = rtc.remotePeers.filter(p => p.role === 'participant');
 
   // Preview ← backbone local stream.
   useEffect(() => { if (videoRef.current) videoRef.current.srcObject = rtc.localStream; }, [rtc.localStream]);
@@ -1070,6 +1113,14 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                 <Eye size={11} className="text-white/60" />
                 <span className="text-[11px] font-bold text-white/80">{viewerCount}</span>
               </div>
+              {/* Guests — bring viewers on stage. Badge shows pending requests. */}
+              <button onClick={() => setShowGuestPanel(v => !v)}
+                className="relative w-9 h-9 rounded-full bg-black/60 backdrop-blur flex items-center justify-center">
+                <Users size={16} className="text-white" />
+                {guestRequests.length > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center">{guestRequests.length}</span>
+                )}
+              </button>
               {/* Share */}
               <button onClick={shareStream}
                 className="w-9 h-9 rounded-full bg-black/60 backdrop-blur flex items-center justify-center">
@@ -1077,6 +1128,52 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
               </button>
             </div>
           </div>
+
+          {/* Guests-on-stage: live video tiles for approved guests */}
+          {guestPeers.length > 0 && (
+            <div className="absolute left-3 right-3 flex gap-2 overflow-x-auto z-10" style={{ top: 'calc(max(env(safe-area-inset-top), 12px) + 128px)' }}>
+              {guestPeers.map(p => {
+                const g = guests.find(x => x.uid === p.peerId);
+                return <PeerTile key={p.peerId} stream={p.stream} name={p.name || g?.name} onRemove={g ? () => removeGuest(g) : undefined} />;
+              })}
+            </div>
+          )}
+
+          {/* Guest management panel — approve requests, remove guests */}
+          {showGuestPanel && (
+            <div className="absolute top-0 bottom-0 right-0 w-72 max-w-[85vw] bg-[#0c0c0e]/95 backdrop-blur-xl border-l border-white/10 z-30 flex flex-col">
+              <div className="flex items-center justify-between px-4 py-4 border-b border-white/10">
+                <span className="text-[11px] font-black uppercase tracking-widest text-white">Guests on stage</span>
+                <button onClick={() => setShowGuestPanel(false)} className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white/60"><X size={14} /></button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {guestRequests.length > 0 && (
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2">Requests</p>
+                    {guestRequests.map(g => (
+                      <div key={g.uid} className="flex items-center gap-2 mb-2">
+                        <img src={g.photo || `https://api.dicebear.com/7.x/avataaars/svg?seed=${g.uid}`} className="w-8 h-8 rounded-full object-cover" alt="" />
+                        <span className="flex-1 text-[11px] font-bold text-white truncate">{g.name}</span>
+                        <button onClick={() => approveGuest(g)} className="px-2.5 py-1 rounded-full bg-green-500/90 text-white text-[9px] font-black uppercase">Bring on</button>
+                        <button onClick={() => denyRequest(g)} className="px-2 py-1 rounded-full bg-white/10 text-white/60 text-[9px] font-black uppercase">No</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2">On stage ({guests.length})</p>
+                  {guests.length === 0 && <p className="text-[10px] text-white/30">No guests yet. Approve a request to bring someone on.</p>}
+                  {guests.map(g => (
+                    <div key={g.uid} className="flex items-center gap-2 mb-2">
+                      <img src={g.photo || `https://api.dicebear.com/7.x/avataaars/svg?seed=${g.uid}`} className="w-8 h-8 rounded-full object-cover" alt="" />
+                      <span className="flex-1 text-[11px] font-bold text-white truncate">{g.name}</span>
+                      <button onClick={() => removeGuest(g)} className="px-2.5 py-1 rounded-full bg-red-500/80 text-white text-[9px] font-black uppercase">Remove</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Title overlay */}
           <div className="absolute left-4 right-4" style={{ top: 'calc(max(env(safe-area-inset-top), 12px) + 52px)' }}>
@@ -1543,18 +1640,41 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
   const [muted, setMuted] = useState(false);
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
+  const [guests, setGuests] = useState<Array<{ uid: string; name: string; photo?: string }>>([]);
+  const [requested, setRequested] = useState(false);
+
+  const myUid = auth.currentUser?.uid || '';
+  const isGuest = !!myUid && guests.some(g => g.uid === myUid);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatMsgs = useLiveChat(streamId);
 
-  // Watch via the unified rtcCore backbone (broadcast viewer — subscribe only).
+  // 'stage' topology: normally a recv-only viewer, but once the host brings me on I re-key as a
+  // 'participant' and publish my cam/mic (this is a guest coming on stage). The host's stream is
+  // still the main video for everyone; guests render as tiles.
   const rtc = useRtcSession({
     sessionId: streamId,
-    topology: 'broadcast',
-    role: 'viewer',
-    media: { audio: false, video: false },
+    topology: 'stage',
+    role: isGuest ? 'participant' : 'viewer',
+    media: isGuest ? { audio: true, video: { facingMode: 'user' } } : { audio: false, video: false },
+    displayName: auth.currentUser?.displayName || 'Guest',
   });
+
+  const requestToJoin = async () => {
+    if (!myUid) { alert('Sign in to join the stream.'); return; }
+    setRequested(true);
+    await updateDoc(doc(db, 'streams', streamId), {
+      guestRequests: arrayUnion({ uid: myUid, name: auth.currentUser?.displayName || 'Guest', photo: auth.currentUser?.photoURL || '' }),
+    }).catch(() => {});
+  };
+  const leaveStage = async () => {
+    const me = guests.find(g => g.uid === myUid);
+    if (me) await updateDoc(doc(db, 'streams', streamId), { guests: arrayRemove(me) }).catch(() => {});
+    setRequested(false);
+  };
+  // Other guests on stage (not me) → tiles.
+  const guestPeers = rtc.remotePeers.filter(p => p.role === 'participant');
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMsgs]);
 
@@ -1566,6 +1686,7 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
         setViewerCount(data.viewerCount ?? 0);
         setLikeCount(data.likeCount ?? 0);
         setStreamLive(data.isLive !== false);
+        setGuests(Array.isArray(data.guests) ? data.guests : []);
       }
     });
   }, [streamId]);
@@ -1575,15 +1696,17 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
     updateDoc(doc(db, 'streams', streamId), { totalViews: increment(1) }).catch(() => {});
   }, [streamId]);
 
-  // Attach the broadcaster's stream the moment it arrives.
+  // Attach the HOST's stream as the main video — identified by role, not "first" (with guests on
+  // stage there are multiple publishers; the first could be a guest). Falls back to any stream.
   useEffect(() => {
-    const first = rtc.remoteStreams.values().next().value as MediaStream | undefined;
-    if (videoRef.current && first) {
-      videoRef.current.srcObject = first;
+    const host = rtc.remotePeers.find(p => p.role === 'host');
+    const main = host?.stream || rtc.remotePeers[0]?.stream;
+    if (videoRef.current && main) {
+      if (videoRef.current.srcObject !== main) videoRef.current.srcObject = main;
       setConnected(true);
       setConnecting(false);
     }
-  }, [rtc.remoteStreams]);
+  }, [rtc.remotePeers]);
 
   // Stop the spinner after a grace period even if nothing connects.
   useEffect(() => {
@@ -1692,6 +1815,33 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
           {muted ? <VolumeX size={16} className="text-red-400" /> : <Volume2 size={16} className="text-white" />}
         </button>
       </div>
+
+      {/* Guests on stage — the host + other guests' live tiles (mine is published, not shown here) */}
+      {guestPeers.length > 0 && (
+        <div className="absolute left-3 right-3 flex gap-2 overflow-x-auto z-10" style={{ top: 'calc(max(env(safe-area-inset-top), 12px) + 52px)' }}>
+          {guestPeers.map(p => <PeerTile key={p.peerId} stream={p.stream} name={p.name} />)}
+        </div>
+      )}
+
+      {/* Join-the-stream control: request → (host approves) → on stage with mic/cam + leave. */}
+      {streamLive && (
+        <div className="absolute left-1/2 -translate-x-1/2 z-20 flex items-center gap-2" style={{ bottom: 'calc(env(safe-area-inset-bottom) + 96px)' }}>
+          {isGuest ? (
+            <>
+              <span className="px-3 py-1.5 rounded-full bg-red-500 text-white text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> You're on stage</span>
+              <button onClick={rtc.toggleAudio} className="w-9 h-9 rounded-full bg-black/60 backdrop-blur flex items-center justify-center">{rtc.audioEnabled ? <Mic size={15} className="text-white" /> : <MicOff size={15} className="text-red-400" />}</button>
+              <button onClick={rtc.toggleVideo} className="w-9 h-9 rounded-full bg-black/60 backdrop-blur flex items-center justify-center"><Video size={15} className={rtc.videoEnabled ? 'text-white' : 'text-red-400'} /></button>
+              <button onClick={leaveStage} className="px-3 py-1.5 rounded-full bg-white/15 text-white text-[9px] font-black uppercase tracking-widest">Leave stage</button>
+            </>
+          ) : requested ? (
+            <span className="px-4 py-2 rounded-full bg-black/60 backdrop-blur text-white/70 text-[9px] font-black uppercase tracking-widest">Requested — waiting for host…</span>
+          ) : (
+            <button onClick={requestToJoin} className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur text-white text-[9px] font-black uppercase tracking-widest transition-all">
+              <Users size={14} /> Ask to join
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Creator info */}
       <div className="absolute left-4" style={{ top: 'calc(max(env(safe-area-inset-top), 12px) + 52px)' }}>
