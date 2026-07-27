@@ -543,6 +543,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
   const [pitchDeckInitialDeck, setPitchDeckInitialDeck] = useState<PitchDeck | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<any | null>(null);
+  const [partyIdForPlayer, setPartyIdForPlayer] = useState<string | null>(null);
   const [videoQueue, setVideoQueue] = useState<any[]>([]);  // playlist autoplay queue
   const [countdownAlbumId, setCountdownAlbumId] = useState<string | null>(null);
   const [countdownInitialAlbum, setCountdownInitialAlbum] = useState<Album | null>(null);
@@ -1447,6 +1448,26 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         setActiveLiveFeed({ id: lsId, streamId: lsId, url: `livestream:${lsId}`, status: 'LIVE', isPublic: true, ownerId: '', ownerName: '', title: 'Live Stream', timestamp: Date.now() } as any);
         document.title = 'Live Stream | Plajah';
         setIsLoading(false);
+        return;
+      }
+
+      // Deep-link: ?party={id} — join a synchronized watch/read/listen party and follow the host.
+      const partyParam = params.get('party');
+      if (partyParam) {
+        import('./services/partyService').then(async (ps) => {
+          const p = await ps.fetchParty(partyParam).catch(() => null);
+          if (p && p.isActive !== false && p.kind === 'WATCH') {
+            const m = await import('./services/backendService');
+            let vid: any = await m.fetchVideoById(p.content.id).catch(() => null);
+            if (!vid) vid = { id: p.content.id, title: p.content.title || 'Watch Party', url: p.content.url, muxPlaybackId: p.content.muxPlaybackId, thumbnailUrl: p.content.thumbnail, ownerId: p.hostId, timestamp: Date.now() };
+            setPartyIdForPlayer(partyParam);
+            setSelectedVideo(vid);
+            setView('PLAYER');
+            document.title = `Watch Party · ${vid.title} | Plajah`;
+          }
+          // READ / LISTEN parties open once those surfaces are party-aware (later phases).
+          setIsLoading(false);
+        }).catch(() => setIsLoading(false));
         return;
       }
 
@@ -4760,11 +4781,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onBack={() => {
                   setSelectedVideo(null);
                   setVideoQueue([]);
+                  setPartyIdForPlayer(null);
                   setView('VIDEOS');
                 }}
                 currentUser={user}
                 queue={videoQueue}
                 onPlayQueued={(v) => setSelectedVideo(v)}
+                partyId={partyIdForPlayer || undefined}
               />
             )}
             {/* ── Internal pitch documents ── not linked in nav ────────────── */}

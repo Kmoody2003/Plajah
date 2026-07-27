@@ -7,6 +7,9 @@ import {
 } from '../services/backendService';
 import { buildShareUrl } from '../services/deepLinkService';
 import { recordProgress, getResumePosition } from '../services/watchHistoryService';
+import { createParty, partyShareUrl, shouldResync } from '../services/partyService';
+import { useParty } from '../hooks/useParty';
+import { Users, Radio } from 'lucide-react';
 import TvVideoUpNext from './tv/TvVideoUpNext';
 import {
   Heart, MessageCircle, Share2, X, ArrowLeft, Volume2, VolumeX,
@@ -123,6 +126,8 @@ interface VideoPlayerProps {
   queue?: Video[];
   /** Play a different video (advance the queue). */
   onPlayQueued?: (v: Video) => void;
+  /** If opened from a shared watch-party link, the party to auto-join and follow. */
+  partyId?: string;
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -406,7 +411,7 @@ const VideoEditModal: React.FC<EditModalProps> = ({ video, onClose, onSaved }) =
 };
 
 // ── Main VideoPlayer ──────────────────────────────────────────────────────────
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, currentUser, queue, onPlayQueued }) => {
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, currentUser, queue, onPlayQueued, partyId }) => {
   const {
     isPlaying, pause, resume, setVideoElement, setYtPlayer,
     playVideo, currentVideo, clearMedia, volume, activateVideoSource,
@@ -432,6 +437,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const videoWrapRef       = useRef<HTMLDivElement>(null);
   const localVideoRef      = useRef<HTMLVideoElement | null>(null);
+
+  // ── Watch party (synchronized viewing) ────────────────────────────────────
+  // The host's play/pause/seek is broadcast as STATE; every follower's own local player follows it
+  // (content still streams locally per viewer — see services/partyService.ts). One shared primitive.
+  const [activePartyId, setActivePartyId] = useState<string | null>(partyId ?? null);
+  useEffect(() => { setActivePartyId(partyId ?? null); }, [partyId]);
+  const party = useParty(activePartyId);
   const ytPlayerRef        = useRef<any>(null);
   const ytContainerId      = useRef(`yt-${Math.random().toString(36).substr(2, 9)}`);
   const controlsTimer      = useRef<NodeJS.Timeout | null>(null);
@@ -594,6 +606,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
   // 2s sync check — if the video element is playing but global state says paused, sync it.
   // Also handles browser-autoplay-blocked case for native <video> elements.
   useEffect(() => {
+    if (party.isFollower) return;   // a follower is slaved to the host — don't fight the follow loop
     const timer = setTimeout(() => {
       const el = localVideoRef.current;
       if (!el) return;
@@ -616,6 +629,61 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
       localVideoRef.current.volume = isMuted ? 0 : volume;
     }
   }, [isMuted, volume]);
+
+  // HOST: broadcast play/pause/seek + a heartbeat so followers (incl. late joiners) stay in sync.
+  useEffect(() => {
+    if (!activePartyId || !party.isHost) return;
+    const el = localVideoRef.current;
+    if (!el) return;
+    const push = () => party.broadcast({ isPlaying: !el.paused, positionSec: el.currentTime || 0, contentId: video.id });
+    el.addEventListener('play', push);
+    el.addEventListener('pause', push);
+    el.addEventListener('seeked', push);
+    push();
+    const hb = setInterval(() => { if (!el.paused) push(); }, 4000);
+    return () => {
+      el.removeEventListener('play', push);
+      el.removeEventListener('pause', push);
+      el.removeEventListener('seeked', push);
+      clearInterval(hb);
+    };
+  }, [activePartyId, party.isHost, video.id, video.muxPlaybackId, video.url]);
+
+  // FOLLOWER: slave the local element to the host's state — seek only when drifted past threshold so
+  // we don't fight the decoder, and mirror play/pause. Re-armed whenever a new host state arrives.
+  useEffect(() => {
+    if (!activePartyId || !party.isFollower) return;
+    const apply = () => {
+      const el = localVideoRef.current;
+      if (!el) return;
+      const { targetPositionSec, shouldPlay } = party.getTarget();
+      if (shouldResync(el.currentTime || 0, targetPositionSec)) { try { el.currentTime = targetPositionSec; } catch { /* */ } }
+      if (shouldPlay && el.paused) { el.play().catch(() => { el.muted = true; el.play().catch(() => {}); }); }
+      else if (!shouldPlay && !el.paused) { el.pause(); }
+    };
+    apply();
+    const iv = setInterval(apply, 1000);
+    return () => clearInterval(iv);
+  }, [activePartyId, party.isFollower, party.playback?.seq]);
+
+  const startWatchParty = useCallback(async () => {
+    try {
+      const id = await createParty({
+        kind: 'WATCH',
+        content: { type: 'VIDEO', id: video.id, title: video.title, thumbnail: video.thumbnailUrl || video.coverImageUrl, url: video.url, muxPlaybackId: video.muxPlaybackId },
+        initial: { positionSec: localVideoRef.current?.currentTime || 0, isPlaying: !localVideoRef.current?.paused },
+      });
+      setActivePartyId(id);
+      const url = partyShareUrl(id);
+      if (navigator.share) navigator.share({ title: `Watch “${video.title}” together on Plajah`, url }).catch(() => {});
+      else navigator.clipboard?.writeText(url).catch(() => {});
+    } catch (e) { console.error('start watch party failed', e); }
+  }, [video]);
+
+  const leaveWatchParty = useCallback(() => {
+    if (party.isHost) party.end();
+    setActivePartyId(null);
+  }, [party]);
 
   // ── Watch history: throttled progress recording + resume ──────────────────
   const lastRecordRef = useRef(0);
@@ -735,6 +803,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
 
   const togglePlay = useCallback(() => {
     if (loreCardOpen) return;   // the lore card owns the stage while it's open
+    if (party.isFollower) return;   // followers are slaved to the host's controls
     const el = localVideoRef.current;
     if (el) {
       if (el.paused) {
@@ -748,7 +817,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
     } else {
       isPlaying ? pause() : resume();
     }
-  }, [isPlaying, pause, resume, loreCardOpen]);
+  }, [isPlaying, pause, resume, loreCardOpen, party.isFollower]);
 
   const handleLike = async () => {
     if (!currentUser) return;
@@ -829,6 +898,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
   const tvFullBleed = getPlatformInfo().isTV;
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (party.isFollower) return;   // scrubbing is the host's job in a watch party
     const rect = e.currentTarget.getBoundingClientRect();
     seek(((e.clientX - rect.left) / rect.width) * duration);
   };
@@ -1008,6 +1078,34 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
             </button>
           </div>
         </div>
+
+        {/* ── Watch-party status banner ─────────────────────────────────── */}
+        {activePartyId && (
+          <div className="relative z-10 mx-4 mb-2 flex items-center gap-3 px-4 py-2.5 rounded-2xl border border-[#D40055]/30 bg-gradient-to-r from-[#6B0099]/20 to-[#D40055]/20 backdrop-blur-md">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+            <Radio size={14} className="text-[#ff5c9d] shrink-0" />
+            <p className="text-[10px] font-black uppercase tracking-widest text-white flex-1 min-w-0 truncate">
+              {party.isHost ? 'Hosting watch party' : `Following ${party.party?.hostName || 'the host'}`}
+              <span className="text-white/50"> · </span>
+              <span className="inline-flex items-center gap-1 text-white/70"><Users size={11} /> {party.viewerCount} watching</span>
+              {party.isFollower && <span className="text-white/40 normal-case tracking-normal"> — synced to host</span>}
+            </p>
+            {party.isHost && (
+              <button
+                onClick={() => { const u = partyShareUrl(activePartyId); if (navigator.share) navigator.share({ title: `Watch “${video.title}” together on Plajah`, url: u }).catch(() => {}); else navigator.clipboard?.writeText(u).catch(() => {}); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-[9px] font-black uppercase tracking-widest transition-all shrink-0"
+              >
+                <Share2 size={12} /> Invite
+              </button>
+            )}
+            <button
+              onClick={leaveWatchParty}
+              className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-[9px] font-black uppercase tracking-widest transition-all shrink-0"
+            >
+              {party.isHost ? 'End' : 'Leave'}
+            </button>
+          </div>
+        )}
 
         {/* ── VIDEO PLAYER ──────────────────────────────────────────────── */}
         {/* On a TV the video fills the screen with layout, not with the Fullscreen API — see the
@@ -1232,6 +1330,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
               >
                 <Share2 size={15} /> Share
               </button>
+              {/* Watch Party — host a synchronized session others follow. Hidden while already in one
+                  (the status banner over the video handles host/follower state + leave). */}
+              {!activePartyId && (
+                <button
+                  onClick={() => auth.currentUser ? startWatchParty() : alert('Sign in to host a watch party.')}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-[#D40055]/30 bg-[#D40055]/10 text-[#ff5c9d] hover:bg-[#D40055]/20 font-black text-[9px] uppercase tracking-widest transition-all"
+                >
+                  <Users size={15} /> Watch Party
+                </button>
+              )}
               <button
                 onClick={() => auth.currentUser ? setShowSaveModal(true) : alert('Sign in to save videos to a playlist.')}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white font-black text-[9px] uppercase tracking-widest transition-all"
