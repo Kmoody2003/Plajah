@@ -71,6 +71,13 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [filmDist, setFilmDist] = useState<FilmDistribution>(initialAlbum?.filmDistribution || DEFAULT_FILM_DISTRIBUTION);
   const [alternateVersions, setAlternateVersions] = useState<FilmVersion[]>(initialAlbum?.alternateVersions || []);
   const saveAsDraftRef = useRef(false);
+  // Save Now + unsaved-changes guard. projectIdRef is stable across saves so repeated
+  // "Save Now" on a NEW project updates the same draft instead of creating duplicates.
+  const keepOpenAfterSaveRef = useRef(false);
+  const projectIdRef = useRef<string>(initialAlbum?.id || `album_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`);
+  const [savedFlash, setSavedFlash] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [genre, setGenre] = useState(initialAlbum?.genre || '');
   const [price, setPrice] = useState<number>(initialAlbum?.price || 0);
   const [isPaywalled, setIsPaywalled] = useState<boolean>(initialAlbum?.isPaywalled || false);
@@ -794,7 +801,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         themeColor = metadata.themeColor;
         if (!linerNotes) setLinerNotes(metadata.linerNotes);
       }
-      const albumId = initialAlbum?.id || `album_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+      const albumId = projectIdRef.current;
 
       // ── World & character creation ─────────────────────────────────────────
       let finalWorldId = worldId;
@@ -948,15 +955,57 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           }
         },
       });
-      onCancel?.();
+      setIsDirty(false);
+      if (keepOpenAfterSaveRef.current) {
+        // "Save Now" — persist a draft but stay in the editor.
+        keepOpenAfterSaveRef.current = false;
+        setSavedFlash(true);
+        setTimeout(() => setSavedFlash(false), 2500);
+      } else {
+        onCancel?.();
+      }
       return;
     } catch (err: any) {
       console.error("Deployment Error:", err);
+      keepOpenAfterSaveRef.current = false;
       alert(`Error: ${err?.message || "Deployment failed."}`);
     } finally {
       setIsDeploying(false);
     }
   };
+
+  // Save the current project as a draft WITHOUT closing the editor (persistent "Save Now").
+  const saveNow = () => {
+    if (isDeploying) return;
+    if (!title.trim()) { alert('Add a title before saving.'); return; }
+    keepOpenAfterSaveRef.current = true;
+    saveAsDraftRef.current = true;
+    handleSubmit(new Event('submit') as unknown as React.FormEvent);
+  };
+
+  // Close the editor, but guard unsaved work: prompt to save a draft or discard.
+  const requestClose = () => {
+    if (isDeploying) return;
+    if (isDirty) { setShowLeaveConfirm(true); return; }
+    onCancel?.();
+  };
+
+  // Mark the project dirty on any edit to a core field, so the leave-guard can protect it.
+  const dirtyInitRef = useRef(true);
+  useEffect(() => {
+    if (dirtyInitRef.current) { dirtyInitRef.current = false; return; }
+    setIsDirty(true);
+  }, [title, artist, type, subType, genre, price, isPaywalled, artistBio, linerNotes, artistImage, coverImage,
+      JSON.stringify(tracks), JSON.stringify(bookChapters), JSON.stringify(slideshow), JSON.stringify(musicVideos),
+      JSON.stringify(videoPlaylists), JSON.stringify(socialLinks), JSON.stringify(tags)]);
+
+  // Native "Leave site?" prompt (browser close / refresh / tab nav) while there are unsaved edits.
+  useEffect(() => {
+    if (!isDirty) return;
+    const h = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', h);
+    return () => window.removeEventListener('beforeunload', h);
+  }, [isDirty]);
 
   if (isMinimized) return null;
 
@@ -3000,7 +3049,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         {isMobile && (
           <div className="shrink-0 px-4 pt-4 pb-3 bg-white/[0.05] backdrop-blur-2xl border-b border-white/10 space-y-3">
             <div className="flex items-center gap-3">
-              <button type="button" onClick={onCancel} className="p-2.5 bg-white/5 rounded-xl text-white/50 active:scale-90 shrink-0"><X size={18} /></button>
+              <button type="button" onClick={requestClose} className="p-2.5 bg-white/5 rounded-xl text-white/50 active:scale-90 shrink-0"><X size={18} /></button>
               <label className="relative w-10 h-10 rounded-xl overflow-hidden border border-white/15 shrink-0 cursor-pointer">
                 <img src={coverImage || undefined} alt="Cover" className="w-full h-full object-cover" />
                 <input type="file" className="hidden" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setCoverImage(URL.createObjectURL(f)); setCoverFile(f); } }} />
@@ -3045,7 +3094,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         {!isMobile && (
         <div className="lg:w-[32%] p-5 sm:p-7 lg:p-5 bg-white/[0.04] backdrop-blur-2xl flex flex-col items-center justify-center text-center border-b lg:border-b-0 lg:border-r border-white/10 relative shrink-0">
           <div className="absolute top-8 left-8 flex items-center gap-2">
-            <button type="button" onClick={onCancel} className="p-4 bg-white/5 rounded-2xl text-white/40 hover:text-white hover:bg-white/10 transition-all active:scale-90"><X size={24} /></button>
+            <button type="button" onClick={requestClose} className="p-4 bg-white/5 rounded-2xl text-white/40 hover:text-white hover:bg-white/10 transition-all active:scale-90"><X size={24} /></button>
             {onMinimize && <button type="button" onClick={onMinimize} className="p-4 bg-white/5 rounded-2xl text-white/40 hover:text-white hover:bg-white/10 transition-all active:scale-90"><Minimize2 size={24} /></button>}
           </div>
 
@@ -3205,6 +3254,13 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
 
           {/* Navigation Footer */}
           <div className={`shrink-0 px-8 lg:px-16 py-6 border-t border-white/5 bg-black/30 backdrop-blur-sm flex items-center gap-4 ${isMobile ? 'pb-10' : ''}`}>
+            {/* Persistent Save Now — save a draft from ANY step without leaving the editor. */}
+            <button type="button" onClick={saveNow} disabled={isDeploying || !title.trim()}
+              title="Save a draft now without closing"
+              className={`shrink-0 flex items-center gap-2 px-5 py-4 rounded-full font-black text-[10px] uppercase tracking-widest border transition-all active:scale-95 disabled:opacity-30 ${savedFlash ? 'bg-green-500/15 border-green-500/40 text-green-300' : 'bg-small-orange/15 border-small-orange/40 text-small-orange hover:bg-small-orange/25'}`}>
+              <Check size={14} className={savedFlash ? '' : 'opacity-70'} />
+              {isDeploying ? 'Saving…' : savedFlash ? 'Saved' : 'Save Now'}
+            </button>
             {step > 0 && (
               <button type="button" onClick={goBack} className="flex items-center gap-2 px-8 py-4 bg-white/5 rounded-full text-white font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all active:scale-95 border border-white/10">
                 <ChevronLeft size={16} /> Back
@@ -3275,6 +3331,35 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           </div>
         </form>
       </div>
+
+      {/* ── Unsaved-changes leave guard ── */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4" style={{ background: 'rgba(4,3,10,0.78)', backdropFilter: 'blur(6px)' }}>
+          <div className="max-w-sm w-full bg-[#0b0710] border border-white/12 rounded-3xl p-7 text-center shadow-3xl">
+            <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: 'rgba(255,140,0,0.12)', border: '1px solid rgba(255,140,0,0.3)' }}>
+              <AlertTriangle size={26} className="text-small-orange" />
+            </div>
+            <h3 className="text-lg font-black uppercase tracking-widest mb-2">Unsaved Changes</h3>
+            <p className="text-white/50 text-xs leading-relaxed mb-6">You have unsaved edits to this project. Save a draft before leaving, or discard your changes?</p>
+            <div className="flex flex-col gap-2.5">
+              <button type="button" disabled={isDeploying || !title.trim()}
+                onClick={() => { setShowLeaveConfirm(false); saveAsDraftRef.current = true; handleSubmit(new Event('submit') as unknown as React.FormEvent); }}
+                className="w-full py-3.5 bg-white text-black font-black uppercase tracking-widest text-[11px] rounded-full hover:scale-[1.02] transition-all disabled:opacity-30 active:scale-95">
+                {isDeploying ? 'Saving…' : 'Save Draft & Close'}
+              </button>
+              <button type="button"
+                onClick={() => { setShowLeaveConfirm(false); setIsDirty(false); onCancel?.(); }}
+                className="w-full py-3.5 bg-red-500/10 border border-red-500/30 text-red-300 font-black uppercase tracking-widest text-[11px] rounded-full hover:bg-red-500/20 transition-all active:scale-95">
+                Close Without Saving
+              </button>
+              <button type="button" onClick={() => setShowLeaveConfirm(false)}
+                className="w-full py-3 text-white/40 font-black uppercase tracking-widest text-[10px] hover:text-white/70 transition-all">
+                Keep Editing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Tap-to-Sync overlay ── */}
       {tapSyncTrackId && (() => {
