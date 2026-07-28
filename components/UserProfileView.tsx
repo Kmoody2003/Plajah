@@ -926,10 +926,10 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             </div>
           </div>
           
-          <div className="flex-1 w-full">
-            <div className={`flex flex-col ${isMobile ? 'items-center' : 'lg:items-start'} gap-2 mb-4`}>
+          <div className="flex-1 w-full min-w-0">
+            <div className={`flex flex-col ${isMobile ? 'items-center' : 'lg:items-start'} gap-2 mb-4 min-w-0`}>
               {/* Name row — avatar standing to the left on desktop */}
-              <div className={`flex ${isMobile ? 'flex-col items-center' : 'flex-row items-end'} gap-4`}>
+              <div className={`flex ${isMobile ? 'flex-col items-center' : 'flex-row items-end'} gap-4 min-w-0 max-w-full`}>
                 {/* Standing avatar next to name (desktop + active avatar only) */}
                 {!isMobile && profile.avatar?.isActive && (
                   <div
@@ -948,8 +948,8 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               {/* Name — per-character 3D flip-in, word-aware so words never split mid-letter */}
               <h1
                 key={uid}
-                className={`${isMobile ? 'text-4xl' : 'text-5xl sm:text-7xl md:text-9xl lg:text-[12rem]'} font-black uppercase tracking-tighter max-w-full text-white leading-[0.8] italic select-none`}
-                style={{ perspective: '1200px', perspectiveOrigin: 'left center' }}
+                className={`font-black uppercase tracking-tighter w-full max-w-full min-w-0 text-white leading-[0.85] italic select-none break-words ${isMobile ? 'text-center' : ''}`}
+                style={{ perspective: '1200px', perspectiveOrigin: 'left center', fontSize: 'clamp(2rem, 12vw, 7rem)', overflowWrap: 'anywhere' }}
               >
                 {(profile.displayName ?? '').split(' ').map((word, wi, words) => {
                   const charOffset = words.slice(0, wi).reduce((acc, w) => acc + w.length, 0) + wi;
