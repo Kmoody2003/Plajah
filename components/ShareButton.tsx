@@ -16,6 +16,8 @@ interface ShareButtonProps {
   /** Artist/creator — drawn on the auto-generated share card. */
   artist?: string;
   className?: string;
+  /** Inline style for the trigger button (e.g. a brand gradient background). */
+  style?: React.CSSProperties;
   /** Optional visible text next to the icon (turns the icon-only control into a labeled pill). */
   label?: string;
   /** Icon size (px). Defaults to 18. */
@@ -26,7 +28,7 @@ interface ShareButtonProps {
   plajahLabel?: string;
 }
 
-const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, artist, className, label, iconSize = 18, onPostToPlajah, plajahLabel }) => {
+const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, artist, className, style, label, iconSize = 18, onPostToPlajah, plajahLabel }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [posting, setPosting] = useState(false);
@@ -180,6 +182,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, a
       <button
         onClick={handleButtonClick}
         className={className || 'p-2 text-white/40 hover:text-white transition-all'}
+        style={style}
       >
         <Share2 size={iconSize} />
         {label && <span>{label}</span>}

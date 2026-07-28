@@ -894,14 +894,36 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               )}
             </div>
             </PioneerGoldFrame>
-            {isOwnProfile && onNavigate && (
+            {/* Actions under the avatar — matched-width pills. Share + Stat Card use the Plajah
+                brand gradient; the profile's trading card is the share link preview. */}
+            <div className="relative z-10 flex flex-col items-stretch gap-1.5 w-full max-w-[190px] mt-1">
+              {isOwnProfile && onNavigate && (
+                <button
+                  onClick={() => onNavigate('AVATAR_STUDIO')}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#ff8c00]/15 border border-[#ff8c00]/30 text-[#ff8c00] text-[9px] font-black uppercase tracking-widest hover:bg-[#ff8c00]/25 transition-all"
+                >
+                  ✦ Avatar Studio
+                </button>
+              )}
+              <ShareButton
+                title={`${profile.displayName}'s Profile`}
+                text={`Check out ${profile.displayName} on Plajah!`}
+                url={`${window.location.origin}/profile/${profile.uid}`}
+                imageUrl={profile.statCardImageUrl || profile.photoURL || profile.coverArt}
+                artist={profile.displayName}
+                label={isOwnProfile ? 'Share My Profile' : 'Share Profile'}
+                iconSize={13}
+                style={{ background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-full text-white text-[9px] font-black uppercase tracking-widest shadow-lg hover:brightness-110 transition-all"
+              />
               <button
-                onClick={() => onNavigate('AVATAR_STUDIO')}
-                className="relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#ff8c00]/15 border border-[#ff8c00]/30 text-[#ff8c00] text-[9px] font-black uppercase tracking-widest hover:bg-[#ff8c00]/25 transition-all"
+                onClick={() => setShowStatCard(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-full text-white text-[9px] font-black uppercase tracking-widest shadow-lg hover:brightness-110 transition-all"
+                style={{ background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' }}
               >
-                ✦ Avatar Studio
+                <Sparkles size={13} /> Stat Card
               </button>
-            )}
+            </div>
           </div>
           
           <div className="flex-1 w-full">
@@ -953,28 +975,6 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 })}
               </h1>
 
-              {/* Share profile + Stat Card — directly under the name so they're the first actions.
-                  Sharing uses the generated trading-card as the link preview. */}
-              <div className={`mt-3 flex items-center gap-2 ${isMobile ? 'justify-center' : ''}`}>
-                <ShareButton
-                  title={`${profile.displayName}'s Profile`}
-                  text={`Check out ${profile.displayName} on Plajah!`}
-                  url={`${window.location.origin}/profile/${profile.uid}`}
-                  imageUrl={profile.statCardImageUrl || profile.photoURL || profile.coverArt}
-                  artist={profile.displayName}
-                  label={isOwnProfile ? 'Share my profile' : 'Share profile'}
-                  iconSize={15}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[10px] font-black uppercase tracking-widest transition-all"
-                />
-                <button
-                  onClick={() => setShowStatCard(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#D40055]/30 text-white text-[10px] font-black uppercase tracking-widest transition-all hover:brightness-110"
-                  style={{ background: 'linear-gradient(135deg, rgba(107,0,153,0.35), rgba(212,0,85,0.35) 55%, rgba(255,140,0,0.35))' }}
-                >
-                  <Sparkles size={14} /> Stat Card
-                </button>
-              </div>
-
               {/* Pill buttons are now rendered in the dedicated strip above the bio — removed from here */}
 
               </div>
@@ -996,15 +996,15 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
 
               {/* Pioneer badge */}
               {profile.tier === 'PIONEER' && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-500 to-amber-600 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.3)] border border-yellow-400/30">
-                  <Sparkles size={12} className="text-white" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-white">Pioneer</span>
+                <div className="inline-flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-yellow-500 to-amber-600 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.3)] border border-yellow-400/30">
+                  <Sparkles size={13} className="text-white" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white">Pioneer</span>
                 </div>
               )}
               {isOwnProfile && profile.isPioneer && !profile.pioneerRewardClaimed && (
                 <button
                   onClick={handleClaimPioneerReward}
-                  className="px-5 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full text-white text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
+                  className="inline-flex items-center justify-center px-5 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full text-white text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
                 >
                   Claim Pioneer Reward
                 </button>
@@ -1014,12 +1014,6 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               {isOwnProfile && (
                 <>
                   <PayItForwardButton variant="FULL" />
-                  <ShareButton
-                    title={`${profile.displayName}'s Profile`}
-                    text={`Check out ${profile.displayName} on Plajah!`}
-                    url={`${window.location.origin}/profile/${profile.uid}`}
-                    className="p-3 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all text-white/60 hover:text-white"
-                  />
                   <PlajahPlusButton
                     creatorId={profile.uid}
                     creatorName={profile.displayName}
@@ -1029,10 +1023,10 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                   {(profile.xUrl || profile.xHandle) && (
                     <button
                       onClick={() => { setFeedInitialType('X_FEED'); setFeedKey(k => k + 1); setActiveTab('FEED'); }}
-                      className="p-3 rounded-full flex items-center justify-center bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-all"
+                      className="px-5 py-2 rounded-full inline-flex items-center gap-2 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest"
                       title="View X Feed"
                     >
-                      <X size={16} />
+                      <X size={13} /> X Feed
                     </button>
                   )}
                 </>
