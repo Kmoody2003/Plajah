@@ -23,6 +23,7 @@ import CommentSection from './CommentSection';
 import ProfileFeed from './ProfileFeed';
 import PayItForwardButton from './PayItForwardButton';
 import PostCard from './PostCard';
+import BroadcastHub from './broadcast/BroadcastHub';
 import FediversePostCard from './FediversePostCard';
 import RightNowFeed, { PresenceSync } from './RightNowFeed';
 import { RightNowOnboardingController, RightNowAnnouncementBanner, STORAGE_KEY as NOW_STORAGE_KEY } from './RightNowOnboarding';
@@ -1318,7 +1319,7 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [isLoadingNews, setIsLoadingNews] = useState(false);
-  const [selectedSportsTab, setSelectedSportsTab] = useState<'HEADLINES' | 'SPORTS' | 'NBA' | 'NFL' | 'NHL' | 'MLB' | 'NCAA' | 'ESPORTS' | 'FIFA' | 'MLS' | 'F1' | 'NASCAR' | 'INDYCAR' | 'SCIENCE' | 'FINANCE'>('HEADLINES');
+  const [selectedSportsTab, setSelectedSportsTab] = useState<'ON_AIR' | 'HEADLINES' | 'SPORTS' | 'NBA' | 'NFL' | 'NHL' | 'MLB' | 'NCAA' | 'ESPORTS' | 'FIFA' | 'MLS' | 'F1' | 'NASCAR' | 'INDYCAR' | 'SCIENCE' | 'FINANCE'>('ON_AIR');
   const [selectedScienceCategory, setSelectedScienceCategory] = useState<'ALL' | 'BIOLOGY' | 'PHYSICS' | 'SPACE' | 'TECH' | 'CHEMISTRY'>('ALL');
   const [selectedFinanceSubTab, setSelectedFinanceSubTab] = useState<'MARKETS' | 'NEWS' | 'LEARN' | 'LOCAL' | 'GLOBAL'>('MARKETS');
   const [sportsScores, setSportsScores] = useState<any[]>([]);
@@ -2188,17 +2189,18 @@ const toggleFavoriteTeam = async (team: string) => {
         <div className="px-1 sm:px-6 lg:px-20 max-w-[1600px] mx-auto w-full space-y-12 pb-20">
            {/* SPORTS & SCIENCE & FINANCE SUB NAVIGATION */}
            <div className="flex items-center gap-4 overflow-x-auto no-scrollbar pb-6 sticky top-0 bg-transparent z-40 backdrop-blur-sm">
-             {['HEADLINES', 'SPORTS', 'NBA', 'NFL', 'NHL', 'MLB', 'NCAA', 'FIFA', 'MLS', 'ESPORTS', 'F1', 'NASCAR', 'INDYCAR', 'SCIENCE', 'FINANCE'].map((tab) => (
+             {['ON_AIR', 'HEADLINES', 'SPORTS', 'NBA', 'NFL', 'NHL', 'MLB', 'NCAA', 'FIFA', 'MLS', 'ESPORTS', 'F1', 'NASCAR', 'INDYCAR', 'SCIENCE', 'FINANCE'].map((tab) => (
                <button
                  key={tab}
                  onClick={() => setSelectedSportsTab(tab as any)}
                  className={`px-8 py-4 rounded-3xl text-[10px] font-black uppercase tracking-widest transition-all border whitespace-nowrap ${
-                   selectedSportsTab === tab 
-                     ? 'bg-white text-black border-white shadow-2xl' 
+                   selectedSportsTab === tab
+                     ? (tab === 'ON_AIR' ? 'text-white border-transparent shadow-2xl' : 'bg-white text-black border-white shadow-2xl')
                      : 'bg-white/5 border-white/5 text-white/40 hover:bg-white/10'
                  }`}
+                 style={tab === 'ON_AIR' && selectedSportsTab === tab ? { background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' } : undefined}
                >
-                 {tab}
+                 {tab === 'ON_AIR' ? 'On Air' : tab}
                </button>
              ))}
              <button 
@@ -2212,6 +2214,10 @@ const toggleFavoriteTeam = async (team: string) => {
                <Zap size={20} className={(selectedSportsTab === 'SCIENCE' ? favoriteScienceFields.length > 0 : selectedSportsTab === 'FINANCE' ? (favoriteCoins.length > 0 || favoriteStocks.length > 0) : favoriteTeams.length > 0) ? "text-small-orange" : ""} />
              </button>
            </div>
+
+           {/* On Air — the broadcast mega-guide (live streams, FAST channels, radio). */}
+           {selectedSportsTab === 'ON_AIR' && <BroadcastHub currentUserId={currentUser?.uid} />}
+           {selectedSportsTab !== 'ON_AIR' && <>
 
            {selectedSportsTab === 'FINANCE' && (
               <div className="flex items-center gap-4 overflow-x-auto no-scrollbar pb-8">
@@ -2574,6 +2580,7 @@ const toggleFavoriteTeam = async (team: string) => {
                ))
              )}
            </div>
+           </>}
         </div>
       ) : (
         <div className={`${activeTab === 'GLOBAL' ? 'flex-1 overflow-hidden' : 'pt-4 pb-20'} max-w-[1700px] mx-auto w-full px-0 sm:px-4 lg:px-8 flex flex-col xl:flex-row gap-8 lg:gap-16`}>
