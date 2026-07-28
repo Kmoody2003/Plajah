@@ -210,27 +210,27 @@ const PlajahPlusButton: React.FC<PlajahPlusButtonProps> = ({
           {isOwnProfile ? (
             <button
               onClick={() => setShowModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#D40055] via-[#6B0099] to-[#FF8C00] rounded-full text-[9px] font-black uppercase tracking-widest text-white hover:scale-105 transition-all shadow-lg"
+              className="inline-flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-[#D40055] via-[#6B0099] to-[#FF8C00] rounded-full text-[10px] font-black uppercase tracking-widest text-white hover:scale-105 transition-all shadow-lg"
             >
-              <Settings size={10} />
+              <Settings size={12} />
               Manage Plajah+
             </button>
           ) : isBoundToThisCreator ? (
             <button
               onClick={handleManageBilling}
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-white/10 border border-white/20 rounded-full text-[9px] font-black uppercase tracking-widest text-white hover:bg-white/15 transition-all"
+              className="inline-flex items-center gap-2 px-5 py-2 bg-white/10 border border-white/20 rounded-full text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/15 transition-all"
             >
-              <Check size={10} className="text-green-400" />
+              <Check size={12} className="text-green-400" />
               Subscribed
-              <RefreshCw size={10} className="text-white/40" />
+              <RefreshCw size={12} className="text-white/40" />
             </button>
           ) : (
             <button
               onClick={handleOpenLanding}
-              className="group flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#D40055] to-[#FF8C00] rounded-full text-[9px] font-black uppercase tracking-widest text-white hover:scale-105 transition-all shadow-lg shadow-[#D40055]/20"
+              className="group inline-flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-[#D40055] to-[#FF8C00] rounded-full text-[10px] font-black uppercase tracking-widest text-white hover:scale-105 transition-all shadow-lg shadow-[#D40055]/20"
             >
-              <Zap size={10} />
+              <Zap size={12} />
               Plajah+
               <span className="opacity-60 group-hover:opacity-100 transition-opacity">Subscribe</span>
             </button>

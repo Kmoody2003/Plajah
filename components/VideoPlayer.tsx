@@ -82,12 +82,26 @@ const MuxHlsVideo = React.memo(React.forwardRef<HTMLVideoElement, MuxHlsVideoPro
               capLevelsToPanel(hls as any);
               video.play().catch(() => { video.muted = true; video.play().catch(() => {}); });
             });
-            hls.on(Hls.Events.ERROR, (_: any, data: any) => { if (data.fatal) onError(); });
+            let recovered = 0;
+            hls.on(Hls.Events.ERROR, (_: any, data: any) => {
+              if (!data.fatal) return;
+              // Give flaky decoders (esp. Android TV WebView) a chance before giving up so the
+              // parent can fall through to the Mux progressive-MP4 (no-MSE) source.
+              if (recovered < 2) {
+                recovered++;
+                if (data.type === Hls.ErrorTypes.NETWORK_ERROR) { hls.startLoad(); return; }
+                if (data.type === Hls.ErrorTypes.MEDIA_ERROR) { hls.recoverMediaError(); return; }
+              }
+              console.warn('[PlajahTV] Reello HLS fatal', data?.type, data?.details);
+              onError();
+            });
           } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
             // Safari — native HLS
             video.src = streamUrl;
             video.play().catch(() => { video.muted = true; video.play().catch(() => {}); });
           } else {
+            // No MSE (hls.js) AND no native HLS — the Android TV WebView failure mode.
+            console.warn('[PlajahTV] Reello: no MSE + no native HLS → falling back to Mux MP4');
             onError();
           }
         } catch {
@@ -421,6 +435,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
   const [video, setVideo]           = useState(initialVideo);
   const [comments, setComments]     = useState<VideoComment[]>([]);
   const [videoError, setVideoError] = useState(false);
+  // Mux progressive-MP4 fallback (plays through a plain <video>, NO Media Source Extensions).
+  // Android TV System WebViews frequently can't play Mux HLS via hls.js/MSE and have no native
+  // HLS; when the MSE attempt errors we drop to this. Needs Mux static renditions (MP4 support)
+  // on the asset — if absent it 404s and we land on the same error state as before (no regression).
+  const [muxMp4Error, setMuxMp4Error] = useState(false);
   const [isLiked, setIsLiked]       = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [isMuted, setIsMuted]       = useState(false);
@@ -553,6 +572,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
     }
     return () => { ytPlayerRef.current?.destroy?.(); ytPlayerRef.current = null; setYtPlayer(null); };
   }, [video.url, setYtPlayer]);
+
+  // Fresh playback state per video — never carry a prior title's fallback errors over.
+  useEffect(() => { setVideoError(false); setMuxMp4Error(false); }, [video.id]);
 
   // Real-time listener: pick up muxPlaybackId / url the moment Mux finishes
   // processing — even if that's 20 minutes after the upload completed.
@@ -955,6 +977,30 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
       );
     }
 
+    // Mux progressive-MP4 fallback — after Mux HLS/MSE fails, before giving up. This is the
+    // path that lets Mux-only titles play on Android TV WebViews (no MSE required).
+    if (video.muxPlaybackId && videoError && !muxMp4Error && !url) {
+      return (
+        <video
+          ref={el => { setVideoElement(el); localVideoRef.current = el; }}
+          src={`https://stream.mux.com/${video.muxPlaybackId}/high.mp4`}
+          playsInline
+          crossOrigin={hasSubtitles ? 'anonymous' : undefined}
+          className="w-full h-full object-contain cursor-pointer"
+          onClick={togglePlay}
+          autoPlay
+          muted={isMuted}
+          onCanPlay={e => { const v = e.currentTarget; if (v.paused) v.play().catch(() => { v.muted = true; setIsMuted(true); v.play().catch(() => {}); }); }}
+          onPlay={() => resume()}
+          onPause={() => pause()}
+          onError={() => { console.warn('[PlajahTV] Reello Mux MP4 fallback failed'); setMuxMp4Error(true); }}
+          onEnded={handleVideoEnded}
+        >
+          <SubtitleTracks video={video} />
+        </video>
+      );
+    }
+
     // Native video fallback — direct Firebase Storage URL or after Mux error
     if (url) {
       return (
@@ -1000,7 +1046,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
         {/* Retry whenever there's an error — even for Mux-only videos with no url */}
         {videoError && (
           <button
-            onClick={() => { setVideoError(false); }}
+            onClick={() => { setVideoError(false); setMuxMp4Error(false); }}
             className="mt-1 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
           >
             Retry

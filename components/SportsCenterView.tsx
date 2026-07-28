@@ -25,16 +25,23 @@ const RaceReplayView        = lazy(() => import('./sports/RaceReplayView').then(
 const CircuitMapView        = lazy(() => import('./sports/CircuitMapView').then(m => ({ default: m.CircuitMapView })));
 const TrackMap3D            = lazy(() => import('./sports/TrackMap3D').then(m => ({ default: m.TrackMap3D })));
 const SportsArchiveView     = lazy(() => import('./sports/SportsArchiveView').then(m => ({ default: m.SportsArchiveView })));
+// FIFA permanent fixtures + the reframed World Cup experience.
+const WorldCupHub           = lazy(() => import('./WorldCupHub'));
+const WorldCupHistoryHub    = lazy(() => import('./WorldCupHistoryHub'));
+const WorldCupMuseum        = lazy(() => import('./WorldCupMuseum'));
+import type { UserProfile } from '../types';
 import {
   Search, ChevronLeft, Newspaper, Users, Trophy, Calendar,
   MapPin, Building2, Star, TrendingUp, User, ExternalLink,
   Pin, PinOff, RefreshCw, AlertCircle, Gamepad2, Globe, Flag, Clock,
   BarChart2, Award, Zap, Shield, ChevronRight, X, BookOpen, CreditCard, History,
-  Sparkles, Gauge, Radio, Layers, Activity, Car,
+  Sparkles, Gauge, Radio, Layers, Activity, Car, Landmark,
 } from 'lucide-react';
 
 interface Props {
   selectedSportsTab: 'NBA' | 'NFL' | 'NHL' | 'MLB' | 'NCAA' | 'FIFA' | 'MLS' | 'ESPORTS' | 'F1' | 'NASCAR' | 'INDYCAR' | string;
+  /** Passed through so the FIFA "Relive World Cup 2026" hub can run its auth-gated features (picks/leaderboards). */
+  currentUser?: UserProfile | null;
 }
 
 const LEAGUE_TABS = ['NBA', 'NFL', 'NHL', 'MLB', 'NCAA', 'WNBA', 'FIFA', 'MLS', 'ESPORTS', 'UFC', 'MMA', 'BOXING', 'MARTIAL_ARTS', 'FENCING', 'TENNIS', 'GOLF', 'CRICKET', 'RUGBY', 'WRESTLING', 'VOLLEYBALL', 'LACROSSE'] as const;
@@ -47,7 +54,10 @@ function savePins(ids: string[]) { localStorage.setItem(PINS_KEY, JSON.stringify
 
 const EXPLAINER_LEAGUES = new Set(['NBA', 'NFL', 'NHL', 'MLB', 'FIFA', 'MLS']);
 
-export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
+// Decorative flag strip for the FIFA World Cup fixtures banner (host + marquee nations).
+const WC_FLAG_STRIP = ['🇺🇸','🇲🇽','🇨🇦','🇧🇷','🇦🇷','🇫🇷','🇬🇧','🇩🇪','🇪🇸','🇵🇹','🇳🇱','🇧🇪','🇭🇷','🇺🇾','🇯🇵','🇰🇷','🇲🇦','🇸🇳','🇬🇭','🇳🇬','🇨🇴','🇨🇱','🇮🇹','🇨🇭'];
+
+export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab, currentUser = null }) => {
   const [teamSearch, setTeamSearch]       = useState('');
   const [leagueTeams, setLeagueTeams]     = useState<SportsTeam[]>([]);
   const [showExplainer, setShowExplainer] = useState(false);
@@ -63,6 +73,12 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
   const [showArchive, setShowArchive]     = useState(false);
   const [showRaceHistory, setShowRaceHistory] = useState(false);
   const [showRaceReplay, setShowRaceReplay]   = useState(false);
+  // FIFA permanent fixtures: the reframed World Cup experience + evergreen History & Museum.
+  const [showRelive, setShowRelive]       = useState(false);
+  const [reliveTab, setReliveTab]         = useState<string | undefined>(undefined);
+  const [showWCHistory, setShowWCHistory] = useState(false);
+  const [showWCMuseum, setShowWCMuseum]   = useState(false);
+  const isFifa = selectedSportsTab === 'FIFA';
 
   const [selectedTeam, setSelectedTeam]   = useState<SportsTeam | null>(null);
   const [selectedOrg, setSelectedOrg]     = useState<EsportsOrg | null>(null);
@@ -105,6 +121,20 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
       return next;
     });
   }, []);
+
+  // Open "Relive World Cup 2026" on request (from the FIFA-section hero, hero ribbon, feature
+  // cards, or any legacy WORLD_CUP entry point). Reads a window-level pending flag on mount to
+  // cover the race where PlajahSportsView switched to FIFA and fired the event before this
+  // listener existed, and also listens live for when FIFA is already open.
+  useEffect(() => {
+    if (!isFifa) return;
+    const openRelive = (tab?: string) => { setReliveTab(tab || undefined); setShowRelive(true); };
+    const pending = (window as any).__plajahPendingRelive;
+    if (pending) { (window as any).__plajahPendingRelive = null; openRelive(pending.tab || undefined); }
+    const h = (e: Event) => { const d = (e as CustomEvent)?.detail || {}; openRelive(d.tab); };
+    window.addEventListener('plajah:open-relive', h);
+    return () => window.removeEventListener('plajah:open-relive', h);
+  }, [isFifa]);
 
   const loadLeague = useCallback(() => {
     if (!isLeague || isEsports) return;
@@ -606,6 +636,55 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
           className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-full text-sm font-bold placeholder:text-white/20 focus:outline-none focus:border-[#FF8C00]/50 transition-all"
         />
       </div>
+
+      {/* ── FIFA permanent fixtures: Relive World Cup 2026 + evergreen History & Museum ── */}
+      {isFifa && (
+        <div className="relative overflow-hidden rounded-[2rem] border border-[#FF8C00]/25 p-5"
+          style={{ background: 'linear-gradient(135deg, #001A35 0%, #012a52 55%, #001A35 100%)' }}>
+          <div className="absolute inset-0 flex items-center overflow-hidden opacity-[0.06] pointer-events-none select-none text-2xl gap-1 px-2">
+            {WC_FLAG_STRIP.map((f, i) => <span key={i}>{f}</span>)}
+          </div>
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-1">
+              <Trophy size={13} className="text-[#FF8C00]" />
+              <p className="text-[8px] font-black uppercase tracking-[0.4em] text-[#FF8C00]">FIFA World Cup</p>
+            </div>
+            <h3 className="text-lg font-black uppercase tracking-tight text-white leading-none mb-3">The Home of the World Cup</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <button
+                onClick={() => { setReliveTab(undefined); setShowRelive(true); }}
+                className="group flex items-center gap-3 p-3 rounded-2xl border border-[#FF8C00]/30 bg-[#FF8C00]/10 hover:bg-[#FF8C00]/20 transition-all text-left"
+              >
+                <div className="w-9 h-9 rounded-xl bg-[#FF8C00]/20 flex items-center justify-center shrink-0"><Trophy size={16} className="text-[#FF8C00]" /></div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-black text-white leading-tight">Relive World Cup 2026</p>
+                  <p className="text-[8px] font-bold text-white/45 uppercase tracking-wider">Every match · groups · bracket</p>
+                </div>
+              </button>
+              <button
+                onClick={() => setShowWCHistory(true)}
+                className="group flex items-center gap-3 p-3 rounded-2xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] hover:border-white/20 transition-all text-left"
+              >
+                <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0"><History size={16} className="text-white/70" /></div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-black text-white leading-tight">World Cup History</p>
+                  <p className="text-[8px] font-bold text-white/45 uppercase tracking-wider">1930 → today · every edition</p>
+                </div>
+              </button>
+              <button
+                onClick={() => setShowWCMuseum(true)}
+                className="group flex items-center gap-3 p-3 rounded-2xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] hover:border-white/20 transition-all text-left"
+              >
+                <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0"><Landmark size={16} className="text-white/70" /></div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-black text-white leading-tight">Museum &amp; Hall of Legends</p>
+                  <p className="text-[8px] font-bold text-white/45 uppercase tracking-wider">Icons · moments · trophies</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Action buttons row */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -1318,6 +1397,87 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
                 <RaceReplayView onClose={() => setShowRaceReplay(false)} />
               </Suspense>
             </ErrorBoundary>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── FIFA: Relive World Cup 2026 (the full tournament experience) ───────── */}
+      <AnimatePresence>
+        {showRelive && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-[#0a0a0a] overflow-y-auto custom-scrollbar"
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-[#0a0a0a]/90 backdrop-blur-md border-b border-white/10">
+              <div>
+                <p className="text-[8px] font-black uppercase tracking-[0.4em] text-[#FF8C00]">Relive</p>
+                <h2 className="text-lg font-black uppercase tracking-tight text-white leading-none">World Cup 2026</h2>
+              </div>
+              <button onClick={() => setShowRelive(false)} className="p-2.5 text-white/40 hover:text-white transition-colors bg-white/5 rounded-xl border border-white/10">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="max-w-6xl mx-auto px-4 py-6">
+              <ErrorBoundary>
+                <Suspense fallback={<div className="flex justify-center py-24"><div className="w-8 h-8 border-2 border-[#FF8C00]/20 border-t-[#FF8C00] rounded-full animate-spin" /></div>}>
+                  <WorldCupHub currentUser={currentUser} initialTab={reliveTab as any} />
+                </Suspense>
+              </ErrorBoundary>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── FIFA permanent fixture: World Cup History ─────────────────────────── */}
+      <AnimatePresence>
+        {showWCHistory && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-[#0a0a0a] overflow-y-auto custom-scrollbar"
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-[#0a0a0a]/90 backdrop-blur-md border-b border-white/10">
+              <div>
+                <p className="text-[8px] font-black uppercase tracking-[0.4em] text-[#FF8C00]">FIFA</p>
+                <h2 className="text-lg font-black uppercase tracking-tight text-white leading-none">World Cup History</h2>
+              </div>
+              <button onClick={() => setShowWCHistory(false)} className="p-2.5 text-white/40 hover:text-white transition-colors bg-white/5 rounded-xl border border-white/10">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="max-w-6xl mx-auto px-4 py-6">
+              <ErrorBoundary>
+                <Suspense fallback={<div className="flex justify-center py-24"><div className="w-8 h-8 border-2 border-[#FF8C00]/20 border-t-[#FF8C00] rounded-full animate-spin" /></div>}>
+                  <WorldCupHistoryHub />
+                </Suspense>
+              </ErrorBoundary>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── FIFA permanent fixture: Museum & Hall of Legends ──────────────────── */}
+      <AnimatePresence>
+        {showWCMuseum && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-[#0a0a0a] overflow-y-auto custom-scrollbar"
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-[#0a0a0a]/90 backdrop-blur-md border-b border-white/10">
+              <div>
+                <p className="text-[8px] font-black uppercase tracking-[0.4em] text-[#FF8C00]">FIFA</p>
+                <h2 className="text-lg font-black uppercase tracking-tight text-white leading-none">Museum &amp; Hall of Legends</h2>
+              </div>
+              <button onClick={() => setShowWCMuseum(false)} className="p-2.5 text-white/40 hover:text-white transition-colors bg-white/5 rounded-xl border border-white/10">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="max-w-6xl mx-auto px-4 py-6">
+              <ErrorBoundary>
+                <Suspense fallback={<div className="flex justify-center py-24"><div className="w-8 h-8 border-2 border-[#FF8C00]/20 border-t-[#FF8C00] rounded-full animate-spin" /></div>}>
+                  <WorldCupMuseum />
+                </Suspense>
+              </ErrorBoundary>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -4,8 +4,9 @@ import {
   ChevronLeft, Pin, PinOff, MapPin, Building2, Calendar, Trophy,
   Newspaper, Users, Star, ExternalLink, User, Globe,
   ChevronRight, Clock, TrendingUp, Shield, MessageCircle,
-  Play, ThumbsUp, ThumbsDown, Sparkles, Video, BarChart2, CreditCard,
+  Play, ThumbsUp, ThumbsDown, Sparkles, Video, BarChart2, CreditCard, Radio,
 } from 'lucide-react';
+import { openContextRoom } from '../../services/roomService';
 import {
   fetchRichTeamPage, fetchTeamFullSchedule, fetchPlayerProfile, fetchTeamRosterForSeason, LEAGUE_CHAMPIONS,
   type SportsTeam, type RichTeamPage, type LegendPlayer,
@@ -203,6 +204,18 @@ export const TeamPageView: React.FC<Props> = ({
                 : 'bg-black/40 border-white/10 text-white/50 hover:text-white'
             }`}>
             {isPinned ? <><PinOff size={10} /> Unpin</> : <><Pin size={10} /> Pin</>}
+          </button>
+          {/* Unified Rooms: every team across every league gets a live fan room (canonical
+              roomService context room), replacing bespoke per-sport fan-room plumbing. */}
+          <button
+            onClick={() => openContextRoom({
+              kind: 'TEAM',
+              context: { sport: tab, teamId: team.id, emoji: '🏟️', accent: color },
+              title: `${team.name} Fan Room`,
+              capabilities: { polls: true },
+            }).catch(() => {})}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-[#e23b3b]/15 border border-[#e23b3b]/40 text-[9px] font-black uppercase tracking-widest text-[#ff6b6b] hover:bg-[#e23b3b]/25 transition-all backdrop-blur-md">
+            <Radio size={10} /> Fan Room
           </button>
           {website && (
             <a href={`https://www.${website}`} target="_blank" rel="noopener noreferrer"

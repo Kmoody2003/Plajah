@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { scoreText } from '../src/lib/scoreText';
 import { motion, AnimatePresence } from 'motion/react';
 import { SportsCenterView } from './SportsCenterView';
-import WorldCupHub from './WorldCupHub';
+// WorldCupHub is now lazy-loaded inside SportsCenterView (FIFA → Relive World Cup 2026).
 import WorldCupTopBoard from './WorldCupTopBoard';
 import WorldCupVictory from './WorldCupVictory';
 import WorldCupCarousel from './WorldCupCarousel';
@@ -31,7 +31,9 @@ import { RaceHistoryView } from './sports/RaceHistoryView';
 
 // ─── League config ─────────────────────────────────────────────────────────────
 const LEAGUES = [
-  { id: 'WORLD_CUP', label: 'World Cup 2026', icon: Trophy, color: '#FF8C00' },
+  // World Cup 2026 is no longer a top-level tab — the experience now lives inside FIFA
+  // as "Relive World Cup 2026" (see SportsCenterView), with History & Museum as permanent
+  // FIFA fixtures. Every legacy WORLD_CUP entry point funnels through openHub() → FIFA + Relive.
   { id: 'ALL',     label: 'All Sports', icon: Globe,    color: '#FF8C00' },
   { id: 'NBA',     label: 'NBA',        icon: Trophy,   color: '#C9082A' },
   { id: 'NFL',     label: 'NFL',        icon: Shield,   color: '#013369' },
@@ -486,14 +488,16 @@ interface Props {
 
 export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, onOpenAthletes, onOpenFanRooms }) => {
   const [hero, setHero]               = useState<any[]>(HERO_FALLBACKS);
-  const [activeTab, setActiveTab]     = useState<string>('WORLD_CUP');
-  const [wcOpenTab, setWcOpenTab]     = useState<string | undefined>(undefined);
-  // Open the full World Cup Hub AND scroll to it — the tab-switch alone happened below the
-  // fold, so "Open full experience" felt like it did nothing.
-  const hubRef = useRef<HTMLDivElement>(null);
+  const [activeTab, setActiveTab]     = useState<string>('FIFA');
+  // Open the "Relive World Cup 2026" experience: switch to the FIFA section and open the
+  // Relive overlay (optionally at a specific hub tab). A window-level pending flag covers the
+  // race where FIFA/SportsCenterView hasn't mounted its listener yet; the live event covers
+  // the case where FIFA is already open.
   const openHub = (tab?: string) => {
-    setActiveTab('WORLD_CUP'); if (tab) setWcOpenTab(tab);
-    setTimeout(() => hubRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+    setActiveTab('FIFA');
+    (window as any).__plajahPendingRelive = { tab: tab || null };
+    window.dispatchEvent(new CustomEvent('plajah:open-relive', { detail: { tab } }));
+    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 60);
   };
   // Match Centre modal — opened via the 'plajah:open-wc-match' event from any WC surface.
   const [wcMatch, setWcMatch]         = useState<{ id: string; title?: string } | null>(null);
@@ -747,6 +751,10 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
 
       <div className="max-w-[1600px] mx-auto px-4 sm:px-5 lg:px-10 py-6 space-y-6 sm:space-y-8">
 
+        {/* ── FIFA SECTION HERO: the World Cup experience now lives under FIFA ─────
+            Victory engine + carousel + showcase + live board + buzz render only when the
+            FIFA section is active. Elsewhere in Sports they no longer dominate the page. */}
+        {activeTab === 'FIFA' && (<>
         {/* ── VICTORY ENGINE — celebrate wins the moment they happen / on return ── */}
         <WorldCupVictory
           onOpenFanRoom={(matchId, match) => window.dispatchEvent(new CustomEvent('plajah:open-fanroom', { detail: { matchId, match } }))}
@@ -757,19 +765,19 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
           onOpenFanRoom={(matchId, match) => window.dispatchEvent(new CustomEvent('plajah:open-fanroom', { detail: { matchId, match } }))}
         />
 
-        {/* ── WORLD CUP SHOWCASE — always top, always first ─────────────────── */}
+        {/* ── WORLD CUP SHOWCASE — FIFA section hero ────────────────────────── */}
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
               <span className="text-3xl leading-none select-none">⚽</span>
               <div>
                 <p className="text-[7px] font-black uppercase tracking-[0.45em] text-[#39B54A]">FIFA World Cup 2026™ · North, Central America &amp; Caribbean</p>
-                <h2 className="text-lg font-black uppercase tracking-tight text-white leading-none">The World Cup Hub</h2>
+                <h2 className="text-lg font-black uppercase tracking-tight text-white leading-none">Relive World Cup 2026</h2>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500/15 border border-red-500/25 shrink-0">
-              <span className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" />
-              <span className="text-[7px] font-black uppercase tracking-widest text-red-400">Tournament Live</span>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FF8C00]/15 border border-[#FF8C00]/25 shrink-0">
+              <Trophy size={11} className="text-[#FF8C00]" />
+              <span className="text-[7px] font-black uppercase tracking-widest text-[#FF8C00]">Relive · 2026</span>
             </div>
           </div>
 
@@ -849,6 +857,7 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
 
         {/* ── HIGHLIGHTS & SOCIAL BUZZ (YouTube + X) ────────────────────────── */}
         <WorldCupBuzz />
+        </>)}
 
         {/* ── SPORTS INTELLIGENCE ───────────────────────────────────────────── */}
         <SportsIntelligenceSection
@@ -861,7 +870,8 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
         <SportsHero
           items={hero}
           onNavigate={(leagueId, url) => {
-            if (leagueId) setActiveTab(leagueId);
+            if (leagueId === 'WORLD_CUP') openHub();            // legacy target → FIFA + Relive
+            else if (leagueId) setActiveTab(leagueId);
             else if (url) window.open(url, '_blank', 'noopener,noreferrer');
           }}
         />
@@ -972,15 +982,8 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
 
           {/* Left: Sports center or league picker */}
           <div className="space-y-6 lg:space-y-8 min-w-0">
-            {/* World Cup Hub */}
-            {activeTab === 'WORLD_CUP' && (
-              <div ref={hubRef} style={{ scrollMarginTop: 80 }}>
-                <WorldCupHub
-                  currentUser={currentUser ?? null}
-                  initialTab={wcOpenTab as any}
-                />
-              </div>
-            )}
+            {/* The World Cup experience is now reached through FIFA → Relive World Cup 2026
+                (rendered inside SportsCenterView as a full-screen overlay). */}
 
             {/* Health & Fitness hub tabs */}
             {(activeTab === 'FITNESS' || activeTab === 'HEALTH') && (
@@ -990,9 +993,9 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
               />
             )}
 
-            {/* League-specific sports center */}
-            {activeTab !== 'ALL' && activeTab !== 'WORLD_CUP' && activeTab !== 'FITNESS' && activeTab !== 'HEALTH' && (
-              <SportsCenterView selectedSportsTab={activeTab as any} />
+            {/* League-specific sports center (FIFA hosts Relive World Cup 2026 + History/Museum) */}
+            {activeTab !== 'ALL' && activeTab !== 'FITNESS' && activeTab !== 'HEALTH' && (
+              <SportsCenterView selectedSportsTab={activeTab as any} currentUser={currentUser ?? null} />
             )}
 
             {/* ALL view: league grid */}

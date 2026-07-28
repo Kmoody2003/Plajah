@@ -1013,7 +1013,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               {/* Own-profile: Share + Plajah+ + X + Pay It Forward */}
               {isOwnProfile && (
                 <>
-                  <PayItForwardButton variant="FULL" />
+                  <PayItForwardButton variant="FULL" className="inline-flex items-center gap-2 px-5 py-2 bg-small-orange text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-lg" />
                   <PlajahPlusButton
                     creatorId={profile.uid}
                     creatorName={profile.displayName}

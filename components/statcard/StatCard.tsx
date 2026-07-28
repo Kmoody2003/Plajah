@@ -16,6 +16,20 @@ const CAT_ICON: Record<string, React.ReactNode> = {
   MUSIC: <Music size={13} />, FILM: <Film size={13} />, BOOK: <BookOpen size={13} />,
 };
 
+// Score → collectible tier. Gives every card a rarity read at a glance (like a real trading card),
+// and tints the score foil. Solid gradients only (html2canvas-safe).
+type Tier = { label: string; from: string; to: string; text: string };
+function tierFor(score: number): Tier {
+  if (score >= 5000) return { label: 'Diamond', from: '#8be9fd', to: '#6b8cff', text: '#0b0910' };
+  if (score >= 1500) return { label: 'Platinum', from: '#e8ecf0', to: '#a7c7d6', text: '#0b0910' };
+  if (score >= 500)  return { label: 'Gold',     from: '#ffdf6e', to: '#d4a017', text: '#0b0910' };
+  if (score >= 100)  return { label: 'Silver',   from: '#e6e6e6', to: '#9aa0a6', text: '#0b0910' };
+  return { label: 'Bronze', from: '#e0a066', to: '#a9703c', text: '#1a0e05' };
+}
+
+// Diagonal foil sweep — the collectible-card sheen. Sits above artwork, below nothing interactive.
+const FOIL_SHEEN = 'linear-gradient(118deg, transparent 34%, rgba(255,255,255,.05) 44%, rgba(255,255,255,.14) 50%, rgba(255,255,255,.05) 56%, transparent 66%)';
+
 function useQr(url: string): string {
   const [dataUrl, setDataUrl] = useState('');
   useEffect(() => {
@@ -45,14 +59,16 @@ const Face: React.FC<{ back?: boolean; children: React.ReactNode; innerRef?: Rea
     <div style={{ position: 'absolute', inset: 0, borderRadius: 22, padding: 2, background: BRAND_GRAD }}>
       <div style={{ width: '100%', height: '100%', borderRadius: 20, background: '#0b0910', overflow: 'hidden', position: 'relative' }}>
         {children}
+        {/* Foil sweep — subtle collectible sheen over the whole face */}
+        <div style={{ position: 'absolute', inset: 0, background: FOIL_SHEEN, pointerEvents: 'none', zIndex: 6 }} />
       </div>
     </div>
   </div>
 );
 
-const StatChip: React.FC<{ label: string; value: React.ReactNode; hint?: string }> = ({ label, value, hint }) => (
+const StatChip: React.FC<{ label: string; value: React.ReactNode; hint?: string; color?: string }> = ({ label, value, hint, color }) => (
   <div style={{ flex: 1, textAlign: 'center' }}>
-    <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', lineHeight: 1, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+    <div style={{ fontSize: 22, fontWeight: 900, color: color || '#fff', lineHeight: 1, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
     <div style={{ fontSize: 7.5, fontWeight: 800, letterSpacing: '.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginTop: 4 }}>{hint ? `${hint} ` : ''}{label}</div>
   </div>
 );
@@ -74,7 +90,12 @@ const CategoryRow: React.FC<{ row: StatCardCategoryRow }> = ({ row }) => (
   </div>
 );
 
-const StatCardFront: React.FC<{ data: StatCardData; qr: string; innerRef?: React.Ref<HTMLDivElement> }> = ({ data, qr, innerRef }) => (
+const StatCardFront: React.FC<{ data: StatCardData; qr: string; innerRef?: React.Ref<HTMLDivElement> }> = ({ data, qr, innerRef }) => {
+  const scoreStat = data.stats.find(s => s.hint === 'Score' || /score/i.test(s.label));
+  const scoreNum = typeof scoreStat?.value === 'number' ? scoreStat.value : parseInt(String(scoreStat?.value || '0'), 10) || 0;
+  const tier = tierFor(scoreNum);
+  const tierGrad = `linear-gradient(135deg, ${tier.from}, ${tier.to})`;
+  return (
   <Face innerRef={innerRef}>
     {/* Cover blends into the card background */}
     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 168 }}>
@@ -87,7 +108,11 @@ const StatCardFront: React.FC<{ data: StatCardData; qr: string; innerRef?: React
       {/* brand eyebrow */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 8, fontWeight: 900, letterSpacing: '.3em', textTransform: 'uppercase', color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,.6)' }}>Plajah · Stat Card</span>
-        {data.verified && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: BRAND_GRAD, color: '#fff', fontSize: 7.5, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase', padding: '3px 7px', borderRadius: 999 }}><Check size={9} /> Verified</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          {/* Collectible tier — rarity read at a glance */}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: tierGrad, color: tier.text, fontSize: 7.5, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 999, boxShadow: '0 2px 8px -2px rgba(0,0,0,.5)' }}>★ {tier.label}</span>
+          {data.verified && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: BRAND_GRAD, color: '#fff', fontSize: 7.5, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase', padding: '3px 7px', borderRadius: 999 }}><Check size={9} /> Verified</span>}
+        </div>
       </div>
 
       {/* hero + name */}
@@ -108,7 +133,7 @@ const StatCardFront: React.FC<{ data: StatCardData; qr: string; innerRef?: React
         {data.stats.slice(0, 3).map((s, i) => (
           <React.Fragment key={i}>
             {i > 0 && <div style={{ width: 1, background: 'rgba(255,255,255,.1)' }} />}
-            <StatChip label={s.label} value={typeof s.value === 'number' ? s.value.toLocaleString() : s.value} hint={s.hint} />
+            <StatChip label={s.label} value={typeof s.value === 'number' ? s.value.toLocaleString() : s.value} hint={s.hint} color={s === scoreStat ? tier.from : undefined} />
           </React.Fragment>
         ))}
       </div>
@@ -133,7 +158,8 @@ const StatCardFront: React.FC<{ data: StatCardData; qr: string; innerRef?: React
       </div>
     </div>
   </Face>
-);
+  );
+};
 
 const StatCardBack: React.FC<{ data: StatCardData; onMerch?: () => void; innerRef?: React.Ref<HTMLDivElement> }> = ({ data, onMerch, innerRef }) => (
   <Face back innerRef={innerRef}>

@@ -848,11 +848,23 @@ service cloud.firestore {
       allow write: if isOwner(studentId);
     }
 
-    // ── Live Rooms — time-boxed presence + chat spaces (services/roomService) ──
+    // ── Rooms — the canonical platform primitive (services/roomService) ──
+    // Host-owned rooms (TOPIC/PROFILE/WATCH/LISTEN/STUDY): creator is the host and
+    // owns doc writes. Shared rooms (MATCH/TEAM/LEAGUE) have no host (hostId == '') and
+    // a deterministic id — any signed-in user may materialize/update them (presence,
+    // polls, live context), mirroring the wcMatchRooms model.
     match /rooms/{roomId} {
       allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.hostId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.hostId == request.auth.uid;
+      allow create: if isAuthenticated() && (
+        request.resource.data.hostId == request.auth.uid ||
+        (request.resource.data.hostId == '' && request.resource.data.kind in ['MATCH', 'TEAM', 'LEAGUE'])
+      );
+      allow update: if isAuthenticated() && (
+        resource.data.hostId == request.auth.uid ||
+        resource.data.get('hostId', 'x') == '' ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (resource.data.hostId == request.auth.uid || isAdmin());
       match /members/{uid} {
         allow read: if true;
         allow write: if isAuthenticated() && uid == request.auth.uid;
@@ -863,6 +875,12 @@ service cloud.firestore {
                       && request.resource.data.uid == request.auth.uid
                       && request.resource.data.text is string
                       && request.resource.data.text.size() <= 500;
+      }
+      // Banter polls (shared rooms): any signed-in user may add a poll and vote — votes
+      // is a shared map mutated cross-user, matching the wcMatchRooms poll model.
+      match /polls/{pollId} {
+        allow read: if true;
+        allow create, update: if isAuthenticated();
       }
     }
 

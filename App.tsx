@@ -48,6 +48,7 @@ const PlayerView = retryLazy(() => import('./components/PlayerView'));
 const SearchView = retryLazy(() => import('./components/SearchView'));
 const FeedView = retryLazy(() => import('./components/FeedView'));
 const LiveHubView = retryLazy(() => import('./components/LiveHubView'));
+const MobileLiveHub = retryLazy(() => import('./components/MobileLiveHub'));
 const UserProfileView = retryLazy(() => import('./components/UserProfileView'));
 const RadioView = retryLazy(() => import('./components/RadioView'));
 const TVView = retryLazy(() => import('./components/TVView'));
@@ -4559,7 +4560,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 viewerProfile={effectiveProfile}
               />
             )}
-            {view === 'LIVE_HUB' && (
+            {view === 'LIVE_HUB' && ((isMobile || theme === 'PHONE') ? (
+              // Phones get the chat-first / vertical-FAST hub; rotate to landscape → full-screen video.
+              <MobileLiveHub onBack={() => setView('DASHBOARD')} uid={user?.uid} />
+            ) : (
               <LiveHubView
                 onBack={() => setView('DASHBOARD')}
                 currentUser={user}
@@ -4569,7 +4573,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 }}
                 onOpenTVStudio={() => setView('TV_STUDIO')}
               />
-            )}
+            ))}
             {view === 'RADIO' && <RadioView onBack={() => setView('DASHBOARD')} artistId={selectedRadioArtistId} />}
             {/* Taleo on a TV gets the purpose-built declarative-grid screen (like Chora/Reello);
                 pointer/desktop keeps the geometric MoviesTVView. Selection is identical. */}

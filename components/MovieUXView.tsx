@@ -87,6 +87,7 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
 
   const [liveVideo, setLiveVideo] = useState<Video>(initialVideo);
   const [muxFailed, setMuxFailed] = useState(false);
+  const [muxMp4Failed, setMuxMp4Failed] = useState(false);
   const [directFailed, setDirectFailed] = useState(false);
 
   // Custom controls state
@@ -157,6 +158,12 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
   const rawUrl = liveVideo.url || '';
   const hasHlsUrl = isHLSUrl(rawUrl);
   const hasDirectUrl = !!rawUrl && !hasHlsUrl && !directFailed;
+  // Mux progressive-MP4 fallback: plays through a plain <video> with NO Media Source
+  // Extensions. Android TV System WebViews often can't play Mux HLS via hls.js/MSE (no native
+  // HLS either), so when the MSE attempt fails we fall back to this. Requires Mux static
+  // renditions (MP4 support) enabled on the asset; if not, it 404s and we drop to embed/error
+  // — no worse than before, which had no fallback for Mux-only titles.
+  const muxMp4Url = liveVideo.muxPlaybackId ? `https://stream.mux.com/${liveVideo.muxPlaybackId}/high.mp4` : '';
   const processing = !liveVideo.muxPlaybackId && !rawUrl && !liveVideo.embedUrl;
 
   const strategy: CinemaStrategy =
@@ -164,6 +171,7 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
     (liveVideo.muxPlaybackId && !muxFailed) ? 'mux' :
     hasHlsUrl                               ? 'hls' :
     hasDirectUrl                            ? 'direct' :
+    (liveVideo.muxPlaybackId && muxFailed && !muxMp4Failed) ? 'mux-mp4' :  // no-MSE fallback (TV)
     liveVideo.embedUrl                      ? 'embed' :
                                               'error';
 
@@ -200,14 +208,27 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
             capLevelsToPanel(hls as any);
             if (!torn) el.play().catch(() => { el.muted = true; el.play().catch(() => {}); });
           });
+          let recovered = 0;
           hls.on(Hls.Events.ERROR, (_: any, data: any) => {
-            if (data.fatal && !torn) { hls.destroy(); hlsRef.current = null; onFatal(); }
+            if (!data.fatal || torn) return;
+            // Give flaky decoders (esp. Android TV WebView) a chance before falling through.
+            if (recovered < 2) {
+              recovered++;
+              if (data.type === Hls.ErrorTypes.NETWORK_ERROR) { hls.startLoad(); return; }
+              if (data.type === Hls.ErrorTypes.MEDIA_ERROR) { hls.recoverMediaError(); return; }
+            }
+            console.warn('[PlajahTV] Taleo HLS fatal', strategy, data?.type, data?.details);
+            hls.destroy(); hlsRef.current = null; onFatal();
           });
         } else if (el.canPlayType('application/vnd.apple.mpegurl')) {
           el.addEventListener('error', onFatal, { once: true });
           el.src = hlsUrl;
           el.play().catch(() => { el.muted = true; el.play().catch(() => {}); });
-        } else { onFatal(); }
+        } else {
+          // No MSE (hls.js) AND no native HLS — the exact Android TV WebView failure mode.
+          console.warn('[PlajahTV] Taleo: no MSE + no native HLS → falling back', strategy);
+          onFatal();
+        }
       } catch { onFatal(); }
     })();
     return () => { torn = true; hlsRef.current?.destroy(); hlsRef.current = null; };
@@ -393,7 +414,7 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
           <p className="text-sm font-black uppercase tracking-widest">Source unavailable</p>
           <p className="text-xs text-white/25 leading-relaxed">This content could not be loaded.</p>
           <button
-            onClick={() => { setMuxFailed(false); setDirectFailed(false); }}
+            onClick={() => { setMuxFailed(false); setMuxMp4Failed(false); setDirectFailed(false); }}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
           >
             <RefreshCw size={12} /> Retry
@@ -416,11 +437,16 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
         ref={setRef}
         poster={poster}
         playsInline
-        crossOrigin="anonymous"
+        // Only force CORS mode when we actually need it (subtitle tracks). Forcing it
+        // unconditionally made any direct/mp4 source without CORS headers fail to load.
+        crossOrigin={subtitles.length ? 'anonymous' : undefined}
         className="w-full h-full object-contain"
-        src={strategy === 'direct' ? rawUrl : undefined}
-        autoPlay={strategy === 'direct'}
-        onError={() => { if (strategy === 'direct') setDirectFailed(true); }}
+        src={strategy === 'direct' ? rawUrl : strategy === 'mux-mp4' ? muxMp4Url : undefined}
+        autoPlay={strategy === 'direct' || strategy === 'mux-mp4'}
+        onError={() => {
+          if (strategy === 'direct') setDirectFailed(true);
+          else if (strategy === 'mux-mp4') { console.warn('[PlajahTV] Taleo Mux MP4 fallback failed'); setMuxMp4Failed(true); }
+        }}
       >
         {subtitles.map(st => (
           <track key={st.srclang} kind="subtitles" src={st.url} srcLang={st.srclang} label={st.label} default={st.default} />
