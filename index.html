@@ -142,17 +142,23 @@
         :root { --app-zoom: 0.88; }
         html.zfold-cover { --app-zoom: 1.25; }
         #root { zoom: var(--app-zoom); }
-        #root .min-h-screen { min-height: calc(100vh / var(--app-zoom)); }
-        #root .h-screen     { height:     calc(100vh / var(--app-zoom)); }
-        #root .w-screen     { width:      calc(100vw / var(--app-zoom)); }
-        #root .h-dvh        { height:     calc(100dvh / var(--app-zoom)); }
-        #root .min-h-dvh    { min-height: calc(100dvh / var(--app-zoom)); }
-        /* Arbitrary-value equivalents used across the app (Tailwind escapes the brackets) */
-        #root .h-\[100dvh\]     { height:     calc(100dvh / var(--app-zoom)); }
-        #root .min-h-\[100dvh\] { min-height: calc(100dvh / var(--app-zoom)); }
-        #root .h-\[100vh\]      { height:     calc(100vh  / var(--app-zoom)); }
-        #root .min-h-\[100vh\]  { min-height: calc(100vh  / var(--app-zoom)); }
-        #root .h-\[100svh\]     { height:     calc(100svh / var(--app-zoom)); }
+        /* Compensate EXACT-height full-screen shells (height:100vh/100dvh) so they still
+           fill under zoom. We deliberately do NOT compensate min-height:100vh wrappers:
+           min-h-screen is used on nested page wrappers, and forcing them to 100vh/zoom
+           (>100vh) overgrows them past a clipped (overflow:hidden) parent — that is exactly
+           what cuts content off at the bottom on desktop. Leaving min-h-screen alone lets it
+           grow with content and never overflow. */
+        #root .h-screen     { height: calc(100vh / var(--app-zoom)); }
+        #root .w-screen     { width:  calc(100vw / var(--app-zoom)); }
+        #root .h-dvh        { height: calc(100dvh / var(--app-zoom)); }
+        #root .h-\[100dvh\] { height: calc(100dvh / var(--app-zoom)); }
+        #root .h-\[100vh\]  { height: calc(100vh  / var(--app-zoom)); }
+        #root .h-\[100svh\] { height: calc(100svh / var(--app-zoom)); }
+        /* The Z Fold cover MAGNIFIES (zoom>1). There the min-height wrappers DO need
+           compensating so the magnified layout doesn't overflow the tiny dense screen —
+           and phone pages scroll (no clip), so this can't cause the desktop cutoff. */
+        html.zfold-cover #root .min-h-screen { min-height: calc(100vh / var(--app-zoom)); }
+        html.zfold-cover #root .min-h-dvh    { min-height: calc(100dvh / var(--app-zoom)); }
     </style>
 
     <link rel="stylesheet" href="/index.css">
