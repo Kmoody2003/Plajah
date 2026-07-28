@@ -3577,7 +3577,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         <div className={`w-10 h-7 rounded-2xl flex items-center justify-center transition-colors ${isActive ? 'bg-small-orange/20' : ''}`}>
                           <Icon size={20} className={isActive ? 'text-small-orange' : 'text-white/50'} />
                         </div>
-                        <span className={`text-[8px] font-black uppercase tracking-wider ${isActive ? 'text-small-orange' : 'text-white/40'}`}>{tab.label}</span>
+                        {/* Selected tab wears the brand — magenta→orange gradient text, matching the TV top tabs. */}
+                        <span className={`text-[8px] font-black uppercase tracking-wider ${isActive ? 'bg-gradient-to-r from-[#D40055] to-[#FF8C00] bg-clip-text text-transparent' : 'text-white/40'}`}>{tab.label}</span>
                       </button>
                     );
                   })}
