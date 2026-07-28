@@ -72,7 +72,9 @@ const TVView: React.FC<TVViewProps> = ({ onBack }) => {
   }, []);
 
   const filteredFeeds = liveFeeds.filter(f => {
-    const matchesSearch = f.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    // Only currently-live streams belong here — an ended one is a replay, not live.
+    if ((f as any).status === 'ENDED' || (f as any).status === 'OFFLINE') return false;
+    const matchesSearch = f.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          f.ownerName.toLowerCase().includes(searchTerm.toLowerCase());
     if (activeCategory === 'For You') return matchesSearch;
     if (activeCategory === 'Following') return matchesSearch; // Ranking already handles this

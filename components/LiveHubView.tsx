@@ -108,9 +108,11 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
     }
   };
 
-  const filteredFeeds = feeds.filter(f => 
-    f.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    f.ownerName.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredFeeds = feeds.filter(f =>
+    // Only ACTUAL live streams belong in the live tab — an ended stream is a replay, not live.
+    (f as any).status !== 'ENDED' && (f as any).status !== 'OFFLINE' &&
+    (f.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     f.ownerName.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const filteredArtists = liveArtists.filter(a => 
@@ -120,9 +122,9 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
 
   const handleFeelingLucky = () => {
     triggerAction('USE_FEELING_LUCKY');
-    const allLive = [...feeds, ...liveArtists.map(a => ({ 
-      id: a.uid, 
-      title: a.liveStreamConfig?.title || 'Live Stream', 
+    const allLive = [...feeds.filter(f => (f as any).status !== 'ENDED' && (f as any).status !== 'OFFLINE'), ...liveArtists.map(a => ({
+      id: a.uid,
+      title: a.liveStreamConfig?.title || 'Live Stream',
       url: a.liveStreamConfig?.fastChannelUrl || a.liveStreamConfig?.streamUrl || '',
       ownerId: a.uid,
       ownerName: a.displayName
@@ -377,9 +379,15 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
               <div className="relative aspect-video bg-black overflow-hidden">
                 <HoverStreamPreview url={feed.url} mutedUrl={mutedUrl} />
                 <div className="absolute inset-0 z-20 flex items-end justify-between p-4 pointer-events-none">
-                  <div className="px-4 py-2 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest rounded-full flex items-center gap-2 shadow-lg">
-                    <div className="w-2 h-2 bg-white rounded-full animate-ping" /> Live
-                  </div>
+                  {(feed as any).status === 'ENDED' ? (
+                    <div className="px-4 py-2 bg-white/15 text-white text-[10px] font-black uppercase tracking-widest rounded-full flex items-center gap-2 shadow-lg backdrop-blur-md">
+                      ▶ Replay
+                    </div>
+                  ) : (
+                    <div className="px-4 py-2 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest rounded-full flex items-center gap-2 shadow-lg">
+                      <div className="w-2 h-2 bg-white rounded-full animate-ping" /> Live
+                    </div>
+                  )}
                   {currentUser?.uid === feed.ownerId && (
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(feed.id); }}
