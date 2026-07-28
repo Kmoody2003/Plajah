@@ -983,7 +983,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             {/* ── Pill row: stats + badges + action buttons — horizontal above bio ── */}
             <div className={`flex flex-wrap items-center gap-3 mt-4 mb-3 ${isMobile ? 'justify-center' : ''}`}>
               {/* Stats */}
-              <div className="flex items-center gap-6 pr-5 border-r border-white/10">
+              <div className="flex items-center gap-6">
                 <div className={isMobile ? 'text-center' : ''}>
                   <p className="text-2xl font-black text-white leading-none tabular-nums">{profile.followerCount?.toLocaleString()}</p>
                   <p className="text-[8px] font-black text-white/35 uppercase tracking-[0.3em] mt-0.5">Followers</p>
@@ -1001,6 +1001,12 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                   <span className="text-[10px] font-black uppercase tracking-widest text-white">Pioneer</span>
                 </div>
               )}
+            </div>
+
+            {/* Action buttons — their own left-aligned row so Claim / Pay It Forward /
+                Manage Plajah+ line up as a grid with the radio/channel strip below,
+                instead of being pushed onto the followers line. */}
+            <div className={`flex flex-wrap items-center gap-2 mb-3 ${isMobile ? 'justify-center' : ''}`}>
               {isOwnProfile && profile.isPioneer && !profile.pioneerRewardClaimed && (
                 <button
                   onClick={handleClaimPioneerReward}
@@ -1123,19 +1129,19 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 )}
                 {profile.radioSettings?.enabled && (
                   <button onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'RADIO', artistId: profile.uid } }))}
-                    className="px-4 py-1.5 bg-[#00DAF3]/20 hover:bg-[#00DAF3]/30 text-[#00DAF3] rounded-full transition-all border border-[#00DAF3]/30 flex items-center gap-1.5 shrink-0 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+                    className="px-4 py-2 bg-[#00DAF3]/20 hover:bg-[#00DAF3]/30 text-[#00DAF3] rounded-full transition-all border border-[#00DAF3]/30 flex items-center gap-1.5 shrink-0 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
                     <Radio size={12} />Artist Radio
                   </button>
                 )}
                 {(profile.fastChannelEnabled || hasFastContent || profile.liveStreamConfig?.fastChannelUrl) && (
                   <button onClick={() => setShowFastChannel(true)}
-                    className="px-4 py-1.5 bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white rounded-full transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5 shrink-0 text-[10px] font-black uppercase tracking-widest whitespace-nowrap shadow-[0_0_14px_rgba(107,0,153,0.35)]">
+                    className="px-4 py-2 bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white rounded-full transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5 shrink-0 text-[10px] font-black uppercase tracking-widest whitespace-nowrap shadow-[0_0_14px_rgba(107,0,153,0.35)]">
                     <Tv size={12} />Watch Channel
                   </button>
                 )}
                 {isOwnProfile && (profile.fastChannelEnabled || hasFastContent) && (
                   <button onClick={() => setShowFastChannelManager(true)}
-                    className="px-4 py-1.5 bg-white/10 border border-white/10 text-white rounded-full transition-all hover:bg-white/20 active:scale-95 flex items-center gap-1.5 shrink-0 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+                    className="px-4 py-2 bg-white/10 border border-white/10 text-white rounded-full transition-all hover:bg-white/20 active:scale-95 flex items-center gap-1.5 shrink-0 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
                     <Radio size={12} />Manage Channel
                   </button>
                 )}

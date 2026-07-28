@@ -5,7 +5,7 @@ import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
 import HistoryMomentPulseCard from './HistoryMomentPulseCard';
 import { FeedItem, UserProfile, FeedPage, Game, Album, PostThemeBackground, LiveTalk, Post } from '../types';
 import PageHeader from './PageHeader';
-import { fetchFeed, fetchFollowedFeed, postToFeed, followUser, unfollowUser, isFollowing, deleteFeedItem, fetchUserProfile, fetchUserAlbums, fetchThemeBackgrounds, listenToActiveLiveTalks, updateUserProfile, searchUserProfiles, listenToGlobalPosts, listenToFollowedPosts, listenToLikedPosts, createPost, postFieldsForAssetEmbed, recordFeedInteraction, fetchAlbumsByIds, fetchAllPublicAlbums, fetchPublicBooks } from '../services/backendService';
+import { fetchFeed, fetchFollowedFeed, postToFeed, followUser, unfollowUser, isFollowing, deleteFeedItem, fetchUserProfile, fetchUserAlbums, fetchThemeBackgrounds, listenToActiveLiveTalks, updateUserProfile, searchUserProfiles, listenToGlobalPosts, listenToFollowedPosts, listenToLikedPosts, createPost, postFieldsForAssetEmbed, recordFeedInteraction, fetchAlbumsByIds, fetchAllPublicAlbums, fetchPublicBooks, fetchAllLiveFeeds, fetchStreamArchives } from '../services/backendService';
 import { getDailyFigure } from '../services/historyData';
 import { filterPostsForViewer } from '../services/contentSafety';
 import { useViewerDiscovery, useDwellTracker } from '../hooks/useFeedScoring';
@@ -756,41 +756,110 @@ const NewspaperPost: React.FC<{ articleIds: string[]; content: string; imageUrl?
   );
 };
 
-const DeepLinkPost: React.FC<{ type: 'WATCH_ALONG' | 'LIVE_FEED'; url: string; title: string }> = ({ type, url, title }) => {
+const DeepLinkPost: React.FC<{ type: 'WATCH_ALONG' | 'LIVE_FEED'; url: string; title: string; authorId?: string }> = ({ type, url, title, authorId }) => {
+  // A live-broadcast post has to tell the truth about the stream. While the author is
+  // actually live it invites you to join; the moment the stream ends it flips to
+  // "Live Ended" and offers the replay — instead of forever implying they're still on air.
+  const [liveState, setLiveState] = useState<'CHECKING' | 'LIVE' | 'ENDED'>(type === 'LIVE_FEED' ? 'CHECKING' : 'LIVE');
+  const [replay, setReplay] = useState<{ url: string; ownerName: string } | null>(null);
+  const isLiveFeed = type === 'LIVE_FEED';
+
+  // Real-time: watch this broadcaster's live feeds so the card switches to "ended"
+  // the instant the stream stops, even while the post sits on screen.
+  useEffect(() => {
+    if (!isLiveFeed || !authorId) return;
+    const unsub = fetchAllLiveFeeds((feeds) => {
+      const stillLive = feeds.some(f => f.ownerId === authorId && (f as any).status !== 'ENDED' && (f as any).status !== 'OFFLINE');
+      setLiveState(stillLive ? 'LIVE' : 'ENDED');
+    });
+    return () => { try { (unsub as any)?.(); } catch { /* */ } };
+  }, [isLiveFeed, authorId]);
+
+  // Once ended, locate the most recent replay for this broadcaster.
+  useEffect(() => {
+    if (liveState !== 'ENDED' || !authorId || replay) return;
+    let alive = true;
+    fetchStreamArchives(40).then(list => {
+      if (!alive) return;
+      const mine = (list || []).filter(a => a.ownerId === authorId && a.muxPlaybackId).sort((a, b) => (b.endedAt || 0) - (a.endedAt || 0));
+      if (mine[0]) setReplay({ url: `https://stream.mux.com/${mine[0].muxPlaybackId}.m3u8`, ownerName: mine[0].ownerName });
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [liveState, authorId, replay]);
+
+  const ended = isLiveFeed && liveState === 'ENDED';
+
+  const openDeepLink = () => {
+    try {
+      const urlObj = new URL(url, window.location.origin);
+      if (urlObj.origin === window.location.origin) {
+        window.history.pushState({}, '', url);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+        return;
+      }
+      window.open(url, '_blank');
+    } catch (e) {
+      console.error("Invalid URL in DeepLinkPost:", e);
+    }
+  };
+
+  const openReplay = () => {
+    if (!replay) return;
+    window.dispatchEvent(new CustomEvent('PLAY_LIVE_FEED', { detail: { feed: {
+      id: `replay_${authorId}`, streamId: `replay_${authorId}`, url: replay.url,
+      title, ownerId: authorId, ownerName: replay.ownerName, status: 'ENDED', isPublic: true, timestamp: Date.now(),
+    } } }));
+  };
+
   return (
-    <div className="bg-gradient-to-br from-small-orange/20 to-purple-500/20 rounded-[2.5rem] p-8 border border-white/10 relative overflow-hidden group">
+    <div className={`rounded-[2.5rem] p-8 border border-white/10 relative overflow-hidden group bg-gradient-to-br ${ended ? 'from-white/[0.08] to-white/[0.03]' : 'from-small-orange/20 to-purple-500/20'}`}>
       <div className="absolute -top-24 -right-24 w-64 h-64 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000" />
-      
+
       <div className="flex items-center gap-4 mb-6">
-        <div className="w-12 h-12 bg-white text-black rounded-2xl flex items-center justify-center shadow-xl">
-          {type === 'WATCH_ALONG' ? <Tv size={24} /> : <Radio size={24} />}
+        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl ${ended ? 'bg-white/15 text-white' : 'bg-white text-black'}`}>
+          {type === 'WATCH_ALONG' ? <Tv size={24} /> : ended ? <Play size={22} fill="currentColor" /> : <Radio size={24} />}
         </div>
         <div>
-          <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40">{type === 'WATCH_ALONG' ? 'Watch Along Event' : 'Live Broadcast'}</h4>
+          <div className="flex items-center gap-2">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40">
+              {type === 'WATCH_ALONG' ? 'Watch Along Event' : ended ? 'Live Broadcast · Ended' : 'Live Broadcast'}
+            </h4>
+            {isLiveFeed && liveState === 'LIVE' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-600 text-white text-[8px] font-black uppercase tracking-widest">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" /> Live
+              </span>
+            )}
+            {ended && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/15 text-white/70 text-[8px] font-black uppercase tracking-widest">
+                <Clock size={9} /> Ended
+              </span>
+            )}
+          </div>
           <h3 className="text-xl font-black uppercase tracking-tight">{title}</h3>
         </div>
       </div>
 
-      <button 
-        onClick={() => {
-        // Handle deep link without page reload
-        try {
-          const urlObj = new URL(url, window.location.origin);
-          if (urlObj.origin === window.location.origin) {
-            window.history.pushState({}, '', url);
-            window.dispatchEvent(new PopStateEvent('popstate'));
-            return;
-          }
-          // If external or same-origin but not handled by history, only use href as last resort
-          window.open(url, '_blank');
-        } catch (e) {
-          console.error("Invalid URL in DeepLinkPost:", e);
-        }
-      }}
-        className="w-full py-4 bg-white text-black rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-3 hover:bg-small-orange hover:text-white transition-all shadow-2xl"
-      >
-        Join Now <ExternalLink size={14} />
-      </button>
+      {ended ? (
+        replay ? (
+          <button
+            onClick={openReplay}
+            className="w-full py-4 bg-white/10 border border-white/15 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-3 hover:bg-white/20 transition-all"
+          >
+            <Play size={14} fill="currentColor" /> Watch Replay
+          </button>
+        ) : (
+          <div className="w-full py-4 bg-white/5 border border-white/10 text-white/40 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-3">
+            <Clock size={14} /> Broadcast Ended
+          </div>
+        )
+      ) : (
+        <button
+          onClick={openDeepLink}
+          className="w-full py-4 bg-white text-black rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-3 hover:bg-small-orange hover:text-white transition-all shadow-2xl"
+        >
+          Join Now <ExternalLink size={14} />
+        </button>
+      )}
     </div>
   );
 };
@@ -1059,6 +1128,7 @@ const FeedItemComponent: React.FC<{
                   type={item.theme as any}
                   url={item.deepLinkUrl}
                   title={item.content.split('\n')[0]}
+                  authorId={item.authorId}
                 />
               )}
             </div>

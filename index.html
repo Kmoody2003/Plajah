@@ -225,15 +225,16 @@
     <script>
       // Fix Android Chrome URL bar causing layout jumps.
       // Sets --real-vh so components can use calc(var(--real-vh) * 100)
-      // instead of 100dvh, which reflows on every scroll. On the Z Fold cover
-      // screen, #root is zoomed, so --real-vh is divided by the zoom factor to
-      // keep --real-vh-based heights filling exactly one screen after zoom.
+      // instead of 100dvh, which reflows on every scroll. #root is ALWAYS zoomed
+      // now (--app-zoom, <1 to shrink the UI, or 1.25 on the Z Fold cover to
+      // magnify), so --real-vh is divided by that same zoom factor to keep
+      // --real-vh-based heights (the app shell's h-real-screen) filling exactly
+      // one screen after the zoom scales them. Reading the live --app-zoom keeps
+      // this correct whether the app is shrinking or the cover is magnifying.
       (function() {
         function setVh() {
           var raw = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
-          var z = (window.__isCoverScreen && window.__isCoverScreen())
-            ? (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cover-zoom')) || 1.25)
-            : 1;
+          var z = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-zoom')) || 1;
           document.documentElement.style.setProperty('--real-vh', (raw / z) * 0.01 + 'px');
         }
         setVh();
