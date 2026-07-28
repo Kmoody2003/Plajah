@@ -993,6 +993,18 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
           )}
         </AnimatePresence>
 
+        {/* Brand-gradient stroke def for the spill-over chevron (stroke can't take a
+            Tailwind gradient — it needs an SVG paint server). */}
+        <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+          <defs>
+            <linearGradient id="plajah-chevron-grad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#6B0099" />
+              <stop offset="55%" stopColor="#D40055" />
+              <stop offset="100%" stopColor="#FF8C00" />
+            </linearGradient>
+          </defs>
+        </svg>
+
         {/* Colored chevron — the single control. When retracted it brings the player
             back up; when up it's the sole trigger for the extra-controls drawer and
             spins to point up while the drawer is open. */}
@@ -1012,7 +1024,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
           title={isPhoneMode ? 'Open now playing' : (isMinimized ? 'Bring player back up' : 'Minimize')}
         >
           {isPhoneMode
-            ? <ChevronUp size={20} />
+            ? <ChevronUp size={24} strokeWidth={3.25} style={{ stroke: 'url(#plajah-chevron-grad)' }} className="drop-shadow-[0_1px_3px_rgba(212,0,85,0.5)]" />
             : (isMinimized ? <ChevronUp size={20} /> : <ChevronDown size={20} />)}
         </button>
 
@@ -1300,8 +1312,10 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
 
               {/* Balanced Controls Hub at Bottom */}
               <div className={`flex items-center justify-between ${isLandscape ? 'flex-1 gap-2' : 'w-full'} ${isShrunk ? 'px-1 gap-2' : (isLandscape ? 'px-0' : 'px-3 gap-2')}`}>
-                {/* Left Side: shuffle + repeat toggles always visible in portrait */}
-                <div className={`flex items-center justify-start shrink-0 ${isLandscape ? 'hidden' : ''}`}>
+                {/* Left Side: shuffle + repeat toggles always visible in portrait.
+                    flex-1 (matching the right side) so the center Play pill stays dead-centered
+                    regardless of how many buttons each side happens to show. */}
+                <div className={`flex items-center justify-start flex-1 ${isLandscape ? 'hidden' : ''}`}>
                   <button
                     onClick={() => setIsShuffle(!isShuffle)}
                     className={`p-2 transition-all rounded-full android-press ${isShuffle ? 'text-green-400' : 'text-white/20'}`}
@@ -1339,7 +1353,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
               </div>
 
                 {/* Right Side: aria + share + music video + queue buttons */}
-                <div className={`flex items-center justify-end gap-1 shrink-0 ${isLandscape ? 'hidden' : ''}`}>
+                <div className={`flex items-center justify-end gap-1 flex-1 ${isLandscape ? 'hidden' : ''}`}>
                   {onOpenAria && (
                     <button
                       onClick={onOpenAria}

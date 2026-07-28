@@ -128,25 +128,31 @@
             border-left: 4px solid var(--theme-color, #ffffff);
         }
 
-        /* ── Galaxy Z Fold cover (outer) screen scaling ──────────────────────
-           The outer screen is physically small + dense and overlaps normal
-           phones in CSS width, so the mobile layout renders too small. We
-           magnify the whole app subtree with `zoom` — the only thing that scales
-           this app's heavy arbitrary-px text (text-[9px] etc.; rem-only scaling
-           wouldn't touch it). Viewport-unit utilities are divided by the same
-           factor so the zoomed layout still fits exactly one screen (zoom scales
-           vh/vw against the unzoomed viewport, which would otherwise overflow).
-           Overlays are portaled to <body> (outside #root) so they're unaffected.
-           Detection (JS below) keys on window.screen — the physical aspect,
-           stable to the URL bar — not a fragile viewport media query.
-           Tune the magnitude by changing --cover-zoom. */
-        html.zfold-cover { --cover-zoom: 1.25; }
-        html.zfold-cover #root { zoom: var(--cover-zoom); }
-        html.zfold-cover #root .min-h-screen { min-height: calc(100vh / var(--cover-zoom)); }
-        html.zfold-cover #root .h-screen     { height:     calc(100vh / var(--cover-zoom)); }
-        html.zfold-cover #root .w-screen     { width:      calc(100vw / var(--cover-zoom)); }
-        html.zfold-cover #root .h-dvh        { height:     calc(100dvh / var(--cover-zoom)); }
-        html.zfold-cover #root .min-h-dvh    { min-height: calc(100dvh / var(--cover-zoom)); }
+        /* ── Global app density ──────────────────────────────────────────────
+           The whole UI reads a touch large across devices, so we magnify the
+           app subtree with `zoom` at <1 to uniformly shrink it — the only thing
+           that scales this app's heavy arbitrary-px text (text-[9px] etc.;
+           rem-only scaling wouldn't touch it). Viewport-unit utilities are
+           divided by the same factor so a shrunk full-screen layout still fills
+           exactly one screen (zoom scales vh/vw against the unzoomed viewport,
+           which would otherwise leave a gap). Tune with --app-zoom.
+           The Galaxy Z Fold cover screen is physically tiny + dense and renders
+           too small, so it OVERRIDES the same variable upward (>1) to magnify —
+           one mechanism, opposite directions. */
+        :root { --app-zoom: 0.88; }
+        html.zfold-cover { --app-zoom: 1.25; }
+        #root { zoom: var(--app-zoom); }
+        #root .min-h-screen { min-height: calc(100vh / var(--app-zoom)); }
+        #root .h-screen     { height:     calc(100vh / var(--app-zoom)); }
+        #root .w-screen     { width:      calc(100vw / var(--app-zoom)); }
+        #root .h-dvh        { height:     calc(100dvh / var(--app-zoom)); }
+        #root .min-h-dvh    { min-height: calc(100dvh / var(--app-zoom)); }
+        /* Arbitrary-value equivalents used across the app (Tailwind escapes the brackets) */
+        #root .h-\[100dvh\]     { height:     calc(100dvh / var(--app-zoom)); }
+        #root .min-h-\[100dvh\] { min-height: calc(100dvh / var(--app-zoom)); }
+        #root .h-\[100vh\]      { height:     calc(100vh  / var(--app-zoom)); }
+        #root .min-h-\[100vh\]  { min-height: calc(100vh  / var(--app-zoom)); }
+        #root .h-\[100svh\]     { height:     calc(100svh / var(--app-zoom)); }
     </style>
 
     <link rel="stylesheet" href="/index.css">
