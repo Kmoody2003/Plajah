@@ -104,6 +104,7 @@ import GlobalPlayer from './components/GlobalPlayer';
 import AutoPlayCountdown from './components/AutoPlayCountdown';
 import TVNavigationLayer from './components/TVNavigationLayer';
 import { getPlatformInfo } from './hooks/usePlatform';
+import LiveFollowPills from './components/LiveFollowPills';
 import { measurePerfTier, subscribePerfTier, shouldEnableEffect, getPerfTier } from './services/tvPerformance';
 import TvUnavailableNotice from './components/TvUnavailableNotice';
 import TvTopTabs from './components/TvTopTabs';
@@ -3539,7 +3540,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <div className="flex items-center px-1 pt-1 pb-android-nav gap-0">
                   {[
                     { id: 'MUSIC',     icon: Music2,        label: 'Chora'  },
-                    { id: 'ARTICLES',  icon: Newspaper,     label: 'News'   },
+                    { id: 'VIDEOS',    icon: VideoIcon,     label: 'Reello' },
                     { id: 'DASHBOARD', icon: Home,          label: 'Home'   },
                     { id: 'CHAT',      icon: MessageSquare, label: 'Chat'   },
                     { id: 'FEED',      icon: Rss,           label: 'Social' },
@@ -4982,6 +4983,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       <Suspense fallback={null}>
         <UpdateNotification onOpenChangelog={() => setView('PLATFORM_CHANGELOG')} />
       </Suspense>
+
+      {/* Someone you follow is live → stackable pop-up pill with a Watch jump (below the notification). */}
+      {user && !getPlatformInfo().isTV && (
+        <LiveFollowPills uid={user.uid} isMobile={isMobile || theme === 'PHONE'} onWatch={(feed) => setActiveLiveFeed(feed as any)} />
+      )}
 
       {/* Platform-wide bug reporting — attaches the last 5 min of session activity.
           Gated to authenticated users (incl. guests) since errorReports create is auth-only. */}
