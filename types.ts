@@ -1273,6 +1273,10 @@ export interface UserProfile {
   experienceMode?: ExperienceMode;
   welcomeAchievementShown?: boolean;
   totalPoints?: number;
+  /** Generated trading-card image (used as the profile's share/link-preview image). */
+  statCardImageUrl?: string;
+  /** Per-user stat-card customization (hero/cover overrides + accent). */
+  statCardConfig?: StatCardConfig;
   onboardingStartTimestamp?: number;
   tooltipsEnabled?: boolean;
   frostedBackground?: string;
@@ -3332,6 +3336,36 @@ export interface DiscussionVote {
 // pointsDisplayName?: 'POINTS' | 'PLAJAH_BUCKS' | 'BOTH'; // User preference
 // gamificationOptOut?: boolean; // User can disable gamification notifications
 // unlockedFeatures?: string[]; // Feature IDs unlocked via achievements
+
+// ── STAT CARD (digital trading card) ─────────────────────────────────────────
+// One generic schema so the SAME card renderer + image exporter works for a profile today and for
+// worlds / characters / scenes / environments next. Built by services/statCardService.
+export type StatCardKind = 'PROFILE' | 'WORLD' | 'CHARACTER' | 'SCENE' | 'ENVIRONMENT';
+export interface StatCardConfig {
+  heroImage?: string;   // profile pic / hero override
+  coverImage?: string;  // top cover that blends into the card background
+  accent?: string;      // optional theme accent (defaults to the Plajah brand gradient)
+}
+export interface StatCardCategoryRow { key: string; label: string; count: number; thumbnails: string[]; }
+export interface StatCardStat { label: string; value: string | number; hint?: string; }
+export interface StatCardSocial { platform: string; url: string; }
+export interface StatCardData {
+  kind: StatCardKind;
+  id: string;
+  title: string;
+  subtitle?: string;
+  heroImage?: string;
+  coverImage?: string;
+  accent?: string;
+  verified?: boolean;
+  stats: StatCardStat[];               // achievement score, points, followers, …
+  categories: StatCardCategoryRow[];   // Music / Film-TV / Book rows (recent thumbs + totals)
+  qrUrl: string;                       // what the QR encodes (the share link)
+  shareUrl: string;
+  socials?: StatCardSocial[];          // back side
+  merch?: { label: string; url?: string; ownerId?: string };
+  footnote?: string;
+}
 
 // ── FAST CHANNEL TYPES ────────────────────────────────────────────────────────
 

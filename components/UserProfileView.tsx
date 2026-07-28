@@ -90,6 +90,7 @@ import {
   fetchAllUsers
 } from '../services/backendService';
 import { getSocialLinks } from '../services/socialLinks';
+import { subscribeHostLiveRoom, type LiveRoom } from '../services/roomService';
 import { isPartneredStatus, statusLabel } from '../services/relationships';
 import { motion, AnimatePresence } from 'motion/react';
 import FastChannelPlayer from './FastChannelPlayer';
@@ -121,6 +122,7 @@ import RssFeedViewer from './RssFeedViewer';
 import { getFollowedPodcasts, subscribePodcastLibrary, type FollowedPodcast } from '../services/podcastLibraryService';
 import WorldsView from './WorldsView';
 import ShareButton from './ShareButton';
+import StatCardModal from './statcard/StatCardModal';
 import PayItForwardButton from './PayItForwardButton';
 import HideNSeekManager from './HideNSeekManager';
 import { uploadFile, fetchUpcomingAlbums } from '../services/backendService';
@@ -246,6 +248,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
 }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [content, setContent] = useState<Album[]>([]);
+  const [showStatCard, setShowStatCard] = useState(false);
   const [articles, setArticles] = useState<Article[]>([]);
   const [followedArtists, setFollowedArtists] = useState<UserProfile[]>([]);
   const [profileUpcomingAlbums, setProfileUpcomingAlbums] = useState<Album[]>([]);
@@ -581,6 +584,15 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [hasFastContent, setHasFastContent] = useState(false);
   const [showFastChannelManager, setShowFastChannelManager] = useState(false);
 
+  // A user's currently-live Room, surfaced on their profile so visitors can join
+  // straight from the account (Rooms as a first-class account feature, not just a feed post).
+  const [hostLiveRoom, setHostLiveRoom] = useState<LiveRoom | null>(null);
+  useEffect(() => {
+    if (!uid) return;
+    const unsub = subscribeHostLiveRoom(uid, setHostLiveRoom);
+    return () => unsub();
+  }, [uid]);
+
   useEffect(() => {
     if (!profile?.uid) return;
     if (profile.fastChannelEnabled || profile.liveStreamConfig?.fastChannelUrl) {
@@ -774,8 +786,8 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
           <ArrowLeft size={isMobile ? 18 : 20} />
         </button>
 
-        {/* Start a Room — own profile only */}
-        {isOwnProfile && (
+        {/* Rooms on accounts: own profile → Start a Room; others' profile → Join if they're live */}
+        {isOwnProfile ? (
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('plajah:start-room'))}
             className={`absolute ${isMobile ? 'top-3 right-3' : 'top-6 right-6'} flex items-center gap-2 px-3 lg:px-4 py-2 lg:py-2.5 bg-[#FF8C00] text-black rounded-full hover:brightness-110 transition-all text-[10px] font-black uppercase tracking-widest shadow-xl`}
@@ -783,7 +795,17 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
           >
             <span className="w-2 h-2 rounded-full bg-[#e23b3b] animate-pulse" /> Start a Room
           </button>
-        )}
+        ) : hostLiveRoom ? (
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('plajah:open-room', { detail: { roomId: hostLiveRoom.id } }))}
+            title={hostLiveRoom.title}
+            className={`absolute ${isMobile ? 'top-3 right-3' : 'top-6 right-6'} flex items-center gap-2 px-3 lg:px-4 py-2 lg:py-2.5 bg-[#e23b3b] text-white rounded-full hover:brightness-110 transition-all text-[10px] font-black uppercase tracking-widest shadow-xl max-w-[60vw]`}
+            style={{ zIndex: 30 }}
+          >
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+            <span className="truncate">Live · Join Room</span>
+          </button>
+        ) : null}
       </div>
 
       {/* Profile Info — floats up over the bleed zone */}
@@ -931,19 +953,26 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 })}
               </h1>
 
-              {/* Share profile — directly under the name so it's the first thing you can do. Works
-                  for anyone viewing (share this profile); labeled for the owner as "my profile". */}
-              <div className={`mt-3 ${isMobile ? 'flex justify-center' : ''}`}>
+              {/* Share profile + Stat Card — directly under the name so they're the first actions.
+                  Sharing uses the generated trading-card as the link preview. */}
+              <div className={`mt-3 flex items-center gap-2 ${isMobile ? 'justify-center' : ''}`}>
                 <ShareButton
                   title={`${profile.displayName}'s Profile`}
                   text={`Check out ${profile.displayName} on Plajah!`}
                   url={`${window.location.origin}/profile/${profile.uid}`}
-                  imageUrl={profile.photoURL || profile.coverArt}
+                  imageUrl={profile.statCardImageUrl || profile.photoURL || profile.coverArt}
                   artist={profile.displayName}
                   label={isOwnProfile ? 'Share my profile' : 'Share profile'}
                   iconSize={15}
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[10px] font-black uppercase tracking-widest transition-all"
                 />
+                <button
+                  onClick={() => setShowStatCard(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#D40055]/30 text-white text-[10px] font-black uppercase tracking-widest transition-all hover:brightness-110"
+                  style={{ background: 'linear-gradient(135deg, rgba(107,0,153,0.35), rgba(212,0,85,0.35) 55%, rgba(255,140,0,0.35))' }}
+                >
+                  <Sparkles size={14} /> Stat Card
+                </button>
               </div>
 
               {/* Pill buttons are now rendered in the dedicated strip above the bio — removed from here */}
@@ -3354,6 +3383,17 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
         toId={profile.uid}
         toName={profile.displayName}
       />
+
+      {showStatCard && profile && (
+        <StatCardModal
+          uid={profile.uid}
+          profile={profile as any}
+          content={content}
+          isOwn={isOwnProfile}
+          onClose={() => setShowStatCard(false)}
+          onOpenStore={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'STORE' } }))}
+        />
+      )}
 
       <AnimatePresence>
         {showPlajahPlusLanding && (

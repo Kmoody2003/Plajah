@@ -5584,6 +5584,37 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
             }
           } catch {}
         }
+        // Profile page social OG injection: /profile/:uid — the user's generated Stat Card becomes
+        // the link preview (falls back to their photo). Mirrors the /event pattern above.
+        if (pathParts[0] === 'profile' && pathParts[1]) {
+          try {
+            const userDoc = await fetchFirebaseDoc('users', pathParts[1]);
+            if (userDoc?.fields) {
+              const uf = userDoc.fields;
+              const name = uf.displayName?.stringValue || 'Creator';
+              const title = `${name} on Plajah`;
+              const desc = (uf.bio?.stringValue?.slice(0, 150)) || uf.tagline?.stringValue || `See ${name}'s music, film & books — and their trading card — on Plajah.`;
+              const image = uf.statCardImageUrl?.stringValue || uf.photoURL?.stringValue || uf.coverArt?.stringValue || '';
+              const host = req.get('host') || 'plajah.com';
+              const safeT = htmlEscape(title); const safeD = htmlEscape(desc); const safeI = htmlEscape(image); const safeH = htmlEscape(host); const safeU = htmlEscape(pathParts[1]);
+              const profileMeta = `
+    <meta property="og:type" content="profile" />
+    <meta property="og:title" content="${safeT}" />
+    <meta property="og:description" content="${safeD}" />
+    <meta property="og:image" content="${safeI}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content="https://${safeH}/profile/${safeU}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@plajah" />
+    <meta name="twitter:title" content="${safeT}" />
+    <meta name="twitter:description" content="${safeD}" />
+    <meta name="twitter:image" content="${safeI}" />
+    <meta name="description" content="${safeD}" />`;
+              html = html.replace('</head>', `${profileMeta}\n</head>`);
+            }
+          } catch {}
+        }
         // Tell browsers to always revalidate index.html so they pick up new deploys
         res.setHeader('Cache-Control', 'no-cache, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
