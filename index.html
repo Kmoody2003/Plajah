@@ -128,37 +128,25 @@
             border-left: 4px solid var(--theme-color, #ffffff);
         }
 
-        /* ── Global app density ──────────────────────────────────────────────
-           The whole UI reads a touch large across devices, so we magnify the
-           app subtree with `zoom` at <1 to uniformly shrink it — the only thing
-           that scales this app's heavy arbitrary-px text (text-[9px] etc.;
-           rem-only scaling wouldn't touch it). Viewport-unit utilities are
-           divided by the same factor so a shrunk full-screen layout still fills
-           exactly one screen (zoom scales vh/vw against the unzoomed viewport,
-           which would otherwise leave a gap). Tune with --app-zoom.
-           The Galaxy Z Fold cover screen is physically tiny + dense and renders
-           too small, so it OVERRIDES the same variable upward (>1) to magnify —
-           one mechanism, opposite directions. */
-        :root { --app-zoom: 0.88; }
-        html.zfold-cover { --app-zoom: 1.25; }
-        #root { zoom: var(--app-zoom); }
-        /* Compensate EXACT-height full-screen shells (height:100vh/100dvh) so they still
-           fill under zoom. We deliberately do NOT compensate min-height:100vh wrappers:
-           min-h-screen is used on nested page wrappers, and forcing them to 100vh/zoom
-           (>100vh) overgrows them past a clipped (overflow:hidden) parent — that is exactly
-           what cuts content off at the bottom on desktop. Leaving min-h-screen alone lets it
-           grow with content and never overflow. */
-        #root .h-screen     { height: calc(100vh / var(--app-zoom)); }
-        #root .w-screen     { width:  calc(100vw / var(--app-zoom)); }
-        #root .h-dvh        { height: calc(100dvh / var(--app-zoom)); }
-        #root .h-\[100dvh\] { height: calc(100dvh / var(--app-zoom)); }
-        #root .h-\[100vh\]  { height: calc(100vh  / var(--app-zoom)); }
-        #root .h-\[100svh\] { height: calc(100svh / var(--app-zoom)); }
-        /* The Z Fold cover MAGNIFIES (zoom>1). There the min-height wrappers DO need
-           compensating so the magnified layout doesn't overflow the tiny dense screen —
-           and phone pages scroll (no clip), so this can't cause the desktop cutoff. */
-        html.zfold-cover #root .min-h-screen { min-height: calc(100vh / var(--app-zoom)); }
-        html.zfold-cover #root .min-h-dvh    { min-height: calc(100dvh / var(--app-zoom)); }
+        /* ── Galaxy Z Fold cover (outer) screen scaling ──────────────────────
+           The outer screen is physically small + dense and overlaps normal
+           phones in CSS width, so the mobile layout renders too small. We
+           magnify the whole app subtree with `zoom` — the only thing that scales
+           this app's heavy arbitrary-px text (text-[9px] etc.; rem-only scaling
+           wouldn't touch it). Viewport-unit utilities are divided by the same
+           factor so the zoomed layout still fits exactly one screen (zoom scales
+           vh/vw against the unzoomed viewport, which would otherwise overflow).
+           Overlays are portaled to <body> (outside #root) so they're unaffected.
+           Detection (JS below) keys on window.screen — the physical aspect,
+           stable to the URL bar — not a fragile viewport media query.
+           Tune the magnitude by changing --cover-zoom. */
+        html.zfold-cover { --cover-zoom: 1.25; }
+        html.zfold-cover #root { zoom: var(--cover-zoom); }
+        html.zfold-cover #root .min-h-screen { min-height: calc(100vh / var(--cover-zoom)); }
+        html.zfold-cover #root .h-screen     { height:     calc(100vh / var(--cover-zoom)); }
+        html.zfold-cover #root .w-screen     { width:      calc(100vw / var(--cover-zoom)); }
+        html.zfold-cover #root .h-dvh        { height:     calc(100dvh / var(--cover-zoom)); }
+        html.zfold-cover #root .min-h-dvh    { min-height: calc(100dvh / var(--cover-zoom)); }
     </style>
 
     <link rel="stylesheet" href="/index.css">
@@ -225,16 +213,15 @@
     <script>
       // Fix Android Chrome URL bar causing layout jumps.
       // Sets --real-vh so components can use calc(var(--real-vh) * 100)
-      // instead of 100dvh, which reflows on every scroll. #root is ALWAYS zoomed
-      // now (--app-zoom, <1 to shrink the UI, or 1.25 on the Z Fold cover to
-      // magnify), so --real-vh is divided by that same zoom factor to keep
-      // --real-vh-based heights (the app shell's h-real-screen) filling exactly
-      // one screen after the zoom scales them. Reading the live --app-zoom keeps
-      // this correct whether the app is shrinking or the cover is magnifying.
+      // instead of 100dvh, which reflows on every scroll. On the Z Fold cover
+      // screen, #root is zoomed, so --real-vh is divided by the zoom factor to
+      // keep --real-vh-based heights filling exactly one screen after zoom.
       (function() {
         function setVh() {
           var raw = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
-          var z = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-zoom')) || 1;
+          var z = (window.__isCoverScreen && window.__isCoverScreen())
+            ? (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cover-zoom')) || 1.25)
+            : 1;
           document.documentElement.style.setProperty('--real-vh', (raw / z) * 0.01 + 'px');
         }
         setVh();
