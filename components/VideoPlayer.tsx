@@ -4,6 +4,7 @@ import { getPlatformInfo } from '../hooks/usePlatform';
 import {
   likeVideo, unlikeVideo, postVideoComment, listenToVideoComments,
   fetchUserProfile, checkIfLiked, updateVideo, auth,
+  followUser, unfollowUser, isFollowing,
 } from '../services/backendService';
 import { buildShareUrl } from '../services/deepLinkService';
 import { recordProgress, getResumePosition } from '../services/watchHistoryService';
@@ -451,6 +452,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
   const [descExpanded, setDescExpanded]       = useState(false);
   const [showEditModal, setShowEditModal]     = useState(false);
   const [ownerProfile, setOwnerProfile]       = useState<UserProfile | null>(null);
+  const [isFollowingOwner, setIsFollowingOwner] = useState(false);
+  const [followBusy, setFollowBusy]           = useState(false);
   const [showMobileComments, setShowMobileComments] = useState(false);
 
   const playerContainerRef = useRef<HTMLDivElement>(null);
@@ -596,6 +599,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
     const unsub = listenToVideoComments(video.id, setComments);
     fetchUserProfile(video.ownerId).then(p => setOwnerProfile(p));
     checkIfLiked(video.id).then(l => setIsLiked(l));
+    // Am I already following this video's creator? (drives the Follow / Following button)
+    if (currentUser?.uid && video.ownerId && currentUser.uid !== video.ownerId) {
+      isFollowing(video.ownerId).then(setIsFollowingOwner).catch(() => {});
+    } else {
+      setIsFollowingOwner(false);
+    }
     // Always call playVideo to clear any stale media from Taleo or other players
     playVideo(video);
     return () => {
@@ -852,6 +861,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
     const url = buildShareUrl('video', video.id);
     if (navigator.share) navigator.share({ title: video.title, url }).catch(() => {});
     else { navigator.clipboard.writeText(url); }
+  };
+
+  // Follow / unfollow the video's creator (the button under the player did nothing before).
+  const handleFollowOwner = async () => {
+    if (!currentUser?.uid || !video.ownerId || isOwner || followBusy) return;
+    const next = !isFollowingOwner;
+    setFollowBusy(true);
+    setIsFollowingOwner(next);   // optimistic
+    try {
+      if (next) await followUser(video.ownerId);
+      else await unfollowUser(video.ownerId);
+    } catch {
+      setIsFollowingOwner(!next); // revert on failure
+    } finally {
+      setFollowBusy(false);
+    }
   };
 
   const toggleFullscreen = () => {
@@ -1349,8 +1374,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
                   <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest">Creator</p>
                 </div>
                 {!isOwner && (
-                  <button className="ml-2 px-5 py-2 bg-white text-black rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-[#FF8C00] hover:text-white transition-all shrink-0">
-                    Follow
+                  <button
+                    onClick={handleFollowOwner}
+                    disabled={followBusy}
+                    className={`ml-2 px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shrink-0 disabled:opacity-60 ${
+                      isFollowingOwner
+                        ? 'bg-white/10 text-white border border-white/20 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30'
+                        : 'bg-white text-black hover:bg-[#FF8C00] hover:text-white'
+                    }`}
+                  >
+                    {isFollowingOwner ? 'Following' : 'Follow'}
                   </button>
                 )}
                 <PlajahPlusButton
