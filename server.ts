@@ -5571,7 +5571,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
               const title = ef.title?.stringValue ?? 'Event on Plajah';
               const desc = ef.subtitle?.stringValue || ef.description?.stringValue?.slice(0, 160) || 'Get your tickets on Plajah';
               const image = ef.coverImage?.stringValue ?? '';
-              const host = req.get('host') || 'plajah.com';
+              const host = publicHost(req); // plajah.com, never the raw run.app host (breaks og:url canonical)
               const dateStr = ef.startDate?.integerValue ? new Date(parseInt(ef.startDate.integerValue)).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '';
               const venue = ef.venueName?.stringValue ?? ef.city?.stringValue ?? '';
               const richDesc = `${dateStr}${venue ? ` · ${venue}` : ''} — ${desc}`;
@@ -5607,7 +5607,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
               const title = `${name} on Plajah`;
               const desc = (uf.bio?.stringValue?.slice(0, 150)) || uf.tagline?.stringValue || `See ${name}'s music, film & books — and their trading card — on Plajah.`;
               const image = uf.statCardImageUrl?.stringValue || uf.photoURL?.stringValue || uf.coverArt?.stringValue || '';
-              const host = req.get('host') || 'plajah.com';
+              const host = publicHost(req); // plajah.com, never the raw run.app host (breaks og:url canonical)
               const safeT = htmlEscape(title); const safeD = htmlEscape(desc); const safeI = htmlEscape(image); const safeH = htmlEscape(host); const safeU = htmlEscape(pathParts[1]);
               const profileMeta = `
     <meta property="og:type" content="profile" />
