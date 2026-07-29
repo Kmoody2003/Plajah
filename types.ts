@@ -713,6 +713,30 @@ export interface CharacterJournalEntry {
   mood?: string;
 }
 
+// ── Character accounts: a character can become a first-class profile — a living digital avatar &
+// chatbot, creator-driven, powered by Plajah's AI or the creator's own (BYO-AI). See
+// docs/PLAJAH_CHARACTER_AVATARS_BLUEPRINT.md. Everything here is OFF until the creator turns it on.
+export type CharacterAIProvider =
+  | { kind: 'PLAJAH_MAI'; model?: string }                        // built-in brain, no setup
+  | { kind: 'OPENAI'; model: string; keyRef?: string }            // creator's OpenAI key (server-vaulted ref)
+  | { kind: 'ANTHROPIC'; model: string; keyRef?: string }         // creator's Claude key
+  | { kind: 'WEBHOOK'; endpoint: string; authRef?: string };      // creator-hosted endpoint
+
+export interface CharacterAccountConfig {
+  enabled?: boolean;          // creator switched the public profile ON
+  driverUid?: string;         // who may drive it (defaults to the world/character creator)
+  handle?: string;            // @handle / vanity slug
+  themeHue?: number;          // violet by default (~275°); creator may nudge within the purple band
+  // Living-avatar / chatbot (later phases) — all creator-gated:
+  aiEnabled?: boolean;        // chat is live
+  persona?: string;           // extra personality appended to the derived, guardrailed system prompt
+  greeting?: string;          // first line when a chat opens
+  voiceId?: string;           // TTS voice for the living avatar
+  provider?: CharacterAIProvider; // which brain powers it
+  autoPost?: boolean;         // may post to its own feed (Phase 4)
+  enabledAt?: number;
+}
+
 export interface Character {
   id: string;
   worldId: string;
@@ -756,6 +780,8 @@ export interface Character {
   playlistTrackIds?: string[]; // Specific track IDs
   modelUrl?: string;           // GLTF/GLB 3D model URL
   accentColor?: string;        // Character accent color
+  ownerUid?: string;           // the creator who owns/drives this character (world creator by default)
+  account?: CharacterAccountConfig; // present once the character has a profile account (creator-gated)
 }
 
 export interface LoreEntry {
