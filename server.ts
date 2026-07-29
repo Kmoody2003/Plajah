@@ -1494,6 +1494,24 @@ async function startServer() {
             }
           }
 
+          // ── Store order paid → confirm it + decrement stock (idempotent + atomic) ──
+          if (mode === 'payment' && meta.type === 'store_order' && meta.orderId) {
+            const order = await firestoreRead('storeOrders', meta.orderId);
+            if (order && order.status !== 'CONFIRMED') {   // webhooks can fire more than once — only act once
+              await firestoreWrite('storeOrders', meta.orderId, {
+                status: 'CONFIRMED', paidAt: now,
+                stripePaymentIntentId: (session.payment_intent as string) || '',
+              });
+              // Atomic stock decrement so concurrent orders can't oversell (v1: product-level scalar stock).
+              try {
+                const lines = JSON.parse(order.items || '[]');
+                for (const li of lines) {
+                  if (li?.productId && li?.qty) await firestoreIncrement(`storeProducts/${li.productId}`, { stock: -Math.abs(Number(li.qty) || 0) });
+                }
+              } catch { /* items unparseable — order stays confirmed, stock just not adjusted */ }
+            }
+          }
+
           // ── Record earnings + process splits for all creator-facing payments ──
           const CREATOR_PAYMENT_TYPES: Record<string, string> = {
             live_tip: 'tip',
@@ -5806,6 +5824,72 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       res.json({ url: session.url });
     } catch (err: any) {
       console.error('/api/stripe/live-tip', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Store order — the spine for in-store kiosk + POS + online store ───────────────
+  // Stripe Connect DIRECT: funds settle straight to the BUSINESS's connected account; Plajah never
+  // holds them (optional application fee only). Every line is priced SERVER-SIDE from storeProducts
+  // (dollars → cents) — the client never sets prices. Writes a PENDING order; the webhook confirms it
+  // + decrements stock atomically. v1 uses the product's base price + scalar stock; per-variant
+  // pricing/stock is a follow-up. See docs — business-ops build sequence.
+  const STORE_APP_FEE_BPS = 0; // Plajah's per-order platform fee in basis points (200 = 2%). 0 = none at launch.
+  app.post('/api/store/create-order', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const customerUid: string = req.uid;
+      const { businessUid, items, fulfillment, note, customerName } = req.body || {};
+      if (!businessUid || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: 'businessUid and items are required.' });
+      }
+      // Resolve the business's connected Stripe account — the money goes straight to them.
+      const org = await firestoreRead('organizations', businessUid);
+      let acct: string | undefined = org?.stripeAccountId;
+      if (!acct) { const u = await firestoreRead('users', businessUid); acct = u?.stripeConnectAccountId; }
+      if (!acct) return res.status(400).json({ error: 'This business has not connected Stripe payouts yet.' });
+
+      const lineItems: any[] = [];
+      const priced: any[] = [];
+      let subtotalCents = 0;
+      for (const it of items) {
+        const qty = Math.max(1, Math.min(99, Math.floor(Number(it?.qty) || 0)));
+        const p = await firestoreRead('storeProducts', String(it?.productId || ''));
+        if (!p) return res.status(400).json({ error: `Product not found: ${it?.productId}` });
+        if (p.isActive === false) return res.status(400).json({ error: `Product unavailable: ${p.title || it?.productId}` });
+        if (p.sellerId && p.sellerId !== businessUid) return res.status(400).json({ error: 'A product does not belong to this business.' });
+        const unit = Math.round(Number(p.price || 0) * 100); // storeProducts.price is in DOLLARS
+        if (!(unit > 0)) return res.status(400).json({ error: `Invalid price for ${p.title || it?.productId}` });
+        subtotalCents += unit * qty;
+        lineItems.push({ price_data: { currency: 'usd', product_data: { name: p.title || 'Item' }, unit_amount: unit }, quantity: qty });
+        priced.push({ productId: String(it.productId), title: p.title || 'Item', qty, unitAmount: unit, variantName: it?.variantName || null });
+      }
+
+      const orderId = `so_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      const appFee = Math.round(subtotalCents * (STORE_APP_FEE_BPS / 10000));
+      const origin = req.headers.origin || (process.env.VITE_APP_URL ?? 'https://plajah.com');
+      const session = await getStripe().checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: lineItems,
+        payment_intent_data: {
+          ...(appFee > 0 ? { application_fee_amount: appFee } : {}),
+          transfer_data: { destination: acct },   // DIRECT to the business — Plajah never holds the funds
+          metadata: { type: 'store_order', orderId, businessUid },
+        },
+        success_url: `${origin}/?order=success`,
+        cancel_url: `${origin}/?order=cancelled`,
+        metadata: { type: 'store_order', orderId, businessUid },
+      });
+      await firestoreWrite('storeOrders', orderId, {
+        businessUid, customerUid,
+        items: JSON.stringify(priced), subtotalCents,
+        fulfillment: fulfillment === 'SHIP' ? 'SHIP' : 'PICKUP',
+        note: String(note || '').slice(0, 500), customerName: String(customerName || '').slice(0, 120),
+        status: 'PENDING_PAYMENT', createdAt: Date.now(), stripeSessionId: session.id,
+      });
+      res.json({ url: session.url, orderId });
+    } catch (err: any) {
+      console.error('/api/store/create-order', err.message);
       res.status(500).json({ error: err.message });
     }
   });
