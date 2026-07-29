@@ -8,10 +8,11 @@ import { FeedItem, Album, AppNotification } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 
 interface WeatherData {
-  temp: number;
+  temp: number;    // Celsius (open-meteo default); Fahrenheit is derived for display
   code: number;
   city: string;
   isDay: number;
+  showCity: boolean; // whether the city label may be shown (owner opt-in; always true on own profile)
 }
 
 interface WeatherStyle {
@@ -90,6 +91,12 @@ interface ProfileSmartCardProps {
   };
   /** Navigate to the Athlete Stats tab on the profile */
   onGoToAthleteTab?: () => void;
+  /** The profile owner's saved weather location — used to show THEIR local weather to visitors. */
+  ownerWeather?: { lat?: number; lon?: number; city?: string; showCity?: boolean };
+  /** Own profile only: persist the device-derived weather location so visitors see it. */
+  onPersistWeather?: (d: { weatherLat: number; weatherLon: number; weatherCity: string }) => void;
+  /** Own profile only: toggle whether the city label is shown to visitors. */
+  onToggleShowCity?: (show: boolean) => void;
 }
 
 type Section = 'following' | 'discover' | 'coming_soon' | 'history' | 'wywg' | 'athlete';
@@ -112,9 +119,13 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
   profileAccountType,
   athleteProfile,
   onGoToAthleteTab,
+  ownerWeather,
+  onPersistWeather,
+  onToggleShowCity,
 }) => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
+  const [showCityPref, setShowCityPref] = useState<boolean>(!!ownerWeather?.showCity);
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [section, setSection] = useState<Section>(profileAccountType === 'ATHLETE' ? 'athlete' : 'coming_soon');
   const [missedNotifs, setMissedNotifs] = useState<AppNotification[]>([]);
@@ -127,41 +138,54 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
   const [ownerPosts, setOwnerPosts] = useState<FeedItem[]>([]);
   const [ownerChallenges, setOwnerChallenges] = useState<any[]>([]);
 
+  useEffect(() => { setShowCityPref(!!ownerWeather?.showCity); }, [ownerWeather?.showCity]);
+
   useEffect(() => {
     let cancelled = false;
     setWeatherLoading(true);
 
-    if (!navigator.geolocation) { setWeatherLoading(false); return; }
+    // Fetch current weather for a lat/lon. `persist` (own profile) reverse-geocodes a fresh city and
+    // saves the location so visitors can later see the OWNER's weather; visitors reuse the saved city.
+    const fetchFor = async (lat: number, lon: number, cityHint: string | undefined, showCity: boolean, persist: boolean) => {
+      try {
+        const needCity = persist || !cityHint;
+        const reqs: Promise<Response>[] = [fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`)];
+        if (needCity) reqs.push(fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`, { headers: { 'Accept-Language': 'en' } }));
+        const [weatherRes, geoRes] = await Promise.all(reqs);
+        if (cancelled) return;
+        const w = await weatherRes.json();
+        let city = cityHint || 'Location';
+        if (needCity && geoRes) { const g = await geoRes.json(); city = g.address?.city || g.address?.town || g.address?.village || g.address?.county || city; }
+        setWeather({
+          temp: Math.round(w.current_weather?.temperature ?? 0),
+          code: w.current_weather?.weathercode ?? 0,
+          city,
+          isDay: w.current_weather?.is_day ?? 1,
+          showCity,
+        });
+        if (persist && onPersistWeather) onPersistWeather({ weatherLat: lat, weatherLon: lon, weatherCity: city });
+      } catch { /* */ }
+      finally { if (!cancelled) setWeatherLoading(false); }
+    };
 
-    navigator.geolocation.getCurrentPosition(
-      async ({ coords }) => {
-        try {
-          const [weatherRes, geoRes] = await Promise.all([
-            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${coords.latitude}&longitude=${coords.longitude}&current_weather=true`),
-            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.latitude}&lon=${coords.longitude}`, {
-              headers: { 'Accept-Language': 'en' }
-            })
-          ]);
-          if (!cancelled) {
-            const w = await weatherRes.json();
-            const g = await geoRes.json();
-            const city = g.address?.city || g.address?.town || g.address?.village || g.address?.county || 'Your Location';
-            setWeather({
-              temp: Math.round(w.current_weather?.temperature ?? 0),
-              code: w.current_weather?.weathercode ?? 0,
-              city,
-              isDay: w.current_weather?.is_day ?? 1,
-            });
-          }
-        } catch {}
-        if (!cancelled) setWeatherLoading(false);
-      },
-      () => { if (!cancelled) setWeatherLoading(false); },
-      { timeout: 8000 }
-    );
+    if (isOwnProfile) {
+      // Own profile: read the device location, show your own city (always), persist for visitors.
+      if (!navigator.geolocation) { setWeatherLoading(false); return; }
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => fetchFor(coords.latitude, coords.longitude, undefined, true, true),
+        () => { if (!cancelled) setWeatherLoading(false); },
+        { timeout: 8000 },
+      );
+    } else if (ownerWeather?.lat != null && ownerWeather?.lon != null) {
+      // Visitor: show the OWNER's local weather; city label only if they opted in.
+      fetchFor(ownerWeather.lat, ownerWeather.lon, ownerWeather.city, !!ownerWeather.showCity, false);
+    } else {
+      // Owner hasn't captured a location yet → nothing to show.
+      setWeatherLoading(false);
+    }
 
     return () => { cancelled = true; };
-  }, []);
+  }, [isOwnProfile, ownerWeather?.lat, ownerWeather?.lon, ownerWeather?.city, ownerWeather?.showCity]);
 
   useEffect(() => {
     const load = async () => {
@@ -290,7 +314,9 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
         {/* ── Weather Panel ── */}
         <div className="lg:w-64 shrink-0 p-7 flex flex-col justify-between lg:border-r border-b lg:border-b-0 border-white/10">
           <div>
-            {weather && (
+            {/* City — hidden by default for privacy; shown to visitors only if the owner opted in
+                (weather.showCity), and always to the owner on their own profile. */}
+            {weather && weather.showCity && (
               <div className="flex items-center gap-1.5 mb-5">
                 <MapPin size={10} className="text-white/30" />
                 <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/40 truncate">{weather.city}</span>
@@ -298,9 +324,23 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
             )}
             <div className="text-6xl mb-3 leading-none">{ws.icon}</div>
             {weather && (
-              <div className="text-5xl font-black tracking-tight text-white mb-1">{weather.temp}°C</div>
+              // Both units together — big Fahrenheit with Celsius alongside.
+              <div className="mb-1 flex items-baseline gap-2">
+                <span className="text-5xl font-black tracking-tight text-white">{Math.round(weather.temp * 9 / 5 + 32)}°F</span>
+                <span className="text-2xl font-black tracking-tight text-white/45">{weather.temp}°C</span>
+              </div>
             )}
             <p className="text-sm font-bold text-white/50">{ws.label}</p>
+            {/* Owner-only privacy toggle for the city label. */}
+            {isOwnProfile && weather && onToggleShowCity && (
+              <button
+                onClick={() => { const next = !showCityPref; setShowCityPref(next); onToggleShowCity(next); }}
+                className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[8px] font-black uppercase tracking-widest text-white/50 transition-all"
+                title="Control whether visitors can see your city"
+              >
+                <MapPin size={9} /> City {showCityPref ? 'shown' : 'hidden'} to visitors
+              </button>
+            )}
           </div>
 
           <div className="mt-6 pt-5 border-t border-white/10 grid grid-cols-2 gap-2">

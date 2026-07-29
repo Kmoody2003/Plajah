@@ -1119,6 +1119,13 @@ export interface UserProfile {
   following?: string[];
   friendsCount?: number;
   joinedAt?: number;
+  // Weather location shown on the profile card — captured from the owner's device on their own
+  // profile and reused so VISITORS see the owner's local weather (not their own). City is stored but
+  // only displayed to others when showWeatherCity is opted in (private by default).
+  weatherLat?: number;
+  weatherLon?: number;
+  weatherCity?: string;
+  showWeatherCity?: boolean;
   isArtist?: boolean; // True if they have uploaded content
   merch?: MerchItem[];
   acceptsTips?: boolean;

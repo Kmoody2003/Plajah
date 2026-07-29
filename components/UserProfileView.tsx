@@ -1406,6 +1406,9 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               state: profile.athleteState,
             } : undefined}
             onGoToAthleteTab={profile?.accountType === 'ATHLETE' ? () => setActiveTab('ATHLETE_STATS') : undefined}
+            ownerWeather={{ lat: profile?.weatherLat, lon: profile?.weatherLon, city: profile?.weatherCity, showCity: profile?.showWeatherCity }}
+            onPersistWeather={isOwnProfile ? (d) => { updateUserProfile(uid, d as any).catch(() => {}); } : undefined}
+            onToggleShowCity={isOwnProfile ? (show) => { updateUserProfile(uid, { showWeatherCity: show } as any).catch(() => {}); } : undefined}
           />
         </div>
 
