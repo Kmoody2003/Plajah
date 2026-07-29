@@ -4113,6 +4113,7 @@ export interface StoreProduct {
   images: string[];
   variants?: StoreProductVariant[];
   stock: number;            // total across all variants
+  lowStockThreshold?: number; // inventory alert level; at/below this the item flags "low stock"
   weight?: number;          // grams, for shipping calc
   isDigital: boolean;
   digitalFileUrl?: string;
