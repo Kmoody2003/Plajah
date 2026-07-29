@@ -1344,9 +1344,9 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
 
                   <button
                     onClick={isPlaying ? pause : resume}
-                    className={`${isLandscape ? 'w-8 h-8' : 'w-11 h-11'} rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.3)] active:scale-90 android-press transition-all z-20`}
+                    className={`${isLandscape ? 'w-8 h-8' : 'w-11 h-11'} rounded-full bg-gradient-to-br from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white flex items-center justify-center shadow-[0_0_30px_rgba(212,0,85,0.45)] active:scale-90 android-press transition-all z-20`}
                   >
-                    {isPlaying ? <Pause size={isLandscape ? 12 : 20} fill="black" /> : <Play size={isLandscape ? 12 : 20} className={isLandscape ? 'ml-0.5' : 'ml-1'} fill="black" />}
+                    {isPlaying ? <Pause size={isLandscape ? 12 : 20} fill="white" /> : <Play size={isLandscape ? 12 : 20} className={isLandscape ? 'ml-0.5' : 'ml-1'} fill="white" />}
                   </button>
 
                   <button onClick={next} className={`p-2 text-white/40 active:text-white android-press transition-colors ${isLandscape ? 'hidden' : 'block'}`} style={{ minWidth: 36, minHeight: 36 }}><SkipForward size={18} /></button>

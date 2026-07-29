@@ -3538,6 +3538,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             <>
               {/* Fixed bottom tab bar — 5 primary destinations + narrow More trigger */}
               <nav className="fixed bottom-0 left-0 right-0 z-[150] glass-nav gpu">
+                {/* Brand-gradient paint server for the active tab's icon stroke (an SVG icon can't
+                    take a CSS gradient — it needs a referenced <linearGradient>). Left→right
+                    purple→magenta→orange, matching the label gradient below and the TV top tabs. */}
+                <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+                  <defs>
+                    <linearGradient id="plajah-nav-grad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#6B0099" />
+                      <stop offset="55%" stopColor="#D40055" />
+                      <stop offset="100%" stopColor="#FF8C00" />
+                    </linearGradient>
+                  </defs>
+                </svg>
                 <div className="flex items-center px-1 pt-1 pb-android-nav gap-0">
                   {[
                     { id: 'MUSIC',     icon: Music2,        label: 'Chora'  },
@@ -3574,11 +3586,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         className="flex flex-col items-center gap-0.5 flex-1 py-1.5 android-press"
                         style={{ minHeight: 48 }}
                       >
-                        <div className={`w-10 h-7 rounded-2xl flex items-center justify-center transition-colors ${isActive ? 'bg-small-orange/20' : ''}`}>
-                          <Icon size={20} className={isActive ? 'text-small-orange' : 'text-white/50'} />
+                        <div className={`w-10 h-7 rounded-2xl flex items-center justify-center transition-colors ${isActive ? 'bg-gradient-to-br from-[#6B0099]/25 via-[#D40055]/20 to-[#FF8C00]/25' : ''}`}>
+                          {/* Selected tab wears the full brand gradient — icon stroke + label — so you
+                              always know which experience you're in (matches the TV top tabs). */}
+                          <Icon size={20} className={isActive ? '' : 'text-white/50'} style={isActive ? { stroke: 'url(#plajah-nav-grad)' } : undefined} />
                         </div>
-                        {/* Selected tab wears the brand — magenta→orange gradient text, matching the TV top tabs. */}
-                        <span className={`text-[8px] font-black uppercase tracking-wider ${isActive ? 'bg-gradient-to-r from-[#D40055] to-[#FF8C00] bg-clip-text text-transparent' : 'text-white/40'}`}>{tab.label}</span>
+                        <span className={`text-[8px] font-black uppercase tracking-wider ${isActive ? 'bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] bg-clip-text text-transparent' : 'text-white/40'}`}>{tab.label}</span>
                       </button>
                     );
                   })}
