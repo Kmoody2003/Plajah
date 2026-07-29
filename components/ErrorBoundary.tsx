@@ -43,10 +43,12 @@ class ErrorBoundary extends React.Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error:', error, errorInfo);
-    this.setState({ culprit: firstFrame(errorInfo?.componentStack) });
-    // Stale-deploy chunk error → bust the SW/caches and hard-reload automatically so the
-    // user never has to see (or tap through) the crash screen. Loop-guarded internally.
-    if (isChunkLoadError(error)) { recoverFromStaleChunk(); return; }
+    const culprit = firstFrame(errorInfo?.componentStack);
+    this.setState({ culprit });
+    // Stale-deploy chunk error (including the React.lazy form, whose culprit is "Lazy") → bust the
+    // SW/caches and hard-reload automatically so the user never has to see (or tap through) the
+    // crash screen. Loop-guarded internally.
+    if (isChunkLoadError(error) || culprit === 'Lazy') { recoverFromStaleChunk(); return; }
     if (isRecoverableBackendError(error)) {
       const now = Date.now();
       this.autoRecoveries = this.autoRecoveries.filter(t => now - t < 30_000);
@@ -78,9 +80,11 @@ class ErrorBoundary extends React.Component<Props, State> {
   }
 
   private handleReset = () => {
-    // If the crash was a stale-deploy chunk error, the only real fix is busting the SW
-    // cache and hard-reloading — a soft reset would just re-mount into the same dead chunk.
-    if (isChunkLoadError(this.state.error)) { recoverFromStaleChunk(); return; }
+    // If the crash was a stale-deploy chunk error (or a React.lazy failure — culprit "Lazy"),
+    // the only real fix is busting the SW cache and hard-reloading — a soft reset would just
+    // re-mount into the same dead chunk. force=true so a manual tap always fully recovers,
+    // even inside the auto-recovery loop-guard window.
+    if (isChunkLoadError(this.state.error) || this.state.culprit === 'Lazy') { recoverFromStaleChunk(true); return; }
     this.setState({ hasError: false, error: null, culprit: null });
     if (this.props.onReset) { this.props.onReset(); return; }
     const lastErrorTime = sessionStorage.getItem('last_error_time');
