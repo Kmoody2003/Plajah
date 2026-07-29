@@ -1134,6 +1134,31 @@ export interface NotificationPrefs {
   system?: boolean;    // account + system updates
 }
 
+// ── Business → customer messaging (non-SMS first: in-app push + the notification inbox). A customer
+// opts in per business, split into TRANSACTIONAL (order/account) and PROMO (deals) so consent is
+// granular — the same split the later SMS phase's TCPA consent needs. Stored at
+// businesses/{businessUid}/subscribers/{customerUid}.
+export interface BusinessSubscription {
+  customerUid: string;
+  businessUid: string;
+  transactional?: boolean;   // order-ready, account updates (informational)
+  promo?: boolean;           // deals & marketing
+  push?: boolean;            // deliver via push/in-app (Phase 1)
+  email?: boolean;           // deliver via email (Phase 1)
+  optInAt?: number;
+}
+
+export interface BusinessBroadcast {
+  id: string;
+  businessUid: string;
+  category: 'TRANSACTIONAL' | 'PROMO';
+  title: string;
+  body: string;
+  link?: string;             // in-app deep-link target
+  sentAt: number;
+  recipientCount: number;
+}
+
 export interface UserProfile {
   uid: string;
   displayName: string;
