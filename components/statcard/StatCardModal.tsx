@@ -16,6 +16,15 @@ interface StatCardModalProps {
   onOpenStore?: (uid: string) => void;
 }
 
+/** Wait for every <img> in the card to finish loading, so html2canvas captures a complete card
+ *  (not a half-painted one) — important for the automatic background capture on open. */
+async function waitForImages(el: HTMLElement): Promise<void> {
+  const imgs = Array.from(el.querySelectorAll('img'));
+  await Promise.all(imgs.map(img => (img.complete && img.naturalWidth > 0)
+    ? Promise.resolve()
+    : new Promise<void>(res => { img.addEventListener('load', () => res(), { once: true }); img.addEventListener('error', () => res(), { once: true }); })));
+}
+
 /** Capture a fixed-size card face to a PNG data URL (crisp 3x). */
 async function faceToPng(el: HTMLElement): Promise<string | null> {
   try {
@@ -31,9 +40,11 @@ const StatCardModal: React.FC<StatCardModalProps> = ({ uid, profile, content, is
   const [busy, setBusy] = useState<'save' | 'card' | null>(null);
   const [copied, setCopied] = useState(false);
   const [savedCard, setSavedCard] = useState(false);
+  const [previewReady, setPreviewReady] = useState(false);
   const [showCustomize, setShowCustomize] = useState(false);
   const frontRef = useRef<HTMLDivElement>(null);
   const backRef = useRef<HTMLDivElement>(null);
+  const autoRan = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -61,22 +72,33 @@ const StatCardModal: React.FC<StatCardModalProps> = ({ uid, profile, content, is
     setTimeout(() => setCopied(false), 1800);
   };
 
-  // Owner: render the FRONT to an image, upload it, and set it as the profile's share/link-preview card.
-  const useAsCard = async () => {
+  // Owner: render the FRONT to an image, upload it, and set it as the profile's share/link-preview
+  // card. Runs automatically in the background on open (silent) and can be re-triggered manually.
+  const syncPreview = async (silent: boolean) => {
     if (!frontRef.current || !isOwn) return;
-    setBusy('card');
+    if (!silent) setBusy('card');
     try {
+      await waitForImages(frontRef.current);   // capture a fully-painted card, not a half-loaded one
       const png = await faceToPng(frontRef.current);
       if (png) {
         const blob = await (await fetch(png)).blob();
         const url = await uploadFile(`stat-cards/${uid}/profile.png`, blob);
         await updateUserProfile(uid, { statCardImageUrl: url });
-        setSavedCard(true);
-        setTimeout(() => setSavedCard(false), 2200);
+        setPreviewReady(true);
+        if (!silent) { setSavedCard(true); setTimeout(() => setSavedCard(false), 2200); }
       }
     } catch { /* */ }
-    setBusy(null);
+    if (!silent) setBusy(null);
   };
+
+  // Auto-set the card as the profile's link preview the moment it's ready, so "share your profile →
+  // the card is the preview" just works with no extra tap. Once per open; images awaited inside.
+  useEffect(() => {
+    if (!isOwn || !data || autoRan.current) return;
+    autoRan.current = true;
+    const t = setTimeout(() => { syncPreview(true); }, 400); // let the card paint first
+    return () => clearTimeout(t);
+  }, [isOwn, data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Owner customization: swap the hero / cover image (persisted to statCardConfig, live-previewed).
   const pickImage = (which: 'heroImage' | 'coverImage') => async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -123,9 +145,9 @@ const StatCardModal: React.FC<StatCardModalProps> = ({ uid, profile, content, is
 
         {isOwn && (
           <div className="flex flex-wrap items-center justify-center gap-2">
-            <button onClick={useAsCard} disabled={busy === 'card'} className="flex items-center gap-2 px-4 py-2.5 rounded-full text-white text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-60" style={{ background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' }}>
-              {busy === 'card' ? <Loader2 size={13} className="animate-spin" /> : savedCard ? <Check size={13} /> : <Sparkles size={13} />}
-              {savedCard ? 'Set as your card' : 'Use as my link preview'}
+            <button onClick={() => syncPreview(false)} disabled={busy === 'card'} title="Your profile link automatically previews as this card; tap to refresh it now" className="flex items-center gap-2 px-4 py-2.5 rounded-full text-white text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-60" style={{ background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' }}>
+              {busy === 'card' ? <Loader2 size={13} className="animate-spin" /> : (savedCard || previewReady) ? <Check size={13} /> : <Sparkles size={13} />}
+              {busy === 'card' ? 'Updating…' : (savedCard || previewReady) ? 'Link preview ready' : 'Set as link preview'}
             </button>
             <button onClick={() => setShowCustomize(s => !s)} className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase tracking-widest transition-all">
               <ImagePlus size={13} /> Customize
@@ -146,7 +168,7 @@ const StatCardModal: React.FC<StatCardModalProps> = ({ uid, profile, content, is
                 <input type="file" accept="image/*" className="hidden" onChange={pickImage('coverImage')} />
               </label>
             </div>
-            <p className="text-[8px] text-white/30 leading-relaxed">The cover blends into the card. Re-hit “Use as my link preview” after customizing to update the shared image.</p>
+            <p className="text-[8px] text-white/30 leading-relaxed">The cover blends into the card. Your link preview auto-updates from this card — tap “Link preview ready” to refresh it now after customizing.</p>
           </div>
         )}
 

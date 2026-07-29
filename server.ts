@@ -5590,6 +5590,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     <meta name="twitter:description" content="${safeD}" />
     <meta name="twitter:image" content="${safeI}" />
     <meta name="description" content="${safeD}" />`;
+              // Strip default og/twitter tags first (same canonical-og:url trap as /profile above).
+              html = html.replace(/[ \t]*<meta\s+(?:property|name)="(?:og:[^"]*|twitter:[^"]*)"[^>]*\/?>\s*/gi, '');
               html = html.replace('</head>', `${eventMeta}\n</head>`);
             }
           } catch {}
@@ -5621,6 +5623,10 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     <meta name="twitter:description" content="${safeD}" />
     <meta name="twitter:image" content="${safeI}" />
     <meta name="description" content="${safeD}" />`;
+              // Strip the base template's default og/twitter tags FIRST — otherwise the default
+              // og:url (https://plajah.com/) survives and Facebook treats it as canonical, re-scraping
+              // the homepage and showing the generic Plajah preview instead of this profile's card.
+              html = html.replace(/[ \t]*<meta\s+(?:property|name)="(?:og:[^"]*|twitter:[^"]*)"[^>]*\/?>\s*/gi, '');
               html = html.replace('</head>', `${profileMeta}\n</head>`);
             }
           } catch {}
