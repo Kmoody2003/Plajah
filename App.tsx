@@ -49,6 +49,7 @@ const SearchView = retryLazy(() => import('./components/SearchView'));
 const FeedView = retryLazy(() => import('./components/FeedView'));
 const LiveHubView = retryLazy(() => import('./components/LiveHubView'));
 const MobileLiveHub = retryLazy(() => import('./components/MobileLiveHub'));
+const MyOrdersView = retryLazy(() => import('./components/MyOrdersView'));
 const UserProfileView = retryLazy(() => import('./components/UserProfileView'));
 const RadioView = retryLazy(() => import('./components/RadioView'));
 const TVView = retryLazy(() => import('./components/TVView'));
@@ -630,6 +631,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [isPIFModalOpen, setIsPIFModalOpen] = useState(false);
   const [pifWins, setPifWins] = useState<PayItForwardWinner[]>([]);
   const [activeLiveFeed, setActiveLiveFeed] = useState<LiveFeed | null>(null);
+  const [showMyOrders, setShowMyOrders] = useState(false);
   const [isMobile, setIsMobile] = useState(() => {
     const ua = navigator.userAgent;
     return (
@@ -814,6 +816,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     };
     window.addEventListener('PLAY_LIVE_FEED', handlePlayLive);
 
+    // Order tracking: open on demand, and auto-open after a store/kiosk checkout returns (?order=success).
+    const handleOpenOrders = () => setShowMyOrders(true);
+    window.addEventListener('OPEN_MY_ORDERS', handleOpenOrders);
+    try {
+      if (new URLSearchParams(window.location.search).get('order') === 'success') {
+        setShowMyOrders(true);
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    } catch { /* */ }
+
     // Open the Plajah Pixels visualizer. detail: { album?, track? }. Empty detail
     // (from the Apps page) opens the standalone studio. The wrapper handles any
     // seamless playback start via the global player.
@@ -887,6 +899,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_DEBATE', handleOpenDebate);
       window.removeEventListener('NAVIGATE', handleNavigate);
       window.removeEventListener('PLAY_LIVE_FEED', handlePlayLive);
+      window.removeEventListener('OPEN_MY_ORDERS', handleOpenOrders);
       window.removeEventListener('OPEN_PLAJAH_PIXELS', handleOpenPixels);
       window.removeEventListener('OPEN_BIBLE', handleOpenBible);
       window.removeEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
@@ -5005,6 +5018,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       {/* Someone you follow is live → stackable pop-up pill with a Watch jump (below the notification). */}
       {user && !getPlatformInfo().isTV && (
         <LiveFollowPills uid={user.uid} isMobile={isMobile || theme === 'PHONE'} onWatch={(feed) => setActiveLiveFeed(feed as any)} />
+      )}
+
+      {/* Customer order tracking — opened on demand (OPEN_MY_ORDERS) or auto after a checkout returns. */}
+      {showMyOrders && (
+        <Suspense fallback={null}>
+          <div className="fixed inset-0 z-[1250] bg-[#0a0a0a] overflow-y-auto pt-6">
+            <MyOrdersView onBack={() => setShowMyOrders(false)} />
+          </div>
+        </Suspense>
       )}
 
       {/* Platform-wide bug reporting — attaches the last 5 min of session activity.

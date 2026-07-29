@@ -2,8 +2,56 @@
 // backs the on-platform store. Because inventory items ARE store products, editing inventory
 // auto-populates the merch store (no sync job). Also seeds a demo business for presentations.
 
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import type { StoreProduct } from '../types';
 import { createProduct, updateProduct, fetchProductsBySeller } from './storeService';
+import { db, auth } from './backendService';
+
+// Orders created by the server order spine (/api/store/create-order) live in `storeOrders` keyed by
+// customerUid/businessUid with items as a JSON string (the server's Firestore writer can't store
+// object arrays). These read them back for customer order-tracking + the business order view.
+export interface StoreOrderRecord {
+  id: string;
+  businessUid: string;
+  customerUid: string;
+  status: string;                 // PENDING_PAYMENT | CONFIRMED | PREPARING | READY | COMPLETED | CANCELLED
+  items: { productId: string; title: string; qty: number; unitAmount: number; variantName?: string | null }[];
+  subtotalCents: number;
+  fulfillment: string;            // PICKUP | SHIP
+  note?: string;
+  customerName?: string;
+  createdAt: number;
+  paidAt?: number;
+}
+
+function mapOrder(id: string, x: any): StoreOrderRecord {
+  let items: StoreOrderRecord['items'] = [];
+  try { items = JSON.parse(x.items || '[]'); } catch { /* */ }
+  return {
+    id, businessUid: x.businessUid, customerUid: x.customerUid,
+    status: x.status || 'PENDING_PAYMENT', items,
+    subtotalCents: x.subtotalCents || 0, fulfillment: x.fulfillment || 'PICKUP',
+    note: x.note, customerName: x.customerName, createdAt: x.createdAt || 0, paidAt: x.paidAt,
+  };
+}
+
+/** The signed-in customer's store orders (newest first). Single-field query → no composite index. */
+export async function fetchMyStoreOrders(): Promise<StoreOrderRecord[]> {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return [];
+  try {
+    const snap = await getDocs(query(collection(db, 'storeOrders'), where('customerUid', '==', uid)));
+    return snap.docs.map(d => mapOrder(d.id, d.data())).sort((a, b) => b.createdAt - a.createdAt);
+  } catch { return []; }
+}
+
+/** A business's incoming store orders (newest first). */
+export async function fetchBusinessStoreOrders(businessUid: string): Promise<StoreOrderRecord[]> {
+  try {
+    const snap = await getDocs(query(collection(db, 'storeOrders'), where('businessUid', '==', businessUid)));
+    return snap.docs.map(d => mapOrder(d.id, d.data())).sort((a, b) => b.createdAt - a.createdAt);
+  } catch { return []; }
+}
 
 /** An item is "low stock" when its on-hand count is at/below its threshold (default 5). */
 export function isLowStock(p: Pick<StoreProduct, 'stock' | 'lowStockThreshold'>): boolean {

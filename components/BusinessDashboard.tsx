@@ -16,8 +16,10 @@ import {
   addCampaignUpdate,
 } from '../services/businessService';
 import { auth } from '../services/firebase';
+import InventoryManager from './InventoryManager';
+import StoreKioskMode from './StoreKioskMode';
 
-type BizTab = 'OVERVIEW' | 'ORDERS' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'SETTINGS';
+type BizTab = 'OVERVIEW' | 'ORDERS' | 'INVENTORY' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'SETTINGS';
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 
@@ -62,6 +64,7 @@ interface BusinessDashboardProps {
 
 const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNavigate }) => {
   const [activeTab, setActiveTab] = useState<BizTab>('OVERVIEW');
+  const [showKiosk, setShowKiosk] = useState(false);
   const [pages, setPages] = useState<BusinessPage[]>([]);
   const [activePage, setActivePage] = useState<BusinessPage | null>(null);
   const [orders, setOrders] = useState<BusinessOrder[]>([]);
@@ -154,6 +157,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
   const tabs: { id: BizTab; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
     { id: 'OVERVIEW',   label: 'Overview',     icon: Store },
     { id: 'ORDERS',     label: 'Orders',       icon: ShoppingBag },
+    { id: 'INVENTORY',  label: 'Inventory',    icon: Package },
     { id: 'CRM',        label: 'CRM',          icon: Users },
     { id: 'SIGNAGE',    label: 'Signage',      icon: Monitor },
     { id: 'SEEDRAISER', label: 'Seed Raiser',  icon: Leaf },
@@ -367,6 +371,26 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
           )}
 
           {/* ── CRM ── */}
+          {activeTab === 'INVENTORY' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-end">
+                <button onClick={() => setShowKiosk(true)} className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white text-[10px] font-black uppercase tracking-widest">
+                  <ShoppingBag size={13} /> Launch in-store kiosk
+                </button>
+              </div>
+              <InventoryManager sellerId={currentUser.uid} sellerName={activePage?.businessName || currentUser.displayName || 'My Store'} />
+            </div>
+          )}
+
+          {/* In-store ordering kiosk — full-screen overlay (BYO tablet), orders via the store spine. */}
+          {showKiosk && (
+            <StoreKioskMode
+              businessUid={currentUser.uid}
+              businessName={activePage?.businessName || currentUser.displayName || 'My Store'}
+              onExit={() => setShowKiosk(false)}
+            />
+          )}
+
           {activeTab === 'CRM' && (
             <div className="space-y-4">
               <div className="flex items-center gap-3">
