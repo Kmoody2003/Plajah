@@ -59,18 +59,33 @@ const MoviesTvView: React.FC<{
   }, [channel]);
   // (TvLiveSourcePlayer handles its own hardware-back; grid is disabled while it's open.)
 
-  const rows = useMemo(() => rails.map(r => ({ id: r.id, count: r.items.length })), [rails]);
+  // The hero (when present) is grid row 0, so rails shift down by one — every rail focus check adds
+  // this offset. Making the hero a real row means OK selects it AND focusing it scrolls it fully into
+  // view (which also fixes it rendering clipped when it sat outside the focus flow).
+  const heroRowOffset = heroItems.length > 0 ? 1 : 0;
+  const rows = useMemo(() => {
+    const railRows = rails.map(r => ({ id: r.id, count: r.items.length }));
+    return heroItems.length > 0 ? [{ id: 'hero', count: heroItems.length }, ...railRows] : railRows;
+  }, [rails, heroItems.length]);
 
-  // Featured backdrops for the hero — drawn from the marquee rails (not Live/Continue).
+  // Featured backdrops for the hero — drawn from the marquee rails (not Live/Continue). Each hero
+  // slide keeps its source item's action (so OK opens the content) and, when the item is a video
+  // with a directly-playable url, a videoUrl for the silent autoplay preview.
   const heroItems = useMemo(() => {
     const pool = rails.filter(r => ['new', 'movies', 'creators', 'series'].includes(r.id)).flatMap(r => r.items);
     const seen = new Set<string>();
+    const heroVideoUrl = (a: any): string | undefined => {
+      if (a?.kind !== 'ITEM') return undefined;
+      const it: any = a.item;
+      return it?.customVideoUrl || it?.tracks?.[0]?.url || it?.videoUrl || undefined;
+    };
     return pool.filter(i => i.image && i.id && !seen.has(i.id) && (seen.add(i.id), true))
-      .slice(0, 8).map(i => ({ id: i.id, title: i.title, subtitle: i.subtitle, image: i.image }));
+      .slice(0, 8).map(i => ({ id: i.id, title: i.title, subtitle: i.subtitle, image: i.image, videoUrl: heroVideoUrl(i.action), action: i.action }));
   }, [rails]);
 
   const run = (rowId: string, col: number) => {
-    const item = rails.find(r => r.id === rowId)?.items[col];
+    // The hero is the top D-pad row (row 0) — OK opens the featured slide's content, same as a rail card.
+    const item = rowId === 'hero' ? (heroItems[col] as any) : rails.find(r => r.id === rowId)?.items[col];
     if (!item) return;
     const a = item.action;
     if (a.kind === 'ITEM') { onSelectMovie(a.item); return; }
@@ -126,7 +141,20 @@ const MoviesTvView: React.FC<{
       </div>
 
       <div className="relative flex-1 overflow-y-auto no-scrollbar px-12 pb-16 space-y-9">
-        {heroItems.length > 0 && <TvHeroCarousel items={heroItems} accent="#FF8C00" eyebrow="Featured on Taleo" />}
+        {heroItems.length > 0 && (() => {
+          const heroFocused = zone === 'CONTENT' && pos.row === 0;
+          return (
+            <div ref={heroFocused ? cellRef : undefined}>
+              <TvHeroCarousel
+                items={heroItems as any}
+                accent="#FF8C00"
+                eyebrow="Featured on Taleo"
+                focused={heroFocused}
+                activeIndex={heroFocused ? pos.col : undefined}
+              />
+            </div>
+          );
+        })()}
         {loading && (
           <div className="space-y-9">
             {[0, 1, 2].map(r => (
@@ -147,7 +175,7 @@ const MoviesTvView: React.FC<{
             <h2 className="text-sm font-black uppercase tracking-[0.2em] text-white/60 mb-4">{rail.title}</h2>
             <div className={`flex gap-6 overflow-x-auto no-scrollbar ${RAIL_GUTTER}`}>
               {rail.items.map((it, col) => {
-                const focused = zone === 'CONTENT' && isFocused(pos, rIdx, col);
+                const focused = zone === 'CONTENT' && isFocused(pos, rIdx + heroRowOffset, col);
                 return (
                   <div
                     key={it.id || col}
