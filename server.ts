@@ -390,8 +390,12 @@ async function resolveShareCover(type: string, id: string, track?: string): Prom
     const tc = tf?.coverImage?.stringValue || tf?.coverImageUrl?.stringValue || tf?.artworkUrl?.stringValue;
     if (tc) return tc;
   }
-  const IMG = ['thumbnailUrl', 'coverImageUrl', 'coverImage', 'coverUrl', 'artworkUrl', 'imageUrl', 'videoThumbnail', 'posterUrl'];
+  const IMG = ['thumbnailUrl', 'coverImageUrl', 'coverImage', 'coverUrl', 'artworkUrl', 'imageUrl', 'videoThumbnail', 'posterUrl', 'thumbnail'];
   for (const k of IMG) { const v = f?.[k]?.stringValue; if (v) return v; }
+  // Mux-hosted videos may store only a playback id (no static thumbnail) — derive the poster
+  // frame exactly like the app does, so shares still get a real thumbnail (YouTube-style).
+  const pid = f?.muxPlaybackId?.stringValue;
+  if (pid) return `https://image.mux.com/${pid}/thumbnail.jpg?width=1200&height=630&fit_mode=smartcrop&time=5`;
   return '';
 }
 
@@ -610,7 +614,7 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
    const f = dbData.fields;
    // First non-empty string field from a list of candidates (schemas vary by type).
    const pick = (keys: string[]): string => { for (const k of keys) { const v = f?.[k]?.stringValue; if (v) return v; } return ''; };
-   const IMG = ['thumbnailUrl', 'coverImageUrl', 'coverImage', 'coverUrl', 'artworkUrl', 'imageUrl', 'videoThumbnail', 'posterUrl'];
+   const IMG = ['thumbnailUrl', 'coverImageUrl', 'coverImage', 'coverUrl', 'artworkUrl', 'imageUrl', 'videoThumbnail', 'posterUrl', 'thumbnail'];
 
    let title = '';
    let image = '';
@@ -657,6 +661,12 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
      }
      if (isPlaceholderArtist(artist)) artist = ''; // still nothing usable → clean "Check out X on Plajah.com"
      image = pick(IMG);
+     // Mux-hosted videos/films may carry only a playback id — derive the poster frame so the X /
+     // Facebook card shows the real video thumbnail (YouTube-style) instead of falling back to a
+     // generic Plajah image. This must run BEFORE the /social-image routing below so `image` is set.
+     if (!image && (type === 'video' || type === 'movie') && f?.muxPlaybackId?.stringValue) {
+       image = `https://image.mux.com/${f.muxPlaybackId.stringValue}/thumbnail.jpg?width=1200&height=630&fit_mode=smartcrop&time=5`;
+     }
      if (type === 'videoPlaylist') {
        const count = f?.videoIds?.arrayValue?.values?.length || 0;
        desc = `Playlist · ${count} video${count === 1 ? '' : 's'} on Plajah`;
