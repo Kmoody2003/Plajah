@@ -59,18 +59,11 @@ const MoviesTvView: React.FC<{
   }, [channel]);
   // (TvLiveSourcePlayer handles its own hardware-back; grid is disabled while it's open.)
 
-  // The hero (when present) is grid row 0, so rails shift down by one — every rail focus check adds
-  // this offset. Making the hero a real row means OK selects it AND focusing it scrolls it fully into
-  // view (which also fixes it rendering clipped when it sat outside the focus flow).
-  const heroRowOffset = heroItems.length > 0 ? 1 : 0;
-  const rows = useMemo(() => {
-    const railRows = rails.map(r => ({ id: r.id, count: r.items.length }));
-    return heroItems.length > 0 ? [{ id: 'hero', count: heroItems.length }, ...railRows] : railRows;
-  }, [rails, heroItems.length]);
-
   // Featured backdrops for the hero — drawn from the marquee rails (not Live/Continue). Each hero
   // slide keeps its source item's action (so OK opens the content) and, when the item is a video
   // with a directly-playable url, a videoUrl for the silent autoplay preview.
+  // NOTE: declared BEFORE heroRowOffset/rows below, which reference it — reordering it later caused a
+  // "Cannot access before initialization" TDZ crash on the Taleo screen.
   const heroItems = useMemo(() => {
     const pool = rails.filter(r => ['new', 'movies', 'creators', 'series'].includes(r.id)).flatMap(r => r.items);
     const seen = new Set<string>();
@@ -82,6 +75,15 @@ const MoviesTvView: React.FC<{
     return pool.filter(i => i.image && i.id && !seen.has(i.id) && (seen.add(i.id), true))
       .slice(0, 8).map(i => ({ id: i.id, title: i.title, subtitle: i.subtitle, image: i.image, videoUrl: heroVideoUrl(i.action), action: i.action }));
   }, [rails]);
+
+  // The hero (when present) is grid row 0, so rails shift down by one — every rail focus check adds
+  // this offset. Making the hero a real row means OK selects it AND focusing it scrolls it fully into
+  // view (which also fixes it rendering clipped when it sat outside the focus flow).
+  const heroRowOffset = heroItems.length > 0 ? 1 : 0;
+  const rows = useMemo(() => {
+    const railRows = rails.map(r => ({ id: r.id, count: r.items.length }));
+    return heroItems.length > 0 ? [{ id: 'hero', count: heroItems.length }, ...railRows] : railRows;
+  }, [rails, heroItems.length]);
 
   const run = (rowId: string, col: number) => {
     // The hero is the top D-pad row (row 0) — OK opens the featured slide's content, same as a rail card.
