@@ -51,6 +51,7 @@ const LiveHubView = retryLazy(() => import('./components/LiveHubView'));
 const MobileLiveHub = retryLazy(() => import('./components/MobileLiveHub'));
 const MyOrdersView = retryLazy(() => import('./components/MyOrdersView'));
 const CharacterProfileView = retryLazy(() => import('./components/CharacterProfileView'));
+const CharacterChat = retryLazy(() => import('./components/CharacterChat'));
 const UserProfileView = retryLazy(() => import('./components/UserProfileView'));
 const RadioView = retryLazy(() => import('./components/RadioView'));
 const TVView = retryLazy(() => import('./components/TVView'));
@@ -634,6 +635,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [activeLiveFeed, setActiveLiveFeed] = useState<LiveFeed | null>(null);
   const [showMyOrders, setShowMyOrders] = useState(false);
   const [characterProfile, setCharacterProfile] = useState<any | null>(null);
+  const [characterChat, setCharacterChat] = useState<any | null>(null);
   const [isMobile, setIsMobile] = useState(() => {
     const ua = navigator.userAgent;
     return (
@@ -823,6 +825,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     window.addEventListener('OPEN_MY_ORDERS', handleOpenOrders);
     const handleOpenCharacter = (e: any) => { if (e.detail?.character) setCharacterProfile(e.detail.character); };
     window.addEventListener('OPEN_CHARACTER_PROFILE', handleOpenCharacter);
+    const handleCharacterChat = (e: any) => { if (e.detail?.character) setCharacterChat(e.detail.character); };
+    window.addEventListener('OPEN_CHARACTER_CHAT', handleCharacterChat);
     try {
       if (new URLSearchParams(window.location.search).get('order') === 'success') {
         setShowMyOrders(true);
@@ -905,6 +909,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('PLAY_LIVE_FEED', handlePlayLive);
       window.removeEventListener('OPEN_MY_ORDERS', handleOpenOrders);
       window.removeEventListener('OPEN_CHARACTER_PROFILE', handleOpenCharacter);
+      window.removeEventListener('OPEN_CHARACTER_CHAT', handleCharacterChat);
       window.removeEventListener('OPEN_PLAJAH_PIXELS', handleOpenPixels);
       window.removeEventListener('OPEN_BIBLE', handleOpenBible);
       window.removeEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
@@ -5045,6 +5050,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               onVisitWorld={(wid) => { setCharacterProfile(null); window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'WORLDS', worldId: wid } })); }}
             />
           </div>
+        </Suspense>
+      )}
+
+      {/* Character chat — talk to a living character persona (OPEN_CHARACTER_CHAT). */}
+      {characterChat && (
+        <Suspense fallback={null}>
+          <CharacterChat character={characterChat} onClose={() => setCharacterChat(null)} />
         </Suspense>
       )}
 

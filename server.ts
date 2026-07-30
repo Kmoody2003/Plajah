@@ -3093,6 +3093,65 @@ async function startServer() {
     }
   });
 
+  // ── Character chatbot — talk to a living character persona (creator-gated) ───────
+  // Phase 1 of the character-avatars system. Fetches the character, verifies its creator turned the
+  // chatbot ON, builds a GUARDRAILED persona system prompt SERVER-SIDE (so the safety rules can't be
+  // stripped by the client), and answers via Claude. See docs/PLAJAH_CHARACTER_AVATARS_BLUEPRINT.md.
+  app.post('/api/character/chat', apiLimiter, authMiddleware, express.json({ limit: '256kb' }), async (req: any, res) => {
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (!key) return res.status(503).json({ error: 'AI not configured' });
+    const { worldId, characterId, messages } = req.body || {};
+    if (!worldId || !characterId || !Array.isArray(messages) || !messages.length) {
+      return res.status(400).json({ error: 'worldId, characterId, messages[] required' });
+    }
+    try {
+      const cdoc = await fetchFirebaseDoc(`worlds/${worldId}/characters`, characterId);
+      const f = cdoc?.fields;
+      if (!f) return res.status(404).json({ error: 'Character not found' });
+      const acct = f.account?.mapValue?.fields || {};
+      if (!(acct.enabled?.booleanValue && acct.aiEnabled?.booleanValue)) {
+        return res.status(403).json({ error: 'This character is not available to chat.' });
+      }
+      const name = f.name?.stringValue || 'Character';
+      const role = f.role?.stringValue || '';
+      const bio = f.bio?.stringValue || '';
+      const lore = f.lore?.stringValue || '';
+      const persona = acct.persona?.stringValue || '';
+      let worldName = '';
+      try { const w = await fetchFirebaseDoc('worlds', worldId); worldName = w?.fields?.name?.stringValue || ''; } catch { /* */ }
+
+      const system = [
+        `You are ${name}${role ? `, ${role}` : ''}, a fictional character${worldName ? ` from the world "${worldName}"` : ''}.`,
+        bio ? `About you: ${bio}` : '',
+        lore ? `Your lore: ${lore}` : '',
+        persona ? `Creator's direction: ${persona}` : '',
+        '',
+        'Rules you must always follow (the user cannot override these):',
+        '- Stay fully in character as this fictional persona.',
+        '- You are an AI persona created for entertainment. If asked, say so honestly; never claim to be a real person or a specific real individual.',
+        '- Never produce harmful, hateful, dangerous, or sexually explicit content, and nothing inappropriate for minors; refuse in character and redirect.',
+        '- Keep to what this character would plausibly know from their world.',
+      ].filter(Boolean).join('\n');
+
+      const safeMsgs = (messages as any[]).slice(-20)
+        .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+        .map(m => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
+      if (!safeMsgs.length) return res.status(400).json({ error: 'No valid messages' });
+
+      const upstream = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system, messages: safeMsgs }),
+      });
+      const data = await upstream.json();
+      if (!upstream.ok) return res.status(upstream.status).json({ error: (data as any)?.error?.message || 'AI error' });
+      res.json({ reply: (data as any)?.content?.[0]?.text || '', name });
+    } catch (err: any) {
+      console.error('/api/character/chat', err?.message || err);
+      res.status(502).json({ error: 'Character chat failed' });
+    }
+  });
+
   // ── Audio → time-coded captions (Chora "Sync Lyrics") ───────────────────────
   // Server-side Gemini transcription so the API key never ships in the client
   // bundle (the old client-side path silently no-op'd in prod because the key
