@@ -12,16 +12,19 @@ import {
   LayoutDashboard, FileText, Users, ClipboardList, Utensils, Plus, X, Sparkles,
   Radio, CheckCircle2, Clock, MapPin, Sun, Sunset, AlertTriangle, Hospital,
   Coffee, Send, Copy, Zap, ChevronRight, CalendarDays, ShieldAlert, Wand2,
-  CircleDot, CheckCheck, UserCheck, Soup, Circle, Bell, Camera as CameraIcon,
+  CircleDot, CheckCheck, UserCheck, Soup, Circle, Bell, Camera as CameraIcon, Printer,
 } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { LiveStudio } from '../MobileLiveStreamer';
 import * as FP from '../../services/filmProductionService';
 import {
   DEPARTMENTS, deptMeta, fmtCall, pagesToEighths, generateCallSheet, buildDailyBrief,
+  generateDPR, buildSides, dprDayTotals,
   type Production, type ProductionMember, type ProductionScene, type CallSheet,
   type ProdTask, type CraftItem, type CraftOrder, type DeptKey,
+  type DailyProductionReport, type DprSceneRow, type CastWorkCode, type SceneShootStatus, type SidePage,
 } from '../../services/filmProductionService';
+import { listWritingProjects, fetchScriptScenes, type WritingProject } from '../../services/loreaProjectsService';
 
 // ─── Shared live production context ──────────────────────────────────────────
 
@@ -33,6 +36,7 @@ interface Ctx {
   tasks: ProdTask[];
   menu: CraftItem[];
   orders: CraftOrder[];
+  dprs: DailyProductionReport[];
   activeSheet: CallSheet | null;
   activeSheetId: string | null;
   setActiveSheetId: (id: string) => void;
@@ -58,6 +62,7 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
   const [tasks, setTasks] = useState<ProdTask[]>([]);
   const [menu, setMenu] = useState<CraftItem[]>([]);
   const [orders, setOrders] = useState<CraftOrder[]>([]);
+  const [dprs, setDprs] = useState<DailyProductionReport[]>([]);
   const [activeSheetId, setActiveSheetId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -90,6 +95,7 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
       FP.subTasks(prodId, setTasks),
       FP.subCraftMenu(prodId, setMenu),
       FP.subCraftOrders(prodId, setOrders),
+      FP.subDprs(prodId, setDprs),
     ];
     return () => unsubs.forEach(u => u());
   }, [prodId]);
@@ -110,7 +116,7 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
   const isOwner = !!prod && prod.ownerUid === uid;
 
   const value: Ctx = {
-    prod, members, scenes, callSheets, tasks, menu, orders,
+    prod, members, scenes, callSheets, tasks, menu, orders, dprs,
     activeSheet, activeSheetId, setActiveSheetId, me, isOwner, loading, goTab: onGoTab,
   };
   return <ProdCtx.Provider value={value}>{children}</ProdCtx.Provider>;
@@ -812,6 +818,263 @@ export const CraftServicesTab: React.FC = () => {
     </motion.div>
   );
 };
+
+// ─── Reports: Sides + Daily Production Report ────────────────────────────────
+
+function printDoc(title: string, inner: string) {
+  const w = window.open('', '_blank', 'width=820,height=1000');
+  if (!w) return;
+  w.document.write(`<!doctype html><html><head><title>${title}</title><style>
+    body{font-family:Georgia,'Times New Roman',serif;color:#111;padding:40px;max-width:760px;margin:0 auto;line-height:1.4}
+    h1{font-size:20px;margin:0 0 4px} h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:#444;border-bottom:1px solid #000;padding-bottom:3px;margin:22px 0 8px}
+    .muted{color:#666;font-size:12px;margin-bottom:20px}
+    .slug{font-weight:bold;text-transform:uppercase;font-size:13px}
+    .scene{margin-bottom:26px;page-break-inside:avoid;border-left:3px solid #ccc;padding-left:12px}
+    .chars{font-size:11px;color:#666;margin:2px 0 8px}
+    pre{white-space:pre-wrap;font-family:inherit;font-size:13px;margin:0}
+    table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px} td,th{border:1px solid #bbb;padding:4px 7px;text-align:left} th{background:#f0f0f0}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:4px 24px;font-size:12px;margin-bottom:12px}
+  </style></head><body>${inner}</body></html>`);
+  w.document.close(); w.focus();
+  setTimeout(() => { try { w.print(); } catch { /* noop */ } }, 350);
+}
+
+const useActiveSheet = () => {
+  const { callSheets, activeSheetId, setActiveSheetId } = useProd();
+  const sorted = [...callSheets].sort((a, b) => a.shootDay - b.shootDay);
+  const cs = callSheets.find(c => c.id === activeSheetId) || sorted[0] || null;
+  return { cs, sorted, setActiveSheetId };
+};
+
+export const ReportsTab: React.FC = () => {
+  const [mode, setMode] = useState<'sides' | 'dpr'>('sides');
+  const { cs, sorted, setActiveSheetId } = useActiveSheet();
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex gap-2">
+          <button onClick={() => setMode('sides')} className={pill(mode === 'sides')}>📄 Sides</button>
+          <button onClick={() => setMode('dpr')} className={pill(mode === 'dpr')}>📊 Daily Report</button>
+        </div>
+        <div className="flex gap-1.5 flex-wrap">
+          {sorted.map(c => <button key={c.id} onClick={() => setActiveSheetId(c.id)} className={pill(c.id === cs?.id)}>Day {c.shootDay}</button>)}
+        </div>
+      </div>
+      {!cs ? (
+        <div className={`${card} p-10 text-center`}>
+          <p className="text-sm font-black text-white/50 mb-1">No shoot days yet</p>
+          <p className="text-xs text-white/30">Generate a call sheet first — sides and the daily report build from it.</p>
+        </div>
+      ) : mode === 'sides' ? <SidesView cs={cs} /> : <DprView cs={cs} />}
+    </motion.div>
+  );
+};
+
+const SidesView: React.FC<{ cs: CallSheet }> = ({ cs }) => {
+  const { prod, isOwner } = useProd();
+  const [scripts, setScripts] = useState<WritingProject[]>([]);
+  const [blocks, setBlocks] = useState<{ heading: string; text: string }[]>([]);
+  useEffect(() => { if (prod?.ownerUid) listWritingProjects(prod.ownerUid).then(r => setScripts(r.projects.filter(p => p.kind === 'SCRIPT'))).catch(() => {}); }, [prod?.ownerUid]);
+  useEffect(() => {
+    if (prod?.linkedScriptId) fetchScriptScenes(prod.linkedScriptId).then(setBlocks).catch(() => setBlocks([]));
+    else setBlocks([]);
+  }, [prod?.linkedScriptId]);
+
+  const sides = buildSides(cs, blocks);
+  const linked = scripts.find(s => s.id === prod?.linkedScriptId);
+  const print = () => {
+    const inner = `<h1>Sides — Day ${cs.shootDay}</h1><div class="muted">${prod?.title || 'Production'} · ${cs.date || ''} · ${cs.locationName}${linked ? ` · from “${linked.title}”` : ''}</div>` +
+      sides.map(s => `<div class="scene"><div class="slug">Sc. ${s.sceneNum} — ${s.slug} (${pagesToEighths(s.pages)} pg)</div><div class="chars">${s.characters.join(', ')}</div><pre>${(s.body || '').replace(/</g, '&lt;')}</pre></div>`).join('');
+    printDoc(`Sides — Day ${cs.shootDay}`, inner);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className={`${card} p-4 flex items-center justify-between gap-3 flex-wrap`}>
+        <div>
+          <p className="text-sm font-black text-white">Sides — Day {cs.shootDay}</p>
+          <p className="text-[10px] text-white/40">{sides.length} scene{sides.length !== 1 ? 's' : ''} · {pagesToEighths(sides.reduce((s, x) => s + x.pages, 0))} pages{linked ? ` · pulling pages from “${linked.title}”` : ' · from scene synopses'}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {isOwner && scripts.length > 0 && (
+            <select value={prod?.linkedScriptId || ''} onChange={e => prod && FP.updateProduction(prod.id, { linkedScriptId: e.target.value || undefined })} className={inputCls + ' max-w-[200px]'}>
+              <option value="">No linked script</option>
+              {scripts.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+            </select>
+          )}
+          <button onClick={print} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-400 text-xs font-black uppercase tracking-widest hover:bg-violet-500/25 shrink-0"><Printer size={13} /> Print</button>
+        </div>
+      </div>
+      {sides.map(s => (
+        <div key={s.sceneNum} className={`${card} overflow-hidden`}>
+          <div className="px-5 py-2.5 bg-white/[0.04] border-b border-white/[0.06] flex items-center justify-between">
+            <p className="text-[11px] font-black text-white uppercase tracking-wide">Sc. {s.sceneNum} — {s.slug}</p>
+            <span className="text-[9px] text-white/30 font-black">{pagesToEighths(s.pages)} pg</span>
+          </div>
+          <div className="p-5">
+            {s.characters.length > 0 && <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">{s.characters.join(' · ')}</p>}
+            <pre className="text-[12px] text-white/75 whitespace-pre-wrap font-sans leading-relaxed">{s.body}</pre>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const WORK_CODES: CastWorkCode[] = ['SW', 'W', 'WF', 'SWF', 'H', 'T', 'R'];
+const SCENE_STATUS: SceneShootStatus[] = ['NOT_SHOT', 'COMPLETED', 'PARTIAL', 'OMITTED'];
+const STATUS_STYLE: Record<SceneShootStatus, string> = {
+  COMPLETED: 'text-emerald-400 bg-emerald-500/15', PARTIAL: 'text-yellow-400 bg-yellow-500/15',
+  NOT_SHOT: 'text-white/40 bg-white/5', OMITTED: 'text-white/25 bg-white/5',
+};
+
+const DprView: React.FC<{ cs: CallSheet }> = ({ cs }) => {
+  const { prod, dprs, scenes, isOwner, me } = useProd();
+  const existing = dprs.find(d => d.callSheetId === cs.id) || dprs.find(d => d.shootDay === cs.shootDay) || null;
+
+  const generate = () => { if (prod) FP.putDpr(prod.id, generateDPR(prod, cs, me?.name)); };
+
+  if (!existing) {
+    return (
+      <div className={`${card} p-10 text-center`}>
+        <ClipboardList size={26} className="text-white/20 mx-auto mb-3" />
+        <p className="text-sm font-black text-white/60 mb-1">No report for Day {cs.shootDay}</p>
+        <p className="text-xs text-white/30 mb-5 max-w-sm mx-auto">Generate the Daily Production Report from this call sheet — scenes, cast, and scheduled times are prefilled; you fill in the day's actuals.</p>
+        {isOwner
+          ? <button onClick={generate} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-500 text-white text-xs font-black uppercase tracking-widest hover:bg-violet-400"><Wand2 size={14} /> Generate DPR</button>
+          : <p className="text-[11px] text-white/30">The production office generates the report.</p>}
+      </div>
+    );
+  }
+  return <DprEditor key={existing.id} dpr={existing} cs={cs} allDprs={dprs} totalScenes={scenes.length} totalPages={scenes.reduce((s, x) => s + x.pages, 0)} editable={isOwner} />;
+};
+
+const DprEditor: React.FC<{ dpr: DailyProductionReport; cs: CallSheet; allDprs: DailyProductionReport[]; totalScenes: number; totalPages: number; editable: boolean }> = ({ dpr, cs, allDprs, totalScenes, totalPages, editable }) => {
+  const { prod } = useProd();
+  const [d, setD] = useState<DailyProductionReport>(dpr);
+  useEffect(() => setD(dpr), [dpr.id]);
+  const dirty = JSON.stringify(d) !== JSON.stringify(dpr);
+  const set = (p: Partial<DailyProductionReport>) => setD(x => ({ ...x, ...p }));
+  const setScene = (i: number, p: Partial<DprSceneRow>) => setD(x => ({ ...x, sceneRows: x.sceneRows.map((r, j) => j === i ? { ...r, ...p } : r) }));
+  const setCast = (i: number, p: Partial<{ work: CastWorkCode }>) => setD(x => ({ ...x, castRows: x.castRows.map((r, j) => j === i ? { ...r, ...p } : r) }));
+  const save = () => prod && FP.putDpr(prod.id, { ...d, updatedAt: Date.now() });
+  const finalize = () => { if (!prod) return; const f = { ...d, status: 'FINAL' as const, finalizedAt: Date.now(), updatedAt: Date.now() }; setD(f); FP.putDpr(prod.id, f); };
+
+  const totals = dprDayTotals(d);
+  // Cumulative across all FINAL reports (+ this one if final).
+  const finals = allDprs.filter(x => x.status === 'FINAL' && x.id !== d.id).concat(d.status === 'FINAL' ? [d] : []);
+  const cum = finals.reduce((acc, x) => { const t = dprDayTotals(x); acc.scenes += t.scenesShot; acc.pages += t.pagesShot; return acc; }, { scenes: 0, pages: 0 });
+
+  const print = () => {
+    const times = `<div class="grid"><div><b>Crew call:</b> sched ${fmtCall(d.crewCallSched)} / actual ${fmtCall(d.crewCallActual)}</div><div><b>First shot:</b> ${fmtCall(d.firstShotActual)}</div><div><b>Lunch:</b> ${fmtCall(d.lunchOut)}–${fmtCall(d.lunchIn)}</div><div><b>Wrap:</b> sched ${fmtCall(d.wrapSched)} / actual ${fmtCall(d.wrapActual)}</div></div>`;
+    const sceneTbl = `<h2>Scenes</h2><table><tr><th>Sc</th><th>Set</th><th>Status</th><th>Pages</th><th>Setups</th><th>Takes</th></tr>${d.sceneRows.map(s => `<tr><td>${s.sceneNum}</td><td>${s.set}</td><td>${s.status}</td><td>${pagesToEighths(s.pagesShot)}/${pagesToEighths(s.scheduledPages)}</td><td>${s.setups}</td><td>${s.takes}</td></tr>`).join('')}</table>`;
+    const castTbl = `<h2>Cast</h2><table><tr><th>Character</th><th>Actor</th><th>Work</th></tr>${d.castRows.map(c => `<tr><td>${c.character}</td><td>${c.actor || ''}</td><td>${c.work}</td></tr>`).join('')}</table>`;
+    const summary = `<h2>Day Summary</h2><div class="grid"><div><b>Scenes:</b> ${totals.scenesShot}/${totals.scenesScheduled}</div><div><b>Pages:</b> ${pagesToEighths(totals.pagesShot)}/${pagesToEighths(totals.pagesScheduled)}</div><div><b>Setups:</b> ${totals.setups}</div><div><b>BG:</b> ${d.bgCount || 0}</div></div>${d.delays ? `<p><b>Delays:</b> ${d.delays}</p>` : ''}${d.accidents ? `<p><b>Accidents/Safety:</b> ${d.accidents}</p>` : ''}${d.generalNotes ? `<p><b>Notes:</b> ${d.generalNotes}</p>` : ''}`;
+    printDoc(`DPR — Day ${d.shootDay}`, `<h1>Daily Production Report — Day ${d.shootDay}</h1><div class="muted">${prod?.title || 'Production'} · ${d.date || ''} · ${cs.locationName} · Weather: ${d.weather || 'n/a'}${d.preparedBy ? ` · Prepared by ${d.preparedBy}` : ''}</div>${times}${summary}${sceneTbl}${castTbl}`);
+  };
+
+  const numCls = inputCls + ' text-center';
+  return (
+    <div className="space-y-4">
+      <div className={`${card} p-4 flex items-center justify-between flex-wrap gap-3`}>
+        <div>
+          <p className="text-sm font-black text-white">DPR — Day {d.shootDay} {d.status === 'FINAL' ? <span className="text-emerald-400 text-[9px]">● FINAL</span> : <span className="text-white/30 text-[9px]">DRAFT</span>}</p>
+          <p className="text-[10px] text-white/40">{totals.scenesShot}/{totals.scenesScheduled} scenes · {pagesToEighths(totals.pagesShot)}/{pagesToEighths(totals.pagesScheduled)} pages · {totals.setups} setups</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={print} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 text-white/60 text-[11px] font-black uppercase tracking-widest hover:bg-white/10"><Printer size={12} /> Print</button>
+          {editable && dirty && <button onClick={save} className="px-4 py-2 rounded-xl bg-white/5 text-white/60 text-[11px] font-black uppercase tracking-widest hover:bg-white/10">Save</button>}
+          {editable && d.status !== 'FINAL' && <button onClick={finalize} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/90 text-white text-[11px] font-black uppercase tracking-widest hover:bg-emerald-400"><CheckCheck size={12} /> Finalize</button>}
+        </div>
+      </div>
+
+      {/* Cumulative progress vs schedule */}
+      <div className={`${card} p-5`}>
+        <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Production Progress (finalized days)</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div><p className="text-[9px] text-white/30 uppercase tracking-widest">Scenes shot</p><p className="text-lg font-black text-white">{cum.scenes}<span className="text-white/30 text-sm"> / {totalScenes}</span></p><div className="h-1.5 bg-white/10 rounded-full overflow-hidden mt-1"><div className="h-full bg-violet-500 rounded-full" style={{ width: `${totalScenes ? Math.min(100, (cum.scenes / totalScenes) * 100) : 0}%` }} /></div></div>
+          <div><p className="text-[9px] text-white/30 uppercase tracking-widest">Pages shot</p><p className="text-lg font-black text-white">{pagesToEighths(cum.pages)}<span className="text-white/30 text-sm"> / {pagesToEighths(totalPages)}</span></p><div className="h-1.5 bg-white/10 rounded-full overflow-hidden mt-1"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${totalPages ? Math.min(100, (cum.pages / totalPages) * 100) : 0}%` }} /></div></div>
+        </div>
+      </div>
+
+      {/* Actual times */}
+      <div className={`${card} p-5`}>
+        <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3">Actual Times</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <TimeField label="Crew Call" sched={d.crewCallSched} value={d.crewCallActual} editable={editable} onChange={v => set({ crewCallActual: v })} />
+          <TimeField label="First Shot" value={d.firstShotActual} editable={editable} onChange={v => set({ firstShotActual: v })} />
+          <TimeField label="Lunch Out" value={d.lunchOut} editable={editable} onChange={v => set({ lunchOut: v })} />
+          <TimeField label="Lunch In" value={d.lunchIn} editable={editable} onChange={v => set({ lunchIn: v })} />
+          <TimeField label="2nd Meal Out" value={d.secondMealOut} editable={editable} onChange={v => set({ secondMealOut: v })} />
+          <TimeField label="2nd Meal In" value={d.secondMealIn} editable={editable} onChange={v => set({ secondMealIn: v })} />
+          <TimeField label="Camera Wrap" value={d.cameraWrap} editable={editable} onChange={v => set({ cameraWrap: v })} />
+          <TimeField label="Wrap" sched={d.wrapSched} value={d.wrapActual} editable={editable} onChange={v => set({ wrapActual: v })} />
+        </div>
+      </div>
+
+      {/* Scene coverage */}
+      <div className={`${card} overflow-hidden`}>
+        <div className="px-5 py-3 bg-violet-500/10 border-b border-white/[0.06]"><p className="text-[11px] font-black uppercase tracking-widest text-violet-400">Scene Coverage</p></div>
+        <div className="divide-y divide-white/[0.04]">
+          {d.sceneRows.map((s, i) => (
+            <div key={i} className="px-4 py-3 flex items-center gap-2 flex-wrap text-[11px]">
+              <span className="font-black text-violet-400 w-8">#{s.sceneNum}</span>
+              <span className="text-white/50 flex-1 min-w-[100px] truncate">{s.set}</span>
+              {editable ? (
+                <select value={s.status} onChange={e => setScene(i, { status: e.target.value as SceneShootStatus })} className={`${inputCls} w-28`}>{SCENE_STATUS.map(o => <option key={o} value={o}>{o.replace('_', ' ')}</option>)}</select>
+              ) : <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${STATUS_STYLE[s.status]}`}>{s.status.replace('_', ' ')}</span>}
+              <label className="text-[9px] text-white/30">pg{editable ? <input type="number" step="0.125" value={s.pagesShot} onChange={e => setScene(i, { pagesShot: parseFloat(e.target.value) || 0 })} className={`${numCls} w-16 ml-1 inline-block`} /> : <b className="text-white/60 ml-1">{pagesToEighths(s.pagesShot)}</b>}</label>
+              <label className="text-[9px] text-white/30">setups{editable ? <input type="number" value={s.setups} onChange={e => setScene(i, { setups: parseInt(e.target.value) || 0 })} className={`${numCls} w-14 ml-1 inline-block`} /> : <b className="text-white/60 ml-1">{s.setups}</b>}</label>
+              <label className="text-[9px] text-white/30">takes{editable ? <input type="number" value={s.takes} onChange={e => setScene(i, { takes: parseInt(e.target.value) || 0 })} className={`${numCls} w-14 ml-1 inline-block`} /> : <b className="text-white/60 ml-1">{s.takes}</b>}</label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Cast worked */}
+      {d.castRows.length > 0 && (
+        <div className={`${card} overflow-hidden`}>
+          <div className="px-5 py-3 bg-amber-500/10 border-b border-white/[0.06]"><p className="text-[11px] font-black uppercase tracking-widest text-amber-400">Cast — Work Status (SW/W/WF/H/T/R)</p></div>
+          <div className="divide-y divide-white/[0.04]">
+            {d.castRows.map((c, i) => (
+              <div key={i} className="px-5 py-2.5 flex items-center gap-3 text-[11px]">
+                <span className="font-black text-white w-32 truncate">{c.character}</span>
+                <span className="text-white/40 flex-1 truncate">{c.actor}</span>
+                {editable ? <select value={c.work} onChange={e => setCast(i, { work: e.target.value as CastWorkCode })} className={`${inputCls} w-20`}>{WORK_CODES.map(w => <option key={w} value={w}>{w}</option>)}</select>
+                  : <span className="text-[10px] font-black text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">{c.work}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Notes */}
+      <div className={`${card} p-5 grid md:grid-cols-2 gap-4`}>
+        <NoteField label="Delays / Lost Time (& reasons)" value={d.delays} editable={editable} onChange={v => set({ delays: v })} />
+        <NoteField label="Accidents / Safety Incidents" value={d.accidents} editable={editable} onChange={v => set({ accidents: v })} />
+        <NoteField label="Weather" value={d.weather} editable={editable} onChange={v => set({ weather: v })} single />
+        <NoteField label="Background / Extras Count" value={String(d.bgCount ?? '')} editable={editable} onChange={v => set({ bgCount: parseInt(v) || 0 })} single number />
+        <div className="md:col-span-2"><NoteField label="General Notes" value={d.generalNotes} editable={editable} onChange={v => set({ generalNotes: v })} /></div>
+      </div>
+    </div>
+  );
+};
+
+const TimeField: React.FC<{ label: string; value?: string; sched?: string; editable: boolean; onChange: (v: string) => void }> = ({ label, value, sched, editable, onChange }) => (
+  <div>
+    <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-1">{label}{sched ? <span className="text-white/20"> · sched {fmtCall(sched)}</span> : ''}</p>
+    {editable ? <input type="time" value={value || ''} onChange={e => onChange(e.target.value)} className={inputCls} /> : <p className="text-[12px] text-white/80 font-semibold">{fmtCall(value)}</p>}
+  </div>
+);
+
+const NoteField: React.FC<{ label: string; value?: string; editable: boolean; onChange: (v: string) => void; single?: boolean; number?: boolean }> = ({ label, value, editable, onChange, single, number }) => (
+  <div>
+    <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-1">{label}</p>
+    {editable
+      ? (single ? <input type={number ? 'number' : 'text'} value={value || ''} onChange={e => onChange(e.target.value)} className={inputCls} /> : <textarea rows={2} value={value || ''} onChange={e => onChange(e.target.value)} className={inputCls + ' resize-none'} />)
+      : <p className="text-[12px] text-white/70">{value || '—'}</p>}
+  </div>
+);
 
 // ─── Private producer broadcast (Reello live, isPrivate) ─────────────────────
 

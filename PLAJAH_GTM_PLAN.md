@@ -75,6 +75,25 @@
 
 ---
 
+> ## ⬆️ GTM UPDATE — July 30, 2026 (Sixth front: **Local Commerce & the In-Store OS** — Plajah for Business)
+> The biggest single build since the last update turns Plajah into a **local-business operating system** — and, uniquely, fuses it with the creator/media platform so a storefront becomes a discovery surface for local artists. This is a **sixth distribution-shaped front** (joining Education, Sports, Creator, Institutions/Elevate, Knowledge/Heritage) and the first that seeds **local** density block-by-block.
+>
+> ### 🏪 What shipped — the whole SMB stack on one spine
+> A business account now runs on a single **order spine** (`/api/store/create-order` + `/api/store/pos-sale`) built on **Stripe Connect DIRECT** — funds settle **straight to the business**, Plajah never holds them (trust + no money-transmitter exposure), lines are priced server-side, and a webhook confirms orders + decrements stock atomically. On top of it: **inventory = the store** (editing inventory auto-populates the on-platform merch store, no sync), an **in-store kiosk** (BYO tablet self-order), a **staff POS register** (cash today; card-present via Stripe Terminal is seam-ready), **loyalty** (earn/redeem, server-validated so points can't be over-spent), **customer recognition** (attach by name / @handle / phone / **camera QR scan**), **auto-applied deals** (an offers engine picks the best eligible discount at checkout), **Team & HR** (roster, PIN time-clock, timesheets, **payroll CSV**, PTO), **business→customer messaging** (per-business transactional/promo opt-in + broadcasts; in-app push now, SMS later), a **hardware seam** (`posPeripherals`: QZ Tray/ESC-POS receipts + cash-drawer kick, browser-print fallback, Stripe Terminal connection-token endpoint), **display modes** (turn any screen into now-playing / menu board / signage / kiosk / register), and a one-click **"Populate full demo"** that builds a complete café to tour the entire stack.
+>
+> ### 🎵 The play no POS vendor and no DSP can copy — commerce fused with culture
+> A business curates an **in-store radio** station from Chora; when a track plays in-store, **customers' apps sync to it** and can **Tip or Buy the artist right at the point of sale**, and each visit leaves a **"music pulse"** snapshot of what they heard. **Geo auto check-in** (opt-in geofence) lights this up hands-free the moment a customer walks in. And an **artist↔business cross-promo marketplace** lets a business book local creators for in-store radio / FAST commercials **at the creator's set rate** — wiring the Creator front directly into the Commerce front. Square/Toast/Clover have no media catalog or artist identities; Spotify has no POS. **Only Plajah has both, on one identity.**
+>
+> ### 💳 Payments direction (locked)
+> **Stripe Connect DIRECT** — businesses own their money, Plajah never custodies funds (optional application fee only). A parallel **stablecoin/decentralized rail (possible Exodus integration)** is **designed-only, not built** — a deliberate future backup, noted so it isn't re-litigated.
+>
+> ### Also since July 10 (compounding the spine)
+> **Sync parties** (host-broadcasts-state → watch-along / read-along / listening parties — a partial, shipped answer to the "Right Now" fan wedge), **shareable Stat Cards** (a profile trading-card that doubles as an OG share/acquisition link), **Character avatars** (violet persona profiles + guardrailed AI chat), the **Reello** YouTube-style video platform (playlists, follows), a canonical **Rooms** primitive unifying six room variants, and **FAST channels + EPG** hardening (XMLTV/M3U, carriage-ready) toward a real industry offering.
+>
+> **Why it reframes the GTM:** the commerce spine is the **money layer for every front** (creator sales, tickets, giving all ride the same rails), and the business front is the **first local-density lever** — landing a café onboards *its regulars and staff*, seeding the consumer cold-start one neighborhood at a time. Full build detail + the unique plays + honest gates in **§28**.
+
+---
+
 ## 0. What Changed From v1
 
 Beachhead segments have been updated from *Worldbuilders + Indie Film* to:
@@ -1898,3 +1917,70 @@ Today "Games" is a web-embed iframe directory (a `games` doc + `GamePlayerView`)
 The reframe is **enter on one wedge, build/price/retain on the spine.** A musician buys "get paid + your catalog plays in the car and on Alexa" (#2), not "the identity spine." An institution buys "broadcast + giving + records in one place" (#4). But *underneath*, every wedge deposits into the same identity + record + asset graph + safety spine — the part no competitor can assemble. Practical order: **(a)** finish the gates on #2 (publish the Alexa skill, payments live) since it's the freshest, cheapest differentiator; **(b)** ship one one-click chain of #3 for a killer demo; **(c)** run #4 as the funded institution motion with #5 as its headline; **(d)** treat #1 and #6 as *retention/moat* narratives that mature as issuers and families accumulate; **(e)** build #8 when a fan-side growth push is warranted; **(f)** **Plajah Play (#9) is the deliberate later-in-2026 front** — a contained, high-margin expansion once the wedges above are converting. Its one hard prerequisite is an infra decision, not a market one: **stand up zero-egress build storage (Cloudflare R2) first** — the 10% only works there. It reuses Stripe Connect, resumable uploads, entitlements and notifications, so the incremental build is small relative to the new revenue surface.
 
 *Added July 10, 2026. Reflects shipped playback resilience + full car/lock-screen Media Session, the live Alexa skill (`/api/alexa`, signature-verified, public-catalog + album auto-advance), the Comics & Manga Museum JP2→JPEG ingestion/caching reader, the push-notification stack, email sign-up + onboarding, StoreProduct commerce + Sanctuary hybrid consolidation, and the Content Asset Manager. Also folds in **Plajah Play** (indie game distribution) as Opportunity #9 / a planned later-in-2026 front — full feasibility in `docs/PLAJAH_PLAY_GAMES_FEASIBILITY.md`. All prior sections intact.*
+
+---
+
+## 28. Sixth Front — Local Commerce & the In-Store OS — July 30, 2026
+
+This section grounds the top-of-doc July 30 update in the codebase. It adds a **sixth distribution-shaped front** — **Plajah for Business** — and, more importantly, the plays that only exist because Plajah already has both a **commerce spine** and a **creator/media graph** under one identity. As with §27, each play closes with the **honest gate**.
+
+### 28.1 State of the platform (honest read)
+
+- **There is now a real money layer.** A single **order spine** — `/api/store/create-order` (online/kiosk) and `/api/store/pos-sale` (register) — prices every line **server-side** from `storeProducts`, charges via **Stripe Connect DIRECT** (funds land in the business's own account; Plajah never custodies money), and a webhook **confirms the order + decrements stock atomically**. This is the same rail creator sales, tickets and giving can ride — the payment story is no longer scattered.
+- **Inventory *is* the store.** Editing inventory auto-populates the on-platform merch store (no sync job) — one catalog behind the kiosk, the POS, the online store and the business's public page.
+- **The in-store loop is built end to end.** Kiosk (BYO-tablet self-order) → POS register (cash now; card-present seam-ready) → **loyalty** (earn/redeem, **server-validated** so points can't be over-spent) → **recognition** (name / @handle / phone / **camera QR**) → **auto-applied deals** (offers engine) → **now-playing broadcast** with **Tip/Buy** and a **"music pulse"** of what a customer heard → **geo auto check-in** (opt-in geofence). Plus **Team & HR** (roster, PIN time-clock, timesheets, payroll CSV, PTO), **business→customer messaging** (opt-in + broadcasts), a **hardware seam** (QZ Tray/ESC-POS receipts + drawer, browser-print fallback, Stripe Terminal connection-token), **display modes** (any screen → now-playing/menu/signage/kiosk/register), and a one-click **demo business**.
+- **The bottleneck is still users — but this front changes *how* we attack it.** A business is a **local** pre-assembled audience (its regulars + staff). For the first time Plajah has a wedge that seeds consumer density **geographically**, block by block, instead of only creator-by-creator.
+
+### 28.2 What structurally strengthened
+
+| Lever | What shipped | Why it matters to GTM |
+|---|---|---|
+| **Money layer** | Order spine + **Stripe Connect DIRECT** (funds-direct, no custody) + atomic inventory/webhook | One rail for POS, kiosk, online sales, tickets, giving — trust story: *the business owns its money* |
+| **Local-density lever** | Business = a local node (customers + staff onboard with it) | First wedge that attacks the consumer cold-start **by neighborhood**, not one creator at a time |
+| **Commerce × culture** | In-store radio → now-playing sync → **Tip/Buy** + music pulse; artist↔business cross-promo marketplace | A storefront becomes a discovery + payout surface for local artists — links the Creator and Commerce fronts |
+| **Ops depth (switching cost)** | Team/HR, PIN time-clock, payroll CSV, messaging, display modes | Moves Plajah from "sell stuff" to "run the business" — raises switching cost far above a bolt-on store |
+| **Hardware neutrality** | `posPeripherals` abstraction (QZ/ESC-POS + browser fallback; Terminal seam) | Runs on what a business already owns; graceful with zero hardware — no lock-in objection |
+
+### 28.3 The unique plays (only Plajah, because it owns both the till and the catalog)
+
+**1. Commerce fused with culture — the storefront is a discovery surface.**
+A business curates in-store radio from Chora; a playing track **syncs to every checked-in customer's app**, who can **Tip or Buy the artist at the point of sale**, and each visit leaves a **"music pulse"** of what they heard.
+*Why only Plajah:* POS vendors (Square/Toast/Clover) have no media catalog or artist identities; DSPs (Spotify/Apple) have no POS. Nobody else owns **both the till and the catalog on one identity.**
+*Motion:* *"every song your café plays becomes a tip jar and a checkout button for the artist."* Lead the business pitch with the *wow*, not the feature list.
+*Gate:* business must connect Stripe + actually curate in-store radio; the tip rail + presence + now-playing are shipped, so this converts as soon as a real venue runs it.
+
+**2. Portable loyalty on one identity — a single card for every local business.**
+Recognition (QR/@handle/phone) + geo auto check-in + earn/redeem all ride the **same Plajah identity** as the record/passport — not a per-merchant silo.
+*Why only Plajah:* Square Loyalty and Toast Rewards are locked to one merchant; Plajah loyalty is a facet of the portable identity, so it *can* become one wallet of points across every Plajah business.
+*Motion:* frictionless — auto check-in + auto-apply deals mean a regular never fumbles for a card or code; the more local businesses, the more valuable each customer's identity.
+*Gate:* "portable" only *feels* real at local density (several businesses in a metro). Today it's per-business on shared identity — sequence the "one card everywhere" message behind density.
+
+**3. The artist↔business marketplace — the two fronts feed each other.**
+Businesses book local creators for in-store radio / FAST commercials **at the creator's set rate**; creators get paid local promo.
+*Why only Plajah:* it connects the **Creator** front (a supply of local artists with catalogs + records) to the **Commerce** front (local businesses with foot traffic + ad budget) inside one identity — a two-sided **local-media** market no POS or DSP runs.
+*Motion:* a café becomes a micro radio station that pays local musicians; a musician gets discovered by the neighborhood that already walks past. Each side recruits the other.
+*Gate:* needs payment-on-accept for bookings + enough artists **and** businesses in the same metro to make matches; the booking rails (rates, request, accept/decline) are shipped.
+
+**4. A business is a local distribution node.**
+Like a school or church, a storefront is a pre-assembled *local* audience — onboard the café and its regulars + staff touch Plajah (check-in, tip, loyalty, order tracking, messaging opt-in).
+*Why only Plajah:* Square onboards a *merchant*; Plajah onboards the merchant **and pulls the merchant's community into a social/media graph** with records and giving next door.
+*Motion:* use the business front to **seed local density** the consumer app needs — the funded, block-by-block answer to two-sided cold start. Ties to Sponsor-a-Classroom/Congregation cross-subsidy (Sponsor-a-Local-Artist).
+*Gate:* the in-store loop must be genuinely useful on day one (it is: order + loyalty + now-playing), or the community won't re-open the app after checkout.
+
+**5. The whole SMB OS at a flat price, BYO-hardware, funds stay with the business.**
+POS + inventory→store + loyalty + deals + Team/HR/payroll + messaging + signage/kiosk/display-modes on one spine — and **Stripe Connect DIRECT** so Plajah never holds funds.
+*Why only Plajah:* Square/Toast/Clover meter per-module and **custody funds**; none carry the creator-economy layer. Plajah undercuts the bundle *and* tells a cleaner trust story (*your money is yours*) *and* adds the culture loop nothing else has.
+*Motion:* land on one acute pain (a café's "I need a register + loyalty that recognizes regulars"), then expand across the OS; funds-direct + BYO-hardware kill the two biggest SMB objections (trust + lock-in).
+*Gate:* card-present needs a **Stripe Terminal reader** (connection-token endpoint shipped; client collection + reader pairing remain); **payroll provider sync** (Finch/Gusto) is CSV-export today; SMS messaging is A2P-10DLC work (in-app push ships now).
+
+### 28.4 Market opportunity (why this front is worth a funded push)
+
+- **TAM is enormous and adjacent to money we already move.** US SMB commerce is a multi-hundred-billion-dollar GPV market (Square alone processes >$200B/yr); local-business software (POS + loyalty + marketing + payroll) is a multi-tens-of-billions annual spend. Plajah doesn't need share of it — it needs **a few hundred local venues per metro** to make the culture loop and portable loyalty feel inevitable.
+- **The wedge is a *local* pain nobody bundles with culture.** Independent cafés, record shops, boutiques, barbershops, galleries, gyms, music venues — all want a cheaper register + loyalty that *recognizes regulars*; none can offer *"our in-store playlist pays the local artists on it, and our regulars tip them."* That sentence is the entire differentiator.
+- **It compounds the other five fronts.** The same Stripe-direct spine powers creator sales, event tickets and Elevate giving; the same identity carries the record; local artists booked for in-store radio are Creator-front supply. The business front is both a new market **and** the connective tissue that makes the platform's breadth pay off.
+
+### 28.5 How to sequence it (so it seeds density, not sprawl)
+
+Run **Plajah for Business** as a **funded, geographically-focused** motion — pick **one metro**, land a cluster of independent venues (start where local music culture is strong: coffee/records/venues), and lead every pitch with the **culture loop** (#1), not the feature grid. Practical order: **(a)** get 5–10 real venues live on **Stripe-direct POS + loyalty + in-store radio** so the *wow* is demonstrable; **(b)** turn on the **artist↔business marketplace** (#3) once there's both local supply and demand in that metro — it's the two-sided flywheel; **(c)** use each venue as a **local distribution node** (#4) to seed consumer check-ins/tips, measuring "regulars who opened Plajah after checkout"; **(d)** expand the OS depth (Team/HR/payroll, card-present hardware) to raise switching cost on the venues you've landed; **(e)** only then market **portable loyalty** (#2) as "one card for every Plajah business," because it needs the density from (a)–(c) to be true. Keep the **funds-direct + BYO-hardware** trust story in every conversation — it's the fastest objection-killer against Square/Toast.
+
+*Added July 30, 2026. Reflects the shipped order spine (Stripe Connect DIRECT, atomic inventory, idempotent webhook), inventory→store, in-store kiosk, POS register + loyalty (server-validated) + recognition (QR/@handle/phone) + auto-apply deals (offers engine), in-store now-playing + Tip/Buy + music pulse, geo auto check-in, display-mode launcher, POS hardware seam (`posPeripherals`, QZ/ESC-POS + browser fallback + Stripe Terminal connection-token), Team & HR (roster/PIN time-clock/payroll CSV/PTO), business messaging, the artist↔business cross-promo marketplace, and the one-click demo business. Payments locked to Stripe Connect DIRECT; stablecoin/Exodus rail designed-only. Also notes sync parties, Stat Cards, Character avatars, Reello video, the Rooms primitive, and FAST/EPG hardening shipped since §27. All prior sections intact.*

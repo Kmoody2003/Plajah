@@ -10,7 +10,7 @@
  * (Firestore gotcha) — results are sorted client-side.
  */
 
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { db } from './backendService';
 
 export interface WritingChapter {
@@ -122,4 +122,34 @@ export async function listWritingProjects(uid: string): Promise<{ projects: Writ
   } catch { /* offline / signed-out — return whatever we have */ }
   projects.sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt));
   return { projects, chapters };
+}
+
+/**
+ * Fetch a screenplay's scenes as { heading, text } blocks — the full page text
+ * of each scene, for generating real production sides. Text is the readable
+ * lines (action + character + dialogue) under each SCENE_HEADING.
+ */
+export async function fetchScriptScenes(scriptId: string): Promise<{ heading: string; text: string }[]> {
+  if (!scriptId) return [];
+  try {
+    const snap = await getDoc(doc(db, 'scripts', scriptId));
+    if (!snap.exists()) return [];
+    const elements: any[] = (snap.data() as any)?.elements || [];
+    const blocks: { heading: string; text: string }[] = [];
+    let cur: { heading: string; text: string } | null = null;
+    for (const el of elements) {
+      const text = (el.text || '').trim();
+      if (el.type === 'SCENE_HEADING') {
+        cur = { heading: text, text: '' };
+        blocks.push(cur);
+      } else if (cur && text) {
+        const line = el.type === 'CHARACTER' ? `\n${text.toUpperCase()}`
+          : el.type === 'PARENTHETICAL' ? `  ${text}`
+          : el.type === 'DIALOGUE' ? `  ${text}`
+          : el.type === 'TRANSITION' ? `\n${text}` : `\n${text}`;
+        cur.text += line + '\n';
+      }
+    }
+    return blocks;
+  } catch { return []; }
 }

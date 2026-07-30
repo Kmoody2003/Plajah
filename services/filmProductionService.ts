@@ -199,6 +199,7 @@ export interface Production {
   timezone?: string;
   lat?: number;
   lng?: number;
+  linkedScriptId?: string;     // optional Lorea screenplay → real sides
   createdAt: number;
   updatedAt: number;
 }
@@ -412,6 +413,119 @@ export function buildDailyBrief(cs: CallSheet, member: ProductionMember): DailyB
   };
 }
 
+// ─── Daily Production Report (DPR) — the day's legal record ──────────────────
+
+export type SceneShootStatus = 'COMPLETED' | 'PARTIAL' | 'NOT_SHOT' | 'OMITTED';
+export type CastWorkCode = 'SW' | 'W' | 'WF' | 'SWF' | 'H' | 'T' | 'R';
+
+export interface DprSceneRow {
+  sceneNum: string; set: string; intExt: string; dayNight: string;
+  status: SceneShootStatus; scheduledPages: number; pagesShot: number; setups: number; takes: number;
+}
+export interface DprCastRow { memberId?: string; character: string; actor?: string; work: CastWorkCode; }
+
+export interface DailyProductionReport {
+  id: string;
+  prodId: string;
+  callSheetId?: string;
+  shootDay: number;
+  date: string;
+  // Actuals vs the call sheet's scheduled times
+  crewCallSched?: string; crewCallActual?: string;
+  firstShotActual?: string;
+  lunchOut?: string; lunchIn?: string;
+  secondMealOut?: string; secondMealIn?: string;
+  wrapSched?: string; wrapActual?: string; cameraWrap?: string;
+  sceneRows: DprSceneRow[];
+  castRows: DprCastRow[];
+  bgCount?: number;
+  weather?: string;
+  delays?: string;
+  accidents?: string;
+  generalNotes?: string;
+  preparedBy?: string;
+  status: 'DRAFT' | 'FINAL';
+  finalizedAt?: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Build a DPR skeleton from a call sheet — scenes/cast/times prefilled, actuals blank. */
+export function generateDPR(prod: Production, cs: CallSheet, preparedBy?: string): DailyProductionReport {
+  const now = Date.now();
+  return {
+    id: `dpr_${cs.shootDay}_${now.toString(36)}`,
+    prodId: prod.id,
+    callSheetId: cs.id,
+    shootDay: cs.shootDay,
+    date: cs.date || '',
+    crewCallSched: cs.generalCall,
+    crewCallActual: '',
+    wrapSched: cs.estWrap,
+    sceneRows: cs.sceneRows.map(s => ({
+      sceneNum: s.sceneNum, set: s.set, intExt: s.intExt, dayNight: s.dayNight,
+      status: 'NOT_SHOT' as SceneShootStatus, scheduledPages: s.pages, pagesShot: 0, setups: 0, takes: 0,
+    })),
+    castRows: cs.castRows.map(r => ({ memberId: r.memberId, character: r.character, actor: r.actor, work: 'SW' as CastWorkCode })),
+    bgCount: 0,
+    weather: cs.weather?.summary || '',
+    status: 'DRAFT',
+    preparedBy,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+export interface DprTotals { scenesShot: number; scenesScheduled: number; pagesShot: number; pagesScheduled: number; setups: number; }
+export function dprDayTotals(d: DailyProductionReport): DprTotals {
+  return {
+    scenesScheduled: d.sceneRows.length,
+    scenesShot: d.sceneRows.filter(s => s.status === 'COMPLETED').length,
+    pagesScheduled: d.sceneRows.reduce((s, r) => s + r.scheduledPages, 0),
+    pagesShot: d.sceneRows.reduce((s, r) => s + r.pagesShot, 0),
+    setups: d.sceneRows.reduce((s, r) => s + r.setups, 0),
+  };
+}
+
+// ─── Sides — the pocket pages of the day's scenes ────────────────────────────
+
+export interface SidePage {
+  sceneNum: string;
+  slug: string;
+  dayNight: string;
+  pages: number;
+  characters: string[];
+  body: string;
+}
+
+/**
+ * Build printable sides from a call sheet. If a linked screenplay's scene
+ * blocks are supplied (heading + full text), each side is enriched with the
+ * real page text matched by set-name; otherwise the scene synopsis is used.
+ */
+export function buildSides(cs: CallSheet, scriptBlocks?: { heading: string; text: string }[]): SidePage[] {
+  const norm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9 ]/g, '').trim();
+  return cs.sceneRows.map(s => {
+    let body = s.synopsis;
+    if (scriptBlocks && scriptBlocks.length) {
+      const setKey = norm(s.set);
+      const firstWord = setKey.split(' ')[0];
+      const match =
+        scriptBlocks.find(b => firstWord && norm(b.heading).includes(firstWord) && norm(b.heading).includes(s.dayNight)) ||
+        scriptBlocks.find(b => setKey && norm(b.heading).includes(setKey.slice(0, 8)));
+      if (match && match.text.trim()) body = match.text.trim();
+    }
+    return {
+      sceneNum: s.sceneNum,
+      slug: `${s.intExt}. ${s.set} — ${s.dayNight}`,
+      dayNight: s.dayNight,
+      pages: s.pages,
+      characters: s.characters,
+      body,
+    };
+  });
+}
+
 // ─── Firestore I/O ───────────────────────────────────────────────────────────
 
 const stripUndefined = <T extends object>(o: T): T =>
@@ -520,6 +634,12 @@ export const removeTask = (p: string, id: string) => remove(p, 'tasks', id);
 export const subCraftMenu = (p: string, cb: (r: CraftItem[]) => void) => subscribe<CraftItem>(p, 'craftMenu', cb);
 export const putCraftItem = (p: string, i: CraftItem) => put(p, 'craftMenu', i);
 export const removeCraftItem = (p: string, id: string) => remove(p, 'craftMenu', id);
+// Daily Production Reports
+export const subDprs = (p: string, cb: (r: DailyProductionReport[]) => void) => subscribe<DailyProductionReport>(p, 'dprs', cb);
+export const putDpr = (p: string, d: DailyProductionReport) => put(p, 'dprs', d);
+export const patchDpr = (p: string, id: string, x: Partial<DailyProductionReport>) => patch(p, 'dprs', id, x);
+export const removeDpr = (p: string, id: string) => remove(p, 'dprs', id);
+
 export const subCraftOrders = (p: string, cb: (r: CraftOrder[]) => void) => subscribe<CraftOrder>(p, 'craftOrders', cb);
 export const putCraftOrder = (p: string, o: CraftOrder) => put(p, 'craftOrders', o);
 export const patchCraftOrder = (p: string, id: string, x: Partial<CraftOrder>) => patch(p, 'craftOrders', id, x);

@@ -40,30 +40,35 @@ export async function saveBusinessPage(page: Partial<BusinessPage>): Promise<Bus
 
   if (page.id) {
     const ref = doc(db, 'businessPages', page.id);
-    const updates = { ...page, ownerId: uid, updatedAt: now };
-    delete (updates as any).id;
+    const updates: any = { ...page, ownerId: uid, updatedAt: now };
+    delete updates.id;
+    Object.keys(updates).forEach(k => { if (updates[k] === undefined) delete updates[k]; });
     await updateDoc(ref, updates);
     return { ...page, ownerId: uid, updatedAt: now } as BusinessPage;
   }
 
   const ref = doc(collection(db, 'businessPages'));
   const newPage: BusinessPage = {
+    ...page,
+    // Identity + server-owned fields always win over whatever the caller passed
+    // (a caller passing `id: undefined` must NOT clobber the generated id).
     id: ref.id,
     ownerId: uid,
     businessName: page.businessName || 'My Business',
     businessType: page.businessType || 'OTHER',
     description: page.description || '',
-    isVerified: false,
-    isAcceptingOrders: false,
-    radioServiceEnabled: false,
-    digitalSignageEnabled: false,
-    crmEnabled: false,
-    rewardsEnabled: false,
-    tags: [],
-    createdAt: now,
+    isVerified: page.isVerified ?? false,
+    isAcceptingOrders: page.isAcceptingOrders ?? false,
+    radioServiceEnabled: page.radioServiceEnabled ?? false,
+    digitalSignageEnabled: page.digitalSignageEnabled ?? false,
+    crmEnabled: page.crmEnabled ?? false,
+    rewardsEnabled: page.rewardsEnabled ?? false,
+    tags: page.tags ?? [],
+    createdAt: page.createdAt || now,
     updatedAt: now,
-    ...page,
   };
+  // Firestore rejects undefined field values — strip any the caller left undefined.
+  Object.keys(newPage).forEach(k => { if ((newPage as any)[k] === undefined) delete (newPage as any)[k]; });
   await setDoc(ref, newPage);
   return newPage;
 }

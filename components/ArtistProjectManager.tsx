@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import {
-  FilmProductionProvider, ProductionHubTab, CallSheetsTab, RosterTab, DailyBriefTab, CraftServicesTab,
+  FilmProductionProvider, ProductionHubTab, CallSheetsTab, RosterTab, DailyBriefTab, CraftServicesTab, ReportsTab,
 } from './film/FilmProductionSuite';
 import { listWritingProjects, type WritingProject, type WritingChapter } from '../services/loreaProjectsService';
 import { MusicReleasesTab } from './music/MusicReleasesTab';
@@ -2476,7 +2476,7 @@ const WriterPressTab: React.FC = () => (
 type PMTab =
   | 'overview' | 'releases' | 'payroll' | 'contracts' | 'invoices' | 'tasks' | 'vendors' | 'venues' | 'events' | 'boards' | 'promote'
   | 'film_overview' | 'film_script' | 'film_budget' | 'film_crew' | 'film_locations' | 'film_schedule' | 'film_distro'
-  | 'film_hub' | 'film_callsheets' | 'film_roster' | 'film_brief' | 'film_craft'
+  | 'film_hub' | 'film_callsheets' | 'film_roster' | 'film_brief' | 'film_craft' | 'film_reports'
   | 'writer_overview' | 'writer_projects' | 'writer_manuscripts' | 'writer_research' | 'writer_submissions' | 'writer_events' | 'writer_press';
 
 type Discipline = 'music' | 'film' | 'writer';
@@ -2512,6 +2512,7 @@ const FILM_TABS: { id: PMTab; label: string; icon: React.ReactNode; color: strin
   { id: 'film_brief',      label: 'My Brief',     icon: <UserCheck size={13} />,    color: '#f59e0b' },
   { id: 'film_roster',     label: 'Roster',       icon: <Users size={13} />,        color: '#a855f7' },
   { id: 'film_craft',      label: 'Craft',        icon: <Utensils size={13} />,     color: '#14b8a6' },
+  { id: 'film_reports',    label: 'Reports',      icon: <ClipboardList size={13} />, color: '#a855f7' },
   { id: 'film_script',     label: 'Script',       icon: <Clapperboard size={13} />, color: '#a855f7' },
   { id: 'film_budget',     label: 'Budget',       icon: <DollarSign size={13} />,   color: '#10b981' },
   { id: 'film_crew',       label: 'Crew',         icon: <Users size={13} />,        color: '#a855f7' },
@@ -2571,6 +2572,7 @@ export const ArtistProjectManager: React.FC<Props> = ({ currentUser }) => {
       case 'film_brief':          return <DailyBriefTab />;
       case 'film_roster':         return <RosterTab />;
       case 'film_craft':          return <CraftServicesTab />;
+      case 'film_reports':        return <ReportsTab />;
       case 'film_script':         return <FilmScriptTab />;
       case 'film_budget':         return <FilmBudgetTab />;
       case 'film_crew':           return <FilmCrewTab />;
