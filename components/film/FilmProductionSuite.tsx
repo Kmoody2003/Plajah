@@ -1,0 +1,825 @@
+/**
+ * Film Production Suite — the on-set execution layer for Artist Manager › Film.
+ *
+ * Tabs: Production Hub · Call Sheets · Roster · My Brief · Craft Services
+ * One live Firestore-backed production shared across every crew member, plus a
+ * private Reello broadcast to offsite producers.
+ */
+
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import {
+  LayoutDashboard, FileText, Users, ClipboardList, Utensils, Plus, X, Sparkles,
+  Radio, CheckCircle2, Clock, MapPin, Sun, Sunset, AlertTriangle, Hospital,
+  Coffee, Send, Copy, Zap, ChevronRight, CalendarDays, ShieldAlert, Wand2,
+  CircleDot, CheckCheck, UserCheck, Soup, Circle, Bell, Camera as CameraIcon,
+} from 'lucide-react';
+import { UserProfile } from '../../types';
+import { LiveStudio } from '../MobileLiveStreamer';
+import * as FP from '../../services/filmProductionService';
+import {
+  DEPARTMENTS, deptMeta, fmtCall, pagesToEighths, generateCallSheet, buildDailyBrief,
+  type Production, type ProductionMember, type ProductionScene, type CallSheet,
+  type ProdTask, type CraftItem, type CraftOrder, type DeptKey,
+} from '../../services/filmProductionService';
+
+// ─── Shared live production context ──────────────────────────────────────────
+
+interface Ctx {
+  prod: Production | null;
+  members: ProductionMember[];
+  scenes: ProductionScene[];
+  callSheets: CallSheet[];
+  tasks: ProdTask[];
+  menu: CraftItem[];
+  orders: CraftOrder[];
+  activeSheet: CallSheet | null;
+  activeSheetId: string | null;
+  setActiveSheetId: (id: string) => void;
+  me: ProductionMember | null;
+  isOwner: boolean;
+  loading: boolean;
+  goTab: (t: string) => void;
+}
+const ProdCtx = createContext<Ctx | null>(null);
+const useProd = () => {
+  const c = useContext(ProdCtx);
+  if (!c) throw new Error('useProd outside provider');
+  return c;
+};
+
+export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null; onGoTab: (t: string) => void; children: React.ReactNode }> = ({ currentUser, onGoTab, children }) => {
+  const uid = currentUser?.uid || FP.currentUid() || 'demo';
+  const prodId = FP.defaultProductionId(uid);
+  const [prod, setProd] = useState<Production | null>(null);
+  const [members, setMembers] = useState<ProductionMember[]>([]);
+  const [scenes, setScenes] = useState<ProductionScene[]>([]);
+  const [callSheets, setCallSheets] = useState<CallSheet[]>([]);
+  const [tasks, setTasks] = useState<ProdTask[]>([]);
+  const [menu, setMenu] = useState<CraftItem[]>([]);
+  const [orders, setOrders] = useState<CraftOrder[]>([]);
+  const [activeSheetId, setActiveSheetId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Ensure a production exists + seed a rich demo on first run.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const p = await FP.ensureProduction(uid, currentUser?.displayName ? `${currentUser.displayName}'s Production` : 'Untitled Production');
+      if (!alive) return;
+      setProd(p);
+      // Seed demo content once (only if empty).
+      const existing = await new Promise<ProductionMember[]>(res => {
+        const unsub = FP.subMembers(prodId, rows => { unsub(); res(rows); });
+      });
+      if (alive && existing.length === 0) {
+        FP.demoMembers().forEach(m => FP.putMember(prodId, m));
+        FP.demoScenes().forEach(s => FP.putScene(prodId, s));
+        FP.demoCraftMenu().forEach(i => FP.putCraftItem(prodId, i));
+      }
+      setLoading(false);
+    })();
+    return () => { alive = false; };
+  }, [uid]);
+
+  useEffect(() => {
+    const unsubs = [
+      FP.subMembers(prodId, setMembers),
+      FP.subScenes(prodId, setScenes),
+      FP.subCallSheets(prodId, setCallSheets),
+      FP.subTasks(prodId, setTasks),
+      FP.subCraftMenu(prodId, setMenu),
+      FP.subCraftOrders(prodId, setOrders),
+    ];
+    return () => unsubs.forEach(u => u());
+  }, [prodId]);
+
+  // Default active sheet = published sheet dated today, else nearest upcoming, else lowest day.
+  const sorted = useMemo(() => [...callSheets].sort((a, b) => a.shootDay - b.shootDay), [callSheets]);
+  useEffect(() => {
+    if (activeSheetId && callSheets.some(c => c.id === activeSheetId)) return;
+    if (sorted.length) {
+      const today = new Date().toISOString().slice(0, 10);
+      const todaySheet = sorted.find(c => c.date === today);
+      setActiveSheetId((todaySheet || sorted.find(c => c.status === 'PUBLISHED') || sorted[0]).id);
+    }
+  }, [sorted, activeSheetId, callSheets]);
+
+  const activeSheet = callSheets.find(c => c.id === activeSheetId) || null;
+  const me = members.find(m => m.uid && m.uid === uid) || null;
+  const isOwner = !!prod && prod.ownerUid === uid;
+
+  const value: Ctx = {
+    prod, members, scenes, callSheets, tasks, menu, orders,
+    activeSheet, activeSheetId, setActiveSheetId, me, isOwner, loading, goTab: onGoTab,
+  };
+  return <ProdCtx.Provider value={value}>{children}</ProdCtx.Provider>;
+};
+
+// ─── Small shared UI atoms (match ArtistProjectManager styling) ──────────────
+
+const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-violet-500/50';
+const card = 'bg-white/[0.03] border border-white/[0.06] rounded-2xl';
+const pill = (active: boolean) => `px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${active ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30' : 'bg-white/5 text-white/30 hover:text-white/60'}`;
+
+const DeptChip: React.FC<{ dept: DeptKey; time?: string }> = ({ dept, time }) => {
+  const d = deptMeta(dept);
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black" style={{ background: `${d.color}18`, color: d.color }}>
+      <span>{d.emoji}</span>{d.label}{time && <span className="ml-1 text-white/90 bg-black/30 rounded px-1.5 py-0.5">{fmtCall(time)}</span>}
+    </span>
+  );
+};
+
+const askAria = (prompt: string) => window.dispatchEvent(new CustomEvent('OPEN_ARIA', { detail: { prompt } }));
+
+// ─── Production Hub ──────────────────────────────────────────────────────────
+
+export const ProductionHubTab: React.FC = () => {
+  const { prod, members, scenes, callSheets, tasks, orders, activeSheet, setActiveSheetId, isOwner, goTab } = useProd();
+  const [broadcasting, setBroadcasting] = useState(false);
+
+  const cs = activeSheet;
+  const confirmedCount = cs ? Object.keys(cs.confirmations || {}).length : 0;
+  const expectedCount = cs ? cs.deptCalls.length + cs.castRows.length : 0;
+  const confirmPct = expectedCount ? Math.round((confirmedCount / expectedCount) * 100) : 0;
+  const openTasks = tasks.filter(t => t.status !== 'DONE');
+  const urgent = openTasks.filter(t => t.priority === 'URGENT' || t.priority === 'HIGH');
+  const activeOrders = orders.filter(o => o.status === 'REQUESTED' || o.status === 'PREPPING');
+  const dayPages = cs ? cs.sceneRows.reduce((s, r) => s + r.pages, 0) : 0;
+
+  const generateToday = () => {
+    if (!prod) return;
+    const nextDay = (callSheets.length ? Math.max(...callSheets.map(c => c.shootDay)) : 0) + 1;
+    const day = callSheets.length === 0 ? 1 : nextDay;
+    const gen = generateCallSheet(prod, scenes, members, day, { date: new Date().toISOString().slice(0, 10) });
+    FP.putCallSheet(prod.id, gen);
+    setActiveSheetId(gen.id);
+    goTab('film_callsheets');
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      {/* Production banner */}
+      <div className={`${card} p-5`}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.35em] text-violet-400 mb-1">On-Set Production Hub</p>
+            <h2 className="text-2xl font-black text-white truncate">{prod?.title || 'Production'}</h2>
+            <p className="text-[11px] text-white/40 mt-1">{prod?.format || 'Feature'} · {members.length} crew & cast · {prod?.totalDays || '—'} shoot days</p>
+          </div>
+          <div className="flex flex-col gap-2 shrink-0">
+            <button onClick={() => setBroadcasting(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 text-[11px] font-black uppercase tracking-widest hover:bg-red-500/25 transition-all">
+              <Radio size={13} /> Broadcast to Producers
+            </button>
+            <button onClick={() => goTab('film_brief')} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 text-white/60 text-[11px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
+              <UserCheck size={13} /> My Daily Brief
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Today on set */}
+      {cs ? (
+        <div className={`${card} overflow-hidden`}>
+          <div className="px-5 py-3 bg-violet-500/10 border-b border-white/[0.06] flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center text-violet-400"><CalendarDays size={18} /></div>
+              <div>
+                <p className="text-sm font-black text-white">Day {cs.dayOf} of {cs.totalDays} {cs.status === 'PUBLISHED' ? <span className="text-emerald-400 text-[9px] ml-1">● PUBLISHED v{cs.version}</span> : <span className="text-white/30 text-[9px] ml-1">DRAFT</span>}</p>
+                <p className="text-[10px] text-white/40">{cs.date || 'Date TBD'} · {cs.locationName}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 text-right">
+              <div><p className="text-[9px] font-black uppercase tracking-widest text-white/30">Gen. Call</p><p className="text-sm font-black text-violet-400">{fmtCall(cs.generalCall)}</p></div>
+              <div><p className="text-[9px] font-black uppercase tracking-widest text-white/30">Scenes</p><p className="text-sm font-black text-white">{cs.sceneRows.length}</p></div>
+              <div><p className="text-[9px] font-black uppercase tracking-widest text-white/30">Pages</p><p className="text-sm font-black text-white">{pagesToEighths(dayPages)}</p></div>
+            </div>
+          </div>
+          <div className="p-5 space-y-4">
+            {/* Weather / sun strip */}
+            {cs.weather && (cs.weather.sunrise || cs.weather.summary) && (
+              <div className="flex items-center gap-4 text-[11px] text-white/50 flex-wrap">
+                {cs.weather.sunrise && <span className="flex items-center gap-1.5"><Sun size={13} className="text-amber-400" /> Sunrise {fmtCall(cs.weather.sunrise)}</span>}
+                {cs.weather.sunset && <span className="flex items-center gap-1.5"><Sunset size={13} className="text-orange-400" /> Sunset {fmtCall(cs.weather.sunset)}</span>}
+                {cs.weather.summary && <span className="flex items-center gap-1.5"><CloudDot /> {cs.weather.summary}</span>}
+              </div>
+            )}
+            {/* Confirmation tracker */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Crew Confirmations</p>
+                <p className="text-[10px] font-black text-white/60">{confirmedCount}/{expectedCount} confirmed</p>
+              </div>
+              <div className="h-2 bg-white/10 rounded-full overflow-hidden"><div className={`h-full rounded-full ${confirmPct >= 80 ? 'bg-emerald-500' : confirmPct >= 40 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${confirmPct}%` }} /></div>
+            </div>
+            {/* Department call board — "what's on schedule per role" */}
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Department Call Times</p>
+              <div className="flex flex-wrap gap-2">
+                {cs.deptCalls.map(dc => <DeptChip key={dc.dept} dept={dc.dept} time={dc.callTime} />)}
+              </div>
+            </div>
+            <button onClick={() => goTab('film_callsheets')} className="flex items-center gap-1.5 text-violet-400 text-[11px] font-black uppercase tracking-widest hover:text-violet-300">
+              Open full call sheet <ChevronRight size={13} />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className={`${card} p-8 text-center`}>
+          <div className="w-14 h-14 rounded-2xl bg-violet-500/15 flex items-center justify-center text-violet-400 mx-auto mb-4"><FileText size={22} /></div>
+          <p className="text-sm font-black text-white mb-1">No call sheet yet</p>
+          <p className="text-xs text-white/40 mb-4 max-w-sm mx-auto">Auto-generate a call sheet from your scenes, cast, and crew — department call times and cast pickups are computed for you.</p>
+          <button onClick={generateToday} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-500 text-white text-xs font-black uppercase tracking-widest hover:bg-violet-400 transition-all"><Wand2 size={14} /> Generate Day 1 Call Sheet</button>
+        </div>
+      )}
+
+      {/* Stat row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <MiniStat icon={<ClipboardList size={15} />} label="Open Tasks" value={openTasks.length} sub={`${urgent.length} urgent`} color="#3b82f6" onClick={() => goTab('film_hub')} />
+        <MiniStat icon={<Utensils size={15} />} label="Craft Orders" value={activeOrders.length} sub="in queue" color="#14b8a6" onClick={() => goTab('film_craft')} />
+        <MiniStat icon={<Users size={15} />} label="Roster" value={members.length} sub={`${members.filter(m => m.isCast || m.dept === 'CAST').length} cast`} color="#a855f7" onClick={() => goTab('film_roster')} />
+        <MiniStat icon={<FileText size={15} />} label="Call Sheets" value={callSheets.length} sub={`${callSheets.filter(c => c.status === 'PUBLISHED').length} published`} color="#f59e0b" onClick={() => goTab('film_callsheets')} />
+      </div>
+
+      {/* Task dashboard */}
+      <TaskBoard />
+
+      {broadcasting && (
+        <ProducerBroadcast prodId={prod?.id || ''} onClose={() => setBroadcasting(false)} />
+      )}
+    </motion.div>
+  );
+};
+
+const CloudDot = () => <span className="inline-block w-2 h-2 rounded-full bg-sky-400/60" />;
+
+const MiniStat: React.FC<{ icon: React.ReactNode; label: string; value: number | string; sub: string; color: string; onClick?: () => void }> = ({ icon, label, value, sub, color, onClick }) => (
+  <button onClick={onClick} className={`${card} p-4 text-left hover:border-white/15 transition-all`}>
+    <div className="flex items-center gap-2 mb-1.5"><span className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${color}20`, color }}>{icon}</span></div>
+    <p className="text-xl font-black text-white leading-none">{value}</p>
+    <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mt-1">{label} · {sub}</p>
+  </button>
+);
+
+// ─── Task board (dashboard of tasks by role) ─────────────────────────────────
+
+const PRIORITY_COLOR: Record<string, string> = { URGENT: 'text-red-400 bg-red-500/15', HIGH: 'text-orange-400 bg-orange-500/15', MED: 'text-yellow-400 bg-yellow-500/10', LOW: 'text-white/40 bg-white/5' };
+
+const TaskBoard: React.FC = () => {
+  const { prod, tasks, members } = useProd();
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ title: '', dept: 'PRODUCTION' as DeptKey, priority: 'MED' as ProdTask['priority'], assigneeMemberId: '' });
+  const save = () => {
+    if (!prod || !form.title.trim()) return;
+    const assignee = members.find(m => m.id === form.assigneeMemberId);
+    const t: ProdTask = { id: FP.uid8(), title: form.title.trim(), dept: form.dept, priority: form.priority, status: 'TODO', assigneeMemberId: form.assigneeMemberId || undefined, assigneeName: assignee?.name, createdAt: Date.now() };
+    FP.putTask(prod.id, t); setForm({ title: '', dept: 'PRODUCTION', priority: 'MED', assigneeMemberId: '' }); setAdding(false);
+  };
+  const cols: { key: ProdTask['status']; label: string }[] = [{ key: 'TODO', label: 'To Do' }, { key: 'DOING', label: 'In Progress' }, { key: 'DONE', label: 'Done' }];
+  const cycle = (t: ProdTask) => { const next = t.status === 'TODO' ? 'DOING' : t.status === 'DOING' ? 'DONE' : 'TODO'; FP.patchTask(prod!.id, t.id, { status: next }); };
+  return (
+    <div className={`${card} p-5`}>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-[10px] font-black uppercase tracking-[0.35em] text-white/40">Production Task Board</p>
+        <button onClick={() => setAdding(a => !a)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-400 text-[10px] font-black uppercase tracking-widest hover:bg-violet-500/25"><Plus size={11} /> Task</button>
+      </div>
+      {adding && (
+        <div className="mb-4 p-4 bg-white/[0.03] border border-violet-500/20 rounded-xl space-y-2">
+          <input autoFocus className={inputCls} placeholder="Task (e.g. Confirm generator delivery)" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} onKeyDown={e => e.key === 'Enter' && save()} />
+          <div className="grid grid-cols-3 gap-2">
+            <select className={inputCls} value={form.dept} onChange={e => setForm(f => ({ ...f, dept: e.target.value as DeptKey }))}>{DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}</select>
+            <select className={inputCls} value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value as any }))}>{['LOW', 'MED', 'HIGH', 'URGENT'].map(p => <option key={p} value={p}>{p}</option>)}</select>
+            <select className={inputCls} value={form.assigneeMemberId} onChange={e => setForm(f => ({ ...f, assigneeMemberId: e.target.value }))}><option value="">Unassigned</option>{members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
+          </div>
+          <button onClick={save} className="w-full py-2 rounded-xl bg-violet-500 text-white text-[11px] font-black uppercase tracking-widest hover:bg-violet-400">Add Task</button>
+        </div>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {cols.map(col => {
+          const items = tasks.filter(t => t.status === col.key);
+          return (
+            <div key={col.key} className="space-y-2">
+              <p className="text-[9px] font-black uppercase tracking-widest text-white/30 px-1">{col.label} · {items.length}</p>
+              {items.length === 0 && <p className="text-[10px] text-white/15 px-1 py-3">—</p>}
+              {items.map(t => (
+                <button key={t.id} onClick={() => cycle(t)} className="w-full text-left p-3 bg-white/[0.03] border border-white/[0.06] rounded-xl hover:border-white/15 transition-all">
+                  <div className="flex items-start gap-2">
+                    {t.status === 'DONE' ? <CheckCircle2 size={13} className="text-emerald-400 mt-0.5 shrink-0" /> : t.status === 'DOING' ? <CircleDot size={13} className="text-yellow-400 mt-0.5 shrink-0" /> : <Circle size={13} className="text-white/30 mt-0.5 shrink-0" />}
+                    <span className={`text-[11px] flex-1 ${t.status === 'DONE' ? 'text-white/30 line-through' : 'text-white/80'}`}>{t.title}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-2 pl-5 flex-wrap">
+                    {t.dept && <span className="text-[8px]" style={{ color: deptMeta(t.dept).color }}>{deptMeta(t.dept).emoji} {deptMeta(t.dept).label}</span>}
+                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${PRIORITY_COLOR[t.priority]}`}>{t.priority}</span>
+                    {t.assigneeName && <span className="text-[8px] text-white/30">· {t.assigneeName}</span>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ─── Call Sheets tab ─────────────────────────────────────────────────────────
+
+export const CallSheetsTab: React.FC = () => {
+  const { prod, scenes, members, callSheets, activeSheetId, setActiveSheetId, isOwner } = useProd();
+  const sorted = [...callSheets].sort((a, b) => a.shootDay - b.shootDay);
+  const cs = callSheets.find(c => c.id === activeSheetId) || sorted[0] || null;
+
+  const generate = () => {
+    if (!prod) return;
+    const day = (callSheets.length ? Math.max(...callSheets.map(c => c.shootDay)) : 0) + 1;
+    const gen = generateCallSheet(prod, scenes, members, day, { date: '' });
+    FP.putCallSheet(prod.id, gen);
+    setActiveSheetId(gen.id);
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
+          {sorted.map(c => (
+            <button key={c.id} onClick={() => setActiveSheetId(c.id)} className={pill(c.id === cs?.id)}>Day {c.shootDay}{c.status === 'PUBLISHED' ? ' ●' : ''}</button>
+          ))}
+        </div>
+        <button onClick={generate} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-400 text-xs font-black uppercase tracking-widest hover:bg-violet-500/25 shrink-0"><Wand2 size={13} /> Auto-Generate</button>
+      </div>
+      {!cs ? (
+        <div className={`${card} p-10 text-center`}>
+          <p className="text-sm font-black text-white/50 mb-2">No call sheets</p>
+          <p className="text-xs text-white/30 mb-5">Generate one from your scheduled scenes — call times, cast pickups, meals and walkie channels fill in automatically.</p>
+          <button onClick={generate} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-500 text-white text-xs font-black uppercase tracking-widest hover:bg-violet-400"><Wand2 size={14} /> Generate First Call Sheet</button>
+        </div>
+      ) : (
+        <CallSheetEditor key={cs.id} cs={cs} editable={isOwner} />
+      )}
+    </motion.div>
+  );
+};
+
+const CallSheetEditor: React.FC<{ cs: CallSheet; editable: boolean }> = ({ cs, editable }) => {
+  const { prod } = useProd();
+  const [draft, setDraft] = useState<CallSheet>(cs);
+  useEffect(() => setDraft(cs), [cs.id]);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(cs);
+  const set = (patch: Partial<CallSheet>) => setDraft(d => ({ ...d, ...patch }));
+  const saveDraft = () => prod && FP.putCallSheet(prod.id, { ...draft, updatedAt: Date.now() });
+  const publish = () => {
+    if (!prod) return;
+    const saved = { ...draft, updatedAt: Date.now() };
+    FP.putCallSheet(prod.id, saved);
+    FP.publishCallSheet(prod.id, saved, cs.status === 'PUBLISHED' ? 'Revised & re-published' : 'Published to crew');
+  };
+  const confirmedCount = Object.keys(draft.confirmations || {}).length;
+  const expected = draft.deptCalls.length + draft.castRows.length;
+  const fieldRow = 'flex items-center gap-2 text-[11px]';
+
+  return (
+    <div className="space-y-4">
+      {/* Action bar */}
+      <div className={`${card} p-4 flex items-center justify-between flex-wrap gap-3`}>
+        <div>
+          <p className="text-sm font-black text-white">Day {draft.dayOf} of {draft.totalDays} {draft.status === 'PUBLISHED' ? <span className="text-emerald-400 text-[9px]">● PUBLISHED v{draft.version}</span> : <span className="text-white/30 text-[9px]">DRAFT</span>}</p>
+          <p className="text-[10px] text-white/40">{confirmedCount}/{expected} confirmed{draft.publishedAt ? ` · sent ${new Date(draft.publishedAt).toLocaleString()}` : ''}</p>
+        </div>
+        {editable && (
+          <div className="flex items-center gap-2">
+            {dirty && <button onClick={saveDraft} className="px-4 py-2 rounded-xl bg-white/5 text-white/60 text-[11px] font-black uppercase tracking-widest hover:bg-white/10">Save Draft</button>}
+            <button onClick={publish} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/90 text-white text-[11px] font-black uppercase tracking-widest hover:bg-emerald-400"><Send size={12} /> {draft.status === 'PUBLISHED' ? 'Re-publish' : 'Publish to Crew'}</button>
+          </div>
+        )}
+      </div>
+
+      {/* Header block */}
+      <div className={`${card} p-5 grid grid-cols-2 md:grid-cols-4 gap-4`}>
+        <Field label="Date" value={draft.date} type="date" editable={editable} onChange={v => set({ date: v })} />
+        <Field label="General Call" value={draft.generalCall} type="time" editable={editable} onChange={v => set({ generalCall: v })} />
+        <Field label="Shooting Call" value={draft.shootingCall || ''} type="time" editable={editable} onChange={v => set({ shootingCall: v })} />
+        <Field label="Est. Wrap" value={draft.estWrap || ''} type="time" editable={editable} onChange={v => set({ estWrap: v })} />
+        <Field label="Location" value={draft.locationName} editable={editable} onChange={v => set({ locationName: v })} />
+        <Field label="Address" value={draft.locationAddress || ''} editable={editable} onChange={v => set({ locationAddress: v })} className="md:col-span-3" />
+      </div>
+
+      {/* Environment & safety */}
+      <div className={`${card} p-5 space-y-3`}>
+        <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Environment & Safety</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Field label="Sunrise" value={draft.weather?.sunrise || ''} type="time" editable={editable} onChange={v => set({ weather: { ...(draft.weather || { summary: '' }), sunrise: v } })} />
+          <Field label="Sunset" value={draft.weather?.sunset || ''} type="time" editable={editable} onChange={v => set({ weather: { ...(draft.weather || { summary: '' }), sunset: v } })} />
+          <Field label="Weather" value={draft.weather?.summary || ''} editable={editable} onChange={v => set({ weather: { ...(draft.weather || {}), summary: v } })} />
+          <Field label="Nearest Hospital" value={draft.nearestHospital || ''} editable={editable} onChange={v => set({ nearestHospital: v })} />
+        </div>
+        <Field label="Safety Notes" value={draft.safetyNotes || ''} editable={editable} onChange={v => set({ safetyNotes: v })} textarea />
+        {editable && <button onClick={() => askAria(`Act as my 1st AD / safety officer. Draft concise safety notes for a shoot day with these scenes: ${draft.sceneRows.map(s => `${s.intExt} ${s.set} (${s.dayNight})`).join('; ')}. Flag stunts, weapons, night driving, weather, and minors as relevant. Keep it to a tight bulleted call-sheet block.`)} className="flex items-center gap-1.5 text-violet-400 text-[10px] font-black uppercase tracking-widest hover:text-violet-300"><Sparkles size={11} /> Draft safety notes with Aria</button>}
+      </div>
+
+      {/* Scenes */}
+      <div className={`${card} overflow-hidden`}>
+        <div className="px-5 py-3 bg-violet-500/10 border-b border-white/[0.06]"><p className="text-[11px] font-black uppercase tracking-widest text-violet-400">Scenes — {draft.sceneRows.length} · {pagesToEighths(draft.sceneRows.reduce((s, r) => s + r.pages, 0))} pages</p></div>
+        <div className="divide-y divide-white/[0.04]">
+          {draft.sceneRows.map((s, i) => (
+            <div key={i} className={fieldRow + ' px-5 py-3'}>
+              <span className="text-xs font-black text-violet-400 w-8">#{s.sceneNum}</span>
+              <span className="text-[9px] text-white/30 font-black w-20">{s.intExt} · {s.dayNight}</span>
+              <span className="flex-1 text-white/70 truncate">{s.set} — {s.synopsis}</span>
+              <span className="text-[9px] text-white/40 w-10 text-right">{pagesToEighths(s.pages)}</span>
+            </div>
+          ))}
+          {draft.sceneRows.length === 0 && <p className="px-5 py-4 text-[11px] text-white/25">No scenes scheduled for this day. Add scenes with this shoot day in the Roster/Script.</p>}
+        </div>
+      </div>
+
+      {/* Cast */}
+      {draft.castRows.length > 0 && (
+        <div className={`${card} overflow-hidden`}>
+          <div className="px-5 py-3 bg-amber-500/10 border-b border-white/[0.06]"><p className="text-[11px] font-black uppercase tracking-widest text-amber-400">Cast</p></div>
+          <div className="divide-y divide-white/[0.04]">
+            {draft.castRows.map((r, i) => (
+              <div key={i} className="px-5 py-3 flex items-center gap-3 flex-wrap text-[11px]">
+                <span className="font-black text-white w-32 truncate">{r.character}</span>
+                <span className="text-white/40 w-28 truncate">{r.actor}</span>
+                <span className="text-white/50">P/U {fmtCall(r.pickup)} · MU {fmtCall(r.makeup)} · W {fmtCall(r.wardrobe)} · Set {fmtCall(r.onSet)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Department calls + walkie */}
+      <div className={`${card} p-5 space-y-3`}>
+        <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Department Calls & Walkie Channels</p>
+        <div className="flex flex-wrap gap-2">{draft.deptCalls.map(dc => <DeptChip key={dc.dept} dept={dc.dept} time={dc.callTime} />)}</div>
+        {draft.walkie && Object.keys(draft.walkie).length > 0 && (
+          <p className="text-[10px] text-white/40">📻 {Object.entries(draft.walkie).map(([d, ch]) => `Ch ${ch}: ${d}`).join('  ·  ')}</p>
+        )}
+      </div>
+
+      {/* Meals */}
+      <div className={`${card} p-5 space-y-2`}>
+        <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Meals</p>
+        {draft.meals.map((m, i) => (
+          <div key={i} className="flex items-center gap-3 text-[11px]"><Soup size={13} className="text-teal-400" /><span className="font-black text-white w-24">{m.label}</span><span className="text-violet-400 font-black">{fmtCall(m.time)}</span><span className="text-white/40">{m.note}</span></div>
+        ))}
+      </div>
+
+      {/* Notes + advance */}
+      <div className={`${card} p-5 grid md:grid-cols-2 gap-4`}>
+        <Field label="Notes / Special Instructions" value={draft.notes || ''} editable={editable} onChange={v => set({ notes: v })} textarea />
+        <Field label="Advance Schedule (Tomorrow)" value={draft.advanceNote || ''} editable={editable} onChange={v => set({ advanceNote: v })} textarea />
+      </div>
+
+      {/* Change log */}
+      {draft.changeLog && draft.changeLog.length > 0 && (
+        <div className={`${card} p-4`}>
+          <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">Revision History</p>
+          {draft.changeLog.slice().reverse().map((c, i) => <p key={i} className="text-[10px] text-white/40">• {c.summary} <span className="text-white/20">— {new Date(c.at).toLocaleString()}</span></p>)}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const Field: React.FC<{ label: string; value: string; onChange?: (v: string) => void; editable?: boolean; type?: string; textarea?: boolean; className?: string }> = ({ label, value, onChange, editable, type = 'text', textarea, className = '' }) => (
+  <div className={className}>
+    <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-1">{label}</p>
+    {editable && onChange ? (
+      textarea
+        ? <textarea className={inputCls + ' resize-none'} rows={3} value={value} onChange={e => onChange(e.target.value)} />
+        : <input className={inputCls} type={type} value={value} onChange={e => onChange(e.target.value)} />
+    ) : (
+      <p className="text-[12px] text-white/80 font-semibold">{type === 'time' ? fmtCall(value) : (value || '—')}</p>
+    )}
+  </div>
+);
+
+// ─── Roster tab ──────────────────────────────────────────────────────────────
+
+export const RosterTab: React.FC = () => {
+  const { prod, members } = useProd();
+  const [adding, setAdding] = useState(false);
+  const [deptFilter, setDeptFilter] = useState<DeptKey | 'ALL'>('ALL');
+  const [form, setForm] = useState({ name: '', role: '', dept: 'CAMERA' as DeptKey, email: '', phone: '', character: '', dietary: '' });
+  const save = () => {
+    if (!prod || !form.name.trim()) return;
+    const isCast = form.dept === 'CAST';
+    const m: ProductionMember = {
+      id: FP.uid8(), name: form.name.trim(), role: form.role.trim() || deptMeta(form.dept).label, dept: form.dept,
+      email: form.email || undefined, phone: form.phone || undefined, isCast, character: isCast ? (form.character || form.role) : undefined,
+      dietary: form.dietary ? form.dietary.split(',').map(s => s.trim()).filter(Boolean) : undefined, status: 'ACTIVE', createdAt: Date.now(),
+    };
+    FP.putMember(prod.id, m); setForm({ name: '', role: '', dept: 'CAMERA', email: '', phone: '', character: '', dietary: '' }); setAdding(false);
+  };
+  const byDept = deptFilter === 'ALL' ? members : members.filter(m => m.dept === deptFilter);
+  const grouped = DEPARTMENTS.map(d => ({ d, list: byDept.filter(m => m.dept === d.key) })).filter(g => g.list.length);
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex gap-1.5 flex-wrap">
+          <button onClick={() => setDeptFilter('ALL')} className={pill(deptFilter === 'ALL')}>All</button>
+          {DEPARTMENTS.filter(d => members.some(m => m.dept === d.key)).map(d => <button key={d.key} onClick={() => setDeptFilter(d.key)} className={pill(deptFilter === d.key)}>{d.emoji} {d.label}</button>)}
+        </div>
+        <button onClick={() => setAdding(a => !a)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-400 text-xs font-black uppercase tracking-widest hover:bg-violet-500/25 shrink-0"><Plus size={12} /> Add</button>
+      </div>
+      {adding && (
+        <div className={`${card} p-5 space-y-3 border-violet-500/20`}>
+          <div className="grid grid-cols-2 gap-3">
+            <input className={inputCls} placeholder="Full name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            <input className={inputCls} placeholder="Role / job title" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <select className={inputCls} value={form.dept} onChange={e => setForm(f => ({ ...f, dept: e.target.value as DeptKey }))}>{DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}</select>
+            {form.dept === 'CAST' && <input className={inputCls} placeholder="Character name" value={form.character} onChange={e => setForm(f => ({ ...f, character: e.target.value }))} />}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <input className={inputCls} placeholder="Email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+            <input className={inputCls} placeholder="Phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+          </div>
+          <input className={inputCls} placeholder="Dietary flags (comma-separated: vegan, nut-allergy…)" value={form.dietary} onChange={e => setForm(f => ({ ...f, dietary: e.target.value }))} />
+          <div className="flex gap-3">
+            <button onClick={save} className="flex-1 py-2.5 rounded-xl bg-violet-500 text-white text-xs font-black uppercase tracking-widest hover:bg-violet-400">Add to Roster</button>
+            <button onClick={() => setAdding(false)} className="px-5 py-2.5 rounded-xl bg-white/5 text-white/40 text-xs font-black uppercase tracking-widest hover:bg-white/10">Cancel</button>
+          </div>
+        </div>
+      )}
+      {grouped.map(({ d, list }) => (
+        <div key={d.key} className={`${card} overflow-hidden`}>
+          <div className="px-5 py-2.5 border-b border-white/[0.06] flex items-center gap-2" style={{ background: `${d.color}12` }}>
+            <span>{d.emoji}</span><p className="text-[11px] font-black uppercase tracking-widest" style={{ color: d.color }}>{d.label}</p>
+            <span className="text-[10px] text-white/30 ml-1">Ch {d.channel} · call {d.callOffset === 0 ? 'general' : `${d.callOffset > 0 ? '+' : ''}${d.callOffset}m`}</span>
+          </div>
+          <div className="divide-y divide-white/[0.04]">
+            {list.map(m => (
+              <div key={m.id} className="flex items-center gap-3 px-5 py-3">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-black text-xs" style={{ background: `${d.color}22`, color: d.color }}>{m.name[0]}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-black text-white truncate">{m.name} {m.uid && <span title="Linked Plajah account — receives their brief"><CheckCheck size={11} className="inline text-emerald-400" /></span>}</p>
+                  <p className="text-[10px] text-white/40">{m.character ? `${m.character} · ` : ''}{m.role}</p>
+                </div>
+                {m.dietary && m.dietary.length > 0 && (
+                  <div className="flex gap-1 flex-wrap justify-end">{m.dietary.map(dt => <span key={dt} className="text-[8px] font-black px-1.5 py-0.5 rounded bg-teal-500/15 text-teal-300">{dt}</span>)}</div>
+                )}
+                <button onClick={() => prod && FP.removeMember(prod.id, m.id)} className="text-white/20 hover:text-red-400 shrink-0"><X size={13} /></button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </motion.div>
+  );
+};
+
+// ─── My Daily Brief tab ──────────────────────────────────────────────────────
+
+export const DailyBriefTab: React.FC = () => {
+  const { members, me, activeSheet, prod } = useProd();
+  const [viewAs, setViewAs] = useState<string>('');
+  const member = members.find(m => m.id === viewAs) || me || members[0] || null;
+
+  if (!activeSheet) {
+    return <div className={`${card} p-10 text-center`}><Bell size={26} className="text-white/20 mx-auto mb-3" /><p className="text-sm font-black text-white/50">No brief yet</p><p className="text-xs text-white/30 mt-1">Publish a call sheet and each crew member's personalized brief appears here.</p></div>;
+  }
+  if (!member) return <div className="text-white/40 text-sm">Add crew to the roster to generate briefs.</div>;
+
+  const brief = buildDailyBrief(activeSheet, member);
+  const confirm = () => prod && FP.confirmCallSheet(prod.id, activeSheet, member.uid || member.id);
+  const locationStr = brief.location + (brief.locationAddress ? ` · ${brief.locationAddress}` : '');
+  const weatherStr = brief.weather
+    ? [
+        brief.weather.sunrise ? `↑${fmtCall(brief.weather.sunrise)}` : '',
+        brief.weather.sunset ? `↓${fmtCall(brief.weather.sunset)}` : '',
+        brief.weather.summary || '',
+      ].filter(Boolean).join(' ').trim() || '—'
+    : '—';
+  const mealStr = brief.meals.map(m => `${m.label} ${fmtCall(m.time)}`).join(' · ');
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      {/* View-as selector (producers preview any role) */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[10px] font-black uppercase tracking-widest text-white/30">Daily brief for</span>
+        <select className={inputCls + ' max-w-[220px]'} value={member.id} onChange={e => setViewAs(e.target.value)}>
+          {members.map(m => <option key={m.id} value={m.id}>{m.name} — {m.role}</option>)}
+        </select>
+      </div>
+
+      {/* Hero brief card */}
+      <div className="rounded-2xl overflow-hidden border" style={{ borderColor: `${brief.dept.color}40` }}>
+        <div className="px-5 py-4" style={{ background: `linear-gradient(135deg, ${brief.dept.color}30, ${brief.dept.color}08)` }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.35em]" style={{ color: brief.dept.color }}>{brief.dept.emoji} {brief.dept.label}</p>
+              <h2 className="text-xl font-black text-white mt-0.5">{member.name}</h2>
+              <p className="text-[11px] text-white/50">{member.character ? `${member.character} · ` : ''}{member.role}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Your Call</p>
+              <p className="text-3xl font-black text-white leading-none">{fmtCall(brief.yourCall)}</p>
+              <p className="text-[10px] text-white/40 mt-1">Day {activeSheet.dayOf} of {activeSheet.totalDays}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-[#0d0d0d] p-5 space-y-4">
+          {/* Staggered cast calls */}
+          {brief.callBreakdown && (
+            <div className="flex gap-2 flex-wrap">
+              {brief.callBreakdown.map(b => <span key={b.label} className="px-3 py-1.5 rounded-xl bg-white/5 text-[10px] font-black text-white/70"><span className="text-white/30 uppercase tracking-widest">{b.label}</span> {fmtCall(b.time)}</span>)}
+            </div>
+          )}
+          {/* Location + weather */}
+          <div className="grid md:grid-cols-2 gap-3">
+            <InfoRow icon={<MapPin size={14} className="text-red-400" />} label="Location" value={locationStr} />
+            {brief.weather && <InfoRow icon={<Sun size={14} className="text-amber-400" />} label="Sun / Weather" value={weatherStr} />}
+          </div>
+          {/* Your focus checklist */}
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">What you need today</p>
+            <div className="grid md:grid-cols-2 gap-1.5">
+              {brief.focus.map(f => <div key={f} className="flex items-center gap-2 text-[11px] text-white/70"><CheckCircle2 size={13} style={{ color: brief.dept.color }} />{f}</div>)}
+            </div>
+          </div>
+          {/* Scenes */}
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">{member.isCast ? 'Your scenes' : "Today's scenes"}</p>
+            <div className="space-y-1.5">
+              {brief.scenes.map((s, i) => (
+                <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.03] text-[11px]">
+                  <span className="font-black text-violet-400 w-8">#{s.sceneNum}</span>
+                  <span className="text-white/30 w-16 text-[9px] font-black">{s.intExt}·{s.dayNight}</span>
+                  <span className="flex-1 text-white/70 truncate">{s.set} — {s.synopsis}</span>
+                  <span className="text-white/30 text-[9px]">{pagesToEighths(s.pages)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Meals + walkie + safety */}
+          <div className="grid md:grid-cols-3 gap-3">
+            <InfoRow icon={<Soup size={14} className="text-teal-400" />} label="Meals" value={mealStr} />
+            <InfoRow icon={<Radio size={14} className="text-sky-400" />} label="Walkie" value={`Channel ${brief.channel}`} />
+            {(brief.safetyNotes || brief.nearestHospital) && <InfoRow icon={<ShieldAlert size={14} className="text-orange-400" />} label="Safety" value={brief.safetyNotes || brief.nearestHospital || ''} />}
+          </div>
+          {/* Confirm */}
+          <button onClick={confirm} disabled={brief.confirmed} className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${brief.confirmed ? 'bg-emerald-500/20 text-emerald-400 cursor-default' : 'bg-emerald-500 text-white hover:bg-emerald-400'}`}>
+            {brief.confirmed ? <span className="flex items-center justify-center gap-2"><CheckCheck size={14} /> Confirmed — see you on set</span> : 'Confirm receipt & call time'}
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+const InfoRow: React.FC<{ icon: React.ReactNode; label: string; value: string }> = ({ icon, label, value }) => (
+  <div className="flex items-start gap-2.5 p-3 rounded-xl bg-white/[0.03]">
+    <span className="mt-0.5 shrink-0">{icon}</span>
+    <div className="min-w-0"><p className="text-[9px] font-black uppercase tracking-widest text-white/30">{label}</p><p className="text-[11px] text-white/70 break-words">{value || '—'}</p></div>
+  </div>
+);
+
+// ─── Craft Services tab ──────────────────────────────────────────────────────
+
+const ORDER_FLOW: Record<string, { next?: FP.OrderStatus; label: string; color: string }> = {
+  REQUESTED: { next: 'PREPPING', label: 'Requested', color: 'text-yellow-400 bg-yellow-500/15' },
+  PREPPING: { next: 'READY', label: 'Prepping', color: 'text-blue-400 bg-blue-500/15' },
+  READY: { next: 'DELIVERED', label: 'Ready', color: 'text-emerald-400 bg-emerald-500/15' },
+  DELIVERED: { label: 'Delivered', color: 'text-white/30 bg-white/5' },
+  CANCELLED: { label: 'Cancelled', color: 'text-red-400/60 bg-red-500/10' },
+};
+const CAT_META: Record<FP.CraftCategory, { label: string; icon: React.ReactNode }> = {
+  MEAL: { label: 'Meals', icon: <Utensils size={13} /> }, SNACK: { label: 'Snacks', icon: <Soup size={13} /> },
+  DRINK: { label: 'Drinks', icon: <Circle size={13} /> }, COFFEE: { label: 'Coffee', icon: <Coffee size={13} /> }, SPECIAL: { label: 'Dietary', icon: <ShieldAlert size={13} /> },
+};
+
+export const CraftServicesTab: React.FC = () => {
+  const { prod, menu, orders, members, me, isOwner } = useProd();
+  const [tab, setTab] = useState<'order' | 'queue' | 'manage'>('order');
+  const [addingItem, setAddingItem] = useState(false);
+  const [itemForm, setItemForm] = useState({ name: '', category: 'SNACK' as FP.CraftCategory, desc: '', dietaryTags: '' });
+
+  const order = (item: CraftItem) => {
+    if (!prod) return;
+    const who = me || null;
+    const o: CraftOrder = {
+      id: FP.uid8(), itemId: item.id, itemName: item.name, qty: 1,
+      forMemberId: who?.id, requestedByUid: FP.currentUid(), requestedByName: who?.name || 'Crew',
+      dept: who?.dept, dietary: who?.dietary, status: 'REQUESTED', createdAt: Date.now(), updatedAt: Date.now(),
+    };
+    FP.putCraftOrder(prod.id, o);
+    setTab('queue');
+  };
+  const advance = (o: CraftOrder) => { const n = ORDER_FLOW[o.status].next; if (prod && n) FP.patchCraftOrder(prod.id, o.id, { status: n }); };
+  const cancel = (o: CraftOrder) => prod && FP.patchCraftOrder(prod.id, o.id, { status: 'CANCELLED' });
+  const saveItem = () => {
+    if (!prod || !itemForm.name.trim()) return;
+    FP.putCraftItem(prod.id, { id: FP.uid8(), name: itemForm.name.trim(), category: itemForm.category, desc: itemForm.desc, dietaryTags: itemForm.dietaryTags ? itemForm.dietaryTags.split(',').map(s => s.trim()).filter(Boolean) : [], available: true, createdAt: Date.now() });
+    setItemForm({ name: '', category: 'SNACK', desc: '', dietaryTags: '' }); setAddingItem(false);
+  };
+
+  const activeQueue = orders.filter(o => o.status !== 'DELIVERED' && o.status !== 'CANCELLED').sort((a, b) => a.createdAt - b.createdAt);
+  const dietaryManifest = members.filter(m => m.dietary && m.dietary.length).reduce((acc, m) => { m.dietary!.forEach(d => acc[d] = (acc[d] || 0) + 1); return acc; }, {} as Record<string, number>);
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+      <div className="flex items-center gap-2">
+        {(['order', 'queue', 'manage'] as const).map(t => <button key={t} onClick={() => setTab(t)} className={pill(tab === t)}>{t === 'order' ? '🍽️ Menu' : t === 'queue' ? `📋 Queue (${activeQueue.length})` : '⚙️ Manage'}</button>)}
+      </div>
+
+      {tab === 'order' && (
+        <>
+          <p className="text-[11px] text-white/40">On-set concierge — tap to request. Your dietary flags travel with the order automatically.</p>
+          {(['MEAL', 'SPECIAL', 'SNACK', 'COFFEE', 'DRINK'] as FP.CraftCategory[]).map(catKey => {
+            const items = menu.filter(i => i.category === catKey && i.available);
+            if (!items.length) return null;
+            return (
+              <div key={catKey}>
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2 flex items-center gap-1.5">{CAT_META[catKey].icon} {CAT_META[catKey].label}</p>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {items.map(i => (
+                    <div key={i.id} className={`${card} p-4 flex items-center gap-3`}>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black text-white">{i.name}</p>
+                        {i.desc && <p className="text-[10px] text-white/40">{i.desc}</p>}
+                        {i.dietaryTags && i.dietaryTags.length > 0 && <div className="flex gap-1 mt-1 flex-wrap">{i.dietaryTags.map(t => <span key={t} className="text-[8px] font-black px-1.5 py-0.5 rounded bg-teal-500/15 text-teal-300">{t}</span>)}</div>}
+                      </div>
+                      <button onClick={() => order(i)} className="px-3 py-2 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-300 text-[10px] font-black uppercase tracking-widest hover:bg-teal-500/25 shrink-0">Request</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {tab === 'queue' && (
+        <div className="space-y-2">
+          {activeQueue.length === 0 && <p className="text-[11px] text-white/25 py-6 text-center">No open requests. The concierge queue is clear. ☕</p>}
+          {activeQueue.map(o => (
+            <div key={o.id} className={`${card} p-4 flex items-center gap-3`}>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-black text-white">{o.qty}× {o.itemName}</p>
+                <p className="text-[10px] text-white/40">{o.requestedByName}{o.dept ? ` · ${deptMeta(o.dept).label}` : ''}{o.dietary && o.dietary.length ? ` · ⚠ ${o.dietary.join(', ')}` : ''}</p>
+              </div>
+              <span className={`text-[9px] font-black px-2 py-1 rounded-full ${ORDER_FLOW[o.status].color}`}>{ORDER_FLOW[o.status].label}</span>
+              {isOwner && ORDER_FLOW[o.status].next && <button onClick={() => advance(o)} className="px-3 py-1.5 rounded-lg bg-white/5 text-white/60 text-[9px] font-black uppercase tracking-widest hover:bg-white/10">→ {ORDER_FLOW[ORDER_FLOW[o.status].next!].label}</button>}
+              {isOwner && <button onClick={() => cancel(o)} className="text-white/20 hover:text-red-400"><X size={13} /></button>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === 'manage' && (
+        <div className="space-y-4">
+          {/* Dietary manifest — auto-rolled from persistent crew profiles */}
+          <div className={`${card} p-5`}>
+            <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3">Dietary Manifest (from roster)</p>
+            {Object.keys(dietaryManifest).length === 0 ? <p className="text-[11px] text-white/25">No dietary flags set. Add them per crew member in the Roster.</p> : (
+              <div className="flex flex-wrap gap-2">{Object.entries(dietaryManifest).map(([d, n]) => <span key={d} className="px-3 py-1.5 rounded-xl bg-teal-500/15 text-teal-300 text-[11px] font-black">{n}× {d}</span>)}</div>
+            )}
+          </div>
+          {isOwner && (
+            <div className={`${card} p-5 space-y-3`}>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Menu Items</p>
+                <button onClick={() => setAddingItem(a => !a)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-300 text-[10px] font-black uppercase tracking-widest hover:bg-teal-500/25"><Plus size={11} /> Item</button>
+              </div>
+              {addingItem && (
+                <div className="p-4 bg-white/[0.03] border border-teal-500/20 rounded-xl space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input className={inputCls} placeholder="Item name" value={itemForm.name} onChange={e => setItemForm(f => ({ ...f, name: e.target.value }))} />
+                    <select className={inputCls} value={itemForm.category} onChange={e => setItemForm(f => ({ ...f, category: e.target.value as FP.CraftCategory }))}>{Object.entries(CAT_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
+                  </div>
+                  <input className={inputCls} placeholder="Description" value={itemForm.desc} onChange={e => setItemForm(f => ({ ...f, desc: e.target.value }))} />
+                  <input className={inputCls} placeholder="Dietary tags (vegan, gluten-free…)" value={itemForm.dietaryTags} onChange={e => setItemForm(f => ({ ...f, dietaryTags: e.target.value }))} />
+                  <button onClick={saveItem} className="w-full py-2 rounded-xl bg-teal-500 text-white text-[11px] font-black uppercase tracking-widest hover:bg-teal-400">Add Item</button>
+                </div>
+              )}
+              <div className="space-y-1.5">
+                {menu.map(i => (
+                  <div key={i.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.03] text-[11px]">
+                    <span className="flex-1 text-white/70">{i.name} <span className="text-white/25">· {CAT_META[i.category].label}</span></span>
+                    <button onClick={() => prod && FP.removeCraftItem(prod.id, i.id)} className="text-white/20 hover:text-red-400"><X size={12} /></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
+// ─── Private producer broadcast (Reello live, isPrivate) ─────────────────────
+
+const ProducerBroadcast: React.FC<{ prodId: string; onClose: () => void }> = ({ prodId, onClose }) => (
+  <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-sm">
+    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 px-4 py-1.5 rounded-full bg-red-500/20 border border-red-500/40 text-red-300 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+      <Radio size={12} /> Private Producer Stream — offsite eyes only
+    </div>
+    <LiveStudio clubId={`prod:${prodId}`} isPrivate onClose={onClose} />
+  </div>
+);

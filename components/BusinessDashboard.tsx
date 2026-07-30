@@ -21,6 +21,7 @@ import StoreKioskMode from './StoreKioskMode';
 import PosRegister from './PosRegister';
 import OffersManager from './OffersManager';
 import NowPlayingPublisher from './NowPlayingPublisher';
+import DisplayModeLauncher from './DisplayModeLauncher';
 import BusinessBroadcastComposer from './BusinessBroadcastComposer';
 import BusinessOrdersPanel from './BusinessOrdersPanel';
 import ArtistPromoDirectory from './ArtistPromoDirectory';
@@ -73,6 +74,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
   const [activeTab, setActiveTab] = useState<BizTab>('OVERVIEW');
   const [showKiosk, setShowKiosk] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  const [showDisplays, setShowDisplays] = useState(false);
   const [pages, setPages] = useState<BusinessPage[]>([]);
   const [activePage, setActivePage] = useState<BusinessPage | null>(null);
   const [orders, setOrders] = useState<BusinessOrder[]>([]);
@@ -422,6 +424,16 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
             />
           )}
 
+          {/* Turn any screen into a purpose-built display (now-playing / menu / signage / kiosk / register). */}
+          {showDisplays && (
+            <DisplayModeLauncher
+              businessUid={currentUser.uid}
+              businessName={activePage?.businessName || currentUser.displayName || 'My Store'}
+              menuItems={activePage?.menuItems || []}
+              onExit={() => setShowDisplays(false)}
+            />
+          )}
+
           {activeTab === 'TEAM' && (
             <StaffHRManager businessUid={currentUser.uid} businessName={activePage?.businessName || currentUser.displayName || 'My Business'} />
           )}
@@ -493,6 +505,11 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
           {/* ── DIGITAL SIGNAGE ── */}
           {activeTab === 'SIGNAGE' && (
             <div className="space-y-6">
+              <div className="flex items-center justify-end">
+                <button onClick={() => setShowDisplays(true)} className="flex items-center gap-2 px-4 py-2 rounded-full text-white text-[10px] font-black uppercase tracking-widest" style={{ background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' }}>
+                  <Monitor size={13} /> Open display modes
+                </button>
+              </div>
               {/* Live preview */}
               {slides.filter(s => s.isActive).length > 0 && (
                 <Card>

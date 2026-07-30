@@ -2353,5 +2353,57 @@ service cloud.firestore {
       allow update: if isAdmin();
       allow delete: if isOwner(uid) || isAdmin();
     }
+
+    // ===============================================================
+    // Film Production Management — Artist Manager › Film › On-Set suite.
+    // A production is readable by its owner and any crew member listed in
+    // memberUids (so signed-in crew get their daily briefs and offsite
+    // producers can follow along). Only the owner mutates the production doc.
+    // ===============================================================
+    match /productions/{prodId} {
+      function isProdOwner() {
+        return isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+      }
+      function isProdMember() {
+        return isAuthenticated() && (
+          resource.data.ownerUid == request.auth.uid ||
+          (resource.data.memberUids is list && request.auth.uid in resource.data.memberUids)
+        );
+      }
+      function parentProd() {
+        return get(/databases/$(database)/documents/productions/$(prodId)).data;
+      }
+      function isParentOwner() {
+        return isAuthenticated() && parentProd().ownerUid == request.auth.uid;
+      }
+      function isParentMember() {
+        return isAuthenticated() && (
+          parentProd().ownerUid == request.auth.uid ||
+          (parentProd().memberUids is list && request.auth.uid in parentProd().memberUids)
+        );
+      }
+
+      allow read: if isProdMember();
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isProdOwner() || isAdmin();
+      allow delete: if isProdOwner() || isAdmin();
+
+      // Roster, scenes, call sheets, tasks, craft menu — owner-managed, member-readable.
+      match /{sub}/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create, update, delete: if isParentOwner() || isAdmin();
+      }
+
+      // Craft orders — any crew member may place & cancel their own request;
+      // the owner (or on-set concierge) advances order status for everyone.
+      match /craftOrders/{orderId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create: if isParentMember()
+                      && request.resource.data.requestedByUid == request.auth.uid;
+        allow update, delete: if isParentOwner()
+                      || (isParentMember() && resource.data.requestedByUid == request.auth.uid)
+                      || isAdmin();
+      }
+    }
   }
 }
