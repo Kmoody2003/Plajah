@@ -68,8 +68,9 @@ export async function posSale(input: {
   items: { productId: string; qty: number }[];
   tender: 'CASH' | 'CARD';
   customerUid?: string;
-  discountCents?: number;
-}): Promise<{ orderId: string; totalCents: number; pointsEarned: number }> {
+  offerDiscountCents?: number;   // auto-applied deal
+  redeemPoints?: number;         // loyalty points to redeem (1pt = 1¢; server validates vs. balance)
+}): Promise<{ orderId: string; subtotalCents: number; offerDiscountCents: number; redeemCents: number; totalCents: number; pointsEarned: number }> {
   const token = await auth.currentUser?.getIdToken?.();
   const res = await fetch('/api/store/pos-sale', {
     method: 'POST',

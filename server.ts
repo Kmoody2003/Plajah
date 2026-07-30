@@ -5964,9 +5964,12 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   app.post('/api/store/pos-sale', authMiddleware, express.json({ limit: '256kb' }), async (req: any, res) => {
     try {
       const staffUid: string = req.uid;
-      const { businessUid, items, tender, customerUid, discountCents } = req.body || {};
+      const { businessUid, items, tender, customerUid } = req.body || {};
+      const offerDiscountCents = Math.max(0, Math.floor(Number(req.body?.offerDiscountCents) || 0));
+      const redeemPointsReq = Math.max(0, Math.floor(Number(req.body?.redeemPoints) || 0));
       if (!businessUid || !Array.isArray(items) || !items.length) return res.status(400).json({ error: 'businessUid and items required.' });
       if (staffUid !== businessUid) return res.status(403).json({ error: 'Only the business owner can ring up sales (staff PIN auth is a follow-up).' });
+      const hasCustomer = !!customerUid && customerUid !== 'walkin';
 
       const priced: any[] = [];
       let subtotalCents = 0;
@@ -5979,29 +5982,42 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         subtotalCents += unit * qty;
         priced.push({ productId: String(it.productId), title: p.title || 'Item', qty, unitAmount: unit });
       }
-      const discount = Math.max(0, Math.min(subtotalCents, Math.floor(Number(discountCents) || 0)));
-      const totalCents = subtotalCents - discount;
+
+      // Offer discount is trusted from the (owner-operated) register but capped at subtotal.
+      const offerCents = Math.min(subtotalCents, offerDiscountCents);
+      // Loyalty redemption (1 pt = 1¢) — VALIDATED server-side against the real balance so points
+      // (a customer asset) can't be over-spent. Capped at the amount remaining after the offer.
+      let balance = 0;
+      if (hasCustomer) {
+        const loyalty = await firestoreRead(`businesses/${businessUid}/loyalty`, String(customerUid));
+        balance = Math.max(0, Number(loyalty?.points || 0));
+      }
+      const redeemCents = hasCustomer ? Math.min(redeemPointsReq, balance, Math.max(0, subtotalCents - offerCents)) : 0;
+      const totalCents = Math.max(0, subtotalCents - offerCents - redeemCents);
 
       const orderId = `pos_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
       await firestoreWrite('storeOrders', orderId, {
         businessUid, customerUid: customerUid || 'walkin',
         buyerId: customerUid || 'walkin', sellerId: businessUid,
-        items: JSON.stringify(priced), subtotalCents, discountCents: discount, totalCents,
+        items: JSON.stringify(priced), subtotalCents,
+        offerDiscountCents: offerCents, redeemCents, totalCents,
         source: 'POS', tender: tender === 'CARD' ? 'CARD' : 'CASH',
         fulfillment: 'PICKUP', status: 'CONFIRMED', createdAt: Date.now(), paidAt: Date.now(),
       });
       // Decrement stock atomically.
       for (const li of priced) await firestoreIncrement(`storeProducts/${li.productId}`, { stock: -Math.abs(li.qty) }).catch(() => {});
 
-      // Loyalty: award points to a recognized Plajah customer for this business.
+      // Loyalty: award points on the amount actually paid, and DEDUCT any points redeemed — a single
+      // net increment (may be negative) so the balance stays correct.
       let pointsEarned = 0;
-      if (customerUid && customerUid !== 'walkin') {
+      if (hasCustomer) {
         pointsEarned = Math.round((totalCents / 100) * LOYALTY_PTS_PER_DOLLAR);
-        if (pointsEarned > 0) {
-          await firestoreIncrement(`businesses/${businessUid}/loyalty/${customerUid}`, { points: pointsEarned }, { customerUid, businessUid, updatedAt: Date.now() }).catch(() => {});
+        const net = pointsEarned - redeemCents; // redeemCents == points spent (1pt=1¢)
+        if (net !== 0) {
+          await firestoreIncrement(`businesses/${businessUid}/loyalty/${customerUid}`, { points: net }, { customerUid, businessUid, updatedAt: Date.now() }).catch(() => {});
         }
       }
-      res.json({ orderId, totalCents, pointsEarned });
+      res.json({ orderId, subtotalCents, offerDiscountCents: offerCents, redeemCents, totalCents, pointsEarned });
     } catch (err: any) {
       console.error('/api/store/pos-sale', err?.message || err);
       res.status(500).json({ error: err.message });

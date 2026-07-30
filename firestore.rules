@@ -1060,6 +1060,8 @@ service cloud.firestore {
       match /timeOff/{id}    { allow read, write: if isAuthenticated() && request.auth.uid == businessUid; }
       // Loyalty balances are written server-side (POS sale); the business and the customer can read.
       match /loyalty/{customerUid} { allow read: if isAuthenticated() && (request.auth.uid == businessUid || request.auth.uid == customerUid); }
+      // In-store deals: the business writes, anyone may read (register + storefront evaluate them).
+      match /offers/{id} { allow read: if true; allow write: if isAuthenticated() && request.auth.uid == businessUid; }
     }
 
     match /storeReviews/{reviewId} {

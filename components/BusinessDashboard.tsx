@@ -19,6 +19,7 @@ import { auth } from '../services/firebase';
 import InventoryManager from './InventoryManager';
 import StoreKioskMode from './StoreKioskMode';
 import PosRegister from './PosRegister';
+import OffersManager from './OffersManager';
 import BusinessBroadcastComposer from './BusinessBroadcastComposer';
 import BusinessOrdersPanel from './BusinessOrdersPanel';
 import ArtistPromoDirectory from './ArtistPromoDirectory';
@@ -392,6 +393,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                 </button>
               </div>
               <InventoryManager sellerId={currentUser.uid} sellerName={activePage?.businessName || currentUser.displayName || 'My Store'} />
+              <OffersManager businessUid={currentUser.uid} />
             </div>
           )}
 

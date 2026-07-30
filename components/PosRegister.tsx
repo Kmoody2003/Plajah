@@ -1,71 +1,149 @@
 // PosRegister — the staff-facing point-of-sale register. Sits on the SAME storeProducts inventory
 // that backs the on-platform store, so ringing up a sale decrements the same stock the store shows.
 // A cash sale posts through the server (/api/store/pos-sale): it records a CONFIRMED order, decrements
-// stock atomically, and — when a Plajah customer is attached — awards loyalty points. Card-present
-// tender (Stripe Terminal) and staff-PIN auth are follow-ups; v1 is the owner ringing cash sales.
+// stock atomically, awards/deducts loyalty points, and applies deals. Card-present tender (Stripe
+// Terminal) and staff-PIN auth are follow-ups; v1 is the owner ringing cash sales.
 //
 // Deep integration, per the vision:
 //   • Inventory      — grid is live storeProducts; sale decrements the same stock.
-//   • Loyalty        — attach a recognized Plajah customer → earn points; redeem points as a discount.
-//   • Recognition    — search a Plajah customer by name/handle and attach them to the ticket.
+//   • Recognition    — attach a Plajah customer by name / @handle / phone / uid, or SCAN their QR.
+//   • Loyalty        — earn on the amount paid; redeem points as a discount (server-validated).
+//   • Deals          — active offers auto-apply to the ticket (best eligible one wins).
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { StoreProduct, UserProfile } from '../types';
 import { fetchProductsBySeller } from '../services/storeService';
 import { searchUsers } from '../services/backendService';
 import { posSale, fetchLoyaltyPoints } from '../services/businessOpsService';
+import { fetchOffers, bestOffer, type BusinessOffer } from '../services/offersService';
 
 const GRAD = 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)';
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+const hasScanner = typeof window !== 'undefined' && 'BarcodeDetector' in window;
 
 interface CartLine { product: StoreProduct; qty: number; }
 interface Props { businessUid: string; businessName: string; onExit: () => void; }
+
+// Pull a uid/handle token out of a scanned/typed value (profile link, plajah:cust:<uid>, @handle, raw).
+function extractToken(raw: string): string {
+  const s = raw.trim();
+  const m = s.match(/(?:plajah:cust:|\/profile\/|\/u\/|@)([A-Za-z0-9_-]{2,})/);
+  if (m) return m[1];
+  return s.replace(/^@/, '');
+}
 
 export default function PosRegister({ businessUid, businessName, onExit }: Props) {
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [q, setQ] = useState('');
+  const [offers, setOffers] = useState<BusinessOffer[]>([]);
 
   // Customer recognition + loyalty
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [custQuery, setCustQuery] = useState('');
   const [custResults, setCustResults] = useState<UserProfile[]>([]);
   const [customer, setCustomer] = useState<UserProfile | null>(null);
   const [custPoints, setCustPoints] = useState(0);
   const [redeem, setRedeem] = useState(false);
-  const [searching, setSearching] = useState(false);
+
+  // QR scan
+  const [scanning, setScanning] = useState(false);
+  const [scanMsg, setScanMsg] = useState('');
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const scanLoopRef = useRef<number | null>(null);
 
   const [busy, setBusy] = useState(false);
-  const [receipt, setReceipt] = useState<{ total: number; points: number } | null>(null);
+  const [receipt, setReceipt] = useState<{ total: number; points: number; saved: number } | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const list = await fetchProductsBySeller(businessUid).catch(() => [] as StoreProduct[]);
+      const [list, us, offs] = await Promise.all([
+        fetchProductsBySeller(businessUid).catch(() => [] as StoreProduct[]),
+        searchUsers('').catch(() => [] as UserProfile[]),
+        fetchOffers(businessUid).catch(() => [] as BusinessOffer[]),
+      ]);
       setProducts(list.filter(p => p.isActive !== false));
+      setAllUsers(us || []);
+      setOffers(offs || []);
       setLoading(false);
     })();
+    return () => stopScan();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessUid]);
 
-  // Debounced Plajah-customer search
+  // Recognition — match the cached user list by uid / @handle / phone / name (no extra query).
   useEffect(() => {
-    if (custQuery.trim().length < 2) { setCustResults([]); return; }
-    setSearching(true);
-    const t = setTimeout(async () => {
-      const res = await searchUsers(custQuery).catch(() => [] as UserProfile[]);
-      setCustResults((res || []).slice(0, 6));
-      setSearching(false);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [custQuery]);
+    const raw = custQuery.trim();
+    if (raw.length < 2) { setCustResults([]); return; }
+    const tok = extractToken(raw).toLowerCase();
+    const digits = raw.replace(/\D/g, '');
+    const nameQ = raw.toLowerCase();
+    const res = allUsers.filter(u => {
+      const uname = ((u as any).username || '').toLowerCase();
+      const phone = ((u as any).phone || '').replace(/\D/g, '');
+      return u.uid?.toLowerCase() === tok
+        || (uname && uname === tok)
+        || (uname && uname.includes(nameQ))
+        || (digits.length >= 7 && phone && phone.endsWith(digits))
+        || (u.displayName || '').toLowerCase().includes(nameQ);
+    }).slice(0, 6);
+    setCustResults(res);
+  }, [custQuery, allUsers]);
 
   async function attachCustomer(u: UserProfile) {
-    setCustomer(u); setCustResults([]); setCustQuery('');
+    setCustomer(u); setCustResults([]); setCustQuery(''); setScanMsg('');
     const pts = await fetchLoyaltyPoints(businessUid, u.uid).catch(() => 0);
     setCustPoints(pts);
   }
   function detachCustomer() { setCustomer(null); setCustPoints(0); setRedeem(false); }
+
+  function attachByToken(token: string): boolean {
+    const tok = token.toLowerCase();
+    const u = allUsers.find(x => x.uid?.toLowerCase() === tok || ((x as any).username || '').toLowerCase() === tok);
+    if (u) { attachCustomer(u); return true; }
+    return false;
+  }
+
+  // ── QR scan (progressive; only when BarcodeDetector exists) ────────────────────
+  function stopScan() {
+    if (scanLoopRef.current) { cancelAnimationFrame(scanLoopRef.current); scanLoopRef.current = null; }
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    setScanning(false);
+  }
+  async function startScan() {
+    if (!hasScanner) return;
+    setScanMsg(''); setScanning(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      streamRef.current = stream;
+      const video = videoRef.current;
+      if (!video) { stopScan(); return; }
+      video.srcObject = stream; await video.play().catch(() => {});
+      // @ts-ignore - BarcodeDetector is not in the TS DOM lib yet
+      const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+      const tick = async () => {
+        if (!streamRef.current) return;
+        try {
+          const codes = await detector.detect(video);
+          if (codes && codes.length) {
+            const token = extractToken(String(codes[0].rawValue || ''));
+            stopScan();
+            if (!attachByToken(token)) setScanMsg('That QR isn’t a Plajah customer.');
+            return;
+          }
+        } catch { /* keep scanning */ }
+        scanLoopRef.current = requestAnimationFrame(tick);
+      };
+      scanLoopRef.current = requestAnimationFrame(tick);
+    } catch {
+      setScanMsg('Camera unavailable.'); stopScan();
+    }
+  }
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -90,9 +168,13 @@ export default function PosRegister({ businessUid, businessName, onExit }: Props
   function clearCart() { setCart([]); setRedeem(false); setError(''); }
 
   const subtotalCents = cart.reduce((s, l) => s + Math.round((l.product.price || 0) * 100) * l.qty, 0);
-  // Loyalty redemption: 1 point = 1¢, capped at the subtotal (100 pts = $1).
-  const redeemCents = redeem && customer ? Math.min(custPoints, subtotalCents) : 0;
-  const totalCents = Math.max(0, subtotalCents - redeemCents);
+  // Deals auto-apply: the single best eligible offer for this ticket.
+  const applied = useMemo(() => bestOffer(offers, subtotalCents, !!customer), [offers, subtotalCents, customer]);
+  const offerCents = applied?.discountCents || 0;
+  // Loyalty redemption (1 pt = 1¢), applied on the remainder after the deal.
+  const afterOffer = Math.max(0, subtotalCents - offerCents);
+  const redeemCents = redeem && customer ? Math.min(custPoints, afterOffer) : 0;
+  const totalCents = Math.max(0, afterOffer - redeemCents);
 
   async function ringUp(tender: 'CASH' | 'CARD') {
     if (!cart.length || busy) return;
@@ -103,16 +185,17 @@ export default function PosRegister({ businessUid, businessName, onExit }: Props
         items: cart.map(l => ({ productId: l.product.id, qty: l.qty })),
         tender,
         customerUid: customer?.uid,
-        discountCents: redeemCents,
+        offerDiscountCents: offerCents,
+        redeemPoints: redeemCents, // 1pt = 1¢
       });
-      setReceipt({ total: out.totalCents, points: out.pointsEarned });
+      setReceipt({ total: out.totalCents, points: out.pointsEarned, saved: out.offerDiscountCents + out.redeemCents });
       // Reflect the sale locally: decrement stock in the grid + reset the ticket.
       setProducts(prev => prev.map(p => {
         const line = cart.find(l => l.product.id === p.id);
         return line ? { ...p, stock: Math.max(0, (p.stock ?? 0) - line.qty) } : p;
       }));
       setCart([]); setRedeem(false);
-      if (customer) setCustPoints(p => Math.max(0, p - redeemCents) + out.pointsEarned);
+      if (customer) setCustPoints(p => Math.max(0, p - out.redeemCents) + out.pointsEarned);
     } catch (e: any) {
       setError(e?.message || 'Sale failed.');
     } finally {
@@ -128,7 +211,7 @@ export default function PosRegister({ businessUid, businessName, onExit }: Props
           <span className="text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full text-white" style={{ background: GRAD }}>Register</span>
           <span className="text-sm font-bold truncate max-w-[40vw]">{businessName}</span>
         </div>
-        <button onClick={onExit} className="text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-full bg-white/10 hover:bg-white/20">Close</button>
+        <button onClick={() => { stopScan(); onExit(); }} className="text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-full bg-white/10 hover:bg-white/20">Close</button>
       </div>
 
       <div className="flex-1 flex min-h-0">
@@ -177,22 +260,32 @@ export default function PosRegister({ businessUid, businessName, onExit }: Props
             {customer ? (
               <div className="flex items-center justify-between gap-2 bg-white/5 rounded-xl px-3 py-2">
                 <div className="min-w-0">
-                  <div className="text-xs font-bold truncate">{customer.displayName || customer.username}</div>
+                  <div className="text-xs font-bold truncate">{customer.displayName || (customer as any).username}</div>
                   <div className="text-[10px] text-amber-300 font-black">{custPoints.toLocaleString()} pts</div>
                 </div>
                 <button onClick={detachCustomer} className="text-[10px] font-bold uppercase text-white/50 hover:text-white">Remove</button>
               </div>
+            ) : scanning ? (
+              <div className="space-y-2">
+                <video ref={videoRef} playsInline muted className="w-full aspect-video rounded-xl bg-black object-cover" />
+                <button onClick={stopScan} className="w-full text-[11px] font-bold uppercase tracking-widest py-2 rounded-xl bg-white/10 hover:bg-white/20">Cancel scan</button>
+              </div>
             ) : (
               <div className="relative">
-                <input value={custQuery} onChange={e => setCustQuery(e.target.value)} placeholder="Attach Plajah customer…"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs outline-none focus:border-white/30" />
-                {(searching || custResults.length > 0) && (
+                <div className="flex gap-2">
+                  <input value={custQuery} onChange={e => setCustQuery(e.target.value)} placeholder="Name, @handle, phone…"
+                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs outline-none focus:border-white/30" />
+                  {hasScanner && (
+                    <button onClick={startScan} title="Scan customer QR" className="shrink-0 px-3 rounded-xl text-white text-[10px] font-black" style={{ background: GRAD }}>QR</button>
+                  )}
+                </div>
+                {scanMsg && <div className="text-[10px] text-amber-300 font-bold mt-1">{scanMsg}</div>}
+                {custResults.length > 0 && (
                   <div className="absolute z-10 left-0 right-0 mt-1 bg-[#15151d] border border-white/10 rounded-xl overflow-hidden shadow-xl">
-                    {searching && <div className="px-3 py-2 text-[11px] text-white/40">Searching…</div>}
                     {custResults.map(u => (
                       <button key={u.uid} onClick={() => attachCustomer(u)} className="w-full text-left px-3 py-2 hover:bg-white/10 text-xs flex items-center gap-2">
                         {u.photoURL && <img src={u.photoURL} alt="" className="w-6 h-6 rounded-full object-cover" />}
-                        <span className="truncate">{u.displayName || u.username}</span>
+                        <span className="truncate">{u.displayName || (u as any).username}</span>
                       </button>
                     ))}
                   </div>
@@ -223,9 +316,14 @@ export default function PosRegister({ businessUid, businessName, onExit }: Props
 
           {/* Totals + tender */}
           <div className="p-3 border-t border-white/10 space-y-2">
-            {customer && custPoints > 0 && subtotalCents > 0 && (
+            {applied && (
+              <div className="flex items-center justify-between text-[11px] font-bold text-emerald-300">
+                <span>🎉 {applied.offer.label}</span><span>–{money(offerCents)}</span>
+              </div>
+            )}
+            {customer && custPoints > 0 && afterOffer > 0 && (
               <label className="flex items-center justify-between text-[11px] font-bold cursor-pointer">
-                <span className="text-amber-300">Redeem {Math.min(custPoints, subtotalCents).toLocaleString()} pts</span>
+                <span className="text-amber-300">Redeem {Math.min(custPoints, afterOffer).toLocaleString()} pts</span>
                 <input type="checkbox" checked={redeem} onChange={e => setRedeem(e.target.checked)} className="accent-amber-400" />
               </label>
             )}
@@ -243,7 +341,9 @@ export default function PosRegister({ businessUid, businessName, onExit }: Props
 
             {receipt && (
               <div className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 py-2 text-[11px] text-emerald-300 font-bold">
-                Sale complete — {money(receipt.total)}{receipt.points > 0 ? ` · +${receipt.points} pts earned` : ''}.
+                Sale complete — {money(receipt.total)}
+                {receipt.saved > 0 ? ` · saved ${money(receipt.saved)}` : ''}
+                {receipt.points > 0 ? ` · +${receipt.points} pts` : ''}.
               </div>
             )}
             {error && <div className="text-[11px] text-red-400 font-bold">{error}</div>}
