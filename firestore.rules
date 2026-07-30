@@ -1033,6 +1033,14 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin());
     }
 
+    // Artist↔business cross-promo bookings: the business creates; both parties read; the creator
+    // (or business) updates status (accept/decline). Queried by creatorUid / businessUid.
+    match /promoBookings/{bookingId} {
+      allow read: if isAuthenticated() && (resource.data.businessUid == request.auth.uid || resource.data.creatorUid == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.businessUid == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || resource.data.businessUid == request.auth.uid);
+    }
+
     match /storeReviews/{reviewId} {
       allow read: if true;
       allow create: if isAuthenticated() && request.resource.data.reviewerId == request.auth.uid;

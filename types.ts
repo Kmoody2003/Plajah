@@ -1177,6 +1177,15 @@ export interface UserProfile {
   weatherLon?: number;
   weatherCity?: string;
   showWeatherCity?: boolean;
+  // Creator-set rates for businesses to book cross-promo / commercials on the creator's radio &
+  // FAST channels (the creator names the price). Businesses browse the artist directory and request.
+  promoRates?: {
+    acceptsPromo?: boolean;   // creator is open to business promo bookings
+    radioAd?: number;         // $ for a commercial spot on their Artist Radio
+    fastAd?: number;          // $ for a spot/placement on their FAST channel
+    crossPromo?: number;      // $ for a cross-promotion (shoutout/post/feature)
+    notes?: string;
+  };
   isArtist?: boolean; // True if they have uploaded content
   merch?: MerchItem[];
   acceptsTips?: boolean;
@@ -3652,6 +3661,21 @@ export interface BusinessEvent {
   isFree?: boolean;
   price?: number;
   ticketUrl?: string;
+}
+
+// A business booking a creator's radio/FAST cross-promo or commercial at the creator's set rate.
+export interface PromoBooking {
+  id: string;
+  businessUid: string;     // requester (sellerId for rules)
+  businessName: string;
+  creatorUid: string;      // the artist (buyerId is n/a; creator = recipient)
+  creatorName: string;
+  kind: 'RADIO_AD' | 'FAST_AD' | 'CROSS_PROMO';
+  rate: number;            // $ the creator set for this kind, snapshotted at request time
+  message?: string;
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'PAID';
+  createdAt: number;
+  respondedAt?: number;
 }
 
 export interface BusinessPage {

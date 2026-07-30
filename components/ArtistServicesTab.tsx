@@ -9,6 +9,7 @@ import {
   ArrowUpRight, ArrowDownRight, AlertCircle, CheckCircle2,
 } from 'lucide-react';
 import { UserProfile, ArtistAdCampaign as AdCampaign, ArtistAdCreative as AdCreative, ArtistAdPlatform as AdPlatform, ArtistAdObjective as AdObjective, ArtistAdStatus as AdStatus, ArtistServicesSubscription } from '../types';
+import CreatorPromoInbox from './CreatorPromoInbox';
 
 interface Props {
   currentUser: UserProfile;
@@ -45,7 +46,7 @@ const STATUS_STYLES: Record<AdStatus, { label: string; color: string; bg: string
   REJECTED:       { label: 'Rejected',        color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
 };
 
-type ServiceTab = 'overview' | 'campaigns' | 'create' | 'analytics';
+type ServiceTab = 'overview' | 'campaigns' | 'create' | 'analytics' | 'promo';
 
 // ── Ad Builder Wizard ─────────────────────────────────────────────────────────
 
@@ -477,6 +478,7 @@ const ArtistServicesTab: React.FC<Props> = ({ currentUser, onNavigate }) => {
     { key: 'overview',   label: 'Overview',   icon: Star },
     { key: 'campaigns',  label: 'Campaigns',  icon: Megaphone },
     { key: 'analytics',  label: 'Analytics',  icon: BarChart3 },
+    { key: 'promo',      label: 'Promo',      icon: Users },
     { key: 'create',     label: 'Create Ad',  icon: Plus },
   ];
 
@@ -663,6 +665,7 @@ const ArtistServicesTab: React.FC<Props> = ({ currentUser, onNavigate }) => {
 
       {/* Analytics */}
       {serviceTab === 'analytics' && <AnalyticsPanel campaigns={campaigns} />}
+      {serviceTab === 'promo' && <CreatorPromoInbox profile={currentUser} />}
 
       {/* Ad Builder Modal */}
       <AnimatePresence>

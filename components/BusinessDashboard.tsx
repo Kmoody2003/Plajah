@@ -20,6 +20,7 @@ import InventoryManager from './InventoryManager';
 import StoreKioskMode from './StoreKioskMode';
 import BusinessBroadcastComposer from './BusinessBroadcastComposer';
 import BusinessOrdersPanel from './BusinessOrdersPanel';
+import ArtistPromoDirectory from './ArtistPromoDirectory';
 
 type BizTab = 'OVERVIEW' | 'ORDERS' | 'INVENTORY' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'SETTINGS';
 
@@ -397,7 +398,12 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
           )}
 
           {activeTab === 'MESSAGING' && (
-            <BusinessBroadcastComposer business={{ uid: currentUser.uid, name: activePage?.businessName || currentUser.displayName || 'My Business', photo: currentUser.photoURL }} />
+            <div className="space-y-8">
+              <BusinessBroadcastComposer business={{ uid: currentUser.uid, name: activePage?.businessName || currentUser.displayName || 'My Business', photo: currentUser.photoURL }} />
+              <div className="pt-6 border-t border-white/10">
+                <ArtistPromoDirectory business={{ uid: currentUser.uid, name: activePage?.businessName || currentUser.displayName || 'My Business' }} />
+              </div>
+            </div>
           )}
 
           {activeTab === 'CRM' && (
