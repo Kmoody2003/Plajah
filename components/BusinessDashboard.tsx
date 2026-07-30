@@ -75,6 +75,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
   const [showKiosk, setShowKiosk] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
   const [showDisplays, setShowDisplays] = useState(false);
+  const [seedingDemo, setSeedingDemo] = useState(false);
   const [pages, setPages] = useState<BusinessPage[]>([]);
   const [activePage, setActivePage] = useState<BusinessPage | null>(null);
   const [orders, setOrders] = useState<BusinessOrder[]>([]);
@@ -123,6 +124,22 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
     const id = setInterval(() => setSignageIdx(i => (i + 1) % active.length), (active[signageIdx]?.durationSeconds || 10) * 1000);
     return () => clearInterval(id);
   }, [signageRunning, slides, signageIdx]);
+
+  const handleSeedFullDemo = async () => {
+    if (seedingDemo) return;
+    setSeedingDemo(true);
+    try {
+      const { seedFullDemoBusiness } = await import('../services/demoBusinessSeed');
+      const page = await seedFullDemoBusiness(activePage);
+      setPages(prev => (prev.some(p => p.id === page.id) ? prev.map(p => p.id === page.id ? page : p) : [...prev, page]));
+      setActivePage(page);
+      setActiveTab('OVERVIEW');
+    } catch (e: any) {
+      alert(e?.message || 'Could not build the demo.');
+    } finally {
+      setSeedingDemo(false);
+    }
+  };
 
   const handleSavePage = async () => {
     if (!editingPage) return;
@@ -235,12 +252,23 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
               <p className="text-white font-black text-lg">No Business Pages Yet</p>
               <p className="text-white/30 text-sm mt-1 max-w-sm">Create a business page to unlock orders, CRM, digital signage, in-store radio, and Seed Raiser crowdfunding.</p>
             </div>
-            <button
-              onClick={() => setEditingPage({ businessType: 'RETAIL', isAcceptingOrders: false, radioServiceEnabled: false, digitalSignageEnabled: false, crmEnabled: false, rewardsEnabled: false })}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#D40055] to-[#FF8C00] rounded-2xl text-xs font-black uppercase tracking-widest text-white"
-            >
-              <Plus size={12} /> Create Business Page
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => setEditingPage({ businessType: 'RETAIL', isAcceptingOrders: false, radioServiceEnabled: false, digitalSignageEnabled: false, crmEnabled: false, rewardsEnabled: false })}
+                className="flex items-center gap-2 px-6 py-3 bg-white/10 border border-white/15 rounded-2xl text-xs font-black uppercase tracking-widest text-white"
+              >
+                <Plus size={12} /> Create Business Page
+              </button>
+              <button
+                onClick={handleSeedFullDemo}
+                disabled={seedingDemo}
+                className="flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-white disabled:opacity-40"
+                style={{ background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' }}
+              >
+                <Zap size={12} /> {seedingDemo ? 'Building demo…' : 'Populate full demo'}
+              </button>
+            </div>
+            <p className="text-white/25 text-[11px] max-w-sm text-center">“Populate full demo” builds a complete café — products, deals, team, signage, menu, geofence & a live now-playing track — so you can tour the entire stack.</p>
           </div>
         </Card>
       )}
@@ -429,6 +457,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
             <DisplayModeLauncher
               businessUid={currentUser.uid}
               businessName={activePage?.businessName || currentUser.displayName || 'My Store'}
+              pageId={activePage?.id}
               menuItems={activePage?.menuItems || []}
               onExit={() => setShowDisplays(false)}
             />
@@ -712,7 +741,16 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                       <Globe size={12} /> View Public Page
                     </button>
                   )}
+                  <button
+                    onClick={handleSeedFullDemo}
+                    disabled={seedingDemo}
+                    className="flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-white disabled:opacity-40"
+                    style={{ background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' }}
+                  >
+                    <Zap size={12} /> {seedingDemo ? 'Building…' : 'Populate full demo'}
+                  </button>
                 </div>
+                <p className="text-white/30 text-[11px] mt-3">Fills this business with demo products, deals, team, signage, menu, a geofence & a live now-playing track — the whole stack, ready to tour.</p>
               </Card>
               <Card>
                 <h3 className="text-sm font-black uppercase tracking-widest text-white mb-1">Store location (auto check-in)</h3>

@@ -13,7 +13,7 @@ import PosRegister from './PosRegister';
 const GRAD = 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)';
 type Mode = 'PICKER' | 'NOW_PLAYING' | 'MENU' | 'SIGNAGE' | 'KIOSK' | 'REGISTER';
 
-interface Props { businessUid: string; businessName: string; menuItems?: BusinessMenuItem[]; onExit: () => void; }
+interface Props { businessUid: string; businessName: string; pageId?: string; menuItems?: BusinessMenuItem[]; onExit: () => void; }
 
 // ── Now Playing display (customer-facing jukebox screen) ───────────────────────
 function NowPlayingDisplay({ businessUid, businessName }: { businessUid: string; businessName: string }) {
@@ -70,14 +70,16 @@ function MenuBoard({ businessName, menuItems }: { businessName: string; menuItem
 }
 
 // ── Signage slideshow ────────────────────────────────────────────────────────
-function SignageDisplay({ businessUid }: { businessUid: string }) {
+// Slides are keyed by the business PAGE id (not the owner uid), matching how the dashboard saves them.
+function SignageDisplay({ pageId }: { pageId: string }) {
   const [slides, setSlides] = useState<DigitalSignageSlide[]>([]);
   const [idx, setIdx] = useState(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    fetchSignageSlides(businessUid).then(s => setSlides(s.filter(x => x.isActive))).catch(() => setSlides([]));
-  }, [businessUid]);
+    if (!pageId) { setSlides([]); return; }
+    fetchSignageSlides(pageId).then(s => setSlides(s.filter(x => x.isActive))).catch(() => setSlides([]));
+  }, [pageId]);
 
   useEffect(() => {
     if (slides.length === 0) return;
@@ -103,7 +105,7 @@ function SignageDisplay({ businessUid }: { businessUid: string }) {
   );
 }
 
-export default function DisplayModeLauncher({ businessUid, businessName, menuItems = [], onExit }: Props) {
+export default function DisplayModeLauncher({ businessUid, businessName, pageId, menuItems = [], onExit }: Props) {
   const [mode, setMode] = useState<Mode>('PICKER');
 
   // Kiosk & Register render their own full-screen overlays; return to the picker on exit.
@@ -150,7 +152,7 @@ export default function DisplayModeLauncher({ businessUid, businessName, menuIte
         )}
         {mode === 'NOW_PLAYING' && <NowPlayingDisplay businessUid={businessUid} businessName={businessName} />}
         {mode === 'MENU' && <MenuBoard businessName={businessName} menuItems={menuItems} />}
-        {mode === 'SIGNAGE' && <SignageDisplay businessUid={businessUid} />}
+        {mode === 'SIGNAGE' && <SignageDisplay pageId={pageId || ''} />}
       </div>
     </div>
   );
