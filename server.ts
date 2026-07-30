@@ -5887,6 +5887,24 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     }
   });
 
+  // ── Stripe Terminal connection token — card-present POS. The reader is registered to the BUSINESS's
+  // connected account, so the token is minted ON that account (Connect direct). The register's card
+  // seam calls this once it has a paired reader; without hardware it's simply never invoked.
+  app.post('/api/stripe/terminal/connection-token', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const connectedAccountId: string | undefined = req.body?.connectedAccountId;
+      const stripe = getStripe();
+      const token = await stripe.terminal.connectionTokens.create(
+        {},
+        connectedAccountId ? { stripeAccount: connectedAccountId } : undefined,
+      );
+      res.json({ secret: token.secret });
+    } catch (err: any) {
+      console.error('/api/stripe/terminal/connection-token', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── Store order — the spine for in-store kiosk + POS + online store ───────────────
   // Stripe Connect DIRECT: funds settle straight to the BUSINESS's connected account; Plajah never
   // holds them (optional application fee only). Every line is priced SERVER-SIDE from storeProducts

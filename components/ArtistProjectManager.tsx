@@ -2058,8 +2058,16 @@ const WriterOverviewTab: React.FC = () => {
 
 // ─── Writer Tab: Projects ───────────────────────────────────────────────────
 
-const WriterProjectsTab: React.FC = () => {
-  useEffect(() => { ensureWriterDemo(); }, []);
+const WriterProjectsTab: React.FC<{ currentUser?: UserProfile | null }> = ({ currentUser }) => {
+  const uid = currentUser?.uid;
+  const [lorea, setLorea] = useState<WritingProject[]>([]);
+  useEffect(() => {
+    if (!uid) { ensureWriterDemo(); setProjects(writerProjectStore.get()); return; }
+    listWritingProjects(uid).then(({ projects: p }) => {
+      setLorea(p);
+      if (p.length === 0) { ensureWriterDemo(); setProjects(writerProjectStore.get()); }
+    }).catch(() => { ensureWriterDemo(); setProjects(writerProjectStore.get()); });
+  }, [uid]);
   const [projects, setProjects] = useState<WriterProject[]>(() => writerProjectStore.get());
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ title: '', type: 'BOOK' as WriterProject['type'], status: 'DRAFTING' as WriterProject['status'], wordCountTarget: '', wordCountCurrent: '', genre: '', logline: '', deadline: '', notes: '' });
@@ -2070,9 +2078,15 @@ const WriterProjectsTab: React.FC = () => {
   };
   const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-cyan-500/50';
   const statusColor: Record<string, string> = { ACTIVE: 'text-emerald-400 bg-emerald-500/10', DRAFTING: 'text-blue-400 bg-blue-500/10', EDITING: 'text-yellow-400 bg-yellow-500/10', SUBMITTED: 'text-violet-400 bg-violet-500/10', PUBLISHED: 'text-emerald-400 bg-emerald-500/15', ON_HOLD: 'text-white/30 bg-white/5' };
+  // Real Lorea projects auto-populate at the top; local demo/manual projects follow.
+  const loreaIds = new Set(lorea.map(l => l.id));
+  const loreaAsWriter: WriterProject[] = lorea.map(l => ({ id: l.id, title: l.title, type: l.type, status: l.status, wordCountTarget: l.wordCountTarget, wordCountCurrent: l.wordCountCurrent, genre: l.genre, logline: l.logline, notes: '', createdAt: l.createdAt }));
+  const demoIds = new Set(['proj1', 'proj2', 'proj3']);
+  const displayProjects = lorea.length ? [...loreaAsWriter, ...projects.filter(p => !demoIds.has(p.id))] : projects;
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        {lorea.length > 0 ? <p className="text-[10px] text-white/30 font-bold flex items-center gap-1.5"><BookOpen size={11} className="text-cyan-400" /> {lorea.length} live from your Lorea studio · auto-synced</p> : <span />}
         <button onClick={() => setAdding(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 text-xs font-black uppercase tracking-widest hover:bg-cyan-500/25 transition-all"><Plus size={12} /> New Project</button>
       </div>
       {adding && (
@@ -2098,16 +2112,17 @@ const WriterProjectsTab: React.FC = () => {
           </div>
         </div>
       )}
-      {projects.length === 0 ? (
+      {displayProjects.length === 0 ? (
         <EmptyState icon={<BookMarked size={22} />} title="No Projects" body="Create your first writing project — book, article, column, newsletter, or podcast." cta="New Project" onCta={() => setAdding(true)} />
       ) : (
         <div className="space-y-3">
-          {projects.map(p => {
+          {displayProjects.map(p => {
             const pct = p.wordCountTarget > 0 ? Math.min(100, (p.wordCountCurrent / p.wordCountTarget) * 100) : 0;
+            const isLorea = loreaIds.has(p.id);
             return (
               <div key={p.id} className="p-5 bg-white/[0.03] border border-white/[0.06] rounded-xl hover:border-white/15 transition-all">
                 <div className="flex items-start justify-between mb-3">
-                  <div><p className="text-sm font-black text-white">{p.title}</p><p className="text-[10px] text-white/40">{p.type} · {p.genre}</p></div>
+                  <div><p className="text-sm font-black text-white flex items-center gap-2">{p.title}{isLorea && <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400">Lorea</span>}</p><p className="text-[10px] text-white/40">{p.type} · {p.genre}{isLorea ? ` · ${p.wordCountCurrent.toLocaleString()} words` : ''}</p></div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${statusColor[p.status] ?? 'text-white/40 bg-white/5'}`}>{p.status}</span>
                     {p.deadline && <span className="text-[9px] text-white/25">Due {fmtDate(p.deadline)}</span>}
@@ -2131,14 +2146,32 @@ const WriterProjectsTab: React.FC = () => {
 
 // ─── Writer Tab: Manuscripts ────────────────────────────────────────────────
 
-const WriterManuscriptsTab: React.FC = () => {
-  useEffect(() => { ensureWriterDemo(); }, []);
-  const projects = writerProjectStore.get().filter(p => ['BOOK', 'SCRIPT', 'ESSAY'].includes(p.type));
-  const [selProject, setSelProject] = useState<string>(projects[0]?.id ?? '');
-  const [chapters, setChapters] = useState<WriterChapter[]>(() => writerChapterStore.get());
+const WriterManuscriptsTab: React.FC<{ currentUser?: UserProfile | null }> = ({ currentUser }) => {
+  const uid = currentUser?.uid;
+  const [lorea, setLorea] = useState<{ projects: WritingProject[]; chapters: WritingChapter[] }>({ projects: [], chapters: [] });
+  const [localProjects, setLocalProjects] = useState<WriterProject[]>([]);
+  const [chapters, setChapters] = useState<WriterChapter[]>([]);
+  useEffect(() => {
+    const seedLocal = () => { ensureWriterDemo(); setLocalProjects(writerProjectStore.get()); setChapters(writerChapterStore.get()); };
+    if (!uid) { seedLocal(); return; }
+    listWritingProjects(uid).then(res => {
+      setLorea({ projects: res.projects.filter(p => p.kind === 'BOOK' || p.kind === 'SCRIPT'), chapters: res.chapters });
+      if (res.projects.length === 0) seedLocal();
+    }).catch(seedLocal);
+  }, [uid]);
+  const loreaIds = new Set(lorea.projects.map(p => p.id));
+  const projects: WriterProject[] = [
+    ...lorea.projects.map(l => ({ id: l.id, title: l.title, type: l.type, status: l.status, wordCountTarget: l.wordCountTarget, wordCountCurrent: l.wordCountCurrent, genre: l.genre, logline: l.logline, notes: '', createdAt: l.createdAt } as WriterProject)),
+    ...localProjects.filter(p => ['BOOK', 'SCRIPT', 'ESSAY'].includes(p.type) && !['proj1', 'proj2', 'proj3'].includes(p.id)),
+  ];
+  const [selProject, setSelProject] = useState<string>('');
+  useEffect(() => { if (!selProject && projects[0]) setSelProject(projects[0].id); }, [projects.length]);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ title: '', wordCount: '', status: 'OUTLINE' as WriterChapter['status'], notes: '' });
-  const visible = chapters.filter(c => c.projectId === selProject).sort((a, b) => a.order - b.order);
+  const allChapters: WriterChapter[] = loreaIds.has(selProject)
+    ? lorea.chapters.filter(c => c.projectId === selProject).map(c => ({ id: c.id, projectId: c.projectId, order: c.order, title: c.title, wordCount: c.wordCount, status: c.status, notes: '', createdAt: 0 }))
+    : chapters;
+  const visible = allChapters.filter(c => c.projectId === selProject).sort((a, b) => a.order - b.order);
   const project = projects.find(p => p.id === selProject);
   const totalWords = visible.reduce((s, c) => s + c.wordCount, 0);
   const save = () => {
@@ -2165,7 +2198,9 @@ const WriterManuscriptsTab: React.FC = () => {
                 <p className="text-[10px] text-white/30 font-black uppercase tracking-widest">{totalWords.toLocaleString()} words · {visible.length} section{visible.length !== 1 ? 's' : ''}</p>
                 {project.wordCountTarget > 0 && <p className="text-[10px] text-cyan-400">{((totalWords / project.wordCountTarget) * 100).toFixed(0)}% of {project.wordCountTarget.toLocaleString()} target</p>}
               </div>
-              <button onClick={() => setAdding(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 text-xs font-black uppercase tracking-widest hover:bg-cyan-500/25 transition-all"><Plus size={12} /> Add Chapter</button>
+              {loreaIds.has(selProject)
+                ? <span className="text-[9px] text-cyan-400/70 font-black uppercase tracking-widest flex items-center gap-1.5"><BookOpen size={11} /> Synced from Lorea — edit in studio</span>
+                : <button onClick={() => setAdding(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 text-xs font-black uppercase tracking-widest hover:bg-cyan-500/25 transition-all"><Plus size={12} /> Add Chapter</button>}
             </div>
           )}
           {adding && (
@@ -2439,7 +2474,7 @@ const WriterPressTab: React.FC = () => (
 // ─── Main component ────────────────────────────────────────────────────────────
 
 type PMTab =
-  | 'overview' | 'payroll' | 'contracts' | 'invoices' | 'tasks' | 'vendors' | 'venues' | 'events' | 'boards' | 'promote'
+  | 'overview' | 'releases' | 'payroll' | 'contracts' | 'invoices' | 'tasks' | 'vendors' | 'venues' | 'events' | 'boards' | 'promote'
   | 'film_overview' | 'film_script' | 'film_budget' | 'film_crew' | 'film_locations' | 'film_schedule' | 'film_distro'
   | 'film_hub' | 'film_callsheets' | 'film_roster' | 'film_brief' | 'film_craft'
   | 'writer_overview' | 'writer_projects' | 'writer_manuscripts' | 'writer_research' | 'writer_submissions' | 'writer_events' | 'writer_press';
@@ -2452,6 +2487,7 @@ interface Props {
 
 const PM_TABS: { id: PMTab; label: string; icon: React.ReactNode; color: string }[] = [
   { id: 'overview',   label: 'Overview',    icon: <Briefcase size={13} />,  color: '#FF8C00' },
+  { id: 'releases',   label: 'Releases',    icon: <Music2 size={13} />,     color: '#FF8C00' },
   { id: 'events',     label: 'Events',      icon: <Mic size={13} />,        color: '#FF8C00' },
   { id: 'boards',     label: 'Boards',      icon: <Layers size={13} />,     color: '#a855f7' },
   { id: 'promote',    label: 'Promote',     icon: <Megaphone size={13} />,  color: '#6366f1' },
@@ -2519,6 +2555,7 @@ export const ArtistProjectManager: React.FC<Props> = ({ currentUser }) => {
   const renderTab = () => {
     switch (activeTab) {
       case 'overview':            return <OverviewTab onSwitchTab={setActiveTab} />;
+      case 'releases':            return <MusicReleasesTab currentUser={currentUser} />;
       case 'events':              return <EventsLaunchTab />;
       case 'boards':              return <BoardsLaunchTab />;
       case 'promote':             return <AdHubTab />;
@@ -2541,8 +2578,8 @@ export const ArtistProjectManager: React.FC<Props> = ({ currentUser }) => {
       case 'film_schedule':       return <FilmScheduleTab />;
       case 'film_distro':         return <FilmDistroTab />;
       case 'writer_overview':     return <WriterOverviewTab />;
-      case 'writer_projects':     return <WriterProjectsTab />;
-      case 'writer_manuscripts':  return <WriterManuscriptsTab />;
+      case 'writer_projects':     return <WriterProjectsTab currentUser={currentUser} />;
+      case 'writer_manuscripts':  return <WriterManuscriptsTab currentUser={currentUser} />;
       case 'writer_research':     return <WriterResearchTab />;
       case 'writer_submissions':  return <WriterSubmissionsTab />;
       case 'writer_events':       return <WriterEventsTab />;

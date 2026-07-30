@@ -16,6 +16,7 @@ import { fetchProductsBySeller } from '../services/storeService';
 import { searchUsers } from '../services/backendService';
 import { posSale, fetchLoyaltyPoints } from '../services/businessOpsService';
 import { fetchOffers, bestOffer, type BusinessOffer } from '../services/offersService';
+import { printReceipt, openCashDrawer, isQzAvailable, type ReceiptData } from '../services/posPeripherals';
 
 const GRAD = 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)';
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
@@ -56,7 +57,9 @@ export default function PosRegister({ businessUid, businessName, onExit }: Props
 
   const [busy, setBusy] = useState(false);
   const [receipt, setReceipt] = useState<{ total: number; points: number; saved: number } | null>(null);
+  const [lastReceipt, setLastReceipt] = useState<ReceiptData | null>(null);
   const [error, setError] = useState('');
+  const qzOn = isQzAvailable();
 
   useEffect(() => {
     (async () => {
@@ -189,6 +192,16 @@ export default function PosRegister({ businessUid, businessName, onExit }: Props
         redeemPoints: redeemCents, // 1pt = 1¢
       });
       setReceipt({ total: out.totalCents, points: out.pointsEarned, saved: out.offerDiscountCents + out.redeemCents });
+      // Build a receipt for the peripherals layer (QZ Tray printer, or browser-print fallback).
+      const rd: ReceiptData = {
+        businessName, orderId: out.orderId,
+        lines: cart.map(l => ({ title: l.product.title || 'Item', qty: l.qty, unitAmount: Math.round((l.product.price || 0) * 100) })),
+        subtotalCents: out.subtotalCents, discountCents: out.offerDiscountCents + out.redeemCents,
+        totalCents: out.totalCents, tender, pointsEarned: out.pointsEarned,
+        customerName: customer?.displayName || (customer as any)?.username, when: Date.now(),
+      };
+      setLastReceipt(rd);
+      if (qzOn) { printReceipt(rd); if (tender === 'CASH') openCashDrawer(); } // auto with real hardware
       // Reflect the sale locally: decrement stock in the grid + reset the ticket.
       setProducts(prev => prev.map(p => {
         const line = cart.find(l => l.product.id === p.id);
@@ -210,6 +223,9 @@ export default function PosRegister({ businessUid, businessName, onExit }: Props
         <div className="flex items-center gap-3">
           <span className="text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full text-white" style={{ background: GRAD }}>Register</span>
           <span className="text-sm font-bold truncate max-w-[40vw]">{businessName}</span>
+          <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${qzOn ? 'bg-emerald-500/15 text-emerald-300' : 'bg-white/5 text-white/40'}`} title={qzOn ? 'QZ Tray printer/drawer connected' : 'No hardware — receipts print in-browser'}>
+            {qzOn ? '🖨 Hardware' : '🖨 Browser'}
+          </span>
         </div>
         <button onClick={() => { stopScan(); onExit(); }} className="text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-full bg-white/10 hover:bg-white/20">Close</button>
       </div>
@@ -340,10 +356,18 @@ export default function PosRegister({ businessUid, businessName, onExit }: Props
             </div>
 
             {receipt && (
-              <div className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 py-2 text-[11px] text-emerald-300 font-bold">
-                Sale complete — {money(receipt.total)}
-                {receipt.saved > 0 ? ` · saved ${money(receipt.saved)}` : ''}
-                {receipt.points > 0 ? ` · +${receipt.points} pts` : ''}.
+              <div className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 py-2 space-y-2">
+                <div className="text-[11px] text-emerald-300 font-bold">
+                  Sale complete — {money(receipt.total)}
+                  {receipt.saved > 0 ? ` · saved ${money(receipt.saved)}` : ''}
+                  {receipt.points > 0 ? ` · +${receipt.points} pts` : ''}.
+                </div>
+                {lastReceipt && (
+                  <div className="flex gap-2">
+                    <button onClick={() => printReceipt(lastReceipt)} className="flex-1 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-[10px] font-bold uppercase tracking-widest">🖨 Receipt</button>
+                    <button onClick={() => openCashDrawer()} title={qzOn ? '' : 'Requires QZ Tray + a connected printer'} className="flex-1 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-[10px] font-bold uppercase tracking-widest">💵 Drawer</button>
+                  </div>
+                )}
               </div>
             )}
             {error && <div className="text-[11px] text-red-400 font-bold">{error}</div>}
