@@ -19,6 +19,7 @@ import { auth } from '../services/firebase';
 import InventoryManager from './InventoryManager';
 import StoreKioskMode from './StoreKioskMode';
 import BusinessBroadcastComposer from './BusinessBroadcastComposer';
+import BusinessOrdersPanel from './BusinessOrdersPanel';
 
 type BizTab = 'OVERVIEW' | 'ORDERS' | 'INVENTORY' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'SETTINGS';
 
@@ -329,7 +330,9 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
 
           {/* ── ORDERS ── */}
           {activeTab === 'ORDERS' && (
-            <div className="space-y-4">
+            <div className="space-y-6">
+              {/* Store/kiosk/POS orders (the order spine) — advance status + notify the customer. */}
+              <BusinessOrdersPanel businessUid={currentUser.uid} businessName={activePage?.businessName || currentUser.displayName || 'My Business'} businessPhoto={currentUser.photoURL} />
               {orders.length === 0 ? (
                 <Card><p className="text-white/30 text-sm text-center py-8">No orders yet</p></Card>
               ) : (

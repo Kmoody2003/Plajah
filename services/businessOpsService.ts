@@ -2,7 +2,7 @@
 // backs the on-platform store. Because inventory items ARE store products, editing inventory
 // auto-populates the merch store (no sync job). Also seeds a demo business for presentations.
 
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import type { StoreProduct } from '../types';
 import { createProduct, updateProduct, fetchProductsBySeller } from './storeService';
 import { db, auth } from './backendService';
@@ -28,19 +28,21 @@ function mapOrder(id: string, x: any): StoreOrderRecord {
   let items: StoreOrderRecord['items'] = [];
   try { items = JSON.parse(x.items || '[]'); } catch { /* */ }
   return {
-    id, businessUid: x.businessUid, customerUid: x.customerUid,
+    id, businessUid: x.businessUid || x.sellerId, customerUid: x.customerUid || x.buyerId,
     status: x.status || 'PENDING_PAYMENT', items,
     subtotalCents: x.subtotalCents || 0, fulfillment: x.fulfillment || 'PICKUP',
     note: x.note, customerName: x.customerName, createdAt: x.createdAt || 0, paidAt: x.paidAt,
   };
 }
 
+// Queries use buyerId/sellerId — the exact fields the storeOrders rules gate read on — so they're
+// rule-compatible (a customerUid/businessUid query would be permission-denied and silently empty).
 /** The signed-in customer's store orders (newest first). Single-field query → no composite index. */
 export async function fetchMyStoreOrders(): Promise<StoreOrderRecord[]> {
   const uid = auth.currentUser?.uid;
   if (!uid) return [];
   try {
-    const snap = await getDocs(query(collection(db, 'storeOrders'), where('customerUid', '==', uid)));
+    const snap = await getDocs(query(collection(db, 'storeOrders'), where('buyerId', '==', uid)));
     return snap.docs.map(d => mapOrder(d.id, d.data())).sort((a, b) => b.createdAt - a.createdAt);
   } catch { return []; }
 }
@@ -48,9 +50,14 @@ export async function fetchMyStoreOrders(): Promise<StoreOrderRecord[]> {
 /** A business's incoming store orders (newest first). */
 export async function fetchBusinessStoreOrders(businessUid: string): Promise<StoreOrderRecord[]> {
   try {
-    const snap = await getDocs(query(collection(db, 'storeOrders'), where('businessUid', '==', businessUid)));
+    const snap = await getDocs(query(collection(db, 'storeOrders'), where('sellerId', '==', businessUid)));
     return snap.docs.map(d => mapOrder(d.id, d.data())).sort((a, b) => b.createdAt - a.createdAt);
   } catch { return []; }
+}
+
+/** Advance a spine order's status (business only — rules require sellerId == the signed-in user). */
+export async function advanceStoreOrder(orderId: string, status: string): Promise<void> {
+  await updateDoc(doc(db, 'storeOrders', orderId), { status, updatedAt: Date.now() });
 }
 
 /** An item is "low stock" when its on-hand count is at/below its threshold (default 5). */

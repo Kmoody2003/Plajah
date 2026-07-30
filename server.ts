@@ -5882,6 +5882,10 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       });
       await firestoreWrite('storeOrders', orderId, {
         businessUid, customerUid,
+        // buyerId/sellerId mirror customerUid/businessUid so the storeOrders security rules (which gate
+        // read/update on buyerId==uid / sellerId==uid) permit the customer to read their orders and the
+        // business to read + advance them.
+        buyerId: customerUid, sellerId: businessUid,
         items: JSON.stringify(priced), subtotalCents,
         fulfillment: fulfillment === 'SHIP' ? 'SHIP' : 'PICKUP',
         note: String(note || '').slice(0, 500), customerName: String(customerName || '').slice(0, 120),
