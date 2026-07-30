@@ -1041,6 +1041,15 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || resource.data.businessUid == request.auth.uid);
     }
 
+    // Public business directory. Anyone may browse (the Business hub lists all businesses); the owner
+    // manages their own page. (Without this rule, client reads were permission-denied, which threw and
+    // left the Business dashboard's loading gate spinning forever.)
+    match /businessPages/{id} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+    }
+
     // Business-ops namespace: businesses/{ownerUid} holds a business's subcollections (the doc id IS
     // the owner's uid). Separate from the businessPages collection. Covers messaging opt-in/broadcasts
     // and the Team/HR module (staff, shifts, time-off). (Without this, those writes were denied.)

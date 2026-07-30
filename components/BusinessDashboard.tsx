@@ -89,10 +89,16 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
 
   useEffect(() => {
     const load = async () => {
-      const biz = await fetchMyBusinessPages();
-      setPages(biz);
-      if (biz.length > 0) setActivePage(biz[0]);
-      setLoading(false);
+      try {
+        const biz = await fetchMyBusinessPages();
+        setPages(biz);
+        if (biz.length > 0) setActivePage(biz[0]);
+      } catch (e) {
+        console.error('BusinessDashboard: failed to load business pages', e);
+      } finally {
+        // Always drop the loading gate — a thrown/hung fetch must never spin forever.
+        setLoading(false);
+      }
     };
     load();
   }, []);

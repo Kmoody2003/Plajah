@@ -16,9 +16,14 @@ export async function fetchBusinessPage(id: string): Promise<BusinessPage | null
 export async function fetchMyBusinessPages(): Promise<BusinessPage[]> {
   const uid = auth.currentUser?.uid;
   if (!uid) return [];
-  const q = query(collection(db, 'businessPages'), where('ownerId', '==', uid), orderBy('createdAt', 'desc'));
+  // Single-field equality (no orderBy) so this never needs a composite index — the where+orderBy
+  // form threw on a missing index, which left the dashboard's loading gate spinning forever.
+  // Sort client-side instead.
+  const q = query(collection(db, 'businessPages'), where('ownerId', '==', uid));
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessPage));
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() } as BusinessPage))
+    .sort((a, b) => (Number((b as any).createdAt) || 0) - (Number((a as any).createdAt) || 0));
 }
 
 export async function fetchAllBusinessPages(): Promise<BusinessPage[]> {
