@@ -808,6 +808,12 @@ service cloud.firestore {
       match /fediverseAccounts/{accountId} {
         allow read, write: if isOwner(userId);
       }
+
+      // Music pulse — snapshots of songs a customer heard while physically at a business
+      // (the "Heard at {business}" feed). Owner-private; written when checked in.
+      match /musicPulse/{entryId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // ── Education identity: SERVER-ONLY collections ──────────────────────────────
@@ -1071,6 +1077,13 @@ service cloud.firestore {
       match /loyalty/{customerUid} { allow read: if isAuthenticated() && (request.auth.uid == businessUid || request.auth.uid == customerUid); }
       // In-store deals: the business writes, anyone may read (register + storefront evaluate them).
       match /offers/{id} { allow read: if true; allow write: if isAuthenticated() && request.auth.uid == businessUid; }
+      // Now Playing — the business publishes the current in-store track; checked-in customers read it.
+      match /nowPlaying/{id} { allow read: if true; allow write: if isAuthenticated() && request.auth.uid == businessUid; }
+      // Presence — a customer checks in (writes their own doc); the business sees who's in-store.
+      match /presence/{customerUid} {
+        allow read: if isAuthenticated() && (request.auth.uid == businessUid || request.auth.uid == customerUid);
+        allow write: if isAuthenticated() && (request.auth.uid == customerUid || request.auth.uid == businessUid);
+      }
     }
 
     match /storeReviews/{reviewId} {

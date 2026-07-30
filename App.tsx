@@ -827,6 +827,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     window.addEventListener('OPEN_CHARACTER_PROFILE', handleOpenCharacter);
     const handleCharacterChat = (e: any) => { if (e.detail?.character) setCharacterChat(e.detail.character); };
     window.addEventListener('OPEN_CHARACTER_CHAT', handleCharacterChat);
+    // Open a seller's store (e.g. "Buy" on the in-store Now Playing card / music pulse).
+    const handleOpenStore = (e: any) => { const sid = e.detail?.sellerId; if (sid) { setViewedUserId(sid); setView('STORE'); } };
+    window.addEventListener('OPEN_STORE', handleOpenStore);
     try {
       if (new URLSearchParams(window.location.search).get('order') === 'success') {
         setShowMyOrders(true);
@@ -910,6 +913,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_MY_ORDERS', handleOpenOrders);
       window.removeEventListener('OPEN_CHARACTER_PROFILE', handleOpenCharacter);
       window.removeEventListener('OPEN_CHARACTER_CHAT', handleCharacterChat);
+      window.removeEventListener('OPEN_STORE', handleOpenStore);
       window.removeEventListener('OPEN_PLAJAH_PIXELS', handleOpenPixels);
       window.removeEventListener('OPEN_BIBLE', handleOpenBible);
       window.removeEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);

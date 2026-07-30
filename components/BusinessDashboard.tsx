@@ -20,6 +20,7 @@ import InventoryManager from './InventoryManager';
 import StoreKioskMode from './StoreKioskMode';
 import PosRegister from './PosRegister';
 import OffersManager from './OffersManager';
+import NowPlayingPublisher from './NowPlayingPublisher';
 import BusinessBroadcastComposer from './BusinessBroadcastComposer';
 import BusinessOrdersPanel from './BusinessOrdersPanel';
 import ArtistPromoDirectory from './ArtistPromoDirectory';
@@ -669,6 +670,9 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                 </div>
               )}
             </Card>
+          )}
+          {activeTab === 'RADIO' && (
+            <NowPlayingPublisher businessUid={currentUser.uid} businessName={activePage?.businessName || currentUser.displayName || 'My Business'} />
           )}
 
           {/* ── SETTINGS ── */}

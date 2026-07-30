@@ -11,6 +11,7 @@ import {
 import type { BusinessPage, BusinessMenuItem, BusinessEvent, PitchDeck } from '../types';
 import { generateBusinessDeck } from '../services/pitchDeckTemplates';
 import BusinessMessageOptIn from './BusinessMessageOptIn';
+import StorefrontNowPlaying from './StorefrontNowPlaying';
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -586,6 +587,13 @@ export default function BusinessPublicPage({ business, onBack, currentUserId, cu
             {business.radioServiceEnabled  && <FeaturePill icon={<Radio size={12} />}       label="In-Store Radio" />}
             {business.digitalSignageEnabled && <FeaturePill icon={<Monitor size={12} />}    label="Digital Signage" />}
             {business.rewardsEnabled       && <FeaturePill icon={<Tag size={12} />}          label="Loyalty Rewards" />}
+          </div>
+        )}
+
+        {/* In-store live — check in, see what's playing, tip/buy on the spot (not for the owner). */}
+        {currentUserId !== business.ownerId && (
+          <div className="mb-5">
+            <StorefrontNowPlaying businessUid={business.ownerId} businessName={business.businessName} currentUserId={currentUserId} />
           </div>
         )}
 
