@@ -281,6 +281,14 @@ const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
               </div>
             )}
           </div>
+          <button
+            onClick={() => { window.dispatchEvent(new CustomEvent('OPEN_CHARACTER_PROFILE', { detail: { character } })); onClose(); }}
+            className="px-4 py-2 rounded-full text-white text-[9px] font-black uppercase tracking-widest flex-shrink-0 hover:scale-105 transition-all"
+            style={{ background: 'linear-gradient(135deg,#6B0099 0%,#7C3AED 50%,#A855F7 100%)' }}
+            title="Open this character's living profile"
+          >
+            View Profile
+          </button>
           <button onClick={onClose} className="p-3 rounded-full hover:bg-white/10 transition-all flex-shrink-0">
             <X size={20} className="text-white/60" />
           </button>

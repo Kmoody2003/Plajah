@@ -50,6 +50,7 @@ const FeedView = retryLazy(() => import('./components/FeedView'));
 const LiveHubView = retryLazy(() => import('./components/LiveHubView'));
 const MobileLiveHub = retryLazy(() => import('./components/MobileLiveHub'));
 const MyOrdersView = retryLazy(() => import('./components/MyOrdersView'));
+const CharacterProfileView = retryLazy(() => import('./components/CharacterProfileView'));
 const UserProfileView = retryLazy(() => import('./components/UserProfileView'));
 const RadioView = retryLazy(() => import('./components/RadioView'));
 const TVView = retryLazy(() => import('./components/TVView'));
@@ -632,6 +633,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [pifWins, setPifWins] = useState<PayItForwardWinner[]>([]);
   const [activeLiveFeed, setActiveLiveFeed] = useState<LiveFeed | null>(null);
   const [showMyOrders, setShowMyOrders] = useState(false);
+  const [characterProfile, setCharacterProfile] = useState<any | null>(null);
   const [isMobile, setIsMobile] = useState(() => {
     const ua = navigator.userAgent;
     return (
@@ -819,6 +821,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     // Order tracking: open on demand, and auto-open after a store/kiosk checkout returns (?order=success).
     const handleOpenOrders = () => setShowMyOrders(true);
     window.addEventListener('OPEN_MY_ORDERS', handleOpenOrders);
+    const handleOpenCharacter = (e: any) => { if (e.detail?.character) setCharacterProfile(e.detail.character); };
+    window.addEventListener('OPEN_CHARACTER_PROFILE', handleOpenCharacter);
     try {
       if (new URLSearchParams(window.location.search).get('order') === 'success') {
         setShowMyOrders(true);
@@ -900,6 +904,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('NAVIGATE', handleNavigate);
       window.removeEventListener('PLAY_LIVE_FEED', handlePlayLive);
       window.removeEventListener('OPEN_MY_ORDERS', handleOpenOrders);
+      window.removeEventListener('OPEN_CHARACTER_PROFILE', handleOpenCharacter);
       window.removeEventListener('OPEN_PLAJAH_PIXELS', handleOpenPixels);
       window.removeEventListener('OPEN_BIBLE', handleOpenBible);
       window.removeEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
@@ -5025,6 +5030,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         <Suspense fallback={null}>
           <div className="fixed inset-0 z-[1250] bg-[#0a0a0a] overflow-y-auto pt-6">
             <MyOrdersView onBack={() => setShowMyOrders(false)} />
+          </div>
+        </Suspense>
+      )}
+
+      {/* Character profile — the violet living-character page, opened via OPEN_CHARACTER_PROFILE. */}
+      {characterProfile && (
+        <Suspense fallback={null}>
+          <div className="fixed inset-0 z-[1250] overflow-y-auto">
+            <CharacterProfileView
+              character={characterProfile}
+              worldName={characterProfile.worldName}
+              onBack={() => setCharacterProfile(null)}
+              onVisitWorld={(wid) => { setCharacterProfile(null); window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'WORLDS', worldId: wid } })); }}
+            />
           </div>
         </Suspense>
       )}

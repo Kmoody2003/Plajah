@@ -18,8 +18,9 @@ import {
 import { auth } from '../services/firebase';
 import InventoryManager from './InventoryManager';
 import StoreKioskMode from './StoreKioskMode';
+import BusinessBroadcastComposer from './BusinessBroadcastComposer';
 
-type BizTab = 'OVERVIEW' | 'ORDERS' | 'INVENTORY' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'SETTINGS';
+type BizTab = 'OVERVIEW' | 'ORDERS' | 'INVENTORY' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'SETTINGS';
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 
@@ -158,6 +159,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
     { id: 'OVERVIEW',   label: 'Overview',     icon: Store },
     { id: 'ORDERS',     label: 'Orders',       icon: ShoppingBag },
     { id: 'INVENTORY',  label: 'Inventory',    icon: Package },
+    { id: 'MESSAGING',  label: 'Messaging',    icon: Mail },
     { id: 'CRM',        label: 'CRM',          icon: Users },
     { id: 'SIGNAGE',    label: 'Signage',      icon: Monitor },
     { id: 'SEEDRAISER', label: 'Seed Raiser',  icon: Leaf },
@@ -389,6 +391,10 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
               businessName={activePage?.businessName || currentUser.displayName || 'My Store'}
               onExit={() => setShowKiosk(false)}
             />
+          )}
+
+          {activeTab === 'MESSAGING' && (
+            <BusinessBroadcastComposer business={{ uid: currentUser.uid, name: activePage?.businessName || currentUser.displayName || 'My Business', photo: currentUser.photoURL }} />
           )}
 
           {activeTab === 'CRM' && (

@@ -20,8 +20,10 @@ export function canDriveCharacter(c: Character, uid?: string): boolean {
   const me = uid ?? auth.currentUser?.uid;
   if (!me) return false;
   const driver = characterDriverUid(c);
-  // If no owner/driver is recorded yet, only allow when we can't prove someone else owns it.
-  return driver ? driver === me : false;
+  // If a driver/owner is recorded, only they may drive it. If NONE is recorded yet (legacy character
+  // opened from its world editor), allow first-touch: enabling stamps driverUid = this user, claiming
+  // it. TODO(Phase 1): harden by verifying world ownership server-side before allowing the claim.
+  return driver ? driver === me : true;
 }
 
 /** Is the character's public profile switched on? */

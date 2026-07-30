@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import type { BusinessPage, BusinessMenuItem, BusinessEvent, PitchDeck } from '../types';
 import { generateBusinessDeck } from '../services/pitchDeckTemplates';
+import BusinessMessageOptIn from './BusinessMessageOptIn';
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -585,6 +586,13 @@ export default function BusinessPublicPage({ business, onBack, currentUserId, cu
             {business.radioServiceEnabled  && <FeaturePill icon={<Radio size={12} />}       label="In-Store Radio" />}
             {business.digitalSignageEnabled && <FeaturePill icon={<Monitor size={12} />}    label="Digital Signage" />}
             {business.rewardsEnabled       && <FeaturePill icon={<Tag size={12} />}          label="Loyalty Rewards" />}
+          </div>
+        )}
+
+        {/* Get updates from this business — customer opt-in (transactional + deals), not for the owner. */}
+        {currentUserId && currentUserId !== business.ownerId && (
+          <div className="mb-5">
+            <BusinessMessageOptIn businessUid={business.ownerId} businessName={business.businessName} />
           </div>
         )}
 
