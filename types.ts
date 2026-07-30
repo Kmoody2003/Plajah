@@ -3678,6 +3678,48 @@ export interface PromoBooking {
   respondedAt?: number;
 }
 
+// Staff roster + time clock for a business (register login by PIN, shift tracking → payroll export).
+export interface StaffMember {
+  id: string;
+  businessUid: string;
+  name: string;
+  email?: string;
+  role: 'OWNER' | 'MANAGER' | 'STAFF';
+  pin?: string;             // 4-digit register/clock-in PIN (stored hashed server-side later)
+  payType?: 'HOURLY' | 'SALARY';
+  payRate?: number;         // $/hr for HOURLY (used for the payroll estimate)
+  active: boolean;
+  linkedUid?: string;       // optional Plajah account link
+  createdAt: number;
+}
+
+export interface Shift {
+  id: string;
+  businessUid: string;
+  staffId: string;
+  staffName: string;
+  clockIn: number;
+  clockOut?: number;        // open shift while undefined
+  breakMinutes?: number;
+  note?: string;
+}
+
+// Time-off / PTO request (employee self-service → manager approval), part of the HR module.
+export interface TimeOffRequest {
+  id: string;
+  businessUid: string;
+  staffId: string;
+  staffName: string;
+  kind: 'PTO' | 'SICK' | 'UNPAID' | 'OTHER';
+  startDate: number;
+  endDate: number;
+  hours?: number;
+  reason?: string;
+  status: 'PENDING' | 'APPROVED' | 'DENIED';
+  createdAt: number;
+  respondedAt?: number;
+}
+
 export interface BusinessPage {
   id: string;
   ownerId: string;

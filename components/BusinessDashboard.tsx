@@ -21,8 +21,9 @@ import StoreKioskMode from './StoreKioskMode';
 import BusinessBroadcastComposer from './BusinessBroadcastComposer';
 import BusinessOrdersPanel from './BusinessOrdersPanel';
 import ArtistPromoDirectory from './ArtistPromoDirectory';
+import StaffHRManager from './StaffHRManager';
 
-type BizTab = 'OVERVIEW' | 'ORDERS' | 'INVENTORY' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'SETTINGS';
+type BizTab = 'OVERVIEW' | 'ORDERS' | 'INVENTORY' | 'TEAM' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'SETTINGS';
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 
@@ -161,6 +162,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
     { id: 'OVERVIEW',   label: 'Overview',     icon: Store },
     { id: 'ORDERS',     label: 'Orders',       icon: ShoppingBag },
     { id: 'INVENTORY',  label: 'Inventory',    icon: Package },
+    { id: 'TEAM',       label: 'Team & HR',    icon: Users },
     { id: 'MESSAGING',  label: 'Messaging',    icon: Mail },
     { id: 'CRM',        label: 'CRM',          icon: Users },
     { id: 'SIGNAGE',    label: 'Signage',      icon: Monitor },
@@ -395,6 +397,10 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
               businessName={activePage?.businessName || currentUser.displayName || 'My Store'}
               onExit={() => setShowKiosk(false)}
             />
+          )}
+
+          {activeTab === 'TEAM' && (
+            <StaffHRManager businessUid={currentUser.uid} businessName={activePage?.businessName || currentUser.displayName || 'My Business'} />
           )}
 
           {activeTab === 'MESSAGING' && (
