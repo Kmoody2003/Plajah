@@ -593,7 +593,7 @@ export default function BusinessPublicPage({ business, onBack, currentUserId, cu
         {/* In-store live — check in, see what's playing, tip/buy on the spot (not for the owner). */}
         {currentUserId !== business.ownerId && (
           <div className="mb-5">
-            <StorefrontNowPlaying businessUid={business.ownerId} businessName={business.businessName} currentUserId={currentUserId} />
+            <StorefrontNowPlaying businessUid={business.ownerId} businessName={business.businessName} currentUserId={currentUserId} geoLat={business.geoLat} geoLng={business.geoLng} geoRadiusM={business.geoRadiusM} />
           </div>
         )}
 

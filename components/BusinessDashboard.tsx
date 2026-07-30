@@ -4,7 +4,7 @@ import {
   Store, ShoppingBag, Radio, Monitor, Users, Plus, X, Check, Edit3,
   Trash2, ChevronRight, Clock, Package, Star, Zap, Globe, Leaf,
   Settings, ToggleLeft, ToggleRight, Search, Filter, Mail, Phone,
-  BarChart3, Target, RefreshCw, Play, Pause, Image
+  BarChart3, Target, RefreshCw, Play, Pause, Image, MapPin
 } from 'lucide-react';
 import { UserProfile, BusinessPage, BusinessOrder, DigitalSignageSlide, CrmContact, SeedRaiserCampaign, SeedRaiserReward } from '../types';
 import {
@@ -694,6 +694,55 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                     >
                       <Globe size={12} /> View Public Page
                     </button>
+                  )}
+                </div>
+              </Card>
+              <Card>
+                <h3 className="text-sm font-black uppercase tracking-widest text-white mb-1">Store location (auto check-in)</h3>
+                <p className="text-[11px] text-white/40 mb-4">Set your storefront's coordinates so customers who opt in are auto-checked-in when they arrive — unlocking the live Now Playing card, tips & the music pulse.</p>
+                {typeof activePage.geoLat === 'number' && typeof activePage.geoLng === 'number' ? (
+                  <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-300 mb-3">
+                    📍 Set: {activePage.geoLat.toFixed(5)}, {activePage.geoLng.toFixed(5)} · {activePage.geoRadiusM || 150}m radius
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-white/40 mb-3">No location set yet.</div>
+                )}
+                <div className="flex gap-3 flex-wrap items-center">
+                  <button
+                    onClick={() => {
+                      if (!navigator.geolocation) { alert('Geolocation unavailable on this device.'); return; }
+                      navigator.geolocation.getCurrentPosition(
+                        async pos => {
+                          const updated = await saveBusinessPage({ ...activePage, geoLat: pos.coords.latitude, geoLng: pos.coords.longitude, geoRadiusM: activePage.geoRadiusM || 150 });
+                          setActivePage(updated);
+                          setPages(prev => prev.map(p => p.id === updated.id ? updated : p));
+                        },
+                        () => alert('Could not get location — allow location access and try again.'),
+                        { enableHighAccuracy: true, timeout: 10000 },
+                      );
+                    }}
+                    className="flex items-center gap-2 px-5 py-3 bg-white text-black rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all"
+                  >
+                    <MapPin size={12} /> Use current location
+                  </button>
+                  <label className="flex items-center gap-2 text-[11px] font-bold text-white/60">
+                    Radius (m)
+                    <input type="number" defaultValue={activePage.geoRadiusM || 150} min={30} max={2000}
+                      onBlur={async e => {
+                        const r = Math.max(30, Math.min(2000, Number(e.target.value) || 150));
+                        const updated = await saveBusinessPage({ ...activePage, geoRadiusM: r });
+                        setActivePage(updated);
+                      }}
+                      className="w-20 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs outline-none" />
+                  </label>
+                  {typeof activePage.geoLat === 'number' && (
+                    <button
+                      onClick={async () => {
+                        const updated = await saveBusinessPage({ ...activePage, geoLat: undefined, geoLng: undefined });
+                        setActivePage(updated);
+                      }}
+                      className="text-[10px] font-bold uppercase tracking-widest text-white/40 hover:text-white"
+                    >Clear</button>
                   )}
                 </div>
               </Card>

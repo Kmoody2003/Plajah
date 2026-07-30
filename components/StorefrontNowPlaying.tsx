@@ -6,6 +6,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   checkIn, checkOut, isCheckedIn, subscribeNowPlaying, capturePulse, fetchMyPulse,
+  isGeoCheckinEnabled, setGeoCheckinEnabled, distanceMeters, getCurrentPosition,
   type NowPlayingTrack, type PulseEntry,
 } from '../services/storefrontLiveService';
 
@@ -64,18 +65,47 @@ function TrackCard({ track, businessUid, businessName, showPulseBtn, onOpenPulse
   );
 }
 
-export default function StorefrontNowPlaying({ businessUid, businessName, currentUserId }: { businessUid: string; businessName: string; currentUserId?: string }) {
+export default function StorefrontNowPlaying({ businessUid, businessName, currentUserId, geoLat, geoLng, geoRadiusM }: { businessUid: string; businessName: string; currentUserId?: string; geoLat?: number; geoLng?: number; geoRadiusM?: number }) {
   const [checked, setChecked] = useState(false);
   const [track, setTrack] = useState<NowPlayingTrack | null>(null);
   const [busy, setBusy] = useState(false);
   const [showPulse, setShowPulse] = useState(false);
   const [pulse, setPulse] = useState<PulseEntry[]>([]);
+  const [geoOn, setGeoOn] = useState(false);
+  const [autoNote, setAutoNote] = useState('');
   const lastCapturedRef = useRef<string>('');
+  const autoTriedRef = useRef(false);
+
+  const hasGeofence = typeof geoLat === 'number' && typeof geoLng === 'number';
+
+  useEffect(() => { setGeoOn(isGeoCheckinEnabled()); }, []);
 
   useEffect(() => {
     if (!currentUserId) return;
-    isCheckedIn(businessUid).then(setChecked);
-  }, [businessUid, currentUserId]);
+    isCheckedIn(businessUid).then(already => {
+      setChecked(already);
+      // Opt-in geo auto check-in: if enabled and we're inside the geofence, check in without a tap.
+      if (!already && geoOn && hasGeofence && !autoTriedRef.current) {
+        autoTriedRef.current = true;
+        getCurrentPosition()
+          .then(pos => {
+            const d = distanceMeters(pos.lat, pos.lng, geoLat!, geoLng!);
+            if (d <= (geoRadiusM || 150)) {
+              return checkIn(businessUid).then(() => { setChecked(true); setAutoNote(`📍 Auto-checked in — you're at ${businessName}`); });
+            }
+          })
+          .catch(() => { /* denied/unavailable — silent; manual button still works */ });
+      }
+    });
+  }, [businessUid, currentUserId, geoOn, hasGeofence, geoLat, geoLng, geoRadiusM, businessName]);
+
+  function toggleGeo() {
+    const next = !geoOn;
+    setGeoOn(next);
+    setGeoCheckinEnabled(next);
+    if (!next) setAutoNote('');
+    else autoTriedRef.current = false; // allow a fresh attempt
+  }
 
   // Subscribe to the live track only while checked in; snapshot new tracks into the pulse.
   useEffect(() => {
@@ -126,8 +156,15 @@ export default function StorefrontNowPlaying({ businessUid, businessName, curren
           <button onClick={openPulse} className="mt-2 text-[10px] font-bold uppercase tracking-widest text-white/50 hover:text-white">View your music pulse</button>
         </div>
       )}
+      {autoNote && <p className="text-[11px] font-bold text-emerald-300">{autoNote}</p>}
       {!checked && (
         <p className="text-xs text-white/40">Check in to see what's playing in-store, tip the artist, and buy tracks you hear.</p>
+      )}
+      {hasGeofence && currentUserId && (
+        <label className="flex items-center gap-2 text-[10px] font-bold text-white/50 cursor-pointer">
+          <input type="checkbox" checked={geoOn} onChange={toggleGeo} className="accent-fuchsia-500" />
+          Auto check-in when my location confirms I'm here
+        </label>
       )}
 
       {/* Music pulse — "Heard at …" */}

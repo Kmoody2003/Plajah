@@ -1,0 +1,584 @@
+/**
+ * Film Production Management Service
+ * ----------------------------------
+ * The on-set execution layer for the Film discipline in Artist Manager.
+ *
+ * One shared data model — production → members → scenes → call sheets → briefs
+ * → tasks → craft services — so nothing is re-keyed and versions never drift.
+ * Backed by Firestore for multi-user sync (offsite producers, crew daily briefs),
+ * with a rich demo seed so the suite is gorgeous the moment it opens.
+ *
+ * Firestore layout:
+ *   productions/{prodId}
+ *   productions/{prodId}/members/{memberId}
+ *   productions/{prodId}/scenes/{sceneId}
+ *   productions/{prodId}/callsheets/{callSheetId}
+ *   productions/{prodId}/tasks/{taskId}
+ *   productions/{prodId}/craftMenu/{itemId}
+ *   productions/{prodId}/craftOrders/{orderId}
+ */
+
+import {
+  collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
+  onSnapshot, query, where, serverTimestamp,
+} from 'firebase/firestore';
+import { db, auth } from './backendService';
+
+// ─── Departments — the atom that drives per-role briefs ──────────────────────
+
+export type DeptKey =
+  | 'PRODUCTION' | 'DIRECTION' | 'CAMERA' | 'GRIP_ELECTRIC' | 'SOUND'
+  | 'ART' | 'WARDROBE' | 'HAIR_MAKEUP' | 'LOCATIONS' | 'TRANSPORT'
+  | 'STUNTS_SFX' | 'SCRIPT' | 'CRAFT_CATERING' | 'CAST' | 'POST' | 'OTHER';
+
+export interface DeptMeta {
+  key: DeptKey;
+  label: string;
+  emoji: string;
+  color: string;
+  /** Default call offset in minutes relative to the general crew call (negative = earlier). */
+  callOffset: number;
+  /** Default walkie channel. */
+  channel: number;
+  /** What this department actually needs on a shoot day — drives the brief checklist. */
+  focus: string[];
+}
+
+export const DEPARTMENTS: DeptMeta[] = [
+  { key: 'PRODUCTION',    label: 'Production / AD',   emoji: '🎬', color: '#a855f7', callOffset: 0,   channel: 1, focus: ['Full call sheet & schedule', 'Cast statuses & movement', 'Safety paperwork & insurance', 'Daily Production Report'] },
+  { key: 'DIRECTION',     label: 'Direction',         emoji: '🎥', color: '#a855f7', callOffset: 0,   channel: 1, focus: ['Shot list & coverage plan', 'Scene order & priorities', 'Performance notes'] },
+  { key: 'CAMERA',        label: 'Camera',            emoji: '📷', color: '#38bdf8', callOffset: -30, channel: 2, focus: ['Shot list & lens plan', 'Format / frame-rate notes', 'Day/Night lighting intent', 'Camera reports & media offload'] },
+  { key: 'GRIP_ELECTRIC', label: 'Grip & Electric',   emoji: '💡', color: '#f59e0b', callOffset: -60, channel: 3, focus: ['Lighting & rigging plan per setup', 'Power distribution', 'Company-move rig list'] },
+  { key: 'SOUND',         label: 'Sound',             emoji: '🎙️', color: '#22c55e', callOffset: 0,   channel: 4, focus: ['Dialogue scenes & wireless plan', 'Quiet-set timing', 'Sound report'] },
+  { key: 'ART',           label: 'Art & Design',      emoji: '🖼️', color: '#ec4899', callOffset: -60, channel: 5, focus: ['Set dressing schedule', 'Props list per scene', 'Continuity & resets'] },
+  { key: 'WARDROBE',      label: 'Wardrobe',          emoji: '🧵', color: '#f472b6', callOffset: -45, channel: 6, focus: ['Characters & changes shooting today', 'Continuity notes', 'On-set standby'] },
+  { key: 'HAIR_MAKEUP',   label: 'Hair & Makeup',     emoji: '💄', color: '#fb7185', callOffset: -90, channel: 6, focus: ['Cast makeup call order', 'Look continuity', 'Touch-up standby'] },
+  { key: 'LOCATIONS',     label: 'Locations',         emoji: '📍', color: '#ef4444', callOffset: -30, channel: 7, focus: ['Address, parking & basecamp', 'Permits & neighbor constraints', 'Company moves'] },
+  { key: 'TRANSPORT',     label: 'Transportation',    emoji: '🚐', color: '#eab308', callOffset: -60, channel: 8, focus: ['Cast & crew pickups', 'Basecamp / crew park', 'Equipment & move logistics'] },
+  { key: 'STUNTS_SFX',    label: 'Stunts / SFX',      emoji: '💥', color: '#f97316', callOffset: -30, channel: 3, focus: ['Scene safety plan & rehearsal', 'Armorer / SFX prep', 'Medic coordination'] },
+  { key: 'SCRIPT',        label: 'Script / Continuity', emoji: '📝', color: '#8b5cf6', callOffset: 0, channel: 1, focus: ['Scene order & page counts', 'Take notes & continuity', 'Feeds the DPR'] },
+  { key: 'CRAFT_CATERING',label: 'Craft & Catering',  emoji: '🍽️', color: '#14b8a6', callOffset: -90, channel: 9, focus: ['Called headcount today', 'Meal times & dietary manifest', 'Crafty restocks'] },
+  { key: 'CAST',          label: 'Cast / Talent',     emoji: '⭐', color: '#facc15', callOffset: -60, channel: 6, focus: ['Your pickup / MU / wardrobe / set calls', 'Your scenes & sides', 'Transport & basecamp'] },
+  { key: 'POST',          label: 'Post-Production',   emoji: '✂️', color: '#64748b', callOffset: 0,   channel: 1, focus: ['Daily media & reports', 'Editorial notes'] },
+  { key: 'OTHER',         label: 'Other',             emoji: '🎯', color: '#94a3b8', callOffset: 0,   channel: 1, focus: ['Call sheet & schedule'] },
+];
+
+export const deptMeta = (k: DeptKey): DeptMeta => DEPARTMENTS.find(d => d.key === k) || DEPARTMENTS[DEPARTMENTS.length - 1];
+
+// ─── Model ───────────────────────────────────────────────────────────────────
+
+export type MemberStatus = 'ACTIVE' | 'PENDING' | 'ON_HOLD' | 'WRAPPED';
+
+export interface ProductionMember {
+  id: string;
+  uid?: string;              // linked Plajah account → unlocks their personal brief + confirmations
+  name: string;
+  role: string;              // job title, e.g. "1st AC", "Gaffer", "Maya (Lead)"
+  dept: DeptKey;
+  email?: string;
+  phone?: string;
+  isCast?: boolean;
+  character?: string;        // for cast
+  dietary?: string[];        // persistent, travels with the person
+  dietaryNotes?: string;
+  status: MemberStatus;
+  createdAt: number;
+}
+
+export interface ProductionScene {
+  id: string;
+  sceneNum: string;
+  intExt: 'INT' | 'EXT' | 'INT/EXT';
+  dayNight: 'DAY' | 'NIGHT' | 'DUSK' | 'DAWN' | 'CONTINUOUS';
+  set: string;
+  synopsis: string;
+  characters: string[];      // character names appearing
+  pages: number;             // eighths as decimal (e.g. 1.5 = 1 4/8)
+  shootDay: number;
+  status: 'NOT_SHOT' | 'SHOT' | 'PARTIAL' | 'OMIT';
+}
+
+export interface CallSheetDeptCall { dept: DeptKey; callTime: string; note?: string; }
+export interface CallSheetCastRow {
+  memberId?: string; character: string; actor?: string;
+  pickup?: string; makeup?: string; wardrobe?: string; onSet?: string; status?: string; note?: string;
+}
+export interface CallSheetSceneRow {
+  sceneNum: string; intExt: string; dayNight: string; set: string; synopsis: string; pages: number; characters: string[];
+}
+export interface MealBlock { label: string; time: string; note?: string; }
+export interface Weather { summary: string; high?: number; low?: number; precip?: number; sunrise?: string; sunset?: string; }
+
+export interface CallSheet {
+  id: string;
+  prodId: string;
+  shootDay: number;
+  dayOf: number;
+  totalDays: number;
+  date: string;                 // ISO yyyy-mm-dd
+  generalCall: string;          // "07:00"
+  shootingCall?: string;
+  estWrap?: string;
+  locationName: string;
+  locationAddress?: string;
+  mapUrl?: string;
+  parkingNote?: string;
+  basecampNote?: string;
+  nearestHospital?: string;
+  hospitalAddress?: string;
+  safetyNotes?: string;
+  weather?: Weather;
+  walkie?: Record<string, number>;
+  deptCalls: CallSheetDeptCall[];
+  castRows: CallSheetCastRow[];
+  sceneRows: CallSheetSceneRow[];
+  meals: MealBlock[];
+  notes?: string;
+  advanceNote?: string;
+  version: number;
+  status: 'DRAFT' | 'PUBLISHED';
+  publishedAt?: number;
+  changeLog?: { at: number; summary: string }[];
+  confirmations?: Record<string, number>;   // memberId → confirmedAt ms
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type TaskPriority = 'LOW' | 'MED' | 'HIGH' | 'URGENT';
+export type TaskStatus = 'TODO' | 'DOING' | 'DONE';
+export interface ProdTask {
+  id: string;
+  title: string;
+  dept?: DeptKey;
+  assigneeMemberId?: string;
+  assigneeName?: string;
+  shootDay?: number;
+  due?: string;
+  priority: TaskPriority;
+  status: TaskStatus;
+  createdAt: number;
+}
+
+export type CraftCategory = 'MEAL' | 'SNACK' | 'DRINK' | 'COFFEE' | 'SPECIAL';
+export interface CraftItem {
+  id: string;
+  name: string;
+  category: CraftCategory;
+  desc?: string;
+  dietaryTags?: string[];
+  available: boolean;
+  createdAt: number;
+}
+
+export type OrderStatus = 'REQUESTED' | 'PREPPING' | 'READY' | 'DELIVERED' | 'CANCELLED';
+export interface CraftOrder {
+  id: string;
+  itemId: string;
+  itemName: string;
+  qty: number;
+  forMemberId?: string;
+  requestedByUid?: string;
+  requestedByName: string;
+  dept?: DeptKey;
+  note?: string;
+  dietary?: string[];
+  status: OrderStatus;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Production {
+  id: string;
+  ownerUid: string;
+  title: string;
+  format?: string;             // "Feature" | "Short" | "Series" | "Commercial"
+  memberUids: string[];        // denormalized for rules + "productions I'm in" queries
+  totalDays: number;
+  productionOffice?: string;
+  emergencyContact?: string;
+  timezone?: string;
+  lat?: number;
+  lng?: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// ─── Time helpers ────────────────────────────────────────────────────────────
+
+export function addMinutes(hhmm: string, mins: number): string {
+  const [h, m] = (hhmm || '00:00').split(':').map(Number);
+  let total = h * 60 + m + mins;
+  total = ((total % 1440) + 1440) % 1440;
+  const nh = Math.floor(total / 60), nm = total % 60;
+  return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
+}
+
+export function fmtCall(hhmm?: string): string {
+  if (!hhmm) return '—';
+  const [h, m] = hhmm.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+export function pagesToEighths(pages: number): string {
+  const whole = Math.floor(pages);
+  const eighths = Math.round((pages - whole) * 8);
+  if (whole === 0 && eighths === 0) return '0';
+  if (whole === 0) return `${eighths}/8`;
+  if (eighths === 0) return `${whole}`;
+  return `${whole} ${eighths}/8`;
+}
+
+// ─── Solar sunrise/sunset (NOAA approximation) ───────────────────────────────
+// Real, offline, no API key. Used when the production has lat/lng.
+
+export function computeSunTimes(lat: number, lng: number, dateISO: string, tzOffsetMin: number): { sunrise: string; sunset: string } | null {
+  try {
+    const date = new Date(dateISO + 'T12:00:00Z');
+    const start = Date.UTC(date.getUTCFullYear(), 0, 0);
+    const dayOfYear = Math.floor((date.getTime() - start) / 86400000);
+    const rad = Math.PI / 180;
+    const declination = -23.44 * Math.cos(rad * (360 / 365) * (dayOfYear + 10));
+    const latRad = lat * rad, decRad = declination * rad;
+    const cosH = -Math.tan(latRad) * Math.tan(decRad);
+    if (cosH > 1 || cosH < -1) return null; // polar day/night
+    const H = Math.acos(cosH) / rad;         // half-day arc in degrees
+    const solarNoonMin = 720 - 4 * lng - equationOfTime(dayOfYear) + tzOffsetMin;
+    const sunriseMin = solarNoonMin - 4 * H;
+    const sunsetMin = solarNoonMin + 4 * H;
+    const toHHMM = (min: number) => {
+      let t = ((Math.round(min) % 1440) + 1440) % 1440;
+      return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+    };
+    return { sunrise: toHHMM(sunriseMin), sunset: toHHMM(sunsetMin) };
+  } catch { return null; }
+}
+
+function equationOfTime(dayOfYear: number): number {
+  const b = (2 * Math.PI * (dayOfYear - 81)) / 364;
+  return 9.87 * Math.sin(2 * b) - 7.53 * Math.cos(b) - 1.5 * Math.sin(b);
+}
+
+// ─── Call sheet auto-generation — the core wedge ─────────────────────────────
+
+export interface GenerateOpts {
+  date?: string;
+  generalCall?: string;
+  locationName?: string;
+  locationAddress?: string;
+}
+
+export function generateCallSheet(
+  prod: Production,
+  scenes: ProductionScene[],
+  members: ProductionMember[],
+  shootDay: number,
+  opts: GenerateOpts = {},
+): CallSheet {
+  const dayScenes = scenes.filter(s => s.shootDay === shootDay && s.status !== 'OMIT');
+  const generalCall = opts.generalCall || '07:00';
+  const shootingCall = addMinutes(generalCall, 30);
+
+  // Departments present on this production → personalized call times.
+  const presentDepts = [...new Set(members.filter(m => m.dept !== 'CAST' && m.status === 'ACTIVE').map(m => m.dept))];
+  const deptCalls: CallSheetDeptCall[] = presentDepts
+    .map(dept => ({ dept, callTime: addMinutes(generalCall, deptMeta(dept).callOffset) }))
+    .sort((a, b) => a.callTime.localeCompare(b.callTime));
+
+  // Cast needed today (characters appearing in today's scenes) with staggered calls.
+  const charsToday = new Set(dayScenes.flatMap(s => s.characters.map(c => c.toUpperCase())));
+  const castMembers = members.filter(m => (m.isCast || m.dept === 'CAST') && m.status === 'ACTIVE');
+  const castRows: CallSheetCastRow[] = castMembers
+    .filter(m => {
+      const key = (m.character || m.role || m.name).toUpperCase();
+      return charsToday.size === 0 || [...charsToday].some(c => key.includes(c) || c.includes(key.split(' ')[0]));
+    })
+    .map(m => ({
+      memberId: m.id,
+      character: m.character || m.role,
+      actor: m.name,
+      pickup: addMinutes(generalCall, -90),
+      makeup: addMinutes(generalCall, -60),
+      wardrobe: addMinutes(generalCall, -30),
+      onSet: generalCall,
+      status: 'SW',
+    }));
+
+  const walkie: Record<string, number> = {};
+  presentDepts.forEach(d => { walkie[deptMeta(d).label] = deptMeta(d).channel; });
+
+  const location = dayScenes[0]?.set || opts.locationName || 'TBD';
+  const now = Date.now();
+
+  let weather: Weather | undefined;
+  if (opts.date && prod.lat != null && prod.lng != null) {
+    const tzOff = -(new Date().getTimezoneOffset());
+    const sun = computeSunTimes(prod.lat, prod.lng, opts.date, tzOff);
+    if (sun) weather = { summary: 'Check forecast day-of', sunrise: sun.sunrise, sunset: sun.sunset };
+  }
+
+  return {
+    id: `cs_${shootDay}_${now.toString(36)}`,
+    prodId: prod.id,
+    shootDay,
+    dayOf: shootDay,
+    totalDays: prod.totalDays || Math.max(shootDay, ...scenes.map(s => s.shootDay), 1),
+    date: opts.date || '',
+    generalCall,
+    shootingCall,
+    estWrap: addMinutes(generalCall, 12 * 60),
+    locationName: opts.locationName || location,
+    locationAddress: opts.locationAddress || '',
+    weather,
+    walkie,
+    deptCalls,
+    castRows,
+    sceneRows: dayScenes.map(s => ({
+      sceneNum: s.sceneNum, intExt: s.intExt, dayNight: s.dayNight, set: s.set,
+      synopsis: s.synopsis, pages: s.pages, characters: s.characters,
+    })),
+    meals: [
+      { label: 'Breakfast', time: addMinutes(generalCall, -30), note: 'Hot breakfast at crew park' },
+      { label: 'Lunch', time: addMinutes(generalCall, 6 * 60), note: '6 hrs from crew call — watch meal penalty' },
+    ],
+    notes: '',
+    advanceNote: '',
+    version: 1,
+    status: 'DRAFT',
+    changeLog: [{ at: now, summary: 'Auto-generated from schedule' }],
+    confirmations: {},
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+// ─── Per-role daily brief derivation ─────────────────────────────────────────
+
+export interface DailyBrief {
+  member: ProductionMember;
+  dept: DeptMeta;
+  yourCall: string;
+  callBreakdown?: { label: string; time: string }[]; // cast staggered calls
+  location: string;
+  locationAddress?: string;
+  mapUrl?: string;
+  weather?: Weather;
+  scenes: CallSheetSceneRow[];
+  focus: string[];
+  channel: number;
+  meals: MealBlock[];
+  safetyNotes?: string;
+  nearestHospital?: string;
+  confirmed: boolean;
+  callSheet: CallSheet;
+}
+
+export function buildDailyBrief(cs: CallSheet, member: ProductionMember): DailyBrief {
+  const dm = deptMeta(member.dept);
+  const isCast = member.isCast || member.dept === 'CAST';
+  const castRow = cs.castRows.find(r => r.memberId === member.id);
+  const deptCall = cs.deptCalls.find(d => d.dept === member.dept);
+
+  let yourCall = cs.generalCall;
+  let callBreakdown: { label: string; time: string }[] | undefined;
+  if (isCast && castRow) {
+    yourCall = castRow.pickup || castRow.onSet || cs.generalCall;
+    callBreakdown = [
+      castRow.pickup ? { label: 'Pickup', time: castRow.pickup } : null,
+      castRow.makeup ? { label: 'Makeup', time: castRow.makeup } : null,
+      castRow.wardrobe ? { label: 'Wardrobe', time: castRow.wardrobe } : null,
+      castRow.onSet ? { label: 'On set', time: castRow.onSet } : null,
+    ].filter(Boolean) as { label: string; time: string }[];
+  } else if (deptCall) {
+    yourCall = deptCall.callTime;
+  }
+
+  // Cast see only their scenes; crew see the full day.
+  const scenes = isCast
+    ? cs.sceneRows.filter(s => s.characters.some(c => (member.character || member.role || '').toUpperCase().includes(c.toUpperCase()) || c.toUpperCase().includes((member.character || member.role || '').toUpperCase())))
+    : cs.sceneRows;
+
+  const confirmed = !!(cs.confirmations && (cs.confirmations[member.id] || (member.uid && cs.confirmations[member.uid])));
+
+  return {
+    member, dept: dm, yourCall, callBreakdown,
+    location: cs.locationName, locationAddress: cs.locationAddress, mapUrl: cs.mapUrl,
+    weather: cs.weather,
+    scenes: scenes.length ? scenes : cs.sceneRows,
+    focus: dm.focus, channel: dm.channel,
+    meals: cs.meals, safetyNotes: cs.safetyNotes, nearestHospital: cs.nearestHospital,
+    confirmed, callSheet: cs,
+  };
+}
+
+// ─── Firestore I/O ───────────────────────────────────────────────────────────
+
+const stripUndefined = <T extends object>(o: T): T =>
+  JSON.parse(JSON.stringify(o, (_k, v) => (v === undefined ? undefined : v)));
+
+const prodRef = (prodId: string) => doc(db, 'productions', prodId);
+const sub = (prodId: string, name: string) => collection(db, 'productions', prodId, name);
+
+/** The signed-in user's default production id. One primary production per user for v1. */
+export function defaultProductionId(uid: string) { return `film_${uid}`; }
+
+export async function fetchProduction(prodId: string): Promise<Production | null> {
+  try {
+    const snap = await getDoc(prodRef(prodId));
+    return snap.exists() ? (snap.data() as Production) : null;
+  } catch { return null; }
+}
+
+export async function ensureProduction(uid: string, title = 'Untitled Production'): Promise<Production> {
+  const id = defaultProductionId(uid);
+  const existing = await fetchProduction(id);
+  if (existing) return existing;
+  const now = Date.now();
+  const prod: Production = {
+    id, ownerUid: uid, title, format: 'Feature', memberUids: [uid],
+    totalDays: 7, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, createdAt: now, updatedAt: now,
+  };
+  try { await setDoc(prodRef(id), stripUndefined(prod)); } catch { /* offline: return in-memory */ }
+  return prod;
+}
+
+export async function updateProduction(prodId: string, patch: Partial<Production>) {
+  try { await updateDoc(prodRef(prodId), stripUndefined({ ...patch, updatedAt: Date.now() })); } catch {}
+}
+
+/** Productions the user is a crew member on (besides their own). */
+export async function fetchMyProductions(uid: string): Promise<Production[]> {
+  try {
+    const q = query(collection(db, 'productions'), where('memberUids', 'array-contains', uid));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as Production);
+  } catch { return []; }
+}
+
+// Generic subcollection helpers
+function subscribe<T>(prodId: string, name: string, cb: (rows: T[]) => void): () => void {
+  try {
+    return onSnapshot(sub(prodId, name),
+      s => cb(s.docs.map(d => d.data() as T)),
+      e => { console.warn(`[filmProduction] ${name} sub failed:`, (e as Error)?.message?.slice(0, 160)); });
+  } catch { return () => {}; }
+}
+async function put<T extends { id: string }>(prodId: string, name: string, row: T) {
+  try { await setDoc(doc(db, 'productions', prodId, name, row.id), stripUndefined(row)); } catch {}
+}
+async function patch(prodId: string, name: string, id: string, p: object) {
+  try { await updateDoc(doc(db, 'productions', prodId, name, id), stripUndefined({ ...p, updatedAt: Date.now() })); } catch {}
+}
+async function remove(prodId: string, name: string, id: string) {
+  try { await deleteDoc(doc(db, 'productions', prodId, name, id)); } catch {}
+}
+
+// Members
+export const subMembers = (p: string, cb: (r: ProductionMember[]) => void) => subscribe<ProductionMember>(p, 'members', cb);
+export const putMember = (p: string, m: ProductionMember) => put(p, 'members', m);
+export const patchMember = (p: string, id: string, x: Partial<ProductionMember>) => patch(p, 'members', id, x);
+export const removeMember = (p: string, id: string) => remove(p, 'members', id);
+
+// Scenes
+export const subScenes = (p: string, cb: (r: ProductionScene[]) => void) => subscribe<ProductionScene>(p, 'scenes', cb);
+export const putScene = (p: string, s: ProductionScene) => put(p, 'scenes', s);
+export const removeScene = (p: string, id: string) => remove(p, 'scenes', id);
+
+// Call sheets
+export const subCallSheets = (p: string, cb: (r: CallSheet[]) => void) => subscribe<CallSheet>(p, 'callsheets', cb);
+export const putCallSheet = (p: string, c: CallSheet) => put(p, 'callsheets', c);
+export const patchCallSheet = (p: string, id: string, x: Partial<CallSheet>) => patch(p, 'callsheets', id, x);
+export const removeCallSheet = (p: string, id: string) => remove(p, 'callsheets', id);
+
+export async function publishCallSheet(prodId: string, cs: CallSheet, changeSummary?: string) {
+  const bumped = cs.status === 'PUBLISHED';
+  const log = [...(cs.changeLog || [])];
+  if (changeSummary) log.push({ at: Date.now(), summary: changeSummary });
+  await patchCallSheet(prodId, cs.id, {
+    status: 'PUBLISHED',
+    version: bumped ? cs.version + 1 : cs.version,
+    publishedAt: Date.now(),
+    changeLog: log,
+    // A republish invalidates prior confirmations — everyone must re-confirm the delta.
+    ...(bumped ? { confirmations: {} } : {}),
+  });
+}
+
+export async function confirmCallSheet(prodId: string, cs: CallSheet, memberKey: string) {
+  const confirmations = { ...(cs.confirmations || {}), [memberKey]: Date.now() };
+  await patchCallSheet(prodId, cs.id, { confirmations });
+}
+
+// Tasks
+export const subTasks = (p: string, cb: (r: ProdTask[]) => void) => subscribe<ProdTask>(p, 'tasks', cb);
+export const putTask = (p: string, t: ProdTask) => put(p, 'tasks', t);
+export const patchTask = (p: string, id: string, x: Partial<ProdTask>) => patch(p, 'tasks', id, x);
+export const removeTask = (p: string, id: string) => remove(p, 'tasks', id);
+
+// Craft menu + orders
+export const subCraftMenu = (p: string, cb: (r: CraftItem[]) => void) => subscribe<CraftItem>(p, 'craftMenu', cb);
+export const putCraftItem = (p: string, i: CraftItem) => put(p, 'craftMenu', i);
+export const removeCraftItem = (p: string, id: string) => remove(p, 'craftMenu', id);
+export const subCraftOrders = (p: string, cb: (r: CraftOrder[]) => void) => subscribe<CraftOrder>(p, 'craftOrders', cb);
+export const putCraftOrder = (p: string, o: CraftOrder) => put(p, 'craftOrders', o);
+export const patchCraftOrder = (p: string, id: string, x: Partial<CraftOrder>) => patch(p, 'craftOrders', id, x);
+
+export function uid8() { return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`; }
+export const currentUid = () => auth?.currentUser?.uid;
+
+// ─── Demo seed — a gorgeous, coherent production out of the box ───────────────
+
+export function demoMembers(): ProductionMember[] {
+  const now = Date.now();
+  const m = (name: string, role: string, dept: DeptKey, extra: Partial<ProductionMember> = {}): ProductionMember =>
+    ({ id: uid8(), name, role, dept, status: 'ACTIVE', createdAt: now, ...extra });
+  return [
+    m('Aria Chen', 'Director', 'DIRECTION'),
+    m('Sofia Reyes', '1st Assistant Director', 'PRODUCTION', { dietary: ['vegetarian'] }),
+    m('Marcus Webb', 'Line Producer', 'PRODUCTION'),
+    m('Priya Kapoor', '2nd AD', 'PRODUCTION'),
+    m('James Liu', 'Director of Photography', 'CAMERA'),
+    m('Devon Clark', '1st AC', 'CAMERA'),
+    m('Riley Kim', '2nd AC', 'CAMERA'),
+    m('Derek Holmes', 'Gaffer', 'GRIP_ELECTRIC'),
+    m('Tomas Vega', 'Key Grip', 'GRIP_ELECTRIC', { dietary: ['gluten-free'] }),
+    m('Amara Diallo', 'Production Sound Mixer', 'SOUND'),
+    m('Noah Bennett', 'Boom Operator', 'SOUND'),
+    m('Elena Rossi', 'Production Designer', 'ART'),
+    m('Grace Park', 'Costume Supervisor', 'WARDROBE'),
+    m('Lila Moreno', 'Key Hair & Makeup', 'HAIR_MAKEUP'),
+    m('Ben Foster', 'Location Manager', 'LOCATIONS'),
+    m('Carlos Vega', 'Maya', 'CAST', { isCast: true, character: 'MAYA', role: 'Maya (Lead)', dietary: ['nut-allergy'], dietaryNotes: 'Severe — EpiPen on set' }),
+    m('Nina Torres', 'Det. Ramos', 'CAST', { isCast: true, character: 'DET. RAMOS', role: 'Det. Ramos' }),
+    m('Omar Said', 'Carlos (CI)', 'CAST', { isCast: true, character: 'CARLOS', role: 'Carlos (CI)', dietary: ['halal'] }),
+  ];
+}
+
+export function demoScenes(): ProductionScene[] {
+  const s = (sceneNum: string, intExt: ProductionScene['intExt'], dayNight: ProductionScene['dayNight'], set: string, synopsis: string, characters: string[], pages: number, shootDay: number): ProductionScene =>
+    ({ id: uid8(), sceneNum, intExt, dayNight, set, synopsis, characters, pages, shootDay, status: 'NOT_SHOT' });
+  return [
+    s('1', 'INT', 'DAY', "MAYA'S APARTMENT", 'Maya reviews evidence. Unknown caller. She hesitates.', ['MAYA'], 1.0, 1),
+    s('4', 'EXT', 'DUSK', 'RIVERSIDE PARK', 'Maya meets CI. Whispered exchange of intel.', ['MAYA', 'CARLOS'], 1.5, 1),
+    s('2', 'EXT', 'NIGHT', 'DOWNTOWN PARKING GARAGE', 'Maya tails the suspect into the building.', ['MAYA'], 1.5, 2),
+    s('3', 'INT', 'DAY', 'POLICE PRECINCT – BULLPEN', 'Det. Ramos confronts Maya about going off-book.', ['MAYA', 'DET. RAMOS'], 2.0, 3),
+    s('5', 'INT', 'NIGHT', 'ABANDONED WAREHOUSE', 'Climax. Maya corners suspect. A shot rings out.', ['MAYA', 'DET. RAMOS'], 3.0, 7),
+  ];
+}
+
+export function demoCraftMenu(): CraftItem[] {
+  const now = Date.now();
+  const c = (name: string, category: CraftCategory, desc: string, dietaryTags: string[] = []): CraftItem =>
+    ({ id: uid8(), name, category, desc, dietaryTags, available: true, createdAt: now });
+  return [
+    c('Hot Lunch — Grilled Chicken', 'MEAL', 'Herb chicken, roast veg, rice'),
+    c('Hot Lunch — Vegan Bowl', 'MEAL', 'Chickpea & quinoa power bowl', ['vegan', 'gluten-free', 'nut-free']),
+    c('Turkey Club Wrap', 'SNACK', 'Grab-and-go from crafty'),
+    c('Fresh Fruit Cup', 'SNACK', 'Seasonal', ['vegan', 'gluten-free', 'nut-free']),
+    c('Espresso / Latte', 'COFFEE', 'Barista cart, oat milk available'),
+    c('Cold Brew', 'COFFEE', 'On tap all day'),
+    c('Electrolyte Water', 'DRINK', 'Cold, restocked hourly', ['vegan', 'gluten-free']),
+    c('Gluten-Free Snack Box', 'SPECIAL', 'Certified GF', ['gluten-free']),
+  ];
+}

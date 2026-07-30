@@ -28,6 +28,36 @@ export interface PulseEntry extends NowPlayingTrack { id: string; businessUid: s
 
 const NOW_DOC = 'current';
 
+// ── Geo (opt-in auto check-in) ───────────────────────────────────────────────
+const GEO_PREF_KEY = 'plajah_geo_checkin';
+/** Whether the customer has opted into location-based auto check-in (device-local preference). */
+export function isGeoCheckinEnabled(): boolean {
+  try { return localStorage.getItem(GEO_PREF_KEY) === '1'; } catch { return false; }
+}
+export function setGeoCheckinEnabled(on: boolean): void {
+  try { localStorage.setItem(GEO_PREF_KEY, on ? '1' : '0'); } catch { /* */ }
+}
+/** Great-circle distance between two lat/lng points, in metres (haversine). */
+export function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+/** Read the device's current position once (promise). Rejects if denied/unavailable. */
+export function getCurrentPosition(): Promise<{ lat: number; lng: number }> {
+  return new Promise((resolve, reject) => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return reject(new Error('Geolocation unavailable'));
+    navigator.geolocation.getCurrentPosition(
+      p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      err => reject(err),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  });
+}
+
 // ── Now Playing ────────────────────────────────────────────────────────────────
 export async function publishNowPlaying(businessUid: string, track: NowPlayingTrack): Promise<void> {
   await setDoc(doc(db, 'businesses', businessUid, 'nowPlaying', NOW_DOC), {

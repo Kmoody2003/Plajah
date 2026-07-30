@@ -3734,6 +3734,11 @@ export interface BusinessPage {
   city?: string;
   state?: string;
   postalCode?: string;
+  // Geofence for opt-in auto check-in (customer is auto-checked-in when their location confirms
+  // they're within geoRadiusM of this point). Web attempts on page open; native does background.
+  geoLat?: number;
+  geoLng?: number;
+  geoRadiusM?: number;
   phone?: string;
   email?: string;
   website?: string;
