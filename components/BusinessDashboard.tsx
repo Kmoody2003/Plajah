@@ -18,6 +18,7 @@ import {
 import { auth } from '../services/firebase';
 import InventoryManager from './InventoryManager';
 import StoreKioskMode from './StoreKioskMode';
+import PosRegister from './PosRegister';
 import BusinessBroadcastComposer from './BusinessBroadcastComposer';
 import BusinessOrdersPanel from './BusinessOrdersPanel';
 import ArtistPromoDirectory from './ArtistPromoDirectory';
@@ -69,6 +70,7 @@ interface BusinessDashboardProps {
 const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNavigate }) => {
   const [activeTab, setActiveTab] = useState<BizTab>('OVERVIEW');
   const [showKiosk, setShowKiosk] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
   const [pages, setPages] = useState<BusinessPage[]>([]);
   const [activePage, setActivePage] = useState<BusinessPage | null>(null);
   const [orders, setOrders] = useState<BusinessOrder[]>([]);
@@ -381,8 +383,11 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
           {/* ── CRM ── */}
           {activeTab === 'INVENTORY' && (
             <div className="space-y-3">
-              <div className="flex items-center justify-end">
-                <button onClick={() => setShowKiosk(true)} className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white text-[10px] font-black uppercase tracking-widest">
+              <div className="flex items-center justify-end gap-2">
+                <button onClick={() => setShowRegister(true)} className="flex items-center gap-2 px-4 py-2 rounded-full text-white text-[10px] font-black uppercase tracking-widest" style={{ background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' }}>
+                  <ShoppingBag size={13} /> Open register
+                </button>
+                <button onClick={() => setShowKiosk(true)} className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase tracking-widest">
                   <ShoppingBag size={13} /> Launch in-store kiosk
                 </button>
               </div>
@@ -396,6 +401,15 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
               businessUid={currentUser.uid}
               businessName={activePage?.businessName || currentUser.displayName || 'My Store'}
               onExit={() => setShowKiosk(false)}
+            />
+          )}
+
+          {/* Staff-facing POS register — cash sales on the order spine + inventory + loyalty. */}
+          {showRegister && (
+            <PosRegister
+              businessUid={currentUser.uid}
+              businessName={activePage?.businessName || currentUser.displayName || 'My Store'}
+              onExit={() => setShowRegister(false)}
             />
           )}
 

@@ -2,7 +2,7 @@
 // backs the on-platform store. Because inventory items ARE store products, editing inventory
 // auto-populates the merch store (no sync job). Also seeds a demo business for presentations.
 
-import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
 import type { StoreProduct } from '../types';
 import { createProduct, updateProduct, fetchProductsBySeller } from './storeService';
 import { db, auth } from './backendService';
@@ -58,6 +58,35 @@ export async function fetchBusinessStoreOrders(businessUid: string): Promise<Sto
 /** Advance a spine order's status (business only — rules require sellerId == the signed-in user). */
 export async function advanceStoreOrder(orderId: string, status: string): Promise<void> {
   await updateDoc(doc(db, 'storeOrders', orderId), { status, updatedAt: Date.now() });
+}
+
+// ── POS + loyalty ──────────────────────────────────────────────────────────────
+/** Ring up a POS (cash) sale via the server — records a confirmed order, decrements stock, and
+ *  awards loyalty to a recognized Plajah customer. Returns { orderId, totalCents, pointsEarned }. */
+export async function posSale(input: {
+  businessUid: string;
+  items: { productId: string; qty: number }[];
+  tender: 'CASH' | 'CARD';
+  customerUid?: string;
+  discountCents?: number;
+}): Promise<{ orderId: string; totalCents: number; pointsEarned: number }> {
+  const token = await auth.currentUser?.getIdToken?.();
+  const res = await fetch('/api/store/pos-sale', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(input),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Sale failed');
+  return data;
+}
+
+/** A customer's loyalty point balance at a business. */
+export async function fetchLoyaltyPoints(businessUid: string, customerUid: string): Promise<number> {
+  try {
+    const snap = await getDoc(doc(db, 'businesses', businessUid, 'loyalty', customerUid));
+    return snap.exists() ? (snap.data() as any).points || 0 : 0;
+  } catch { return 0; }
 }
 
 /** An item is "low stock" when its on-hand count is at/below its threshold (default 5). */

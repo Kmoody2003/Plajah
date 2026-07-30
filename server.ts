@@ -5957,6 +5957,57 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     }
   });
 
+  // ── POS sale — staff-facing register (cash tender). Business-authenticated (the owner runs the
+  // register). Prices server-side, records a CONFIRMED order, decrements stock, and awards loyalty
+  // points to a recognized Plajah customer. Card-present tender is a Stripe-Terminal fast-follow.
+  const LOYALTY_PTS_PER_DOLLAR = 1;
+  app.post('/api/store/pos-sale', authMiddleware, express.json({ limit: '256kb' }), async (req: any, res) => {
+    try {
+      const staffUid: string = req.uid;
+      const { businessUid, items, tender, customerUid, discountCents } = req.body || {};
+      if (!businessUid || !Array.isArray(items) || !items.length) return res.status(400).json({ error: 'businessUid and items required.' });
+      if (staffUid !== businessUid) return res.status(403).json({ error: 'Only the business owner can ring up sales (staff PIN auth is a follow-up).' });
+
+      const priced: any[] = [];
+      let subtotalCents = 0;
+      for (const it of items) {
+        const qty = Math.max(1, Math.min(99, Math.floor(Number(it?.qty) || 0)));
+        const p = await firestoreRead('storeProducts', String(it?.productId || ''));
+        if (!p) return res.status(400).json({ error: `Product not found: ${it?.productId}` });
+        if (p.sellerId && p.sellerId !== businessUid) return res.status(400).json({ error: 'A product does not belong to this business.' });
+        const unit = Math.round(Number(p.price || 0) * 100);
+        subtotalCents += unit * qty;
+        priced.push({ productId: String(it.productId), title: p.title || 'Item', qty, unitAmount: unit });
+      }
+      const discount = Math.max(0, Math.min(subtotalCents, Math.floor(Number(discountCents) || 0)));
+      const totalCents = subtotalCents - discount;
+
+      const orderId = `pos_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      await firestoreWrite('storeOrders', orderId, {
+        businessUid, customerUid: customerUid || 'walkin',
+        buyerId: customerUid || 'walkin', sellerId: businessUid,
+        items: JSON.stringify(priced), subtotalCents, discountCents: discount, totalCents,
+        source: 'POS', tender: tender === 'CARD' ? 'CARD' : 'CASH',
+        fulfillment: 'PICKUP', status: 'CONFIRMED', createdAt: Date.now(), paidAt: Date.now(),
+      });
+      // Decrement stock atomically.
+      for (const li of priced) await firestoreIncrement(`storeProducts/${li.productId}`, { stock: -Math.abs(li.qty) }).catch(() => {});
+
+      // Loyalty: award points to a recognized Plajah customer for this business.
+      let pointsEarned = 0;
+      if (customerUid && customerUid !== 'walkin') {
+        pointsEarned = Math.round((totalCents / 100) * LOYALTY_PTS_PER_DOLLAR);
+        if (pointsEarned > 0) {
+          await firestoreIncrement(`businesses/${businessUid}/loyalty/${customerUid}`, { points: pointsEarned }, { customerUid, businessUid, updatedAt: Date.now() }).catch(() => {});
+        }
+      }
+      res.json({ orderId, totalCents, pointsEarned });
+    } catch (err: any) {
+      console.error('/api/store/pos-sale', err?.message || err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── Music sync license — one-time per-project license, pays the musician ─────
   app.post('/api/stripe/purchase-sync-license', authMiddleware, express.json(), async (req: any, res) => {
     try {
