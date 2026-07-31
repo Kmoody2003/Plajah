@@ -4,7 +4,7 @@ import {
   Store, ShoppingBag, Radio, Monitor, Users, Plus, X, Check, Edit3,
   Trash2, ChevronRight, Clock, Package, Star, Zap, Globe, Leaf,
   Settings, ToggleLeft, ToggleRight, Search, Filter, Mail, Phone,
-  BarChart3, Target, RefreshCw, Play, Pause, Image, MapPin
+  BarChart3, Target, RefreshCw, Play, Pause, Image, MapPin, Building2, ShieldCheck
 } from 'lucide-react';
 import { UserProfile, BusinessPage, BusinessOrder, DigitalSignageSlide, CrmContact, SeedRaiserCampaign, SeedRaiserReward } from '../types';
 import {
@@ -16,6 +16,9 @@ import {
   addCampaignUpdate,
 } from '../services/businessService';
 import { auth } from '../services/firebase';
+import { getVertical } from '../services/businessVerticals';
+import ListingsManager from './terra/ListingsManager';
+import BusinessCompliance from './terra/BusinessCompliance';
 import InventoryManager from './InventoryManager';
 import StoreKioskMode from './StoreKioskMode';
 import PosRegister from './PosRegister';
@@ -27,7 +30,7 @@ import BusinessOrdersPanel from './BusinessOrdersPanel';
 import ArtistPromoDirectory from './ArtistPromoDirectory';
 import StaffHRManager from './StaffHRManager';
 
-type BizTab = 'OVERVIEW' | 'ORDERS' | 'INVENTORY' | 'TEAM' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'SETTINGS';
+type BizTab = 'OVERVIEW' | 'ORDERS' | 'INVENTORY' | 'TEAM' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'SETTINGS' | 'LISTINGS' | 'COMPLIANCE';
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 
@@ -187,8 +190,10 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
     setEditingSlide(null);
   };
 
-  const tabs: { id: BizTab; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
+  const ALL_TABS: { id: BizTab; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
     { id: 'OVERVIEW',   label: 'Overview',     icon: Store },
+    { id: 'LISTINGS',   label: 'Listings',     icon: Building2 },
+    { id: 'COMPLIANCE', label: 'Compliance',   icon: ShieldCheck },
     { id: 'ORDERS',     label: 'Orders',       icon: ShoppingBag },
     { id: 'INVENTORY',  label: 'Inventory',    icon: Package },
     { id: 'TEAM',       label: 'Team & HR',    icon: Users },
@@ -199,6 +204,13 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
     { id: 'RADIO',      label: 'Radio',        icon: Radio },
     { id: 'SETTINGS',   label: 'Settings',     icon: Settings },
   ];
+
+  // Show only the tabs this vertical actually uses — a realtor has no inventory
+  // or in-store radio. Ordered by the vertical so its priorities lead.
+  const vertical = getVertical(activePage?.businessType);
+  const tabs = vertical.tabs
+    .map(id => ALL_TABS.find(t => t.id === (id as BizTab)))
+    .filter((t): t is typeof ALL_TABS[number] => Boolean(t));
 
   if (loading) return (
     <div className="flex items-center gap-3 text-white/30 p-8">
@@ -474,6 +486,14 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                 <ArtistPromoDirectory business={{ uid: currentUser.uid, name: activePage?.businessName || currentUser.displayName || 'My Business' }} />
               </div>
             </div>
+          )}
+
+          {activeTab === 'LISTINGS' && (
+            <ListingsManager currentUser={currentUser} onNavigate={onNavigate} />
+          )}
+
+          {activeTab === 'COMPLIANCE' && (
+            <BusinessCompliance business={activePage} />
           )}
 
           {activeTab === 'CRM' && (

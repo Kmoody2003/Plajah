@@ -7,30 +7,16 @@ import {
 } from 'lucide-react';
 import { BusinessPage, BrandAccount, UserProfile } from '../types';
 import { fetchAllBusinessPages } from '../services/businessService';
+import { VERTICAL_LABELS, VERTICAL_COLORS } from '../services/businessVerticals';
 import { fetchAllPublicBrandAccounts } from '../services/backendService';
 import { DEMO_BUSINESS } from '../data/demoBusiness';
 
 type HubTab = 'BUSINESSES' | 'BRANDS';
 
-const TYPE_LABELS: Record<string, string> = {
-  RETAIL:        'Retail',
-  RESTAURANT:    'Restaurant',
-  SERVICE:       'Service',
-  ENTERTAINMENT: 'Entertainment',
-  TECH:          'Tech',
-  HEALTH:        'Health & Wellness',
-  OTHER:         'Business',
-};
-
-const TYPE_COLORS: Record<string, string> = {
-  RETAIL:        '#FF8C00',
-  RESTAURANT:    '#D40055',
-  SERVICE:       '#6B0099',
-  ENTERTAINMENT: '#00B4D8',
-  TECH:          '#06D6A0',
-  HEALTH:        '#FFD166',
-  OTHER:         '#ffffff40',
-};
+// Derived from the vertical registry — adding a vertical there surfaces it here
+// automatically, instead of drifting between two hand-maintained literals.
+const TYPE_LABELS = VERTICAL_LABELS;
+const TYPE_COLORS = VERTICAL_COLORS;
 
 function FeaturePill({ label, icon: Icon }: { label: string; icon: React.FC<{ size?: number }> }) {
   return (

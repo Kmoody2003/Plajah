@@ -2017,6 +2017,95 @@ async function startServer() {
     }
   });
 
+  // ── Terra: the Open Listing Record feed (public, mirrorable) ───────────────
+  // OLR is a RESO-Data-Dictionary-aligned projection of listing data, published
+  // openly so anyone can mirror it. This is Terra's OUTBOUND distribution story:
+  // rather than queueing for a syndication slot on a closed portal, we publish an
+  // open standard and let consumers come to it. Paging is RESO-style — take the
+  // `nextSince` from a response and pass it back as ?since=.
+  app.get('/api/terra/olr', apiLimiter, async (req: any, res) => {
+    try {
+      const since = typeof req.query.since === 'string' ? req.query.since : undefined;
+      const max = Math.max(1, Math.min(Number(req.query.limit) || 200, 500));
+      if (since && Number.isNaN(Date.parse(since))) {
+        return res.status(400).json({ error: 'since must be an ISO 8601 datetime' });
+      }
+
+      const { fetchPublishableListings } = await import('./services/terra/terraService.js');
+      const { buildFeedPage } = await import('./services/terra/olr.js');
+      const records = await fetchPublishableListings({ since, max });
+
+      res.set('Cache-Control', 'public, max-age=300');
+      res.json(buildFeedPage(records));
+    } catch (err: any) {
+      console.error('[Terra] OLR feed failed:', err?.message || err);
+      res.status(500).json({ error: err?.message || 'feed unavailable' });
+    }
+  });
+
+  // A single Open Listing Record, with its content hash for verification.
+  app.get('/api/terra/olr/:listingKey', apiLimiter, async (req: any, res) => {
+    const key = String(req.params.listingKey || '').trim();
+    if (!key || key.length > 128) return res.status(400).json({ error: 'valid listingKey required' });
+    try {
+      const { fetchListing } = await import('./services/terra/terraService.js');
+      const { toPublicRecord } = await import('./services/terra/olr.js');
+      const record = await fetchListing(key);
+      if (!record) return res.status(404).json({ error: 'not found' });
+      res.set('Cache-Control', 'public, max-age=300');
+      res.json(toPublicRecord(record));
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'lookup failed' });
+    }
+  });
+
+  // Machine-readable description of the feed: version, licence, attribution.
+  app.get('/api/terra/olr-schema', apiLimiter, async (_req, res) => {
+    try {
+      const olr = await import('./services/terra/olr.js');
+      res.set('Cache-Control', 'public, max-age=3600');
+      res.json({
+        olrVersion: olr.OLR_VERSION,
+        resoDataDictionary: olr.RESO_DD_TARGET,
+        license: olr.OLR_LICENSE,
+        licenseUrl: olr.OLR_LICENSE_URL,
+        specUrl: 'https://github.com/plajah/terra/blob/main/docs/OPEN_LISTING_RECORD.md',
+        feedUrl: '/api/terra/olr',
+        paging: { cursorParam: 'since', cursorField: 'ModificationTimestamp', limitParam: 'limit', maxLimit: 500 },
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'schema unavailable' });
+    }
+  });
+
+  // Admin-gated manual ingestion run (mirrors /api/sports/ingest).
+  app.post('/api/terra/ingest', authMiddleware, express.json({ limit: '32kb' }), async (req: any, res) => {
+    const isAdmin = await fetchFirebaseDoc('admins', req.uid);
+    if (!isAdmin) return res.status(403).json({ error: 'Admin access required' });
+
+    try {
+      const { scope = 'standard', feeds, maxParcels } = req.body ?? {};
+      if (!['lite', 'standard', 'deep'].includes(scope)) {
+        return res.status(400).json({ error: 'scope must be lite, standard, or deep' });
+      }
+      if (feeds && (!Array.isArray(feeds) || feeds.length > 12)) {
+        return res.status(400).json({ error: 'feeds must be an array of up to 12 feed ids' });
+      }
+
+      const { runTerraIngestionWorker } = await import('./services/terraIngestionWorker.js');
+      const summary = await runTerraIngestionWorker({
+        scope,
+        feeds,
+        maxParcels: Number.isFinite(maxParcels) ? Math.max(0, Math.min(50000, Number(maxParcels))) : undefined,
+        reason: 'manual_api',
+      });
+      res.json(summary);
+    } catch (err: any) {
+      console.error('[Terra Ingestion] Manual run failed:', err?.message || err);
+      res.status(500).json({ error: err?.message || 'Terra ingestion failed' });
+    }
+  });
+
   // Get event by ID (public)
   app.get('/api/events/list', async (req, res) => {
     try {
@@ -7119,6 +7208,15 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
     const intervalMs = Number(process.env.SPORTS_INGESTION_INTERVAL_MS) || undefined;
     const { startSportsIngestionScheduler } = await import('./services/sportsIngestionWorker.js');
     startSportsIngestionScheduler({ intervalMs });
+  }
+
+  // Terra parcel spine. Detroit publishes daily, so this runs nightly by default.
+  // Off unless explicitly enabled — the first full pull is heavy and should be a
+  // deliberate act, not a side effect of a deploy.
+  if (process.env.TERRA_INGESTION_WORKER === 'true') {
+    const intervalMs = Number(process.env.TERRA_INGESTION_INTERVAL_MS) || undefined;
+    const { startTerraIngestionScheduler } = await import('./services/terraIngestionWorker.js');
+    startTerraIngestionScheduler({ intervalMs });
   }
 
   app.listen(PORT, '0.0.0.0', () => {

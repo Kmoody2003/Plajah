@@ -2372,6 +2372,42 @@ service cloud.firestore {
       allow update, delete: if isAuthenticated() && resource.data.hostId == request.auth.uid;
     }
 
+    // ── Terra: the parcel spine ────────────────────────────────────────────
+    // Public record, publicly readable — that is the entire point of the layer.
+    // Writes come from the server-side ingestion worker or an admin; no client
+    // may author the spine, because a forged parcel or civic record would be
+    // indistinguishable from a real one in the UI.
+    match /terraParcels/{parcelId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /terraCivic/{recordId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    // Zoning rules are hand-encoded from the ordinance and drive a buildability
+    // estimate — admin-only, and versioned rather than edited in place.
+    match /terraZoningRules/{ruleId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /terraIngestionRuns/{runId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Open Listing Records. Publicly readable (they feed the public OLR feed).
+    // A listing may be created or edited by its own lister or by an admin; the
+    // content hash and revision are recomputed server-side on publish, so a
+    // client cannot forge provenance by writing those fields directly.
+    match /terraListings/{listingKey} {
+      allow read: if true;
+      allow create: if isAuthenticated()
+                    && request.resource.data.data.X_Terra_ListerUid == request.auth.uid;
+      allow update, delete: if isAuthenticated()
+                    && (resource.data.data.X_Terra_ListerUid == request.auth.uid || isAdmin());
+    }
+
     match /note_contributors/{uid} {
       allow read: if true;
       // Users enroll themselves; reputation fields are managed by admin tooling.

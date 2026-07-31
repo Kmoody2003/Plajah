@@ -264,6 +264,14 @@ import { initLoreaScoreListener } from './services/loreaScoreService';
 import { fetchAudiusArtistById, fetchAudiusPlaylistTracks, audiusAlbumToNativeAlbum, type AudiusArtist } from './services/audiusService';
 const BusinessDashboard = retryLazy(() => import('./components/BusinessDashboard'));
 const PlajahBusinessHub = retryLazy(() => import('./components/PlajahBusinessHub'));
+const TerraHub = retryLazy(() => import('./components/terra/TerraHub'));
+const TerraExplorer = retryLazy(() => import('./components/terra/TerraExplorer'));
+const PropertyPassport = retryLazy(() => import('./components/terra/PropertyPassport'));
+const ParcelStudio = retryLazy(() => import('./components/terra/ParcelStudio'));
+const SiteScout = retryLazy(() => import('./components/terra/SiteScout'));
+const ListingFilm = retryLazy(() => import('./components/terra/ListingFilm'));
+const TerraFeed = retryLazy(() => import('./components/terra/TerraFeed'));
+const TerraListings = retryLazy(() => import('./components/terra/ListingsManager'));
 const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
 const ArtistProjectManager = retryLazy(() => import('./components/ArtistProjectManager'));
 const StudioView = retryLazy(() => import('./components/ManagerSuite/StudioView'));
@@ -342,7 +350,7 @@ const THEME_BG: Record<string, string> = {
 };
 import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd, fetchSystemSettingsConfig } from './services/backendService';
 import { initFeatureFlagListener } from './services/featureFlagService';
-import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark, Cctv, Bug, AlertTriangle } from 'lucide-react';
+import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark, Cctv, Bug, AlertTriangle, MapPin } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -424,6 +432,8 @@ const App: React.FC = () => {
     // research manifesto — admin only (kmoody2003@gmail.com or role=admin)
     pitchParam === 'research'     ? 'RESEARCH_MANIFESTO' :
     pitchParam === 'crossover'    ? 'CROSSOVER'          :
+    pitchParam === 'terra'        ? 'TERRA'              :
+    pitchParam === 'business'     ? 'PLAJAH_BUSINESS'    :
     'LANDING';
 
   // Is the app being opened on a shared deep link? If so, a signed-out visitor must
@@ -603,6 +613,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [viewedUserId, setViewedUserId] = useState<string | null>(null);
   const [initialProfileTab, setInitialProfileTab] = useState<string | undefined>(undefined);
   const [selectedBusinessPage, setSelectedBusinessPage] = useState<any>(null);
+  const [terraPassportTarget, setTerraPassportTarget] = useState<{ parcelId?: string; listingKey?: string } | null>(null);
+  const [terraStudioParcel, setTerraStudioParcel] = useState<string | undefined>(undefined);
   const [selectedBrandPage, setSelectedBrandPage] = useState<any>(null);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -1187,6 +1199,24 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('PLAJAH_BUSINESS');
     } else if (target === 'BUSINESS_DASHBOARD') {
       setView('BUSINESS_DASHBOARD');
+    } else if (target === 'TERRA') {
+      setView('TERRA');
+    } else if (target === 'TERRA_MAP') {
+      setView('TERRA_MAP');
+    } else if (target === 'TERRA_STUDIO') {
+      setTerraStudioParcel(params?.terraTarget?.parcelId);
+      setView('TERRA_STUDIO');
+    } else if (target === 'TERRA_SCOUT') {
+      setView('TERRA_SCOUT');
+    } else if (target === 'TERRA_FILM') {
+      setView('TERRA_FILM');
+    } else if (target === 'TERRA_FEED') {
+      setView('TERRA_FEED');
+    } else if (target === 'TERRA_LISTINGS') {
+      setView('TERRA_LISTINGS');
+    } else if (target === 'TERRA_PASSPORT') {
+      setTerraPassportTarget(params?.terraTarget || null);
+      setView('TERRA_PASSPORT');
     } else if (target === 'BUSINESS_PUBLIC') {
       if (params?.businessPage) setSelectedBusinessPage(params.businessPage);
       setView('BUSINESS_PUBLIC');
@@ -2779,6 +2809,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     ...(user ? [
                       { id: 'PLAJAH_STUDIO', order: 9.4, isVisible: true },
                       { id: 'BUSINESS_DASHBOARD', order: 9.5, isVisible: true },
+                      { id: 'TERRA', order: 9.55, isVisible: true },
                       { id: 'AD_PACKAGES', order: 9.6, isVisible: true },
                       { id: 'ARTIST_MANAGER', order: 9.7, isVisible: true },
                     ] : [])
@@ -2838,6 +2869,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         PARTNER_DASHBOARD: { label: 'Partner Portal', icon: Database },
                         BROWSER: { label: 'Partner Sites', icon: Monitor },
                         BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase },
+                        TERRA: { label: 'Terra', icon: MapPin },
                         AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
                         ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
                         PLAJAH_STUDIO: { label: 'Creator Tool Bag', icon: Sparkles },
@@ -2977,7 +3009,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       FEED: { label: 'Plajah Social', icon: Rss }, LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
                       FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
                       HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
-                      BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
+                      BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, TERRA: { label: 'Terra', icon: MapPin }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
                       ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
                       PLAJAH_STUDIO: { label: 'Creator Tool Bag', icon: Sparkles },
                       CREATOR: { label: 'Creator Hub', icon: Clapperboard },
@@ -3008,7 +3040,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       { id: 'sports', label: 'Sports & News', ids: ['PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES'] },
                       { id: 'education', label: 'Education', ids: ['BOOKS', 'CLASSROOMS', 'PLAJAH_LABS'] },
                       { id: 'community', label: 'Community', ids: ['CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB'] },
-                      { id: 'creator', label: 'Creator Tools', ids: ['CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'AD_PACKAGES'] : []), 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'MEDIA_ROUTER', 'POSTMAN'] },
+                      { id: 'creator', label: 'Creator Tools', ids: ['CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : []), 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'MEDIA_ROUTER', 'POSTMAN'] },
                       { id: 'platform', label: 'Platform', ids: ['HELP_CENTER', 'BROWSER'] },
                     ];
                     return groups.map(group => {
@@ -3071,12 +3103,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       FEED: { label: 'Plajah Social', icon: Rss }, LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
                       FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
                       HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
-                      BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
+                      BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, TERRA: { label: 'Terra', icon: MapPin }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
                       ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
                       PLAJAH_STUDIO: { label: 'Creator Tool Bag', icon: Sparkles },
                       CREATOR: { label: 'Creator Hub', icon: Clapperboard },
                     };
-                    const allNavIds = ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH', 'MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS', 'PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES', 'BOOKS', 'CLASSROOMS', 'PLAJAH_LABS', 'CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB', 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'MEDIA_ROUTER', 'POSTMAN', 'HELP_CENTER', 'BROWSER', 'CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'AD_PACKAGES'] : [])];
+                    const allNavIds = ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH', 'MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS', 'PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES', 'BOOKS', 'CLASSROOMS', 'PLAJAH_LABS', 'CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB', 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'MEDIA_ROUTER', 'POSTMAN', 'HELP_CENTER', 'BROWSER', 'CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : [])];
                     const handleNavClick = (id: string) => {
                       if (id === 'PAY_IT_FORWARD') { setIsPIFModalOpen(true); return; }
                       if (id === 'USER_PROFILE') { if (user) { handleVisitUser(user.uid); } else { loginWithGoogle(); } return; }
@@ -3948,6 +3980,86 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onBack={() => setView('HELP_CENTER')}
                   showTechnical={userProfile?.role === 'admin' || user?.email === 'kmoody2003@gmail.com'}
                 />
+              </Suspense>
+            )}
+
+            {view === 'TERRA' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <TerraHub onNavigate={handleGlobalNavigate} />
+              </Suspense>
+            )}
+
+            {view === 'TERRA_MAP' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <TerraExplorer
+                  onBack={() => setView('TERRA')}
+                  onOpenPassport={(parcelId) => { setTerraPassportTarget({ parcelId }); setView('TERRA_PASSPORT'); }}
+                  onOpenStudio={(parcelId) => { setTerraStudioParcel(parcelId); setView('TERRA_STUDIO'); }}
+                />
+              </Suspense>
+            )}
+
+            {view === 'TERRA_PASSPORT' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <PropertyPassport
+                  parcelId={terraPassportTarget?.parcelId}
+                  listingKey={terraPassportTarget?.listingKey}
+                  currentUser={userProfile}
+                  onBack={() => setView('TERRA')}
+                />
+              </Suspense>
+            )}
+
+            {view === 'TERRA_STUDIO' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <ParcelStudio parcelId={terraStudioParcel} currentUser={userProfile} onBack={() => setView('TERRA')} />
+              </Suspense>
+            )}
+
+            {view === 'TERRA_SCOUT' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <SiteScout currentUser={userProfile} onBack={() => setView('TERRA')} />
+              </Suspense>
+            )}
+
+            {view === 'TERRA_FILM' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <ListingFilm currentUser={userProfile} onBack={() => setView('TERRA')} onOpenFabula={() => setView('FABULA')} />
+              </Suspense>
+            )}
+
+            {view === 'TERRA_FEED' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <TerraFeed
+                  onBack={() => setView('TERRA')}
+                  onOpenListing={(listingKey) => { setTerraPassportTarget({ listingKey }); setView('TERRA_PASSPORT'); }}
+                />
+              </Suspense>
+            )}
+
+            {view === 'TERRA_LISTINGS' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <div className="h-full flex flex-col bg-transparent text-white">
+                  <div className="sticky top-0 z-20 bg-[#0a0a0a]/90 backdrop-blur-2xl border-b border-white/[0.06] px-6 py-4 shrink-0">
+                    <div className="max-w-4xl mx-auto flex items-center gap-3">
+                      <button onClick={() => setView('TERRA')} className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/50 hover:text-white/90 transition-colors shrink-0" title="Back to Terra">
+                        <ChevronLeft size={14} />
+                      </button>
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center border" style={{ background: '#5B8DEF20', borderColor: '#5B8DEF40' }}>
+                        <Home size={16} style={{ color: '#5B8DEF' }} />
+                      </div>
+                      <div>
+                        <h1 className="text-sm font-black uppercase tracking-widest text-white">Listings</h1>
+                        <p className="text-[10px] font-bold" style={{ color: '#5B8DEF' }}>Create · publish · manage — on the open record</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto custom-scrollbar">
+                    <div className="max-w-4xl mx-auto px-6 py-6">
+                      <TerraListings currentUser={userProfile} onNavigate={handleGlobalNavigate} />
+                    </div>
+                  </div>
+                </div>
               </Suspense>
             )}
 

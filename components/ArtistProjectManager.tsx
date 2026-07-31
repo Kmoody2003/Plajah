@@ -2644,7 +2644,7 @@ export const ArtistProjectManager: React.FC<Props> = ({ currentUser }) => {
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         <div className="max-w-5xl mx-auto px-6 py-8">
           {discipline === 'film' ? (
-            <FilmProductionProvider currentUser={currentUser} onGoTab={setActiveTab}>
+            <FilmProductionProvider currentUser={currentUser} onGoTab={(t) => setActiveTab(t as PMTab)}>
               <AnimatePresence mode="wait">
                 <motion.div key={activeTab}>
                   {renderTab()}

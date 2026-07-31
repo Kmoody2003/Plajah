@@ -49,3 +49,28 @@ env:
     value: YOUR_STRIPE_MERCH_WEBHOOK_SECRET_HERE
     availability:
       - RUNTIME
+
+  # ── Terra: Detroit parcel ingestion ──────────────────────────────────────────
+  # Pulls the city's open parcel + civic records into the Terra spine.
+  # Runs a small warm pass ~45s after boot, then a bounded pass every 24h.
+  # Each bounded pass resumes from a persisted offset, so successive nights walk
+  # the whole city (~378k parcels) and then wrap around to refresh it.
+  # Set to "false" to stop the scheduler without redeploying code.
+  - variable: TERRA_INGESTION_WORKER
+    value: "true"
+    availability:
+      - RUNTIME
+  # Parcels per scheduled pass. At 5000/night a full sweep takes ~11 weeks;
+  # raise it to load faster, at the cost of a longer run and more Firestore
+  # writes. A one-off full load is better done via POST /api/terra/ingest
+  # with scope "deep", which pulls everything and resets the cursor.
+  - variable: TERRA_INGESTION_MAX_PARCELS
+    value: "5000"
+    availability:
+      - RUNTIME
+  # Interval in ms between scheduled passes. Detroit publishes daily, so 24h is
+  # the sensible floor — polling faster gains nothing and costs reads.
+  - variable: TERRA_INGESTION_INTERVAL_MS
+    value: "86400000"
+    availability:
+      - RUNTIME
