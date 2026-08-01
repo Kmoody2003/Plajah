@@ -1,4 +1,5 @@
-import type { BusinessPage } from '../types';
+import type { BusinessPage, Organization, OrgMembership, JobPosting, Application } from '../types';
+import { getTemplate } from '../services/businessTemplates';
 
 export const DEMO_BUSINESS: BusinessPage = {
   id: 'demo-business-plajah',
@@ -161,3 +162,78 @@ export const DEMO_BUSINESS: BusinessPage = {
   createdAt: Date.now() - 30 * 24 * 60 * 60 * 1000,
   updatedAt: Date.now(),
 };
+
+// ─── Organization companion for the demo business ───────────────────────────
+// The employee/roles/hiring features run on the Organization backbone, so the
+// demo business ALSO has an Organization form (same "Plajah Lounge" identity).
+// BusinessDemoView renders a Customer / Employee / Admin tour over this data.
+const NOW = 1_720_000_000_000; // fixed constant (no Date.now)
+const AV = (id: string) => `https://images.unsplash.com/${id}?w=200&h=200&fit=crop`;
+
+export const DEMO_BUSINESS_ID = 'demo-plajah-lounge';
+
+export const DEMO_BUSINESS_ORG: Organization = {
+  id: DEMO_BUSINESS_ID,
+  orgType: 'CLUB',
+  name: DEMO_BUSINESS.businessName,
+  handle: 'plajahlounge',
+  tagline: DEMO_BUSINESS.tagline,
+  about:
+    'A live demo of a Plajah business page — explore it as a customer, as an employee (your own work badge + role), and as the owner running the hiring pipeline and staff. Everything here is sample content.',
+  logoUrl: DEMO_BUSINESS.logoUrl,
+  coverUrl: DEMO_BUSINESS.coverUrl,
+  accentColor: '#0070FF',
+  creatorId: 'demo',
+  admins: ['demo'],
+  category: 'Lounge / Venue',
+  templateId: 'club',
+  roleDefs: getTemplate('club')?.defaultRoles,
+  isBusinessPage: true,
+  isDemo: true,
+  isPublic: true,
+  isVerified: true,
+  followerCount: 3120,
+  memberCount: 8,
+  location: { city: 'Atlanta, GA' },
+  socialLinks: { website: 'https://plajah.com', instagram: 'plajahlounge' },
+  createdAt: NOW,
+  updatedAt: NOW,
+};
+
+// ── Staff (work badges) — delegated roles from the club template ───────────────
+export const DEMO_EMPLOYEES: OrgMembership[] = [
+  { id: 'e-owner', orgId: DEMO_BUSINESS_ID, userId: 'demo', role: 'OWNER', status: 'ACTIVE', displayName: 'Nova Vaughn', photoUrl: AV('photo-1544005313-94ddf0286df2'), roleKey: 'OWNER', isEmployee: true, joinedAt: NOW - 900 * 86400000 },
+  { id: 'e-mgr', orgId: DEMO_BUSINESS_ID, userId: 'demo-mgr', role: 'ADMIN', status: 'ACTIVE', displayName: 'Marcus Lee', photoUrl: AV('photo-1506794778202-cad84cf45f1d'), roleKey: 'MANAGER', isEmployee: true, joinedAt: NOW - 500 * 86400000 },
+  { id: 'e-promo', orgId: DEMO_BUSINESS_ID, userId: 'demo-promo', role: 'STAFF', status: 'ACTIVE', displayName: 'Aisha Bell', photoUrl: AV('photo-1487412720507-e7ab37603c6f'), roleKey: 'PROMOTER', isEmployee: true, joinedAt: NOW - 300 * 86400000 },
+  { id: 'e-host', orgId: DEMO_BUSINESS_ID, userId: 'demo-host', role: 'STAFF', status: 'ACTIVE', displayName: 'Priya Anand', photoUrl: AV('photo-1534528741775-53994a69daeb'), roleKey: 'HOST', isEmployee: true, joinedAt: NOW - 210 * 86400000 },
+  { id: 'e-sec', orgId: DEMO_BUSINESS_ID, userId: 'demo-sec', role: 'STAFF', status: 'ACTIVE', displayName: 'Diego Ramos', photoUrl: AV('photo-1500648767791-00dcc994a43e'), roleKey: 'SECURITY', isEmployee: true, joinedAt: NOW - 150 * 86400000 },
+  { id: 'e-dj', orgId: DEMO_BUSINESS_ID, userId: 'demo-dj', role: 'MEMBER', status: 'ACTIVE', displayName: 'Otis Grand', photoUrl: AV('photo-1492562080023-ab3db95bfbce'), roleKey: 'DJ', isEmployee: true, joinedAt: NOW - 90 * 86400000 },
+];
+
+// The employee whose badge the "Employee" tab showcases (Priya, the Host).
+export const DEMO_ACTIVE_EMPLOYEE = DEMO_EMPLOYEES[3];
+
+// ── Open positions (Careers view) — a paid role + a volunteer event crew ───────
+export const DEMO_POSTINGS: JobPosting[] = [
+  { id: 'jp1', orgId: DEMO_BUSINESS_ID, postingType: 'JOB', title: 'Bartender', roleKey: 'HOST', description: 'Craft our signature cocktails, run the bar during peak hours, and keep the energy up. Experience preferred.', location: 'Atlanta, GA', employmentType: 'PART_TIME', compRange: '$18/hr + tips', status: 'OPEN', createdBy: 'demo', createdAt: NOW - 18 * 86400000, questions: [{ id: 'q1', prompt: 'What’s your go-to signature cocktail?', type: 'TEXT', required: true }] },
+  { id: 'jp2', orgId: DEMO_BUSINESS_ID, postingType: 'JOB', title: 'Event Promoter', roleKey: 'PROMOTER', description: 'Book and promote weekly events — Friday Night Live, Sunday Jazz Brunch, and Creator Nights.', employmentType: 'CONTRACT', compRange: 'Per event', status: 'OPEN', createdBy: 'demo', createdAt: NOW - 9 * 86400000 },
+  { id: 'jp3', orgId: DEMO_BUSINESS_ID, postingType: 'VOLUNTEER', title: 'Event Crew', roleKey: 'DJ', description: 'Help set up and run Creator Nights — sound, setup, guest list. Perks: free entry + merch.', employmentType: 'VOLUNTEER', shiftNeeds: 'Evenings, ~4 hrs', status: 'OPEN', createdBy: 'demo', createdAt: NOW - 4 * 86400000 },
+];
+
+// ── Applicants across the pipeline (Admin hiring board) ────────────────────────
+export const DEMO_APPLICATIONS: Application[] = [
+  { id: 'ap1', jobId: 'jp1', orgId: DEMO_BUSINESS_ID, applicantName: 'Jordan Pike', applicantPhoto: AV('photo-1507003211169-0a1dd7228f2d'), stage: 'APPLIED', rating: 0, answers: { q1: 'A smoked-rosemary paloma — always a crowd-pleaser.' }, createdAt: NOW - 3 * 86400000 },
+  { id: 'ap2', jobId: 'jp1', orgId: DEMO_BUSINESS_ID, applicantName: 'Sam Okoye', applicantPhoto: AV('photo-1519085360753-af0119f7cbe7'), stage: 'SCREENING', rating: 4, answers: { q1: 'Espresso martini, but I batch the cold brew in-house.' }, createdAt: NOW - 6 * 86400000 },
+  { id: 'ap3', jobId: 'jp1', orgId: DEMO_BUSINESS_ID, applicantName: 'Riley Chen', applicantPhoto: AV('photo-1531123897727-8f129e1688ce'), stage: 'INTERVIEW', rating: 5, createdAt: NOW - 9 * 86400000 },
+  { id: 'ap4', jobId: 'jp2', orgId: DEMO_BUSINESS_ID, applicantName: 'Bex Fontaine', applicantPhoto: AV('photo-1544723795-3fb6469f5b39'), stage: 'OFFER', rating: 5, createdAt: NOW - 11 * 86400000 },
+  { id: 'ap5', jobId: 'jp3', orgId: DEMO_BUSINESS_ID, applicantName: 'Marcus Webb', applicantPhoto: AV('photo-1502767089025-6572583495c9'), stage: 'APPLIED', createdAt: NOW - 1 * 86400000 },
+];
+
+// ── Audit trail sample (Admin view) ────────────────────────────────────────────
+export interface DemoAudit { id: string; actor: string; action: string; target: string; when: string; }
+export const DEMO_AUDIT: DemoAudit[] = [
+  { id: 'au1', actor: 'Nova Vaughn', action: 'Hired', target: 'Otis Grand as Resident DJ', when: '3 mo ago' },
+  { id: 'au2', actor: 'Nova Vaughn', action: 'Changed role', target: 'Marcus Lee → Manager', when: '5 mo ago' },
+  { id: 'au3', actor: 'Marcus Lee', action: 'Moved applicant', target: 'Riley Chen → Interview', when: '2 wk ago' },
+  { id: 'au4', actor: 'Nova Vaughn', action: 'Posted opening', target: 'Bartender', when: '3 wk ago' },
+];

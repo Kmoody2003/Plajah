@@ -31,6 +31,8 @@ import SermonStudio from './SermonStudio';
 import ChurchMasterControl from './ChurchMasterControl';
 import ChurchConsole from './ChurchConsole';
 import ChurchDemoView from './ChurchDemoView';
+import BusinessDemoView from './BusinessDemoView';
+import { DEMO_BUSINESS_ORG, DEMO_BUSINESS_ID } from '../data/demoBusiness';
 import ChurchPrayerWall from './ChurchPrayerWall';
 import ChurchAnnouncements from './ChurchAnnouncements';
 import { DEMO_CHURCH, DEMO_CHURCH_ID } from '../data/demoShowcase';
@@ -85,6 +87,7 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive
     if (!initialOrgId) return;
     // Always-on demo church — static, no Firestore, shows for everyone incl. guests.
     if (initialOrgId === DEMO_CHURCH_ID) { setActive(DEMO_CHURCH); setMode('view'); return; }
+    if (initialOrgId === DEMO_BUSINESS_ID) { setActive(DEMO_BUSINESS_ORG); setMode('view'); return; }
     import('../services/organizationService').then(m => m.fetchOrganization(initialOrgId)).then(o => { if (o) { setActive(o); setMode('view'); } });
   }, [initialOrgId]);
 
@@ -92,9 +95,14 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive
     return <OrgCreator onCancel={() => setMode('list')} onCreated={(o) => { setActive(o); setMode('view'); loadOrgs(); }} />;
   }
   if (mode === 'view' && active) {
-    // The demo church opens the full populated ministry-platform tour.
+    // Demo orgs open a fully-populated tour. Church → ministry tour; everything else
+    // (business pages) → the Customer / Employee / Admin business tour.
     if (active.isDemo) {
-      return <ChurchDemoView onBack={() => { setActive(null); setMode('list'); }} onCreate={() => { setActive(null); setMode('create'); }} onVisitUser={onVisitUser} />;
+      const back = () => { setActive(null); setMode('list'); };
+      const create = () => { setActive(null); setMode('create'); };
+      return active.orgType === 'CHURCH'
+        ? <ChurchDemoView onBack={back} onCreate={create} onVisitUser={onVisitUser} />
+        : <BusinessDemoView onBack={back} onCreate={create} />;
     }
     return <OrgProfile org={active} isOwner={active.creatorId === user?.uid || !!active.admins?.includes(user?.uid)} initialGive={initialGive} onBack={() => { setActive(null); setMode('list'); }} />;
   }
@@ -110,6 +118,7 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive
               {importing ? <Loader2 size={13} className="animate-spin" /> : <Building2 size={13} />} Import {legacyCount} brand{legacyCount > 1 ? 's' : ''}
             </button>
           )}
+          <button onClick={() => { setActive(DEMO_BUSINESS_ORG); setMode('view'); }} className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/15 rounded-full text-[10px] font-black uppercase tracking-widest text-white/70 hover:text-white hover:bg-white/10"><Building2 size={14} /> Demo business</button>
           <button onClick={() => setMode('create')} className="flex items-center gap-2 px-5 py-2.5 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:brightness-110"><Plus size={14} /> New organization</button>
         </div>
       </div>
@@ -132,6 +141,9 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive
             <button onClick={() => setMode('create')} className="px-6 py-3 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:brightness-110">Create your first</button>
             <button onClick={spinUpDemoChurch} disabled={importing} className="px-6 py-3 bg-white/5 border border-white/15 text-white/70 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 disabled:opacity-40 flex items-center gap-2">
               {importing ? <Loader2 size={13} className="animate-spin" /> : <Church size={13} />} Demo church
+            </button>
+            <button onClick={() => { setActive(DEMO_BUSINESS_ORG); setMode('view'); }} className="px-6 py-3 bg-white/5 border border-white/15 text-white/70 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 flex items-center gap-2">
+              <Building2 size={13} /> Demo business
             </button>
           </div>
         </div>
