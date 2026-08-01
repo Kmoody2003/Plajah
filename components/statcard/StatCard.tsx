@@ -12,6 +12,15 @@ export const CARD_H = 524;
 const BRAND = { purple: '#6B0099', magenta: '#D40055', orange: '#FF8C00' };
 const BRAND_GRAD = `linear-gradient(135deg, ${BRAND.purple} 0%, ${BRAND.magenta} 55%, ${BRAND.orange} 100%)`;
 
+// Work-badge theme — an employee ID, not a collectible. Blue + yellow so a work identity is
+// unmistakable next to a normal (purple/orange) profile card.
+const WORK_GRAD = `linear-gradient(135deg, #0070FF 0%, #2B8BFF 45%, #FFD400 100%)`;
+
+/** The frame/accent gradient for a card, by variant. WORK_BADGE = blue/yellow; else brand. */
+function gradFor(data: Pick<StatCardData, 'variant'>): string {
+  return data.variant === 'WORK_BADGE' ? WORK_GRAD : BRAND_GRAD;
+}
+
 const CAT_ICON: Record<string, React.ReactNode> = {
   MUSIC: <Music size={13} />, FILM: <Film size={13} />, BOOK: <BookOpen size={13} />,
 };
@@ -43,7 +52,7 @@ function useQr(url: string): string {
   return dataUrl;
 }
 
-const Face: React.FC<{ back?: boolean; children: React.ReactNode; innerRef?: React.Ref<HTMLDivElement> }> = ({ back, children, innerRef }) => (
+const Face: React.FC<{ back?: boolean; children: React.ReactNode; innerRef?: React.Ref<HTMLDivElement>; frameGrad?: string }> = ({ back, children, innerRef, frameGrad }) => (
   <div
     ref={innerRef}
     style={{
@@ -56,7 +65,7 @@ const Face: React.FC<{ back?: boolean; children: React.ReactNode; innerRef?: Rea
     }}
   >
     {/* gradient frame */}
-    <div style={{ position: 'absolute', inset: 0, borderRadius: 22, padding: 2, background: BRAND_GRAD }}>
+    <div style={{ position: 'absolute', inset: 0, borderRadius: 22, padding: 2, background: frameGrad || BRAND_GRAD }}>
       <div style={{ width: '100%', height: '100%', borderRadius: 20, background: '#0b0910', overflow: 'hidden', position: 'relative' }}>
         {children}
         {/* Foil sweep — subtle collectible sheen over the whole face */}
@@ -95,30 +104,34 @@ const StatCardFront: React.FC<{ data: StatCardData; qr: string; innerRef?: React
   const scoreNum = typeof scoreStat?.value === 'number' ? scoreStat.value : parseInt(String(scoreStat?.value || '0'), 10) || 0;
   const tier = tierFor(scoreNum);
   const tierGrad = `linear-gradient(135deg, ${tier.from}, ${tier.to})`;
+  const grad = gradFor(data);
+  const isBadge = data.variant === 'WORK_BADGE';
+  const avatarOuterR = data.avatarShape === 'RECT' ? 5 : 16;  // rectangular = work ID photo
+  const avatarInnerR = data.avatarShape === 'RECT' ? 3 : 14;
   return (
-  <Face innerRef={innerRef}>
+  <Face innerRef={innerRef} frameGrad={grad}>
     {/* Cover blends into the card background */}
     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 168 }}>
       {data.coverImage && <img src={data.coverImage} crossOrigin="anonymous" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />}
-      <div style={{ position: 'absolute', inset: 0, background: data.coverImage ? 'linear-gradient(180deg, rgba(11,9,16,.15) 0%, rgba(11,9,16,.55) 55%, #0b0910 100%)' : BRAND_GRAD }} />
+      <div style={{ position: 'absolute', inset: 0, background: data.coverImage ? 'linear-gradient(180deg, rgba(11,9,16,.15) 0%, rgba(11,9,16,.55) 55%, #0b0910 100%)' : grad }} />
       {!data.coverImage && <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(11,9,16,0) 40%, #0b0910 100%)' }} />}
     </div>
 
     <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', padding: 16 }}>
       {/* brand eyebrow */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 8, fontWeight: 900, letterSpacing: '.3em', textTransform: 'uppercase', color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,.6)' }}>Plajah · Stat Card</span>
+        <span style={{ fontSize: 8, fontWeight: 900, letterSpacing: '.3em', textTransform: 'uppercase', color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,.6)' }}>{isBadge ? 'Plajah · Work Badge' : 'Plajah · Stat Card'}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          {/* Collectible tier — rarity read at a glance */}
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: tierGrad, color: tier.text, fontSize: 7.5, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 999, boxShadow: '0 2px 8px -2px rgba(0,0,0,.5)' }}>★ {tier.label}</span>
-          {data.verified && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: BRAND_GRAD, color: '#fff', fontSize: 7.5, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase', padding: '3px 7px', borderRadius: 999 }}><Check size={9} /> Verified</span>}
+          {/* Collectible tier — rarity read at a glance (a work badge is an ID, not a collectible) */}
+          {!isBadge && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: tierGrad, color: tier.text, fontSize: 7.5, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 999, boxShadow: '0 2px 8px -2px rgba(0,0,0,.5)' }}>★ {tier.label}</span>}
+          {data.verified && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: grad, color: '#fff', fontSize: 7.5, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase', padding: '3px 7px', borderRadius: 999 }}><Check size={9} /> {isBadge ? 'Employee' : 'Verified'}</span>}
         </div>
       </div>
 
       {/* hero + name */}
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginTop: 60 }}>
-        <div style={{ width: 76, height: 76, borderRadius: 16, padding: 2, background: BRAND_GRAD, flex: 'none' }}>
-          <div style={{ width: '100%', height: '100%', borderRadius: 14, overflow: 'hidden', background: '#1b1522' }}>
+        <div style={{ width: 76, height: 76, borderRadius: avatarOuterR, padding: 2, background: grad, flex: 'none' }}>
+          <div style={{ width: '100%', height: '100%', borderRadius: avatarInnerR, overflow: 'hidden', background: '#1b1522' }}>
             {data.heroImage && <img src={data.heroImage} crossOrigin="anonymous" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />}
           </div>
         </div>
@@ -146,7 +159,7 @@ const StatCardFront: React.FC<{ data: StatCardData; qr: string; innerRef?: React
       {/* footer: QR + wordmark */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 8 }}>
         <div>
-          <div style={{ fontSize: 15, fontWeight: 900, letterSpacing: '-.02em', background: BRAND_GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>Plajah</div>
+          <div style={{ fontSize: 15, fontWeight: 900, letterSpacing: '-.02em', background: grad, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>Plajah</div>
           <div style={{ fontSize: 7, fontWeight: 800, letterSpacing: '.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{data.footnote || 'plajah.com'}</div>
         </div>
         <div style={{ textAlign: 'center' }}>
@@ -161,8 +174,10 @@ const StatCardFront: React.FC<{ data: StatCardData; qr: string; innerRef?: React
   );
 };
 
-const StatCardBack: React.FC<{ data: StatCardData; onMerch?: () => void; innerRef?: React.Ref<HTMLDivElement> }> = ({ data, onMerch, innerRef }) => (
-  <Face back innerRef={innerRef}>
+const StatCardBack: React.FC<{ data: StatCardData; onMerch?: () => void; innerRef?: React.Ref<HTMLDivElement> }> = ({ data, onMerch, innerRef }) => {
+  const grad = gradFor(data);
+  return (
+  <Face back innerRef={innerRef} frameGrad={grad}>
     <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(120% 80% at 100% 0%, rgba(255,140,0,.14), transparent 55%), radial-gradient(120% 80% at 0% 100%, rgba(139,47,214,.16), transparent 55%)' }} />
     <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', padding: 18 }}>
       <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: '.3em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)' }}>Connect</div>
@@ -178,18 +193,19 @@ const StatCardBack: React.FC<{ data: StatCardData; onMerch?: () => void; innerRe
       </div>
 
       {data.merch && (
-        <button onClick={onMerch} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '13px', borderRadius: 14, border: 0, cursor: 'pointer', background: BRAND_GRAD, color: '#fff', fontSize: 10, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase', marginTop: 8 }}>
+        <button onClick={onMerch} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '13px', borderRadius: 14, border: 0, cursor: 'pointer', background: grad, color: '#fff', fontSize: 10, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase', marginTop: 8 }}>
           <ShoppingBag size={13} /> {data.merch.label}
         </button>
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 8, fontWeight: 800, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}><Globe size={10} /> {(data.footnote || 'plajah.com')}</span>
-        <span style={{ fontSize: 13, fontWeight: 900, letterSpacing: '-.02em', background: BRAND_GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>Plajah</span>
+        <span style={{ fontSize: 13, fontWeight: 900, letterSpacing: '-.02em', background: grad, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>Plajah</span>
       </div>
     </div>
   </Face>
-);
+  );
+};
 
 interface StatCardProps {
   data: StatCardData;

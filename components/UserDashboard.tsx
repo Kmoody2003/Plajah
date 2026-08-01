@@ -1,11 +1,11 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { UserProfile, Album, Video, Photo, Track, MerchItem, IPWorld, ThemeType } from '../types';
-import { 
+import {
   fetchUserProfile, updateUserProfile, updateLiveStreamConfig,
   fetchUserAlbums, deleteCloudAlbum, fetchUserPhotos, deletePhoto,
   bulkDeletePhotos, addPhotosToAlbum, updateAccountType, fetchArtistMerch,
-  fetchUserWorlds, createIPWorld
+  fetchUserWorlds, createIPWorld, propagateDisplayName, serverResyncDisplayName
 } from '../services/backendService';
 import { accountFlagUpdate, hasCapability, capabilitiesFor, ACCOUNT_TYPE_META, type Capability } from '../services/accountCapabilities';
 
@@ -27,7 +27,7 @@ import {
   User, Settings, Database, Video as VideoIcon, Music, Music2, Image as ImageIcon, BookOpen,
   CreditCard, Globe, Shield, Bell, LogOut, Save, Plus, Trash2, X,
   ExternalLink, Play, Sparkles, Radio, Tv, Search, Notebook, Mail,
-  CheckSquare, Square, Check, FolderPlus, LayoutGrid, Eye, EyeOff, ChevronUp, ChevronDown, Building2, ShoppingBag, Pen, Box, Heart, HeartHandshake, Trophy, Baby, DollarSign, UploadCloud, LayoutTemplate, Share2,
+  CheckSquare, Square, Check, FolderPlus, LayoutGrid, Eye, EyeOff, ChevronUp, ChevronDown, Building2, ShoppingBag, Pen, Box, Heart, HeartHandshake, Trophy, Baby, DollarSign, UploadCloud, LayoutTemplate, Share2, ArrowRight,
   Film, BarChart2, FileText, Users, Activity, ChevronLeft,
 } from 'lucide-react';
 import { useViewport } from '../hooks/useViewport';
@@ -37,6 +37,7 @@ import FediverseHub from './FediverseHub';
 import { motion } from 'motion/react';
 
 import AlbumCreator from './AlbumCreator';
+import BusinessLaunchModal from './business/BusinessLaunchModal';
 import ContentAssetManager from './ContentAssetManager';
 import { HqFilesTab } from './ContentHQ';
 import InterestsNotebook from './InterestsNotebook';
@@ -126,9 +127,17 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
     setUserWorlds(worlds);
   };
 
+  // Business-page launcher (off by default; opt-in from the top of Account settings).
+  const [showBusinessLaunch, setShowBusinessLaunch] = useState(false);
+
+  // Display name at load time — compared on save so a rename can be propagated to
+  // every denormalized copy across the platform (posts, comments, rooms, etc.).
+  const originalDisplayNameRef = useRef<string>('');
+
   const loadProfile = async () => {
     const p = await fetchUserProfile(user.uid);
     setProfile(p);
+    originalDisplayNameRef.current = p?.displayName || '';
   };
 
   const loadUserAlbums = async () => {
@@ -210,10 +219,25 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
     if (!profile) return;
     setIsSaving(true);
     try {
+      const newName = (profile.displayName || '').trim();
+      const nameChanged = !!newName && newName !== originalDisplayNameRef.current;
       await updateUserProfile(user.uid, profile);
-      alert('Profile updated successfully');
+
+      // A rename must read everywhere the old name was denormalized — re-sync every copy.
+      if (nameChanged) {
+        const res = await propagateDisplayName(user.uid, newName);
+        // Server pass covers comments (collection-group) the client can't reach.
+        const srv = await serverResyncDisplayName(user.uid, newName).catch(() => ({ ok: false, total: 0 }));
+        originalDisplayNameRef.current = newName;
+        const total = res.total + (srv.ok ? srv.total : 0);
+        const extra = total > 0 ? ` Name re-synced across ${total} item${total === 1 ? '' : 's'}.` : '';
+        alert(`Profile updated successfully.${extra}`);
+      } else {
+        alert('Profile updated successfully');
+      }
     } catch (err) {
       console.error(err);
+      alert('Something went wrong saving your profile. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -811,6 +835,23 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Account Settings</h1>
                 <p className="text-white/40 text-sm font-bold uppercase tracking-widest">Manage your public identity and security</p>
               </header>
+
+              {/* Launch a Business Page — business capability is OFF by default; this is the opt-in. */}
+              <button
+                type="button"
+                onClick={() => setShowBusinessLaunch(true)}
+                className="w-full flex items-center gap-4 p-5 rounded-3xl border border-white/10 hover:border-white/25 transition-all text-left group"
+                style={{ background: 'linear-gradient(135deg, rgba(0,112,255,0.12), rgba(255,212,0,0.10))' }}
+              >
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg,#0070FF,#FFD400)' }}>
+                  <Building2 size={22} className="text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-black uppercase tracking-widest text-white">Launch a Business Page</p>
+                  <p className="text-[11px] text-white/50 font-medium mt-0.5">Record label, film studio, publisher, real estate, restaurant, club — with built-in roles for your team.</p>
+                </div>
+                <ArrowRight size={18} className="text-white/40 group-hover:text-white group-hover:translate-x-1 transition-all shrink-0" />
+              </button>
 
               <form onSubmit={handleUpdateProfile} className="space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -2095,6 +2136,12 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
         <BookClubCreator
           onClose={() => setShowBookClubCreator(false)}
         />
+      )}
+
+      {/* Launch a Business Page */}
+      {showBusinessLaunch && createPortal(
+        <BusinessLaunchModal onClose={() => setShowBusinessLaunch(false)} />,
+        document.body,
       )}
     </div>
   );

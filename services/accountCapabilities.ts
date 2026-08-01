@@ -17,6 +17,9 @@ export type { AccountType };
 export const ACCOUNT_TYPES: AccountType[] = [
   'FAN', 'ARTIST', 'BRAND', 'WRITER', 'STUDENT', 'TEACHER',
   'PARTNER', 'ORGANIZATION', 'CLERGY', 'ATHLETE', 'PARENT', 'CHILD',
+  // EMPLOYEE is a managed, business-owned profile — provisioned by a business, never
+  // self-selected in the account-type picker (intentionally omitted from the settings grid).
+  'EMPLOYEE',
 ];
 
 export interface AccountTypeMeta {
@@ -38,6 +41,7 @@ export const ACCOUNT_TYPE_META: Record<AccountType, AccountTypeMeta> = {
   ATHLETE:      { type: 'ATHLETE',      label: 'Athlete',      blurb: 'A verified sports profile and achievements.' },
   PARENT:       { type: 'PARENT',       label: 'Parent',       blurb: 'Manage child accounts and controls.' },
   CHILD:        { type: 'CHILD',        label: 'Child',        blurb: 'A guardian-managed, safety-first account.' },
+  EMPLOYEE:     { type: 'EMPLOYEE',     label: 'Employee',     blurb: 'A business-managed work identity with a role and work badge.' },
 };
 
 // ── Capabilities ──────────────────────────────────────────────────────────────
@@ -66,6 +70,9 @@ export const CAPABILITIES_BY_TYPE: Record<AccountType, Capability[]> = {
   CHILD:        ['ENROLL'],
   ATHLETE:      ['ATHLETE_PROFILE', 'CREATE_VIDEO', 'CREATE_PHOTO', 'LIVE_STREAM'],
   PARTNER:      ['PARTNER_INTEGRATIONS'],
+  // Minimal by default — an employee's real powers come from their org role
+  // (services/orgPermissions.ts), not from platform-wide account capabilities.
+  EMPLOYEE:     ['CREATE_ARTICLE', 'CREATE_PHOTO'],
 };
 
 export function capabilitiesFor(type: AccountType | undefined): Set<Capability> {

@@ -5,7 +5,7 @@
 // card is "of". Everything is read off existing data (profile.totalPoints, the user's albums by
 // type, unlocked achievements) — no new collections.
 
-import type { Album, StatCardData, StatCardCategoryRow, StatCardSocial, UserProfile } from '../types';
+import type { Album, StatCardData, StatCardCategoryRow, StatCardSocial, UserProfile, Organization, OrgMembership } from '../types';
 import { fetchUserProfile, fetchUserContent } from './backendService';
 import { fetchUserAchievements } from './achievementService';
 
@@ -80,6 +80,40 @@ export function buildProfileStatCard(
     socials: buildProfileSocials(profile),
     merch: { label: 'Merch Store', ownerId: profile.uid },
     footnote: 'plajah.com',
+  };
+}
+
+/**
+ * Build an employee WORK BADGE from a membership + its org. Same StatCardData shape as any card,
+ * but the WORK_BADGE variant (blue/yellow) with a rectangular avatar so it reads as a work ID.
+ */
+export function buildEmployeeBadge(membership: OrgMembership, org: Organization): StatCardData {
+  const roleLabel =
+    (org.roleDefs || []).find(r => r.key === membership.roleKey)?.label ||
+    membership.title || membership.role;
+  const sinceYear = membership.joinedAt ? new Date(membership.joinedAt).getFullYear() : undefined;
+  const origin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : 'https://plajah.com';
+  const orgUrl = `${origin}/org/${encodeURIComponent(org.handle || org.id)}`;
+  return {
+    kind: 'EMPLOYEE',
+    variant: 'WORK_BADGE',
+    avatarShape: 'RECT',
+    id: `${org.id}:${membership.userId}`,
+    title: membership.displayName || 'Employee',
+    subtitle: `${roleLabel} · ${org.name}`,
+    heroImage: membership.photoUrl || undefined,
+    coverImage: org.coverUrl || undefined,
+    accent: org.accentColor,
+    verified: true, // an issued badge is official by definition
+    stats: [
+      { label: 'Role', value: roleLabel },
+      ...(sinceYear ? [{ label: 'Since', value: sinceYear }] : []),
+      { label: 'Team', value: org.name },
+    ],
+    categories: [],
+    qrUrl: orgUrl,
+    shareUrl: orgUrl,
+    footnote: org.name,
   };
 }
 

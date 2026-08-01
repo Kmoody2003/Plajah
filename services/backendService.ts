@@ -364,6 +364,25 @@ export const fetchWorldCharacters = async (worldId: string, onlyPublished: boole
   }
 };
 
+/**
+ * Every Character across all of a user's worlds — the pool of artist "personas" a
+ * creator can credit a release to. Includes unpublished/private characters (onlyPublished
+ * = false) since a persona may be work-in-progress, and drops discarded (merged) entries.
+ * Each returned character carries its worldId so callers can round-trip to the world.
+ */
+export const fetchUserCharacters = async (uid: string): Promise<Character[]> => {
+  try {
+    const worlds = await fetchUserWorlds(uid);
+    const perWorld = await Promise.all(
+      worlds.map(w => fetchWorldCharacters(w.id, false).catch(() => [] as Character[]))
+    );
+    return perWorld.flat().filter(c => !c.discarded);
+  } catch (e) {
+    console.error('[fetchUserCharacters]', e);
+    return [];
+  }
+};
+
 export const fetchWorldLore = async (worldId: string, onlyPublished: boolean = true) => {
   const path = `worlds/${worldId}/lore`;
   try {
@@ -5062,6 +5081,146 @@ export const updateUserProfile = async (uid: string, data: Partial<UserProfile>)
     await updateDoc(doc(db, 'users', uid), data);
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
+  }
+};
+
+// ── Display-name propagation ────────────────────────────────────────────────
+// A user's display name is denormalized (copied) into many documents at creation
+// time — a post stores `authorName`, a comment stores `userName`, a room stores
+// `hostName`, etc. Changing `users/{uid}.displayName` alone leaves every old copy
+// stale, so the new name never "reads everywhere". `propagateDisplayName` re-syncs
+// those copies across the user's own content.
+//
+// DELIBERATELY EXCLUDED — these are INDEPENDENT identities, not the account name,
+// and must never be overwritten by a display-name change:
+//   • Artist / persona names: albums.artist, personal_albums.artist,
+//     personal_tracks.artist, videos.artist, tracks[].artist. A user releases under
+//     independent artist names / Worlds characters (see Album.artistCharacterId).
+//   • Anonymous / alias flows: discussionPosts, discussionComments, sanctuary* —
+//     the stored name may be a chosen alias, not the account name.
+//   • Org / business / church entity names: notifications.senderName (often an org
+//     or the literal 'Plajah'), brand_accounts, organizations, businessPages, etc.
+//
+// Firestore rules only let a user (or an admin, where the rule allows) write their
+// own docs, so every target is queried strictly by its owner-uid field. Each target
+// is committed independently and guarded — a permission failure on one collection is
+// reported and never aborts the rest.
+type DisplayNameSyncTarget = {
+  collection: string;
+  uidField: string;
+  nameFields: string[];
+  /** Skip an individual doc when this returns true (e.g. authored as an org / anonymously). */
+  skip?: (data: any) => boolean;
+};
+
+const DISPLAY_NAME_SYNC_TARGETS: DisplayNameSyncTarget[] = [
+  { collection: 'posts',              uidField: 'authorId',   nameFields: ['authorName'], skip: d => !!d.authorOrgId },
+  { collection: 'feed',               uidField: 'authorId',   nameFields: ['authorName'], skip: d => !!d.authorOrgId },
+  { collection: 'articles',           uidField: 'authorId',   nameFields: ['authorName'] },
+  { collection: 'video_playlists',    uidField: 'ownerId',    nameFields: ['ownerName'] },
+  { collection: 'communityPlaylists', uidField: 'ownerId',    nameFields: ['authorName'] },
+  { collection: 'clubPosts',          uidField: 'authorId',   nameFields: ['authorName'] },
+  { collection: 'clubGallery',        uidField: 'uploaderId', nameFields: ['uploaderName'] },
+  { collection: 'clubChat',           uidField: 'senderId',   nameFields: ['senderName'] },
+  { collection: 'clubMemberships',    uidField: 'userId',     nameFields: ['displayName'] },
+  { collection: 'orgMemberships',     uidField: 'userId',     nameFields: ['displayName'] },
+  { collection: 'liveTalks',          uidField: 'hostId',     nameFields: ['hostName'] },
+  { collection: 'parties',            uidField: 'hostId',     nameFields: ['hostName'] },
+  { collection: 'rooms',              uidField: 'hostId',     nameFields: ['hostName'] },
+  { collection: 'live_feeds',         uidField: 'ownerId',    nameFields: ['ownerName'] },
+  { collection: 'ppv_events',         uidField: 'ownerId',    nameFields: ['ownerName'] },
+  { collection: 'classrooms',         uidField: 'ownerId',    nameFields: ['ownerName'] },
+  { collection: 'churchPrayers',      uidField: 'authorId',   nameFields: ['authorName'], skip: d => d.isAnonymous === true },
+];
+
+export interface DisplayNameSyncResult {
+  /** collection name → number of docs updated */
+  updated: Record<string, number>;
+  /** total docs updated across all collections */
+  total: number;
+  /** collections that could not be fully synced (permission / query error), with reason */
+  skipped: string[];
+}
+
+/**
+ * Re-sync a user's ACCOUNT display name across every denormalized copy on their own
+ * content, and update the canonical `users/{uid}` doc (+ Firebase Auth profile when the
+ * signed-in user is renaming themselves). Artist/persona, alias and org names are left
+ * untouched by design (see the block comment above). Safe to run repeatedly — it only
+ * writes docs whose stored name actually differs from the new one.
+ */
+export const propagateDisplayName = async (
+  uid: string,
+  newName: string,
+): Promise<DisplayNameSyncResult> => {
+  const result: DisplayNameSyncResult = { updated: {}, total: 0, skipped: [] };
+  const name = (newName || '').trim();
+  if (!uid || !name) return result;
+
+  // 1) Canonical source of truth.
+  try {
+    await updateDoc(doc(db, 'users', uid), { displayName: name });
+  } catch (e) {
+    result.skipped.push(`users/${uid}: ${(e as any)?.message || e}`);
+  }
+
+  // 2) Firebase Auth profile — only mutable for the currently signed-in user.
+  if (auth.currentUser && auth.currentUser.uid === uid) {
+    try { await updateProfile(auth.currentUser, { displayName: name }); } catch { /* non-fatal */ }
+  }
+
+  // 3) Fan out to denormalized copies, one collection at a time (independently guarded).
+  for (const target of DISPLAY_NAME_SYNC_TARGETS) {
+    try {
+      const snap = await getDocs(query(collection(db, target.collection), where(target.uidField, '==', uid)));
+      let batch = writeBatch(db);
+      let ops = 0, updatedHere = 0;
+      for (const d of snap.docs) {
+        const data = d.data() as any;
+        if (target.skip?.(data)) continue;
+        const changes: Record<string, string> = {};
+        for (const f of target.nameFields) {
+          if (data[f] !== undefined && data[f] !== name) changes[f] = name;
+        }
+        if (Object.keys(changes).length === 0) continue;
+        batch.update(d.ref, changes);
+        ops++; updatedHere++;
+        if (ops >= 400) { await batch.commit(); batch = writeBatch(db); ops = 0; }
+      }
+      if (ops > 0) await batch.commit();
+      if (updatedHere > 0) { result.updated[target.collection] = updatedHere; result.total += updatedHere; }
+    } catch (e) {
+      result.skipped.push(`${target.collection}: ${(e as any)?.message || e}`);
+    }
+  }
+
+  return result;
+};
+
+/**
+ * Server-side display-name resync (the Admin-SDK path). Covers what the client can't:
+ * comment subcollections (collection-group scan) and — for admins — ANY user's content.
+ * A normal user may call it for their OWN uid; the server rejects other targets unless admin.
+ * Returns the total docs updated, or ok:false with a reason (endpoint 403/unavailable is non-fatal).
+ */
+export const serverResyncDisplayName = async (
+  uid: string,
+  newName: string,
+): Promise<{ ok: boolean; total: number; error?: string }> => {
+  try {
+    const u = auth.currentUser;
+    if (!u) return { ok: false, total: 0, error: 'not signed in' };
+    const token = await u.getIdToken();
+    const res = await fetch('/api/admin/resync-display-name', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ uid, newName }),
+    });
+    if (!res.ok) return { ok: false, total: 0, error: `HTTP ${res.status}` };
+    const data = await res.json().catch(() => ({}));
+    return { ok: true, total: Number(data.total) || 0 };
+  } catch (e: any) {
+    return { ok: false, total: 0, error: e?.message || String(e) };
   }
 };
 

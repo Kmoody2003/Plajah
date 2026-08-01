@@ -4567,6 +4567,124 @@ Rules:
     res.json({ sent: out.sent, total: out.total, recipients, devices: tokens.length });
   });
 
+  // Admin display-name resync — re-writes every denormalized copy of a user's display name
+  // ACROSS ALL content, using the service account (bypasses security rules). This is the
+  // server-side complement to the client `propagateDisplayName`: it reaches (a) comment
+  // subcollections (collection-group scan the client can't do), and (b) ANY user's content,
+  // not just the caller's own. Requires an admin Firebase ID token.
+  app.post('/api/admin/resync-display-name', express.json(), authMiddleware, async (req: any, res: any) => {
+    const me = decodeFirestoreFields(((await fetchFirebaseDoc('users', req.uid)) || {}).fields || {});
+    const isAdmin = me.role === 'admin' || me.role === 'staff' || me.email === 'kmoody2003@gmail.com';
+
+    const targetUid = String((req.body || {}).uid || '').trim();
+    const newName = String((req.body || {}).newName || '').trim();
+    if (!targetUid || !newName) return res.status(400).json({ error: 'uid and newName are required' });
+    // Admins may resync anyone; a normal user may resync only their OWN name everywhere.
+    if (!isAdmin && targetUid !== req.uid) return res.status(403).json({ error: 'You can only re-sync your own display name' });
+
+    const token = await getGoogleAccessToken();
+    if (!token) return res.status(503).json({ error: 'GOOGLE_SERVICE_ACCOUNT_JSON not configured' });
+    const authHeaders = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+    const projectId = 'gen-lang-client-0665118474';
+    const dbId = 'plajah-prod';
+    const FS = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents`;
+
+    // Decode a Firestore REST value/field map into plain JS.
+    const dVal = (v: any): any => {
+      if (v == null) return undefined;
+      if ('stringValue' in v) return v.stringValue;
+      if ('integerValue' in v) return Number(v.integerValue);
+      if ('booleanValue' in v) return v.booleanValue;
+      if ('nullValue' in v) return null;
+      return undefined;
+    };
+    const dFields = (f: Record<string, any>): any => { const o: any = {}; for (const k of Object.keys(f || {})) o[k] = dVal(f[k]); return o; };
+
+    // USER-IDENTITY name copies only — NEVER artist/persona (album/track/video artist), alias, or org
+    // names. Mirrors the client DISPLAY_NAME_SYNC_TARGETS, plus the comment/review collection-groups.
+    const TOP: Array<{ col: string; uid: string; names: string[]; skipOrg?: boolean; skipAnon?: boolean }> = [
+      { col: 'posts', uid: 'authorId', names: ['authorName'], skipOrg: true },
+      { col: 'feed', uid: 'authorId', names: ['authorName'], skipOrg: true },
+      { col: 'articles', uid: 'authorId', names: ['authorName'] },
+      { col: 'video_playlists', uid: 'ownerId', names: ['ownerName'] },
+      { col: 'communityPlaylists', uid: 'ownerId', names: ['authorName'] },
+      { col: 'clubPosts', uid: 'authorId', names: ['authorName'] },
+      { col: 'clubGallery', uid: 'uploaderId', names: ['uploaderName'] },
+      { col: 'clubChat', uid: 'senderId', names: ['senderName'] },
+      { col: 'clubMemberships', uid: 'userId', names: ['displayName'] },
+      { col: 'orgMemberships', uid: 'userId', names: ['displayName'] },
+      { col: 'liveTalks', uid: 'hostId', names: ['hostName'] },
+      { col: 'parties', uid: 'hostId', names: ['hostName'] },
+      { col: 'rooms', uid: 'hostId', names: ['hostName'] },
+      { col: 'live_feeds', uid: 'ownerId', names: ['ownerName'] },
+      { col: 'ppv_events', uid: 'ownerId', names: ['ownerName'] },
+      { col: 'classrooms', uid: 'ownerId', names: ['ownerName'] },
+      { col: 'churchPrayers', uid: 'authorId', names: ['authorName'], skipAnon: true },
+    ];
+    // Collection-group scans (allDescendants) — comment subcollections + app reviews. Field names per
+    // writer: posts/clubPosts comments store author+authorName (authorId); video comments userName
+    // (userId); generic album/article/track comments author (uid); reviews userName (userId).
+    const CG: Array<{ col: string; uid: string; names: string[] }> = [
+      { col: 'comments', uid: 'authorId', names: ['author', 'authorName'] },
+      { col: 'comments', uid: 'userId', names: ['userName'] },
+      { col: 'comments', uid: 'uid', names: ['author'] },
+      { col: 'reviews', uid: 'userId', names: ['userName'] },
+    ];
+
+    const PAGE = 300;
+    const patch = async (name: string, fields: string[]) => {
+      const masks = fields.map(f => `updateMask.fieldPaths=${encodeURIComponent(f)}`).join('&');
+      const body = { fields: Object.fromEntries(fields.map(f => [f, { stringValue: newName }])) };
+      await fetch(`https://firestore.googleapis.com/v1/${name}?${masks}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify(body) });
+    };
+    const scan = async (col: string, uidField: string, names: string[], allDescendants: boolean, opts?: { skipOrg?: boolean; skipAnon?: boolean }) => {
+      let updated = 0, capped = false;
+      const queryBody = {
+        structuredQuery: {
+          from: [{ collectionId: col, allDescendants }],
+          where: { fieldFilter: { field: { fieldPath: uidField }, op: 'EQUAL', value: { stringValue: targetUid } } },
+          limit: PAGE,
+        },
+      };
+      const qRes = await fetch(`${FS}:runQuery`, { method: 'POST', headers: authHeaders, body: JSON.stringify(queryBody) });
+      if (!qRes.ok) throw new Error(`${col} query ${qRes.status}: ${(await qRes.text()).slice(0, 160)}`);
+      const rows: any[] = await qRes.json();
+      const docs = rows.filter(r => r.document).map(r => r.document);
+      if (docs.length >= PAGE) capped = true;
+      for (const d of docs) {
+        const data = dFields(d.fields ?? {});
+        if (opts?.skipOrg && data.authorOrgId) continue;
+        if (opts?.skipAnon && data.isAnonymous === true) continue;
+        const changed = names.filter(n => data[n] !== undefined && data[n] !== newName);
+        if (!changed.length) continue;
+        await patch(d.name, changed);
+        updated++;
+      }
+      return { updated, capped };
+    };
+
+    const result: any = { uid: targetUid, newName, updated: {}, total: 0, capped: [], errors: [] };
+    // Canonical user doc first (service account can write any user).
+    try { await patch(`${FS}/users/${targetUid}`, ['displayName']); } catch (e: any) { result.errors.push(`users: ${e?.message || e}`); }
+
+    for (const t of TOP) {
+      try {
+        const r = await scan(t.col, t.uid, t.names, false, { skipOrg: t.skipOrg, skipAnon: t.skipAnon });
+        if (r.updated) { result.updated[t.col] = (result.updated[t.col] || 0) + r.updated; result.total += r.updated; }
+        if (r.capped) result.capped.push(t.col);
+      } catch (e: any) { result.errors.push(`${t.col}: ${e?.message || e}`); }
+    }
+    for (const t of CG) {
+      try {
+        const r = await scan(t.col, t.uid, t.names, true);
+        if (r.updated) { const key = `${t.col}[${t.uid}]`; result.updated[key] = r.updated; result.total += r.updated; }
+        if (r.capped) result.capped.push(`${t.col}[${t.uid}]`);
+      } catch (e: any) { result.errors.push(`${t.col}[${t.uid}]: ${e?.message || e}`); }
+    }
+
+    res.json(result);
+  });
+
   // ── Philips Hue OAuth ─────────────────────────────────────────────────────
   // Step 1: redirect user to Hue login page
   app.get('/api/hue/auth', (req: any, res: any) => {

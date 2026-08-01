@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit, FilmDistribution, FilmVersion } from '../types';
+import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit, FilmDistribution, FilmVersion, Character } from '../types';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import { buildShareUrl, shareText } from '../services/deepLinkService';
 import { generateAlbumMetadata, generateTrackLyrics } from '../services/geminiService';
-import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, uploadFile as storageUpload, uploadVideo } from '../services/backendService';
+import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, fetchUserCharacters, uploadFile as storageUpload, uploadVideo } from '../services/backendService';
 import { enqueueTranscode } from '../services/choraStreamService';
 import { captureVideoFrame } from '../src/lib/videoUtils';
 import { probeVideo } from '../src/lib/videoQc';
@@ -91,6 +91,24 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [trackListLabel, setTrackListLabel] = useState(initialAlbum?.trackListLabel || '');
   const [artistImage, setArtistImage] = useState<string | undefined>(initialAlbum?.artistImage || undefined);
   const [artistFile, setArtistFile] = useState<File | undefined>(undefined);
+  // Artist persona = a Worlds Character. Releasing under a character keeps the artist
+  // identity independent of the account display name but attached to the user's IP.
+  const [artistCharacterId, setArtistCharacterId] = useState<string | undefined>(initialAlbum?.artistCharacterId);
+  const [artistWorldId, setArtistWorldId] = useState<string | undefined>(initialAlbum?.artistWorldId);
+  const [personaOptions, setPersonaOptions] = useState<Character[]>([]);
+  useEffect(() => {
+    const u = auth.currentUser?.uid;
+    if (!u) return;
+    fetchUserCharacters(u).then(setPersonaOptions).catch(() => {});
+  }, []);
+  const applyPersona = (c: Character | null) => {
+    if (!c) { setArtistCharacterId(undefined); setArtistWorldId(undefined); return; }
+    setArtistCharacterId(c.id);
+    setArtistWorldId(c.worldId);
+    setArtist(c.name);
+    if (c.imageUrl) setArtistImage(c.imageUrl);
+    if (c.bio && !artistBio) setArtistBio(c.bio);
+  };
   const [tracks, setTracks] = useState<Track[]>(() => {
     const t = initialAlbum?.tracks || [];
     // Recover uploaded videos on edit: a VIDEO album's tracks are videos, so
@@ -892,6 +910,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         ...initialAlbum,
         id: albumId, title,
         artist: artist || "Unknown Artist",
+        artistCharacterId: artistCharacterId || undefined,
+        artistWorldId: artistWorldId || undefined,
         type: type as Album['type'],
         subType: subType as Album['subType'], genre, price, isPaywalled,
         artistBio: artistBio || `Exploring the boundaries of creativity as ${artist}.`,
@@ -2351,7 +2371,29 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-60">
             {type === 'BOOK' ? 'Author Name' : type === 'GAME' ? 'Developer / Studio' : 'Creator Identity'}
           </label>
-          <input type="text" value={artist} onChange={(e) => setArtist(e.target.value)} placeholder="Creator Name" className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-3.5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
+          <input type="text" value={artist} onChange={(e) => { setArtist(e.target.value); if (artistCharacterId) { setArtistCharacterId(undefined); setArtistWorldId(undefined); } }} placeholder="Creator Name" className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-3.5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
+          {/* Persona picker — credit this release to one of your Worlds characters. The
+              artist identity stays independent of your account name but attached to your IP. */}
+          {personaOptions.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Release as persona:</span>
+              <select
+                value={artistCharacterId || ''}
+                onChange={(e) => applyPersona(personaOptions.find(c => c.id === e.target.value) || null)}
+                className="bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2 text-white text-[11px] font-bold focus:outline-none focus:ring-2 focus:ring-white/10 transition-all appearance-none"
+              >
+                <option value="">Custom / none</option>
+                {personaOptions.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}{c.role ? ` — ${c.role}` : ''}</option>
+                ))}
+              </select>
+              {artistCharacterId && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-small-orange/15 text-small-orange text-[9px] font-black uppercase tracking-widest">
+                  <User size={10} /> Persona linked
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

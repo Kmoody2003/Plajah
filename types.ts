@@ -424,6 +424,13 @@ export interface Album {
   isDraft?: boolean;
   title: string;
   artist: string;
+  /** Optional link to the Worlds Character this release is credited to (the "persona").
+   *  Artist identity is independent of the owner's account display name — a user can
+   *  release under any of their characters. `artist` stays the display string so every
+   *  existing read keeps working; this just records which persona it belongs to. */
+  artistCharacterId?: string;
+  /** World the artistCharacterId lives in (characters are stored under worlds/{id}/characters). */
+  artistWorldId?: string;
   artistBio?: string;
   artistImage?: string;
   artistFile?: File; // For direct upload
@@ -1116,7 +1123,9 @@ export interface SidebarItemConfig {
  */
 export type AccountType =
   | 'FAN' | 'ARTIST' | 'BRAND' | 'WRITER' | 'STUDENT' | 'TEACHER'
-  | 'PARTNER' | 'ORGANIZATION' | 'ATHLETE' | 'PARENT' | 'CHILD' | 'CLERGY';
+  | 'PARTNER' | 'ORGANIZATION' | 'ATHLETE' | 'PARENT' | 'CHILD' | 'CLERGY'
+  // A managed, business-owned employee profile (no personal login of its own).
+  | 'EMPLOYEE';
 
 // Relationship status shown on a profile. Only the "partnered" statuses (everything
 // except SINGLE) can gate Nibbles, and only with a linked partner.
@@ -1280,6 +1289,16 @@ export interface UserProfile {
   athleteSchool?: string;
   athleteState?: string;
   athleteClassYear?: number;
+
+  // ─── Employee (accountType 'EMPLOYEE') — a business-managed work identity ────
+  /** True for a managed, business-owned employee profile (no personal login of its own). */
+  isEmployee?: boolean;
+  /** The org (business) that owns/employs this managed profile. */
+  employerOrgId?: string;
+  /** uid of the owner/admin who created this managed employee profile. */
+  managedByUid?: string;
+  /** When a real user claims/links this managed profile, their uid — links it into their switcher. */
+  claimedByUid?: string;
 
   // ─── Family / child-safety (accountType 'PARENT' | 'CHILD') ─────────────────
   /** True for a managed child account. Safe defaults are applied regardless of who edits. */
@@ -2062,8 +2081,17 @@ export interface ProgramFeed {
 // accounts are Organizations with orgType 'BRAND'; the church vertical specializes
 // this same primitive (orgType 'CHURCH'), never forks it.
 
-export type OrgType = 'BRAND' | 'BUSINESS' | 'CHURCH' | 'NONPROFIT' | 'CULTURAL' | 'LABEL' | 'TEAM' | 'OTHER';
+export type OrgType =
+  | 'BRAND' | 'BUSINESS' | 'CHURCH' | 'NONPROFIT' | 'CULTURAL' | 'LABEL' | 'TEAM' | 'OTHER'
+  // Business-page verticals (native templates)
+  | 'STUDIO' | 'PUBLISHER' | 'REALTY' | 'RESTAURANT' | 'CLUB';
 export type OrgRole = 'OWNER' | 'ADMIN' | 'STAFF' | 'MODERATOR' | 'MEMBER';
+
+/** Fine-grained actions gated per org member (see services/orgPermissions.ts).
+ *  Role sets a default permission tier; a membership may override with its own set. */
+export type OrgPermission =
+  | 'EDIT_PAGE' | 'MANAGE_EMPLOYEES' | 'MANAGE_ROLES' | 'POST_AS_ORG'
+  | 'MANAGE_MONEY' | 'MANAGE_CONTENT' | 'MANAGE_ORDERS' | 'VIEW_ANALYTICS';
 
 export interface OrgRosterMember {
   memberId: string;      // uid (or free id) of a person on the org's public roster
@@ -2118,6 +2146,16 @@ export interface Organization {
   /** If migrated from a legacy BrandAccount, its id — prevents re-migration. */
   legacyBrandId?: string;
 
+  // ── Business-page template + delegated roles ───────────────────────────────
+  /** Business template this org was launched from (services/businessTemplates). */
+  templateId?: string;
+  /** Role definitions available to delegate to employees (seeded from the template, editable). */
+  roleDefs?: { key: string; label: string; baseRole: OrgRole; description?: string; permissions?: OrgPermission[] }[];
+  /** True once this org has been upgraded to a full business page (vs a plain brand/org). */
+  isBusinessPage?: boolean;
+  /** Optional link to a BusinessPage commerce/ops extension doc (businessPages/{id}). */
+  businessPageId?: string;
+
   // Church vertical (orgType 'CHURCH')
   ministries?: Ministry[];
   serviceTimes?: ServiceTime[];
@@ -2131,6 +2169,65 @@ export interface Organization {
   updatedAt: number;
 }
 
+// ── Hiring / volunteers (ATS) — see docs/ATS_HIRING_VOLUNTEERS_PLAN.md ────────
+// Built on the Organization backbone: a JobPosting belongs to an org; an Application is its
+// OWN entity (an applicant is NOT a member yet) that, on HIRED, becomes an employee + badge.
+export type ApplicationStage = 'APPLIED' | 'SCREENING' | 'INTERVIEW' | 'OFFER' | 'HIRED' | 'REJECTED' | 'WITHDRAWN';
+
+export interface ApplicationQuestion {
+  id: string;
+  prompt: string;
+  type: 'TEXT' | 'CHOICE' | 'BOOLEAN' | 'FILE';
+  required?: boolean;
+  options?: string[];
+}
+
+export interface JobPosting {
+  id: string;
+  orgId: string;
+  postingType: 'JOB' | 'VOLUNTEER';
+  title: string;
+  roleKey?: string;              // maps to the org's template roleDefs (the role being filled)
+  description: string;
+  location?: string;
+  isRemote?: boolean;
+  employmentType?: 'FULL_TIME' | 'PART_TIME' | 'CONTRACT' | 'GIG' | 'VOLUNTEER';
+  compRange?: string;            // free-text pay range (jobs); shift needs (volunteers) use shiftNeeds
+  shiftNeeds?: string;
+  questions?: ApplicationQuestion[];
+  status: 'OPEN' | 'PAUSED' | 'CLOSED';
+  createdBy: string;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+export interface StaffNote {
+  id: string;
+  authorUid: string;
+  authorName?: string;
+  text: string;
+  timestamp: number;
+}
+
+export interface Application {
+  id: string;
+  jobId: string;
+  orgId: string;
+  applicantUid?: string;         // absent for anonymous volunteer signups
+  applicantName: string;
+  applicantEmail?: string;
+  applicantPhoto?: string;
+  answers?: Record<string, string>;
+  resumeUrl?: string;
+  links?: string[];
+  stage: ApplicationStage;
+  rating?: number;               // 1-5, owner's rating
+  notes?: StaffNote[];
+  source?: string;
+  createdAt: number;
+  updatedAt?: number;
+}
+
 export interface OrgMembership {
   id: string;
   orgId: string;
@@ -2141,6 +2238,22 @@ export interface OrgMembership {
   photoUrl?: string;
   title?: string;        // staff title, e.g. "Youth Pastor", "Tour Manager"
   joinedAt: number;
+
+  // ── Employee / delegated-role fields (business pages) ──────────────────────
+  /** Template role key (services/businessTemplates.ts), e.g. "AR", "CHEF". Drives the badge. */
+  roleKey?: string;
+  /** True when this membership represents an employee (renders as a work badge). */
+  isEmployee?: boolean;
+  /** For an owner-created managed employee: the uid of the Firestore-only EMPLOYEE profile. */
+  employeeProfileUid?: string;
+  /** How this membership originated — set the accept handshake accordingly. */
+  source?: 'OWNER_CREATED' | 'SELF_APPLIED';
+  /** uid of the owner/admin who created or invited this member. */
+  invitedBy?: string;
+  /** When a PENDING membership was accepted → ACTIVE. */
+  acceptedAt?: number;
+  /** Per-member permission override; when unset, defaults derive from `role`. */
+  permissions?: OrgPermission[];
 }
 
 export interface ClubPost {
@@ -3407,11 +3520,16 @@ export interface DiscussionVote {
 // ── STAT CARD (digital trading card) ─────────────────────────────────────────
 // One generic schema so the SAME card renderer + image exporter works for a profile today and for
 // worlds / characters / scenes / environments next. Built by services/statCardService.
-export type StatCardKind = 'PROFILE' | 'WORLD' | 'CHARACTER' | 'SCENE' | 'ENVIRONMENT';
+export type StatCardKind = 'PROFILE' | 'WORLD' | 'CHARACTER' | 'SCENE' | 'ENVIRONMENT' | 'EMPLOYEE';
+/** Visual variant. DEFAULT = Plajah brand gradient, round avatar. WORK_BADGE = blue+yellow
+ *  employee work badge with a rectangular avatar (an actual work ID). */
+export type StatCardVariant = 'DEFAULT' | 'WORK_BADGE';
 export interface StatCardConfig {
   heroImage?: string;   // profile pic / hero override
   coverImage?: string;  // top cover that blends into the card background
   accent?: string;      // optional theme accent (defaults to the Plajah brand gradient)
+  variant?: StatCardVariant;
+  avatarShape?: 'CIRCLE' | 'RECT';
 }
 export interface StatCardCategoryRow { key: string; label: string; count: number; thumbnails: string[]; }
 export interface StatCardStat { label: string; value: string | number; hint?: string; }
@@ -3424,6 +3542,8 @@ export interface StatCardData {
   heroImage?: string;
   coverImage?: string;
   accent?: string;
+  variant?: StatCardVariant;           // DEFAULT | WORK_BADGE (employee work badge)
+  avatarShape?: 'CIRCLE' | 'RECT';     // WORK_BADGE badges use a rectangular avatar
   verified?: boolean;
   stats: StatCardStat[];               // achievement score, points, followers, …
   categories: StatCardCategoryRow[];   // Music / Film-TV / Book rows (recent thumbs + totals)

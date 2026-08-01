@@ -758,7 +758,12 @@ service cloud.firestore {
                        request.resource.data.get('teacherVerification', 'UNVERIFIED') == 'UNVERIFIED') ||
                       (isAuthenticated() &&
                        request.resource.data.isChild == true &&
-                       request.resource.data.guardianUid == request.auth.uid);
+                       request.resource.data.guardianUid == request.auth.uid) ||
+                      // Managed EMPLOYEE profile: a business owner/admin provisions a Firestore-only
+                      // work identity (no login). Must be flagged isEmployee and owned by the creator.
+                      (isAuthenticated() &&
+                       request.resource.data.isEmployee == true &&
+                       request.resource.data.managedByUid == request.auth.uid);
       allow update: if (isOwner(userId) && isValidUserProfile(request.resource.data) &&
                        request.resource.data.get('teacherVerification', 'UNVERIFIED') == resource.data.get('teacherVerification', 'UNVERIFIED')) ||
                       (isAuthenticated() &&
@@ -766,7 +771,20 @@ service cloud.firestore {
                        math.abs(request.resource.data.followerCount - resource.data.followerCount) == 1) ||
                       (isAuthenticated() &&
                        resource.data.isChild == true &&
-                       resource.data.guardianUid == request.auth.uid);
+                       resource.data.guardianUid == request.auth.uid) ||
+                      // A managed employee profile is managed by its creator, or by the employer
+                      // org's admins (roster/role/badge edits, and owner-initiated claim linking).
+                      (isAuthenticated() &&
+                       resource.data.isEmployee == true && (
+                         resource.data.managedByUid == request.auth.uid ||
+                         request.auth.uid in get(/databases/$(database)/documents/organizations/$(resource.data.employerOrgId)).data.admins
+                       )) ||
+                      // Admin display-name fix: an admin may set ONLY the display name for any
+                      // user (e.g. re-syncing a creator whose rename didn't propagate). Scoped to
+                      // displayName alone so sensitive fields (email, teacherVerification, aliases)
+                      // can never be touched via this path.
+                      (isAdmin() &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName']));
 
       // Private user data — only the account owner can read
       match /private/{docId} {
@@ -1700,6 +1718,47 @@ service cloud.firestore {
         isAdmin()
       );
       allow delete: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin());
+
+      // Append-only audit trail of sensitive org actions (services/orgAudit.ts). Owner/admins
+      // read; any authed actor may append an entry stamped with their own uid; never edited.
+      match /audit/{entryId} {
+        allow read: if isAuthenticated() && (
+          request.auth.uid in get(/databases/$(database)/documents/organizations/$(orgId)).data.admins ||
+          get(/databases/$(database)/documents/organizations/$(orgId)).data.creatorId == request.auth.uid ||
+          isAdmin()
+        );
+        allow create: if isAuthenticated() && request.resource.data.actorUid == request.auth.uid;
+        allow update, delete: if false;
+      }
+    }
+
+    // ── Hiring / volunteers (ATS) ────────────────────────────────────────────
+    function orgAdminOf(orgId) {
+      return isAuthenticated() && (
+        request.auth.uid in get(/databases/$(database)/documents/organizations/$(orgId)).data.admins ||
+        get(/databases/$(database)/documents/organizations/$(orgId)).data.creatorId == request.auth.uid
+      );
+    }
+    // Job/volunteer postings — public can read OPEN ones; only org admins write.
+    match /jobPostings/{postingId} {
+      allow read: if (resource.data.status == 'OPEN') || orgAdminOf(resource.data.orgId) || isAdmin();
+      allow create: if orgAdminOf(request.resource.data.orgId);
+      allow update, delete: if orgAdminOf(resource.data.orgId) || isAdmin();
+    }
+    // Applications — PII-sensitive. Anyone signed in may apply to an OPEN posting (creating their
+    // own application at stage APPLIED); org admins manage; an applicant may read/withdraw only theirs.
+    match /applications/{appId} {
+      allow read: if orgAdminOf(resource.data.orgId) ||
+                     (isAuthenticated() && resource.data.applicantUid == request.auth.uid) || isAdmin();
+      allow create: if isAuthenticated() &&
+                       request.resource.data.stage == 'APPLIED' &&
+                       get(/databases/$(database)/documents/jobPostings/$(request.resource.data.jobId)).data.status == 'OPEN';
+      allow update: if orgAdminOf(resource.data.orgId) ||
+                       // the applicant may only withdraw their own application
+                       (isAuthenticated() && resource.data.applicantUid == request.auth.uid &&
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stage', 'updatedAt']) &&
+                        request.resource.data.stage == 'WITHDRAWN');
+      allow delete: if orgAdminOf(resource.data.orgId) || isAdmin();
     }
 
     // Multi-site program-feed registry (Part 3, Phase 5): campuses publish live

@@ -8,7 +8,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'motion/react';
 import {
   Building2, Plus, ArrowLeft, Check, Globe, MapPin, Users, Star, Loader2, Camera, Pencil,
-  Church, Clock, Gift, Trash2, Sparkles, MonitorPlay, Mail, HardDrive,
+  Church, Clock, Gift, Trash2, Sparkles, MonitorPlay, Mail, HardDrive, Briefcase,
 } from 'lucide-react';
 import type { Organization, OrgMembership, OrgType, OrgRole } from '../types';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
@@ -20,6 +20,12 @@ import {
 import { uploadFile, searchUserProfiles, auth } from '../services/backendService';
 import { connectStripe } from '../services/stripeService';
 import ContentHQ from './ContentHQ';
+import EmployeeManager from './business/EmployeeManager';
+import HiringBoard from './business/HiringBoard';
+import ApplyModal from './business/ApplyModal';
+import CareersView from './business/CareersView';
+import { fetchOrgPostings } from '../services/hiringService';
+import type { JobPosting } from '../types';
 import ChurchGive from './ChurchGive';
 import SermonStudio from './SermonStudio';
 import ChurchMasterControl from './ChurchMasterControl';
@@ -249,9 +255,15 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   const [master, setMaster] = useState(false);
   const [showConsole, setShowConsole] = useState(false);
   const [contentHq, setContentHq] = useState(false);
+  const [showEmployees, setShowEmployees] = useState(false);
+  const [showHiring, setShowHiring] = useState(false);
+  const [openings, setOpenings] = useState<JobPosting[]>([]);
+  const [applyFor, setApplyFor] = useState<JobPosting | null>(null);
+  const [showCareers, setShowCareers] = useState(false);
   const [fundGiven, setFundGiven] = useState<Record<string, number>>({});
   const reloadStaff = useCallback(() => { fetchOrgMembers(org.id).then(setStaff).catch(() => {}); }, [org.id]);
   useEffect(() => { reloadStaff(); }, [reloadStaff]);
+  useEffect(() => { fetchOrgPostings(org.id).then(ps => setOpenings(ps.filter(p => p.status === 'OPEN'))).catch(() => {}); }, [org.id, showHiring]);
   useEffect(() => {
     if (org.orgType === 'CHURCH') fetchChurchDonations(org.id).then(d => setFundGiven(sumDonationsByFund(d))).catch(() => {});
   }, [org.id, org.orgType]);
@@ -273,6 +285,9 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   }
   if (contentHq && isOwner) {
     return <ContentHQ scope={{ kind: 'org', id: org.id, ownerUid: org.creatorId, adminUids: org.admins, label: org.name }} canEdit={isOwner} mediaOwnerUid={org.creatorId} onClose={() => setContentHq(false)} />;
+  }
+  if (showCareers) {
+    return <CareersView org={org} onBack={() => setShowCareers(false)} />;
   }
 
   return (
@@ -318,7 +333,65 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
             <button onClick={() => setContentHq(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
               <HardDrive size={14} className="text-small-orange" /> Content HQ
             </button>
+            <button onClick={() => setShowEmployees(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
+              <Users size={14} className="text-[#0070FF]" /> Employees
+            </button>
+            <button onClick={() => setShowHiring(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
+              <Briefcase size={14} className="text-[#0070FF]" /> {(org.orgType === 'CHURCH' || org.orgType === 'NONPROFIT' || org.orgType === 'CULTURAL') ? 'Volunteers' : 'Hiring'}
+            </button>
           </div>
+        )}
+
+        {showHiring && (
+          <HiringBoard
+            org={org}
+            myMembership={
+              staff.find(m => m.userId === auth.currentUser?.uid) ||
+              (isOwner && auth.currentUser
+                ? { id: '', orgId: org.id, userId: auth.currentUser.uid, role: 'OWNER', status: 'ACTIVE', displayName: '', joinedAt: 0 }
+                : null)
+            }
+            onClose={() => setShowHiring(false)}
+          />
+        )}
+
+        {/* Public "Careers / Get Involved" — anyone can see open roles and apply in one tap */}
+        {openings.length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-black uppercase tracking-widest text-white/40">
+                {(org.orgType === 'CHURCH' || org.orgType === 'NONPROFIT' || org.orgType === 'CULTURAL') ? 'Get Involved' : 'Careers'}
+              </h3>
+              <button onClick={() => setShowCareers(true)} className="text-[9px] font-black uppercase tracking-widest text-small-orange/70 hover:text-small-orange">See all openings →</button>
+            </div>
+            <div className="space-y-2">
+              {openings.map(p => (
+                <div key={p.id} className="flex items-center gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/8">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white truncate">{p.title}</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-white/30">{p.postingType === 'VOLUNTEER' ? 'Volunteer' : (p.employmentType || 'Paid')}{p.location ? ` · ${p.location}` : ''}{p.isRemote ? ' · Remote' : ''}</p>
+                  </div>
+                  <button onClick={() => setApplyFor(p)} className="px-4 py-2 rounded-full text-black text-[10px] font-black uppercase tracking-widest shrink-0" style={{ background: 'linear-gradient(135deg,#0070FF,#FFD400)' }}>
+                    {p.postingType === 'VOLUNTEER' ? 'Sign up' : 'Apply'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {applyFor && <ApplyModal posting={applyFor} orgName={org.name} onClose={() => setApplyFor(null)} />}
+
+        {showEmployees && (
+          <EmployeeManager
+            org={org}
+            myMembership={
+              staff.find(m => m.userId === auth.currentUser?.uid) ||
+              (isOwner && auth.currentUser
+                ? { id: '', orgId: org.id, userId: auth.currentUser.uid, role: 'OWNER', status: 'ACTIVE', displayName: '', joinedAt: 0 }
+                : null)
+            }
+            onClose={() => setShowEmployees(false)}
+          />
         )}
 
         {/* Church vertical — plan your visit + ministries + give */}

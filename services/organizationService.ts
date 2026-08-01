@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
 import { db, auth } from './firebase';
-import type { ChurchPrayer } from '../types';
+import type { ChurchPrayer, UserProfile } from '../types';
 import type { Organization, OrgMembership, OrgRole, OrgType, Ministry, ServiceTime, GivingFund } from '../types';
 
 /** Firestore rejects `undefined` field values — strip them before every write. */
@@ -171,6 +171,112 @@ export async function setOrgAdmin(orgId: string, uid: string, isAdmin: boolean, 
   const admins = isAdmin ? Array.from(new Set([...currentAdmins, uid])) : currentAdmins.filter(a => a !== uid);
   await updateOrganization(orgId, { admins });
   return admins;
+}
+
+// ── Employees: managed profiles + apply→accept handshake ────────────────────
+// Two ways someone becomes an employee:
+//   1. The owner CREATES a managed profile (no login) — instantly ACTIVE. A real person can
+//      later claim it (claimEmployeeProfile) to link it into their own account/switcher.
+//   2. A real user SELF-APPLIES (applyToOrg → PENDING); an owner/admin accepts (acceptOrgMember).
+// UI gates these with orgCan(...); Firestore rules enforce that only the org's admins can write.
+
+/** All memberships for a user (any status) — powers the identity switcher's employee identities. */
+export async function fetchUserMemberships(uid: string): Promise<OrgMembership[]> {
+  const snap = await getDocs(query(collection(db, 'orgMemberships'), where('userId', '==', uid)));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as OrgMembership));
+}
+
+/** Owner/admin creates a managed EMPLOYEE profile (Firestore-only, no login) + an ACTIVE membership. */
+export async function createManagedEmployee(
+  orgId: string,
+  data: { displayName: string; roleKey?: string; role?: OrgRole; title?: string; photoURL?: string },
+): Promise<{ employee: UserProfile; membership: OrgMembership } | null> {
+  if (!auth.currentUser) return null;
+  const now = Date.now();
+  const employeeUid = `emp_${orgId.slice(0, 6)}_${Math.random().toString(36).slice(2, 9)}`;
+  const employee = {
+    uid: employeeUid,
+    displayName: data.displayName || 'Employee',
+    photoURL: data.photoURL || '',
+    email: '',
+    accountType: 'EMPLOYEE',
+    isEmployee: true,
+    employerOrgId: orgId,
+    managedByUid: auth.currentUser.uid,
+    followerCount: 0,
+    followingCount: 0,
+    createdAt: now,
+  } as UserProfile;
+  await setDoc(doc(db, 'users', employeeUid), stripUndefined(employee as any));
+
+  const memberRef = doc(collection(db, 'orgMemberships'));
+  const membership: OrgMembership = {
+    id: memberRef.id,
+    orgId,
+    userId: employeeUid,
+    role: data.role || 'STAFF',
+    status: 'ACTIVE',
+    displayName: employee.displayName,
+    photoUrl: employee.photoURL,
+    title: data.title,
+    joinedAt: now,
+    roleKey: data.roleKey,
+    isEmployee: true,
+    employeeProfileUid: employeeUid,
+    source: 'OWNER_CREATED',
+    invitedBy: auth.currentUser.uid,
+    acceptedAt: now,
+  };
+  await setDoc(memberRef, stripUndefined(membership));
+  return { employee, membership };
+}
+
+/** A real user applies to work at an org — creates a PENDING membership for the owner to accept. */
+export async function applyToOrg(
+  orgId: string,
+  opts?: { roleKey?: string; role?: OrgRole; title?: string },
+): Promise<OrgMembership | null> {
+  if (!auth.currentUser) return null;
+  const now = Date.now();
+  const ref = doc(collection(db, 'orgMemberships'));
+  const membership: OrgMembership = {
+    id: ref.id,
+    orgId,
+    userId: auth.currentUser.uid,
+    role: opts?.role || 'MEMBER',
+    status: 'PENDING',
+    displayName: auth.currentUser.displayName || 'Applicant',
+    photoUrl: auth.currentUser.photoURL || '',
+    title: opts?.title,
+    joinedAt: now,
+    roleKey: opts?.roleKey,
+    isEmployee: true,
+    source: 'SELF_APPLIED',
+  };
+  await setDoc(ref, stripUndefined(membership));
+  return membership;
+}
+
+/** Owner/admin accepts a PENDING applicant → ACTIVE (optionally setting their final role). */
+export async function acceptOrgMember(membershipId: string, role?: OrgRole): Promise<void> {
+  await updateDoc(doc(db, 'orgMemberships', membershipId), stripUndefined({ status: 'ACTIVE', acceptedAt: Date.now(), role }));
+}
+
+/** Owner/admin declines a PENDING applicant (removes the request). */
+export async function declineOrgMember(membershipId: string): Promise<void> {
+  await deleteDoc(doc(db, 'orgMemberships', membershipId));
+}
+
+/**
+ * A real user claims a managed employee profile, linking it to their account: re-points the
+ * managed profile's memberships to the real uid (so the employee identity appears in the user's
+ * switcher) and stamps claimedByUid. The user keeps their personal identity separate — this only
+ * links the work identity in; it never merges the two accounts.
+ */
+export async function claimEmployeeProfile(employeeUid: string, personalUid: string): Promise<void> {
+  await updateDoc(doc(db, 'users', employeeUid), { claimedByUid: personalUid });
+  const snap = await getDocs(query(collection(db, 'orgMemberships'), where('employeeProfileUid', '==', employeeUid)));
+  await Promise.all(snap.docs.map(d => updateDoc(d.ref, { userId: personalUid })));
 }
 
 /** Recorded gifts for a church (from the `donations` collection). */

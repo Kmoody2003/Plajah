@@ -84,7 +84,9 @@ import {
   fetchAllPublicPlaylists,
   fetchAllPublicVideoPlaylists,
   fetchAllVideos,
-  migratePostsToFeed
+  migratePostsToFeed,
+  propagateDisplayName,
+  serverResyncDisplayName
 } from '../services/backendService';
 import { analyzeThemeBackground } from '../services/geminiService';
 import { getFlag, updateFlag } from '../services/featureFlagService';
@@ -153,6 +155,33 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [userAssets, setUserAssets] = useState<{ albums: Album[], videos: Video[], photos: Photo[], personalTracks: Track[] } | null>(null);
   const [assetSearch, setAssetSearch] = useState('');
+  // Admin display-name re-sync (fixes users whose renamed name didn't propagate).
+  const [renameValue, setRenameValue] = useState('');
+  const [isRenaming, setIsRenaming] = useState(false);
+
+  const handleAdminRename = async () => {
+    if (!selectedUser) return;
+    const newName = renameValue.trim();
+    if (!newName || newName === selectedUser.displayName) return;
+    if (!window.confirm(`Set this user's display name to "${newName}" and re-sync it across all their content?`)) return;
+    setIsRenaming(true);
+    try {
+      // Server pass (Admin SDK) reaches ANY user's content + comments, bypassing client rules.
+      const srv = await serverResyncDisplayName(selectedUser.uid, newName).catch(() => ({ ok: false, total: 0 }));
+      // Client pass covers anything the caller can already write directly.
+      const res = await propagateDisplayName(selectedUser.uid, newName);
+      setSelectedUser({ ...selectedUser, displayName: newName });
+      setUsers(prev => prev.map(u => u.uid === selectedUser.uid ? { ...u, displayName: newName } : u));
+      const total = (srv.ok ? srv.total : 0) + res.total;
+      const skipped = !srv.ok && res.skipped.length ? `\n\nServer resync unavailable; some copies may lag.` : '';
+      alert(`Display name updated to "${newName}".\nRe-synced across ${total} item${total === 1 ? '' : 's'}.${skipped}`);
+    } catch (err) {
+      console.error('[handleAdminRename]', err);
+      alert('Rename failed — see console.');
+    } finally {
+      setIsRenaming(false);
+    }
+  };
 
   // Ad Manager State
   const [showAdModal, setShowAdModal] = useState(false);
@@ -359,6 +388,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
 
   const handleUserSelect = async (user: UserProfile) => {
     setSelectedUser(user);
+    setRenameValue(user.displayName || '');
     const assets = await fetchUserAssets(user.uid);
     setUserAssets(assets);
   };
@@ -794,6 +824,31 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                             {userAssets?.photos.length || 0} Photos
                           </div>
                         </div>
+                      </div>
+                    </div>
+
+                    {/* Display-name re-sync — set the account name and propagate it everywhere */}
+                    <div className="p-6 bg-white/5 border border-white/5 rounded-[2rem] space-y-3">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-white/40">Display Name — re-sync everywhere</h3>
+                      <p className="text-[10px] text-white/30 font-medium leading-relaxed">
+                        Sets the account display name and re-writes every denormalized copy (posts, comments, rooms, clubs…).
+                        Artist / persona names on releases are intentionally left untouched.
+                      </p>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <input
+                          type="text"
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          placeholder="Display name"
+                          className="flex-1 bg-black/40 border border-white/10 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:ring-2 ring-white/20"
+                        />
+                        <button
+                          onClick={handleAdminRename}
+                          disabled={isRenaming || !renameValue.trim() || renameValue.trim() === selectedUser.displayName}
+                          className="px-6 py-3 bg-white text-black rounded-2xl text-[11px] font-black uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/90 transition-all"
+                        >
+                          {isRenaming ? 'Re-syncing…' : 'Rename & re-sync'}
+                        </button>
                       </div>
                     </div>
 
