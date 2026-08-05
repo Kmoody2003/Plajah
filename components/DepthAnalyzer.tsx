@@ -4,9 +4,10 @@ import { motion, AnimatePresence } from 'motion/react';
 
 interface DepthAnalyzerProps {
   imageUrl: string;
+  mediaType?: 'IMAGE' | 'VIDEO';
 }
 
-const DepthAnalyzer: React.FC<DepthAnalyzerProps> = ({ imageUrl }) => {
+const DepthAnalyzer: React.FC<DepthAnalyzerProps> = ({ imageUrl, mediaType = 'IMAGE' }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisComplete, setAnalysisComplete] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -35,8 +36,8 @@ const DepthAnalyzer: React.FC<DepthAnalyzerProps> = ({ imageUrl }) => {
         <div className="flex items-center gap-3">
           <Brain size={20} className="text-cyan-400" />
           <div className="flex flex-col">
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">AI Depth Projection</span>
-            <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Meta SAM 2 Hybrid Engine</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Auto Depth Projection</span>
+              <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest">No-warp spatial layers for {mediaType.toLowerCase()}</span>
           </div>
         </div>
         <button 
@@ -45,7 +46,7 @@ const DepthAnalyzer: React.FC<DepthAnalyzerProps> = ({ imageUrl }) => {
           className={`flex items-center gap-2 px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${isAnalyzing ? 'bg-white/5 text-white/20' : 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30'}`}
         >
           {isAnalyzing ? <Activity size={12} className="animate-spin" /> : <Sparkles size={12} />}
-          {isAnalyzing ? 'Analyzing Core Geometry...' : 'Regenerate Depth Map'}
+          {isAnalyzing ? 'Building Depth Layers...' : 'Regenerate Depth'}
         </button>
       </div>
 
@@ -53,7 +54,7 @@ const DepthAnalyzer: React.FC<DepthAnalyzerProps> = ({ imageUrl }) => {
         {isAnalyzing && (
           <div className="space-y-2">
             <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-cyan-400/60">
-              <span>Extracting depth layers...</span>
+              <span>Estimating foreground, subject, and background planes...</span>
               <span>{progress}%</span>
             </div>
             <div className="h-1 bg-white/5 rounded-full overflow-hidden">
@@ -73,19 +74,19 @@ const DepthAnalyzer: React.FC<DepthAnalyzerProps> = ({ imageUrl }) => {
             className="grid grid-cols-2 gap-4"
           >
             <div className="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col gap-1">
-              <span className="text-[8px] font-black uppercase tracking-widest text-white/20">Depth Resolution</span>
-              <span className="text-xs font-black text-cyan-400">4K Subspace Mapping</span>
+              <span className="text-[8px] font-black uppercase tracking-widest text-white/20">Projection Mode</span>
+              <span className="text-xs font-black text-cyan-400">Layered Auto Depth</span>
             </div>
             <div className="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col gap-1">
-              <span className="text-[8px] font-black uppercase tracking-widest text-white/20">Segment Confidence</span>
-              <span className="text-xs font-black text-cyan-400">98.4% (Gemini Logic)</span>
+              <span className="text-[8px] font-black uppercase tracking-widest text-white/20">Image Integrity</span>
+              <span className="text-xs font-black text-cyan-400">No Mesh Warping</span>
             </div>
           </motion.div>
         )}
 
         {!isAnalyzing && !analysisComplete && (
           <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest leading-relaxed">
-            Project this image into 3D space using system-level auto-spatialization. AI will segment the photo and estimate true Z-axis occlusion.
+            Project this {mediaType.toLowerCase()} into spatial depth using subtle foreground/background planes, pointer parallax, and no destructive pixel warping.
           </p>
         )}
       </div>

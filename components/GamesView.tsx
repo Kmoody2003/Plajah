@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Gamepad2, Play, Users, Trophy, TrendingUp, ChevronLeft, Search, Globe, Library, ExternalLink } from 'lucide-react';
+import PageHeader from './PageHeader';
 import { motion, AnimatePresence } from 'motion/react';
 import { Game, UserProfile } from '../types';
 import { fetchGames, updateGamePlayCount, fetchUserProfile, auth } from '../services/backendService';
@@ -116,7 +117,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame }) => {
             </div>
           </div>
           <div>
-            <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Plajah Arcade</h1>
+            <PageHeader>Plajah Arcade</PageHeader>
             <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-4">Web-Based Games Hosted by Artists</p>
           </div>
         </div>

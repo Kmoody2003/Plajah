@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Music, Disc } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Music, Disc, Waves } from 'lucide-react';
 import { Album, Track } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
+import { TYPE } from '../src/lib/designSystem';
 
 interface MiniMusicPlayerProps {
   album: Album;
@@ -108,9 +110,12 @@ const MiniMusicPlayer: React.FC<MiniMusicPlayerProps> = ({ album, autoPlay = fal
       <div className="flex items-center gap-4">
         {/* Album Art */}
         <div className="relative w-16 h-16 flex-shrink-0">
-          <img 
-            src={album.coverImage} 
-            alt={album.title} 
+          <img
+            src={thumb(album.coverImage, THUMB.small) || undefined}
+            alt={album.title}
+            loading="lazy"
+            decoding="async"
+            onError={onThumbError(album.coverImage)}
             className={`w-full h-full object-cover rounded-2xl shadow-lg transition-transform duration-1000 ${isPlaying ? 'animate-spin-slow' : ''}`}
           />
           <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-2xl">
@@ -126,7 +131,7 @@ const MiniMusicPlayer: React.FC<MiniMusicPlayerProps> = ({ album, autoPlay = fal
         {/* Info */}
         <div className="flex-1 min-w-0">
           <h4 className="text-sm font-black uppercase tracking-widest truncate text-white">{currentTrack?.title || album.title}</h4>
-          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest truncate">{album.artist}</p>
+          <p className={`${TYPE.labelMd} font-bold text-white/40 uppercase tracking-widest truncate`}>{album.artist}</p>
           
           {/* Progress Bar */}
           <div className="mt-3 h-1 bg-white/10 rounded-full overflow-hidden">
@@ -141,11 +146,21 @@ const MiniMusicPlayer: React.FC<MiniMusicPlayerProps> = ({ album, autoPlay = fal
 
         {/* Controls */}
         <div className="flex items-center gap-2">
-          <button onClick={prevTrack} className="p-2 text-white/40 hover:text-white transition-all">
+          <button onClick={prevTrack} className="tap p-2 text-white/40 hover:text-white transition-all">
             <SkipBack size={16} fill="currentColor" />
           </button>
-          <button onClick={nextTrack} className="p-2 text-white/40 hover:text-white transition-all">
+          <button onClick={nextTrack} className="tap p-2 text-white/40 hover:text-white transition-all">
             <SkipForward size={16} fill="currentColor" />
+          </button>
+          {/* The Breakdown */}
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('OPEN_BREAKDOWN', {
+              detail: { track: album.tracks[currentTrackIndex], album },
+            }))}
+            title="The Breakdown — music theory analysis"
+            className="tap p-2 text-white/25 hover:text-orange-400 transition-all"
+          >
+            <Waves size={15} />
           </button>
         </div>
       </div>

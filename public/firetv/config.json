@@ -1,0 +1,60 @@
+{
+  "_comment": "Amazon FireTV configuration — the actual app is the Android APK in /android/. This file documents FireTV-specific settings and Appstore submission checklist.",
+
+  "app": {
+    "id": "com.plajah.app",
+    "name": "Plajah",
+    "version": "2.0",
+    "description": "Run your own 24/7 streaming TV channel. Music, film, books and worlds from one creator identity.",
+    "category": "Video",
+    "contentRating": "All"
+  },
+
+  "androidManifest": {
+    "leanbackLauncher": "android.intent.category.LEANBACK_LAUNCHER (added)",
+    "touchscreenRequired": false,
+    "leanbackFeature": "android.software.leanback (required=false)",
+    "mediaSession": "PlajahMediaService — enables Alexa media voice commands",
+    "universalLinks": "https://plajah.com"
+  },
+
+  "fireTVFeatures": {
+    "voiceSearch": {
+      "enabled": true,
+      "note": "Register global search intent in Appstore developer console to appear in Fire TV search results"
+    },
+    "xRayIntegration": {
+      "enabled": false,
+      "note": "X-Ray (cast/crew overlay during video) — Phase 2 feature"
+    },
+    "alexaVoiceControl": {
+      "enabled": true,
+      "note": "Handled by PlajahMediaService via Android MediaSession. Alexa commands: play/pause/skip/ask Plajah to play [artist]"
+    },
+    "picture_in_picture": {
+      "enabled": true,
+      "note": "Add android:supportsPictureInPicture=true to MainActivity in AndroidManifest when ready"
+    }
+  },
+
+  "appstoreSubmission": {
+    "screenshots": {
+      "required": ["1920x1080 (TV screenshots, at least 3)"],
+      "icon": "1280x720 TV banner + 512x512 square icon"
+    },
+    "testing": [
+      "Fire TV Stick 4K (AFTMM)",
+      "Fire TV Cube (AFTR)",
+      "Fire TV Stick Lite (AFTSS)"
+    ],
+    "contentDeclaration": "Streaming music and video content — user-uploaded, verified against rights dashboard"
+  },
+
+  "uiGuidelines": {
+    "focusManagement": "useDpadNavigation hook + data-tv-focusable attributes",
+    "theme": "theme-big-screen (activated automatically via usePlatform detection)",
+    "safeZone": "Keep all critical UI within inner 90% of screen (TV overscan)",
+    "fontScale": "1.25rem base (set in .theme-big-screen body)",
+    "focusRing": "6px solid #3b82f6 with glow (defined in index.css .theme-big-screen *:focus-visible)"
+  }
+}

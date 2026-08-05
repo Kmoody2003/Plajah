@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, ShoppingBag, Tag, DollarSign, Package, Image as ImageIcon, X } from 'lucide-react';
+import { Plus, Trash2, ShoppingBag, Tag, DollarSign, Package, Image as ImageIcon, X, Sparkles } from 'lucide-react';
 import { MerchItem } from '../types';
 import { addMerchItem, auth } from '../services/backendService';
+import { AnimatePresence } from 'motion/react';
+import MerchBuilder from './MerchBuilder';
 
 interface MerchManagerProps {
   artistId: string;
@@ -12,6 +14,7 @@ interface MerchManagerProps {
 const MerchManager: React.FC<MerchManagerProps> = ({ artistId, initialMerch, onUpdate }) => {
   const [merch, setMerch] = useState<MerchItem[]>(initialMerch);
   const [isAdding, setIsAdding] = useState(false);
+  const [isMerchBuilderOpen, setIsMerchBuilderOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [newItem, setNewItem] = useState<Omit<MerchItem, 'id'>>({
@@ -61,12 +64,20 @@ const MerchManager: React.FC<MerchManagerProps> = ({ artistId, initialMerch, onU
           </div>
           <h3 className="text-xl font-black uppercase tracking-tightest">Inventory Management</h3>
         </div>
-        <button 
-          onClick={() => setIsAdding(true)}
-          className="px-6 py-3 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all flex items-center gap-2"
-        >
-          <Plus size={14} /> Add Item
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsMerchBuilderOpen(true)}
+            className="px-6 py-3 bg-small-orange text-white rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all flex items-center gap-2"
+          >
+            <Sparkles size={14} /> Merch Builder
+          </button>
+          <button
+            onClick={() => setIsAdding(true)}
+            className="px-6 py-3 bg-white/10 text-white border border-white/10 rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all flex items-center gap-2"
+          >
+            <Plus size={14} /> Manual
+          </button>
+        </div>
       </div>
 
       {isAdding && (
@@ -167,6 +178,20 @@ const MerchManager: React.FC<MerchManagerProps> = ({ artistId, initialMerch, onU
           </div>
         ))}
       </div>
+      <AnimatePresence>
+        {isMerchBuilderOpen && (
+          <MerchBuilder
+            artistId={artistId}
+            onComplete={(item) => {
+              const updated = [...merch, item];
+              setMerch(updated);
+              onUpdate(updated);
+              setIsMerchBuilderOpen(false);
+            }}
+            onClose={() => setIsMerchBuilderOpen(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

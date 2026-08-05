@@ -1,0 +1,36 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "chora",
+      "intents": [
+        { "name": "AMAZON.PauseIntent", "samples": [] },
+        { "name": "AMAZON.ResumeIntent", "samples": [] },
+        { "name": "AMAZON.NextIntent", "samples": [] },
+        { "name": "AMAZON.PreviousIntent", "samples": [] },
+        { "name": "AMAZON.StopIntent", "samples": [] },
+        { "name": "AMAZON.CancelIntent", "samples": [] },
+        { "name": "AMAZON.HelpIntent", "samples": [] },
+        {
+          "name": "PlaySongIntent",
+          "slots": [
+            { "name": "song", "type": "AMAZON.MusicRecording" },
+            { "name": "artist", "type": "AMAZON.MusicGroup" }
+          ],
+          "samples": [
+            "play {song}",
+            "play {song} by {artist}",
+            "play {song} from {artist}",
+            "play the song {song}",
+            "play the track {song}",
+            "start {song}",
+            "put on {song}",
+            "play me {song}",
+            "I want to hear {song}",
+            "play {song} on chora"
+          ]
+        }
+      ],
+      "types": []
+    }
+  }
+}

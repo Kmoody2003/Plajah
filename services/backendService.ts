@@ -1,26 +1,94 @@
-import { 
-  ref, 
-  uploadBytes, 
+import {
+  ref,
+  uploadBytes,
   uploadBytesResumable,
-  getDownloadURL 
+  getDownloadURL,
+  updateMetadata,
+  getMetadata,
 } from 'firebase/storage';
-import { 
-  collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, 
-  query, where, orderBy, limit, onSnapshot, Timestamp, increment,
+import {
+  collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, writeBatch,
+  query, where, orderBy, limit, onSnapshot as rawOnSnapshot, Timestamp, increment,
   arrayUnion, arrayRemove, runTransaction, serverTimestamp, addDoc, or, getDocFromServer
 } from 'firebase/firestore';
-import { 
-  signInWithPopup, 
-  GoogleAuthProvider, 
+
+// Firestore's watch stream can corrupt itself after quota/permission errors
+// (firebase-js-sdk bug: INTERNAL ASSERTION FAILED ca9/b815) and then throw
+// SYNCHRONOUSLY from any later onSnapshot registration — crashing whatever
+// React tree subscribed. Every subscription in this file goes through this
+// guard: a failed registration logs and returns a no-op unsubscribe instead
+// of taking down the UI. Realtime updates degrade; reading/playback survives.
+const onSnapshot: typeof rawOnSnapshot = ((...args: any[]) => {
+  try {
+    return (rawOnSnapshot as any)(...args);
+  } catch (e) {
+    console.warn('[backendService] snapshot subscription failed:', (e as Error)?.message?.slice(0, 200));
+    return () => {};
+  }
+}) as typeof rawOnSnapshot;
+import {
+  signInWithPopup,
+  signInWithCredential,
+  linkWithPopup,
+  getAdditionalUserInfo,
+  GoogleAuthProvider,
   TwitterAuthProvider,
-  signOut, 
+  FacebookAuthProvider,
+  OAuthProvider,
+  signInWithEmailAndPassword,
+  signInAnonymously,
+  createUserWithEmailAndPassword,
+  updateProfile,
+  sendPasswordResetEmail,
+  signOut,
   onAuthStateChanged,
   User
 } from 'firebase/auth';
 import { db, storage, auth as firebaseAuth } from './firebase';
+import { saveResumable, updateResumableProgress, clearResumable } from './resumableUpload';
+import { registerTransfer, updateTransfer, removeTransfer } from './activeUpload';
 export const auth = firebaseAuth;
 export { db };
-import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset } from '../types';
+
+/**
+ * Ensure we have *some* Firebase identity so spectator features (video-room
+ * "watch" mode) can establish WebRTC signaling, which our rules gate on
+ * `request.auth != null`. Returns the existing user if signed in, otherwise
+ * mints an anonymous (guest) session. Guests are flagged `isAnonymous` so the
+ * UI can keep them read-only (e.g. no chat posting). Requires Anonymous sign-in
+ * to be enabled in Firebase Console → Authentication → Sign-in method.
+ */
+export const ensureGuestAuth = async (): Promise<User | null> => {
+  if (auth.currentUser) return auth.currentUser;
+  try {
+    const cred = await signInAnonymously(auth);
+    return cred.user;
+  } catch (e) {
+    console.warn('[backendService] anonymous sign-in failed:', (e as Error)?.message);
+    return null;
+  }
+};
+
+// ── Sacred Library: cloud-synced Bible notes (per user, per verse ref) ────────
+export const loadBibleNotes = async (uid: string): Promise<Record<string, string>> => {
+  try {
+    const snap = await getDocs(query(collection(db, 'bibleNotes'), where('uid', '==', uid)));
+    const out: Record<string, string> = {};
+    snap.forEach(d => { const x = d.data() as any; if (x.ref) out[x.ref] = x.text || ''; });
+    return out;
+  } catch { return {}; }
+};
+export const saveBibleNote = async (uid: string, ref: string, text: string): Promise<void> => {
+  const id = `${uid}__${ref}`;
+  try {
+    if (text.trim()) await setDoc(doc(db, 'bibleNotes', id), { uid, ref, text: text.slice(0, 5000), updatedAt: Date.now() });
+    else await deleteDoc(doc(db, 'bibleNotes', id)).catch(() => {});
+  } catch (e) { console.warn('[backendService] saveBibleNote failed:', (e as Error)?.message); }
+};
+import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannel, ChannelSource, ChannelSourceSet, SavedFeed, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest, PodcastRssSettings, ImportedRssEpisode, AccountType, NotifyLevel } from '../types';
+import { accountFlagUpdate } from './accountCapabilities';
+// Creator Passport provenance (blueprint 1C.5) — attribution record, not crypto proof.
+import { buildProvenance, stampVideo } from './creatorPassport';
 
 export const getPrivateBoards = async (uid: string): Promise<PrivateBoard[]> => {
   const q = query(collection(db, 'privateBoards'), where('ownerId', '==', uid));
@@ -66,12 +134,7 @@ export const createLiveTalk = async (talk: Partial<LiveTalk>) => {
       topic: talk.topic || 'General',
       category: talk.category || 'Discussion',
       isActive: true,
-      speakers: [{
-        uid: auth.currentUser.uid,
-        name: auth.currentUser.displayName || 'Anonymous',
-        photoURL: auth.currentUser.photoURL || '',
-        isMuted: true // Muted by default as per req: "listeners... muted... default"
-      }],
+      speakers: [{ uid: auth.currentUser.uid, name: auth.currentUser.displayName || 'Anonymous', photoURL: auth.currentUser.photoURL || '', isMuted: false }],
       listeners: [],
       sharedAssets: [],
       timestamp: Date.now()
@@ -79,7 +142,7 @@ export const createLiveTalk = async (talk: Partial<LiveTalk>) => {
     await setDoc(docRef, removeUndefined(newTalk));
     
     // Notify followers
-    notifyFollowers(auth.currentUser.uid, 'CONTENT', 'Live Talk Started', `${auth.currentUser.displayName} is LIVE now: ${newTalk.title}`, 'LIVETALK', docRef.id);
+    notifyFollowers(auth.currentUser.uid, 'CONTENT', 'Live Talk Started', `${auth.currentUser.displayName} is LIVE now: ${newTalk.title}`, 'LIVETALK', docRef.id, { highlight: true });
     
     return newTalk;
   } catch (e) {
@@ -127,8 +190,11 @@ export const joinLiveTalk = async (talkId: string, isSpeaker: boolean = false) =
   try {
     const talkRef = doc(db, 'liveTalks', talkId);
     if (isSpeaker) {
+      // `speakers` holds objects {uid,name,photoURL,isMuted} — push a real one, not a bare uid,
+      // so promoted speakers carry their identity (matches the shape the room UI builds).
+      const speaker = { uid: auth.currentUser.uid, name: auth.currentUser.displayName || 'Speaker', photoURL: auth.currentUser.photoURL || '', isMuted: false };
       await updateDoc(talkRef, {
-        speakers: arrayUnion(auth.currentUser.uid),
+        speakers: arrayUnion(speaker),
         listeners: arrayRemove(auth.currentUser.uid)
       });
     } else {
@@ -143,12 +209,20 @@ export const joinLiveTalk = async (talkId: string, isSpeaker: boolean = false) =
 
 export const leaveLiveTalk = async (talkId: string) => {
   if (!auth.currentUser) return;
+  const uid = auth.currentUser.uid;
   const path = `liveTalks/${talkId}`;
   try {
     const talkRef = doc(db, 'liveTalks', talkId);
+    // `speakers` are OBJECTS, so arrayRemove(uid-string) never matched and a departing speaker's
+    // tile/stream lingered forever. Read-modify-write to filter by uid; listeners are uid strings
+    // so arrayRemove still works for them.
+    const snap = await getDoc(talkRef);
+    const speakers = Array.isArray((snap.data() as any)?.speakers)
+      ? (snap.data() as any).speakers.filter((s: any) => (s?.uid ?? s) !== uid)
+      : [];
     await updateDoc(talkRef, {
-      speakers: arrayRemove(auth.currentUser.uid),
-      listeners: arrayRemove(auth.currentUser.uid)
+      speakers,
+      listeners: arrayRemove(uid),
     });
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
@@ -236,6 +310,17 @@ export const deleteThemeBackground = async (id: string) => {
   }
 };
 
+export const fetchWorldById = async (worldId: string): Promise<IPWorld | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'worlds', worldId));
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() } as IPWorld;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.GET, `worlds/${worldId}`);
+    return null;
+  }
+};
+
 export const fetchAllPublicWorlds = async (): Promise<IPWorld[]> => {
   try {
     const q = query(
@@ -275,6 +360,25 @@ export const fetchWorldCharacters = async (worldId: string, onlyPublished: boole
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as Character));
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
+    return [];
+  }
+};
+
+/**
+ * Every Character across all of a user's worlds — the pool of artist "personas" a
+ * creator can credit a release to. Includes unpublished/private characters (onlyPublished
+ * = false) since a persona may be work-in-progress, and drops discarded (merged) entries.
+ * Each returned character carries its worldId so callers can round-trip to the world.
+ */
+export const fetchUserCharacters = async (uid: string): Promise<Character[]> => {
+  try {
+    const worlds = await fetchUserWorlds(uid);
+    const perWorld = await Promise.all(
+      worlds.map(w => fetchWorldCharacters(w.id, false).catch(() => [] as Character[]))
+    );
+    return perWorld.flat().filter(c => !c.discarded);
+  } catch (e) {
+    console.error('[fetchUserCharacters]', e);
     return [];
   }
 };
@@ -371,7 +475,7 @@ export const createIPWorld = async (world: Partial<IPWorld>) => {
     const docRef = doc(collection(db, path));
     const newWorld: IPWorld = {
       id: docRef.id,
-      creatorId: world.creatorId || '',
+      creatorId: world.creatorId || auth.currentUser?.uid || '',
       name: world.name || 'Untitled World',
       description: world.description || '',
       coverImage: world.coverImage || '',
@@ -411,6 +515,23 @@ export const updateIPWorld = async (worldId: string, updates: Partial<IPWorld>) 
   }
 };
 
+export const addAssetToWorld = async (worldId: string, assetId: string) => {
+  try {
+    await updateDoc(doc(db, 'worlds', worldId), { assetIds: arrayUnion(assetId) });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `worlds/${worldId}`);
+  }
+};
+
+export const addCharactersToWorld = async (worldId: string, characterIds: string[]) => {
+  if (!characterIds.length) return;
+  try {
+    await updateDoc(doc(db, 'worlds', worldId), { characterIds: arrayUnion(...characterIds) });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `worlds/${worldId}`);
+  }
+};
+
 export const publishWorld = async (worldId: string) => {
   const path = `worlds/${worldId}`;
   try {
@@ -424,10 +545,10 @@ export const publishWorld = async (worldId: string) => {
     };
     await updateDoc(worldRef, updates);
 
-    // Also publish characters, lore, and timeline events for this world
-    const collections = ['characters', 'lore_entries', 'timeline_events'];
-    for (const collName of collections) {
-      const q = query(collection(db, collName), where('worldId', '==', worldId));
+    // Also publish characters, lore, and timeline events for this world (subcollections)
+    const subCollections = ['characters', 'lore', 'timeline'];
+    for (const collName of subCollections) {
+      const q = collection(db, 'worlds', worldId, collName);
       const snap = await getDocs(q);
       const batchPromises = snap.docs.map(d => updateDoc(d.ref, { isPublished: true }));
       await Promise.all(batchPromises);
@@ -543,7 +664,7 @@ export const createCharacter = async (char: Partial<Character>) => {
       role: char.role || '',
       tags: char.tags || [],
       appearanceAt: char.appearanceAt || [],
-      isPublished: char.isPublished || false
+      isPublished: char.isPublished ?? true
     };
     await setDoc(docRef, newChar);
     return newChar;
@@ -557,7 +678,11 @@ export const updateCharacter = async (id: string, char: Partial<Character>) => {
   const path = `worlds/${char.worldId}/characters/${id}`;
   try {
     const ref = doc(db, 'worlds', char.worldId, 'characters', id);
-    await updateDoc(ref, { ...char });
+    // Only write fields that are actually set — never overwrite existing data with empty strings
+    const updates = Object.fromEntries(
+      Object.entries(char).filter(([, v]) => v !== undefined && v !== null && v !== '')
+    );
+    await updateDoc(ref, updates);
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
   }
@@ -576,7 +701,7 @@ export const createLore = async (lore: Partial<LoreEntry>) => {
       tags: lore.tags || [],
       type: lore.type || 'BACKSTORY',
       conflictsDetected: [],
-      isPublished: lore.isPublished || false
+      isPublished: lore.isPublished ?? true
     };
     await setDoc(docRef, newLore);
     return newLore;
@@ -590,7 +715,10 @@ export const updateLore = async (id: string, lore: Partial<LoreEntry>) => {
   const path = `worlds/${lore.worldId}/lore/${id}`;
   try {
     const ref = doc(db, 'worlds', lore.worldId, 'lore', id);
-    await updateDoc(ref, { ...lore });
+    const updates = Object.fromEntries(
+      Object.entries(lore).filter(([, v]) => v !== undefined && v !== null && v !== '')
+    );
+    await updateDoc(ref, updates);
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
   }
@@ -608,7 +736,7 @@ export const createTimelineEvent = async (event: Partial<TimelineEvent>) => {
       title: event.title || 'Untitled Event',
       description: event.description || '',
       year: event.year || 0,
-      isPublished: event.isPublished || false,
+      isPublished: event.isPublished ?? true,
       linkedCharacterIds: event.linkedCharacterIds || [],
       linkedLoreIds: event.linkedLoreIds || [],
       linkedAssetIds: event.linkedAssetIds || []
@@ -625,9 +753,90 @@ export const updateTimelineEvent = async (id: string, event: Partial<TimelineEve
   const path = `worlds/${event.worldId}/timeline/${id}`;
   try {
     const ref = doc(db, 'worlds', event.worldId, 'timeline', id);
-    await updateDoc(ref, { ...event });
+    const updates = Object.fromEntries(
+      Object.entries(event).filter(([, v]) => v !== undefined && v !== null && v !== '')
+    );
+    await updateDoc(ref, updates);
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
+  }
+};
+
+// --- TIMELINES ---
+
+export const fetchWorldTimelines = async (worldId: string) => {
+  try {
+    const snap = await getDocs(collection(db, 'worlds', worldId, 'timelines'));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as import('../types').Timeline));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, `worlds/${worldId}/timelines`);
+    return [];
+  }
+};
+
+export const createTimeline = async (timeline: { worldId: string; name: string; description?: string; color?: string }) => {
+  const path = `worlds/${timeline.worldId}/timelines`;
+  if (!auth.currentUser) throw new Error('Not authenticated');
+  // Verify world exists. If creatorId is missing or blank (data from an older
+  // creation path), patch it now so the Firestore rule's get() check passes.
+  const worldSnap = await getDocFromServer(doc(db, 'worlds', timeline.worldId));
+  if (!worldSnap.exists()) throw new Error(`World document not found (id: ${timeline.worldId}). Save the world first.`);
+  const worldData = worldSnap.data();
+  if (!worldData?.creatorId) {
+    await updateDoc(doc(db, 'worlds', timeline.worldId), { creatorId: auth.currentUser.uid });
+  } else if (worldData.creatorId !== auth.currentUser.uid) {
+    throw new Error('You are not the creator of this world.');
+  }
+  try {
+    const docRef = doc(collection(db, 'worlds', timeline.worldId, 'timelines'));
+    const newTimeline = {
+      id: docRef.id,
+      worldId: timeline.worldId,
+      name: timeline.name,
+      description: timeline.description || '',
+      color: timeline.color || '#a855f7',
+      createdAt: Date.now(),
+    };
+    await setDoc(docRef, newTimeline);
+    await updateDoc(doc(db, 'worlds', timeline.worldId), { timelineIds: arrayUnion(docRef.id) });
+    return newTimeline;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.CREATE, path);
+    throw e;
+  }
+};
+
+export const updateTimeline = async (worldId: string, timelineId: string, updates: { name?: string; description?: string; color?: string }) => {
+  try {
+    const filtered = Object.fromEntries(Object.entries(updates).filter(([, v]) => v !== undefined && v !== ''));
+    await updateDoc(doc(db, 'worlds', worldId, 'timelines', timelineId), filtered);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `worlds/${worldId}/timelines/${timelineId}`);
+  }
+};
+
+export const deleteTimeline = async (worldId: string, timelineId: string) => {
+  try {
+    await deleteDoc(doc(db, 'worlds', worldId, 'timelines', timelineId));
+    await updateDoc(doc(db, 'worlds', worldId), { timelineIds: arrayRemove(timelineId) });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, `worlds/${worldId}/timelines/${timelineId}`);
+  }
+};
+
+export const setAssetTimeline = async (albumId: string, timelineId: string | null) => {
+  try {
+    await updateDoc(doc(db, 'albums', albumId), { timelineId: timelineId ?? null });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `albums/${albumId}`);
+  }
+};
+
+export const setVideoTimeline = async (videoId: string, timelineId: string | null) => {
+  try {
+    await updateDoc(doc(db, 'videos', videoId), { timelineId: timelineId ?? null });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `videos/${videoId}`);
   }
 };
 
@@ -962,33 +1171,37 @@ export const claimPioneerReward = async (uid: string) => {
 
 export const fetchSystemSettingsConfig = async (): Promise<SystemSettingsConfig> => {
   const path = 'systemConfig/settings';
+  const defaultConfig: SystemSettingsConfig = {
+    id: 'settings',
+    adRatios: { userPromos: 50, partners: 20, thirdParty: 30 },
+    fastChannelAds: { adInterval: 5, maxAdDuration: 90, rulesEnabled: true },
+    globalFreeStorageLimit: 25 * 1024 * 1024 * 1024,
+    radioAdInterval: 20,
+    stingers: [],
+    isLiveStreamAdsEnabledDefault: true,
+    externalSocialLinks: {
+      xEnabled: false,
+      mastodonEnabled: false,
+      blueskyEnabled: false,
+      threadsEnabled: false
+    },
+    crossoverEnabled: true,
+    updatedAt: Date.now()
+  };
   try {
     const docSnap = await getDoc(doc(db, 'systemConfig', 'settings'));
     if (docSnap.exists()) {
       return docSnap.data() as SystemSettingsConfig;
     } else {
-      const defaultConfig: SystemSettingsConfig = {
-        id: 'settings',
-        adRatios: { userPromos: 50, partners: 20, thirdParty: 30 },
-        fastChannelAds: { adInterval: 5, maxAdDuration: 90, rulesEnabled: true },
-        globalFreeStorageLimit: 25 * 1024 * 1024 * 1024,
-        radioAdInterval: 20,
-        stingers: [],
-        isLiveStreamAdsEnabledDefault: true,
-        externalSocialLinks: {
-          xEnabled: false,
-          mastodonEnabled: false,
-          blueskyEnabled: false,
-          threadsEnabled: false
-        },
-        updatedAt: Date.now()
-      };
-      await setDoc(doc(db, 'systemConfig', 'settings'), defaultConfig);
+      // Only write the default doc if the user is authenticated (admin check skipped for speed)
+      if (auth.currentUser) {
+        setDoc(doc(db, 'systemConfig', 'settings'), defaultConfig).catch(() => {});
+      }
       return defaultConfig;
     }
   } catch (e) {
     handleFirestoreError(e, OperationType.GET, path);
-    throw e;
+    return defaultConfig;
   }
 };
 
@@ -999,6 +1212,148 @@ export const updateSystemSettingsConfig = async (config: Partial<SystemSettingsC
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
   }
+};
+
+// ── Landing Background ────────────────────────────────────────────────────────
+
+export const fetchLandingBgConfig = async (): Promise<import('../types').LandingBgConfig | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'systemConfig', 'landingBg'));
+    return snap.exists() ? (snap.data() as import('../types').LandingBgConfig) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const saveLandingBgConfig = async (config: import('../types').LandingBgConfig): Promise<void> => {
+  await setDoc(doc(db, 'systemConfig', 'landingBg'), config);
+};
+
+export const uploadLandingBgAsset = async (
+  file: File,
+  onProgress?: (pct: number) => void
+): Promise<{ url: string; thumbnailUrl?: string }> => {
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+  const path = `landing-bg/${Date.now()}_${file.name}`;
+  const sRef = ref(storage, path);
+  const task = uploadBytesResumable(sRef, file);
+  await new Promise<void>((resolve, reject) => {
+    task.on('state_changed',
+      snap => onProgress?.(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
+      reject,
+      resolve
+    );
+  });
+  const url = await getDownloadURL(task.snapshot.ref);
+  return { url };
+};
+
+/** Upload one Fabula project asset (a local blob) to durable cloud storage and return its
+ *  download URL, so the project's media is available on any device. Path is scoped to the
+ *  signed-in user + project + asset id (stable — re-uploads overwrite the same object). */
+export const uploadFabulaAsset = async (
+  projectId: string,
+  assetId: string,
+  blob: Blob,
+  filename?: string,
+  onProgress?: (pct: number) => void
+): Promise<string> => {
+  const uid = firebaseAuth.currentUser?.uid;
+  if (!uid) throw new Error('Sign in to sync');
+  const ext = (filename?.split('.').pop() || blob.type.split('/')[1] || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '');
+  // Under users/{uid}/** — the existing storage rule already lets the owner write here.
+  const path = `users/${uid}/fabula/${projectId}/${assetId}.${ext || 'bin'}`;
+  const sRef = ref(storage, path);
+  const task = uploadBytesResumable(sRef, blob, blob.type ? { contentType: blob.type } : undefined);
+  await new Promise<void>((resolve, reject) => {
+    task.on('state_changed',
+      snap => onProgress?.(Math.round(snap.bytesTransferred / Math.max(1, snap.totalBytes) * 100)),
+      reject, resolve);
+  });
+  return await getDownloadURL(task.snapshot.ref);
+};
+
+export const fetchSportsHeroConfig = async (): Promise<import('../types').SportsHeroConfig | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'systemConfig', 'sportsHero'));
+    return snap.exists() ? (snap.data() as import('../types').SportsHeroConfig) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const saveSportsHeroConfig = async (config: import('../types').SportsHeroConfig): Promise<void> => {
+  await setDoc(doc(db, 'systemConfig', 'sportsHero'), config);
+};
+
+export const uploadSportsHeroAsset = async (
+  file: File,
+  onProgress?: (pct: number) => void
+): Promise<{ url: string }> => {
+  const path = `sports-hero/${Date.now()}_${file.name}`;
+  const sRef = ref(storage, path);
+  const task = uploadBytesResumable(sRef, file);
+  await new Promise<void>((resolve, reject) => {
+    task.on('state_changed',
+      snap => onProgress?.(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
+      reject,
+      resolve
+    );
+  });
+  const url = await getDownloadURL(task.snapshot.ref);
+  return { url };
+};
+
+
+// ── Club Cover Media ─────────────────────────────────────────────────────────
+
+export interface ClubCoverMediaDoc {
+  id: string;
+  url: string;
+  type: 'image' | 'video';
+  name: string;
+  order: number;
+  uploadedAt: number;
+}
+
+export const uploadClubCoverMediaFile = async (
+  file: File,
+  order: number,
+  onProgress?: (pct: number) => void,
+): Promise<ClubCoverMediaDoc> => {
+  const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+  const ext  = file.name.split('.').pop()?.toLowerCase() ?? '';
+  const type = IMAGE_EXTS.includes(ext) ? 'image' : 'video';
+  const slug = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').toLowerCase();
+  const sRef = ref(storage, `club-cover-media/${slug}`);
+  // Explicit contentType so Storage rules isAllowedContentType() check passes.
+  const contentType = file.type || (type === 'video' ? 'video/mp4' : 'image/jpeg');
+  const task = uploadBytesResumable(sRef, file, { contentType });
+  await new Promise<void>((resolve, reject) => {
+    task.on('state_changed',
+      snap => onProgress?.(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
+      reject,
+      resolve,
+    );
+  });
+  const url = await getDownloadURL(task.snapshot.ref);
+  const docData: Omit<ClubCoverMediaDoc, 'id'> = {
+    url, type, name: file.name, order, uploadedAt: Date.now(),
+  };
+  await setDoc(doc(db, 'clubCoverMedia', slug), docData);
+  return { id: slug, ...docData };
+};
+
+export const deleteClubCoverMediaFile = async (id: string): Promise<void> => {
+  await deleteDoc(doc(db, 'clubCoverMedia', id));
+};
+
+export const saveClubCoverSettings = async (settings: {
+  mode: 'off' | 'single' | 'slideshow';
+  singleItemId?: string | null;
+  slideshowOrder?: 'random' | 'sequential';
+}): Promise<void> => {
+  await setDoc(doc(db, 'clubCoverSettings', 'main'), settings, { merge: true });
 };
 
 export const deleteGlobalArchiveItem = async (id: string) => {
@@ -1053,12 +1408,19 @@ export const createPost = async (post: Partial<Post>) => {
   const path = 'posts';
   const feedPath = 'feed';
   try {
+    // "Operate as org": a caller may present the post as an organization the user
+    // runs. authorId STAYS the user's uid (ownership + Storage/rules), while the
+    // displayed name/photo become the org's + authorOrgId/authorIsOrg mark it.
+    const orgId = (post as any).authorOrgId as string | undefined;
+    const authorName = post.authorName || auth.currentUser.displayName || 'Anonymous';
+    const authorPhoto = post.authorPhoto || auth.currentUser.photoURL || '';
     const postData = removeUndefined({
       ...post,
       text: post.text || '',
       authorId: auth.currentUser.uid,
-      authorName: auth.currentUser.displayName || 'Anonymous',
-      authorPhoto: auth.currentUser.photoURL || '',
+      authorName,
+      authorPhoto,
+      ...(orgId ? { authorIsOrg: true, authorOrgId: orgId } : {}),
       likesCount: 0,
       commentsCount: 0,
       timestamp: Date.now(),
@@ -1067,29 +1429,68 @@ export const createPost = async (post: Partial<Post>) => {
       targetUserName: post.targetUserName || null
     });
     const docRef = await addDoc(collection(db, path), postData);
-    
-    // Integration: Also post to 'feed' for Plajah Social Feed unification
-    await addDoc(collection(db, feedPath), {
+
+    // Mirror to feed collection — fire-and-forget so a feed write failure can't kill the post
+    addDoc(collection(db, feedPath), {
       authorId: auth.currentUser.uid,
-      authorName: auth.currentUser.displayName || 'Anonymous',
-      authorPhoto: auth.currentUser.photoURL || '',
-      type: post.media && post.media.length > 0 ? 'PICTURE' : 'NEWS',
+      authorName,
+      authorPhoto,
+      ...(orgId ? { authorIsOrg: true, authorOrgId: orgId } : {}),
+      type: mediaFeedType(post.media),
       content: post.text || '',
       timestamp: Date.now(),
       likesCount: 0,
       commentCount: 0,
       shareCount: 0,
-      imageUrl: post.media && post.media.length > 0 ? post.media[0].url : undefined,
+      ...(firstImageUrl(post.media) ? { imageUrl: firstImageUrl(post.media) } : {}),
+      ...(sanitizeMediaForWrite(post.media) ? { media: sanitizeMediaForWrite(post.media) } : {}),
       originalPostId: docRef.id
-    });
+    }).catch(() => {});
 
     // Notify followers
     notifyFollowers(auth.currentUser.uid, 'CONTENT', 'New Post', `${auth.currentUser.displayName} shared a new post`, 'FEED', docRef.id);
-    
+
+    // Posting directly on someone else's feed/wall → notify that person specifically.
+    const targetUid = (post as any).targetUserId as string | undefined;
+    if (targetUid && targetUid !== auth.currentUser.uid) {
+      createNotification({
+        userId: targetUid,
+        senderId: auth.currentUser.uid,
+        senderName: authorName,
+        senderPhoto: authorPhoto,
+        type: 'CONTENT',
+        title: 'New post on your feed',
+        message: `${authorName} posted on your feed`,
+        link: 'FEED',
+        targetId: docRef.id,
+      }).catch(() => {});
+    }
+
     return docRef.id;
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
   }
+};
+
+/**
+ * Resolve a composer AssetEmbed into the post fields that render it. A shared ALBUM (Chora
+ * music) becomes a full `albumEmbed` so PostCard shows the inline MiniMusicPlayer; every
+ * platform asset also keeps a light `assetEmbed` reference so nothing is silently dropped.
+ * (The three composer onPost handlers previously ignored assetEmbed entirely — music never
+ * embedded in posts.)
+ */
+export const postFieldsForAssetEmbed = async (
+  assetEmbed?: { type: string; id: string; title?: string; imageUrl?: string; subtitle?: string }
+): Promise<Record<string, any>> => {
+  if (!assetEmbed?.id) return {};
+  const fields: Record<string, any> = { assetEmbed };
+  if (assetEmbed.type === 'ALBUM') {
+    try {
+      const snap = await getDoc(doc(db, 'albums', assetEmbed.id));
+      if (snap.exists()) { fields.albumEmbed = { id: snap.id, ...snap.data() }; fields.autoPlayEmbed = false; }
+    } catch { /* keep the light reference card */ }
+  }
+  return fields;
 };
 
 export const updatePost = async (postId: string, updates: Partial<Post>) => {
@@ -1111,6 +1512,10 @@ export const deletePost = async (postId: string) => {
   const path = `posts/${postId}`;
   try {
     await deleteDoc(doc(db, 'posts', postId));
+    // Cascade delete the corresponding feed mirror (created by createPost)
+    const feedQuery = query(collection(db, 'feed'), where('originalPostId', '==', postId));
+    const feedSnap = await getDocs(feedQuery);
+    await Promise.all(feedSnap.docs.map(d => deleteDoc(d.ref)));
   } catch (e) {
     handleFirestoreError(e, OperationType.DELETE, path);
   }
@@ -1126,17 +1531,147 @@ export const deleteFeedItem = async (itemId: string) => {
   }
 };
 
+export const togglePostLike = async (postId: string): Promise<{ liked: boolean; likesCount: number } | undefined> => {
+  if (!auth.currentUser) return;
+  const uid = auth.currentUser.uid;
+  const postRef = doc(db, 'posts', postId);
+  try {
+    return await runTransaction(db, async (tx) => {
+      const snap = await tx.get(postRef);
+      if (!snap.exists()) return;
+      const data = snap.data();
+      const likedBy: string[] = data.likedBy || [];
+      const alreadyLiked = likedBy.includes(uid);
+      tx.update(postRef, {
+        likedBy: alreadyLiked ? arrayRemove(uid) : arrayUnion(uid),
+        likesCount: increment(alreadyLiked ? -1 : 1)
+      });
+      return { liked: !alreadyLiked, likesCount: (data.likesCount || 0) + (alreadyLiked ? -1 : 1) };
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `posts/${postId}`);
+  }
+};
+
+// --- POST COMMENTS (clean, dedicated functions) ---
+export const subscribeToPostComments = (postId: string, callback: (comments: any[]) => void) => {
+  const q = query(
+    collection(db, 'posts', postId, 'comments'),
+    orderBy('timestamp', 'asc')
+  );
+  return onSnapshot(q, snapshot => {
+    callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+  }, err => handleFirestoreError(err, OperationType.LIST, `posts/${postId}/comments`));
+};
+
+export const addPostComment = async (
+  postId: string, text: string, parentId?: string | null,
+  videoUrl?: string, audioUrl?: string, gifUrl?: string,
+) => {
+  if (!auth.currentUser) throw new Error('Not authenticated');
+  const displayName = auth.currentUser.displayName || 'Anonymous';
+  const commentData: Record<string, any> = {
+    author: displayName,
+    text: text.trim(),
+    authorId: auth.currentUser.uid,
+    authorName: displayName,
+    authorPhoto: auth.currentUser.photoURL || '',
+    uid: auth.currentUser.uid,
+    timestamp: Date.now(),
+    parentId: parentId || null,
+    likedBy: [] as string[],
+    likesCount: 0,
+  };
+  if (videoUrl) commentData.videoUrl = videoUrl;
+  if (audioUrl) commentData.audioUrl = audioUrl;
+  if (gifUrl)   commentData.gifUrl   = gifUrl;
+  const docRef = await addDoc(collection(db, 'posts', postId, 'comments'), commentData);
+  updateDoc(doc(db, 'posts', postId), { commentsCount: increment(1) }).catch(() => {});
+  return { id: docRef.id, ...commentData };
+};
+
+export const deletePostComment = async (postId: string, commentId: string) => {
+  if (!auth.currentUser) return;
+  await deleteDoc(doc(db, 'posts', postId, 'comments', commentId));
+  updateDoc(doc(db, 'posts', postId), { commentsCount: increment(-1) }).catch(() => {});
+};
+
+export const toggleCommentLike = async (postId: string, commentId: string): Promise<boolean | undefined> => {
+  if (!auth.currentUser) return;
+  const uid = auth.currentUser.uid;
+  const ref = doc(db, 'posts', postId, 'comments', commentId);
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) return false;
+    const likedBy: string[] = snap.data().likedBy || [];
+    const liked = likedBy.includes(uid);
+    tx.update(ref, {
+      likedBy: liked ? arrayRemove(uid) : arrayUnion(uid),
+      likesCount: increment(liked ? -1 : 1)
+    });
+    return !liked;
+  });
+};
+
+// ─── CLUB POST COMMENTS ───────────────────────────────────────────────────────
+
+export const subscribeToClubPostComments = (postId: string, callback: (comments: any[]) => void) => {
+  const q = query(
+    collection(db, 'clubPosts', postId, 'comments'),
+    orderBy('timestamp', 'asc')
+  );
+  return onSnapshot(q, snapshot => {
+    callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+  }, err => handleFirestoreError(err, OperationType.LIST, `clubPosts/${postId}/comments`));
+};
+
+export const addClubPostComment = async (
+  postId: string, text: string, parentId?: string | null, gifUrl?: string,
+) => {
+  if (!auth.currentUser) throw new Error('Not authenticated');
+  const displayName = auth.currentUser.displayName || 'Anonymous';
+  const commentData: Record<string, any> = {
+    author: displayName,
+    text: text.trim(),
+    authorId: auth.currentUser.uid,
+    authorName: displayName,
+    authorPhoto: auth.currentUser.photoURL || '',
+    uid: auth.currentUser.uid,
+    timestamp: Date.now(),
+    parentId: parentId || null,
+    likedBy: [],
+    likesCount: 0,
+  };
+  if (gifUrl) commentData.gifUrl = gifUrl;
+  const docRef = await addDoc(collection(db, 'clubPosts', postId, 'comments'), commentData);
+  updateDoc(doc(db, 'clubPosts', postId), { commentCount: increment(1) }).catch(() => {});
+  return { id: docRef.id, ...commentData };
+};
+
+export const deleteClubPostComment = async (postId: string, commentId: string) => {
+  if (!auth.currentUser) return;
+  await deleteDoc(doc(db, 'clubPosts', postId, 'comments', commentId));
+  updateDoc(doc(db, 'clubPosts', postId), { commentCount: increment(-1) }).catch(() => {});
+};
+
+export const toggleClubPostCommentLike = async (postId: string, commentId: string) => {
+  if (!auth.currentUser) return;
+  const uid = auth.currentUser.uid;
+  const ref = doc(db, 'clubPosts', postId, 'comments', commentId);
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) return;
+    const likedBy: string[] = snap.data().likedBy || [];
+    const liked = likedBy.includes(uid);
+    tx.update(ref, {
+      likedBy: liked ? arrayRemove(uid) : arrayUnion(uid),
+      likesCount: increment(liked ? -1 : 1),
+    });
+  });
+};
+
 export const listenToUserPosts = (uid: string, callback: (posts: Post[]) => void) => {
   const postsPath = 'posts';
-  const feedPath = 'feed';
-  
-  let feedItems: Post[] = [];
-  let postItems: Post[] = [];
-
-  const updateItems = () => {
-    const combined = [...feedItems, ...postItems].sort((a, b) => b.timestamp - a.timestamp);
-    callback(combined);
-  };
 
   const postsQuery = query(
     collection(db, postsPath),
@@ -1147,120 +1682,122 @@ export const listenToUserPosts = (uid: string, callback: (posts: Post[]) => void
     orderBy('timestamp', 'desc')
   );
 
-  const feedQuery = query(
-    collection(db, feedPath),
-    where('authorId', '==', uid),
-    orderBy('timestamp', 'desc')
-  );
-
   const unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
-    postItems = snapshot.docs.map(d => ({
+    const items = snapshot.docs.map(d => ({
       id: d.id,
       ...d.data(),
+      sourceCollection: 'posts',
       timestamp: safeToMillis(d.data().timestamp || (d.metadata.hasPendingWrites ? Date.now() : 0))
     } as Post));
-    updateItems();
+    callback(items);
   }, (err) => handleFirestoreError(err, OperationType.LIST, postsPath));
 
-  const unsubscribeFeed = onSnapshot(feedQuery, (snapshot) => {
-    feedItems = snapshot.docs.map(d => {
-      const data = d.data();
-      return {
-        id: d.id,
-        authorId: data.authorId,
-        authorName: data.authorName,
-        authorPhoto: data.authorPhoto,
-        text: data.content || '',
-        timestamp: safeToMillis(data.timestamp),
-        likesCount: data.likesCount || 0,
-        commentsCount: data.commentCount || 0,
-        isPublic: true,
-        media: data.imageUrl ? [{ url: data.imageUrl, type: 'PHOTO' }] : []
-      } as Post;
-    });
-    updateItems();
-  }, (err) => handleFirestoreError(err, OperationType.LIST, feedPath));
-
-  return () => {
-    unsubscribePosts();
-    unsubscribeFeed();
-  };
+  return unsubscribePosts;
 };
 
 export const listenToGlobalPosts = (callback: (posts: Post[]) => void) => {
-  const feedPath = 'feed';
   const postsPath = 'posts';
-  
-  let feedItems: Post[] = [];
-  let postItems: Post[] = [];
-
-  const updateItems = () => {
-    const combined = [...feedItems, ...postItems].sort((a, b) => b.timestamp - a.timestamp);
-    callback(combined.slice(0, 50));
-  };
-
-  const feedQuery = query(collection(db, feedPath), orderBy('timestamp', 'desc'), limit(50));
-  const postsQuery = query(collection(db, postsPath), where('isPublic', '==', true), orderBy('timestamp', 'desc'), limit(50));
-
-  const unsubscribeFeed = onSnapshot(feedQuery, (snapshot) => {
-    feedItems = snapshot.docs.map(d => {
-      const data = d.data();
-      return {
-        id: d.id,
-        authorId: data.authorId,
-        authorName: data.authorName,
-        authorPhoto: data.authorPhoto,
-        text: data.content || '',
-        timestamp: safeToMillis(data.timestamp),
-        likesCount: data.likesCount || 0,
-        commentsCount: data.commentCount || 0,
-        isPublic: true,
-        sourceCollection: 'feed',
-        media: data.imageUrl ? [{ url: data.imageUrl, type: 'PHOTO' }] : []
-      } as Post;
-    });
-    updateItems();
-  }, (err) => handleFirestoreError(err, OperationType.LIST, feedPath));
+  // No isPublic filter — createPost forces isPublic:true on all posts and the
+  // single-field orderBy index is auto-created by Firestore (no composite index needed)
+  const postsQuery = query(collection(db, postsPath), orderBy('timestamp', 'desc'), limit(50));
 
   const unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
-    postItems = snapshot.docs.map(d => ({
-      id: d.id,
-      ...d.data(),
-      timestamp: safeToMillis(d.data().timestamp),
-      sourceCollection: 'posts'
-    } as Post));
-    updateItems();
+    const items = snapshot.docs
+      .map(d => ({
+        id: d.id,
+        ...d.data(),
+        sourceCollection: 'posts',
+        timestamp: safeToMillis(d.data().timestamp)
+      } as Post))
+      .filter(p => p.timestamp > 0)
+      .sort((a, b) => b.timestamp - a.timestamp);
+    callback(items);
   }, (err) => handleFirestoreError(err, OperationType.LIST, postsPath));
 
-  return () => {
-    unsubscribeFeed();
-    unsubscribePosts();
-  };
+  return unsubscribePosts;
+};
+
+/**
+ * A business/organization's own feed. Posts made "as" the org (createPost with
+ * authorOrgId) live in the shared `posts` collection; an org page surfaces its
+ * feed by filtering to its id. Client-side sort avoids a composite index.
+ */
+export const listenToOrgPosts = (orgId: string, callback: (posts: Post[]) => void) => {
+  const q = query(collection(db, 'posts'), where('authorOrgId', '==', orgId), limit(50));
+  return onSnapshot(q, snapshot => {
+    const items = snapshot.docs
+      .map(d => ({ id: d.id, ...d.data(), sourceCollection: 'posts', timestamp: safeToMillis(d.data().timestamp) } as Post))
+      .filter(p => p.timestamp > 0)
+      .sort((a, b) => b.timestamp - a.timestamp);
+    callback(items);
+  }, (err) => handleFirestoreError(err, OperationType.LIST, 'posts'));
+};
+
+/** Post as a business/organization the caller runs (appears on the org's feed + globally). */
+export const createOrgPost = async (
+  orgId: string, orgName: string, orgPhoto: string, post: Partial<Post>,
+): Promise<string | undefined> =>
+  createPost({ ...post, authorOrgId: orgId, authorName: orgName, authorPhoto: orgPhoto } as any);
+
+/**
+ * Genre-based FOR_YOU feed — no ML needed.
+ * Strategy: query posts where genre matches any of the user's preferred genres.
+ * Falls back to recency if no preferences are set.
+ * Requires a Firestore index on: posts(genre ASC, timestamp DESC).
+ * Add to firestore.indexes.json:
+ *   { "collectionGroup":"posts","queryScope":"COLLECTION","fields":[{"fieldPath":"genre","order":"ASCENDING"},{"fieldPath":"timestamp","order":"DESCENDING"}] }
+ */
+export const listenToForYouPosts = (
+  preferredGenres: string[],
+  callback: (posts: Post[]) => void
+): (() => void) => {
+  if (!preferredGenres.length) {
+    // No preferences → fall back to global feed
+    return listenToGlobalPosts(callback);
+  }
+  // Firestore 'in' supports up to 10 values
+  const genres = preferredGenres.slice(0, 10);
+  const q = query(
+    collection(db, 'posts'),
+    where('genre', 'in', genres),
+    orderBy('timestamp', 'desc'),
+    limit(60)
+  );
+  return onSnapshot(q, snapshot => {
+    const posts = snapshot.docs.map(d => ({
+      id: d.id, ...d.data(),
+      sourceCollection: 'posts',
+      timestamp: safeToMillis(d.data().timestamp),
+    } as Post)).filter(p => p.timestamp > 0).sort((a, b) => b.timestamp - a.timestamp);
+    callback(posts);
+  }, err => handleFirestoreError(err, OperationType.LIST, 'posts'));
+};
+
+export const listenToLikedPosts = (uid: string, callback: (posts: Post[]) => void): (() => void) => {
+  const postsPath = 'posts';
+  const q = query(
+    collection(db, postsPath),
+    where('likedBy', 'array-contains', uid),
+    orderBy('timestamp', 'desc'),
+    limit(100)
+  );
+  const unsub = onSnapshot(q, (snap) => {
+    const items = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      timestamp: safeToMillis((d.data() as any).timestamp)
+    } as Post));
+    callback(items);
+  }, () => callback([]));
+  return unsub;
 };
 
 export const listenToFollowedPosts = async (uid: string, callback: (posts: Post[]) => void) => {
-  const feedPath = 'feed';
   const postsPath = 'posts';
-  
   try {
     const following = await fetchFollowedArtists(uid);
     const followingIds = following.map(f => f.uid);
     const targetIds = [uid, ...followingIds.slice(0, 9)];
-    
-    let feedItems: Post[] = [];
-    let postItems: Post[] = [];
-
-    const updateItems = () => {
-      const combined = [...feedItems, ...postItems].sort((a, b) => b.timestamp - a.timestamp);
-      callback(combined.slice(0, 50));
-    };
-
-    const feedQuery = query(
-      collection(db, feedPath),
-      where('authorId', 'in', targetIds),
-      orderBy('timestamp', 'desc'),
-      limit(50)
-    );
 
     const postsQuery = query(
       collection(db, postsPath),
@@ -1269,42 +1806,22 @@ export const listenToFollowedPosts = async (uid: string, callback: (posts: Post[
       limit(50)
     );
 
-    const unsubscribeFeed = onSnapshot(feedQuery, (snapshot) => {
-      feedItems = snapshot.docs.map(d => {
-        const data = d.data();
-        return {
-          id: d.id,
-          authorId: data.authorId,
-          authorName: data.authorName,
-          authorPhoto: data.authorPhoto,
-          text: data.content || '',
-          timestamp: safeToMillis(data.timestamp),
-          likesCount: data.likesCount || 0,
-          commentsCount: data.commentCount || 0,
-          isPublic: true,
-          sourceCollection: 'feed',
-          media: data.imageUrl ? [{ url: data.imageUrl, type: 'PHOTO' }] : []
-        } as Post;
-      });
-      updateItems();
-    }, (err) => handleFirestoreError(err, OperationType.LIST, feedPath));
-
     const unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
-      postItems = snapshot.docs.map(d => ({
-        id: d.id,
-        ...d.data(),
-        timestamp: safeToMillis(d.data().timestamp),
-        sourceCollection: 'posts'
-      } as Post));
-      updateItems();
+      const items = snapshot.docs
+        .map(d => ({
+          id: d.id,
+          ...d.data(),
+          sourceCollection: 'posts',
+          timestamp: safeToMillis(d.data().timestamp)
+        } as Post))
+        .filter(p => p.timestamp > 0)
+        .sort((a, b) => b.timestamp - a.timestamp);
+      callback(items);
     }, (err) => handleFirestoreError(err, OperationType.LIST, postsPath));
 
-    return () => {
-      unsubscribeFeed();
-      unsubscribePosts();
-    };
+    return unsubscribePosts;
   } catch (e) {
-    handleFirestoreError(e, OperationType.LIST, feedPath);
+    handleFirestoreError(e, OperationType.LIST, postsPath);
     return () => {};
   }
 };
@@ -1316,7 +1833,7 @@ export const createPPVEvent = async (event: Partial<PPVEvent>) => {
   const path = `ppv_events/${id}`;
   const newEvent: PPVEvent = {
     id,
-    ownerId: auth.currentUser.uid,
+    ownerId: auth.currentUser!.uid,
     ownerName: auth.currentUser.displayName || 'Artist',
     title: event.title || 'Untitled Event',
     description: event.description || '',
@@ -1373,7 +1890,7 @@ export const createClassroom = async (classroom: Partial<Classroom>) => {
   const path = `classrooms/${id}`;
   const newClass: Classroom = {
     id,
-    ownerId: auth.currentUser.uid,
+    ownerId: auth.currentUser!.uid,
     ownerName: auth.currentUser.displayName || 'Teacher',
     title: classroom.title || 'Untitled Class',
     description: classroom.description || '',
@@ -1597,12 +2114,12 @@ function removeUndefined(obj: any): any {
 }
 
 function safeToMillis(ts: any): number {
-  if (!ts) return Date.now();
+  if (!ts) return 0;
   if (typeof ts.toMillis === 'function') return ts.toMillis();
-  if (typeof ts === 'number') return ts;
+  if (typeof ts === 'number') return ts > 0 ? ts : 0;
   if (ts instanceof Timestamp) return ts.toMillis();
   if (ts.seconds !== undefined) return ts.seconds * 1000 + (ts.nanoseconds || 0) / 1000000;
-  return Date.now();
+  return 0;
 }
 
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
@@ -1625,7 +2142,8 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     path
   }
   console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  // Do NOT re-throw here — callers that need to propagate errors must do so explicitly with `throw e`.
+  // Re-throwing here causes every `catch (e) { handleFirestoreError(...); return []; }` fallback to be dead code.
 }
 
 /**
@@ -1660,21 +2178,41 @@ export const uploadFile = async (path: string, blobOrFile: Blob | File, onProgre
   let contentType = (blobOrFile as any).type;
   
   if (!contentType || contentType === 'application/octet-stream') {
-    // Try to guess from filename
+    // Try to guess from filename — exhaustive map so Firebase serves correct Content-Type
     const ext = filename.split('.').pop()?.toLowerCase();
     const mimeMap: Record<string, string> = {
-      'mp3': 'audio/mpeg',
-      'wav': 'audio/wav',
-      'ogg': 'audio/ogg',
-      'm4a': 'audio/mp4',
-      'mp4': 'video/mp4',
-      'webm': 'video/webm',
-      'mov': 'video/quicktime',
-      'png': 'image/png',
-      'jpg': 'image/jpeg',
-      'jpeg': 'image/jpeg',
-      'gif': 'image/gif',
-      'webp': 'image/webp'
+      // Audio — lossy
+      'mp3': 'audio/mpeg', 'mp2': 'audio/mpeg', 'mp1': 'audio/mpeg',
+      'm4a': 'audio/mp4', 'aac': 'audio/aac',
+      'ogg': 'audio/ogg', 'oga': 'audio/ogg', 'opus': 'audio/ogg; codecs=opus',
+      'webm': 'audio/webm', 'weba': 'audio/webm',
+      'wma': 'audio/x-ms-wma', 'ra': 'audio/x-realaudio', 'rm': 'audio/x-realaudio',
+      'amr': 'audio/amr', 'gsm': 'audio/gsm',
+      // Audio — lossless / PCM
+      'wav': 'audio/wav', 'wave': 'audio/wav', 'bwf': 'audio/wav',
+      'rf64': 'audio/wav', 'w64': 'audio/wav',
+      'flac': 'audio/flac',
+      'aiff': 'audio/aiff', 'aif': 'audio/aiff', 'aifc': 'audio/aiff',
+      'alac': 'audio/mp4', 'ape': 'audio/x-ape',
+      'wv': 'audio/x-wavpack', 'tta': 'audio/x-tta', 'tak': 'audio/x-tak',
+      'shn': 'audio/x-shorten', 'caf': 'audio/x-caf',
+      // Audio — surround / broadcast
+      'ac3': 'audio/ac3', 'eac3': 'audio/eac3',
+      'dts': 'audio/vnd.dts', 'dtshd': 'audio/vnd.dts.hd',
+      'mpc': 'audio/x-musepack', 'mka': 'audio/x-matroska',
+      // Audio — game / immersive
+      'iamf': 'audio/iamf',
+      // Audio — MIDI / tracker
+      'mid': 'audio/midi', 'midi': 'audio/midi', 'kar': 'audio/midi',
+      'mod': 'audio/x-mod', 'xm': 'audio/x-xm', 'it': 'audio/x-it', 's3m': 'audio/x-s3m',
+      // Video
+      'mp4': 'video/mp4', 'mov': 'video/quicktime', 'mkv': 'video/x-matroska',
+      'm4v': 'video/mp4', 'avi': 'video/x-msvideo', 'wmv': 'video/x-ms-wmv',
+      'ts': 'video/mp2t', 'm2ts': 'video/mp2t', 'mts': 'video/mp2t',
+      // Image
+      'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
+      'gif': 'image/gif', 'webp': 'image/webp', 'avif': 'image/avif',
+      'heic': 'image/heic', 'heif': 'image/heif', 'svg': 'image/svg+xml',
     };
     if (ext && mimeMap[ext]) {
       contentType = mimeMap[ext];
@@ -1685,9 +2223,25 @@ export const uploadFile = async (path: string, blobOrFile: Blob | File, onProgre
 
   console.log(`Attempting upload to: ${sanitizedPath} (Type: ${contentType})`);
   console.log(`Current Origin: ${window.location.origin}`);
-  
+
+  // Ensure Firebase auth is restored before uploading. The app can render a user as "logged in"
+  // from a cached profile while auth.currentUser is briefly null right after load → request.auth is
+  // null in the Storage rules → storage/unauthorized (mislabeled "must be signed in"). Wait briefly
+  // for restoration; only after that is "not signed in" genuinely true.
+  if (!auth.currentUser) {
+    await new Promise<void>((res) => {
+      const unsub = onAuthStateChanged(auth, () => { unsub(); res(); });
+      setTimeout(() => { try { unsub(); } catch { /* */ } res(); }, 6000);
+    });
+  }
+  if (!auth.currentUser) {
+    const e = new Error('You must be signed in to upload. Your session may have expired — please sign in again.');
+    import('./errorReporting').then(m => m.reportError(e, { source: 'upload', context: `auth-missing · ${sanitizedPath}` })).catch(() => {});
+    throw e;
+  }
+
   const storageRef = ref(storage, sanitizedPath);
-  
+
   try {
     if (auth.currentUser) {
       await auth.currentUser.getIdToken(true);
@@ -1716,7 +2270,8 @@ export const uploadFile = async (path: string, blobOrFile: Blob | File, onProgre
           if (error.message?.includes('ERR_FAILED') || error.code === 'storage/unknown') {
             reject(new Error("Network Error: The upload was blocked by the browser. This is usually a CORS issue. Please ensure you have configured CORS for your Firebase Storage bucket."));
           } else if (error.code === 'storage/unauthorized') {
-            reject(new Error("Storage Permission Denied: You must be signed in to upload."));
+            import('./errorReporting').then(m => m.reportError(error, { source: 'upload', context: `storage/unauthorized · ${sanitizedPath} · signedIn=${!!auth.currentUser} · type=${contentType}` })).catch(() => {});
+            reject(new Error("Storage permission denied. If you're signed in, please retry — your session may have just refreshed."));
           } else if (error.code === 'storage/retry-limit-exceeded') {
             reject(new Error("Upload timed out. Please check your connection and try again."));
           } else {
@@ -1732,6 +2287,122 @@ export const uploadFile = async (path: string, blobOrFile: Blob | File, onProgre
   } catch (error: any) {
     throw new Error(`Upload failed: ${error.message}`);
   }
+};
+
+// ─── Audio metadata fixer ─────────────────────────────────────────────────────
+
+/**
+ * Extract the Firebase Storage path from a Firebase download URL.
+ * Returns null for non-Firebase or object-URL tracks.
+ */
+const storagePathFromUrl = (url: string): string | null => {
+  try {
+    // Firebase download URLs: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encoded-path}?...
+    const match = url.match(/\/o\/([^?]+)/);
+    if (!match) return null;
+    return decodeURIComponent(match[1]);
+  } catch { return null; }
+};
+
+/**
+ * Fix the Content-Type metadata on an already-uploaded Firebase Storage file
+ * without re-uploading the bytes. Safe to call fire-and-forget.
+ * Returns the corrected MIME type, or null if not applicable/failed.
+ */
+export const fixTrackStorageMetadata = async (trackUrl: string): Promise<string | null> => {
+  if (!trackUrl || trackUrl.startsWith('blob:') || !trackUrl.includes('firebasestorage.googleapis.com')) {
+    return null;
+  }
+  try {
+    const storagePath = storagePathFromUrl(trackUrl);
+    if (!storagePath) return null;
+    const storageRef = ref(storage, storagePath);
+    const meta = await getMetadata(storageRef);
+    const ext = (meta.name ?? '').split('.').pop()?.toLowerCase() ?? '';
+    if (!ext) return null;
+
+    const MIME_MAP: Record<string, string> = {
+      mp3: 'audio/mpeg', mp2: 'audio/mpeg', mp1: 'audio/mpeg',
+      m4a: 'audio/mp4', aac: 'audio/aac',
+      ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg; codecs=opus',
+      webm: 'audio/webm', weba: 'audio/webm',
+      wav: 'audio/wav', wave: 'audio/wav', bwf: 'audio/wav', rf64: 'audio/wav', w64: 'audio/wav',
+      flac: 'audio/flac',
+      aiff: 'audio/aiff', aif: 'audio/aiff', aifc: 'audio/aiff',
+      alac: 'audio/mp4', ape: 'audio/x-ape', wv: 'audio/x-wavpack', tta: 'audio/x-tta',
+      tak: 'audio/x-tak', shn: 'audio/x-shorten', caf: 'audio/x-caf',
+      mka: 'audio/x-matroska', wma: 'audio/x-ms-wma', ra: 'audio/x-realaudio',
+      ac3: 'audio/ac3', eac3: 'audio/eac3', dts: 'audio/vnd.dts', mpc: 'audio/x-musepack',
+      amr: 'audio/amr', gsm: 'audio/gsm', iamf: 'audio/iamf',
+      mid: 'audio/midi', midi: 'audio/midi',
+    };
+
+    const correctMime = MIME_MAP[ext];
+    if (!correctMime) return null;
+
+    const currentMime = meta.contentType ?? '';
+    // Strip codec params before comparing
+    const currentBase = currentMime.split(';')[0].trim();
+    const correctBase = correctMime.split(';')[0].trim();
+
+    if (currentBase === correctBase) return currentMime; // already correct
+
+    console.info(`[Plajah Storage Fix] "${meta.name}": "${currentMime}" → "${correctMime}"`);
+    await updateMetadata(storageRef, { contentType: correctMime });
+    return correctMime;
+  } catch (e) {
+    // Non-fatal — metadata fix is best-effort
+    console.warn('[Plajah Storage Fix] Could not update metadata:', e);
+    return null;
+  }
+};
+
+export interface TrackFixResult {
+  trackId: string;
+  title: string;
+  url: string;
+  previousMime: string | null;
+  fixedMime: string | null;
+  fixed: boolean;
+  error?: string;
+}
+
+/**
+ * Scan every track in an album and fix any wrong Content-Types in Firebase Storage.
+ * Returns a per-track report. Pass onProgress to stream results as they come in.
+ */
+export const fixAlbumAudioMetadata = async (
+  album: { id: string; tracks: { id: string; title: string; url: string }[] },
+  onProgress?: (done: number, total: number, latest: TrackFixResult) => void
+): Promise<TrackFixResult[]> => {
+  const results: TrackFixResult[] = [];
+  const tracks = album.tracks ?? [];
+
+  for (let i = 0; i < tracks.length; i++) {
+    const t = tracks[i];
+    const result: TrackFixResult = { trackId: t.id, title: t.title, url: t.url, previousMime: null, fixedMime: null, fixed: false };
+    try {
+      if (!t.url || t.url.startsWith('blob:') || !t.url.includes('firebasestorage.googleapis.com')) {
+        result.error = 'Not a Firebase Storage URL — skipped';
+      } else {
+        const tPath = storagePathFromUrl(t.url);
+        if (!tPath) { result.error = 'Could not parse storage path'; continue; }
+        const storageRef = ref(storage, tPath);
+        const meta = await getMetadata(storageRef);
+        result.previousMime = meta.contentType ?? null;
+        result.fixedMime = await fixTrackStorageMetadata(t.url);
+        result.fixed = !!result.fixedMime && result.fixedMime !== result.previousMime;
+      }
+    } catch (e: any) {
+      result.error = e?.message ?? String(e);
+    }
+    results.push(result);
+    onProgress?.(i + 1, tracks.length, result);
+  }
+
+  const fixedCount = results.filter(r => r.fixed).length;
+  console.info(`[Plajah Storage Fix] Album "${album.id}" — ${fixedCount}/${tracks.length} tracks corrected.`);
+  return results;
 };
 
 // --- WEB APPS ---
@@ -1851,10 +2522,16 @@ export const syncUserProfile = async (user: User) => {
       
       await setDoc(userRef, profile);
     } else {
+      const d = docSnap.data();
+      // Backfill the fields isValidUserProfile REQUIRES (uid/displayName/photoURL/
+      // email). A profile clobbered by the old full-replace firestoreWrite loses
+      // these, and then every owner update fails the rule → nothing persists.
+      // Including uid + guaranteed non-null strings here self-heals it on login.
       const updates: Partial<UserProfile> = {
-        displayName: user.displayName || docSnap.data().displayName,
-        photoURL: user.photoURL || docSnap.data().photoURL,
-        email: user.email || docSnap.data().email,
+        uid: user.uid,
+        displayName: user.displayName || d.displayName || 'Anonymous Artist',
+        photoURL: (user.photoURL ?? d.photoURL ?? '') as string,
+        email: user.email || d.email || '',
         ...(isAdminEmail ? { role: 'admin' } : {})
       };
       await updateDoc(userRef, updates);
@@ -1882,26 +2559,192 @@ export const postToFeed = async (item: Omit<FeedItem, 'id' | 'timestamp'>) => {
   try {
     await addDoc(collection(db, path), {
       ...removeUndefined(item),
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      score: 0,
+      scoreUpdatedAt: Date.now(),
+      interactions: { deep: {}, medium: {}, base: {}, dmSharerIds: [] },
     });
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
   }
 };
 
+// ── Feed Scoring ──────────────────────────────────────────────────────────────
+
+import {
+  computeFeedScore,
+  buildDebateSignals,
+  emptyInteractions,
+  type DeepAction, type MediumAction, type BaseAction,
+  type PostInteractions, type CreatorSignals,
+} from './feedScoreEngine';
+
+type AnyAction = DeepAction | MediumAction | BaseAction;
+type ActionBucket = 'deep' | 'medium' | 'base';
+
+const ACTION_BUCKET_MAP: Record<AnyAction, ActionBucket> = {
+  // deep
+  SANCTUARY_SUBSCRIBE: 'deep', PITCH_DECK_CONVERT: 'deep', SEED_RAISER_CONTRIB: 'deep',
+  TIP_DONATION: 'deep', PAY_IT_FORWARD: 'deep', BOOK_PURCHASE: 'deep',
+  // medium
+  FEDIVERSE_BROADCAST: 'medium', DM_SHARE: 'medium', LONG_COMMENT: 'medium',
+  DEBATE_REPLY: 'medium',
+  NATIVE_SHARE: 'medium', CLUB_SHARE: 'medium', BOOKMARK: 'medium', PLAYLIST_ADD: 'medium',
+  // base
+  LIKE: 'base', SONG_PLAY_START: 'base', SONG_PLAY_COMPLETE: 'base', DWELL_10S: 'base',
+};
+
+/** Record a single interaction on a feed post and re-derive the score. */
+export const recordFeedInteraction = async (
+  postId: string,
+  action: AnyAction,
+  sourceCollection: 'feed' | 'posts' = 'feed',
+  opts?: { isDMShare?: boolean; sharerId?: string },
+): Promise<void> => {
+  if (!auth.currentUser) return;
+  const path = sourceCollection;
+  try {
+    const ref = doc(db, path, postId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+
+    const data = snap.data();
+    const interactions: PostInteractions = data.interactions ?? emptyInteractions();
+    const bucket = ACTION_BUCKET_MAP[action];
+
+    // Increment the action counter in the appropriate bucket
+    const currentCount = (interactions as any)[bucket][action] ?? 0;
+    // Hard-cap dwell at 6 events client-side (60s max contribution)
+    const newCount = action === 'DWELL_10S'
+      ? Math.min(currentCount + 1, 6)
+      : currentCount + 1;
+
+    (interactions as any)[bucket][action] = newCount;
+
+    // Track DM sharers for word-of-mouth detection
+    if (opts?.isDMShare && opts.sharerId) {
+      const dmSharerIds: string[] = interactions.dmSharerIds ?? [];
+      if (!dmSharerIds.includes(opts.sharerId)) {
+        dmSharerIds.push(opts.sharerId);
+        interactions.dmSharerIds = dmSharerIds;
+      }
+    }
+
+    // Recompute score using creator signals already stored on the doc
+    const creatorSignals: CreatorSignals = data.creatorSignals ?? {
+      hasPaidSanctuaryMembers: false, hasActivePitchDeck: false,
+      hasActiveFundraiser: false, isNewProjectLaunch: false,
+      isFediverseConnected: false, isVerifiedIndependent: false,
+    };
+
+    // Track comment author IDs for debate detection
+    const isDiscourseAction = action === 'LONG_COMMENT' || action === 'DEBATE_REPLY';
+    const uid = auth.currentUser?.uid;
+    if (isDiscourseAction && uid) {
+      const commentAuthorIds: string[] = interactions.commentAuthorIds ?? [];
+      if (!commentAuthorIds.includes(uid)) {
+        commentAuthorIds.push(uid);
+        interactions.commentAuthorIds = commentAuthorIds;
+      }
+    }
+
+    const debateSignals = buildDebateSignals(interactions);
+
+    const newScore = computeFeedScore({
+      interactions,
+      createdAt: data.timestamp ?? Date.now(),
+      creatorSignals,
+      debateSignals,
+      // δ_discovery = 1.0 server-side; applied client-side per viewer by useViewerDiscovery
+    });
+
+    await updateDoc(ref, {
+      [`interactions.${bucket}.${action}`]: newCount,
+      ...(opts?.isDMShare && opts.sharerId ? { 'interactions.dmSharerIds': arrayUnion(opts.sharerId) } : {}),
+      ...(isDiscourseAction && uid ? { 'interactions.commentAuthorIds': arrayUnion(uid) } : {}),
+      score: newScore,
+      scoreUpdatedAt: Date.now(),
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `${path}/${postId}`);
+  }
+};
+
+/** Attach creator signals to a post (call after Sanctuary/pitch deck state changes). */
+export const updatePostCreatorSignals = async (
+  postId: string,
+  signals: CreatorSignals,
+  sourceCollection: 'feed' | 'posts' = 'feed',
+): Promise<void> => {
+  try {
+    const ref = doc(db, sourceCollection, postId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+    const data = snap.data();
+    const interactions: PostInteractions = data.interactions ?? emptyInteractions();
+    const newScore = computeFeedScore({
+      interactions, creatorSignals: signals,
+      debateSignals: buildDebateSignals(interactions),
+      createdAt: data.timestamp ?? Date.now(),
+    });
+    await updateDoc(ref, { creatorSignals: signals, score: newScore, scoreUpdatedAt: Date.now() });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `${sourceCollection}/${postId}`);
+  }
+};
+
+// ── Post.media → FeedItem helpers ────────────────────────────────────────────
+// The feed used to collapse a post's whole media[] into a single imageUrl, so
+// videos rendered inside an <img> (broken → "text only") and multi-image posts
+// lost everything but the first shot. These carry the intent through instead.
+const mediaFeedType = (media: any): FeedItem['type'] => {
+  if (!Array.isArray(media) || media.length === 0) return 'NEWS';
+  return media.some((m: any) => m?.type === 'VIDEO') ? 'VIDEO' : 'PICTURE';
+};
+/** First still-image URL for the legacy imageUrl slot (skip videos — an <img>
+ *  pointed at a video URL is exactly the broken thumbnail we're fixing). */
+const firstImageUrl = (media: any): string | undefined => {
+  if (!Array.isArray(media)) return undefined;
+  const img = media.find((m: any) => m?.url && m.type !== 'VIDEO' && m.type !== 'AUDIO');
+  return img?.url;
+};
+/** Firestore rejects `undefined` fields — strip them from each media item before
+ *  mirroring into the feed collection. */
+const sanitizeMediaForWrite = (media: any): any[] | undefined => {
+  if (!Array.isArray(media) || media.length === 0) return undefined;
+  return media.map((m: any) => {
+    const out: any = {};
+    for (const k of ['type', 'url', 'id', 'title', 'thumbnail'] as const) {
+      if (m?.[k] !== undefined && m?.[k] !== null) out[k] = m[k];
+    }
+    if (m?.linkPreview) out.linkPreview = m.linkPreview;
+    return out;
+  });
+};
+
 export const fetchFeed = (callback: (items: FeedItem[]) => void) => {
   const feedPath = 'feed';
   const postsPath = 'posts';
-  
+
   let feedItems: FeedItem[] = [];
   let postItems: FeedItem[] = [];
 
   const updateItems = () => {
-    const combined = [...feedItems, ...postItems].sort((a, b) => b.timestamp - a.timestamp);
-    callback(combined.slice(0, 50));
+    // Deduplicate by id
+    const seen = new Set<string>();
+    const combined = [...feedItems, ...postItems]
+      .filter(item => { if (seen.has(item.id)) return false; seen.add(item.id); return item.timestamp > 0; })
+      // Primary sort: score descending; secondary: recency (so unscored legacy posts fall back to time)
+      .sort((a, b) => {
+        const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
+        if (Math.abs(scoreDiff) > 0.001) return scoreDiff;
+        return b.timestamp - a.timestamp;
+      });
+    callback(combined.slice(0, 60));
   };
 
-  const feedQuery = query(collection(db, feedPath), orderBy('timestamp', 'desc'), limit(50));
+  // Prefer score-ordered query; fall back to timestamp for legacy docs that have no score field
+  const feedQuery = query(collection(db, feedPath), orderBy('score', 'desc'), orderBy('timestamp', 'desc'), limit(60));
   const postsQuery = query(collection(db, postsPath), orderBy('timestamp', 'desc'), limit(100));
 
   const unsubscribeFeed = onSnapshot(feedQuery, (snapshot) => {
@@ -1926,8 +2769,9 @@ export const fetchFeed = (callback: (items: FeedItem[]) => void) => {
         authorPhoto: data.authorPhoto,
         content: data.text || '',
         timestamp: safeToMillis(data.timestamp),
-        type: data.media && data.media.length > 0 ? 'PICTURE' : 'NEWS',
-        imageUrl: data.media && data.media.length > 0 ? data.media[0].url : undefined,
+        type: mediaFeedType(data.media),
+        imageUrl: firstImageUrl(data.media),
+        media: Array.isArray(data.media) ? data.media : undefined,
         likesCount: data.likesCount || 0,
         commentCount: data.commentsCount || 0,
         shareCount: 0,
@@ -1954,13 +2798,14 @@ export const migratePostsToFeed = async () => {
       authorId: data.authorId,
       authorName: data.authorName,
       authorPhoto: data.authorPhoto,
-      type: data.media && data.media.length > 0 ? 'PICTURE' : 'NEWS',
+      type: mediaFeedType(data.media),
       content: data.text || '',
       timestamp: data.timestamp || Date.now(),
       likesCount: data.likesCount || 0,
       commentCount: data.commentsCount || 0,
       shareCount: 0,
-      imageUrl: data.media && data.media.length > 0 ? data.media[0].url : undefined,
+      ...(firstImageUrl(data.media) ? { imageUrl: firstImageUrl(data.media) } : {}),
+      ...(sanitizeMediaForWrite(data.media) ? { media: sanitizeMediaForWrite(data.media) } : {}),
       originalPostId: d.id
     });
     await updateDoc(doc(db, 'posts', d.id), { migratedToFeed: true });
@@ -2017,8 +2862,9 @@ export const fetchFollowedFeed = async (uid: string, callback: (items: FeedItem[
           authorPhoto: data.authorPhoto,
           content: data.text || '',
           timestamp: safeToMillis(data.timestamp),
-          type: data.media && data.media.length > 0 ? 'PICTURE' : 'NEWS',
-          imageUrl: data.media && data.media.length > 0 ? data.media[0].url : undefined,
+          type: mediaFeedType(data.media),
+          imageUrl: firstImageUrl(data.media),
+          media: Array.isArray(data.media) ? data.media : undefined,
           likesCount: data.likesCount || 0,
           commentCount: data.commentsCount || 0,
           shareCount: 0,
@@ -2084,14 +2930,19 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
     if (album.slideshow) finalSlideshow.push(...album.slideshow);
   }
 
-  // 4. Upload Tracks
+  // 4. Upload Tracks — label by the actual content type, not always "Track"
+  const itemNoun = album.subType === 'PODCAST' ? 'Episode'
+    : album.type === 'VIDEO' ? 'Video'
+    : album.type === 'PHOTO' ? 'Photo'
+    : album.type === 'BOOK' ? 'Chapter'
+    : 'Track';
   const finalTracks: Track[] = [];
   for (let i = 0; i < album.tracks.length; i++) {
     const track = album.tracks[i];
     const trackProgressBase = 20 + (i / album.tracks.length) * 60;
-    
+
     if (track.file) {
-      onProgress?.(`Transferring Track ${i + 1}/${album.tracks.length}`, Math.round(trackProgressBase));
+      onProgress?.(`Transferring ${itemNoun} ${i + 1}/${album.tracks.length}`, Math.round(trackProgressBase));
       const gcsPath = `albums/${album.id}/tracks/${track.id}_${track.file.name}`;
       const url = await uploadFile(gcsPath, track.file);
       finalTracks.push({ ...track, url, file: undefined });
@@ -2100,17 +2951,52 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
     }
   }
 
+  // ── SAFEGUARD: persist a resumable DRAFT the moment the heavy files are uploaded ──
+  // The big cost (multi-hundred-MB film/track uploads) is done by here. The steps that
+  // follow — Mux uploads, season episodes, AI metadata, the final write — are slower and
+  // can fail or be interrupted (tab close, network drop). Write the album doc NOW as a
+  // draft so the uploaded video is never orphaned: the creator just reopens the draft and
+  // finishes. The final write below upgrades this same doc to its true published state.
+  try {
+    if (auth.currentUser && finalTracks.some(t => t.url)) {
+      const draftDoc = removeUndefined({
+        ...album,
+        ownerId: auth.currentUser!.uid,
+        coverImage: finalCover || album.coverImage || '',
+        artistImage: finalArtistImg || finalCover || album.artistImage,
+        tracks: finalTracks.map(t => { const { file, ...rest } = t; return { ...rest, rightsOwnerId: auth.currentUser?.uid }; }),
+        slideshow: finalSlideshow,
+        isDraft: true,
+        createdAt: album.createdAt || Date.now(),
+        // Strip File-bearing / not-yet-uploaded fields — the final write adds these.
+        musicVideos: undefined,
+        seasons: undefined,
+        coverFile: undefined,
+        artistFile: undefined,
+        slideshowFiles: undefined,
+      });
+      await setDoc(doc(db, 'albums', album.id), draftDoc, { merge: true });
+      onProgress?.('Draft saved — your upload is safe', Math.round(80));
+    }
+  } catch (e) {
+    console.warn('[publishToCloud] draft safeguard write failed (non-fatal):', e);
+  }
+
   // 5. Upload Music Videos
   const finalVideos: Video[] = [];
+  const pendingMuxUploads: Array<{ videoId: string; uploadId: string }> = [];
   if (album.musicVideos && album.musicVideos.length > 0) {
     for (let i = 0; i < album.musicVideos.length; i++) {
       const video = album.musicVideos[i];
       let videoUrl = video.url;
       let thumbUrl = video.thumbnailUrl;
-      
+
       if (video.file) {
         onProgress?.(`Uploading Video ${i + 1}/${album.musicVideos.length}`, 85);
-        videoUrl = await uploadFile(`albums/${album.id}/videos/${video.id}_${video.file.name}`, video.file);
+        // Direct upload to Mux — browser → Mux, skipping Firebase Storage
+        const uploadId = await uploadVideoFileMux(video.file);
+        pendingMuxUploads.push({ videoId: video.id, uploadId });
+        videoUrl = undefined; // playbackId will arrive via pollMuxUploadUntilReady
       }
       
       if (video.thumbnailFile) {
@@ -2168,7 +3054,8 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
     musicVideos: finalVideos,
     seasons: finalSeasons.length > 0 ? finalSeasons : album.seasons,
     slideshow: finalSlideshow,
-    isPublic: album.isPublic ?? true,
+    isDraft: false,
+    isPublic: !album.isPrivate,
     isPrivate: album.isPrivate ?? false,
     isScheduled: album.isScheduled ?? false,
     ...(album.releaseDate ? { releaseDate: album.releaseDate } : {}),
@@ -2182,7 +3069,37 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
   const path = `albums/${album.id}`;
   try {
     await setDoc(doc(db, "albums", album.id), cloudAlbum);
-    
+
+    // Canonical cross-service index record (media-library API Phase 1). Best-effort.
+    import('./mediaAssets').then(m => m.upsertMediaAssetFromAlbum(cloudAlbum as any)).catch(() => {});
+
+    // Trigger Cora beat analysis for MUSIC albums (fire-and-forget — never blocks publish)
+    if (cloudAlbum.type === 'MUSIC' && cloudAlbum.tracks?.length) {
+      (async () => {
+        try {
+          const token = await auth.currentUser!.getIdToken();
+          const appUrl = (import.meta as any).env?.VITE_APP_URL ?? window.location.origin;
+          await fetch(`${appUrl}/api/cora/analyze-album`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              albumId: album.id,
+              ownerId: auth.currentUser!.uid,
+              genre:   cloudAlbum.genre,
+              tracks:  cloudAlbum.tracks.map((t: any) => ({
+                id:       t.id,
+                title:    t.title,
+                artist:   t.artist,
+                genre:    t.genre,
+                duration: t.duration,
+                lyrics:   t.lyrics,
+              })),
+            }),
+          });
+        } catch { /* analysis failure must never surface to the user */ }
+      })();
+    }
+
     // Set user as artist
     await setDoc(doc(db, "users", auth.currentUser.uid), { isArtist: true }, { merge: true });
 
@@ -2203,8 +3120,14 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
             description: cloudAlbum.description,
             artist: cloudAlbum.artist,
             genre: cloudAlbum.genre,
+            // Reliable Taleo marker so a movie shows in Taleo regardless of its genre
+            // (Taleo's genre-only filter missed movies tagged with a content genre).
+            subType: 'MOVIE',
+            // This whole block only runs when the creator opted into publishVideosToGallery
+            // ("Also send to Reello"), so flag it so it ALSO appears in the Reello feed.
+            isRello: true,
             timestamp: Date.now()
-          });
+          } as any);
         }
       }
 
@@ -2217,6 +3140,7 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
             ownerId: uid,
             artist: mv.artist || cloudAlbum.artist,
             genre: mv.genre || cloudAlbum.genre,
+            isRello: true, // opted into the gallery/Reello via publishVideosToGallery
             timestamp: mv.timestamp || Date.now()
           });
         }
@@ -2236,6 +3160,8 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
                 description: ep.description || cloudAlbum.description,
                 artist: cloudAlbum.artist,
                 genre: cloudAlbum.genre,
+                subType: 'TV_SERIES',
+                isRello: true, // opted into the gallery/Reello via publishVideosToGallery
                 timestamp: Date.now()
               });
             }
@@ -2250,8 +3176,44 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
           handleFirestoreError(e, OperationType.WRITE, videosCollectionPath);
         }
       }
+
+      // Poll for playback IDs from direct Mux uploads (music videos uploaded via uploadVideoFileMux)
+      for (const { videoId, uploadId } of pendingMuxUploads) {
+        const docId = `sys_${cloudAlbum.id}_${videoId}`;
+        pollMuxUploadUntilReady(uploadId, async (playbackId, assetId) => {
+          try {
+            await updateDoc(doc(db, videosCollectionPath, docId), { muxPlaybackId: playbackId, muxAssetId: assetId });
+          } catch {}
+        }, 60, 4000);
+      }
+
+      // Kick off Mux transcoding in background for URL-based videos (no direct upload)
+      for (const v of videosToPublish) {
+        const srcUrl = v.url ?? '';
+        if (
+          srcUrl &&
+          !v.muxPlaybackId &&
+          !srcUrl.includes('youtube.com') &&
+          !srcUrl.includes('youtu.be') &&
+          !srcUrl.includes('vimeo.com')
+        ) {
+          const videoId = v.id;
+          (async () => {
+            try {
+              const muxData = await createMuxAssetFromUrl(srcUrl);
+              await updateDoc(doc(db, videosCollectionPath, videoId), {
+                ...(muxData.assetId   ? { muxAssetId: muxData.assetId }     : {}),
+                ...(muxData.playbackId ? { muxPlaybackId: muxData.playbackId } : {}),
+                muxUploadId: null,
+              });
+            } catch (err) {
+              console.error('[Mux] Background transcoding failed for video', videoId, err);
+            }
+          })();
+        }
+      }
     }
-    
+
     // Automatically post to feed if public
     if (cloudAlbum.isPublic && !cloudAlbum.isScheduled) {
       await postToFeed({
@@ -2398,12 +3360,16 @@ export const fetchArticleById = async (articleId: string): Promise<Article | nul
   }
 };
 
-export const updateAccountType = async (type: 'FAN' | 'ARTIST' | 'BRAND' | 'WRITER') => {
+export const updateAccountType = async (type: AccountType) => {
   if (!auth.currentUser) return;
   const path = `users/${auth.currentUser.uid}`;
   try {
+    // Single source of truth: persist the enum AND the derived legacy booleans in
+    // one write so accountType and isArtist/isBrandAdmin/… never drift (the old
+    // version wrote only the enum, so Firestore's flags went stale forever).
     await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-      accountType: type
+      accountType: type,
+      ...accountFlagUpdate(type),
     });
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
@@ -2715,22 +3681,82 @@ export const simulateDailySelection = async () => {
 
 export const saveAlbumToCloud = publishToCloud;
 
+export const fetchWorldContentByWorldId = async (worldId: string): Promise<{ albums: Album[]; videos: Video[] }> => {
+  try {
+    const [albumSnap, videoSnap] = await Promise.all([
+      getDocs(query(collection(db, 'albums'), where('worldId', '==', worldId), limit(20))),
+      getDocs(query(collection(db, 'videos'), where('worldId', '==', worldId), where('isPrivate', '==', false), limit(20))),
+    ]);
+    return {
+      albums: albumSnap.docs.map(d => ({ id: d.id, ...d.data() } as Album)),
+      videos: videoSnap.docs.map(d => ({ id: d.id, ...d.data() } as Video)),
+    };
+  } catch {
+    return { albums: [], videos: [] };
+  }
+};
+
+export const fetchAlbumById = async (albumId: string): Promise<Album | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'albums', albumId));
+    return snap.exists() ? ({ id: snap.id, ...snap.data() } as Album) : null;
+  } catch { return null; }
+};
+
 export const fetchAllPublicAlbums = async (): Promise<Album[]> => {
   const path = 'albums';
   try {
     const now = Date.now();
-    const q = query(collection(db, path), where("isPublic", "==", true));
+    // Query by isPrivate==false to catch all uploaded content regardless of whether
+    // isPublic was explicitly set (older uploads may have isPublic missing/false from
+    // the isDraft default that was previously true).
+    const q = query(collection(db, path), where("isPrivate", "==", false));
     const snapshot = await getDocs(q);
-    
+
     let albums = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Album));
     albums.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    
-    return albums
-      .filter(album => {
-        if (album.isPrivate) return false;
-        if (album.isScheduled && album.releaseDate && album.releaseDate > now) return false;
-        return true;
-      });
+
+    return albums.filter(album => {
+      if (album.isPrivate) return false;
+      if (album.isDraft) return false;
+      if (album.isScheduled && album.releaseDate && album.releaseDate > now) return false;
+      return true;
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, path);
+    return [];
+  }
+};
+
+export const fetchPublicBooks = async (): Promise<Album[]> => {
+  const path = 'albums';
+  try {
+    const q = query(
+      collection(db, path),
+      where('isPrivate', '==', false),
+      where('type', '==', 'BOOK')
+    );
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as Album))
+      .filter(a => !a.isDraft && !a.isPrivate)
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, path);
+    return [];
+  }
+};
+
+export const fetchUpcomingAlbums = async (): Promise<Album[]> => {
+  const path = 'albums';
+  try {
+    const now = Date.now();
+    const q = query(collection(db, path), where('isPrivate', '==', false), where('isScheduled', '==', true));
+    const snapshot = await getDocs(q);
+    return snapshot.docs
+      .map(d => ({ id: d.id, ...d.data() } as Album))
+      .filter(a => !a.isDraft && !!a.releaseDate && a.releaseDate > now && !!a.coverImage)
+      .sort((a, b) => (a.releaseDate || 0) - (b.releaseDate || 0));
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
@@ -2777,27 +3803,34 @@ export const updateAlbum = async (albumId: string, data: Partial<Album>): Promis
 export const subscribeToComments = (parentId: string, trackId: string | null, videoId: string | null = null, callback: (comments: Comment[]) => void, parentCollection: string = 'albums') => {
   const path = `${parentCollection}/${parentId}/comments`;
   let q;
+  // IMPORTANT: an equality filter (where) combined with orderBy on a *different*
+  // field requires a composite index. We don't ship one for the per-item
+  // `comments` subcollection, so that query would fail `failed-precondition`,
+  // the snapshot would never deliver, and a just-posted comment would vanish.
+  // Equality-only queries use the auto single-field index — so we filter on the
+  // server and sort newest-first on the client. No composite index needed.
   if (videoId) {
     q = query(
       collection(db, parentCollection, parentId, "comments"),
-      where("videoId", "==", videoId),
-      orderBy("timestamp", "desc")
+      where("videoId", "==", videoId)
     );
   } else if (trackId || parentCollection === 'albums') {
     q = query(
       collection(db, parentCollection, parentId, "comments"),
-      where("trackId", "==", trackId || "album"),
-      orderBy("timestamp", "desc")
+      where("trackId", "==", trackId || "album")
     );
   } else {
-    // For posts and feed, we just get all comments on the item
+    // For posts and feed, we just get all comments on the item (orderBy alone is
+    // covered by the auto single-field index).
     q = query(
       collection(db, parentCollection, parentId, "comments"),
       orderBy("timestamp", "desc")
     );
   }
   return onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Comment)));
+    const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Comment));
+    list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)); // newest-first
+    callback(list);
   }, (err) => {
     handleFirestoreError(err, OperationType.LIST, path);
   });
@@ -2806,14 +3839,21 @@ export const subscribeToComments = (parentId: string, trackId: string | null, vi
 export const postComment = async (parentId: string, comment: Omit<Comment, 'id'>, parentCollection: string = 'albums') => {
   const path = `${parentCollection}/${parentId}/comments`;
   try {
-    const commentWithUid = {
+    const commentWithUid: Record<string, any> = {
       ...comment,
       uid: auth.currentUser?.uid || null,
       parentId: comment.parentId || null
     };
+    // Firestore is initialized without `ignoreUndefinedProperties`, so writing an
+    // `undefined` value (e.g. videoId on a track comment, or trackId on a video
+    // comment) THROWS "Unsupported field value: undefined" — the comment never
+    // persists and appears to "vanish" after posting. Strip undefined fields so
+    // the write always succeeds and satisfies isValidComment (which also forbids
+    // a `videoId`/`trackId` key that isn't a string).
+    Object.keys(commentWithUid).forEach(k => { if (commentWithUid[k] === undefined) delete commentWithUid[k]; });
     await addDoc(collection(db, parentCollection, parentId, "comments"), commentWithUid);
     
-    // Notify parent owner
+    // Notify parent owner (content owner gets COMMENT notification)
     const parentRef = doc(db, parentCollection, parentId);
     const parentSnap = await getDoc(parentRef);
     if (parentSnap.exists() && auth.currentUser) {
@@ -2832,6 +3872,30 @@ export const postComment = async (parentId: string, comment: Omit<Comment, 'id'>
           targetId: parentId
         });
       }
+    }
+
+    // Notify the author of the parent comment when this is a reply
+    if (comment.parentId && auth.currentUser) {
+      try {
+        const parentCommentSnap = await getDoc(doc(db, parentCollection, parentId, 'comments', comment.parentId));
+        if (parentCommentSnap.exists()) {
+          const parentComment = parentCommentSnap.data();
+          const replyTargetUid = parentComment.uid;
+          if (replyTargetUid && replyTargetUid !== auth.currentUser.uid) {
+            createNotification({
+              userId: replyTargetUid,
+              senderId: auth.currentUser.uid,
+              senderName: auth.currentUser.displayName || 'Anonymous',
+              senderPhoto: auth.currentUser.photoURL || '',
+              type: 'COMMENT',
+              title: 'New Reply',
+              message: `${auth.currentUser.displayName} replied to your comment`,
+              link: parentCollection === 'articles' ? 'READ' : 'ALBUM',
+              targetId: parentId
+            });
+          }
+        }
+      } catch {}
     }
     
     // Also post to feed if it's a significant comment
@@ -2855,29 +3919,112 @@ export const postComment = async (parentId: string, comment: Omit<Comment, 'id'>
   }
 };
 
-export const loginWithGoogle = async () => {
+export const loginWithGoogle = async (loginHint?: string): Promise<User | null> => {
+  // Native (Capacitor) apps run inside a WebView, where Google refuses web-OAuth
+  // popups (disallowed_useragent — "this browser or app may not be secure"). Use
+  // the native Google Sign-In plugin to obtain a credential, then sign THAT into
+  // the JS SDK so the rest of the app (which reads auth.currentUser) is unchanged.
+  if ((window as any).Capacitor?.isNativePlatform?.()) {
+    try {
+      const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+      const res = await FirebaseAuthentication.signInWithGoogle();
+      const idToken = res.credential?.idToken;
+      if (!idToken) throw new Error('No idToken returned from native Google sign-in');
+      const credential = GoogleAuthProvider.credential(idToken, (res.credential as any)?.accessToken);
+      const result = await signInWithCredential(auth, credential);
+      if (result.user) {
+        try { await result.user.getIdToken(true); } catch { /* non-fatal */ }
+        await syncUserProfile(result.user);
+        return result.user;
+      }
+    } catch (error: any) {
+      if (error?.code === 'auth/cancelled' || /cancel/i.test(error?.message || '')) return null;
+      console.error('Native Google login failed:', error);
+      void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'google-native', error, email: loginHint }));
+      alert(`Google sign-in failed: ${error?.message || 'Unknown error'}. Please try again.`);
+    }
+    return null;
+  }
+
   const provider = new GoogleAuthProvider();
+  // Always force the account chooser (so a hot-switch never silently reuses the
+  // currently-remembered Google session), and pre-select the target account when
+  // switching to a known slot — this keeps each account siloed to the right user.
+  provider.setCustomParameters(loginHint
+    ? { prompt: 'select_account', login_hint: loginHint }
+    : { prompt: 'select_account' });
   try {
     const result = await signInWithPopup(auth, provider);
     if (result.user) {
+      // Mint a fresh token for the newly-active account immediately, so the very
+      // next Storage/Firestore call is credentialed for THIS user, not the last one.
+      try { await result.user.getIdToken(true); } catch { /* non-fatal */ }
       await syncUserProfile(result.user);
+      return result.user;
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Google login failed:", error);
+    void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'google', error, email: loginHint }));
+    const errorCode = error?.code || "";
+    if (errorCode === 'auth/operation-not-allowed') {
+      alert("Google sign-in is not enabled. Go to Firebase Console → Authentication → Sign-in method and enable Google.");
+    } else if (errorCode === 'auth/popup-blocked') {
+      alert("Sign-in popup was blocked by your browser. Please allow popups for this site and try again.");
+    } else if (errorCode === 'auth/cancelled-popup-request' || errorCode === 'auth/popup-closed-by-user') {
+      // User closed the popup — no need to alert
+    } else {
+      alert(`Google sign-in failed: ${error.message || "Unknown error"}. Please try again.`);
+    }
   }
+  return null;
 };
 
-export const loginWithTwitter = async () => {
+export const loginWithTwitter = async (): Promise<string | null> => {
+  if ((window as any).Capacitor?.isNativePlatform?.()) {
+    try {
+      const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+      const res = await FirebaseAuthentication.signInWithTwitter();
+      const credential = TwitterAuthProvider.credential(
+        res.credential?.accessToken as string,
+        (res.credential as any)?.secret as string,
+      );
+      const result = await signInWithCredential(auth, credential);
+      if (result.user) {
+        await syncUserProfile(result.user);
+        const screenName = (res as any)?.additionalUserInfo?.username as string | undefined;
+        if (screenName) {
+          await updateDoc(doc(db, 'users', result.user.uid), { xHandle: screenName });
+          return screenName;
+        }
+      }
+      return null;
+    } catch (error: any) {
+      if (!/cancel/i.test(error?.message || '')) {
+        console.error('Native Twitter login failed:', error);
+        void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'twitter-native', error }));
+        alert(`Twitter sign-in failed: ${error?.message || 'Unknown error'}.`);
+      }
+      return null;
+    }
+  }
+
   const provider = new TwitterAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
     if (result.user) {
       await syncUserProfile(result.user);
+      const info = getAdditionalUserInfo(result);
+      const screenName = info?.username as string | undefined;
+      if (screenName) {
+        await updateDoc(doc(db, 'users', result.user.uid), { xHandle: screenName });
+        return screenName;
+      }
     }
+    return null;
   } catch (error: any) {
     console.error("Twitter login failed:", error);
+    void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'twitter', error }));
     const errorCode = error?.code || "";
-    
     if (errorCode === 'auth/operation-not-allowed') {
       alert("Twitter sign-in is not enabled in the Firebase Console. Please go to Authentication > Sign-in method and enable Twitter.");
     } else if (errorCode === 'auth/invalid-credential') {
@@ -2887,11 +4034,172 @@ export const loginWithTwitter = async () => {
     } else {
       alert(`Twitter sign-in failed: ${error.message || "Unknown error"}. Please check your connection or try Google sign-in.`);
     }
+    return null;
+  }
+};
+
+export const linkXAccount = async (): Promise<string | null> => {
+  if (!auth.currentUser) return null;
+  const provider = new TwitterAuthProvider();
+  try {
+    const result = await linkWithPopup(auth.currentUser, provider);
+    const info = getAdditionalUserInfo(result);
+    const screenName = info?.username as string | undefined;
+    if (screenName) {
+      await updateDoc(doc(db, 'users', auth.currentUser.uid), { xHandle: screenName });
+      return screenName;
+    }
+    return null;
+  } catch (error: any) {
+    const code = error?.code || '';
+    if (code === 'auth/provider-already-linked' || code === 'auth/credential-already-in-use') {
+      return loginWithTwitter();
+    }
+    console.error('X account link failed:', error);
+    return null;
+  }
+};
+
+export const loginWithFacebook = async () => {
+  if ((window as any).Capacitor?.isNativePlatform?.()) {
+    try {
+      const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+      const res = await FirebaseAuthentication.signInWithFacebook();
+      const credential = FacebookAuthProvider.credential(res.credential?.accessToken as string);
+      const result = await signInWithCredential(auth, credential);
+      if (result.user) await syncUserProfile(result.user);
+    } catch (error: any) {
+      if (!/cancel/i.test(error?.message || '')) {
+        console.error('Native Facebook login failed:', error);
+        void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'facebook-native', error }));
+        alert(`Facebook sign-in failed: ${error?.message || 'Unknown error'}.`);
+      }
+    }
+    return;
+  }
+
+  const provider = new FacebookAuthProvider();
+  try {
+    const result = await signInWithPopup(auth, provider);
+    if (result.user) await syncUserProfile(result.user);
+  } catch (error: any) {
+    const code = error?.code || '';
+    void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'facebook', error }));
+    if (code === 'auth/account-exists-with-different-credential') {
+      alert('An account already exists with this email. Sign in with your original method, then link Facebook from Account Settings.');
+    } else if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
+      alert(`Facebook sign-in failed: ${error.message || 'Unknown error'}`);
+    }
+  }
+};
+
+export const loginWithMicrosoft = async () => {
+  if ((window as any).Capacitor?.isNativePlatform?.()) {
+    try {
+      const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+      const res = await FirebaseAuthentication.signInWithMicrosoft();
+      const oauth = new OAuthProvider('microsoft.com');
+      const credential = oauth.credential({
+        idToken: res.credential?.idToken,
+        accessToken: res.credential?.accessToken,
+      });
+      const result = await signInWithCredential(auth, credential);
+      if (result.user) await syncUserProfile(result.user);
+    } catch (error: any) {
+      if (!/cancel/i.test(error?.message || '')) {
+        console.error('Native Microsoft login failed:', error);
+        void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'microsoft-native', error }));
+        alert(`Microsoft sign-in failed: ${error?.message || 'Unknown error'}.`);
+      }
+    }
+    return;
+  }
+
+  const provider = new OAuthProvider('microsoft.com');
+  provider.setCustomParameters({ prompt: 'select_account' });
+  try {
+    const result = await signInWithPopup(auth, provider);
+    if (result.user) await syncUserProfile(result.user);
+  } catch (error: any) {
+    const code = error?.code || '';
+    void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'microsoft', error }));
+    if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
+      alert(`Microsoft sign-in failed: ${error.message || 'Unknown error'}`);
+    }
+  }
+};
+
+export const loginWithEmail = async (email: string, password: string) => {
+  try {
+    const result = await signInWithEmailAndPassword(auth, email, password);
+    if (result.user) await syncUserProfile(result.user);
+    return result.user;
+  } catch (error: any) {
+    const code = error?.code || '';
+    if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+      throw new Error('Invalid email or password.');
+    }
+    // Everything past this point is a system/config/network problem (not a user typo) — worth alerting on.
+    void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'email', error, email }));
+    if (code === 'auth/too-many-requests') {
+      throw new Error('Too many attempts. Please try again later.');
+    }
+    throw new Error(error.message || 'Sign-in failed.');
+  }
+};
+
+export const registerWithEmail = async (email: string, password: string, displayName: string) => {
+  try {
+    const result = await createUserWithEmailAndPassword(auth, email, password);
+    await updateProfile(result.user, { displayName });
+    await syncUserProfile(result.user);
+    return result.user;
+  } catch (error: any) {
+    const code = error?.code || '';
+    if (code === 'auth/email-already-in-use') {
+      throw new Error('This email is already registered. Try signing in instead.');
+    } else if (code === 'auth/weak-password') {
+      throw new Error('Password must be at least 6 characters.');
+    }
+    throw new Error(error.message || 'Registration failed.');
+  }
+};
+
+export const sendPasswordReset = async (email: string) => {
+  await sendPasswordResetEmail(auth, email);
+};
+
+export const linkAuthProvider = async (providerName: 'GOOGLE' | 'TWITTER' | 'FACEBOOK' | 'MICROSOFT') => {
+  if (!auth.currentUser) throw new Error('Not signed in');
+  let provider;
+  if (providerName === 'GOOGLE') provider = new GoogleAuthProvider();
+  else if (providerName === 'TWITTER') provider = new TwitterAuthProvider();
+  else if (providerName === 'FACEBOOK') provider = new FacebookAuthProvider();
+  else provider = new OAuthProvider('microsoft.com');
+  try {
+    await linkWithPopup(auth.currentUser, provider);
+  } catch (error: any) {
+    const code = error?.code || '';
+    if (code === 'auth/credential-already-in-use') {
+      throw new Error('This account is already linked to a different Plajah user.');
+    } else if (code === 'auth/provider-already-linked') {
+      throw new Error('This provider is already linked to your account.');
+    }
+    throw error;
   }
 };
 
 export const logout = async () => {
   try {
+    // Detach this device's push token from the user first, so after sign-out they
+    // stop receiving pushes on a device that may now be used by someone else.
+    const uid = auth.currentUser?.uid;
+    if (uid && _thisDeviceToken) {
+      await updateDoc(doc(db, 'users', uid), {
+        fcmTokens: arrayRemove(_thisDeviceToken),
+        fcmToken: null,
+      }).catch(() => {});
+    }
     await signOut(auth);
   } catch (error) {
     console.error("Logout failed:", error);
@@ -2899,9 +4207,9 @@ export const logout = async () => {
 };
 
 export const onAuthUpdate = (callback: (user: User | null) => void) => {
-  return onAuthStateChanged(auth, (user) => {
+  return onAuthStateChanged(auth, async (user) => {
     if (user) {
-      syncUserProfile(user);
+      await syncUserProfile(user);
     }
     callback(user);
   });
@@ -2913,7 +4221,7 @@ export const publishLiveFeed = async (feed: Partial<LiveFeed> & { title: string,
   try {
     const feedData = removeUndefined({
       ...feed,
-      ownerId: auth.currentUser.uid,
+      ownerId: auth.currentUser!.uid,
       ownerName: auth.currentUser.displayName || 'Artist',
       ownerPhoto: auth.currentUser.photoURL || '',
       timestamp: serverTimestamp(),
@@ -2925,7 +4233,7 @@ export const publishLiveFeed = async (feed: Partial<LiveFeed> & { title: string,
       subject: feed.subject || '',
       brandId: feed.brandId || ''
     });
-    await addDoc(collection(db, path), feedData);
+    return await addDoc(collection(db, path), feedData);
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
   }
@@ -2960,6 +4268,43 @@ export const deleteLiveFeed = async (id: string) => {
     await deleteDoc(doc(db, 'live_feeds', id));
   } catch (e) {
     handleFirestoreError(e, OperationType.DELETE, path);
+  }
+};
+
+// --- Stream Archives (rewatch / VOD after live ends) ---
+
+export const saveStreamArchive = async (archive: Omit<StreamArchive, 'id'>): Promise<string | null> => {
+  try {
+    const ref = await addDoc(collection(db, 'stream_archives'), {
+      ...archive,
+      endedAt: serverTimestamp(),
+    });
+    return ref.id;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.CREATE, 'stream_archives');
+    return null;
+  }
+};
+
+export const fetchStreamArchives = async (limitCount = 24): Promise<StreamArchive[]> => {
+  try {
+    const q = query(collection(db, 'stream_archives'), orderBy('endedAt', 'desc'), limit(limitCount));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data(), endedAt: safeToMillis(d.data().endedAt), startedAt: d.data().startedAt || 0 } as StreamArchive));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'stream_archives');
+    return [];
+  }
+};
+
+export const fetchUserStreamArchives = async (userId: string): Promise<StreamArchive[]> => {
+  try {
+    const q = query(collection(db, 'stream_archives'), where('ownerId', '==', userId), orderBy('endedAt', 'desc'), limit(20));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data(), endedAt: safeToMillis(d.data().endedAt), startedAt: d.data().startedAt || 0 } as StreamArchive));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'stream_archives');
+    return [];
   }
 };
 
@@ -3024,6 +4369,218 @@ export const isFollowing = async (targetUserId: string): Promise<boolean> => {
   return d.exists();
 };
 
+// --- Subscription bell (per-follow notify level) ---
+// A follow with no notifyLevel behaves as 'ALL' so existing subscriptions keep working.
+
+/** Set how loudly a followed creator may notify the caller. No-op if not following. */
+export const setNotifyLevel = async (targetUserId: string, level: NotifyLevel): Promise<void> => {
+  if (!auth.currentUser) return;
+  const path = 'follows';
+  const followId = `${auth.currentUser.uid}_${targetUserId}`;
+  try {
+    await setDoc(doc(db, path, followId), { notifyLevel: level }, { merge: true });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, path);
+  }
+};
+
+/** Read the caller's bell setting for a creator. Defaults to 'ALL'. */
+export const getNotifyLevel = async (targetUserId: string): Promise<NotifyLevel> => {
+  if (!auth.currentUser) return 'NONE';
+  const followId = `${auth.currentUser.uid}_${targetUserId}`;
+  try {
+    const d = await getDoc(doc(db, 'follows', followId));
+    if (!d.exists()) return 'NONE';
+    return ((d.data() as any)?.notifyLevel as NotifyLevel) || 'ALL';
+  } catch {
+    return 'ALL';
+  }
+};
+
+/**
+ * Followers of `userId` paired with their bell level (missing === 'ALL').
+ * Used by notifyFollowers to honour the bell without a second read per follower.
+ */
+export const fetchFollowersWithNotifyLevel = async (
+  userId: string,
+): Promise<{ followerId: string; notifyLevel: NotifyLevel }[]> => {
+  const path = 'follows';
+  try {
+    const snapshot = await getDocs(query(collection(db, path), where('followingId', '==', userId)));
+    return snapshot.docs.map(d => {
+      const data = d.data() as any;
+      return { followerId: data.followerId as string, notifyLevel: (data.notifyLevel as NotifyLevel) || 'ALL' };
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, path);
+    return [];
+  }
+};
+
+// --- PUSH NOTIFICATIONS ---
+// The FCM token for THIS device (web or native), remembered so sign-out can detach it
+// from the user — otherwise a signed-out user keeps getting pushes on a shared device.
+let _thisDeviceToken: string | null = null;
+
+export const saveFcmToken = async (uid: string, token: string): Promise<void> => {
+  _thisDeviceToken = token;
+  try {
+    await updateDoc(doc(db, 'users', uid), {
+      fcmToken: token,               // legacy single-token field (kept for backward compat)
+      fcmTokens: arrayUnion(token),  // multi-device set — web + every native install a user has
+    });
+  } catch {
+    // Non-critical
+  }
+};
+
+// Maps each notification type to a user-facing preference category + Android channel id.
+const PUSH_CATEGORY: Record<string, 'messages' | 'social' | 'content' | 'system'> = {
+  MESSAGE: 'messages',
+  COMMENT: 'social', LIKE: 'social', FOLLOW: 'social',
+  CONTENT: 'content',
+  SYSTEM: 'system',
+};
+
+interface PushMeta {
+  link?: string; type?: string; targetId?: string;
+  senderId?: string; senderName?: string; senderPhoto?: string;
+}
+
+const sendPushToUser = async (uid: string, title: string, body: string, meta: PushMeta = {}): Promise<void> => {
+  try {
+    const userSnap = await getDoc(doc(db, 'users', uid));
+    const data = userSnap.data() || {};
+
+    // Respect the recipient's notification preferences (master switch + per-category).
+    const prefs = (data.notificationPrefs || {}) as Record<string, boolean>;
+    if (prefs.push === false) return;
+    const category = PUSH_CATEGORY[meta.type || 'SYSTEM'] || 'system';
+    if (prefs[category] === false) return;
+
+    // Fan out to every registered device: web FCM token + all native device tokens, de-duped.
+    const tokens = Array.from(new Set<string>(
+      [...((data.fcmTokens as string[]) || []), data.fcmToken as string].filter(Boolean)
+    ));
+    if (!tokens.length) return;
+
+    const res = await fetch('/api/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tokens, title, body,
+        link: meta.link,
+        channelId: category,
+        // Forwarded in the FCM data payload so a native tap can deep-link exactly
+        // like an in-app tap (handleNotificationNavigate reads link + targetId + type).
+        targetId: meta.targetId, type: meta.type,
+        senderId: meta.senderId, senderName: meta.senderName, senderPhoto: meta.senderPhoto,
+      }),
+    });
+
+    // Prune any tokens FCM reports as permanently unregistered (app uninstalled /
+    // token rotated) so we stop fanning out to dead devices. Results are index-aligned
+    // with `tokens` because we send `tokens` only (no extra single `token`).
+    const json = await res.json().catch(() => null) as { results?: Array<{ ok: boolean; stale?: boolean }> } | null;
+    if (json?.results?.length === tokens.length) {
+      const stale = tokens.filter((_, i) => json.results![i]?.stale);
+      if (stale.length) {
+        await updateDoc(doc(db, 'users', uid), { fcmTokens: arrayRemove(...stale) }).catch(() => {});
+      }
+    }
+  } catch {
+    // Non-critical — push failures must never break the main flow
+  }
+};
+
+/** Removes a device token on sign-out so a shared device stops receiving the prior user's pushes. */
+export const removeFcmToken = async (uid: string, token: string): Promise<void> => {
+  try {
+    await updateDoc(doc(db, 'users', uid), { fcmTokens: arrayRemove(token) });
+  } catch {
+    // Non-critical
+  }
+};
+
+/** Reads a user's saved notification preferences (empty object = all defaults / enabled). */
+export const getNotificationPrefs = async (uid: string): Promise<Record<string, boolean>> => {
+  try {
+    const snap = await getDoc(doc(db, 'users', uid));
+    return (snap.data()?.notificationPrefs || {}) as Record<string, boolean>;
+  } catch {
+    return {};
+  }
+};
+
+/**
+ * Sends a test push to the signed-in user's own devices (every registered token).
+ * Bypasses preference gating so a test always fires. Returns how many were accepted
+ * by FCM and how many devices are registered — sent:0/total:0 means no device has
+ * registered a token yet (install the app + allow notifications on that device first).
+ */
+export const sendTestPush = async (): Promise<{ sent: number; total: number }> => {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return { sent: 0, total: 0 };
+  try {
+    const snap = await getDoc(doc(db, 'users', uid));
+    const data = snap.data() || {};
+    const tokens = Array.from(new Set<string>(
+      [...((data.fcmTokens as string[]) || []), data.fcmToken as string].filter(Boolean)
+    ));
+    if (!tokens.length) return { sent: 0, total: 0 };
+    const res = await fetch('/api/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tokens,
+        title: 'Plajah',
+        body: '🔔 Test notification — your push notifications are working!',
+        link: 'FEED',
+        channelId: 'system',
+        type: 'SYSTEM',
+        senderName: 'Plajah',
+      }),
+    });
+    const json = await res.json().catch(() => null) as { sent?: number } | null;
+    return { sent: json?.sent ?? 0, total: tokens.length };
+  } catch {
+    return { sent: 0, total: 0 };
+  }
+};
+
+/**
+ * Admin: broadcast a push to a single user (mode:'user' + uid) or to ALL users
+ * (mode:'all'). Server verifies the caller's Firebase ID token + admin role before
+ * fanning out. Returns delivery counts, or { error } on failure.
+ */
+export const sendAdminBroadcast = async (
+  payload: { mode: 'user' | 'all'; uid?: string; title: string; body: string; link?: string }
+): Promise<{ sent: number; total: number; recipients: number; devices: number } | { error: string }> => {
+  if (!auth.currentUser) return { error: 'Not signed in' };
+  try {
+    const token = await auth.currentUser.getIdToken();
+    const res = await fetch('/api/push/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) return { error: json?.error || `Request failed (HTTP ${res.status})` };
+    return json;
+  } catch (e: any) {
+    return { error: e?.message || 'Request failed' };
+  }
+};
+
+/** Persists a user's notification preferences (master + per-category push toggles). */
+export const updateNotificationPrefs = async (uid: string, prefs: Record<string, boolean>): Promise<void> => {
+  try {
+    await updateDoc(doc(db, 'users', uid), { notificationPrefs: prefs });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `users/${uid}`);
+  }
+};
+
 // --- NOTIFICATIONS ---
 export const fetchNotifications = (uid: string, callback: (notifications: AppNotification[]) => void) => {
   const path = 'notifications';
@@ -3052,6 +4609,12 @@ export const createNotification = async (notif: Omit<AppNotification, 'id' | 'ti
       timestamp: serverTimestamp()
     });
     const docRef = await addDoc(collection(db, path), data);
+    // Fire push in background — never await, never block the main flow. Pass the full
+    // meta so native taps deep-link and per-category preferences are honored.
+    sendPushToUser(notif.userId, notif.title, notif.message, {
+      link: notif.link, type: notif.type, targetId: notif.targetId,
+      senderId: notif.senderId, senderName: notif.senderName, senderPhoto: notif.senderPhoto,
+    }).catch(() => {});
     return docRef.id;
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
@@ -3067,13 +4630,72 @@ export const markNotificationAsRead = async (notifId: string) => {
   }
 };
 
-export const notifyFollowers = async (senderId: string, type: AppNotification['type'], title: string, message: string, link?: string, targetId?: string) => {
+/** Sends the one-time welcome package as a SYSTEM message to the user's private system inbox room. */
+export const sendSystemWelcomeDM = async (uid: string, displayName: string): Promise<void> => {
+  const roomId = `system_inbox_${uid}`;
   try {
-    const followers = await fetchFollowers(senderId);
+    // Upsert the system inbox room
+    await setDoc(doc(db, 'chat_rooms', roomId), {
+      id: roomId,
+      type: 'SYSTEM_INBOX',
+      name: 'Plajah',
+      participants: [uid],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }, { merge: true });
+
+    const body = `Hey ${displayName?.split(' ')[0] || 'there'} 👋 Welcome to Plajah — and congratulations on your Pioneer Badge! 🏅
+
+You're part of our earliest wave of creators and fans, and that means a lot to us.
+
+Here's your starter pack:
+
+🧭 Explore — Music, films, books, live talks, games. Every corner is built for discovery.
+📤 Upload — Share your music, videos, and art. Your profile is your stage.
+💬 Engage — Comment, react, and connect with creators who share your passion.
+🐛 Report Issues — Use the Help Center to flag bugs or send feedback. Your voice shapes Plajah.
+
+🎉 Stop by The Plajah Club — our community space for early members — to meet the team and fellow creators.
+
+As an early access member, you may run into a bump or two. We truly appreciate your patience. Every piece of feedback helps us build something better.
+
+Plajah exists to be the best place in the world for creators to share their work. We're building that together.
+
+— The Plajah Team ❤️`;
+
+    await addDoc(collection(db, 'chat_rooms', roomId, 'messages'), {
+      senderId: 'plajah_system',
+      senderName: 'Plajah',
+      senderPhoto: 'https://plajah.com/icons/icon-192.png',
+      text: body,
+      type: 'SYSTEM',
+      timestamp: Date.now(),
+    });
+  } catch (e) {
+    console.warn('[Welcome DM]', e);
+  }
+};
+
+export const notifyFollowers = async (
+  senderId: string,
+  type: AppNotification['type'],
+  title: string,
+  message: string,
+  link?: string,
+  targetId?: string,
+  /** Mark this as a "highlight" (new upload / going live) so HIGHLIGHTS-bell followers get it. */
+  opts?: { highlight?: boolean },
+) => {
+  try {
+    const withLevels = await fetchFollowersWithNotifyLevel(senderId);
     const senderProfile = await fetchUserProfile(senderId);
+    // Bell semantics: NONE never; HIGHLIGHTS only for highlight-flagged events; ALL always.
+    const followers = withLevels
+      .filter(f => f.notifyLevel !== 'NONE' && (f.notifyLevel !== 'HIGHLIGHTS' || !!opts?.highlight))
+      .map(f => f.followerId);
     if (!senderProfile || followers.length === 0) return;
 
-    const promises = followers.map(followerId => 
+    const promises = followers.map(followerId =>
       createNotification({
         userId: followerId,
         senderId,
@@ -3127,7 +4749,7 @@ export const uploadPhoto = async (file: File, metadata: Partial<Photo>) => {
     const newPhoto: Photo = {
       id,
       url,
-      ownerId: auth.currentUser.uid,
+      ownerId: auth.currentUser!.uid,
       timestamp: Date.now(),
       isPublic: metadata.isPublic ?? false, // Default to private
       isGalleryEligible: metadata.isGalleryEligible ?? false,
@@ -3144,13 +4766,72 @@ export const uploadPhoto = async (file: File, metadata: Partial<Photo>) => {
   }
 };
 
+export const uploadWorldPhoto = async (
+  file: File,
+  worldId: string,
+  opts: { title?: string; description?: string; addToLibrary?: boolean }
+): Promise<Photo | undefined> => {
+  if (!auth.currentUser) return;
+  const id = `photo_${Date.now()}`;
+  try {
+    // Store under worlds/{worldId}/images in Firebase Storage so assets are world-scoped
+    const storagePath = `worlds/${worldId}/images/${id}`;
+    const url = await uploadFile(storagePath, file);
+    const newPhoto: Photo = {
+      id,
+      url,
+      ownerId: auth.currentUser!.uid,
+      timestamp: Date.now(),
+      isPublic: false,
+      isGalleryEligible: false,
+      mediaType: file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO',
+      title: opts.title || file.name,
+      description: opts.description || '',
+      likesCount: 0,
+      favorites: [],
+      worldId,
+      addedToLibrary: opts.addToLibrary ?? false,
+    };
+    await setDoc(doc(db, 'photos', id), newPhoto);
+    return newPhoto;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.CREATE, `photos/${id}`);
+  }
+};
+
+export const fetchWorldPhotos = async (worldId: string): Promise<Photo[]> => {
+  try {
+    const q = query(
+      collection(db, 'photos'),
+      where('worldId', '==', worldId),
+      orderBy('timestamp', 'desc')
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as Photo);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'photos');
+    return [];
+  }
+};
+
+export const fetchUserWorldPhotos = async (uid: string): Promise<Photo[]> => {
+  try {
+    const q = query(collection(db, 'photos'), where('ownerId', '==', uid), orderBy('timestamp', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as Photo).filter(p => !!p.worldId);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'photos');
+    return [];
+  }
+};
+
 export const createPhotoAlbum = async (album: Partial<PhotoAlbum>) => {
   if (!auth.currentUser) return;
   const id = `album_${Date.now()}`;
   const path = `photo_albums/${id}`;
   const newAlbum: PhotoAlbum = {
     id,
-    ownerId: auth.currentUser.uid,
+    ownerId: auth.currentUser!.uid,
     title: album.title || 'Untitled Album',
     description: album.description || '',
     photoIds: album.photoIds || [],
@@ -3201,10 +4882,22 @@ export const fetchUserPhotos = async (uid: string): Promise<Photo[]> => {
       orderBy('timestamp', 'desc')
     );
     const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as Photo);
+    // Fall back to the doc id when the stored payload doesn't carry one — otherwise the
+    // Content Manager would key photo assets on `undefined` and edits would target nothing.
+    return snap.docs.map(d => ({ id: d.id, ...(d.data() as Photo) }));
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
+  }
+};
+
+/** Edit a photo's own fields (title / description / visibility) from the Content Manager. */
+export const updatePhoto = async (photoId: string, updates: Partial<Photo>) => {
+  const path = `photos/${photoId}`;
+  try {
+    await updateDoc(doc(db, 'photos', photoId), removeUndefined(updates));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, path);
   }
 };
 
@@ -3261,7 +4954,7 @@ export const createEventPhotoPool = async (pool: Partial<EventPhotoPool>) => {
   const newPool: EventPhotoPool = {
     id,
     eventId: pool.eventId || '',
-    ownerId: auth.currentUser.uid,
+    ownerId: auth.currentUser!.uid,
     title: pool.title || 'Event Photo Pool',
     description: pool.description || '',
     mediaIds: [],
@@ -3306,9 +4999,38 @@ export const subscribeToPhotoPool = (poolId: string, callback: (media: Photo[]) 
   });
 };
 
+export const subscribeToUserProfile = (
+  uid: string,
+  callback: (profile: UserProfile | null) => void
+): (() => void) => {
+  return onSnapshot(
+    doc(db, 'users', uid),
+    (snap) => {
+      callback(snap.exists() ? ({ uid: snap.id, ...snap.data() } as UserProfile) : null);
+    },
+    () => callback(null)
+  );
+};
+
+export const listenToUserProfile = (uid: string, callback: (profile: UserProfile | null) => void): (() => void) => {
+  return onSnapshot(doc(db, 'users', uid), (snap) => {
+    callback(snap.exists() ? ({ uid: snap.id, ...snap.data() } as UserProfile) : null);
+  });
+};
+
 export const fetchUserProfile = async (uid: string): Promise<UserProfile | null> => {
   const d = await getDoc(doc(db, 'users', uid));
   if (d.exists()) {
+    const data = d.data();
+    // Self-heal a profile clobbered by the old full-replace bug: if it's missing
+    // the fields isValidUserProfile requires, owner updates silently fail and
+    // "nothing persists." Re-sync (only for the signed-in owner) to backfill them.
+    if (auth.currentUser?.uid === uid &&
+        (!data.uid || !data.displayName || data.photoURL === undefined || data.email === undefined)) {
+      await syncUserProfile(auth.currentUser).catch(() => {});
+      const dh = await getDoc(doc(db, 'users', uid));
+      if (dh.exists()) return { uid: dh.id, ...dh.data() } as UserProfile;
+    }
     return { uid: d.id, ...d.data() } as UserProfile;
   }
   if (auth.currentUser && auth.currentUser.uid === uid) {
@@ -3392,6 +5114,205 @@ export const updateUserProfile = async (uid: string, data: Partial<UserProfile>)
     await updateDoc(doc(db, 'users', uid), data);
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
+  }
+};
+
+// ── Display-name propagation ────────────────────────────────────────────────
+// A user's display name is denormalized (copied) into many documents at creation
+// time — a post stores `authorName`, a comment stores `userName`, a room stores
+// `hostName`, etc. Changing `users/{uid}.displayName` alone leaves every old copy
+// stale, so the new name never "reads everywhere". `propagateDisplayName` re-syncs
+// those copies across the user's own content.
+//
+// DELIBERATELY EXCLUDED — these are INDEPENDENT identities, not the account name,
+// and must never be overwritten by a display-name change:
+//   • Artist / persona names: albums.artist, personal_albums.artist,
+//     personal_tracks.artist, videos.artist, tracks[].artist. A user releases under
+//     independent artist names / Worlds characters (see Album.artistCharacterId).
+//   • Anonymous / alias flows: discussionPosts, discussionComments, sanctuary* —
+//     the stored name may be a chosen alias, not the account name.
+//   • Org / business / church entity names: notifications.senderName (often an org
+//     or the literal 'Plajah'), brand_accounts, organizations, businessPages, etc.
+//
+// Firestore rules only let a user (or an admin, where the rule allows) write their
+// own docs, so every target is queried strictly by its owner-uid field. Each target
+// is committed independently and guarded — a permission failure on one collection is
+// reported and never aborts the rest.
+type DisplayNameSyncTarget = {
+  collection: string;
+  uidField: string;
+  nameFields: string[];
+  /** Skip an individual doc when this returns true (e.g. authored as an org / anonymously). */
+  skip?: (data: any) => boolean;
+};
+
+const DISPLAY_NAME_SYNC_TARGETS: DisplayNameSyncTarget[] = [
+  { collection: 'posts',              uidField: 'authorId',   nameFields: ['authorName'], skip: d => !!d.authorOrgId },
+  { collection: 'feed',               uidField: 'authorId',   nameFields: ['authorName'], skip: d => !!d.authorOrgId },
+  { collection: 'articles',           uidField: 'authorId',   nameFields: ['authorName'] },
+  { collection: 'video_playlists',    uidField: 'ownerId',    nameFields: ['ownerName'] },
+  { collection: 'communityPlaylists', uidField: 'ownerId',    nameFields: ['authorName'] },
+  { collection: 'clubPosts',          uidField: 'authorId',   nameFields: ['authorName'] },
+  { collection: 'clubGallery',        uidField: 'uploaderId', nameFields: ['uploaderName'] },
+  { collection: 'clubChat',           uidField: 'senderId',   nameFields: ['senderName'] },
+  { collection: 'clubMemberships',    uidField: 'userId',     nameFields: ['displayName'] },
+  { collection: 'orgMemberships',     uidField: 'userId',     nameFields: ['displayName'] },
+  { collection: 'liveTalks',          uidField: 'hostId',     nameFields: ['hostName'] },
+  { collection: 'parties',            uidField: 'hostId',     nameFields: ['hostName'] },
+  { collection: 'rooms',              uidField: 'hostId',     nameFields: ['hostName'] },
+  { collection: 'live_feeds',         uidField: 'ownerId',    nameFields: ['ownerName'] },
+  { collection: 'ppv_events',         uidField: 'ownerId',    nameFields: ['ownerName'] },
+  { collection: 'classrooms',         uidField: 'ownerId',    nameFields: ['ownerName'] },
+  { collection: 'churchPrayers',      uidField: 'authorId',   nameFields: ['authorName'], skip: d => d.isAnonymous === true },
+];
+
+export interface DisplayNameSyncResult {
+  /** collection name → number of docs updated */
+  updated: Record<string, number>;
+  /** total docs updated across all collections */
+  total: number;
+  /** collections that could not be fully synced (permission / query error), with reason */
+  skipped: string[];
+}
+
+/**
+ * Re-sync a user's ACCOUNT display name across every denormalized copy on their own
+ * content, and update the canonical `users/{uid}` doc (+ Firebase Auth profile when the
+ * signed-in user is renaming themselves). Artist/persona, alias and org names are left
+ * untouched by design (see the block comment above). Safe to run repeatedly — it only
+ * writes docs whose stored name actually differs from the new one.
+ */
+export const propagateDisplayName = async (
+  uid: string,
+  newName: string,
+): Promise<DisplayNameSyncResult> => {
+  const result: DisplayNameSyncResult = { updated: {}, total: 0, skipped: [] };
+  const name = (newName || '').trim();
+  if (!uid || !name) return result;
+
+  // 1) Canonical source of truth.
+  try {
+    await updateDoc(doc(db, 'users', uid), { displayName: name });
+  } catch (e) {
+    result.skipped.push(`users/${uid}: ${(e as any)?.message || e}`);
+  }
+
+  // 2) Firebase Auth profile — only mutable for the currently signed-in user.
+  if (auth.currentUser && auth.currentUser.uid === uid) {
+    try { await updateProfile(auth.currentUser, { displayName: name }); } catch { /* non-fatal */ }
+  }
+
+  // 3) Fan out to denormalized copies, one collection at a time (independently guarded).
+  for (const target of DISPLAY_NAME_SYNC_TARGETS) {
+    try {
+      const snap = await getDocs(query(collection(db, target.collection), where(target.uidField, '==', uid)));
+      let batch = writeBatch(db);
+      let ops = 0, updatedHere = 0;
+      for (const d of snap.docs) {
+        const data = d.data() as any;
+        if (target.skip?.(data)) continue;
+        const changes: Record<string, string> = {};
+        for (const f of target.nameFields) {
+          if (data[f] !== undefined && data[f] !== name) changes[f] = name;
+        }
+        if (Object.keys(changes).length === 0) continue;
+        batch.update(d.ref, changes);
+        ops++; updatedHere++;
+        if (ops >= 400) { await batch.commit(); batch = writeBatch(db); ops = 0; }
+      }
+      if (ops > 0) await batch.commit();
+      if (updatedHere > 0) { result.updated[target.collection] = updatedHere; result.total += updatedHere; }
+    } catch (e) {
+      result.skipped.push(`${target.collection}: ${(e as any)?.message || e}`);
+    }
+  }
+
+  return result;
+};
+
+/**
+ * Server-side display-name resync (the Admin-SDK path). Covers what the client can't:
+ * comment subcollections (collection-group scan) and — for admins — ANY user's content.
+ * A normal user may call it for their OWN uid; the server rejects other targets unless admin.
+ * Returns the total docs updated, or ok:false with a reason (endpoint 403/unavailable is non-fatal).
+ */
+export const serverResyncDisplayName = async (
+  uid: string,
+  newName: string,
+): Promise<{ ok: boolean; total: number; error?: string }> => {
+  try {
+    const u = auth.currentUser;
+    if (!u) return { ok: false, total: 0, error: 'not signed in' };
+    const token = await u.getIdToken();
+    const res = await fetch('/api/admin/resync-display-name', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ uid, newName }),
+    });
+    if (!res.ok) return { ok: false, total: 0, error: `HTTP ${res.status}` };
+    const data = await res.json().catch(() => ({}));
+    return { ok: true, total: Number(data.total) || 0 };
+  } catch (e: any) {
+    return { ok: false, total: 0, error: e?.message || String(e) };
+  }
+};
+
+// ── Family / managed CHILD accounts ─────────────────────────────────────────
+// Child accounts are Firestore-only profiles (no separate Firebase Auth login) owned by
+// a guardian. Safe-by-default controls are applied at creation. The guardian switches
+// into a child's "kids mode" in-session (the active-profile overlay in App.tsx).
+
+/** Create a managed child profile under `guardianUid`. Returns the new profile. */
+export const createChildProfile = async (
+  guardianUid: string,
+  data: { displayName: string; birthYear?: number; photoURL?: string }
+): Promise<UserProfile | null> => {
+  try {
+    const childUid = `child_${guardianUid.slice(0, 6)}_${Math.random().toString(36).slice(2, 9)}`;
+    const profile: UserProfile = {
+      uid: childUid,
+      displayName: data.displayName || 'Kid',
+      photoURL: data.photoURL || '',
+      email: '',
+      isChild: true,
+      accountType: 'CHILD',
+      guardianUid,
+      birthYear: data.birthYear,
+      role: 'user',
+      tier: 'FREE',
+      followerCount: 0,
+      followingCount: 0,
+      createdAt: Date.now(),
+      storageUsage: { total: 0, audio: 0, video: 0, photos: 0 },
+      parentalControls: { adultFilter: true, maxMaturity: 'PG', hideAdultPosts: true, kidsMode: true },
+    } as UserProfile;
+    await setDoc(doc(db, 'users', childUid), profile);
+    await updateDoc(doc(db, 'users', guardianUid), { childUids: arrayUnion(childUid) });
+    return profile;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.CREATE, `users (child of ${guardianUid})`);
+    return null;
+  }
+};
+
+/** All child profiles managed by this guardian. */
+export const listChildProfiles = async (guardianUid: string): Promise<UserProfile[]> => {
+  try {
+    const snap = await getDocs(query(collection(db, 'users'), where('guardianUid', '==', guardianUid)));
+    return snap.docs.map(d => ({ uid: d.id, ...d.data() }) as UserProfile);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'users (children)');
+    return [];
+  }
+};
+
+/** Remove a managed child profile + unlink it from the guardian. */
+export const deleteChildProfile = async (guardianUid: string, childUid: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, 'users', childUid));
+    await updateDoc(doc(db, 'users', guardianUid), { childUids: arrayRemove(childUid) });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, `users/${childUid}`);
   }
 };
 
@@ -3534,46 +5455,34 @@ export const fetchPurchasedAlbums = async (uid: string): Promise<Album[]> => {
 };
 
 export const fetchFollowedArtists = async (uid: string): Promise<UserProfile[]> => {
-  const q = query(collection(db, 'follows'), where("followerId", "==", uid));
-  const snapshot = await getDocs(q);
-  const followingIds = snapshot.docs.map(d => d.data().followingId);
-  
-  if (followingIds.length === 0) return [];
-  
-  // Fetch profiles for these IDs
-  const profiles: UserProfile[] = [];
-  for (const id of followingIds) {
-    const p = await fetchUserProfile(id);
-    if (p) profiles.push(p);
+  try {
+    const q = query(collection(db, 'follows'), where("followerId", "==", uid), limit(100));
+    const snapshot = await getDocs(q);
+    const followingIds = snapshot.docs.map(d => d.data().followingId);
+    if (followingIds.length === 0) return [];
+    const results = await Promise.all(followingIds.map(id => fetchUserProfile(id).catch(() => null)));
+    return results.filter((p): p is UserProfile => p !== null);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'follows');
+    return [];
   }
-  return profiles;
 };
 
 export const fetchFriends = async (uid: string): Promise<UserProfile[]> => {
-  // Friends are mutual follows
-  // 1. Get people I follow
-  const followingQ = query(collection(db, 'follows'), where("followerId", "==", uid));
-  const followingSnap = await getDocs(followingQ);
-  const followingIds = followingSnap.docs.map(d => d.data().followingId);
-
-  if (followingIds.length === 0) return [];
-
-  // 2. Get people who follow me
-  const followersQ = query(collection(db, 'follows'), where("followingId", "==", uid));
-  const followersSnap = await getDocs(followersQ);
-  const followerIds = followersSnap.docs.map(d => d.data().followerId);
-
-  // 3. Find intersection
-  const friendIds = followingIds.filter(id => followerIds.includes(id));
-
-  if (friendIds.length === 0) return [];
-
-  const profiles: UserProfile[] = [];
-  for (const id of friendIds) {
-    const p = await fetchUserProfile(id);
-    if (p) profiles.push(p);
+  try {
+    const [followingSnap, followersSnap] = await Promise.all([
+      getDocs(query(collection(db, 'follows'), where("followerId", "==", uid), limit(200))),
+      getDocs(query(collection(db, 'follows'), where("followingId", "==", uid), limit(200))),
+    ]);
+    const followingIds = new Set(followingSnap.docs.map(d => d.data().followingId));
+    const friendIds = followersSnap.docs.map(d => d.data().followerId).filter(id => followingIds.has(id));
+    if (friendIds.length === 0) return [];
+    const results = await Promise.all(friendIds.slice(0, 50).map(id => fetchUserProfile(id).catch(() => null)));
+    return results.filter((p): p is UserProfile => p !== null);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'follows');
+    return [];
   }
-  return profiles;
 };
 
 export const fetchArtistMerch = async (artistId: string): Promise<MerchItem[]> => {
@@ -3841,6 +5750,40 @@ export const addToLibrary = async (trackId: string) => {
   }
 };
 
+export const subscribeToPodcast = async (podcastId: string): Promise<void> => {
+  if (!auth.currentUser) return;
+  const userRef = doc(db, 'users', auth.currentUser.uid);
+  try {
+    await updateDoc(userRef, { subscribedPodcastIds: arrayUnion(podcastId) });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, `users/${auth.currentUser.uid}`);
+  }
+};
+
+export const unsubscribeFromPodcast = async (podcastId: string): Promise<void> => {
+  if (!auth.currentUser) return;
+  const userRef = doc(db, 'users', auth.currentUser.uid);
+  try {
+    await updateDoc(userRef, { subscribedPodcastIds: arrayRemove(podcastId) });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, `users/${auth.currentUser.uid}`);
+  }
+};
+
+export const fetchAlbumsByIds = async (ids: string[]): Promise<Album[]> => {
+  if (!ids || ids.length === 0) return [];
+  const results: Album[] = [];
+  await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const snap = await getDoc(doc(db, 'albums', id));
+        if (snap.exists()) results.push({ id: snap.id, ...snap.data() } as Album);
+      } catch { /* skip missing */ }
+    })
+  );
+  return results;
+};
+
 export const fetchTVChannels = async (): Promise<TVChannel[]> => {
   const path = 'tv_channels';
   try {
@@ -3895,7 +5838,7 @@ export const addUserGame = async (game: Omit<Game, 'id' | 'timestamp' | 'playCou
     const newGame: Game = {
       ...game,
       id: gameId,
-      ownerId: auth.currentUser.uid,
+      ownerId: auth.currentUser!.uid,
       playCount: 0,
       timestamp: Date.now()
     };
@@ -3944,7 +5887,7 @@ export const createPersonalAlbum = async (album: Partial<Album>) => {
   const path = `personal_albums/${id}`;
   const newAlbum: Album = {
     id,
-    ownerId: auth.currentUser.uid,
+    ownerId: auth.currentUser!.uid,
     title: album.title || 'Untitled Album',
     artist: album.artist || 'Personal Collection',
     coverImage: album.coverImage || 'https://picsum.photos/seed/album/400/400',
@@ -3968,13 +5911,12 @@ export const fetchPersonalTracks = async () => {
   if (!auth.currentUser) return [];
   const path = 'personal_tracks';
   try {
-    const q = query(
-      collection(db, 'personal_tracks'), 
-      where('ownerId', '==', auth.currentUser.uid),
-      orderBy('timestamp', 'desc')
-    );
+    // No orderBy — that would require a composite index (ownerId+timestamp) which,
+    // if absent, makes the whole query fail silently and the locker looks empty.
+    // Single-field where() is auto-indexed; sort newest-first in JS.
+    const q = query(collection(db, 'personal_tracks'), where('ownerId', '==', auth.currentUser.uid));
     const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as Track);
+    return snap.docs.map(d => d.data() as Track).sort((a, b) => ((b as any).timestamp || 0) - ((a as any).timestamp || 0));
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
@@ -3985,16 +5927,22 @@ export const fetchPersonalAlbums = async () => {
   if (!auth.currentUser) return [];
   const path = 'personal_albums';
   try {
-    const q = query(
-      collection(db, 'personal_albums'), 
-      where('ownerId', '==', auth.currentUser.uid),
-      orderBy('createdAt', 'desc')
-    );
+    const q = query(collection(db, 'personal_albums'), where('ownerId', '==', auth.currentUser.uid));
     const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as Album);
+    return snap.docs.map(d => d.data() as Album).sort((a, b) => ((b as any).createdAt || 0) - ((a as any).createdAt || 0));
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
+  }
+};
+
+/** Merge-update a locker track (e.g. enriched lyrics/art). Owner-gated by rules. */
+export const updatePersonalTrack = async (id: string, updates: Partial<Track>) => {
+  if (!auth.currentUser || !id) return;
+  try {
+    await setDoc(doc(db, 'personal_tracks', id), removeUndefined(updates as any), { merge: true });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `personal_tracks/${id}`);
   }
 };
 
@@ -4004,7 +5952,7 @@ export const createPlaylist = async (playlist: Partial<Playlist>) => {
   const path = `personal_playlists/${id}`;
   const newPlaylist: Playlist = {
     id,
-    ownerId: auth.currentUser.uid,
+    ownerId: auth.currentUser!.uid,
     title: playlist.title || 'New Playlist',
     description: playlist.description || '',
     coverUrl: playlist.coverUrl || 'https://picsum.photos/seed/playlist/400/400',
@@ -4023,13 +5971,11 @@ export const fetchPersonalPlaylists = async () => {
   if (!auth.currentUser) return [];
   const path = 'personal_playlists';
   try {
-    const q = query(
-      collection(db, 'personal_playlists'), 
-      where('ownerId', '==', auth.currentUser.uid),
-      orderBy('timestamp', 'desc')
-    );
+    // No orderBy — avoids composite index requirement on named database; sort in JS instead
+    const q = query(collection(db, 'personal_playlists'), where('ownerId', '==', auth.currentUser.uid));
     const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as Playlist);
+    const playlists = snap.docs.map(d => d.data() as Playlist);
+    return playlists.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
@@ -4052,6 +5998,108 @@ export const deletePlaylist = async (playlistId: string) => {
     await deleteDoc(doc(db, 'personal_playlists', playlistId));
   } catch (e) {
     handleFirestoreError(e, OperationType.DELETE, path);
+  }
+};
+
+// ── Community Playlists ────────────────────────────────────────────────────────
+// Shared to the public `communityPlaylists` collection with tags like
+// 'workout', 'wellness', 'meditation', 'study', 'hype', 'chill', 'sleep'.
+
+export const sharePlaylistToCommunity = async (
+  playlist: Playlist,
+  tags: string[],
+) => {
+  if (!auth.currentUser) return null;
+  const u = auth.currentUser;
+  const id = `cp_${playlist.id}_${u.uid}`;
+  const doc_ = doc(db, 'communityPlaylists', id);
+  const data = {
+    ...playlist,
+    id,
+    ownerId: u.uid,
+    authorName: u.displayName ?? 'Unknown',
+    authorPhoto: u.photoURL ?? '',
+    tags,
+    likes: 0,
+    plays: 0,
+    isPublic: true,
+    sharedAt: Date.now(),
+    timestamp: Date.now(),
+  };
+  try {
+    await setDoc(doc_, data);
+    return data;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.CREATE, 'communityPlaylists');
+    return null;
+  }
+};
+
+export const fetchCommunityPlaylistsByTag = async (tag: string, limitCount = 20) => {
+  try {
+    const q = query(
+      collection(db, 'communityPlaylists'),
+      where('isPublic', '==', true),
+      where('tags', 'array-contains', tag),
+      limit(limitCount),
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data()) as import('../types').CommunityPlaylist[];
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'communityPlaylists');
+    return [];
+  }
+};
+
+export const fetchAllCommunityPlaylists = async (limitCount = 40) => {
+  try {
+    const q = query(
+      collection(db, 'communityPlaylists'),
+      where('isPublic', '==', true),
+      limit(limitCount),
+    );
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => d.data() as import('../types').CommunityPlaylist)
+      .sort((a, b) => (b.sharedAt ?? 0) - (a.sharedAt ?? 0));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'communityPlaylists');
+    return [];
+  }
+};
+
+export const likeCommunityPlaylist = async (playlistId: string) => {
+  try {
+    await updateDoc(doc(db, 'communityPlaylists', playlistId), {
+      likes: (await getDoc(doc(db, 'communityPlaylists', playlistId))).data()?.likes + 1 || 1,
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `communityPlaylists/${playlistId}`);
+  }
+};
+
+export const incrementPlaylistPlays = async (playlistId: string) => {
+  try {
+    const ref = doc(db, 'communityPlaylists', playlistId);
+    const snap = await getDoc(ref);
+    if (snap.exists()) await updateDoc(ref, { plays: (snap.data().plays ?? 0) + 1 });
+  } catch {}
+};
+
+export const fetchMySharedPlaylists = async () => {
+  if (!auth.currentUser) return [];
+  try {
+    const q = query(
+      collection(db, 'communityPlaylists'),
+      where('ownerId', '==', auth.currentUser.uid),
+    );
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => d.data() as import('../types').CommunityPlaylist)
+      .sort((a, b) => (b.sharedAt ?? 0) - (a.sharedAt ?? 0));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'communityPlaylists');
+    return [];
   }
 };
 
@@ -4082,17 +6130,73 @@ export const uploadPersonalTrack = async (track: Partial<Track>, file: File, alb
       ...newTrack,
       ownerId: auth.currentUser.uid
     }));
-    
-    // Also add to user's personalTracks array for backward compatibility if needed, 
-    // but we should prefer fetching from collection
-    const userRef = doc(db, 'users', auth.currentUser.uid);
-    await updateDoc(userRef, {
-      personalTracks: arrayUnion(newTrack)
-    });
-    
+    // NOTE: the `personal_tracks` collection is the source of truth (fetchPersonalTracks).
+    // We deliberately do NOT append to a `personalTracks` array on the user doc — a music
+    // locker can hold thousands of tracks and that array would blow the 1MB doc limit
+    // (and would leak private locker tracks into artist-mode displays).
     return newTrack;
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, trackPath);
+  }
+};
+
+/** Delete a track from the private music locker (personal_tracks). Owner-only. */
+export const deletePersonalTrack = async (trackId: string) => {
+  if (!auth.currentUser) return;
+  try {
+    await deleteDoc(doc(db, 'personal_tracks', trackId));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, `personal_tracks/${trackId}`);
+  }
+};
+
+// ── Personal VIDEO locker (Plex-style: movies/TV the user owns → Taleo) ──────────
+// Private to the owner (personal_videos, owner-only rules). Never shared.
+export const uploadPersonalVideo = async (video: Partial<Video>, file: File): Promise<Video | undefined> => {
+  if (!auth.currentUser) return;
+  const uid = auth.currentUser.uid;
+  const path = `personal/${uid}/videos/${Date.now()}_${file.name}`;
+  const url = await uploadFile(path, file);
+  const id = `pvid_${Math.random().toString(36).substr(2, 9)}`;
+  const newVideo: Video = removeUndefined({
+    id,
+    ownerId: uid,
+    title: video.title || file.name.replace(/\.[^/.]+$/, ''),
+    category: video.category || 'MOVIE',
+    isPersonalMedia: true,
+    isPrivate: true,
+    rightsOwnerId: uid,
+    timestamp: Date.now(),
+    ...video,
+    url,               // uploaded URL wins over anything in `video`
+  }) as Video;
+  try {
+    await setDoc(doc(db, 'personal_videos', id), removeUndefined({ ...newVideo, ownerId: uid }));
+    return newVideo;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.CREATE, `personal_videos/${id}`);
+  }
+};
+
+/** The owner's private movie/TV locker, newest first (no composite index needed). */
+export const fetchPersonalVideos = async (): Promise<Video[]> => {
+  if (!auth.currentUser) return [];
+  try {
+    const q = query(collection(db, 'personal_videos'), where('ownerId', '==', auth.currentUser.uid));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as Video).sort((a, b) => ((b as any).timestamp || 0) - ((a as any).timestamp || 0));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'personal_videos');
+    return [];
+  }
+};
+
+export const deletePersonalVideo = async (videoId: string) => {
+  if (!auth.currentUser) return;
+  try {
+    await deleteDoc(doc(db, 'personal_videos', videoId));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, `personal_videos/${videoId}`);
   }
 };
 
@@ -4186,12 +6290,23 @@ export const createChatRoom = async (participants: string[], type: ChatRoom['typ
     const snap = await getDocs(q);
     
     // For private chats, check if one already exists
-    if (type === 'PRIVATE') {
+    if (type === 'PRIVATE' && participants.length === 2) {
       const existing = snap.docs.find(d => {
         const p = d.data().participants as string[];
         return p.length === 2 && participants.every(uid => p.includes(uid));
       });
       if (existing) return existing.id;
+      // Deterministic id for a DM pair — concurrent creates converge on the SAME
+      // doc (setDoc/merge) instead of racing into two rooms for the same pair.
+      const dmId = 'dm_' + [...participants].sort().join('_');
+      await setDoc(doc(db, path, dmId), {
+        participants,
+        type,
+        name: name || '',
+        updatedAt: Date.now(),
+        ownerId: auth.currentUser?.uid,
+      }, { merge: true });
+      return dmId;
     }
 
     const docRef = await addDoc(collection(db, path), {
@@ -4204,6 +6319,28 @@ export const createChatRoom = async (participants: string[], type: ChatRoom['typ
     return docRef.id;
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
+    throw e;
+  }
+};
+
+export const deleteChatRoom = async (roomId: string): Promise<void> => {
+  const path = `chat_rooms/${roomId}`;
+  try {
+    // Delete all messages in batches of 400 (Firestore batch limit is 500)
+    const msgsSnap = await getDocs(collection(db, 'chat_rooms', roomId, 'messages'));
+    const chunks: typeof msgsSnap.docs[] = [];
+    for (let i = 0; i < msgsSnap.docs.length; i += 400) {
+      chunks.push(msgsSnap.docs.slice(i, i + 400));
+    }
+    await Promise.all(chunks.map(chunk => {
+      const batch = writeBatch(db);
+      chunk.forEach(d => batch.delete(d.ref));
+      return batch.commit();
+    }));
+    // Delete the room document itself
+    await deleteDoc(doc(db, 'chat_rooms', roomId));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, path);
     throw e;
   }
 };
@@ -4239,9 +6376,16 @@ export const markMessageAsSeen = async (roomId: string, messageId: string) => {
   const path = `chat_rooms/${roomId}/messages/${messageId}`;
   try {
     const msgRef = doc(db, 'chat_rooms', roomId, 'messages', messageId);
-    await updateDoc(msgRef, {
-      seenBy: arrayUnion(auth.currentUser.uid)
-    });
+    // Read first to check burnAfterSeen flag — only triggers countdown when recipient (not sender) sees it
+    const snap = await getDoc(msgRef);
+    const data = snap.data();
+    const uid = auth.currentUser.uid;
+    const updates: Record<string, any> = { seenBy: arrayUnion(uid) };
+    // If burn-after-read is armed and NOT yet stamped, set the 30s countdown now
+    if (data?.burnAfterSeen && !data?.burnAfter && data?.senderId !== uid) {
+      updates.burnAfter = Date.now() + 30_000;
+    }
+    await updateDoc(msgRef, updates);
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
   }
@@ -4271,19 +6415,23 @@ export const sendMessage = async (roomId: string, message: Omit<ChatMessage, 'id
           senderPhoto: auth.currentUser?.photoURL || '',
           type: 'MESSAGE',
           title: 'New Message',
-          message: `${auth.currentUser?.displayName}: ${message.text.substring(0, 50)}${message.text.length > 50 ? '...' : ''}`,
+          message: `${auth.currentUser?.displayName}: ${(message.text ?? '').substring(0, 50)}${(message.text ?? '').length > 50 ? '...' : ''}`,
           link: 'MESSAGES',
           targetId: roomId
         });
       });
     }
     
-    // Use setDoc with merge instead of updateDoc to allow lazy creation of the room document (especially for live chats)
+    // Update room metadata — preserve existing type for already-created rooms (PRIVATE, GROUP, etc.)
+    // Only default type for truly new rooms (lazy-created live chats that have no document yet)
+    const existingType = roomSnap.exists() ? roomSnap.data().type : null;
+    const roomType = existingType || (roomId.startsWith('live_chat_') ? 'PUBLIC_LIVE' : 'GROUP');
     await setDoc(doc(db, 'chat_rooms', roomId), {
       lastMessage: message.text || (message.type === 'VOICE' ? 'Voice Note' : message.type === 'MEDIA' ? 'Shared Media' : ''),
       updatedAt: Date.now(),
-      type: roomId.startsWith('live_chat_') ? 'PUBLIC_LIVE' : 'GROUP', // Default type for lazy creation
-      participants: arrayUnion(auth.currentUser?.uid) // Ensure sender is in participants
+      type: roomType,
+      // Always add sender to participants so Firestore security rules never block reads
+      participants: arrayUnion(auth.currentUser?.uid),
     }, { merge: true });
 
     // If it's a media message, update the album's sharedWith list
@@ -4298,6 +6446,41 @@ export const sendMessage = async (roomId: string, message: Omit<ChatMessage, 'id
   }
 };
 
+/** Upsert a live_chat room document with song metadata so ChatSystem can show cover art. */
+export const ensureLiveChatRoom = async (
+  roomId: string,
+  meta: { name: string; coverUrl?: string; mediaId?: string; mediaArtist?: string }
+): Promise<void> => {
+  if (!auth.currentUser) return;
+  await setDoc(doc(db, 'chat_rooms', roomId), {
+    type: 'PUBLIC_LIVE',
+    name: meta.name,
+    coverUrl: meta.coverUrl ?? null,
+    mediaId: meta.mediaId ?? null,
+    mediaTitle: meta.name,
+    mediaArtist: meta.mediaArtist ?? null,
+    participants: arrayUnion(auth.currentUser.uid),
+    updatedAt: Date.now(),
+  }, { merge: true });
+};
+
+/**
+ * Persist intimate-mode settings on a chat room (shared: both participants read the same doc).
+ * Merged onto chat_rooms/{roomId}; only defined keys are written (undefined would throw).
+ */
+export const updateRoomIntimate = async (
+  roomId: string,
+  patch: { isIntimate?: boolean; intimateBackgroundUrl?: string | null; intimateTheme?: string; intimatePetName?: string | null },
+): Promise<void> => {
+  if (!auth.currentUser) return;
+  const clean: Record<string, any> = {};
+  for (const [k, v] of Object.entries(patch)) if (v !== undefined) clean[k] = v;
+  if (Object.keys(clean).length === 0) return;
+  // No updatedAt bump — the existing doc already satisfies isValidChatRoom, and bumping would
+  // reorder the DM list every time a couple tweaks their theme/background.
+  await setDoc(doc(db, 'chat_rooms', roomId), clean, { merge: true });
+};
+
 export const listenToMessages = (roomId: string, callback: (messages: ChatMessage[]) => void) => {
   const q = query(collection(db, 'chat_rooms', roomId, 'messages'), orderBy('timestamp', 'asc'));
   return onSnapshot(q, (snap) => {
@@ -4305,11 +6488,31 @@ export const listenToMessages = (roomId: string, callback: (messages: ChatMessag
   }, (e) => handleFirestoreError(e, OperationType.LIST, `chat_rooms/${roomId}/messages`));
 };
 
+/**
+ * Collapse duplicate DM conversations. Two things cause dupes in the inbox:
+ *  1. a race in createChatRoom can create two chat_room docs for the same pair,
+ *  2. an onSnapshot listener can re-fire / re-register (React strict mode).
+ * For PRIVATE rooms we key by the SORTED participant set so the same DM pair
+ * shows once (keeping the most recently active doc); everything else keys by id.
+ */
+export const dedupeChatRooms = (rooms: ChatRoom[]): ChatRoom[] => {
+  const byKey = new Map<string, ChatRoom>();
+  for (const r of rooms) {
+    const parts = Array.isArray(r.participants) ? r.participants : [];
+    const key = r.type === 'PRIVATE' && parts.length
+      ? 'dm:' + [...parts].sort().join('|')
+      : 'id:' + r.id;
+    const existing = byKey.get(key);
+    if (!existing || (r.updatedAt || 0) > (existing.updatedAt || 0)) byKey.set(key, r);
+  }
+  return [...byKey.values()].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+};
+
 export const listenToChatRooms = (callback: (rooms: ChatRoom[]) => void) => {
   if (!auth.currentUser) return () => {};
   const q = query(collection(db, 'chat_rooms'), where("participants", "array-contains", auth.currentUser.uid), orderBy('updatedAt', 'desc'));
   return onSnapshot(q, (snap) => {
-    callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as ChatRoom)));
+    callback(dedupeChatRooms(snap.docs.map(d => ({ id: d.id, ...d.data() } as ChatRoom))));
   }, (e) => handleFirestoreError(e, OperationType.LIST, 'chat_rooms'));
 };
 
@@ -4318,7 +6521,7 @@ export const fetchChatRooms = async (): Promise<ChatRoom[]> => {
   const q = query(collection(db, 'chat_rooms'), where("participants", "array-contains", auth.currentUser.uid), orderBy('updatedAt', 'desc'));
   try {
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as ChatRoom));
+    return dedupeChatRooms(snap.docs.map(d => ({ id: d.id, ...d.data() } as ChatRoom)));
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, 'chat_rooms');
     return [];
@@ -4376,7 +6579,11 @@ export const fetchCollabProjects = async (chatRoomId: string): Promise<CollabPro
   }
 };
 
-export const startCall = async (receiverId: string, type: CallSession['type']): Promise<string> => {
+export const startCall = async (
+  receiverId: string,
+  type: CallSession['type'],
+  meta?: { roomId?: string; roomName?: string; callerName?: string; callerPhoto?: string },
+): Promise<string> => {
   const path = 'calls';
   try {
     const docRef = await addDoc(collection(db, path), {
@@ -4384,13 +6591,37 @@ export const startCall = async (receiverId: string, type: CallSession['type']): 
       receiverId,
       type,
       status: 'RINGING',
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      roomId: meta?.roomId || '',
+      roomName: meta?.roomName || '',
+      callerName: meta?.callerName || auth.currentUser?.displayName || 'Someone',
+      callerPhoto: meta?.callerPhoto || auth.currentUser?.photoURL || '',
     });
+    // Push notification so the callee is alerted even outside the app.
+    try {
+      await createNotification({
+        userId: receiverId,
+        senderId: auth.currentUser?.uid || '',
+        senderName: meta?.callerName || auth.currentUser?.displayName || 'Someone',
+        senderPhoto: meta?.callerPhoto || auth.currentUser?.photoURL || '',
+        type: 'SYSTEM',
+        title: `Incoming ${type === 'VIDEO' ? 'video' : 'voice'} call`,
+        message: `${meta?.callerName || auth.currentUser?.displayName || 'Someone'} is calling you`,
+        targetId: docRef.id,
+      } as any);
+    } catch { /* non-fatal */ }
     return docRef.id;
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
     throw e;
   }
+};
+
+/** The CALLER watches its own call doc to learn when it's answered / declined / missed. */
+export const listenToCall = (callId: string, callback: (call: CallSession | null) => void) => {
+  return onSnapshot(doc(db, 'calls', callId), (snap) => {
+    callback(snap.exists() ? ({ id: snap.id, ...snap.data() } as CallSession) : null);
+  }, (e) => handleFirestoreError(e, OperationType.LIST, `calls/${callId}`));
 };
 
 export const listenToCalls = (callback: (calls: CallSession[]) => void) => {
@@ -4553,14 +6784,99 @@ export const seedMockUsers = async () => {
 
 // --- VIDEO FEATURES ---
 
+// Upload a video file directly to Mux (browser → Mux, skipping Firebase Storage).
+// Uses Mux's UpChunk for a RESUMABLE, chunked upload: multi-GB films survive
+// dropped connections (each chunk auto-retries, the whole upload resumes from the
+// last good chunk instead of restarting). This is what makes large professional
+// uploads reliable — a single PUT would restart from 0% on any network blip.
+// Returns the Mux upload ID so we can poll for the playback ID afterwards.
+export const uploadVideoFileMux = async (
+  file: File,
+  onProgress?: (p: number) => void,
+  existing?: { id: string; url: string },   // pass to RESUME an interrupted upload
+): Promise<string> => {
+  const { id: uploadId, url: uploadUrl } = existing ?? await createMuxDirectUpload();
+  // Persist so a tab close / crash / network drop mid-upload can be resumed. The
+  // Mux url is a resumable GCS endpoint, so re-running UpChunk against it continues
+  // from the last byte instead of restarting.
+  saveResumable({
+    uploadId, uploadUrl,
+    fileName: file.name, fileSize: file.size,
+    title: file.name.replace(/\.[^.]+$/, ''),
+    createdAt: Date.now(), progress: 0,
+  });
+  const UpChunk = await import('@mux/upchunk');
+  await new Promise<void>((resolve, reject) => {
+    const upload = UpChunk.createUpload({
+      endpoint: uploadUrl,
+      file,
+      chunkSize: 30720,   // 30 MB chunks — good balance for big files on real networks
+      attempts: 6,        // retry each chunk up to 6× before failing
+      delayBeforeAttempt: 1, // seconds; UpChunk backs off between retries
+    });
+    // Expose live progress + Pause/Resume to the publish tray.
+    registerTransfer({
+      id: uploadId, fileName: file.name, progress: 0, paused: false,
+      pause: () => { upload.pause(); updateTransfer(uploadId, { paused: true }); },
+      resume: () => { upload.resume(); updateTransfer(uploadId, { paused: false }); },
+    });
+    upload.on('progress', (e: any) => { const p = Math.round(e.detail); if (onProgress) onProgress(p); updateResumableProgress(p); updateTransfer(uploadId, { progress: p }); });
+    upload.on('success', () => { removeTransfer(uploadId); resolve(); });
+    upload.on('error', (e: any) => { removeTransfer(uploadId); reject(new Error(e?.detail?.message || 'Mux upload failed')); });
+  });
+  clearResumable();
+  return uploadId;
+};
+
+// Resume an interrupted film upload (from the persisted resumable entry + the
+// re-selected file). Finishes the Mux upload to the SAME url, then creates the
+// video doc owned by the current account and starts Mux transcode polling.
+export const resumeVideoUpload = async (
+  entry: { uploadId: string; uploadUrl: string; title: string },
+  file: File,
+  onProgress?: (p: number) => void,
+): Promise<string | null> => {
+  const uploaderUid = auth.currentUser?.uid;
+  if (!uploaderUid) throw new Error('Sign in to resume your upload.');
+  await uploadVideoFileMux(file, onProgress, { id: entry.uploadId, url: entry.uploadUrl });
+  const id = `vid_${Date.now()}`;
+  const newVideo = removeUndefined({
+    id,
+    ownerId: uploaderUid,
+    title: entry.title || 'Untitled Video',
+    url: '',
+    muxUploadId: entry.uploadId,
+    isPrivate: true,   // resumed uploads land as a private draft the owner can publish
+    timestamp: Date.now(),
+  });
+  await setDoc(doc(db, 'videos', id), newVideo as any);
+  pollMuxUploadUntilReady(entry.uploadId, async (playbackId, assetId) => {
+    await updateDoc(doc(db, 'videos', id), { muxPlaybackId: playbackId, muxAssetId: assetId, muxUploadId: null }).catch(() => {});
+  }, 450, 4000);
+  return id;
+};
+
 export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number) => void): Promise<Video> => {
   if (!auth.currentUser) throw new Error("Must be signed in to upload videos.");
+  // Pin ownership to the account that STARTED the upload. A large film can upload
+  // for many minutes; if the user hot-switches accounts mid-upload we must NOT
+  // re-own the video to whoever is active when it finishes — it stays with the
+  // uploader until they delete it.
+  const uploaderUid = auth.currentUser.uid;
   const id = `vid_${Date.now()}`;
   const path = `videos/${id}`;
-  
+
   let videoUrl = video.url || '';
+  let muxUploadId: string | undefined;
   if (video.file) {
-    videoUrl = await uploadFile(`videos/${id}/source.mp4`, video.file, onProgress);
+    try {
+      // Preferred path: upload directly to Mux (browser → Mux, no Firebase Storage hop)
+      muxUploadId = await uploadVideoFileMux(video.file, onProgress);
+    } catch {
+      // Server not available in production — fall back to Firebase Storage,
+      // then trigger Mux URL ingestion after the file is in Storage.
+      videoUrl = await uploadFile(`videos/${id}/source.mp4`, video.file, onProgress);
+    }
   }
   
   let thumbUrl = video.thumbnailUrl || '';
@@ -4575,7 +6891,7 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
   
   const newVideo: Video = {
     id,
-    ownerId: auth.currentUser.uid,
+    ownerId: uploaderUid,
     title: video.title || 'Untitled Video',
     url: videoUrl,
     thumbnailUrl: thumbUrl,
@@ -4588,46 +6904,159 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
     isPrivate: video.isPrivate || false,
     timestamp: Date.now(),
     likesCount: 0,
-    commentsCount: 0
-  };
+    commentsCount: 0,
+    // Store the Mux direct-upload ID so we can resume polling if the tab is
+    // refreshed before Mux finishes transcoding a large file.
+    ...(muxUploadId ? { muxUploadId } : {}),
+    // Saved live-stream replays surface in Reello's "Past Live Streams".
+    ...(video.isLiveRecording ? { isLiveRecording: true } : {}),
+    // Reello UGC marker — REQUIRED for the video to show in the Reello feed
+    // (RelloView filters by isRello === true). Was being dropped here.
+    ...(video.isRello ? { isRello: true } : {}),
+    // Fabula-library marker — one uploaded file can surface in Reello, the Fabula
+    // video bin, or both; these flags are the routing conditions.
+    ...((video as any).isFabula ? { isFabula: true } : {}),
+    // Taleo routing: MoviesTVView surfaces videos with subType MOVIE / TV_SERIES.
+    ...((video as any).subType ? { subType: (video as any).subType } : {}),
+    ...(Array.isArray(video.tags) && video.tags.length ? { tags: video.tags } : {}),
+    ...(typeof video.duration === 'number' ? { duration: video.duration } : {}),
+    // Remix lineage must survive the write — provenance below depends on it.
+    ...(video.remixOfVideoId ? { remixOfVideoId: video.remixOfVideoId } : {}),
+    // Creator Passport provenance (blueprint 1C.5). For an ORIGINAL upload the record
+    // is knowable inline and costs nothing extra. A REMIX needs its source's origin,
+    // which is an async read — that case is stamped just after the write below.
+    // NB: this is an attribution record, NOT cryptographic proof — see
+    // services/creatorPassport.ts before writing any UI copy about it.
+    ...(video.remixOfVideoId ? {} : { provenance: buildProvenance({ videoId: id, ownerId: uploaderUid }) }),
+  } as any;
   
-  try {
-    if (videoUrl && !videoUrl.includes('youtube.com') && !videoUrl.includes('youtu.be') && !videoUrl.includes('vimeo.com')) {
-      const res = await fetch('/api/mux/create-asset-from-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: videoUrl })
-      });
-      if (res.ok) {
-        const muxData = await res.json();
-        if (muxData.playbackId) {
-          newVideo.muxPlaybackId = muxData.playbackId;
-          newVideo.muxAssetId = muxData.assetId;
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Failed to auto-migrate to Mux during upload:', err);
-  }
-  
+  // Save to Firestore immediately so the creator can see the video right away.
   try {
     await setDoc(doc(db, 'videos', id), newVideo);
-    return newVideo;
+    // Remix uploads: resolve the source's origin and stamp provenance. Fire-and-forget —
+    // a failed stamp must never fail an upload that already succeeded.
+    if (video.remixOfVideoId) {
+      stampVideo(id, uploaderUid, { remixOfVideoId: video.remixOfVideoId }).catch(() => {});
+    }
+    // New video is new content — notify the creator's followers (unless it's a private upload).
+    if (!newVideo.isPrivate) {
+      notifyFollowers(uploaderUid, 'CONTENT', 'New Video', `${auth.currentUser.displayName || 'A creator'} posted a new video: ${newVideo.title}`, 'FEED', id, { highlight: true });
+    }
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
     throw e;
   }
+
+  if (muxUploadId) {
+    // Direct-upload path: poll Mux for the playback ID once the asset is ready.
+    // 450 attempts × 4s = 30 minutes — enough for feature-length movie files.
+    pollMuxUploadUntilReady(muxUploadId, async (playbackId, assetId) => {
+      try {
+        await updateDoc(doc(db, 'videos', id), {
+          muxPlaybackId: playbackId,
+          muxAssetId: assetId,
+          muxUploadId: null, // clear once resolved
+        });
+      } catch {}
+    }, 450, 4000);
+  } else if (videoUrl && !videoUrl.includes('youtube.com') && !videoUrl.includes('youtu.be') && !videoUrl.includes('vimeo.com')) {
+    // Firebase Storage fallback path — ingest the URL into Mux in the background.
+    (async () => {
+      try {
+        const muxData = await createMuxAssetFromUrl(videoUrl);
+        await updateDoc(doc(db, 'videos', id), {
+          ...(muxData.assetId   ? { muxAssetId:    muxData.assetId    } : {}),
+          ...(muxData.playbackId ? { muxPlaybackId: muxData.playbackId } : {}),
+          muxUploadId: null,
+        });
+      } catch (err) {
+        console.error('Background Mux transcoding failed for video', id, ':', err);
+      }
+    })();
+  }
+
+  return newVideo;
+};
+
+// --- Mux Live Streaming ---
+
+const getRequiredIdToken = async (): Promise<string> => {
+  const idToken = await auth.currentUser?.getIdToken();
+  if (!idToken) throw new Error('Sign in required.');
+  return idToken;
+};
+
+/** Firebase ID token if the user is signed in, else null. Used by callers that
+ *  can attach auth opportunistically (e.g. the Crossover cloud converter). */
+export const getOptionalIdToken = async (): Promise<string | null> => {
+  try { return (await auth.currentUser?.getIdToken()) || null; } catch { return null; }
+};
+
+export const createMuxLiveStream = async (): Promise<{
+  streamId: string;
+  streamKey: string;
+  rtmpUrl: string;
+  srtUrl: string;
+  playbackId: string | null;
+}> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch('/api/mux/live/create', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Failed to create live stream' }));
+    throw new Error(err.error || 'Failed to create Mux live stream');
+  }
+  return res.json();
+};
+
+export const endMuxLiveStream = async (streamId: string): Promise<{ assetId: string | null; playbackId: string | null }> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/mux/live/${streamId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Failed to end stream' }));
+    throw new Error(err.error || 'Failed to end Mux live stream');
+  }
+  const data = await res.json();
+  return { assetId: data.assetId ?? null, playbackId: data.playbackId ?? null };
+};
+
+export const getMuxLiveStreamStatus = async (streamId: string): Promise<{ status: string; playbackId: string | null }> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/mux/live/${streamId}/status`, {
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
+  if (!res.ok) throw new Error('Failed to fetch stream status');
+  return res.json();
 };
 
 export const fetchAllVideos = async (): Promise<Video[]> => {
   const path = 'videos';
   try {
-    const q = query(collection(db, path), where("isPrivate", "==", false), orderBy("timestamp", "desc"), limit(50));
+    // No orderBy — avoids composite index requirement on named database; sort in JS instead
+    const q = query(collection(db, path), where("isPrivate", "==", false), limit(100));
     const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as Video);
+    const videos = snap.docs.map(d => ({ id: d.id, ...d.data() } as Video));
+    return videos.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 50);
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
+  }
+};
+
+/** Fetch a single video by id — for deep links (fetchAllVideos only returns the
+ *  recent-50, so a shared older video must be fetched directly). */
+export const fetchVideoById = async (id: string): Promise<Video | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'videos', id));
+    return snap.exists() ? ({ id: snap.id, ...snap.data() } as Video) : null;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, `videos/${id}`);
+    return null;
   }
 };
 
@@ -4647,16 +7076,19 @@ export const fetchUserVideoPlaylists = async (uid: string) => {
 
 export const likeVideo = async (videoId: string) => {
   if (!auth.currentUser) return;
-  const likeId = `${auth.currentUser.uid}_${videoId}`;
+  const uid = auth.currentUser.uid;
+  const likeId = `${uid}_${videoId}`;
   const path = `videos/${videoId}/likes/${likeId}`;
   try {
     await setDoc(doc(db, 'videos', videoId, 'likes', likeId), {
       id: likeId,
       videoId,
-      userId: auth.currentUser.uid,
+      userId: uid,
       timestamp: Date.now()
     });
     await updateDoc(doc(db, 'videos', videoId), { likesCount: increment(1) });
+    // Mirror into the owner's liked-videos list (powers the "Liked videos" surface).
+    await setDoc(doc(db, 'users', uid, 'likedVideos', videoId), { videoId, timestamp: Date.now() }).catch(() => {});
   } catch (e) {
     handleFirestoreError(e, OperationType.WRITE, path);
   }
@@ -4664,13 +7096,29 @@ export const likeVideo = async (videoId: string) => {
 
 export const unlikeVideo = async (videoId: string) => {
   if (!auth.currentUser) return;
-  const likeId = `${auth.currentUser.uid}_${videoId}`;
+  const uid = auth.currentUser.uid;
+  const likeId = `${uid}_${videoId}`;
   const path = `videos/${videoId}/likes/${likeId}`;
   try {
     await deleteDoc(doc(db, 'videos', videoId, 'likes', likeId));
     await updateDoc(doc(db, 'videos', videoId), { likesCount: increment(-1) });
+    await deleteDoc(doc(db, 'users', uid, 'likedVideos', videoId)).catch(() => {});
   } catch (e) {
     handleFirestoreError(e, OperationType.DELETE, path);
+  }
+};
+
+/** All videos the current user has liked, newest first (from the mirrored list). */
+export const getLikedVideos = async (uid?: string): Promise<Video[]> => {
+  const userId = uid || auth.currentUser?.uid;
+  if (!userId) return [];
+  try {
+    const snap = await getDocs(query(collection(db, 'users', userId, 'likedVideos'), orderBy('timestamp', 'desc'), limit(60)));
+    const ids = snap.docs.map(d => (d.data() as any).videoId).filter(Boolean);
+    return fetchPlaylistVideos(ids);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, `users/${userId}/likedVideos`);
+    return [];
   }
 };
 
@@ -4728,17 +7176,22 @@ export const createVideoPlaylist = async (playlist: Partial<VideoPlaylist>) => {
   if (!auth.currentUser) return;
   const id = `vpl_${Date.now()}`;
   const path = `video_playlists/${id}`;
-  const newPlaylist: VideoPlaylist = {
+  const newPlaylist: VideoPlaylist = removeUndefined({
     id,
-    ownerId: auth.currentUser.uid,
+    ownerId: auth.currentUser!.uid,
+    ownerName: auth.currentUser.displayName || 'Creator',
+    ownerPhoto: auth.currentUser.photoURL || '',
     title: playlist.title || 'New Playlist',
     description: playlist.description || '',
     videoIds: playlist.videoIds || [],
     thumbnailUrl: playlist.thumbnailUrl || '',
     isPrivate: playlist.isPrivate || false,
     isPublic: playlist.isPublic ?? true,
+    unlisted: playlist.unlisted || false,
+    system: playlist.system,
+    updatedAt: Date.now(),
     timestamp: Date.now()
-  };
+  }) as VideoPlaylist;
   try {
     await setDoc(doc(db, 'video_playlists', id), newPlaylist);
     return newPlaylist;
@@ -4750,16 +7203,146 @@ export const createVideoPlaylist = async (playlist: Partial<VideoPlaylist>) => {
 export const fetchVideoPlaylists = async (uid?: string): Promise<VideoPlaylist[]> => {
   const path = 'video_playlists';
   try {
+    // No orderBy — avoids composite index requirement on named database; sort in JS instead
     let q;
     if (uid) {
-      q = query(collection(db, path), where("ownerId", "==", uid), orderBy("timestamp", "desc"));
+      q = query(collection(db, path), where("ownerId", "==", uid));
     } else {
-      q = query(collection(db, path), where("isPublic", "==", true), orderBy("timestamp", "desc"), limit(50));
+      q = query(collection(db, path), where("isPublic", "==", true), limit(100));
     }
     const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as VideoPlaylist);
+    const playlists = snap.docs.map(d => d.data() as VideoPlaylist);
+    return playlists.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 50);
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
+    return [];
+  }
+};
+
+/** Fetch a single video playlist by id (for the detail view + shared links). */
+export const fetchVideoPlaylistById = async (playlistId: string): Promise<VideoPlaylist | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'video_playlists', playlistId));
+    return snap.exists() ? (snap.data() as VideoPlaylist) : null;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.GET, `video_playlists/${playlistId}`);
+    return null;
+  }
+};
+
+/** Add a video to a playlist (YouTube "Save to…"). Sets the cover to the first video's thumb. */
+export const addVideoToPlaylist = async (playlistId: string, video: Video | string): Promise<void> => {
+  if (!auth.currentUser) return;
+  const videoId = typeof video === 'string' ? video : video.id;
+  const path = `video_playlists/${playlistId}`;
+  try {
+    const ref = doc(db, 'video_playlists', playlistId);
+    const snap = await getDoc(ref);
+    const cur = snap.data() as VideoPlaylist | undefined;
+    const patch: any = { videoIds: arrayUnion(videoId), updatedAt: Date.now() };
+    // First video becomes the cover if none set yet.
+    if (cur && (!cur.videoIds || cur.videoIds.length === 0) && !cur.thumbnailUrl && typeof video !== 'string') {
+      const thumb = (video as any).muxPlaybackId
+        ? `https://image.mux.com/${(video as any).muxPlaybackId}/thumbnail.png?width=640&height=360&time=5`
+        : video.thumbnailUrl || video.coverImageUrl || '';
+      if (thumb) patch.thumbnailUrl = thumb;
+    }
+    await updateDoc(ref, patch);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, path);
+  }
+};
+
+/** Remove a video from a playlist. */
+export const removeVideoFromPlaylist = async (playlistId: string, videoId: string): Promise<void> => {
+  if (!auth.currentUser) return;
+  const path = `video_playlists/${playlistId}`;
+  try {
+    await updateDoc(doc(db, 'video_playlists', playlistId), { videoIds: arrayRemove(videoId), updatedAt: Date.now() });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, path);
+  }
+};
+
+/** Patch a playlist's editable fields (title, description, privacy). */
+export const updateVideoPlaylist = async (playlistId: string, patch: Partial<VideoPlaylist>): Promise<void> => {
+  if (!auth.currentUser) return;
+  const path = `video_playlists/${playlistId}`;
+  try {
+    await updateDoc(doc(db, 'video_playlists', playlistId), removeUndefined({ ...patch, updatedAt: Date.now() }) as any);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, path);
+  }
+};
+
+/** Delete a playlist (system playlists like Watch Later are protected in the UI). */
+export const deleteVideoPlaylist = async (playlistId: string): Promise<void> => {
+  if (!auth.currentUser) return;
+  const path = `video_playlists/${playlistId}`;
+  try {
+    await deleteDoc(doc(db, 'video_playlists', playlistId));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, path);
+  }
+};
+
+/** Find-or-create the caller's "Watch Later" system playlist, then add the video. */
+export const addToWatchLater = async (video: Video | string): Promise<void> => {
+  if (!auth.currentUser) return;
+  const uid = auth.currentUser.uid;
+  try {
+    const existing = (await fetchUserVideoPlaylists(uid)).find(p => p.system === 'WATCH_LATER');
+    let plId = existing?.id;
+    if (!plId) {
+      const created = await createVideoPlaylist({ title: 'Watch Later', system: 'WATCH_LATER', isPublic: false, isPrivate: true } as any);
+      plId = created?.id;
+    }
+    if (plId) await addVideoToPlaylist(plId, video);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, 'video_playlists/watch_later');
+  }
+};
+
+/** The caller's "Watch Later" system playlist, or null if they've never saved anything. */
+export const fetchWatchLaterPlaylist = async (): Promise<VideoPlaylist | null> => {
+  if (!auth.currentUser) return null;
+  try {
+    const found = (await fetchUserVideoPlaylists(auth.currentUser.uid)).find(p => p.system === 'WATCH_LATER');
+    return found || null;
+  } catch {
+    return null;
+  }
+};
+
+/** Remove a video from Watch Later. Silent no-op when the playlist doesn't exist yet. */
+export const removeFromWatchLater = async (videoId: string): Promise<void> => {
+  const pl = await fetchWatchLaterPlaylist();
+  if (pl?.id) await removeVideoFromPlaylist(pl.id, videoId);
+};
+
+/**
+ * One-tap Watch Later toggle used by video cards.
+ * Returns the resulting saved-state so the caller can flip its icon optimistically.
+ */
+export const toggleWatchLater = async (video: Video | string): Promise<boolean> => {
+  if (!auth.currentUser) return false;
+  const videoId = typeof video === 'string' ? video : video.id;
+  const pl = await fetchWatchLaterPlaylist();
+  if (pl?.videoIds?.includes(videoId)) {
+    await removeVideoFromPlaylist(pl.id, videoId);
+    return false;
+  }
+  await addToWatchLater(video);
+  return true;
+};
+
+/** Hydrate a playlist's videoIds into full Video objects, preserving order. */
+export const fetchPlaylistVideos = async (videoIds: string[]): Promise<Video[]> => {
+  if (!videoIds?.length) return [];
+  try {
+    const results = await Promise.all(videoIds.map(id => fetchVideoById(id).catch(() => null)));
+    return results.filter(Boolean) as Video[];
+  } catch {
     return [];
   }
 };
@@ -4825,13 +7408,25 @@ export const fetchBrandAccounts = async (): Promise<BrandAccount[]> => {
   }
 };
 
+export const fetchAllPublicBrandAccounts = async (): Promise<BrandAccount[]> => {
+  const path = 'brand_accounts';
+  try {
+    const q = query(collection(db, path), orderBy('timestamp', 'desc'), limit(100));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as BrandAccount));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, path);
+    return [];
+  }
+};
+
 export const createFanPage = async (name: string, description: string) => {
   if (!auth.currentUser) return;
   const id = `fanpage_${Date.now()}`;
   const path = `fan_pages/${id}`;
   const newPage: FanPage = {
     id,
-    ownerId: auth.currentUser.uid,
+    ownerId: auth.currentUser!.uid,
     name,
     description,
     members: [auth.currentUser.uid],
@@ -4945,7 +7540,7 @@ export const createAdCampaign = async (campaign: Partial<AdCampaign>) => {
   try {
     const data = removeUndefined({
       ...campaign,
-      ownerId: auth.currentUser.uid,
+      ownerId: auth.currentUser!.uid,
       timestamp: serverTimestamp(),
       isActive: campaign.isActive ?? true,
       status: 'ACTIVE'
@@ -4982,6 +7577,457 @@ export const updateTrack = async (trackId: string, updates: Partial<Track>) => {
     await updateDoc(doc(db, 'tracks', trackId), removeUndefined(updates));
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
+  }
+};
+
+export const fetchFastChannelVideos = async (uid: string): Promise<Video[]> => {
+  const path = 'videos';
+  try {
+    const q = query(collection(db, path), where('ownerId', '==', uid), where('allowInFastChannel', '==', true));
+    const snap = await getDocs(q);
+    const videos = snap.docs.map(d => ({ id: d.id, ...d.data() } as Video));
+    return videos.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, path);
+    return [];
+  }
+};
+
+export const updateFastChannelEnabled = async (uid: string, enabled: boolean) => {
+  await updateUserProfile(uid, { fastChannelEnabled: enabled } as any);
+};
+
+// ── FAST CHANNEL SCHEDULE ─────────────────────────────────────────────────────
+
+// ─── Channel sources + saved-feed library (channel_sources/{ownerId}) ──
+/** The full set — sources (active broadcasts) + savedFeeds (the reusable library). */
+export const fetchChannelSourceSet = async (uid: string): Promise<{ sources: ChannelSource[]; savedFeeds: SavedFeed[] }> => {
+  try {
+    const snap = await getDoc(doc(db, 'channel_sources', uid));
+    const data = snap.exists() ? (snap.data() as ChannelSourceSet) : null;
+    return {
+      sources: Array.isArray(data?.sources) ? data!.sources : [],
+      savedFeeds: Array.isArray(data?.savedFeeds) ? data!.savedFeeds : [],
+    };
+  } catch (e) {
+    handleFirestoreError(e, OperationType.GET, `channel_sources/${uid}`);
+    return { sources: [], savedFeeds: [] };
+  }
+};
+
+/** Back-compat: just the active sources. */
+export const fetchChannelSources = async (uid: string): Promise<ChannelSource[]> =>
+  (await fetchChannelSourceSet(uid)).sources;
+
+/** Every account's currently-live sources (EXTERNAL_LIVE / REELLO_LIVE, isActive) for the TV Live
+ *  rails. Firestore can't query inside the `sources[]` array, so we page the collection and flatten
+ *  client-side (small N). Members-only sources ride along; the player gates them at play time. */
+export const fetchActiveLiveSources = async (max = 120): Promise<{ ownerId: string; source: ChannelSource }[]> => {
+  try {
+    const snap = await getDocs(query(collection(db, 'channel_sources'), limit(max)));
+    const out: { ownerId: string; source: ChannelSource }[] = [];
+    // A REELLO_LIVE source can be saved with a blank playback id and "use my active live stream" —
+    // those need the owner's liveStreamConfig to become playable, so collect them for a second pass.
+    const needResolve: { ownerId: string; source: ChannelSource }[] = [];
+    snap.docs.forEach(d => {
+      const set = d.data() as ChannelSourceSet;
+      const ownerId = (set as any).ownerId || d.id;
+      (set.sources || []).forEach(s => {
+        if (!s.isActive || (s.type !== 'EXTERNAL_LIVE' && s.type !== 'REELLO_LIVE')) return;
+        if (s.url || s.muxPlaybackId) out.push({ ownerId, source: s });
+        else if (s.type === 'REELLO_LIVE') needResolve.push({ ownerId, source: s });
+      });
+    });
+
+    // Fill blank REELLO_LIVE sources from each owner's active live stream (small N; unique owners).
+    if (needResolve.length) {
+      const owners = Array.from(new Set(needResolve.map(x => x.ownerId)));
+      const configs = new Map<string, any>();
+      await Promise.all(owners.map(async id => {
+        try {
+          const us = await getDoc(doc(db, 'users', id));
+          configs.set(id, us.exists() ? (us.data() as any)?.liveStreamConfig : null);
+        } catch { configs.set(id, null); }
+      }));
+      needResolve.forEach(({ ownerId, source }) => {
+        const lc = configs.get(ownerId);
+        if (!lc?.isActive) return;
+        const muxPlaybackId = lc.muxPlaybackId || source.muxPlaybackId;
+        const url = !muxPlaybackId ? (lc.streamUrl || source.url) : source.url;
+        if (muxPlaybackId || url) out.push({ ownerId, source: { ...source, muxPlaybackId, url } });
+      });
+    }
+    return out;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'channel_sources(active)');
+    return [];
+  }
+};
+
+/** Persist sources + library. `maxSources` caps concurrent broadcasts (3 for a regular account,
+ *  higher for BRAND/ORGANIZATION/PARTNER — the caller decides). The library is uncapped. */
+export const saveChannelSources = async (ownerId: string, sources: ChannelSource[], savedFeeds: SavedFeed[] = [], maxSources = 3): Promise<void> => {
+  try {
+    const capped = (sources || []).slice(0, Math.max(1, maxSources)).map(s => removeUndefined({ ...s, updatedAt: Date.now() }));
+    const feeds = (savedFeeds || []).map(f => removeUndefined(f));
+    await setDoc(doc(db, 'channel_sources', ownerId), { ownerId, sources: capped, savedFeeds: feeds, updatedAt: Date.now() } as any);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, `channel_sources/${ownerId}`);
+    throw e;
+  }
+};
+
+// ─── FAST channel identity (fast_channels/{ownerId}) ────────────────────────────
+export const fetchFastChannelMeta = async (uid: string): Promise<FastChannel | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'fast_channels', uid));
+    return snap.exists() ? (snap.data() as FastChannel) : null;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.GET, `fast_channels/${uid}`);
+    return null;
+  }
+};
+
+export const saveFastChannelMeta = async (channel: Partial<FastChannel> & { ownerId: string }): Promise<void> => {
+  try {
+    const now = Date.now();
+    const existing = await fetchFastChannelMeta(channel.ownerId);
+    const merged: FastChannel = {
+      id: channel.ownerId,
+      ownerId: channel.ownerId,
+      name: channel.name ?? existing?.name ?? 'My Channel',
+      number: channel.number ?? existing?.number,
+      category: channel.category ?? existing?.category,
+      logoUrl: channel.logoUrl ?? existing?.logoUrl,
+      tagline: channel.tagline ?? existing?.tagline,
+      description: channel.description ?? existing?.description,
+      language: channel.language ?? existing?.language ?? 'en',
+      isPublished: channel.isPublished ?? existing?.isPublished ?? true,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    };
+    await setDoc(doc(db, 'fast_channels', channel.ownerId), removeUndefined(merged) as any);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, `fast_channels/${channel.ownerId}`);
+    throw e;
+  }
+};
+
+export const fetchFastChannelSchedule = async (uid: string): Promise<FastChannelSchedule | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'fast_channel_schedules', uid));
+    if (snap.exists()) return snap.data() as FastChannelSchedule;
+    return null;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.GET, `fast_channel_schedules/${uid}`);
+    return null;
+  }
+};
+
+export const saveFastChannelSchedule = async (schedule: FastChannelSchedule): Promise<void> => {
+  try {
+    await setDoc(doc(db, 'fast_channel_schedules', schedule.userId), { ...schedule, lastUpdated: Date.now() });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, `fast_channel_schedules/${schedule.userId}`);
+    throw e;
+  }
+};
+
+export const scheduleLiveInterrupt = async (uid: string, scheduledAt: number, maxDurationSeconds: number, membersOnly = false): Promise<void> => {
+  const scheduleRef = doc(db, 'fast_channel_schedules', uid);
+  try {
+    await updateDoc(scheduleRef, {
+      pendingLiveInterrupt: { scheduledAt, maxDurationSeconds, membersOnly },
+      lastUpdated: Date.now(),
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `fast_channel_schedules/${uid}`);
+    throw e;
+  }
+};
+
+export const clearLiveInterrupt = async (uid: string): Promise<void> => {
+  try {
+    await updateDoc(doc(db, 'fast_channel_schedules', uid), {
+      pendingLiveInterrupt: null,
+      lastUpdated: Date.now(),
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `fast_channel_schedules/${uid}`);
+  }
+};
+
+/**
+ * Auto-generates a looping 24/7 schedule from the user's FAST channel videos.
+ * Inserts ad breaks at the configured frequency. Bumpers wrap each content block.
+ */
+export const autoGenerateFastChannelSchedule = async (uid: string): Promise<FastChannelSchedule> => {
+  const [videos, bumpers, existing] = await Promise.all([
+    fetchFastChannelVideos(uid),
+    fetchChannelBumpers(uid),
+    fetchFastChannelSchedule(uid),
+  ]);
+
+  const adFreq = existing?.adFrequencyMinutes ?? 20;
+  const adDur = existing?.adDurationSeconds ?? 60;
+  const commercialFree = existing?.commercialFree ?? false;   // no ad breaks when true
+  const includePublicDomain = existing?.includePublicDomain ?? false;
+
+  const slots: FastChannelSlot[] = [];
+  let order = 0;
+  let minutesSinceLastAd = 0;
+
+  const introBumper = bumpers.find(b => b.type === 'INTRO');
+  const outroBumper = bumpers.find(b => b.type === 'OUTRO');
+  const stationId = bumpers.find(b => b.type === 'STATION_ID');
+
+  // Station ID at start
+  if (stationId) {
+    slots.push({ id: `slot_${order}`, type: 'BUMPER', order, bumperId: stationId.id, bumperUrl: stationId.url, bumperTitle: stationId.title, bumperDurationSeconds: stationId.durationSeconds });
+    order++;
+  }
+
+  for (const video of videos) {
+    // Real per-asset duration drives the EPG/now-next and the deterministic player. Fall back to
+    // 30 min only when a video genuinely carries no duration.
+    const durationSec = Math.max(1, Math.round((video as any).duration || 0)) || 1800;
+    const durationMins = durationSec / 60;
+
+    // Intro bumper before each video
+    if (introBumper) {
+      slots.push({ id: `slot_${order}`, type: 'BUMPER', order, bumperId: introBumper.id, bumperUrl: introBumper.url, bumperTitle: introBumper.title, bumperDurationSeconds: introBumper.durationSeconds });
+      order++;
+    }
+
+    // The video itself — prefer the Mux HLS rendition (smooth), else the raw url. (The old ternary
+    // had an operator-precedence bug that produced stream.mux.com/undefined.m3u8 for raw uploads.)
+    // When the channel opts to surface public-domain content, a CC0-licensed title is tagged as a
+    // PUBLIC_DOMAIN slot (the player badges it and guides can categorise it) rather than a plain VIDEO.
+    const isPD = includePublicDomain && (video as any).license === 'CC0';
+    const videoSlot: FastChannelSlot = {
+      id: `slot_${order}`,
+      type: isPD ? 'PUBLIC_DOMAIN' : 'VIDEO',
+      order,
+      videoId: video.id,
+      videoUrl: (video as any).muxPlaybackId ? `https://stream.mux.com/${(video as any).muxPlaybackId}.m3u8` : video.url,
+      videoTitle: video.title,
+      videoThumbnail: video.thumbnailUrl || video.coverImageUrl,
+      videoDurationSeconds: durationSec,
+      sourceUserId: uid,
+      isPublicDomain: isPD || undefined,
+    };
+    // Copy ad markers from video metadata
+    if (video.adMarkers?.length) {
+      videoSlot.adMarkersSeconds = video.adMarkers.map(m => m.time);
+    }
+    slots.push(videoSlot);
+    order++;
+
+    // Outro bumper
+    if (outroBumper) {
+      slots.push({ id: `slot_${order}`, type: 'BUMPER', order, bumperId: outroBumper.id, bumperUrl: outroBumper.url, bumperTitle: outroBumper.title, bumperDurationSeconds: outroBumper.durationSeconds });
+      order++;
+    }
+
+    minutesSinceLastAd += durationMins;
+    if (!commercialFree && minutesSinceLastAd >= adFreq) {
+      slots.push({ id: `slot_${order}`, type: 'AD_BREAK', order, adDurationSeconds: adDur });
+      order++;
+      minutesSinceLastAd = 0;
+    }
+  }
+
+  const schedule: FastChannelSchedule = {
+    userId: uid,
+    slots,
+    adFrequencyMinutes: adFreq,
+    adDurationSeconds: adDur,
+    commercialFree,
+    loopSchedule: true,
+    autoGenerated: true,
+    includePublicDomain,
+    lastUpdated: Date.now(),
+  };
+
+  await saveFastChannelSchedule(schedule);
+  return schedule;
+};
+
+/**
+ * One-tap FAST channel activation — the "don't make them think about it" path. Flipping the channel
+ * ON should immediately give a creator a real, playable, published channel; everything after is
+ * optional manual control (rearrange slots, prune videos, ads/bumpers in the manager).
+ *   1. sets fastChannelEnabled (so it shows in the Live rails),
+ *   2. creates the channel identity (fast_channels meta, published) if absent — powers the EPG +
+ *      carriage feeds and a real channel name,
+ *   3. seeds content: if nothing is opted in yet, auto-opts-in up to `seedLimit` of their most recent
+ *      playable videos (they can toggle any off afterward),
+ *   4. auto-generates the looping schedule.
+ * Idempotent: re-running won't clobber a name they've set or re-seed once videos are opted in.
+ */
+export const activateFastChannel = async (
+  uid: string,
+  opts: { displayName?: string; seedLimit?: number } = {},
+): Promise<{ schedule: FastChannelSchedule | null; seededVideoCount: number }> => {
+  const seedLimit = Math.max(1, Math.min(opts.seedLimit ?? 100, 400)); // Firestore batch cap is 500
+  await updateFastChannelEnabled(uid, true);
+
+  // Channel identity — create once, never overwrite a name/logo they've already set.
+  const meta = await fetchFastChannelMeta(uid);
+  if (!meta) {
+    await saveFastChannelMeta({
+      ownerId: uid,
+      name: opts.displayName ? `${opts.displayName}'s Channel` : 'My Channel',
+      isPublished: true,
+    });
+  }
+
+  // Seed content on first activation so the channel isn't empty — opt in recent playable videos.
+  let optedIn = await fetchFastChannelVideos(uid);
+  let seededVideoCount = 0;
+  if (optedIn.length === 0) {
+    const all = await fetchUserVideos(uid);
+    const playable = all.filter(v => (v as any).muxPlaybackId || v.url).slice(0, seedLimit);
+    if (playable.length) {
+      const batch = writeBatch(db);
+      playable.forEach(v => batch.update(doc(db, 'videos', v.id), { allowInFastChannel: true } as any));
+      await batch.commit();
+      optedIn = playable;
+      seededVideoCount = playable.length;
+    }
+  }
+
+  const schedule = optedIn.length > 0 ? await autoGenerateFastChannelSchedule(uid) : null;
+  return { schedule, seededVideoCount };
+};
+
+// ── CHANNEL BUMPERS ───────────────────────────────────────────────────────────
+
+export const fetchChannelBumpers = async (uid: string): Promise<ChannelBumper[]> => {
+  try {
+    const q = query(collection(db, 'channel_bumpers'), where('userId', '==', uid));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as ChannelBumper));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'channel_bumpers');
+    return [];
+  }
+};
+
+export const saveChannelBumper = async (bumper: Omit<ChannelBumper, 'id'> & { id?: string }): Promise<ChannelBumper> => {
+  const id = bumper.id || `bumper_${auth.currentUser!.uid}_${Date.now()}`;
+  const full: ChannelBumper = { ...bumper, id };
+  try {
+    await setDoc(doc(db, 'channel_bumpers', id), full);
+    return full;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, `channel_bumpers/${id}`);
+    throw e;
+  }
+};
+
+export const deleteChannelBumper = async (bumperId: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, 'channel_bumpers', bumperId));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, `channel_bumpers/${bumperId}`);
+  }
+};
+
+// ── FAST CHANNEL ASSET SHARING ────────────────────────────────────────────────
+
+export const grantFastChannelAccess = async (grant: Omit<FastChannelAssetGrant, 'id' | 'timestamp'>): Promise<FastChannelAssetGrant> => {
+  if (!auth.currentUser) throw new Error('Not authenticated');
+  const id = `grant_${auth.currentUser.uid}_${grant.toUserId}_${Date.now()}`;
+  const full: FastChannelAssetGrant = { ...grant, id, timestamp: Date.now() };
+  try {
+    await setDoc(doc(db, 'fast_channel_access', id), full);
+    return full;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, `fast_channel_access/${id}`);
+    throw e;
+  }
+};
+
+export const revokeGrantedFastChannelAccess = async (grantId: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, 'fast_channel_access', grantId));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, `fast_channel_access/${grantId}`);
+  }
+};
+
+/** Fetch all grants I have issued (from me → others) */
+export const fetchMyFastChannelGrants = async (uid: string): Promise<FastChannelAssetGrant[]> => {
+  try {
+    const q = query(collection(db, 'fast_channel_access'), where('fromUserId', '==', uid));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as FastChannelAssetGrant);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'fast_channel_access');
+    return [];
+  }
+};
+
+/** Fetch all assets that have been granted TO a given user's FAST channel */
+export const fetchGrantedFastChannelAssets = async (uid: string): Promise<FastChannelAssetGrant[]> => {
+  try {
+    const [personal, global] = await Promise.all([
+      getDocs(query(collection(db, 'fast_channel_access'), where('toUserId', '==', uid), where('isActive', '==', true))),
+      getDocs(query(collection(db, 'fast_channel_access'), where('toUserId', '==', '*'), where('isActive', '==', true))),
+    ]);
+    return [
+      ...personal.docs.map(d => d.data() as FastChannelAssetGrant),
+      ...global.docs.map(d => d.data() as FastChannelAssetGrant),
+    ];
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'fast_channel_access');
+    return [];
+  }
+};
+
+// ── FAST CHANNEL PLATFORM LIBRARY ─────────────────────────────────────────────
+
+export const fetchFastChannelLibrary = async (): Promise<FastChannelLibraryEntry[]> => {
+  try {
+    const snap = await getDocs(collection(db, 'fast_channel_library'));
+    return snap.docs.map(d => d.data() as FastChannelLibraryEntry);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'fast_channel_library');
+    return [];
+  }
+};
+
+export const addToFastChannelLibrary = async (video: Video, isPaid: boolean = false, pricePerMonth?: number): Promise<void> => {
+  if (!auth.currentUser) return;
+  const id = `lib_${video.id}`;
+  const entry: FastChannelLibraryEntry = {
+    id,
+    videoId: video.id,
+    videoTitle: video.title,
+    videoUrl: video.url || '',
+    thumbnailUrl: video.thumbnailUrl || video.coverImageUrl || '',
+    genre: video.genre,
+    tags: video.tags,
+    ownerUserId: auth.currentUser.uid,
+    ownerName: auth.currentUser.displayName || '',
+    isPublicDomain: false,
+    isPaid,
+    pricePerMonth,
+    timestamp: Date.now(),
+  };
+  try {
+    await setDoc(doc(db, 'fast_channel_library', id), entry);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, `fast_channel_library/${id}`);
+  }
+};
+
+export const removeFromFastChannelLibrary = async (videoId: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, 'fast_channel_library', `lib_${videoId}`));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, `fast_channel_library/lib_${videoId}`);
   }
 };
 
@@ -5183,6 +8229,118 @@ export const fetchAllUsers = async (): Promise<UserProfile[]> => {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
   }
+};
+
+/** A channel as a Live rail wants it: the branded identity (fast_channels doc, if any) plus the
+ *  owner profile FastChannelPlayer needs to play it. Display fields fall back to the profile. */
+export interface FastChannelListing {
+  ownerId: string;
+  name: string;
+  number?: number;
+  category?: string;
+  logoUrl?: string;
+  profile: UserProfile;
+}
+
+/**
+ * Every creator whose FAST channel is switched on, as branded listings. Merges each owner's
+ * fast_channels identity doc (name/number/category/logo) over the profile fallback, and drops any
+ * channel explicitly unpublished. The owner profile rides along so a listing plays straight through
+ * FastChannelPlayer.
+ */
+export const fetchAllFastChannels = async (max = 60): Promise<FastChannelListing[]> => {
+  try {
+    const snap = await getDocs(query(collection(db, 'users'), where('fastChannelEnabled', '==', true), limit(max)));
+    const profiles = snap.docs.map(d => ({ uid: d.id, ...(d.data() as any) } as UserProfile));
+    const metas = await Promise.all(profiles.map(p => fetchFastChannelMeta((p as any).uid).catch(() => null)));
+    const listings: FastChannelListing[] = [];
+    profiles.forEach((p, i) => {
+      const m = metas[i];
+      if (m && m.isPublished === false) return;   // explicitly unpublished → hide
+      listings.push({
+        ownerId: (p as any).uid,
+        name: m?.name || ((p as any).displayName ? `${(p as any).displayName}'s Channel` : 'Channel'),
+        number: m?.number,
+        category: m?.category,
+        logoUrl: m?.logoUrl || (p as any).photoURL || (p as any).headerImage,
+        profile: p,
+      });
+    });
+    // Guide-style ordering: numbered channels first (by number), then the rest by name.
+    return listings.sort((a, b) =>
+      (a.number ?? 9999) - (b.number ?? 9999) || a.name.localeCompare(b.name));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'users(fastChannelEnabled)');
+    return [];
+  }
+};
+
+export const fetchFeaturedProfiles = async (): Promise<UserProfile[]> => {
+  try {
+    const q = query(collection(db, 'users'), where('isArtist', '==', true), limit(30));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ uid: d.id, ...d.data() } as UserProfile))
+      .filter(u => !!u.photoURL && !!u.displayName);
+  } catch {
+    return [];
+  }
+};
+
+export const fetchLatestAlbumForUser = async (uid: string): Promise<Album | null> => {
+  try {
+    const q = query(collection(db, 'albums'), where('ownerId', '==', uid), limit(10));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const albums = snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as Album))
+      .filter(a => a.isPublic !== false && (a.tracks?.length ?? 0) > 0);
+    albums.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    return albums[0] ?? null;
+  } catch {
+    return null;
+  }
+};
+
+// ─── User Ad (Billboard Ad Creator) ────────────────────────────────────────
+
+export const saveUserAd = async (
+  ad: Partial<import('../types').UserAd> & { ownerId: string }
+): Promise<string> => {
+  const id = (ad as any).id || `uad_${Date.now()}`;
+  const now = Date.now();
+  const data = {
+    ...ad,
+    id,
+    createdAt: (ad as any).createdAt || now,
+    updatedAt: now,
+    isActive: ad.isActive ?? true,
+    profilePicX: ad.profilePicX ?? 50,
+    profilePicY: ad.profilePicY ?? 40,
+    backgroundType: ad.backgroundType ?? 'cover_art',
+  };
+  await setDoc(doc(db, 'userAds', id), data);
+  return id;
+};
+
+export const loadUserAd = async (ownerId: string): Promise<import('../types').UserAd | null> => {
+  try {
+    const q = query(
+      collection(db, 'userAds'),
+      where('ownerId', '==', ownerId),
+      where('isActive', '==', true),
+      limit(1)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    return { id: snap.docs[0].id, ...snap.docs[0].data() } as import('../types').UserAd;
+  } catch {
+    return null;
+  }
+};
+
+export const deleteUserAd = async (id: string): Promise<void> => {
+  await deleteDoc(doc(db, 'userAds', id));
 };
 
 export const fetchSystemStats = async (): Promise<SystemStats> => {
@@ -5451,7 +8609,11 @@ export const deleteThemePreset = async (presetId: string): Promise<void> => {
 };
 
 export const createMuxDirectUpload = async (): Promise<{ id: string; url: string }> => {
-  const res = await fetch('/api/mux/upload', { method: 'POST' });
+  const idToken = await getRequiredIdToken();
+  const res = await fetch('/api/mux/upload', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
   if (!res.ok) {
     const data = await res.json();
     throw new Error(data.error || 'Failed to create Mux upload');
@@ -5460,23 +8622,1861 @@ export const createMuxDirectUpload = async (): Promise<{ id: string; url: string
 };
 
 export const getMuxPlaybackId = async (assetId: string): Promise<string | null> => {
-  const res = await fetch(`/api/mux/playback?assetId=${assetId}`);
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/mux/playback?assetId=${assetId}`, {
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
   if (!res.ok) return null;
   const data = await res.json();
   return data.playbackId || null;
 };
 
-export const createMuxAssetFromUrl = async (url: string): Promise<{ assetId: string; playbackId: string | undefined }> => {
-  const res = await fetch('/api/mux/create-asset-from-url', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url })
-  });
-  if (!res.ok) {
-    const data = await res.json();
-    throw new Error(data.error || 'Failed to create Mux asset from URL');
+// Poll Mux upload status until the asset is ready, then return the playback ID
+export const pollMuxUploadUntilReady = async (
+  uploadId: string,
+  onReady: (playbackId: string, assetId: string) => void,
+  maxAttempts = 30,
+  intervalMs = 3000,
+): Promise<void> => {
+  let attempts = 0;
+  const poll = async () => {
+    try {
+      const idToken = await getRequiredIdToken();
+      const res = await fetch(`/api/mux/asset?uploadId=${uploadId}`, {
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      if (!res.ok) return;
+      const { status, assetId } = await res.json();
+      if (status === 'asset_created' && assetId) {
+        const playbackId = await getMuxPlaybackId(assetId);
+        if (playbackId) { onReady(playbackId, assetId); return; }
+      }
+    } catch {}
+    attempts++;
+    if (attempts < maxAttempts) setTimeout(poll, intervalMs);
+  };
+  setTimeout(poll, intervalMs);
+};
+
+// Direct Mux API call — used as fallback when server.ts API is unreachable in production.
+/*
+const muxDirectCreateAsset = async (_url: string): Promise<{ assetId: string; playbackId: string | undefined } | null> => {
+  return null;
+  if (!tokenId || !tokenSecret) return null;
+  try {
+    const auth = 'Basic ' + btoa(`${tokenId}:${tokenSecret}`);
+    const createRes = await fetch('https://api.mux.com/video/v1/assets', {
+      method: 'POST',
+      headers: { Authorization: auth, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: [{ url }], playback_policy: ['public'] }),
+    });
+    if (!createRes.ok) return null;
+    const data = await createRes.json();
+    const assetId: string = data.data?.id;
+    if (!assetId) return null;
+    // Poll up to 90s for the asset to become ready so we get the playback ID immediately
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      const poll = await fetch(`https://api.mux.com/video/v1/assets/${assetId}`, {
+        headers: { Authorization: auth },
+      });
+      if (!poll.ok) break;
+      const pollData = await poll.json();
+      const asset = pollData.data;
+      if (asset?.status === 'ready') {
+        return { assetId, playbackId: asset.playback_ids?.[0]?.id };
+      }
+      if (asset?.status === 'errored') break;
+    }
+    // Asset created but not yet ready — return assetId without playbackId;
+    // VideoPlayer's onSnapshot listener will pick up the playbackId once polling finishes
+    return { assetId, playbackId: undefined };
+  } catch {
+    return null;
   }
-  return res.json();
+};
+*/
+
+export const createMuxAssetFromUrl = async (url: string): Promise<{ assetId: string; playbackId: string | undefined }> => {
+  const idToken = await getRequiredIdToken();
+
+  // Try the server-side route first (works when server.ts is running locally or deployed)
+  try {
+    const res = await fetch('/api/mux/create-asset-from-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ url }),
+      signal: AbortSignal.timeout(5000), // fast fail if server isn't there
+    });
+    const contentType = res.headers.get('content-type') || '';
+    if (res.ok && contentType.includes('application/json')) {
+      return res.json();
+    }
+  } catch {
+    // Server not available — fall through to direct Mux API call
+  }
+  throw new Error('Mux processing unavailable. Check the server MUX_TOKEN_ID/MUX_TOKEN_SECRET configuration.');
+};
+
+/**
+ * Bulk-optimize a whole catalogue to Mux HLS so every raw upload streams smoothly (esp. on TV).
+ * Sequential + gently paced so it never stampedes Mux, tolerant of individual failures, and writes
+ * the playback id back per video as it resolves. Skips anything already on Mux, still uploading, or
+ * an external embed (YouTube/Vimeo) that Mux can't ingest. Returns a summary.
+ */
+export const bulkOptimizeVideosToMux = async (
+  videos: Video[],
+  onProgress?: (done: number, total: number, currentTitle?: string) => void,
+  gapMs = 800,
+): Promise<{ eligible: number; optimized: number; failed: number }> => {
+  const eligible = (videos || []).filter(v =>
+    !v.muxPlaybackId && !(v as any).muxUploadId && !!v.url &&
+    !v.url.includes('youtube.com') && !v.url.includes('youtu.be') && !v.url.includes('vimeo.com'),
+  );
+  let optimized = 0, failed = 0;
+  for (let i = 0; i < eligible.length; i++) {
+    const v = eligible[i];
+    onProgress?.(i, eligible.length, v.title);
+    try {
+      const { assetId, playbackId } = await createMuxAssetFromUrl(v.url);
+      if (playbackId || assetId) {
+        await updateDoc(doc(db, 'videos', v.id), removeUndefined({ muxPlaybackId: playbackId, muxAssetId: assetId }) as any);
+        optimized++;
+      } else { failed++; }
+    } catch { failed++; }
+    if (i < eligible.length - 1) await new Promise(r => setTimeout(r, gapMs));
+  }
+  onProgress?.(eligible.length, eligible.length);
+  return { eligible: eligible.length, optimized, failed };
 };
 
 
+
+
+// ─── HIDE N SEEK ─────────────────────────────────────────────────────────────
+
+export const saveHideNSeekConfig = async (albumId: string, config: HideNSeekConfig) => {
+  const path = `albums/${albumId}`;
+  try {
+    await updateDoc(doc(db, 'albums', albumId), { hideNSeekConfig: config });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, path);
+  }
+};
+
+export const fetchHideNSeekAlternates = async (albumId: string): Promise<HideNSeekAlternate[]> => {
+  const path = `albums/${albumId}/hideNSeekAlternates`;
+  try {
+    const snap = await getDocs(collection(db, 'albums', albumId, 'hideNSeekAlternates'));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as HideNSeekAlternate));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, path);
+    return [];
+  }
+};
+
+export const uploadHideNSeekAlternate = async (
+  albumId: string,
+  parentTrackId: string,
+  slot: 1 | 2,
+  file: File,
+  title: string,
+  artist: string
+): Promise<HideNSeekAlternate> => {
+  const altId = `${parentTrackId}_slot${slot}`;
+  const storageRef = ref(storage, `hideNSeek/${albumId}/${altId}`);
+  await uploadBytes(storageRef, file);
+  const url = await getDownloadURL(storageRef);
+  const alt: HideNSeekAlternate = {
+    id: altId, albumId, parentTrackId, slot, title, artist, url, uploadedAt: Date.now()
+  };
+  await setDoc(doc(db, 'albums', albumId, 'hideNSeekAlternates', altId), alt);
+  return alt;
+};
+
+// Assign an existing album track as a HNS slot alternate (no file upload needed)
+export const assignTrackAsHnsSlot = async (
+  albumId: string,
+  parentTrackId: string,
+  slot: 1 | 2,
+  sourceTrack: { id: string; title: string; artist: string; url: string; duration?: number }
+): Promise<HideNSeekAlternate> => {
+  const altId = `${parentTrackId}_slot${slot}`;
+  const alt: HideNSeekAlternate = {
+    id: altId,
+    albumId,
+    parentTrackId,
+    slot,
+    title: sourceTrack.title,
+    artist: sourceTrack.artist,
+    url: sourceTrack.url,
+    duration: sourceTrack.duration,
+    uploadedAt: Date.now(),
+  };
+  await setDoc(doc(db, 'albums', albumId, 'hideNSeekAlternates', altId), alt);
+  return alt;
+};
+
+export const deleteHideNSeekAlternate = async (albumId: string, altId: string) => {
+  const path = `albums/${albumId}/hideNSeekAlternates/${altId}`;
+  try {
+    await deleteDoc(doc(db, 'albums', albumId, 'hideNSeekAlternates', altId));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, path);
+  }
+};
+
+// ─── STRIPE CONNECT — Creator Payouts ────────────────────────────────────────
+
+export const startCreatorConnectOnboarding = async (): Promise<{ url: string; accountId: string }> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch('/api/stripe/connect/onboard', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ returnUrl: window.location.origin }),
+  });
+  if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Connect onboarding failed'); }
+  return res.json();
+};
+
+export const fetchConnectStatus = async (): Promise<{
+  connected: boolean; accountId?: string; onboarded?: boolean;
+  chargesEnabled?: boolean; payoutsEnabled?: boolean; requiresAction?: boolean;
+}> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch('/api/stripe/connect/status', {
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
+  if (!res.ok) return { connected: false };
+  return res.json();
+};
+
+export const openStripeDashboard = async (): Promise<void> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch('/api/stripe/connect/dashboard-link', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
+  if (!res.ok) throw new Error('Failed to get dashboard link');
+  const { url } = await res.json();
+  // Same-tab redirect — window.open() after an await is silently popup-blocked.
+  if (url) window.location.href = url;
+};
+
+export const fetchCreatorEarnings = async (period: '7d' | '30d' | '90d' | '1y' = '30d') => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/stripe/earnings?period=${period}`, {
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
+  if (!res.ok) throw new Error('Failed to fetch earnings');
+  return res.json();
+};
+
+export const fetchCreatorSplitConfig = async () => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch('/api/stripe/split', {
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
+  if (!res.ok) return { recipients: [], appliesTo: [] };
+  return res.json();
+};
+
+export const saveCreatorSplitConfig = async (
+  recipients: Array<{ creatorUid: string; displayName: string; photoURL?: string; percentage: number }>,
+  appliesTo: string[],
+): Promise<void> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch('/api/stripe/split', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recipients, appliesTo }),
+  });
+  if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to save split config'); }
+};
+
+export const fetchHideNSeekProgress = async (albumId: string): Promise<HideNSeekUserProgress | null> => {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return null;
+  try {
+    const snap = await getDoc(doc(db, 'hideNSeekProgress', `${uid}_${albumId}`));
+    return snap.exists() ? (snap.data() as HideNSeekUserProgress) : null;
+  } catch (e) {
+    return null;
+  }
+};
+
+export const recordHideNSeekDiscovery = async (albumId: string, alternateIds: string[]): Promise<string[]> => {
+  const uid = auth.currentUser?.uid;
+  if (!uid || alternateIds.length === 0) return [];
+  const progressRef = doc(db, 'hideNSeekProgress', `${uid}_${albumId}`);
+  const statsRef = doc(db, 'hideNSeekStats', albumId);
+  try {
+    const existing = await getDoc(progressRef);
+    const existingIds: string[] = existing.exists() ? (existing.data().discoveredAlternateIds || []) : [];
+    const newIds = alternateIds.filter(id => !existingIds.includes(id));
+    if (newIds.length === 0) return existingIds;
+    await setDoc(progressRef, {
+      userId: uid, albumId,
+      discoveredAlternateIds: arrayUnion(...newIds),
+      updatedAt: Date.now()
+    }, { merge: true });
+    const statsUpdate: Record<string, any> = { uniqueDiscovererIds: arrayUnion(uid) };
+    newIds.forEach(id => { statsUpdate[`discoveryCount.${id}`] = increment(1); });
+    await setDoc(statsRef, statsUpdate, { merge: true });
+    return [...existingIds, ...newIds];
+  } catch (e) {
+    console.error('recordHideNSeekDiscovery error', e);
+    return [];
+  }
+};
+
+export const fetchHideNSeekStats = async (albumId: string): Promise<HideNSeekStats | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'hideNSeekStats', albumId));
+    return snap.exists() ? (snap.data() as HideNSeekStats) : null;
+  } catch (e) {
+    return null;
+  }
+};
+
+// ── Listen Counts ─────────────────────────────────────────────────────────────
+
+export const incrementTrackPlay = async (trackId: string, albumId?: string): Promise<void> => {
+  try {
+    await setDoc(doc(db, 'track_stats', trackId), {
+      trackId,
+      albumId: albumId || null,
+      playCount: increment(1),
+      lastPlayed: Date.now(),
+    }, { merge: true });
+    if (albumId) {
+      await updateDoc(doc(db, 'albums', albumId), { playCount: increment(1) });
+    }
+  } catch (_) {}
+};
+
+export const fetchTrackStats = async (trackIds: string[]): Promise<Record<string, number>> => {
+  if (!trackIds.length) return {};
+  try {
+    const snaps = await Promise.all(trackIds.map(id => getDoc(doc(db, 'track_stats', id))));
+    const result: Record<string, number> = {};
+    snaps.forEach((snap, i) => {
+      result[trackIds[i]] = snap.exists() ? (snap.data()?.playCount || 0) : 0;
+    });
+    return result;
+  } catch (_) { return {}; }
+};
+
+// ── Playlist Track Management ─────────────────────────────────────────────────
+
+export const addTrackToPlaylist = async (playlistId: string, track: Track): Promise<void> => {
+  try {
+    const ref = doc(db, 'personal_playlists', playlistId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+    const data = snap.data() as Playlist;
+    const existing = data.tracks || [];
+    if (existing.some((t: Track) => t.id === track.id)) return;
+    await updateDoc(ref, {
+      tracks: [...existing, track],
+      trackIds: arrayUnion(track.id),
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `personal_playlists/${playlistId}`);
+  }
+};
+
+// Add an external (Audius / archive) track to a playlist by converting it to Track format
+export const addExternalTrackToPlaylist = async (
+  playlistId: string,
+  externalTrack: { id: string; title: string; artist: string; url: string; thumbnailUrl?: string; genre?: string; duration?: number }
+): Promise<void> => {
+  const track = {
+    id: externalTrack.id,
+    title: externalTrack.title,
+    artist: externalTrack.artist,
+    url: externalTrack.url,
+    albumCover: externalTrack.thumbnailUrl ?? '',
+    images: externalTrack.thumbnailUrl ? [externalTrack.thumbnailUrl] : [],
+    genre: externalTrack.genre,
+    duration: externalTrack.duration,
+    isGlobalArchive: true,
+  };
+  return addTrackToPlaylist(playlistId, track as any);
+};
+
+export const removeTrackFromPlaylist = async (playlistId: string, trackId: string): Promise<void> => {
+  try {
+    const ref = doc(db, 'personal_playlists', playlistId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+    const data = snap.data() as Playlist;
+    await updateDoc(ref, {
+      tracks: (data.tracks || []).filter((t: Track) => t.id !== trackId),
+      trackIds: arrayRemove(trackId),
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `personal_playlists/${playlistId}`);
+  }
+};
+
+export const fetchPersonalPlaylist = async (playlistId: string): Promise<Playlist | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'personal_playlists', playlistId));
+    return snap.exists() ? (snap.data() as Playlist) : null;
+  } catch (_) { return null; }
+};
+
+// ─── EARLY ACCESS & REVIEW CODES ──────────────────────────────────────────────
+
+function makeCode(len = 8): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+export const generateReviewCode = async (
+  albumId: string,
+  label: string,
+  maxUses = 1,
+  expiresInDays?: number
+): Promise<ReviewCode | null> => {
+  if (!auth.currentUser) return null;
+  const code = makeCode();
+  const now = Date.now();
+  const reviewCode: ReviewCode = {
+    id: `rc_${now}`,
+    albumId,
+    code,
+    label: label || `Review Code`,
+    createdAt: now,
+    expiresAt: expiresInDays ? now + expiresInDays * 86_400_000 : undefined,
+    maxUses,
+    useCount: 0,
+    isRevoked: false,
+  };
+  try {
+    const albumRef = doc(db, 'albums', albumId);
+    await updateDoc(albumRef, {
+      reviewCodes: arrayUnion(reviewCode),
+      // earlyAccessEnabled is controlled explicitly by the creator toggle — not auto-set here
+    });
+    return reviewCode;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `albums/${albumId}`);
+    return null;
+  }
+};
+
+export const revokeReviewCode = async (albumId: string, codeId: string): Promise<void> => {
+  try {
+    const albumRef = doc(db, 'albums', albumId);
+    const snap = await getDoc(albumRef);
+    if (!snap.exists()) return;
+    const codes: ReviewCode[] = snap.data().reviewCodes || [];
+    const updated = codes.map(c => c.id === codeId ? { ...c, isRevoked: true } : c);
+    await updateDoc(albumRef, { reviewCodes: updated });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `albums/${albumId}`);
+  }
+};
+
+export const addEarlyAccessUser = async (
+  albumId: string,
+  entry: { email?: string; uid?: string; displayName?: string; label?: string }
+): Promise<void> => {
+  const earlyEntry: EarlyAccessEntry = {
+    ...entry,
+    addedAt: Date.now(),
+  };
+  try {
+    await updateDoc(doc(db, 'albums', albumId), {
+      earlyAccessList: arrayUnion(earlyEntry),
+      // earlyAccessEnabled is controlled explicitly by the creator toggle — not auto-set here
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `albums/${albumId}`);
+  }
+};
+
+export const removeEarlyAccessUser = async (albumId: string, email?: string, uid?: string): Promise<void> => {
+  try {
+    const snap = await getDoc(doc(db, 'albums', albumId));
+    if (!snap.exists()) return;
+    const list: EarlyAccessEntry[] = snap.data().earlyAccessList || [];
+    const updated = list.filter(e => {
+      if (email && e.email === email) return false;
+      if (uid && e.uid === uid) return false;
+      return true;
+    });
+    await updateDoc(doc(db, 'albums', albumId), { earlyAccessList: updated });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `albums/${albumId}`);
+  }
+};
+
+export const checkEarlyAccess = async (albumId: string): Promise<boolean> => {
+  const user = auth.currentUser;
+  if (!user) return false;
+  try {
+    const snap = await getDoc(doc(db, 'albums', albumId));
+    if (!snap.exists()) return false;
+    const data = snap.data();
+    if (!data.earlyAccessEnabled) return true; // not restricted
+    if (data.ownerId === user.uid) return true;  // owner always has access
+    const list: EarlyAccessEntry[] = data.earlyAccessList || [];
+    return list.some(e => e.uid === user.uid || e.email === user.email);
+  } catch { return false; }
+};
+
+export const redeemReviewCode = async (code: string, albumId: string): Promise<boolean> => {
+  const user = auth.currentUser;
+  if (!user) return false;
+  try {
+    const snap = await getDoc(doc(db, 'albums', albumId));
+    if (!snap.exists()) return false;
+    const data = snap.data();
+    const codes: ReviewCode[] = data.reviewCodes || [];
+    const match = codes.find(c =>
+      c.code === code.toUpperCase().trim() &&
+      !c.isRevoked &&
+      (c.maxUses === 0 || c.useCount < c.maxUses) &&
+      (!c.expiresAt || c.expiresAt > Date.now())
+    );
+    if (!match) return false;
+    // Increment use count
+    const updatedCodes = codes.map(c => c.id === match.id ? { ...c, useCount: c.useCount + 1 } : c);
+    const entry: EarlyAccessEntry = {
+      uid: user.uid,
+      email: user.email ?? undefined,
+      displayName: user.displayName ?? undefined,
+      addedAt: Date.now(),
+      codeUsed: code.toUpperCase().trim(),
+    };
+    await updateDoc(doc(db, 'albums', albumId), {
+      reviewCodes: updatedCodes,
+      earlyAccessList: arrayUnion(entry),
+    });
+    return true;
+  } catch { return false; }
+};
+
+// ─── Early Access Requests ────────────────────────────────────────────────────
+
+export const requestEarlyAccess = async (
+  albumId: string,
+  albumTitle: string,
+  albumCover: string | undefined,
+  creatorId: string,
+  message?: string
+): Promise<string | null> => {
+  const user = auth.currentUser;
+  if (!user) return null;
+  try {
+    const docRef = doc(collection(db, 'earlyAccessRequests'));
+    const request: EarlyAccessRequest = {
+      id: docRef.id,
+      albumId,
+      albumTitle,
+      albumCover,
+      requesterId: user.uid,
+      requesterName: user.displayName || 'User',
+      requesterPhoto: user.photoURL || undefined,
+      creatorId,
+      status: 'PENDING',
+      message: message || undefined,
+      requestedAt: Date.now(),
+    };
+    await setDoc(docRef, removeUndefined(request));
+
+    // Notify creator via DM
+    const roomId = await createChatRoom([user.uid, creatorId], 'PRIVATE');
+    await sendMessage(roomId, {
+      senderId: 'system',
+      senderName: 'Plajah',
+      senderPhoto: '',
+      type: 'ACTION',
+      text: `${user.displayName || 'A user'} is requesting early access to "${albumTitle}"${message ? ` — "${message}"` : ''}.`,
+      metadata: { action: 'EARLY_ACCESS_REQUEST', url: docRef.id },
+    });
+
+    return docRef.id;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.CREATE, 'earlyAccessRequests');
+    return null;
+  }
+};
+
+export const fetchMyEarlyAccessRequest = async (albumId: string): Promise<EarlyAccessRequest | null> => {
+  const user = auth.currentUser;
+  if (!user) return null;
+  try {
+    const q = query(
+      collection(db, 'earlyAccessRequests'),
+      where('albumId', '==', albumId),
+      where('requesterId', '==', user.uid)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    return { id: snap.docs[0].id, ...snap.docs[0].data() } as EarlyAccessRequest;
+  } catch { return null; }
+};
+
+export const fetchEarlyAccessRequests = async (albumId: string): Promise<EarlyAccessRequest[]> => {
+  try {
+    const q = query(collection(db, 'earlyAccessRequests'), where('albumId', '==', albumId));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as EarlyAccessRequest))
+      .sort((a, b) => b.requestedAt - a.requestedAt);
+  } catch { return []; }
+};
+
+export const grantEarlyAccessRequest = async (
+  requestId: string,
+  albumId: string,
+  requesterId: string,
+  requesterName: string
+): Promise<string | null> => {
+  const user = auth.currentUser;
+  if (!user) return null;
+  try {
+    const code = makeCode();
+    const now = Date.now();
+    const reviewCode: ReviewCode = {
+      id: `rc_req_${now}`,
+      albumId,
+      code,
+      label: `Granted to ${requesterName}`,
+      createdAt: now,
+      maxUses: 1,
+      useCount: 0,
+      isRevoked: false,
+    };
+    // Add code to album (pre-redeemed for this user)
+    const albumRef = doc(db, 'albums', albumId);
+    const earlyEntry: EarlyAccessEntry = {
+      uid: requesterId,
+      displayName: requesterName,
+      addedAt: now,
+      label: 'Access Request',
+      codeUsed: code,
+    };
+    await updateDoc(albumRef, {
+      reviewCodes: arrayUnion(reviewCode),
+      earlyAccessList: arrayUnion(earlyEntry),
+    });
+    // Update request status
+    await updateDoc(doc(db, 'earlyAccessRequests', requestId), {
+      status: 'GRANTED',
+      generatedCode: code,
+      respondedAt: now,
+    });
+    // Send code to requester via DM
+    const roomId = await createChatRoom([user.uid, requesterId], 'PRIVATE');
+    await sendMessage(roomId, {
+      senderId: 'system',
+      senderName: 'Plajah',
+      senderPhoto: '',
+      type: 'ACTION',
+      text: `Your early access request was approved! Enter this code on the release page: ${code}`,
+      metadata: { action: 'EARLY_ACCESS_CODE', url: albumId },
+    });
+    return code;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, 'earlyAccessRequests');
+    return null;
+  }
+};
+
+export const denyEarlyAccessRequest = async (requestId: string): Promise<void> => {
+  await updateDoc(doc(db, 'earlyAccessRequests', requestId), {
+    status: 'DENIED',
+    respondedAt: Date.now(),
+  });
+};
+
+// ─── Stories ─────────────────────────────────────────────────────────────────
+const STORIES_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+export const createStory = async (ownerId: string, data: Omit<Story, 'id' | 'ownerId' | 'timestamp' | 'expiresAt'>): Promise<string | null> => {
+  try {
+    const now = Date.now();
+    const ref = doc(collection(db, 'stories'));
+    const story: Story = { ...data, id: ref.id, ownerId, timestamp: now, expiresAt: now + STORIES_TTL_MS };
+    await setDoc(ref, story);
+    return ref.id;
+  } catch (e) { console.error('createStory', e); return null; }
+};
+
+export const listenToFollowedStories = (followedUids: string[], callback: (stories: Story[]) => void) => {
+  if (followedUids.length === 0) { callback([]); return () => {}; }
+  const now = Date.now();
+  const q = query(
+    collection(db, 'stories'),
+    where('ownerId', 'in', followedUids.slice(0, 30)),
+    where('expiresAt', '>', now),
+    orderBy('expiresAt'),
+    orderBy('timestamp', 'desc'),
+  );
+  return onSnapshot(q, snap => callback(snap.docs.map(d => d.data() as Story)));
+};
+
+export const listenToUserStories = (uid: string, callback: (stories: Story[]) => void) => {
+  const now = Date.now();
+  const q = query(
+    collection(db, 'stories'),
+    where('ownerId', '==', uid),
+    where('expiresAt', '>', now),
+    orderBy('expiresAt'),
+    orderBy('timestamp', 'desc'),
+  );
+  return onSnapshot(q, snap => callback(snap.docs.map(d => d.data() as Story)));
+};
+
+export const markStoryViewed = async (storyId: string, viewerId: string) => {
+  try {
+    await updateDoc(doc(db, 'stories', storyId), { viewerIds: arrayUnion(viewerId) });
+  } catch (_) {}
+};
+
+export const deleteStory = async (storyId: string) => {
+  try { await deleteDoc(doc(db, 'stories', storyId)); } catch (_) {}
+};
+
+export const uploadStoryMedia = async (file: File, ownerId: string): Promise<string | null> => {
+  try {
+    const path = `stories/${ownerId}/${Date.now()}_${file.name}`;
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, file);
+    return await getDownloadURL(storageRef);
+  } catch (e) { console.error('uploadStoryMedia', e); return null; }
+};
+
+// ─── CLUBS ────────────────────────────────────────────────────────────────────
+
+export const createClub = async (data: Partial<Club>): Promise<Club | null> => {
+  if (!auth.currentUser) return null;
+  try {
+    const docRef = doc(collection(db, 'clubs'));
+    const now = Date.now();
+    const club: Club = {
+      id: docRef.id,
+      name: data.name || 'Untitled Club',
+      description: data.description || '',
+      creatorId: auth.currentUser.uid,
+      admins: [auth.currentUser.uid],
+      moderators: [],
+      category: data.category || 'General',
+      tags: data.tags || [],
+      isPrivate: data.isPrivate ?? false,
+      joinProcess: data.joinProcess || 'AUTO',
+      questionnaire: data.questionnaire,
+      rules: data.rules,
+      allowedAssetTypes: data.allowedAssetTypes || ['MUSIC', 'VIDEO', 'PHOTO', 'ARTICLE', 'BOOK', 'PLAYLIST', 'WORLD', 'LINK'],
+      linksAllowed: data.linksAllowed ?? true,
+      memberCount: 1,
+      type: data.type || 'CLUB',
+      coverImage: data.coverImage,
+      iconImage: data.iconImage,
+      customBackground: data.customBackground,
+      customThemeId: data.customThemeId,
+      customFont: data.customFont,
+      hasLiveChat: data.hasLiveChat ?? true,
+      hasMerchStore: data.hasMerchStore ?? false,
+      hasExclusiveEvents: data.hasExclusiveEvents ?? true,
+      monthlyPrice: data.monthlyPrice,
+      yearlyPrice: data.yearlyPrice,
+      charityGoal: data.charityGoal,
+      charityRaised: data.charityRaised ?? 0,
+      charityOrgName: data.charityOrgName,
+      timestamp: now,
+      updatedAt: now,
+    };
+    await setDoc(docRef, removeUndefined(club));
+    const memberRef = doc(collection(db, 'clubMemberships'));
+    await setDoc(memberRef, removeUndefined({
+      id: memberRef.id,
+      clubId: club.id,
+      userId: auth.currentUser.uid,
+      role: 'OWNER' as ClubRole,
+      status: 'ACTIVE',
+      displayName: auth.currentUser.displayName || 'Creator',
+      photoUrl: auth.currentUser.photoURL || '',
+      joinedAt: now,
+    } as ClubMembership));
+    return club;
+  } catch (e: any) {
+    console.error('createClub failed:', e);
+    throw new Error(e?.message || 'Firestore write failed');
+  }
+};
+
+export const updateClub = async (clubId: string, updates: Partial<Club>) => {
+  await updateDoc(doc(db, 'clubs', clubId), { ...removeUndefined(updates), updatedAt: Date.now() });
+};
+
+export const deleteClub = async (clubId: string) => {
+  await deleteDoc(doc(db, 'clubs', clubId));
+};
+
+export const fetchPublicClubs = async (category?: string): Promise<Club[]> => {
+  // Avoid composite index requirement — filter/sort client-side
+  const q = category && category !== 'All'
+    ? query(collection(db, 'clubs'), where('isPrivate', '==', false), where('category', '==', category), limit(50))
+    : query(collection(db, 'clubs'), where('isPrivate', '==', false), limit(50));
+  const snap = await getDocs(q);
+  const clubs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Club));
+  return clubs.sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0));
+};
+
+const DEMO_CLUBS: Omit<Club, 'id' | 'timestamp' | 'updatedAt'>[] = [
+  {
+    name: 'Plajah Music Collective',
+    description: 'The premier community for music creators and fans on Plajah. Share tracks, collaborate on projects, and discover underground artists before they blow up. From bedroom producers to touring musicians — all genres welcome.',
+    creatorId: '',
+    admins: [],
+    moderators: [],
+    category: 'Music',
+    tags: ['music', 'producers', 'artists', 'collaboration'],
+    isPrivate: false,
+    joinProcess: 'AUTO',
+    allowedAssetTypes: ['MUSIC', 'VIDEO', 'PHOTO', 'PLAYLIST', 'LINK'],
+    linksAllowed: true,
+    memberCount: 0,
+    type: 'CLUB',
+    hasLiveChat: true,
+    hasMerchStore: true,
+    hasExclusiveEvents: true,
+    isDemo: true,
+    coverImage: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&q=80',
+    iconImage: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=200&q=80',
+    charityRaised: 0,
+  },
+  {
+    name: 'Visual Artists United',
+    description: 'A sanctuary for visual artists, illustrators, photographers, and digital creators. Share your work, give feedback, and connect with collectors and fans who appreciate the craft.',
+    creatorId: '',
+    admins: [],
+    moderators: [],
+    category: 'Art',
+    tags: ['art', 'illustration', 'photography', 'digital', 'design'],
+    isPrivate: false,
+    joinProcess: 'AUTO',
+    allowedAssetTypes: ['PHOTO', 'VIDEO', 'LINK', 'ARTICLE'],
+    linksAllowed: true,
+    memberCount: 0,
+    type: 'CLUB',
+    hasLiveChat: true,
+    hasMerchStore: true,
+    hasExclusiveEvents: true,
+    isDemo: true,
+    coverImage: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=800&q=80',
+    iconImage: 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=200&q=80',
+    charityRaised: 0,
+  },
+  {
+    name: 'Independent Film Society',
+    description: 'Where independent filmmakers, cinematographers, and cinephiles unite. Screen your short films, discuss the craft, and find collaborators for your next project.',
+    creatorId: '',
+    admins: [],
+    moderators: [],
+    category: 'Film',
+    tags: ['film', 'cinema', 'indie', 'screenwriting', 'directing'],
+    isPrivate: false,
+    joinProcess: 'AUTO',
+    allowedAssetTypes: ['VIDEO', 'LINK', 'PHOTO', 'ARTICLE'],
+    linksAllowed: true,
+    memberCount: 0,
+    type: 'CLUB',
+    hasLiveChat: true,
+    hasMerchStore: false,
+    hasExclusiveEvents: true,
+    isDemo: true,
+    coverImage: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=800&q=80',
+    iconImage: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=200&q=80',
+    charityRaised: 0,
+  },
+  {
+    name: 'Plajah Gaming League',
+    description: 'Compete, stream, and connect with gamers across every platform and genre. Tournaments, live playthroughs, and community challenges. GG.',
+    creatorId: '',
+    admins: [],
+    moderators: [],
+    category: 'Gaming',
+    tags: ['gaming', 'esports', 'streaming', 'tournaments', 'fps', 'rpg'],
+    isPrivate: false,
+    joinProcess: 'AUTO',
+    allowedAssetTypes: ['VIDEO', 'LINK', 'PHOTO', 'ARTICLE'],
+    linksAllowed: true,
+    memberCount: 0,
+    type: 'CLUB',
+    hasLiveChat: true,
+    hasMerchStore: true,
+    hasExclusiveEvents: true,
+    isDemo: true,
+    coverImage: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80',
+    iconImage: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=200&q=80',
+    charityRaised: 0,
+  },
+  {
+    name: 'The Literary Circle',
+    description: 'For writers, poets, authors, and book lovers. Share chapters, get feedback, discuss literature, and find your next favorite read or writing partner.',
+    creatorId: '',
+    admins: [],
+    moderators: [],
+    category: 'Literature',
+    tags: ['books', 'writing', 'poetry', 'authors', 'fiction'],
+    isPrivate: false,
+    joinProcess: 'AUTO',
+    allowedAssetTypes: ['ARTICLE', 'BOOK', 'LINK', 'PHOTO'],
+    linksAllowed: true,
+    memberCount: 0,
+    type: 'CLUB',
+    hasLiveChat: true,
+    hasMerchStore: false,
+    hasExclusiveEvents: true,
+    isDemo: true,
+    coverImage: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&q=80',
+    iconImage: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=200&q=80',
+    charityRaised: 0,
+  },
+  {
+    name: 'Tech Builders',
+    description: 'Developers, designers, and digital makers building the future. Share side projects, discuss trends, collaborate on open source, and help each other ship.',
+    creatorId: '',
+    admins: [],
+    moderators: [],
+    category: 'Tech',
+    tags: ['tech', 'coding', 'dev', 'ai', 'startups', 'design'],
+    isPrivate: false,
+    joinProcess: 'AUTO',
+    allowedAssetTypes: ['LINK', 'ARTICLE', 'VIDEO', 'PHOTO'],
+    linksAllowed: true,
+    memberCount: 0,
+    type: 'CLUB',
+    hasLiveChat: true,
+    hasMerchStore: false,
+    hasExclusiveEvents: true,
+    isDemo: true,
+    coverImage: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80',
+    iconImage: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=200&q=80',
+    charityRaised: 0,
+  },
+  {
+    name: 'Global Sports Arena',
+    description: 'All sports, all levels — from armchair fans to pro athletes. Live match reactions, highlights, fitness content, and sports debate from around the world.',
+    creatorId: '',
+    admins: [],
+    moderators: [],
+    category: 'Sports',
+    tags: ['sports', 'fitness', 'football', 'basketball', 'soccer', 'athletics'],
+    isPrivate: false,
+    joinProcess: 'AUTO',
+    allowedAssetTypes: ['VIDEO', 'PHOTO', 'LINK', 'ARTICLE'],
+    linksAllowed: true,
+    memberCount: 0,
+    type: 'CLUB',
+    hasLiveChat: true,
+    hasMerchStore: true,
+    hasExclusiveEvents: true,
+    isDemo: true,
+    coverImage: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&q=80',
+    iconImage: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=200&q=80',
+    charityRaised: 0,
+  },
+  {
+    name: 'Lifestyle Creators Hub',
+    description: 'Fashion, food, travel, wellness, and everything in between. Lifestyle creators sharing content, building brands, and connecting with an engaged audience.',
+    creatorId: '',
+    admins: [],
+    moderators: [],
+    category: 'Lifestyle',
+    tags: ['lifestyle', 'fashion', 'food', 'travel', 'wellness', 'beauty'],
+    isPrivate: false,
+    joinProcess: 'AUTO',
+    allowedAssetTypes: ['PHOTO', 'VIDEO', 'LINK', 'ARTICLE'],
+    linksAllowed: true,
+    memberCount: 0,
+    type: 'CLUB',
+    hasLiveChat: true,
+    hasMerchStore: true,
+    hasExclusiveEvents: true,
+    isDemo: true,
+    coverImage: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80',
+    iconImage: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=200&q=80',
+    charityRaised: 0,
+  },
+  {
+    name: 'Plajah Gives Back',
+    description: 'A charity community raising funds and awareness for causes that matter. Every member, every post, every event moves the needle on real-world impact.',
+    creatorId: '',
+    admins: [],
+    moderators: [],
+    category: 'Charity',
+    tags: ['charity', 'giving', 'community', 'nonprofit', 'impact'],
+    isPrivate: false,
+    joinProcess: 'AUTO',
+    allowedAssetTypes: ['VIDEO', 'PHOTO', 'LINK', 'ARTICLE'],
+    linksAllowed: true,
+    memberCount: 0,
+    type: 'CHARITY',
+    hasLiveChat: true,
+    hasMerchStore: false,
+    hasExclusiveEvents: true,
+    isDemo: true,
+    charityGoal: 10000,
+    charityRaised: 0,
+    charityOrgName: 'Plajah Community Fund',
+    coverImage: 'https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?w=800&q=80',
+    iconImage: 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?w=200&q=80',
+  },
+];
+
+export const seedDemoClubs = async (): Promise<void> => {
+  try {
+    const existing = await getDocs(query(collection(db, 'clubs'), where('isDemo', '==', true), limit(1)));
+    if (!existing.empty) return; // already seeded
+    const now = Date.now();
+    for (const club of DEMO_CLUBS) {
+      const docRef = doc(collection(db, 'clubs'));
+      await setDoc(docRef, removeUndefined({ ...club, id: docRef.id, timestamp: now, updatedAt: now }));
+    }
+  } catch (e) {
+    console.warn('seedDemoClubs failed', e);
+  }
+};
+
+export const claimClubAsFounder = async (clubId: string): Promise<boolean> => {
+  if (!auth.currentUser) return false;
+  try {
+    const uid = auth.currentUser.uid;
+    await updateDoc(doc(db, 'clubs', clubId), {
+      creatorId: uid,
+      admins: [uid],
+      isDemo: false,
+      updatedAt: Date.now(),
+    });
+    // Create an OWNER membership for the claimer
+    const memberRef = doc(collection(db, 'clubMemberships'));
+    await setDoc(memberRef, removeUndefined({
+      id: memberRef.id,
+      clubId,
+      userId: uid,
+      role: 'OWNER' as ClubRole,
+      status: 'ACTIVE',
+      displayName: auth.currentUser.displayName || 'Founder',
+      photoUrl: auth.currentUser.photoURL || '',
+      joinedAt: Date.now(),
+    }));
+    await updateDoc(doc(db, 'clubs', clubId), { memberCount: increment(1) });
+    return true;
+  } catch (e) {
+    console.error('claimClubAsFounder', e);
+    return false;
+  }
+};
+
+export const fetchUserClubs = async (uid: string): Promise<Club[]> => {
+  try {
+    const q = query(collection(db, 'clubMemberships'), where('userId', '==', uid));
+    const snap = await getDocs(q);
+    if (snap.empty) return [];
+    const clubIds = snap.docs
+      .filter(d => d.data().status === 'ACTIVE')
+      .map(d => d.data().clubId as string);
+    const clubs: Club[] = [];
+    for (const cid of clubIds.slice(0, 10)) {
+      const d = await getDoc(doc(db, 'clubs', cid));
+      if (d.exists()) clubs.push({ id: d.id, ...d.data() } as Club);
+    }
+    return clubs;
+  } catch (e) {
+    console.error('fetchUserClubs failed:', e);
+    return [];
+  }
+};
+
+export const fetchClub = async (clubId: string): Promise<Club | null> => {
+  const d = await getDoc(doc(db, 'clubs', clubId));
+  return d.exists() ? ({ id: d.id, ...d.data() } as Club) : null;
+};
+
+export const getUserClubMembership = async (clubId: string, uid: string): Promise<ClubMembership | null> => {
+  const q = query(collection(db, 'clubMemberships'), where('clubId', '==', clubId), where('userId', '==', uid));
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  return { id: snap.docs[0].id, ...snap.docs[0].data() } as ClubMembership;
+};
+
+export const joinClub = async (clubId: string, role: ClubRole = 'MEMBER', answers?: string[]): Promise<ClubMembership | null> => {
+  if (!auth.currentUser) return null;
+  const club = await fetchClub(clubId);
+  if (!club) return null;
+  const existing = await getUserClubMembership(clubId, auth.currentUser.uid);
+  if (existing) return existing;
+  const memberRef = doc(collection(db, 'clubMemberships'));
+  const status = club.joinProcess === 'AUTO' ? 'ACTIVE' : 'PENDING';
+  const mem: ClubMembership = {
+    id: memberRef.id,
+    clubId,
+    userId: auth.currentUser.uid,
+    role,
+    status,
+    displayName: auth.currentUser.displayName || 'Member',
+    photoUrl: auth.currentUser.photoURL || '',
+    questionnaireAnswers: answers,
+    joinedAt: Date.now(),
+  };
+  await setDoc(memberRef, removeUndefined(mem));
+  if (status === 'ACTIVE') await updateDoc(doc(db, 'clubs', clubId), { memberCount: increment(1) });
+  return mem;
+};
+
+export const leaveClub = async (clubId: string) => {
+  if (!auth.currentUser) return;
+  const mem = await getUserClubMembership(clubId, auth.currentUser.uid);
+  if (!mem) return;
+  await deleteDoc(doc(db, 'clubMemberships', mem.id));
+  await updateDoc(doc(db, 'clubs', clubId), { memberCount: increment(-1) });
+};
+
+export const fetchClubMembers = async (clubId: string): Promise<ClubMembership[]> => {
+  try {
+    const q = query(collection(db, 'clubMemberships'), where('clubId', '==', clubId), limit(200));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as ClubMembership))
+      .filter(m => m.status === 'ACTIVE')
+      .sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
+  } catch (e) {
+    console.error('[fetchClubMembers]', e);
+    return [];
+  }
+};
+
+export const updateMemberRole = async (membershipId: string, role: ClubRole) => {
+  await updateDoc(doc(db, 'clubMemberships', membershipId), { role });
+};
+
+export const approveMember = async (membershipId: string, clubId: string) => {
+  await updateDoc(doc(db, 'clubMemberships', membershipId), { status: 'ACTIVE' });
+  await updateDoc(doc(db, 'clubs', clubId), { memberCount: increment(1) });
+};
+
+export const banMember = async (membershipId: string) => {
+  await updateDoc(doc(db, 'clubMemberships', membershipId), { status: 'BANNED' });
+};
+
+// Club Posts
+export const createClubPost = async (post: Partial<ClubPost>): Promise<ClubPost | null> => {
+  if (!auth.currentUser) return null;
+  const docRef = doc(collection(db, 'clubPosts'));
+  const newPost: ClubPost = {
+    id: docRef.id,
+    clubId: post.clubId!,
+    authorId: auth.currentUser.uid,
+    authorName: auth.currentUser.displayName || 'Member',
+    authorPhoto: auth.currentUser.photoURL || '',
+    content: post.content || '',
+    type: post.type || 'POST',
+    attachments: post.attachments,
+    likes: [],
+    commentCount: 0,
+    isPinned: post.isPinned ?? false,
+    isBulletin: post.isBulletin ?? false,
+    isNewArticle: post.isNewArticle ?? false,
+    timestamp: Date.now(),
+  };
+  await setDoc(docRef, removeUndefined(newPost));
+  return newPost;
+};
+
+export const listenToClubPosts = (clubId: string, callback: (posts: ClubPost[]) => void) => {
+  const q = query(collection(db, 'clubPosts'), where('clubId', '==', clubId), limit(100));
+  return onSnapshot(q, snap => {
+    const posts = snap.docs.map(d => ({ id: d.id, ...d.data() } as ClubPost));
+    posts.sort((a, b) => {
+      const pinDiff = (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
+      return pinDiff !== 0 ? pinDiff : (b.timestamp || 0) - (a.timestamp || 0);
+    });
+    callback(posts);
+  }, err => console.error('[listenToClubPosts]', err));
+};
+
+export const deleteClubPost = async (postId: string) => {
+  await deleteDoc(doc(db, 'clubPosts', postId));
+};
+
+export const toggleClubPostLike = async (postId: string, uid: string, liked: boolean) => {
+  await updateDoc(doc(db, 'clubPosts', postId), { likes: liked ? arrayRemove(uid) : arrayUnion(uid) });
+};
+
+export const pinClubPost = async (postId: string, pinned: boolean) => {
+  await updateDoc(doc(db, 'clubPosts', postId), { isPinned: pinned });
+};
+
+// Club Gallery
+export const addClubGalleryItem = async (item: Partial<ClubGalleryItem>): Promise<ClubGalleryItem | null> => {
+  if (!auth.currentUser) return null;
+  const docRef = doc(collection(db, 'clubGallery'));
+  const newItem: ClubGalleryItem = {
+    id: docRef.id,
+    clubId: item.clubId!,
+    uploaderId: auth.currentUser.uid,
+    uploaderName: auth.currentUser.displayName || 'Member',
+    uploaderPhoto: auth.currentUser.photoURL || '',
+    type: item.type || 'PHOTO',
+    url: item.url || '',
+    thumbnailUrl: item.thumbnailUrl,
+    title: item.title || '',
+    description: item.description,
+    assetId: item.assetId,
+    likes: [],
+    timestamp: Date.now(),
+  };
+  await setDoc(docRef, removeUndefined(newItem));
+  return newItem;
+};
+
+export const fetchClubGallery = async (clubId: string): Promise<ClubGalleryItem[]> => {
+  try {
+    const q = query(collection(db, 'clubGallery'), where('clubId', '==', clubId), limit(60));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as ClubGalleryItem))
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  } catch (e) {
+    console.error('[fetchClubGallery]', e);
+    return [];
+  }
+};
+
+export const deleteClubGalleryItem = async (itemId: string) => {
+  await deleteDoc(doc(db, 'clubGallery', itemId));
+};
+
+// ── Club Events ───────────────────────────────────────────────────────────────
+
+export const createClubEvent = async (
+  // Accept the `eventType`/`date` aliases some callers (e.g. MovieUXView) use, plus the content-link
+  // fields — previously these were silently dropped, so a scheduled movie watch party lost its date,
+  // its linked movie, and defaulted to type LIVE_TALK.
+  event: Partial<ClubEvent> & { eventType?: ClubEvent['type']; date?: number; rsvps?: string[] },
+): Promise<ClubEvent | null> => {
+  if (!auth.currentUser) return null;
+  const docRef = doc(collection(db, 'clubEvents'));
+  const newEvent: ClubEvent = {
+    id: docRef.id,
+    clubId: event.clubId!,
+    hostId: auth.currentUser.uid,
+    title: event.title || 'Untitled Event',
+    description: event.description,
+    type: event.type || event.eventType || 'LIVE_TALK',
+    scheduledAt: event.scheduledAt || event.date || Date.now(),
+    isExclusive: event.isExclusive ?? false,
+    isActive: false,
+    attendeeIds: event.rsvps || [],
+    linkedContentId: event.linkedContentId,
+    linkedContentTitle: event.linkedContentTitle,
+    linkedContentThumb: event.linkedContentThumb,
+    isVirtual: event.isVirtual,
+    partyId: event.partyId,
+    timestamp: Date.now(),
+  };
+  await setDoc(docRef, removeUndefined(newEvent));
+  return newEvent;
+};
+
+export const fetchClubEvents = async (clubId: string): Promise<ClubEvent[]> => {
+  try {
+    const q = query(collection(db, 'clubEvents'), where('clubId', '==', clubId));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as ClubEvent))
+      .sort((a, b) => (a.scheduledAt || 0) - (b.scheduledAt || 0));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'clubEvents');
+    return [];
+  }
+};
+
+export const deleteClubEvent = async (eventId: string): Promise<void> => {
+  await deleteDoc(doc(db, 'clubEvents', eventId));
+};
+
+export const rsvpClubEvent = async (eventId: string, uid: string, attending: boolean): Promise<void> => {
+  const ref = doc(db, 'clubEvents', eventId);
+  await updateDoc(ref, {
+    attendeeIds: attending ? arrayUnion(uid) : arrayRemove(uid),
+  });
+};
+
+// Club Chat
+export const sendClubChatMessage = async (clubId: string, content: string): Promise<void> => {
+  if (!auth.currentUser) return;
+  const docRef = doc(collection(db, 'clubChat'));
+  await setDoc(docRef, removeUndefined({
+    id: docRef.id,
+    clubId,
+    senderId: auth.currentUser.uid,
+    senderName: auth.currentUser.displayName || 'Member',
+    senderPhoto: auth.currentUser.photoURL || '',
+    content,
+    isSticky: false,
+    timestamp: Date.now(),
+  } as ClubChatMessage));
+};
+
+export const listenToClubChat = (clubId: string, callback: (msgs: ClubChatMessage[]) => void) => {
+  const q = query(collection(db, 'clubChat'), where('clubId', '==', clubId), limit(200));
+  return onSnapshot(q, snap => {
+    const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() } as ClubChatMessage));
+    msgs.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    callback(msgs);
+  }, err => console.error('[listenToClubChat]', err));
+};
+
+export const deleteClubChatMessage = async (msgId: string) => {
+  await deleteDoc(doc(db, 'clubChat', msgId));
+};
+
+export const stickyClubChatMessage = async (msgId: string, sticky: boolean) => {
+  await updateDoc(doc(db, 'clubChat', msgId), { isSticky: sticky });
+};
+
+export const uploadClubImage = async (file: File, clubId: string, type: 'cover' | 'icon'): Promise<string | null> => {
+  try {
+    const path = `clubs/${clubId}/${type}_${Date.now()}_${file.name}`;
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, file);
+    return await getDownloadURL(storageRef);
+  } catch (e) { console.error('uploadClubImage', e); return null; }
+};
+
+// ── DISCUSSION FORUM ──────────────────────────────────────────────────────────
+
+export const createDiscussionAlias = async (name: string, avatar?: string, bio?: string) => {
+  if (!auth.currentUser) return null;
+  const docRef = doc(collection(db, 'discussionAliases'));
+  const alias = { id: docRef.id, userId: auth.currentUser.uid, name, avatar: avatar || '', bio: bio || '', timestamp: Date.now() };
+  await setDoc(docRef, alias);
+  return alias;
+};
+
+export const fetchMyDiscussionAliases = async () => {
+  if (!auth.currentUser) return [];
+  try {
+    const q = query(collection(db, 'discussionAliases'), where('userId', '==', auth.currentUser.uid), limit(50));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a: any, b: any) => (b.timestamp || 0) - (a.timestamp || 0)) as any[];
+  } catch (e) {
+    console.error('[fetchMyDiscussionAliases]', e);
+    return [];
+  }
+};
+
+export const fetchDiscussionBoards = async () => {
+  try {
+    const q = query(collection(db, 'discussionBoards'), limit(50));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a: any, b: any) => (b.memberCount || 0) - (a.memberCount || 0)) as any[];
+  } catch (e) {
+    console.error('[fetchDiscussionBoards]', e);
+    return [];
+  }
+};
+
+export const createDiscussionBoard = async (name: string, description: string, tags: string[] = []) => {
+  if (!auth.currentUser) return null;
+  const docRef = doc(collection(db, 'discussionBoards'));
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const board = { id: docRef.id, name, slug, description, tags, creatorId: auth.currentUser.uid, memberCount: 1, postCount: 0, isNSFW: false, timestamp: Date.now() };
+  await setDoc(docRef, board);
+  return board;
+};
+
+export const fetchDiscussionPosts = async (boardId?: string, sortBy: 'hot' | 'new' | 'top' = 'hot') => {
+  try {
+    const q = boardId
+      ? query(collection(db, 'discussionPosts'), where('boardId', '==', boardId), limit(100))
+      : query(collection(db, 'discussionPosts'), limit(100));
+    const snap = await getDocs(q);
+    const posts = snap.docs.map(d => ({ id: d.id, ...(d.data() as object) })) as any[];
+    if (sortBy === 'new') posts.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    else posts.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
+    return posts;
+  } catch (e) {
+    console.error('[fetchDiscussionPosts]', e);
+    return [];
+  }
+};
+
+export const createDiscussionPost = async (data: { boardId: string; boardName: string; title: string; body: string; aliasId?: string; displayName: string; displayPhoto?: string; isAnonymous: boolean; linkUrl?: string; imageUrls?: string[]; flair?: string }) => {
+  if (!auth.currentUser) return null;
+  const docRef = doc(collection(db, 'discussionPosts'));
+  const post = {
+    id: docRef.id, ...data,
+    authorId: auth.currentUser.uid,
+    upvotes: 0, downvotes: 0, commentCount: 0, isPinned: false,
+    timestamp: Date.now(),
+  };
+  await setDoc(docRef, removeUndefined(post));
+  try { await updateDoc(doc(db, 'discussionBoards', data.boardId), { postCount: increment(1) }); } catch {}
+  return post;
+};
+
+export const voteDiscussionPost = async (postId: string, value: 1 | -1) => {
+  if (!auth.currentUser) return;
+  const voteId = `${auth.currentUser.uid}_post_${postId}`;
+  const voteRef = doc(db, 'discussionVotes', voteId);
+  const existing = await getDoc(voteRef);
+  const postRef = doc(db, 'discussionPosts', postId);
+  if (existing.exists() && existing.data().value === value) {
+    await deleteDoc(voteRef);
+    await updateDoc(postRef, { [value === 1 ? 'upvotes' : 'downvotes']: increment(-1) });
+  } else {
+    if (existing.exists()) {
+      await updateDoc(postRef, { [existing.data().value === 1 ? 'upvotes' : 'downvotes']: increment(-1) });
+    }
+    await setDoc(voteRef, { id: voteId, userId: auth.currentUser.uid, targetId: postId, targetType: 'POST', value, timestamp: Date.now() });
+    await updateDoc(postRef, { [value === 1 ? 'upvotes' : 'downvotes']: increment(1) });
+  }
+};
+
+export const deleteDiscussionPost = async (postId: string) => {
+  await deleteDoc(doc(db, 'discussionPosts', postId));
+};
+
+export const fetchDiscussionComments = async (postId: string) => {
+  try {
+    const q = query(collection(db, 'discussionComments'), where('postId', '==', postId), limit(200));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a: any, b: any) => (a.timestamp || 0) - (b.timestamp || 0)) as any[];
+  } catch (e) {
+    console.error('[fetchDiscussionComments]', e);
+    return [];
+  }
+};
+
+export const createDiscussionComment = async (data: { postId: string; body: string; parentCommentId?: string; aliasId?: string; displayName: string; displayPhoto?: string; isAnonymous: boolean; depth: number }) => {
+  if (!auth.currentUser) return null;
+  try {
+    const docRef = doc(collection(db, 'discussionComments'));
+    const comment = {
+      id: docRef.id, ...data,
+      authorId: auth.currentUser.uid,
+      upvotes: 0, downvotes: 0, replyCount: 0,
+      timestamp: Date.now(),
+    };
+    await setDoc(docRef, removeUndefined(comment));
+    try { await updateDoc(doc(db, 'discussionPosts', data.postId), { commentCount: increment(1) }); } catch {}
+    if (data.parentCommentId) {
+      try { await updateDoc(doc(db, 'discussionComments', data.parentCommentId), { replyCount: increment(1) }); } catch {}
+    }
+    return comment;
+  } catch (e) {
+    console.error('[createDiscussionComment]', e);
+    return null;
+  }
+};
+
+export const voteDiscussionComment = async (commentId: string, value: 1 | -1) => {
+  if (!auth.currentUser) return;
+  const voteId = `${auth.currentUser.uid}_comment_${commentId}`;
+  const voteRef = doc(db, 'discussionVotes', voteId);
+  const existing = await getDoc(voteRef);
+  const commentRef = doc(db, 'discussionComments', commentId);
+  if (existing.exists() && existing.data().value === value) {
+    await deleteDoc(voteRef);
+    await updateDoc(commentRef, { [value === 1 ? 'upvotes' : 'downvotes']: increment(-1) });
+  } else {
+    if (existing.exists()) {
+      await updateDoc(commentRef, { [existing.data().value === 1 ? 'upvotes' : 'downvotes']: increment(-1) });
+    }
+    await setDoc(voteRef, { id: voteId, userId: auth.currentUser.uid, targetId: commentId, targetType: 'COMMENT', value, timestamp: Date.now() });
+    await updateDoc(commentRef, { [value === 1 ? 'upvotes' : 'downvotes']: increment(1) });
+  }
+};
+
+// ── Club Invite Links ──────────────────────────────────────────────────────────
+
+export const generateClubInviteToken = async (clubId: string): Promise<string> => {
+  const token = Math.random().toString(36).slice(2, 10).toUpperCase();
+  await updateDoc(doc(db, 'clubs', clubId), { inviteToken: token });
+  return token;
+};
+
+export const joinClubByInviteToken = async (clubId: string, token: string): Promise<boolean> => {
+  if (!auth.currentUser) return false;
+  const clubDoc = await getDoc(doc(db, 'clubs', clubId));
+  if (!clubDoc.exists()) return false;
+  const club = clubDoc.data() as any;
+  if (club.inviteToken !== token) return false;
+  await joinClub(clubId, 'MEMBER');
+  return true;
+};
+
+// ── Club Channels ─────────────────────────────────────────────────────────────
+
+export const addClubChannel = async (clubId: string, channel: { name: string; type: string; description?: string; isReadOnly?: boolean }): Promise<void> => {
+  const newChannel = { id: `ch_${Date.now()}`, ...channel, createdAt: Date.now() };
+  const clubDoc = await getDoc(doc(db, 'clubs', clubId));
+  const existing: any[] = clubDoc.data()?.channels ?? [];
+  await updateDoc(doc(db, 'clubs', clubId), { channels: [...existing, newChannel] });
+};
+
+export const deleteClubChannel = async (clubId: string, channelId: string): Promise<void> => {
+  const clubDoc = await getDoc(doc(db, 'clubs', clubId));
+  const channels: any[] = (clubDoc.data()?.channels ?? []).filter((c: any) => c.id !== channelId);
+  await updateDoc(doc(db, 'clubs', clubId), { channels });
+};
+
+// ── Club Analytics ────────────────────────────────────────────────────────────
+
+export const fetchClubAnalytics = async (clubId: string) => {
+  try {
+    const [postsSnap, membersSnap, eventsSnap] = await Promise.all([
+      getDocs(query(collection(db, 'clubPosts'), where('clubId', '==', clubId), limit(200))),
+      getDocs(query(collection(db, 'clubMemberships'), where('clubId', '==', clubId))),
+      getDocs(query(collection(db, 'clubEvents'), where('clubId', '==', clubId))),
+    ]);
+    const posts = postsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+    const members = membersSnap.docs.map(d => d.data() as any);
+    const events = eventsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+    return { posts, members, events };
+  } catch (e) {
+    console.error('[fetchClubAnalytics]', e);
+    return { posts: [], members: [], events: [] };
+  }
+};
+
+// ── Discussion real-time listeners ────────────────────────────────────────────
+
+export const listenToDiscussionPosts = (boardId: string | null, callback: (posts: any[]) => void) => {
+  const q = boardId
+    ? query(collection(db, 'discussionPosts'), where('boardId', '==', boardId), limit(100))
+    : query(collection(db, 'discussionPosts'), limit(100));
+  return onSnapshot(q, snap => {
+    const posts = snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+    posts.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
+    callback(posts);
+  }, err => console.error('[listenToDiscussionPosts]', err));
+};
+
+export const listenToDiscussionComments = (postId: string, callback: (comments: any[]) => void) => {
+  const q = query(collection(db, 'discussionComments'), where('postId', '==', postId), limit(200));
+  return onSnapshot(q, snap => {
+    const comments = snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+    comments.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    callback(comments);
+  }, err => console.error('[listenToDiscussionComments]', err));
+};
+
+// ── Discussion moderation ─────────────────────────────────────────────────────
+
+export const reportDiscussionPost = async (postId: string): Promise<void> => {
+  if (!auth.currentUser) return;
+  await updateDoc(doc(db, 'discussionPosts', postId), {
+    reportedBy: arrayUnion(auth.currentUser.uid),
+  });
+};
+
+export const reportDiscussionComment = async (commentId: string): Promise<void> => {
+  if (!auth.currentUser) return;
+  await updateDoc(doc(db, 'discussionComments', commentId), {
+    reportedBy: arrayUnion(auth.currentUser.uid),
+  });
+};
+
+export const removeDiscussionPost = async (postId: string, reason?: string): Promise<void> => {
+  await updateDoc(doc(db, 'discussionPosts', postId), {
+    isRemoved: true,
+    removedReason: reason ?? 'Removed by moderator',
+    body: '[removed]',
+  });
+};
+
+export const removeDiscussionComment = async (commentId: string): Promise<void> => {
+  await updateDoc(doc(db, 'discussionComments', commentId), {
+    isRemoved: true,
+    body: '[removed]',
+  });
+};
+
+export const deleteDiscussionComment = async (commentId: string): Promise<void> => {
+  await deleteDoc(doc(db, 'discussionComments', commentId));
+};
+
+export const pinDiscussionPost = async (postId: string, pinned: boolean): Promise<void> => {
+  await updateDoc(doc(db, 'discussionPosts', postId), { isPinned: pinned });
+};
+
+export const fetchReportedDiscussionContent = async (boardId: string) => {
+  try {
+    const [postsSnap, commentsSnap] = await Promise.all([
+      getDocs(query(collection(db, 'discussionPosts'), where('boardId', '==', boardId))),
+      getDocs(query(collection(db, 'discussionComments'))),
+    ]);
+    const posts = postsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any))
+      .filter(p => (p.reportedBy?.length ?? 0) > 0 && !p.isRemoved);
+    return { reportedPosts: posts };
+  } catch (e) {
+    return { reportedPosts: [] };
+  }
+};
+
+// ── Watchlist ─────────────────────────────────────────────────────────────────
+
+export interface WatchlistItem {
+  id: string;
+  title: string;
+  type: 'VIDEO' | 'ALBUM';
+  thumbnailUrl?: string;
+  genre?: string;
+  addedAt: number;
+}
+
+export const addToWatchlist = async (item: Omit<WatchlistItem, 'addedAt'>): Promise<void> => {
+  if (!auth.currentUser) return;
+  const ref = doc(db, 'users', auth.currentUser.uid, 'watchlist', item.id);
+  await setDoc(ref, { ...item, addedAt: Date.now() });
+};
+
+export const removeFromWatchlist = async (itemId: string): Promise<void> => {
+  if (!auth.currentUser) return;
+  await deleteDoc(doc(db, 'users', auth.currentUser.uid, 'watchlist', itemId));
+};
+
+export const fetchWatchlist = async (): Promise<WatchlistItem[]> => {
+  if (!auth.currentUser) return [];
+  try {
+    const snap = await getDocs(collection(db, 'users', auth.currentUser.uid, 'watchlist'));
+    return snap.docs.map(d => d.data() as WatchlistItem).sort((a, b) => b.addedAt - a.addedAt);
+  } catch { return []; }
+};
+
+export const isInWatchlist = async (itemId: string): Promise<boolean> => {
+  if (!auth.currentUser) return false;
+  try {
+    const d = await getDoc(doc(db, 'users', auth.currentUser.uid, 'watchlist', itemId));
+    return d.exists();
+  } catch { return false; }
+};
+
+// ── Discussion posts linked to content ────────────────────────────────────────
+
+export const fetchDiscussionPostsByContentId = async (contentId: string): Promise<any[]> => {
+  try {
+    const q = query(collection(db, 'discussionPosts'), where('linkedContentId', '==', contentId), limit(10));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a: any, b: any) => (b.upvotes || 0) - (a.upvotes || 0));
+  } catch { return []; }
+};
+
+// ── Club membership Stripe checkout ───────────────────────────────────────────
+
+export const startClubMembershipCheckout = async (
+  clubId: string,
+  clubName: string,
+  monthlyPrice: number,
+  userIdToken: string,
+): Promise<void> => {
+  const res = await fetch('/api/stripe/club-membership', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${userIdToken}` },
+    body: JSON.stringify({ clubId, clubName, monthlyPrice }),
+  });
+  if (!res.ok) throw new Error('Failed to create club membership checkout');
+  const { url } = await res.json();
+  if (url) window.location.href = url;
+};
+
+// ─── EVENTS & TICKETING ───────────────────────────────────────────────────────
+
+export const createOrUpdateEvent = async (event: any): Promise<string> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch('/api/events', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(event),
+  });
+  if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to save event'); }
+  const d = await res.json();
+  return d.id;
+};
+
+export const fetchEvent = async (eventId: string): Promise<any> => {
+  const res = await fetch(`/api/events/${eventId}`);
+  if (!res.ok) return null;
+  return res.json();
+};
+
+export const fetchPublicEvents = async (): Promise<any[]> => {
+  const res = await fetch('/api/events/list');
+  if (!res.ok) return [];
+  const d = await res.json();
+  return d.events ?? [];
+};
+
+export const fetchCreatorEvents = async (uid: string): Promise<any[]> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/events/creator/${uid}`, { headers: { Authorization: `Bearer ${idToken}` } });
+  if (!res.ok) return [];
+  const d = await res.json();
+  return d.events ?? [];
+};
+
+export const purchaseTickets = async (params: {
+  eventId: string; tierId: string; quantity: number;
+  holderName: string; holderEmail: string;
+  physicalRequested?: boolean; customPackagingRequested?: boolean;
+  shippingAddress?: any; promoCode?: string;
+}): Promise<{ url: string }> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/events/${params.eventId}/tickets/purchase`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to initiate purchase'); }
+  return res.json();
+};
+
+export const fetchMyTickets = async (): Promise<any[]> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch('/api/tickets', { headers: { Authorization: `Bearer ${idToken}` } });
+  if (!res.ok) return [];
+  const d = await res.json();
+  return d.tickets ?? [];
+};
+
+export const fetchTicket = async (ticketId: string): Promise<any> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/tickets/${ticketId}`, { headers: { Authorization: `Bearer ${idToken}` } });
+  if (!res.ok) return null;
+  return res.json();
+};
+
+export const validateTicket = async (ticketId: string): Promise<{ valid: boolean; holderName?: string; tierName?: string; reason?: string }> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/tickets/${ticketId}/validate`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) return { valid: false, reason: 'Server error' };
+  return res.json();
+};
+
+export const fetchEventAttendees = async (eventId: string): Promise<any[]> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/events/${eventId}/attendees`, { headers: { Authorization: `Bearer ${idToken}` } });
+  if (!res.ok) return [];
+  const d = await res.json();
+  return d.attendees ?? [];
+};
+
+export const printTicket = async (ticketId: string, printerId: string, printNodeApiKey?: string, copies = 1): Promise<{ success: boolean; printJobId?: number }> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/tickets/${ticketId}/print`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ printerId, printNodeApiKey, copies }),
+  });
+  if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Print failed'); }
+  return res.json();
+};
+
+export const startKioskSession = async (eventId: string, deviceLabel?: string): Promise<string> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/events/${eventId}/kiosk/session`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ deviceLabel }),
+  });
+  if (!res.ok) throw new Error('Failed to start kiosk session');
+  const d = await res.json();
+  return d.sessionId;
+};
+
+// ── Podcast RSS Settings ──────────────────────────────────────────────────────
+
+export const savePodcastRssSettings = async (settings: Partial<PodcastRssSettings>): Promise<void> => {
+  if (!auth.currentUser) return;
+  try {
+    await updateDoc(doc(db, 'users', auth.currentUser.uid), { podcastRss: settings });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, `users/${auth.currentUser.uid}`);
+  }
+};
+
+export const fetchPodcastRssSettings = async (uid?: string): Promise<PodcastRssSettings | null> => {
+  const targetUid = uid ?? auth.currentUser?.uid;
+  if (!targetUid) return null;
+  try {
+    const snap = await getDoc(doc(db, 'users', targetUid));
+    return (snap.data()?.podcastRss as PodcastRssSettings) ?? null;
+  } catch {
+    return null;
+  }
+};
+
+export const syncImportedEpisodes = async (episodes: ImportedRssEpisode[]): Promise<void> => {
+  if (!auth.currentUser) return;
+  const uid = auth.currentUser.uid;
+  const colRef = collection(db, 'podcastImports', uid, 'episodes');
+  // Write episodes in batches of 500 (Firestore limit)
+  const chunks: ImportedRssEpisode[][] = [];
+  for (let i = 0; i < episodes.length; i += 500) {
+    chunks.push(episodes.slice(i, i + 500));
+  }
+  for (const chunk of chunks) {
+    const batch = writeBatch(db);
+    chunk.forEach(ep => {
+      const safeId = ep.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80) || `ep_${Date.now()}`;
+      batch.set(doc(colRef, safeId), ep, { merge: true });
+    });
+    await batch.commit();
+  }
+  await updateDoc(doc(db, 'users', uid), {
+    'podcastRss.lastSynced': Date.now(),
+    'podcastRss.importedEpisodeCount': episodes.length,
+  });
+};
+
+export const backfillMyAlbumArtistIds = async (): Promise<number> => {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return 0;
+  const snap = await getDocs(query(collection(db, 'albums'), where('ownerId', '==', uid)));
+  let fixed = 0;
+  for (const albumDoc of snap.docs) {
+    const tracks: any[] = albumDoc.data().tracks ?? [];
+    if (!tracks.some(t => !t.artistId)) continue;
+    const updatedTracks = tracks.map(t => t.artistId ? t : { ...t, artistId: uid });
+    await updateDoc(albumDoc.ref, { tracks: updatedTracks });
+    fixed++;
+  }
+  return fixed;
+};
+
+export const fetchImportedEpisodes = async (uid: string): Promise<ImportedRssEpisode[]> => {
+  try {
+    const snap = await getDocs(
+      query(
+        collection(db, 'podcastImports', uid, 'episodes'),
+        orderBy('pubDate', 'desc'),
+        limit(200)
+      )
+    );
+    return snap.docs.map(d => d.data() as ImportedRssEpisode);
+  } catch {
+    return [];
+  }
+};

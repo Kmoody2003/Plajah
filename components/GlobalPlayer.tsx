@@ -1,17 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { useGoogleCast } from '../hooks/useGoogleCast';
-import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box } from 'lucide-react';
+import { useViewport } from '../hooks/useViewport';
+import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Shuffle, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box, Video as VideoIcon, Headphones, ZapOff } from 'lucide-react';
+import Logo from './Logo';
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import MuxPlayer from '@mux/mux-player-react';
 import { auth, listenToChatRooms } from '../services/backendService';
+import { buildShareUrl, shareText } from '../services/deepLinkService';
 import { UserProfile, ChatRoom } from '../types';
 import Visualizer from './Visualizer';
+import PaintPoolVisualizer from './PaintPoolVisualizer';
 import AnimatedSlideshow from './AnimatedSlideshow';
+import { resolveSlideshowImages } from '../services/slideshow';
 import ThreeDImage from './ThreeDImage';
 
 import { useAchievements } from '../contexts/AchievementContext';
 import { fetchUserProfile } from '../services/backendService';
+import { areTooltipsOff, setTooltipsOff } from '../lib/tooltipPref';
 
 interface GlobalPlayerProps {
   onNavigate?: (view: any, params?: any) => void;
@@ -26,24 +33,40 @@ interface GlobalPlayerProps {
   onOpenAchievements?: () => void;
   view?: string;
   isMobile?: boolean;
+  userProfile?: UserProfile | null;
+  onUpdateUserProfile?: (updates: Partial<UserProfile>) => void;
+  onOpenAria?: () => void;
 }
 
-const GlobalPlayer: React.FC<GlobalPlayerProps> = ({ 
-  onNavigate, 
-  bottomOffset = '0px', 
-  topOffset, 
-  theme, 
-  setTheme, 
-  currentUser, 
-  onLogout, 
-  onUpload, 
-  onOpenChat, 
-  onOpenAchievements, 
+const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
+  onNavigate,
+  bottomOffset = '0px',
+  topOffset,
+  theme,
+  setTheme,
+  currentUser,
+  onLogout,
+  onUpload,
+  onOpenChat,
+  onOpenAchievements,
   view,
-  isMobile = false
+  isMobile = false,
+  userProfile,
+  onUpdateUserProfile,
+  onOpenAria,
 }) => {
+  const vp = useViewport(); // live breakpoint — reacts to resize/rotate/fold (unlike the static isMobile prop)
   const isBigScreen = theme === 'BIG_SCREEN';
-  const isPhoneMode = theme === 'PHONE' || isMobile;
+  const isPhoneMode = theme === 'PHONE' || isMobile || vp.isPhone;
+  // On phones the persistent music transport is a distraction on text-centered
+  // surfaces (feed, Lorea, chat, profiles, etc.) — only surface it on the music
+  // views. Playback keeps running; the bar is display:none'd, not unmounted, so
+  // audio/video isn't interrupted and it reappears on Chora/Radio/Player.
+  const MUSIC_TRANSPORT_VIEWS = ['MUSIC', 'PLAYER', 'RADIO'];
+  const isPhoneSized = theme === 'PHONE' || vp.isPhone; // phones only — tablets keep the bar
+  // Hidden on non-music phone views. `transportForced` (set below via the context) can
+  // override this at the usage site to reveal the bar (double-tap Chora / swipe-up pill).
+  const hideTransportOnPhone = isPhoneSized && !MUSIC_TRANSPORT_VIEWS.includes(view || '');
   const { isCastAvailable, isCasting, castTrack, stopCasting } = useGoogleCast();
   const { 
     currentTrack, 
@@ -56,53 +79,133 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
     resume, 
     togglePlay,
     setVolume, 
-    next, 
-    prev, 
+    next,
+    prev,
+    beginScratch,
+    scratchBy,
+    endScratch,
+    resetAudioFx,
+    isFxActive,
     toggleFullScreen,
     toggleAppFullScreen,
-    repeatMode, 
-    setRepeatMode, 
-    playTrack, 
+    repeatMode,
+    setRepeatMode,
+    isShuffle,
+    setIsShuffle,
+    playTrack,
     setVideoElement, 
     setCurrentVideo,
     analyser,
     isFrequencyVisualizerEnabled,
     setIsFrequencyVisualizerEnabled,
-    isSlideshowActive, 
+    visualizerType,
+    setVisualizerType,
+    isSlideshowActive,
     setIsSlideshowActive,
+    isSlideshowAuto,
     setIsUserActive,
     isUserActive,
     nanoPosition,
     setIsNanoView,
     isNanoView,
+    isNanoDocked,
+    setIsNanoDocked,
     isShrunk,
     setIsShrunk,
     isMinimized,
     setIsMinimized,
+    transportForced,
+    setTransportForced,
     isThreeDEnabled,
     setIsThreeDEnabled,
+    isSpatialAudioEnabled,
+    setSpatialAudioEnabled,
     isTVMode,
     setIsTVMode,
     isMiniPlayerActive,
-    setIsMiniPlayerActive
+    setIsMiniPlayerActive,
+    setIsPlayerExpanded,
   } = useGlobalPlayerState();
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
   const { triggerAction } = useAchievements();
+  // Jog-wheel scratch on the spinning cover: track the pointer's angle around the disc.
+  const jogRef = useRef<{ ang: number } | null>(null);
+  const jogAngle = (el: HTMLElement, x: number, y: number) => {
+    const r = el.getBoundingClientRect();
+    return Math.atan2(y - (r.top + r.height / 2), x - (r.left + r.width / 2)) * 180 / Math.PI;
+  };
 
   const [isSpillOverOpen, setIsSpillOverOpen] = useState(false);
+  const [tooltipsOff, setTooltipsOffState] = useState(areTooltipsOff());
   const [isLandscape, setIsLandscape] = useState(false);
+
+  // Keep context in sync so Aria panel knows when to push up
+  React.useEffect(() => { setIsPlayerExpanded(isSpillOverOpen); }, [isSpillOverOpen, setIsPlayerExpanded]);
+  const [showVisualizerDrawer, setShowVisualizerDrawer] = useState(false);
+
+  // ── Music Video Sync ────────────────────────────────────────────────────────
+  const musicVideoRef = useRef<HTMLVideoElement | null>(null);
+  const [showMusicVideo, setShowMusicVideo] = useState(false);
+  const [musicVideoReady, setMusicVideoReady] = useState(false);
+
+  const isPlatformVideoUrl = (url?: string) =>
+    !!url && url.includes('firebasestorage.googleapis.com');
+
+  // Preload the linked music video whenever the track changes (platform uploads only)
+  useEffect(() => {
+    const videoUrl = currentTrack?.videoUrl;
+    setShowMusicVideo(false);
+    setMusicVideoReady(false);
+    if (!videoUrl || !isPlatformVideoUrl(videoUrl)) return;
+    const vid = document.createElement('video');
+    vid.src = videoUrl;
+    vid.preload = 'auto';
+    vid.muted = false;
+    vid.oncanplaythrough = () => setMusicVideoReady(true);
+    musicVideoRef.current = vid;
+    return () => { vid.pause(); vid.src = ''; };
+  }, [currentTrack?.id, currentTrack?.videoUrl]);
+
+  const switchToMusicVideo = () => {
+    const vid = musicVideoRef.current;
+    if (!vid || !currentTrack?.videoUrl || !isPlatformVideoUrl(currentTrack.videoUrl)) return;
+    const videoDuration = vid.duration || 0;
+    if (duration > 0 && videoDuration > 0) {
+      const lyrics = currentTrack.lyrics || '';
+      const words = lyrics.trim() ? lyrics.split(/\s+/).filter(Boolean) : [];
+      let syncTime: number;
+      if (words.length > 0) {
+        const wordIdx = Math.round((currentTime / duration) * words.length);
+        syncTime = (wordIdx / words.length) * videoDuration;
+      } else {
+        syncTime = (currentTime / duration) * videoDuration;
+      }
+      vid.currentTime = Math.max(0, Math.min(syncTime, videoDuration - 0.5));
+    }
+    vid.volume = volume;
+    setShowMusicVideo(true);
+    vid.play().catch(() => {});
+  };
+
+  const closeMusicVideo = () => {
+    musicVideoRef.current?.pause();
+    setShowMusicVideo(false);
+  };
 
   useEffect(() => {
     const checkOrientation = () => {
       setIsLandscape(window.innerWidth > window.innerHeight && window.innerHeight < 500);
     };
     checkOrientation();
-    window.addEventListener('resize', checkOrientation);
-    return () => window.removeEventListener('resize', checkOrientation);
+    let t: ReturnType<typeof setTimeout>;
+    const onResize = () => { clearTimeout(t); t = setTimeout(checkOrientation, 150); };
+    window.addEventListener('resize', onResize, { passive: true });
+    return () => { window.removeEventListener('resize', onResize); clearTimeout(t); };
   }, []);
   const [isPlaylistExpanded, setIsPlaylistExpanded] = useState(false);
   const [isEssentialMode, setIsEssentialMode] = useState(false);
   const [pulse, setPulse] = useState(1);
+  const [isMobileSlideshowOpen, setIsMobileSlideshowOpen] = useState(false);
   const [showVolume, setShowVolume] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showPreview, setShowPreview] = useState(true);
@@ -195,14 +298,26 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   }, [radioStats.songCount, audioSource]);
 
   useEffect(() => {
-    // Auto-collapse when on social/non-music pages
+    // The docked nano runs its own wake-on-activity rule in App.tsx (it starts collapsed and
+    // never auto-shrinks on a timer), so leave it alone here.
+    if (isNanoDocked) return;
     const nonMusicViews = ['CHAT', 'USER_PROFILE', 'SEARCH', 'FEED', 'DASHBOARD', 'SETTINGS', 'HELP_CENTER'];
-    if (nonMusicViews.includes(view)) {
+    if (nonMusicViews.includes(view) && !isPlaying) {
         setIsMinimized(true);
     } else if (isPlaying) {
         setIsMinimized(false);
     }
-  }, [view, isPlaying]);
+  }, [view, isPlaying, isNanoDocked]);
+
+  // A forced-transport reveal is transient: hide it again once the user navigates away.
+  useEffect(() => { setTransportForced(false); }, [view, setTransportForced]);
+
+  // Swipe-up on the persistent now-playing pill opens the extra-settings drawer.
+  useEffect(() => {
+    const openDrawer = () => { setTransportForced(true); setIsSpillOverOpen(true); };
+    window.addEventListener('PLAJAH_OPEN_PLAYER_DRAWER', openDrawer);
+    return () => window.removeEventListener('PLAJAH_OPEN_PLAYER_DRAWER', openDrawer);
+  }, [setTransportForced]);
 
   useEffect(() => {
     if (currentUser) {
@@ -227,20 +342,19 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   const progress = (currentTime / duration) * 100 || 0;
 
   const handleShare = () => {
+    // Route through /share so Facebook/X crawl the rich card. A plain /?type= link hits
+    // static index.html and previews as the generic Plajah default graphic.
     let shareUrl = window.location.href;
-    const baseUrl = window.location.origin;
     if (currentVideo) {
-      shareUrl = `${baseUrl}/?type=video&id=${currentVideo.id}`;
+      shareUrl = buildShareUrl('video', currentVideo.id);
     } else if (currentAlbum) {
-      shareUrl = `${baseUrl}/?type=album&id=${currentAlbum.id}${currentTrack ? `&track=${currentTrack.id}` : ''}`;
+      shareUrl = buildShareUrl('album', currentAlbum.id, { track: currentTrack?.id });
     }
+    const title = currentTrack?.title || currentVideo?.title || currentAlbum?.title || 'Check this out!';
+    const artist = currentTrack?.artist || currentAlbum?.artist;
 
     if (navigator.share) {
-      navigator.share({
-        title: currentTrack?.title || currentVideo?.title || currentAlbum?.title || 'Check this out!',
-        text: `Check out ${currentTrack?.title || currentVideo?.title || currentAlbum?.title} by ${currentTrack?.artist || currentAlbum?.artist || 'Unknown'} on Plajah!`,
-        url: shareUrl,
-      }).catch(console.error);
+      navigator.share({ title, text: shareText(title, artist), url: shareUrl }).catch(console.error);
     } else {
       navigator.clipboard.writeText(shareUrl);
       alert('Link copied to clipboard!');
@@ -268,9 +382,13 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
     await nanoControls.start({ x: 0, y: 0, transition: { type: 'spring', damping: 20 } });
   };
 
+  if (isNanoView && isNanoDocked && !isPhoneMode) return null;
+
   if (isNanoView && !isPhoneMode) {
     return (
-      <div className={`fixed bottom-8 left-8 z-[200] transition-opacity duration-1000 ${isUserActive ? 'opacity-100' : 'opacity-0'}`} style={{ perspective: '1200px' }}>
+      <>
+      {/* Expand button removed — use the Controller button in the left sidebar */}
+      <div className={`fixed fixed-bottom-safe fixed-left-safe z-[200] transition-opacity duration-1000 ${isUserActive ? 'opacity-100' : 'opacity-30'}`} style={{ perspective: '1200px' }}>
         <motion.div
           drag
           dragMomentum={true}
@@ -330,34 +448,62 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                 <div className="absolute bottom-0 left-0 w-24 h-24 z-10 bg-white/[0.02] border-b border-l border-white/10 rounded-bl-[3rem] hover:bg-small-orange/10 transition-colors" />
                 <div className="absolute bottom-0 right-0 w-24 h-24 z-10 bg-white/[0.02] border-b border-r border-white/10 rounded-br-[3rem] hover:bg-small-orange/10 transition-colors" />
 
-                {/* Reset Button */}
-                <button 
-                  onClick={(e) => { e.stopPropagation(); snapReset(); }}
-                  className="absolute top-4 right-4 z-50 p-2.5 bg-black/40 hover:bg-black/60 text-white/40 hover:text-white rounded-full transition-all border border-white/10 active:scale-90"
-                  title="Reset Position"
-                >
-                  <RotateCcw size={12} />
-                </button>
+                {/* Dock back + Reset buttons */}
+                <div className="absolute top-4 right-4 z-50 flex items-center gap-1.5" onPointerDown={e => e.stopPropagation()}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setIsNanoDocked(true); }}
+                    className="p-2.5 bg-black/40 hover:bg-black/60 text-white/40 hover:text-small-orange rounded-full transition-all border border-white/10 active:scale-90"
+                    title="Dock to sidebar"
+                  >
+                    <Minimize2 size={12} />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); snapReset(); }}
+                    className="p-2.5 bg-black/40 hover:bg-black/60 text-white/40 hover:text-white rounded-full transition-all border border-white/10 active:scale-90"
+                    title="Reset Position"
+                  >
+                    <RotateCcw size={12} />
+                  </button>
+                </div>
 
                 {/* Visualizer Header */}
                 <div className="flex-1 relative overflow-hidden">
-                  <div className="absolute inset-0 pointer-events-none opacity-40">
-                    <Visualizer 
-                      analyser={analyser} 
-                      themeColor={currentAlbum?.themeColor || '#FF8C00'} 
-                      trackTitle={currentTrack?.title || ''} 
-                      artist={currentAlbum?.artist || ''} 
-                      isPlaying={isPlaying} 
+                  {/* Hypnotic Flow — always present, dimmed when Paint Pool active */}
+                  <div className="absolute inset-0 pointer-events-none"
+                    style={{ opacity: visualizerType === 'PAINT' ? 0.12 : 0.4, transition: 'opacity 0.8s ease' }}>
+                    <Visualizer
+                      analyser={analyser}
+                      themeColor={currentAlbum?.themeColor || '#FF8C00'}
+                      trackTitle={currentTrack?.title || ''}
+                      artist={currentAlbum?.artist || ''}
+                      isPlaying={isPlaying}
                       isVideoMode={!!currentVideo}
                     />
                   </div>
+                  {/* Paint Pool — shown when Paint mode active */}
+                  {visualizerType === 'PAINT' && isFrequencyVisualizerEnabled && (
+                    <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.85, transition: 'opacity 0.8s ease' }}>
+                      <PaintPoolVisualizer analyser={analyser} isPlaying={isPlaying} />
+                    </div>
+                  )}
 
-                  {/* Album Art Overlay (Spinning Vinyl) */}
+                  {/* Album Art Overlay (Spinning Vinyl) — drag to scratch */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <motion.div 
+                    <motion.div
                       animate={isPlaying ? { rotate: 360 } : { rotate: 0 }}
                       transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-                      className="w-40 h-40 rounded-full border-8 border-white/5 shadow-3xl relative overflow-hidden ring-1 ring-white/10"
+                      className="w-40 h-40 rounded-full border-8 border-white/5 shadow-3xl relative overflow-hidden ring-1 ring-white/10 pointer-events-auto cursor-grab active:cursor-grabbing touch-none"
+                      onPointerDown={(e) => { e.stopPropagation(); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); jogRef.current = { ang: jogAngle(e.currentTarget as HTMLElement, e.clientX, e.clientY) }; beginScratch(); }}
+                      onPointerMove={(e) => {
+                        if (!jogRef.current) return;
+                        const a = jogAngle(e.currentTarget as HTMLElement, e.clientX, e.clientY);
+                        let d = a - jogRef.current.ang;
+                        if (d > 180) d -= 360; else if (d < -180) d += 360; // unwrap
+                        jogRef.current.ang = a;
+                        scratchBy((d / 360) * 1.8); // ~one turn = 1.8s (33rpm)
+                      }}
+                      onPointerUp={(e) => { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* */ } jogRef.current = null; endScratch(); }}
+                      onPointerCancel={() => { jogRef.current = null; endScratch(); }}
                     >
                       <img 
                         src={currentAlbum?.coverImage || undefined} 
@@ -413,21 +559,53 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
             <div className={`relative z-10 border-t border-white/5 bg-black/40 backdrop-blur-2xl ${isMinimized ? 'px-2 py-2 flex items-center gap-2' : 'px-8 py-6'}`} onPointerDown={e => e.stopPropagation()}>
               
               {isMinimized && (
-                <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-white/10">
-                  <img 
-                    src={currentAlbum?.coverImage || undefined} 
-                    className="w-full h-full object-cover" 
+                <button
+                  onClick={() => currentAlbum ? onNavigate?.('PLAYER', { album: currentAlbum }) : currentVideo ? onNavigate?.('PLAYER', { video: currentVideo }) : undefined}
+                  className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-white/10 hover:border-white/30 hover:scale-105 transition-all cursor-pointer"
+                  title="Back to album"
+                >
+                  <img
+                    src={currentAlbum?.coverImage || undefined}
+                    className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
                   />
-                </div>
+                </button>
+              )}
+
+              {isMinimized && (currentTrack || currentVideo) && (
+                <button
+                  onClick={() => currentAlbum ? onNavigate?.('PLAYER', { album: currentAlbum }) : currentVideo ? onNavigate?.('PLAYER', { video: currentVideo }) : undefined}
+                  className="flex flex-col min-w-0 flex-shrink text-left cursor-pointer hover:opacity-80 transition-opacity"
+                  title="Back to album"
+                >
+                  <span className="text-[10px] font-black uppercase tracking-tight truncate text-white leading-tight max-w-[100px]">
+                    {currentTrack?.title || currentVideo?.title || 'Playing'}
+                  </span>
+                  <span className="text-[8px] font-bold uppercase tracking-widest truncate text-small-orange/70 leading-tight">
+                    {currentAlbum?.artist || ''}
+                  </span>
+                </button>
               )}
 
               <div className={`flex flex-col flex-1 ${isMinimized ? 'gap-1' : 'gap-5'}`}>
-                
+
                 {!isMinimized && (
                   <div className={`text-center ${isMinimized ? 'mb-1' : 'mb-6'}`}>
-                    <h3 className={`${isMinimized ? 'text-[10px]' : 'text-sm'} font-display font-black uppercase tracking-[0.1em] truncate text-white px-2`}>{currentTrack?.title || 'No Track Playing'}</h3>
+                    <button
+                      onClick={() => currentAlbum ? onNavigate?.('PLAYER', { album: currentAlbum }) : currentVideo ? onNavigate?.('PLAYER', { video: currentVideo }) : undefined}
+                      className="hover:opacity-80 transition-opacity cursor-pointer w-full"
+                      title="Back to album"
+                    >
+                      <h3 className="text-sm font-display font-black uppercase tracking-[0.1em] truncate text-white px-2">{currentTrack?.title || 'No Track Playing'}</h3>
+                    </button>
                     {!isMinimized && <p className="text-[10px] font-label font-black text-small-orange uppercase tracking-[0.2em] truncate opacity-60">{currentAlbum?.artist || 'Unknown Artist'}</p>}
+                    {currentTrack?.isEclipsa && !isMinimized && (
+                      <div className="flex items-center justify-center gap-1.5 mt-1">
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-500/20 border border-violet-500/40 text-violet-300 text-[8px] font-black uppercase tracking-widest">
+                          <Headphones size={9} /> Eclipsa Spatial Audio
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -450,7 +628,14 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col items-center">
                     <div className="flex items-center gap-0">
-                      <button 
+                      <button
+                        onClick={() => setIsShuffle(!isShuffle)}
+                        className={`p-1 transition-all ${isShuffle ? 'text-green-400' : 'text-white/40 hover:text-white'}`}
+                        title={isShuffle ? "Shuffle On" : "Shuffle Off"}
+                      >
+                        <Shuffle size={isMinimized ? 11 : 14} />
+                      </button>
+                      <button
                         onClick={() => {
                           if (repeatMode === 'OFF') setRepeatMode('ALL');
                           else if (repeatMode === 'ALL') setRepeatMode('ONE');
@@ -475,8 +660,15 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
 
                   <div className="flex flex-col items-center">
                     <div className="flex items-center gap-0">
-                      <button 
-                        onClick={() => setIsFrequencyVisualizerEnabled(!isFrequencyVisualizerEnabled)} 
+                      <button
+                        onClick={() => resetAudioFx?.()}
+                        className={`p-1 rounded-lg transition-all ${isFxActive ? 'text-red-300 bg-red-500/15 animate-pulse' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+                        title="Kill DJ audio FX — reset to natural dry sound"
+                      >
+                        <ZapOff size={isMinimized ? 11 : 14} />
+                      </button>
+                      <button
+                        onClick={() => setIsFrequencyVisualizerEnabled(!isFrequencyVisualizerEnabled)}
                         className={`p-1 rounded-lg transition-all ${isFrequencyVisualizerEnabled ? 'text-small-orange bg-small-orange/10' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
                         title="Frequency FX"
                       >
@@ -489,12 +681,19 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                       >
                         <Tv size={isMinimized ? 11 : 14} />
                       </button>
-                      <button 
-                        onClick={() => setIsThreeDEnabled(!isThreeDEnabled)} 
+                      <button
+                        onClick={() => setIsThreeDEnabled(!isThreeDEnabled)}
                         className={`p-1 rounded-lg transition-all ${isThreeDEnabled ? 'text-small-orange bg-small-orange/10' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
                         title="3D Depth Mapping"
                       >
                         <Box size={isMinimized ? 11 : 14} />
+                      </button>
+                      <button
+                        onClick={() => setSpatialAudioEnabled(!isSpatialAudioEnabled)}
+                        className={`p-1 rounded-lg transition-all ${isSpatialAudioEnabled ? 'text-violet-400 bg-violet-500/10' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+                        title="Eclipsa Spatial Audio (HRTF)"
+                      >
+                        <Headphones size={isMinimized ? 11 : 14} />
                       </button>
                       <button 
                         onClick={() => setIsSlideshowActive(!isSlideshowActive)} 
@@ -523,9 +722,12 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
             style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
           >
             <div className="flex-1 relative overflow-hidden">
-              {currentAlbum?.slideshow && currentAlbum.slideshow.length > 0 ? (
+              {resolveSlideshowImages(currentAlbum, currentTrack).length > 0 ? (
                 <div className="w-full h-full relative">
-                  <Slideshow images={currentAlbum.slideshow} />
+                  {/* Track images take priority over the album set, matching every other
+                      slideshow surface — this face used to read album.slideshow alone and
+                      claimed "no assets" for albums whose slides live on their tracks. */}
+                  <Slideshow images={resolveSlideshowImages(currentAlbum, currentTrack)} />
                 </div>
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center text-white/20 gap-4">
@@ -579,7 +781,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
           >
              <div className="absolute inset-0 opacity-80">
                <AnimatedSlideshow 
-                 images={(currentTrack?.images && currentTrack.images.length > 0) ? currentTrack.images : (currentAlbum?.slideshow && currentAlbum.slideshow.length > 0) ? currentAlbum.slideshow : [currentAlbum?.coverImage || '', 'https://picsum.photos/seed/slide1/1920/1080', 'https://picsum.photos/seed/slide2/1920/1080']} 
+                 images={resolveSlideshowImages(currentAlbum, currentTrack)} 
                  isPlaying={isPlaying} 
                  themeColor={currentAlbum?.themeColor || '#FF8C00'} 
                  artistNotes={currentTrack?.artistNotes || []}
@@ -619,14 +821,78 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
           </div>
         </motion.div>
       </div>
+      </>
     );
   }
 
   return (
-    <div 
-      className={`fixed left-0 right-0 z-[100] flex flex-col transition-opacity duration-1000 ${isUserActive ? 'opacity-100' : 'opacity-0'}`} 
+    <div
+      className={`fixed left-0 right-0 z-[100] flex-col transition-opacity duration-1000 ${(hideTransportOnPhone && !transportForced) ? 'hidden' : 'flex'} ${(isUserActive || transportForced) ? 'opacity-100' : 'opacity-0'}`}
       style={{ bottom: topOffset ? 'auto' : bottomOffset, top: topOffset || 'auto' }}
     >
+
+      {/* Mobile Slideshow Overlay */}
+      <AnimatePresence>
+        {isMobileSlideshowOpen && isPhoneMode && (
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[998] bg-black flex flex-col"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+          >
+            {/* Slideshow fills the main area */}
+            <div className="flex-1 relative overflow-hidden">
+              <AnimatedSlideshow
+                images={resolveSlideshowImages(currentAlbum, currentTrack)}
+                isPlaying={isPlaying}
+                themeColor={currentAlbum?.themeColor || '#FF8C00'}
+                artistNotes={currentTrack?.artistNotes || []}
+              />
+              {/* Track info gradient overlay */}
+              <div className="absolute bottom-0 left-0 right-0 px-5 pt-16 pb-4 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none">
+                <p className="text-[8px] font-black uppercase tracking-[0.4em] text-small-orange mb-1">{currentAlbum?.artist}</p>
+                <h3 className="text-sm font-black uppercase tracking-widest truncate text-white">{currentTrack?.title}</h3>
+              </div>
+              {/* Close button */}
+              <button
+                onClick={() => setIsMobileSlideshowOpen(false)}
+                className="absolute top-4 right-4 z-10 p-2.5 bg-black/50 border border-white/10 rounded-full text-white/60 hover:text-white backdrop-blur-md"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Track thumbnail strip */}
+            {(currentAlbum?.tracks?.length ?? 0) > 1 && (
+              <div className="flex gap-2.5 px-4 py-3 overflow-x-auto bg-black/60 border-t border-white/5" style={{ scrollbarWidth: 'none' }}>
+                {currentAlbum!.tracks.map(track => (
+                  <button
+                    key={track.id}
+                    onClick={() => playTrack(track, currentAlbum!, 'LIBRARY')}
+                    className={`flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden border-2 transition-all ${track.id === currentTrack?.id ? 'border-small-orange shadow-[0_0_10px_rgba(255,140,0,0.5)]' : 'border-transparent opacity-50'}`}
+                  >
+                    <img src={thumb(track.albumCover || currentAlbum?.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(track.albumCover || currentAlbum?.coverImage)} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Playback controls bar */}
+            <div className="flex items-center justify-between px-8 py-5 bg-black/80 border-t border-white/5">
+              <button onClick={prev} className="p-2 text-white/40 active:text-white"><SkipBack size={20} /></button>
+              <button
+                onClick={togglePlay}
+                className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center shadow-2xl active:scale-95 transition-transform"
+              >
+                {isPlaying ? <Pause size={24} fill="black" /> : <Play size={24} fill="black" className="ml-1" />}
+              </button>
+              <button onClick={next} className="p-2 text-white/40 active:text-white"><SkipForward size={20} /></button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
 
       {/* Message/Notification Preview Bar - DISABLED as per request */}
@@ -678,13 +944,38 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
         )}
       </AnimatePresence> */}
 
-      <motion.div 
+      {/* Persistent Plajah restore button — always visible, never slides with the bar */}
+      {isMinimized && (
+        <button
+          onClick={() => setIsMinimized(false)}
+          className="fixed z-[1010] flex items-center gap-2 px-3 py-1.5 bg-black/70 backdrop-blur-xl border border-white/10 rounded-full shadow-[0_0_20px_rgba(107,0,153,0.4)] hover:scale-105 active:scale-95 transition-all"
+          style={{
+            // Centered, and lifted so it hovers clearly ABOVE the restore chevron (no mis-taps).
+            bottom: isPhoneMode && !isLandscape
+              ? 'calc(4rem + env(safe-area-inset-bottom) + 3.25rem)'
+              : '3.25rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+          }}
+          title="Show Player"
+        >
+          <Logo size={18} />
+          {(currentTrack || currentVideo) && (
+            <span className="text-[8px] font-black uppercase tracking-widest text-white/60 max-w-[120px] truncate">
+              {currentTrack?.title || currentVideo?.title}
+            </span>
+          )}
+        </button>
+      )}
+
+      <motion.div
         initial={{ y: 100 }}
-        animate={{ y: isMinimized ? (isBigScreen ? 120 : (isPhoneMode ? (isLandscape ? 60 : 40) : 80)) : 0 }}
-        className={`fixed bottom-0 left-0 right-0 z-[1000] w-full bg-theme-card/80 backdrop-blur-3xl border-t border-white/5 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] transition-all ${isPhoneMode ? (isShrunk ? 'px-4 pt-0.5' : (isLandscape ? 'px-4 py-0.5' : 'px-4 pt-2 pb-safe-bottom')) : (isShrunk ? 'px-6 py-1' : (isBigScreen ? 'px-12 py-5' : 'px-4 lg:px-6 py-1'))}`}
+        animate={{ y: isMinimized ? (isBigScreen ? 120 : (isPhoneMode ? (isLandscape ? 60 : 40) : 60)) : 0 }}
+        className={`fixed left-0 right-0 z-[1000] w-full glass-nav shadow-[0_-8px_40px_rgba(0,0,0,0.6)] transition-all ${isPhoneMode ? (isShrunk ? 'px-4 pt-0.5' : (isLandscape ? 'px-4 py-0.5' : 'px-4 pt-2')) : (isShrunk ? 'px-6 py-1' : (isBigScreen ? 'px-12 py-3' : 'px-4 lg:px-6 py-2'))}`}
         style={{
-          paddingBottom: isPhoneMode && !isLandscape ? "calc(1.5rem + env(safe-area-inset-bottom))" : isPhoneMode && isLandscape ? "4px" : undefined,
-          maxHeight: isLandscape ? '70px' : 'auto'
+          bottom: isPhoneMode && !isLandscape ? 'calc(4rem + env(safe-area-inset-bottom))' : '0px',
+          paddingBottom: isPhoneMode && !isLandscape ? '0.75rem' : isPhoneMode && isLandscape ? '4px' : undefined,
+          maxHeight: isLandscape ? '70px' : undefined,
         }}
       >
         {/* Radio Intervention Overlay */}
@@ -702,105 +993,243 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
           )}
         </AnimatePresence>
 
-        {/* Minimize/Collapse Toggle */}
-        <button 
-          onClick={() => setIsMinimized(!isMinimized)}
-          className={`absolute p-2 bg-theme-card/90 backdrop-blur-3xl border border-white/5 rounded-t-xl text-white/40 hover:text-white transition-all shadow-2xl ${isPhoneMode ? 'left-1/2 -translate-x-1/2' : 'right-8'} ${isLandscape && !isMinimized ? 'hidden' : '-top-10'}`}
-          title="Toggle Minimized Pill Mode"
+        {/* Brand-gradient stroke def for the spill-over chevron (stroke can't take a
+            Tailwind gradient — it needs an SVG paint server). */}
+        <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+          <defs>
+            <linearGradient id="plajah-chevron-grad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#6B0099" />
+              <stop offset="55%" stopColor="#D40055" />
+              <stop offset="100%" stopColor="#FF8C00" />
+            </linearGradient>
+          </defs>
+        </svg>
+
+        {/* Colored chevron — the single control. When retracted it brings the player
+            back up; when up it's the sole trigger for the extra-controls drawer and
+            spins to point up while the drawer is open. */}
+        <button
+          onClick={() => {
+            if (isPhoneMode) {
+              // Bring the controls up and open the full album view (tracklist of what's playing)
+              setIsMinimized(false);
+              if (currentAlbum) onNavigate?.('PLAYER', { album: currentAlbum });
+              else if (currentVideo) onNavigate?.('PLAYER', { video: currentVideo });
+              else setIsSpillOverOpen(o => !o);
+            } else {
+              setIsMinimized(!isMinimized);
+            }
+          }}
+          className={`absolute p-2 bg-theme-card/90 backdrop-blur-3xl border border-white/5 rounded-t-xl transition-all shadow-2xl left-1/2 -translate-x-1/2 ${isPhoneMode ? 'text-small-orange hover:text-white' : (isMinimized ? 'text-small-orange' : 'text-white/40 hover:text-white')} ${isLandscape && !isMinimized ? 'hidden' : '-top-10'} ${isMinimized ? 'animate-pulse hover:animate-none' : ''}`}
+          title={isPhoneMode ? 'Open now playing' : (isMinimized ? 'Bring player back up' : 'Minimize')}
         >
-          {isMinimized ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          {isPhoneMode
+            ? <ChevronUp size={24} strokeWidth={3.25} style={{ stroke: 'url(#plajah-chevron-grad)' }} className="drop-shadow-[0_1px_3px_rgba(212,0,85,0.5)]" />
+            : (isMinimized ? <ChevronUp size={20} /> : <ChevronDown size={20} />)}
         </button>
 
-        {/* Mobile Swipe-Up Spillover Area */}
+        {/* Mobile Swipe-Up Overflow — Full-height bottom sheet with drag-to-dismiss */}
         {isPhoneMode && (
           <AnimatePresence>
             {isSpillOverOpen && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className={`overflow-hidden bg-black/60 backdrop-blur-3xl border-white/5 mb-2 ${topOffset ? 'border-t rounded-b-[2.5rem]' : 'border-b rounded-t-[2.5rem]'}`}
-              >
-                <div className="p-6 flex flex-col gap-6">
-                  {/* Unified Menu: Playlist + Navigation */}
-                  {(currentAlbum?.tracks || []).length > 0 && (
-                    <div className="space-y-3">
-                      <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/20 px-2">Up Next</p>
-                      <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
-                        {currentAlbum?.tracks.map((track) => (
-                          <button 
-                            key={track.id}
-                            onClick={() => {
-                              playTrack(track, currentAlbum, 'LIBRARY');
-                              setIsSpillOverOpen(false);
-                            }}
-                            className={`flex flex-col gap-2 min-w-[120px] p-3 rounded-2xl transition-all ${track.id === currentTrack?.id ? 'bg-white/10' : 'bg-white/5'}`}
+              <>
+                {/* Backdrop */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[990]"
+                  onClick={() => setIsSpillOverOpen(false)}
+                />
+
+                {/* Sheet */}
+                <motion.div
+                  initial={{ y: '100%' }}
+                  animate={{ y: 0 }}
+                  exit={{ y: '100%' }}
+                  transition={{ type: 'spring', damping: 32, stiffness: 300 }}
+                  drag="y"
+                  dragConstraints={{ top: 0 }}
+                  dragElastic={{ top: 0, bottom: 0.4 }}
+                  onDragEnd={(_e, info) => { if (info.offset.y > 80) setIsSpillOverOpen(false); }}
+                  className="fixed bottom-0 left-0 right-0 z-[995] rounded-t-[2rem] overflow-hidden"
+                  style={{ background: 'rgba(10,10,18,0.97)', backdropFilter: 'blur(32px)', borderTop: '1px solid rgba(255,255,255,0.08)', maxHeight: '82dvh' }}
+                >
+                  {/* Drag handle */}
+                  <div className="flex justify-center pt-3 pb-1">
+                    <div className="w-10 h-1 rounded-full bg-white/20" />
+                  </div>
+
+                  <div className="overflow-y-auto overscroll-contain px-5 pb-10 pt-2 space-y-5" style={{ maxHeight: 'calc(82dvh - 24px)' }}>
+
+                    {/* Up Next */}
+                    {(currentAlbum?.tracks || []).length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/25">Up Next</p>
+                        <div className="flex gap-2.5 overflow-x-auto pb-1 no-scrollbar">
+                          {currentAlbum?.tracks.map((track) => (
+                            <button
+                              key={track.id}
+                              onClick={() => { playTrack(track, currentAlbum, 'LIBRARY'); setIsSpillOverOpen(false); }}
+                              className={`flex flex-col gap-1.5 w-20 shrink-0 p-2 rounded-2xl transition-all ${track.id === currentTrack?.id ? 'bg-white/10 ring-1 ring-small-orange/40' : 'bg-white/5'}`}
+                            >
+                              <div className="w-16 h-16 rounded-lg overflow-hidden shadow-lg shrink-0">
+                                <img src={thumb(track.albumCover || currentAlbum?.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(track.albumCover || currentAlbum?.coverImage)} className="w-full h-full object-cover" />
+                              </div>
+                              <p className={`text-[7px] font-black uppercase truncate ${track.id === currentTrack?.id ? 'text-small-orange' : 'text-white/70'}`}>{track.title}</p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Volume */}
+                    <div className="space-y-2">
+                      <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/25">Volume</p>
+                      <div className="flex items-center gap-3 px-1">
+                        <Volume2 size={14} className="text-white/30 shrink-0" />
+                        <input
+                          type="range" min={0} max={1} step={0.01}
+                          value={volume}
+                          onChange={e => setVolume(Number(e.target.value))}
+                          className="flex-1 accent-small-orange"
+                        />
+                        <span className="text-[8px] font-black text-white/25 w-6 text-right">{Math.round(volume * 100)}</span>
+                      </div>
+                    </div>
+
+                    {/* Playback controls row */}
+                    <div className="grid grid-cols-3 gap-2.5">
+                      {/* Repeat */}
+                      <button
+                        onClick={() => {
+                          if (repeatMode === 'OFF') setRepeatMode('ALL');
+                          else if (repeatMode === 'ALL') setRepeatMode('ONE');
+                          else setRepeatMode('OFF');
+                        }}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl transition-all ${repeatMode !== 'OFF' ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/40'}`}
+                      >
+                        {repeatMode === 'ONE' ? <Repeat1 size={18} /> : <Repeat size={18} />}
+                        <span className="text-[7px] font-black uppercase tracking-widest">
+                          {repeatMode === 'OFF' ? 'Repeat' : repeatMode === 'ALL' ? 'All' : 'One'}
+                        </span>
+                      </button>
+
+                      {/* Shuffle / random */}
+                      <button
+                        onClick={() => setIsShuffle(!isShuffle)}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl transition-all ${isShuffle ? 'bg-green-500/20 text-green-400' : 'bg-white/5 text-white/40'}`}
+                      >
+                        <Shuffle size={18} />
+                        <span className="text-[7px] font-black uppercase tracking-widest">Shuffle</span>
+                      </button>
+
+                      {/* Visualizer type */}
+                      <button
+                        onClick={() => setVisualizerType(visualizerType === 'FLOW' ? 'PAINT' : 'FLOW')}
+                        className="flex flex-col items-center gap-2 p-4 bg-white/5 rounded-2xl text-white/40"
+                      >
+                        <Activity size={18} />
+                        <span className="text-[7px] font-black uppercase tracking-widest">{visualizerType}</span>
+                      </button>
+
+                      {/* Slideshow toggle */}
+                      <button
+                        onClick={() => setIsSlideshowActive(!isSlideshowActive)}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl transition-all ${isSlideshowActive ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/40'}`}
+                      >
+                        <Layers size={18} />
+                        <span className="text-[7px] font-black uppercase tracking-widest">Slideshow</span>
+                      </button>
+
+                      {/* Spatial audio */}
+                      <button
+                        onClick={() => setSpatialAudioEnabled(!isSpatialAudioEnabled)}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl transition-all ${isSpatialAudioEnabled ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/40'}`}
+                      >
+                        <Headphones size={18} />
+                        <span className="text-[7px] font-black uppercase tracking-widest">Spatial</span>
+                      </button>
+
+                      {/* Share */}
+                      <button
+                        onClick={() => { handleShare(); setIsSpillOverOpen(false); }}
+                        className="flex flex-col items-center gap-2 p-4 bg-white/5 rounded-2xl text-white/40"
+                      >
+                        <Share2 size={18} />
+                        <span className="text-[7px] font-black uppercase tracking-widest">Share</span>
+                      </button>
+
+                      {/* Cast (if available) */}
+                      {isCastAvailable && (
+                        <button
+                          onClick={() => { isCasting ? stopCasting() : (currentTrack && castTrack(currentTrack)); setIsSpillOverOpen(false); }}
+                          className={`flex flex-col items-center gap-2 p-4 rounded-2xl transition-all ${isCasting ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/40'}`}
+                        >
+                          <Cast size={18} />
+                          <span className="text-[7px] font-black uppercase tracking-widest">{isCasting ? 'Stop' : 'Cast'}</span>
+                        </button>
+                      )}
+
+                      {/* Tooltips toggle — suppress native title tooltips app-wide (handy on touch/WebView) */}
+                      <button
+                        onClick={() => { const v = !tooltipsOff; setTooltipsOff(v); setTooltipsOffState(v); }}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl transition-all ${tooltipsOff ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/40'}`}
+                      >
+                        <MessageSquare size={18} />
+                        <span className="text-[7px] font-black uppercase tracking-widest">{tooltipsOff ? 'Tips Off' : 'Tips On'}</span>
+                      </button>
+                    </div>
+
+                    {/* Themes */}
+                    <div className="p-4 bg-white/[0.04] rounded-2xl space-y-3">
+                      <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/25">Interface Themes</p>
+                      <div className="flex items-center gap-2">
+                        {([
+                          { id: 'DARK',    icon: <Moon size={15} />,     bg: 'bg-zinc-800',                                           activeRing: 'ring-white/40' },
+                          { id: 'LIGHT',   icon: <Sun size={15} />,      bg: 'bg-zinc-100',                                           activeRing: 'ring-black/40' },
+                          { id: 'PASTEL',  icon: <Palette size={15} />,  bg: 'bg-[#ffb7b2]',                                          activeRing: 'ring-pink-400/60' },
+                          { id: 'CITRUS',  icon: <Palette size={15} />,  bg: 'bg-[#FF3B00]',                                          activeRing: 'ring-orange-400/60' },
+                          { id: 'PLAJAH',  icon: <Sparkles size={15} />, bg: 'bg-gradient-to-br from-[#6B0099] to-[#FF8C00]',        activeRing: 'ring-small-orange/60' },
+                          { id: 'NEBULA',  icon: <Sparkles size={15} />, bg: 'bg-gradient-to-br from-[#0d0221] to-[#520060]',        activeRing: 'ring-purple-400/60' },
+                          { id: 'ETHEREAL',icon: <Sparkles size={15} />, bg: 'bg-gradient-to-br from-[#1a0533] to-[#2d0b4e]',        activeRing: 'ring-violet-400/60' },
+                        ] as const).map(t => (
+                          <button
+                            key={t.id}
+                            onClick={() => setTheme?.(t.id as any)}
+                            className={`flex-1 p-3 rounded-xl flex items-center justify-center transition-all ${t.bg} ${(theme as string) === t.id ? `ring-2 ${t.activeRing} scale-110` : 'opacity-50 hover:opacity-80'}`}
                           >
-                            <div className="w-full aspect-square rounded-xl overflow-hidden shadow-lg">
-                              <img src={track.albumCover || currentAlbum?.coverImage || undefined} className="w-full h-full object-cover" />
-                            </div>
-                            <div className="text-left">
-                              <p className={`text-[8px] font-black uppercase truncate ${track.id === currentTrack?.id ? 'text-small-orange' : 'text-white'}`}>{track.title}</p>
-                              <p className="text-[7px] font-bold text-white/30 truncate">{track.artist || currentAlbum?.artist}</p>
-                            </div>
+                            <span className={(theme as string) === t.id ? 'text-white' : 'text-white/60'}>{t.icon}</span>
                           </button>
                         ))}
                       </div>
+                      {currentUser && onUpdateUserProfile && (
+                        <button
+                          onClick={() => onUpdateUserProfile({ customThemeEnabled: userProfile?.customThemeEnabled === false ? true : false })}
+                          className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${userProfile?.customThemeEnabled !== false ? 'bg-small-orange/20 text-small-orange' : 'bg-white/[0.04] text-white/40'}`}
+                        >
+                          <span className="text-[8px] font-black uppercase tracking-widest">Custom Theme</span>
+                          <Sparkles size={13} />
+                        </button>
+                      )}
                     </div>
-                  )}
 
-                  <div className="grid grid-cols-4 gap-4">
-                    <button onClick={() => { onNavigate?.('SEARCH'); setIsSpillOverOpen(false); }} className="flex flex-col items-center gap-2 p-4 bg-white/5 rounded-2xl">
-                      <Search size={20} className="text-white/40" />
-                      <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Search</span>
-                    </button>
-                    <button onClick={() => { onOpenChat?.(); setIsSpillOverOpen(false); }} className="flex flex-col items-center gap-2 p-4 bg-white/5 rounded-2xl">
-                      <MessageSquare size={20} className="text-white/40" />
-                      <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Chat</span>
-                    </button>
-                    <button onClick={() => { onUpload?.(); setIsSpillOverOpen(false); }} className="flex flex-col items-center gap-2 p-4 bg-white/5 rounded-2xl">
-                      <Plus size={20} className="text-white/40" />
-                      <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Upload</span>
-                    </button>
-                    <button onClick={() => { onNavigate?.('LIBRARY'); setIsSpillOverOpen(false); }} className="flex flex-col items-center gap-2 p-4 bg-white/5 rounded-2xl">
-                      <Library size={20} className="text-white/40" />
-                      <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Library</span>
-                    </button>
-                    <button onClick={() => { onNavigate?.('CLUBS'); setIsSpillOverOpen(false); }} className="flex flex-col items-center gap-2 p-4 bg-white/5 rounded-2xl">
-                      <Users size={20} className="text-white/40" />
-                      <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Clubs</span>
-                    </button>
-                    <button onClick={() => { onNavigate?.('CHARITY'); setIsSpillOverOpen(false); }} className="flex flex-col items-center gap-2 p-4 bg-white/5 rounded-2xl">
-                      <Heart size={20} className="text-white/40" />
-                      <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Charity</span>
-                    </button>
+                    {/* Sign out */}
+                    {currentUser && (
+                      <button onClick={() => { onLogout?.(); setIsSpillOverOpen(false); }} className="w-full flex items-center justify-center gap-3 p-4 bg-red-500/10 text-red-400 rounded-2xl">
+                        <LogOut size={15} />
+                        <span className="text-[9px] font-black uppercase tracking-widest">Sign Out</span>
+                      </button>
+                    )}
                   </div>
-                  
-                  <div className="p-4 bg-white/5 rounded-2xl">
-                    <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/20 mb-4 text-center">Interface Themes</p>
-                    <div className="flex items-center justify-between gap-2">
-                      <button onClick={() => setTheme?.('DARK')} className={`p-3 rounded-xl flex-1 ${(theme as string) === 'DARK' ? 'bg-white text-black' : 'bg-white/5 text-white/40'}`}><Moon size={16} className="mx-auto" /></button>
-                      <button onClick={() => setTheme?.('LIGHT')} className={`p-3 rounded-xl flex-1 ${(theme as string) === 'LIGHT' ? 'bg-black text-white' : 'bg-white/5 text-white/40'}`}><Sun size={16} className="mx-auto" /></button>
-                      <button onClick={() => setTheme?.('PASTEL')} className={`p-3 rounded-xl flex-1 ${(theme as string) === 'PASTEL' ? 'bg-[#ffb7b2] text-black' : 'bg-white/5 text-white/40'}`}><Palette size={16} className="mx-auto" /></button>
-                      <button onClick={() => setTheme?.('CITRUS')} className={`p-3 rounded-xl flex-1 ${(theme as string) === 'CITRUS' ? 'bg-[#FF3B00] text-white' : 'bg-white/5 text-white/40'}`}><Palette size={16} className="mx-auto" /></button>
-                      <button onClick={() => setTheme?.('PLAJAH')} className={`p-3 rounded-xl flex-1 ${(theme as string) === 'PLAJAH' ? 'bg-gradient-to-br from-[#6B0099] to-[#FF8C00] text-white' : 'bg-white/5 text-white/40'}`}><Sparkles size={16} className="mx-auto" /></button>
-                    </div>
-                  </div>
-
-                  {currentUser && (
-                    <button onClick={() => { onLogout?.(); setIsSpillOverOpen(false); }} className="flex items-center justify-center gap-3 p-4 bg-red-500/10 text-red-500 rounded-2xl">
-                      <LogOut size={16} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Sign Out</span>
-                    </button>
-                  )}
-                </div>
-              </motion.div>
+                </motion.div>
+              </>
             )}
           </AnimatePresence>
         )}
 
-        <div 
-          className={`w-full max-w-7xl mx-auto flex items-center justify-between gap-4 lg:gap-8 px-4 lg:px-6 ${isBigScreen ? 'scale-110' : ''}`}
+        <div
+          className={`w-full max-w-7xl mx-auto flex items-center justify-between gap-3 lg:gap-6 px-4 lg:px-6 ${isBigScreen ? 'scale-105' : ''}`}
           onTouchStart={(e) => {
             if (!isPhoneMode) return;
             const touch = e.touches[0];
@@ -819,29 +1248,15 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
             <div className={`w-full flex ${isLandscape ? 'flex-row items-center gap-4 px-4 h-full' : 'flex-col items-center'}`}>
               {/* Sleeker Info Bar at Top */}
               <div className={`${isLandscape ? 'w-auto flex-shrink-0' : 'w-full'} flex items-center justify-between px-2 relative ${isShrunk ? '' : (isLandscape ? 'gap-2' : 'gap-4 pb-2 mb-2')}`}>
-                {/* Top-left utilities: Shrink & Home */}
-                <div className={`absolute flex items-center gap-1 z-20 ${isLandscape ? '-top-1 left-0' : (isShrunk ? '-top-6 left-0' : '-top-8 left-0')}`}>
-                  <button 
-                    onClick={() => setIsShrunk(!isShrunk)}
-                    className="p-1.5 bg-black/60 rounded-full border border-white/10 backdrop-blur-md text-white/40 hover:text-white active:scale-90 transition-all shadow-lg"
-                    title={isShrunk ? "Expand Player" : "Shrink Player"}
-                  >
-                    {isShrunk ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
-                  </button>
-                  <button 
-                    onClick={() => onNavigate?.('DASHBOARD')}
-                    className="p-1.5 bg-black/60 rounded-full border border-white/10 backdrop-blur-md text-white/40 hover:text-white active:scale-90 transition-all shadow-lg"
-                    title="Home"
-                  >
-                    <Home size={14} />
-                  </button>
-                </div>
-
                 {!isShrunk && (
-                  <div className={`flex items-center gap-3 min-w-0 flex-1 ${isLandscape ? '' : 'mt-2'}`} onClick={() => setIsSpillOverOpen(!isSpillOverOpen)}>
+                  <button
+                    className={`flex items-center gap-3 min-w-0 flex-1 ${isLandscape ? '' : 'mt-2'} text-left`}
+                    onClick={() => currentAlbum ? onNavigate?.('PLAYER', { album: currentAlbum }) : currentVideo ? onNavigate?.('PLAYER', { video: currentVideo }) : undefined}
+                    title="Now Playing — tap to open"
+                  >
                     <div className={`${isLandscape ? 'w-8 h-8' : 'w-8 h-8'} rounded-lg overflow-hidden shrink-0 shadow-lg`}>
-                      <img 
-                        src={(currentTrack ? (currentTrack.albumCover || currentAlbum?.coverImage) : (currentVideo?.thumbnailUrl || 'https://picsum.photos/seed/video/200/200')) || null} 
+                      <img
+                        src={(currentTrack ? (currentTrack.albumCover || currentAlbum?.coverImage) : (currentVideo?.thumbnailUrl || 'https://picsum.photos/seed/video/200/200')) || null}
                         className="w-full h-full object-cover"
                         referrerPolicy="no-referrer"
                       />
@@ -856,19 +1271,26 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                         </p>
                       )}
                     </div>
-                  </div>
+                  </button>
                 )}
 
                 {!isShrunk && (
                   <div className="flex items-center gap-4">
+                    {onOpenAria && (
+                      <button onClick={onOpenAria} className="text-white/20 hover:text-purple-300 transition-colors" title="Aria AI">
+                        <Sparkles size={14} />
+                      </button>
+                    )}
                     <button onClick={handleShare} className="text-white/20 hover:text-white"><Share2 size={14} /></button>
-                    <button onClick={() => setIsSpillOverOpen(!isSpillOverOpen)} className="text-small-orange">
-                      {topOffset ? (
-                        <ChevronDown size={18} className={`transition-transform duration-500 ${isSpillOverOpen ? 'rotate-180' : ''}`} />
-                      ) : (
-                        <ChevronUp size={18} className={`transition-transform duration-500 ${isSpillOverOpen ? 'rotate-180' : ''}`} />
-                      )}
-                    </button>
+                    {currentTrack && (
+                      <button
+                        onClick={() => setIsMobileSlideshowOpen(true)}
+                        className={`${isMobileSlideshowOpen ? 'text-small-orange' : 'text-white/20 hover:text-white'} transition-colors`}
+                        title="Slideshow"
+                      >
+                        <Tv size={14} />
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -889,69 +1311,78 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
               </div>
 
               {/* Balanced Controls Hub at Bottom */}
-              <div className={`flex items-center justify-between ${isLandscape ? 'flex-1 gap-2' : 'w-full'} ${isShrunk ? 'px-2 gap-1' : (isLandscape ? 'px-0' : 'px-3 gap-2')}`}>
-                {/* Left Side: Layout & Mode Toggles */}
-                <div className={`flex items-center justify-start shrink-0 ${isLandscape ? 'hidden' : ''}`}>
-                  <button 
-                    onClick={() => setIsEssentialMode(!isEssentialMode)}
-                    className={`p-2 transition-all ${isEssentialMode ? 'text-small-orange' : 'text-white/20'} ${isShrunk ? 'hidden' : ''}`}
-                    title="Toggle Essential Mode"
+              <div className={`flex items-center justify-between ${isLandscape ? 'flex-1 gap-2' : 'w-full'} ${isShrunk ? 'px-1 gap-2' : (isLandscape ? 'px-0' : 'px-3 gap-2')}`}>
+                {/* Left Side: shuffle + repeat toggles always visible in portrait.
+                    flex-1 (matching the right side) so the center Play pill stays dead-centered
+                    regardless of how many buttons each side happens to show. */}
+                <div className={`flex items-center justify-start flex-1 ${isLandscape ? 'hidden' : ''}`}>
+                  <button
+                    onClick={() => setIsShuffle(!isShuffle)}
+                    className={`p-2 transition-all rounded-full android-press ${isShuffle ? 'text-green-400' : 'text-white/20'}`}
+                    style={{ minWidth: 36, minHeight: 36 }}
+                    title={isShuffle ? 'Shuffle On' : 'Shuffle Off'}
                   >
-                    <Layers size={18} />
+                    <Shuffle size={16} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (repeatMode === 'OFF') setRepeatMode('ALL');
+                      else if (repeatMode === 'ALL') setRepeatMode('ONE');
+                      else setRepeatMode('OFF');
+                    }}
+                    className={`p-2 transition-all rounded-full android-press ${repeatMode !== 'OFF' ? 'text-small-orange' : 'text-white/20'}`}
+                    style={{ minWidth: 36, minHeight: 36 }}
+                    title="Repeat Mode"
+                  >
+                    {repeatMode === 'ONE' ? <Repeat1 size={16} /> : <Repeat size={16} />}
                   </button>
                 </div>
 
-                {/* Center Block: Playback Hub (Perfectly Centered) */}
-              <div className={`flex items-center justify-center shrink-0 ${isShrunk ? 'gap-1' : (isLandscape ? 'gap-1' : 'gap-3')} bg-white/5 backdrop-blur-3xl ${isLandscape ? 'px-1 py-0.5' : 'px-2 py-1.5'} rounded-full border border-white/10`}>
-                <button 
-                  onClick={() => {
-                    if (repeatMode === 'OFF') setRepeatMode('ALL');
-                    else if (repeatMode === 'ALL') setRepeatMode('ONE');
-                    else setRepeatMode('OFF');
-                  }}
-                  className={`p-1 transition-all flex items-center justify-center rounded-full ${repeatMode !== 'OFF' ? 'text-small-orange bg-small-orange/10' : 'text-white/20 hover:text-white'}`}
-                  title="Repeat Mode"
-                >
-                  {repeatMode === 'ONE' ? <Repeat1 size={12} /> : <Repeat size={12} />}
-                </button>
-                
-                <div className="flex items-center gap-1">
-                  <button onClick={prev} className={`p-1 text-white/40 active:text-white transition-colors ${isShrunk || isLandscape ? 'hidden' : 'block'}`}><SkipBack size={16} /></button>
-                  
-                  <button 
+                {/* Center Block: Prev / Play / Next pill */}
+              <div className={`flex items-center justify-center gap-1 glass rounded-m3-full ${isLandscape ? 'px-1 py-0.5' : 'px-3 py-2'}`}>
+                  <button onClick={prev} className={`p-2 text-white/40 active:text-white android-press transition-colors ${isLandscape ? 'hidden' : 'block'}`} style={{ minWidth: 36, minHeight: 36 }}><SkipBack size={18} /></button>
+
+                  <button
                     onClick={isPlaying ? pause : resume}
-                    className={`${isShrunk || isLandscape ? 'w-8 h-8' : 'w-10 h-10'} rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.3)] active:scale-90 transition-all z-20`}
+                    className={`${isLandscape ? 'w-8 h-8' : 'w-11 h-11'} rounded-full bg-gradient-to-br from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white flex items-center justify-center shadow-[0_0_30px_rgba(212,0,85,0.45)] active:scale-90 android-press transition-all z-20`}
                   >
-                    {isPlaying ? <Pause size={isShrunk || isLandscape ? 12 : 20} fill="black" /> : <Play size={isShrunk || isLandscape ? 12 : 20} className={isShrunk || isLandscape ? 'ml-0.5' : 'ml-1'} fill="black" />}
+                    {isPlaying ? <Pause size={isLandscape ? 12 : 20} fill="white" /> : <Play size={isLandscape ? 12 : 20} className={isLandscape ? 'ml-0.5' : 'ml-1'} fill="white" />}
                   </button>
-                  
-                  <button onClick={next} className={`p-1 text-white/40 active:text-white transition-colors ${isShrunk || isLandscape ? 'hidden' : 'block'}`}><SkipForward size={16} /></button>
-                </div>
-                
-                <button 
-                  onClick={() => setIsSpillOverOpen(!isSpillOverOpen)}
-                  className={`p-1 transition-all rounded-full ${isSpillOverOpen ? 'text-small-orange bg-small-orange/10' : 'text-white/20 hover:text-white'}`}
-                  title="Toggle Menu"
-                >
-                  <List size={14} />
-                </button>
+
+                  <button onClick={next} className={`p-2 text-white/40 active:text-white android-press transition-colors ${isLandscape ? 'hidden' : 'block'}`} style={{ minWidth: 36, minHeight: 36 }}><SkipForward size={18} /></button>
               </div>
 
-                {/* Right Side: Info & Fullscreen */}
-                <div className={`flex items-center justify-end shrink-0 min-w-0 ${isLandscape ? 'hidden' : ''}`}>
-                  {isShrunk && (
-                    <div className="flex flex-col items-end mr-2 min-w-0 max-w-[80px]">
-                      <span className="text-[7px] font-black uppercase text-white truncate w-full text-right leading-tight">{currentTrack?.title || currentVideo?.title || 'No Media'}</span>
-                      <span className="text-[6px] font-bold text-small-orange uppercase truncate w-full text-right opacity-40">Archive</span>
-                    </div>
+                {/* Right Side: aria + share + music video + queue buttons */}
+                <div className={`flex items-center justify-end gap-1 flex-1 ${isLandscape ? 'hidden' : ''}`}>
+                  {onOpenAria && (
+                    <button
+                      onClick={onOpenAria}
+                      className="p-2 android-press transition-all rounded-full text-white/30 hover:text-purple-300"
+                      style={{ minWidth: 36, minHeight: 36 }}
+                      title="Aria AI"
+                    >
+                      <Sparkles size={16} />
+                    </button>
                   )}
-                  <button 
-                    onClick={toggleAppFullScreen}
-                    className="p-2 text-white/20 hover:text-small-orange active:scale-90 transition-all"
-                    title="App Fullscreen"
+                  <button
+                    onClick={handleShare}
+                    className="p-2 android-press transition-all rounded-full text-white/30 hover:text-white"
+                    style={{ minWidth: 36, minHeight: 36 }}
+                    title="Share"
                   >
-                    <Maximize2 size={16} />
+                    <Share2 size={16} />
                   </button>
+                  {currentTrack?.videoUrl && isPlatformVideoUrl(currentTrack.videoUrl) && (
+                    <button
+                      onClick={switchToMusicVideo}
+                      disabled={!musicVideoReady}
+                      className={`p-2 android-press transition-all rounded-full ${musicVideoReady ? 'text-small-orange hover:bg-small-orange/10' : 'text-white/15'}`}
+                      style={{ minWidth: 36, minHeight: 36 }}
+                      title={musicVideoReady ? 'Switch to Music Video' : 'Loading video…'}
+                    >
+                      <VideoIcon size={16} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1029,6 +1460,15 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                     <button onClick={toggleFullScreen} className="text-white/20 hover:text-white transition-all"><Maximize2 size={16} /></button>
                  )}
                  <button onClick={onOpenChat} className="text-white/20 hover:text-white transition-all"><MessageSquare size={16} /></button>
+                 {currentUser && onUpdateUserProfile && (
+                    <button
+                      onClick={() => onUpdateUserProfile({ customThemeEnabled: userProfile?.customThemeEnabled === false ? true : false })}
+                      className={`transition-all ${userProfile?.customThemeEnabled !== false ? 'text-small-orange' : 'text-white/20 hover:text-white'}`}
+                      title={userProfile?.customThemeEnabled !== false ? 'Custom Theme On' : 'Custom Theme Off'}
+                    >
+                      <Sparkles size={16} />
+                    </button>
+                 )}
                  <button onClick={() => isNanoView ? setIsNanoView(false) : setIsNanoView(true)} className="text-white/20 hover:text-white transition-all">
                     {isNanoView ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
                  </button>
@@ -1076,10 +1516,10 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                       >
                         <Plus size={18} className="text-white group-hover:text-black transition-colors" />
                       </button>
-                      <button 
-                        onClick={() => onNavigate?.('CREATOR')}
+                      <button
+                        onClick={() => onNavigate?.('SETTINGS')}
                         className="p-2.5 bg-white text-black hover:bg-small-orange hover:text-white rounded-2xl transition-all shadow-xl"
-                        title="Backend / Creator Dashboard"
+                        title="User Backend"
                       >
                         <Settings size={18} />
                       </button>
@@ -1153,25 +1593,10 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                 </div>
               </div>
 
-              {/* Center: Controls & Search Area - Anchor of the Bar */}
-              <div className={`flex flex-col items-center gap-1.5 lg:gap-2 flex-1 max-w-2xl px-4 transition-all duration-700`}>
-                {!isEssentialMode && (
-                  <div className="w-full hidden md:flex items-center gap-4">
-                    <div className="relative flex-1 group">
-                      <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-white transition-colors" size={14} />
-                      <input 
-                        type="text" 
-                        placeholder="Search Global Archive..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && onNavigate?.('SEARCH', { query: searchTerm })}
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-1.5 px-12 text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 ring-white/20 transition-all backdrop-blur-3xl shadow-2xl"
-                      />
-                    </div>
-                  </div>
-                )}
+              {/* Center: Controls & Media Info */}
+              <div className={`flex flex-col items-start gap-1 flex-1 max-w-2xl px-4`}>
 
-                <div className="flex items-center justify-center gap-4 lg:gap-8">
+                <div className="flex items-center gap-4 lg:gap-6">
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={() => setIsMiniPlayerActive(!isMiniPlayerActive)}
@@ -1206,7 +1631,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                     </button>
                     <button 
                       onClick={isPlaying ? pause : resume}
-                      className={`rounded-full bg-white text-black flex items-center justify-center hover:scale-110 transition-all shadow-[0_0_50px_rgba(255,255,255,0.3)] focus:outline-none w-10 h-10 lg:w-12 lg:h-12`}
+                      className={`rounded-full bg-white text-black flex items-center justify-center hover:scale-110 transition-all shadow-[0_0_50px_rgba(255,255,255,0.3)] focus:outline-none w-10 h-10`}
                     >
                       {isPlaying ? <Pause size={24} fill="black" /> : <Play size={24} fill="black" className="ml-0.5" />}
                     </button>
@@ -1257,49 +1682,44 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                   </div>
                 </div>
                 
-                <div className="w-full flex flex-col gap-2">
-                  <div className="flex items-center justify-center">
-                    {(currentTrack || currentVideo) && (
-                      <button 
-                        onClick={() => onNavigate?.('PLAYER', { album: currentAlbum })}
-                        className="flex flex-col items-center group"
-                      >
-                        <h4 className={`font-black uppercase tracking-tighter truncate text-white group-hover:text-small-orange transition-colors ${isBigScreen ? 'text-xl' : 'text-[11px]'}`}>
-                          {currentTrack?.title || currentVideo?.title || 'Untitled'}
-                        </h4>
-                        <p className={`font-bold text-small-orange uppercase tracking-widest truncate opacity-60 group-hover:opacity-100 transition-opacity ${isBigScreen ? 'text-xs' : 'text-[8px]'}`}>
-                          {currentTrack?.artist || currentAlbum?.artist || currentVideo?.artist || 'Unknown Artist'}
-                        </p>
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <span className={`font-black text-white/30 text-right w-10 text-[9px]`}>{formatTime(currentTime)}</span>
-                    <div 
-                      className={`flex-1 bg-white/10 rounded-full overflow-hidden cursor-pointer relative group h-1 hover:h-1.5 transition-all duration-300`}
-                      onMouseDown={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const handleMove = (me: MouseEvent) => {
-                          const x = Math.max(0, Math.min(me.clientX - rect.left, rect.width));
-                          seek((x / rect.width) * duration);
-                        };
-                        const handleUp = () => {
-                          window.removeEventListener('mousemove', handleMove);
-                          window.removeEventListener('mouseup', handleUp);
-                        };
-                        window.addEventListener('mousemove', handleMove);
-                        window.addEventListener('mouseup', handleUp);
-                        handleMove(e.nativeEvent);
-                      }}
+                <div className="w-full flex items-center gap-3">
+                  <span className="font-black text-white/30 text-right w-8 shrink-0 text-[9px]">{formatTime(currentTime)}</span>
+                  {(currentTrack || currentVideo) && (
+                    <button
+                      onClick={() => onNavigate?.('PLAYER', { album: currentAlbum })}
+                      className="shrink-0 min-w-0 max-w-[120px] lg:max-w-[180px] group text-left"
                     >
-                      <div 
-                        className="absolute inset-y-0 left-0 bg-small-orange shadow-[0_0_12px_rgba(255,140,0,0.4)]"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                    <span className={`font-black text-white/30 w-10 text-[9px]`}>{formatTime(duration || 0)}</span>
+                      <p className={`font-black uppercase tracking-tight truncate text-white group-hover:text-small-orange transition-colors ${isBigScreen ? 'text-sm' : 'text-[9px]'}`}>
+                        {currentTrack?.title || currentVideo?.title || 'Untitled'}
+                      </p>
+                      <p className={`font-bold text-small-orange uppercase tracking-widest truncate opacity-50 ${isBigScreen ? 'text-[10px]' : 'text-[7px]'}`}>
+                        {currentTrack?.artist || currentAlbum?.artist || currentVideo?.artist || ''}
+                      </p>
+                    </button>
+                  )}
+                  <div
+                    className="flex-1 bg-white/10 rounded-full overflow-hidden cursor-pointer relative h-1 hover:h-1.5 transition-all duration-300 group"
+                    onMouseDown={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const handleMove = (me: MouseEvent) => {
+                        const x = Math.max(0, Math.min(me.clientX - rect.left, rect.width));
+                        seek((x / rect.width) * duration);
+                      };
+                      const handleUp = () => {
+                        window.removeEventListener('mousemove', handleMove);
+                        window.removeEventListener('mouseup', handleUp);
+                      };
+                      window.addEventListener('mousemove', handleMove);
+                      window.addEventListener('mouseup', handleUp);
+                      handleMove(e.nativeEvent);
+                    }}
+                  >
+                    <div
+                      className="absolute inset-y-0 left-0 bg-small-orange shadow-[0_0_12px_rgba(255,140,0,0.4)]"
+                      style={{ width: `${progress}%` }}
+                    />
                   </div>
+                  <span className="font-black text-white/30 w-8 shrink-0 text-[9px]">{formatTime(duration || 0)}</span>
                 </div>
               </div>
 
@@ -1365,27 +1785,120 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                 {/* Enhancement Toggles (Grouped) */}
                 {!isEssentialMode && (
                   <div className="flex items-center gap-1.5 p-1.5 bg-black/40 rounded-2xl border border-white/5">
-                     <button 
-                      onClick={() => setIsFrequencyVisualizerEnabled(!isFrequencyVisualizerEnabled)}
-                      className={`p-2 rounded-xl transition-all ${isFrequencyVisualizerEnabled ? 'text-small-orange bg-small-orange/20' : 'text-white/20 hover:text-white'}`}
-                      title="FX"
-                    >
-                      <Activity size={16} />
-                    </button>
-                    <button 
+                    {/* FX / Visualizer picker */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowVisualizerDrawer(v => !v)}
+                        className={`p-2 rounded-xl transition-all ${isFrequencyVisualizerEnabled ? 'text-small-orange bg-small-orange/20' : 'text-white/20 hover:text-white'}`}
+                        title="FX Visualizer"
+                      >
+                        <Activity size={16} />
+                      </button>
+
+                      {/* Visualizer picker drawer */}
+                      <AnimatePresence>
+                        {showVisualizerDrawer && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute bottom-full right-0 mb-3 w-56 bg-black/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[200]"
+                          >
+                            <div className="px-4 pt-3 pb-2 border-b border-white/5">
+                              <p className="text-[8px] font-black uppercase tracking-[0.25em] text-white/30">Visualizer FX</p>
+                            </div>
+                            <div className="p-2 flex flex-col gap-1">
+                              {/* Hypnotic Flow */}
+                              <button
+                                onClick={() => {
+                                  setVisualizerType('FLOW');
+                                  setIsFrequencyVisualizerEnabled(true);
+                                  setShowVisualizerDrawer(false);
+                                }}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${visualizerType === 'FLOW' ? 'bg-white/10 border border-white/15' : 'hover:bg-white/5 border border-transparent'}`}
+                              >
+                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-small-orange/80 to-purple-600/80 flex items-center justify-center flex-shrink-0">
+                                  <Activity size={14} className="text-white" />
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-white">Hypnotic Flow</p>
+                                  <p className="text-[8px] text-white/30 mt-0.5">Ribbon wave visualizer</p>
+                                </div>
+                                {visualizerType === 'FLOW' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-small-orange" />}
+                              </button>
+
+                              {/* Paint Pool */}
+                              <button
+                                onClick={() => {
+                                  setVisualizerType('PAINT');
+                                  setIsFrequencyVisualizerEnabled(true);
+                                  setShowVisualizerDrawer(false);
+                                }}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${visualizerType === 'PAINT' ? 'bg-white/10 border border-white/15' : 'hover:bg-white/5 border border-transparent'}`}
+                              >
+                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-600/80 via-amber-500/60 to-violet-700/80 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-sm">🎨</span>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-white">Paint Pool</p>
+                                  <p className="text-[8px] text-white/30 mt-0.5">GPU fluid · beat drops</p>
+                                </div>
+                                {visualizerType === 'PAINT' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400" />}
+                              </button>
+
+                              {/* Off */}
+                              <button
+                                onClick={() => {
+                                  setIsFrequencyVisualizerEnabled(false);
+                                  setShowVisualizerDrawer(false);
+                                }}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${!isFrequencyVisualizerEnabled ? 'bg-white/10 border border-white/15' : 'hover:bg-white/5 border border-transparent'}`}
+                              >
+                                <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
+                                  <Activity size={14} className="text-white/20" />
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Off</p>
+                                  <p className="text-[8px] text-white/20 mt-0.5">No visualizer</p>
+                                </div>
+                                {!isFrequencyVisualizerEnabled && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white/30" />}
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                    <button
                       onClick={() => setIsThreeDEnabled(!isThreeDEnabled)}
                       className={`p-2 rounded-xl transition-all ${isThreeDEnabled ? 'text-small-orange bg-small-orange/20' : 'text-white/20 hover:text-white'}`}
-                      title="3D"
+                      title="3D Mode"
                     >
                       <Box size={16} />
                     </button>
-                    {currentAlbum?.slideshow && currentAlbum.slideshow.length > 0 && (
-                      <button 
+                    <button
+                      onClick={() => setIsMinimized(!isMinimized)}
+                      className={`p-1.5 rounded-xl transition-all hover:scale-110 active:scale-95 ${isMinimized ? 'opacity-50' : 'opacity-100'}`}
+                      title={isMinimized ? 'Show Player Controls' : 'Hide Player Controls'}
+                    >
+                      <Logo size={16} />
+                    </button>
+                    {((currentAlbum?.slideshow && currentAlbum.slideshow.length > 0) || (currentTrack?.images && currentTrack.images.length > 0)) && (
+                      <button
                         onClick={() => setIsSlideshowActive(!isSlideshowActive)}
                         className={`p-2 rounded-xl transition-all ${isSlideshowActive ? 'text-small-orange bg-small-orange/20' : 'text-white/20 hover:text-white'}`}
                         title="Slideshow"
                       >
                         <Layers size={16} />
+                      </button>
+                    )}
+                    {currentUser && onUpdateUserProfile && (
+                      <button
+                        onClick={() => onUpdateUserProfile({ customThemeEnabled: userProfile?.customThemeEnabled === false ? true : false })}
+                        className={`p-2 rounded-xl transition-all ${userProfile?.customThemeEnabled !== false ? 'text-small-orange bg-small-orange/20' : 'text-white/20 hover:text-white'}`}
+                        title={userProfile?.customThemeEnabled !== false ? 'Custom Theme On' : 'Custom Theme Off'}
+                      >
+                        <Sparkles size={16} />
                       </button>
                     )}
                   </div>
@@ -1414,8 +1927,12 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                 )}
 
                 <div className="flex items-center gap-2 pl-2">
-                  <button onClick={() => setIsNanoView?.(!isNanoView)} className="p-2 text-white/20 hover:text-white hover:bg-white/5 rounded-xl transition-all" title="Nano">
-                    {isNanoView ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
+                  <button
+                    onClick={() => { setIsNanoDocked(true); setIsNanoView(true); }}
+                    className="p-2 text-white/20 hover:text-small-orange hover:bg-small-orange/5 rounded-xl transition-all"
+                    title="Back to sidebar player"
+                  >
+                    <Minimize2 size={16} />
                   </button>
                   
                   {(currentTrack || currentVideo) && (
@@ -1484,7 +2001,9 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
         </div>
       </motion.div>
     <AnimatePresence>
-      {isSlideshowActive && !isNanoView && currentAlbum?.slideshow && currentAlbum.slideshow.length > 0 && (
+      {/* Full-screen takeover stays an explicit choice — a creator's auto-started slideshow
+          should fill the nano back face and the album backdrop, not seize the whole app. */}
+      {isSlideshowActive && !isSlideshowAuto && !isNanoView && currentAlbum?.slideshow && currentAlbum.slideshow.length > 0 && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -1529,6 +2048,47 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
               </div>
             </div>
           </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+
+    {/* ── Music Video Overlay ────────────────────────────────────────────── */}
+    <AnimatePresence>
+      {showMusicVideo && currentTrack?.videoUrl && (
+        <motion.div
+          initial={{ opacity: 0, y: '100%' }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: '100%' }}
+          transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+          className="fixed inset-0 z-[120] bg-black flex flex-col"
+        >
+          {/* Header bar */}
+          <div className="absolute top-0 inset-x-0 z-10 flex items-center justify-between px-5 pt-safe-top pt-4 pb-3 bg-gradient-to-b from-black/80 to-transparent">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40">Music Video</p>
+              <h3 className="text-sm font-black uppercase tracking-tight text-white">{currentTrack.title}</h3>
+            </div>
+            <button onClick={closeMusicVideo} className="p-2 rounded-full bg-black/40 text-white/60 hover:text-white">
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Video */}
+          <video
+            ref={el => {
+              if (el && musicVideoRef.current && el !== musicVideoRef.current) {
+                el.src = currentTrack.videoUrl!;
+                el.currentTime = musicVideoRef.current.currentTime;
+                el.play().catch(() => {});
+              }
+              if (el) musicVideoRef.current = el;
+            }}
+            className="w-full h-full object-contain"
+            controls
+            playsInline
+            autoPlay
+            onEnded={closeMusicVideo}
+          />
         </motion.div>
       )}
     </AnimatePresence>

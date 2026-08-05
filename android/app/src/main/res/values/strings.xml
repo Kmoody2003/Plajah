@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">VibeStream</string>
-    <string name="title_activity_main">VibeStream</string>
-    <string name="package_name">com.vibestream.app</string>
-    <string name="custom_url_scheme">com.vibestream.app</string>
+    <string name="app_name">Plajah</string>
+    <string name="title_activity_main">Plajah</string>
+    <string name="package_name">com.plajah.app</string>
+    <string name="custom_url_scheme">com.plajah.app</string>
 </resources>

@@ -1,16 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import FeedTimeline from './FeedTimeline';
+import { sanitizeHtml } from '../src/lib/sanitize';
+import { checkPostRateLimit, recordPost, detectSpam, honeypotTripped } from '../src/lib/spamCheck';
 import { Post, UserProfile, Album, Video } from '../types';
-import { 
-  listenToUserPosts, 
-  listenToFollowedPosts, 
-  listenToGlobalPosts, 
-  createPost, 
+import {
+  listenToUserPosts,
+  listenToFollowedPosts,
+  listenToGlobalPosts,
+  createPost,
+  postFieldsForAssetEmbed,
   auth,
   fetchUserContent,
   fetchUserVideos,
-  searchUserProfiles
+  searchUserProfiles,
+  linkXAccount
 } from '../services/backendService';
 import PostCard from './PostCard';
+import UniversalPostComposer from './UniversalPostComposer';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Send, 
@@ -221,7 +227,33 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
   };
   const [postText, setPostText] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [honeypot, setHoneypot] = useState('');
   const [selectedMedia, setSelectedMedia] = useState<any[]>([]);
+  const [isPastingMedia, setIsPastingMedia] = useState(false);
+
+  const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = Array.from(e.clipboardData.items);
+    const imageItems = items.filter(item => item.kind === 'file' && item.type.startsWith('image/'));
+    if (!imageItems.length || !auth.currentUser) return;
+    e.preventDefault();
+    setIsPastingMedia(true);
+    try {
+      const { uploadFile } = await import('../services/backendService');
+      const uploads = imageItems.map(async item => {
+        const file = item.getAsFile();
+        if (!file) return null;
+        const ext = file.type.split('/')[1] || 'png';
+        const url = await uploadFile(`posts/${auth.currentUser!.uid}/paste_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`, file);
+        return { type: 'PHOTO' as const, url };
+      });
+      const results = (await Promise.all(uploads)).filter(Boolean) as { type: 'PHOTO'; url: string }[];
+      if (results.length) setSelectedMedia(prev => [...prev, ...results]);
+    } catch (err) {
+      console.error('[ProfileFeed] Paste upload failed:', err);
+    } finally {
+      setIsPastingMedia(false);
+    }
+  }, []);
   const [showMediaPicker, setShowMediaPicker] = useState<'ALBUM' | 'VIDEO' | 'GIF' | 'STICKER' | 'EMOJI' | null>(null);
   const [userAlbums, setUserAlbums] = useState<Album[]>([]);
   const [userVideos, setUserVideos] = useState<Video[]>([]);
@@ -229,11 +261,18 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
   const [autoPlayEmbed, setAutoPlayEmbed] = useState(false);
   const [tempXHandle, setTempXHandle] = useState('');
   const [showXLinkModal, setShowXLinkModal] = useState(false);
+  const [isLinkingX, setIsLinkingX] = useState(false);
 
   const [mentionSearch, setMentionSearch] = useState('');
   const [showMentionDropdown, setShowMentionDropdown] = useState(false);
   const [suggestedUsers, setSuggestedUsers] = useState<UserProfile[]>([]);
   const [mentionTriggerIndex, setMentionTriggerIndex] = useState(-1);
+
+  const [scrubTimestamp, setScrubTimestamp] = useState<number | null>(null);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+
+  const handleScrub = useCallback((ts: number | null) => setScrubTimestamp(ts), []);
+  const handleScrubbing = useCallback((s: boolean) => setIsScrubbing(s), []);
 
   useEffect(() => {
     const handleMentionSearch = async () => {
@@ -477,6 +516,14 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
 
   const handleCreatePost = async () => {
     if (!postText.trim() && !selectedMedia.length && !embeddedAlbum) return;
+    if (honeypotTripped(honeypot)) return; // silent bot drop
+    const rateCheck = checkPostRateLimit();
+    if (!rateCheck.allowed) {
+      alert(`Please wait ${rateCheck.waitSecs}s before posting again.`);
+      return;
+    }
+    const spamReason = detectSpam(postText);
+    if (spamReason) { alert(spamReason); return; }
 
     setIsCreating(true);
     try {
@@ -489,6 +536,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
         targetUserId: isOwnProfile ? undefined : uid,
         targetUserName: isOwnProfile ? undefined : profileName
       });
+      recordPost();
       setPostText('');
       setSelectedMedia([]);
       setEmbeddedAlbum(null);
@@ -565,11 +613,11 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                      animate={{ opacity: 1, y: 0 }}
                      className="p-6 bg-white/5 border border-white/10 rounded-3xl hover:bg-white/[0.07] transition-all"
                    >
-                     <div dangerouslySetInnerHTML={{ __html: status.content }} className="text-sm leading-relaxed text-white prose prose-invert max-w-none" />
+                     <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(status.content) }} className="text-sm leading-relaxed text-white prose prose-invert max-w-none" />
                      {status.media_attachments.length > 0 && (
                        <div className="grid grid-cols-2 gap-2 mt-4">
                          {status.media_attachments.map((media: any) => (
-                           <img key={media.id} src={media.url || null} alt="" className="rounded-xl w-full h-40 object-cover border border-white/5" />
+                           <img key={media.id} src={media.url || null} alt="" className="rounded-xl w-full h-40 object-cover border border-white/5" loading="lazy" decoding="async" />
                          ))}
                        </div>
                      )}
@@ -731,7 +779,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                      {item.post.embed?.images && (
                        <div className="grid grid-cols-2 gap-2 mt-4">
                          {item.post.embed.images.map((img: any, i: number) => (
-                           <img key={i} src={img.fullsize || null} alt="" className="rounded-xl w-full h-40 object-cover border border-white/5" />
+                           <img key={i} src={img.fullsize || null} alt="" className="rounded-xl w-full h-40 object-cover border border-white/5" loading="lazy" decoding="async" />
                          ))}
                        </div>
                      )}
@@ -814,6 +862,141 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
       );
     }
 
+    if (feedType === 'THREADS') {
+      return (
+        <div className="bg-white/[0.03] border border-white/5 rounded-[3rem] p-4 lg:p-8 min-h-[600px] flex flex-col items-center relative overflow-hidden">
+          <div className="absolute inset-0 opacity-5 pointer-events-none">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+              <MessageSquare size={400} className="text-white" strokeWidth={0.5} />
+            </div>
+          </div>
+
+          <div className="relative z-10 w-full max-w-2xl space-y-8">
+            <div className="flex flex-col items-center text-center space-y-4 mb-8">
+              <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center">
+                <MessageSquare size={32} className="text-white" />
+              </div>
+              <h3 className="text-2xl font-black uppercase tracking-tightest">Threads Signal</h3>
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/30">
+                @{threadsHandle}
+              </p>
+              {!mastodonAuth && (
+                <div className="text-center">
+                  <p className="text-[8px] font-black uppercase tracking-widest text-white/20 mb-3">
+                    Connect Mastodon to load Threads via Fediverse bridge
+                  </p>
+                  <button
+                    onClick={connectMastodon}
+                    className="px-4 py-2 bg-[#563acc] text-white rounded-xl text-[8px] font-black uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-2 mx-auto"
+                  >
+                    <AtSign size={10} />
+                    Connect Mastodon Bridge
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {isLoadingThirdParty ? (
+              <div className="py-20 flex flex-col items-center gap-4 text-white/20">
+                <Loader2 size={40} className="animate-spin" />
+                <p className="text-[10px] font-black uppercase tracking-widest">Intercepting Signal...</p>
+              </div>
+            ) : thirdPartyError ? (
+              <div className="py-20 flex flex-col items-center gap-4 text-center">
+                <MessageSquare size={40} className="text-white/20 mb-2" />
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-red-500/60">{thirdPartyError}</p>
+                {!mastodonAuth && (
+                  <button
+                    onClick={connectMastodon}
+                    className="mt-4 px-6 py-3 bg-[#563acc] text-white rounded-xl text-[8px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-xl"
+                  >
+                    Connect Mastodon Bridge
+                  </button>
+                )}
+              </div>
+            ) : threadsPosts.length > 0 ? (
+              <div className="space-y-6">
+                {threadsPosts.map((status: any) => (
+                  <motion.div
+                    key={status.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-6 bg-white/5 border border-white/10 rounded-3xl hover:bg-white/[0.07] transition-all"
+                  >
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(status.content) }} className="text-sm leading-relaxed text-white prose prose-invert max-w-none" />
+                    {status.media_attachments?.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2 mt-4">
+                        {status.media_attachments.map((media: any) => (
+                          <img key={media.id} src={media.url || null} alt="" className="rounded-xl w-full h-40 object-cover border border-white/5" loading="lazy" decoding="async" />
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-4">
+                      <div className="flex items-center gap-4">
+                        <span className="text-[8px] font-black uppercase tracking-widest text-white/20">
+                          {new Date(status.created_at).toLocaleDateString()}
+                        </span>
+                        {mastodonAuth && (
+                          <button
+                            onClick={() => setReplyingTo({ id: status.id, platform: 'THREADS' })}
+                            className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-white/20 hover:text-white transition-all"
+                          >
+                            <MessageSquare size={10} />
+                            Reply
+                          </button>
+                        )}
+                      </div>
+                      {status.url && (
+                        <a href={status.url} target="_blank" rel="noopener noreferrer" className="text-white/20 hover:text-white transition-all">
+                          <ExternalLink size={12} />
+                        </a>
+                      )}
+                    </div>
+                    <AnimatePresence>
+                      {replyingTo?.id === status.id && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="mt-4 space-y-3"
+                        >
+                          <textarea
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            placeholder="Write your reply..."
+                            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-white placeholder:text-white/20 resize-none h-20 outline-none focus:border-white/20 transition-all font-sans"
+                          />
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => setReplyingTo(null)}
+                              className="px-4 py-2 text-[8px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-all"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={submitReply}
+                              disabled={isReplying || !replyText.trim()}
+                              className="px-4 py-2 bg-white text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all disabled:opacity-50"
+                            >
+                              {isReplying ? <Loader2 size={10} className="animate-spin" /> : 'Signal Reply'}
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-20 text-center text-white/20">
+                <p className="text-[10px] font-black uppercase tracking-widest">No signals found from this frequency</p>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     if (feedType === 'X_FEED') {
       return (
         <div className="bg-white/[0.03] border border-white/5 rounded-[3rem] p-8 min-h-[600px] flex flex-col items-center justify-center relative overflow-hidden">
@@ -833,11 +1016,11 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                  <div 
                    ref={twitterContainerRef}
                    className="twitter-embed-container"
-                   dangerouslySetInnerHTML={{ 
-                     __html: xEmbedHtml || `
+                   dangerouslySetInnerHTML={{
+                     __html: sanitizeHtml(xEmbedHtml || `
                        <a class="twitter-timeline" data-theme="dark" href="https://twitter.com/${xHandle}?ref_src=twsrc%5Etfw">Tweets by @${xHandle}</a>
-                     `
-                   }} 
+                     `)
+                   }}
                  />
                  {isOwnProfile && (
                    <div className="mt-8 pt-8 border-t border-white/5 text-center">
@@ -877,22 +1060,37 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
       );
     }
 
+    const visiblePosts = scrubTimestamp !== null
+      ? posts.filter(p => p.timestamp <= scrubTimestamp)
+      : posts;
+
     return (
       <div className="space-y-8">
-        <AnimatePresence mode="popLayout">
-          {posts.map((post) => (
-            <PostCard key={post.id} post={post} onVisitUser={onVisitUser} />
-          ))}
-        </AnimatePresence>
-        
-        {posts.length === 0 && (
-          <div className="py-20 text-center">
-            <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <MessageSquare size={24} className="text-white/20" />
+        <div
+          style={{
+            opacity: isScrubbing ? 0.35 : 1,
+            filter: isScrubbing ? 'blur(1.5px)' : 'none',
+            transition: 'opacity 0.2s ease, filter 0.2s ease',
+            pointerEvents: isScrubbing ? 'none' : 'auto',
+          }}
+        >
+          <AnimatePresence mode="popLayout">
+            {visiblePosts.map((post) => (
+              <PostCard key={post.id} post={post} onVisitUser={onVisitUser} />
+            ))}
+          </AnimatePresence>
+
+          {visiblePosts.length === 0 && (
+            <div className="py-20 text-center">
+              <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <MessageSquare size={24} className="text-white/20" />
+              </div>
+              <p className="text-white/20 font-black uppercase tracking-widest text-xs">
+                {isScrubbing ? 'No posts at this time' : 'No signals detected in this sector'}
+              </p>
             </div>
-            <p className="text-white/20 font-black uppercase tracking-widest text-xs">No signals detected in this sector</p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     );
   };
@@ -917,12 +1115,14 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
       {/* Feed Toggle */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 p-1 bg-black/40 rounded-2xl border border-white/5">
-          <button 
+          <button
             onClick={() => setFeedType('PERSONAL')}
             className={`px-6 py-3 rounded-xl flex items-center gap-2 transition-all ${feedType === 'PERSONAL' ? 'bg-white text-black shadow-lg' : 'text-white/40 hover:text-white'}`}
           >
             <Users size={14} />
-            <span className="text-[10px] font-black uppercase tracking-widest">My Feed</span>
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              {isOwnProfile ? 'My Feed' : (profileName ? `${profileName.split(' ')[0]}'s Posts` : 'Their Posts')}
+            </span>
           </button>
           <button 
             onClick={() => setFeedType('GLOBAL')}
@@ -964,236 +1164,57 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
 
       {/* Post Creator */}
       {auth.currentUser && !hideBroadcaster && !['X_FEED', 'MASTODON', 'BLUESKY', 'THREADS'].includes(feedType) && (
-        <div className="bg-white/[0.03] border border-white/5 rounded-[3rem] p-8 space-y-6">
-          <div className="flex gap-4">
-            <div className="w-12 h-12 rounded-2xl overflow-hidden border border-white/10 flex-shrink-0">
-              <img src={auth.currentUser?.photoURL || null} alt="Me" className="w-full h-full object-cover" />
-            </div>
-            <textarea 
-              value={postText}
-              onChange={handleInputChange}
-              placeholder={isOwnProfile ? "What's on your mind? Share music, videos, or just vibes..." : `Post something to ${profileName || 'this profile'}...`}
-              className="flex-1 bg-transparent border-none outline-none text-white placeholder:text-white/20 resize-none font-medium leading-relaxed mt-2 relative"
-              rows={3}
-            />
-          </div>
+        <div className="mb-8">
+          <UniversalPostComposer
+            currentUser={auth.currentUser}
+            placeholder={isOwnProfile ? "What's on your mind? Share music, videos, or just vibes..." : `Post something to ${profileName || 'this profile'}...`}
+            avatarUrl={auth.currentUser.photoURL || undefined}
+            userAlbums={userAlbums}
+            onPost={async (data) => {
+              const resolvedMedia = (await Promise.all(
+                data.attachments.map(async (att) => {
+                  if (att.file && att.url.startsWith('blob:')) {
+                    try {
+                      const { uploadFile } = await import('../services/backendService');
+                      const url = await uploadFile(`posts/${auth.currentUser!.uid}/${Date.now()}_${att.file.name}`, att.file);
+                      return { type: att.type, url, title: att.title };
+                    } catch { return null; }
+                  }
+                  return { type: att.type, url: att.url, title: att.title };
+                })
+              )).filter(Boolean) as { type: 'PHOTO' | 'VIDEO' | 'AUDIO'; url: string; title?: string }[];
+              const embedFields = await postFieldsForAssetEmbed(data.assetEmbed);
+              await createPost({
+                text: data.text,
+                isPublic: true,
+                ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
+                ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
+                ...embedFields,
+                targetUserId: isOwnProfile ? undefined : uid,
+                targetUserName: isOwnProfile ? undefined : profileName
+              });
+            }}
+          />
+        </div>
+      )}
 
-          {showMentionDropdown && (
-            <div className="absolute left-20 bottom-full mb-4 w-72 bg-[#1A1A1A] border border-white/10 rounded-[2rem] shadow-4xl overflow-hidden z-[100] animate-in fade-in slide-in-from-bottom-2">
-              <div className="p-4 border-b border-white/10 bg-white/5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Connect Node</p>
-              </div>
-              <div className="max-h-60 overflow-y-auto no-scrollbar">
-                {suggestedUsers.map(user => (
-                  <button
-                    key={user.uid}
-                    onClick={() => handleSelectMention(user)}
-                    className="w-full flex items-center gap-4 p-4 hover:bg-white/5 transition-colors text-left group"
-                  >
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-white/10 ring-2 ring-white/5 group-hover:ring-small-orange transition-all">
-                      {user.photoURL ? (
-                        <img src={user.photoURL || null} className="w-full h-full object-cover" />
-                      ) : (
-                        <Sparkles size={16} className="m-auto text-white/20" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm truncate">{user.displayName}</p>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Connect Node</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Media Previews */}
-          <AnimatePresence>
-            {(selectedMedia.length > 0 || embeddedAlbum) && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="flex flex-wrap gap-4"
-              >
-                {selectedMedia.map((m, i) => (
-                  <div key={i} className="relative group">
-                    <img src={m.url || null} className="w-24 h-24 rounded-2xl object-cover border border-white/10" alt="Preview" />
-                    <button 
-                      onClick={() => setSelectedMedia(selectedMedia.filter((_, idx) => idx !== i))}
-                      className="absolute -top-2 -right-2 bg-black text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-all"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
-                {embeddedAlbum && (
-                  <div className="relative group flex-1">
-                    <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-4">
-                      <img src={embeddedAlbum.coverImage || null} className="w-12 h-12 rounded-xl object-cover" alt="Album" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-black uppercase tracking-widest truncate">{embeddedAlbum.title}</p>
-                        <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Embedded Album</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => setAutoPlayEmbed(!autoPlayEmbed)}
-                          className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${autoPlayEmbed ? 'bg-small-orange text-black' : 'bg-white/5 text-white/40'}`}
-                        >
-                          AutoPlay {autoPlayEmbed ? 'ON' : 'OFF'}
-                        </button>
-                        <button 
-                          onClick={() => setEmbeddedAlbum(null)}
-                          className="p-2 text-white/20 hover:text-white"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
+      {/* 48-Hour Timeline — only shown for PERSONAL/GLOBAL feed */}
+      {!['X_FEED', 'MASTODON', 'BLUESKY', 'THREADS'].includes(feedType) && posts.length > 0 && (
+        <div className="bg-white/[0.02] border border-white/5 rounded-3xl px-6 py-2">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+            <span className="text-[8px] font-black uppercase tracking-[0.25em] text-white/20">Timeline · Last 48h</span>
+            {isScrubbing && (
+              <span className="ml-auto text-[8px] font-black uppercase tracking-widest text-white/40 animate-pulse">
+                Scrubbing
+              </span>
             )}
-          </AnimatePresence>
-
-          <div className="flex items-center justify-between pt-4 border-t border-white/5">
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setShowMediaPicker('ALBUM')}
-                className="p-3 bg-white/5 text-white/40 hover:text-small-orange hover:bg-small-orange/10 rounded-2xl transition-all"
-                title="Embed Album"
-              >
-                <Music size={18} />
-              </button>
-              <button 
-                onClick={() => setShowMediaPicker('VIDEO')}
-                className="p-3 bg-white/5 text-white/40 hover:text-small-orange hover:bg-small-orange/10 rounded-2xl transition-all"
-                title="Add Video"
-              >
-                <VideoIcon size={18} />
-              </button>
-              <button 
-                onClick={() => setShowMediaPicker('GIF')}
-                className="p-3 bg-white/5 text-white/40 hover:text-small-orange hover:bg-small-orange/10 rounded-2xl transition-all"
-                title="Add GIF"
-              >
-                <ImageIcon size={18} />
-              </button>
-              <button 
-                onClick={() => setShowMediaPicker('STICKER')}
-                className="p-3 bg-white/5 text-white/40 hover:text-small-orange hover:bg-small-orange/10 rounded-2xl transition-all"
-                title="Add Sticker"
-              >
-                <Sticker size={18} />
-              </button>
-              <button 
-                onClick={() => setShowMediaPicker('EMOJI')}
-                className="p-3 bg-white/5 text-white/40 hover:text-small-orange hover:bg-small-orange/10 rounded-2xl transition-all"
-                title="Add Emoji"
-              >
-                <Smile size={18} />
-              </button>
-            </div>
-            <button 
-              onClick={handleCreatePost}
-              disabled={isCreating || (!postText.trim() && !selectedMedia.length && !embeddedAlbum)}
-              className="px-8 py-3 bg-white text-black rounded-full font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
-            >
-              {isCreating ? 'Posting...' : (
-                <>
-                  Post <Send size={14} />
-                </>
-              )}
-            </button>
           </div>
-
-          {/* Media Pickers */}
-          <AnimatePresence>
-            {showMediaPicker && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="mt-4 p-6 bg-black/40 border border-white/10 rounded-[2rem] max-h-64 overflow-y-auto scrollbar-hide"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40">Select {showMediaPicker}</h4>
-                  <button onClick={() => setShowMediaPicker(null)} className="text-white/20 hover:text-white"><X size={14} /></button>
-                </div>
-
-                {showMediaPicker === 'ALBUM' && (
-                  <div className="grid grid-cols-2 gap-4">
-                    {userAlbums.map(album => (
-                      <button 
-                        key={album.id}
-                        onClick={() => { setEmbeddedAlbum(album); setShowMediaPicker(null); }}
-                        className="flex items-center gap-3 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-all text-left"
-                      >
-                        <img src={album.coverImage || null} className="w-10 h-10 rounded-lg object-cover" alt="Art" />
-                        <span className="text-[10px] font-black uppercase tracking-widest truncate">{album.title}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {showMediaPicker === 'VIDEO' && (
-                  <div className="grid grid-cols-2 gap-4">
-                    {userVideos.map(video => (
-                      <button 
-                        key={video.id}
-                        onClick={() => { setSelectedMedia([...selectedMedia, { type: 'VIDEO', url: video.url, title: video.title }]); setShowMediaPicker(null); }}
-                        className="flex items-center gap-3 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-all text-left"
-                      >
-                        <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center">
-                          <Play size={14} fill="white" />
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest truncate">{video.title}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {showMediaPicker === 'GIF' && (
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHR4eXh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4JmVwPXYxX2ludGVybmFsX2dpZl9ieV9pZCZjdD1n/l41lTjJ8Z1Z1Z1Z1Z/giphy.gif',
-                      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHR4eXh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4JmVwPXYxX2ludGVybmFsX2dpZl9ieV9pZCZjdD1n/3o7TKD5lZlZlZlZlZl/giphy.gif',
-                      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHR4eXh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4JmVwPXYxX2ludGVybmFsX2dpZl9ieV9pZCZjdD1n/l0HlTjJ8Z1Z1Z1Z1Z/giphy.gif'
-                    ].map((url, i) => (
-                      <button key={i} onClick={() => addGif(url)} className="aspect-square rounded-xl overflow-hidden border border-white/5 hover:border-small-orange transition-all">
-                        <img src={url || null} className="w-full h-full object-cover" alt="GIF" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {showMediaPicker === 'STICKER' && (
-                  <div className="grid grid-cols-4 gap-2">
-                    {[
-                      'https://picsum.photos/seed/sticker1/100/100',
-                      'https://picsum.photos/seed/sticker2/100/100',
-                      'https://picsum.photos/seed/sticker3/100/100',
-                      'https://picsum.photos/seed/sticker4/100/100'
-                    ].map((url, i) => (
-                      <button key={i} onClick={() => addSticker(url)} className="aspect-square rounded-xl overflow-hidden border border-white/5 hover:border-small-orange transition-all">
-                        <img src={url || null} className="w-full h-full object-cover" alt="Sticker" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {showMediaPicker === 'EMOJI' && (
-                  <div className="grid grid-cols-8 gap-2">
-                    {['🔥', '🎵', '🎸', '✨', '🤘', '🙌', '💯', '❤️', '🚀', '🌈', '🎨', '📸', '🎬', '🎧', '🎤', '🎹'].map((emoji, i) => (
-                      <button key={i} onClick={() => addEmoji(emoji)} className="text-2xl p-2 hover:bg-white/10 rounded-xl transition-all">
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <FeedTimeline
+            posts={posts}
+            onScrub={handleScrub}
+            onScrubbing={handleScrubbing}
+          />
         </div>
       )}
 
@@ -1231,7 +1252,25 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
               </div>
 
               <div className="flex flex-col gap-4">
-                <button 
+                {auth.currentUser && (
+                  <button
+                    onClick={async () => {
+                      setIsLinkingX(true);
+                      const screenName = await linkXAccount();
+                      setIsLinkingX(false);
+                      if (screenName) {
+                        if (onUpdateXHandle) onUpdateXHandle(screenName);
+                        setShowXLinkModal(false);
+                      }
+                    }}
+                    disabled={isLinkingX}
+                    className="w-full py-5 bg-black border border-white/20 text-white font-black uppercase tracking-widest text-xs rounded-full hover:bg-white/10 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                  >
+                    {isLinkingX ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
+                    {isLinkingX ? 'Connecting...' : 'Auto-Link via X OAuth'}
+                  </button>
+                )}
+                <button
                   onClick={() => {
                     if (onUpdateXHandle) onUpdateXHandle(tempXHandle);
                     setShowXLinkModal(false);
@@ -1240,7 +1279,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                 >
                   Confirm Signal Link
                 </button>
-                <button 
+                <button
                   onClick={() => setShowXLinkModal(false)}
                   className="w-full py-5 bg-white/5 text-white/40 font-black uppercase tracking-widest text-[10px] rounded-full hover:bg-white/10 transition-all"
                 >

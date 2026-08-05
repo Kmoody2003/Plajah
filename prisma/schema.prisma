@@ -1,0 +1,117 @@
+// ─── Plajah Decentralized Social Layer — PostgreSQL Schema ───────────────────
+// Deploy with: npx prisma migrate dev --name init
+// Hosts: Supabase, Railway, Neon, PlanetScale (MySQL variant)
+//
+// In the current runtime, Firebase Firestore stores the same logical structure.
+// This schema serves as the canonical design and can be hot-swapped in.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Mastodon OAuth App Registrations ─────────────────────────────────────────
+// One row per Mastodon instance. Re-used across all users on that instance.
+// clientSecret is AES-256-GCM encrypted via ENCRYPTION_KEY env var.
+
+model FediverseOAuthApp {
+  id           String   @id @default(uuid())
+  instanceUrl  String   @unique               // canonical https://mastodon.social
+  clientId     String
+  clientSecret String                          // encrypted
+  redirectUri  String
+  scopes       String   @default("read write follow push")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([instanceUrl])
+  @@map("fediverse_oauth_apps")
+}
+
+// ─── Pending OAuth State Tokens ────────────────────────────────────────────────
+// CSRF protection. Short-lived (10 min). Maps random state → uid + instanceUrl.
+// Consumed on token exchange and then deleted.
+
+model FediverseOAuthState {
+  state       String   @id                    // random 32-hex bytes
+  uid         String                          // Firebase UID of initiating user
+  instanceUrl String
+  expiresAt   DateTime
+
+  @@index([uid])
+  @@map("fediverse_oauth_states")
+}
+
+// ─── Connected Fediverse Accounts ─────────────────────────────────────────────
+// One row per connected account per user. Bluesky and Mastodon each get a row.
+
+model FediverseAccount {
+  id           String   @id @default(uuid())
+  uid          String                          // Firebase UID
+  protocol     String                          // 'mastodon' | 'bluesky' | 'threads'
+  handle       String                          // @user@instance | user.bsky.social
+  displayName  String
+  avatarUrl    String?
+  instanceUrl  String?                         // Mastodon only
+  profileUrl   String
+  did          String?                         // Bluesky DID (stable identity)
+  pdsUrl       String?                         // Bluesky Personal Data Server
+  encryptedCreds String                        // AES-256-GCM encrypted JSON blob
+  connectedAt  DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  isActive     Boolean  @default(true)
+  lastSyncAt   DateTime?
+
+  @@index([uid])
+  @@index([uid, protocol])
+  @@index([did])
+  @@unique([uid, protocol, handle])            // one account per handle per user
+  @@map("fediverse_accounts")
+}
+
+// ─── Broadcast Log ────────────────────────────────────────────────────────────
+// Audit trail for cross-posts from Plajah → external networks.
+
+model FediverseBroadcast {
+  id           String   @id @default(uuid())
+  uid          String
+  plajahPostId String?                         // source post in Plajah
+  text         String
+  uri          String?                         // Plajah content URL included
+  succeededOn  String[]                        // protocol names
+  failedOn     String[]
+  createdAt    DateTime @default(now())
+
+  @@index([uid])
+  @@index([plajahPostId])
+  @@map("fediverse_broadcasts")
+}
+
+// ─── Cora Music Analysis — Songs ──────────────────────────────────────────────
+// Stores audio analysis results produced by Cora's beat detection pipeline.
+// Schema mirrors the canonical SQL: CREATE TABLE Songs (...)
+
+model Song {
+  id                   Int      @id @default(autoincrement())
+  title                String   @db.VarChar(255)
+  artist               String   @db.VarChar(255)
+  lyrics               String?  @db.Text
+  genreRules           String?  @db.Text   @map("genre_rules")
+  tempo                Int?
+  beatDetectionVersion String?  @db.VarChar(50) @map("beat_detection_version")
+  // Platform references — links this record to the Firestore track/album
+  platformTrackId      String?  @unique @map("platform_track_id")
+  platformAlbumId      String?  @map("platform_album_id")
+  ownerId              String?  @map("owner_id")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([artist])
+  @@index([tempo])
+  @@index([platformAlbumId])
+  @@index([ownerId])
+  @@map("songs")
+}

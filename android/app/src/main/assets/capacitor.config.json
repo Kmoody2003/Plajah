@@ -1,5 +1,48 @@
 {
 	"appId": "com.plajah.app",
 	"appName": "Plajah",
-	"webDir": "dist"
+	"webDir": "dist",
+	"android": {
+		"appendUserAgent": "Plajah/2.0 Android",
+		"allowMixedContent": false,
+		"loggingBehavior": "debug",
+		"minWebViewVersion": 80
+	},
+	"plugins": {
+		"PushNotifications": {
+			"presentationOptions": [
+				"badge",
+				"sound",
+				"alert"
+			]
+		},
+		"Browser": {
+			"presentationStyle": "popover"
+		},
+		"CapacitorHttp": {
+			"enabled": false
+		},
+		"FirebaseAuthentication": {
+			"skipNativeAuth": true,
+			"providers": [
+				"google.com",
+				"twitter.com",
+				"microsoft.com"
+			]
+		}
+	},
+	"server": {
+		"url": "https://plajah.com",
+		"cleartext": false,
+		"androidScheme": "https",
+		"hostname": "plajah.app",
+		"allowNavigation": [
+			"plajah.com",
+			"*.firebaseapp.com",
+			"*.firebase.googleapis.com",
+			"*.googleapis.com",
+			"*.mux.com",
+			"*.stripe.com"
+		]
+	}
 }

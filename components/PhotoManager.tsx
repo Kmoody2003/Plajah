@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Photo, PhotoAlbum, UserProfile } from '../types';
-import { 
-  Plus, 
-  Grid, 
-  List, 
-  Lock, 
-  Globe, 
-  Trash2, 
-  Image as ImageIcon, 
+import {
+  Plus,
+  Grid,
+  List,
+  Lock,
+  Globe,
+  Trash2,
+  Image as ImageIcon,
   FolderPlus,
   Cloud,
   Upload,
@@ -17,11 +17,19 @@ import {
   CheckCircle2,
   X,
   ChevronRight,
-  ExternalLink
+  ExternalLink,
+  Check,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
+  Wand2,
+  QrCode
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { uploadPhoto, createPhotoAlbum, auth, db } from '../services/backendService';
 import { doc, updateDoc } from 'firebase/firestore';
+import PhotoEditPanel from './PhotoEditPanel';
+import { PHOTO_IMPORT_SOURCES, PHOTOGRAPHER_PRO_FEATURES } from '../services/photoEditingService';
 
 interface PhotoManagerProps {
   profile: UserProfile;
@@ -29,12 +37,16 @@ interface PhotoManagerProps {
 }
 
 const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
-  const [activeTab, setActiveTab] = useState<'ALL' | 'ALBUMS' | 'IMPORT'>('ALL');
+  const [activeTab, setActiveTab] = useState<'ALL' | 'ALBUMS' | 'IMPORT' | 'PRO'>('ALL');
   const [isUploading, setIsUploading] = useState(false);
   const [isCreateAlbumOpen, setIsCreateAlbumOpen] = useState(false);
   const [newAlbumTitle, setNewAlbumTitle] = useState('');
   const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [showRightsModal, setShowRightsModal] = useState(false);
+  const [rightsConfirmed, setRightsConfirmed] = useState(false);
+  const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -121,11 +133,14 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
             <Cloud size={14} />
             Import Cloud
           </button>
-          <label className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest cursor-pointer hover:scale-105 transition-all shadow-xl">
+          <button
+            onClick={() => setShowRightsModal(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
+          >
             <Upload size={14} />
             Bulk Upload
-            <input type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleFileUpload} />
-          </label>
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleFileUpload} />
         </div>
       </div>
 
@@ -134,7 +149,8 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
         {[
           { id: 'ALL', label: 'All Media', icon: Grid },
           { id: 'ALBUMS', label: 'Albums', icon: FolderPlus },
-          { id: 'IMPORT', label: 'Cloud Import', icon: Cloud }
+          { id: 'IMPORT', label: 'Cloud Import', icon: Cloud },
+          { id: 'PRO', label: 'Pro Showcase', icon: Sparkles }
         ].map(tab => (
           <button
             key={tab.id}
@@ -207,6 +223,13 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
                         title={photo.isPublic ? 'Set to Private' : 'Set to Public'}
                       >
                         {photo.isPublic ? <Globe size={20} /> : <Lock size={20} />}
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEditingPhoto(photo); }}
+                        className="p-3 rounded-full bg-black/60 text-white/60 hover:text-white backdrop-blur-md transition-all"
+                        title="Edit photo"
+                      >
+                        <SlidersHorizontal size={20} />
                       </button>
                       <button className="p-3 rounded-full bg-black/60 text-white/60 hover:text-red-500 backdrop-blur-md transition-all">
                         <Trash2 size={20} />
@@ -288,36 +311,73 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
         )}
 
         {activeTab === 'IMPORT' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="p-10 bg-white/5 border border-white/10 rounded-[3rem] hover:bg-white/[0.08] transition-all group cursor-pointer">
-              <div className="flex items-center justify-between mb-8">
-                <div className="w-16 h-16 bg-[#4285F4] rounded-2xl flex items-center justify-center shadow-xl">
-                  <Cloud size={32} className="text-white" />
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {PHOTO_IMPORT_SOURCES.map(source => (
+                <div key={source.id} className="p-8 bg-white/5 border border-white/10 rounded-[2rem] hover:bg-white/[0.08] transition-all group">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center shadow-xl">
+                      <Cloud size={26} className="text-white" />
+                    </div>
+                    <ExternalLink size={18} className="text-white/20 group-hover:text-white transition-all" />
+                  </div>
+                  <h3 className="text-xl font-black uppercase tracking-tight mb-3">{source.label}</h3>
+                  <p className="text-xs font-bold text-white/40 leading-relaxed mb-6">{source.note}</p>
+                  <button className="w-full py-3 bg-white/10 border border-white/10 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all">
+                    Connector Planned
+                  </button>
                 </div>
-                <ExternalLink size={20} className="text-white/20 group-hover:text-white transition-all" />
-              </div>
-              <h3 className="text-2xl font-black uppercase tracking-tightest mb-4">Google Photos</h3>
-              <p className="text-sm font-medium text-white/40 italic leading-relaxed mb-8">
-                Connect your Google account to instantly sync and import your entire library into the visual archive.
-              </p>
-              <button className="w-full py-4 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all">
-                Connect Google Account
-              </button>
+              ))}
             </div>
 
-            <div className="p-10 bg-white/5 border border-white/10 rounded-[3rem] hover:bg-white/[0.08] transition-all group cursor-pointer">
-              <div className="flex items-center justify-between mb-8">
-                <div className="w-16 h-16 bg-[#0078D4] rounded-2xl flex items-center justify-center shadow-xl">
-                  <Cloud size={32} className="text-white" />
-                </div>
-                <ExternalLink size={20} className="text-white/20 group-hover:text-white transition-all" />
+            <div className="p-8 bg-small-orange/10 border border-small-orange/20 rounded-[2rem] flex flex-col lg:flex-row lg:items-center gap-6">
+              <div className="w-14 h-14 bg-small-orange rounded-2xl flex items-center justify-center shrink-0">
+                <QrCode size={26} className="text-white" />
               </div>
-              <h3 className="text-2xl font-black uppercase tracking-tightest mb-4">Microsoft OneDrive</h3>
-              <p className="text-sm font-medium text-white/40 italic leading-relaxed mb-8">
-                Access your OneDrive folders and select specific photo collections to bring into your artist profile.
+              <div className="flex-1">
+                <h3 className="text-xl font-black uppercase tracking-tight">Live Event Photo Pools</h3>
+                <p className="text-xs font-bold text-white/50 leading-relaxed mt-2">
+                  Event QR pools already exist on platform. This photo system will use them for shared albums, 30 second clips, live chat, artist management, and Live Hub moments.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'PRO' && (
+          <div className="grid grid-cols-1 xl:grid-cols-[1fr_0.8fr] gap-8">
+            <div className="p-8 bg-white/5 border border-white/10 rounded-[2rem]">
+              <div className="flex items-center gap-3 mb-6 text-small-orange">
+                <Sparkles size={20} />
+                <span className="text-[10px] font-black uppercase tracking-[0.4em]">Photographer Experience</span>
+              </div>
+              <h3 className="text-4xl font-black uppercase tracking-tight mb-4">Portfolio Rooms</h3>
+              <p className="text-sm font-bold text-white/40 leading-relaxed max-w-2xl">
+                Public and private portfolio interfaces can sit on top of this archive, with optional metadata, on-platform music, event buckets, and gorgeous high-end presentation modes.
               </p>
-              <button className="w-full py-4 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all">
-                Connect Microsoft Account
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-8">
+                {PHOTOGRAPHER_PRO_FEATURES.map(feature => (
+                  <div key={feature} className="p-4 bg-black/30 border border-white/10 rounded-2xl text-xs font-bold text-white/50 leading-relaxed">
+                    {feature}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-8 bg-white/5 border border-white/10 rounded-[2rem]">
+              <div className="flex items-center gap-3 mb-6">
+                <Wand2 size={20} className="text-small-orange" />
+                <h3 className="text-xl font-black uppercase tracking-tight">Editing Framework</h3>
+              </div>
+              <p className="text-xs font-bold text-white/40 leading-relaxed mb-6">
+                Basic edits open as a right-side panel anywhere on Plajah. The advanced workflow can expand into a full photographer editing page with masks, color science, and local AI.
+              </p>
+              <button
+                disabled={!profile.photos?.[0]}
+                onClick={() => profile.photos?.[0] && setEditingPhoto(profile.photos[0])}
+                className="w-full py-4 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-[1.02] disabled:opacity-30 transition-all"
+              >
+                Open Editor Preview
               </button>
             </div>
           </div>
@@ -372,6 +432,77 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Rights Confirmation Modal */}
+      <AnimatePresence>
+        {showRightsModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowRightsModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-[2.5rem] p-10 shadow-3xl"
+            >
+              <div className="flex items-center gap-4 mb-8">
+                <div className="p-3 bg-small-orange/10 rounded-2xl">
+                  <ShieldCheck size={22} className="text-small-orange" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black uppercase tracking-widest text-white">Content Rights Declaration</h3>
+                  <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">Required before upload</p>
+                </div>
+              </div>
+
+              <label className="flex items-start gap-4 cursor-pointer group mb-8">
+                <button
+                  type="button"
+                  onClick={() => setRightsConfirmed(v => !v)}
+                  className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${rightsConfirmed ? 'bg-small-orange border-small-orange' : 'border-white/30 group-hover:border-white/60'}`}
+                >
+                  {rightsConfirmed && <Check size={12} className="text-white" />}
+                </button>
+                <p className="text-[10px] font-medium text-white/60 leading-relaxed">
+                  I hereby declare, under penalty of applicable law, that I am the original creator of or hold all necessary intellectual property rights, licenses, and permissions to upload, store, and distribute the selected content. I confirm that uploading this content does not infringe any copyright, trademark, right of publicity, privacy right, or any other proprietary right of any third party, and that I am in full compliance with all applicable federal, state, and international laws. I understand that uploading content I do not have rights to violates Plajah's Terms of Service and may result in immediate content removal, account suspension, and potential legal liability.
+                </p>
+              </label>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowRightsModal(false)}
+                  className="flex-1 py-4 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white hover:border-white/30 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={!rightsConfirmed}
+                  onClick={() => {
+                    setShowRightsModal(false);
+                    fileInputRef.current?.click();
+                  }}
+                  className="flex-1 py-4 rounded-full bg-white text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-30 transition-all hover:scale-[1.02] active:scale-95"
+                >
+                  Confirm & Select Files
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {editingPhoto && (
+        <PhotoEditPanel
+          photo={editingPhoto}
+          variant="drawer"
+          onClose={() => setEditingPhoto(null)}
+          onApply={() => {}}
+        />
+      )}
     </div>
   );
 };

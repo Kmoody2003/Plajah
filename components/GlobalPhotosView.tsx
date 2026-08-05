@@ -1,5 +1,7 @@
+﻿import { createPortal } from 'react-dom';
 import React, { useState, useEffect } from 'react';
 import { Photo, UserProfile } from '../types';
+import PageHeader from './PageHeader';
 import { 
   Heart, 
   UserPlus, 
@@ -8,40 +10,95 @@ import {
   Sparkles, 
   Camera, 
   Image as ImageIcon,
-  TrendingUp,
-  Filter,
-  Eye
+  Cloud,
+  QrCode,
+  Wand2,
+  Layers,
+  Upload,
+  Landmark,
+  GraduationCap,
+  Frame,
+  Trophy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchGlobalPhotos, favoritePhoto, followUser, auth, fetchThemePresets, updateUserProfile, fetchUserProfile } from '../services/backendService';
+import { fetchGlobalPhotos, favoritePhoto, followUser, auth, fetchThemePresets, updateUserProfile, fetchUserProfile, fetchUserPhotos } from '../services/backendService';
 import { useSpatial } from '../contexts/SpatialContext';
 import SpatialImage from './SpatialImage';
 import DepthAnalyzer from './DepthAnalyzer';
+import SpatialMedia from './SpatialMedia';
+import PhotoEditPanel from './PhotoEditPanel';
+import FromSocialGallery from './FromSocialGallery';
+import PhotoCritiquePanel from './PhotoCritiquePanel';
+import SchoolView from './school/SchoolView';
+import PortfolioRoom from './photo/PortfolioRoom';
+import WeeklySalon from './photo/WeeklySalon';
+import { PHOTO_ART_SCHOOL } from '../data/photoArtCurriculum';
+import { PHOTO_IMPORT_SOURCES, PHOTOGRAPHER_PRO_FEATURES } from '../services/photoEditingService';
 
 interface GlobalPhotosViewProps {
   onVisitUser: (uid: string) => void;
-  initialMode?: 'WATERFALL' | 'GALLERY' | 'THEMES';
+  initialMode?: 'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL' | 'SCHOOL' | 'SALON';
+  /** Opens the classical Art Museum (ArtGalleryView) — masters + open-access collections. */
+  onOpenArtMuseum?: () => void;
 }
 
-const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initialMode = 'WATERFALL' }) => {
+const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initialMode = 'WATERFALL', onOpenArtMuseum }) => {
   const { isSpatialMode } = useSpatial();
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [mode, setMode] = useState<'WATERFALL' | 'GALLERY' | 'THEMES'>(initialMode);
+  const [mode, setMode] = useState<'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL' | 'SCHOOL' | 'SALON'>(initialMode);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
   
   // Theme gallery state
   const [themes, setThemes] = useState<any[]>([]);
   const [selectedTheme, setSelectedTheme] = useState<any | null>(null);
 
+  // ── Portfolio room (Part 3C) ────────────────────────────────────────────────
+  // The chrome-free presentation layer. A room is opened either for one photographer
+  // (their whole body of work, fetched on demand) or for the currently loaded feed.
+  const [room, setRoom] = useState<{
+    photos: Photo[]; name: string; statement?: string; index: number;
+  } | null>(null);
+  const [openingRoom, setOpeningRoom] = useState(false);
+
+  /** Open a photographer's own room — their full library, presented as prints. */
+  const openPhotographerRoom = async (ownerId: string, startPhoto?: Photo) => {
+    if (openingRoom) return;
+    setOpeningRoom(true);
+    try {
+      const [profile, owned] = await Promise.all([
+        fetchUserProfile(ownerId).catch(() => null),
+        fetchUserPhotos(ownerId).catch(() => [] as Photo[]),
+      ]);
+      const works = (owned || []).filter(p => p?.url && p.mediaType !== 'VIDEO');
+      // Degrade to whatever we already have on screen if their library can't be read.
+      const fallback = startPhoto ? [startPhoto] : photos.filter(p => p.ownerId === ownerId);
+      const list = works.length ? works : fallback;
+      if (!list.length) return;
+      const startIndex = startPhoto ? Math.max(0, list.findIndex(p => p.id === startPhoto.id)) : 0;
+      setRoom({
+        photos: list,
+        name: profile?.displayName || 'Photographer',
+        ...(profile?.bio ? { statement: profile.bio } : {}),
+        index: startIndex,
+      });
+    } finally {
+      setOpeningRoom(false);
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
+      if (mode === 'SOCIAL') { setIsLoading(false); return; } // FromSocialGallery loads its own data
+      if (mode === 'SCHOOL') { setIsLoading(false); return; } // SchoolView loads its own progress
+      if (mode === 'SALON') { setIsLoading(false); return; }  // WeeklySalon loads its own entries
       setIsLoading(true);
       if (mode === 'THEMES') {
         const data = await fetchThemePresets();
         setThemes(data.filter(t => t.isPublic));
       } else {
-        const data = await fetchGlobalPhotos(mode === 'GALLERY');
+        const data = await fetchGlobalPhotos(mode === 'GALLERY' || mode === 'PRO');
         setPhotos(data);
       }
       setIsLoading(false);
@@ -86,52 +143,176 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
               <Camera size={24} className="text-small-orange" />
               <span className="text-xs font-black uppercase tracking-[0.5em] text-white/40">Visual Signal Archive</span>
             </div>
-            <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-4">
-              {mode === 'THEMES' ? 'Theme Gallery' : mode === 'GALLERY' ? 'The Art Gallery' : 'Global Waterfall'}
-            </h1>
+            <PageHeader wrapperClassName="mb-4">
+              Plajah Photos
+            </PageHeader>
             <p className="text-lg font-medium text-white/40 italic max-w-2xl">
-              {mode === 'THEMES'
+              {mode === 'SALON'
+                 ? 'A themed challenge every week, judged by nobody and hung by everybody — the photographic salon, revived.'
+                 : mode === 'SCHOOL'
+                 ? 'A complete education in the visual arts — photography and art, beginner to master, taught with the world’s open museum collections.'
+                 : mode === 'THEMES'
                  ? 'A curated collection of visual aesthetics to transform your space.'
                  : mode === 'GALLERY' 
-                ? 'A curated showcase of the most profound visual captures from the community.' 
-                : 'A continuous stream of visual consciousness. Every photo is a signal from the collective.'}
+                ? 'A curated art-gallery view inside the unified Plajah photo experience.'
+                : mode === 'EVENTS'
+                ? 'Live event buckets, QR photo pools, and shared albums for moments happening on platform.'
+                : mode === 'IMPORTS'
+                ? 'Bring libraries in from connected cloud and pro photography tools.'
+                : mode === 'PRO'
+                ? 'Portfolio-grade presentation and editing workflows for photographers.'
+                : 'A continuous stream of photography, art, event media, and spatial captures from the community.'}
             </p>
           </div>
 
-          <div className="flex items-center bg-white/5 p-1 rounded-full border border-white/10 self-start">
-            <button 
-              onClick={() => setMode('WATERFALL')}
-              className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'WATERFALL' ? 'bg-white text-black shadow-xl' : 'text-white/40 hover:text-white'}`}
-            >
-              Waterfall
-            </button>
-            <button 
-              onClick={() => setMode('GALLERY')}
-              className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'GALLERY' ? 'bg-white text-black shadow-xl' : 'text-white/40 hover:text-white'}`}
-            >
-              Art Gallery
-            </button>
-            <button 
-              onClick={() => setMode('THEMES')}
-              className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'THEMES' ? 'bg-white text-black shadow-xl' : 'text-white/40 hover:text-white'}`}
-            >
-              Theme Gallery
-            </button>
+          <div className="flex flex-wrap items-center bg-white/5 p-1 rounded-2xl border border-white/10 self-start max-w-3xl">
+            {[
+              { id: 'WATERFALL', label: 'Waterfall', icon: Camera },
+              { id: 'GALLERY', label: 'Art Gallery', icon: Sparkles },
+              { id: 'EVENTS', label: 'Events', icon: QrCode },
+              { id: 'IMPORTS', label: 'Import', icon: Cloud },
+              { id: 'PRO', label: 'Pro', icon: Wand2 },
+              { id: 'THEMES', label: 'Themes', icon: ImageIcon },
+              { id: 'SOCIAL', label: 'From Social', icon: Share2 },
+              { id: 'SCHOOL', label: 'School', icon: GraduationCap },
+              { id: 'SALON', label: 'Salon', icon: Trophy },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setMode(tab.id as any)}
+                className={`px-4 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${mode === tab.id ? 'bg-white text-black shadow-xl' : 'text-white/40 hover:text-white'}`}
+              >
+                <tab.icon size={13} />
+                {tab.label}
+              </button>
+            ))}
+            {onOpenArtMuseum && (
+              <button
+                onClick={onOpenArtMuseum}
+                className="px-4 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 text-[#C9A55C] hover:bg-[#C9A55C]/15 border border-[#C9A55C]/30"
+                title="The masters, art history & open-access museum collections"
+              >
+                <Landmark size={13} />
+                The Masters
+              </button>
+            )}
           </div>
         </div>
       </header>
 
       {/* Main Mode Rendering */}
       <main className="px-6 lg:px-12">
-        {mode === 'THEMES' ? (
+        {mode === 'SALON' ? (
+          <WeeklySalon />
+        ) : mode === 'SCHOOL' ? (
+          <SchoolView curriculum={PHOTO_ART_SCHOOL} embedded />
+        ) : mode === 'SOCIAL' ? (
+          <div className="max-w-6xl mx-auto">
+            <FromSocialGallery uid={auth.currentUser?.uid || ''} kinds={['PHOTO', 'GIF', 'STICKER']} emptyLabel="No photos shared to your feed yet" />
+          </div>
+        ) : mode === 'IMPORTS' ? (
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {PHOTO_IMPORT_SOURCES.map(source => (
+                <div key={source.id} className="p-8 bg-white/5 border border-white/10 rounded-2xl">
+                  <Cloud size={28} className="text-small-orange mb-6" />
+                  <h3 className="text-xl font-black uppercase tracking-tight mb-3">{source.label}</h3>
+                  <p className="text-xs font-bold text-white/40 leading-relaxed mb-6">{source.note}</p>
+                  <button className="px-5 py-3 bg-white/10 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/50">
+                    Connector Planned
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : mode === 'EVENTS' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.8fr] gap-8">
+            <div className="p-8 bg-white/5 border border-white/10 rounded-2xl">
+              <QrCode size={32} className="text-small-orange mb-6" />
+              <h3 className="text-4xl font-black uppercase tracking-tight mb-4">Live Photo Pools</h3>
+              <p className="text-sm font-bold text-white/40 leading-relaxed max-w-2xl">
+                Event guests can join through a QR code, upload photos and 30 second clips, and contribute to a shared live album connected to Live Hub, event pages, artist management, social live-now moments, and chat.
+              </p>
+            </div>
+            <div className="p-8 bg-black/30 border border-white/10 rounded-2xl">
+              <Upload size={28} className="text-white/40 mb-6" />
+              <h4 className="text-xl font-black uppercase tracking-tight mb-4">Event Album Automation</h4>
+              <p className="text-xs font-bold text-white/40 leading-relaxed">
+                The existing event photo pool becomes the source for auto-generated albums, slideshows, moderation queues, and artist/team memory books.
+              </p>
+            </div>
+          </div>
+        ) : mode === 'PRO' ? (
+          <div className="grid grid-cols-1 xl:grid-cols-[1fr_0.85fr] gap-8">
+            <div className="p-8 bg-white/5 border border-white/10 rounded-2xl">
+              <Sparkles size={32} className="text-small-orange mb-6" />
+              <h3 className="text-5xl font-black uppercase tracking-tight mb-5">Photographer Rooms</h3>
+              <p className="text-sm font-bold text-white/40 leading-relaxed max-w-3xl">
+                A unified public/private portfolio layer for photographers, built from the same photo archive and editor framework.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-8">
+                {PHOTOGRAPHER_PRO_FEATURES.map(feature => (
+                  <div key={feature} className="p-4 bg-black/30 border border-white/10 rounded-2xl text-xs font-bold text-white/50 leading-relaxed">
+                    {feature}
+                  </div>
+                ))}
+              </div>
+
+              {/* Portfolio room — the chrome-free presentation layer (Part 3C) */}
+              <div className="mt-8 p-6 bg-black/40 border border-white/10 rounded-2xl">
+                <div className="flex items-center gap-3 mb-3">
+                  <Frame size={18} className="text-small-orange" />
+                  <h4 className="text-sm font-black uppercase tracking-widest">Portfolio Room</h4>
+                </div>
+                <p className="text-xs font-bold text-white/40 leading-relaxed mb-6 max-w-xl">
+                  Your work, full bleed, on black — no grid, no buttons, no feed. Arrow keys or swipe to move,
+                  <span className="text-white/60"> i </span> for the wall label and capture data, <span className="text-white/60">esc</span> to leave.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => auth.currentUser && openPhotographerRoom(auth.currentUser.uid)}
+                    disabled={!auth.currentUser || openingRoom}
+                    className="px-6 py-4 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-30 hover:scale-[1.02] transition-all"
+                  >
+                    {openingRoom ? 'Hanging the room…' : 'Enter my portfolio room'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const stills = photos.filter(p => p.mediaType !== 'VIDEO');
+                      if (stills.length) setRoom({ photos: stills, name: 'The Gallery', statement: 'Selected work from the community archive.', index: 0 });
+                    }}
+                    disabled={!photos.some(p => p.mediaType !== 'VIDEO')}
+                    className="px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white disabled:opacity-30 transition-all"
+                  >
+                    Present this gallery
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="p-8 bg-white/5 border border-white/10 rounded-2xl">
+              <Layers size={28} className="text-cyan-300 mb-6" />
+              <h4 className="text-2xl font-black uppercase tracking-tight mb-4">Platform Auto Depth</h4>
+              <p className="text-xs font-bold text-white/40 leading-relaxed mb-6">
+                Photos and videos can render with no-warp spatial depth across Plajah. It behaves like an ambient viewer enhancement: easy, reversible, and seamless.
+              </p>
+              <button
+                disabled={!photos[0]}
+                onClick={() => photos[0] && setEditingPhoto(photos[0])}
+                className="w-full py-4 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-30"
+              >
+                Open Edit Workflow
+              </button>
+            </div>
+          </div>
+        ) : mode === 'THEMES' ? (
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 space-y-6">
               {themes.map(theme => (
                  <div key={theme.id} className="bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden group cursor-pointer hover:border-white/30 transition-all" onClick={() => setSelectedTheme(theme)}>
                     <div className="aspect-video relative bg-black/50 overflow-hidden">
                        {theme.coverImage ? (
-                          <img src={theme.coverImage} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" />
+                          <img loading="lazy" decoding="async" src={theme.coverImage} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" />
                        ) : theme.assets && theme.assets.length > 0 ? (
-                          theme.assets[0].type === 'PHOTO' ? <img src={theme.assets[0].url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" /> : <video src={theme.assets[0].url} className="w-full h-full object-cover" muted loop autoPlay />
+                          theme.assets[0].type === 'PHOTO' ? <img loading="lazy" decoding="async" src={theme.assets[0].url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" /> : <video src={theme.assets[0].url} className="w-full h-full object-cover" muted loop autoPlay />
                        ) : (
                          <div className="w-full h-full flex items-center justify-center text-white/10">
                            <ImageIcon size={48} />
@@ -168,23 +349,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                 onClick={() => setSelectedPhoto(photo)}
               >
                 {photo.mediaType === 'VIDEO' ? (
-                  <video 
-                    src={photo.url || null} 
-                    className="w-full h-auto object-cover"
-                    muted
-                    loop
-                    onMouseOver={e => {
-                      const playPromise = e.currentTarget.play();
-                      if (playPromise !== undefined) {
-                        playPromise.catch(error => {
-                          if (error.name !== 'AbortError' && !error.message?.includes('interrupted')) {
-                            console.error("Playback failed:", error);
-                          }
-                        });
-                      }
-                    }}
-                    onMouseOut={e => e.currentTarget.pause()}
-                  />
+                  <SpatialMedia url={photo.url} type="VIDEO" className="w-full aspect-video" forceDepth={isSpatialMode} autoPlay muted loop />
                 ) : (
                   <div className="aspect-auto">
                     <SpatialImage url={photo.url} is3D={isSpatialMode} />
@@ -230,8 +395,8 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
         )}
       </main>
 
-      {/* Theme Detail Modal */}
-      <AnimatePresence>
+      {/* Theme Detail Modal — portaled so it opens in the current viewport */}
+      {createPortal(<AnimatePresence>
         {selectedTheme && (
            <motion.div 
              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -257,7 +422,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                            {asset.type === 'VIDEO' ? (
                              <video src={asset.url} className="w-full h-full object-cover" autoPlay muted loop />
                            ) : (
-                             <img src={asset.url} className="w-full h-full object-cover" alt="" />
+                             <img loading="lazy" decoding="async" src={asset.url} className="w-full h-full object-cover" alt="" />
                            )}
                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <span className="text-[10px] font-black uppercase tracking-widest text-white">{asset.type}</span>
@@ -298,10 +463,10 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
               </div>
            </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>, document.body)}
 
-      {/* Photo Detail Modal */}
-      <AnimatePresence>
+      {/* Photo Detail Modal — portaled so it opens in the current viewport */}
+      {createPortal(<AnimatePresence>
         {selectedPhoto && (
           <motion.div 
             initial={{ opacity: 0 }}
@@ -317,7 +482,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
             >
               <div className="flex-1 bg-theme border-r border-theme flex items-center justify-center overflow-hidden">
                 {selectedPhoto.mediaType === 'VIDEO' ? (
-                  <video src={selectedPhoto.url || undefined} controls autoPlay loop className="max-w-full max-h-full" />
+                  <SpatialMedia url={selectedPhoto.url} type="VIDEO" className="w-full h-full min-h-[50vh]" forceDepth={isSpatialMode} controls autoPlay muted={false} loop />
                 ) : (
                   <div className="w-full h-full p-4 lg:p-10">
                     <SpatialImage url={selectedPhoto.url} is3D={isSpatialMode} />
@@ -332,7 +497,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                       className="w-12 h-12 rounded-full overflow-hidden border-2 border-small-orange cursor-pointer"
                       onClick={() => onVisitUser(selectedPhoto.ownerId)}
                     >
-                      <img src={`https://picsum.photos/seed/${selectedPhoto.ownerId}/200/200`} alt="" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={`https://picsum.photos/seed/${selectedPhoto.ownerId}/200/200`} alt="" className="w-full h-full object-cover" />
                     </div>
                     <div>
                       <h3 className="text-sm font-black uppercase tracking-widest">Artist Archive</h3>
@@ -354,7 +519,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                   <p className="text-sm font-medium text-white/60 leading-relaxed italic mb-8">
                     {selectedPhoto.description || 'No data transmitted with this signal.'}
                   </p>
-                  <DepthAnalyzer imageUrl={selectedPhoto.url} />
+                  <DepthAnalyzer imageUrl={selectedPhoto.url} mediaType={selectedPhoto.mediaType === 'VIDEO' ? 'VIDEO' : 'IMAGE'} />
                 </div>
 
                 <div className="flex items-center gap-6 pt-6 border-t border-white/10">
@@ -375,13 +540,33 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                     <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Share</span>
                   </div>
 
+                  {/* Portfolio room — this photographer's body of work, chrome-free (Part 3C) */}
                   <div className="flex flex-col items-center gap-1">
-                    <button className="w-14 h-14 rounded-full bg-white/5 text-white/40 flex items-center justify-center hover:text-white hover:bg-white/10 transition-all">
-                      <Eye size={24} />
+                    <button
+                      onClick={() => openPhotographerRoom(selectedPhoto.ownerId, selectedPhoto)}
+                      disabled={openingRoom}
+                      title="Open this photographer's portfolio room"
+                      className="w-14 h-14 rounded-full bg-white/5 text-white/40 flex items-center justify-center hover:text-white hover:bg-white/10 transition-all disabled:opacity-40"
+                    >
+                      <Frame size={24} />
                     </button>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-white/40">View Full</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white/40">
+                      {openingRoom ? 'Hanging…' : 'The Room'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <button
+                      onClick={() => setEditingPhoto(selectedPhoto)}
+                      className="w-14 h-14 rounded-full bg-white/5 text-white/40 flex items-center justify-center hover:text-white hover:bg-white/10 transition-all"
+                    >
+                      <Wand2 size={24} />
+                    </button>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Edit</span>
                   </div>
                 </div>
+
+                {/* Critique circle — structured, opt-in peer feedback (Part 3C) */}
+                <PhotoCritiquePanel photoId={selectedPhoto.id} ownerId={selectedPhoto.ownerId} />
 
                 <div className="mt-auto pt-8 border-t border-white/10">
                   <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/20 mb-2">Signal Timestamp</p>
@@ -393,7 +578,26 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>, document.body)}
+      {/* Portfolio room — full-bleed, above everything (Part 3C) */}
+      {room && (
+        <PortfolioRoom
+          photos={room.photos}
+          photographerName={room.name}
+          statement={room.statement}
+          initialIndex={room.index}
+          onClose={() => setRoom(null)}
+        />
+      )}
+
+      {editingPhoto && (
+        <PhotoEditPanel
+          photo={editingPhoto}
+          variant={mode === 'PRO' ? 'workflow' : 'drawer'}
+          onClose={() => setEditingPhoto(null)}
+          onApply={() => {}}
+        />
+      )}
     </div>
   );
 };

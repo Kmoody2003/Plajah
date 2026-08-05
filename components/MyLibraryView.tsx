@@ -24,7 +24,8 @@ import {
   ListMusic,
   Settings,
   X,
-  Send
+  Send,
+  Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Track, UserProfile, Album, Playlist, FeedItem } from '../types';
@@ -40,10 +41,21 @@ import {
   updatePlaylist,
   deletePlaylist,
   createPersonalAlbum,
+  deletePersonalTrack,
+  updatePersonalTrack,
+  uploadFile,
   postToFeed,
   auth
 } from '../services/backendService';
+import { readAudioTags, isAudioFile, titleFromFilename, isPlaylistFile, isImageFile, coverScore, baseNoExt, parsePlaylistOrder } from '../services/musicLocker';
+import { fetchLyrics, fetchCoverArtBlob } from '../services/musicEnrichment';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
+import OfflineDownloadButton from './OfflineDownloadButton';
+import {
+  listCachedItems, removeCachedMedia, clearAllOfflineMedia, getOfflineStorageUsed,
+  type OfflineCacheEntry,
+} from '../services/offlineStorageService';
+import { AdaptiveGrid } from '../src/lib/designSystem';
 
 interface MyLibraryViewProps {
   profile: UserProfile;
@@ -60,8 +72,10 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
   const [loading, setLoading] = useState(true);
   const [activeSubTab, setActiveSubTab] = useState<'SAVED' | 'PERSONAL' | 'PLAYLISTS' | 'SYNC'>(initialTab);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'GRID' | 'LIST'>('LIST');
+  const [lockerAlbumId, setLockerAlbumId] = useState<string | null>(null); // drilled-into locker album
   const [sortBy, setSortBy] = useState<'title' | 'artist' | 'album' | 'date'>('date');
   const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
   const [editingPodcastTrack, setEditingPodcastTrack] = useState<Track | null>(null);
@@ -69,6 +83,24 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
   const [localTracks, setLocalTracks] = useState<Track[]>([]);
   const [savedDirectories, setSavedDirectories] = useState<{id: string, name: string, needsAuth: boolean, handle: any}[]>([]);
   const localFolderInputRef = useRef<HTMLInputElement>(null);
+  const [offlineItems, setOfflineItems] = useState<OfflineCacheEntry[]>([]);
+  const [offlineBytes, setOfflineBytes] = useState(0);
+
+  const loadOffline = async () => {
+    try {
+      const [items, bytes] = await Promise.all([listCachedItems(), getOfflineStorageUsed()]);
+      setOfflineItems(items.sort((a, b) => (b.cachedAt || 0) - (a.cachedAt || 0)));
+      setOfflineBytes(bytes);
+    } catch { /* Cache API / IndexedDB unavailable */ }
+  };
+  useEffect(() => { if (activeSubTab === 'SYNC') loadOffline(); }, [activeSubTab]);
+
+  const formatBytes = (b: number): string => {
+    const u = ['B', 'KB', 'MB', 'GB'];
+    let i = 0; let n = b;
+    while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+    return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${u[i]}`;
+  };
 
   const scanDirectoryHandle = async (dirHandle: any, currentPath: string = ''): Promise<{file: File, path: string}[]> => {
     let files: {file: File, path: string}[] = [];
@@ -292,47 +324,151 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
     }
   };
 
+  // Music-locker folder upload: read ID3 tags, organise into albums by
+  // Artist/Album, upload embedded artwork once per album, and store each track
+  // privately (personal_tracks). Plays from any instance; never shared.
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    const all = Array.from(files);
+    const audio = all.filter(isAudioFile);
+    if (audio.length === 0) { alert('No supported audio files found in that selection.'); return; }
+    const imageFiles = all.filter(isImageFile);
+    const playlistFiles = all.filter(isPlaylistFile);
+
+    const folderOf = (f: File): string => {
+      const parts = (((f as any).webkitRelativePath || '') as string).split('/').filter(Boolean);
+      return parts.length > 1 ? parts[parts.length - 2] : '';
+    };
 
     setIsUploading(true);
+    setUploadProgress({ done: 0, total: audio.length });
     try {
-      // Check if it's a folder upload (webkitRelativePath)
-      const folderMap = new Map<string, File[]>();
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i] as any;
-        const path = file.webkitRelativePath || '';
-        const folderName = path.split('/')[0] || 'Unsorted';
-        if (!folderMap.has(folderName)) folderMap.set(folderName, []);
-        folderMap.get(folderName)!.push(file);
+      // Tag each file + capture its folder path (preserve the folder structure).
+      const tagged = await Promise.all(audio.map(async (file) => {
+        const parts = (((file as any).webkitRelativePath || '') as string).split('/').filter(Boolean);
+        const folder = parts.length > 1 ? parts[parts.length - 2] : '';
+        const folderPath = parts.length > 1 ? parts.slice(0, -1).join('/') : '';
+        return { file, tags: await readAudioTags(file), folder, folderPath, base: baseNoExt(file.name) };
+      }));
+
+      // Group into albums: prefer the containing FOLDER (folder = album), else the
+      // album tag, else loose "Singles". This makes a folder import surface as an album.
+      const groups = new Map<string, typeof tagged>();
+      for (const item of tagged) {
+        const key = item.folder || item.tags.album || 'Singles';
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(item);
       }
 
-      for (const [folderName, folderFiles] of folderMap.entries()) {
+      // Playlist sidecar files (.m3u/.pls/.xml) → ordered basenames, keyed by folder.
+      const playlistByFolder = new Map<string, { order: string[]; name: string }>();
+      for (const pf of playlistFiles) {
+        try {
+          const order = parsePlaylistOrder(await pf.text(), pf.name);
+          if (order.length) playlistByFolder.set(folderOf(pf) || pf.name, { order, name: pf.name });
+        } catch { /* ignore unreadable playlist */ }
+      }
+      // Best cover-image file per folder (cover.jpg / folder.png / …).
+      const coverByFolder = new Map<string, File>();
+      for (const img of imageFiles) {
+        const k = folderOf(img);
+        const cur = coverByFolder.get(k);
+        if (!cur || coverScore(img.name) > coverScore(cur.name)) coverByFolder.set(k, img);
+      }
+
+      let done = 0;
+      const enrichQueue: { id: string; artist: string; title: string; album?: string; durationSec?: number }[] = [];
+
+      for (const [groupKey, items] of groups.entries()) {
+        const albumArtist = items.find(i => i.tags.artist)?.tags.artist || 'My Collection';
+        const displayAlbum = items.find(i => i.tags.album)?.tags.album || groupKey;
+        const isSingles = groupKey === 'Singles';
+
+        // Order: a playlist file for this folder wins; else track number; else name.
+        const pl = playlistByFolder.get(groupKey);
+        if (pl) {
+          const idx = new Map(pl.order.map((b, i) => [b, i] as [string, number]));
+          items.sort((a, b) => (idx.has(a.base) ? idx.get(a.base)! : 999) - (idx.has(b.base) ? idx.get(b.base)! : 999));
+        } else {
+          items.sort((a, b) => (a.tags.trackNo || 999) - (b.tags.trackNo || 999));
+        }
+
+        // Cover: embedded art → a folder cover image file → open Cover Art Archive.
+        let coverUrl = '';
+        const embedded = items.find(i => i.tags.pictureBlob)?.tags.pictureBlob;
+        const folderImg = coverByFolder.get(groupKey) || coverByFolder.get('');
+        let coverBlob: Blob | null = embedded || folderImg || null;
+        if (!coverBlob && !isSingles) coverBlob = await fetchCoverArtBlob(albumArtist, displayAlbum);
+        if (coverBlob && auth.currentUser) {
+          try { coverUrl = await uploadFile(`personal/${auth.currentUser.uid}/covers/${Date.now()}_${(displayAlbum || 'album').replace(/[^a-z0-9]/gi, '_')}.jpg`, coverBlob); } catch { /* art optional */ }
+        }
+
         let albumId: string | undefined;
-        if (folderName !== 'Unsorted' && folderFiles.length > 1) {
-          const album = await createPersonalAlbum({ title: folderName });
+        if (!isSingles) {
+          const album = await createPersonalAlbum({ title: displayAlbum, artist: albumArtist, coverImage: coverUrl || undefined });
           albumId = album?.id;
+          if (album) setPersonalAlbums(prev => [album, ...prev]);
         }
 
-        for (const file of folderFiles) {
-          const track = await uploadPersonalTrack({ 
-            title: file.name.replace(/\.[^/.]+$/, ""),
+        const albumTrackIds: string[] = [];
+        for (const { file, tags, folderPath } of items) {
+          const title = tags.title || titleFromFilename(file.name);
+          const track = await uploadPersonalTrack({
+            title,
+            artist: tags.artist || albumArtist,
             albumId,
-            albumTitle: folderName !== 'Unsorted' ? folderName : undefined
-          }, file);
-          if (track) setPersonalTracks(prev => [track, ...prev]);
+            albumTitle: isSingles ? undefined : displayAlbum,
+            albumCover: coverUrl || undefined,
+            genre: tags.genre,
+            folderPath: folderPath || undefined,
+            trackNo: tags.trackNo,
+          } as any, file);
+          if (track) {
+            setPersonalTracks(prev => [track, ...prev]);
+            albumTrackIds.push(track.id);
+            enrichQueue.push({ id: track.id, artist: tags.artist || albumArtist, title, album: isSingles ? undefined : displayAlbum, durationSec: (track as any).duration });
+          }
+          done++;
+          setUploadProgress({ done, total: audio.length });
+        }
+
+        // Persist the folder's playlist as a Chora playlist too.
+        if (pl && albumTrackIds.length) {
+          try { await createPlaylist({ title: pl.name.replace(/\.[^/.]+$/, ''), trackIds: albumTrackIds, coverUrl: coverUrl || undefined } as any); } catch { /* optional */ }
         }
       }
-      
-      // Refresh albums if needed
-      const updatedAlbums = await fetchPersonalAlbums();
-      setPersonalAlbums(updatedAlbums);
+
+      // Enrich lyrics in the background (lrclib) — don't block the upload UI.
+      enrichLyricsFor(enrichQueue);
     } catch (error) {
-      console.error("Upload failed:", error);
+      console.error("Locker upload failed:", error);
     } finally {
       setIsUploading(false);
+      setUploadProgress(null);
     }
+  };
+
+  // Best-effort open-source lyrics for freshly uploaded locker tracks.
+  const enrichLyricsFor = async (items: { id: string; artist: string; title: string; album?: string; durationSec?: number }[]) => {
+    for (const it of items) {
+      try {
+        const ly = await fetchLyrics({ artist: it.artist, title: it.title, album: it.album, durationSec: it.durationSec });
+        if (!ly) continue;
+        const updates: Partial<Track> = {};
+        if (ly.plain) updates.lyrics = ly.plain;
+        if (ly.synced && ly.synced.length) updates.timeCodedLyrics = ly.synced;
+        if (Object.keys(updates).length) {
+          await updatePersonalTrack(it.id, updates);
+          setPersonalTracks(prev => prev.map(t => t.id === it.id ? { ...t, ...updates } : t));
+        }
+      } catch { /* best-effort */ }
+    }
+  };
+
+  const handleDeletePersonal = async (trackId: string) => {
+    await deletePersonalTrack(trackId);
+    setPersonalTracks(prev => prev.filter(t => t.id !== trackId));
   };
 
   const handleCreatePlaylist = async () => {
@@ -360,7 +496,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
         imageUrl: track.albumCover || '',
         shareCount: 0
       });
-      alert('Posted to Global Feed!');
+      alert('Posted to Plajah Social!');
     } catch (error) {
       console.error("Failed to post to feed:", error);
     }
@@ -398,10 +534,61 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
            t.artist.toLowerCase().includes(searchQuery.toLowerCase());
   }));
 
-  const filteredPersonal = sortTracks(personalTracks.filter(t => 
-    t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredPersonal = sortTracks(personalTracks.filter(t =>
+    t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.artist.toLowerCase().includes(searchQuery.toLowerCase())
   ));
+
+  // Group the locker into albums (from the tracks) so folder imports surface as
+  // albums; tracks with no album stay as loose singles.
+  const lockerAlbums = (() => {
+    const map = new Map<string, { key: string; title: string; artist: string; cover?: string; tracks: Track[] }>();
+    const singles: Track[] = [];
+    for (const t of filteredPersonal) {
+      const key = t.albumId || (t.albumTitle ? `title:${t.albumTitle}` : '');
+      if (!key) { singles.push(t); continue; }
+      if (!map.has(key)) map.set(key, { key, title: t.albumTitle || 'Album', artist: t.artist, cover: t.albumCover, tracks: [] });
+      const a = map.get(key)!;
+      a.tracks.push(t);
+      if (!a.cover && t.albumCover) a.cover = t.albumCover;
+    }
+    const albums = Array.from(map.values());
+    for (const a of albums) a.tracks.sort((x, y) => ((x as any).trackNo || 999) - ((y as any).trackNo || 999));
+    return { albums, singles };
+  })();
+
+  const renderLockerRow = (track: Track, list: Track[]) => (
+    <div key={`pers-list-${track.id}`} className="group flex items-center gap-4 p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/[0.08] transition-all">
+      <div className="relative w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">
+        {track.albumCover ? (
+          <img src={track.albumCover || undefined} className="w-full h-full object-cover rounded-xl" alt={track.title} />
+        ) : (
+          <FileMusic size={20} className="text-white/20" />
+        )}
+        <button onClick={() => playTrackFromList(track, list, 'Personal Collection')} className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-xl">
+          <Play size={16} fill="white" />
+        </button>
+      </div>
+      <div className="flex-1 grid grid-cols-3 gap-4 items-center">
+        <div className="min-w-0">
+          <h4 className="text-sm font-bold uppercase tracking-wider truncate">{track.title || 'Untitled Track'}</h4>
+          <p className="text-[10px] font-medium text-white/40 uppercase tracking-widest truncate">{track.artist}</p>
+        </div>
+        <div className="text-[10px] font-bold text-white/20 uppercase tracking-widest truncate">{track.albumTitle || 'Single'}</div>
+        <div className="flex justify-end pr-4 gap-2 items-center">
+          {track.url && (
+            <OfflineDownloadButton
+              url={track.url}
+              size="sm"
+              meta={{ title: track.title || 'Untitled Track', type: 'MUSIC', artist: track.artist, cover: track.albumCover, albumId: track.albumId, trackId: track.id }}
+            />
+          )}
+          <button onClick={() => setEditingPodcastTrack(track)} className="tap p-2 text-white/20 hover:text-white transition-colors" title="Edit details"><Settings size={16} /></button>
+          <button onClick={() => handleDeletePersonal(track.id)} className="tap p-2 text-white/20 hover:text-red-500 transition-colors" title="Remove from locker"><Trash2 size={16} /></button>
+        </div>
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -421,7 +608,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
             <Library className="text-white" size={24} />
           </div>
           <div>
-            <h3 className="text-2xl font-black uppercase tracking-tightest">My Music Vault</h3>
+            <h3 className="type-headline-md font-black uppercase tracking-tightest">My Music Vault</h3>
             <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
               Private Media Library • {libraryTracks.length + personalTracks.length} Assets
             </p>
@@ -461,7 +648,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
       <div className="flex flex-wrap items-center gap-2 p-1 bg-white/5 rounded-full self-start">
         {[
           { id: 'SAVED', label: 'Saved Music', icon: Music },
-          { id: 'PERSONAL', label: 'Personal Collection', icon: FileMusic },
+          { id: 'PERSONAL', label: 'Music Locker', icon: Lock },
           { id: 'PLAYLISTS', label: 'Playlists', icon: ListMusic },
           { id: 'SYNC', label: 'Local Sync', icon: FolderSync }
         ].map(tab => (
@@ -578,6 +765,15 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
 
         {activeSubTab === 'PERSONAL' && (
           <div className="flex flex-col gap-6">
+            {/* Private music locker — legal privacy notice */}
+            <div className="flex items-start gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/10">
+              <Lock size={16} className="text-small-orange mt-0.5 shrink-0" />
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-widest text-white">Your private music locker</p>
+                <p className="text-[10px] text-white/40 mt-1 leading-relaxed">Bring your own collection — upload a folder and play it in Chora from any device you sign in on. These tracks are <span className="text-white/70 font-bold">private to you and are never shared, posted, or discoverable</span>. Every Chora feature works on them — just for you.</p>
+              </div>
+            </div>
+
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <h4 className="text-xs font-black uppercase tracking-widest text-white/40">Private Vault</h4>
@@ -616,90 +812,72 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
             </div>
 
             {isUploading && (
-              <div className="p-8 bg-white/5 border border-white/10 border-dashed rounded-[2rem] flex flex-col items-center gap-4 animate-pulse">
+              <div className="p-8 bg-white/5 border border-white/10 border-dashed rounded-[2rem] flex flex-col items-center gap-4">
                 <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Uploading to Private Vault...</p>
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-60">
+                  {uploadProgress ? `Uploading to your locker — ${uploadProgress.done} of ${uploadProgress.total}` : 'Reading your collection…'}
+                </p>
+                {uploadProgress && uploadProgress.total > 0 && (
+                  <div className="w-full max-w-sm h-1 rounded-full bg-white/10 overflow-hidden">
+                    <div className="h-full bg-small-orange transition-all" style={{ width: `${(uploadProgress.done / uploadProgress.total) * 100}%` }} />
+                  </div>
+                )}
               </div>
             )}
 
-            <div className={viewMode === 'GRID' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6' : 'flex flex-col gap-2'}>
-              {filteredPersonal.length > 0 ? (
-                filteredPersonal.map((track) => (
-                  viewMode === 'GRID' ? (
-                    <div key={`pers-grid-${track.id}`} className="group cursor-pointer">
-                      <div className="relative aspect-square rounded-[2rem] overflow-hidden mb-3 bg-white/5 flex items-center justify-center">
-                        {track.albumCover ? (
-                          <img src={track.albumCover || null} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={track.title} />
-                        ) : (
-                          <FileMusic size={48} className="text-white/10 group-hover:scale-110 transition-transform" />
-                        )}
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                          <div className="flex flex-col gap-2">
-                            <button onClick={() => playTrackFromList(track, filteredPersonal, 'Personal Collection')} className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-black">
-                              <Play size={24} fill="black" />
-                            </button>
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); handlePostToFeed(track); }}
-                              className="w-12 h-12 bg-small-orange rounded-full flex items-center justify-center text-white"
-                              title="Post to Feed"
-                            >
-                              <Send size={20} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      <h4 className="text-xs font-black uppercase tracking-widest truncate">{track.title || 'Untitled Track'}</h4>
-                      <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest truncate">{track.artist}</p>
+            {lockerAlbumId ? (() => {
+              const album = lockerAlbums.albums.find(a => a.key === lockerAlbumId);
+              const tracks = album ? album.tracks : [];
+              return (
+                <div className="flex flex-col gap-4">
+                  <button onClick={() => setLockerAlbumId(null)} className="self-start text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors">← All albums</button>
+                  <div className="flex items-center gap-5">
+                    <div className="w-24 h-24 rounded-2xl overflow-hidden bg-white/5 flex items-center justify-center shrink-0">
+                      {album?.cover ? <img src={album.cover} className="w-full h-full object-cover" alt={album.title} /> : <Disc size={36} className="text-white/10" />}
                     </div>
-                  ) : (
-                    <div key={`pers-list-${track.id}`} className="group flex items-center gap-4 p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/[0.08] transition-all">
-                      <div className="relative w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">
-                        {track.albumCover ? (
-                          <img src={track.albumCover || null} className="w-full h-full object-cover" alt={track.title} />
-                        ) : (
-                          <FileMusic size={20} className="text-white/20" />
-                        )}
-                        <button onClick={() => playTrackFromList(track, filteredPersonal, 'Personal Collection')} className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                          <Play size={16} fill="white" />
-                        </button>
-                      </div>
-                      <div className="flex-1 grid grid-cols-3 gap-4 items-center">
-                        <div className="min-w-0">
-                          <h4 className="text-sm font-bold uppercase tracking-wider truncate">{track.title || 'Untitled Track'}</h4>
-                          <p className="text-[10px] font-medium text-white/40 uppercase tracking-widest truncate">{track.artist}</p>
-                        </div>
-                        <div className="text-[10px] font-bold text-white/20 uppercase tracking-widest truncate">
-                          {track.albumTitle || 'Single'}
-                        </div>
-                        <div className="flex justify-end pr-4 gap-2">
-                          <button 
-                            onClick={() => handlePostToFeed(track)}
-                            className="p-2 text-white/20 hover:text-small-orange transition-colors"
-                            title="Post to Feed"
-                          >
-                            <Send size={16} />
-                          </button>
-                          <button 
-                            onClick={() => setEditingPodcastTrack(track)}
-                            className="p-2 text-white/20 hover:text-white transition-colors"
-                          >
-                            <Settings size={16} />
-                          </button>
-                          <button className="p-2 text-white/20 hover:text-white transition-colors">
-                            <PlusCircle size={16} />
-                          </button>
-                        </div>
-                      </div>
+                    <div className="min-w-0">
+                      <h3 className="text-2xl font-black uppercase tracking-tight truncate">{album?.title || 'Album'}</h3>
+                      <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest">{album?.artist} · {tracks.length} track{tracks.length !== 1 ? 's' : ''}</p>
+                      <button onClick={() => tracks[0] && playTrackFromList(tracks[0], tracks, album?.title || 'Album')} className="mt-3 flex items-center gap-2 px-5 py-2 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">
+                        <Play size={12} fill="black" /> Play album
+                      </button>
                     </div>
-                  )
-                ))
-              ) : (
-                <div className="col-span-full py-20 text-center border-2 border-dashed border-white/5 rounded-[3rem]">
-                  <FileMusic size={48} className="text-white/5 mx-auto mb-4" />
-                  <p className="text-white/20 uppercase font-black tracking-[0.5em]">Your vault is empty.</p>
+                  </div>
+                  <div className="flex flex-col gap-2">{tracks.map(t => renderLockerRow(t, tracks))}</div>
                 </div>
-              )}
-            </div>
+              );
+            })() : (filteredPersonal.length === 0 ? (
+              <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-[3rem]">
+                <FileMusic size={48} className="text-white/5 mx-auto mb-4" />
+                <p className="text-white/20 uppercase font-black tracking-[0.5em]">Your vault is empty.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-8">
+                {lockerAlbums.albums.length > 0 && (
+                  <div>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-4">Albums</h4>
+                    <AdaptiveGrid phone={2} tablet={3} desktop={4} gap="1.5rem">
+                      {lockerAlbums.albums.map(a => (
+                        <button key={a.key} onClick={() => setLockerAlbumId(a.key)} className="group text-left">
+                          <div className="relative aspect-square rounded-[2rem] overflow-hidden mb-3 bg-white/5 flex items-center justify-center">
+                            {a.cover ? <img src={a.cover} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={a.title} /> : <Disc size={48} className="text-white/10 group-hover:scale-110 transition-transform" />}
+                            <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/60 text-[9px] font-black text-white/80">{a.tracks.length}</div>
+                          </div>
+                          <h4 className="text-xs font-black uppercase tracking-widest truncate">{a.title}</h4>
+                          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest truncate">{a.artist}</p>
+                        </button>
+                      ))}
+                    </AdaptiveGrid>
+                  </div>
+                )}
+                {lockerAlbums.singles.length > 0 && (
+                  <div>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-4">Singles</h4>
+                    <div className="flex flex-col gap-2">{lockerAlbums.singles.map(t => renderLockerRow(t, lockerAlbums.singles))}</div>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
@@ -716,7 +894,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
               </button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+            <AdaptiveGrid phone={2} tablet={3} desktop={4} gap="2rem">
               {playlists.map(playlist => (
                 <div key={playlist.id} className="group cursor-pointer">
                   <div className="relative aspect-square rounded-[2.5rem] overflow-hidden mb-4 bg-white/5 shadow-2xl">
@@ -737,11 +915,49 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
                   <p className="text-white/20 uppercase font-black tracking-[0.5em]">No playlists created yet.</p>
                 </div>
               )}
-            </div>
+            </AdaptiveGrid>
           </div>
         )}
         {activeSubTab === 'SYNC' && (
           <div className="flex flex-col gap-8">
+            {/* Offline Downloads — tracks saved for playback with no network (Cache API + IndexedDB) */}
+            <div className="flex flex-col gap-4 p-6 bg-white/[0.03] border border-white/10 rounded-3xl">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-white/40">Offline Downloads</h4>
+                  <p className="text-[10px] text-white/20 uppercase tracking-widest mt-1">
+                    {offlineItems.length} {offlineItems.length === 1 ? 'track' : 'tracks'} · {formatBytes(offlineBytes)} · plays with no network
+                  </p>
+                </div>
+                {offlineItems.length > 0 && (
+                  <button
+                    onClick={async () => { if (confirm('Remove ALL offline downloads?')) { await clearAllOfflineMedia(); loadOffline(); } }}
+                    className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-white/50 rounded-full text-[10px] font-black uppercase tracking-widest transition-all"
+                  >
+                    <Trash2 size={12} /> Clear All
+                  </button>
+                )}
+              </div>
+              {offlineItems.length > 0 ? (
+                <div className="flex flex-col gap-2">
+                  {offlineItems.map((item) => (
+                    <div key={item.url} className="flex items-center gap-4 p-3 bg-white/5 border border-white/10 rounded-2xl">
+                      <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {item.cover ? <img src={item.cover} className="w-full h-full object-cover" alt={item.title} /> : <FileMusic size={16} className="text-white/20" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-bold uppercase tracking-wider truncate">{item.title}</h4>
+                        <p className="text-[10px] font-medium text-white/40 uppercase tracking-widest truncate">{item.artist || item.type} · {formatBytes(item.size || 0)}</p>
+                      </div>
+                      <button onClick={async () => { await removeCachedMedia(item.url); loadOffline(); }} className="tap p-2 text-white/20 hover:text-red-500 transition-colors" title="Remove download"><Trash2 size={16} /></button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[10px] text-white/20 uppercase tracking-widest py-4 text-center">Tap the download icon on any track to save it for offline listening.</p>
+              )}
+            </div>
+
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="text-xs font-black uppercase tracking-widest text-white/40">Local Device Sync</h4>
@@ -839,11 +1055,11 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-md bg-theme-card border border-white/10 rounded-[3rem] p-10 shadow-3xl relative"
+              className="w-full max-w-md max-h-[85dvh] overflow-y-auto bg-theme-card border border-white/10 rounded-[3rem] p-10 shadow-3xl relative"
             >
-              <button 
+              <button
                 onClick={() => setIsCreatePlaylistOpen(false)}
-                className="absolute top-8 right-8 text-white/20 hover:text-white transition-all"
+                className="tap absolute top-8 right-8 text-white/20 hover:text-white transition-all"
               >
                 <X size={24} />
               </button>

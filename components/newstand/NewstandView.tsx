@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Newspaper, Globe, Zap, Radio, TrendingUp, ExternalLink, RefreshCw, Mic, Pen, Search, Heart, Share2, X, Plus } from 'lucide-react';
-import { fetchNewsFromRSS } from '../../services/rssService';
+import { fetchNewsFromRSS, prefetchNewsCategories } from '../../services/rssService';
 import ArticlesFeed from '../ArticlesFeed';
 import { PodcastsView } from '../PodcastsView';
 import { UserProfile, Article, LiveFeed } from '../../types';
 import { fetchAllLiveFeeds } from '../../services/backendService';
 import { callGemini } from '../../services/geminiService';
 import The411 from '../The411';
+import { SportsCenterView } from '../SportsCenterView';
+import { cached, warmImages } from '../../src/lib/performanceCache';
 
 type NewsItem = {
   id: string;
@@ -17,6 +19,7 @@ type NewsItem = {
   url: string;
   imageUrl?: string;
   timestamp: string;
+  date?: string; // alias used in templates
   category: string;
 };
 
@@ -25,21 +28,46 @@ const CATEGORIES = [
   { id: 'PODCASTS', label: 'Podcasts', icon: Mic },
   { id: 'LIVE_NEWS', label: 'Live News', icon: Radio },
   { id: 'GENERAL', label: 'Global News', icon: Globe },
-  { id: 'SPORTS_ALL', label: 'Sports Center', icon: Zap },
+  { id: 'SPORTS_ALL', label: 'Plajah Sports', icon: Zap },
   { id: 'SCIENCE', label: 'Science & Research', icon: Radio },
   { id: 'FINANCE', label: 'Markets & Finance', icon: TrendingUp }
 ];
 
+const NEWS_SUBCATS = [
+  { id: 'GENERAL_WORLD',         label: 'World' },
+  { id: 'GENERAL_POLITICS',      label: 'Politics' },
+  { id: 'GENERAL_TECH',          label: 'Technology' },
+  { id: 'GENERAL_ENTERTAINMENT', label: 'Entertainment' },
+  { id: 'GENERAL_HEALTH',        label: 'Health' },
+  { id: 'GENERAL_BUSINESS',      label: 'Business' },
+];
+
+const LEAGUE_LOGOS: Record<string, string> = {
+  SPORTS_NBA:    'https://a.espncdn.com/i/teamlogos/leagues/500/nba.png',
+  SPORTS_NFL:    'https://a.espncdn.com/i/teamlogos/leagues/500/nfl.png',
+  SPORTS_NHL:    'https://a.espncdn.com/i/teamlogos/leagues/500/nhl.png',
+  SPORTS_MLB:    'https://a.espncdn.com/i/teamlogos/leagues/500/mlb.png',
+  SPORTS_NCAA:   'https://a.espncdn.com/i/teamlogos/leagues/500/ncaa.png',
+  SPORTS_FIFA:   'https://a.espncdn.com/i/teamlogos/leagues/500/fifa.png',
+  SPORTS_MLS:    'https://a.espncdn.com/i/teamlogos/leagues/500/mls.png',
+  SPORTS_F1:     'https://a.espncdn.com/i/teamlogos/leagues/500/f1.png',
+  SPORTS_NASCAR: 'https://a.espncdn.com/i/teamlogos/leagues/500/nascar.png',
+  SPORTS_INDYCAR:'https://a.espncdn.com/i/teamlogos/leagues/500/indycar.png',
+};
+
 const SPORTS_TABS = [
-  { id: 'SPORTS_ALL', label: 'All Sports' },
-  { id: 'SPORTS_NFL', label: 'NFL' },
-  { id: 'SPORTS_NBA', label: 'NBA' },
-  { id: 'SPORTS_MLB', label: 'MLB' },
-  { id: 'SPORTS_NHL', label: 'NHL' },
-  { id: 'SPORTS_NCAA', label: 'NCAA' },
-  { id: 'SPORTS_NASCAR', label: 'NASCAR' },
+  { id: 'SPORTS_ALL',     label: 'All Sports' },
+  { id: 'SPORTS_FIFA',    label: 'FIFA / Soccer' },
+  { id: 'SPORTS_MLS',     label: 'MLS' },
+  { id: 'SPORTS_NFL',     label: 'NFL' },
+  { id: 'SPORTS_NBA',     label: 'NBA' },
+  { id: 'SPORTS_MLB',     label: 'MLB' },
+  { id: 'SPORTS_NHL',     label: 'NHL' },
+  { id: 'SPORTS_NCAA',    label: 'NCAA' },
+  { id: 'SPORTS_ESPORTS', label: 'Esports' },
+  { id: 'SPORTS_NASCAR',  label: 'NASCAR' },
   { id: 'SPORTS_INDYCAR', label: 'IndyCar' },
-  { id: 'SPORTS_F1', label: 'Formula 1' },
+  { id: 'SPORTS_F1',      label: 'Formula 1' },
 ];
 
 interface NewstandViewProps {
@@ -47,6 +75,7 @@ interface NewstandViewProps {
   onSelectArticle: (article: Article) => void;
   onNewArticle: () => void;
   currentUser: UserProfile | null;
+  onNavigate?: (view: string) => void;
 }
 
 interface SavedTeam {
@@ -56,8 +85,9 @@ interface SavedTeam {
   league: string;
 }
 
-export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelectArticle, onNewArticle, currentUser }) => {
+export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelectArticle, onNewArticle, currentUser, onNavigate }) => {
   const [activeCategory, setActiveCategory] = useState('COMMUNITY_ARTICLES');
+  const [newsSubcat, setNewsSubcat] = useState('GENERAL_WORLD');
   const [items, setItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [scores, setScores] = useState<any[]>([]);
@@ -87,6 +117,9 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
        }
     }
   }, []);
+
+  // Background warm-up so tabs load instantly on first click
+  useEffect(() => { prefetchNewsCategories(); }, []);
 
   const addTeam = async () => {
     if (!newTeam.trim() || isSearchingTeam) return;
@@ -155,21 +188,45 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
     const unsub = fetchAllLiveFeeds((feeds) => {
       const newsFeeds = feeds.filter(f => f.tags?.map(t => t.toLowerCase()).includes('news'));
       setLiveNewsFeeds(newsFeeds);
-      if (newsFeeds.length > 0 && !bgFeed) {
-        setBgFeed(newsFeeds[Math.floor(Math.random() * newsFeeds.length)]);
-      }
+      setBgFeed(prev => prev ?? (newsFeeds.length > 0 ? newsFeeds[Math.floor(Math.random() * newsFeeds.length)] : null));
     });
     return () => unsub();
-  }, [bgFeed]);
+  }, []);
 
-  const loadData = async (category: string) => {
+  const loadData = useCallback(async (category: string) => {
     if (category === 'COMMUNITY_ARTICLES' || category === 'PODCASTS' || category === 'LIVE_NEWS') return;
-    setLoading(true);
+    setLoading(items.length === 0);
     try {
-      // 1. Fetch News
-      const queryCategory = category === 'SPORTS_ALL' ? activeSportsTab : category;
+      const queryCategory = category === 'SPORTS_ALL' ? activeSportsTab
+        : category === 'GENERAL' ? newsSubcat
+        : category;
+      const supportPromise = (async () => {
+        if (category.startsWith('SPORTS')) {
+          let endpoint = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard';
+          if (activeSportsTab === 'SPORTS_NFL') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
+          else if (activeSportsTab === 'SPORTS_MLB') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard';
+          else if (activeSportsTab === 'SPORTS_NHL') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard';
+          else if (activeSportsTab === 'SPORTS_NCAA') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard';
+          else if (activeSportsTab === 'SPORTS_F1') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/racing/f1/scoreboard';
+          else if (activeSportsTab === 'SPORTS_NASCAR') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/racing/nascar/scoreboard';
+          else if (activeSportsTab === 'SPORTS_INDYCAR') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/racing/irl/scoreboard';
+
+          const data = await cached(`espn-scoreboard:${activeSportsTab}`, 1000 * 60 * 2, async () => {
+            const res = await fetch(endpoint);
+            return res.json();
+          });
+          setScores(Array.isArray(data.events) ? data.events : []);
+        } else if (category === 'FINANCE') {
+          const data = await cached('markets:coingecko:top5', 1000 * 60 * 3, async () => {
+            const res = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=5&page=1`);
+            return res.json();
+          });
+          setMarkets(Array.isArray(data) ? data : []);
+        }
+      })();
+
       const rssItems = await fetchNewsFromRSS(queryCategory);
-      setItems(rssItems.map((n: any) => ({
+      const mappedItems = rssItems.map((n: any) => ({
         id: n.id,
         title: n.headline,
         content: n.summary,
@@ -178,41 +235,24 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
         imageUrl: n.imageUrl,
         timestamp: n.date,
         category: queryCategory
-      })));
-
-      // 2. Fetch Supporting Data
-      if (category.startsWith('SPORTS')) {
-        let endpoint = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard';
-        if (activeSportsTab === 'SPORTS_NFL') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
-        else if (activeSportsTab === 'SPORTS_MLB') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard';
-        else if (activeSportsTab === 'SPORTS_NHL') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard';
-        else if (activeSportsTab === 'SPORTS_NCAA') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard';
-        else if (activeSportsTab === 'SPORTS_F1') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/racing/f1/scoreboard';
-        else if (activeSportsTab === 'SPORTS_NASCAR') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/racing/nascar/scoreboard';
-        else if (activeSportsTab === 'SPORTS_INDYCAR') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/racing/irl/scoreboard';
-
-        const res = await fetch(endpoint);
-        const data = await res.json();
-        setScores(Array.isArray(data.events) ? data.events : []);
-      } else if (category === 'FINANCE') {
-        const res = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=5&page=1`);
-        const data = await res.json();
-        setMarkets(Array.isArray(data) ? data : []);
-      }
+      }));
+      warmImages(mappedItems.map(item => item.imageUrl), 10);
+      setItems(mappedItems);
+      await supportPromise;
     } catch (e) {
       console.error("Dashboard data load error", e);
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeSportsTab, newsSubcat, items.length]);
 
   useEffect(() => {
     loadData(activeCategory);
-  }, [activeCategory, activeSportsTab]);
+  }, [activeCategory, activeSportsTab, newsSubcat, loadData]);
 
   return (
     <div className="h-full flex flex-col bg-transparent text-white font-sans overflow-hidden">
-      <header className="relative p-8 lg:p-12 border-b border-white/5 bg-black/80 backdrop-blur-3xl shrink-0 shadow-[0_10px_40px_rgba(0,0,0,0.5)] overflow-hidden">
+      <header className="relative p-4 sm:p-8 lg:p-12 border-b border-white/5 bg-black/80 backdrop-blur-3xl shrink-0 shadow-[0_10px_40px_rgba(0,0,0,0.5)] overflow-hidden">
         {bgFeed && (
           <div className="absolute inset-0 z-0 pointer-events-none opacity-30">
             <iframe 
@@ -263,7 +303,13 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
           return (
             <button
               key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
+              onClick={() => {
+                if (cat.id === 'SPORTS_ALL') {
+                  onNavigate?.('PLAJAH_SPORTS');
+                } else {
+                  setActiveCategory(cat.id);
+                }
+              }}
               className={`flex items-center gap-3 px-8 py-4 rounded-full text-xs font-black uppercase tracking-widest transition-all ${
                 activeCategory === cat.id ? 'bg-white text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'
               }`}
@@ -319,159 +365,249 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
             )}
           </div>
         </main>
-      ) : (
-        <main className="flex-1 overflow-y-auto p-8 space-y-12">
-          {activeCategory.startsWith('SPORTS') && (
-            <div className="flex flex-col gap-6">
-              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-                {SPORTS_TABS.map(tab => (
+      ) : activeCategory.startsWith('SPORTS') ? (
+        <main className="flex-1 overflow-y-auto p-8 lg:p-12 space-y-8">
+          {/* League sub-tabs */}
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+            {SPORTS_TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveSportsTab(tab.id)}
+                className={`flex items-center gap-2 px-5 py-3 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shadow-xl ${
+                  activeSportsTab === tab.id ? 'bg-small-orange text-white transform -translate-y-1' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                {LEAGUE_LOGOS[tab.id] && (
+                  <img
+                    src={LEAGUE_LOGOS[tab.id]}
+                    alt=""
+                    className="w-5 h-5 object-contain"
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                )}
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* My Teams bar */}
+          <div className="bg-gradient-to-r from-white/10 to-transparent border border-white/10 p-6 rounded-[2rem] shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-small-orange/10 rounded-full blur-[80px] -z-10 group-hover:bg-small-orange/20 transition-all duration-700" />
+            <h3 className="text-sm font-black uppercase tracking-widest text-white mb-4 flex items-center gap-3">
+              <Zap size={18} className="text-small-orange" /> My Teams
+            </h3>
+            <div className="flex flex-wrap items-center gap-3">
+              {favoriteTeams.map(t => (
+                <button
+                  key={t.name}
+                  onClick={() => {
+                    const event = new CustomEvent('NAVIGATE', { detail: { target: 'TEAM_DETAIL', params: { teamName: t.name } } });
+                    window.dispatchEvent(event);
+                  }}
+                  className="flex items-center gap-3 bg-black/40 hover:bg-black/60 border border-white/10 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-transform hover:scale-105 active:scale-95"
+                >
+                  <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center overflow-hidden border border-white/10">
+                    <img loading="lazy" decoding="async" src={t.logo} className="w-full h-full object-contain p-1" alt={t.name} />
+                  </div>
+                  <div className="flex flex-col items-start gap-0.5">
+                    <span className="text-[9px] uppercase text-small-orange tracking-widest leading-none">{t.league}</span>
+                    <span className="leading-none">{t.name}</span>
+                  </div>
+                  <span onClick={(e) => { e.stopPropagation(); removeTeam(t.name); }} className="text-white/20 hover:text-red-500 ml-1 p-1 bg-white/5 rounded-full z-10"><X size={10} /></span>
+                </button>
+              ))}
+              <div className="flex items-center gap-2 bg-black/40 rounded-xl border border-white/10 overflow-hidden focus-within:border-small-orange transition-colors">
+                <input
+                  type="text"
+                  value={newTeam}
+                  onChange={e => setNewTeam(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addTeam()}
+                  placeholder="Find Team..."
+                  disabled={isSearchingTeam}
+                  className="bg-transparent px-4 py-2 text-xs font-bold text-white focus:outline-none w-40 uppercase tracking-widest placeholder:text-white/20 disabled:opacity-50"
+                />
+                <button onClick={addTeam} disabled={isSearchingTeam} className="p-2 bg-small-orange text-white hover:brightness-110 transition-all disabled:opacity-50 disabled:bg-gray-600">
+                  {isSearchingTeam ? <div className="w-3 h-3 border-2 border-white/50 border-t-white rounded-full animate-spin" /> : <Plus size={14} />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Rich Sports Center for major leagues, Esports, and Racing */}
+          {['SPORTS_NBA', 'SPORTS_NFL', 'SPORTS_NHL', 'SPORTS_MLB', 'SPORTS_NCAA', 'SPORTS_ESPORTS', 'SPORTS_F1', 'SPORTS_NASCAR', 'SPORTS_INDYCAR', 'SPORTS_FIFA', 'SPORTS_MLS'].includes(activeSportsTab) && (
+            <SportsCenterView selectedSportsTab={activeSportsTab.replace('SPORTS_', '')} />
+          )}
+
+          {/* League picker + cross-league headlines for All Sports */}
+          {activeSportsTab === 'SPORTS_ALL' && (
+            <div className="space-y-8">
+              {/* League tiles */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {[
+                  { id: 'SPORTS_NBA',    label: 'NBA' },
+                  { id: 'SPORTS_NFL',    label: 'NFL' },
+                  { id: 'SPORTS_NHL',    label: 'NHL' },
+                  { id: 'SPORTS_MLB',    label: 'MLB' },
+                  { id: 'SPORTS_NCAA',   label: 'NCAA' },
+                  { id: 'SPORTS_ESPORTS',label: 'Esports' },
+                ].map(l => (
                   <button
-                    key={tab.id}
-                    onClick={() => setActiveSportsTab(tab.id)}
-                    className={`px-8 py-3 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shadow-xl ${
-                      activeSportsTab === tab.id ? 'bg-small-orange text-white transform -translate-y-1' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white'
-                    }`}
+                    key={l.id}
+                    onClick={() => setActiveSportsTab(l.id)}
+                    className="flex flex-col items-center justify-center gap-3 p-6 bg-white/5 border border-white/10 rounded-[2rem] hover:bg-white/10 hover:border-small-orange transition-all group"
                   >
-                    {tab.label}
+                    {LEAGUE_LOGOS[l.id] ? (
+                      <img
+                        src={LEAGUE_LOGOS[l.id]}
+                        alt={l.label}
+                        className="w-14 h-14 object-contain"
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    ) : (
+                      <span className="w-14 h-14 flex items-center justify-center text-3xl font-black text-white/30">{l.label[0]}</span>
+                    )}
+                    <span className="text-xs font-black uppercase tracking-widest group-hover:text-small-orange transition-colors">{l.label}</span>
                   </button>
                 ))}
               </div>
-              <div className="bg-gradient-to-r from-white/10 to-transparent border border-white/10 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-small-orange/10 rounded-full blur-[80px] -z-10 group-hover:bg-small-orange/20 transition-all duration-700"></div>
-                <h3 className="text-xl font-black uppercase tracking-widest text-white mb-6 flex items-center gap-3">
-                    <Zap size={24} className="text-small-orange" /> My Teams
-                </h3>
-                <div className="flex flex-wrap items-center gap-4">
-                  {favoriteTeams.map(t => (
-                    <button 
-                        key={t.name} 
-                        onClick={() => {
-                            const event = new CustomEvent('NAVIGATE', { detail: { target: 'TEAM_DETAIL', params: { teamName: t.name } } });
-                            window.dispatchEvent(event);
-                        }}
-                        className="flex items-center gap-3 bg-black/40 hover:bg-black/60 border border-white/10 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-transform hover:scale-105 active:scale-95 group/team relative"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center overflow-hidden border border-white/10">
-                          <img src={t.logo} className="w-full h-full object-contain p-1" alt={t.name} />
-                      </div>
-                      <div className="flex flex-col items-start gap-1">
-                         <span className="text-[10px] uppercase text-small-orange tracking-widest leading-none">{t.league}</span>
-                         <span className="leading-none">{t.name}</span>
-                      </div>
-                      <span onClick={(e) => { e.stopPropagation(); removeTeam(t.name); }} className="text-white/20 hover:text-red-500 ml-2 p-1 bg-white/5 rounded-full z-10"><X size={12} /></span>
-                    </button>
-                  ))}
-                  <div className="flex items-center gap-2 bg-black/40 rounded-2xl border border-white/10 overflow-hidden focus-within:border-small-orange transition-colors">
-                    <input 
-                      type="text" 
-                      value={newTeam}
-                      onChange={e => setNewTeam(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && addTeam()}
-                      placeholder="Find Team..."
-                      disabled={isSearchingTeam}
-                      className="bg-transparent px-6 py-3 text-xs font-bold text-white focus:outline-none w-48 uppercase tracking-widest placeholder:text-white/20 disabled:opacity-50"
-                    />
-                    <button onClick={addTeam} disabled={isSearchingTeam} className="p-3 bg-small-orange text-white hover:brightness-110 transition-all disabled:opacity-50 disabled:bg-gray-600">
-                      {isSearchingTeam ? <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" /> : <Plus size={16}/>}
-                    </button>
+
+              {/* Cross-league news when available */}
+              {items.length > 0 && (
+                <div className="space-y-4">
+                  <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30">Headlines Across Sports</h4>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {items.slice(0, 8).map((item, idx) => (
+                      <motion.a
+                        key={item.id}
+                        href={item.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        initial={{ opacity: 0, scale: 0.97 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: idx * 0.04 }}
+                        className="flex gap-4 p-5 bg-white/5 border border-white/5 rounded-[1.5rem] hover:border-white/20 transition-all group"
+                      >
+                        {item.imageUrl && (
+                          <div className="w-16 h-12 rounded-xl overflow-hidden shrink-0 opacity-70 group-hover:opacity-100 transition-opacity">
+                            <img loading="lazy" decoding="async" src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-black uppercase mb-1 text-small-orange">{item.source}</p>
+                          <h3 className="text-sm font-black uppercase tracking-tight line-clamp-2 group-hover:text-small-orange transition-colors">{item.title}</h3>
+                        </div>
+                      </motion.a>
+                    ))}
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
-          {activeCategory.startsWith('SPORTS') && scores.length > 0 && (
-            <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {scores.map((s: any) => (
-                  <div key={s.id} className="p-6 bg-white/5 rounded-3xl border border-white/5 underline-offset-4">
-                   <p className="text-[10px] font-black uppercase tracking-widest opacity-30 mb-4">{s.name}</p>
-                   <div className="text-xl font-black tracking-tighter italic">
-                     {s.competitions?.[0]?.competitors?.[0]?.score || 0} - {s.competitions?.[0]?.competitors?.[1]?.score || 0}
-                   </div>
-                 </div>
+        </main>
+      ) : (
+        <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8">
+          {/* Global News sub-category pills */}
+          {activeCategory === 'GENERAL' && (
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              {NEWS_SUBCATS.map(sub => (
+                <button
+                  key={sub.id}
+                  onClick={() => setNewsSubcat(sub.id)}
+                  className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
+                    newsSubcat === sub.id ? 'bg-small-orange text-white shadow-lg shadow-small-orange/30' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {sub.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {activeCategory === 'FINANCE' && markets.length > 0 && (
+            <section className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {markets.map((m: any) => (
+                <div key={m.id} className="p-6 bg-white/5 rounded-2xl flex flex-col items-center justify-center gap-2">
+                  <img loading="lazy" decoding="async" src={m.image || ''} className="w-8 h-8 rounded-full" />
+                  <div className="text-sm font-black">${m.current_price?.toLocaleString() || 'N/A'}</div>
+                </div>
               ))}
             </section>
           )}
-          
-          {activeCategory === 'FINANCE' && markets.length > 0 && (
-            <section className="grid grid-cols-2 md:grid-cols-5 gap-4">
-               {markets.map((m: any) => (
-                  <div key={m.id} className="p-6 bg-white/5 rounded-2xl flex flex-col items-center justify-center gap-2">
-                     <img src={m.image || ''} className="w-8 h-8 rounded-full" />
-                     <div className="text-sm font-black">${m.current_price?.toLocaleString() || 'N/A'}</div>
-                  </div>
-               ))}
-            </section>
-          )}
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {items.map((item, idx) => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: idx * 0.05 }}
-                className="p-8 bg-white/5 border border-white/5 rounded-[2rem] hover:border-white/20 transition-all flex flex-col group overflow-hidden relative"
-              >
-                {item.imageUrl && (
-                  <div className="absolute inset-0 z-0 opacity-20 group-hover:opacity-40 transition-opacity">
-                    <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
-                  </div>
-                )}
-                <div className="relative z-10 flex flex-col h-full">
-                  <div className="text-[10px] font-black uppercase mb-4 text-small-orange">{item.source}</div>
-                  <h3 className="text-2xl font-black uppercase tracking-tight mb-4 group-hover:text-small-orange transition-colors">{item.title}</h3>
-                  <p className="text-sm opacity-50 mb-6 flex-1 line-clamp-3 leading-relaxed">{item.content}</p>
-                  
-                  <div className="flex flex-col gap-6 mt-auto">
-                    <div className="flex items-center justify-between">
-                      <a href={item.url} target="_blank" rel="noreferrer" className="text-xs font-black uppercase tracking-widest opacity-80 hover:text-small-orange flex items-center gap-2">
-                        <ExternalLink size={14} /> Read Article
-                      </a>
-                      <button 
-                        onClick={async () => {
-                          if (!currentUser) {
-                             alert("Please log in to post.");
-                             return;
-                          }
-                          try {
-                            const { postToFeed } = await import('../../services/backendService');
-                            await postToFeed({
-                              authorId: currentUser.uid,
-                              authorName: currentUser.displayName || 'Anonymous',
-                              authorPhoto: currentUser.photoURL || '',
-                              type: 'NEWS',
-                              title: item.title,
-                              content: item.content,
-                              url: item.url,
-                              imageUrl: item.imageUrl || '',
-                              likesCount: 0,
-                              commentCount: 0,
-                              shareCount: 0
-                            });
-                            alert('Article posted to your social feed!');
-                          } catch (e) {
-                            console.error('Failed to post article', e);
-                          }
-                        }}
-                        className="p-3 bg-white/10 hover:bg-small-orange rounded-full transition-colors text-white"
-                        title="Post to Social Feed"
-                      >
-                        <Share2 size={16} />
-                      </button>
-                    </div>
-                    
-                    <div className="pt-6 border-t border-white/10">
-                      <The411 itemId={item.id} itemType="ARTICLE" title={item.title} author={item.source} />
-                    </div>
+          {/* Loading skeleton */}
+          {loading && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex gap-4 p-5 bg-white/5 rounded-[1.5rem] animate-pulse">
+                  <div className="w-24 h-20 rounded-xl bg-white/10 shrink-0" />
+                  <div className="flex-1 space-y-3 py-1">
+                    <div className="h-2.5 bg-white/10 rounded w-1/4" />
+                    <div className="h-3 bg-white/10 rounded w-full" />
+                    <div className="h-3 bg-white/10 rounded w-5/6" />
+                    <div className="h-2 bg-white/5 rounded w-2/3" />
                   </div>
                 </div>
-              </motion.div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
+
+          {!loading && (
+            <div className={`grid gap-4 ${activeCategory === 'GENERAL' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 lg:grid-cols-2'}`}>
+              {/* Hero card — first article gets a full-width feature treatment */}
+              {activeCategory === 'GENERAL' && items[0] && (
+                <a
+                  href={items[0].url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="lg:col-span-2 group relative rounded-[2rem] overflow-hidden border border-white/5 hover:border-white/20 transition-all block"
+                  style={{ minHeight: 280 }}
+                >
+                  {items[0].imageUrl
+                    ? <img src={items[0].imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-70 transition-opacity" loading="lazy" />
+                    : <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
+                  }
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
+                  <div className="relative z-10 p-8 flex flex-col justify-end h-full">
+                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-small-orange mb-2">{items[0].source} · {items[0].date}</p>
+                    <h2 className="text-2xl lg:text-4xl font-black uppercase tracking-tight leading-tight mb-3 group-hover:text-small-orange transition-colors max-w-3xl">{items[0].title}</h2>
+                    <p className="text-sm text-white/50 line-clamp-2 max-w-2xl">{items[0].content}</p>
+                  </div>
+                </a>
+              )}
+
+              {/* Rest of articles — side-by-side thumbnail layout */}
+              {(activeCategory === 'GENERAL' ? items.slice(1) : items).map((item) => (
+                <a
+                  key={item.id}
+                  href={item.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex gap-5 p-6 bg-white/5 border border-white/5 rounded-[1.5rem] hover:border-white/20 hover:bg-white/[0.08] transition-all group"
+                >
+                  {item.imageUrl && (
+                    <div className="w-36 h-28 rounded-xl overflow-hidden shrink-0 bg-white/5">
+                      <img src={item.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0 flex flex-col justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-small-orange mb-1.5">{item.source} · {item.date}</p>
+                      <h3 className="text-sm font-black uppercase tracking-tight leading-snug line-clamp-3 group-hover:text-small-orange transition-colors">{item.title}</h3>
+                    </div>
+                    <p className="text-[11px] text-white/30 line-clamp-2 leading-relaxed">{item.content}</p>
+                  </div>
+                  <ExternalLink size={14} className="text-white/20 group-hover:text-small-orange transition-colors shrink-0 mt-1" />
+                </a>
+              ))}
+
+              {!loading && items.length === 0 && (
+                <div className="lg:col-span-2 py-20 text-center text-white/20 text-[10px] font-black uppercase tracking-widest">No articles found</div>
+              )}
+            </div>
+          )}
         </main>
       )}
     </div>
   );
 };
+

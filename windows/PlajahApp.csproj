@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- Windows 10 22H2 (10.0.22621) minimum — covers Win10/11 -->
+    <TargetFramework>net9.0-windows10.0.22621.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>Plajah.Windows</RootNamespace>
+    <AssemblyName>PlajahApp</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x86;x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <WindowsPackageType>None</WindowsPackageType>
+    <!-- Increment on each Store submission -->
+    <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Windows App SDK 1.6 (latest stable as of build date) -->
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.*-*" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.*" IncludeAssets="build" />
+    <!-- WebView2 runtime (ships with Windows 11; redistributable for Win10) -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.*" />
+    <!-- JSON for bridge messages -->
+    <PackageReference Include="System.Text.Json" Version="9.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- App icon assets (generate with MakePri or Visual Studio asset tool) -->
+    <Content Include="Assets\**" />
+    <None Remove="Assets\**" />
+    <Content Include="Assets\StoreLogo.scale-100.png" />
+    <Content Include="Assets\Square44x44Logo.scale-100.png" />
+    <Content Include="Assets\Square150x150Logo.scale-100.png" />
+    <Content Include="Assets\Wide310x150Logo.scale-100.png" />
+    <Content Include="Assets\SplashScreen.scale-100.png" />
+  </ItemGroup>
+
+  <!-- Copy web build output next to the exe for offline/debug -->
+  <Target Name="CopyWebBuild" AfterTargets="Build" Condition="Exists('..\dist')">
+    <ItemGroup>
+      <WebDistFiles Include="..\dist\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(WebDistFiles)"
+          DestinationFiles="@(WebDistFiles->'$(OutDir)wwwroot\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Message Text="Copied web build to $(OutDir)wwwroot" Importance="high" />
+  </Target>
+
+</Project>

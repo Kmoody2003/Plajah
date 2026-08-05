@@ -18,8 +18,8 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && (
-        request.auth.token.email == "kmoody2003@gmail.com" ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'staff']
       );
     }
 
@@ -29,6 +29,91 @@ service cloud.firestore {
 
     function hasOnlyAllowedFields(fields) {
       return request.resource.data.keys().hasOnly(fields);
+    }
+
+    match /sports_ingestion_runs/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Chora transcode manifests (status + AAC-HLS / progressive / FLAC rendition URLs). The player
+    // reads these to prefer a small, hardware-decodable stream over the raw WAV master — the whole
+    // point of the transcode pipeline. WITHOUT a read rule the collection defaulted to deny, so
+    // getTrackStream() silently caught permission-denied and fell back to WAV, and every transcode
+    // was invisible to playback. Public read (the rendition URLs are already served openly via
+    // /api/chora/media); only the server (service account, rules-exempt) writes them.
+    match /choraStreams/{trackId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /sports_game_event_research/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_source_registry/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_league_teams/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_league_news/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_league_scores/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_league_standings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_league_leaders/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_team_pages/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_team_rosters/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_team_schedules/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_player_profiles/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_player_stats/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_team_stats/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_wikipedia_summaries/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     function isValidAlbum(data) {
@@ -72,6 +157,7 @@ service cloud.firestore {
              (!('payItForwardWinsYear' in data) || (data.payItForwardWinsYear is number)) &&
              (!('lastPayItForwardWinTimestamp' in data) || (data.lastPayItForwardWinTimestamp is number)) &&
              (!('liveStreamConfig' in data) || (data.liveStreamConfig is map)) &&
+             (!('safetySettings' in data) || (data.safetySettings is map)) &&
              (!('mailingListCount' in data) || (data.mailingListCount is number)) &&
              (!('xHandle' in data) || (data.xHandle is string && data.xHandle.size() < 100)) &&
              (!('xUrl' in data) || (data.xUrl is string && data.xUrl.size() < 500)) &&
@@ -150,10 +236,17 @@ service cloud.firestore {
       return hasRequiredFields(['author', 'text', 'timestamp']) &&
              (hasRequiredFields(['trackId']) || hasRequiredFields(['videoId'])) &&
              data.author is string && data.author.size() > 0 && data.author.size() < 100 &&
-             data.text is string && data.text.size() > 0 && data.text.size() < 1000 &&
+             data.text is string && data.text.size() < 1000 &&
+             // Allow an empty-text comment when it carries media (e.g. a GIF-only
+             // reply) — otherwise the GIF write is rejected and the comment vanishes.
+             (data.text.size() > 0
+               || ('gifUrl' in data && data.gifUrl is string && data.gifUrl.size() > 0)
+               || ('imageUrl' in data && data.imageUrl is string && data.imageUrl.size() > 0)) &&
              data.timestamp is number &&
              (!('trackId' in data) || data.trackId is string) &&
-             (!('videoId' in data) || data.videoId is string);
+             (!('videoId' in data) || data.videoId is string) &&
+             (!('gifUrl' in data) || (data.gifUrl is string && data.gifUrl.size() < 2000)) &&
+             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() < 2000));
     }
 
     function isValidPhoto(data) {
@@ -362,6 +455,16 @@ service cloud.firestore {
              (!('isPublished' in data) || data.isPublished is bool);
     }
 
+    function isValidTimeline(data) {
+      return hasRequiredFields(['id', 'worldId', 'name', 'createdAt']) &&
+             data.id is string &&
+             data.worldId is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.createdAt is number &&
+             (!('description' in data) || (data.description is string && data.description.size() < 5000)) &&
+             (!('color' in data) || (data.color is string && data.color.size() < 50));
+    }
+
     function isValidTimelineEvent(data) {
       return hasRequiredFields(['id', 'worldId', 'timelineId', 'title', 'year']) &&
              data.id is string &&
@@ -499,7 +602,16 @@ service cloud.firestore {
     }
 
     match /systemConfig/{configId} {
-      allow read: if isAuthenticated();
+      // landingBg and settings are public — guests need settings to load Chora/Reello/Taleo
+      allow read: if configId == 'landingBg' || configId == 'settings' || isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Feature flags (config/featureFlags) — every client reads them to gate features
+    // (e.g. CONTENT_LICENSING, Web3); only admins may toggle. Without this rule the
+    // write was default-denied, so the admin toggle reverted immediately.
+    match /config/{configId} {
+      allow read: if true;
       allow write: if isAdmin();
     }
 
@@ -512,32 +624,20 @@ service cloud.firestore {
 
     match /notifications/{notifId} {
       allow list: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || 
-        isAdmin() || 
-        request.auth.uid == "hiP7PGj15eTq0r0ZH2XwN00AS2h1" || 
-        request.auth.token.email == "kmoody2003@gmail.com"
+        resource.data.userId == request.auth.uid || isAdmin()
       );
       allow get: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || 
-        isAdmin() || 
-        request.auth.token.email == "kmoody2003@gmail.com" || 
-        request.auth.uid == "hiP7PGj15eTq0r0ZH2XwN00AS2h1"
+        resource.data.userId == request.auth.uid || isAdmin()
       );
       allow create: if isAuthenticated() && isValidNotification(request.resource.data);
       allow update: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || 
-        isAdmin() || 
-        request.auth.token.email == "kmoody2003@gmail.com" || 
-        request.auth.uid == "hiP7PGj15eTq0r0ZH2XwN00AS2h1"
+        resource.data.userId == request.auth.uid || isAdmin()
       ) && (
-        isValidNotification(request.resource.data) || 
+        isValidNotification(request.resource.data) ||
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead'])
       );
       allow delete: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || 
-        isAdmin() || 
-        request.auth.token.email == "kmoody2003@gmail.com" || 
-        request.auth.uid == "hiP7PGj15eTq0r0ZH2XwN00AS2h1"
+        resource.data.userId == request.auth.uid || isAdmin()
       );
     }
 
@@ -545,18 +645,33 @@ service cloud.firestore {
       allow read: if (!('isPublic' in resource.data) || resource.data.isPublic == true) || (isAuthenticated() && resource.data.authorId == request.auth.uid) || isAdmin();
       allow create: if isAuthenticated() && isValidPost(request.resource.data) && request.resource.data.authorId == request.auth.uid;
       allow update: if (isAuthenticated() && resource.data.authorId == request.auth.uid && isValidPost(request.resource.data)) ||
-                      (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'commentsCount']));
-      allow delete: if (isAuthenticated() && resource.data.authorId == request.auth.uid) || isAdmin();
-      
+                      (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'commentsCount'])) ||
+                      (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy', 'likesCount'])) ||
+                      // Exclusive post view tracking — any signed-in user can add themselves to viewedBy (grows by exactly 1, only their UID)
+                      (isAuthenticated() &&
+                       'isExclusive' in resource.data && resource.data.isExclusive == true &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewedBy']) &&
+                       request.resource.data.viewedBy.size() == resource.data.viewedBy.size() + 1 &&
+                       request.auth.uid in request.resource.data.viewedBy);
+      // Any signed-in user can delete an exclusive post that has expired or hit its view limit (distributed cleanup)
+      allow delete: if (isAuthenticated() && resource.data.authorId == request.auth.uid) || isAdmin() ||
+                      (isAuthenticated() && 'isExclusive' in resource.data && resource.data.isExclusive == true && (
+                        ('expiresAt' in resource.data && resource.data.expiresAt < request.time.toMillis()) ||
+                        ('viewLimit' in resource.data && 'viewedBy' in resource.data && resource.data.viewedBy.size() >= resource.data.viewLimit)
+                      ));
+
       match /comments/{commentId} {
         allow read: if true;
         allow create: if isAuthenticated() && isValidPostComment(request.resource.data);
-        allow update, delete: if isAdmin() || (isAuthenticated() && resource.data.uid == request.auth.uid);
+        allow update: if isAdmin() ||
+                        (isAuthenticated() && resource.data.uid == request.auth.uid) ||
+                        (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy', 'likesCount']));
+        allow delete: if isAdmin() || (isAuthenticated() && resource.data.uid == request.auth.uid);
       }
     }
 
     match /videos/{videoId} {
-      allow read: if (!('isPrivate' in resource.data) || resource.data.isPrivate == false) || (isAuthenticated() && resource.data.ownerId == request.auth.uid) || isAdmin();
+      allow read: if true;
       allow create: if isAuthenticated() && isValidVideo(request.resource.data) && request.resource.data.ownerId == request.auth.uid;
       allow update: if (isAuthenticated() && resource.data.ownerId == request.auth.uid && isValidVideo(request.resource.data)) ||
                       (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'commentsCount']));
@@ -571,8 +686,51 @@ service cloud.firestore {
       match /comments/{commentId} {
         allow read: if true;
         allow create: if isAuthenticated() && isValidVideoComment(request.resource.data) && request.resource.data.userId == request.auth.uid;
+        // Creator reply-with-video: the VIDEO's owner may attach/clear replyVideoId on a
+        // comment — and ONLY that key, so this can't become a general comment-edit hole.
+        allow update: if isAuthenticated()
+                      && get(/databases/$(database)/documents/videos/$(videoId)).data.ownerId == request.auth.uid
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyVideoId']);
         allow delete: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
       }
+    }
+
+    // Music tracks. NOTE: this collection had NO rule at all, so every write was denied by
+    // default — backendService.updateTrack has been silently failing. Owner-scoped where the
+    // doc carries an artistId.
+    match /tracks/{trackId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated()
+                            && (!('artistId' in resource.data) || resource.data.artistId == request.auth.uid || isAdmin());
+    }
+
+    // Sounds registry — "use this sound" resolves a sound's title in one read.
+    match /sounds/{trackId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // Live → Short clip records.
+    match /live_clips/{clipId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.clippedBy == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.clippedBy == request.auth.uid;
+    }
+
+    // Weekly photo salons — one entry per photographer (doc id IS their uid).
+    match /photoSalons/{salonId}/entries/{entryId} {
+      allow read: if true;
+      allow create: if isAuthenticated()
+                    && request.auth.uid == entryId
+                    && request.resource.data.ownerId == request.auth.uid
+                    && request.resource.data.photoUrl is string;
+      allow delete: if isAuthenticated() && request.auth.uid == entryId;
+      // Own entry edit, OR a cross-user applause write that may touch nothing but `applause`.
+      allow update: if isAuthenticated() && (
+                      (request.auth.uid == entryId && request.resource.data.ownerId == request.auth.uid)
+                      || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['applause'])
+                    );
     }
 
     match /video_playlists/{playlistId} {
@@ -583,14 +741,252 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
+      // Public read is allowed but write-through validation prevents
+      // sensitive fields like masterEmail / aliases from leaking via
+      // unsafe clients.  The email field stored here is used for
+      // admin checks only and is NEVER surfaced in public-facing UI
+      // (enforced at the application layer — see email privacy guards
+      // in AdminDashboard, VideoTab, App.tsx, etc.).
       allow read: if true;
-      // Allow owner to update everything
-      // Allow others to ONLY update followerCount via increment
-      allow create: if isOwner(userId) && isValidUserProfile(request.resource.data);
-      allow update: if (isOwner(userId) && isValidUserProfile(request.resource.data)) ||
-                      (isAuthenticated() && 
+      // Allow owner to update everything; others can only bump followerCount.
+      // A guardian may also create + manage a CHILD profile they own (isChild +
+      // guardianUid == their uid) — Firestore-only managed sub-accounts, no separate auth.
+      // teacherVerification gates the right to provision child accounts — it is a SERVER-ONLY
+      // field (set via the service account, which bypasses these rules). A client may never
+      // self-grant it on create or change it on update, or the provisioning gate is bypassable.
+      allow create: if (isOwner(userId) && isValidUserProfile(request.resource.data) &&
+                       request.resource.data.get('teacherVerification', 'UNVERIFIED') == 'UNVERIFIED') ||
+                      (isAuthenticated() &&
+                       request.resource.data.isChild == true &&
+                       request.resource.data.guardianUid == request.auth.uid) ||
+                      // Managed EMPLOYEE profile: a business owner/admin provisions a Firestore-only
+                      // work identity (no login). Must be flagged isEmployee and owned by the creator.
+                      (isAuthenticated() &&
+                       request.resource.data.isEmployee == true &&
+                       request.resource.data.managedByUid == request.auth.uid);
+      allow update: if (isOwner(userId) && isValidUserProfile(request.resource.data) &&
+                       request.resource.data.get('teacherVerification', 'UNVERIFIED') == resource.data.get('teacherVerification', 'UNVERIFIED')) ||
+                      (isAuthenticated() &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount']) &&
-                       math.abs(request.resource.data.followerCount - resource.data.followerCount) == 1);
+                       math.abs(request.resource.data.followerCount - resource.data.followerCount) == 1) ||
+                      (isAuthenticated() &&
+                       resource.data.isChild == true &&
+                       resource.data.guardianUid == request.auth.uid) ||
+                      // A managed employee profile is managed by its creator, or by the employer
+                      // org's admins (roster/role/badge edits, and owner-initiated claim linking).
+                      (isAuthenticated() &&
+                       resource.data.isEmployee == true && (
+                         resource.data.managedByUid == request.auth.uid ||
+                         request.auth.uid in get(/databases/$(database)/documents/organizations/$(resource.data.employerOrgId)).data.admins
+                       )) ||
+                      // Admin display-name fix: an admin may set ONLY the display name for any
+                      // user (e.g. re-syncing a creator whose rename didn't propagate). Scoped to
+                      // displayName alone so sensitive fields (email, teacherVerification, aliases)
+                      // can never be touched via this path.
+                      (isAdmin() &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName']));
+
+      // Private user data — only the account owner can read
+      match /private/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Watch / listen history + Continue Watching (services/watchHistoryService).
+      // Private to the owner; localStorage is the offline fallback.
+      match /watchHistory/{itemId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Mirror of the videos the owner has liked (for the "Liked videos" surface).
+      // Written alongside the videos/{id}/likes doc; owner-private.
+      match /likedVideos/{videoId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Taleo thumbs up/down ratings on films/series — owner-private.
+      match /titleRatings/{titleId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Research notebook (services/notebookService) — synced across devices.
+      // Private to the owner; localStorage is the offline cache.
+      match /notebook/{entryId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Media dedup index (services/mediaDedup) — fingerprint → uploaded url, so identical
+      // re-uploads reuse the existing asset. Owner-only.
+      match /mediaIndex/{fingerprint} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Fediverse accounts (Mastodon, Bluesky, Threads) — server writes on
+      // behalf of the user using their Firebase ID token. Credentials are
+      // AES-256-GCM encrypted at rest; the raw token never leaves the server.
+      match /fediverseAccounts/{accountId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Music pulse — snapshots of songs a customer heard while physically at a business
+      // (the "Heard at {business}" feed). Owner-private; written when checked in.
+      match /musicPulse/{entryId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // ── Education identity: SERVER-ONLY collections ──────────────────────────────
+    // These hold child password hashes, claim secrets, and FERPA access logs. They are
+    // written exclusively by the backend via the service account (which bypasses these
+    // rules); no client may ever read or write them.
+    match /learnerCredentials/{username}      { allow read, write: if false; }
+    match /claimTokens/{code}                 { allow read, write: if false; }
+    match /accountAudit/{eventId}             { allow read, write: if false; }
+    match /teacherVerificationRequests/{uid}  { allow read, write: if false; }
+    // TV sign-in pairing codes. A doc here briefly holds a Firebase custom token, so it is
+    // credential-grade: readable only by the backend service account. Default-deny would cover
+    // this already; it is written out because "nobody added a rule" is a weaker guarantee than
+    // "someone wrote deny on purpose".
+    match /tvPairings/{code}                  { allow read, write: if false; }
+
+    // ── Education: the Learner Ledger. A student owns their record; a guardian may read it. ──
+    function isGuardianOf(studentId) {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/users/$(studentId)) &&
+             get(/databases/$(database)/documents/users/$(studentId)).data.guardianUid == request.auth.uid;
+    }
+    match /readingProgress/{userId} {
+      allow read: if isOwner(userId) || isGuardianOf(userId);
+      allow write: if isOwner(userId);
+    }
+    match /learnerProficiency/{studentId} {
+      allow read: if isOwner(studentId) || isGuardianOf(studentId);
+      allow write: if isOwner(studentId);
+    }
+    match /learningLedger/{studentId}/records/{recordId} {
+      allow read: if isOwner(studentId) || isGuardianOf(studentId);
+      allow create: if isOwner(studentId);
+      allow update, delete: if false; // append-only
+    }
+    match /competencyAssertions/{studentId}/items/{itemId} {
+      allow read: if isOwner(studentId) || isGuardianOf(studentId);
+      allow write: if isOwner(studentId);
+    }
+
+    // ── Rooms — the canonical platform primitive (services/roomService) ──
+    // Host-owned rooms (TOPIC/PROFILE/WATCH/LISTEN/STUDY): creator is the host and
+    // owns doc writes. Shared rooms (MATCH/TEAM/LEAGUE) have no host (hostId == '') and
+    // a deterministic id — any signed-in user may materialize/update them (presence,
+    // polls, live context), mirroring the wcMatchRooms model.
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && (
+        request.resource.data.hostId == request.auth.uid ||
+        (request.resource.data.hostId == '' && request.resource.data.kind in ['MATCH', 'TEAM', 'LEAGUE'])
+      );
+      allow update: if isAuthenticated() && (
+        resource.data.hostId == request.auth.uid ||
+        resource.data.get('hostId', 'x') == '' ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (resource.data.hostId == request.auth.uid || isAdmin());
+      match /members/{uid} {
+        allow read: if true;
+        allow write: if isAuthenticated() && uid == request.auth.uid;
+      }
+      match /chat/{msgId} {
+        allow read: if true;
+        allow create: if isAuthenticated()
+                      && request.resource.data.uid == request.auth.uid
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() <= 500;
+      }
+      // Banter polls (shared rooms): any signed-in user may add a poll and vote — votes
+      // is a shared map mutated cross-user, matching the wcMatchRooms poll model.
+      match /polls/{pollId} {
+        allow read: if true;
+        allow create, update: if isAuthenticated();
+      }
+    }
+
+    // Two-way (walkie-talkie): per-user prefs + per-pair transmission channel.
+    match /walkiePrefs/{uid} {
+      allow read, write: if isAuthenticated() && uid == request.auth.uid;
+    }
+    match /podcastLibrary/{uid} {
+      allow read, write: if isAuthenticated() && uid == request.auth.uid;  // your followed-podcasts library, synced cross-device
+    }
+    match /studioAds/{uid} {
+      allow read, write: if isAuthenticated() && uid == request.auth.uid;  // podcast studio ad library (reads + spots)
+    }
+    match /errorReports/{id} {
+      // any signed-in user logs their own errors; only admins read/clear them
+      allow create: if isAuthenticated();
+      allow read, delete: if isAdmin();
+    }
+    match /trackAnalysis/{trackId} {
+      // Precomputed waveform peaks + beat grid for a track. Public read (needed by the
+      // player/DJ for any playable track); any signed-in user may compute + write it
+      // (best-effort backfill). Size is bounded by the client (downsampled peaks).
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+    match /photoCritiques/{photoId}/entries/{critiqueId} {
+      // Structured photo critique (composition / light / story, 1–5) — the doc id IS the
+      // critic's uid, so a person can only ever write their own critique and re-submitting
+      // updates rather than duplicating. Public read so aggregates are visible to everyone.
+      allow read: if true;
+      allow create, update: if isAuthenticated()
+                            && request.auth.uid == critiqueId
+                            && request.resource.data.composition is int
+                            && request.resource.data.composition >= 1 && request.resource.data.composition <= 5
+                            && request.resource.data.light is int
+                            && request.resource.data.light >= 1 && request.resource.data.light <= 5
+                            && request.resource.data.story is int
+                            && request.resource.data.story >= 1 && request.resource.data.story <= 5;
+      allow delete: if isAuthenticated() && request.auth.uid == critiqueId;
+    }
+    match /smartProductions/{productionId} {
+      // Smart Director multi-camera productions. Public read so any viewer can render the
+      // live PROGRAM feed the director state points at; any signed-in user may create a
+      // production, join as a contributor, and update the shared direction state.
+      allow read: if true;
+      allow create, update: if isAuthenticated();
+      allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+    }
+    match /loginIssues/{id} {
+      // Login failures happen while LOGGED OUT, so create must not require auth.
+      // Guarded to a well-formed, size-capped login-issue doc so it can't be abused
+      // as free storage. Only admins read/clear (for the login-trouble alert feed).
+      allow create: if request.resource.data.keys().hasOnly(['provider','code','message','email','url','userAgent','createdAt'])
+                    && request.resource.data.provider is string && request.resource.data.provider.size() < 40
+                    && request.resource.data.message is string && request.resource.data.message.size() < 500
+                    && request.resource.data.createdAt is int;
+      allow read, delete: if isAdmin();
+    }
+    match /liveFeed/{id} {
+      // Admin-only analytics/site-health collection (server-populated). It had no rule,
+      // so it fell through to default-deny — which failed the admin Analytics query.
+      allow read, write: if isAdmin();
+    }
+    match /userHealth/{uid} {
+      // Per-user experience-health snapshots. Owner writes own; owner + admins read.
+      allow read: if isAdmin() || (isAuthenticated() && uid == request.auth.uid);
+      allow write: if isAuthenticated() && uid == request.auth.uid;
+    }
+    match /walkiePresence/{uid} {
+      allow read: if isAuthenticated();                                  // hot contacts read peer presence
+      allow write: if isAuthenticated() && uid == request.auth.uid;      // own presence only
+    }
+    match /walkieChannels/{pairId} {
+      // pairId is the two uids sorted + joined by "__"
+      allow read: if isAuthenticated() && request.auth.uid in pairId.split('__');
+      match /tx/{txId} {
+        allow read: if isAuthenticated() && request.auth.uid in pairId.split('__');
+        allow create: if isAuthenticated()
+                      && request.resource.data.fromUid == request.auth.uid
+                      && request.auth.uid in pairId.split('__');
+        allow delete: if isAuthenticated() && resource.data.fromUid == request.auth.uid;
+      }
     }
 
     match /follows/{followId} {
@@ -618,10 +1014,7 @@ service cloud.firestore {
     }
 
     match /albums/{albumId} {
-      allow get: if true;
-      allow list: if (!('isPublic' in resource.data) || resource.data.isPublic == true) || 
-                      isDocOwner() || 
-                      isAdmin();
+      allow read: if true;
       allow create: if (isAuthenticated() && isValidAlbum(request.resource.data) && request.resource.data.ownerId == request.auth.uid) || isAdmin();
       allow update: if (isDocOwner() || isAdmin()) && isValidAlbum(request.resource.data);
       allow delete: if isDocOwner() || isAdmin();
@@ -645,6 +1038,96 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isValidMerchItem(request.resource.data) && request.resource.data.artistId == request.auth.uid;
       allow update: if isAuthenticated() && isValidMerchItem(request.resource.data) && resource.data.artistId == request.auth.uid;
       allow delete: if isAuthenticated() && (resource.data.artistId == request.auth.uid || isAdmin());
+    }
+
+    // Canonical store catalog (consolidated store system). Seller-owned; buyers may only
+    // touch stock/soldCount/reviewCount (checkout + reviews).
+    match /storeProducts/{productId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.sellerId == request.auth.uid;
+      allow update: if isAdmin()
+                    || (isAuthenticated() && resource.data.sellerId == request.auth.uid)
+                    || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock', 'soldCount', 'reviewCount', 'rating', 'updatedAt']));
+      allow delete: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin());
+    }
+
+    match /storeOrders/{orderId} {
+      allow read: if isAuthenticated() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.buyerId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin());
+    }
+
+    // Artist↔business cross-promo bookings: the business creates; both parties read; the creator
+    // (or business) updates status (accept/decline). Queried by creatorUid / businessUid.
+    match /promoBookings/{bookingId} {
+      allow read: if isAuthenticated() && (resource.data.businessUid == request.auth.uid || resource.data.creatorUid == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.businessUid == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || resource.data.businessUid == request.auth.uid);
+    }
+
+    // Public business directory. Anyone may browse (the Business hub lists all businesses); the owner
+    // manages their own page. (Without this rule, client reads were permission-denied, which threw and
+    // left the Business dashboard's loading gate spinning forever.)
+    match /businessPages/{id} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+    }
+
+    // Business-ops namespace: businesses/{ownerUid} holds a business's subcollections (the doc id IS
+    // the owner's uid). Separate from the businessPages collection. Covers messaging opt-in/broadcasts
+    // and the Team/HR module (staff, shifts, time-off). (Without this, those writes were denied.)
+    match /businesses/{businessUid} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.auth.uid == businessUid;
+
+      // A customer opts into a business's updates (writes their own doc); the business reads its list.
+      match /subscribers/{customerUid} {
+        allow read: if isAuthenticated() && (request.auth.uid == businessUid || request.auth.uid == customerUid);
+        allow write: if isAuthenticated() && (request.auth.uid == customerUid || request.auth.uid == businessUid);
+      }
+      // Owner-managed: broadcast log + the Team/HR module.
+      match /broadcasts/{id} { allow read, write: if isAuthenticated() && request.auth.uid == businessUid; }
+      match /staff/{id}      { allow read, write: if isAuthenticated() && request.auth.uid == businessUid; }
+      match /shifts/{id}     { allow read, write: if isAuthenticated() && request.auth.uid == businessUid; }
+      match /timeOff/{id}    { allow read, write: if isAuthenticated() && request.auth.uid == businessUid; }
+      // Loyalty balances are written server-side (POS sale); the business and the customer can read.
+      match /loyalty/{customerUid} { allow read: if isAuthenticated() && (request.auth.uid == businessUid || request.auth.uid == customerUid); }
+      // In-store deals: the business writes, anyone may read (register + storefront evaluate them).
+      match /offers/{id} { allow read: if true; allow write: if isAuthenticated() && request.auth.uid == businessUid; }
+      // Now Playing — the business publishes the current in-store track; checked-in customers read it.
+      match /nowPlaying/{id} { allow read: if true; allow write: if isAuthenticated() && request.auth.uid == businessUid; }
+      // Presence — a customer checks in (writes their own doc); the business sees who's in-store.
+      match /presence/{customerUid} {
+        allow read: if isAuthenticated() && (request.auth.uid == businessUid || request.auth.uid == customerUid);
+        allow write: if isAuthenticated() && (request.auth.uid == customerUid || request.auth.uid == businessUid);
+      }
+    }
+
+    match /storeReviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.reviewerId == request.auth.uid;
+      allow update: if isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['helpfulCount']);
+      allow delete: if isAdmin();
+    }
+
+    // eBay-lite auctions. Public read; sellers own; bidders may only push bid fields;
+    // a Buy-It-Now buyer may settle (status/winner/finalPrice) and route fundraiser proceeds.
+    match /garageSale/{itemId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.sellerId == request.auth.uid;
+      allow update: if isAdmin()
+                    || (isAuthenticated() && resource.data.sellerId == request.auth.uid)
+                    || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentBid', 'currentBidderId', 'currentBidderName', 'bidCount']))
+                    || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'winnerId', 'winnerName', 'finalPrice', 'sanctuaryFundraiserLink']) && request.resource.data.winnerId == request.auth.uid)
+                    || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sanctuaryFundraiserLink']));
+      allow delete: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin());
+
+      match /bids/{bidId} {
+        allow read: if true;
+        allow create: if isAuthenticated() && request.resource.data.bidderId == request.auth.uid;
+        allow update, delete: if isAdmin();
+      }
     }
 
     match /donations/{donationId} {
@@ -706,19 +1189,64 @@ service cloud.firestore {
         allow read: if isAuthenticated() && (
           roomId.matches("^live_chat_.*") || 
           (exists(/databases/$(database)/documents/chat_rooms/$(roomId)) && (
-            request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants || 
+            request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants ||
             get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.type == 'PUBLIC_LIVE'
           )) ||
-          isAdmin() ||
-          request.auth.token.email == "kmoody2003@gmail.com"
+          isAdmin()
         );
-        allow create: if isAuthenticated() && (isValidChatMessage(request.resource.data) || request.auth.token.email == "kmoody2003@gmail.com");
+        allow create: if isAuthenticated() && isValidChatMessage(request.resource.data);
         allow update: if isAuthenticated() && (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy']) &&
-          request.auth.uid in request.resource.data.seenBy
+          // Seen receipts (any reader).
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy']) &&
+           request.auth.uid in request.resource.data.seenBy) ||
+          // Arm the ephemeral countdown (burn-after-read + intimate "gift" open) — a room participant.
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy', 'burnAfter', 'giftOpenedAt']) &&
+           exists(/databases/$(database)/documents/chat_rooms/$(roomId)) &&
+           request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants)
         );
-        allow delete: if isAdmin() || (isAuthenticated() && resource.data.senderId == request.auth.uid) || request.auth.token.email == "kmoody2003@gmail.com";
+        allow delete: if isAdmin()
+          || (isAuthenticated() && resource.data.senderId == request.auth.uid)
+          // Ephemeral (burning / gift) messages self-destruct — any room participant may reap them.
+          || (isAuthenticated()
+              && (resource.data.get('burnAfter', null) != null || resource.data.get('burnAfterSeen', false) == true || resource.data.get('giftMedia', false) == true)
+              && exists(/databases/$(database)/documents/chat_rooms/$(roomId))
+              && request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants);
       }
+
+      // Intimate in-chat games (e.g. Magic 8-Ball) — any room participant may read/write.
+      match /games/{gameId} {
+        allow read, write: if isAuthenticated()
+          && exists(/databases/$(database)/documents/chat_rooms/$(roomId))
+          && request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants;
+      }
+    }
+
+    // Shared Couples Diary — private to the two DM participants. Entry text is also
+    // safeword-encrypted client-side; these rules are the hard access boundary.
+    match /couplesDiaries/{roomId} {
+      allow read, update, delete: if isAuthenticated() && request.auth.uid in resource.data.participantUids;
+      allow create: if isAuthenticated()
+                    && request.auth.uid in request.resource.data.participantUids
+                    && request.resource.data.participantUids.size() == 2;
+    }
+
+    // Nibble invites — shareable partner-invite tokens. The code is an unguessable
+    // token shared privately, so any signed-in user may read one they were given.
+    // Only the inviter creates; the accepter (not the inviter) marks it ACCEPTED.
+    match /nibbleInvites/{code} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.inviterUid == request.auth.uid;
+      allow update: if isAuthenticated()
+                    && request.auth.uid != resource.data.inviterUid
+                    && request.resource.data.inviterUid == resource.data.inviterUid;
+      allow delete: if isAuthenticated() && (resource.data.inviterUid == request.auth.uid || isAdmin());
+    }
+
+    // Fabula projects — owner-only index docs. Full project JSON lives in Storage
+    // (fabula/{uid}/...); this doc backs listing + ownership.
+    match /fabula_projects/{projectId} {
+      allow read, update, delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
     }
 
     match /collab_projects/{projectId} {
@@ -872,6 +1400,47 @@ service cloud.firestore {
       allow delete: if isOwner(resource.data.ownerId) || isAdmin();
     }
 
+    // Canonical cross-service media index (media-library API). Public-read catalog;
+    // owner-write; artistId is immutable (per PlayGround.api security_spec).
+    match /mediaAssets/{assetId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.artistId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.artistId == request.auth.uid
+                       && request.resource.data.artistId == resource.data.artistId;
+      allow delete: if isAuthenticated() && resource.data.artistId == request.auth.uid || isAdmin();
+    }
+
+    // Saved Spatial Mixer projects (arrangement + IAMF metadata + private-locker stem URLs).
+    // Owner-only, never shared.
+    match /spatial_mixes/{mixId} {
+      allow read: if isOwner(resource.data.ownerId) || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isOwner(resource.data.ownerId) || isAdmin();
+      allow delete: if isOwner(resource.data.ownerId) || isAdmin();
+    }
+
+    // Sync-license requests: a filmmaker asks a track owner to license an un-priced
+    // track. Requester creates & reads their own; owner reads & responds (status/price).
+    match /licenseRequests/{reqId} {
+      allow read: if isAuthenticated() &&
+                     (resource.data.requesterUid == request.auth.uid || resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() &&
+                       request.resource.data.requesterUid == request.auth.uid &&
+                       request.resource.data.status == 'PENDING';
+      allow update: if isAuthenticated() && resource.data.ownerUid == request.auth.uid
+                       && request.resource.data.ownerUid == resource.data.ownerUid
+                       && request.resource.data.requesterUid == resource.data.requesterUid;
+      allow delete: if isAdmin();
+    }
+
+    // Private movie/TV locker (Plex-style, surfaced in Taleo). Owner-only, never shared.
+    match /personal_videos/{videoId} {
+      allow read: if isOwner(resource.data.ownerId) || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isOwner(resource.data.ownerId) || isAdmin();
+      allow delete: if isOwner(resource.data.ownerId) || isAdmin();
+    }
+
     match /playlists/{playlistId} {
       allow read: if true;
       allow write: if isAdmin();
@@ -899,7 +1468,15 @@ service cloud.firestore {
     match /worlds/{worldId} {
       allow read: if true;
       allow create: if isAuthenticated() && isValidWorld(request.resource.data) && request.resource.data.creatorId == request.auth.uid;
-      allow update: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin()) && isValidWorld(request.resource.data);
+      allow update: if isAdmin() || (isAuthenticated() && (
+                       // Normal owner update
+                       (resource.data.creatorId == request.auth.uid && (
+                         isValidWorld(request.resource.data) ||
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['timelineIds', 'assetIds', 'characterIds', 'loreIds', 'creatorId'])
+                       )) ||
+                       // Claim ownership of worlds with blank creatorId (legacy data fix)
+                       (resource.data.creatorId == '' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['creatorId']) && request.resource.data.creatorId == request.auth.uid)
+                     ));
       allow delete: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin());
 
       match /characters/{characterId} {
@@ -922,11 +1499,40 @@ service cloud.firestore {
         allow update: if isAuthenticated() && (get(/databases/$(database)/documents/worlds/$(worldId)).data.creatorId == request.auth.uid || isAdmin()) && isValidTimelineEvent(request.resource.data);
         allow delete: if isAuthenticated() && (get(/databases/$(database)/documents/worlds/$(worldId)).data.creatorId == request.auth.uid || isAdmin());
       }
+
+      match /timelines/{timelineId} {
+        allow read: if true;
+        allow create: if isAdmin() || (isAuthenticated() && isValidTimeline(request.resource.data) && get(/databases/$(database)/documents/worlds/$(worldId)).data.creatorId == request.auth.uid);
+        allow update: if isAdmin() || (isAuthenticated() && get(/databases/$(database)/documents/worlds/$(worldId)).data.creatorId == request.auth.uid && isValidTimeline(request.resource.data));
+        allow delete: if isAdmin() || (isAuthenticated() && get(/databases/$(database)/documents/worlds/$(worldId)).data.creatorId == request.auth.uid);
+      }
     }
 
+    // ── Hide N Seek ─────────────────────────────────────────────────────────
+
+    // Alternate tracks subcollection — only album owner can write; authenticated users can read
+    // (client enforces H&S window; reading outside a window doesn't expose audio at the platform level)
+    match /albums/{albumId}/hideNSeekAlternates/{altId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || (isAuthenticated() && get(/databases/$(database)/documents/albums/$(albumId)).data.ownerId == request.auth.uid);
+    }
+
+    // Per-user discovery progress — each user reads/writes only their own doc
+    match /hideNSeekProgress/{docId} {
+      allow read: if isAuthenticated() && (docId.matches(request.auth.uid + '_.*') || isAdmin());
+      allow write: if isAdmin() || (isAuthenticated() && request.resource.data.userId == request.auth.uid);
+    }
+
+    // Aggregate stats — readable by anyone; written by any authenticated user (discovery increments)
+    match /hideNSeekStats/{albumId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+
     match /universes/{universeId} {
-      allow list: if isAdmin();
-      allow get: if isAuthenticated();
+      allow list, get: if true;
       allow create, update: if isAdmin() && isValidUniverse(request.resource.data);
       allow delete: if isAdmin();
     }
@@ -945,6 +1551,22 @@ service cloud.firestore {
       }
     }
 
+    // Aggregated creator metrics. Written ONLY by the server (service account bypasses rules);
+    // the client is denied outright, because a client-writable counter is a forgeable counter and
+    // that is precisely how the old track_stats/albums increments were being attempted.
+    // Readable by the content owner only — these are business metrics, not public numbers.
+    match /contentStats/{contentId} {
+      allow read: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow write: if false;
+
+      // Per-day buckets behind the same ownership check. Rules do not inherit, so the parent
+      // condition has to be restated here or these would be unreachable.
+      match /daily/{day} {
+        allow read: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+        allow write: if false;
+      }
+    }
+
     match /track_stats/{id} {
       allow read: if true;
       allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['playCount']) &&
@@ -957,6 +1579,954 @@ service cloud.firestore {
       allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['playCount']) &&
                       request.resource.data.playCount == resource.data.playCount + 1;
       allow create: if request.resource.data.playCount == 1;
+    }
+
+    // ===============================================================
+    // GAMIFICATION - Achievements, Points, Badges
+    // ===============================================================
+
+    // Achievements (System and Admin-created)
+    match /achievements/{id} {
+      allow read: if true; // Public read
+      allow create: if isAdmin() && hasRequiredFields(['title', 'description', 'category', 'pointsValue']);
+      allow update: if isAdmin();
+      allow delete: if false; // Prevent deletion, use deactivation
+    }
+
+    // User Achievement Progress — server/admin writes only; owner can read
+    match /userAchievements/{document=**} {
+      allow read: if isAuthenticated() && (
+        isOwner(get(/databases/$(database)/documents/userAchievements/$(document)).data.userId) || isAdmin()
+      );
+      // Only admin can grant achievements — prevents self-granting
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // User Points Balance — read-only for owner; only admin can write
+    // Users MUST NOT be able to self-modify point balances
+    match /userPoints/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Points Transactions (Audit Trail) — admin-write only; immutable once created
+    match /pointsTransactions/{id} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid || isAdmin();
+      allow create: if isAdmin();
+      allow update: if false; // Immutable transactions
+      allow delete: if false;
+    }
+
+    // User Badges
+    match /userBadges/{document=**} {
+      allow read: if isOwner(get(/databases/$(database)/documents/userBadges/$(document)).data.userId);
+      allow create: if isAuthenticated();
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // Badge Definitions
+    match /badges/{id} {
+      allow read: if true; // Public read
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ===============================================================
+    // CLUBS
+    // ===============================================================
+
+    match /clubs/{clubId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid;
+      // allow unclaimed demo club to be claimed by any authenticated user
+      allow update: if isAuthenticated() && (
+        request.auth.uid in resource.data.admins ||
+        resource.data.creatorId == request.auth.uid ||
+        (resource.data.creatorId == '' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['creatorId', 'admins', 'isDemo', 'updatedAt']) && request.resource.data.creatorId == request.auth.uid) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount', 'updatedAt']) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin());
+
+      match /clubPosts/{postId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+        allow update: if isAuthenticated() && (resource.data.authorId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
+        allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
+      }
+
+      match /clubGallery/{itemId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && request.resource.data.uploaderId == request.auth.uid;
+        allow update: if isAuthenticated() && (resource.data.uploaderId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
+        allow delete: if isAuthenticated() && (resource.data.uploaderId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
+      }
+
+      match /clubChatMessages/{msgId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid;
+        allow update: if isAuthenticated() && resource.data.senderId == request.auth.uid;
+        allow delete: if isAuthenticated() && (resource.data.senderId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
+      }
+
+      match /clubEvents/{eventId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && request.resource.data.hostId == request.auth.uid;
+        allow update: if isAuthenticated() && (
+          resource.data.hostId == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendeeIds']) ||
+          isAdmin()
+        );
+        allow delete: if isAuthenticated() && (resource.data.hostId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
+      }
+
+      match /clubStickyNotes/{noteId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+        allow update: if isAuthenticated() && (resource.data.authorId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
+        allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
+      }
+    }
+
+    match /clubMemberships/{membershipId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        request.auth.uid in get(/databases/$(database)/documents/clubs/$(resource.data.clubId)).data.admins ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // ── Organizations (Part 2): a parallel account = business page + club. ──
+    match /organizations/{orgId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        request.auth.uid in resource.data.admins ||
+        resource.data.creatorId == request.auth.uid ||
+        // anyone may bump follower/member counters
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount', 'memberCount', 'updatedAt']) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin());
+
+      // Append-only audit trail of sensitive org actions (services/orgAudit.ts). Owner/admins
+      // read; any authed actor may append an entry stamped with their own uid; never edited.
+      match /audit/{entryId} {
+        allow read: if isAuthenticated() && (
+          request.auth.uid in get(/databases/$(database)/documents/organizations/$(orgId)).data.admins ||
+          get(/databases/$(database)/documents/organizations/$(orgId)).data.creatorId == request.auth.uid ||
+          isAdmin()
+        );
+        allow create: if isAuthenticated() && request.resource.data.actorUid == request.auth.uid;
+        allow update, delete: if false;
+      }
+    }
+
+    // ── Hiring / volunteers (ATS) ────────────────────────────────────────────
+    function orgAdminOf(orgId) {
+      return isAuthenticated() && (
+        request.auth.uid in get(/databases/$(database)/documents/organizations/$(orgId)).data.admins ||
+        get(/databases/$(database)/documents/organizations/$(orgId)).data.creatorId == request.auth.uid
+      );
+    }
+    // Job/volunteer postings — public can read OPEN ones; only org admins write.
+    match /jobPostings/{postingId} {
+      allow read: if (resource.data.status == 'OPEN') || orgAdminOf(resource.data.orgId) || isAdmin();
+      allow create: if orgAdminOf(request.resource.data.orgId);
+      allow update, delete: if orgAdminOf(resource.data.orgId) || isAdmin();
+    }
+    // Applications — PII-sensitive. Anyone signed in may apply to an OPEN posting (creating their
+    // own application at stage APPLIED); org admins manage; an applicant may read/withdraw only theirs.
+    match /applications/{appId} {
+      allow read: if orgAdminOf(resource.data.orgId) ||
+                     (isAuthenticated() && resource.data.applicantUid == request.auth.uid) || isAdmin();
+      allow create: if isAuthenticated() &&
+                       request.resource.data.stage == 'APPLIED' &&
+                       get(/databases/$(database)/documents/jobPostings/$(request.resource.data.jobId)).data.status == 'OPEN';
+      allow update: if orgAdminOf(resource.data.orgId) ||
+                       // the applicant may only withdraw their own application
+                       (isAuthenticated() && resource.data.applicantUid == request.auth.uid &&
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stage', 'updatedAt']) &&
+                        request.resource.data.stage == 'WITHDRAWN');
+      allow delete: if orgAdminOf(resource.data.orgId) || isAdmin();
+    }
+
+    // Multi-site program-feed registry (Part 3, Phase 5): campuses publish live
+    // program outputs; master control lists them. Not sensitive (just discovery).
+    match /program_feeds/{feedId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated();
+    }
+
+    // Church congregant records (Servant Keeper import/export). Church staff only.
+    match /congregants/{personId} {
+      allow read: if isAuthenticated() &&
+        request.auth.uid in get(/databases/$(database)/documents/organizations/$(resource.data.churchId)).data.admins;
+      allow create: if isAuthenticated() &&
+        request.auth.uid in get(/databases/$(database)/documents/organizations/$(request.resource.data.churchId)).data.admins;
+      allow update, delete: if isAuthenticated() &&
+        request.auth.uid in get(/databases/$(database)/documents/organizations/$(resource.data.churchId)).data.admins;
+    }
+
+    match /orgMemberships/{membershipId} {
+      allow read: if isAuthenticated();
+      // Join yourself, OR an org admin adds/manages a member.
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid ||
+        request.auth.uid in get(/databases/$(database)/documents/organizations/$(request.resource.data.orgId)).data.admins ||
+        isAdmin()
+      );
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        request.auth.uid in get(/databases/$(database)/documents/organizations/$(resource.data.orgId)).data.admins ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        request.auth.uid in get(/databases/$(database)/documents/organizations/$(resource.data.orgId)).data.admins ||
+        isAdmin()
+      );
+    }
+
+    // ── Content HQ — private DAM assets (files/docs/brand specs) ──────────────
+    // scopeKind 'user' → the account owner; scopeKind 'org' → the org's admins/creator.
+    match /orgAssets/{assetId} {
+      function cxScopeOk(data) {
+        return isAuthenticated() && (
+          (data.scopeKind == 'user' && data.scopeId == request.auth.uid) ||
+          (data.scopeKind == 'org' && (
+            request.auth.uid in get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.admins ||
+            get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.creatorId == request.auth.uid
+          )) ||
+          isAdmin()
+        );
+      }
+      allow read: if cxScopeOk(resource.data);
+      allow create: if cxScopeOk(request.resource.data) && request.resource.data.uploadedByUid == request.auth.uid;
+      allow update: if cxScopeOk(resource.data) && cxScopeOk(request.resource.data);
+      allow delete: if cxScopeOk(resource.data);
+    }
+
+    // ── Music sync-license grants — created only by the Stripe webhook (Admin SDK) ──
+    // The buyer and the rights owner can READ their grants; clients never write.
+    match /syncLicenseGrants/{grantId} {
+      allow read: if isAuthenticated() && (
+        resource.data.buyerUid == request.auth.uid ||
+        resource.data.rightsOwnerUid == request.auth.uid ||
+        isAdmin()
+      );
+      allow write: if false;
+    }
+
+    // Church/org prayer wall.
+    match /churchPrayers/{prayerId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.authorId == request.auth.uid ||
+        // Anyone may add/remove themselves from the praying list.
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['prayingIds']) ||
+        // Org admins may mark answered.
+        request.auth.uid in get(/databases/$(database)/documents/organizations/$(resource.data.orgId)).data.admins ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.authorId == request.auth.uid ||
+        request.auth.uid in get(/databases/$(database)/documents/organizations/$(resource.data.orgId)).data.admins ||
+        isAdmin()
+      );
+    }
+
+    match /clubPosts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.authorId == request.auth.uid ||
+        // Like toggles — array only grows/shrinks by the requesting user's UID
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) &&
+         (request.resource.data.likes.hasAll(resource.data.likes) || resource.data.likes.hasAll(request.resource.data.likes))) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likeCount'])) ||
+        // Admins can pin/unpin posts
+        (request.auth.uid in get(/databases/$(database)/documents/clubs/$(resource.data.clubId)).data.admins &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isPinned'])) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+
+    match /clubGallery/{itemId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.uploaderId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.uploaderId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.uploaderId == request.auth.uid || isAdmin());
+    }
+
+    match /clubChat/{msgId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.senderId == request.auth.uid;
+      allow delete: if isAuthenticated() && (resource.data.senderId == request.auth.uid || isAdmin());
+    }
+
+    match /clubEvents/{eventId} {
+      allow read: if isAuthenticated();
+      // hostId is the field used by ClubEvent (not creatorId)
+      allow create: if isAuthenticated() && request.resource.data.hostId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.hostId == request.auth.uid ||
+        // RSVP updates — attendeeIds only
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendeeIds']) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (resource.data.hostId == request.auth.uid || isAdmin());
+    }
+
+    // ===============================================================
+    // SANCTUARY (Patreon / Kickstarter / GoFundMe hybrid)
+    // ===============================================================
+
+    // Sanctuary identity — one per account (doc id == ownerId).
+    match /sanctuaries/{ownerId} {
+      allow read: if true;   // discoverable; PRIVATE gating is enforced in-app
+      allow create, delete: if isOwner(ownerId) || isAdmin();
+      allow update: if isOwner(ownerId) || isAdmin() ||
+        // Crowdfunding contributions may bump only the campaign totals.
+        (isAuthenticated() &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['campaign', 'updatedAt']));
+    }
+
+    // Membership tiers — owned by the creator.
+    match /sanctuaryTiers/{tierId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin() ||
+        // Member joins/leaves adjust the count only.
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount'])));
+    }
+
+    // A fan's membership record.
+    match /sanctuaryMemberships/{membershipId} {
+      allow read: if isAuthenticated() && (
+        resource.data.memberId == request.auth.uid ||
+        resource.data.creatorId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.memberId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.memberId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.memberId == request.auth.uid || isAdmin());
+    }
+
+    // Exclusive content (tier-gated or à la carte).
+    match /sanctuaryContent/{contentId} {
+      allow read: if isAuthenticated();  // access to the URL is gated in-app / server-side
+      allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin() ||
+        // Like/comment counters.
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'commentsCount']));
+      allow delete: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin());
+    }
+
+    // The sanctuary's gated feed.
+    match /sanctuaryPosts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.authorId == request.auth.uid || isAdmin() ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isPinned']));
+      allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+
+    // Gated media wall.
+    match /sanctuaryGallery/{itemId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.uploaderId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.uploaderId == request.auth.uid || isAdmin());
+    }
+
+    // Scheduled member events.
+    match /sanctuaryEvents/{eventId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.hostId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.hostId == request.auth.uid || isAdmin() ||
+        // RSVP toggles only touch the attendee list.
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendeeIds']));
+      allow delete: if isAuthenticated() && (resource.data.hostId == request.auth.uid || isAdmin());
+    }
+
+    // Member chat (lounge or gated channel).
+    match /sanctuaryChat/{msgId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.senderId == request.auth.uid;
+      allow delete: if isAuthenticated() && (resource.data.senderId == request.auth.uid || isAdmin());
+    }
+
+    // À la carte purchases — a buyer's private receipts (written by the Stripe
+    // webhook via service account; client creates only for free/test unlocks).
+    match /sanctuaryPurchases/{purchaseId} {
+      allow read: if isAuthenticated() && (resource.data.buyerId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.buyerId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Campaign pledges — readable so the banner can sum live totals; only the
+    // webhook (service account) writes them.
+    match /sanctuaryPledges/{pledgeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ===============================================================
+    // DISCUSSION (Reddit-style forum)
+    // ===============================================================
+
+    match /discussionBoards/{boardId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        resource.data.creatorId == request.auth.uid ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['postCount', 'memberCount', 'updatedAt']) ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /discussionPosts/{postId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        // Author can edit content
+        resource.data.authorId == request.auth.uid ||
+        // Votes: only allow increment/decrement by exactly 1 (prevents vote stuffing)
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes']) &&
+         math.abs(request.resource.data.upvotes - resource.data.upvotes) == 1) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['downvotes']) &&
+         math.abs(request.resource.data.downvotes - resource.data.downvotes) == 1) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'downvotes']) &&
+         math.abs(request.resource.data.upvotes - resource.data.upvotes) <= 1 &&
+         math.abs(request.resource.data.downvotes - resource.data.downvotes) <= 1) ||
+        // Comment count: only increment by 1
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentCount']) &&
+         request.resource.data.commentCount == resource.data.commentCount + 1) ||
+        // Moderation flags (reportedBy, isRemoved)
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reportedBy']) &&
+         request.resource.data.reportedBy.hasAll(resource.data.reportedBy)) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRemoved', 'removedReason', 'body']) &&
+         isAdmin()) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+
+    match /discussionComments/{commentId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.authorId == request.auth.uid ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes']) &&
+         math.abs(request.resource.data.upvotes - resource.data.upvotes) == 1) ||
+        (request.resource.data.diff(resource.data).affectedKeys().affectedKeys().hasOnly(['downvotes']) &&
+         math.abs(request.resource.data.downvotes - resource.data.downvotes) == 1) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount']) &&
+         request.resource.data.replyCount == resource.data.replyCount + 1) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reportedBy']) &&
+         request.resource.data.reportedBy.hasAll(resource.data.reportedBy)) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRemoved', 'body']) &&
+         isAdmin()) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+
+    match /discussionVotes/{voteId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /discussionAliases/{aliasId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // ===============================================================
+    // LIVE STREAMS (WebRTC signaling via Firestore)
+    // ===============================================================
+    match /live_streams/{streamId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+
+      // Chat messages — public read, authenticated write
+      match /chat/{msgId} {
+        allow read: if true;
+        allow create: if isAuthenticated();
+      }
+
+      // Viewer signaling docs — authenticated users can join as a viewer
+      match /viewers/{viewerId} {
+        allow read: if true;
+        allow create, update, delete: if isAuthenticated();
+
+        match /offer/{docId} {
+          allow read: if true;
+          allow write: if isAuthenticated();
+        }
+        match /answer/{docId} {
+          allow read: if true;
+          allow write: if isAuthenticated();
+        }
+        match /broadcaster_candidates/{candidateId} {
+          allow read: if true;
+          allow create: if isAuthenticated();
+        }
+        match /viewer_candidates/{candidateId} {
+          allow read: if true;
+          allow create: if isAuthenticated();
+        }
+      }
+    }
+
+    // ===============================================================
+    // FAST CHANNEL SCHEDULES
+    // ===============================================================
+    // One doc per user — the owner controls it; everyone can read (needed for viewers)
+    match /fast_channel_schedules/{userId} {
+      allow read: if true;
+      allow write: if isOwner(userId) || isAdmin();
+    }
+
+    // FAST channel identity (name/number/category/logo) — public read for Live rails & EPG feeds.
+    match /fast_channels/{ownerId} {
+      allow read: if true;
+      allow write: if isOwner(ownerId) || isAdmin();
+    }
+
+    // Up-to-3 concurrent sources + the saved-feed library — public read for the "Live Now" rails.
+    match /channel_sources/{ownerId} {
+      allow read: if true;
+      allow write: if isOwner(ownerId) || isAdmin();
+    }
+
+    // ===============================================================
+    // CHANNEL BUMPERS
+    // ===============================================================
+    match /channel_bumpers/{bumperId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid || isAdmin();
+    }
+
+    // ===============================================================
+    // FAST CHANNEL ASSET GRANTS
+    // ===============================================================
+    // fromUserId grants toUserId access to assets
+    match /fast_channel_access/{grantId} {
+      allow read: if isAuthenticated() && (
+        resource.data.fromUserId == request.auth.uid ||
+        resource.data.toUserId == request.auth.uid ||
+        resource.data.toUserId == '*' ||
+        isAdmin()
+      );
+      allow create: if isAuthenticated() && request.resource.data.fromUserId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.fromUserId == request.auth.uid || isAdmin();
+    }
+
+    // ===============================================================
+    // FAST CHANNEL PLATFORM LIBRARY
+    // ===============================================================
+    match /fast_channel_library/{entryId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.ownerUserId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.ownerUserId == request.auth.uid || isAdmin();
+    }
+
+    // ===============================================================
+    // WORLD CUP 2026 — Picks, Follows, Fan Clubs
+    // ===============================================================
+
+    // Player follows (WC2026 current players)
+    match /wcFollowedPlayers/{userId}/players/{playerId} {
+      allow read:   if isOwner(userId);
+      allow write:  if isOwner(userId);
+    }
+
+    // Player follows (historical players — WC2022/2018)
+    match /wcHistPlayerFollows/{userId}/players/{playerId} {
+      allow read:   if isOwner(userId);
+      allow write:  if isOwner(userId);
+    }
+
+    // Free-to-play picks
+    match /wcPicks/{userId} {
+      allow read:  if isAuthenticated();   // leaderboard visibility
+      allow write: if isOwner(userId);
+    }
+
+    // Club cover media — cycling hero images/videos, admin-managed
+    match /clubCoverMedia/{mediaId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Club cover display settings (mode, single item, slideshow order)
+    match /clubCoverSettings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ── Sacred Library: per-user Bible notes (doc id = {uid}__{ref}) ─────────────
+    match /bibleNotes/{noteId} {
+      allow read:   if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow create, update: if isAuthenticated()
+                    && request.resource.data.uid == request.auth.uid
+                    && noteId == request.auth.uid + '__' + request.resource.data.ref
+                    && request.resource.data.text is string
+                    && request.resource.data.text.size() <= 5000;
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
+    // ── WC Video Chat Rooms ──────────────────────────────────────────────────────
+    // Per-match World Cup fan rooms: room doc + members / chat / polls subcollections.
+    // Publicly readable; any signed-in fan can join (members), chat, seed/vote polls.
+    match /wcMatchRooms/{matchId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+      match /{document=**} {
+        allow read: if true;
+        allow write: if isAuthenticated();
+      }
+    }
+
+    match /wcVideoRooms/{clubId} {
+      allow read: if isAuthenticated();
+      // Room doc: any authenticated user can create/update (join/leave session state)
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+
+      // Presence: each user manages their own presence doc
+      match /presence/{uid} {
+        allow read:   if isAuthenticated();
+        allow create: if isAuthenticated() && request.auth.uid == uid;
+        allow delete: if isAuthenticated() && request.auth.uid == uid;
+        allow update: if isAuthenticated() && request.auth.uid == uid;
+      }
+
+      // WebRTC signaling: any participant in the room can read/write
+      match /signals/{pairKey} {
+        allow read:   if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update: if isAuthenticated();
+        allow delete: if isAuthenticated();
+      }
+
+      // Watchers (spectators): signed-in OR guest (anonymous) viewers who follow
+      // the conversation without taking a camera seat. Each manages their own doc.
+      match /watchers/{watcherId} {
+        allow read:   if isAuthenticated();
+        allow create: if isAuthenticated() && request.auth.uid == watcherId;
+        allow update: if isAuthenticated() && request.auth.uid == watcherId;
+        allow delete: if isAuthenticated() && request.auth.uid == watcherId;
+      }
+
+      // Room chat: everyone in the room reads; only *real* (non-anonymous)
+      // accounts may post — guests are read-only.
+      match /chat/{msgId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated()
+                      && request.auth.token.firebase.sign_in_provider != 'anonymous'
+                      && request.resource.data.uid == request.auth.uid
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() > 0
+                      && request.resource.data.text.size() <= 500;
+        allow delete: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdmin());
+      }
+    }
+
+    // ===============================================================
+    // COMMUNITY PLAYLISTS — public playlist sharing across the platform
+    // ===============================================================
+    match /communityPlaylists/{playlistId} {
+      allow read: if true;
+      // Owner can create/update/delete their own shared playlists
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.ownerId == request.auth.uid ||
+        // Any authenticated user can increment likes/plays
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plays']) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+    }
+
+    // Fan clubs — unofficial per-nation communities
+    match /wcFanClubs/{clubId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      // Members subcollection — anyone can join/leave their own record
+      match /members/{memberId} {
+        allow read:   if isAuthenticated();
+        allow create: if isAuthenticated() && request.auth.uid == memberId;
+        allow delete: if isAuthenticated() && request.auth.uid == memberId;
+      }
+
+      // Posts — authenticated users can post, only own posts can be deleted
+      match /posts/{postId} {
+        allow read:   if true;
+        allow create: if isAuthenticated()
+                      && request.resource.data.uid == request.auth.uid
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() > 0
+                      && request.resource.data.text.size() <= 2000;
+        allow delete: if isAuthenticated()
+                      && (resource.data.uid == request.auth.uid || isAdmin());
+      }
+    }
+
+    // ===============================================================
+    // CONTENT SAFETY — user reports
+    // ===============================================================
+    // Anyone signed in can file a report; reports are only readable by staff.
+    match /content_reports/{reportId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated()
+                    && request.resource.data.reporterId == request.auth.uid
+                    && request.resource.data.reason is string
+                    && request.resource.data.contentId is string
+                    && (!('details' in request.resource.data) || request.resource.data.details.size() <= 2000);
+      allow update, delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // COMMUNITY NOTES — crowd-sourced context on posts
+    // ===============================================================
+    // Contributors propose notes; raters score them; a note publishes when it
+    // is found helpful by raters who usually disagree (bridge scoring,
+    // computed client/agent-side and finalized by staff/admin tooling).
+    match /community_notes/{noteId} {
+      allow read: if true;
+      allow create: if isAuthenticated()
+                    && request.resource.data.authorId == request.auth.uid
+                    && request.resource.data.contentId is string
+                    && request.resource.data.summary is string
+                    && request.resource.data.summary.size() >= 30
+                    && request.resource.data.summary.size() <= 1200
+                    && request.resource.data.sources is list
+                    && request.resource.data.sources.size() >= 1
+                    && request.resource.data.status == 'NEEDS_RATINGS';
+      // Authors may edit only while gathering ratings; status/score fields are
+      // managed by admin tooling.
+      allow update: if isAdmin() ||
+                    (isAuthenticated() && resource.data.authorId == request.auth.uid
+                     && resource.data.status == 'NEEDS_RATINGS'
+                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['summary', 'sources', 'updatedAt']));
+      allow delete: if isAdmin();
+
+      match /ratings/{raterId} {
+        allow read: if true;
+        // One rating per user, written as themselves, never on their own note
+        allow create, update: if isAuthenticated()
+                      && request.auth.uid == raterId
+                      && request.resource.data.raterId == request.auth.uid
+                      && request.resource.data.helpful in ['HELPFUL', 'SOMEWHAT', 'NOT_HELPFUL']
+                      && get(/databases/$(database)/documents/community_notes/$(noteId)).data.authorId != request.auth.uid;
+        allow delete: if isAuthenticated() && request.auth.uid == raterId;
+      }
+    }
+
+    // ── Live streams — WebRTC signaling, counters, chat ──────────────────────
+    // Without this block the default deny made EVERY live-stream operation fail
+    // silently (creating the stream doc, viewer signaling, chat, view counts).
+    match /streams/{streamId} {
+      // Private producer streams (Artist Manager › Film) are scoped clubId "prod:<prodId>"
+      // and marked isPrivate — readable ONLY by the broadcaster and members of that
+      // production. Every other stream keeps its public/unlisted read behavior.
+      function isProdPrivateStream() {
+        return resource.data.isPrivate == true
+          && resource.data.clubId is string
+          && resource.data.clubId.split(':').size() == 2
+          && resource.data.clubId.split(':')[0] == 'prod';
+      }
+      function prodStreamProdId() {
+        return resource.data.clubId.split(':')[1];
+      }
+      function canReadProdStream() {
+        return isAuthenticated() && (
+          resource.data.ownerUid == request.auth.uid
+          || (
+            exists(/databases/$(database)/documents/productions/$(prodStreamProdId()))
+            && (
+              get(/databases/$(database)/documents/productions/$(prodStreamProdId())).data.ownerUid == request.auth.uid
+              || (
+                get(/databases/$(database)/documents/productions/$(prodStreamProdId())).data.memberUids is list
+                && request.auth.uid in get(/databases/$(database)/documents/productions/$(prodStreamProdId())).data.memberUids
+              )
+            )
+          )
+        );
+      }
+
+      allow read: if !isProdPrivateStream() || canReadProdStream();
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.ownerUid == request.auth.uid
+        // Non-owners (viewers) may bump the public counters, request to come on stage
+        // (guestRequests), and leave the stage (guests). The host owns approving requests.
+        || request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['viewerCount', 'totalViews', 'likeCount', 'peakViewers', 'guestRequests', 'guests'])
+      );
+      allow delete: if isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+
+      // Signaling (viewers / ICE candidates) + live chat.
+      match /{document=**} {
+        allow read: if true;
+        allow write: if isAuthenticated();
+      }
+    }
+
+    // Unified real-time backbone (rtcCore): mesh calls, video rooms, talk rooms.
+    // Presence + per-edge WebRTC signaling (offer/answer/ICE). Any signed-in
+    // participant can read the session and write signaling within it.
+    match /rtc_sessions/{sessionId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthenticated();
+      match /{document=**} {
+        allow read: if true;
+        allow write: if isAuthenticated();
+      }
+    }
+
+    // Ambient presence ("who's here right now") for any surface — no media.
+    // Anyone can read the count; you may only write your own heartbeat.
+    match /presence/{key}/here/{uid} {
+      allow read: if true;
+      allow write: if isAuthenticated() && uid == request.auth.uid;
+    }
+
+    // Synchronized parties (watch-along / read-along / listening party). The host broadcasts a
+    // playback state; the audience reads it and follows locally. Public read (shareable/joinable);
+    // only the host may create/update/end their own party.
+    match /parties/{partyId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.hostId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.hostId == request.auth.uid;
+    }
+
+    // ── Terra: the parcel spine ────────────────────────────────────────────
+    // Public record, publicly readable — that is the entire point of the layer.
+    // Writes come from the server-side ingestion worker or an admin; no client
+    // may author the spine, because a forged parcel or civic record would be
+    // indistinguishable from a real one in the UI.
+    match /terraParcels/{parcelId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /terraCivic/{recordId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    // Zoning rules are hand-encoded from the ordinance and drive a buildability
+    // estimate — admin-only, and versioned rather than edited in place.
+    match /terraZoningRules/{ruleId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /terraIngestionRuns/{runId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Open Listing Records. Publicly readable (they feed the public OLR feed).
+    // A listing may be created or edited by its own lister or by an admin; the
+    // content hash and revision are recomputed server-side on publish, so a
+    // client cannot forge provenance by writing those fields directly.
+    match /terraListings/{listingKey} {
+      allow read: if true;
+      allow create: if isAuthenticated()
+                    && request.resource.data.data.X_Terra_ListerUid == request.auth.uid;
+      allow update, delete: if isAuthenticated()
+                    && (resource.data.data.X_Terra_ListerUid == request.auth.uid || isAdmin());
+    }
+
+    match /note_contributors/{uid} {
+      allow read: if true;
+      // Users enroll themselves; reputation fields are managed by admin tooling.
+      allow create: if isOwner(uid)
+                    && request.resource.data.keys().hasOnly(['uid', 'joinedAt', 'agreedToGuidelines'])
+                    && request.resource.data.agreedToGuidelines == true;
+      allow update: if isAdmin();
+      allow delete: if isOwner(uid) || isAdmin();
+    }
+
+    // ===============================================================
+    // Film Production Management — Artist Manager › Film › On-Set suite.
+    // A production is readable by its owner and any crew member listed in
+    // memberUids (so signed-in crew get their daily briefs and offsite
+    // producers can follow along). Only the owner mutates the production doc.
+    // ===============================================================
+    match /productions/{prodId} {
+      function isProdOwner() {
+        return isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+      }
+      function isProdMember() {
+        return isAuthenticated() && (
+          resource.data.ownerUid == request.auth.uid ||
+          (resource.data.memberUids is list && request.auth.uid in resource.data.memberUids)
+        );
+      }
+      function parentProd() {
+        return get(/databases/$(database)/documents/productions/$(prodId)).data;
+      }
+      function isParentOwner() {
+        return isAuthenticated() && parentProd().ownerUid == request.auth.uid;
+      }
+      function isParentMember() {
+        return isAuthenticated() && (
+          parentProd().ownerUid == request.auth.uid ||
+          (parentProd().memberUids is list && request.auth.uid in parentProd().memberUids)
+        );
+      }
+
+      allow read: if isProdMember();
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isProdOwner() || isAdmin();
+      allow delete: if isProdOwner() || isAdmin();
+
+      // Roster, scenes, call sheets, tasks, craft menu — owner-managed, member-readable.
+      match /{sub}/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create, update, delete: if isParentOwner() || isAdmin();
+      }
+
+      // Craft orders — any crew member may place & cancel their own request;
+      // the owner (or on-set concierge) advances order status for everyone.
+      match /craftOrders/{orderId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create: if isParentMember()
+                      && request.resource.data.requestedByUid == request.auth.uid;
+        allow update, delete: if isParentOwner()
+                      || (isParentMember() && resource.data.requestedByUid == request.auth.uid)
+                      || isAdmin();
+      }
     }
   }
 }

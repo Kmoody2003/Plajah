@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Application
+    x:Class="Plajah.Windows.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Plajah.Windows">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+            <!-- Brand accent color — matches Plajah purple #8B5CF6 -->
+            <Color x:Key="PlajahPurple">#FF8B5CF6</Color>
+            <Color x:Key="PlajahOrange">#FFFF8C00</Color>
+            <SolidColorBrush x:Key="PlajahPurpleBrush" Color="{StaticResource PlajahPurple}" />
+            <SolidColorBrush x:Key="PlajahOrangeBrush" Color="{StaticResource PlajahOrange}" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

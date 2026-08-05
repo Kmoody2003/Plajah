@@ -41,6 +41,21 @@
   --chat-bubble-text: #ffffff;
 }
 
+/* DARK is the same as :root defaults — explicit class so body.classList.add works
+   consistently and doesn't accidentally wipe other body classes */
+.theme-dark {
+  --bg-color: #020202;
+  --text-primary: #ffffff;
+  --text-secondary: #ff8c00;
+  --accent-color: #ffffff;
+  --border-color: rgba(255, 255, 255, 0.05);
+  --card-bg: rgba(255, 255, 255, 0.02);
+  --surface-variant: rgba(255, 255, 255, 0.05);
+  --on-surface-variant: rgba(255, 255, 255, 0.6);
+  --chat-bubble-bg: rgba(255, 255, 255, 0.05);
+  --chat-bubble-text: #ffffff;
+}
+
 .theme-light {
   --bg-color: #f8fafc;
   --text-primary: #0f172a;
@@ -55,7 +70,7 @@
 }
 
 /* Frosted Glass Texture for Light Theme */
-.theme-light body::before {
+body.theme-light::before {
   content: "";
   position: fixed;
   inset: 0;
@@ -65,13 +80,13 @@
   pointer-events: none;
 }
 
-.theme-light body {
-  background: radial-gradient(circle at 50% 50%, #f8fafc 0%, #f1f5f9 100%);
+body.theme-light {
+  background: radial-gradient(circle at 30% 20%, #ffffff 0%, #f1f5f9 60%, #e2e8f0 100%);
 }
 
 /* Overrides for Light Theme */
 .theme-light .text-white {
-  color: var(--text-primary) !important;
+  color: var(--accent-color) !important; /* Orange for contrast on light backgrounds */
 }
 
 .theme-light .bg-black {
@@ -101,14 +116,14 @@
 .theme-light .text-white\/10,
 .theme-light .text-primary\/5,
 .theme-light .text-primary\/10 {
-  color: rgba(15, 23, 42, 0.1) !important;
+  color: rgba(255, 140, 0, 0.15) !important;
 }
 
 .theme-light .text-white\/20,
 .theme-light .text-white\/30,
 .theme-light .text-primary\/20,
 .theme-light .text-primary\/30 {
-  color: rgba(15, 23, 42, 0.3) !important;
+  color: rgba(255, 140, 0, 0.35) !important;
 }
 
 .theme-light .text-white\/40,
@@ -117,7 +132,7 @@
 .theme-light .text-primary\/40,
 .theme-light .text-primary\/50,
 .theme-light .text-primary\/60 {
-  color: rgba(15, 23, 42, 0.6) !important;
+  color: rgba(255, 140, 0, 0.6) !important;
 }
 
 .theme-light .bg-white\/5,
@@ -189,16 +204,16 @@
 }
 
 /* Scrapbook Notebook Page Background */
-.theme-pastel body {
+body.theme-pastel {
   background-color: var(--bg-color);
-  background-image: 
+  background-image:
     linear-gradient(rgba(7, 54, 66, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(211, 54, 130, 0.1) 1px, transparent 1px);
   background-size: 100% 2.5rem, 100% 100%;
   background-position: 0 1rem, 4rem 0;
 }
 
-.theme-pastel body::before {
+body.theme-pastel::before {
   content: "";
   position: fixed;
   left: 3.8rem;
@@ -347,6 +362,26 @@
   --on-surface-variant: var(--text-secondary);
 }
 
+body.theme-plajah {
+  background:
+    radial-gradient(ellipse 90% 70% at 15% 10%,  rgba(107, 0, 153, 0.85) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 60% at 85% 85%,  rgba(212, 0, 85,  0.70) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 55% 45%,  rgba(255, 140, 0, 0.22) 0%, transparent 60%),
+    #0d0015;
+}
+
+/* Plajah gradient overlay — renders on top of custom background when active */
+.theme-plajah #universal-background::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%,  rgba(107, 0, 153, 0.40) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 50% at 80% 80%,  rgba(212, 0, 85,  0.25) 0%, transparent 65%);
+}
+
 /* Overrides for faint text and icons in Plajah theme */
 .theme-plajah .text-white\/5,
 .theme-plajah .text-white\/10,
@@ -390,17 +425,30 @@
   --on-surface-variant: rgba(255, 255, 255, 0.9);
 }
 
-.theme-big-screen body {
+body.theme-big-screen {
   font-size: 1.25rem;
   letter-spacing: 0.02em;
 }
 
+/* The focus ring may land on anything, but the 1.08 lift must not.
+   `* :focus-visible` also matches layout containers — and #root took focus during
+   D-pad navigation, which scaled the ENTIRE page to 108%. That cropped the UI at
+   the screen edges and, worse, forced the compositor to render a 1728x972 layer
+   and downscale it to 1600x900 every frame. With a video playing that alone cost
+   ~7% dropped frames on the TV's Mali GPU — the "stuttery Reello" report.
+   Ring on everything; lift only on real controls. */
 .theme-big-screen *:focus-visible {
   outline: 6px solid #3b82f6 !important;
   outline-offset: 6px;
-  transform: scale(1.08);
   z-index: 100;
   box-shadow: 0 0 50px rgba(59, 130, 246, 0.6);
+}
+
+.theme-big-screen :is(a, button, input, select, textarea, summary,
+                      [role="button"], [role="link"], [role="tab"],
+                      [role="menuitem"], [role="option"],
+                      [data-tv-focusable]):focus-visible {
+  transform: scale(1.08);
   background-color: rgba(59, 130, 246, 0.1) !important;
 }
 
@@ -420,7 +468,7 @@
   --on-surface-variant: rgba(255, 255, 255, 0.8);
 }
 
-.theme-phone body {
+body.theme-phone {
   font-size: 14px;
   -webkit-tap-highlight-color: transparent;
 }
@@ -436,6 +484,38 @@
 .theme-phone .m3-card {
   padding: 1rem;
   border-radius: 24px;
+}
+
+/* ── Dropdown menus (platform-wide) ─────────────────────────────────────────
+   Native <select> option popups were rendering white-on-white in dark themes.
+   color-scheme:dark tells the browser to paint the native dropdown list in dark
+   mode (matching the platform), and the explicit option colors are a hard fallback
+   for browsers that ignore color-scheme. Solid colors are required — the native
+   option list can't use rgba/transparent. */
+select {
+  color-scheme: dark;
+}
+select option,
+select optgroup {
+  background-color: #15151f;
+  color: #f5f5f7;
+}
+select option:checked,
+select option:hover {
+  background-color: #FF8C00;
+  color: #1a1a1a;
+}
+/* A few surfaces use a light card; opt those selects back into light dropdowns. */
+.theme-light select,
+.on-light select,
+select.on-light {
+  color-scheme: light;
+}
+.theme-light select option,
+.on-light select option,
+select.on-light option {
+  background-color: #ffffff;
+  color: #1a1a1a;
 }
 
 /* Ethereal Theme */
@@ -485,9 +565,177 @@ div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-t
   box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
 }
 
+/* ─── Material You 3 + Frosted Glass Design System ─────────────────────────
+   Surface hierarchy follows M3 tonal surface stacking.
+   All surfaces are translucent so the background art bleeds through.
+   ──────────────────────────────────────────────────────────────────────── */
+:root {
+  /* M3 Shape tokens */
+  --m3-shape-xs:   8px;
+  --m3-shape-sm:   12px;
+  --m3-shape-md:   16px;
+  --m3-shape-lg:   24px;
+  --m3-shape-xl:   28px;
+  --m3-shape-2xl:  32px;
+  --m3-shape-full: 9999px;
+
+  /* Frosted glass layers — progressively more opaque as elevation rises */
+  --glass-0:   rgba(255,255,255,0.00);   /* scrim / no fill             */
+  --glass-1:   rgba(255,255,255,0.04);   /* M3 surface                  */
+  --glass-2:   rgba(255,255,255,0.07);   /* surface-container-low       */
+  --glass-3:   rgba(255,255,255,0.10);   /* surface-container           */
+  --glass-4:   rgba(255,255,255,0.14);   /* surface-container-high      */
+  --glass-5:   rgba(255,255,255,0.18);   /* surface-container-highest   */
+
+  /* Accent-tinted glass (orange brand) */
+  --glass-accent: rgba(255,140,0,0.08);
+
+  /* Blur levels */
+  --blur-sm:  blur(8px)  saturate(160%);
+  --blur-md:  blur(20px) saturate(180%);
+  --blur-lg:  blur(32px) saturate(200%);
+  --blur-xl:  blur(48px) saturate(200%);
+
+  /* M3 border */
+  --m3-border: rgba(255,255,255,0.09);
+  --m3-border-strong: rgba(255,255,255,0.15);
+
+  /* ── Material 3 Expressive type scale ──────────────────────────────────────
+     Fluid via clamp() so headings scale DOWN on phones automatically. Opt-in:
+     applied only through the .type-* utilities (below) / TYPE.* in designSystem,
+     so nothing that doesn't adopt them is affected. */
+  --type-display-lg: clamp(2.25rem, 7vw, 3.5rem);
+  --type-display-md: clamp(2rem, 6vw, 2.8rem);
+  --type-display-sm: clamp(1.75rem, 5vw, 2.25rem);
+  --type-headline-lg: clamp(1.6rem, 4.5vw, 2rem);
+  --type-headline-md: clamp(1.4rem, 4vw, 1.75rem);
+  --type-headline-sm: clamp(1.25rem, 3.5vw, 1.5rem);
+  --type-title-lg: 1.375rem;
+  --type-title-md: 1rem;
+  --type-title-sm: 0.875rem;
+  --type-body-lg: 1rem;
+  --type-body-md: 0.875rem;
+  --type-body-sm: 0.8125rem;
+  --type-label-lg: 0.875rem;
+  --type-label-md: 0.75rem;
+  --type-label-sm: 0.6875rem;
+}
+
+/* ─── M3 Expressive type-scale utilities + touch targets (mobile foundation) ── */
 @layer utilities {
-  .pb-safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
+  .type-display-lg { font-family: var(--font-display); font-size: var(--type-display-lg); line-height: 1.05; font-weight: 900; letter-spacing: -0.02em; }
+  .type-display-md { font-family: var(--font-display); font-size: var(--type-display-md); line-height: 1.08; font-weight: 900; letter-spacing: -0.02em; }
+  .type-display-sm { font-family: var(--font-display); font-size: var(--type-display-sm); line-height: 1.1;  font-weight: 800; letter-spacing: -0.015em; }
+  .type-headline-lg { font-family: var(--font-display); font-size: var(--type-headline-lg); line-height: 1.15; font-weight: 800; letter-spacing: -0.01em; }
+  .type-headline-md { font-family: var(--font-display); font-size: var(--type-headline-md); line-height: 1.2;  font-weight: 800; letter-spacing: -0.01em; }
+  .type-headline-sm { font-family: var(--font-display); font-size: var(--type-headline-sm); line-height: 1.25; font-weight: 700; }
+  .type-title-lg { font-family: var(--font-label); font-size: var(--type-title-lg); line-height: 1.3; font-weight: 700; }
+  .type-title-md { font-family: var(--font-label); font-size: var(--type-title-md); line-height: 1.4; font-weight: 600; }
+  .type-title-sm { font-family: var(--font-label); font-size: var(--type-title-sm); line-height: 1.4; font-weight: 600; }
+  .type-body-lg { font-family: var(--font-body); font-size: var(--type-body-lg); line-height: 1.55; font-weight: 400; }
+  .type-body-md { font-family: var(--font-body); font-size: var(--type-body-md); line-height: 1.5;  font-weight: 400; }
+  .type-body-sm { font-family: var(--font-body); font-size: var(--type-body-sm); line-height: 1.5;  font-weight: 400; }
+  .type-label-lg { font-family: var(--font-label); font-size: var(--type-label-lg); line-height: 1.35; font-weight: 700; letter-spacing: 0.02em; }
+  .type-label-md { font-family: var(--font-label); font-size: var(--type-label-md); line-height: 1.35; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+  .type-label-sm { font-family: var(--font-label); font-size: var(--type-label-sm); line-height: 1.35; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+
+  /* Touch targets — M3 minimum comfortable hit area. Wrap small icon buttons. */
+  .tap    { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .tap-lg { min-width: 48px; min-height: 48px; display: inline-flex; align-items: center; justify-content: center; }
+  /* `.tap` sets display:inline-flex, which (same layer, later source order) would beat
+     Tailwind's `.hidden` — so `tap hidden` elements render visible. This compound selector
+     is more specific, so `hidden` wins and `tap hidden` is actually hidden (e.g. the mobile
+     Chora track-row Breakdown / Plajah Pixels buttons). */
+  .tap.hidden { display: none; }
+
+  /* Safe-area-aware fixed anchors for floating UI (players, FABs, bottom bars). */
+  .fixed-bottom-safe { bottom: max(1.5rem, env(safe-area-inset-bottom)); }
+  .fixed-left-safe   { left: max(1rem, env(safe-area-inset-left)); }
+  .fixed-right-safe  { right: max(1rem, env(safe-area-inset-right)); }
+}
+
+/* ─── Frosted glass utility classes ──────────────────────────────────────── */
+@layer utilities {
+  /* Base glass surfaces */
+  .glass {
+    background: var(--glass-2);
+    -webkit-backdrop-filter: var(--blur-md);
+    backdrop-filter: var(--blur-md);
+    border: 1px solid var(--m3-border);
+  }
+  .glass-low {
+    background: var(--glass-1);
+    -webkit-backdrop-filter: var(--blur-sm);
+    backdrop-filter: var(--blur-sm);
+    border: 1px solid var(--m3-border);
+  }
+  .glass-high {
+    background: var(--glass-4);
+    -webkit-backdrop-filter: var(--blur-lg);
+    backdrop-filter: var(--blur-lg);
+    border: 1px solid var(--m3-border-strong);
+  }
+  .glass-highest {
+    background: var(--glass-5);
+    -webkit-backdrop-filter: var(--blur-xl);
+    backdrop-filter: var(--blur-xl);
+    border: 1px solid var(--m3-border-strong);
+  }
+
+  /* Navigation bar glass (bottom tab bar, player) */
+  .glass-nav {
+    background: color-mix(in srgb, var(--bg-color) 60%, transparent);
+    -webkit-backdrop-filter: var(--blur-xl);
+    backdrop-filter: var(--blur-xl);
+    border-top: 1px solid var(--m3-border);
+  }
+
+  /* Sheet / drawer glass */
+  .glass-sheet {
+    background: color-mix(in srgb, var(--bg-color) 75%, transparent);
+    -webkit-backdrop-filter: var(--blur-xl);
+    backdrop-filter: var(--blur-xl);
+    border-top: 1px solid var(--m3-border-strong);
+  }
+
+  /* M3 shape utilities */
+  .rounded-m3-sm   { border-radius: var(--m3-shape-sm); }
+  .rounded-m3-md   { border-radius: var(--m3-shape-md); }
+  .rounded-m3-lg   { border-radius: var(--m3-shape-lg); }
+  .rounded-m3-xl   { border-radius: var(--m3-shape-xl); }
+  .rounded-m3-2xl  { border-radius: var(--m3-shape-2xl); }
+  .rounded-m3-full { border-radius: var(--m3-shape-full); }
+
+  /* M3 state layers */
+  .m3-state-hover:hover  { background: rgba(255,255,255,0.08); }
+  .m3-state-press:active { background: rgba(255,255,255,0.12); transform: scale(0.96); }
+  .m3-ripple { position: relative; overflow: hidden; }
+
+  /* Utility classes */
+  .pb-safe-bottom   { padding-bottom: env(safe-area-inset-bottom); }
+  .pb-android-nav   { padding-bottom: max(env(safe-area-inset-bottom), 12px); }
+  /* Full-screen overlays (live streamer etc.) — keep controls clear of the
+     notch / status bar and the gesture / nav bar. Referenced by
+     MobileLiveStreamer; without these the docks render off-screen. */
+  .pt-safe          { padding-top: max(env(safe-area-inset-top), 12px); }
+  .pb-safe          { padding-bottom: max(env(safe-area-inset-bottom), 16px); }
+  .h-real-screen    { height: calc(var(--real-vh, 1dvh) * 100); }
+  .min-h-real-screen{ min-height: calc(var(--real-vh, 1dvh) * 100); }
+
+  .gpu {
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .android-press:active {
+    transform: scale(0.93);
+    opacity: 0.85;
+    transition: transform 0.08s, opacity 0.08s;
   }
 }
 
@@ -503,6 +751,10 @@ html, body {
 
 body {
   background-color: var(--bg-color);
+  /* Ambient frosted noise layer — visible on mobile where no profile art is set */
+  background-image:
+    radial-gradient(ellipse 80% 60% at 20% 10%,  rgba(255,140,0,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 90%,  rgba(107,0,153,0.06) 0%, transparent 60%);
   color: var(--text-primary);
   transition: background-color 0.3s, color 0.3s;
   font-family: var(--font-body);
@@ -629,6 +881,24 @@ body.has-custom-background::after {
   background: rgba(255, 255, 255, 0.2);
 }
 
+.track-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.track-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+}
+
+.track-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+}
+
+.track-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.45);
+}
+
 .glass-morphism {
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(12px);
@@ -687,6 +957,142 @@ body.has-custom-background::after {
   100% { text-shadow: 0 0 20px rgba(34, 211, 238, 0.4); }
 }
 
+/* Lighthouse brand line — a subtle warm glow sweeps elegantly across the text */
+.brand-shimmer {
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.34) 0%,
+    rgba(255, 255, 255, 0.34) 38%,
+    rgba(255, 214, 140, 0.55) 46%,
+    rgba(255, 233, 190, 0.98) 50%,
+    rgba(255, 214, 140, 0.55) 54%,
+    rgba(255, 255, 255, 0.34) 62%,
+    rgba(255, 255, 255, 0.34) 100%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: brand-shimmer 6s ease-in-out infinite;
+}
+@keyframes brand-shimmer {
+  0%   { background-position: 150% 0; }
+  100% { background-position: -50% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-shimmer { animation: none; background-position: 50% 0; }
+}
+
+/* TV slideshow Ken Burns: transform-only (GPU-composited, no repaint), so it stays smooth on the
+   Mali-G31 where the old animated blur did not. */
+@keyframes tv-kenburns {
+  from { transform: scale(1) translateZ(0); }
+  to   { transform: scale(1.06) translateZ(0); }
+}
+/* Radio "on air" equaliser bars — transform: scaleY only, so it composites on the GPU and costs
+   the fill-rate-bound TV nothing. transform-origin bottom so the bars grow from the baseline. */
+@keyframes tv-eq {
+  0%, 100% { transform: scaleY(0.25); }
+  50%      { transform: scaleY(1); }
+}
+.tv-eq-bar {
+  transform-origin: bottom;
+  animation: tv-eq 900ms ease-in-out infinite;
+  will-change: transform;
+}
+
+.tv-kenburns {
+  animation: tv-kenburns 14s ease-in-out infinite alternate;
+  will-change: transform;
+  /* Force a clean, isolated GPU layer so the scale composites without repainting, and pin the
+     origin/backface so the sub-pixel edges stay put — this is what kills the edge shimmer the
+     effect used to have (that came from object-cover's edges scaling against the viewport; with
+     object-contain the image is letterboxed, and these keep its own edges from crawling). */
+  /* center TOP, not center center: the slideshow anchors the photo to the top (object-top), so the
+     zoom must grow downward from the top too — that way the top stays pinned through the whole Ken
+     Burns move and only the bottom ever leaves the frame. */
+  transform-origin: center top;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+/* Live poll card: flowing brand-gradient top bar */
+@keyframes gradient-x {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+/* Chora selected/active track: gentle, noticeable slow sweep of the purple→orange gradient */
+@keyframes track-gradient-sweep {
+  0%   { background-position:   0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+.track-gradient-active {
+  background-image: linear-gradient(90deg,
+    rgba(107,0,153,0.55) 0%,
+    rgba(212,0,85,0.42) 25%,
+    rgba(255,140,0,0.50) 50%,
+    rgba(212,0,85,0.42) 75%,
+    rgba(107,0,153,0.55) 100%);
+  background-size: 300% 100%;
+  animation: track-gradient-sweep 4.5s linear infinite alternate;
+}
+/* AUDIO SESSION card backdrop — same living sweep, weighted toward purple + magenta. */
+.audio-session-gradient {
+  background-image: linear-gradient(105deg,
+    rgba(107,0,153,0.60) 0%,     /* purple */
+    rgba(168,0,140,0.52) 26%,    /* magenta */
+    rgba(212,0,105,0.46) 50%,    /* pink-magenta */
+    rgba(255,110,30,0.28) 68%,   /* a little orange */
+    rgba(140,0,175,0.60) 100%);  /* purple */
+  background-size: 300% 100%;
+  animation: track-gradient-sweep 6s linear infinite alternate;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Keep the ambient gradient clearly alive (just a touch gentler) rather than frozen. */
+  .track-gradient-active { animation-duration: 7s; }
+  .audio-session-gradient { animation-duration: 9s; }
+}
+
+/* Final 10s — a red gradient on the RIGHT edge fading into the bar's orange, with a
+   sharp red↔magenta pulse right at the trailing edge. */
+@keyframes track-ending-flash-anim {
+  0%, 100% {
+    background-image: linear-gradient(90deg,
+      transparent 40%,
+      rgba(255,90,0,0.45) 68%,       /* fades into the orange */
+      rgba(239,68,68,0.85) 100%);    /* red edge */
+    opacity: 0.7;
+  }
+  50% {
+    background-image: linear-gradient(90deg,
+      transparent 36%,
+      rgba(255,60,0,0.6) 64%,
+      rgba(212,0,90,1) 100%);        /* sharp magenta edge */
+    opacity: 1;
+  }
+}
+.track-ending-flash {
+  background-image: linear-gradient(90deg, transparent 40%, rgba(255,90,0,0.45) 68%, rgba(239,68,68,0.85) 100%);
+  animation: track-ending-flash-anim 0.6s ease-in-out infinite;
+}
+/* The track queued up next (sequential, shuffle, or repeat) — a soft green edge glow. */
+@keyframes track-next-breathe {
+  0%, 100% { box-shadow: inset 2px 0 14px -6px rgba(34,197,94,0.5), inset 0 0 0 1px rgba(34,197,94,0.18); }
+  50%      { box-shadow: inset 2px 0 20px -6px rgba(34,197,94,0.85), inset 0 0 0 1px rgba(34,197,94,0.32); }
+}
+.track-next-glow { animation: track-next-breathe 2.8s ease-in-out infinite; }
+.track-next-glow::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgba(34,197,94,0.16) 0%, rgba(34,197,94,0) 40%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .track-ending-flash { animation: none; opacity: 0.5; }
+  .track-next-glow { animation: none; box-shadow: inset 2px 0 16px -6px rgba(34,197,94,0.6), inset 0 0 0 1px rgba(34,197,94,0.25); }
+}
+
 /* Responsive adjustments */
 @media (min-width: 1024px) and (max-width: 1440px) {
   html {
@@ -704,6 +1110,37 @@ body.has-custom-background::after {
   .m3-card {
     @apply p-4 rounded-2xl;
   }
+}
+
+/* NEBULA THEME */
+.theme-nebula {
+  --bg-color: #050510;
+  --text-primary: #e2e8ff;
+  --text-secondary: #818cf8;
+  --accent-color: #22d3ee;
+  --border-color: rgba(99, 102, 241, 0.18);
+  --card-bg: rgba(99, 102, 241, 0.07);
+  --surface-variant: rgba(139, 92, 246, 0.12);
+  --on-surface-variant: rgba(226, 232, 255, 0.7);
+  --chat-bubble-bg: rgba(99, 102, 241, 0.1);
+  --chat-bubble-text: #e2e8ff;
+}
+
+body.theme-nebula {
+  background:
+    radial-gradient(ellipse 80% 60% at 35% 25%, rgba(99, 102, 241, 0.35) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 55% at 70% 75%, rgba(139, 92, 246, 0.25) 0%, transparent 60%),
+    #050510;
+}
+
+.theme-nebula .text-white\/5,
+.theme-nebula .text-white\/10,
+.theme-nebula .text-white\/20,
+.theme-nebula .text-white\/30,
+.theme-nebula .text-white\/40,
+.theme-nebula .text-white\/50,
+.theme-nebula .text-white\/60 {
+  color: rgba(129, 140, 248, 0.7) !important;
 }
 
 /* CITRUS THEME */
@@ -745,8 +1182,8 @@ body.has-custom-background::after {
 
 .citrus-water-drop {
   background: rgba(255, 200, 150, 0.05);
-  box-shadow: 
-    inset -2px -2px 4px rgba(255, 100, 0, 0.2), 
+  box-shadow:
+    inset -2px -2px 4px rgba(255, 100, 0, 0.2),
     inset 4px 4px 8px rgba(255, 255, 255, 0.85),
     inset -4px -6px 8px rgba(0, 0, 0, 0.5),
     2px 8px 12px rgba(0, 0, 0, 0.4),
@@ -757,3 +1194,376 @@ body.has-custom-background::after {
   border-radius: 50% 50% 45% 55% / 45% 55% 45% 55%;
   will-change: transform;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   UNIVERSAL BACKGROUND — per-theme gradient defaults
+   When no custom image/video is set, each theme shows its characteristic
+   gradient. A frosted glass ::before overlay sits above the gradient and
+   below any custom media content.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Shared setup — needed for ::before positioning */
+#universal-background {
+  position: relative;
+}
+
+#universal-background::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* rendered behind the AnimatePresence motion.div children */
+}
+
+/* ── DARK (default, no body class) ── */
+#universal-background {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(255, 140, 0, 0.12) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 50% at 80% 90%, rgba(107, 0, 153, 0.12) 0%, transparent 65%),
+    #020202;
+}
+#universal-background::before {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+/* ── LIGHT ── */
+body.theme-light #universal-background {
+  background:
+    radial-gradient(ellipse 80% 60% at 25% 15%, rgba(186, 230, 255, 0.55) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 50% at 75% 80%, rgba(253, 186, 234, 0.40) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 40% at 55% 45%, rgba(221, 214, 254, 0.30) 0%, transparent 60%),
+    #f8fafc;
+}
+body.theme-light #universal-background::before {
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+}
+
+/* ── PASTEL ── */
+body.theme-pastel #universal-background {
+  background: #fdf6e3;
+  background-image:
+    linear-gradient(rgba(7, 54, 66, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(211, 54, 130, 0.07) 1px, transparent 1px);
+  background-size: 100% 2.5rem, 100% 100%;
+  background-position: 0 1rem, 4rem 0;
+}
+body.theme-pastel #universal-background::before {
+  background: rgba(253, 246, 227, 0.58);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+}
+
+/* ── PLAJAH ── */
+body.theme-plajah #universal-background {
+  background:
+    radial-gradient(ellipse 90% 70% at 15% 10%,  rgba(107, 0, 153, 0.85) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 60% at 85% 85%,  rgba(212, 0, 85,  0.70) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 55% 45%,  rgba(255, 140, 0, 0.22) 0%, transparent 60%),
+    #0d0015;
+}
+body.theme-plajah #universal-background::before {
+  background: rgba(13, 0, 21, 0.18);
+}
+
+/* ── CITRUS ── */
+body.theme-citrus #universal-background {
+  background:
+    radial-gradient(ellipse 75% 65% at 80% 15%, rgba(255, 100, 0, 0.80) 0%, transparent 55%),
+    radial-gradient(ellipse 65% 60% at 15% 80%, rgba(200, 40, 0, 0.60) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 50% 50%, rgba(255, 170, 0, 0.25) 0%, transparent 60%),
+    #080200;
+}
+body.theme-citrus #universal-background::before {
+  background: rgba(12, 4, 0, 0.12);
+}
+
+/* ── ETHEREAL ── */
+body.theme-ethereal #universal-background {
+  background:
+    radial-gradient(ellipse 75% 65% at 30% 20%, rgba(208, 188, 255, 0.55) 0%, transparent 55%),
+    radial-gradient(ellipse 65% 55% at 70% 75%, rgba(0, 218, 243, 0.35) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 50% 50%, rgba(255, 182, 141, 0.20) 0%, transparent 60%),
+    #0f0f10;
+}
+body.theme-ethereal #universal-background::before {
+  background: rgba(14, 14, 15, 0.15);
+}
+
+/* ── NEBULA ── */
+body.theme-nebula #universal-background {
+  background:
+    radial-gradient(ellipse 85% 65% at 35% 25%, rgba(99, 102, 241, 0.65) 0%, transparent 55%),
+    radial-gradient(ellipse 65% 60% at 70% 75%, rgba(139, 92, 246, 0.50) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 55% 50%, rgba(34, 211, 238, 0.25) 0%, transparent 60%),
+    #050510;
+}
+body.theme-nebula #universal-background::before {
+  background: rgba(5, 5, 16, 0.15);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   TV / LEANBACK PLATFORM OVERRIDES
+   Applied when platform detection sets theme-big-screen (FireTV, Tizen, Roku,
+   Android TV) or when the URL has ?platform=roku|tizen|firetv.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* TV-safe zone — keep all interactive UI within the inner 90% (overscan guard) */
+.tv-safe-zone {
+  padding: 5vh 5vw;
+}
+
+/* D-pad focus ring — 6px glow, visible from 3m away */
+.theme-big-screen [data-tv-focusable]:focus,
+.theme-big-screen [data-tv-focusable]:focus-visible {
+  outline: 6px solid #3b82f6 !important;
+  outline-offset: 6px !important;
+  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.25), 0 0 40px rgba(59, 130, 246, 0.5) !important;
+  transform: scale(1.06) !important;
+  z-index: 200 !important;
+  background-color: rgba(59, 130, 246, 0.08) !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+/* ── Global D-pad focus ring ──────────────────────────────────────────────────
+   TVNavigationLayer adds `.tv-nav` to <html> on real D-pad devices (or ?tv=1).
+   Unlike the [data-tv-focusable] ring above, this targets every auto-discovered
+   native focusable, so the whole app is remote-navigable with a visible 10-foot
+   ring without per-element tagging. */
+/* html.tv-nav prefix + :focus-visible fallbacks so the ring beats any
+   `:focus:not(:focus-visible){outline:none}` resets and shows for every focus
+   move, whether the platform reports focus-visible or not. */
+html.tv-nav :focus,
+html.tv-nav :focus-visible,
+html.tv-nav :focus:not(:focus-visible) {
+  outline: 4px solid #FF8C00 !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(255, 140, 0, 0.22), 0 0 28px rgba(255, 140, 0, 0.35) !important;
+  border-radius: 10px;
+  /* keep the focused item clear of screen edges when scrolled into view (overscan) */
+  scroll-margin: 12vh 8vw;
+  position: relative;
+  z-index: 60;
+}
+html.tv-nav input:focus,
+html.tv-nav textarea:focus,
+html.tv-nav select:focus {
+  outline-offset: 2px !important;
+}
+
+/* Row-scroll containers — snap to item boundaries for D-pad swipe feel */
+.tv-row-scroll {
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.tv-row-scroll::-webkit-scrollbar { display: none; }
+.tv-row-scroll > * {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+
+/* Card size bump — TV viewers sit 3m away from the screen */
+.theme-big-screen .m3-card,
+.theme-big-screen .group\/card {
+  min-height: 200px;
+}
+
+.theme-big-screen .m3-card img,
+.theme-big-screen .group\/card img {
+  min-height: 160px;
+  object-fit: cover;
+}
+
+/* Typography scale — minimum 24px body text on a 1080p TV at 3m */
+.theme-big-screen body {
+  font-size: 1.25rem;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+}
+
+.theme-big-screen h1 { font-size: 3rem; }
+.theme-big-screen h2 { font-size: 2.25rem; }
+.theme-big-screen h3 { font-size: 1.75rem; }
+
+/* Hide cursor on TV — no mouse, only D-pad */
+.theme-big-screen,
+.theme-big-screen * {
+  cursor: none !important;
+}
+
+/* Progress bars and sliders — larger hit targets for D-pad */
+.theme-big-screen input[type="range"] {
+  height: 8px;
+  accent-color: #3b82f6;
+}
+
+/* Bottom nav — hide on TV (use D-pad sidebar instead) */
+@media (min-width: 1920px) {
+  .mobile-bottom-nav { display: none !important; }
+}
+
+/* ── Alexa / Voice platform indicator ───────────────────────────── */
+.platform-alexa .voice-prompt-hint {
+  display: flex !important;
+}
+.voice-prompt-hint {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(0, 120, 212, 0.12);
+  border: 1px solid rgba(0, 120, 212, 0.3);
+  border-radius: 999px;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.75rem;
+  color: rgba(0, 120, 212, 1);
+}
+
+/* ── Android edge-to-edge (system bars transparent) ─────────────── */
+.platform-android {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+}
+
+/* ── Capacitor Android status-bar spacer ────────────────────────── */
+.capacitor-android-status-bar {
+  height: env(safe-area-inset-top, 24px);
+  flex-shrink: 0;
+}
+
+/* ── Global minimum readable text sizes ─────────────────────────── */
+/* Tailwind utility classes text-[8px] / text-[9px] produce illegible
+   UI labels on HiDPI screens. Clamp to platform-appropriate minimums. */
+[class*="text-\[8px\]"],
+[class*="text-\[9px\]"] {
+  font-size: 10px !important;
+  line-height: 1.5 !important;
+}
+
+[class*="text-\[10px\]"] {
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+}
+
+/* TV: all micro-labels scale to 0.9rem (≈18px at 1.25rem base) */
+.theme-big-screen [class*="text-\[8px\]"],
+.theme-big-screen [class*="text-\[9px\]"],
+.theme-big-screen [class*="text-\[10px\]"],
+.theme-big-screen [class*="text-\[11px\]"] {
+  font-size: 0.9rem !important;
+  line-height: 1.5 !important;
+}
+
+/* Anchor base font so OS/browser DPI scaling can't make things tiny */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body:not(.theme-big-screen):not(.theme-phone) {
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+@media (min-width: 1280px) {
+  body:not(.theme-big-screen):not(.theme-phone) {
+    font-size: 16px;
+  }
+}
+
+
+/* ── TV / low-power performance escapes ──────────────────────────────────────
+   App.tsx puts these on <html> from the measured performance tier (services/
+   tvPerformance.ts). They exist because ~30 backdrop-filter declarations live in
+   this file, many behind !important, where no component-level gate can reach them
+   — and backdrop-filter is the single most expensive thing a TV compositor does. */
+html.perf-no-blur [class*="backdrop-blur"],
+html.perf-no-blur .glass,
+html.perf-no-blur .glass-high,
+html.perf-no-blur .glass-low {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Without a solid-ish fallback, killing the blur leaves unreadable transparent panels. */
+html.perf-no-blur .glass,
+html.perf-no-blur .glass-high,
+html.perf-no-blur .glass-low {
+  background-color: rgba(10, 10, 16, 0.92) !important;
+}
+
+/* On a genuinely weak device, stop paying for animation the viewer didn't ask for.
+   Scoped to decorative transitions — focus movement still animates, because on a
+   remote that motion is the feedback that tells you the press registered. */
+html.perf-low *:not([data-tv-focusable]):not(:focus-visible) {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.08s !important;
+}
+
+/* D-pad focus must never sit flush against the screen edge — TV overscan can crop it
+   outright. Pairs with the conditional scrollIntoView in hooks/useDpadNavigation.ts. */
+html.tv-nav [class*="overflow-"],
+html.tv-nav main,
+html.tv-nav body {
+  scroll-padding: 8% 8%;
+}
+
+/* ── Television display type ─────────────────────────────────────────────────
+   The app sizes its big display headings with viewport units — `clamp(2.5rem, 12vw, 12rem)`
+   and similar appear at 33 sites. At the TV's 1280 viewport that resolves to ~153px for a
+   single word, which is why a page's worth of content stopped fitting on a page.
+
+   Capping the RESULT rather than editing 33 call sites: the headings stay fluid everywhere
+   else, and on a TV they land at a size that still reads from ten feet without eating the
+   screen. !important is required because the sizes are inline styles. */
+.theme-big-screen h1[style*="vw"],
+.theme-big-screen h2[style*="vw"],
+.theme-big-screen h3[style*="vw"] {
+  font-size: clamp(1.75rem, 4vw, 3.25rem) !important;
+  line-height: 1.05 !important;
+}
+
+/* Tailwind's largest display sizes have the same problem on a 1280 viewport. */
+.theme-big-screen .text-\[12rem\],
+.theme-big-screen .md\:text-\[12rem\],
+.theme-big-screen .text-8xl,
+.theme-big-screen .text-7xl { font-size: 3rem !important; line-height: 1.05 !important; }
+.theme-big-screen .text-6xl { font-size: 2.5rem !important; }
+.theme-big-screen .text-5xl { font-size: 2rem !important; }
+
+/* Grid density: a TV shows a LOT at once — that is what makes it feel like a streaming app
+   rather than a blown-up phone. Cover art is also box-capped so a 4096px master can never
+   paint huge; pairs with the 224px CDN cap in src/lib/imageThumb.ts (bytes vs layout). */
+.theme-big-screen [class*="grid-cols-"] > * { min-width: 0; }
+.theme-big-screen [class*="aspect-square"] img,
+.theme-big-screen [class*="aspect-video"] img { object-fit: cover; }
+
+/* ── TV: one navigation, not three ───────────────────────────────────────────
+   TvTopTabs is the television's navigation. Views that mount their own `fixed top-0`
+   header (Taleo does, at z-50) drew straight through it, and their own bottom tab rows
+   duplicate what the top bar already offers. Hide the inner chrome so a remote has one
+   place to be. Scoped to the big-screen theme, so phone and desktop keep both. */
+.theme-big-screen header.fixed.top-0 { display: none !important; }
+
+/* ── TV: no desktop sidebar ──────────────────────────────────────────────────
+   The desktop pillar is `hidden lg:flex`, and lg is 1024px — widening the TV viewport to
+   1600 to get sane scaling pushed us over that breakpoint, so the pointer-era sidebar
+   reappeared alongside the TV tab bar. That hybrid is usable with a mouse on a PC plugged
+   into a TV and unusable with a remote, which is the wrong default for an Android TV.
+   TvTopTabs is the navigation here; the pillar is hidden outright. */
+/* Matches BOTH pillar variants. The first attempt targeted only `lg:flex` and missed the
+   real one, which is `hidden lg:block` — verified on the device, it was still 300px wide.
+   Any aside that is hidden by default and revealed at the lg breakpoint is desktop chrome by
+   definition, so match on that shape rather than a specific display value. */
+.theme-big-screen aside.hidden[class*="lg\:"] { display: none !important; }
+
+/* Nothing should reserve space for it either. */
+.theme-big-screen main,
+.theme-big-screen .flex-1 { min-width: 0; }

@@ -1,0 +1,36 @@
+# Plajah — Roku Channel Manifest
+# Roku Direct Publisher / SceneGraph channel
+# Submit at: developer.roku.com → Channel Store
+
+title=Plajah
+subtitle=Music, film & creator TV — one identity
+major_version=2
+minor_version=0
+build_version=1
+
+# Channel type: web (Roku Web Engine loads a hosted web app)
+# For a full native Roku experience, migrate to SceneGraph XML + BrightScript
+# For Direct Publisher (RSS-fed), see roku/feed/content.json
+
+mm_icon_focus_hd=pkg:/images/icon_focus_hd.png
+mm_icon_focus_fhd=pkg:/images/icon_focus_fhd.png
+mm_icon_side_hd=pkg:/images/icon_side_hd.png
+
+splash_screen_hd=pkg:/images/splash_hd.jpg
+splash_screen_fhd=pkg:/images/splash_fhd.jpg
+splash_color=#000000
+splash_min_time=1500
+
+# UI
+ui_resolutions=hd,fhd
+supports_input_launch=1
+
+# Playback
+media_playback_types=video,audio
+
+# Roku Web Engine — loads hosted web app
+# Enable this approach with: rsg_version=1.2 + MainScene.xml
+rsg_version=1.2
+
+# Certification
+bs_const=IS_DEV=false

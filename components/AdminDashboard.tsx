@@ -2,20 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { useUpload } from '../contexts/UploadContext';
 import AlbumCreator from './AlbumCreator';
 import CuratedBuilder from './CuratedBuilder';
-import { 
-  Shield, 
-  Users, 
-  HardDrive, 
-  Activity, 
-  BarChart3, 
-  FolderTree, 
-  Megaphone, 
-  Settings, 
-  Search, 
-  ChevronRight, 
-  FileAudio, 
-  FileVideo, 
-  Image as ImageIcon, 
+import {
+  Shield,
+  Users,
+  HardDrive,
+  Activity,
+  BarChart3,
+  FolderTree,
+  Megaphone,
+  Bell,
+  Settings,
+  Search,
+  ChevronRight,
+  FileAudio,
+  FileVideo,
+  Image as ImageIcon,
   MoreVertical,
   Trash2,
   CheckCircle2,
@@ -46,8 +47,15 @@ import {
   ShieldCheck,
   Monitor,
   Globe,
-  Radio
+  Radio,
+  Trophy,
+  Star,
+  Edit2,
+  ToggleLeft,
+  ToggleRight,
+  AlertTriangle
 } from 'lucide-react';
+import ErrorReportsPanel from './admin/ErrorReportsPanel';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, SystemStats, AdConfig, Track, Album, Video, Photo, PostThemeBackground, InteractiveZone, SystemSettingsConfig, Universe, Playlist, VideoPlaylist } from '../types';
 import { 
@@ -76,12 +84,26 @@ import {
   fetchAllPublicPlaylists,
   fetchAllPublicVideoPlaylists,
   fetchAllVideos,
-  migratePostsToFeed
+  migratePostsToFeed,
+  propagateDisplayName,
+  serverResyncDisplayName
 } from '../services/backendService';
 import { analyzeThemeBackground } from '../services/geminiService';
+import { getFlag, updateFlag } from '../services/featureFlagService';
+import { fetchAllAchievements, createAchievement, updateAchievement, deactivateAchievement } from '../services/achievementService';
+import { Achievement } from '../types';
 import FileUploader from './FileUploader';
 import { ThemePresetManager } from './ThemePresetManager';
 import { AdminLiveFeedsManager } from './AdminLiveFeedsManager';
+import AdminLandingBgManager from './AdminLandingBgManager';
+import AdminClubCoverMediaManager from './AdminClubCoverMediaManager';
+import AdminSportsHeroManager from './AdminSportsHeroManager';
+import AdminSiteHealth from './AdminSiteHealth';
+import AdminAnalyticsDashboard from './AdminAnalyticsDashboard';
+import AdminUserHealth from './AdminUserHealth';
+import AdminSportsAgentsPanel from './AdminSportsAgentsPanel';
+import AdminPushBroadcast from './AdminPushBroadcast';
+import AdminChoraStreams from './AdminChoraStreams';
 
 interface AdminDashboardProps {
   onBack: () => void;
@@ -90,10 +112,17 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, currentUser }) => {
-  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS'>('STATS');
+  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS' | 'NOTIFY' | 'CHORA_STREAMS'>('STATS');
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettingsConfig | null>(null);
-  
+  const [contentLicensingOn, setContentLicensingOn] = useState(false);
+  useEffect(() => {
+    const read = () => setContentLicensingOn(getFlag('CONTENT_LICENSING').enabled);
+    read();
+    const t = setTimeout(read, 1500); // give the flag listener time to load config/featureFlags
+    return () => clearTimeout(t);
+  }, []);
+
   // Curated Content State
   const [allPlaylists, setAllPlaylists] = useState<Playlist[]>([]);
   const [allVideoPlaylists, setAllVideoPlaylists] = useState<VideoPlaylist[]>([]);
@@ -126,6 +155,33 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [userAssets, setUserAssets] = useState<{ albums: Album[], videos: Video[], photos: Photo[], personalTracks: Track[] } | null>(null);
   const [assetSearch, setAssetSearch] = useState('');
+  // Admin display-name re-sync (fixes users whose renamed name didn't propagate).
+  const [renameValue, setRenameValue] = useState('');
+  const [isRenaming, setIsRenaming] = useState(false);
+
+  const handleAdminRename = async () => {
+    if (!selectedUser) return;
+    const newName = renameValue.trim();
+    if (!newName || newName === selectedUser.displayName) return;
+    if (!window.confirm(`Set this user's display name to "${newName}" and re-sync it across all their content?`)) return;
+    setIsRenaming(true);
+    try {
+      // Server pass (Admin SDK) reaches ANY user's content + comments, bypassing client rules.
+      const srv = await serverResyncDisplayName(selectedUser.uid, newName).catch(() => ({ ok: false, total: 0 }));
+      // Client pass covers anything the caller can already write directly.
+      const res = await propagateDisplayName(selectedUser.uid, newName);
+      setSelectedUser({ ...selectedUser, displayName: newName });
+      setUsers(prev => prev.map(u => u.uid === selectedUser.uid ? { ...u, displayName: newName } : u));
+      const total = (srv.ok ? srv.total : 0) + res.total;
+      const skipped = !srv.ok && res.skipped.length ? `\n\nServer resync unavailable; some copies may lag.` : '';
+      alert(`Display name updated to "${newName}".\nRe-synced across ${total} item${total === 1 ? '' : 's'}.${skipped}`);
+    } catch (err) {
+      console.error('[handleAdminRename]', err);
+      alert('Rename failed — see console.');
+    } finally {
+      setIsRenaming(false);
+    }
+  };
 
   // Ad Manager State
   const [showAdModal, setShowAdModal] = useState(false);
@@ -135,6 +191,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
   const [editingUniverse, setEditingUniverse] = useState<Partial<Universe> | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [universeSubTab, setUniverseSubTab] = useState<'ON_PLATFORM' | 'ALLY'>('ON_PLATFORM');
+
+  // Achievement Manager State
+  const [allAchievements, setAllAchievements] = useState<Achievement[]>([]);
+  const [achLoading, setAchLoading] = useState(false);
+  const [editingAch, setEditingAch] = useState<Partial<Achievement> | null>(null);
+  const [achSaving, setAchSaving] = useState(false);
   
   const { uploadFile } = useUpload();
 
@@ -326,6 +388,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
 
   const handleUserSelect = async (user: UserProfile) => {
     setSelectedUser(user);
+    setRenameValue(user.displayName || '');
     const assets = await fetchUserAssets(user.uid);
     setUserAssets(assets);
   };
@@ -465,7 +528,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-[var(--bg-color)] flex flex-col items-center justify-center">
         <div className="w-16 h-16 border-4 border-white/10 border-t-white rounded-full animate-spin mb-6" />
         <p className="text-xs font-black uppercase tracking-widest text-white/40">Initializing Admin Secure Layer...</p>
       </div>
@@ -473,7 +536,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
   }
 
   return (
-    <div className="min-h-screen bg-[#020202] text-white flex flex-col lg:flex-row overflow-hidden">
+    <div className="min-h-screen bg-[var(--bg-color)] text-white flex flex-col lg:flex-row overflow-hidden">
       {/* Admin Sidebar */}
       <aside className="w-full lg:w-80 border-r border-white/5 flex flex-col p-8 bg-black/40 backdrop-blur-3xl z-50">
         <div className="flex items-center gap-4 mb-12">
@@ -488,12 +551,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
 
         <nav className="flex-1 space-y-2">
           {[
-            { id: 'STATS', label: 'Site Health', icon: Activity },
+            { id: 'ANALYTICS', label: 'Analytics', icon: BarChart3 },
+            { id: 'SITE_HEALTH', label: 'Site Health', icon: Activity },
+            { id: 'USER_HEALTH', label: 'User Health', icon: Activity },
+            { id: 'NOTIFY', label: 'Push Broadcast', icon: Bell },
+            { id: 'ERRORS', label: 'Errors', icon: AlertTriangle },
+            { id: 'STATS', label: 'Stats (Legacy)', icon: Database },
+            { id: 'SPORTS_AGENTS', label: 'Sports Agents', icon: Trophy },
             { id: 'LIBRARY', label: 'Public Library', icon: LibraryBig },
+            { id: 'CHORA_STREAMS', label: 'Chora Streaming', icon: Music },
             { id: 'ASSETS', label: 'User Assets', icon: FolderTree },
             { id: 'ADS', label: 'Ad Platform', icon: Megaphone },
             { id: 'THEMES', label: 'Theme Manager', icon: Palette },
+            { id: 'ACHIEVEMENTS', label: 'Achievements & Points', icon: Trophy },
             { id: 'LIVE_FEEDS', label: 'Live Feeds', icon: Radio },
+            { id: 'LANDING_BG', label: 'Landing Background', icon: ImageIcon },
+            { id: 'CLUB_COVER_MEDIA', label: 'Club Cover Media', icon: VideoIcon },
+            { id: 'SPORTS_HERO', label: 'Sports Hero Images', icon: ImageIcon },
             { id: 'CURATED', label: 'Curated Content', icon: Sparkles },
             { id: 'FEATURES', label: 'Feature Toggles', icon: Zap },
             { id: 'MAINTENANCE', label: 'Maintenance', icon: Settings },
@@ -611,6 +685,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
               </motion.div>
             )}
 
+            {activeTab === 'SPORTS_AGENTS' && (
+              <motion.div
+                key="sportsAgents"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <AdminSportsAgentsPanel />
+              </motion.div>
+            )}
+
             {activeTab === 'UNIVERSE' && (
               <motion.div 
                 key="universe"
@@ -713,7 +798,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                             <img src={user.photoURL || null} alt="" className="w-12 h-12 rounded-xl object-cover" />
                             <div>
                               <h4 className="font-black uppercase tracking-wider text-sm">{user.displayName}</h4>
-                              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{user.email}</p>
                             </div>
                           </div>
                           <ChevronRight className="text-white/20 group-hover:text-white group-hover:translate-x-1 transition-all" />
@@ -740,6 +824,31 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                             {userAssets?.photos.length || 0} Photos
                           </div>
                         </div>
+                      </div>
+                    </div>
+
+                    {/* Display-name re-sync — set the account name and propagate it everywhere */}
+                    <div className="p-6 bg-white/5 border border-white/5 rounded-[2rem] space-y-3">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-white/40">Display Name — re-sync everywhere</h3>
+                      <p className="text-[10px] text-white/30 font-medium leading-relaxed">
+                        Sets the account display name and re-writes every denormalized copy (posts, comments, rooms, clubs…).
+                        Artist / persona names on releases are intentionally left untouched.
+                      </p>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <input
+                          type="text"
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          placeholder="Display name"
+                          className="flex-1 bg-black/40 border border-white/10 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:ring-2 ring-white/20"
+                        />
+                        <button
+                          onClick={handleAdminRename}
+                          disabled={isRenaming || !renameValue.trim() || renameValue.trim() === selectedUser.displayName}
+                          className="px-6 py-3 bg-white text-black rounded-2xl text-[11px] font-black uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/90 transition-all"
+                        >
+                          {isRenaming ? 'Re-syncing…' : 'Rename & re-sync'}
+                        </button>
                       </div>
                     </div>
 
@@ -1103,7 +1212,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
             )}
 
             {activeTab === 'LIVE_FEEDS' && (
-              <motion.div 
+              <motion.div
                 key="liveFeeds"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1114,8 +1223,315 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
               </motion.div>
             )}
 
+            {activeTab === 'LANDING_BG' && (
+              <motion.div
+                key="landingBg"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="max-w-5xl"
+              >
+                <AdminLandingBgManager />
+              </motion.div>
+            )}
+
+            {activeTab === 'CLUB_COVER_MEDIA' && (
+              <motion.div
+                key="clubCoverMedia"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="max-w-5xl"
+              >
+                <AdminClubCoverMediaManager />
+              </motion.div>
+            )}
+
+            {activeTab === 'SPORTS_HERO' && (
+              <motion.div
+                key="sportsHero"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="max-w-5xl"
+              >
+                <AdminSportsHeroManager />
+              </motion.div>
+            )}
+
+            {activeTab === 'ERRORS' && (
+              <motion.div key="errors" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-5xl">
+                <ErrorReportsPanel />
+              </motion.div>
+            )}
+
+            {activeTab === 'USER_HEALTH' && (
+              <motion.div key="userHealth" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-5xl">
+                <AdminUserHealth />
+              </motion.div>
+            )}
+
+            {activeTab === 'NOTIFY' && (
+              <motion.div key="notify" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-5xl">
+                <AdminPushBroadcast users={users} />
+              </motion.div>
+            )}
+
+            {activeTab === 'CHORA_STREAMS' && (
+              <AdminChoraStreams key="choraStreams" />
+            )}
+
+            {activeTab === 'SITE_HEALTH' && (
+              <motion.div
+                key="siteHealth"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="max-w-5xl"
+              >
+                <AdminSiteHealth />
+              </motion.div>
+            )}
+
+            {activeTab === 'ACHIEVEMENTS' && (
+              <motion.div
+                key="achievements"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-10 max-w-5xl"
+              >
+                <div className="flex items-end justify-between">
+                  <div>
+                    <h1 className="text-6xl md:text-[8rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Achievements</h1>
+                    <p className="text-white/40 text-sm font-bold uppercase tracking-widest mt-4">Define platform achievements, set points values, and manage unlocks</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setEditingAch({ title: '', description: '', category: 'USER', triggerType: 'CUSTOM', icon: 'Trophy', pointsValue: 10, isActive: true, createdBy: 'SYSTEM' });
+                      if (allAchievements.length === 0) {
+                        setAchLoading(true);
+                        fetchAllAchievements().then(a => { setAllAchievements(a); setAchLoading(false); });
+                      }
+                    }}
+                    className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all"
+                  >
+                    <Plus size={14} /> New Achievement
+                  </button>
+                </div>
+
+                {/* Load achievements on tab open */}
+                {allAchievements.length === 0 && !achLoading && (() => {
+                  setAchLoading(true);
+                  fetchAllAchievements().then(a => { setAllAchievements(a); setAchLoading(false); });
+                  return null;
+                })()}
+
+                {achLoading && (
+                  <div className="flex items-center gap-3 text-white/40">
+                    <Loader2 size={16} className="animate-spin" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Loading achievements…</span>
+                  </div>
+                )}
+
+                {/* Achievement list */}
+                <div className="space-y-3">
+                  {[
+                    // Hard-coded base achievements that always show
+                    { id: 'welcome_to_playground', title: 'Welcome To The Playground', description: 'Joined Plajah — the stage is yours', category: 'USER', pointsValue: 100, icon: 'Trophy', isActive: true, triggerType: 'FIRST_SIGN_IN', createdBy: 'SYSTEM', requirements: { type: 'ACTION' }, createdAt: 0, updatedAt: 0 },
+                    { id: 'first_play', title: 'First Contact', description: 'Played your first track on Plajah', category: 'USER', pointsValue: 10, icon: 'Zap', isActive: true, triggerType: 'FIRST_PLAY', createdBy: 'SYSTEM', requirements: { type: 'ACTION' }, createdAt: 0, updatedAt: 0 },
+                    { id: 'first_upload', title: 'Creator Spirit', description: 'Uploaded your first piece of content', category: 'ARTIST', pointsValue: 50, icon: 'Upload', isActive: true, triggerType: 'FIRST_UPLOAD', createdBy: 'SYSTEM', requirements: { type: 'ACTION' }, createdAt: 0, updatedAt: 0 },
+                    { id: 'first_follow', title: 'Networker', description: 'Followed your first artist', category: 'USER', pointsValue: 20, icon: 'Users', isActive: true, triggerType: 'FIRST_FOLLOW', createdBy: 'SYSTEM', requirements: { type: 'ACTION' }, createdAt: 0, updatedAt: 0 },
+                    { id: 'lucky_roll', title: 'Feeling Lucky', description: 'Used the dice roll for discovery', category: 'USER', pointsValue: 15, icon: 'Dices', isActive: true, triggerType: 'USE_FEELING_LUCKY', createdBy: 'SYSTEM', requirements: { type: 'ACTION' }, createdAt: 0, updatedAt: 0 },
+                    { id: 'live_viewer', title: 'Live Witness', description: 'Watched a live stream for the first time', category: 'USER', pointsValue: 25, icon: 'Radio', isActive: true, triggerType: 'WATCH_LIVE', createdBy: 'SYSTEM', requirements: { type: 'ACTION' }, createdAt: 0, updatedAt: 0 },
+                    { id: 'commenter', title: 'Voice of the People', description: 'Posted your first comment', category: 'USER', pointsValue: 10, icon: 'MessageSquare', isActive: true, triggerType: 'POST_COMMENT', createdBy: 'SYSTEM', requirements: { type: 'ACTION' }, createdAt: 0, updatedAt: 0 },
+                    { id: 'hns_first', title: 'Ghost Track', description: 'Discovered your first hidden alternate in Hide N Seek', category: 'USER', pointsValue: 15, icon: 'Ghost', isActive: true, triggerType: 'HNS_DISCOVER_FIRST', createdBy: 'SYSTEM', requirements: { type: 'ACTION' }, createdAt: 0, updatedAt: 0 },
+                    { id: 'hns_both_slots', title: 'Both Sides Now', description: 'Heard both alternates for a single track in Hide N Seek', category: 'USER', pointsValue: 25, icon: 'Shuffle', isActive: true, triggerType: 'HNS_BOTH_SLOTS', createdBy: 'SYSTEM', requirements: { type: 'ACTION' }, createdAt: 0, updatedAt: 0 },
+                    { id: 'hns_artist_10', title: 'Hidden Gem', description: 'Your hidden tracks were discovered by 10 unique listeners', category: 'ARTIST', pointsValue: 75, icon: 'Gem', isActive: true, triggerType: 'HNS_ARTIST_10', createdBy: 'SYSTEM', requirements: { type: 'METRIC' }, createdAt: 0, updatedAt: 0 },
+                    { id: 'hns_artist_50', title: 'Going Viral', description: 'Your hidden tracks were discovered by 50 unique listeners', category: 'ARTIST', pointsValue: 150, icon: 'TrendingUp', isActive: true, triggerType: 'HNS_ARTIST_50', createdBy: 'SYSTEM', requirements: { type: 'METRIC' }, createdAt: 0, updatedAt: 0 },
+                    { id: 'theme_add_first', title: 'Decorator', description: 'Added your first theme to your library', category: 'USER', pointsValue: 5, icon: 'Palette', isActive: true, triggerType: 'THEME_FIRST_ADD', createdBy: 'SYSTEM', requirements: { type: 'ACTION' }, createdAt: 0, updatedAt: 0 },
+                    { id: 'theme_creator_fan', title: 'Inspired', description: 'Someone added your theme to their library', category: 'ARTIST', pointsValue: 10, icon: 'Sparkles', isActive: true, triggerType: 'THEME_RECEIVED', createdBy: 'SYSTEM', requirements: { type: 'ACTION' }, createdAt: 0, updatedAt: 0 },
+                    ...allAchievements.filter(a => !['welcome_to_playground','first_play','first_upload','first_follow','lucky_roll','live_viewer','commenter','hns_first','hns_both_slots','hns_artist_10','hns_artist_50','theme_add_first','theme_creator_fan'].includes(a.id))
+                  ].map((ach: any) => (
+                    <div key={ach.id} className="flex items-center gap-5 p-5 bg-white/5 border border-white/10 rounded-2xl hover:border-white/20 transition-all group">
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: ach.backgroundColor || 'rgba(255,140,0,0.2)' }}>
+                        <Trophy size={20} className="text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-black uppercase tracking-tight text-white">{ach.title}</p>
+                          <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${ach.category === 'USER' ? 'bg-blue-500/20 text-blue-400' : ach.category === 'ARTIST' ? 'bg-purple-500/20 text-purple-400' : 'bg-orange-500/20 text-orange-400'}`}>
+                            {ach.category}
+                          </span>
+                          {ach.createdBy === 'SYSTEM' && (
+                            <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-white/5 text-white/30">Platform</span>
+                          )}
+                        </div>
+                        <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-0.5">{ach.description}</p>
+                        <p className="text-[9px] font-black text-white/20 uppercase tracking-widest mt-0.5">Trigger: {ach.triggerType || '—'}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-2xl font-black text-white">+{ach.pointsValue || 0}</p>
+                        <p className="text-[8px] font-black uppercase tracking-widest text-white/20">pts</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => setEditingAch({ ...ach })}
+                          className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-all"
+                        >
+                          <Edit2 size={14} className="text-white/60" />
+                        </button>
+                        {ach.id && !['welcome_to_playground','first_play','first_upload'].includes(ach.id) && (
+                          <button
+                            onClick={async () => {
+                              if (ach.id) {
+                                await deactivateAchievement(ach.id);
+                                setAllAchievements(prev => prev.filter(a => a.id !== ach.id));
+                              }
+                            }}
+                            className="p-2 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-all"
+                          >
+                            <Trash2 size={14} className="text-red-400" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Edit / Create Modal */}
+                <AnimatePresence>
+                  {editingAch && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+                      onClick={() => setEditingAch(null)}
+                    >
+                      <motion.div
+                        initial={{ scale: 0.95, y: 20 }}
+                        animate={{ scale: 1, y: 0 }}
+                        exit={{ scale: 0.95, y: 20 }}
+                        onClick={e => e.stopPropagation()}
+                        className="w-full max-w-lg bg-[#0a0a0a] border border-white/10 rounded-[2.5rem] p-10 space-y-6"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-2xl bg-[#FF8C00]/20 flex items-center justify-center">
+                            <Trophy size={18} className="text-[#FF8C00]" />
+                          </div>
+                          <h3 className="text-lg font-black uppercase tracking-widest">
+                            {editingAch.id ? 'Edit Achievement' : 'New Achievement'}
+                          </h3>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-[9px] font-black uppercase tracking-widest text-white/40 block mb-2">Title</label>
+                            <input
+                              value={editingAch.title || ''}
+                              onChange={e => setEditingAch(a => ({ ...a!, title: e.target.value }))}
+                              className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-white font-bold outline-none focus:ring-2 ring-[#FF8C00]/40"
+                              placeholder="Achievement title..."
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] font-black uppercase tracking-widest text-white/40 block mb-2">Description</label>
+                            <input
+                              value={editingAch.description || ''}
+                              onChange={e => setEditingAch(a => ({ ...a!, description: e.target.value }))}
+                              className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-white font-bold outline-none focus:ring-2 ring-[#FF8C00]/40"
+                              placeholder="Short description..."
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-[9px] font-black uppercase tracking-widest text-white/40 block mb-2">Category</label>
+                              <select
+                                value={editingAch.category || 'USER'}
+                                onChange={e => setEditingAch(a => ({ ...a!, category: e.target.value as any }))}
+                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white font-bold outline-none focus:ring-2 ring-[#FF8C00]/40"
+                              >
+                                <option value="USER">User</option>
+                                <option value="ARTIST">Artist / Creator</option>
+                                <option value="PLATFORM">Platform</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-black uppercase tracking-widest text-white/40 block mb-2">Points Value</label>
+                              <input
+                                type="number"
+                                value={editingAch.pointsValue || 10}
+                                onChange={e => setEditingAch(a => ({ ...a!, pointsValue: parseInt(e.target.value) || 0 }))}
+                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white font-bold outline-none focus:ring-2 ring-[#FF8C00]/40"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-[9px] font-black uppercase tracking-widest text-white/40 block mb-2">Trigger Type</label>
+                            <input
+                              value={editingAch.triggerType || ''}
+                              onChange={e => setEditingAch(a => ({ ...a!, triggerType: (e.target.value || 'CUSTOM') as any }))}
+                              className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-white font-bold outline-none focus:ring-2 ring-[#FF8C00]/40"
+                              placeholder="e.g. FIRST_SIGN_IN, FIRST_UPLOAD..."
+                            />
+                          </div>
+                          <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl">
+                            <div>
+                              <p className="text-xs font-black uppercase tracking-widest text-white">Active</p>
+                              <p className="text-[9px] text-white/30 font-bold">Disable to hide from users</p>
+                            </div>
+                            <button onClick={() => setEditingAch(a => ({ ...a!, isActive: !a?.isActive }))} className="text-white/60 hover:text-white transition-colors">
+                              {editingAch.isActive ? <ToggleRight size={28} className="text-[#FF8C00]" /> : <ToggleLeft size={28} />}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                          <button onClick={() => setEditingAch(null)} className="flex-1 py-4 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-all">
+                            Cancel
+                          </button>
+                          <button
+                            disabled={achSaving || !editingAch.title?.trim()}
+                            onClick={async () => {
+                              setAchSaving(true);
+                              try {
+                                if (editingAch.id) {
+                                  await updateAchievement(editingAch.id, { title: editingAch.title, description: editingAch.description, category: editingAch.category as any, pointsValue: editingAch.pointsValue, triggerType: editingAch.triggerType, isActive: editingAch.isActive });
+                                  setAllAchievements(prev => prev.map(a => a.id === editingAch.id ? { ...a, ...editingAch as Achievement } : a));
+                                } else {
+                                  const created = await createAchievement({ title: editingAch.title!, description: editingAch.description || '', category: (editingAch.category as any) || 'USER', triggerType: (editingAch.triggerType || 'CUSTOM') as any, icon: editingAch.icon || 'Trophy', pointsValue: editingAch.pointsValue || 10, isActive: true, createdBy: 'SYSTEM', requirements: { type: 'ACTION' } });
+                                  if (created) setAllAchievements(prev => [...prev, created]);
+                                }
+                                setEditingAch(null);
+                              } catch (e) { console.error(e); }
+                              finally { setAchSaving(false); }
+                            }}
+                            className="flex-1 py-4 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest disabled:opacity-30 transition-all hover:scale-[1.02]"
+                          >
+                            {achSaving ? 'Saving…' : editingAch.id ? 'Save Changes' : 'Create Achievement'}
+                          </button>
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+
+            {activeTab === 'ANALYTICS' && (
+              <motion.div
+                key="analytics"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <AdminAnalyticsDashboard />
+              </motion.div>
+            )}
+
             {activeTab === 'STAFF' && (
-              <motion.div 
+              <motion.div
                 key="staff"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1141,7 +1557,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                             }`}>
                               {staff.role}
                             </span>
-                            <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">{staff.email}</span>
                           </div>
                         </div>
                       </div>
@@ -1369,9 +1784,49 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                     ))}
                   </div>
                 </div>
+
+                <div className="p-8 bg-white/5 border border-white/5 rounded-[3rem] space-y-6">
+                  <h3 className="text-xl font-black uppercase tracking-tight">Apps &amp; Tools</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center justify-between p-6 bg-white/5 border border-white/5 rounded-2xl">
+                      <div>
+                        <span className="font-bold text-sm tracking-wide">Crossover Converter</span>
+                        <p className="text-white/40 text-xs mt-1 normal-case tracking-normal font-normal">Standalone media converter on the app page</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (!systemSettings) return;
+                          const updated = { ...systemSettings, crossoverEnabled: !(systemSettings.crossoverEnabled !== false) };
+                          await updateSystemSettingsConfig(updated);
+                          setSystemSettings(updated);
+                        }}
+                        className={`w-14 h-8 rounded-full transition-all ${systemSettings?.crossoverEnabled !== false ? 'bg-green-500' : 'bg-white/10'}`}
+                      >
+                        <div className={`w-6 h-6 bg-white rounded-full transition-transform ${systemSettings?.crossoverEnabled !== false ? 'translate-x-7' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between p-6 bg-white/5 border border-white/5 rounded-2xl">
+                      <div>
+                        <span className="font-bold text-sm tracking-wide">Content Licensing</span>
+                        <p className="text-white/40 text-xs mt-1 normal-case tracking-normal font-normal">Creative-Commons licenses + Fabula music sync-licensing marketplace. ON = live for all users.</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          const next = !contentLicensingOn;
+                          setContentLicensingOn(next);
+                          try { await updateFlag('CONTENT_LICENSING', { enabled: next, adminOnly: false, rolloutPercentage: 100 }, currentUser?.uid || ''); }
+                          catch (e) { setContentLicensingOn(!next); console.error('[AdminDashboard] CONTENT_LICENSING toggle failed to persist:', e); alert('Could not save the licensing flag — check you have admin access and the feature-flag rule is deployed.'); }
+                        }}
+                        className={`w-14 h-8 rounded-full transition-all ${contentLicensingOn ? 'bg-green-500' : 'bg-white/10'}`}
+                      >
+                        <div className={`w-6 h-6 bg-white rounded-full transition-transform ${contentLicensingOn ? 'translate-x-7' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </motion.div>
             )}
-            
+
             {activeTab === 'MAINTENANCE' && (
               <motion.div 
                 key="maintenance"

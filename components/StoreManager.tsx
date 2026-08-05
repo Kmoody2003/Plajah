@@ -50,6 +50,26 @@ const StoreManager: React.FC<StoreManagerProps> = ({ artistId, initialMerch, set
     isDigitalAsset: false
   });
 
+  // Rich product-page fields — kept as raw text, parsed on save so typing is smooth.
+  const emptyRich = { images: '', features: '', specs: '', colors: '', sizes: '', isClothing: false };
+  const [rich, setRich] = useState(emptyRich);
+  const parseRich = (r: typeof emptyRich) => {
+    const lines = (s: string) => s.split('\n').map(x => x.trim()).filter(Boolean);
+    const images = lines(r.images);
+    const features = lines(r.features);
+    const specs = lines(r.specs).map(l => { const i = l.indexOf(':'); return i > 0 ? { label: l.slice(0, i).trim(), value: l.slice(i + 1).trim() } : { label: l, value: '' }; });
+    const colors = lines(r.colors).map(l => { const m = l.match(/#[0-9a-fA-F]{3,8}/); return { name: l.replace(/#[0-9a-fA-F]{3,8}/, '').trim() || 'Color', hex: m ? m[0] : '#888888' }; });
+    const sizes = r.sizes.split(',').map(x => x.trim()).filter(Boolean);
+    return {
+      ...(images.length ? { images } : {}),
+      ...(features.length ? { features } : {}),
+      ...(specs.length ? { specs } : {}),
+      ...(colors.length ? { colorOptions: colors } : {}),
+      ...(sizes.length ? { sizeOptions: sizes } : {}),
+      ...(r.isClothing ? { isClothing: true } : {}),
+    };
+  };
+
   useEffect(() => {
     setMerch(initialMerch);
     loadUserAssets();
@@ -85,12 +105,13 @@ const StoreManager: React.FC<StoreManagerProps> = ({ artistId, initialMerch, set
   };
 
   const handleAddItem = async () => {
-    const id = await addMerchItem(newItem);
+    const id = await addMerchItem({ ...newItem, ...parseRich(rich) } as any);
     if (id) {
       const updatedMerch = await fetchArtistMerch(artistId);
       setMerch(updatedMerch);
       onUpdate(updatedMerch);
       setIsAdding(false);
+      setRich(emptyRich);
       setNewItem({
         ownerId: artistId,
         title: '',
@@ -397,8 +418,43 @@ const StoreManager: React.FC<StoreManagerProps> = ({ artistId, initialMerch, set
                   </div>
                 </div>
 
+                {/* ── Rich product page — powers the high-end product experience ── */}
+                <div className="space-y-6 pt-6 border-t border-white/5">
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-4">Rich Product Page</label>
+                    <button
+                      onClick={() => setRich(r => ({ ...r, isClothing: !r.isClothing }))}
+                      className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${rich.isClothing ? 'bg-small-orange/20 border-small-orange/40 text-small-orange' : 'border-white/10 text-white/40 hover:text-white/70'}`}
+                    >
+                      {rich.isClothing ? '✓ Clothing · AI Try-On on' : 'Mark as clothing (enables AI Try-On)'}
+                    </button>
+                  </div>
+                  <div className="grid lg:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-4">Gallery images — one URL per line</label>
+                      <textarea value={rich.images} onChange={e => setRich(r => ({ ...r, images: e.target.value }))} placeholder={`https://…/front.jpg\nhttps://…/back.jpg`} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-xs focus:outline-none focus:border-small-orange/50 min-h-[80px]" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-4">Highlights — one per line</label>
+                      <textarea value={rich.features} onChange={e => setRich(r => ({ ...r, features: e.target.value }))} placeholder={`Heavyweight cotton\nSoft-hand print`} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-xs focus:outline-none focus:border-small-orange/50 min-h-[80px]" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-4">Specs — "Label: Value" per line</label>
+                      <textarea value={rich.specs} onChange={e => setRich(r => ({ ...r, specs: e.target.value }))} placeholder={`Material: 100% cotton\nWeight: 6.5 oz`} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-xs focus:outline-none focus:border-small-orange/50 min-h-[80px]" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-4">Colors — "Name #hex" per line</label>
+                      <textarea value={rich.colors} onChange={e => setRich(r => ({ ...r, colors: e.target.value }))} placeholder={`Vintage Black #1a1a1a\nBone #e8e2d5`} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-xs focus:outline-none focus:border-small-orange/50 min-h-[80px]" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-4">Sizes — comma separated</label>
+                    <input value={rich.sizes} onChange={e => setRich(r => ({ ...r, sizes: e.target.value }))} placeholder="XS, S, M, L, XL, 2XL" className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-xs focus:outline-none focus:border-small-orange/50" />
+                  </div>
+                </div>
+
                 <div className="flex gap-4 pt-6 border-t border-white/5">
-                  <button 
+                  <button
                     onClick={handleAddItem}
                     className="flex-1 py-5 bg-white text-black rounded-full font-black text-xs uppercase tracking-widest hover:scale-105 transition-all active:scale-95 shadow-xl"
                   >

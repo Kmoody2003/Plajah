@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { ArchiveVideo } from '../services/archiveContentService';
 import { Album } from '../types';
 import { Play } from 'lucide-react';
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 
 interface ExploreViewProps {
   movies: ArchiveVideo[];
@@ -48,7 +49,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({ movies, tvSeries, loca
                 className="group relative cursor-pointer"
               >
                 <div className="aspect-[2/3] rounded-2xl overflow-hidden glass mb-4 relative">
-                  <img src={coverImage || 'https://picsum.photos/300/450'} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                  <img src={thumb(coverImage, THUMB.card) || 'https://picsum.photos/300/450'} loading="lazy" decoding="async" onError={onThumbError(coverImage)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <Play className="text-white" size={32} />
                   </div>
@@ -75,7 +76,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({ movies, tvSeries, loca
                 className="group w-64 md:w-80 shrink-0 cursor-pointer"
               >
                 <div className="aspect-video rounded-2xl overflow-hidden glass mb-4 relative">
-                  <img src={item.coverImage || 'https://picsum.photos/400/225'} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <img src={thumb(item.coverImage, THUMB.card) || 'https://picsum.photos/400/225'} loading="lazy" decoding="async" onError={onThumbError(item.coverImage)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                   <div className="absolute inset-0 flex items-center justify-center">
                      <div className="w-12 h-12 rounded-full glass flex items-center justify-center bg-black/40 backdrop-blur-md">
                        <Play className="text-white ml-1" size={16} />

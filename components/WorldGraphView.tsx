@@ -1,8 +1,8 @@
-import React, { useMemo, useRef, useCallback } from 'react';
+import React, { useMemo, useRef, useCallback, useEffect, useState } from 'react';
 import ForceGraph3D, { ForceGraphMethods } from 'react-force-graph-3d';
+import * as THREE from 'three';
 import { IPWorld, Character, LoreEntry, TimelineEvent, Album, Video } from '../types';
-import { motion, AnimatePresence } from 'motion/react';
-import { X, ExternalLink, Zap } from 'lucide-react';
+import { X, Zap, Volume2, VolumeX, RotateCcw, ExternalLink, ChevronRight, Crosshair } from 'lucide-react';
 
 interface WorldGraphViewProps {
   world: IPWorld;
@@ -13,95 +13,97 @@ interface WorldGraphViewProps {
   videos: Video[];
   onClose?: () => void;
   onNodeClick?: (node: any) => void;
+  onNavigate?: (type: string, id: string) => void;
   isEmbedded?: boolean;
 }
 
-const WorldGraphView: React.FC<WorldGraphViewProps> = ({ 
-  world, 
-  characters, 
-  loreEntries, 
-  timelineEvents, 
-  albums, 
-  videos, 
+const WorldGraphView: React.FC<WorldGraphViewProps> = ({
+  world,
+  characters,
+  loreEntries,
+  timelineEvents,
+  albums,
+  videos,
   onClose,
   onNodeClick,
-  isEmbedded = false
+  onNavigate,
+  isEmbedded = false,
 }) => {
   const fgRef = useRef<ForceGraphMethods>(null);
+  const nebulaAdded = useRef(false);
+  const hasExploded = useRef(false);
+  const introAnimDone = useRef(false);
+  // Prevent any auto-camera movement after the user has manually interacted
+  const userHasMoved = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  // Keep dimensions in a ref too so callbacks always read the latest value
+  const dimensionsRef = useRef({ width: 0, height: 0 });
 
+  const [hoveredNode, setHoveredNode] = useState<any>(null);
+  const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 });
+  const [previewNode, setPreviewNode] = useState<any>(null);
+  const [clickedNode, setClickedNode] = useState<any>(null);
+  const [audioMuted, setAudioMuted] = useState(false);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+  // Track real container size — only update canvas dimensions, never touch the camera
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      dimensionsRef.current = { width: w, height: h };
+      setDimensions({ width: w, height: h });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // ── Graph data ─────────────────────────────────────────────────────────────
   const graphData = useMemo(() => {
     const nodes: any[] = [];
     const links: any[] = [];
 
-    // Root World Node
     nodes.push({
       id: world.id,
       name: world.name,
       type: 'WORLD',
       color: '#ff8c00',
-      size: 20,
-      val: 30
+      size: 18,
+      val: 30,
+      img: world.coverImage,
     });
 
-    // Characters
     characters.forEach(char => {
-      nodes.push({
-        id: char.id,
-        name: char.name,
-        type: 'CHARACTER',
-        color: '#4A90E2',
-        size: 10,
-        img: char.imageUrl
-      });
+      nodes.push({ id: char.id, name: char.name, type: 'CHARACTER', color: '#4A90E2', size: 9, img: char.imageUrl, description: char.bio });
       links.push({ source: world.id, target: char.id, label: 'INHABITANT' });
     });
 
-    // Lore
     loreEntries.forEach(entry => {
-      nodes.push({
-        id: entry.id,
-        name: entry.title,
-        type: 'LORE',
-        color: '#9b59b6',
-        size: 8
-      });
+      nodes.push({ id: entry.id, name: entry.title, type: 'LORE', color: '#9b59b6', size: 7, description: entry.content?.slice(0, 140) });
       links.push({ source: world.id, target: entry.id, label: 'KNOWLEDGE' });
     });
 
-    // Timeline
     timelineEvents.forEach(event => {
-      nodes.push({
-        id: event.id,
-        name: event.title,
-        type: 'TIMELINE',
-        color: '#2ecc71',
-        size: 6
-      });
+      nodes.push({ id: event.id, name: event.title, type: 'TIMELINE', color: '#2ecc71', size: 6 });
       links.push({ source: world.id, target: event.id, label: 'EVENT' });
-      
-      // Link events to characters if defined
       event.linkedCharacterIds?.forEach(cid => {
-        if (characters.find(c => c.id === cid)) {
-           links.push({ source: cid, target: event.id, label: 'PARTICIPANT' });
-        }
+        if (characters.find(c => c.id === cid)) links.push({ source: cid, target: event.id, label: 'PARTICIPANT' });
       });
-
-      // Link events to lore if defined
       event.linkedLoreIds?.forEach(lid => {
-        if (loreEntries.find(l => l.id === lid)) {
-           links.push({ source: lid, target: event.id, label: 'HISTORICAL_CONTEXT' });
-        }
+        if (loreEntries.find(l => l.id === lid)) links.push({ source: lid, target: event.id, label: 'HISTORICAL_CONTEXT' });
       });
-
-      // Link events to assets if defined
       event.linkedAssetIds?.forEach(aid => {
-        if (albums.find(a => a.id === aid) || videos.find(v => v.id === aid)) {
-           links.push({ source: aid, target: event.id, label: 'MEDIA_REFERENCE' });
-        }
+        if (albums.find(a => a.id === aid) || videos.find(v => v.id === aid))
+          links.push({ source: aid, target: event.id, label: 'MEDIA_REFERENCE' });
       });
     });
 
-    // Assets: Albums
     albums.forEach(album => {
       if (world.assetIds?.includes(album.id)) {
         nodes.push({
@@ -109,13 +111,14 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
           name: album.title,
           type: 'ALBUM',
           color: '#f1c40f',
-          size: 7
+          size: 8,
+          img: album.coverImage,
+          previewUrl: album.tracks?.[0]?.url,
         });
         links.push({ source: world.id, target: album.id, label: 'SOUNDSCAPE' });
       }
     });
 
-    // Assets: Videos
     videos.forEach(video => {
       if (world.assetIds?.includes(video.id)) {
         nodes.push({
@@ -123,102 +126,524 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
           name: video.title,
           type: 'VIDEO',
           color: '#e74c3c',
-          size: 7
+          size: 8,
+          img: video.thumbnailUrl,
+          mediaUrl: video.url,
+          embedUrl: video.embedUrl,
         });
         links.push({ source: world.id, target: video.id, label: 'VISUAL' });
       }
     });
 
-    // Custom links from world data
     world.graphConnections?.forEach(conn => {
-       links.push({ 
-         source: conn.sourceId, 
-         target: conn.targetId, 
-         label: conn.relationshipType 
-       });
+      links.push({ source: conn.sourceId, target: conn.targetId, label: conn.relationshipType });
     });
 
     return { nodes, links };
   }, [world, characters, loreEntries, timelineEvents, albums, videos]);
 
-  const handleNodeClick = useCallback((node: any) => {
-    // Aim at node from outside it
-    const distance = 40;
-    const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z);
+  // ── Force configuration ────────────────────────────────────────────────────
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const fg = fgRef.current as any;
+      if (!fg) return;
+      fg.d3Force('charge')?.strength(-600).distanceMax(700);
+      fg.d3Force('link')?.distance(140).strength(0.35);
+      fg.d3Force('center')?.strength(0.04);
+      // Only reheat if user hasn't moved — avoids snapping nodes under the user's cursor
+      if (!userHasMoved.current) fg.d3ReheatSimulation();
+    }, 80);
+    return () => clearTimeout(t);
+  }, [graphData]);
 
-    if (fgRef.current) {
+  // ── Reset: zoom to fit all, clear selection ────────────────────────────────
+  const handleReset = useCallback(() => {
+    userHasMoved.current = false;
+    setClickedNode(null);
+    const { width, height } = dimensionsRef.current;
+    const padding = Math.min(width || 400, height || 400) * 0.08;
+    fgRef.current?.zoomToFit(900, padding);
+  }, []);
+
+  // ── Focus selected orb ─────────────────────────────────────────────────────
+  const handleFocusSelected = useCallback(() => {
+    if (!clickedNode || !fgRef.current) return;
+    const dist = 120;
+    fgRef.current.cameraPosition(
+      { x: clickedNode.x, y: clickedNode.y, z: (clickedNode.z ?? 0) + dist },
+      { x: clickedNode.x, y: clickedNode.y, z: clickedNode.z ?? 0 },
+      800,
+    );
+  }, [clickedNode]);
+
+  // ── Nebula background ──────────────────────────────────────────────────────
+  const setupNebula = useCallback(() => {
+    const fg = fgRef.current as any;
+    if (!fg?.scene || nebulaAdded.current) return;
+    nebulaAdded.current = true;
+    const scene: THREE.Scene = fg.scene();
+    const group = new THREE.Group();
+
+    // Dense star field
+    const starCount = 9000;
+    const positions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      const radius = 900 + Math.random() * 600;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      positions[i * 3]     = radius * Math.sin(phi) * Math.cos(theta);
+      positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+      positions[i * 3 + 2] = radius * Math.cos(phi);
+    }
+    const starGeo = new THREE.BufferGeometry();
+    starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, transparent: true, opacity: 0.7, sizeAttenuation: false });
+    group.add(new THREE.Points(starGeo, starMat));
+
+    // Colored nebula blobs
+    [
+      { color: 0x3d1a8a, x: 350, y: -180, z: -350, r: 380 },
+      { color: 0x1a2a7a, x: -380, y: 280, z: 220, r: 320 },
+      { color: 0x6a1a3a, x: 180, y: 380, z: -280, r: 350 },
+      { color: 0x1a5a4a, x: -280, y: -320, z: 380, r: 280 },
+      { color: 0x4a2a1a, x: 420, y: 200, z: 300, r: 260 },
+    ].forEach(({ color, x, y, z, r }) => {
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(r, 12, 12),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.08, side: THREE.BackSide }),
+      );
+      mesh.position.set(x, y, z);
+      group.add(mesh);
+    });
+
+    // Dark outer shell
+    group.add(new THREE.Mesh(
+      new THREE.SphereGeometry(1700, 32, 32),
+      new THREE.MeshBasicMaterial({ color: 0x00000d, side: THREE.BackSide }),
+    ));
+
+    scene.add(group);
+  }, []);
+
+  // ── Node objects: glow halo + canvas sprite ────────────────────────────────
+  const nodeThreeObject = useCallback((node: any) => {
+    const r = (node.size || 6) * 2;
+    const group = new THREE.Group();
+
+    // Outer glow halo
+    group.add(new THREE.Mesh(
+      new THREE.SphereGeometry(r * 2.1, 20, 20),
+      new THREE.MeshBasicMaterial({ color: node.color || '#ffffff', transparent: true, opacity: 0.06, side: THREE.BackSide }),
+    ));
+
+    if (node.img) {
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d')!;
+      const tex = new THREE.CanvasTexture(canvas);
+
+      const drawFallback = () => {
+        ctx.clearRect(0, 0, size, size);
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+        ctx.fillStyle = node.color || '#ffffff';
+        ctx.globalAlpha = 0.7;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        tex.needsUpdate = true;
+      };
+
+      const image = new Image();
+      image.crossOrigin = 'anonymous';
+      image.onload = () => {
+        ctx.clearRect(0, 0, size, size);
+
+        // 1. Artwork clipped to circle
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(image, 0, 0, size, size);
+        ctx.restore();
+
+        // 2. Color tint overlay
+        ctx.globalCompositeOperation = 'source-atop';
+        ctx.globalAlpha = 0.4;
+        ctx.fillStyle = node.color || '#ffffff';
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // 3. Radial fade at rim
+        ctx.globalCompositeOperation = 'destination-out';
+        const grad = ctx.createRadialGradient(size / 2, size / 2, size * 0.25, size / 2, size / 2, size / 2);
+        grad.addColorStop(0,    'rgba(0,0,0,0)');
+        grad.addColorStop(0.55, 'rgba(0,0,0,0)');
+        grad.addColorStop(1,    'rgba(0,0,0,1)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, size, size);
+        ctx.globalCompositeOperation = 'source-over';
+
+        tex.needsUpdate = true;
+      };
+      image.onerror = drawFallback;
+      image.src = node.img;
+
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.95 }));
+      sprite.scale.set(r * 3.4, r * 3.4, 1);
+      group.add(sprite);
+    } else {
+      // No artwork: glowing sphere
+      group.add(new THREE.Mesh(
+        new THREE.SphereGeometry(r, 20, 20),
+        new THREE.MeshBasicMaterial({ color: node.color || '#ffffff', transparent: true, opacity: 0.72 }),
+      ));
+    }
+
+    return group;
+  }, []);
+
+  // ── Engine stop: intro once, then never touch the camera again ─────────────
+  const handleEngineStop = useCallback(() => {
+    setupNebula();
+    // Only fire the cinematic intro on the very first stop
+    if (introAnimDone.current) return;
+    introAnimDone.current = true;
+    const { width, height } = dimensionsRef.current;
+    const padding = Math.min(width || 400, height || 400) * 0.08;
+    const fg = fgRef.current as any;
+    if (fg?.camera) fg.camera().position.set(0, 0, 4500);
+    setTimeout(() => fgRef.current?.zoomToFit(2200, padding), 80);
+  }, [setupNebula]);
+
+  // ── Click: explosion burst on first touch, camera center, info card ─────────
+  const handleNodeClick = useCallback((node: any) => {
+    userHasMoved.current = true;
+    const fg = fgRef.current as any;
+
+    // One-time "explode" burst on first interaction
+    if (!hasExploded.current && fg) {
+      hasExploded.current = true;
+      fg.d3Force('charge')?.strength(-1600).distanceMax(900);
+      fg.d3ReheatSimulation();
+      setTimeout(() => {
+        fg.d3Force('charge')?.strength(-600).distanceMax(700);
+        fg.d3ReheatSimulation();
+      }, 2200);
+    }
+
+    // Smooth camera zoom to node
+    if (fgRef.current && node.x != null) {
       fgRef.current.cameraPosition(
-        { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio }, // new pos
-        node, // lookAt title
-        3000  // ms transition duration
+        { x: node.x, y: node.y, z: (node.z ?? 0) + 100 },
+        { x: node.x, y: node.y, z: node.z ?? 0 },
+        1000,
       );
     }
-    
-    if (onNodeClick) onNodeClick(node);
+
+    setClickedNode(node);
+    onNodeClick?.(node);
   }, [onNodeClick]);
 
+  // ── Background click: deselect node ────────────────────────────────────────
+  const handleBackgroundClick = useCallback(() => {
+    setClickedNode(null);
+  }, []);
+
+  // ── Hover: tooltip + 2-second preview trigger ──────────────────────────────
+  const stopPreview = useCallback(() => {
+    setPreviewNode(null);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  }, []);
+
+  const handleNodeHover = useCallback((node: any) => {
+    if (hoverTimerRef.current) { clearTimeout(hoverTimerRef.current); hoverTimerRef.current = null; }
+    setHoveredNode(node ?? null);
+    if (!node) { stopPreview(); return; }
+    const hasMedia = node.previewUrl || node.mediaUrl;
+    if (!hasMedia) return;
+    hoverTimerRef.current = setTimeout(() => {
+      setPreviewNode(node);
+      if (node.type === 'ALBUM' && node.previewUrl) {
+        if (!audioRef.current) audioRef.current = new Audio();
+        audioRef.current.src = node.previewUrl;
+        audioRef.current.volume = audioMuted ? 0 : 0.55;
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {});
+      }
+    }, 2000);
+  }, [audioMuted, stopPreview]);
+
+  const toggleMute = () => {
+    setAudioMuted(m => {
+      if (audioRef.current) audioRef.current.volume = m ? 0.55 : 0;
+      return !m;
+    });
+  };
+
+  useEffect(() => () => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ''; }
+  }, []);
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  const isYouTubeOrVimeo = (url?: string) =>
+    !!url && (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('vimeo.com'));
+
   return (
-    <div className={`${isEmbedded ? 'relative h-full w-full' : 'fixed inset-0 z-[2000]'} bg-black`}>
-      {!isEmbedded && <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_#000_100%)] pointer-events-none z-10" />}
-      
-      {/* UI Overlay */}
-      <div className={`absolute top-0 left-0 right-0 p-8 flex items-center justify-between z-20 ${isEmbedded ? 'opacity-0 hover:opacity-100 transition-opacity' : ''}`}>
+    <div
+      ref={containerRef}
+      className={`${isEmbedded ? 'relative h-full w-full' : 'fixed inset-0 z-[2000]'} bg-[#00000d] overflow-hidden`}
+      onMouseMove={e => setHoverPos({ x: e.clientX, y: e.clientY })}
+    >
+      {/* Header */}
+      <div className={`absolute top-0 left-0 right-0 p-8 flex items-center justify-between z-20 pointer-events-none ${isEmbedded ? 'opacity-0 hover:opacity-100 transition-opacity' : ''}`}>
         {!isEmbedded && (
           <div>
-            <h2 className="text-3xl font-black uppercase tracking-widest text-primary italic leading-none mb-2">
-              Universe Topology
-            </h2>
-            <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em]">
-              Interactive 3D Connection Mapping: {world.name}
-            </p>
+            <h2 className="text-3xl font-black uppercase tracking-widest text-primary italic leading-none mb-2">Universe Topology</h2>
+            <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em]">Interactive 3D Connection Mapping: {world.name}</p>
           </div>
         )}
-        {onClose && (
-          <button 
-            onClick={onClose}
-            className="p-4 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all text-white/40 hover:text-white ml-auto"
+        <div className="flex items-center gap-3 ml-auto pointer-events-auto">
+          {/* Focus Selected — only visible when an orb is selected */}
+          {clickedNode && (
+            <button
+              onClick={handleFocusSelected}
+              title={`Focus: ${clickedNode.name}`}
+              className="flex items-center gap-2 px-3 py-2.5 bg-white/5 border border-white/10 rounded-full hover:bg-[#FF8C00]/10 hover:border-[#FF8C00]/40 transition-all text-white/40 hover:text-[#FF8C00]"
+            >
+              <Crosshair size={16} />
+              {!isEmbedded && <span className="text-[10px] font-black uppercase tracking-widest">Focus</span>}
+            </button>
+          )}
+          <button
+            onClick={handleReset}
+            title="Reset view"
+            className="p-3 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all text-white/40 hover:text-white"
           >
-            <X size={24} />
+            <RotateCcw size={18} />
           </button>
-        )}
-      </div>
-
-      <div className={`absolute bottom-8 left-8 p-6 glass rounded-2xl border border-white/10 z-20 max-w-xs ${isEmbedded ? 'scale-75 origin-bottom-left' : ''}`}>
-        <h3 className="text-xs font-black uppercase tracking-widest text-primary mb-4 flex items-center gap-2">
-          <Zap size={14} /> Legend
-        </h3>
-        <div className="space-y-2">
-          <LegendItem color="#ff8c00" label="Cosmic Seed (World)" />
-          <LegendItem color="#4A90E2" label="Inhabitants" />
-          <LegendItem color="#9b59b6" label="Chronicle (Lore)" />
-          <LegendItem color="#2ecc71" label="Nexus (Events)" />
-          <LegendItem color="#f1c40f" label="Soundscapes (Albums)" />
-          <LegendItem color="#e74c3c" label="Visuals (Videos)" />
+          {onClose && (
+            <button onClick={onClose} className="p-4 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all text-white/40 hover:text-white">
+              <X size={24} />
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Legend */}
+      <div className={`absolute z-20 pointer-events-none bg-black/50 backdrop-blur-md border border-white/10 ${isEmbedded ? 'bottom-3 left-3 p-3 rounded-xl' : 'bottom-8 left-8 p-5 rounded-2xl'}`}>
+        <h3 className={`font-black uppercase tracking-widest text-primary flex items-center gap-2 ${isEmbedded ? 'text-[9px] mb-2' : 'text-xs mb-4'}`}><Zap size={isEmbedded ? 10 : 14} /> Legend</h3>
+        <div className={isEmbedded ? 'space-y-1' : 'space-y-2'}>
+          <LegendItem color="#ff8c00" label="Cosmic Seed (World)" compact={isEmbedded} />
+          <LegendItem color="#4A90E2" label="Inhabitants" compact={isEmbedded} />
+          <LegendItem color="#9b59b6" label="Chronicle (Lore)" compact={isEmbedded} />
+          <LegendItem color="#2ecc71" label="Nexus (Events)" compact={isEmbedded} />
+          <LegendItem color="#f1c40f" label="Soundscapes (Albums)" compact={isEmbedded} />
+          <LegendItem color="#e74c3c" label="Visuals (Videos)" compact={isEmbedded} />
+        </div>
+      </div>
+
+      {/* Controls hint */}
+      {!isEmbedded && (
+        <div className="absolute bottom-8 right-8 z-20 pointer-events-none text-right">
+          <p className="text-[9px] font-bold text-white/15 uppercase tracking-widest leading-relaxed">
+            Drag to orbit · Scroll to zoom<br />Click orb to select · Right-drag to pan
+          </p>
+        </div>
+      )}
+
+      {/* Hover tooltip */}
+      {hoveredNode && !isEmbedded && (
+        <div
+          className="fixed z-40 pointer-events-none bg-black/85 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3 max-w-[200px] shadow-xl"
+          style={{
+            left: Math.min(Math.max(hoverPos.x + 18, 8), window.innerWidth - 216),
+            top: Math.min(Math.max(hoverPos.y - 56, 8), window.innerHeight - 80),
+          }}
+        >
+          <p className="text-white font-black text-xs uppercase tracking-wider truncate">{hoveredNode.name}</p>
+          <p className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-0.5">{hoveredNode.type}</p>
+          {(hoveredNode.previewUrl || hoveredNode.mediaUrl) && !previewNode && (
+            <p className="text-white/25 text-[9px] mt-1.5 italic">Hold to preview…</p>
+          )}
+        </div>
+      )}
+
+      {/* Video preview panel */}
+      {previewNode?.type === 'VIDEO' && previewNode.mediaUrl && !isYouTubeOrVimeo(previewNode.mediaUrl) && (
+        <div
+          className="fixed z-40 pointer-events-none shadow-2xl rounded-2xl overflow-hidden border border-white/15"
+          style={{
+            left: Math.min(Math.max(hoverPos.x + 18, 8), window.innerWidth - 216),
+            top: Math.min(Math.max(hoverPos.y - 145, 8), window.innerHeight - 160),
+            width: Math.min(200, window.innerWidth - 24),
+          }}
+        >
+          <video key={previewNode.id} src={previewNode.mediaUrl} autoPlay muted loop playsInline className="w-full h-28 object-cover" />
+          <div className="bg-black/80 px-3 py-2">
+            <p className="text-white text-[9px] font-black uppercase tracking-widest truncate">{previewNode.name}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Video thumbnail panel (YouTube/Vimeo) */}
+      {previewNode?.type === 'VIDEO' && (previewNode.img && (isYouTubeOrVimeo(previewNode.mediaUrl) || !previewNode.mediaUrl)) && (
+        <div
+          className="fixed z-40 pointer-events-none shadow-2xl rounded-2xl overflow-hidden border border-white/15"
+          style={{
+            left: Math.min(Math.max(hoverPos.x + 18, 8), window.innerWidth - 216),
+            top: Math.min(Math.max(hoverPos.y - 145, 8), window.innerHeight - 160),
+            width: Math.min(200, window.innerWidth - 24),
+          }}
+        >
+          <img src={previewNode.img} alt="" className="w-full h-28 object-cover" />
+          <div className="bg-black/80 px-3 py-2">
+            <p className="text-white text-[9px] font-black uppercase tracking-widest truncate">{previewNode.name}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Album audio preview */}
+      {previewNode?.type === 'ALBUM' && previewNode.previewUrl && (
+        <div
+          className="fixed z-40 pointer-events-auto shadow-2xl rounded-2xl overflow-hidden border border-white/15 bg-black/80 backdrop-blur-md"
+          style={{
+            left: Math.min(Math.max(hoverPos.x + 18, 8), window.innerWidth - 216),
+            top: Math.min(Math.max(hoverPos.y - 110, 8), window.innerHeight - 130),
+            width: Math.min(200, window.innerWidth - 24),
+          }}
+        >
+          {previewNode.img && <img src={previewNode.img} alt="" className="w-full h-20 object-cover" />}
+          <div className="px-3 py-2 flex items-center gap-2">
+            <div className="flex gap-0.5 items-end h-4">
+              {[3, 5, 4, 6, 3, 5].map((h, i) => (
+                <div key={i} className="w-1 rounded-full bg-yellow-400" style={{ height: h * 2, animation: `pulse ${0.4 + i * 0.1}s ease-in-out infinite alternate` }} />
+              ))}
+            </div>
+            <p className="text-white text-[9px] font-black uppercase tracking-widest truncate flex-1">{previewNode.name}</p>
+            <button onClick={toggleMute} className="text-white/50 hover:text-white shrink-0">
+              {audioMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Node info card */}
+      {clickedNode && (
+        <div className={`absolute z-30 ${isEmbedded ? 'bottom-4 right-4 max-w-[220px]' : 'bottom-8 right-8 max-w-[300px]'} bg-black/85 backdrop-blur-xl border border-white/15 rounded-2xl overflow-hidden shadow-2xl`}>
+          {clickedNode.img && (
+            <div className="relative">
+              <img src={clickedNode.img} alt="" className="w-full h-32 object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
+              <div className="absolute bottom-2 left-3 flex items-center gap-2">
+                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full" style={{ backgroundColor: nodeTypeColor(clickedNode.type) + '33', color: nodeTypeColor(clickedNode.type) }}>
+                  {nodeTypeLabel(clickedNode.type)}
+                </span>
+              </div>
+            </div>
+          )}
+          {!clickedNode.img && (
+            <div className="px-4 pt-4 pb-0">
+              <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full" style={{ backgroundColor: nodeTypeColor(clickedNode.type) + '33', color: nodeTypeColor(clickedNode.type) }}>
+                {nodeTypeLabel(clickedNode.type)}
+              </span>
+            </div>
+          )}
+          <div className="p-4">
+            <h3 className="font-black text-sm leading-tight mb-1">{clickedNode.name}</h3>
+            {clickedNode.description && (
+              <p className="text-[11px] text-white/50 leading-relaxed mb-3 line-clamp-3">{clickedNode.description}</p>
+            )}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleFocusSelected}
+                className="p-2 hover:bg-white/10 rounded-xl transition-colors text-white/40 hover:text-[#FF8C00]"
+                title="Re-center camera on this orb"
+              >
+                <Crosshair size={14} />
+              </button>
+              {onNavigate && (clickedNode.type === 'VIDEO' || clickedNode.type === 'ALBUM') && (
+                <button
+                  onClick={() => { onNavigate(clickedNode.type, clickedNode.id); setClickedNode(null); }}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[11px] font-bold transition-colors"
+                >
+                  <ExternalLink size={12} />
+                  Open
+                </button>
+              )}
+              {onNavigate && (clickedNode.type === 'CHARACTER' || clickedNode.type === 'LORE' || clickedNode.type === 'TIMELINE' || clickedNode.type === 'WORLD') && (
+                <button
+                  onClick={() => { onNavigate(clickedNode.type, clickedNode.id); setClickedNode(null); }}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[11px] font-bold transition-colors"
+                >
+                  <ChevronRight size={12} />
+                  World Page
+                </button>
+              )}
+              <button
+                onClick={() => setClickedNode(null)}
+                className="p-2 hover:bg-white/10 rounded-xl transition-colors text-white/40"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ForceGraph3D
         ref={fgRef}
         graphData={graphData}
-        backgroundColor="#000000"
-        nodeLabel="name"
-        nodeColor={(node: any) => node.color}
-        nodeVal={(node: any) => node.size}
-        linkDirectionalArrowLength={3.5}
+        backgroundColor="#00000d"
+        width={dimensions.width || undefined}
+        height={dimensions.height || undefined}
+        rendererConfig={{ antialias: true, powerPreference: 'high-performance' }}
+        nodeLabel=""
+        nodeThreeObject={nodeThreeObject}
+        nodeThreeObjectExtend={false}
+        linkDirectionalArrowLength={4}
         linkDirectionalArrowRelPos={1}
-        linkCurvature={0.25}
-        onNodeClick={handleNodeClick}
+        linkCurvature={0.22}
+        linkOpacity={0.18}
+        linkColor={() => 'rgba(255,255,255,0.18)'}
         linkLabel="label"
-        linkColor={() => 'rgba(255, 255, 255, 0.1)'}
+        warmupTicks={150}
+        cooldownTicks={200}
+        onNodeClick={handleNodeClick}
+        onNodeHover={handleNodeHover}
+        onBackgroundClick={handleBackgroundClick}
+        onEngineStop={handleEngineStop}
       />
     </div>
   );
 };
 
-const LegendItem = ({ color, label }: { color: string, label: string }) => (
+const nodeTypeColor = (type: string) => {
+  const map: Record<string, string> = {
+    WORLD: '#ff8c00', CHARACTER: '#4A90E2', LORE: '#9b59b6',
+    TIMELINE: '#2ecc71', ALBUM: '#f1c40f', VIDEO: '#e74c3c',
+  };
+  return map[type] || '#ffffff';
+};
+
+const nodeTypeLabel = (type: string) => {
+  const map: Record<string, string> = {
+    WORLD: 'World', CHARACTER: 'Character', LORE: 'Lore',
+    TIMELINE: 'Event', ALBUM: 'Album', VIDEO: 'Video',
+  };
+  return map[type] || type;
+};
+
+const LegendItem = ({ color, label, compact }: { color: string; label: string; compact?: boolean }) => (
   <div className="flex items-center gap-3">
-    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-    <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">{label}</span>
+    <div className={`${compact ? 'w-1.5 h-1.5' : 'w-2 h-2'} rounded-full shrink-0`} style={{ backgroundColor: color }} />
+    <span className={`${compact ? 'text-[8px]' : 'text-[10px]'} font-bold uppercase tracking-widest opacity-40`}>{label}</span>
   </div>
 );
 

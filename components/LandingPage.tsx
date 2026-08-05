@@ -1,28 +1,140 @@
-import React from 'react';
-import { motion } from 'motion/react';
-import { loginWithGoogle, loginWithTwitter, fetchRandomActiveUser } from '../services/backendService';
-import Logo from './Logo';
-import { ArrowRight, Globe, Sparkles, LogIn, X as XIcon } from 'lucide-react';
-import { UserProfile } from '../types';
+import React, { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { loginWithGoogle, loginWithTwitter, loginWithFacebook, loginWithMicrosoft, fetchRandomActiveUser, fetchLandingBgConfig } from '../services/backendService';
+import { ArrowRight, Sparkles, LogIn, X as XIcon, Facebook, Minimize2, Mail } from 'lucide-react';
+import { LandingBgAsset, LandingBgConfig, UserProfile } from '../types';
 import ThreeDImage from './ThreeDImage';
+import EarthGlobe from './EarthGlobe';
+import Logo from './Logo';
+import SignInPrompt from './SignInPrompt';
+import AuthExperience from './AuthExperience';
 
 interface LandingPageProps {
   onEnter: () => void;
   onVisitUser?: (uid: string) => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
-  const [leftAdUser, setLeftAdUser] = React.useState<UserProfile | null>(null);
-  const [rightAdUser, setRightAdUser] = React.useState<UserProfile | null>(null);
+// ── Dynamic Background ──────────────────────────────────────────────────────────
 
-  React.useEffect(() => {
-    const loadAds = async () => {
-      const u1 = await fetchRandomActiveUser();
-      const u2 = await fetchRandomActiveUser();
+const LandingBackground: React.FC<{ config: LandingBgConfig }> = ({ config }) => {
+  const selected = config.assets.filter(a => a.isSelected);
+  const [slideIdx, setSlideIdx] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (config.mode !== 'SLIDESHOW' || selected.length < 2) return;
+    const id = setInterval(
+      () => setSlideIdx(i => (i + 1) % selected.length),
+      config.slideshowIntervalMs
+    );
+    return () => clearInterval(id);
+  }, [config.mode, config.slideshowIntervalMs, selected.length]);
+
+  const overlayStyle: React.CSSProperties = {
+    background: `linear-gradient(to bottom, rgba(0,0,0,${config.overlayOpacity / 100 * 0.3}) 0%, rgba(2,2,2,${config.overlayOpacity / 100}) 100%)`
+  };
+
+  if (config.mode === 'EARTH' || selected.length === 0) {
+    return (
+      <>
+        <EarthGlobe />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-[#1a0026]/30 to-[#020202]" />
+      </>
+    );
+  }
+
+  if (config.mode === 'PHOTO') {
+    const asset = selected.find(a => a.type === 'photo') ?? selected[0];
+    return (
+      <>
+        <img src={asset.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0" style={overlayStyle} />
+      </>
+    );
+  }
+
+  if (config.mode === 'VIDEO') {
+    const asset = selected.find(a => a.type === 'video') ?? selected[0];
+    return (
+      <>
+        <video
+          ref={videoRef}
+          src={asset.url}
+          autoPlay muted loop playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+          onCanPlay={e => { (e.target as HTMLVideoElement).play().catch(() => {}); }}
+        />
+        <div className="absolute inset-0" style={overlayStyle} />
+      </>
+    );
+  }
+
+  // SLIDESHOW
+  const current = selected[slideIdx] ?? selected[0];
+  return (
+    <>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={current.id}
+          className="absolute inset-0"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 1.2, ease: 'easeInOut' }}
+        >
+          {current.type === 'video' ? (
+            <video
+              src={current.url}
+              autoPlay muted loop playsInline
+              className="absolute inset-0 w-full h-full object-cover"
+              onCanPlay={e => { (e.target as HTMLVideoElement).play().catch(() => {}); }}
+            />
+          ) : (
+            <img src={current.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          )}
+        </motion.div>
+      </AnimatePresence>
+      <div className="absolute inset-0" style={overlayStyle} />
+
+      {/* Slide dots */}
+      {selected.length > 1 && (
+        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+          {selected.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setSlideIdx(i)}
+              className={`w-1.5 h-1.5 rounded-full transition-all ${i === slideIdx ? 'bg-white w-4' : 'bg-white/30 hover:bg-white/60'}`}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
+};
+
+// ── Landing Page ────────────────────────────────────────────────────────────────
+
+const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
+  const [leftAdUser, setLeftAdUser] = useState<UserProfile | null>(null);
+  const [rightAdUser, setRightAdUser] = useState<UserProfile | null>(null);
+  const [showStudent, setShowStudent] = useState(false);
+  const [authMode, setAuthMode] = useState<'REGISTER' | 'SIGN_IN' | null>(null);
+  const [bgConfig, setBgConfig] = useState<LandingBgConfig>({
+    mode: 'EARTH', slideshowIntervalMs: 5000, overlayOpacity: 40, assets: []
+  });
+
+  useEffect(() => {
+    const load = async () => {
+      const [u1, u2, bg] = await Promise.all([
+        fetchRandomActiveUser(),
+        fetchRandomActiveUser(),
+        fetchLandingBgConfig(),
+      ]);
       setLeftAdUser(u1);
       setRightAdUser(u2);
+      if (bg) setBgConfig(bg);
     };
-    loadAds();
+    load();
   }, []);
 
   const handleAdClick = (user: UserProfile) => {
@@ -79,19 +191,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-[#020202] flex flex-col items-center justify-center p-6">
+    <div className="relative min-h-screen w-full overflow-hidden bg-transparent flex flex-col items-center justify-center p-6">
       {/* Ad Squares */}
       <AdSquare user={leftAdUser} side="left" />
       <AdSquare user={rightAdUser} side="right" />
-      {/* Background Image with Overlay */}
-      <div className="absolute inset-0 z-0">
-        <img 
-          src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop" 
-          alt="Space Earth" 
-          className="w-full h-full object-cover opacity-40 scale-110"
-          referrerPolicy="no-referrer"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#1a0026]/40 to-[#020202]" />
+      {/* Dynamic background */}
+      <div className="absolute inset-0 z-0" style={{ width: '100%', height: '100%' }}>
+        <LandingBackground config={bgConfig} />
       </div>
 
       {/* Content */}
@@ -102,9 +208,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
           transition={{ duration: 1, ease: "easeOut" }}
           className="flex flex-col items-center gap-6"
         >
-          <div className="w-24 h-24 bg-gradient-to-br from-[#6B0099] via-[#D40055] to-[#FF8C00] rounded-[2.5rem] flex items-center justify-center shadow-[0_0_50px_rgba(107,0,153,0.5)] rotate-3">
-            <Logo size={48} />
-          </div>
+          {/* Pulsing Plajah Logo */}
+          <motion.div
+            animate={{ scale: [1, 1.07, 1], opacity: [0.85, 1, 0.85] }}
+            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+            className="relative"
+          >
+            <div className="absolute inset-0 rounded-[2.5rem] bg-gradient-to-br from-[#6B0099] via-[#D40055] to-[#FF8C00] blur-2xl opacity-60 scale-125" />
+            <div className="relative w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-[#6B0099] via-[#D40055] to-[#FF8C00] rounded-[2rem] md:rounded-[2.5rem] flex items-center justify-center shadow-[0_0_60px_rgba(107,0,153,0.5)]">
+              <Logo size={56} fluid />
+            </div>
+          </motion.div>
+
           <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">
             Plajah
           </h1>
@@ -121,26 +236,66 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
           className="space-y-8 group"
         >
           <p className="text-xl lg:text-2xl font-light group-hover:font-bold transition-all duration-500 text-white/80 leading-relaxed tracking-tight max-w-3xl mx-auto">
-            The most comprehensive content ecosystem on the planet for <span className="text-small-orange">Creators and Artists</span> to connect with fans and their audience.
+            Stream music, movies, and books — then connect directly with the creators who made them. Plajah is the <span className="text-small-orange">social network and streaming platform</span> built to do right by every creator, no matter how or what they create.
           </p>
-          <p className="text-lg lg:text-xl font-light group-hover:font-black transition-all duration-500 text-white/60 tracking-widest uppercase">
-            This is the best place to play, welcome to the playground that is the <span className="text-white">Global Archive</span>.
+          <p className="text-lg lg:text-xl font-light group-hover:font-black transition-all duration-500 text-white/60 leading-relaxed tracking-tight max-w-3xl mx-auto">
+            The simplest, most transparent way to share your work, grow a real audience, and earn from what you love — on a platform with a <span className="text-white">purpose bigger than the bottom line</span>.
           </p>
+          <p className="text-sm lg:text-base font-light group-hover:font-black transition-all duration-500 text-white/40 tracking-widest uppercase">
+            Explore what inspires you. Upload what defines you.
+          </p>
+        </motion.div>
+
+        {/* Primary CTA — create an account with email */}
+        <motion.div
+          initial={{ y: 30, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
+          className="w-full max-w-md flex flex-col items-center gap-3"
+        >
+          <button
+            onClick={() => setAuthMode('REGISTER')}
+            className="w-full group relative flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white font-black text-sm uppercase tracking-[0.15em] shadow-[0_10px_40px_rgba(212,0,85,0.4)] hover:scale-[1.03] active:scale-95 transition-all duration-300"
+          >
+            <Mail size={17} /> Create your free account <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+          </button>
+          <button onClick={() => setAuthMode('SIGN_IN')} className="text-[11px] font-black uppercase tracking-[0.25em] text-white/50 hover:text-white transition-colors">
+            Already have an account? Sign in
+          </button>
+          <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25 mt-1">Or continue with a social account</p>
         </motion.div>
 
         <motion.div
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 1, delay: 0.6, ease: "easeOut" }}
-          className="flex flex-col sm:flex-row items-center gap-4 w-full max-w-2xl"
+          className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-4xl"
         >
           <button
-            onClick={loginWithGoogle}
+            onClick={() => loginWithGoogle()}
             className="flex-1 group relative flex items-center justify-center gap-3 px-6 py-4 bg-white text-black rounded-2xl font-display font-light group-hover:font-black text-sm uppercase tracking-[0.1em] shadow-[0_10px_30px_rgba(255,255,255,0.1)] hover:scale-105 active:scale-95 transition-all duration-300"
           >
             <LogIn size={16} className="transition-transform group-hover:scale-110" />
             <span className="transition-all duration-300">Google</span>
             <div className="absolute inset-0 rounded-2xl bg-white/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          </button>
+
+          <button
+            onClick={loginWithFacebook}
+            className="flex-1 group relative flex items-center justify-center gap-3 px-6 py-4 bg-[#1877F2] text-white rounded-2xl font-display font-light group-hover:font-black text-sm uppercase tracking-[0.1em] shadow-[0_10px_30px_rgba(24,119,242,0.3)] hover:scale-105 active:scale-95 transition-all duration-300"
+          >
+            <Facebook size={16} className="transition-transform group-hover:scale-110" />
+            <span className="transition-all duration-300">Facebook</span>
+            <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          </button>
+
+          <button
+            onClick={loginWithMicrosoft}
+            className="flex-1 group relative flex items-center justify-center gap-3 px-6 py-4 bg-[#0078D4] text-white rounded-2xl font-display font-light group-hover:font-black text-sm uppercase tracking-[0.1em] shadow-[0_10px_30px_rgba(0,120,212,0.3)] hover:scale-105 active:scale-95 transition-all duration-300"
+          >
+            <Minimize2 size={16} className="transition-transform group-hover:scale-110" />
+            <span className="transition-all duration-300">Microsoft</span>
+            <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           </button>
 
           <button
@@ -161,11 +316,26 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
           </button>
         </motion.div>
 
-        {/* Floating Equipment Icons (Abstract Continents) */}
-        <div className="absolute -left-20 top-1/2 -translate-y-1/2 opacity-10 pointer-events-none hidden xl:block">
-          <Globe size={400} className="text-white animate-spin-slow" />
-        </div>
+        {/* Student sign-in — kids log in with a username + password (no email) */}
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1, delay: 0.9 }}
+          onClick={() => setShowStudent(true)}
+          className="mt-5 text-[11px] font-black uppercase tracking-[0.3em] text-white/40 hover:text-white transition-colors"
+        >
+          Student? Sign in with your username →
+        </motion.button>
+
       </div>
+
+      <AnimatePresence>
+        {showStudent && <SignInPrompt action="learn" initialMode="STUDENT" onClose={() => setShowStudent(false)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {authMode && <AuthExperience initialMode={authMode} onClose={() => setAuthMode(null)} />}
+      </AnimatePresence>
 
       {/* Footer Info */}
       <div className="absolute bottom-12 left-0 right-0 z-10 flex justify-center gap-12 text-[10px] font-black uppercase tracking-[0.4em] text-white/20">

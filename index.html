@@ -2,11 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#131314">
+    <meta name="theme-color" content="#020202" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#020202" media="(prefers-color-scheme: light)">
+    <meta name="color-scheme" content="dark">
+    <meta name="format-detection" content="telephone=no, date=no, email=no, address=no">
+    <!-- Force browsers to always revalidate the HTML shell; JS/CSS assets are cache-busted by Vite hashes -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="msapplication-tap-highlight" content="no">
     <meta name="android-tv-app" content="true">
     <title>Plajah</title>
     
@@ -14,8 +22,11 @@
     <meta property="og:title" content="Plajah">
     <meta property="og:description" content="A high-fidelity music microsite studio with social features, global feed, artist search, site-wide radio, TV channels, game library, and customizable photo gallery experiences.">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://ais-dev-ecgniar62eix4hqydxbime-137921939411.us-east5.run.app/">
-    <meta property="og:image" content="https://via.placeholder.com/1200x630.png?text=Plajah">
+    <meta property="og:url" content="https://plajah.com/">
+    <meta property="og:image" content="https://plajah.com/og-default.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:image" content="https://plajah.com/og-default.png">
     <meta name="twitter:card" content="summary_large_image">
     
     <link rel="manifest" href="/manifest.json">
@@ -32,16 +43,57 @@
             --bg-primary: #020202;
             --accent: #ffffff;
         }
+        html {
+            height: 100%;
+            /* Real viewport height updated by JS — fixes Android URL bar jump */
+            --real-vh: 1dvh;
+        }
         html, body {
+            overscroll-behavior: none;
             overscroll-behavior-y: none;
-            -webkit-overflow-scrolling: touch;
+            touch-action: pan-x pan-y;
         }
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--bg-primary);
             color: #ffffff;
             overflow-x: hidden;
+            overflow-y: hidden;
             -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            /* Kill tap highlight flash on Android */
+            -webkit-tap-highlight-color: transparent;
+            /* Prevent text size adjust on orientation change */
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+        /* Remove 300ms tap delay on all interactive elements */
+        a, button, [role="button"], input, select, textarea, label {
+            touch-action: manipulation;
+        }
+        /* Prevent input zoom on Android (requires font-size >= 16px) */
+        input, select, textarea {
+            font-size: 16px !important;
+        }
+        /* Smooth momentum scrolling on iOS/Edge iOS */
+        [data-scrollable], .overflow-y-auto, .overflow-y-scroll, .overflow-x-auto, .overflow-x-scroll {
+            -webkit-overflow-scrolling: touch;
+        }
+        /* Hide scrollbars on Android WebView */
+        * {
+            scrollbar-width: none;
+        }
+        *::-webkit-scrollbar {
+            display: none;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            display: block;
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
         }
         .font-display {
             font-family: 'Space Grotesk', sans-serif;
@@ -75,6 +127,26 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-left: 4px solid var(--theme-color, #ffffff);
         }
+
+        /* ── Galaxy Z Fold cover (outer) screen scaling ──────────────────────
+           The outer screen is physically small + dense and overlaps normal
+           phones in CSS width, so the mobile layout renders too small. We
+           magnify the whole app subtree with `zoom` — the only thing that scales
+           this app's heavy arbitrary-px text (text-[9px] etc.; rem-only scaling
+           wouldn't touch it). Viewport-unit utilities are divided by the same
+           factor so the zoomed layout still fits exactly one screen (zoom scales
+           vh/vw against the unzoomed viewport, which would otherwise overflow).
+           Overlays are portaled to <body> (outside #root) so they're unaffected.
+           Detection (JS below) keys on window.screen — the physical aspect,
+           stable to the URL bar — not a fragile viewport media query.
+           Tune the magnitude by changing --cover-zoom. */
+        html.zfold-cover { --cover-zoom: 1.25; }
+        html.zfold-cover #root { zoom: var(--cover-zoom); }
+        html.zfold-cover #root .min-h-screen { min-height: calc(100vh / var(--cover-zoom)); }
+        html.zfold-cover #root .h-screen     { height:     calc(100vh / var(--cover-zoom)); }
+        html.zfold-cover #root .w-screen     { width:      calc(100vw / var(--cover-zoom)); }
+        html.zfold-cover #root .h-dvh        { height:     calc(100dvh / var(--cover-zoom)); }
+        html.zfold-cover #root .min-h-dvh    { min-height: calc(100dvh / var(--cover-zoom)); }
     </style>
 
     <link rel="stylesheet" href="/index.css">
@@ -82,6 +154,85 @@
 </head>
 <body>
     <div id="root"></div>
+    <script>
+      // rAF starvation guard: in never-painting webviews (headless previews,
+      // some Android TV launchers, background-restored tabs) the compositor
+      // never produces frames so requestAnimationFrame callbacks never run —
+      // which silently stalls every library that schedules with it (epub.js
+      // book rendering, motion exit animations). Install a wrapper BEFORE the
+      // app modules load (they capture rAF at import time): it delegates to
+      // the native rAF normally, and switches to 16ms timers only if a probe
+      // frame hasn't fired shortly after boot.
+      (function () {
+        try {
+          var native = window.requestAnimationFrame.bind(window);
+          var nativeCancel = (window.cancelAnimationFrame || window.clearTimeout).bind(window);
+          var starved = false;
+          var probeFired = false;
+          native(function () { probeFired = true; });
+          setTimeout(function () {
+            starved = !probeFired;
+            if (starved) console.warn('[plajah] rAF starved — timer-based frames for this session.');
+          }, 250);
+          window.requestAnimationFrame = function (cb) {
+            return starved
+              ? window.setTimeout(function () { cb(performance.now()); }, 16)
+              : native(cb);
+          };
+          window.cancelAnimationFrame = function (id) {
+            nativeCancel(id);
+            window.clearTimeout(id);
+          };
+        } catch (e) { /* leave native rAF untouched */ }
+      })();
+    </script>
+    <script>
+      // Galaxy Z Fold cover (outer) screen detection. The outer screen is
+      // narrow + unusually tall (~21:9) and physically small/dense, so the
+      // mobile layout renders too small. We key on window.screen (the physical
+      // screen aspect) rather than the viewport — it's stable to the URL bar and
+      // distinguishes the cover (≈0.428 narrow/tall) from normal phones (≈0.45+)
+      // and the wide unfolded inner screen. Toggling on resize/orientation also
+      // handles fold↔unfold (which fire resize). CSS in <style> does the scaling.
+      (function() {
+        function isCover() {
+          try {
+            var w = screen.width, h = screen.height;
+            if (!w || !h) return false;
+            var mn = Math.min(w, h), mx = Math.max(w, h);
+            return mn <= 430 && (mn / mx) <= 0.44;
+          } catch (e) { return false; }
+        }
+        window.__isCoverScreen = isCover;
+        function apply() { document.documentElement.classList.toggle('zfold-cover', isCover()); }
+        apply();
+        window.addEventListener('resize', apply);
+        window.addEventListener('orientationchange', apply);
+      })();
+    </script>
+    <script>
+      // Fix Android Chrome URL bar causing layout jumps.
+      // Sets --real-vh so components can use calc(var(--real-vh) * 100)
+      // instead of 100dvh, which reflows on every scroll. On the Z Fold cover
+      // screen, #root is zoomed, so --real-vh is divided by the zoom factor to
+      // keep --real-vh-based heights filling exactly one screen after zoom.
+      (function() {
+        function setVh() {
+          var raw = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+          var z = (window.__isCoverScreen && window.__isCoverScreen())
+            ? (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cover-zoom')) || 1.25)
+            : 1;
+          document.documentElement.style.setProperty('--real-vh', (raw / z) * 0.01 + 'px');
+        }
+        setVh();
+        if (window.visualViewport) {
+          window.visualViewport.addEventListener('resize', setVh);
+        } else {
+          window.addEventListener('resize', setVh);
+        }
+        window.addEventListener('orientationchange', setVh);
+      })();
+    </script>
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>

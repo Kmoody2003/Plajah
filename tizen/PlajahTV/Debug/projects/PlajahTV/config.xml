@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://plajah.com/PlajahTV" version="2.0.0" viewmodes="maximized">
+   <name>Plajah</name>
+   <icon src="icon.png"></icon>
+   <content src="index.html"></content>
+   <feature name="http://tizen.org/feature/screen.size.normal.1080.1920"></feature>
+   <!-- Allow the packaged SPA to reach the Plajah backend + third-party APIs -->
+   <access origin="*" subdomains="true"></access>
+   <tizen:allow-navigation>*</tizen:allow-navigation>
+   <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="enable" encryption="disable" install-location="auto" hwkey-event="enable"></tizen:setting>
+   <tizen:application id="dzLtPbT8EZ.PlajahTV" package="dzLtPbT8EZ" required_version="2.4"></tizen:application>
+   <!-- Privileges: network for the backend, playback wake, launch -->
+   <tizen:privilege name="http://tizen.org/privilege/internet"></tizen:privilege>
+   <tizen:privilege name="http://tizen.org/privilege/application.launch"></tizen:privilege>
+   <tizen:privilege name="http://developer.samsung.com/privilege/network.public"></tizen:privilege>
+   <tizen:metadata key="http://samsung.com/tv/metadata/prelaunch.support" value="true"></tizen:metadata>
+   <tizen:metadata key="http://tizen.org/metadata/app_ui_type/base_screen_resolution" value="extensive"></tizen:metadata>
+   <tizen:profile name="tv-samsung"></tizen:profile>
+</widget>

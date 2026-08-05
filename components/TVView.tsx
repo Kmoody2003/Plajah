@@ -58,23 +58,23 @@ const TVView: React.FC<TVViewProps> = ({ onBack }) => {
         });
       }
 
-      // Fetch owners
+      // Parallel owner fetch
+      const ownerIds = [...new Set([
+        ...allChannels.map(c => c.ownerId),
+        ...rankedFeeds.map(f => f.ownerId),
+      ])];
+      const ownerProfiles = await Promise.all(ownerIds.map(id => fetchUserProfile(id).catch(() => null)));
       const owners: Record<string, UserProfile> = {};
-      for (const channel of allChannels) {
-        const profile = await fetchUserProfile(channel.ownerId);
-        if (profile) owners[channel.ownerId] = profile;
-      }
-      for (const feed of rankedFeeds) {
-        const profile = await fetchUserProfile(feed.ownerId);
-        if (profile) owners[feed.ownerId] = profile;
-      }
+      ownerIds.forEach((id, i) => { if (ownerProfiles[i]) owners[id] = ownerProfiles[i]!; });
       setChannelOwners(owners);
     };
     loadTV();
   }, []);
 
   const filteredFeeds = liveFeeds.filter(f => {
-    const matchesSearch = f.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    // Only currently-live streams belong here — an ended one is a replay, not live.
+    if ((f as any).status === 'ENDED' || (f as any).status === 'OFFLINE') return false;
+    const matchesSearch = f.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          f.ownerName.toLowerCase().includes(searchTerm.toLowerCase());
     if (activeCategory === 'For You') return matchesSearch;
     if (activeCategory === 'Following') return matchesSearch; // Ranking already handles this

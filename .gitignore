@@ -1,3 +1,8 @@
+# Local AI-generated media scratch folders (not part of the app build)
+Club Cover Images/
+Loera animation/
+.claude/launch.json
+
 # Logs
 logs
 *.log
@@ -12,6 +17,9 @@ dist
 dist-ssr
 *.local
 
+# Local Firebase emulator / config files
+.firebase/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -22,3 +30,24 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Code agent worktrees
+.claude/worktrees/
+
+tsc_out.txt
+public/models/demucs/*.onnx
+public/models/demucs/ort/
+
+# Built APKs — large binaries, not source
+dist-apk/
+
+dist-tizen/
+
+# Combat Atlas acquisitions — downloaded source archives (~760MB: Beni Hasan
+# scans, Met CC0 batch, UMONS-TAICHI mocap zip). Re-fetchable via
+# acquisitions/ingest.mjs; destined for Firebase Storage, not git.
+# NOTE: the app-served clips in public/motion/ ARE tracked — the Motion Lab
+# needs them at runtime.
+acquisitions/holdings/
+acquisitions/motion/
+acquisitions/work/

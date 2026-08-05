@@ -20,6 +20,7 @@ import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { subscribeToComments, postComment, auth } from '../services/backendService';
 import CommentSection from './CommentSection';
 import The411 from './The411';
+import PlajahPlusPill from './PlajahPlusPill';
 
 interface ArticleViewProps {
   article: Article;
@@ -68,7 +69,10 @@ const ArticleView: React.FC<ArticleViewProps> = ({ article, onBack, onVisitUser,
               <img src={article.authorPhoto || null} alt={article.authorName} className="w-full h-full object-cover" />
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest">{article.authorName}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] font-black uppercase tracking-widest">{article.authorName}</p>
+                <PlajahPlusPill creatorId={article.authorId} creatorName={article.authorName} size="XS" />
+              </div>
               <p className="text-[8px] font-bold opacity-40 uppercase tracking-widest">{formatTime(article.timestamp)}</p>
             </div>
           </div>
@@ -205,9 +209,12 @@ const ArticleView: React.FC<ArticleViewProps> = ({ article, onBack, onVisitUser,
                 <div>
                   <h3 className="text-2xl font-black uppercase tracking-tighter">{article.authorName}</h3>
                   <p className="text-xs font-bold opacity-40 uppercase tracking-widest mb-4">Writer & Journalist</p>
-                  <button className="flex items-center gap-2 px-6 py-2 bg-[var(--text-primary)] text-[var(--bg-color)] rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">
-                    <UserPlus size={14} /> Follow Author
-                  </button>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <button className="flex items-center gap-2 px-6 py-2 bg-[var(--text-primary)] text-[var(--bg-color)] rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">
+                      <UserPlus size={14} /> Follow Author
+                    </button>
+                    <PlajahPlusPill creatorId={article.authorId} creatorName={article.authorName} />
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-4">

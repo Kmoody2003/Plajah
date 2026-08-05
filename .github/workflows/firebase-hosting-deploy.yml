@@ -1,0 +1,171 @@
+name: Deploy to Firebase Hosting
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Node 20 LTS for the firebase deploy: Node 24's undici keep-alive triggers
+      # "premature close" retries against Google APIs, and the retry of the non-idempotent
+      # Hosting release POST then 400s as "already the current active version" (the first
+      # POST actually succeeded). Node 20 avoids the premature-close churn.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        env:
+          # The bundle includes verovio's embedded WASM + onnxruntime — the default Node
+          # heap OOMs during the build, so give it plenty of headroom (runner has 16 GB).
+          NODE_OPTIONS: --max-old-space-size=8192
+          VITE_MUX_TOKEN_ID: ${{ secrets.VITE_MUX_TOKEN_ID }}
+          VITE_MUX_TOKEN_SECRET: ${{ secrets.VITE_MUX_TOKEN_SECRET }}
+          # App Check site key — without this the client sends no App Check token; if App Check
+          # enforcement is ON for Storage in the Firebase console, every upload is denied.
+          VITE_APPCHECK_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_APPCHECK_RECAPTCHA_SITE_KEY }}
+          # Open-access artifact browsers (Archaeology + World History). Optional — the
+          # browser works on keyless sources without these; they light up the Smithsonian
+          # and Europeana sources when the secrets are set.
+          VITE_SMITHSONIAN_KEY: ${{ secrets.VITE_SMITHSONIAN_KEY }}
+          VITE_EUROPEANA_KEY: ${{ secrets.VITE_EUROPEANA_KEY }}
+        run: npm run build
+
+      # Official Firebase action — bundles a known-good firebase-tools and wires the
+      # service-account auth correctly (current firebase-tools regressed on honoring
+      # GOOGLE_APPLICATION_CREDENTIALS, which caused "Failed to authenticate").
+      - name: Deploy Firebase Hosting (live)
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEN_LANG_CLIENT_0665118474 }}
+          projectId: gen-lang-client-0665118474
+          channelId: live
+
+      # Firestore + Storage rules are deployed by the dedicated `deploy_rules` job
+      # below — a HARD-FAILING, verified step. (This used to be a best-effort
+      # continue-on-error step here; a silent failure once left production on
+      # months-old Storage rules and denied every upload. Never again.)
+
+  # ── Firestore + Storage rules → Firebase ──────────────────────────────────────
+  # Its own job so it can NEVER ship silently: reliable SA auth (the same path the
+  # Cloud Run job uses — unlike the old hand-written GOOGLE_APPLICATION_CREDENTIALS
+  # file that firebase-tools mishandled), no continue-on-error, and a post-deploy
+  # verification that reads the live rules back. A failed or no-op rules deploy now
+  # turns the build red.
+  deploy_rules:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEN_LANG_CLIENT_0665118474 }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      # firebase-tools authenticates via the ADC the auth step exported
+      # (GOOGLE_APPLICATION_CREDENTIALS). storage MUST be included — uploads
+      # (UploadContext → uploads/<type>s/…) are denied by the default fallback
+      # unless storage.rules is live.
+      - name: Deploy Firestore + Storage rules
+        run: npx firebase-tools@13.35.1 deploy --only firestore,storage --project gen-lang-client-0665118474 --non-interactive --force
+
+      # Read the live Storage ruleset back and assert the uploads/** rule is present.
+      # This is the guard the old setup lacked: it proves the deploy actually landed,
+      # so the exact stale-rules regression that broke uploads can't recur unnoticed.
+      - name: Verify live Storage rules are current
+        run: |
+          set -euo pipefail
+          PROJECT=gen-lang-client-0665118474
+          TOKEN=$(gcloud auth print-access-token)
+          RULESET=$(curl -sf -H "Authorization: Bearer $TOKEN" -H "x-goog-user-project: $PROJECT" \
+            "https://firebaserules.googleapis.com/v1/projects/$PROJECT/releases" \
+            | python3 -c "import sys,json;d=json.load(sys.stdin);print(next(r['rulesetName'] for r in d['releases'] if 'firebase.storage' in r['name']))")
+          CONTENT=$(curl -sf -H "Authorization: Bearer $TOKEN" -H "x-goog-user-project: $PROJECT" \
+            "https://firebaserules.googleapis.com/v1/$RULESET" \
+            | python3 -c "import sys,json;print(json.load(sys.stdin)['source']['files'][0]['content'])")
+          if ! echo "$CONTENT" | grep -q "match /uploads/"; then
+            echo "::error::Live Storage rules are MISSING the uploads/** rule — the deploy did not land. Uploads would be denied."
+            exit 1
+          fi
+          echo "Live Storage rules verified: uploads/** rule is present."
+
+  # ── API backend (server.ts) → Cloud Run ──────────────────────────────────────
+  deploy_api:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build SPA (Dockerfile copies the prebuilt dist/)
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+          VITE_MUX_TOKEN_ID: ${{ secrets.VITE_MUX_TOKEN_ID }}
+          VITE_MUX_TOKEN_SECRET: ${{ secrets.VITE_MUX_TOKEN_SECRET }}
+          VITE_APPCHECK_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_APPCHECK_RECAPTCHA_SITE_KEY }}
+          VITE_SMITHSONIAN_KEY: ${{ secrets.VITE_SMITHSONIAN_KEY }}
+          VITE_EUROPEANA_KEY: ${{ secrets.VITE_EUROPEANA_KEY }}
+        run: npm run build
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEN_LANG_CLIENT_0665118474 }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Deploy server.ts to Cloud Run
+        run: |
+          gcloud run deploy plajah-api \
+            --source . \
+            --project gen-lang-client-0665118474 \
+            --region us-west1 \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080 \
+            --memory 2Gi \
+            --cpu 2 \
+            --cpu-boost \
+            --timeout 300 \
+            --update-env-vars NODE_ENV=production,VITE_FIREBASE_DB_ID=plajah-prod,VITE_FIREBASE_PROJECT_ID=gen-lang-client-0665118474
+        # ↑ The server transpiles ~6k lines via tsx at boot; on 1 vCPU that raced the Cloud Run
+        # startup health-check and the revision was killed as "failed to start in time". More CPU +
+        # startup CPU boost + memory headroom lets it bind $PORT well inside the window.

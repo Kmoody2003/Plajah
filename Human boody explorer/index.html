@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plajah — Human Body Explorer</title>
+  <meta name="description" content="An immersive, museum-quality interactive tour of the human body for the Plajah platform." />
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- ── LOADING SCREEN ── -->
+  <div id="loadingScreen" class="loading-screen">
+    <div class="loading-logo">⬡</div>
+    <div class="loading-title">PLAJAH</div>
+    <div class="loading-subtitle">Human Body Explorer</div>
+    <div class="loading-bar-wrap">
+      <div class="loading-bar"></div>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-top:8px;">
+      LOADING 11 SYSTEMS · 17 ORGANS · 80+ CELL TYPES
+    </div>
+  </div>
+
+  <!-- ── HEADER ── -->
+  <header class="header">
+    <div class="logo">
+      <span class="logo-icon">⬡</span>
+      <span class="logo-text">PLAJAH</span>
+      <span class="logo-sub">Human Body</span>
+    </div>
+
+    <div class="header-controls">
+      <!-- Sex Toggle -->
+      <div class="btn-group">
+        <button data-sex="male" class="active">♂ Male</button>
+        <button data-sex="female">♀ Female</button>
+      </div>
+
+      <!-- View Toggle -->
+      <div class="btn-group">
+        <button data-view="front" class="active">Front</button>
+        <button data-view="back">Back</button>
+        <button data-view="side">Side</button>
+      </div>
+
+      <!-- Medical Mode Toggle -->
+      <div class="medical-toggle" id="medicalToggle" role="button" tabindex="0" aria-label="Toggle Medical Mode">
+        <div class="toggle-track"></div>
+        <span class="toggle-label">Medical Mode</span>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search body parts..." autocomplete="off" />
+      <div id="searchResults" class="search-results"></div>
+    </div>
+  </header>
+
+  <!-- ── MAIN LAYOUT ── -->
+  <div class="layout">
+
+    <!-- ── LEFT SIDEBAR: Systems + Layers ── -->
+    <aside class="sidebar-left">
+      <div class="sidebar-title" style="padding-top:4px">Body Systems</div>
+      <div id="systemList" class="system-list"></div>
+
+      <div class="sidebar-divider"></div>
+
+      <div class="layer-controls">
+        <div class="sidebar-title">Visibility Layers</div>
+        <label class="layer-item">
+          <input type="checkbox" data-layer="skin" checked /> Skin / Outer
+        </label>
+        <label class="layer-item">
+          <input type="checkbox" data-layer="skeleton" checked /> Skeletal
+        </label>
+        <label class="layer-item">
+          <input type="checkbox" data-layer="circulatory" checked /> Circulatory
+        </label>
+        <label class="layer-item">
+          <input type="checkbox" data-layer="nervous" checked /> Nervous
+        </label>
+        <label class="layer-item">
+          <input type="checkbox" data-layer="lymphatic" checked /> Lymphatic
+        </label>
+      </div>
+    </aside>
+
+    <!-- ── CENTER: Body Viewer ── -->
+    <main class="body-viewer" id="bodyViewer">
+      <div id="activeSystemLabel" class="active-system-label">All Systems</div>
+
+      <div id="bodyContainer">
+        <svg id="bodySVG"
+             viewBox="0 0 400 640"
+             xmlns="http://www.w3.org/2000/svg"
+             preserveAspectRatio="xMidYMid meet">
+          <!-- Built by app.js -->
+        </svg>
+      </div>
+
+      <!-- Viewer Controls -->
+      <div class="viewer-controls">
+        <button id="zoomIn"    title="Zoom In">+</button>
+        <button id="zoomOut"   title="Zoom Out">−</button>
+        <button id="resetView" title="Reset">⟳</button>
+      </div>
+
+      <!-- 3D Organ Viewer Overlay -->
+      <div id="organViewer3D" class="organ-3d-viewer hidden">
+        <canvas id="threeCanvas"></canvas>
+        <button id="close3DBtn" class="close-3d-btn" title="Close 3D View">✕</button>
+        <div id="organ3DName"    class="organ-3d-name"></div>
+        <div id="organ3DMedical" class="organ-3d-medical"></div>
+        <div class="rotate-hint">🖱 Click &amp; drag to rotate · Scroll to zoom</div>
+      </div>
+    </main>
+
+    <!-- ── RIGHT SIDEBAR: Info Panel ── -->
+    <aside class="sidebar-right" id="infoPanel">
+
+      <!-- Placeholder (before any selection) -->
+      <div class="panel-placeholder" id="panelPlaceholder">
+        <div class="placeholder-icon">◎</div>
+        <p class="placeholder-text">
+          Click any glowing point on the body to explore that organ or system.
+        </p>
+        <p class="placeholder-hint">or use the search bar above</p>
+      </div>
+
+      <!-- Active Panel Content -->
+      <div class="panel-content hidden" id="panelContent">
+
+        <!-- Header -->
+        <div class="panel-header">
+          <div class="panel-organ-icon" id="panelOrganIcon"></div>
+          <div>
+            <div class="panel-organ-name" id="panelOrganName"></div>
+            <div class="panel-medical-name" id="panelMedicalName"></div>
+            <div class="system-badge" id="panelSystemBadge"></div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="panel-tabs">
+          <button class="tab-btn active" data-tab="overview">Overview</button>
+          <button class="tab-btn"        data-tab="nutrition">Nutrition</button>
+          <button class="tab-btn"        data-tab="cellular">Cellular</button>
+          <button class="tab-btn"        data-tab="conditions">Conditions</button>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="tabContent"></div>
+
+        <!-- 3D View Button -->
+        <button class="view3d-btn" id="view3DBtn">
+          ↗ View in 3D Viewer
+        </button>
+
+      </div><!-- /panel-content -->
+    </aside>
+
+  </div><!-- /layout -->
+
+  <!-- ── SCRIPTS ── -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="data/anatomy.js"></script>
+  <script src="data/anatomy-extended.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>

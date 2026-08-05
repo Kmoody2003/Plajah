@@ -1,0 +1,76 @@
+env:
+  - variable: ENCRYPTION_KEY
+    value: fde5fd3b6bcc8abfe4f4188ba4df02b4050388ca8ab30a152c309d39e5235f60
+    availability:
+      - RUNTIME
+  - variable: VITE_FIREBASE_API_KEY
+    value: AIzaSyAhcZm5fKh50H_g9kMTv9wgI-TBAWntd0Y
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: VITE_APP_URL
+    value: https://plajah.com
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: HUE_CLIENT_ID
+    value: 09ba58c2-ddcd-4e51-9cdd-22b16298b2cc
+    availability:
+      - RUNTIME
+  - variable: HUE_CLIENT_SECRET
+    value: 12d13f2401284d9690e79963a0d0abf9
+    availability:
+      - RUNTIME
+  - variable: HUE_REDIRECT_URI
+    value: https://plajah.com/api/hue/callback
+    availability:
+      - RUNTIME
+
+  # ── Merch Fulfillment ────────────────────────────────────────────────────────
+  # Replace placeholder values with your real keys before deploying.
+  - variable: PRINTFUL_API_KEY
+    value: YOUR_PRINTFUL_API_KEY_HERE
+    availability:
+      - RUNTIME
+  - variable: GELATO_API_KEY
+    value: YOUR_GELATO_API_KEY_HERE
+    availability:
+      - RUNTIME
+  # Platform fee % taken from each merch sale (default 15).
+  # Artist receives the remainder after fulfillment cost is deducted by Printful/Gelato.
+  - variable: PLATFORM_MERCH_FEE_PCT
+    value: "15"
+    availability:
+      - RUNTIME
+  # Stripe webhook secret for /api/merch/stripe-webhook
+  # Create a separate webhook endpoint in Stripe dashboard pointing to:
+  # https://plajah.com/api/merch/stripe-webhook
+  - variable: STRIPE_MERCH_WEBHOOK_SECRET
+    value: YOUR_STRIPE_MERCH_WEBHOOK_SECRET_HERE
+    availability:
+      - RUNTIME
+
+  # ── Terra: Detroit parcel ingestion ──────────────────────────────────────────
+  # Pulls the city's open parcel + civic records into the Terra spine.
+  # Runs a small warm pass ~45s after boot, then a bounded pass every 24h.
+  # Each bounded pass resumes from a persisted offset, so successive nights walk
+  # the whole city (~378k parcels) and then wrap around to refresh it.
+  # Set to "false" to stop the scheduler without redeploying code.
+  - variable: TERRA_INGESTION_WORKER
+    value: "true"
+    availability:
+      - RUNTIME
+  # Parcels per scheduled pass. At 5000/night a full sweep takes ~11 weeks;
+  # raise it to load faster, at the cost of a longer run and more Firestore
+  # writes. A one-off full load is better done via POST /api/terra/ingest
+  # with scope "deep", which pulls everything and resets the cursor.
+  - variable: TERRA_INGESTION_MAX_PARCELS
+    value: "5000"
+    availability:
+      - RUNTIME
+  # Interval in ms between scheduled passes. Detroit publishes daily, so 24h is
+  # the sensible floor — polling faster gains nothing and costs reads.
+  - variable: TERRA_INGESTION_INTERVAL_MS
+    value: "86400000"
+    availability:
+      - RUNTIME

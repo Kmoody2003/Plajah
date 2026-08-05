@@ -1,0 +1,23 @@
+{
+  "name": "plajah-blockchain",
+  "version": "1.0.0",
+  "description": "Plajah smart contracts — Polygon + Bitcoin Ordinals",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:testnet": "hardhat run deploy/01_deploy_all.ts --network mumbai",
+    "deploy:mainnet": "hardhat run deploy/01_deploy_all.ts --network polygon",
+    "verify": "hardhat verify"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@types/node": "^20.0.0",
+    "dotenv": "^16.0.0",
+    "hardhat": "^2.22.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0"
+  }
+}

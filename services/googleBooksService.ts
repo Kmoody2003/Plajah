@@ -1,3 +1,5 @@
+import { cached } from '../src/lib/performanceCache';
+
 export interface GoogleBook {
   id: string;
   title: string;
@@ -16,8 +18,10 @@ export interface GoogleBook {
 
 export const searchGoogleBooks = async (query: string): Promise<GoogleBook[]> => {
   if (!query) query = "subject:fiction"; // default query
-  try {
-    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=40`);
+  const normalized = query.trim().toLowerCase();
+  return cached(`google-books:${normalized}`, 1000 * 60 * 30, async () => {
+    const fields = 'items(id,volumeInfo(title,authors,description,imageLinks,pageCount,categories,averageRating,previewLink),saleInfo(listPrice,buyLink),accessInfo(epub,pdf))';
+    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&printType=books&maxResults=30&fields=${encodeURIComponent(fields)}`);
     const data = await res.json();
     if (!data.items) return [];
     
@@ -41,8 +45,8 @@ export const searchGoogleBooks = async (query: string): Promise<GoogleBook[]> =>
         pdfLink: access?.pdf?.downloadLink || access?.pdf?.acsTokenLink,
       };
     });
-  } catch (e) {
+  }).catch((e) => {
     console.error("Google books error", e);
     return [];
-  }
+  });
 };

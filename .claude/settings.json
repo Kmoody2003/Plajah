@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx firebase *)",
+      "Bash(npx vite *)",
+      "Bash(git commit -m ' *)",
+      "PowerShell(git -C \"C:\\\\Users\\\\Kenne\\\\plajah\" diff --stat)",
+      "PowerShell(git -C \"C:\\\\Users\\\\Kenne\\\\plajah\" add App.tsx index.html)",
+      "PowerShell(git -C \"C:\\\\Users\\\\Kenne\\\\plajah\" push origin master)",
+      "PowerShell(git -C \"C:\\\\Users\\\\Kenne\\\\plajah\" branch -a)",
+      "PowerShell(git -C \"C:\\\\Users\\\\Kenne\\\\plajah\" add App.tsx)",
+      "PowerShell(git -C \"C:\\\\Users\\\\Kenne\\\\plajah\" add App.tsx components/MusicView.tsx)",
+      "PowerShell(git -C \"C:\\\\Users\\\\Kenne\\\\plajah\" log --oneline -3)",
+      "PowerShell(git -C \"C:\\\\Users\\\\Kenne\\\\plajah\" add components/GlobalPlayer.tsx components/PodcastsView.tsx)",
+      "Bash(npm show *)",
+      "Bash(npm install *)",
+      "Bash(Stories)",
+      "Bash(Live)",
+      "Bash(Short)",
+      "Bash(Reel\")",
+      "Bash(cd /mnt/c/Users/Kenne/plajah && npx tsc --noEmit 2>&1 | head -60)",
+      "Read(//mnt/c/Users/Kenne/**)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Kenne\\\\plajah\" -Force)",
+      "Bash(firebase firestore:indexes --database ai-studio-5564c944-b75c-4461-bcd3-afa92800323b)",
+      "Bash(python -c \"import sys,json; data=json.load\\(sys.stdin\\); print\\([i['collectionGroup'] for i in data.get\\('indexes',[]\\)]\\)\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Kenne\\\\plajah\\\\components\" -Filter \"*.tsx\")",
+      "Bash(Select-Object -ExpandProperty Name)",
+      "Bash(Sort-Object)",
+      "Bash(grep -E \"\\\\.tsx$\")",
+      "Bash(findstr /i \"build\\\\|deploy\\\\|start\\\\|preview\")",
+      "Bash(python3 -c ' *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Kenne\\\\plajah\" -Recurse -Filter \"*.ts\" -o AllFiles)"
+    ]
+  }
+}

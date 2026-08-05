@@ -20,7 +20,7 @@ export async function captureVideoFrame(videoSource: string | File, timeInSecond
       const duration = video.duration;
       const targetTime = timeInSeconds !== undefined 
         ? Math.min(timeInSeconds, duration) 
-        : Math.random() * Math.min(10, duration);
+        : Math.random() * Math.min(30, duration);
 
       video.currentTime = targetTime;
     };

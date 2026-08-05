@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <!-- FABULA — "The Reel & The Cut"
+       The circle is the fabula: the whole story-world.
+       It unspools tangent from its base into a straight strip — the syuzhet, the telling.
+       The strip is cut once: the telling is an edit.
+       The open quadrant is the story not yet told. -->
+  <path d="M 65 42 A 25 25 0 1 0 40 67"
+        stroke="#f97316" stroke-width="11" stroke-linecap="round"/>
+  <line x1="40" y1="67" x2="59" y2="67"
+        stroke="#f97316" stroke-width="11" stroke-linecap="round"/>
+  <line x1="72" y1="67" x2="83" y2="67"
+        stroke="#f97316" stroke-width="11" stroke-linecap="round"/>
+</svg>

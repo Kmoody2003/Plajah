@@ -1,0 +1,17 @@
+# Upload context for `gcloud run deploy --source .` (Cloud Build).
+# NOTE: when this file exists, gcloud ignores .gitignore — so `dist/` (a
+# .gitignore'd build output) IS uploaded, which the Dockerfile copies in.
+.git
+.github
+.gitignore
+node_modules
+.claude
+android
+ios
+*.local
+.env
+.env.*
+capacitor.config.ts
+**/*.test.ts
+tests
+fabula-project

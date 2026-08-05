@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { WebApp, UserProfile, AppReview } from '../types';
+import PageHeader from './PageHeader';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Plus, 
@@ -22,7 +23,11 @@ import {
   Smartphone,
   X,
   Share2,
-  Box
+  Box,
+  Sparkles,
+  ScrollText,
+  Boxes,
+  RefreshCw
 } from 'lucide-react';
 import { fetchGlobalApps, fetchUserApps, saveWebApp, fetchAppReviews, submitAppReview, updateAppStats } from '../services/backendService';
 import Logo from './Logo';
@@ -210,7 +215,7 @@ const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, 
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 py-1 bg-small-orange rounded-md text-[10px] font-black uppercase tracking-widest text-white">App Store</div>
-              <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Web Apps</h1>
+              <PageHeader textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Plajah Web Apps</PageHeader>
             </div>
             <p className="text-white/40 font-bold uppercase tracking-[0.2em] text-xs max-w-xl">
               A global library of community-built web experiences. Install natively or run instantly in the Plajah Bridge.
@@ -444,6 +449,105 @@ const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, 
               exit={{ opacity: 0 }}
               className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-8 lg:gap-12"
             >
+              {/* Native platform app — Plajah Pixels (audio-reactive visualizer) */}
+              {activeTab === 'DISCOVER' && ('plajah pixels visualizer'.includes(searchQuery.toLowerCase()) || searchQuery === '') && (
+                <div
+                  key="native-plajah-pixels"
+                  onClick={() => window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: {} }))}
+                  className="group cursor-pointer space-y-6"
+                >
+                  <div className="relative aspect-square rounded-[2.5rem] overflow-hidden border border-purple-400/20 shadow-2xl transition-all group-hover:scale-105 group-hover:-translate-y-2 bg-gradient-to-br from-purple-600/40 via-fuchsia-600/30 to-orange-500/30">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center p-8">
+                      <Sparkles size={56} className="text-white drop-shadow-[0_0_24px_rgba(217,70,239,0.6)]" />
+                      <p className="text-2xl font-black uppercase tracking-tighter italic text-white">Plajah Pixels</p>
+                    </div>
+                    <div className="absolute top-4 left-4 px-2.5 py-1 rounded-md bg-white/90 text-black text-[8px] font-black uppercase tracking-widest">Native</div>
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center backdrop-blur-sm">
+                      <Play fill="white" size={48} className="mb-4 text-white scale-75 group-hover:scale-100 transition-transform" />
+                      <p className="text-[10px] font-black uppercase tracking-widest">Launch Studio</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 px-2">
+                    <h3 className="text-lg font-black uppercase tracking-tight text-white truncate">Plajah Pixels</h3>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">Audio-reactive visual studio · Plajah</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Native platform app — Teleprompter (also Plajah's teleprompting engine) */}
+              {activeTab === 'DISCOVER' && ('teleprompter prompter script'.includes(searchQuery.toLowerCase()) || searchQuery === '') && (
+                <div
+                  key="native-teleprompter"
+                  onClick={() => window.dispatchEvent(new CustomEvent('OPEN_TELEPROMPTER', { detail: {} }))}
+                  className="group cursor-pointer space-y-6"
+                >
+                  <div className="relative aspect-square rounded-[2.5rem] overflow-hidden border border-orange-400/20 shadow-2xl transition-all group-hover:scale-105 group-hover:-translate-y-2 bg-gradient-to-br from-orange-600/40 via-amber-600/25 to-zinc-800/40">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center p-8">
+                      <ScrollText size={56} className="text-white drop-shadow-[0_0_24px_rgba(255,140,0,0.55)]" />
+                      <p className="text-2xl font-black uppercase tracking-tighter italic text-white">Teleprompter</p>
+                    </div>
+                    <div className="absolute top-4 left-4 px-2.5 py-1 rounded-md bg-white/90 text-black text-[8px] font-black uppercase tracking-widest">Native</div>
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center backdrop-blur-sm">
+                      <Play fill="white" size={48} className="mb-4 text-white scale-75 group-hover:scale-100 transition-transform" />
+                      <p className="text-[10px] font-black uppercase tracking-widest">Launch</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 px-2">
+                    <h3 className="text-lg font-black uppercase tracking-tight text-white truncate">Teleprompter</h3>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">Operator + talent prompter · Plajah</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Native platform app — Spatial Mixer (Eclipsa / IAMF immersive audio) */}
+              {activeTab === 'DISCOVER' && ('spatial mixer immersive audio eclipsa iamf 3d'.includes(searchQuery.toLowerCase()) || searchQuery === '') && (
+                <div
+                  key="native-spatial-mixer"
+                  onClick={() => window.dispatchEvent(new CustomEvent('OPEN_SPATIAL_MIXER', { detail: {} }))}
+                  className="group cursor-pointer space-y-6"
+                >
+                  <div className="relative aspect-square rounded-[2.5rem] overflow-hidden border border-teal-400/20 shadow-2xl transition-all group-hover:scale-105 group-hover:-translate-y-2 bg-gradient-to-br from-teal-500/30 via-emerald-600/20 to-[#FF8C00]/20">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center p-8">
+                      <Boxes size={56} className="text-white drop-shadow-[0_0_24px_rgba(34,211,170,0.6)]" />
+                      <p className="text-2xl font-black uppercase tracking-tighter italic text-white">Spatial Mixer</p>
+                    </div>
+                    <div className="absolute top-4 left-4 px-2.5 py-1 rounded-md bg-white/90 text-black text-[8px] font-black uppercase tracking-widest">Native</div>
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center backdrop-blur-sm">
+                      <Play fill="white" size={48} className="mb-4 text-white scale-75 group-hover:scale-100 transition-transform" />
+                      <p className="text-[10px] font-black uppercase tracking-widest">Launch</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 px-2">
+                    <h3 className="text-lg font-black uppercase tracking-tight text-white truncate">Spatial Mixer</h3>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">Eclipsa · IAMF immersive audio · Plajah</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Native platform app — Media Converter (browser-lite audio/image/video) */}
+              {activeTab === 'DISCOVER' && ('media converter audio video image transcode'.includes(searchQuery.toLowerCase()) || searchQuery === '') && (
+                <div
+                  key="native-media-converter"
+                  onClick={() => window.dispatchEvent(new CustomEvent('OPEN_MEDIA_CONVERTER', { detail: {} }))}
+                  className="group cursor-pointer space-y-6"
+                >
+                  <div className="relative aspect-square rounded-[2.5rem] overflow-hidden border border-amber-400/20 shadow-2xl transition-all group-hover:scale-105 group-hover:-translate-y-2 bg-gradient-to-br from-amber-600/40 via-orange-600/30 to-yellow-500/20">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center p-8">
+                      <RefreshCw size={56} className="text-white drop-shadow-[0_0_24px_rgba(255,165,0,0.55)]" />
+                      <p className="text-2xl font-black uppercase tracking-tighter italic text-white">Media Converter</p>
+                    </div>
+                    <div className="absolute top-4 left-4 px-2.5 py-1 rounded-md bg-white/90 text-black text-[8px] font-black uppercase tracking-widest">Native</div>
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center backdrop-blur-sm">
+                      <Play fill="white" size={48} className="mb-4 text-white scale-75 group-hover:scale-100 transition-transform" />
+                      <p className="text-[10px] font-black uppercase tracking-widest">Convert</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 px-2">
+                    <h3 className="text-lg font-black uppercase tracking-tight text-white truncate">Media Converter</h3>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">Audio · Image · Video · runs in-browser</p>
+                  </div>
+                </div>
+              )}
               {filteredApps.map((app) => (
                 <div 
                   key={app.id}

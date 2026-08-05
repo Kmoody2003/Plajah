@@ -1,8 +1,9 @@
-import React, { memo } from 'react';
-import { Play, Globe, Check, Share2, Trash2 } from 'lucide-react';
+import React, { memo, useState, lazy, Suspense } from 'react';
+import { Play, Globe, Check, Share2, Trash2, Layers } from 'lucide-react';
 import { useSpatial } from '../contexts/SpatialContext';
 import SpatialImage from './SpatialImage';
 import { Album } from '../types';
+const AlbumArt3DViewer = lazy(() => import('./AlbumArt3DViewer'));
 
 interface ArchiveItemCardProps {
   album: Album;
@@ -15,11 +16,12 @@ interface ArchiveItemCardProps {
   handlePurchase: (item: any, isAlbum: boolean) => void;
 }
 
-const ArchiveItemCard: React.FC<ArchiveItemCardProps> = memo(({ 
-  album, theme, user, copiedId, 
-  handleSelectItem, handleShareAlbum, handleDeleteAlbum, handlePurchase 
+const ArchiveItemCard: React.FC<ArchiveItemCardProps> = memo(({
+  album, theme, user, copiedId,
+  handleSelectItem, handleShareAlbum, handleDeleteAlbum, handlePurchase
 }) => {
   const { isSpatialMode } = useSpatial();
+  const [show3D, setShow3D] = useState(false);
 
   return (
     <div 
@@ -47,7 +49,12 @@ const ArchiveItemCard: React.FC<ArchiveItemCardProps> = memo(({
         )}
 
         <div className="absolute top-6 right-6 flex gap-2 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all z-10">
-           <button onClick={(e) => handleShareAlbum(e, album.id)} title="Copy Public URL" className="p-4 bg-black/60 rounded-full text-white/40 hover:text-white backdrop-blur-md transition-all hover:scale-110">
+          {album.coverImage && (
+            <button onClick={(e) => { e.stopPropagation(); setShow3D(true); }} title="View in 3D" className="p-4 bg-black/60 rounded-full text-cyan-400 hover:text-cyan-300 backdrop-blur-md transition-all hover:scale-110">
+              <Layers size={18} />
+            </button>
+          )}
+          <button onClick={(e) => handleShareAlbum(e, album.id)} title="Copy Public URL" className="p-4 bg-black/60 rounded-full text-white/40 hover:text-white backdrop-blur-md transition-all hover:scale-110">
             {copiedId === album.id ? <Check size={18} className="text-green-500" /> : <Share2 size={18} />}
           </button>
           {user?.uid === album.ownerId && (
@@ -56,6 +63,11 @@ const ArchiveItemCard: React.FC<ArchiveItemCardProps> = memo(({
             </button>
           )}
         </div>
+        {show3D && (
+          <Suspense fallback={null}>
+            <AlbumArt3DViewer album={album} onClose={() => setShow3D(false)} />
+          </Suspense>
+        )}
 
         <div className="absolute bottom-6 left-6 right-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all z-10">
           <div className="mb-3 p-3 bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 text-center">

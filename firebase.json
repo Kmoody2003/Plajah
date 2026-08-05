@@ -1,8 +1,84 @@
 {
-  "firestore": {
-    "rules": "firestore.rules"
-  },
-  "storage": {
-    "rules": "storage.rules"
+  "firestore": [
+    {
+      "database": "plajah-prod",
+      "rules": "firestore.rules",
+      "indexes": "firestore.indexes.json"
+    }
+  ],
+  "storage": [
+    {
+      "bucket": "gen-lang-client-0665118474.firebasestorage.app",
+      "rules": "storage.rules"
+    }
+  ],
+  "hosting": {
+    "public": "dist",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, must-revalidate" },
+          { "key": "Pragma", "value": "no-cache" }
+        ]
+      },
+      {
+        "source": "/assets/**",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
+        "source": "/sw.js",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-store" }
+        ]
+      },
+      {
+        "source": "/workbox-*.js",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-store" }
+        ]
+      }
+    ],
+    "rewrites": [
+      {
+        "source": "/api/**",
+        "run": { "serviceId": "plajah-api", "region": "us-west1" }
+      },
+      {
+        "source": "/embed",
+        "run": { "serviceId": "plajah-api", "region": "us-west1" }
+      },
+      {
+        "source": "/oembed",
+        "run": { "serviceId": "plajah-api", "region": "us-west1" }
+      },
+      {
+        "source": "/share",
+        "run": { "serviceId": "plajah-api", "region": "us-west1" }
+      },
+      {
+        "source": "/social-video",
+        "run": { "serviceId": "plajah-api", "region": "us-west1" }
+      },
+      {
+        "source": "/social-image",
+        "run": { "serviceId": "plajah-api", "region": "us-west1" }
+      },
+      {
+        "source": "/profile/**",
+        "run": { "serviceId": "plajah-api", "region": "us-west1" }
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
   }
 }

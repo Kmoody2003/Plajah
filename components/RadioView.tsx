@@ -1,10 +1,94 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Radio, Play, Pause, SkipForward, Heart, Plus, HeartHandshake, Volume2, Info, Share2, ChevronLeft, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Radio, Play, Pause, SkipForward, Heart, Plus, HeartHandshake, Volume2, Info, Share2, ChevronLeft, Sparkles, Clock, Globe } from 'lucide-react';
+import PageHeader from './PageHeader';
 import { motion, AnimatePresence } from 'motion/react';
 import { Track, UserProfile, Album } from '../types';
 import { fetchRadioTracks, likeTrack, addToLibrary, auth, processDonation, fetchUserProfile } from '../services/backendService';
 import DonationModal from './DonationModal';
-import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
+import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
+import LiveRadioBrowser from './radio/LiveRadioBrowser';
+
+// ── Satellite radio helpers ───────────────────────────────────────────────────
+// The station runs continuously 24/7. When you tune in, you join wherever
+// the broadcast currently is — just like satellite or FM radio.
+
+interface SatellitePosition {
+  trackIndex: number;
+  offsetSeconds: number; // how far into the current track we are
+}
+
+function getSatellitePosition(tracks: Track[]): SatellitePosition {
+  if (!tracks.length) return { trackIndex: 0, offsetSeconds: 0 };
+
+  // Anchor: midnight UTC of the current day — gives a stable daily rotation
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const dayStart = Math.floor(now / DAY_MS) * DAY_MS;
+  const msIntoDay = now - dayStart;
+
+  // Treat each track as its declared duration (fallback: 3 min average)
+  const durations = tracks.map(t => (t.duration ?? 180) * 1000); // ms
+  const totalMs = durations.reduce((s, d) => s + d, 0);
+  if (totalMs === 0) return { trackIndex: 0, offsetSeconds: 0 };
+
+  const positionMs = msIntoDay % totalMs;
+  let elapsed = 0;
+  for (let i = 0; i < tracks.length; i++) {
+    if (elapsed + durations[i] > positionMs) {
+      return { trackIndex: i, offsetSeconds: (positionMs - elapsed) / 1000 };
+    }
+    elapsed += durations[i];
+  }
+  return { trackIndex: 0, offsetSeconds: 0 };
+}
+
+interface RecentlyPlayed { track: Track; playedAt: Date }
+
+function getRecentlyPlayed(tracks: Track[], windowMs = 15 * 60 * 1000): RecentlyPlayed[] {
+  if (!tracks.length) return [];
+  const now = Date.now();
+  const windowStart = now - windowMs;
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const dayStart = Math.floor(now / DAY_MS) * DAY_MS;
+
+  const durations = tracks.map(t => (t.duration ?? 180) * 1000);
+  const totalMs = durations.reduce((s, d) => s + d, 0);
+  if (totalMs === 0) return [];
+
+  const result: RecentlyPlayed[] = [];
+  // Walk backwards from now to find what was playing in the last windowMs
+  let checkMs = now;
+  const seen = new Set<number>();
+
+  while (checkMs >= windowStart && result.length < 8) {
+    const msIntoDay = (checkMs - dayStart + DAY_MS) % DAY_MS;
+    const posInPlaylist = msIntoDay % totalMs;
+    let elapsed = 0;
+    for (let i = 0; i < tracks.length; i++) {
+      if (elapsed + durations[i] > posInPlaylist) {
+        if (!seen.has(i)) {
+          seen.add(i);
+          // Track started playing at: checkMs - (posInPlaylist - elapsed)
+          const startedAt = checkMs - (posInPlaylist - elapsed);
+          result.push({ track: tracks[i], playedAt: new Date(startedAt) });
+        }
+        // Jump back to before this track started
+        checkMs -= (posInPlaylist - elapsed) + 1000;
+        break;
+      }
+      elapsed += durations[i];
+    }
+  }
+
+  return result.filter(r => r.playedAt.getTime() >= windowStart).sort((a, b) => b.playedAt.getTime() - a.playedAt.getTime());
+}
+
+function fmtTimeAgo(date: Date): string {
+  const sec = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (sec < 60) return 'Just played';
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+  return `${Math.floor(sec / 3600)}h ago`;
+}
 
 interface RadioViewProps {
   onBack?: () => void;
@@ -12,17 +96,21 @@ interface RadioViewProps {
 }
 
 const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
-  const { 
-    currentTrack: globalTrack, 
-    isPlaying: globalIsPlaying, 
-    playTrack, 
-    pause, 
+  const {
+    currentTrack: globalTrack,
+    isPlaying: globalIsPlaying,
+    playTrack,
+    pause,
     resume,
     audioSource
   } = useGlobalPlayerState();
+  const { seek } = useGlobalPlayerProgress();
 
   const [tracks, setTracks] = useState<Track[]>([]);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
+  const [satelliteOffset, setSatelliteOffset] = useState(0);    // seconds into current track
+  const [recentlyPlayed, setRecentlyPlayed] = useState<RecentlyPlayed[]>([]);
+  const [showRecent, setShowRecent] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
   const [songCount, setSongCount] = useState(0);
@@ -31,6 +119,10 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
   const [artistProfile, setArtistProfile] = useState<UserProfile | null>(null);
   const [artistStations, setArtistStations] = useState<UserProfile[]>([]);
   const [activeStationId, setActiveStationId] = useState<string | null>(artistId || null);
+  // Live broadcast radio (real-world stations via the Radio Browser directory)
+  // lives alongside Plajah's own artist stations rather than replacing them.
+  const [showLiveRadio, setShowLiveRadio] = useState(false);
+  const seekScheduledRef = useRef(false);
 
   useEffect(() => {
     const loadRadioContent = async () => {
@@ -57,15 +149,19 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
           
           const mixed = [...artistTracks, ...collaboratorsTracks, ...poolTracks.sort(() => Math.random() - 0.5)];
           setTracks(mixed);
-          
-          // Initial track
-          const index = Math.floor(Date.now() / (3 * 60 * 1000)) % mixed.length;
-          setCurrentTrack(mixed[index]);
+
+          // Satellite mode: join mid-song based on wall-clock position
+          const pos = getSatellitePosition(mixed);
+          setCurrentTrack(mixed[pos.trackIndex] ?? null);
+          setSatelliteOffset(pos.offsetSeconds);
+          setRecentlyPlayed(getRecentlyPlayed(mixed));
         } else {
           const allTracks = await fetchRadioTracks();
           setTracks(allTracks);
-          const index = Math.floor(Date.now() / (3 * 60 * 1000)) % allTracks.length;
-          setCurrentTrack(allTracks[index]);
+          const pos = getSatellitePosition(allTracks);
+          setCurrentTrack(allTracks[pos.trackIndex] ?? null);
+          setSatelliteOffset(pos.offsetSeconds);
+          setRecentlyPlayed(getRecentlyPlayed(allTracks));
           setArtistProfile(null);
           setExclusiveTracks([]);
         }
@@ -93,23 +189,42 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
   }, [activeStationId]);
 
   const handlePlayPause = () => {
-    if (currentTrack) {
-      if (globalTrack?.id === currentTrack.id) {
-        if (globalIsPlaying) pause();
-        else resume();
-      } else {
-        const radioAlbum: Album = {
-          id: activeStationId ? `artist_radio_${activeStationId}` : 'radio_station',
-          title: artistProfile?.radioSettings?.stationName || (activeStationId ? `${artistProfile?.displayName}'s Radio` : 'Global Radio'),
-          artist: artistProfile?.displayName || 'Public Station',
-          coverImage: currentTrack.albumCover || 'https://images.unsplash.com/photo-1548502669-e09bd2363ee0?auto=format&fit=crop&q=80',
-          tracks: tracks,
-          description: activeStationId ? `Personalized broadcast for ${artistProfile?.displayName}` : 'Global Radio Station stream',
-          themeColor: artistProfile?.radioSettings?.enabled ? '#00DAF3' : '#ff8c00',
-          createdAt: Date.now()
-        };
-        playTrack(currentTrack, radioAlbum, 'RADIO');
-      }
+    if (!currentTrack) return;
+
+    if (globalTrack?.id === currentTrack.id && audioSource === 'RADIO') {
+      // Already tuned in — just pause/resume
+      if (globalIsPlaying) pause();
+      else resume();
+      return;
+    }
+
+    const radioAlbum: Album = {
+      id: activeStationId ? `artist_radio_${activeStationId}` : 'radio_station',
+      title: artistProfile?.radioSettings?.stationName || (activeStationId ? `${artistProfile?.displayName}'s Radio` : 'Global Radio'),
+      artist: artistProfile?.displayName || 'Public Station',
+      coverImage: currentTrack.albumCover || 'https://images.unsplash.com/photo-1548502669-e09bd2363ee0?auto=format&fit=crop&q=80',
+      tracks: tracks,
+      description: activeStationId ? `Personalized broadcast for ${artistProfile?.displayName}` : 'Global Radio Station stream',
+      themeColor: artistProfile?.radioSettings?.enabled ? '#00DAF3' : '#ff8c00',
+      createdAt: Date.now(),
+    };
+
+    // Start the track, then seek to satellite position after audio loads
+    seekScheduledRef.current = false;
+    playTrack(currentTrack, radioAlbum, 'RADIO');
+
+    // Seek to satellite offset once audio is ready
+    // We retry a few times to handle async audio load
+    if (satelliteOffset > 0) {
+      let attempts = 0;
+      const trySeek = () => {
+        if (seekScheduledRef.current) return;
+        attempts++;
+        seek(satelliteOffset);
+        if (attempts < 5) setTimeout(trySeek, 200);
+        else seekScheduledRef.current = true;
+      };
+      setTimeout(trySeek, 300);
     }
   };
 
@@ -134,6 +249,12 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
       }
     }
   };
+
+  // Live broadcast radio takes the whole surface when selected — it has its own
+  // shelf rail, and it plays through the same global transport as Plajah FM.
+  if (showLiveRadio) {
+    return <LiveRadioBrowser onBack={onBack} onExit={() => setShowLiveRadio(false)} />;
+  }
 
   if (loading) {
     return (
@@ -165,6 +286,20 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
             <div className="text-left">
               <p className="text-xs font-black uppercase tracking-tight">Plajah FM</p>
               <p className={`text-[8px] font-bold uppercase tracking-widest ${!activeStationId ? 'text-black/60' : 'text-white/40'}`}>Global Stream</p>
+            </div>
+          </button>
+
+          {/* Real-world broadcast radio, alongside Plajah's own stations. */}
+          <button
+            onClick={() => setShowLiveRadio(true)}
+            className="w-full mt-2 p-4 rounded-2xl flex items-center gap-4 transition-all hover:bg-white/5"
+          >
+            <div className="p-2 rounded-xl bg-[#00DAF3]/20">
+              <Globe size={18} className="text-[#00DAF3]" />
+            </div>
+            <div className="text-left">
+              <p className="text-xs font-black uppercase tracking-tight">Live Radio</p>
+              <p className="text-[8px] font-bold uppercase tracking-widest text-white/40">Broadcast Worldwide</p>
             </div>
           </button>
         </div>
@@ -200,9 +335,9 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
               <Radio className={activeStationId ? 'text-[#00DAF3]' : 'text-small-orange'} size={24} />
             </div>
             <div>
-              <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">
+              <PageHeader>
                 {artistProfile?.radioSettings?.stationName || (activeStationId ? `${artistProfile?.displayName} Radio` : 'Plajah FM')}
-              </h1>
+              </PageHeader>
               <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-4">
                 {activeStationId ? `Personalized artist broadcast` : 'Live Site-Wide Broadcast'}
               </p>
@@ -290,6 +425,42 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
             )}
           </AnimatePresence>
         </div>
+
+        {/* Recently Played — last 15 minutes */}
+        {recentlyPlayed.length > 0 && (
+          <div className="px-8 py-3 border-t border-white/5 bg-black/20">
+            <button
+              onClick={() => setShowRecent(v => !v)}
+              className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/30 hover:text-white/60 transition-colors"
+            >
+              <Clock size={11} /> Recently played (15 min) {showRecent ? '▲' : '▼'}
+            </button>
+            <AnimatePresence>
+              {showRecent && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="flex gap-4 pt-3 overflow-x-auto pb-1">
+                    {recentlyPlayed.map(({ track, playedAt }) => (
+                      <div key={`${track.id}-${playedAt.getTime()}`} className="flex items-center gap-2 shrink-0 group">
+                        {track.albumCover
+                          ? <img src={track.albumCover} alt="" className="w-8 h-8 rounded-lg object-cover opacity-60 group-hover:opacity-100 transition-opacity"/>
+                          : <div className="w-8 h-8 rounded-lg bg-white/5"/>
+                        }
+                        <div>
+                          <div className="text-xs text-white/60 truncate max-w-[120px]">{track.title}</div>
+                          <div className="text-[9px] text-white/25">{fmtTimeAgo(playedAt)}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
 
         {/* Radio Footer / Interaction Bar */}
         <div className="p-8 bg-white/[0.02] border-t border-white/5 flex items-center justify-between">

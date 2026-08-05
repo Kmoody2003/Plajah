@@ -17,8 +17,8 @@ const AchievementListView: React.FC<AchievementListViewProps> = ({ onClose }) =>
     <div className="flex flex-col h-full bg-black/95 backdrop-blur-3xl border-l border-white/10">
       <div className="p-8 border-b border-white/10 flex items-center justify-between">
         <div>
-          <h2 className="text-4xl font-display font-black tracking-tightest uppercase">Achievements</h2>
-          <p className="text-small-orange text-xs font-black uppercase tracking-widest">Gamified Experience</p>
+          <h2 className="text-3xl font-display font-black tracking-tightest uppercase">Achievements</h2>
+          <p className="text-small-orange text-[10px] font-black uppercase tracking-widest">Gamified Experience</p>
         </div>
         <button onClick={onClose} className="p-3 bg-white/5 rounded-full hover:bg-white/10 transition-all">
           <X size={20} />
@@ -30,11 +30,11 @@ const AchievementListView: React.FC<AchievementListViewProps> = ({ onClose }) =>
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white/5 p-6 rounded-[2rem] border border-white/10">
             <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Total Points</p>
-            <p className="text-5xl font-black text-white">{unlocked.reduce((sum, a) => sum + a.points, 0)}</p>
+            <p className="text-4xl font-black text-white">{unlocked.reduce((sum, a) => sum + a.pointsValue, 0)}</p>
           </div>
           <div className="bg-white/5 p-6 rounded-[2rem] border border-white/10">
             <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Unlocked</p>
-            <p className="text-5xl font-black text-white">{unlocked.length} / {achievements.length}</p>
+            <p className="text-4xl font-black text-white">{unlocked.length} / {achievements.length}</p>
           </div>
         </div>
 
@@ -53,11 +53,11 @@ const AchievementListView: React.FC<AchievementListViewProps> = ({ onClose }) =>
                   <Trophy size={24} className="text-black" />
                 </div>
                 <div className="flex-1">
-                  <h4 className="text-xl font-black uppercase tracking-tight mb-1">{a.title}</h4>
-                  <p className="text-xs font-bold text-white/40 uppercase tracking-widest">{a.description}</p>
+                  <h4 className="text-lg font-black uppercase tracking-tight mb-1">{a.title}</h4>
+                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{a.description}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xl font-black text-small-orange">+{a.points}</p>
+                  <p className="text-xl font-black text-small-orange">+{a.pointsValue}</p>
                   <p className="text-[8px] font-black uppercase tracking-widest opacity-20">Points</p>
                 </div>
               </motion.div>
@@ -81,11 +81,11 @@ const AchievementListView: React.FC<AchievementListViewProps> = ({ onClose }) =>
                   <Award size={24} className="text-white/20" />
                 </div>
                 <div className="flex-1">
-                  <h4 className="text-xl font-black uppercase tracking-tight mb-1">???</h4>
-                  <p className="text-xs font-bold text-white/40 uppercase tracking-widest">Locked Achievement</p>
+                  <h4 className="text-lg font-black uppercase tracking-tight mb-1">???</h4>
+                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Locked Achievement</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xl font-black text-white/20">+{a.points}</p>
+                  <p className="text-xl font-black text-white/20">+{a.pointsValue}</p>
                 </div>
               </div>
             ))}

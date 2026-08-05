@@ -1,7 +1,15 @@
 ext {
-    minSdkVersion = 24
+    minSdkVersion = 26
     compileSdkVersion = 36
     targetSdkVersion = 36
+
+    // Kotlin 2.x — K2 compiler (ships with Compose Compiler plugin)
+    kotlinVersion = '2.1.0'
+
+    // Jetpack Compose 3 BOM (2025-05 release) — pins all Compose artifact versions
+    composeBomVersion = '2025.05.01'
+
+    // AndroidX
     androidxActivityVersion = '1.11.0'
     androidxAppCompatVersion = '1.7.1'
     androidxCoordinatorLayoutVersion = '1.3.0'
@@ -9,8 +17,29 @@ ext {
     androidxFragmentVersion = '1.8.9'
     coreSplashScreenVersion = '1.2.0'
     androidxWebkitVersion = '1.14.0'
+
+    // Material Components — provides the XML Theme.Material3.* themes + M3 color
+    // attrs that res/values/styles.xml (AppTheme) inherits from. Distinct from
+    // the Compose 'material3' artifact, which does not ship the XML themes.
+    materialVersion = '1.12.0'
+
+    // Lifecycle (Compose-aware)
+    lifecycleVersion = '2.9.0'
+
+    // Google Media3 — Google's latest media stack (replaces ExoPlayer 2.x)
+    media3Version = '1.5.1'
+
+    // Google Cast
+    castFrameworkVersion = '22.0.0'
+
+    // AndroidX TvProvider — Watch Next / home-screen recommendation rows on Android TV
+    tvProviderVersion = '1.0.0'
+
+    // Testing
     junitVersion = '4.13.2'
     androidxJunitVersion = '1.3.0'
     androidxEspressoCoreVersion = '3.7.0'
+
+    // Capacitor / Cordova
     cordovaAndroidVersion = '14.0.1'
 }

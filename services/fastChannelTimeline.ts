@@ -1,0 +1,132 @@
+// Plajah FAST — the ONE linear-timeline resolver, shared by the player and the EPG.
+//
+// A FAST channel is a looping list of slots (video / bumper / ad / public-domain / scheduled-live).
+// Everything about "what is on now" must be computed the SAME way in two places or they drift:
+//   • the client player (components/FastChannelPlayer.tsx) — what actually plays on screen, and
+//   • the server EPG (services/fastChannelEpg.ts via server.ts) — the guide platforms ingest.
+// Before this module the player looped over raw *videos* while the EPG looped over *slots* with a
+// different duration floor, so the guide and the screen disagreed the moment a channel had bumpers
+// or ads. Both now import slotDurationSec + linearPosition from here, so the loop math is identical.
+//
+// Deterministic + epoch-anchored: position is `floor(nowMs/1000) mod loopLength`, so every viewer
+// (and the guide) lands on the same slot at the same wall-clock — that is what makes it "linear TV"
+// rather than everyone starting from slot #0.
+
+import type { FastChannelSlot } from '../types';
+
+export const DEFAULT_VIDEO_SEC = 1800; // 30-min fallback when a video carries no probed duration
+export const DEFAULT_BUMPER_SEC = 10;
+export const DEFAULT_AD_SEC = 60;
+export const DEFAULT_LIVE_SEC = 1800;
+
+/** Canonical whole-second duration of a slot. The single source of truth for loop math everywhere. */
+export function slotDurationSec(s: FastChannelSlot): number {
+  const n = (v: any, d: number) => Math.max(1, Math.round(Number(v) || 0) || d);
+  switch (s?.type) {
+    case 'VIDEO':
+    case 'PUBLIC_DOMAIN': return n(s.videoDurationSeconds, DEFAULT_VIDEO_SEC);
+    case 'BUMPER':         return n(s.bumperDurationSeconds, DEFAULT_BUMPER_SEC);
+    case 'AD_BREAK':       return n(s.adDurationSeconds, DEFAULT_AD_SEC);
+    case 'LIVE_INTERRUPT': return n(s.liveInterruptMaxDurationSeconds, DEFAULT_LIVE_SEC);
+    default:               return DEFAULT_VIDEO_SEC;
+  }
+}
+
+/** Total loop length in seconds. */
+export function loopTotalSec(slots: FastChannelSlot[]): number {
+  return (slots || []).reduce((a, s) => a + slotDurationSec(s), 0);
+}
+
+/**
+ * Deterministic epoch-anchored position in the looping schedule at a wall-clock. Returns which slot
+ * is on now and how many seconds into it to seek. Same input → same output for every viewer/guide.
+ */
+export function linearPosition(slots: FastChannelSlot[], atMs: number): { index: number; offsetSec: number } {
+  const total = loopTotalSec(slots);
+  if (!slots?.length || total <= 0) return { index: 0, offsetSec: 0 };
+  let pos = Math.floor(atMs / 1000) % total;
+  if (pos < 0) pos += total;
+  for (let i = 0; i < slots.length; i++) {
+    const d = slotDurationSec(slots[i]);
+    if (pos < d) return { index: i, offsetSec: pos };
+    pos -= d;
+  }
+  return { index: 0, offsetSec: 0 };
+}
+
+export type SlotMediaKind = 'MEDIA' | 'AD' | 'LIVE';
+export interface SlotMedia {
+  kind: SlotMediaKind;
+  muxPlaybackId?: string; // play via MuxPlayer
+  url?: string;           // raw mp4 OR a non-Mux HLS .m3u8 (play via <video> + hls.js)
+  isHls: boolean;
+  title: string;
+  thumbnail?: string;
+  durationSec: number;
+  isAd: boolean;
+  isBumper: boolean;
+  isPublicDomain: boolean;
+}
+
+const MUX_M3U8 = /stream\.mux\.com\/([^./?#]+)\.m3u8/i;
+const isHlsUrl = (u = '') => /\.m3u8($|[?#])/i.test(u);
+
+/**
+ * Resolve a slot to something playable. Mux ids are extracted from the stored stream url so old
+ * schedules (which stored videoUrl = https://stream.mux.com/<id>.m3u8) still play via MuxPlayer.
+ */
+export function resolveSlotMedia(s: FastChannelSlot): SlotMedia {
+  const durationSec = slotDurationSec(s);
+  if (s.type === 'AD_BREAK') {
+    return { kind: 'AD', isHls: false, title: 'Commercial Break', durationSec, isAd: true, isBumper: false, isPublicDomain: false };
+  }
+  if (s.type === 'LIVE_INTERRUPT') {
+    return { kind: 'LIVE', isHls: false, title: s.videoTitle || 'Live', durationSec, isAd: false, isBumper: false, isPublicDomain: false };
+  }
+  if (s.type === 'BUMPER') {
+    const url = s.bumperUrl || '';
+    const m = url.match(MUX_M3U8);
+    return { kind: 'MEDIA', muxPlaybackId: m?.[1], url: m ? undefined : url, isHls: isHlsUrl(url), title: s.bumperTitle || 'Bumper', durationSec, isAd: false, isBumper: true, isPublicDomain: false };
+  }
+  // VIDEO / PUBLIC_DOMAIN
+  const url = s.videoUrl || '';
+  const m = url.match(MUX_M3U8);
+  return {
+    kind: 'MEDIA',
+    muxPlaybackId: m?.[1],
+    url: m ? undefined : url,
+    isHls: isHlsUrl(url),
+    title: s.videoTitle || 'Program',
+    thumbnail: s.videoThumbnail,
+    durationSec,
+    isAd: false,
+    isBumper: false,
+    isPublicDomain: s.type === 'PUBLIC_DOMAIN',
+  };
+}
+
+/** True when a slot has something to render (media url/mux, an ad interstitial, or a live slot). */
+export function slotIsPlayable(s: FastChannelSlot): boolean {
+  if (s.type === 'AD_BREAK' || s.type === 'LIVE_INTERRUPT') return true;
+  const m = resolveSlotMedia(s);
+  return Boolean(m.muxPlaybackId || m.url);
+}
+
+interface RawVideoish { id?: string; title?: string; url?: string; muxPlaybackId?: string; thumbnailUrl?: string; coverImageUrl?: string; duration?: number; }
+
+/**
+ * Build an ephemeral VIDEO-only slot list from a raw video array — the fallback used when a channel
+ * has no generated schedule yet, so it still plays linearly and matches a guide built the same way.
+ */
+export function slotsFromVideos(videos: RawVideoish[]): FastChannelSlot[] {
+  return (videos || []).map((v, i) => ({
+    id: `v_${v.id || i}`,
+    type: 'VIDEO' as const,
+    order: i,
+    videoId: v.id,
+    videoUrl: v.muxPlaybackId ? `https://stream.mux.com/${v.muxPlaybackId}.m3u8` : (v.url || ''),
+    videoTitle: v.title,
+    videoThumbnail: v.thumbnailUrl || v.coverImageUrl,
+    videoDurationSeconds: Math.max(1, Math.round(v.duration || 0)) || DEFAULT_VIDEO_SEC,
+  }));
+}

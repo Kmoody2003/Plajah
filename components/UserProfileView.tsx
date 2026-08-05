@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   Tv,
   Radio,
   LayoutGrid,
+  Rocket,
   Gamepad2,
   Image as ImageIcon,
   Library,
@@ -41,7 +42,11 @@ import {
   Zap,
   ChevronLeft,
   ChevronRight,
-  Trash2
+  Trash2,
+  Shuffle,
+  Bookmark,
+  Megaphone,
+  Lock,
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -67,7 +72,6 @@ import {
   fetchUserWorlds,
   saveWebApp,
   updateUserProfile,
-  updateAccountType,
   subscribeToMailingList,
   unsubscribeFromMailingList,
   isSubscribedToMailingList,
@@ -78,27 +82,64 @@ import {
   fetchSystemSettingsConfig,
   seedDemoWorlds,
   fetchUserThemePresets,
-  fetchThemePresetsByIds
+  fetchThemePresetsByIds,
+  subscribeToPodcast,
+  unsubscribeFromPodcast,
+  fetchAlbumsByIds,
+  fetchFastChannelVideos,
+  fetchAllUsers
 } from '../services/backendService';
+import { getSocialLinks } from '../services/socialLinks';
+import { subscribeHostLiveRoom, type LiveRoom } from '../services/roomService';
+import { isPartneredStatus, statusLabel } from '../services/relationships';
 import { motion, AnimatePresence } from 'motion/react';
+import FastChannelPlayer from './FastChannelPlayer';
+import FastChannelManager from './FastChannelManager';
 import { Article, SystemSettingsConfig } from '../types';
+import { getPlatformInfo } from '../hooks/usePlatform';
 import MerchStore from './MerchStore';
 import StoreView from './StoreView';
 import DonationModal from './DonationModal';
 import MerchManager from './MerchManager';
 import PhotoGallery from './PhotoGallery';
 import ThreeDImage from './ThreeDImage';
+import PioneerGoldFrame from './PioneerGoldFrame';
+import DebatesProfileTab from './DebatesProfileTab';
+import SafeAvatarViewer from './SafeAvatarViewer';
 import PhotoManager from './PhotoManager';
 import MyLibraryView from './MyLibraryView';
 import ArtistMembersArea from './ArtistMembersArea';
+import SanctuaryView from './SanctuaryView';
 import ProfileFeed from './ProfileFeed';
 import InterestsNotebook from './InterestsNotebook';
 import VideoTab from './VideoTab';
+import ScrollableTabRow from './ScrollableTabRow';
 import WorldManagerView from './WorldManagerView';
+import WorldBadge from './WorldBadge';
+import PodcastEpisodeList from './PodcastEpisodeList';
+import FollowedPodcastsCarousel from './FollowedPodcastsCarousel';
+import RssFeedViewer from './RssFeedViewer';
+import { getFollowedPodcasts, subscribePodcastLibrary, type FollowedPodcast } from '../services/podcastLibraryService';
 import WorldsView from './WorldsView';
 import ShareButton from './ShareButton';
+import StatCardModal from './statcard/StatCardModal';
 import PayItForwardButton from './PayItForwardButton';
-import { uploadFile } from '../services/backendService';
+import HideNSeekManager from './HideNSeekManager';
+import { uploadFile, fetchUpcomingAlbums } from '../services/backendService';
+import { unavailableReason } from '../services/tvCapabilities';
+import SignInPrompt from './SignInPrompt';
+import UserAnalyticsDashboard from './UserAnalyticsDashboard';
+import PlajahPlusButton from './PlajahPlusButton';
+import PlajahPlusLanding from './PlajahPlusLanding';
+import ProfileSmartCard from './ProfileSmartCard';
+import AthleteCareerCard from './AthleteCareerCard';
+import ArtistModeLanding from './ArtistModeLanding';
+import ArtistServicesTab from './ArtistServicesTab';
+import PlajahBrandConnect from './PlajahBrandConnect';
+import AdCreator from './AdCreator';
+import { loadUserAd } from '../services/backendService';
+import { UserAd } from '../types';
+import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 
 interface UserProfileViewProps {
   uid: string;
@@ -109,6 +150,10 @@ interface UserProfileViewProps {
   onMessage?: (uid: string) => void;
   onSelectArticle?: (article: Article) => void;
   onSelectApp?: (app: WebApp) => void;
+  onNavigate?: (view: AppView) => void;
+  onOpenCreator?: (type?: string) => void;
+  /** Navigate a Platform Pulse notification to its post/asset/activity. */
+  onNotificationNavigate?: (n: any) => void;
   initialTab?: 'FEED' | 'CONTENT' | 'FOLLOWING' | 'FRIENDS' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS';
 }
 
@@ -177,7 +222,7 @@ const UserProfileSlideshow: React.FC<{ items: { id: string; url: string; type: '
           {items[index].type === 'VIDEO' ? (
             <video ref={videoRef} src={items[index].url} className="w-full h-full object-cover" autoPlay loop muted playsInline />
           ) : (
-            <img src={items[index].url} className="w-full h-full object-cover" />
+            <img loading="lazy" decoding="async" src={items[index].url} className="w-full h-full object-cover" />
           )}
         </motion.div>
       </AnimatePresence>
@@ -187,21 +232,26 @@ const UserProfileSlideshow: React.FC<{ items: { id: string; url: string; type: '
   );
 };
 
-const UserProfileView: React.FC<UserProfileViewProps> = ({ 
-  uid, 
-  onBack, 
+const UserProfileView: React.FC<UserProfileViewProps> = ({
+  uid,
+  onBack,
   onSelectAlbum,
   onSelectGame,
   onVisitUser,
   onMessage,
   onSelectArticle,
   onSelectApp,
+  onNavigate,
+  onOpenCreator,
+  onNotificationNavigate,
   initialTab
 }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [content, setContent] = useState<Album[]>([]);
+  const [showStatCard, setShowStatCard] = useState(false);
   const [articles, setArticles] = useState<Article[]>([]);
   const [followedArtists, setFollowedArtists] = useState<UserProfile[]>([]);
+  const [profileUpcomingAlbums, setProfileUpcomingAlbums] = useState<Album[]>([]);
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [merch, setMerch] = useState<MerchItem[]>([]);
   const [userApps, setUserApps] = useState<WebApp[]>([]);
@@ -209,8 +259,16 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [themes, setThemes] = useState<ProfileThemePreset[]>([]); // Added
   const [following, setFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'FEED' | 'CONTENT' | 'ARTICLES' | 'FOLLOWING' | 'FRIENDS' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'INTERESTS' | 'VIDEOS' | 'WORLDS' | 'ARTIST_DETAIL' | 'PODCASTS' | 'THEMES'>(initialTab || 'FEED');
+  const { playTrack } = useGlobalPlayerState();
+  const [activeTab, setActiveTab] = useState<'FEED' | 'ATHLETE_STATS' | 'CONTENT' | 'ARTICLES' | 'FOLLOWING' | 'FRIENDS' | 'DEBATES' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'INTERESTS' | 'VIDEOS' | 'WORLDS' | 'ARTIST_DETAIL' | 'PODCASTS' | 'THEMES' | 'MY_HABITS' | 'MY_STATS' | 'ARTIST_SERVICES' | 'BRAND_CONNECT'>(initialTab || 'FEED');
+  const [showAdCreator, setShowAdCreator] = useState(false);
+  const [myUserAd, setMyUserAd] = useState<UserAd | null>(null);
+  const [feedInitialType, setFeedInitialType] = useState<'PERSONAL' | 'GLOBAL' | 'X_FEED' | 'MASTODON' | 'BLUESKY' | 'THREADS'>(
+    () => auth.currentUser?.uid === uid ? 'GLOBAL' : 'PERSONAL'
+  );
+  const [feedKey, setFeedKey] = useState(0);
   const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
+  const [showPlajahPlusLanding, setShowPlajahPlusLanding] = useState(false);
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [isAddGameModalOpen, setIsAddGameModalOpen] = useState(false);
   const [isAddAppModalOpen, setIsAddAppModalOpen] = useState(false);
@@ -228,95 +286,167 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [newGameDesc, setNewGameDesc] = useState('');
   const [isSubmittingGame, setIsSubmittingGame] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const detectMobile = () =>
+    window.matchMedia('(pointer: coarse)').matches ||
+    (!getPlatformInfo().isTV && /Mobi|Android|iPhone|iPad|iPod|IEMobile/i.test(navigator.userAgent)) ||
+    window.innerWidth < 1024;
+  const [isMobile, setIsMobile] = useState(detectMobile);
   const [showMoreActions, setShowMoreActions] = useState(false);
+  const [podcastSubTab, setPodcastSubTab] = useState<'PUBLISHED' | 'SUBSCRIBED'>('PUBLISHED');
+  const [subscribedPodcasts, setSubscribedPodcasts] = useState<Album[]>([]);
+  const [followedPodcasts, setFollowedPodcasts] = useState<FollowedPodcast[]>([]);
+  const [podcastSubscribedIds, setPodcastSubscribedIds] = useState<Set<string>>(new Set());
+  const [tabOrder, setTabOrder] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(`plajah-tab-order-${uid}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const dragTabRef = useRef<number | null>(null);
   const [isXMenuOpen, setIsXMenuOpen] = useState(false);
+  const [hnsAlbum, setHnsAlbum] = useState<Album | null>(null);
+  const [signInAction, setSignInAction] = useState<string | null>(null);
+  const [showArtistMode, setShowArtistMode] = useState(false);
+  const artistModeDismissedRef = useRef(false);
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 1024);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    let t: ReturnType<typeof setTimeout>;
+    const handleResize = () => { clearTimeout(t); t = setTimeout(() => setIsMobile(detectMobile()), 150); };
+    window.addEventListener('resize', handleResize, { passive: true });
+    return () => { window.removeEventListener('resize', handleResize); clearTimeout(t); };
+  }, []);
+
+  // Followed podcasts from the directory (PodcastsView library) — kept in sync across surfaces.
+  useEffect(() => {
+    setFollowedPodcasts(getFollowedPodcasts());
+    return subscribePodcastLibrary(() => setFollowedPodcasts(getFollowedPodcasts()));
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    let unsubArticles: (() => void) | undefined;
+
     const loadData = async () => {
       setLoading(true);
-      let unsubArticles: any;
-      try {
-        const [p, c, f, fr, m, apps, isF, isS, settings] = await Promise.all([
-          fetchUserProfile(uid).catch(() => null),
-          fetchUserContent(uid).catch(() => []),
-          fetchFollowedArtists(uid).catch(() => []),
-          fetchFriends(uid).catch(() => []),
-          fetchArtistMerch(uid).catch(() => []),
-          fetchUserApps(uid).catch(() => []),
-          isFollowing(uid).catch(() => false),
-          isSubscribedToMailingList(uid).catch(() => false),
-          fetchSystemSettingsConfig().catch(() => null),
-        ]);
-        setProfile(p as any);
-        setContent(c as any);
-        setFollowedArtists(f as any);
-        setFriends(fr as any);
-        setMerch(m as any);
-        setUserApps(apps as any);
-        fetchUserWorlds(uid).then(w => setWorlds(w)).catch(() => setWorlds([]));
-        fetchUserThemePresets(uid).then(t => {
-           let allThemes = [...t];
-           if (p && p.savedThemePresets && p.savedThemePresets.length > 0) {
-              fetchThemePresetsByIds(p.savedThemePresets).then(saved => {
-                 setThemes([...allThemes, ...saved.filter(st => !allThemes.some(a => a.id === st.id))]);
-              }).catch(() => setThemes(allThemes));
-           } else {
-              setThemes(allThemes);
-           }
-        }).catch(() => setThemes([]));
-        setFollowing(isF as boolean);
-        setIsSubscribed(isS as boolean);
-        setSystemSettings(settings as any);
 
-        // Set default tab if provided by profile and no initialTab override
-        if (p && p.defaultProfileTab && !initialTab) {
-          setActiveTab(p.defaultProfileTab as any);
-        }
-        
-        // Load articles
-        unsubArticles = listenToUserArticles(uid, (userArticles) => {
-          setArticles(userArticles);
-          // If no articles and it's own profile, create demo
-          if (userArticles.length === 0 && uid === auth.currentUser?.uid) {
-            createDemoArticle().catch(console.error);
-          }
-        });
+      // ── Phase 1: critical data — profile + content. Clears the spinner fast. ──
+      const [p, c, isF, isS, settings] = await Promise.all([
+        fetchUserProfile(uid).catch(() => null),
+        fetchUserContent(uid).catch(() => []),
+        isFollowing(uid).catch(() => false),
+        isSubscribedToMailingList(uid).catch(() => false),
+        fetchSystemSettingsConfig().catch(() => null),
+      ]);
 
-        // Seed demo worlds if this is the artist's own profile
-        if (uid === auth.currentUser?.uid && p && p.accountType === 'ARTIST') {
-          seedDemoWorlds().catch(console.error);
-        }
+      if (cancelled) return;
 
-        // If no content, default to following tab (Listener view)
-        if (c && c.length === 0 && f && f.length > 0) {
-          setActiveTab('FOLLOWING');
-        } else if (c && c.length === 0 && f && f.length === 0 && fr && fr.length > 0) {
-          setActiveTab('FRIENDS');
-        }
-      } catch (err) {
-        console.error("Error loading user profile:", err);
-      } finally {
-        setLoading(false);
+      setProfile(p as any);
+      setContent(c as any);
+      setFollowing(isF as boolean);
+      setIsSubscribed(isS as boolean);
+      setSystemSettings(settings as any);
+
+      if (p && p.defaultProfileTab && !initialTab) {
+        setActiveTab(p.defaultProfileTab as any);
       }
-      return () => {
-        if (unsubArticles) unsubArticles();
+
+      // Articles listener — non-blocking
+      unsubArticles = listenToUserArticles(uid, (userArticles) => {
+        if (cancelled) return;
+        setArticles(userArticles);
+        if (userArticles.length === 0 && uid === auth.currentUser?.uid) {
+          createDemoArticle().catch(console.error);
+        }
+      });
+
+      setLoading(false);  // ← spinner clears here, profile renders
+
+      // Show Artist Mode landing for visitors (not own profile); on by default for non-FAN accounts unless explicitly disabled
+      if (p && p.accountType !== 'FAN' && p.artistModeEnabled !== false && uid !== auth.currentUser?.uid && !artistModeDismissedRef.current) {
+        artistModeDismissedRef.current = true;
+        setShowArtistMode(true);
+      }
+
+      if (uid === auth.currentUser?.uid && p && p.accountType === 'ARTIST') {
+        seedDemoWorlds().catch(console.error);
+      }
+
+      // ── Phase 2: secondary data — loaded after the profile is already visible ──
+      const [f, fr, m, apps, upcoming] = await Promise.all([
+        fetchFollowedArtists(uid).catch(() => []),
+        fetchFriends(uid).catch(() => []),
+        fetchArtistMerch(uid).catch(() => []),
+        fetchUserApps(uid).catch(() => []),
+        fetchUpcomingAlbums().catch(() => []),
+      ]);
+
+      if (cancelled) return;
+
+      setFollowedArtists(f as any);
+      setFriends(fr as any);
+      setMerch(m as any);
+      setUserApps(apps as any);
+      setProfileUpcomingAlbums(upcoming);
+
+      // Default tab based on secondary data
+      if ((c as any[]).length === 0 && (f as any[]).length > 0) {
+        setActiveTab('FOLLOWING');
+      } else if ((c as any[]).length === 0 && (f as any[]).length === 0 && (fr as any[]).length > 0) {
+        setActiveTab('FRIENDS');
+      }
+
+      // Non-critical: worlds, themes, podcasts
+      fetchUserWorlds(uid).then(w => { if (!cancelled) setWorlds(w); }).catch(() => {});
+      fetchUserThemePresets(uid).then(t => {
+        if (cancelled) return;
+        if (p && p.savedThemePresets && p.savedThemePresets.length > 0) {
+          fetchThemePresetsByIds(p.savedThemePresets).then(saved => {
+            if (!cancelled) setThemes([...t, ...saved.filter(st => !t.some(a => a.id === st.id))]);
+          }).catch(() => { if (!cancelled) setThemes(t); });
+        } else {
+          setThemes(t);
+        }
+      }).catch(() => {});
+
+      const subIds = (p as any)?.subscribedPodcastIds || [];
+      if (subIds.length > 0) {
+        fetchAlbumsByIds(subIds).then(pods => { if (!cancelled) setSubscribedPodcasts(pods); }).catch(() => {});
+      }
+      if (auth.currentUser?.uid) {
+        fetchUserProfile(auth.currentUser.uid).then(cu => {
+          if (!cancelled && cu) setPodcastSubscribedIds(new Set((cu as any).subscribedPodcastIds || []));
+        }).catch(() => {});
       }
     };
-    const cleanup = loadData();
+
+    loadData().catch(err => {
+      console.error('Error loading user profile:', err);
+      setLoading(false);
+    });
+
     return () => {
-      cleanup.then(fn => fn && fn());
+      cancelled = true;
+      if (unsubArticles) unsubArticles();
     };
   }, [uid, initialTab]);
 
+  useEffect(() => {
+    const own = auth.currentUser?.uid === uid;
+    setFeedInitialType(own ? 'GLOBAL' : 'PERSONAL');
+    setFeedKey(k => k + 1);
+    setActiveTab(initialTab || 'FEED');
+    artistModeDismissedRef.current = false;
+    setShowArtistMode(false);
+  }, [uid, initialTab]);
+
+  // Load any existing custom billboard ad for this user
+  useEffect(() => {
+    if (auth.currentUser?.uid !== uid) return;
+    loadUserAd(uid).then(setMyUserAd).catch(() => {});
+  }, [uid]);
+
   const handleFollowToggle = async () => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser) { setSignInAction('follow this creator'); return; }
     if (following) {
       await unfollowUser(uid);
       setFollowing(false);
@@ -329,7 +459,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   };
 
   const handleMailingListToggle = async () => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser) { setSignInAction('subscribe to updates'); return; }
     if (isSubscribed) {
       await unsubscribeFromMailingList(uid);
       setIsSubscribed(false);
@@ -372,7 +502,11 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
 
   const handleAddApp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newAppTitle || !newAppUrl || !auth.currentUser) return;
+    if (!newAppTitle || !newAppUrl) return;
+    if (!auth.currentUser?.uid) {
+      alert('Please sign in to add an app');
+      return;
+    }
     
     setIsSubmittingApp(true);
     try {
@@ -442,14 +576,49 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
     }
   };
 
+  const [welcomeUsers, setWelcomeUsers] = useState<UserProfile[]>([]);
+
   const [isLivePlayerExpanded, setIsLivePlayerExpanded] = useState(false);
   const [isLivePlaying, setIsLivePlaying] = useState(false);
+  const [showFastChannel, setShowFastChannel] = useState(false);
+  const [hasFastContent, setHasFastContent] = useState(false);
+  const [showFastChannelManager, setShowFastChannelManager] = useState(false);
+
+  // A user's currently-live Room, surfaced on their profile so visitors can join
+  // straight from the account (Rooms as a first-class account feature, not just a feed post).
+  const [hostLiveRoom, setHostLiveRoom] = useState<LiveRoom | null>(null);
+  useEffect(() => {
+    if (!uid) return;
+    const unsub = subscribeHostLiveRoom(uid, setHostLiveRoom);
+    return () => unsub();
+  }, [uid]);
+
+  useEffect(() => {
+    if (!profile?.uid) return;
+    if (profile.fastChannelEnabled || profile.liveStreamConfig?.fastChannelUrl) {
+      fetchFastChannelVideos(profile.uid).then(vids => setHasFastContent(vids.length > 0));
+    }
+  }, [profile?.uid, profile?.fastChannelEnabled]);
 
   useEffect(() => {
     if (!isLivePlayerExpanded) {
       setIsLivePlaying(false);
     }
   }, [isLivePlayerExpanded]);
+
+  useEffect(() => {
+    if (uid !== auth.currentUser?.uid) return;
+    fetchAllUsers().then(allUsers => {
+      const others = allUsers.filter(u => u.uid !== uid && u.displayName);
+      const seed = Math.floor(Date.now() / 86400000);
+      const sorted = [...others].sort((a, b) => {
+        const ha = parseInt(a.uid.slice(-6), 16) || 0;
+        const hb = parseInt(b.uid.slice(-6), 16) || 0;
+        return ((ha + seed) % 10000) - ((hb + seed) % 10000);
+      });
+      setWelcomeUsers(sorted.slice(0, 3));
+    }).catch(() => {});
+  }, [uid]);
 
   if (loading) {
     return (
@@ -471,7 +640,10 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const isOwnProfile = auth.currentUser?.uid === uid;
 
   const handleClaimPioneerReward = async () => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser?.uid) {
+      alert('Please sign in to claim your reward');
+      return;
+    }
     await claimPioneerReward(auth.currentUser.uid);
     // Refresh profile locally
     setProfile(prev => prev ? { 
@@ -485,6 +657,19 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
 
   return (
     <div className="min-h-screen bg-transparent text-white pb-32 relative selection:bg-small-orange selection:text-black">
+      {/* Artist Mode Landing */}
+      {showArtistMode && profile && (
+        <ArtistModeLanding
+          profile={profile}
+          albums={content}
+          onDismiss={() => setShowArtistMode(false)}
+          onSelectAlbum={album => { setShowArtistMode(false); onSelectAlbum(album); }}
+          onSelectTrack={track => { setShowArtistMode(false); const album = content.find(a => a.tracks?.some(t => t.id === track.id)) ?? null; playTrack(track, album, 'LIBRARY'); }}
+          onSelectVideo={video => { setShowArtistMode(false); setActiveTab('VIDEOS'); }}
+          onSelectArticle={article => { setShowArtistMode(false); onSelectArticle?.(article); }}
+        />
+      )}
+
       {/* Background Slideshow */}
       {profile.backgroundSlideshow?.enabled && profile.backgroundSlideshow.items.length > 0 && (
         <div className="fixed inset-0 z-0 pointer-events-none">
@@ -497,9 +682,11 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
         {isMobile && (
           <div className="fixed top-0 left-0 right-0 z-[150] bg-white/20 backdrop-blur-3xl border-b border-white/10 px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3 min-w-0" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-              <div className="w-8 h-8 rounded-full overflow-hidden border border-white/20 shrink-0">
-                 <img src={profile?.customPhotoURL || profile?.photoURL || `https://picsum.photos/seed/${uid}/100/100`} loading="lazy" className="w-full h-full object-cover" />
-              </div>
+              <PioneerGoldFrame active={!!(profile?.hasSeenWelcomePackage || profile?.isPioneer)} size="sm">
+                <div className="w-8 h-8 rounded-full overflow-hidden">
+                  <img src={profile?.customPhotoURL || profile?.photoURL || `https://picsum.photos/seed/${uid}/100/100`} loading="lazy" className="w-full h-full object-cover" />
+                </div>
+              </PioneerGoldFrame>
               <h2 className="text-[10px] font-black uppercase tracking-widest truncate">{profile?.displayName || 'Artist Profile'}</h2>
             </div>
             <div className="flex items-center gap-2">
@@ -510,28 +697,78 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
         )}
       </div>
 
-      {/* Header */}
-      <div className={`relative ${isMobile ? 'h-24' : 'h-40 lg:h-56'} w-full overflow-hidden group/header z-10`}>
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-transparent z-10" />
-        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-theme to-transparent z-10" />
-        <ThreeDImage 
-          src={profile.coverArt || profile.photoURL || `https://picsum.photos/seed/${profile.uid}/1920/1080`} 
-          alt="Banner" 
-          className="w-full h-full object-cover transition-transform duration-1000 group-hover/header:scale-105"
-        />
-        
+      {/* ─── Cinematic Hero ───────────────────────────────────────────────────── */}
+      {/* NO overflow-hidden here — the blurred layer intentionally bleeds below */}
+      <div
+        className={`relative group/header z-10 ${isMobile ? 'h-[44vh] min-h-[240px]' : 'h-[55vh] min-h-[360px]'}`}
+      >
+        {/* Layer 0 — Blurred atmospheric bleed.
+            height: 155% so it extends ~55% below the hero boundary.
+            CSS mask (not a gradient overlay) fades it to transparent — no hard black edge. */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 pointer-events-none"
+          style={{
+            height: '155%',
+            zIndex: 0,
+            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 38%, transparent 100%)',
+            maskImage:       'linear-gradient(to bottom, black 0%, black 38%, transparent 100%)',
+          }}
+        >
+          <img
+            src={profile.coverArt || profile.photoURL || `https://picsum.photos/seed/${profile.uid}/1920/1080`}
+            className="absolute inset-0 w-full h-full object-cover object-top"
+            style={{
+              filter: 'blur(48px) saturate(2.6) brightness(0.55)',
+              transform: 'scale(1.12)',
+              transformOrigin: 'top center',
+            }}
+          />
+          {/* Subtle top darkening only — no black at the bottom */}
+          <div
+            className="absolute inset-0"
+            style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.28) 0%, transparent 30%)' }}
+          />
+        </div>
+
+        {/* Layer 1 — Sharp banner, mask fades it bottom-to-transparent so no hard edge */}
+        <div
+          className="absolute inset-0 overflow-hidden"
+          style={{
+            zIndex: 1,
+            WebkitMaskImage: 'linear-gradient(to bottom, black 40%, transparent 100%)',
+            maskImage:       'linear-gradient(to bottom, black 40%, transparent 100%)',
+          }}
+        >
+          <ThreeDImage
+            src={profile.coverArt || profile.photoURL || `https://picsum.photos/seed/${profile.uid}/1920/1080`}
+            alt="Banner"
+            containerClassName="w-full h-full"
+            className="w-full h-full object-cover object-top transition-transform duration-[2500ms] group-hover/header:scale-[1.04]"
+          />
+          {/* Top nav darkening for back-button legibility */}
+          <div
+            className="absolute inset-x-0 top-0 pointer-events-none"
+            style={{ height: '35%', background: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent)', zIndex: 2 }}
+          />
+        </div>
+
+        {/* Layer 2 — Edit overlay (own profile) */}
         {isOwnProfile && (
-          <label className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 opacity-0 group-hover/header:opacity-100 transition-all cursor-pointer backdrop-blur-sm">
+          <label
+            className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover/header:opacity-100 transition-all cursor-pointer backdrop-blur-sm"
+            style={{ zIndex: 20 }}
+          >
             <div className="flex flex-col items-center gap-4">
               <div className="p-4 bg-white text-black rounded-3xl shadow-2xl">
                 <Camera size={isMobile ? 20 : 24} />
               </div>
               <span className="text-[10px] font-black uppercase tracking-[0.3em]">Update Banner</span>
             </div>
-            <input 
-              type="file" 
-              className="hidden" 
-              accept="image/*" 
+            <input
+              type="file"
+              className="hidden"
+              accept="image/*"
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) handleProfileUpdate('cover', file);
@@ -539,60 +776,115 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             />
           </label>
         )}
-        
-        <button 
+
+        {/* Layer 3 — Back button */}
+        <button
           onClick={onBack}
-          className={`absolute ${isMobile ? 'top-3 left-3' : 'top-6 left-6'} z-30 p-2 lg:p-3 bg-white/10 backdrop-blur-xl border border-white/10 rounded-full hover:bg-white/20 transition-all`}
+          className={`absolute ${isMobile ? 'top-3 left-3' : 'top-6 left-6'} p-2 lg:p-3 bg-white/10 backdrop-blur-xl border border-white/10 rounded-full hover:bg-white/20 transition-all`}
+          style={{ zIndex: 30 }}
         >
           <ArrowLeft size={isMobile ? 18 : 20} />
         </button>
+
+        {/* Rooms on accounts: own profile → Start a Room; others' profile → Join if they're live */}
+        {isOwnProfile ? (
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('plajah:start-room'))}
+            className={`absolute ${isMobile ? 'top-3 right-3' : 'top-6 right-6'} flex items-center gap-2 px-3 lg:px-4 py-2 lg:py-2.5 bg-[#FF8C00] text-black rounded-full hover:brightness-110 transition-all text-[10px] font-black uppercase tracking-widest shadow-xl`}
+            style={{ zIndex: 30 }}
+          >
+            <span className="w-2 h-2 rounded-full bg-[#e23b3b] animate-pulse" /> Start a Room
+          </button>
+        ) : hostLiveRoom ? (
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('plajah:open-room', { detail: { roomId: hostLiveRoom.id } }))}
+            title={hostLiveRoom.title}
+            className={`absolute ${isMobile ? 'top-3 right-3' : 'top-6 right-6'} flex items-center gap-2 px-3 lg:px-4 py-2 lg:py-2.5 bg-[#e23b3b] text-white rounded-full hover:brightness-110 transition-all text-[10px] font-black uppercase tracking-widest shadow-xl max-w-[60vw]`}
+            style={{ zIndex: 30 }}
+          >
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+            <span className="truncate">Live · Join Room</span>
+          </button>
+        ) : null}
       </div>
 
-      {/* Profile Info */}
-      <div className={`max-w-7xl mx-auto px-4 lg:px-16 ${isMobile ? '-mt-12' : '-mt-16 lg:-mt-24'} relative z-30`}>
+      {/* Profile Info — floats up over the bleed zone */}
+      <div className={`max-w-7xl mx-auto px-4 lg:px-16 ${isMobile ? '-mt-16' : '-mt-24 lg:-mt-36'} relative z-30`}>
         {isOwnProfile && isCreator && (
           <div className={`mb-8 p-6 bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl ${isMobile ? 'mt-4' : 'mt-12 lg:mt-0'}`}>
             <div className={isMobile ? 'text-center' : ''}>
               <h3 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-black uppercase tracking-tighter mb-1`}>Share Your Creations</h3>
               <p className="text-white/80 text-xs lg:text-sm font-medium">Upload new albums, videos, or articles to your profile.</p>
             </div>
-            <button 
-              onClick={() => {
-                const event = new CustomEvent('NAVIGATE', { detail: { target: 'CREATOR' } });
-                window.dispatchEvent(event);
-              }}
-              className="w-full md:w-auto px-8 py-4 bg-white text-black rounded-full font-black uppercase tracking-widest text-[10px] lg:text-xs hover:scale-105 transition-transform flex items-center justify-center gap-2 whitespace-nowrap"
-            >
-              <Plus size={16} />
-              Upload Content
-            </button>
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+              {/* A TV has no file picker and nothing worth picking. Rather than a button that
+                  opens a dead end, say where uploading actually happens. */}
+              {unavailableReason('upload') ? (
+                <p className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-white/[0.04] border border-white/10 text-white/50 text-[11px] lg:text-xs font-medium text-center max-w-md">
+                  {unavailableReason('upload')}
+                </p>
+              ) : (
+                <button
+                  onClick={() => {
+                    const event = new CustomEvent('NAVIGATE', { detail: { target: 'CREATOR' } });
+                    window.dispatchEvent(event);
+                  }}
+                  className="w-full sm:w-auto px-8 py-4 bg-white text-black rounded-full font-black uppercase tracking-widest text-[10px] lg:text-xs hover:scale-105 transition-transform flex items-center justify-center gap-2 whitespace-nowrap"
+                >
+                  <Plus size={16} />
+                  Upload Content
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  const event = new CustomEvent('NAVIGATE', { detail: { target: 'CONTENT_MANAGER' } });
+                  window.dispatchEvent(event);
+                }}
+                className="w-full sm:w-auto px-8 py-4 bg-black/25 hover:bg-black/40 text-white border border-white/25 rounded-full font-black uppercase tracking-widest text-[10px] lg:text-xs hover:scale-105 transition-all flex items-center justify-center gap-2 whitespace-nowrap"
+              >
+                <LayoutGrid size={16} />
+                Manage My Content
+              </button>
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'BRAND_ACTIVATION' } }))}
+                className="w-full sm:w-auto px-8 py-4 bg-black/25 hover:bg-black/40 text-white border border-white/25 rounded-full font-black uppercase tracking-widest text-[10px] lg:text-xs hover:scale-105 transition-all flex items-center justify-center gap-2 whitespace-nowrap"
+              >
+                <Rocket size={16} />
+                Activate a Brand
+              </button>
+            </div>
           </div>
         )}
 
         <div className={`flex flex-col ${isMobile ? 'items-center text-center' : 'lg:flex-row lg:items-end'} gap-6 lg:gap-10`}>
-          <div className="relative group/avatar">
-            <div className="absolute -inset-2 bg-gradient-to-r from-small-orange to-[#FF8C00] rounded-[3rem] blur opacity-25 group-hover/avatar:opacity-50 transition duration-1000" />
-            <div className={`relative ${isMobile ? 'w-32 h-32' : 'w-40 h-40 lg:w-56 lg:h-56'} rounded-[2.5rem] lg:rounded-[3rem] overflow-hidden border-4 lg:border-8 border-theme bg-white/5`}>
-              <ThreeDImage 
-                src={profile.customPhotoURL || profile.photoURL || null} 
-                alt={profile.displayName} 
-                className="w-full h-full object-cover"
-              />
+          <div className="relative group/avatar flex flex-col items-center gap-2">
+            <div className="absolute -inset-3 bg-gradient-to-r from-small-orange via-[#D40055] to-[#6B0099] rounded-[3rem] blur-xl opacity-20 group-hover/avatar:opacity-50 transition-all duration-[1200ms]" />
+            <PioneerGoldFrame active={!!(profile.hasSeenWelcomePackage || profile.isPioneer)} size="lg" className={isMobile ? 'w-32 h-32' : 'w-40 h-40 lg:w-56 lg:h-56'}>
+            <div className={`relative w-full h-full rounded-[2.5rem] lg:rounded-[3rem] overflow-hidden bg-white/5`}>
+              {profile.avatar?.isActive ? (
+                <SafeAvatarViewer config={profile.avatar} compact autoRotate className="w-full h-full" />
+              ) : (
+                <ThreeDImage
+                  src={profile.customPhotoURL || profile.photoURL || null}
+                  alt={profile.displayName}
+                  className="w-full h-full object-cover"
+                />
+              )}
               {profile.liveStreamConfig?.isActive && (
                 <div className="absolute top-3 right-3 lg:top-4 lg:right-4 z-20">
                   <div className="w-3 h-3 lg:w-4 lg:h-4 bg-red-600 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)] border-2 border-white" />
                 </div>
               )}
-              {isOwnProfile && (
+              {isOwnProfile && !profile.avatar?.isActive && (
                 <label className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-all cursor-pointer backdrop-blur-md">
                   <div className="flex flex-col items-center gap-2">
                     <Camera size={isMobile ? 20 : 24} />
                     <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Update Photo</span>
                   </div>
-                  <input 
-                    type="file" 
-                    className="hidden" 
-                    accept="image/*" 
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) handleProfileUpdate('photo', file);
@@ -601,285 +893,350 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 </label>
               )}
             </div>
+            </PioneerGoldFrame>
+            {/* Actions under the avatar — matched-width pills. Share + Stat Card use the Plajah
+                brand gradient; the profile's trading card is the share link preview. */}
+            <div className="relative z-10 flex flex-col items-stretch gap-1.5 w-full max-w-[190px] mt-1">
+              {isOwnProfile && onNavigate && (
+                <button
+                  onClick={() => onNavigate('AVATAR_STUDIO')}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#ff8c00]/15 border border-[#ff8c00]/30 text-[#ff8c00] text-[9px] font-black uppercase tracking-widest hover:bg-[#ff8c00]/25 transition-all"
+                >
+                  ✦ Avatar Studio
+                </button>
+              )}
+              <ShareButton
+                title={`${profile.displayName}'s Profile`}
+                text={`Check out ${profile.displayName} on Plajah!`}
+                url={`${window.location.origin}/profile/${profile.uid}`}
+                imageUrl={profile.statCardImageUrl || profile.photoURL || profile.coverArt}
+                artist={profile.displayName}
+                label={isOwnProfile ? 'Share My Profile' : 'Share Profile'}
+                iconSize={13}
+                style={{ background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-full text-white text-[9px] font-black uppercase tracking-widest shadow-lg hover:brightness-110 transition-all"
+              />
+              <button
+                onClick={() => setShowStatCard(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-full text-white text-[9px] font-black uppercase tracking-widest shadow-lg hover:brightness-110 transition-all"
+                style={{ background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' }}
+              >
+                <Sparkles size={13} /> Stat Card
+              </button>
+            </div>
           </div>
           
-          <div className="flex-1 w-full">
-            <div className={`flex flex-col ${isMobile ? 'items-center' : 'lg:items-start'} gap-2 mb-4`}>
-              <div className={`flex items-center gap-3 ${isMobile ? 'flex-col' : ''}`}>
-                <h1 className={`${isMobile ? 'text-4xl' : 'text-5xl sm:text-7xl md:text-9xl lg:text-[12rem]'} font-black uppercase tracking-tighter break-words max-w-full text-white leading-[0.8] italic select-none`}>
-                  {profile.displayName}
-                </h1>
-                
-                <div className="flex items-center gap-2">
-                  {profile.tier === 'PIONEER' && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-500 to-amber-600 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.3)] border border-yellow-400/30" title="Early Adopter - Pioneer Status">
-                      <Sparkles size={14} className="text-white" />
-                      <span className="text-[9px] font-black uppercase tracking-widest text-white">Pioneer</span>
-                    </div>
-                  )}
-
-                  {isOwnProfile && profile.isPioneer && !profile.pioneerRewardClaimed && (
-                    <button 
-                      onClick={handleClaimPioneerReward}
-                      className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full text-white text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
-                    >
-                      Claim Pioneer Reward
-                    </button>
-                  )}
-                </div>
-                  
-                {profile.liveStreamConfig?.isActive && (
-                  <div className="flex items-center gap-3">
-                    <div className="px-3 py-1 bg-red-600 text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-full flex items-center gap-2">
-                      <div className="w-1 h-1 bg-white rounded-full" />
-                      On Air
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => {
-                            setIsLivePlayerExpanded(!isLivePlayerExpanded);
-                            if (!isLivePlayerExpanded) setIsLivePlaying(true);
-                          }}
-                          className={`px-4 py-2 rounded-full transition-all border flex items-center gap-2 ${isLivePlayerExpanded ? 'bg-white text-black border-white' : 'bg-white/10 hover:bg-white/20 border-white/10'}`}
-                        >
-                          <Tv size={14} />
-                          <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
-                            {isLivePlayerExpanded ? 'Close' : 'Watch Live'}
-                          </span>
-                        </button>
-
-                      {profile.radioSettings?.enabled && (
-                        <button 
-                          onClick={() => {
-                            const event = new CustomEvent('NAVIGATE', { 
-                              detail: { target: 'RADIO', artistId: profile.uid } 
-                            });
-                            window.dispatchEvent(event);
-                          }}
-                          className="px-4 py-2 bg-[#00DAF3]/20 hover:bg-[#00DAF3]/30 text-[#00DAF3] rounded-full transition-all border border-[#00DAF3]/30 flex items-center gap-2"
-                        >
-                          <Radio size={14} />
-                          <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Artist Radio</span>
-                        </button>
-                      )}
-                    </div>
+          <div className="flex-1 w-full min-w-0">
+            <div className={`flex flex-col ${isMobile ? 'items-center' : 'lg:items-start'} gap-2 mb-4 min-w-0`}>
+              {/* Name row — avatar standing to the left on desktop */}
+              <div className={`flex ${isMobile ? 'flex-col items-center' : 'flex-row items-end'} gap-4 min-w-0 max-w-full`}>
+                {/* Standing avatar next to name (desktop + active avatar only) */}
+                {!isMobile && profile.avatar?.isActive && (
+                  <div
+                    className="shrink-0 self-end"
+                    style={{ width: 90, height: 220 }}
+                  >
+                    <SafeAvatarViewer
+                      config={profile.avatar}
+                      compact
+                      wave
+                      autoRotate={false}
+                      className="w-full h-full"
+                    />
                   </div>
                 )}
+              {/* Name — per-character 3D flip-in, word-aware so words never split mid-letter */}
+              <h1
+                key={uid}
+                className={`font-black uppercase tracking-tighter w-full max-w-full min-w-0 text-white leading-[0.85] italic select-none break-words ${isMobile ? 'text-center' : ''}`}
+                style={{ perspective: '1200px', perspectiveOrigin: 'left center', fontSize: 'clamp(2rem, 12vw, 7rem)', overflowWrap: 'anywhere' }}
+              >
+                {(profile.displayName ?? '').split(' ').map((word, wi, words) => {
+                  const charOffset = words.slice(0, wi).reduce((acc, w) => acc + w.length, 0) + wi;
+                  return (
+                    <span key={wi} className="inline-block whitespace-nowrap">
+                      {word.split('').map((char, ci) => (
+                        <motion.span
+                          key={`${uid}-${wi}-${ci}`}
+                          initial={{ rotateY: 90, opacity: 0, display: 'inline-block' }}
+                          animate={showArtistMode
+                            ? { rotateY: 90, opacity: 0, display: 'inline-block' }
+                            : { rotateY: 0, opacity: 1, display: 'inline-block' }
+                          }
+                          transition={{ delay: showArtistMode ? 0 : 0.05 + (charOffset + ci) * 0.05, duration: 2.0, ease: 'easeInOut' }}
+                          style={{ transformOrigin: 'left center' }}
+                        >
+                          {char}
+                        </motion.span>
+                      ))}
+                      {wi < words.length - 1 && <span>&nbsp;</span>}
+                    </span>
+                  );
+                })}
+              </h1>
 
-                {!profile.liveStreamConfig?.isActive && profile.radioSettings?.enabled && (
-                   <button 
-                    onClick={() => {
-                      const event = new CustomEvent('NAVIGATE', { 
-                        detail: { target: 'RADIO', artistId: profile.uid } 
-                      });
-                      window.dispatchEvent(event);
-                    }}
-                    className="px-6 py-3 bg-[#00DAF3] text-black rounded-full transition-all hover:scale-105 active:scale-95 flex items-center gap-3 shadow-[0_0_20px_rgba(0,218,243,0.3)]"
+              {/* Pill buttons are now rendered in the dedicated strip above the bio — removed from here */}
+
+              </div>
+              {/* ↑ closes flex flex-row items-end (avatar + name outer wrapper) */}
+            </div>
+            {/* ── Pill row: stats + badges + action buttons — horizontal above bio ── */}
+            <div className={`flex flex-wrap items-center gap-3 mt-4 mb-3 ${isMobile ? 'justify-center' : ''}`}>
+              {/* Stats */}
+              <div className="flex items-center gap-6">
+                <div className={isMobile ? 'text-center' : ''}>
+                  <p className="text-2xl font-black text-white leading-none tabular-nums">{profile.followerCount?.toLocaleString()}</p>
+                  <p className="text-[8px] font-black text-white/35 uppercase tracking-[0.3em] mt-0.5">Followers</p>
+                </div>
+                <div className={isMobile ? 'text-center' : ''}>
+                  <p className="text-2xl font-black text-white leading-none tabular-nums">{profile.followingCount?.toLocaleString()}</p>
+                  <p className="text-[8px] font-black text-white/35 uppercase tracking-[0.3em] mt-0.5">Following</p>
+                </div>
+              </div>
+
+              {/* Pioneer badge */}
+              {profile.tier === 'PIONEER' && (
+                <div className="inline-flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-yellow-500 to-amber-600 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.3)] border border-yellow-400/30">
+                  <Sparkles size={13} className="text-white" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white">Pioneer</span>
+                </div>
+              )}
+            </div>
+
+            {/* Action buttons — their own left-aligned row so Claim / Pay It Forward /
+                Manage Plajah+ line up as a grid with the radio/channel strip below,
+                instead of being pushed onto the followers line. */}
+            <div className={`flex flex-wrap items-center gap-2 mb-3 ${isMobile ? 'justify-center' : ''}`}>
+              {isOwnProfile && profile.isPioneer && !profile.pioneerRewardClaimed && (
+                <button
+                  onClick={handleClaimPioneerReward}
+                  className="inline-flex items-center justify-center px-5 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full text-white text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
+                >
+                  Claim Pioneer Reward
+                </button>
+              )}
+
+              {/* Own-profile: Share + Plajah+ + X + Pay It Forward */}
+              {isOwnProfile && (
+                <>
+                  <PayItForwardButton variant="FULL" className="inline-flex items-center gap-2 px-5 py-2 bg-small-orange text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-lg" />
+                  <PlajahPlusButton
+                    creatorId={profile.uid}
+                    creatorName={profile.displayName}
+                    isOwnProfile={true}
+                    onOpenLanding={() => setShowPlajahPlusLanding(true)}
+                  />
+                  {(profile.xUrl || profile.xHandle) && (
+                    <button
+                      onClick={() => { setFeedInitialType('X_FEED'); setFeedKey(k => k + 1); setActiveTab('FEED'); }}
+                      className="px-5 py-2 rounded-full inline-flex items-center gap-2 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest"
+                      title="View X Feed"
+                    >
+                      <X size={13} /> X Feed
+                    </button>
+                  )}
+                </>
+              )}
+
+              {/* Visitor: Follow + Mailing List + Gifts + Plajah+ + Message */}
+              {!isOwnProfile && (
+                <>
+                  <button
+                    onClick={handleFollowToggle}
+                    className={`px-5 py-2 rounded-full font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${
+                      following
+                        ? 'bg-white/10 text-white hover:bg-red-500/20 hover:text-red-500'
+                        : 'bg-small-orange text-black hover:scale-105 active:scale-95'
+                    }`}
                   >
-                    <Radio size={18} />
-                    <span className="text-[12px] font-black uppercase tracking-widest">Artist Radio</span>
+                    {following ? <UserMinus size={12} /> : <UserPlus size={12} />}
+                    {following ? 'Unfollow' : 'Follow'}
+                  </button>
+                  <button
+                    onClick={handleMailingListToggle}
+                    className={`px-5 py-2 rounded-full font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${
+                      isSubscribed
+                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                        : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <Mail size={12} />
+                    {isSubscribed ? 'Subscribed' : 'Mailing List'}
+                  </button>
+                  <button
+                    onClick={() => setIsDonationModalOpen(true)}
+                    className="px-5 py-2 bg-white/5 border border-white/10 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2"
+                  >
+                    <HeartHandshake size={12} className="text-small-orange" />
+                    Gifts
+                  </button>
+                  <PlajahPlusButton
+                    creatorId={profile.uid}
+                    creatorName={profile.displayName}
+                    isOwnProfile={false}
+                    onOpenLanding={() => setShowPlajahPlusLanding(true)}
+                  />
+                  {onMessage && uid !== auth.currentUser?.uid && (
+                    <button
+                      onClick={() => onMessage(uid)}
+                      className="px-5 py-2 bg-small-orange text-white font-black text-[10px] uppercase tracking-widest rounded-full hover:bg-small-orange/80 transition-all flex items-center gap-2"
+                    >
+                      <MessageSquare size={12} />
+                      Message
+                    </button>
+                  )}
+                </>
+              )}
+
+              {/* Admin Panel */}
+              {isOwnProfile && (profile.role === 'admin' || profile.role === 'staff') && (
+                <button
+                  onClick={() => { window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'ADMIN_DASHBOARD' } })); }}
+                  className="px-5 py-2 bg-red-600 text-white font-black text-[10px] uppercase tracking-widest rounded-full hover:bg-red-700 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.3)]"
+                >
+                  <Shield size={12} />
+                  Admin Panel
+                </button>
+              )}
+            </div>
+
+            {/* Social links — one consolidated row (canonical normalizer over the
+                fragmented xHandle/mastodon/bluesky/threads fields). */}
+            {getSocialLinks(profile).length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap mt-1 mb-2">
+                {getSocialLinks(profile).map(s => (
+                  <a key={s.platform} href={s.url} target="_blank" rel="noopener noreferrer" title={s.handle}
+                    className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white hover:bg-white/10 transition-all">
+                    {s.label}
+                  </a>
+                ))}
+              </div>
+            )}
+
+            {/* ── Action pill strip — single horizontal scroll row, above bio ── */}
+            {(profile.liveStreamConfig?.isActive || profile.radioSettings?.enabled || profile.fastChannelEnabled || hasFastContent || profile.liveStreamConfig?.fastChannelUrl || (isOwnProfile && (profile.fastChannelEnabled || hasFastContent))) && (
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5 mt-1 mb-3">
+                {profile.liveStreamConfig?.isActive && (
+                  <div className="px-3 py-1.5 bg-red-600 text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-full flex items-center gap-1.5 shrink-0">
+                    <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />On Air
+                  </div>
+                )}
+                {profile.liveStreamConfig?.isActive && (
+                  <button onClick={() => { setIsLivePlayerExpanded(!isLivePlayerExpanded); if (!isLivePlayerExpanded) setIsLivePlaying(true); }}
+                    className={`px-4 py-1.5 rounded-full transition-all border flex items-center gap-1.5 shrink-0 text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${isLivePlayerExpanded ? 'bg-white text-black border-white' : 'bg-white/10 hover:bg-white/20 border-white/10'}`}>
+                    <Tv size={12} />{isLivePlayerExpanded ? 'Close' : 'Watch Live'}
+                  </button>
+                )}
+                {profile.radioSettings?.enabled && (
+                  <button onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'RADIO', artistId: profile.uid } }))}
+                    className="px-4 py-2 bg-[#00DAF3]/20 hover:bg-[#00DAF3]/30 text-[#00DAF3] rounded-full transition-all border border-[#00DAF3]/30 flex items-center gap-1.5 shrink-0 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+                    <Radio size={12} />Artist Radio
+                  </button>
+                )}
+                {(profile.fastChannelEnabled || hasFastContent || profile.liveStreamConfig?.fastChannelUrl) && (
+                  <button onClick={() => setShowFastChannel(true)}
+                    className="px-4 py-2 bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white rounded-full transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5 shrink-0 text-[10px] font-black uppercase tracking-widest whitespace-nowrap shadow-[0_0_14px_rgba(107,0,153,0.35)]">
+                    <Tv size={12} />Watch Channel
+                  </button>
+                )}
+                {isOwnProfile && (profile.fastChannelEnabled || hasFastContent) && (
+                  <button onClick={() => setShowFastChannelManager(true)}
+                    className="px-4 py-2 bg-white/10 border border-white/10 text-white rounded-full transition-all hover:bg-white/20 active:scale-95 flex items-center gap-1.5 shrink-0 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+                    <Radio size={12} />Manage Channel
                   </button>
                 )}
               </div>
-              <p className={`text-white/60 max-w-2xl font-medium leading-relaxed ${isMobile ? 'text-xs mt-2' : 'text-sm mt-2'}`}>
-                {profile.bio || "No bio yet. This artist is letting their work speak for itself."}
+            )}
+
+            {/* Bio / quote */}
+            <div className={`mt-2 ${profile.bio ? 'pl-4 border-l-2 border-small-orange/40' : ''}`}>
+              <p className={`text-white/55 max-w-2xl font-medium leading-relaxed ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                {profile.bio || <span className="italic text-white/25">No bio yet.</span>}
               </p>
             </div>
-            
-            <div className={`flex flex-col ${isMobile ? 'items-center' : 'lg:flex-row lg:items-end'} gap-6`}>
-              <div className="flex items-center gap-8">
-                <div className="text-center lg:text-left">
-                  <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-black text-white`}>{profile.followerCount}</p>
-                  <p className="text-[9px] lg:text-[10px] font-bold text-white/40 uppercase tracking-widest">Followers</p>
-                </div>
-                <div className="text-center lg:text-left">
-                  <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-black text-white`}>{profile.followingCount}</p>
-                  <p className="text-[9px] lg:text-[10px] font-bold text-white/40 uppercase tracking-widest">Following</p>
-                </div>
-              </div>
 
-              <div className={`flex items-center gap-3 ${isMobile ? 'w-full justify-center' : ''}`}>
-                {isMobile ? (
-                  <>
-                    <button 
-                      onClick={handleFollowToggle}
-                      className={`flex-1 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
-                        following 
-                          ? 'bg-white/10 text-white' 
-                          : 'bg-small-orange text-black'
-                      }`}
-                    >
-                      {following ? <UserMinus size={14} /> : <UserPlus size={14} />}
-                      {following ? 'Unfollow' : 'Follow'}
-                    </button>
-                    {onMessage && uid !== auth.currentUser?.uid && (
-                      <button 
-                        onClick={() => onMessage(uid)}
-                        className="p-3 bg-white/5 border border-white/10 rounded-full text-white"
-                      >
-                        <MessageSquare size={18} />
-                      </button>
-                    )}
-                    <div className="relative">
-                      <button 
-                        onClick={() => setShowMoreActions(!showMoreActions)}
-                        className="p-3 bg-white/5 border border-white/10 rounded-full text-white"
-                      >
-                        <MoreHorizontal size={18} />
-                      </button>
-                      <AnimatePresence>
-                        {showMoreActions && (
-                          <motion.div 
-                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                            className="absolute bottom-full right-0 mb-4 w-48 bg-[#0a0a0a] border border-white/10 rounded-2xl overflow-hidden shadow-2xl z-50"
-                          >
-                            <button 
-                              onClick={() => { handleMailingListToggle(); setShowMoreActions(false); }}
-                              className="w-full px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/5 flex items-center gap-3 border-b border-white/5"
-                            >
-                              <Mail size={14} /> {isSubscribed ? 'Unsubscribe' : 'Mailing List'}
-                            </button>
-                            <button 
-                              onClick={() => { setIsDonationModalOpen(true); setShowMoreActions(false); }}
-                              className="w-full px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/5 flex items-center gap-3 border-b border-white/5"
-                            >
-                              <HeartHandshake size={14} /> Gifts & tips
-                            </button>
-                            <button 
-                              onClick={() => { /* Share logic */ setShowMoreActions(false); }}
-                              className="w-full px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/5 flex items-center gap-3"
-                            >
-                              <Share size={14} /> Share Profile
-                            </button>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <PayItForwardButton variant="FULL" />
-                    <ShareButton 
-                      title={`${profile.displayName}'s Profile`}
-                      text={`Check out ${profile.displayName} on Plajah!`}
-                      url={`${window.location.origin}/profile/${profile.uid}`}
-                      className="p-4 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all text-white/60 hover:text-white"
-                    />
-
-                      {(profile.xUrl || profile.xHandle) && (
-                      <div className="relative">
-                        <button 
-                          className="p-4 rounded-full transition-all flex items-center justify-center gap-2 bg-white/5 border border-white/10 text-white/30 cursor-not-allowed"
-                          title="X Social Signal - Coming Soon"
-                        >
-                          <X size={18} />
-                          <span className="text-[10px] font-black uppercase tracking-widest hidden md:block">Soon</span>
-                        </button>
-                      </div>
-                    )}
-                    {!isOwnProfile && auth.currentUser && (
-                      <div className="flex items-center gap-4">
-                        <button 
-                          onClick={handleFollowToggle}
-                          className={`px-8 py-3 rounded-full font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 ${
-                            following 
-                              ? 'bg-white/10 text-white hover:bg-red-500/20 hover:text-red-500' 
-                              : 'bg-small-orange text-black hover:scale-105 active:scale-95'
-                          }`}
-                        >
-                          {following ? <UserMinus size={14} /> : <UserPlus size={14} />}
-                          {following ? 'Unfollow' : 'Follow'}
-                        </button>
-
-                        <button 
-                          onClick={handleMailingListToggle}
-                          className={`px-8 py-3 rounded-full font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 ${
-                            isSubscribed 
-                              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' 
-                              : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'
-                          }`}
-                        >
-                          <Mail size={14} />
-                          {isSubscribed ? 'Subscribed' : 'Join Mailing List'}
-                        </button>
-                        
-                        <button 
-                          onClick={() => setIsDonationModalOpen(true)}
-                          className="px-8 py-3 bg-white/5 border border-white/10 rounded-full font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2"
-                        >
-                          <HeartHandshake size={14} className="text-small-orange" />
-                          Gifts & tips
-                        </button>
-                        {onMessage && uid !== auth.currentUser?.uid && (
-                          <button 
-                            onClick={() => onMessage(uid)}
-                            className="px-8 py-3 bg-small-orange text-white font-black text-xs uppercase tracking-widest rounded-full hover:bg-small-orange/80 transition-all flex items-center gap-2"
-                          >
-                            <MessageSquare size={14} />
-                            Message
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {isOwnProfile && (profile.role === 'admin' || profile.role === 'staff') && (
-                  <button 
-                    onClick={() => {
-                      const event = new CustomEvent('NAVIGATE', { detail: { target: 'ADMIN_DASHBOARD' } });
-                      window.dispatchEvent(event);
-                    }}
-                    className={`px-6 lg:px-8 py-3 bg-red-600 text-white font-black text-[10px] lg:text-xs uppercase tracking-widest rounded-full hover:bg-red-700 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.3)] ${isMobile ? 'w-full justify-center' : ''}`}
-                  >
-                    <Shield size={14} />
-                    Admin Panel
-                  </button>
+            {/* Relationship status — private by default; the owner always sees their own. */}
+            {(profile.relationshipPublic || isOwnProfile) && isPartneredStatus(profile.relationshipStatus) && (
+              <div className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-rose-300/80">
+                <Heart size={12} fill="currentColor" />
+                <span>
+                  {statusLabel(profile.relationshipStatus)}
+                  {profile.relationshipPartnerUid ? (
+                    <> with <button onClick={() => onVisitUser(profile.relationshipPartnerUid!)} className="underline hover:text-rose-200">{profile.relationshipPartnerName || 'their partner'}</button></>
+                  ) : profile.relationshipPartnerName ? ` with ${profile.relationshipPartnerName}` : ''}
+                </span>
+                {isOwnProfile && !profile.relationshipPublic && (
+                  <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-white/30" title="Only you can see your relationship status. Turn it on in settings to make it public."><Lock size={9} /> Only you</span>
                 )}
               </div>
-            </div>
+            )}
+
+            {/* RSS feed viewer — hidden by default, expands under the bio */}
+            {profile.podcastRss?.externalFeedUrl && (
+              <div className="max-w-2xl">
+                <RssFeedViewer feedUrl={profile.podcastRss.externalFeedUrl} feedTitle={profile.podcastRss.feedTitle} />
+              </div>
+            )}
+
           </div>
         </div>
 
         {/* Pinned Items Row */}
         {profile.pinnedItems && profile.pinnedItems.length > 0 && (
           <div className="mt-12">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/80 flex items-center gap-3">
-                <Sparkles size={14} className="text-small-orange" /> Pinned Items
+            <div className="flex items-center gap-4 mb-6">
+              <span className="w-0.5 h-5 bg-gradient-to-b from-small-orange to-[#D40055] rounded-full shrink-0" />
+              <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white flex items-center gap-2">
+                <Sparkles size={12} className="text-small-orange" /> Pinned Items
               </h3>
-              <div className="h-px flex-1 bg-white/5 mx-6" />
+              <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-               {profile.pinnedItems.map((pin, idx) => {
-                 let displayItem: any = null;
-                 if (pin.type === 'POST') displayItem = { title: 'Pinned Post', type: 'POST', cover: `https://picsum.photos/seed/${pin.id}/400/300` };
-                 if (pin.type === 'VIDEO') displayItem = { title: 'Pinned Video', type: 'VIDEO', cover: `https://picsum.photos/seed/${pin.id}/400/300` };
-                 if (pin.type === 'AUDIO') displayItem = { title: 'Pinned Audio', type: 'AUDIO', cover: `https://picsum.photos/seed/${pin.id}/400/300` };
-                 
+               {profile.pinnedItems.map((pin) => {
+                 // Try refId first, fall back to id (for pins created before refId field was added)
+                 const contentRef = (pin as any).refId || pin.id;
+                 const album = pin.type === 'AUDIO' ? content.find(a => a.id === contentRef) : null;
+                 const video = pin.type === 'VIDEO' ? (profile.videos || []).find((v: any) => v.id === contentRef || v.url === contentRef) : null;
+                 const article = pin.type === 'POST' ? articles.find(a => a.id === contentRef) : null;
+                 const cover = album?.coverImage || (video as any)?.thumbnailUrl || (article as any)?.coverImage || null;
+                 const title = album?.title || (video as any)?.title || (article as any)?.title || `Pinned ${pin.type}`;
+                 const canPlay = pin.type === 'AUDIO' && album && album.tracks && album.tracks.length > 0;
+
+                 const handlePinClick = () => {
+                   if (canPlay && album) { playTrack(album.tracks[0], album, 'LIBRARY'); return; }
+                   if (article && onNavigate) { onNavigate('FEED' as any); return; }
+                   if (video && (video as any).url) { window.open((video as any).url, '_blank'); }
+                 };
+
                  return (
-                   <div key={pin.id} className="group relative aspect-video rounded-2xl overflow-hidden cursor-pointer bg-white/5 border border-white/10 hover:border-white/20 transition-all">
-                     <img 
-                       src={displayItem?.cover}
-                       alt={displayItem?.title}
-                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                       referrerPolicy="no-referrer"
-                     />
+                   <div
+                     key={pin.id}
+                     className="group relative aspect-video rounded-2xl overflow-hidden cursor-pointer bg-white/5 border border-white/10 hover:border-white/20 transition-all"
+                     onClick={handlePinClick}
+                   >
+                     {cover
+                       ? <img loading="lazy" decoding="async" src={cover} alt={title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" referrerPolicy="no-referrer" />
+                       : <div className="w-full h-full flex items-center justify-center">
+                           {pin.type === 'AUDIO' ? <Music size={32} className="text-white/15" /> : pin.type === 'VIDEO' ? <Play size={32} className="text-white/15" /> : <BookOpen size={32} className="text-white/15" />}
+                         </div>
+                     }
                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
-                     <div className="absolute top-2 right-2 p-1.5 bg-black/60 backdrop-blur-md rounded-full text-white/80 shrink-0">
+                     <div className="absolute top-2 right-2 p-1.5 bg-black/60 backdrop-blur-md rounded-full">
                         <Zap size={10} className="text-small-orange fill-small-orange" />
                      </div>
-                     <div className="absolute inset-x-0 bottom-0 p-4">
-                       <div className="flex items-center gap-2 mb-1">
-                         <span className="px-1.5 py-0.5 bg-small-orange/20 text-small-orange text-[7px] font-black uppercase tracking-widest rounded-sm backdrop-blur-md border border-small-orange/20">
-                           {displayItem?.type}
-                         </span>
+                     {canPlay && (
+                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                         <div className="w-10 h-10 rounded-full bg-small-orange/90 backdrop-blur-sm flex items-center justify-center shadow-lg">
+                           <Play size={16} className="text-black fill-black ml-0.5" />
+                         </div>
                        </div>
-                       <h4 className="text-[10px] font-black uppercase tracking-tight text-white truncate group-hover:text-small-orange transition-colors">
-                         {displayItem?.title}
+                     )}
+                     <div className="absolute inset-x-0 bottom-0 p-4">
+                       <span className="px-1.5 py-0.5 bg-small-orange/20 text-small-orange text-[7px] font-black uppercase tracking-widest rounded-sm backdrop-blur-md border border-small-orange/20">
+                         {pin.type}
+                       </span>
+                       <h4 className="mt-1 text-[10px] font-black uppercase tracking-tight text-white truncate group-hover:text-small-orange transition-colors">
+                         {title}
                        </h4>
                      </div>
                    </div>
@@ -889,11 +1246,66 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
           </div>
         )}
 
+        {/* Affirmation Banner — unique per profile, rotates daily */}
+        {(() => {
+          const quotes = [
+            { text: "Create without limits. The world needs what only you can make.", category: "creativity" },
+            { text: "Every great artist was once a beginner. Keep going.", category: "growth" },
+            { text: "Your story is worth telling. Your voice is worth hearing.", category: "creativity" },
+            { text: "Consistency beats perfection. Show up, ship it, grow.", category: "growth" },
+            { text: "The best time to share your art was yesterday. The next best time is now.", category: "creativity" },
+            { text: "You are not too late. The world is still waiting for your work.", category: "motivation" },
+            { text: "Doubt is just creativity looking for permission. Grant it.", category: "creativity" },
+            { text: "Small steps daily build empires. Trust the process.", category: "growth" },
+            { text: "Your passion is proof that you belong here. Own it.", category: "motivation" },
+            { text: "Connection starts with one brave post. Make it.", category: "connection" },
+            { text: "Art is not what you make — it is how you make people feel.", category: "creativity" },
+            { text: "Rest is part of the process. You are still growing.", category: "growth" },
+            { text: "The right people will always find your work. Keep creating.", category: "motivation" },
+            { text: "Every upload is a conversation started. Someone needed to hear it.", category: "connection" },
+            { text: "You don't need permission to be great. You already have it.", category: "motivation" },
+            { text: "Collaboration multiplies talent. Reach out today.", category: "connection" },
+            { text: "Progress over perfection — always.", category: "growth" },
+            { text: "Your next fan is waiting for content you haven't posted yet.", category: "motivation" },
+            { text: "Creativity is contagious. Pass it on.", category: "creativity" },
+            { text: "The platform grows when you share something real.", category: "connection" },
+            { text: "Every listen, every view, every read — someone chose you.", category: "motivation" },
+            { text: "Build something worth returning to.", category: "creativity" },
+            { text: "One post can change someone's entire day.", category: "connection" },
+            { text: "The gap between dreaming and doing is just one action.", category: "growth" },
+            { text: "Your art is an act of generosity. Keep giving.", category: "creativity" },
+            { text: "Communities thrive when individuals show up authentically.", category: "connection" },
+            { text: "Momentum is built post by post, day by day.", category: "growth" },
+            { text: "What you share today becomes someone's discovery tomorrow.", category: "motivation" },
+            { text: "Greatness lives inside consistency.", category: "growth" },
+            { text: "Say what only you can say. The world is listening.", category: "creativity" },
+          ];
+          // Seed combines profile UID chars + day number → unique per profile, rotates daily
+          const day = Math.floor(Date.now() / 86400000);
+          const uidSeed = uid.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+          const idx = (day * 7 + uidSeed) % quotes.length;
+          const quote = quotes[idx];
+          return (
+            <div className="mt-10 mb-2 relative overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02] px-8 py-4 flex items-center gap-6">
+              <div className="absolute inset-0 bg-gradient-to-r from-small-orange/5 via-transparent to-violet-500/5 pointer-events-none" />
+              <div className="w-px h-8 bg-gradient-to-b from-small-orange to-violet-500 shrink-0 rounded-full opacity-70" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] lg:text-xs font-medium text-white/60 italic leading-relaxed truncate">"{quote.text}"</p>
+              </div>
+              <span className="shrink-0 text-[8px] font-black uppercase tracking-[0.3em] text-white/20">— Plajah</span>
+            </div>
+          );
+        })()}
+
+        {/* Podcasts the user follows — most recent episodes, above Latest Releases */}
+        <FollowedPodcastsCarousel podcasts={subscribedPodcasts} onOpen={onSelectAlbum} />
+
         {/* Latest Releases Highlight Section */}
         <div className="mt-12">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-3">
-              <Sparkles size={14} className="text-small-orange" /> Latest Releases
+            <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white flex items-center gap-3">
+              <span className="w-0.5 h-4 bg-gradient-to-b from-small-orange to-[#D40055] rounded-full" />
+              <Sparkles size={12} className="text-small-orange" /> Latest Releases
             </h3>
             <div className="h-px flex-1 bg-white/5 mx-6" />
           </div>
@@ -928,19 +1340,35 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 }}
                 className="group relative aspect-[4/5] rounded-2xl overflow-hidden cursor-pointer bg-white/5 border border-white/10 hover:border-white/20 transition-all"
               >
-                <img 
+                <img loading="lazy" decoding="async" 
                   src={release.coverImage || `https://picsum.photos/seed/${release.id}/400/500`} 
                   alt={release.title}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                   referrerPolicy="no-referrer"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
-                
+
+                {/* H&S button â€” owner only, ALBUM/MUSIC releases only */}
+                {isOwnProfile && release.releaseType === 'ALBUM' && (release as any).type === 'MUSIC' && (
+                  <button
+                    onClick={e => { e.stopPropagation(); setHnsAlbum(release as Album); }}
+                    title="Hide N Seek"
+                    className="absolute top-2 right-2 p-1.5 bg-black/60 backdrop-blur-md border border-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/40 hover:border-primary z-10"
+                  >
+                    <Shuffle size={12} className="text-white" />
+                  </button>
+                )}
+
                 <div className="absolute inset-x-0 bottom-0 p-4">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="px-1.5 py-0.5 bg-small-orange/20 text-small-orange text-[7px] font-black uppercase tracking-widest rounded-sm backdrop-blur-md border border-small-orange/20">
                       {release.releaseType}
                     </span>
+                    {(release as any).hideNSeekConfig?.isEnabled && (
+                      <span className="px-1.5 py-0.5 bg-primary/20 text-primary text-[7px] font-black uppercase tracking-widest rounded-sm backdrop-blur-md border border-primary/30">
+                        H&amp;S
+                      </span>
+                    )}
                   </div>
                   <h4 className="text-[10px] font-black uppercase tracking-tight text-white truncate group-hover:text-small-orange transition-colors">
                     {release.title}
@@ -960,11 +1388,74 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
           </div>
         </div>
 
+        {/* Smart Weather + Activity Card */}
+        <div className="mt-10">
+          <ProfileSmartCard
+            followedIds={followedArtists.map(a => a.uid)}
+            profileUid={uid}
+            upcomingAlbums={profileUpcomingAlbums}
+            onSelectAlbum={onSelectAlbum}
+            onNotificationNavigate={onNotificationNavigate}
+            onVisitUser={onVisitUser}
+            profileAccountType={profile?.accountType}
+            athleteProfile={profile?.accountType === 'ATHLETE' ? {
+              sport: profile.athleteSport,
+              position: profile.athletePosition,
+              school: profile.athleteSchool,
+              classYear: profile.athleteClassYear,
+              state: profile.athleteState,
+            } : undefined}
+            onGoToAthleteTab={profile?.accountType === 'ATHLETE' ? () => setActiveTab('ATHLETE_STATS') : undefined}
+            ownerWeather={{ lat: profile?.weatherLat, lon: profile?.weatherLon, city: profile?.weatherCity, showCity: profile?.showWeatherCity }}
+            onPersistWeather={isOwnProfile ? (d) => { updateUserProfile(uid, d as any).catch(() => {}); } : undefined}
+            onToggleShowCity={isOwnProfile ? (show) => { updateUserProfile(uid, { showWeatherCity: show } as any).catch(() => {}); } : undefined}
+          />
+        </div>
+
+        {/* Welcome Card — own profile only */}
+        {isOwnProfile && welcomeUsers.length > 0 && (
+          <div className="mt-6 relative overflow-hidden rounded-3xl bg-gradient-to-r from-violet-900/30 via-indigo-900/20 to-purple-900/30 border border-white/10 p-6">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.08),transparent_60%)]" />
+            <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+              <div className="flex-1">
+                <h3 className="text-sm font-black uppercase tracking-widest text-white mb-1">Say Hello! 👋</h3>
+                <p className="text-xs text-white/40 leading-relaxed">You have {welcomeUsers.length} community members waiting to connect. Go introduce yourself!</p>
+              </div>
+              <div className="flex items-center gap-4">
+                {welcomeUsers.map(u => (
+                  <div key={u.uid} className="flex flex-col items-center gap-2 group">
+                    <div
+                      className="relative cursor-pointer"
+                      onClick={() => onVisitUser(u.uid)}
+                    >
+                      <img
+                        src={(u as any).customPhotoURL || u.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.uid}`}
+                        className="w-14 h-14 rounded-2xl border-2 border-white/20 group-hover:border-violet-400/50 transition-all object-cover"
+                        alt=""
+                      />
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-black" />
+                    </div>
+                    <p className="text-[8px] font-black uppercase tracking-widest text-white/50 truncate max-w-[64px] text-center">{u.displayName?.split(' ')[0] || 'User'}</p>
+                    {onMessage && (
+                      <button
+                        onClick={() => onMessage(u.uid)}
+                        className="px-3 py-1 bg-white/10 hover:bg-violet-500/30 border border-white/10 hover:border-violet-500/40 text-[8px] font-black uppercase tracking-widest rounded-full transition-all text-white/60 hover:text-white whitespace-nowrap"
+                      >
+                        Say Hi
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Tabs Container (Sticky & Overflow Scroll) */}
-        <div className={`mt-12 lg:mt-16 sticky ${isMobile ? 'top-14' : 'top-0'} bg-theme z-40 border-b border-white/10 -mx-4 px-4 lg:mx-0 lg:px-0`}>
-          <div className="flex items-center gap-6 lg:gap-8 overflow-x-auto scrollbar-hide py-2 translate-y-[1px]">
-          {[
-            { id: 'FEED', label: 'Feed' },
+        {(() => {
+          const allTabs = [
+            { id: 'FEED', label: isOwnProfile ? 'Feed' : 'Their Feed' },
+            ...(profile?.accountType === 'ATHLETE' ? [{ id: 'ATHLETE_STATS', label: '🏆 Athlete' }] : []),
             { id: 'CONTENT', label: 'Creations' },
             { id: 'PODCASTS', label: 'Podcasts' },
             { id: 'WORLDS', label: 'Worlds' },
@@ -982,52 +1473,149 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             ] : []),
             { id: 'FOLLOWING', label: 'Following' },
             { id: 'FRIENDS', label: 'Friends' },
+            { id: 'DEBATES', label: '⚔️ Debates' },
             { id: 'INTERESTS', label: 'Interests' },
             ...(isOwnProfile ? [{ id: 'LIBRARY', label: 'Library' }] : []),
+            ...(isOwnProfile ? [{ id: 'MY_STATS', label: 'My Stats' }] : []),
+            ...(isOwnProfile ? [{ id: 'MY_HABITS', label: 'My Habits' }] : []),
             ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'MANAGE', label: 'Management' }] : []),
+            ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'ARTIST_SERVICES', label: 'Artist Services' }] : []),
+            ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'BRAND_CONNECT', label: 'Brand Connect' }] : []),
             ...(profile?.accountType !== 'FAN' ? [{ id: 'MEMBERS', label: 'Sanctuary' }] : [])
-          ].map(tab => (
-            <button 
-              key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id as any);
-                // Scroll into view on mobile
-                const el = document.getElementById(`tab-${tab.id}`);
-                el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-              }}
-              id={`tab-${tab.id}`}
-              className={`pb-4 text-[10px] lg:text-xs font-black uppercase tracking-[0.2em] lg:tracking-[0.3em] transition-all border-b-2 whitespace-nowrap flex-shrink-0 ${
-                activeTab === tab.id ? 'text-small-orange border-small-orange' : 'text-white/20 border-transparent hover:text-white/40'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-          </div>
-        </div>
+          ];
+
+          // Apply saved order: put saved-order IDs first, append any new tabs at the end
+          const orderedTabs = tabOrder.length > 0
+            ? [
+                ...tabOrder.map(id => allTabs.find(t => t.id === id)).filter(Boolean) as typeof allTabs,
+                ...allTabs.filter(t => !tabOrder.includes(t.id))
+              ]
+            : allTabs;
+
+          const saveOrder = (order: string[]) => {
+            setTabOrder(order);
+            if (isOwnProfile) {
+              try { localStorage.setItem(`plajah-tab-order-${uid}`, JSON.stringify(order)); } catch {}
+            }
+          };
+
+          const moveTab = (idx: number, dir: -1 | 1) => {
+            const ids = orderedTabs.map(t => t.id);
+            const target = idx + dir;
+            if (target < 0 || target >= ids.length) return;
+            [ids[idx], ids[target]] = [ids[target], ids[idx]];
+            saveOrder(ids);
+          };
+
+          const handleDragStart = (idx: number) => { dragTabRef.current = idx; };
+          const handleDragOver = (e: React.DragEvent, idx: number) => {
+            e.preventDefault();
+            if (dragTabRef.current === null || dragTabRef.current === idx) return;
+            const ids = orderedTabs.map(t => t.id);
+            const [moved] = ids.splice(dragTabRef.current, 1);
+            ids.splice(idx, 0, moved);
+            dragTabRef.current = idx;
+            saveOrder(ids);
+          };
+          const handleDragEnd = () => { dragTabRef.current = null; };
+
+          return (
+            <div className={`mt-12 lg:mt-16 sticky ${isMobile ? 'top-14' : 'top-0'} bg-black/55 backdrop-blur-2xl backdrop-saturate-150 z-40 border-b border-white/[0.08] -mx-4 px-4 lg:mx-0 lg:px-0`}>
+              <ScrollableTabRow innerClassName="gap-1 py-2 translate-y-[1px] px-1">
+                {orderedTabs.map((tab, idx) => (
+                  <div
+                    key={tab.id}
+                    className="flex items-center flex-shrink-0 group/tab"
+                    draggable={isOwnProfile}
+                    onDragStart={() => handleDragStart(idx)}
+                    onDragOver={(e) => handleDragOver(e, idx)}
+                    onDragEnd={handleDragEnd}
+                  >
+                    {/* Left arrow â€” own profile only */}
+                    {isOwnProfile && (
+                      <button
+                        onClick={() => moveTab(idx, -1)}
+                        disabled={idx === 0}
+                        className="opacity-0 group-hover/tab:opacity-100 transition-opacity p-0.5 text-white/20 hover:text-white/60 disabled:opacity-0 disabled:pointer-events-none"
+                        aria-label="Move tab left"
+                      >
+                        <ChevronLeft size={10} />
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setActiveTab(tab.id as any);
+                        const el = document.getElementById(`tab-${tab.id}`);
+                        el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                      }}
+                      id={`tab-${tab.id}`}
+                      className={`pb-4 px-2 text-[10px] lg:text-xs font-black uppercase tracking-[0.2em] lg:tracking-[0.3em] transition-all border-b-2 whitespace-nowrap ${
+                        isOwnProfile ? 'cursor-grab active:cursor-grabbing' : ''
+                      } ${
+                        activeTab === tab.id
+                          ? 'text-small-orange border-small-orange'
+                          : 'text-white/20 border-transparent hover:text-white/40'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+
+                    {/* Right arrow â€” own profile only */}
+                    {isOwnProfile && (
+                      <button
+                        onClick={() => moveTab(idx, 1)}
+                        disabled={idx === orderedTabs.length - 1}
+                        className="opacity-0 group-hover/tab:opacity-100 transition-opacity p-0.5 text-white/20 hover:text-white/60 disabled:opacity-0 disabled:pointer-events-none"
+                        aria-label="Move tab right"
+                      >
+                        <ChevronRight size={10} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </ScrollableTabRow>
+            </div>
+          );
+        })()}
 
         {/* Tab Content */}
         <div className="mt-12">
           <AnimatePresence mode="wait">
-            {activeTab === 'FEED' ? (
-              <motion.div 
+            {activeTab === 'ATHLETE_STATS' ? (
+              <motion.div key="athlete-stats" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+                <AthleteCareerCard
+                  inline
+                  athleteUserId={uid}
+                  athleteName={profile.displayName}
+                  athletePhoto={profile.photoURL || undefined}
+                  schoolName={profile.athleteSchool || 'High School'}
+                  sport={profile.athleteSport || 'OTHER'}
+                  graduatingClass={profile.athleteClassYear || new Date().getFullYear() + 1}
+                  scoutMode={!isOwnProfile}
+                />
+              </motion.div>
+            ) : activeTab === 'FEED' ? (
+              <motion.div
                 key="feed"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <ProfileFeed 
-                  uid={uid} 
-                  profileName={profile.displayName} 
-                  onVisitUser={onVisitUser} 
+                <ProfileFeed
+                  key={feedKey}
+                  uid={uid}
+                  profileName={profile.displayName}
+                  onVisitUser={onVisitUser}
                   xHandle={profile.xHandle}
                   xEmbedHtml={profile.xEmbedHtml}
                   mastodonHandle={profile.mastodonHandle}
                   mastodonInstance={profile.mastodonInstance}
                   blueskyHandle={profile.blueskyHandle}
                   threadsHandle={profile.threadsHandle}
+                  initialFeedType={feedInitialType}
                   onUpdateXHandle={async (handle) => {
-                    if (!auth.currentUser || auth.currentUser.uid !== uid) return;
+                    if (!auth.currentUser?.uid || auth.currentUser.uid !== uid) return;
                     try {
                       await updateUserProfile(uid, { xHandle: handle });
                       setProfile(prev => prev ? { ...prev, xHandle: handle } : null);
@@ -1036,6 +1624,10 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     }
                   }}
                 />
+              </motion.div>
+            ) : activeTab === 'DEBATES' ? (
+              <motion.div key="debates" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+                <DebatesProfileTab uid={uid} onOpenDebate={debateId => window.dispatchEvent(new CustomEvent('OPEN_DEBATE', { detail: { debateId } }))} />
               </motion.div>
             ) : activeTab === 'INTERESTS' ? (
               <motion.div 
@@ -1047,22 +1639,35 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 <InterestsNotebook profile={profile} isOwner={isOwnProfile} onUpdate={setProfile} />
               </motion.div>
             ) : activeTab === 'PODCASTS' ? (
-              <motion.div 
+              <motion.div
                 key="podcasts"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-8"
               >
-                {isOwnProfile && (
-                  <div className="flex justify-end">
-                    <button 
+                {/* Sub-tab row + action button */}
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div className="flex gap-1 p-1 bg-white/5 rounded-full">
+                    {(['PUBLISHED', 'SUBSCRIBED'] as const).map(tab => (
+                      <button
+                        key={tab}
+                        onClick={() => setPodcastSubTab(tab)}
+                        className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                          podcastSubTab === tab
+                            ? 'bg-small-orange text-white shadow-md'
+                            : 'text-white/40 hover:text-white/70'
+                        }`}
+                      >
+                        {tab === 'PUBLISHED' ? 'Published' : 'Subscribed'}
+                      </button>
+                    ))}
+                  </div>
+                  {isOwnProfile && podcastSubTab === 'PUBLISHED' && (
+                    <button
                       onClick={() => {
-                        const event = new CustomEvent('NAVIGATE', { 
-                          detail: { 
-                            target: 'CREATOR', 
-                            params: { editingAlbum: { type: 'MUSIC', subType: 'PODCAST', artist: profile.displayName } } 
-                          } 
+                        const event = new CustomEvent('NAVIGATE', {
+                          detail: { target: 'CREATOR', params: { editingAlbum: { type: 'MUSIC', subType: 'PODCAST', artist: profile.displayName } } }
                         });
                         window.dispatchEvent(event);
                       }}
@@ -1071,32 +1676,152 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                       <Plus size={14} />
                       Add Podcast
                     </button>
-                  </div>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                  {content.filter(a => a.subType === 'PODCAST').map(album => (
-                    <div key={album.id} onClick={() => onSelectAlbum(album)} className="p-6 bg-white/[0.03] border border-white/5 rounded-[2.5rem] group hover:bg-white/[0.06] transition-all cursor-pointer">
-                      <div className="aspect-square rounded-2xl overflow-hidden mb-6 relative">
-                        <img src={album.coverImage || null} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-all duration-700" alt={album.title} />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <Play size={48} fill="white" className="text-white" />
-                        </div>
-                      </div>
-                      <h4 className="text-sm font-black uppercase tracking-widest truncate mb-1">{album.title}</h4>
-                      <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-4">By {album.artist}</p>
-                      <div className="flex items-center gap-2">
-                        <span className="px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-white/40">{album.genre}</span>
-                        <span className="px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-white/40">{album.tracks?.length || 0} Episodes</span>
-                      </div>
-                    </div>
-                  ))}
-                  {content.filter(a => a.subType === 'PODCAST').length === 0 && (
-                    <div className="col-span-full py-20 text-center border-2 border-dashed border-white/5 rounded-[3rem]">
-                      <Radio size={48} className="text-white/5 mx-auto mb-4" />
-                      <p className="text-white/20 uppercase font-black tracking-[0.5em]">No podcasts published yet.</p>
-                    </div>
                   )}
                 </div>
+
+                {/* Following — the directory podcasts the user follows (from the Chora podcast page) */}
+                {isOwnProfile && followedPodcasts.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-5">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/70 flex items-center gap-3"><Radio size={12} className="text-small-orange" /> Following · {followedPodcasts.length}</h4>
+                      <button onClick={() => window.dispatchEvent(new CustomEvent('plajah:open-chora-podcasts'))} className="text-[9px] font-black uppercase tracking-widest text-small-orange hover:underline">Manage in Chora →</button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                      {followedPodcasts.map(pod => (
+                        <button key={pod.id} onClick={() => window.dispatchEvent(new CustomEvent('plajah:open-chora-podcasts'))} className="group text-left">
+                          <div className="aspect-square rounded-2xl overflow-hidden mb-2 bg-white/5 border border-white/5">
+                            {pod.coverImage && <img src={pod.coverImage} loading="lazy" alt={pod.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />}
+                          </div>
+                          <h5 className="text-[11px] font-black uppercase tracking-wide truncate">{pod.title}</h5>
+                          <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest truncate">{pod.artist}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Published tab */}
+                {podcastSubTab === 'PUBLISHED' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    {content.filter(a => a.subType === 'PODCAST').map(album => (
+                      <div key={album.id} onClick={() => onSelectAlbum(album)} className="p-6 bg-white/[0.03] border border-white/5 rounded-[2.5rem] group hover:bg-white/[0.06] transition-all cursor-pointer">
+                        <div className="aspect-square rounded-2xl overflow-hidden mb-6 relative">
+                          <img src={album.coverImage || null} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-all duration-700" alt={album.title} />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Play size={48} fill="white" className="text-white" />
+                          </div>
+                        </div>
+                        <h4 className="text-sm font-black uppercase tracking-widest truncate mb-1">{album.title}</h4>
+                        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-2">By {album.artist}</p>
+                        {album.worldId && (
+                          <div className="mb-3" onClick={e => e.stopPropagation()}>
+                            <WorldBadge worldId={album.worldId} contentTitle={album.title} compact />
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-white/40">{album.genre}</span>
+                            <span className="px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-white/40">{album.tracks?.length || 0} Eps</span>
+                          </div>
+                          {/* Subscribe button for non-own-profile viewers */}
+                          {!isOwnProfile && auth.currentUser && (
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const isSubbed = podcastSubscribedIds.has(album.id);
+                                if (isSubbed) {
+                                  await unsubscribeFromPodcast(album.id);
+                                  setPodcastSubscribedIds(prev => { const s = new Set(prev); s.delete(album.id); return s; });
+                                  setSubscribedPodcasts(prev => prev.filter(p => p.id !== album.id));
+                                } else {
+                                  await subscribeToPodcast(album.id);
+                                  setPodcastSubscribedIds(prev => new Set([...prev, album.id]));
+                                }
+                              }}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${
+                                podcastSubscribedIds.has(album.id)
+                                  ? 'bg-small-orange/20 text-small-orange border border-small-orange/30'
+                                  : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10'
+                              }`}
+                            >
+                              {podcastSubscribedIds.has(album.id) ? <Check size={10} /> : <Plus size={10} />}
+                              {podcastSubscribedIds.has(album.id) ? 'Subscribed' : 'Subscribe'}
+                            </button>
+                          )}
+                        </div>
+                        {(album.tracks?.length || 0) > 0 && (
+                          <details onClick={e => e.stopPropagation()} className="mt-4">
+                            <summary className="cursor-pointer list-none text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white">Episodes ({album.tracks?.length || 0})</summary>
+                            <div className="mt-3"><PodcastEpisodeList album={album} /></div>
+                          </details>
+                        )}
+                      </div>
+                    ))}
+                    {content.filter(a => a.subType === 'PODCAST').length === 0 && (
+                      <div className="col-span-full py-20 text-center border-2 border-dashed border-white/5 rounded-[3rem]">
+                        <Radio size={48} className="text-white/5 mx-auto mb-4" />
+                        <p className="text-white/20 uppercase font-black tracking-[0.5em]">No podcasts published yet.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Subscribed tab */}
+                {podcastSubTab === 'SUBSCRIBED' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    {subscribedPodcasts.map(album => (
+                      <div key={album.id} onClick={() => onSelectAlbum(album)} className="p-6 bg-white/[0.03] border border-white/5 rounded-[2.5rem] group hover:bg-white/[0.06] transition-all cursor-pointer">
+                        <div className="aspect-square rounded-2xl overflow-hidden mb-6 relative">
+                          <img src={album.coverImage || null} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-all duration-700" alt={album.title} />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Play size={48} fill="white" className="text-white" />
+                          </div>
+                        </div>
+                        <h4 className="text-sm font-black uppercase tracking-widest truncate mb-1">{album.title}</h4>
+                        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-2">By {album.artist}</p>
+                        {album.worldId && (
+                          <div className="mb-3" onClick={e => e.stopPropagation()}>
+                            <WorldBadge worldId={album.worldId} contentTitle={album.title} compact />
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-white/40">{album.genre}</span>
+                            <span className="px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-white/40">{album.tracks?.length || 0} Eps</span>
+                          </div>
+                          {isOwnProfile && (
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                await unsubscribeFromPodcast(album.id);
+                                setSubscribedPodcasts(prev => prev.filter(p => p.id !== album.id));
+                                setPodcastSubscribedIds(prev => { const s = new Set(prev); s.delete(album.id); return s; });
+                              }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-white/5 text-white/40 border border-white/10 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all"
+                            >
+                              <X size={10} />
+                              Unsubscribe
+                            </button>
+                          )}
+                        </div>
+                        {(album.tracks?.length || 0) > 0 && (
+                          <details onClick={e => e.stopPropagation()} className="mt-4">
+                            <summary className="cursor-pointer list-none text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white">Episodes ({album.tracks?.length || 0})</summary>
+                            <div className="mt-3"><PodcastEpisodeList album={album} /></div>
+                          </details>
+                        )}
+                      </div>
+                    ))}
+                    {subscribedPodcasts.length === 0 && (
+                      <div className="col-span-full py-20 text-center border-2 border-dashed border-white/5 rounded-[3rem]">
+                        <Radio size={48} className="text-white/5 mx-auto mb-4" />
+                        <p className="text-white/20 uppercase font-black tracking-[0.5em]">
+                          {isOwnProfile ? 'No subscribed podcasts yet. Browse the podcast section to subscribe.' : 'No subscribed podcasts.'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </motion.div>
             ) : activeTab === 'VIDEOS' ? (
               <motion.div 
@@ -1105,10 +1830,11 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <VideoTab 
-                  profile={profile} 
-                  isOwner={isOwnProfile} 
+                <VideoTab
+                  profile={profile}
+                  isOwner={isOwnProfile}
                   onSelectVideo={onSelectAlbum}
+                  profileScoped
                 />
               </motion.div>
             ) : activeTab === 'THEMES' ? (
@@ -1118,9 +1844,9 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                        <div key={theme.id} className="bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden group cursor-pointer hover:border-white/30 transition-all">
                           <div className="aspect-video relative bg-black/50 overflow-hidden">
                              {theme.coverImage ? (
-                                <img src={theme.coverImage} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" />
+                                <img loading="lazy" decoding="async" src={theme.coverImage} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" />
                              ) : theme.assets && theme.assets.length > 0 ? (
-                                theme.assets[0].type === 'PHOTO' ? <img src={theme.assets[0].url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" /> : <video src={theme.assets[0].url} className="w-full h-full object-cover" muted loop autoPlay />
+                                theme.assets[0].type === 'PHOTO' ? <img loading="lazy" decoding="async" src={theme.assets[0].url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" /> : <video src={theme.assets[0].url} className="w-full h-full object-cover" muted loop autoPlay />
                              ) : (
                                <div className="w-full h-full flex items-center justify-center text-white/10">
                                  <ImageIcon size={48} />
@@ -1185,12 +1911,16 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                                   <button
                                      onClick={async (e) => {
                                          e.stopPropagation();
+                                         if (!auth.currentUser?.uid) {
+                                            alert('Please sign in to save themes');
+                                            return;
+                                         }
                                          try {
-                                            const myProfile = await fetchUserProfile(auth.currentUser!.uid);
+                                            const myProfile = await fetchUserProfile(auth.currentUser.uid);
                                             if (myProfile) {
                                                const currentSaved = myProfile.savedThemePresets || [];
                                                if (!currentSaved.includes(theme.id)) {
-                                                  await updateUserProfile(auth.currentUser!.uid, { savedThemePresets: [...currentSaved, theme.id] });
+                                                  await updateUserProfile(auth.currentUser.uid, { savedThemePresets: [...currentSaved, theme.id] });
                                                   alert('Added to your personal theme library!');
                                                } else {
                                                   alert('Theme is already in your library.');
@@ -1302,13 +2032,35 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 />
               </motion.div>
             ) : activeTab === 'MEMBERS' ? (
-              <motion.div 
+              <motion.div
                 key="members"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <ArtistMembersArea artistId={profile.uid} artist={profile} onBack={() => setActiveTab('FEED')} />
+                <SanctuaryView
+                  creatorId={profile.uid}
+                  creatorProfile={profile}
+                  isOwnProfile={isOwnProfile}
+                />
+              </motion.div>
+            ) : activeTab === 'ARTIST_SERVICES' && isOwnProfile ? (
+              <motion.div
+                key="artist-services"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <ArtistServicesTab currentUser={profile} onNavigate={onNavigate} />
+              </motion.div>
+            ) : activeTab === 'BRAND_CONNECT' && isOwnProfile ? (
+              <motion.div
+                key="brand-connect"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <PlajahBrandConnect currentUser={profile} />
               </motion.div>
             ) : activeTab === 'CONTENT' ? (
               <motion.div 
@@ -1335,11 +2087,11 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                             <div className="flex items-center gap-6">
                               <span className="text-2xl font-black text-white/10 group-hover:text-small-orange transition-colors">0{idx + 1}</span>
                               <div className="w-16 h-16 rounded-2xl overflow-hidden">
-                                <img src={album.coverImage || null} className="w-full h-full object-cover" alt={album.title} />
+                                <img loading="lazy" decoding="async" src={album.coverImage || null} className="w-full h-full object-cover" alt={album.title} />
                               </div>
                               <div>
                                 <h4 className="text-sm font-black uppercase tracking-widest mb-1">{album.title}</h4>
-                                <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">{album.genre} • {album.type}</p>
+                                <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">{album.genre} â€¢ {album.type}</p>
                               </div>
                             </div>
                             <div className="flex items-center gap-8">
@@ -1369,7 +2121,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                             className="group cursor-pointer"
                           >
                             <div className="relative aspect-square rounded-[2rem] overflow-hidden mb-4 bg-white/5 transition-all group-hover:scale-[1.02] group-hover:shadow-2xl">
-                              <img 
+                              <img loading="lazy" decoding="async" 
                                 src={album.coverImage || null} 
                                 alt={album.title} 
                                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
@@ -1394,14 +2146,348 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                   </div>
                 )}
               </motion.div>
+            ) : activeTab === 'MY_STATS' && isOwnProfile ? (
+              <motion.div
+                key="my-stats"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="pb-8"
+              >
+                <UserAnalyticsDashboard currentUser={profile} />
+              </motion.div>
+            ) : activeTab === 'MY_HABITS' && isOwnProfile ? (
+              <motion.div
+                key="my-habits"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-16"
+              >
+                {/* Header */}
+                <div>
+                  <span className="text-[9px] font-black uppercase tracking-[0.4em] text-small-orange block mb-2">Your Activity</span>
+                  <h2 className="font-bebas text-5xl md:text-7xl uppercase tracking-tighter leading-[0.85]">My Habits</h2>
+                  <p className="text-white/30 text-sm mt-3 max-w-md">Everything you've been into, right where you left off.</p>
+                </div>
+
+                {/* Pick Up Where You Left Off â€” Shows & Movies */}
+                <section>
+                  <div className="flex items-end justify-between mb-6">
+                    <div>
+                      <span className="text-[8px] font-black uppercase tracking-[0.35em] text-primary block mb-1">In Progress</span>
+                      <h3 className="font-bebas text-3xl uppercase tracking-tighter">Shows &amp; Movies</h3>
+                    </div>
+                    <button className="text-white/20 hover:text-white/50 text-[8px] font-black uppercase tracking-widest transition-colors">See All</button>
+                  </div>
+                  <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+                    {[
+                      { title: 'Across the Multiverse', type: 'TV', progress: 68, episode: 'S2 E4', thumb: null },
+                      { title: 'The Silent Forest', type: 'Movie', progress: 42, episode: null, thumb: null },
+                      { title: 'Nebula Whispers', type: 'TV', progress: 15, episode: 'S1 E2', thumb: null },
+                      { title: 'Digital Uprising', type: 'Movie', progress: 91, episode: null, thumb: null },
+                    ].map((item, i) => (
+                      <div key={i} className="flex-shrink-0 min-w-[140px] group cursor-pointer">
+                        <div className="aspect-[2/3] rounded-2xl bg-white/5 border border-white/5 overflow-hidden relative group-hover:border-white/20 transition-all">
+                          {item.thumb ? <img loading="lazy" decoding="async" src={item.thumb} className="w-full h-full object-cover" alt="" /> : (
+                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-white/5 to-white/0">
+                              <Play size={24} className="text-white/20" />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                          {item.episode && (
+                            <span className="absolute top-2 left-2 bg-primary/80 text-white text-[7px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full">{item.episode}</span>
+                          )}
+                          {/* Progress bar */}
+                          <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
+                            <div className="h-full bg-small-orange rounded-full" style={{ width: `${item.progress}%` }} />
+                          </div>
+                          <div className="absolute bottom-3 left-2 right-2">
+                            <p className="text-white text-[9px] font-black uppercase tracking-tight truncate">{item.title}</p>
+                            <p className="text-white/40 text-[7px] uppercase tracking-widest mt-0.5">{item.progress}% Â· {item.type}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex-shrink-0 min-w-[140px] aspect-[2/3] rounded-2xl border-2 border-dashed border-white/5 flex items-center justify-center cursor-pointer hover:border-white/10 transition-colors group">
+                      <span className="text-white/20 group-hover:text-white/40 font-black text-[8px] uppercase tracking-widest text-center px-4">Start<br/>Watching</span>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Books */}
+                <section>
+                  <div className="flex items-end justify-between mb-6">
+                    <div>
+                      <span className="text-[8px] font-black uppercase tracking-[0.35em] text-secondary block mb-1">Reading</span>
+                      <h3 className="font-bebas text-3xl uppercase tracking-tighter">Books</h3>
+                    </div>
+                    <button className="text-white/20 hover:text-white/50 text-[8px] font-black uppercase tracking-widest transition-colors">See All</button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {[
+                      { title: 'The Infinite Garden', author: 'A. Rivers', page: 142, total: 320, progress: 44 },
+                      { title: 'Cosmic Architectures', author: 'M. Okafor', page: 89, total: 210, progress: 42 },
+                      { title: 'Signal & Noise', author: 'J. Park', page: 23, total: 180, progress: 13 },
+                    ].map((book, i) => (
+                      <div key={i} className="flex gap-5 p-5 bg-white/[0.03] border border-white/5 rounded-2xl group hover:bg-white/[0.06] transition-all cursor-pointer">
+                        <div className="w-14 h-20 rounded-lg bg-white/5 flex-shrink-0 border border-white/10 flex items-center justify-center">
+                          <BookOpen size={20} className="text-white/20" />
+                        </div>
+                        <div className="flex-1 min-w-0 flex flex-col justify-between">
+                          <div>
+                            <h4 className="font-black text-[11px] uppercase tracking-tight truncate">{book.title}</h4>
+                            <p className="text-[9px] text-white/30 uppercase tracking-widest mt-0.5">{book.author}</p>
+                          </div>
+                          <div>
+                            <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-white/30 mb-1.5">
+                              <span>Page {book.page} of {book.total}</span>
+                              <span>{book.progress}%</span>
+                            </div>
+                            <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                              <div className="h-full bg-secondary rounded-full" style={{ width: `${book.progress}%` }} />
+                            </div>
+                            <button className="mt-2.5 text-[8px] font-black uppercase tracking-widest text-secondary hover:text-white transition-colors">Jump to Page {book.page} â†’</button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                {/* Albums & Songs */}
+                <section>
+                  <div className="flex items-end justify-between mb-6">
+                    <div>
+                      <span className="text-[8px] font-black uppercase tracking-[0.35em] text-tertiary block mb-1">Listening</span>
+                      <h3 className="font-bebas text-3xl uppercase tracking-tighter">Albums &amp; Songs</h3>
+                    </div>
+                    <button className="text-white/20 hover:text-white/50 text-[8px] font-black uppercase tracking-widest transition-colors">See All</button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {content.filter(a => a.type === 'MUSIC').slice(0, 8).map((album, i) => (
+                      <div
+                        key={album.id}
+                        className="flex items-center gap-3 p-3 bg-white/[0.03] border border-white/5 rounded-2xl group hover:bg-white/[0.06] transition-all cursor-pointer"
+                        onClick={() => onSelectAlbum(album)}
+                      >
+                        {/* Thumbnail â€” small fixed size */}
+                        <div className="w-12 h-12 rounded-xl bg-white/5 flex-shrink-0 overflow-hidden relative border border-white/10">
+                          {album.coverImage
+                            ? <img loading="lazy" decoding="async" src={album.coverImage} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={album.title} />
+                            : <div className="w-full h-full flex items-center justify-center"><Music size={16} className="text-white/20" /></div>
+                          }
+                        </div>
+                        {/* Info + progress */}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-black text-[10px] uppercase tracking-tight truncate">{album.title}</h4>
+                          <p className="text-[8px] text-white/30 uppercase tracking-widest mt-0.5 truncate">{album.artist}</p>
+                          <div className="mt-1.5 h-0.5 bg-white/5 rounded-full overflow-hidden">
+                            <div className="h-full bg-tertiary rounded-full" style={{ width: `${Math.floor(20 + i * 13) % 100}%` }} />
+                          </div>
+                        </div>
+                        <Play size={14} className="text-white/20 group-hover:text-white/60 flex-shrink-0 transition-colors" />
+                      </div>
+                    ))}
+                    {content.filter(a => a.type === 'MUSIC').length === 0 && (
+                      <div className="col-span-2 py-10 border-2 border-dashed border-white/5 rounded-2xl text-center">
+                        <p className="text-white/20 text-[9px] font-black uppercase tracking-widest">No music played yet</p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                {/* Last Game Played */}
+                <section>
+                  <div className="flex items-end justify-between mb-6">
+                    <div>
+                      <span className="text-[8px] font-black uppercase tracking-[0.35em] text-small-orange block mb-1">Gaming</span>
+                      <h3 className="font-bebas text-3xl uppercase tracking-tighter">Last Played</h3>
+                    </div>
+                  </div>
+                  {profile?.games && profile.games.length > 0 ? (
+                    <div className="flex gap-5 p-6 bg-white/[0.03] border border-white/5 rounded-2xl max-w-md group hover:bg-white/[0.06] transition-all cursor-pointer">
+                      <div className="w-16 h-16 rounded-xl bg-white/5 flex-shrink-0 overflow-hidden border border-white/10">
+                        {profile.games[0].thumbnailUrl ? <img loading="lazy" decoding="async" src={profile.games[0].thumbnailUrl} className="w-full h-full object-cover" alt="" /> : <Gamepad2 size={24} className="m-auto text-white/20" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-black text-sm uppercase tracking-tight truncate">{profile.games[0].title}</h4>
+                        <p className="text-[9px] text-white/30 uppercase tracking-widest mt-1">Last played recently</p>
+                        <button className="mt-3 text-[8px] font-black uppercase tracking-widest text-small-orange hover:text-white transition-colors">Resume â†’</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-10 px-8 border-2 border-dashed border-white/5 rounded-2xl max-w-md text-center">
+                      <Gamepad2 size={32} className="text-white/10 mx-auto mb-3" />
+                      <p className="text-white/20 text-[9px] font-black uppercase tracking-widest">No games played yet</p>
+                    </div>
+                  )}
+                </section>
+
+                {/* Articles Reading */}
+                <section>
+                  <div className="flex items-end justify-between mb-6">
+                    <div>
+                      <span className="text-[8px] font-black uppercase tracking-[0.35em] text-white/40 block mb-1">Reading</span>
+                      <h3 className="font-bebas text-3xl uppercase tracking-tighter">Articles</h3>
+                    </div>
+                    <button className="text-white/20 hover:text-white/50 text-[8px] font-black uppercase tracking-widest transition-colors">See All</button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {articles.slice(0, 6).map((article, i) => (
+                      <div key={article.id} className="p-5 bg-white/[0.03] border border-white/5 rounded-2xl group hover:bg-white/[0.06] transition-all cursor-pointer">
+                        <span className="text-[7px] font-black uppercase tracking-widest text-white/20 block mb-2">Article</span>
+                        <h4 className="font-black text-[11px] uppercase tracking-tight line-clamp-2 mb-3">{article.title}</h4>
+                        <div className="h-0.5 bg-white/5 rounded-full overflow-hidden mb-2">
+                          <div className="h-full bg-white/20 rounded-full" style={{ width: `${Math.floor(10 + i * 17) % 90}%` }} />
+                        </div>
+                        <p className="text-[8px] text-white/20 font-black uppercase tracking-widest">{Math.floor(10 + i * 17) % 90}% read</p>
+                      </div>
+                    ))}
+                    {articles.length === 0 && (
+                      <div className="col-span-full py-10 border-2 border-dashed border-white/5 rounded-2xl text-center">
+                        <p className="text-white/20 text-[9px] font-black uppercase tracking-widest">No articles in progress</p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                {/* Fav & Likes / Bookmarks / Drafts */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div className="p-6 bg-white/[0.03] border border-white/5 rounded-2xl space-y-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Heart size={16} className="text-small-orange" />
+                      <h3 className="font-bebas text-xl uppercase tracking-tighter">Fav &amp; Likes</h3>
+                    </div>
+                    <p className="text-white/20 text-[9px] font-black uppercase tracking-widest">Posts and content you've liked or favorited appear here.</p>
+                    <div className="pt-2 space-y-2">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="h-8 bg-white/5 rounded-xl border border-white/5" />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="p-6 bg-white/[0.03] border border-white/5 rounded-2xl space-y-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Edit3 size={16} className="text-secondary" />
+                      <h3 className="font-bebas text-xl uppercase tracking-tighter">Drafts</h3>
+                    </div>
+                    <p className="text-white/20 text-[9px] font-black uppercase tracking-widest">Posts you started but haven't published yet. Come back and finish them.</p>
+                    <div className="pt-2 space-y-2">
+                      {[1, 2].map(i => (
+                        <div key={i} className="h-8 bg-white/5 rounded-xl border border-white/5" />
+                      ))}
+                      <button className="w-full h-8 border-2 border-dashed border-white/5 rounded-xl text-white/20 hover:text-white/40 text-[8px] font-black uppercase tracking-widest transition-colors">New Draft</button>
+                    </div>
+                  </div>
+                  <div className="p-6 bg-white/[0.03] border border-white/5 rounded-2xl space-y-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Bookmark size={16} className="text-tertiary" />
+                      <h3 className="font-bebas text-xl uppercase tracking-tighter">Bookmarks</h3>
+                    </div>
+                    <p className="text-white/20 text-[9px] font-black uppercase tracking-widest">Posts you bookmarked from the social section to revisit.</p>
+                    <div className="pt-2 space-y-2">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="h-8 bg-white/5 rounded-xl border border-white/5" />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Personal Photo Gallery Preview */}
+                <section>
+                  <div className="flex items-end justify-between mb-6">
+                    <div>
+                      <span className="text-[8px] font-black uppercase tracking-[0.35em] text-white/30 block mb-1">Gallery</span>
+                      <h3 className="font-bebas text-3xl uppercase tracking-tighter">Personal Collection</h3>
+                    </div>
+                    <button
+                      onClick={() => setActiveTab('PHOTOS')}
+                      className="text-white/20 hover:text-white/50 text-[8px] font-black uppercase tracking-widest transition-colors"
+                    >View Gallery â†’</button>
+                  </div>
+                  {profile?.photos && profile.photos.length > 0 ? (
+                    <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2">
+                      {profile.photos.slice(0, 14).map((photo, i) => (
+                        <div key={i} className="aspect-square rounded-xl overflow-hidden bg-white/5 border border-white/5 hover:border-white/20 transition-all cursor-pointer group">
+                          <img loading="lazy" decoding="async" src={photo.url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
+                        </div>
+                      ))}
+                      <div
+                        className="aspect-square rounded-xl border-2 border-dashed border-white/5 flex items-center justify-center cursor-pointer hover:border-white/15 transition-colors group"
+                        onClick={() => setActiveTab('PHOTOS')}
+                      >
+                        <span className="text-white/15 group-hover:text-white/30 text-[7px] font-black uppercase tracking-widest text-center">View All</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-12 border-2 border-dashed border-white/5 rounded-2xl text-center">
+                      <Camera size={32} className="text-white/10 mx-auto mb-3" />
+                      <p className="text-white/20 text-[9px] font-black uppercase tracking-widest">No photos in your personal collection yet</p>
+                      <button onClick={() => setActiveTab('PHOTOS')} className="mt-4 px-5 py-2 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-white/40 hover:text-white/70 transition-colors">Add Photos</button>
+                    </div>
+                  )}
+                </section>
+              </motion.div>
             ) : activeTab === 'MANAGE' && isOwnProfile ? (
-              <motion.div 
+              <motion.div
                 key="manage"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-12"
               >
+                {/* ── Ad Studio ── */}
+                <div className="bg-white/5 p-8 lg:p-12 rounded-[3rem] border border-white/10">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="p-4 bg-[#6B0099]/20 rounded-2xl">
+                      <Megaphone size={24} className="text-[#9B59B6]" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-2xl font-black uppercase tracking-tightest">Ad Studio</h3>
+                      <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Build your billboard ad</p>
+                    </div>
+                    {myUserAd && (
+                      <span className="px-3 py-1 bg-green-500/15 border border-green-500/30 rounded-full text-[8px] font-black uppercase tracking-widest text-green-400">
+                        Ad Live
+                      </span>
+                    )}
+                  </div>
+
+                  {myUserAd ? (
+                    <div className="flex items-center gap-4 p-5 bg-white/5 rounded-2xl border border-white/8 mb-4">
+                      {myUserAd.backgroundUrl && (
+                        <div className="w-16 h-24 rounded-xl overflow-hidden shrink-0 bg-white/10">
+                          {myUserAd.backgroundType === 'video'
+                            ? <video src={myUserAd.backgroundUrl} muted className="w-full h-full object-cover" />
+                            : <img src={myUserAd.backgroundUrl} alt="" className="w-full h-full object-cover" />}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-black text-white mb-1">
+                          {myUserAd.promotedAssetTitle ? `Promoting: ${myUserAd.promotedAssetTitle}` : 'Custom ad active'}
+                        </p>
+                        {myUserAd.ctaText && (
+                          <p className="text-[8px] text-small-orange font-bold">"{myUserAd.ctaText}"</p>
+                        )}
+                        <p className="text-[7.5px] text-white/30 mt-1">
+                          Background: {myUserAd.backgroundType} · Profile at ({Math.round(myUserAd.profilePicX)}%, {Math.round(myUserAd.profilePicY)}%)
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-white/35 mb-4 leading-relaxed">
+                      Design a custom ad for the platform billboard. Set a video or image background, choose content to promote, add a call-to-action, and position your profile button anywhere on the canvas.
+                    </p>
+                  )}
+
+                  <button
+                    onClick={() => setShowAdCreator(true)}
+                    className="px-8 py-3 bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-[0_0_24px_rgba(107,0,153,0.35)]"
+                  >
+                    {myUserAd ? 'Edit My Ad →' : 'Create My Ad →'}
+                  </button>
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                   {/* Radio Settings */}
                   <div className="bg-white/5 p-8 lg:p-12 rounded-[3rem] border border-white/10">
@@ -1479,7 +2565,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                               className={`p-4 rounded-xl flex items-center justify-between transition-all ${profile.radioSettings?.otherCreators?.includes(artist.uid) ? 'bg-small-orange/20 border-small-orange/40 border' : 'bg-white/5 border border-transparent'}`}
                              >
                                 <div className="flex items-center gap-3">
-                                  <img src={artist.photoURL || null} className="w-8 h-8 rounded-lg object-cover" />
+                                  <img loading="lazy" decoding="async" src={artist.photoURL || null} className="w-8 h-8 rounded-lg object-cover" />
                                   <span className="text-[10px] font-black uppercase tracking-tight">{artist.displayName}</span>
                                 </div>
                                 {profile.radioSettings?.otherCreators?.includes(artist.uid) ? <Check size={14} className="text-small-orange" /> : <Plus size={14} className="text-white/20" />}
@@ -1556,7 +2642,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                             {item.type === 'VIDEO' ? (
                               <video src={item.url} className="w-full h-full object-cover opacity-50" muted playsInline />
                             ) : (
-                              <img src={item.url} className="w-full h-full object-cover opacity-50" />
+                              <img loading="lazy" decoding="async" src={item.url} className="w-full h-full object-cover opacity-50" />
                             )}
                             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 gap-2">
                               {index > 0 && (
@@ -1808,7 +2894,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                           className={`p-4 rounded-3xl border transition-all text-left flex flex-col gap-4 group ${profile.radioSettings?.exclusiveContentIds?.includes(item.id) ? 'bg-purple-500/10 border-purple-500/40' : 'bg-white/5 border-white/10 hover:border-white/20'}`}
                         >
                            <div className="relative aspect-square rounded-2xl overflow-hidden grayscale group-hover:grayscale-0 transition-all">
-                              <img src={item.coverImage || null} className="w-full h-full object-cover" />
+                              <img loading="lazy" decoding="async" src={item.coverImage || null} className="w-full h-full object-cover" />
                               {profile.radioSettings?.exclusiveContentIds?.includes(item.id) && (
                                 <div className="absolute inset-0 bg-purple-500/20 flex items-center justify-center">
                                    <div className="px-3 py-1 bg-purple-500 rounded-full text-[8px] font-black text-white uppercase tracking-widest">EXCLUSIVE</div>
@@ -1913,7 +2999,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 {isOwnProfile ? (
                   <PhotoManager profile={profile} onUpdate={setProfile} />
                 ) : (
-                  <PhotoGallery uid={uid} isOwner={isOwnProfile} />
+                  <PhotoGallery uid={uid} isOwner={isOwnProfile} onOpenArtGallery={onNavigate ? () => onNavigate('ART_GALLERY') : undefined} />
                 )}
               </motion.div>
             ) : activeTab === 'LIVE_TV' ? (
@@ -2045,10 +3131,19 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 className="space-y-8"
               >
                 {isOwnProfile && (
-                  <div className="flex justify-end">
-                    <button 
+                  <div className="flex justify-end gap-3">
+                    {onOpenCreator && (
+                      <button
+                        onClick={() => onOpenCreator('GAME')}
+                        className="flex items-center gap-2 px-6 py-3 bg-small-orange text-black font-black text-[10px] uppercase tracking-widest rounded-full hover:scale-105 transition-all shadow-[0_0_20px_rgba(255,140,0,0.35)]"
+                      >
+                        <Plus size={14} />
+                        New Game Project
+                      </button>
+                    )}
+                    <button
                       onClick={() => setIsAddGameModalOpen(true)}
-                      className="flex items-center gap-2 px-6 py-3 bg-small-orange text-white font-black text-[10px] uppercase tracking-widest rounded-full hover:scale-105 transition-all"
+                      className="flex items-center gap-2 px-6 py-3 bg-white/10 border border-white/10 text-white font-black text-[10px] uppercase tracking-widest rounded-full hover:bg-white/20 transition-all"
                     >
                       <Plus size={14} />
                       Add Game Link
@@ -2148,7 +3243,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               >
                   {/* Hero Image / Cover */}
                   <div className="relative h-64 md:h-96 rounded-[3rem] overflow-hidden">
-                    <img src={profile.coverArt || profile.photoURL || null} className="w-full h-full object-cover" alt="Hero banner" />
+                    <img loading="lazy" decoding="async" src={profile.coverArt || profile.photoURL || null} className="w-full h-full object-cover" alt="Hero banner" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent" />
                     <div className="absolute bottom-8 left-8">
                        <h2 className="text-5xl font-black uppercase tracking-widest">{profile.displayName}</h2>
@@ -2216,7 +3311,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                       <div className="flex items-center gap-5">
                         <div className="relative">
                           <div className="absolute -inset-1 bg-gradient-to-r from-small-orange to-transparent rounded-2xl blur opacity-0 group-hover:opacity-30 transition-opacity" />
-                          <img 
+                          <img loading="lazy" decoding="async" 
                             src={artist.photoURL || `https://picsum.photos/seed/${artist.uid}/200/200`} 
                             alt={artist.displayName} 
                             className="w-16 h-16 rounded-2xl object-cover relative border border-white/10"
@@ -2260,7 +3355,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                       <div className="flex items-center gap-5">
                         <div className="relative">
                           <div className="absolute -inset-1 bg-gradient-to-r from-small-orange to-transparent rounded-2xl blur opacity-0 group-hover:opacity-30 transition-opacity" />
-                          <img 
+                          <img loading="lazy" decoding="async" 
                             src={friend.photoURL || `https://picsum.photos/seed/${friend.uid}/200/200`} 
                             alt={friend.displayName} 
                             className="w-16 h-16 rounded-2xl object-cover relative border border-white/10"
@@ -2285,12 +3380,49 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
         </div>
       </div>
       
-      <DonationModal 
+      <DonationModal
         isOpen={isDonationModalOpen}
         onClose={() => setIsDonationModalOpen(false)}
         toId={profile.uid}
         toName={profile.displayName}
       />
+
+      {showStatCard && profile && (
+        <StatCardModal
+          uid={profile.uid}
+          profile={profile as any}
+          content={content}
+          isOwn={isOwnProfile}
+          onClose={() => setShowStatCard(false)}
+          onOpenStore={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'STORE' } }))}
+        />
+      )}
+
+      <AnimatePresence>
+        {showPlajahPlusLanding && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] overflow-y-auto bg-black/80 backdrop-blur-md"
+            onClick={e => { if (e.target === e.currentTarget) setShowPlajahPlusLanding(false); }}
+          >
+            <div className="min-h-screen">
+              <button
+                onClick={() => setShowPlajahPlusLanding(false)}
+                className="fixed top-4 right-4 z-[61] p-3 bg-white/10 border border-white/20 rounded-full text-white hover:bg-white/20 transition-all"
+              >
+                <X size={18} />
+              </button>
+              <PlajahPlusLanding
+                defaultCreatorId={profile.uid}
+                defaultCreatorName={profile.displayName}
+                onClose={() => setShowPlajahPlusLanding(false)}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Add Game Modal */}
       <AnimatePresence>
@@ -2469,6 +3601,48 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Hide N Seek Manager modal */}
+      <AnimatePresence>
+        {hnsAlbum && (
+          <HideNSeekManager
+            album={hnsAlbum}
+            onClose={() => setHnsAlbum(null)}
+            onSaved={updated => {
+              setContent(prev => prev.map(a => a.id === updated.id ? updated : a));
+              setHnsAlbum(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {signInAction && (
+          <SignInPrompt action={signInAction} onClose={() => setSignInAction(null)} />
+        )}
+      </AnimatePresence>
+
+      {/* ── Ad Creator overlay ── */}
+      <AnimatePresence>
+        {showAdCreator && profile && (
+          <AdCreator
+            userProfile={profile}
+            existingAd={myUserAd}
+            onClose={() => setShowAdCreator(false)}
+            onSaved={saved => { setMyUserAd(saved); setShowAdCreator(false); }}
+          />
+        )}
+      </AnimatePresence>
+
+      {showFastChannel && profile && (
+        <FastChannelPlayer profile={profile} onClose={() => setShowFastChannel(false)} />
+      )}
+
+      {showFastChannelManager && profile && (
+        <div className="fixed inset-0 z-[200]">
+          <FastChannelManager user={profile} onBack={() => setShowFastChannelManager(false)} />
+        </div>
+      )}
     </div>
   );
 };

@@ -212,7 +212,7 @@ const ArticlesFeed: React.FC<ArticlesFeedProps> = ({ onSelectArticle, onVisitUse
                     <div className="flex flex-col lg:flex-row gap-8">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-4">
-                          <img src={article.authorPhoto || null} className="w-6 h-6 rounded-full border border-white/10" />
+                          <img src={article.authorPhoto || null} className="w-6 h-6 rounded-full border border-white/10" loading="lazy" decoding="async" />
                           <span className="text-[10px] font-black uppercase tracking-widest opacity-60">{article.authorName}</span>
                           <span className="text-[10px] font-bold opacity-20">•</span>
                           <span className="text-[10px] font-bold opacity-20 uppercase tracking-widest">
@@ -240,7 +240,7 @@ const ArticlesFeed: React.FC<ArticlesFeedProps> = ({ onSelectArticle, onVisitUse
                       </div>
                       {article.coverImage && (
                         <div className="w-full lg:w-64 aspect-video lg:aspect-square rounded-3xl overflow-hidden border border-white/5 shrink-0">
-                          <img src={article.coverImage || null} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                          <img src={article.coverImage || null} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" loading="lazy" decoding="async" />
                         </div>
                       )}
                     </div>
@@ -276,7 +276,7 @@ const ArticlesFeed: React.FC<ArticlesFeedProps> = ({ onSelectArticle, onVisitUse
                   >
                     <div className="flex items-center gap-6">
                       <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-small-orange group-hover:scale-105 transition-all">
-                        <img src={author.photoURL || null} className="w-full h-full object-cover" />
+                        <img src={author.photoURL || null} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                       </div>
                       <div>
                         <h3 className="text-xl font-black uppercase tracking-tighter">{author.displayName}</h3>

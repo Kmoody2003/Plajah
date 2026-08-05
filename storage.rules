@@ -1,10 +1,118 @@
 rules_version = '2';
 service firebase.storage {
-  // Storage Rules (Updated)
   match /b/{bucket}/o {
+
+    // ── Shared helpers ────────────────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // NOTE: Firebase Storage cross-service Firestore lookups only support the
+    // (default) Firestore database. This project uses a named database so the
+    // firestore.exists() call always returns false. isAdmin() is kept for the
+    // existing rules that depend on it; it effectively means "deny" for those
+    // fallback branches, which was already the case before.
+    function isAdmin() {
+      return isAuth() &&
+        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+    }
+
+    // Content-type must be a recognised media/document type. Browsers (esp. for .mov) often send
+    // application/octet-stream for valid media, so accept it (and a missing type) too — these paths
+    // are all auth-gated and app-controlled.
+    function isAllowedContentType() {
+      return request.resource.contentType == null ||
+             request.resource.contentType.matches('image/.*') ||
+             request.resource.contentType.matches('audio/.*') ||
+             request.resource.contentType.matches('video/.*') ||
+             request.resource.contentType.matches('application/pdf') ||
+             request.resource.contentType.matches('application/epub.*') ||
+             request.resource.contentType.matches('application/octet-stream') ||
+             request.resource.contentType.matches('text/.*');
+    }
+
+    // Maximum 25 GB for any single file — full films exceed the old 2 GB cap.
+    function withinSizeLimit() {
+      return request.resource.size < 25 * 1024 * 1024 * 1024;
+    }
+
+    // ── User-scoped files ─────────────────────────────────────────────────────
+    match /users/{uid}/{allPaths=**} {
+      allow read: if true;
+      allow write: if (isAuth() && request.auth.uid == uid && isAllowedContentType() && withinSizeLimit())
+                   || isAdmin();
+    }
+
+    // ── Album content ─────────────────────────────────────────────────────────
+    match /albums/{albumId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+    }
+
+    // ── Video content ─────────────────────────────────────────────────────────
+    match /videos/{videoId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+    }
+
+    // ── HideNSeek game assets ─────────────────────────────────────────────────
+    match /hideNSeek/{allPaths=**} {
+      allow read: if true;
+      allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+    }
+
+    // ── Club cover media ──────────────────────────────────────────────────────
+    // Admin-managed via the admin dashboard. Cross-service Firestore admin
+    // checks don't work with named databases, so we check auth + content type.
+    // The admin gate is enforced at the UI layer and in Firestore rules.
+    match /club-cover-media/{fileName} {
+      allow read: if true;
+      allow write: if isAuth() && isAllowedContentType() && withinSizeLimit();
+    }
+
+    // ── Classic books — public domain texts hosted on Plajah storage ─────────
+    match /books/classics/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ── Two-way (walkie-talkie) transmissions ─────────────────────────────────
+    // Short audio PTT clips, evicted by the rolling 5-buffer. Audio only, ≤10 MB.
+    match /walkie/{pairId}/{fileName} {
+      allow read: if true;
+      allow write: if isAuth()
+                   && request.resource.contentType.matches('audio/.*')
+                   && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // ── General uploads (UploadContext: films, videos, images, music, audio) ──
+    // Path shape: uploads/<type>s/<timestamp>_<filename>. Any signed-in user may upload here.
+    // NOTE: no content-type gate (browsers report .mov etc. as application/octet-stream, which the
+    // media-type check wrongly rejected) and a generous 25 GB cap (full films exceed the 2 GB limit).
+    match /uploads/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuth() && request.resource.size < 25 * 1024 * 1024 * 1024;
+    }
+
+    // ── Private media locker (Chora music + Taleo movies/TV the user owns) ────
+    // personal/<uid>/… — owner-only read+write. Kept private (the user may not
+    // hold distribution rights); playback works via tokenized download URLs.
+    // 25 GB cap so full movies fit.
+    match /personal/{uid}/{allPaths=**} {
+      allow read:  if isAuth() && request.auth.uid == uid;
+      allow write: if isAuth() && request.auth.uid == uid && request.resource.size < 25 * 1024 * 1024 * 1024;
+    }
+
+    // ── Fabula project JSON — owner-only (durable cloud copy of the editor project) ──
+    match /fabula/{uid}/{allPaths=**} {
+      allow read:  if isAuth() && request.auth.uid == uid;
+      allow write: if isAuth() && request.auth.uid == uid && request.resource.size < 50 * 1024 * 1024;
+    }
+
+    // ── Fallback: deny everything not explicitly matched ──────────────────────
     match /{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isAdmin();
     }
   }
 }
