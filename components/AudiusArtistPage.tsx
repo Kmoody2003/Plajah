@@ -173,6 +173,34 @@ const AudiusArtistPage: React.FC<Props> = ({ artist, onBack, onSelectAlbum }) =>
               )}
             </div>
 
+            {/* Built-for-you CTA — the outreach funnel entry point (see
+                docs/AUDIUS_OUTREACH_AND_INTEGRATION.md). Turns passive discovery of an
+                Audius artist into an onboarding prompt. */}
+            <div className="mb-6 rounded-2xl p-4 border max-w-2xl" style={{ background: PURPLE.bg, borderColor: PURPLE.border }}>
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(168,85,247,0.25)' }}>
+                  <Sparkles size={16} style={{ color: PURPLE.text }} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-white">Plajah is built for you too</p>
+                  <p className="text-[11px] text-white/60 leading-snug mt-0.5">
+                    Your Audius music already streams natively here — plus the Breakdown, the Pixels visualizer, DJ mode, live, and memberships. Claim your page to make it yours.
+                  </p>
+                  <div className="flex items-center gap-2 mt-2.5">
+                    <button
+                      onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'LANDING' } }))}
+                      className="px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-white" style={{ background: PURPLE.accent }}>
+                      Claim your page
+                    </button>
+                    <a href={`https://audius.co/${artist.handle}`} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-bold text-white/70 bg-white/5 hover:bg-white/10 transition-colors">
+                      <ExternalLink size={11} /> On Audius
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Actions */}
             <div className="flex items-center gap-3">
               <button
