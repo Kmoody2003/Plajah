@@ -335,34 +335,47 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }, 3000);
   };
 
+  // Guards against a double-send: a rapid double-click, or Enter-then-click, used to fire
+  // sendMessage twice (two Firestore docs → two bubbles) because the input was cleared only
+  // AFTER the await. Now we re-entrancy-guard and clear the input BEFORE awaiting.
+  const sendingRef = useRef(false);
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!inputText.trim()) return;
+    const text = inputText.trim();
+    if (!text || sendingRef.current) return;
+    sendingRef.current = true;
     if (isTyping) { setIsTyping(false); updateTypingStatus(room.id, false); clearTimeout(typingTimeoutRef.current!); }
 
-    const encrypted = await encryptText(inputText, room.id);
-    const msgData: any = {
-      senderId: auth.currentUser?.uid || '',
-      senderName: auth.currentUser?.displayName || 'Anonymous',
-      senderPhoto: auth.currentUser?.photoURL || '',
-      text: encrypted,
-      type: 'TEXT',
-    };
-
-    if (replyTo) {
-      msgData.replyToId = replyTo.id;
-      msgData.replyToText = replyTo.text?.slice(0, 80);
-      msgData.replyToSender = replyTo.senderName;
-    }
-
-    if (burnMode) {
-      msgData.burnAfterSeen = true; // countdown starts when recipient sees it, not now
-    }
-
-    await sendMessage(room.id, msgData);
-    if (isIntimate) playSendChime();
+    // Clear the composer immediately so a second submit finds it empty (and the UI feels instant).
+    const savedReply = replyTo;
     setInputText('');
     setReplyTo(null);
+
+    try {
+      const encrypted = await encryptText(text, room.id);
+      const msgData: any = {
+        senderId: auth.currentUser?.uid || '',
+        senderName: auth.currentUser?.displayName || 'Anonymous',
+        senderPhoto: auth.currentUser?.photoURL || '',
+        text: encrypted,
+        type: 'TEXT',
+      };
+      if (savedReply) {
+        msgData.replyToId = savedReply.id;
+        msgData.replyToText = savedReply.text?.slice(0, 80);
+        msgData.replyToSender = savedReply.senderName;
+      }
+      if (burnMode) {
+        msgData.burnAfterSeen = true; // countdown starts when recipient sees it, not now
+      }
+      await sendMessage(room.id, msgData);
+      if (isIntimate) playSendChime();
+    } catch {
+      // Restore the text so the user can retry a failed send.
+      setInputText(text);
+    } finally {
+      sendingRef.current = false;
+    }
   };
 
   // Send a GIF (Giphy) — carries a gifUrl the bubble renders inline.

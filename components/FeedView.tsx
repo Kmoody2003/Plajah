@@ -77,7 +77,12 @@ async function resolveComposerMedia(attachments: any[], uid: string): Promise<Re
           } catch { /* poster is best-effort — the <video> still renders without it */ }
         }
         return { type: att.type, url, title: att.title, ...(thumbnail ? { thumbnail } : {}) };
-      } catch { return null; }
+      } catch (e) {
+        // Don't drop media silently — a failed upload here is why "pictures/videos don't post."
+        console.error('[composer] media upload failed', e);
+        try { const { reportError } = await import('../services/errorReporting'); reportError(e as any, { source: 'upload', context: `composer-media · ${att.type}` }); } catch { /* */ }
+        return null;
+      }
     }
     return { type: att.type, url: att.url, title: att.title, ...(att.thumbnail ? { thumbnail: att.thumbnail } : {}) };
   }));

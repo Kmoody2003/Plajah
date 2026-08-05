@@ -39,6 +39,7 @@ export interface PostComment {
   likedBy?: string[];
   likesCount?: number;
   isPending?: boolean;
+  imageUrl?: string;
   videoUrl?: string;
   audioUrl?: string;
   gifUrl?: string;
@@ -162,6 +163,11 @@ const CommentBubble: React.FC<BubbleProps> = ({
             {comment.text && (
               <div className={`type-body-md leading-relaxed font-medium whitespace-pre-wrap break-words ${isDark ? 'text-white/85' : 'text-black/85'}`}>
                 {renderMentions(comment.text, onVisitUser)}
+              </div>
+            )}
+            {comment.imageUrl && (
+              <div className="mt-2 rounded-2xl overflow-hidden border border-white/10 max-w-[280px]">
+                <img src={comment.imageUrl} alt="" loading="lazy" className="w-full h-auto max-h-[320px] object-cover" />
               </div>
             )}
             {(comment as any).videoUrl && (
@@ -1075,15 +1081,20 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                 const now = Date.now();
 
                 // Upload any video/audio attachments to Firebase Storage
+                let imageUrl: string | undefined;
                 let videoUrl: string | undefined;
                 let audioUrl: string | undefined;
                 let gifUrl: string | undefined;
                 for (const att of data.attachments) {
-                  if ((att.type === 'VIDEO' || att.type === 'AUDIO') && att.file) {
+                  if ((att.type === 'PHOTO' || att.type === 'VIDEO' || att.type === 'AUDIO') && att.file) {
                     try {
                       const path = `comments/${safePostId}/${now}_${att.file.name}`;
                       const url = await uploadFile(path, att.file);
-                      if (url) { att.type === 'VIDEO' ? (videoUrl = url) : (audioUrl = url); }
+                      if (url) {
+                        if (att.type === 'VIDEO') videoUrl = url;
+                        else if (att.type === 'AUDIO') audioUrl = url;
+                        else imageUrl = url; // PHOTO — was silently dropped before
+                      }
                     } catch { /* skip failed upload */ }
                   } else if (att.type === 'GIF' && att.url) {
                     gifUrl = att.url;
@@ -1100,6 +1111,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                   parentId: replyTo?.id ?? null,
                   likedBy: [],
                   likesCount: 0,
+                  ...(imageUrl ? { imageUrl } : {}),
                   ...(videoUrl ? { videoUrl } : {}),
                   ...(audioUrl ? { audioUrl } : {}),
                   ...(gifUrl   ? { gifUrl   } : {}),
@@ -1111,7 +1123,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                   await onPostComment(data.text.trim(), parentId);
                   if (gifUrl && onPostGif) await onPostGif(gifUrl, parentId);
                 } else {
-                  await addPostComment(safePostId, data.text.trim(), parentId, videoUrl, audioUrl, gifUrl);
+                  await addPostComment(safePostId, data.text.trim(), parentId, videoUrl, audioUrl, gifUrl, imageUrl);
                 }
               }}
             />
