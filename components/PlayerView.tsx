@@ -464,6 +464,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     isShuffle,
     setIsShuffle,
     nextTrackId,
+    autoRadio,
+    setAutoRadio,
+    upNext,
     beginScratch,
     scratchBy,
     endScratch,
@@ -1157,6 +1160,22 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             </button>
           </div>
         </header>
+
+        {/* Up Next radio — when the album nears its end, preview the cross-catalog pick
+            (native Chora artists first, Audius filling behind) + a radio on/off toggle. */}
+        {upNext && (
+          <div className="flex items-center gap-2 px-4 py-1.5 bg-black/30 border-b border-white/5">
+            {upNext.cover && <img src={thumb(upNext.cover, THUMB.small) || undefined} loading="lazy" className="w-6 h-6 rounded object-cover shrink-0" />}
+            <div className="min-w-0 flex-1 text-left">
+              <span className="text-[7px] font-black uppercase tracking-widest" style={{ color: upNext.native ? '#FF8C00' : '#C56BFF' }}>Up next · {upNext.native ? 'Chora artist' : 'via Audius'}</span>
+              <p className="text-[10px] font-bold text-white/80 truncate">{upNext.title}{upNext.artist ? ` — ${upNext.artist}` : ''}</p>
+            </div>
+            <button onClick={() => setAutoRadio(!autoRadio)} title={autoRadio ? 'Radio on — keeps playing when the album ends' : 'Radio off'}
+              className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-colors ${autoRadio ? 'bg-white/15 text-white' : 'bg-white/5 text-white/40'}`}>
+              <Radio size={9} /> {autoRadio ? 'Radio' : 'Off'}
+            </button>
+          </div>
+        )}
 
         {/* Top Media Section (Shared Placement for Cover Art & Video) */}
         <div id="mobile-video-container" className="relative w-full flex-1 bg-transparent overflow-hidden border-b border-white/5 z-10">

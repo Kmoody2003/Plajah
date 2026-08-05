@@ -14,6 +14,7 @@ import { skipOnTV } from '../services/tvCapabilities';
 import Hls from 'hls.js';
 import { peekTrackStream, prefetchTrackStreams, pickStreamUrl, getQuality as getAudioQuality, enqueueTranscode, enqueueAlbumTranscodes, getTrackStream } from '../services/choraStreamService';
 import { auth as fbAuth } from '../services/firebase';
+import { buildRadioQueue, type UpNextItem } from '../services/musicRecommender';
 
 interface GlobalPlayerProgressContextType {
   currentTime: number;
@@ -34,6 +35,12 @@ interface GlobalPlayerContextType {
   setIsShuffle: (val: boolean) => void;
   /** Pre-selected next track (respects shuffle / repeat) so the UI can highlight it. */
   nextTrackId: string | null;
+  /** Cross-catalog "up next" radio: when an album ends, keep playing — native Chora
+   *  artists first, Audius filling behind. On by default; a UI toggle can disable it. */
+  autoRadio: boolean;
+  setAutoRadio: (v: boolean) => void;
+  /** Preview of the next radio pick (for an "Up Next" chip). Null until an album nears its end. */
+  upNext: { title: string; artist: string; cover?: string; native: boolean } | null;
   playTrack: (track: Track, album: Album | null, source: 'LIBRARY' | 'RADIO' | 'VIDEO', startAt?: number, forceReload?: boolean) => void;
   playVideo: (video: Video) => void;
   setVideoElement: (el: HTMLVideoElement | null) => void;
@@ -177,6 +184,15 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [isFxActive, setIsFxActive] = useState(false);   // DJ FX (filter) currently coloring the stream
   const [nextTrackId, setNextTrackId] = useState<string | null>(null);
   const shuffleOrderRef = useRef<string[]>([]); // stable shuffled id order so the "next" pick doesn't jitter
+  // ── Cross-catalog "up next" radio (native Chora artists first, Audius fill) ──
+  const [autoRadio, setAutoRadio] = useState(true);
+  const autoRadioRef = useRef(true);
+  useEffect(() => { autoRadioRef.current = autoRadio; }, [autoRadio]);
+  const [upNext, setUpNext] = useState<{ title: string; artist: string; cover?: string; native: boolean } | null>(null);
+  const radioQueueRef = useRef<UpNextItem[]>([]);
+  const radioFillingRef = useRef(false);
+  const sessionPlayedRef = useRef<Set<string>>(new Set()); // track ids heard this session (avoid repeats)
+  const nextRef = useRef<() => void>(() => {}); // set to next() so early-defined callbacks can advance
   const [isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled] = useState(true);
   const [visualizerType, setVisualizerType] = useState<'FLOW' | 'PAINT'>('FLOW');
   const [isSlideshowActive, setSlideshowActiveRaw] = useState(false);
@@ -525,6 +541,36 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setNextTrackId(pickNextId());
   }, [currentTrack?.id, currentAlbum?.id, repeatMode, isShuffle, pickNextId]);
 
+  // ── Radio: prefetch a native-first "up next" queue as an album nears its end, so the
+  //    hand-off is seamless. Also record what's been heard (to avoid repeats). ──
+  const fillRadio = React.useCallback(async () => {
+    if (radioFillingRef.current || !autoRadioRef.current) return;
+    const st = stateRef.current;
+    if (st.audioSource === 'VIDEO' || !st.currentTrack) return;
+    if (radioQueueRef.current.length > 0) return;
+    radioFillingRef.current = true;
+    try {
+      const q = await buildRadioQueue(st.currentTrack, st.currentAlbum, sessionPlayedRef.current, { limit: 20 });
+      radioQueueRef.current = q;
+      const f = q[0];
+      setUpNext(f ? { title: f.track.title, artist: f.track.artist || f.album.artist || '', cover: f.track.albumCover || f.album.coverImage, native: f.native } : null);
+    } catch { /* radio is best-effort — playback just stops as before */ }
+    finally { radioFillingRef.current = false; }
+  }, []);
+
+  // Record plays + prefetch radio when the current track is the album's last.
+  useEffect(() => {
+    if (currentTrack?.id) sessionPlayedRef.current.add(currentTrack.id);
+    if (autoRadio && currentTrack && audioSource !== 'VIDEO' && pickNextId() === null) {
+      // Current track is the end of the album (no repeat) → warm the cross-catalog queue.
+      radioQueueRef.current = [];
+      fillRadio();
+    } else {
+      setUpNext(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTrack?.id, currentAlbum?.id, repeatMode, autoRadio]);
+
   const setYtPlayer = useCallback((player: any | null) => {
     ytPlayerRef.current = player;
     stateRef.current.ytPlayer = player;
@@ -830,16 +876,12 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
           usingDecodeFallbackRef.current = true;
           player.onEnded(() => {
             setIsPlaying(false);
-            // Auto-advance — fire next() via stateRef so it doesn't need to be in deps
-            if (stateRef.current.repeatMode !== 'ONE') {
-              const albumTracks = stateRef.current.currentAlbum?.tracks ?? [];
-              const idx = albumTracks.findIndex(t => t.id === stateRef.current.currentTrack?.id);
-              if (idx !== -1 && idx < albumTracks.length - 1) {
-                const nextTrack = albumTracks[idx + 1];
-                setTimeout(() => playTrack(nextTrack, stateRef.current.currentAlbum, 'LIBRARY'), 0);
-              }
-            } else if (stateRef.current.repeatMode === 'ONE') {
+            // Auto-advance through the SAME radio-aware next() (in-album → cross-catalog radio),
+            // so the decode-fallback path doesn't dead-end at the album's last track.
+            if (stateRef.current.repeatMode === 'ONE') {
               player.play(0).catch(() => {});
+            } else {
+              setTimeout(() => nextRef.current?.(), 0);
             }
           });
           await player.play(0);
@@ -1087,10 +1129,21 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (album && stateRef.current.currentTrack) {
       const nid = pickNextId();                       // shuffle / repeat aware
       const t = nid ? album.tracks.find(x => x.id === nid) : null;
-      if (t) playTrack(t, album, 'LIBRARY');
-      else pause();
+      if (t) { playTrack(t, album, 'LIBRARY'); return; }
+      // Album exhausted → keep the music going with the native-first cross-catalog radio.
+      if (autoRadioRef.current) {
+        const item = radioQueueRef.current.shift();
+        if (item) {
+          setUpNext(null);
+          playTrack(item.track, item.album, 'LIBRARY');   // its album's tracks then play through
+          return;
+        }
+        fillRadio(); // nothing prefetched in time — warm it so the next end continues
+      }
+      pause();
     }
-  }, [playTrack, pause, pickNextId]);
+  }, [playTrack, pause, pickNextId, fillRadio]);
+  useEffect(() => { nextRef.current = next; }, [next]);
 
   const prev = React.useCallback(() => {
     if (stateRef.current.audioSource === 'VIDEO') return;
@@ -1709,7 +1762,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const contextValue: GlobalPlayerContextType = useMemo(() => ({
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
-    isShuffle, setIsShuffle, nextTrackId,
+    isShuffle, setIsShuffle, nextTrackId, autoRadio, setAutoRadio, upNext,
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev, beginScratch, scratchBy, endScratch,
     analyser: analyserRef.current, getAudioContext, setDjFilter, resetAudioFx, isFxActive, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme, isBigScreen: theme === 'BIG_SCREEN',
@@ -1720,7 +1773,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     isPlayerExpanded, setIsPlayerExpanded,
   }), [
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
-    isShuffle, setIsShuffle, nextTrackId,
+    isShuffle, setIsShuffle, nextTrackId, autoRadio, setAutoRadio, upNext,
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev, beginScratch, scratchBy, endScratch,
     getAudioContext, setDjFilter, resetAudioFx, isFxActive, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme,
