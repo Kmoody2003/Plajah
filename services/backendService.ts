@@ -1566,7 +1566,7 @@ export const subscribeToPostComments = (postId: string, callback: (comments: any
 
 export const addPostComment = async (
   postId: string, text: string, parentId?: string | null,
-  videoUrl?: string, audioUrl?: string, gifUrl?: string,
+  videoUrl?: string, audioUrl?: string, gifUrl?: string, imageUrl?: string,
 ) => {
   if (!auth.currentUser) throw new Error('Not authenticated');
   const displayName = auth.currentUser.displayName || 'Anonymous';
@@ -1582,6 +1582,7 @@ export const addPostComment = async (
     likedBy: [] as string[],
     likesCount: 0,
   };
+  if (imageUrl) commentData.imageUrl = imageUrl;
   if (videoUrl) commentData.videoUrl = videoUrl;
   if (audioUrl) commentData.audioUrl = audioUrl;
   if (gifUrl)   commentData.gifUrl   = gifUrl;

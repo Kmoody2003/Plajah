@@ -43,6 +43,25 @@ service firebase.storage {
                    || isAdmin();
     }
 
+    // ── Social post media (images/videos attached in the Universal Composer) ──
+    // Path shape: posts/<uid>/<timestamp>_<filename>. Owner-writable, public-readable.
+    // WITHOUT this rule these uploads fell through to the admin-only fallback and were
+    // DENIED for everyone — so post images/videos silently never uploaded (only text +
+    // external GIFs survived). This is the fix for "pictures/videos don't post."
+    match /posts/{uid}/{allPaths=**} {
+      allow read: if true;
+      allow write: if (isAuth() && request.auth.uid == uid && isAllowedContentType() && withinSizeLimit())
+                   || isAdmin();
+    }
+
+    // ── Comment media (images/videos/audio attached to a comment) ─────────────
+    // Path shape: comments/<postId>/<timestamp>_<filename>. Any signed-in user may add
+    // media to a comment (same as albums/videos); public-readable. Was also denied.
+    match /comments/{postId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+    }
+
     // ── Album content ─────────────────────────────────────────────────────────
     match /albums/{albumId}/{allPaths=**} {
       allow read: if true;

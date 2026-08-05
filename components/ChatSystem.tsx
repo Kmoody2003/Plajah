@@ -588,7 +588,9 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
   const [activeRoom, setActiveRoom]         = useState<ChatRoom | null>(null);
   const [activeCollabId, setActiveCollabId] = useState<string | null>(null);
   const { placeCall } = useCall();
-  const [sidebarTab, setSidebarTab]         = useState<SidebarTab>('ALL');
+  // Land on DMs first — a user's direct conversations are what they open chat for,
+  // not the firehose of every group/channel.
+  const [sidebarTab, setSidebarTab]         = useState<SidebarTab>('DIRECT');
   const [searchTerm, setSearchTerm]         = useState('');
   const [mainView, setMainView]             = useState<MainView>('CHAT_LIST');
   // Intimate rooms are now persisted on each room doc (shared across both participants),
