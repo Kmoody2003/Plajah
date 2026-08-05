@@ -991,12 +991,18 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
         duration: elapsed,
         genre: 'Live',
       });
-      // The timeline post becomes the replay.
+      // The timeline post becomes the replay. Carry the Mux playback id + poster so the social
+      // feed can preview + play it (Mux videos have an empty url) — and if Mux is still
+      // transcoding, PostVideo recovers both by looking the video up by id.
       if (postId) {
+        const replayMedia: any = { type: 'VIDEO', url: (video as any).url || '', id: video.id, title: finalTitle };
+        if ((video as any).muxPlaybackId) replayMedia.muxPlaybackId = (video as any).muxPlaybackId;
+        const poster = (video as any).thumbnailUrl || (video as any).coverImageUrl;
+        if (poster) replayMedia.thumbnail = poster;
         await updatePost(postId, {
           text: `${finalTitle} — live stream replay`,
           isLiveNow: false,
-          media: [{ type: 'VIDEO', url: video.url || '', id: video.id, title: finalTitle }],
+          media: [replayMedia],
         }).catch(() => {});
       }
       if (streamId) await updateDoc(doc(db, 'streams', streamId), { recordingVideoId: video.id }).catch(() => {});

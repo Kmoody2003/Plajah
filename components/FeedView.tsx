@@ -1179,7 +1179,7 @@ const FeedItemComponent: React.FC<{
                 for old `feed`-collection docs that only ever stored that field. */}
             {!item.theme && (item.media?.length ? (
               <div className="mb-12">
-                <PostMediaCarousel items={item.media.filter(m => m.url && (m.type === 'PHOTO' || m.type === 'GIF' || m.type === 'STICKER' || m.type === 'VIDEO')).map(m => ({ type: m.type, url: m.url, thumbnail: m.thumbnail, title: m.title }))} />
+                <PostMediaCarousel items={item.media.filter(m => (m.url || m.id || (m as any).muxPlaybackId) && (m.type === 'PHOTO' || m.type === 'GIF' || m.type === 'STICKER' || m.type === 'VIDEO')).map(m => ({ type: m.type, url: m.url, thumbnail: m.thumbnail, title: m.title, id: m.id, muxPlaybackId: (m as any).muxPlaybackId }))} />
               </div>
             ) : item.imageUrl ? (
               <div className={`relative ${item.aspectRatio === 'VERTICAL' ? 'aspect-[3/4] md:aspect-[9/16]' : 'aspect-video'} rounded-[3rem] md:rounded-[4rem] overflow-hidden mb-12 shadow-[0_40px_80px_rgba(0,0,0,0.4)] ring-1 ring-white/10 group-hover/item:scale-[1.01] transition-transform duration-700`}>
