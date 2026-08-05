@@ -78,7 +78,39 @@ Supporting points, in order of strength:
 - Claim-CTA impressions → sign-ups from Audius artist pages.
 - Retained Audius artists who publish something native (a Sanctuary, a live, merch) — the real conversion.
 
-## 7. Sequencing
+## 7. How Plajah rates against other Audius players
+
+Audius encourages third-party apps, and most of the ecosystem is **lightweight**: read-API clients,
+radio-station generators (e.g. DeFi Land built genre radios), games (a "music racing" app), utilities,
+and alternative players. The **official Audius app** is the one full-featured client — it owns the
+Audius-native surface (uploads, tipping, artist coins, fanclubs). Plajah is not trying to be "a better
+Audius player" — it's a **creator platform** that treats Audius as one catalog among many. Judged as a
+place to *listen to and work with* Audius music, here's the honest scorecard:
+
+| Capability | Official Audius app | Typical 3rd-party Audius player | **Plajah** |
+|---|---|---|---|
+| Stream Audius catalog | ✅ | ✅ (read API) | ✅ |
+| Native album UX for Audius tracks | ✅ | ⚠️ basic list/player | ✅ identical to first-party |
+| Track analysis (key/tempo/chords/**sheet music**) | ❌ | ❌ | ✅ **the Breakdown** |
+| Real-time VJ / visualizer | ❌ | ❌ | ✅ **Pixels** |
+| DJ decks / beatmatch / mix | ❌ | rare | ✅ **DJ mode** |
+| Cross-catalog discovery favoring artists | ⚠️ algorithmic | ❌ | ✅ **native-first up-next** |
+| Social feed / live / memberships / merch around the music | partial | ❌ | ✅ Reello, Sanctuary, commerce |
+| Film/TV + books alongside music | ❌ | ❌ | ✅ Taleo, Lorea |
+| Attribution + link back to Audius (OML) | n/a | varies | ✅ |
+| **Upload to Audius** | ✅ | some | ❌ (publish OAuth stubbed) |
+| Artist coins / fanclubs / tipping | ✅ | ❌ | ❌ |
+| Import your Audius library (favorites/follows) | ✅ | some | ⏳ Phase 3 |
+
+**Verdict.** For *listening to and creating with* Audius music, Plajah is arguably best-in-class among
+third-party surfaces — no other player pairs a native album experience with Breakdown + Pixels + DJ and a
+full creator platform. Where the **official app leads** is Audius-native artist tooling: upload, tipping,
+coins, fanclubs. Our honest gaps to close: library import (Phase 3), the half-migrated Audius artist page
+(still a separate view vs a native profile), and — deliberately, per the OML — we don't re-host or mint on
+Audius's behalf. The pitch to artists is therefore *additive*, never *replace Audius*: "keep Audius, and
+get tools + a platform Audius can't give you."
+
+## 8. Sequencing
 
 1. Finish the compliance checklist (§2 open items) — especially the API opt-out honor + developer app.
 2. Ship the claim-your-page CTA (this plan) + record the demo clips.
