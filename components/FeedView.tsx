@@ -23,6 +23,7 @@ import CommentSection from './CommentSection';
 import ProfileFeed from './ProfileFeed';
 import PayItForwardButton from './PayItForwardButton';
 import PostCard from './PostCard';
+import PostMediaCarousel from './PostMediaCarousel';
 import BroadcastHub from './broadcast/BroadcastHub';
 import FediversePostCard from './FediversePostCard';
 import RightNowFeed, { PresenceSync } from './RightNowFeed';
@@ -47,6 +48,41 @@ import { TODAY_TTL_MS, withoutExpiredTodays } from '../services/todayPosts';
 import { StudentWallRow } from './StudentWall';
 const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
 const LiveTalkView = lazy(() => import('./LiveTalkView'));
+
+type ResolvedMedia = { type: 'PHOTO' | 'VIDEO' | 'AUDIO' | 'GIF' | 'MODEL3D'; url: string; title?: string; thumbnail?: string };
+/** Shared composer → post media pipeline: uploads any local blobs and, for VIDEO
+ *  attachments, captures + uploads a real poster frame so the feed shows a
+ *  thumbnail instead of a blank/black box. Used by every composer on this page. */
+async function resolveComposerMedia(attachments: any[], uid: string): Promise<ResolvedMedia[]> {
+  const out = await Promise.all(attachments.map(async (att): Promise<ResolvedMedia | null> => {
+    if (att.file && typeof att.url === 'string' && att.url.startsWith('blob:')) {
+      try {
+        const { uploadFile } = await import('../services/backendService');
+        const { uploadOrReuse } = await import('../services/mediaDedup');
+        const { url } = await uploadOrReuse(
+          uid,
+          `posts/${uid}/${Date.now()}_${att.file.name}`,
+          att.file, uploadFile,
+          { type: att.type, title: att.title, forceNew: (att as any).forceNew },
+        );
+        let thumbnail: string | undefined = att.thumbnail;
+        if (att.type === 'VIDEO' && !thumbnail) {
+          try {
+            const { captureVideoPoster } = await import('../services/videoPoster');
+            const poster = await captureVideoPoster(att.file);
+            if (poster) {
+              const { uploadFile } = await import('../services/backendService');
+              thumbnail = await uploadFile(`posts/${uid}/poster_${Date.now()}.jpg`, poster);
+            }
+          } catch { /* poster is best-effort — the <video> still renders without it */ }
+        }
+        return { type: att.type, url, title: att.title, ...(thumbnail ? { thumbnail } : {}) };
+      } catch { return null; }
+    }
+    return { type: att.type, url: att.url, title: att.title, ...(att.thumbnail ? { thumbnail: att.thumbnail } : {}) };
+  }));
+  return out.filter(Boolean) as ResolvedMedia[];
+}
 
 const RolodexCard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -1132,17 +1168,25 @@ const FeedItemComponent: React.FC<{
               )}
             </div>
 
-            {item.imageUrl && !item.theme && (
+            {/* Attached media. Prefer the full media[] array (photos AND videos,
+                single or carousel) — the old path shoved videos into an <img>, so
+                they showed as text only. Fall back to the legacy single imageUrl
+                for old `feed`-collection docs that only ever stored that field. */}
+            {!item.theme && (item.media?.length ? (
+              <div className="mb-12">
+                <PostMediaCarousel items={item.media.filter(m => m.url && (m.type === 'PHOTO' || m.type === 'GIF' || m.type === 'STICKER' || m.type === 'VIDEO')).map(m => ({ type: m.type, url: m.url, thumbnail: m.thumbnail, title: m.title }))} />
+              </div>
+            ) : item.imageUrl ? (
               <div className={`relative ${item.aspectRatio === 'VERTICAL' ? 'aspect-[3/4] md:aspect-[9/16]' : 'aspect-video'} rounded-[3rem] md:rounded-[4rem] overflow-hidden mb-12 shadow-[0_40px_80px_rgba(0,0,0,0.4)] ring-1 ring-white/10 group-hover/item:scale-[1.01] transition-transform duration-700`}>
                 <img
-                  src={item.imageUrl || null}
+                  src={item.imageUrl || undefined}
                   alt="Post content"
                   className={`w-full h-full ${item.autoCrop ? 'object-cover' : 'object-contain'}`}
                   loading="lazy"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
               </div>
-            )}
+            ) : null)}
 
             {/* Interaction Footer */}
             <div className="flex flex-wrap items-center gap-4 md:gap-10 pt-10 border-t border-white/5">
@@ -2702,24 +2746,7 @@ const toggleFavoriteTeam = async (team: string) => {
             userAlbums={userAlbums}
             userSanctuaryId={currentUser.uid}
             onPost={async (data) => {
-              const resolvedMedia = (await Promise.all(
-                data.attachments.map(async (att) => {
-                  if (att.file && att.url.startsWith('blob:')) {
-                    try {
-                      const { uploadFile } = await import('../services/backendService');
-                      const { uploadOrReuse } = await import('../services/mediaDedup');
-                      const { url } = await uploadOrReuse(
-                        currentUser.uid,
-                        `posts/${currentUser.uid}/${Date.now()}_${att.file.name}`,
-                        att.file, uploadFile,
-                        { type: att.type, title: att.title, forceNew: (att as any).forceNew },
-                      );
-                      return { type: att.type, url, title: att.title };
-                    } catch { return null; }
-                  }
-                  return { type: att.type, url: att.url, title: att.title };
-                })
-              )).filter(Boolean) as { type: 'PHOTO' | 'VIDEO' | 'AUDIO'; url: string; title?: string }[];
+              const resolvedMedia = await resolveComposerMedia(data.attachments, currentUser.uid);
               const embedFields = await postFieldsForAssetEmbed(data.assetEmbed);
               await createPost({
                 text: data.text,
@@ -3190,24 +3217,7 @@ const toggleFavoriteTeam = async (team: string) => {
               avatarUrl={currentUser.photoURL || undefined}
               userAlbums={userAlbums}
               onPost={async (data) => {
-                const resolvedMedia = (await Promise.all(
-                  data.attachments.map(async (att) => {
-                    if (att.file && att.url.startsWith('blob:')) {
-                      try {
-                        const { uploadFile } = await import('../services/backendService');
-                        const { uploadOrReuse } = await import('../services/mediaDedup');
-                        const { url } = await uploadOrReuse(
-                          currentUser.uid,
-                          `posts/${currentUser.uid}/${Date.now()}_${att.file.name}`,
-                          att.file, uploadFile,
-                          { type: att.type, title: att.title, forceNew: (att as any).forceNew },
-                        );
-                        return { type: att.type, url, title: att.title };
-                      } catch { return null; }
-                    }
-                    return { type: att.type, url: att.url, title: att.title };
-                  })
-                )).filter(Boolean) as { type: 'PHOTO' | 'VIDEO' | 'AUDIO'; url: string; title?: string }[];
+                const resolvedMedia = await resolveComposerMedia(data.attachments, currentUser.uid);
                 const embedFields = await postFieldsForAssetEmbed(data.assetEmbed);
                 await createPost({
                   text: data.text,

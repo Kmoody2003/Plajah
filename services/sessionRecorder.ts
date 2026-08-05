@@ -21,6 +21,9 @@ export interface SessionRecorderOptions {
   fps?: number;
   /** Max canvas dimension (the grid is capped to this on the long edge). */
   maxSize?: number;
+  /** Fired for every recorded chunk as it arrives — used to stream a durable
+   *  on-device copy (crash/upload-failure safe) in parallel with the in-memory buffer. */
+  onData?: (chunk: Blob) => void;
 }
 
 type StreamsProvider = () => MediaStream[];
@@ -41,12 +44,16 @@ export class SessionRecorder {
   private beginRecorder: (() => void) | null = null; // deferred start (after aspect lock)
   recording = false;
 
+  private onData: ((chunk: Blob) => void) | null;
+
   constructor(options: SessionRecorderOptions = {}) {
     this.opts = {
       audioOnly: options.audioOnly ?? false,
       fps: options.fps ?? 24,
       maxSize: options.maxSize ?? 1280,
+      onData: options.onData ?? (() => {}),
     };
+    this.onData = options.onData ?? null;
   }
 
   /** How many seconds have been recorded so far. */
@@ -65,7 +72,7 @@ export class SessionRecorder {
         const mime = this.pickMime();
         this.recorder = new MediaRecorder(mixed, mime ? { mimeType: mime } : undefined);
         this.chunks = [];
-        this.recorder.ondataavailable = e => { if (e.data.size > 0) this.chunks.push(e.data); };
+        this.recorder.ondataavailable = e => { if (e.data.size > 0) { this.chunks.push(e.data); this.onData?.(e.data); } };
         this.recorder.start(1000);
       } else {
         // Portrait default (the live streamer is portrait). drawGrid re-locks to the real
@@ -84,7 +91,7 @@ export class SessionRecorder {
           const mime = this.pickMime();
           this.recorder = new MediaRecorder(mixed, mime ? { mimeType: mime } : undefined);
           this.chunks = [];
-          this.recorder.ondataavailable = e => { if (e.data.size > 0) this.chunks.push(e.data); };
+          this.recorder.ondataavailable = e => { if (e.data.size > 0) { this.chunks.push(e.data); this.onData?.(e.data); } };
           this.recorder.start(1000);
         };
       }

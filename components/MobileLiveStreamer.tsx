@@ -26,6 +26,7 @@ import {
   Users, Share2, Check, Heart, Send, ChevronDown, Eye, Zap, Sparkles,
   Clock, Settings, Volume2, VolumeX, RotateCcw, ArrowLeft, Save, Trash2,
   LayoutGrid, Monitor, UserSquare2, Columns2, MonitorSmartphone, Plus, BarChart3,
+  HardDriveDownload, FolderOpen, Download, ShieldCheck,
 } from 'lucide-react';
 import { LiveComposer, type ComposerMode, LOOKS, type LookId, AMBIENT_FX, type AmbientFx } from '../services/liveComposer';
 import { buildVTuberFromSheet } from '../services/vtuber/avatarFactory';
@@ -38,6 +39,11 @@ import { unlockAchievementByTrigger } from '../services/achievementService';
 import { publishLiveDiscovery, endLiveDiscovery, saveSessionRecording } from '../services/liveStreamService';
 import { buildShareUrl } from '../services/deepLinkService';
 import { useRtcSession } from '../hooks/useRtcSession';
+import {
+  startLocalRecording, pickRecordingFile, supportsFilePicker,
+  downloadLocalRecording, markLocalRecordingUploaded, deleteLocalRecording,
+  listPendingLocalRecordings, type LiveRecordingSink, type LocalRecordingMeta,
+} from '../services/localRecordingStore';
 import {
   doc, collection, addDoc, setDoc, updateDoc, increment, deleteDoc,
   query, orderBy, limit, arrayUnion, arrayRemove,
@@ -533,6 +539,25 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const recordedBlobRef = useRef<Blob | null>(null);
   const didMountRef = useRef(false);
 
+  // ── Local recording (crash-safe on-device copy) ─────────────────────────────
+  // The stream is committed to on-device storage AS it records, so a failed upload
+  // or a closed tab never loses it. `storeLocal` is on by default; on desktop the
+  // user can also pick an exact file to mirror the recording into.
+  const [storeLocal, setStoreLocal] = useState(true);
+  const localSinkRef = useRef<LiveRecordingSink | null>(null);
+  const fileWritableRef = useRef<FileSystemWritableFileStream | null>(null);
+  const [fileChosen, setFileChosen] = useState(false); // user picked a desktop file target
+  const [savedToDevice, setSavedToDevice] = useState(false);
+  const [pendingRec, setPendingRec] = useState<LocalRecordingMeta | null>(null); // recovery from a prior crash
+
+  // On mount, surface any prior recording that never got saved (crash/close mid-stream).
+  useEffect(() => {
+    listPendingLocalRecordings().then(list => {
+      const prior = list.sort((a, b) => b.startedAt - a.startedAt)[0];
+      if (prior) setPendingRec(prior);
+    }).catch(() => {});
+  }, []);
+
   // ── Camera modes: front · rear · both · screen+cam · screen+cut-out person ──
   // Composed modes route through a canvas mix that we publish in place of the raw
   // camera; switching among them is instant (no track swap). front/rear stay native
@@ -888,7 +913,22 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     setStartTime(Date.now());
     setIsLive(true);
     setStep('live');
-    rtc.startRecording();
+
+    // Durable on-device recording: commit every chunk as it records so a failed
+    // upload or a closed tab never loses the stream. Best-effort — if the local
+    // store can't init, the live still records to memory + uploads as before.
+    if (storeLocal) {
+      try {
+        localSinkRef.current = await startLocalRecording({
+          title: finalTitle,
+          mime: 'video/webm',
+          streamId: id,
+          fileWritable: fileWritableRef.current,
+        });
+        fileWritableRef.current = null; // ownership handed to the sink
+      } catch { localSinkRef.current = null; }
+    }
+    rtc.startRecording(storeLocal ? { onData: c => { localSinkRef.current?.write(c); } } : undefined);
 
     // ── Lifecycle side effects (all fire-and-forget; the stream never blocks) ──
     if (user) {
@@ -922,6 +962,8 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const endStream = async () => {
     // Stop + keep the recording (the save/delete prompt uses it), then leave.
     try { recordedBlobRef.current = await rtc.stopRecording(); } catch {}
+    // Finalize the on-device copy (not-yet-uploaded — saveRecording marks it uploaded on success).
+    try { await localSinkRef.current?.close(false); } catch {}
     if (streamId) {
       await updateDoc(doc(db, 'streams', streamId), { isLive: false, endedAt: Date.now() }).catch(() => {});
     }
@@ -958,19 +1000,52 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
         }).catch(() => {});
       }
       if (streamId) await updateDoc(doc(db, 'streams', streamId), { recordingVideoId: video.id }).catch(() => {});
+      // Cloud copy is safe now → clear the on-device backup so it doesn't pile up.
+      const localId = localSinkRef.current?.id;
+      if (localId) { try { await markLocalRecordingUploaded(localId); await deleteLocalRecording(localId); } catch {} }
       setSaving('done');
       setTimeout(onClose, 1200);
     } catch (e) {
       console.warn('[Live] save failed', e);
+      // Upload failed — but the on-device copy is intact. Tell the user it's safe.
       setSaving('error');
     }
+  };
+
+  // Download the on-device copy to the device (Downloads folder on Android / save
+  // dialog on desktop). The lifeline when the cloud upload fails.
+  const saveToDevice = async () => {
+    const finalTitle = title.trim() || 'Live Stream';
+    const localId = localSinkRef.current?.id;
+    let ok = false;
+    if (localId) ok = await downloadLocalRecording(localId, `${finalTitle.replace(/[^\w.\-]+/g, '_')}.webm`).catch(() => false);
+    // Fallback to the in-memory blob if the store never engaged.
+    if (!ok && recordedBlobRef.current) {
+      const url = URL.createObjectURL(recordedBlobRef.current);
+      const a = document.createElement('a');
+      a.href = url; a.download = `${finalTitle.replace(/[^\w.\-]+/g, '_')}.webm`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch {} }, 10_000);
+      ok = true;
+    }
+    if (ok) setSavedToDevice(true);
   };
 
   const discardRecording = async () => {
     // Stream not saved → the auto-post comes down too (no dead "live" posts).
     if (postId) await deletePost(postId).catch(() => {});
+    // Explicit delete → drop the on-device copy too (the user chose not to keep it).
+    const localId = localSinkRef.current?.id;
+    if (localId) { try { await deleteLocalRecording(localId); } catch {} }
     recordedBlobRef.current = null;
     onClose();
+  };
+
+  // Setup-time "save to a file" pick. Called from the toggle's click (a user gesture,
+  // which showSaveFilePicker requires) so the handle is ready before Go Live.
+  const chooseLocalFile = async () => {
+    const w = await pickRecordingFile(`${(title.trim() || 'live-stream')}.webm`);
+    if (w) { fileWritableRef.current = w; setFileChosen(true); setStoreLocal(true); }
   };
 
   const addReaction = (emoji: string) => {
@@ -1059,10 +1134,52 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                 className="w-full bg-black/50 backdrop-blur border border-white/20 rounded-2xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:border-orange-400/60"
               />
             </div>
+            {/* Local recording — save a copy on this device AS you stream, so a failed
+                upload never loses the video. */}
+            <div className="rounded-2xl bg-black/50 backdrop-blur border border-white/15 overflow-hidden">
+              <button onClick={() => setStoreLocal(v => !v)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${storeLocal ? 'bg-orange-500/20 text-orange-400' : 'bg-white/8 text-white/40'}`}>
+                  <HardDriveDownload size={17} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-bold text-white leading-tight">Save a copy on this device</p>
+                  <p className="text-[10px] text-white/45 leading-tight mt-0.5">Recorded as you stream — survives a failed upload.</p>
+                </div>
+                <div className={`w-10 h-6 rounded-full p-0.5 transition-colors shrink-0 ${storeLocal ? 'bg-orange-500' : 'bg-white/15'}`}>
+                  <div className={`w-5 h-5 rounded-full bg-white transition-transform ${storeLocal ? 'translate-x-4' : ''}`} />
+                </div>
+              </button>
+              {storeLocal && supportsFilePicker() && (
+                <div className="px-4 pb-3 -mt-1">
+                  <button onClick={chooseLocalFile}
+                    className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-[11px] font-bold border ${fileChosen ? 'bg-green-500/15 border-green-500/30 text-green-300' : 'bg-white/8 border-white/15 text-white/70 hover:text-white'}`}>
+                    {fileChosen ? <><Check size={13} /> Saving to your chosen file</> : <><FolderOpen size={13} /> Choose where to save…</>}
+                  </button>
+                </div>
+              )}
+              {storeLocal && !supportsFilePicker() && (
+                <p className="px-4 pb-3 -mt-1 text-[10px] text-white/40 leading-snug">
+                  Saved to this device's storage. After the stream you can download it or save the replay to Reello.
+                </p>
+              )}
+            </div>
             <p className="text-[9px] text-white/35 leading-relaxed">
               Going live posts to your timeline and notifies your followers. When you end,
               you choose to save the replay to Reello or delete it.
             </p>
+            {pendingRec && (
+              <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 px-4 py-3 space-y-2">
+                <p className="text-[11px] font-bold text-amber-300">Unsaved recording found</p>
+                <p className="text-[10px] text-white/50 leading-snug">A previous live ("{pendingRec.title}") didn't finish saving. Recover it before it's lost.</p>
+                <div className="flex gap-2">
+                  <button onClick={async () => { await downloadLocalRecording(pendingRec.id).catch(() => {}); }}
+                    className="flex-1 py-2 rounded-xl bg-amber-500 text-black text-[11px] font-black flex items-center justify-center gap-1.5"><Download size={13} /> Download</button>
+                  <button onClick={async () => { await deleteLocalRecording(pendingRec.id).catch(() => {}); setPendingRec(null); }}
+                    className="px-3 py-2 rounded-xl bg-white/8 text-white/50 text-[11px] font-bold">Discard</button>
+                </div>
+              </div>
+            )}
             {goLiveError && (
               <p className="text-[11px] font-bold text-red-400 bg-red-500/10 border border-red-500/25 rounded-xl px-3 py-2">{goLiveError}</p>
             )}
@@ -1601,15 +1718,26 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
             ) : (
               <div className="space-y-2.5">
                 {saving === 'error' && (
-                  <p className="text-[10px] text-red-400 text-center">Couldn't save the recording — you can retry or delete.</p>
+                  <div className="rounded-xl bg-green-500/10 border border-green-500/25 px-3 py-2.5 flex items-start gap-2">
+                    <ShieldCheck size={15} className="text-green-400 shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-green-200/90 leading-snug">
+                      Upload failed — but your recording is safe on this device. Retry the upload, or save it to your device below.
+                    </p>
+                  </div>
                 )}
                 <button onClick={saveRecording}
                   className="w-full py-4 rounded-2xl bg-orange-500 hover:bg-orange-400 active:scale-95 transition-all font-black text-white text-sm flex items-center justify-center gap-2">
-                  <Save size={16} /> Save replay to Reello
+                  <Save size={16} /> {saving === 'error' ? 'Retry — save replay to Reello' : 'Save replay to Reello'}
                 </button>
                 <p className="text-[9px] text-white/30 text-center leading-relaxed">
                   Saving keeps the recording on your Reello page and turns your live post into the replay.
                 </p>
+                {storeLocal && (
+                  <button onClick={saveToDevice}
+                    className={`w-full py-3.5 rounded-2xl border active:scale-95 transition-all font-bold text-sm flex items-center justify-center gap-2 ${savedToDevice ? 'bg-green-500/15 border-green-500/30 text-green-300' : 'bg-white/[0.06] border-white/10 text-white/70 hover:text-white'}`}>
+                    {savedToDevice ? <><Check size={15} /> Saved to your device</> : <><Download size={15} /> Save to device</>}
+                  </button>
+                )}
                 <button onClick={discardRecording}
                   className="w-full py-3.5 rounded-2xl bg-white/[0.06] border border-white/10 hover:bg-red-500/15 hover:border-red-500/30 active:scale-95 transition-all font-bold text-white/60 hover:text-red-300 text-sm flex items-center justify-center gap-2">
                   <Trash2 size={15} /> Delete stream

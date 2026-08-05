@@ -1808,6 +1808,17 @@ export interface FeedItem {
   title?: string; // For news headlines
   content: string; // Text content or comment
   imageUrl?: string;
+  /** Full attached-media array (mirrors Post.media). Carried through the feed
+   *  conversion so videos + multi-image posts render, not just the first image.
+   *  Legacy `feed`-collection docs only have `imageUrl` — the renderer falls back. */
+  media?: {
+    type: 'PHOTO' | 'VIDEO' | 'AUDIO' | 'ALBUM' | 'LINK' | 'GIF' | 'STICKER' | 'MODEL3D';
+    url?: string;
+    id?: string;
+    title?: string;
+    thumbnail?: string;
+    linkPreview?: { title?: string; description?: string; image?: string; url: string };
+  }[];
   songUrl?: string;
   songTitle?: string;
   albumId?: string;

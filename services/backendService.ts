@@ -1436,13 +1436,14 @@ export const createPost = async (post: Partial<Post>) => {
       authorName,
       authorPhoto,
       ...(orgId ? { authorIsOrg: true, authorOrgId: orgId } : {}),
-      type: post.media && post.media.length > 0 ? 'PICTURE' : 'NEWS',
+      type: mediaFeedType(post.media),
       content: post.text || '',
       timestamp: Date.now(),
       likesCount: 0,
       commentCount: 0,
       shareCount: 0,
-      ...(post.media && post.media.length > 0 ? { imageUrl: post.media[0].url } : {}),
+      ...(firstImageUrl(post.media) ? { imageUrl: firstImageUrl(post.media) } : {}),
+      ...(sanitizeMediaForWrite(post.media) ? { media: sanitizeMediaForWrite(post.media) } : {}),
       originalPostId: docRef.id
     }).catch(() => {});
 
@@ -2692,10 +2693,39 @@ export const updatePostCreatorSignals = async (
   }
 };
 
+// ── Post.media → FeedItem helpers ────────────────────────────────────────────
+// The feed used to collapse a post's whole media[] into a single imageUrl, so
+// videos rendered inside an <img> (broken → "text only") and multi-image posts
+// lost everything but the first shot. These carry the intent through instead.
+const mediaFeedType = (media: any): FeedItem['type'] => {
+  if (!Array.isArray(media) || media.length === 0) return 'NEWS';
+  return media.some((m: any) => m?.type === 'VIDEO') ? 'VIDEO' : 'PICTURE';
+};
+/** First still-image URL for the legacy imageUrl slot (skip videos — an <img>
+ *  pointed at a video URL is exactly the broken thumbnail we're fixing). */
+const firstImageUrl = (media: any): string | undefined => {
+  if (!Array.isArray(media)) return undefined;
+  const img = media.find((m: any) => m?.url && m.type !== 'VIDEO' && m.type !== 'AUDIO');
+  return img?.url;
+};
+/** Firestore rejects `undefined` fields — strip them from each media item before
+ *  mirroring into the feed collection. */
+const sanitizeMediaForWrite = (media: any): any[] | undefined => {
+  if (!Array.isArray(media) || media.length === 0) return undefined;
+  return media.map((m: any) => {
+    const out: any = {};
+    for (const k of ['type', 'url', 'id', 'title', 'thumbnail'] as const) {
+      if (m?.[k] !== undefined && m?.[k] !== null) out[k] = m[k];
+    }
+    if (m?.linkPreview) out.linkPreview = m.linkPreview;
+    return out;
+  });
+};
+
 export const fetchFeed = (callback: (items: FeedItem[]) => void) => {
   const feedPath = 'feed';
   const postsPath = 'posts';
-  
+
   let feedItems: FeedItem[] = [];
   let postItems: FeedItem[] = [];
 
@@ -2739,8 +2769,9 @@ export const fetchFeed = (callback: (items: FeedItem[]) => void) => {
         authorPhoto: data.authorPhoto,
         content: data.text || '',
         timestamp: safeToMillis(data.timestamp),
-        type: data.media && data.media.length > 0 ? 'PICTURE' : 'NEWS',
-        imageUrl: data.media && data.media.length > 0 ? data.media[0].url : undefined,
+        type: mediaFeedType(data.media),
+        imageUrl: firstImageUrl(data.media),
+        media: Array.isArray(data.media) ? data.media : undefined,
         likesCount: data.likesCount || 0,
         commentCount: data.commentsCount || 0,
         shareCount: 0,
@@ -2767,13 +2798,14 @@ export const migratePostsToFeed = async () => {
       authorId: data.authorId,
       authorName: data.authorName,
       authorPhoto: data.authorPhoto,
-      type: data.media && data.media.length > 0 ? 'PICTURE' : 'NEWS',
+      type: mediaFeedType(data.media),
       content: data.text || '',
       timestamp: data.timestamp || Date.now(),
       likesCount: data.likesCount || 0,
       commentCount: data.commentsCount || 0,
       shareCount: 0,
-      imageUrl: data.media && data.media.length > 0 ? data.media[0].url : undefined,
+      ...(firstImageUrl(data.media) ? { imageUrl: firstImageUrl(data.media) } : {}),
+      ...(sanitizeMediaForWrite(data.media) ? { media: sanitizeMediaForWrite(data.media) } : {}),
       originalPostId: d.id
     });
     await updateDoc(doc(db, 'posts', d.id), { migratedToFeed: true });
@@ -2830,8 +2862,9 @@ export const fetchFollowedFeed = async (uid: string, callback: (items: FeedItem[
           authorPhoto: data.authorPhoto,
           content: data.text || '',
           timestamp: safeToMillis(data.timestamp),
-          type: data.media && data.media.length > 0 ? 'PICTURE' : 'NEWS',
-          imageUrl: data.media && data.media.length > 0 ? data.media[0].url : undefined,
+          type: mediaFeedType(data.media),
+          imageUrl: firstImageUrl(data.media),
+          media: Array.isArray(data.media) ? data.media : undefined,
           likesCount: data.likesCount || 0,
           commentCount: data.commentsCount || 0,
           shareCount: 0,

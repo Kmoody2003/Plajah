@@ -421,8 +421,18 @@ export class RtcSession {
    *  Returns the new camera's facingMode (when the browser reports it) plus a
    *  `mirror` flag — the UI should mirror the preview for front cameras only. */
   async cycleCamera(): Promise<{ facingMode?: 'user' | 'environment'; mirror: boolean }> {
-    const cams = (await navigator.mediaDevices.enumerateDevices().catch(() => []))
-      .filter(d => d.kind === 'videoinput');
+    // Dedupe to DISTINCT physical cameras. Android often lists the same sensor twice
+    // (a "logical" multi-camera plus its members), and cycling those made the flip
+    // appear to do nothing — skip duplicates by deviceId AND by groupId+label.
+    const raw = (await navigator.mediaDevices.enumerateDevices().catch(() => []))
+      .filter(d => d.kind === 'videoinput' && d.deviceId);
+    const seen = new Set<string>();
+    const cams = raw.filter(d => {
+      const key = `${d.deviceId}`;
+      const groupKey = `${(d as any).groupId || ''}|${(d.label || '').toLowerCase()}`;
+      if (seen.has(key) || seen.has(groupKey)) return false;
+      seen.add(key); seen.add(groupKey); return true;
+    });
     if (cams.length <= 1) {
       // 0–1 enumerated cameras (or labels/ids hidden pre-permission) → toggle facingMode.
       const cur = this.local?.getVideoTracks()[0]?.getSettings().facingMode;
@@ -431,7 +441,14 @@ export class RtcSession {
       const curId = this.local?.getVideoTracks()[0]?.getSettings().deviceId;
       const idx = cams.findIndex(c => c.deviceId === curId);
       const next = cams[(idx + 1) % cams.length];
-      const s = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ deviceId: { exact: next.deviceId } }) });
+      // exact deviceId is the reliable per-lens selector; if a device rejects it
+      // (some WebViews), fall back to a non-exact hint so the flip still switches.
+      let s: MediaStream;
+      try {
+        s = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ deviceId: { exact: next.deviceId } }) });
+      } catch {
+        s = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ deviceId: next.deviceId }) });
+      }
       await this.swapVideoTrack(s.getVideoTracks()[0]);
     }
     const track = this.local?.getVideoTracks()[0];
