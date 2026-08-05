@@ -11,6 +11,7 @@ import SmartLightingPanel from './SmartLightingPanel';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { fetchPersonalTracks } from '../services/backendService';
 import { getCachedAnalysis, getOrComputeAnalysis } from '../services/djAnalysis';
+import { mediaFetchUrl } from '../services/mediaFetchPolicy';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -539,7 +540,16 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
     if (ctx.state === 'suspended') await ctx.resume();
     setLoadingDeck(deckId);
     try {
-      const response = await fetch(track.url);
+      // Route through the shared media-fetch policy: Audius/CORS-open hosts fetch
+      // directly (an Audius deck loads), everything else via /api/proxy. Falls back
+      // to the raw URL if the policy target fails (e.g. proxy 500 on a redirect).
+      let response: Response;
+      try {
+        response = await fetch(mediaFetchUrl(track.url));
+        if (!response.ok) throw new Error(String(response.status));
+      } catch {
+        response = await fetch(track.url);
+      }
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer  = await ctx.decodeAudioData(arrayBuffer);
       const peaks = extractPeaks(audioBuffer);

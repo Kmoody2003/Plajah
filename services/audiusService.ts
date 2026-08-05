@@ -70,10 +70,17 @@ export interface AudiusArtist {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function mapTrack(t: any, host: string): ArchiveTrack {
+  const handle = t.user?.handle ?? '';
+  // Deep link back to the track's real Audius page (OML attribution). `permalink` is
+  // like "/artisthandle/track-title"; fall back to the artist page, then audius.co root.
+  const sourcePageUrl = t.permalink
+    ? `https://audius.co${t.permalink}`
+    : (handle ? `https://audius.co/${handle}` : 'https://audius.co/');
   return {
     id: `audius_${t.id}`,
     title: t.title ?? 'Untitled',
-    artist: t.user?.name ?? t.user?.handle ?? 'Unknown Artist',
+    artist: t.user?.name ?? handle ?? 'Unknown Artist',
+    artistId: t.user?.id ?? undefined,
     url: `${host}/v1/tracks/${t.id}/stream?app_name=${APP_NAME}`,
     thumbnailUrl:
       t.artwork?.['480x480'] ??
@@ -82,6 +89,7 @@ function mapTrack(t: any, host: string): ArchiveTrack {
     source: 'AUDIUS' as const,
     genre: t.genre ?? undefined,
     duration: t.duration ?? undefined,
+    sourcePageUrl,
   };
 }
 
@@ -512,8 +520,12 @@ export const archiveTrackToNativeTrack = (t: ArchiveTrack): Track => ({
   id: t.id,
   title: t.title,
   artist: t.artist,
+  // Carry the Audius artist id so PlayerView's artist link resolves to the Audius
+  // artist page (App.handleVisitUser routes `audius:<id>` owners there).
+  artistId: t.artistId ? `audius:${t.artistId}` : undefined,
   url: t.url,                 // Audius stream URL — plays natively in <audio>
   albumCover: t.thumbnailUrl,
+  images: t.thumbnailUrl ? [t.thumbnailUrl] : undefined,
   duration: t.duration,
   genre: t.genre,
   isGlobalArchive: true,
@@ -534,7 +546,8 @@ export const audiusAlbumToNativeAlbum = (a: AudiusAlbum | AudiusPlaylist, tracks
   themeColor: AUDIUS_THEME,
   tracks: tracks.map(archiveTrackToNativeTrack),
   source: 'AUDIUS',
-  audiusUrl: `https://audius.co/`,
+  // Real deep link back to the album/playlist on Audius (OML attribution), with graceful fallbacks.
+  audiusUrl: (a as any).permalink || (curator?.handle ? `https://audius.co/${curator.handle}` : 'https://audius.co/'),
 } as any);
 
 /** Resolve an `audius:album:<id>` into a full native Album (tracks + artist). */
@@ -558,9 +571,11 @@ export const audiusTrackToNativeAlbum = (t: ArchiveTrack, artistName?: string): 
   subType: 'SINGLE',
   genre: t.genre,
   description: '',
-  ownerId: 'audius:',
+  // Real Audius owner id (was hardcoded empty 'audius:', which broke the artist link).
+  ownerId: t.artistId ? `audius:${t.artistId}` : 'audius:',
   createdAt: Date.now(),
   themeColor: AUDIUS_THEME,
   tracks: [archiveTrackToNativeTrack(t)],
   source: 'AUDIUS',
+  audiusUrl: t.sourcePageUrl || 'https://audius.co/',
 } as any);
