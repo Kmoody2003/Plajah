@@ -368,6 +368,34 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
         </div>
       );
     }
+    // A "Live now" post — render a tappable live card (thumbnail + join) instead of plain text,
+    // opening the same WebRTC viewer a shared livestream link does.
+    if (post.isLiveNow && post.liveStreamId) {
+      const liveTitle = (post.text || '').replace(/^🔴\s*Live now:\s*/i, '').trim() || 'Live now';
+      return (
+        <button
+          onClick={e => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_LIVESTREAM', { detail: { streamId: post.liveStreamId, title: liveTitle, ownerName: post.authorName, ownerId: post.authorId } })); }}
+          className="mt-4 relative w-full aspect-video rounded-3xl overflow-hidden border border-red-500/30 block group"
+        >
+          {post.authorPhoto
+            ? <img src={post.authorPhoto} alt="" loading="lazy" className="w-full h-full object-cover blur-[2px] scale-105 opacity-70" />
+            : <div className="w-full h-full" style={{ background: 'linear-gradient(135deg,#3a0a0a,#0a0a0d)' }} />}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-widest">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> Live
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="w-16 h-16 rounded-full bg-red-600/85 border border-white/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Play size={26} className="text-white ml-1" fill="white" />
+            </span>
+          </div>
+          <div className="absolute bottom-3 left-4 right-4 text-left">
+            <p className="text-white font-black text-sm truncate">{liveTitle}</p>
+            <p className="text-white/75 text-[11px] font-bold">{post.authorName} · Tap to watch live</p>
+          </div>
+        </button>
+      );
+    }
     if (!post.media || post.media.length === 0) return null;
 
     // Photos + videos become an inline gallery/carousel with per-asset fullscreen; everything

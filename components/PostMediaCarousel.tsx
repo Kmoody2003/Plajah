@@ -8,12 +8,16 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Maximize2, X, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import PostVideo from './PostVideo';
 
 export interface CarouselMedia {
   type: string;               // 'PHOTO' | 'GIF' | 'STICKER' | 'VIDEO'
   url?: string;
   thumbnail?: string;
   title?: string;
+  /** Video doc id + Mux playback id — needed to play Reello/Mux videos (empty url + mux only). */
+  id?: string;
+  muxPlaybackId?: string;
 }
 
 const isVideo = (m: CarouselMedia) => m.type === 'VIDEO';
@@ -21,12 +25,14 @@ const isVideo = (m: CarouselMedia) => m.type === 'VIDEO';
 const Slide: React.FC<{ item: CarouselMedia; onFull: () => void; contain?: boolean }> = ({ item, onFull, contain }) => (
   <div className="relative w-full h-full bg-black">
     {isVideo(item)
-      ? <video src={item.url || undefined} poster={item.thumbnail} preload="metadata" playsInline controls className={`w-full h-full ${contain ? 'object-contain' : 'object-cover'}`} />
+      ? <PostVideo url={item.url} id={item.id} muxPlaybackId={item.muxPlaybackId} poster={item.thumbnail} title={item.title} className={contain ? 'object-contain' : 'object-cover'} />
       : <img src={item.url} alt={item.title || 'Post media'} loading="lazy" onClick={onFull} className={`w-full h-full ${contain ? 'object-contain' : 'object-cover'} cursor-zoom-in`} />}
-    <button onClick={e => { e.stopPropagation(); onFull(); }} title="Fullscreen"
-      className="absolute top-2.5 right-2.5 w-9 h-9 rounded-full bg-black/55 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white/80 hover:text-white hover:bg-black/75 transition-all z-10">
-      <Maximize2 size={15} />
-    </button>
+    {!isVideo(item) && (
+      <button onClick={e => { e.stopPropagation(); onFull(); }} title="Fullscreen"
+        className="absolute top-2.5 right-2.5 w-9 h-9 rounded-full bg-black/55 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white/80 hover:text-white hover:bg-black/75 transition-all z-10">
+        <Maximize2 size={15} />
+      </button>
+    )}
   </div>
 );
 
@@ -60,7 +66,7 @@ const Lightbox: React.FC<{ items: CarouselMedia[]; index: number; onClose: () =>
       )}
       <div className="w-full h-full flex items-center justify-center p-4 sm:p-12" onClick={e => e.stopPropagation()}>
         {item && (isVideo(item)
-          ? <video src={item.url || undefined} poster={item.thumbnail} controls autoPlay playsInline className="max-w-full max-h-full rounded-lg" />
+          ? <div className="w-full h-full max-w-4xl max-h-full"><PostVideo url={item.url} id={item.id} muxPlaybackId={item.muxPlaybackId} poster={item.thumbnail} title={item.title} className="object-contain rounded-lg" /></div>
           : <img src={item?.url} alt={item?.title || ''} className="max-w-full max-h-full object-contain rounded-lg" />)}
       </div>
     </div>

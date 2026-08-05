@@ -493,16 +493,24 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                       animate={isPlaying ? { rotate: 360 } : { rotate: 0 }}
                       transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
                       className="w-40 h-40 rounded-full border-8 border-white/5 shadow-3xl relative overflow-hidden ring-1 ring-white/10 pointer-events-auto cursor-grab active:cursor-grabbing touch-none"
-                      onPointerDown={(e) => { e.stopPropagation(); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); jogRef.current = { ang: jogAngle(e.currentTarget as HTMLElement, e.clientX, e.clientY) }; beginScratch(); }}
+                      onPointerDown={(e) => { e.stopPropagation(); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); jogRef.current = { ang: jogAngle(e.currentTarget as HTMLElement, e.clientX, e.clientY), sx: e.clientX, sy: e.clientY, moved: false }; beginScratch(); }}
                       onPointerMove={(e) => {
                         if (!jogRef.current) return;
+                        // Distinguish a tap from a scratch: only past a small threshold is it a drag.
+                        if (Math.hypot(e.clientX - (jogRef.current.sx ?? e.clientX), e.clientY - (jogRef.current.sy ?? e.clientY)) > 6) jogRef.current.moved = true;
                         const a = jogAngle(e.currentTarget as HTMLElement, e.clientX, e.clientY);
                         let d = a - jogRef.current.ang;
                         if (d > 180) d -= 360; else if (d < -180) d += 360; // unwrap
                         jogRef.current.ang = a;
                         scratchBy((d / 360) * 1.8); // ~one turn = 1.8s (33rpm)
                       }}
-                      onPointerUp={(e) => { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* */ } jogRef.current = null; endScratch(); }}
+                      onPointerUp={(e) => {
+                        try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* */ }
+                        const wasTap = !!jogRef.current && !jogRef.current.moved;
+                        jogRef.current = null; endScratch();
+                        // A tap on the vinyl (no scratch) opens the album view of what's playing.
+                        if (wasTap) { if (currentAlbum) onNavigate?.('PLAYER', { album: currentAlbum }); else if (currentVideo) onNavigate?.('PLAYER', { video: currentVideo }); }
+                      }}
                       onPointerCancel={() => { jogRef.current = null; endScratch(); }}
                     >
                       <img 

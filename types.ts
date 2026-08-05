@@ -1737,6 +1737,8 @@ export interface Post {
     id?: string; // For on-platform IDs
     title?: string;
     thumbnail?: string;
+    /** Mux playback id — Plajah videos store an empty url + only this; the feed plays via HLS. */
+    muxPlaybackId?: string;
     linkPreview?: {
       title?: string;
       description?: string;
@@ -1817,6 +1819,7 @@ export interface FeedItem {
     id?: string;
     title?: string;
     thumbnail?: string;
+    muxPlaybackId?: string;
     linkPreview?: { title?: string; description?: string; image?: string; url: string };
   }[];
   songUrl?: string;

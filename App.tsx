@@ -895,6 +895,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     };
     window.addEventListener('audius-artist', handleAudiusArtist);
 
+    // Open a specific live stream from anywhere (e.g. a "Live now" post in the social feed).
+    // Mirrors the ?livestream=<id> deep-link's open logic.
+    const handleOpenLivestream = (e: Event) => {
+      const d = (e as CustomEvent).detail || {};
+      if (!d.streamId) return;
+      setActiveLiveFeed({ id: d.streamId, streamId: d.streamId, url: `livestream:${d.streamId}`, status: 'LIVE', isPublic: true, ownerId: d.ownerId || '', ownerName: d.ownerName || '', title: d.title || 'Live Stream', timestamp: Date.now() } as any);
+    };
+    window.addEventListener('OPEN_LIVESTREAM', handleOpenLivestream);
+
     // Open the Album Creator seeded with a prebuilt release (e.g. a Spatial Mixer → Chora publish).
     const handleOpenAlbumCreator = (e: Event) => {
       const seed = (e as CustomEvent).detail?.album;
@@ -935,6 +944,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_LABS_DISCIPLINE', handleOpenLabsDiscipline);
       window.removeEventListener('OPEN_BRAND_ACTIVATION', handleOpenBrandActivation);
       window.removeEventListener('audius-artist', handleAudiusArtist);
+      window.removeEventListener('OPEN_LIVESTREAM', handleOpenLivestream);
       window.removeEventListener('OPEN_ALBUM_CREATOR', handleOpenAlbumCreator);
       window.removeEventListener('OPEN_FABULA', handleOpenFabula);
       window.removeEventListener('OPEN_LICENSE_FOR_FILM', handleLicenseForFilm);
