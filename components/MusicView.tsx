@@ -32,7 +32,7 @@ import {
 import {
   fetchAudiusTrending, searchAudius,
   loadAudiusCuration, fetchAudiusPlaylistTracks, fetchAudiusArtistTracks, fetchAudiusArtistById,
-  audiusAlbumToNativeAlbum,
+  audiusAlbumToNativeAlbum, audiusTrackToNativeAlbum,
   AudiusCuration, AudiusPlaylist, AudiusArtist, AudiusAlbum,
 } from '../services/audiusService';
 import { listIncomingLicenseRequests } from '../services/licenseRequests';
@@ -683,9 +683,19 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   };
 
   const handlePlayVaultTrack = (track: ArchiveTrack) => {
-    // Automagically clone it to platform
-    syncPublicDomainAsset(track, track.url, 'AUDIO');
+    // Audius: open the SAME native album view a native single gets (which unlocks
+    // Pixels / DJ / Breakdown, artist link, and Audius attribution), then play it.
+    // Stream-only — we do NOT clone Audius audio to platform storage: the Open Music
+    // License grants us the right to STREAM as a Music Player, not to re-host.
+    if (track.source === 'AUDIUS') {
+      const nativeAlbum = audiusTrackToNativeAlbum(track);
+      onSelectAlbum(nativeAlbum);
+      playTrack(nativeAlbum.tracks![0], nativeAlbum, 'LIBRARY');
+      return;
+    }
 
+    // Other public-domain archives keep the existing "clone to platform + quick play" behavior.
+    syncPublicDomainAsset(track, track.url, 'AUDIO');
     const vaultTrack: Track = {
       id: track.id,
       title: track.title,
@@ -705,9 +715,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
       createdAt: Date.now(),
       themeColor: '#ff8c00',
       // Carry the archive's own words through to the player, not a generic stub.
-      description: track.source === 'AUDIUS'
-        ? `Streaming via Audius — the decentralized music network. Artist earns on every play.`
-        : [track.description, track.context, track.collection && `Collection: ${track.collection}`]
+      description: [track.description, track.context, track.collection && `Collection: ${track.collection}`]
             .filter(Boolean).join('\n\n')
           || `Public domain recording from ${SOURCE_LABEL[track.source] ?? track.source}.`
     };
@@ -719,13 +727,14 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     const album: AudiusAlbum = {
       id: playlist.id,
       title: playlist.title,
-      artworkUrl: playlist.artworkUrl,
+      artworkUrl: playlist.artworkUrl, // carry cover through (was dropped → empty cover)
       trackCount: playlist.trackCount,
       isAlbum: false,
       curatorId: playlist.curatorId,
       curator: playlist.curator,
       description: playlist.description,
-    };
+      permalink: (playlist as any).permalink,
+    } as AudiusAlbum;
     openAudiusAlbumNative(album);
   };
 
@@ -1339,24 +1348,8 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     );
   }
 
-  // ── Audius Album/Playlist view overlay ─────────────────────────────────────
-  if (selectedAudiusAlbum) {
-    return (
-      <div className="flex-1 bg-transparent text-white overflow-y-auto custom-scrollbar pb-40">
-        <Suspense fallback={
-          <div className="flex items-center justify-center h-64">
-            <div className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
-          </div>
-        }>
-          <AudiusAlbumView
-            album={selectedAudiusAlbum}
-            onBack={() => setSelectedAudiusAlbum(null)}
-            onViewArtist={(artist) => { setSelectedAudiusArtist(artist); setSelectedAudiusAlbum(null); }}
-          />
-        </Suspense>
-      </div>
-    );
-  }
+  // ── Audius albums/playlists now open in the NATIVE PlayerView (openAudiusAlbumNative)
+  //    — the old AudiusAlbumView overlay is retired (it was unreachable dead UI). ──
 
   // ── Chora Conservatory overlay ─────────────────────────────────────────────
   if (showConservatory) {

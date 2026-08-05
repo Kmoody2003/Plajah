@@ -45,6 +45,8 @@ export interface ArchiveTrack {
   id: string;
   title: string;
   artist: string;
+  /** Source platform's user/artist id (e.g. Audius user id) — powers the native artist link. */
+  artistId?: string;
   url: string;
   thumbnailUrl: string;
   source: 'INTERNET_ARCHIVE' | 'WIKIMEDIA' | 'JAMENDO' | 'SOUND_CLOUD' | 'AUDIUS' | 'LIBRARY_OF_CONGRESS';

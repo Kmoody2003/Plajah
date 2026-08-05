@@ -1144,6 +1144,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           <div className="flex-1 text-center min-w-0 px-4">
             <h1 className="text-xs font-black uppercase tracking-widest truncate">{album.title}</h1>
             <p className="text-[8px] font-bold text-small-orange uppercase tracking-[0.3em] truncate">{album.artist}</p>
+            {(album as any).source === 'AUDIUS' && (
+              <span className="inline-flex items-center gap-1 mt-0.5 text-[7px] font-black uppercase tracking-[0.2em]" style={{ color: '#C56BFF' }}>
+                <span className="w-1 h-1 rounded-full" style={{ background: '#C56BFF' }} /> via Audius
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <ChoraQualityButton className="p-2" />
@@ -1810,7 +1815,15 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 <img src={thumb(album.artistImage || album.coverImage, THUMB.small) || undefined} loading="lazy" decoding="async" onError={onThumbError(album.artistImage || album.coverImage)} className="w-16 h-16 rounded-2xl object-cover border border-white/10" />
                 <div>
                   <h3 className="text-lg font-black uppercase tracking-tight">{album.artist}</h3>
-                  <p className="text-[9px] font-bold text-small-orange uppercase tracking-widest">Archive Identity</p>
+                  {(album as any).source === 'AUDIUS' ? (
+                    <a href={(album as any).audiusUrl || 'https://audius.co/'} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest"
+                      style={{ color: '#C56BFF' }}>
+                      Streaming via Audius <ExternalLink size={9} />
+                    </a>
+                  ) : (
+                    <p className="text-[9px] font-bold text-small-orange uppercase tracking-widest">Archive Identity</p>
+                  )}
                 </div>
                 <div className="ml-auto">
                   <PlajahPlusButton

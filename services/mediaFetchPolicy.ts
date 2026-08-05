@@ -19,6 +19,11 @@
 const DIRECT_FETCH_HOSTS = [
   'firebasestorage.googleapis.com',
   'storage.googleapis.com',
+  // Audius is a CORS-open network; its /api/proxy path 302→CDN which the proxy 500s on.
+  // Fetch Audius stream/CDN hosts directly (matches audioBeatDetection.decodeMono's branch).
+  'audius.co',
+  'audius-content.com',
+  'audius.prod-us-west-2.staked.cloud',
 ];
 
 /** Firebase Hosting's response ceiling for a Cloud Run rewrite. */
@@ -30,6 +35,9 @@ export const PROXY_MAX_BYTES = 32 * 1024 * 1024;
  */
 export function shouldFetchDirect(url: string): boolean {
   if (!/^https?:\/\//i.test(url)) return true;                    // relative → same origin
+  // Audius stream signature — matches by PATH so it also covers community discovery
+  // nodes on custom domains (not just *.audius.co), which the host list would miss.
+  if (/\/v1\/tracks\/[^/]+\/stream/i.test(url) || /(^|[./])audius\b/i.test(url)) return true;
   try {
     const u = new URL(url, typeof location !== 'undefined' ? location.href : undefined);
     if (typeof location !== 'undefined' && u.origin === location.origin) return true;

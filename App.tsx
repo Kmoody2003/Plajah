@@ -2026,6 +2026,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       case 'ALBUM':
         if (targetId) {
           try {
+            // Audius albums (`audius:album:<id>`) live on the network, not Firestore —
+            // rehydrate them through the Audius resolver so deep-links/reloads work.
+            if (targetId.startsWith('audius:album:')) {
+              const { resolveNativeAudiusAlbum } = await import('./services/audiusService');
+              const aud = await resolveNativeAudiusAlbum(targetId);
+              if (aud) { handleSelectItem(aud); } else { setView('MUSIC'); }
+              break;
+            }
             const { fetchAlbumById } = await import('./services/backendService');
             const album = await fetchAlbumById(targetId);
             if (album) {
