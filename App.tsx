@@ -145,6 +145,7 @@ const UserDashboard = retryLazy(() => import('./components/UserDashboard'));
 const GlobalPhotosView = retryLazy(() => import('./components/GlobalPhotosView'));
 const EventPhotoPoolView = retryLazy(() => import('./components/EventPhotoPoolView'));
 import LandingPage from './components/LandingPage';
+import { isEducationAccount } from './services/intimateGating';
 import WelcomeAchievement from './components/WelcomeAchievement';
 import PioneerGoldFrame from './components/PioneerGoldFrame';
 const WelcomePackageModal = retryLazy(() => import('./components/WelcomePackageModal'));
@@ -164,6 +165,9 @@ const PodcastCallIn = retryLazy(() => import('./components/PodcastCallIn'));
 const PodcastListen = retryLazy(() => import('./components/PodcastListen'));
 const ClassPointsView = retryLazy(() => import('./components/ClassPointsView'));
 const AcademiaTourView = retryLazy(() => import('./components/AcademiaTourView'));
+const AcademiaHomeView = retryLazy(() => import('./components/AcademiaHomeView'));
+const SchoolPackageView = retryLazy(() => import('./components/SchoolPackageView'));
+const EducationRail = retryLazy(() => import('./components/EducationRail'));
 const ReadingQuestView = retryLazy(() => import('./components/ReadingQuestView'));
 const ScienceQuestView = retryLazy(() => import('./components/ScienceQuestView'));
 const HistoryQuestView = retryLazy(() => import('./components/HistoryQuestView'));
@@ -1258,6 +1262,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('CLASS_POINTS');
     } else if (target === 'ACADEMIA_TOUR') {
       setView('ACADEMIA_TOUR');
+    } else if (target === 'ACADEMIA_HOME') {
+      setView('ACADEMIA_HOME');
+    } else if (target === 'SCHOOL_PACKAGE') {
+      setView('SCHOOL_PACKAGE');
     } else if (target === 'READING_QUEST') {
       setView('READING_QUEST');
     } else if (target === 'HISTORY_QUEST') {
@@ -1373,6 +1381,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             SCIENCE_ENGINEER: 'PLAJAH_LABS',
           };
           setViewInternal(prev => prev === 'DASHBOARD' ? (expRouteMap[p.experienceMode!] ?? 'DASHBOARD') : prev);
+        }
+
+        // Role-based landing: teacher / parent / student / child accounts land on the Plajah
+        // Academia PORTAL (their dashboard), never on the Global Archive. Parents are included
+        // here for landing even though they're excluded from isEducationAccount (they're adults,
+        // so Nibbles-eligible). Only override the default landing views (DASHBOARD, or the mobile
+        // MUSIC default) so an in-progress deep link is left alone.
+        if (isEducationAccount(p) || (p as any)?.accountType === 'PARENT') {
+          setViewInternal(prev => (prev === 'DASHBOARD' || prev === 'MUSIC') ? 'ACADEMIA_HOME' : prev);
         }
 
         if (p?.uiSettings?.lastTheme) {
@@ -2439,6 +2456,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   ? 'lg:order-last border-l lg:w-80 sticky top-0 h-screen'
                   : 'lg:w-80 border-r sticky top-0 h-screen'
             }`}>
+              {isEducationAccount(userProfile) ? (
+                /* Education accounts never see ads here — a rotating learning rail instead:
+                   the Chora/Taleo "history of the day", real Met/Art-Institute open-access art,
+                   and nano-lesson factoids across disciplines. */
+                <Suspense fallback={null}>
+                  <EducationRail uid={userProfile?.uid} onNavigate={(v) => setView(v as AppView)} />
+                </Suspense>
+              ) : (
               <AnimatePresence mode="sync">
               {(() => {
                 const slots = adSlots.length > 0 ? adSlots : [{ kind: 'plus' as const }];
@@ -2727,6 +2752,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 );
               })()}
               </AnimatePresence>
+              )}
             </aside>
           )}
 
@@ -3895,6 +3921,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'ACADEMIA_TOUR' && (
               <Suspense fallback={null}>
                 <AcademiaTourView onExit={() => setView(user ? 'CLASSROOMS' : 'DASHBOARD')} onNavigate={(v) => setView(v as AppView)} />
+              </Suspense>
+            )}
+
+            {view === 'ACADEMIA_HOME' && (
+              <Suspense fallback={null}>
+                <AcademiaHomeView profile={userProfile} onNavigate={(v) => setView(v as AppView)} />
+              </Suspense>
+            )}
+
+            {view === 'SCHOOL_PACKAGE' && (
+              <Suspense fallback={null}>
+                <SchoolPackageView onNavigate={(v) => setView(v as AppView)} onBack={() => setView('ACADEMIA_HOME')} />
               </Suspense>
             )}
 

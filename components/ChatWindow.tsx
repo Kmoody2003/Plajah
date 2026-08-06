@@ -5,7 +5,7 @@ import {
   Check, CheckCheck, User, Download, StopCircle, Reply, Pin,
   Forward, Search, Globe, Smile, Hash, Copy, Trash2, Star,
   Bold, Italic, Link, AtSign, BarChart2, AlertCircle, Volume2,
-  Flame, Timer, Camera, Radio, Heart, Palette, Gift, EyeOff,
+  Flame, Timer, Camera, Radio, Heart, Palette, Gift, EyeOff, ShieldCheck,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatMessage, ChatRoom, UserProfile, CollabProject, Album } from '../types';
@@ -773,6 +773,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     <Pin size={9} />
                     {pinnedMessages.length} pinned
                   </button>
+                )}
+                {!!room.ccGuardianUids?.length && (
+                  <span
+                    title="A parent/guardian is copied on this conversation for student safety."
+                    className="flex items-center gap-1 text-[9px] font-black text-green-400"
+                  >
+                    <ShieldCheck size={9} /> Parent copied
+                  </span>
                 )}
               </>
             )}

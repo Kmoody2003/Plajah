@@ -6392,6 +6392,46 @@ export const markMessageAsSeen = async (roomId: string, messageId: string) => {
   }
 };
 
+/**
+ * Guardian CC (school transparency): if a student/child account is a participant in a chat room,
+ * their guardian(s) are automatically added to the room so they see everything sent to OR by the
+ * child — the COPPA/FERPA "parent has visibility" guarantee. Runs once per room (guarded by
+ * `guardianCcResolved`); returns the guardian uids so the send path can also notify them.
+ * A guardian who is already a participant (e.g. a parent↔teacher thread) is never re-added.
+ */
+export const ensureGuardianCc = async (
+  roomId: string,
+  roomData: { participants?: string[]; guardianCcResolved?: boolean; ccGuardianUids?: string[]; type?: string },
+): Promise<string[]> => {
+  // Only DMs/groups get guardian CC — never public live chat rooms.
+  if (roomData.type === 'PUBLIC_LIVE') return [];
+  if (roomData.guardianCcResolved) return roomData.ccGuardianUids || [];
+  const participants: string[] = roomData.participants || [];
+  if (participants.length < 2) return []; // wait until both sides are present before resolving
+  try {
+    const profiles = await fetchUserProfiles(participants);
+    const guardians = new Set<string>();
+    for (const p of profiles) {
+      const isStudent =
+        (p as any).isChild || p.accountType === 'CHILD' || (p as any).accountType === 'STUDENT' ||
+        (p as any).childState === 'SCHOOL_PROVISIONED';
+      if (!isStudent) continue;
+      if ((p as any).guardianUid) guardians.add((p as any).guardianUid);
+      ((p as any).coGuardianUids || []).forEach((g: string) => g && guardians.add(g));
+    }
+    // Guardians not already in the room need adding as observers; the rest are already present.
+    const toAdd = [...guardians].filter(g => g && !participants.includes(g));
+    await updateDoc(doc(db, 'chat_rooms', roomId), {
+      guardianCcResolved: true,
+      ccGuardianUids: [...guardians],
+      ...(toAdd.length ? { participants: arrayUnion(...toAdd) } : {}),
+    });
+    return [...guardians];
+  } catch {
+    return roomData.ccGuardianUids || [];
+  }
+};
+
 export const sendMessage = async (roomId: string, message: Omit<ChatMessage, 'id' | 'timestamp'>) => {
   const path = `chat_rooms/${roomId}/messages`;
   try {
@@ -6405,17 +6445,21 @@ export const sendMessage = async (roomId: string, message: Omit<ChatMessage, 'id
     const roomSnap = await getDoc(roomRef);
     if (roomSnap.exists() && auth.currentUser) {
       const roomData = roomSnap.data();
-      const participants = roomData.participants || [];
+      // School transparency: make sure any student's guardian is CC'd onto this thread, then
+      // fold the guardian uids into the recipient set so they're notified of this message too.
+      const ccGuardians = await ensureGuardianCc(roomId, roomData as any);
+      const participants: string[] = Array.from(new Set([...(roomData.participants || []), ...ccGuardians]));
       const others = participants.filter((pId: string) => pId !== (auth.currentUser?.uid || ''));
-      
+
       others.forEach((pId: string) => {
+        const isGuardianCopy = ccGuardians.includes(pId);
         createNotification({
           userId: pId,
           senderId: auth.currentUser?.uid || '',
           senderName: auth.currentUser?.displayName || 'Anonymous',
           senderPhoto: auth.currentUser?.photoURL || '',
           type: 'MESSAGE',
-          title: 'New Message',
+          title: isGuardianCopy ? 'Copied on your child\'s message' : 'New Message',
           message: `${auth.currentUser?.displayName}: ${(message.text ?? '').substring(0, 50)}${(message.text ?? '').length > 50 ? '...' : ''}`,
           link: 'MESSAGES',
           targetId: roomId
