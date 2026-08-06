@@ -474,6 +474,22 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
     setVideoCapturing(false);
     setCamSeconds(0);
   };
+  // Take a still photo from the live camera and add it as a PHOTO attachment.
+  const captureCameraPhoto = () => {
+    const v = videoPreviewRef.current;
+    if (!v || !v.videoWidth) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = v.videoWidth; canvas.height = v.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(blob => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      setAttachments(prev => [...prev, { type: 'PHOTO', url, title: 'Photo', file: new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' }) }]);
+      closeCameraCapture();
+    }, 'image/jpeg', 0.9);
+  };
 
   // ── Post ─────────────────────────────────────────────────────────────────────
 
@@ -1102,6 +1118,11 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
             )}
           </div>
           <div className="flex items-center gap-2">
+            {videoCamRecorder.current?.state !== 'recording' && (
+              <button onClick={captureCameraPhoto} className="flex items-center gap-2 px-4 py-2 bg-white/10 text-white border border-white/20 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-white/20 transition-all">
+                <Camera size={12} /> Photo
+              </button>
+            )}
             {videoCamRecorder.current?.state !== 'recording' ? (
               <button onClick={startCameraRecord} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-red-500 transition-all">
                 <div className="w-3 h-3 rounded-full bg-white" /> Record

@@ -466,6 +466,36 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     setVideoRecording(false);
   };
 
+  // Take a still photo from the live camera preview and send it as an IMAGE.
+  const capturePhoto = async () => {
+    const v = videoPreviewRef.current;
+    if (!v || !v.videoWidth) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = v.videoWidth; canvas.height = v.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+    const blob: Blob | null = await new Promise(res => canvas.toBlob(b => res(b), 'image/jpeg', 0.9));
+    if (!blob) return;
+    setUploadingImage(true);
+    try {
+      const path = `chat/${room.id}/images/${Date.now()}_photo.jpg`;
+      const url = await uploadFile(path, new File([blob], 'photo.jpg', { type: 'image/jpeg' }));
+      if (url) {
+        await sendMessage(room.id, {
+          senderId: auth.currentUser?.uid || '',
+          senderName: auth.currentUser?.displayName || 'Anonymous',
+          senderPhoto: auth.currentUser?.photoURL || '',
+          imageUrl: url,
+          type: 'IMAGE',
+        } as any);
+      }
+    } finally {
+      setUploadingImage(false);
+      closeVideoNote();
+    }
+  };
+
   // ── Capture deterrence (intimate) ─────────────────────────────────────────────
   // Browsers can't block screenshots, but we blur/black-out the whole conversation the
   // moment the tab loses focus or is backgrounded — defeating casual "switch away and
@@ -1482,11 +1512,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-5">
+              {/* Take a photo (hidden while a video is recording) */}
+              {!videoRecording && (
+                <button onClick={capturePhoto} title="Take a photo"
+                  className="w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 border border-white/25 flex items-center justify-center transition-all active:scale-95">
+                  <Camera size={22} className="text-white" />
+                </button>
+              )}
               {!videoRecording ? (
                 <button
                   onClick={startVideoRecord}
-                  className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-400 flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.5)] transition-all"
+                  title="Record a video"
+                  className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-400 flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.5)] transition-all active:scale-95"
                 >
                   <div className="w-6 h-6 rounded-full bg-white" />
                 </button>
@@ -1503,7 +1541,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               </button>
             </div>
             <p className="text-[9px] font-black uppercase tracking-widest text-white/30">
-              {videoRecording ? 'Recording — tap square to stop & send' : 'Tap circle to record a video note'}
+              {videoRecording ? 'Recording — tap square to stop & send' : 'Tap the camera for a photo · the red circle to record'}
             </p>
           </motion.div>
         )}

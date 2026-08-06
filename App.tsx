@@ -44,6 +44,7 @@ const retryLazy = <T extends React.ComponentType<any>>(
   }) as any;
 };
 const AlbumCreator = retryLazy(() => import('./components/AlbumCreator'));
+const EarthGlobe = retryLazy(() => import('./components/EarthGlobe')); // home hero globe
 const PlayerView = retryLazy(() => import('./components/PlayerView'));
 const SearchView = retryLazy(() => import('./components/SearchView'));
 const FeedView = retryLazy(() => import('./components/FeedView'));
@@ -4215,8 +4216,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
 
             {view === 'DASHBOARD' && (
-              <div className="flex flex-col lg:flex-row w-full h-full">
-                <div className="flex-1 p-6 lg:p-16 max-w-7xl mx-auto w-full">
+              <div className="relative flex flex-col lg:flex-row w-full h-full">
+                {/* Hero globe — the same moving Earth from the landing, filling the top of the
+                    page and fading into the background as it reaches the content/categories
+                    (like the Chora page). Lazy + error-boundaried; pointer-events-none so it
+                    never blocks the UI. */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-[85vh] overflow-hidden" style={{ zIndex: 0 }} aria-hidden="true">
+                  <Suspense fallback={null}>
+                    <div className="absolute inset-0 opacity-[0.55]"><EarthGlobe /></div>
+                  </Suspense>
+                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(2,2,2,0.10) 0%, rgba(2,2,2,0.45) 48%, var(--bg-color, #020202) 92%)' }} />
+                </div>
+                <div className="relative z-10 flex-1 p-6 lg:p-16 max-w-7xl mx-auto w-full">
                   <header className="mb-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
                     <div>
                       <h1 className="text-5xl md:text-[9rem] lg:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.82] italic select-none mb-6 text-center lg:text-left">Plajah Global Archive</h1>
