@@ -2999,7 +2999,9 @@ export interface ChatRoom {
   participants: string[]; // UIDs
   lastMessage?: string;
   updatedAt: number;
-  type: 'PRIVATE' | 'GROUP' | 'PUBLIC_LIVE';
+  type: 'PRIVATE' | 'GROUP' | 'PUBLIC_LIVE' | 'CLASSROOM';
+  /** For CLASSROOM rooms: the class this group thread belongs to. */
+  classId?: string;
   name?: string; // For groups/public
   ownerId?: string; // For groups/public
   isPublic?: boolean;

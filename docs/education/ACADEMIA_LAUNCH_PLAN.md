@@ -74,11 +74,17 @@ seeded store; nothing persists. This is what wins a 2-week pitch.
   quests) to top-level nav — no more Dashboard-only burial.
 - Replace `Math.random` analytics with `learningLedgerService`.
 
-### Phase C — Education-scoped chat (reuse the chat system)
-- Add a `CLASSROOM` room type + `classId`; auto-create teacher↔class rooms and parent↔teacher threads.
-- A `canDM(me, them)` policy: **students can't DM students**; parent↔teacher allowed; teacher↔student allowed;
-  enforced in UI + `firestore.rules`. Separate **Assignments vs Announcements**.
+### Phase C — Education-scoped chat (reuse the chat system) *(core SHIPPED)*
+- **DONE** `services/educationChat.ts` — `canDM(me, them)`: students can't DM students or strangers;
+  a student may only DM their teachers + guardians; adults talk freely. Enforced in the UI chokepoint
+  (`App.handleMessage`) AND as a write-path backstop in `backendService.createChatRoom` (PRIVATE).
+- **DONE** `CLASSROOM` room type + `classId` on `ChatRoom`; `ensureClassroomRoom(classId, teacher, students)`
+  (deterministic `class_<id>` room), surfaced under the chat All/Groups tabs. Guardian-CC skips CLASSROOM
+  (announcement channels shouldn't balloon with every parent).
+- **DONE (prior batch)** Guardian CC — a student's parent auto-copied on their 1:1 threads.
 - Nibbles already excluded (Phase 3 + non-PRIVATE room type).
+- **REMAINING:** mirror `canDM` in `firestore.rules` (defense-in-depth); auto-create teacher↔class rooms on
+  roster load (needs Phase B roster); separate **Assignments vs Announcements** tabs in the LMS.
 
 ### Phase D — Teacher content-surfacing (a differentiator no ClassDojo has)
 A "**Add to lesson**" picker that pulls Plajah's rights-cleared archives straight into a `Lesson`

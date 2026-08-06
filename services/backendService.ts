@@ -89,6 +89,8 @@ import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, 
 import { accountFlagUpdate } from './accountCapabilities';
 // Creator Passport provenance (blueprint 1C.5) — attribution record, not crypto proof.
 import { buildProvenance, stampVideo } from './creatorPassport';
+// Education-chat safety (Phase C): student DM policy backstop on the write path.
+import { canDM, isStudentAccount, classroomRoomId, classroomParticipants } from './educationChat';
 
 export const getPrivateBoards = async (uid: string): Promise<PrivateBoard[]> => {
   const q = query(collection(db, 'privateBoards'), where('ownerId', '==', uid));
@@ -6290,6 +6292,21 @@ export const createChatRoom = async (participants: string[], type: ChatRoom['typ
     const q = query(collection(db, path), where("participants", "array-contains", auth.currentUser?.uid), where("type", "==", type));
     const snap = await getDocs(q);
     
+    // Education safety backstop: a student can only DM their teachers/guardians (never other
+    // students or strangers). Enforced in the UI too; this is defense-in-depth on the write path.
+    if (type === 'PRIVATE' && participants.length === 2) {
+      try {
+        const [a, b] = await fetchUserProfiles(participants);
+        if (isStudentAccount(a) || isStudentAccount(b)) {
+          const decision = canDM(a, b);
+          if (!decision.allowed) throw new Error(decision.reason || 'This message isn\'t allowed.');
+        }
+      } catch (guardErr) {
+        if (guardErr instanceof Error && guardErr.message && !/index|permission|network/i.test(guardErr.message)) throw guardErr;
+        // profile-fetch hiccup (not a policy block) — fall through and let normal creation proceed.
+      }
+    }
+
     // For private chats, check if one already exists
     if (type === 'PRIVATE' && participants.length === 2) {
       const existing = snap.docs.find(d => {
@@ -6322,6 +6339,33 @@ export const createChatRoom = async (participants: string[], type: ChatRoom['typ
     handleFirestoreError(e, OperationType.CREATE, path);
     throw e;
   }
+};
+
+/**
+ * Create or open a class group chat (CLASSROOM room). Deterministic id (class_<classId>) so the
+ * teacher and every student converge on one thread. Membership = teacher + students. Safe to call
+ * repeatedly; it merges the roster (arrayUnion) without clobbering existing messages/metadata.
+ */
+export const ensureClassroomRoom = async (
+  classId: string,
+  teacherUid: string,
+  studentUids: string[],
+  name?: string,
+): Promise<string> => {
+  const roomId = classroomRoomId(classId);
+  try {
+    await setDoc(doc(db, 'chat_rooms', roomId), {
+      type: 'CLASSROOM',
+      classId,
+      name: name || 'Class Chat',
+      ownerId: teacherUid,
+      participants: arrayUnion(...classroomParticipants(teacherUid, studentUids)),
+      updatedAt: Date.now(),
+    }, { merge: true });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.CREATE, `chat_rooms/${roomId}`);
+  }
+  return roomId;
 };
 
 export const deleteChatRoom = async (roomId: string): Promise<void> => {
@@ -6403,8 +6447,9 @@ export const ensureGuardianCc = async (
   roomId: string,
   roomData: { participants?: string[]; guardianCcResolved?: boolean; ccGuardianUids?: string[]; type?: string },
 ): Promise<string[]> => {
-  // Only DMs/groups get guardian CC — never public live chat rooms.
-  if (roomData.type === 'PUBLIC_LIVE') return [];
+  // Guardian CC applies to 1:1/small threads only — never public live chat, and never the big
+  // CLASSROOM announcement channels (CCing every student's parents would balloon the room).
+  if (roomData.type === 'PUBLIC_LIVE' || roomData.type === 'CLASSROOM') return [];
   if (roomData.guardianCcResolved) return roomData.ccGuardianUids || [];
   const participants: string[] = roomData.participants || [];
   if (participants.length < 2) return []; // wait until both sides are present before resolving

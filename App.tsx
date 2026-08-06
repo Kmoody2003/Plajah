@@ -146,6 +146,7 @@ const GlobalPhotosView = retryLazy(() => import('./components/GlobalPhotosView')
 const EventPhotoPoolView = retryLazy(() => import('./components/EventPhotoPoolView'));
 import LandingPage from './components/LandingPage';
 import { isEducationAccount } from './services/intimateGating';
+import { canDM, isStudentAccount } from './services/educationChat';
 import WelcomeAchievement from './components/WelcomeAchievement';
 import PioneerGoldFrame from './components/PioneerGoldFrame';
 const WelcomePackageModal = retryLazy(() => import('./components/WelcomePackageModal'));
@@ -2129,6 +2130,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     if (!user) {
       await loginWithGoogle();
       return;
+    }
+    // Education-chat safety: if either side is a student/child, enforce the DM policy
+    // (students can only message their teachers and guardians — never peers or strangers).
+    const target = await fetchUserProfile(uid).catch(() => null);
+    if (isStudentAccount(userProfile) || isStudentAccount(target)) {
+      const decision = canDM(userProfile, target);
+      if (!decision.allowed) { alert(decision.reason || 'This message isn\'t allowed.'); return; }
     }
     await createChatRoom([user.uid, uid], 'PRIVATE');
     setView('CHAT');

@@ -693,7 +693,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
     if (searchTerm && !name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     if (sidebarTab === 'ALL') return true;
     if (sidebarTab === 'DIRECT') return room.type === 'PRIVATE';
-    if (sidebarTab === 'GROUPS') return room.type === 'GROUP';
+    if (sidebarTab === 'GROUPS') return room.type === 'GROUP' || room.type === 'CLASSROOM';
     if (sidebarTab === 'CHANNELS') return room.type === 'PUBLIC_LIVE' && !room.id.startsWith('live_chat_');
     if (sidebarTab === 'SONGS') return room.id.startsWith('live_chat_');
     return false;
