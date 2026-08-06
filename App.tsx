@@ -105,6 +105,7 @@ const TVStudio = retryLazy(() => import('./components/TVStudio'));
 
 import ExperiencePicker from './components/ExperiencePicker';
 import GlobalPlayer from './components/GlobalPlayer';
+import InAppBrowserPrompt from './components/InAppBrowserPrompt';
 import AutoPlayCountdown from './components/AutoPlayCountdown';
 import TVNavigationLayer from './components/TVNavigationLayer';
 import { getPlatformInfo } from './hooks/usePlatform';
@@ -5343,6 +5344,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           sofa. Gated here rather than inside the component, which would mean returning before its
           hooks. */}
       {user && !getPlatformInfo().isTV && <PersistentChatDrawer currentView={view} onNotificationNavigate={handleNotificationNavigate} externalTrigger={notifDrawerTrigger} />}
+
+      {/* Nudge users stuck in an in-app WebView (Google app, etc.) into Chrome. Self-gates:
+          renders nothing unless it detects a genuine embedded browser on Android. */}
+      <InAppBrowserPrompt />
 
       {/* Start a Room composer (global overlay; opened via plajah:start-room) */}
       {showStartRoom && <StartRoomModal user={user} onClose={() => setShowStartRoom(false)} />}

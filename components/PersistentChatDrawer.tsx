@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   MessageSquare, Users, Globe, User, Send, X,
@@ -411,7 +412,12 @@ const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({ currentView
     ...(isOwnWork ? [{ id: 'MUSIC' as TabType, icon: Music, label: 'My Chat' }] : []),
   ];
 
-  return (
+  // Portal to <body>: the handle + drawer are position:fixed, but a `fixed` element is
+  // positioned relative to any ancestor that has a transform/filter/backdrop-filter (this app
+  // applies a global --app-zoom scale transform on a wrapper). That containing-block trap is
+  // what dropped the right-edge drawer into the lower-left corner. Rendering into <body>
+  // escapes every transformed ancestor so `fixed right-0` is viewport-relative again.
+  const tree = (
     <>
       {/* Toggle handle */}
       <button
@@ -843,6 +849,7 @@ const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({ currentView
       </motion.aside>
     </>
   );
+  return typeof document !== 'undefined' ? createPortal(tree, document.body) : tree;
 };
 
 export default PersistentChatDrawer;

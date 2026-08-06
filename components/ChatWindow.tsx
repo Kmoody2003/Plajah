@@ -234,7 +234,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   // ── Intimate mode (shared, read from the room doc) ──────────────────────────
   const isIntimate = !!room.isIntimate;
@@ -325,14 +325,29 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     };
   }, [room.id]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Auto-grow the message box with its content (WhatsApp/Telegram style): 1 line → up to ~6,
+  // then it scrolls internally. Reset to one line after the message is sent.
+  const autosize = (ta: HTMLTextAreaElement | null) => {
+    if (!ta) return;
+    ta.style.height = 'auto';
+    ta.style.height = `${Math.min(ta.scrollHeight, 140)}px`;
+  };
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputText(e.target.value);
+    autosize(e.target);
     if (!isTyping) { setIsTyping(true); updateTypingStatus(room.id, true); }
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
       updateTypingStatus(room.id, false);
     }, 3000);
+  };
+  // Enter behaviour: on a desktop (fine pointer) Enter sends, Shift+Enter adds a newline.
+  // On touch phones Enter inserts a newline (like WhatsApp) and you tap Send.
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    const coarse = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+    if (!coarse) { e.preventDefault(); handleSend(); }
   };
 
   // Guards against a double-send: a rapid double-click, or Enter-then-click, used to fire
@@ -349,6 +364,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     // Clear the composer immediately so a second submit finds it empty (and the UI feels instant).
     const savedReply = replyTo;
     setInputText('');
+    if (inputRef.current) inputRef.current.style.height = 'auto'; // collapse back to one line
     setReplyTo(null);
 
     try {
@@ -1374,79 +1390,71 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           {showVoiceRecorder ? (
             <VoiceRecorder onSend={handleSendVoice} onCancel={() => setShowVoiceRecorder(false)} />
           ) : (
-            <form onSubmit={handleSend} className="flex items-center gap-2">
-              {/* Attachment menu */}
-              <div className="flex items-center gap-1 shrink-0">
-                <button type="button" onClick={() => { setShowMediaSelector(p => !p); setShowCollabMenu(false); }}
-                  className="p-2 text-white/30 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all">
-                  <Music size={17} />
-                </button>
-                <button type="button" onClick={() => imageInputRef.current?.click()} disabled={uploadingImage}
-                  className="p-2 text-white/30 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all disabled:opacity-30">
-                  {uploadingImage
-                    ? <div className="w-4 h-4 border-2 border-small-orange/30 border-t-small-orange rounded-full animate-spin" />
-                    : <ImageIcon size={17} />}
-                </button>
-                {/* Video note */}
-                <button type="button" onClick={openVideoNote}
-                  className="p-2 text-white/30 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all">
-                  <Camera size={17} />
-                </button>
-                {/* Emoji */}
-                <button type="button" onClick={() => { setShowEmoji(v => !v); setShowGif(false); }}
-                  className={`p-2 rounded-xl transition-all ${showEmoji ? 'text-small-orange bg-white/10' : 'text-white/30 hover:text-small-orange hover:bg-white/5'}`}>
-                  <Smile size={17} />
-                </button>
-                {/* GIF */}
-                <button type="button" onClick={() => { setShowGif(v => !v); setShowEmoji(false); }}
-                  className={`px-1.5 py-1 rounded-lg text-[10px] font-black transition-all ${showGif ? 'text-small-orange bg-white/10' : 'text-white/30 hover:text-small-orange hover:bg-white/5'}`}>
-                  GIF
-                </button>
-                {/* Burn-after-read toggle */}
-                <button
-                  type="button"
-                  onClick={() => setBurnMode(m => !m)}
-                  title="Burn after read (30s)"
-                  className={`p-2 rounded-xl transition-all ${burnMode ? 'text-orange-400 bg-orange-400/15' : 'text-white/30 hover:text-orange-400 hover:bg-white/5'}`}
-                >
-                  <Flame size={17} />
-                </button>
-                {/* Send a gift — intimate-only ephemeral photo (opens like a gift, vanishes 60s after) */}
-                {isIntimate && (
-                  <button type="button" onClick={sendGift} disabled={uploadingImage}
-                    title="Send a gift photo (vanishes 60s after opening)"
-                    className="p-2 rounded-xl transition-all disabled:opacity-30"
-                    style={{ color: intimateTheme.accent }}>
-                    <Gift size={17} />
+            // WhatsApp/Telegram-style composer: the message box sits ON TOP and auto-expands;
+            // the attachment options live on their own row BELOW so the text box is never
+            // squished on a phone. Empty box → mic; typed text → send (WhatsApp behaviour).
+            <form onSubmit={handleSend} className="flex flex-col gap-2">
+              {/* Row 1 — the message box (auto-grows) + mic/send */}
+              <div className="flex items-end gap-2">
+                <textarea
+                  ref={inputRef}
+                  value={inputText}
+                  onChange={handleInputChange}
+                  onKeyDown={handleInputKeyDown}
+                  rows={1}
+                  placeholder={burnMode ? '🔥 Burns 30s after read…' : replyTo ? `Reply to ${replyTo.senderName}…` : 'Message…'}
+                  className={`flex-1 resize-none bg-white/[0.06] border rounded-3xl px-4 py-3 text-[15px] leading-snug text-white placeholder-white/25 focus:bg-white/[0.08] transition-colors outline-none min-w-0 max-h-[140px] overflow-y-auto no-scrollbar ${
+                    burnMode ? 'border-orange-400/30 focus:border-orange-400/60' : 'border-white/[0.08] focus:border-small-orange/40'
+                  }`}
+                />
+                {inputText.trim() ? (
+                  <button type="submit"
+                    className="w-11 h-11 grid place-items-center bg-small-orange text-white rounded-full hover:bg-small-orange/80 active:scale-95 transition-all shrink-0">
+                    <Send size={19} />
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => setShowVoiceRecorder(true)} title="Voice message"
+                    className="w-11 h-11 grid place-items-center bg-white/[0.08] text-white/60 hover:text-small-orange hover:bg-white/[0.12] active:scale-95 rounded-full transition-all shrink-0">
+                    <Mic size={19} />
                   </button>
                 )}
               </div>
 
-              {/* Text input */}
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputText}
-                onChange={handleInputChange}
-                /* Enter submits via the form's onSubmit — no manual send here, or it fires twice (duplicate messages). */
-                placeholder={burnMode ? '🔥 Burns 30s after read…' : replyTo ? `Reply to ${replyTo.senderName}…` : 'Message…'}
-                className={`flex-1 bg-white/[0.06] border rounded-2xl px-4 py-3 text-sm text-white placeholder-white/20 focus:bg-white/[0.08] transition-all outline-none min-w-0 ${
-                  burnMode ? 'border-orange-400/30 focus:border-orange-400/60' : 'border-white/[0.08] focus:border-small-orange/40'
-                }`}
-              />
-
-              <button type="button" onClick={() => setShowVoiceRecorder(true)}
-                className="p-2 text-white/30 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all shrink-0">
-                <Mic size={17} />
-              </button>
-
-              <button
-                type="submit"
-                disabled={!inputText.trim()}
-                className="p-2.5 bg-small-orange text-white rounded-xl hover:bg-small-orange/80 transition-all shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <Send size={17} />
-              </button>
+              {/* Row 2 — attachment + option buttons (scrolls horizontally if it overflows) */}
+              <div className="flex items-center gap-0.5 overflow-x-auto no-scrollbar -mb-0.5">
+                <button type="button" onClick={() => { setShowMediaSelector(p => !p); setShowCollabMenu(false); }} title="Share a song"
+                  className="p-2 text-white/35 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all shrink-0">
+                  <Music size={19} />
+                </button>
+                <button type="button" onClick={() => imageInputRef.current?.click()} disabled={uploadingImage} title="Photo"
+                  className="p-2 text-white/35 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all disabled:opacity-30 shrink-0">
+                  {uploadingImage
+                    ? <div className="w-[19px] h-[19px] border-2 border-small-orange/30 border-t-small-orange rounded-full animate-spin" />
+                    : <ImageIcon size={19} />}
+                </button>
+                <button type="button" onClick={openVideoNote} title="Video note"
+                  className="p-2 text-white/35 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all shrink-0">
+                  <Camera size={19} />
+                </button>
+                <button type="button" onClick={() => { setShowEmoji(v => !v); setShowGif(false); }} title="Emoji"
+                  className={`p-2 rounded-xl transition-all shrink-0 ${showEmoji ? 'text-small-orange bg-white/10' : 'text-white/35 hover:text-small-orange hover:bg-white/5'}`}>
+                  <Smile size={19} />
+                </button>
+                <button type="button" onClick={() => { setShowGif(v => !v); setShowEmoji(false); }} title="GIF"
+                  className={`px-2 py-1.5 rounded-lg text-[11px] font-black transition-all shrink-0 ${showGif ? 'text-small-orange bg-white/10' : 'text-white/35 hover:text-small-orange hover:bg-white/5'}`}>
+                  GIF
+                </button>
+                <button type="button" onClick={() => setBurnMode(m => !m)} title="Burn after read (30s)"
+                  className={`p-2 rounded-xl transition-all shrink-0 ${burnMode ? 'text-orange-400 bg-orange-400/15' : 'text-white/35 hover:text-orange-400 hover:bg-white/5'}`}>
+                  <Flame size={19} />
+                </button>
+                {isIntimate && (
+                  <button type="button" onClick={sendGift} disabled={uploadingImage} title="Send a gift photo (vanishes 60s after opening)"
+                    className="p-2 rounded-xl transition-all disabled:opacity-30 shrink-0" style={{ color: intimateTheme.accent }}>
+                    <Gift size={19} />
+                  </button>
+                )}
+              </div>
             </form>
           )}
         </div>
