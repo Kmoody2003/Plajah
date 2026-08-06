@@ -27,6 +27,7 @@ import { useUpload } from '../contexts/UploadContext';
 import ThreeDImage from './ThreeDImage';
 import YoutubeImportModal from './YoutubeImportModal';
 import { LiveStudio, LiveViewer } from './MobileLiveStreamer';
+import StreamRecoveryList from './StreamRecoveryList';
 import CommentSection from './CommentSection';
 import SignInPrompt from './SignInPrompt';
 import StoriesBar from './StoriesBar';
@@ -1553,6 +1554,8 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                 <h2 className="text-lg font-black uppercase tracking-widest">{profileScoped ? 'Videos' : (isOwner ? 'My Videos' : `${profile?.displayName || 'Creator'}'s Videos`)} <span className="text-white/20 ml-2">{userReello.length}</span></h2>
                 {isOwner && canUpload() && <button onClick={() => setShowUpload(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all"><Plus size={14} /> Upload</button>}
               </div>
+              {/* Unsaved/failed live recordings kept on this device — retry upload or download. */}
+              {isOwner && <StreamRecoveryList embedded hideWhenEmpty />}
               {userReello.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {userReello.map(video => (

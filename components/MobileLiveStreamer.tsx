@@ -44,6 +44,7 @@ import {
   downloadLocalRecording, markLocalRecordingUploaded, deleteLocalRecording,
   listPendingLocalRecordings, type LiveRecordingSink, type LocalRecordingMeta,
 } from '../services/localRecordingStore';
+import StreamRecoveryList from './StreamRecoveryList';
 import {
   doc, collection, addDoc, setDoc, updateDoc, increment, deleteDoc,
   query, orderBy, limit, arrayUnion, arrayRemove,
@@ -549,6 +550,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const [fileChosen, setFileChosen] = useState(false); // user picked a desktop file target
   const [savedToDevice, setSavedToDevice] = useState(false);
   const [pendingRec, setPendingRec] = useState<LocalRecordingMeta | null>(null); // recovery from a prior crash
+  const [showRecovery, setShowRecovery] = useState(false);
 
   // On mount, surface any prior recording that never got saved (crash/close mid-stream).
   useEffect(() => {
@@ -1175,16 +1177,15 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
               you choose to save the replay to Reello or delete it.
             </p>
             {pendingRec && (
-              <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 px-4 py-3 space-y-2">
-                <p className="text-[11px] font-bold text-amber-300">Unsaved recording found</p>
-                <p className="text-[10px] text-white/50 leading-snug">A previous live ("{pendingRec.title}") didn't finish saving. Recover it before it's lost.</p>
-                <div className="flex gap-2">
-                  <button onClick={async () => { await downloadLocalRecording(pendingRec.id).catch(() => {}); }}
-                    className="flex-1 py-2 rounded-xl bg-amber-500 text-black text-[11px] font-black flex items-center justify-center gap-1.5"><Download size={13} /> Download</button>
-                  <button onClick={async () => { await deleteLocalRecording(pendingRec.id).catch(() => {}); setPendingRec(null); }}
-                    className="px-3 py-2 rounded-xl bg-white/8 text-white/50 text-[11px] font-bold">Discard</button>
+              <button onClick={() => setShowRecovery(true)}
+                className="w-full rounded-2xl bg-amber-500/10 border border-amber-500/30 px-4 py-3 flex items-center gap-3 text-left hover:bg-amber-500/15 transition-colors">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 grid place-items-center shrink-0"><HardDriveDownload size={16} /></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12px] font-bold text-amber-300">Unsaved live recordings</p>
+                  <p className="text-[10px] text-white/50 leading-snug">Tap to review, retry the upload, or download them before they're lost.</p>
                 </div>
-              </div>
+                <span className="text-amber-300 text-lg shrink-0">›</span>
+              </button>
             )}
             {goLiveError && (
               <p className="text-[11px] font-bold text-red-400 bg-red-500/10 border border-red-500/25 rounded-xl px-3 py-2">{goLiveError}</p>
@@ -1752,6 +1753,14 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
             )}
           </div>
         </motion.div>
+      )}
+
+      {/* Failed / unsaved live recordings — retry upload, download, or delete. */}
+      {showRecovery && (
+        <StreamRecoveryList onClose={() => {
+          setShowRecovery(false);
+          listPendingLocalRecordings().then(l => setPendingRec(l.sort((a, b) => b.startedAt - a.startedAt)[0] || null)).catch(() => {});
+        }} />
       )}
     </div>
   );
