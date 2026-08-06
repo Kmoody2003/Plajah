@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { X, Search, Loader2 } from 'lucide-react';
 import { GiphyFetch } from '@giphy/js-fetch-api';
-import { Grid } from '@giphy/react-components';
 import type { IGif } from '@giphy/js-types';
 
 const gf = new GiphyFetch('4Sbiygh5QwzvnHYaZm2IbqW44MSBMd4K');
@@ -31,7 +30,9 @@ const GifStickerPicker: React.FC<GifStickerPickerProps> = ({
   const [tab, setTab] = useState<GifMediaType>(defaultTab);
   const [query, setQuery] = useState(intimate ? 'love' : '');
   const [debouncedQuery, setDebouncedQuery] = useState(intimate ? 'love' : '');
-  const [key, setKey] = useState(0); // forces Grid remount on tab/query change
+  const [gifs, setGifs] = useState<IGif[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const rating = intimate ? 'r' : 'g'; // 'r' is Giphy's ceiling — romantic, never explicit
 
   // Debounce the search query
@@ -40,26 +41,20 @@ const GifStickerPicker: React.FC<GifStickerPickerProps> = ({
     return () => clearTimeout(t);
   }, [query]);
 
-  // Remount Grid whenever tab or debounced query changes
+  // Fetch GIFs/stickers ourselves and render a plain grid — the @giphy <Grid> component
+  // silently rendered nothing in some environments (the "GIF library won't load" bug). This
+  // uses the same (working) API with explicit loading/error states.
   useEffect(() => {
-    setKey(k => k + 1);
-  }, [tab, debouncedQuery]);
-
-  // Fetch function passed to Grid
-  const fetchGifs = useCallback(
-    (offset: number) => {
-      const isSticker = tab === 'STICKER';
-      if (debouncedQuery.trim()) {
-        return isSticker
-          ? gf.search(debouncedQuery, { offset, limit: 20, type: 'stickers', rating })
-          : gf.search(debouncedQuery, { offset, limit: 20, rating });
-      }
-      return isSticker
-        ? gf.trending({ offset, limit: 20, type: 'stickers', rating })
-        : gf.trending({ offset, limit: 20, rating });
-    },
-    [tab, debouncedQuery, rating]
-  );
+    let cancelled = false;
+    setLoading(true); setError(false);
+    const isSticker = tab === 'STICKER';
+    const req = debouncedQuery.trim()
+      ? gf.search(debouncedQuery, { limit: 24, rating, ...(isSticker ? { type: 'stickers' as const } : {}) })
+      : gf.trending({ limit: 24, rating, ...(isSticker ? { type: 'stickers' as const } : {}) });
+    req.then(res => { if (!cancelled) { setGifs(res.data || []); setLoading(false); } })
+       .catch(() => { if (!cancelled) { setError(true); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [tab, debouncedQuery, rating]);
 
   const handleGifClick = (gif: IGif, e: React.SyntheticEvent<HTMLElement, Event>) => {
     e.preventDefault();
@@ -127,21 +122,28 @@ const GifStickerPicker: React.FC<GifStickerPickerProps> = ({
         )}
       </div>
 
-      {/* GIPHY Grid */}
-      <div
-        className="px-2 pb-2 overflow-y-auto custom-scrollbar"
-        style={{ height: 220 }}
-      >
-        <Grid
-          key={key}
-          width={296}
-          columns={3}
-          gutter={6}
-          fetchGifs={fetchGifs}
-          onGifClick={handleGifClick}
-          noLink
-          hideAttribution
-        />
+      {/* GIF/sticker grid (custom, reliable) */}
+      <div className="px-2 pb-2 overflow-y-auto custom-scrollbar" style={{ height: 220 }}>
+        {loading ? (
+          <div className="h-full flex items-center justify-center"><Loader2 size={20} className="animate-spin text-white/40" /></div>
+        ) : error ? (
+          <div className="h-full flex flex-col items-center justify-center gap-1 text-center px-6">
+            <p className="text-[11px] font-bold text-white/55">Couldn't load {tab === 'GIF' ? 'GIFs' : 'stickers'}</p>
+            <button onClick={() => setDebouncedQuery(q => q + ' ')} className="text-[10px] text-rose-300 font-bold">Tap to retry</button>
+          </div>
+        ) : gifs.length === 0 ? (
+          <div className="h-full flex items-center justify-center"><p className="text-[11px] text-white/35">No results</p></div>
+        ) : (
+          <div className="grid grid-cols-3 gap-1.5">
+            {gifs.map(g => (
+              <button key={g.id} onClick={e => handleGifClick(g, e)}
+                className="relative rounded-lg overflow-hidden bg-white/5 aspect-square hover:ring-2 hover:ring-rose-400/50 active:scale-95 transition-all">
+                <img src={g.images?.fixed_width_small?.url || g.images?.fixed_width?.url || g.images?.downsized?.url}
+                  alt={g.title || 'gif'} loading="lazy" className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* GIPHY attribution (required by ToS) */}

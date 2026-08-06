@@ -96,7 +96,7 @@ const PostMediaCarousel: React.FC<{ items: CarouselMedia[]; accent?: string }> =
   // Single asset — no carousel chrome.
   if (items.length === 1) {
     return (
-      <div className="mt-4 rounded-3xl overflow-hidden border border-white/10 bg-black relative aspect-video max-h-[600px]">
+      <div className="mt-3 rounded-2xl overflow-hidden border border-white/10 bg-black relative aspect-video max-h-[600px]">
         <Slide item={items[0]} onFull={() => setFull(0)} contain />
         {full !== null && <Lightbox items={items} index={full} onClose={() => setFull(null)} onNav={setFull} />}
       </div>
@@ -105,7 +105,7 @@ const PostMediaCarousel: React.FC<{ items: CarouselMedia[]; accent?: string }> =
 
   return (
     <div className="mt-4">
-      <div className="relative rounded-3xl overflow-hidden border border-white/10 bg-black group/carousel">
+      <div className="relative rounded-2xl overflow-hidden border border-white/10 bg-black group/carousel">
         <div ref={scrollRef} onScroll={onScroll}
           className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide aspect-video max-h-[600px]"
           style={{ scrollbarWidth: 'none' }}>
@@ -128,12 +128,14 @@ const PostMediaCarousel: React.FC<{ items: CarouselMedia[]; accent?: string }> =
         )}
       </div>
 
-      {/* Dots */}
-      <div className="flex items-center justify-center gap-1.5 mt-3">
+      {/* Dots — small circles (active is a filled accent dot, the rest are faint) */}
+      <div className="flex items-center justify-center gap-1.5 mt-2.5">
         {items.map((_, i) => (
           <button key={i} onClick={() => scrollTo(i)} aria-label={`Go to media ${i + 1}`}
-            className="h-1.5 rounded-full transition-all"
-            style={i === index ? { width: 18, background: accent } : { width: 6, background: 'rgba(255,255,255,0.25)' }} />
+            className="rounded-full transition-all shrink-0"
+            style={i === index
+              ? { width: 7, height: 7, background: accent }
+              : { width: 5, height: 5, background: 'rgba(255,255,255,0.28)' }} />
         ))}
       </div>
 

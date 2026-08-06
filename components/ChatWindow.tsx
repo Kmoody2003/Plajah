@@ -363,9 +363,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
     // Clear the composer immediately so a second submit finds it empty (and the UI feels instant).
     const savedReply = replyTo;
+    const wasBurn = burnMode;
     setInputText('');
     if (inputRef.current) inputRef.current.style.height = 'auto'; // collapse back to one line
     setReplyTo(null);
+    // Burn is intentional + one-shot: disarm after sending so it NEVER becomes the default
+    // that silently destroys every subsequent message.
+    if (wasBurn) setBurnMode(false);
 
     try {
       const encrypted = await encryptText(text, room.id);

@@ -62,6 +62,18 @@ service firebase.storage {
       allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
     }
 
+    // ── Chat media (images/gifts sent in a chat room) ────────────────────────
+    // Path shapes: chat/<roomId>/images/… and chat_intimate/<roomId>/… . Any signed-in
+    // user may upload; public-read. Was denied (no match block) → chat photos never attached.
+    match /chat/{roomId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+    }
+    match /chat_intimate/{roomId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+    }
+
     // ── Album content ─────────────────────────────────────────────────────────
     match /albums/{albumId}/{allPaths=**} {
       allow read: if true;
