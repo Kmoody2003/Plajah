@@ -163,6 +163,7 @@ const LiveTranslation = retryLazy(() => import('./components/LiveTranslation'));
 const PodcastCallIn = retryLazy(() => import('./components/PodcastCallIn'));
 const PodcastListen = retryLazy(() => import('./components/PodcastListen'));
 const ClassPointsView = retryLazy(() => import('./components/ClassPointsView'));
+const AcademiaTourView = retryLazy(() => import('./components/AcademiaTourView'));
 const ReadingQuestView = retryLazy(() => import('./components/ReadingQuestView'));
 const ScienceQuestView = retryLazy(() => import('./components/ScienceQuestView'));
 const HistoryQuestView = retryLazy(() => import('./components/HistoryQuestView'));
@@ -1255,6 +1256,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('MOVIES_TV');
     } else if (target === 'CLASS_POINTS') {
       setView('CLASS_POINTS');
+    } else if (target === 'ACADEMIA_TOUR') {
+      setView('ACADEMIA_TOUR');
     } else if (target === 'READING_QUEST') {
       setView('READING_QUEST');
     } else if (target === 'HISTORY_QUEST') {
@@ -3887,6 +3890,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'CLASS_POINTS' && (
               <ClassPointsView onBack={() => setView('CLASSROOMS')} onOpenReadingQuest={() => setView('READING_QUEST')} />
+            )}
+
+            {view === 'ACADEMIA_TOUR' && (
+              <Suspense fallback={null}>
+                <AcademiaTourView onExit={() => setView(user ? 'CLASSROOMS' : 'DASHBOARD')} onNavigate={(v) => setView(v as AppView)} />
+              </Suspense>
             )}
 
             {view === 'ROOM' && currentRoomId && (

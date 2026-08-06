@@ -70,3 +70,52 @@ export const DEMO_CLASS: DemoClass = {
   attendance: { s1: 'present', s2: 'present', s3: 'present', s4: 'tardy', s5: 'present', s6: 'absent' },
   parent: { name: 'Demo Parent', childId: 's1' },
 };
+
+// ── Richer demo objects so the "Tour Academia" walkthrough threads a complete loop:
+//    a real lesson (with Plajah's rights-cleared archives attached), an assignment,
+//    a parent↔teacher message thread, and a learner-ledger snapshot for the demo child.
+
+/** A lesson with Plajah content attached — showcases the teacher content-surfacing that no
+ *  ClassDojo has: Chora music history + the Vault, film history, and Labs arts/history. */
+export interface DemoLessonContent { kind: 'MUSIC' | 'FILM' | 'ART' | 'READING'; title: string; source: string; note: string; icon: string; }
+export interface DemoLesson { id: string; subject: string; title: string; standard: string; summary: string; content: DemoLessonContent[]; }
+export const DEMO_LESSON: DemoLesson = {
+  id: 'lesson_harlem',
+  subject: 'Cross-Arts / Social Studies',
+  title: 'The Harlem Renaissance — Music, Film & Art',
+  standard: 'CCSS.ELA-Literacy.RH · Arts Integration',
+  summary: "A cross-arts unit where students explore the 1920s–30s Black cultural movement through the music, film, and painting of the era — pulled straight from Plajah's archives.",
+  content: [
+    { kind: 'MUSIC', title: 'Duke Ellington & the sound of the Cotton Club', source: 'Chora · The Vault (National Jukebox, LOC)', note: 'Listen to the era. Rights-cleared from the Library of Congress.', icon: '🎷' },
+    { kind: 'FILM',  title: 'Harlem street life, c. 1930s (archival footage)', source: 'Taleo · Film History (Internet Archive)', note: 'Primary-source moving image of the neighborhood.', icon: '🎞️' },
+    { kind: 'ART',   title: 'Aaron Douglas — "Aspects of Negro Life"', source: 'Plajah Labs · Art Masters hall', note: 'Study the muralist of the movement.', icon: '🖼️' },
+    { kind: 'READING', title: 'Langston Hughes — "Dreams" (guided read + vocabulary)', source: 'Lorea · Reading Quest', note: 'Comprehension + a Spanish/French vocabulary side-quest.', icon: '📖' },
+  ],
+};
+
+export interface DemoAssignment { id: string; title: string; dueLabel: string; instructions: string; submissions: Record<string, 'submitted' | 'graded' | 'missing'>; }
+export const DEMO_ASSIGNMENT: DemoAssignment = {
+  id: 'asg_harlem_1',
+  title: 'Pick an artist from the unit — 3 sentences on why they mattered',
+  dueLabel: 'Due Friday',
+  instructions: 'Choose the musician, filmmaker, or painter that stood out to you and write 3 sentences about their impact. Record a voice note if you prefer.',
+  submissions: { s1: 'graded', s2: 'submitted', s3: 'graded', s4: 'missing', s5: 'submitted', s6: 'missing' },
+};
+
+export interface DemoMessage { id: string; from: 'teacher' | 'parent'; text: string; at: number; }
+export const DEMO_MESSAGES: DemoMessage[] = [
+  { id: 'm1', from: 'teacher', text: "Hi! Maya did a wonderful job on the Harlem Renaissance unit today — she picked Aaron Douglas and her writing was thoughtful. 📖", at: T(200) },
+  { id: 'm2', from: 'parent',  text: 'That\'s great to hear, thank you! She was humming jazz at dinner 😄 Is the assignment due Friday?', at: T(140) },
+  { id: 'm3', from: 'teacher', text: 'Yes, Friday — she\'s already submitted and I\'ve graded it. All set!', at: T(120) },
+];
+
+export interface DemoLedgerRecord { id: string; label: string; subject: string; standard: string; level: string; date: string; }
+export const DEMO_LEDGER: { student: string; records: DemoLedgerRecord[] } = {
+  student: 'Maya R.',
+  records: [
+    { id: 'l1', label: 'Reading comprehension — inference', subject: 'ELA', standard: 'CCSS.RL.4.1', level: 'Proficient', date: 'This week' },
+    { id: 'l2', label: 'Phonemic fluency (Reading Quest)', subject: 'ELA', standard: 'CCSS.RF.4.4', level: 'Advancing', date: 'This week' },
+    { id: 'l3', label: 'Arts integration — Harlem Renaissance', subject: 'Social Studies', standard: 'Arts', level: 'Proficient', date: 'Today' },
+    { id: 'l4', label: 'Spanish vocabulary — 20 words', subject: 'Language (CEFR A1)', standard: 'ACTFL Novice', level: 'On track', date: 'This week' },
+  ],
+};

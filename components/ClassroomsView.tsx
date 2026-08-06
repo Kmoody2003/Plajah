@@ -767,6 +767,22 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
           </button>
         )}
 
+        {/* Tour Academia — the full teacher/parent/student walkthrough, no signup */}
+        {onNavigate && (
+          <button
+            onClick={() => onNavigate('ACADEMIA_TOUR')}
+            className="w-full mb-4 flex items-center gap-3 rounded-2xl px-5 py-4 text-left transition-all hover:scale-[1.005]"
+            style={{ border: '1px solid rgba(255,140,0,0.35)', background: 'linear-gradient(120deg, rgba(255,140,0,0.16), rgba(43,214,122,0.1), rgba(54,197,240,0.12))' }}
+          >
+            <span className="text-2xl">🎓</span>
+            <div className="flex-1">
+              <div className="text-sm font-black text-white flex items-center gap-2">Tour Plajah Academia <span className="bg-black/40 text-[#FFD24A] text-[8px] font-black tracking-widest px-2 py-0.5 rounded-full">NO SIGNUP</span></div>
+              <div className="text-[11px] text-white/50">Step in as a teacher, parent, or student and see the whole classroom loop connect.</div>
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#FF8C00]">Start tour →</span>
+          </button>
+        )}
+
         {/* Demo Class Points class — behavior points, attendance, parent view */}
         {onNavigate && (
           <button
