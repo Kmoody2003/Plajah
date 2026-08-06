@@ -93,11 +93,22 @@ const PostMediaCarousel: React.FC<{ items: CarouselMedia[]; accent?: string }> =
 
   if (items.length === 0) return null;
 
-  // Single asset — no carousel chrome.
+  // Single asset — render at its NATURAL aspect (no forced 16:9) so vertical/portrait photos
+  // and videos display tall instead of being letterboxed or cropped. Capped at 85vh.
   if (items.length === 1) {
+    const it = items[0];
     return (
-      <div className="mt-3 rounded-2xl overflow-hidden border border-white/10 bg-black relative aspect-video max-h-[600px]">
-        <Slide item={items[0]} onFull={() => setFull(0)} contain />
+      <div className="mt-3 relative rounded-2xl overflow-hidden border border-white/10 bg-black flex items-center justify-center">
+        {isVideo(it)
+          ? <PostVideo url={it.url} id={it.id} muxPlaybackId={it.muxPlaybackId} poster={it.thumbnail} title={it.title} natural />
+          : <img src={it.url} alt={it.title || 'Post media'} loading="lazy" onClick={() => setFull(0)}
+              className="max-w-full max-h-[85vh] w-auto h-auto object-contain cursor-zoom-in" />}
+        {!isVideo(it) && (
+          <button onClick={e => { e.stopPropagation(); setFull(0); }} title="Fullscreen"
+            className="absolute top-2.5 right-2.5 w-9 h-9 rounded-full bg-black/55 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white/80 hover:text-white hover:bg-black/75 transition-all z-10">
+            <Maximize2 size={15} />
+          </button>
+        )}
         {full !== null && <Lightbox items={items} index={full} onClose={() => setFull(null)} onNav={setFull} />}
       </div>
     );
@@ -107,7 +118,7 @@ const PostMediaCarousel: React.FC<{ items: CarouselMedia[]; accent?: string }> =
     <div className="mt-4">
       <div className="relative rounded-2xl overflow-hidden border border-white/10 bg-black group/carousel">
         <div ref={scrollRef} onScroll={onScroll}
-          className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide aspect-video max-h-[600px]"
+          className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide aspect-[4/5] max-h-[80vh]"
           style={{ scrollbarWidth: 'none' }}>
           {items.map((item, i) => (
             <div key={i} className="snap-center shrink-0 w-full h-full">

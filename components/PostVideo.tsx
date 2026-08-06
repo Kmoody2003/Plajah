@@ -23,6 +23,9 @@ interface PostVideoProps {
   poster?: string;
   title?: string;
   className?: string;
+  /** Natural sizing: the video sizes to its own aspect (capped at 85vh) instead of filling a
+   *  fixed-height parent — so vertical/portrait videos display tall instead of being letterboxed. */
+  natural?: boolean;
 }
 
 const muxIdFromUrl = (u?: string): string | undefined => {
@@ -31,7 +34,7 @@ const muxIdFromUrl = (u?: string): string | undefined => {
   return m?.[1];
 };
 
-const PostVideo: React.FC<PostVideoProps> = ({ url, id, muxPlaybackId, poster, title, className }) => {
+const PostVideo: React.FC<PostVideoProps> = ({ url, id, muxPlaybackId, poster, title, className, natural }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<any>(null);
   const [active, setActive] = useState(false);
@@ -105,12 +108,12 @@ const PostVideo: React.FC<PostVideoProps> = ({ url, id, muxPlaybackId, poster, t
       <button
         type="button"
         onClick={() => hasSource ? setActive(true) : undefined}
-        className={`relative w-full h-full bg-black flex items-center justify-center group ${className || ''}`}
+        className={`relative ${natural ? 'w-full' : 'w-full h-full'} bg-black flex items-center justify-center group ${className || ''}`}
         aria-label={hasSource ? `Play ${title || 'video'}` : (title || 'Video')}
       >
         {resolvedPoster
-          ? <img src={resolvedPoster} alt={title || 'Video'} loading="lazy" className="w-full h-full object-cover" />
-          : <div className="w-full h-full" style={{ background: 'linear-gradient(135deg,#1a1a1f,#0a0a0d)' }} />}
+          ? <img src={resolvedPoster} alt={title || 'Video'} loading="lazy" className={natural ? 'w-full h-auto max-h-[85vh] object-contain' : 'w-full h-full object-cover'} />
+          : <div className={natural ? 'w-full aspect-video' : 'w-full h-full'} style={{ background: 'linear-gradient(135deg,#1a1a1f,#0a0a0d)' }} />}
         {hasSource ? (
           <span className="absolute inset-0 flex items-center justify-center">
             <span className="w-14 h-14 rounded-full bg-black/55 backdrop-blur-sm border border-white/25 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -134,7 +137,7 @@ const PostVideo: React.FC<PostVideoProps> = ({ url, id, muxPlaybackId, poster, t
       autoPlay
       playsInline
       preload="metadata"
-      className={`w-full h-full object-contain bg-black ${className || ''}`}
+      className={`${natural ? 'w-full h-auto max-h-[85vh]' : 'w-full h-full'} object-contain bg-black ${className || ''}`}
       {...(src ? { src } : {})}
       onError={() => { if (playbackId && !mp4Fallback) setMp4Fallback(true); else setActive(false); }}
     />
