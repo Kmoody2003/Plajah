@@ -24,10 +24,25 @@ export function ageFromDob(dobMs: number): number {
   return Math.floor((Date.now() - dobMs) / YEAR_MS);
 }
 
+/** Education / school-professional accounts NEVER get Nibbles — it must never appear in an
+ *  educational context. Covers students, teachers, school-provisioned children, and any
+ *  admin/verified-teacher account. (Personal PARENT accounts are unaffected — they're adults.) */
+export function isEducationAccount(p?: IntimateProfile | null): boolean {
+  if (!p) return false;
+  const t = (p as any).accountType;
+  if (t === 'STUDENT' || t === 'TEACHER' || t === 'CHILD') return true;
+  if ((p as any).childState === 'SCHOOL_PROVISIONED' || (p as any).provisionedByTeacherUid) return true;
+  const tv = (p as any).teacherVerification;
+  if (tv && tv !== 'UNVERIFIED') return true;
+  if ((p as any).isAdmin || (p as any).role === 'ADMIN' || (p as any).isSchoolAdmin) return true;
+  return false;
+}
+
 /** A minor account can never use intimate mode, regardless of enrollment. */
 export function isBlockedMinor(p?: IntimateProfile | null): boolean {
   if (!p) return true;
   if (p.isChild || p.accountType === 'CHILD') return true;
+  if (isEducationAccount(p)) return true; // Nibbles is strictly forbidden for education accounts
   if (typeof p.dateOfBirth === 'number' && ageFromDob(p.dateOfBirth) < MIN_AGE) return true;
   return false;
 }
@@ -45,6 +60,7 @@ export function isIntimateEligible(p?: IntimateProfile | null): boolean {
 export function ineligibilityReason(p?: IntimateProfile | null): string | null {
   if (!p) return 'Sign in to use Nibbles.';
   if (p.isChild || p.accountType === 'CHILD') return 'Nibbles is for adult accounts only.';
+  if (isEducationAccount(p)) return 'Nibbles is not available on education accounts.';
   if (typeof p.dateOfBirth !== 'number') return 'Confirm your age to use Nibbles.';
   if (ageFromDob(p.dateOfBirth) < MIN_AGE) return 'Nibbles is 18+ only.';
   if (!p.intimateEnrolled) return 'Join Nibbles to turn it on.';
