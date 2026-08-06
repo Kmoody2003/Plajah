@@ -419,16 +419,17 @@ const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({ currentView
   // escapes every transformed ancestor so `fixed right-0` is viewport-relative again.
   const tree = (
     <>
-      {/* Toggle handle */}
+      {/* Toggle handle — a slim grip nub/tab on the right edge (not a big chevron button,
+          which clashed with the UI underneath). Two short bars read as a draggable tab. */}
       <button
         onClick={() => setIsOpen(v => !v)}
-        className="fixed top-1/2 right-0 -translate-y-1/2 z-[500] bg-black/40 backdrop-blur-3xl border border-white/10 p-3 rounded-l-2xl shadow-2xl group transition-all hover:bg-white/10"
+        aria-label={isOpen ? 'Close Plajah Comms' : 'Open Plajah Comms'}
+        className={`fixed top-1/2 right-0 -translate-y-1/2 z-[490] flex items-center justify-center gap-[3px] w-[18px] h-14 bg-black/35 backdrop-blur-md border-y border-l border-white/10 rounded-l-lg shadow-lg group transition-all hover:bg-white/10 hover:w-[22px] ${isOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       >
-        <motion.div animate={{ rotate: isOpen ? 180 : 0 }} className="text-white/60 group-hover:text-white">
-          <ChevronLeft size={20} />
-        </motion.div>
-        {!isOpen && totalBadge > 0 && (
-          <span className="absolute -top-1 -left-1 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center text-[9px] font-black text-black border-2 border-black">
+        <span className="w-[2px] h-5 rounded-full bg-white/40 group-hover:bg-white/75 transition-colors" />
+        <span className="w-[2px] h-5 rounded-full bg-white/40 group-hover:bg-white/75 transition-colors" />
+        {totalBadge > 0 && (
+          <span className="absolute -top-1.5 -left-1.5 min-w-[16px] h-4 px-1 bg-orange-500 rounded-full flex items-center justify-center text-[8px] font-black text-black border border-black">
             {totalBadge > 9 ? '9+' : totalBadge}
           </span>
         )}

@@ -603,6 +603,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   // back up from a mobile/PHONE width (checkDevice forces PHONE going down).
   const lastDesktopThemeRef = useRef<ThemeType>('PLAJAH');
   useEffect(() => { if (theme !== 'PHONE' && theme !== 'BIG_SCREEN') lastDesktopThemeRef.current = theme; }, [theme]);
+  // The user's explicit color-theme choice, persisted locally. Mobile layout is driven by
+  // `isMobile` (not the theme), so we keep the chosen COLOR on mobile instead of resetting it
+  // to PHONE/black on every navigation (the bug where the theme "never stayed").
+  const chosenThemeRef = useRef<ThemeType | null>((() => {
+    try { return (typeof localStorage !== 'undefined' ? localStorage.getItem('plajah:theme') : null) as ThemeType | null; } catch { return null; }
+  })());
   
   // Theme Asset Cycle
   const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
@@ -992,8 +998,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         // Hard TV-first: on a television this is the only layout, at every size.
         setTheme('BIG_SCREEN');
       } else if (mobile) {
-        // Force PHONE layout on any mobile/tablet width — but remember the desktop theme.
-        setTheme(prev => prev === 'PHONE' ? prev : 'PHONE');
+        // Mobile LAYOUT is driven by `isMobile` (set above), so we no longer clobber the
+        // COLOR theme to PHONE/black on every navigation. Keep the user's chosen theme;
+        // fall back to PHONE only when they've never picked one.
+        const chosen = chosenThemeRef.current;
+        const wanted: ThemeType = (chosen && chosen !== 'BIG_SCREEN') ? chosen : 'PHONE';
+        setTheme(prev => prev === wanted ? prev : wanted);
       } else {
         // Resized back up to desktop → restore the desktop theme so the layout reflows.
         setTheme(prev => prev === 'PHONE' ? lastDesktopThemeRef.current : prev);
@@ -1362,13 +1372,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         }
 
         if (p?.uiSettings?.lastTheme) {
-          const ua = navigator.userAgent;
-          const isMobileDevice =
-            /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
-            (ua.includes('Mac') && navigator.maxTouchPoints > 1) ||
-            window.innerWidth < 768;
-          // Never let a saved desktop theme override the mobile layout
-          if (!isMobileDevice) setTheme(p.uiSettings.lastTheme);
+          // Restore the saved COLOR theme on every device. Mobile layout is driven by
+          // isMobile (not the theme), so this no longer risks the mobile layout — and it
+          // fixes the saved theme not coming back on a phone. Seed the choice ref + local
+          // store so the checkDevice effect keeps it across navigation instead of forcing PHONE.
+          const saved = p.uiSettings.lastTheme as ThemeType;
+          if (saved !== 'BIG_SCREEN') {
+            chosenThemeRef.current = saved;
+            try { localStorage.setItem('plajah:theme', saved); } catch { /* */ }
+            setTheme(saved);
+          }
         }
 
         seedDemoWorlds();
@@ -2239,6 +2252,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   const handleSetTheme = (newTheme: ThemeType) => {
     setTheme(newTheme);
+    chosenThemeRef.current = newTheme;
+    try { localStorage.setItem('plajah:theme', newTheme); } catch { /* private mode */ }
     if (userProfile?.uid) {
       updateUserProfile(userProfile.uid, {
         uiSettings: {
@@ -4204,10 +4219,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <div className="flex-1 p-6 lg:p-16 max-w-7xl mx-auto w-full">
                   <header className="mb-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
                     <div>
-                      <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-4">Plajah Global Archive</h1>
-                      <p className="text-white/60 mb-2 text-sm lg:text-base leading-relaxed max-w-3xl">Stream music, movies, and books — then connect directly with the creators who made them. Plajah is the <span className="text-small-orange">social network and streaming platform</span> built to do right by every creator, no matter how or what they create.</p>
-                      <p className="text-white/50 mb-2 text-sm lg:text-base leading-relaxed max-w-3xl">The simplest, most transparent way to share your work, grow a real audience, and earn from what you love — on a platform with a <span className="text-white">purpose bigger than the bottom line</span>.</p>
-                      <p className="text-white/30 mb-6 text-xs lg:text-sm tracking-widest uppercase">Explore what inspires you. Upload what defines you.</p>
+                      <h1 className="text-5xl md:text-[9rem] lg:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.82] italic select-none mb-6 text-center lg:text-left">Plajah Global Archive</h1>
+                      {/* Intro copy — centered in its own frosted panel for symmetry (was loose,
+                          left-ragged text that read as sloppy). */}
+                      <div className="mx-auto lg:mx-0 max-w-2xl mb-6 rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-md px-6 py-5 sm:px-8 sm:py-6 text-center space-y-3 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.6)]">
+                        <p className="text-white/75 text-[13px] sm:text-[15px] leading-relaxed text-balance">Stream music, movies, and books — then connect directly with the creators who made them. Plajah is the <span className="text-small-orange font-semibold">social network and streaming platform</span> built to do right by every creator, no matter how or what they create.</p>
+                        <p className="text-white/55 text-[13px] sm:text-[15px] leading-relaxed text-balance">The simplest, most transparent way to share your work, grow a real audience, and earn from what you love — on a platform with a <span className="text-white font-semibold">purpose bigger than the bottom line</span>.</p>
+                        <p className="text-white/35 text-[10px] sm:text-[11px] font-black tracking-[0.25em] uppercase pt-1">Explore what inspires you · Upload what defines you</p>
+                      </div>
                       {/* Creators Upload Here — pulsing CTA */}
                       <div className="relative inline-flex items-center justify-center mb-8">
                         <span className="absolute inset-0 rounded-full bg-small-orange opacity-25 animate-ping" style={{ animationDuration: '2s' }} />
