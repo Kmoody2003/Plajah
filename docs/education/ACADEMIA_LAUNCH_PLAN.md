@@ -86,7 +86,15 @@ seeded store; nothing persists. This is what wins a 2-week pitch.
 - **REMAINING:** mirror `canDM` in `firestore.rules` (defense-in-depth); auto-create teacher↔class rooms on
   roster load (needs Phase B roster); separate **Assignments vs Announcements** tabs in the LMS.
 
-### Phase D — Teacher content-surfacing (a differentiator no ClassDojo has)
+### Phase D — Teacher content-surfacing (a differentiator no ClassDojo has) *(SHIPPED)*
+- **DONE** `components/LessonContentPicker.tsx` — modal picker across Chora Vault music
+  (`fetchVaultTracks`), Internet-Archive film (`fetchArchiveVideos`), and open-access museum art
+  (`fetchArtworksByMovement`); multi-select → `PickedResource[]`. Surfaced as a "Content Library"
+  tab in `TeacherToolsView` (tray + "Copy as lesson block"). `canDM` mirror also DEPLOYED to rules.
+- REMAINING: persist picked resources onto a real `Lesson.resources`/assignment; Labs art-masters +
+  filmMuseum halls + whole-curriculum sources; a "Send to class" announcement action.
+
+### Phase D (original scope reference) — Teacher content-surfacing
 A "**Add to lesson**" picker that pulls Plajah's rights-cleared archives straight into a `Lesson`
 (`schoolChassis.ts` `Lesson` already holds `videoId`/`resources[]`/`assignment`):
 - **Chora music history + the Vault** (`fetchVaultTracks`, `fetchVaultShelf`, `fetchConservatoryRecordings`).
