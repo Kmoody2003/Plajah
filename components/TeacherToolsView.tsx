@@ -10,7 +10,8 @@
 // deterministically for the demo; in production this reads learnerProficiency for each student.
 
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, LayoutGrid, Wand2, ClipboardCheck, Sparkles, Check, Plug, Globe, Download, CalendarDays, FileDown, Send, Trash2, Plus, ListChecks, Printer } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, Wand2, ClipboardCheck, Sparkles, Check, Plug, Globe, Download, CalendarDays, FileDown, Send, Trash2, Plus, ListChecks, Printer, Library, Copy, ExternalLink, Music, Film, Image as ImageIcon } from 'lucide-react';
+import LessonContentPicker, { type PickedResource } from './LessonContentPicker';
 import { DEMO_CLASS } from '../data/demoClassroom';
 import {
   STANDARDS, standardById, bandFor, masteryToLevel, masteryToPISABand, turboTrackFor, BAND_TO_GRADES,
@@ -65,7 +66,7 @@ const Bar: React.FC<{ value: number; color: string }> = ({ value, color }) => (
   </div>
 );
 
-type Tab = 'grade' | 'plan' | 'planner' | 'checks' | 'assess' | 'reports' | 'connect' | 'context';
+type Tab = 'grade' | 'plan' | 'planner' | 'checks' | 'assess' | 'reports' | 'connect' | 'context' | 'library';
 
 const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBack, user }) => {
   const [tab, setTab] = useState<Tab>('plan');
@@ -104,7 +105,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
 
         {/* tabs */}
         <div style={{ display: 'flex', gap: 8, margin: '18px 0 20px', flexWrap: 'wrap' }}>
-          {([['plan', 'Plan from Mastery', Wand2], ['planner', `Planner${plans.length ? ` (${plans.length})` : ''}`, CalendarDays], ['checks', `Checks${assignments.length ? ` (${assignments.length})` : ''}`, ListChecks], ['grade', 'Gradebook', LayoutGrid], ['assess', 'Assess Work', ClipboardCheck], ['reports', 'Reports', Printer], ['connect', 'Integrations', Plug], ['context', 'Context', Globe]] as [Tab, string, any][]).map(([v, l, Icon]) => (
+          {([['plan', 'Plan from Mastery', Wand2], ['library', 'Content Library', Library], ['planner', `Planner${plans.length ? ` (${plans.length})` : ''}`, CalendarDays], ['checks', `Checks${assignments.length ? ` (${assignments.length})` : ''}`, ListChecks], ['grade', 'Gradebook', LayoutGrid], ['assess', 'Assess Work', ClipboardCheck], ['reports', 'Reports', Printer], ['connect', 'Integrations', Plug], ['context', 'Context', Globe]] as [Tab, string, any][]).map(([v, l, Icon]) => (
             <button key={v} onClick={() => setTab(v)} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 15px', borderRadius: 10, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800, border: `1px solid ${tab === v ? T.orange : T.border}`, background: tab === v ? T.orange : 'transparent', color: tab === v ? '#1a1a1a' : T.muted }}>
               <Icon size={13} /> {l}
             </button>
@@ -113,6 +114,8 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
 
         {tab === 'connect' ? (
           <Integrations />
+        ) : tab === 'library' ? (
+          <ContentLibrary />
         ) : tab === 'context' ? (
           <ContextSettings />
         ) : tab === 'planner' ? (
@@ -131,6 +134,87 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
           <AssessWork students={students} standards={standards} user={user} />
         )}
       </div>
+    </div>
+  );
+};
+
+// ── Content Library (Phase D) ────────────────────────────────────────────────────
+// Browse Plajah's rights-cleared archives (music/film/art history) and collect them into a
+// lesson-resource tray a teacher can copy into a plan, export, or send to the class.
+const KIND_META: Record<PickedResource['kind'], { icon: any; color: string; label: string }> = {
+  music: { icon: Music, color: T.orange, label: 'Music' },
+  film: { icon: Film, color: T.red, label: 'Film' },
+  art: { icon: ImageIcon, color: T.violet, label: 'Art' },
+};
+
+const ContentLibrary: React.FC = () => {
+  const [picking, setPicking] = useState(false);
+  const [tray, setTray] = useState<PickedResource[]>([]);
+  const [copied, setCopied] = useState(false);
+
+  const add = (items: PickedResource[]) => setTray(prev => {
+    const seen = new Set(prev.map(r => r.url));
+    return [...prev, ...items.filter(r => !seen.has(r.url))];
+  });
+  const remove = (url: string) => setTray(prev => prev.filter(r => r.url !== url));
+
+  const asMarkdown = () => tray.map(r => `- [${r.label}${r.sub ? ` — ${r.sub}` : ''}](${r.url})`).join('\n');
+  const copyAll = async () => {
+    try { await navigator.clipboard.writeText(asMarkdown()); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* */ }
+  };
+
+  return (
+    <div style={{ ...cardStyle, padding: 18 }}>
+      {picking && <LessonContentPicker onAdd={add} onClose={() => setPicking(false)} />}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ maxWidth: 460 }}>
+          <Eyebrow color={T.green}>Teacher content-surfacing</Eyebrow>
+          <div style={{ fontSize: 16, fontWeight: 800 }}>Build a lesson from Plajah's archives</div>
+          <div style={{ fontSize: 12.5, color: T.muted, marginTop: 4, lineHeight: 1.5 }}>
+            Pull rights-cleared music history, public-domain film, and open-access museum art straight into a lesson —
+            the teaching material no other classroom app has.
+          </div>
+        </div>
+        <button onClick={() => setPicking(true)} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 16px', borderRadius: 10, fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', border: 'none', background: T.green, color: '#08130c' }}>
+          <Plus size={15} /> Browse archives
+        </button>
+      </div>
+
+      {tray.length === 0 ? (
+        <div style={{ marginTop: 18, padding: 24, border: `1px dashed ${T.border}`, borderRadius: 12, textAlign: 'center', color: T.faint, fontSize: 13 }}>
+          Nothing added yet. Tap <strong style={{ color: T.muted }}>Browse archives</strong> to pull in music, film, and art.
+        </div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '18px 0 10px' }}>
+            <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: T.muted }}>{tray.length} resource{tray.length > 1 ? 's' : ''}</div>
+            <button onClick={copyAll} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 11px', borderRadius: 8, fontSize: 11, fontWeight: 700, border: `1px solid ${T.border}`, background: 'transparent', color: copied ? T.green : T.ink }}>
+              {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? 'Copied' : 'Copy as lesson block'}
+            </button>
+          </div>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {tray.map(r => {
+              const meta = KIND_META[r.kind]; const Icon = meta.icon;
+              return (
+                <div key={r.url} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 10, borderRadius: 10, border: `1px solid ${T.border}`, background: T.cardAlt }}>
+                  <div style={{ width: 54, height: 40, borderRadius: 6, overflow: 'hidden', background: '#000', flexShrink: 0 }}>
+                    {r.thumb ? <img src={r.thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: T.faint }}><Icon size={16} /></div>}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.label}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                      <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '1px 6px', borderRadius: 99, background: `${meta.color}22`, color: meta.color }}>{meta.label}</span>
+                      {r.sub && <span style={{ fontSize: 11, color: T.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.sub}</span>}
+                    </div>
+                  </div>
+                  <a href={r.url} target="_blank" rel="noreferrer" style={{ color: T.muted, padding: 6 }}><ExternalLink size={15} /></a>
+                  <button onClick={() => remove(r.url)} style={{ cursor: 'pointer', color: T.faint, padding: 6, background: 'transparent', border: 'none' }}><Trash2 size={15} /></button>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 };

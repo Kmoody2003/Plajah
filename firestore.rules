@@ -532,12 +532,53 @@ service cloud.firestore {
     function isValidChatRoom(data) {
       return hasRequiredFields(['participants', 'type', 'updatedAt']) &&
              data.participants is list && data.participants.size() <= 1000 &&
-             data.type in ['PRIVATE', 'GROUP', 'PUBLIC_LIVE'] &&
+             data.type in ['PRIVATE', 'GROUP', 'PUBLIC_LIVE', 'CLASSROOM'] &&
              data.updatedAt is number &&
              (!('name' in data) || (data.name is string && data.name.size() < 200)) &&
              (!('ownerId' in data) || data.ownerId is string) &&
+             (!('classId' in data) || (data.classId is string && data.classId.size() < 200)) &&
              (!('lastMessage' in data) || (data.lastMessage is string && data.lastMessage.size() < 1000)) &&
              (!('typingUsers' in data) || (data.typingUsers is list && data.typingUsers.size() <= 100));
+    }
+
+    // ── Education DM policy (mirror of services/educationChat.ts canDM) ─────────
+    // A student/child may only DM their teachers and guardians; students can never
+    // DM other students or arbitrary adults. Adults DM freely. Enforced on create.
+    function eduUser(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+    function isStudentUid(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid)) && (
+        eduUser(uid).get('isChild', false) == true ||
+        eduUser(uid).get('accountType', '') in ['CHILD', 'STUDENT'] ||
+        eduUser(uid).get('childState', '') == 'SCHOOL_PROVISIONED'
+      );
+    }
+    function isTeacherUid(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid)) && (
+        eduUser(uid).get('accountType', '') == 'TEACHER' ||
+        eduUser(uid).get('isTeacher', false) == true ||
+        eduUser(uid).get('teacherVerification', 'UNVERIFIED') != 'UNVERIFIED'
+      );
+    }
+    function isGuardianUidOf(adultUid, studentUid) {
+      return exists(/databases/$(database)/documents/users/$(studentUid)) && (
+        eduUser(studentUid).get('guardianUid', '') == adultUid ||
+        adultUid in eduUser(studentUid).get('coGuardianUids', []) ||
+        (exists(/databases/$(database)/documents/users/$(adultUid)) &&
+         studentUid in eduUser(adultUid).get('childUids', []))
+      );
+    }
+    // For a 2-person PRIVATE room: allow iff not student-involving, or the one adult
+    // is the student's teacher/guardian. Two students, or student↔stranger, are denied.
+    function dmPairAllowed(p) {
+      return (!isStudentUid(p[0]) && !isStudentUid(p[1]))
+        ? true
+        : ((isStudentUid(p[0]) && isStudentUid(p[1]))
+            ? false
+            : (isStudentUid(p[0])
+                ? (isTeacherUid(p[1]) || isGuardianUidOf(p[1], p[0]))
+                : (isTeacherUid(p[0]) || isGuardianUidOf(p[0], p[1]))));
     }
 
     function isValidLiveTalk(data) {
@@ -1175,7 +1216,12 @@ service cloud.firestore {
         resource.data.type == 'PUBLIC_LIVE' || 
         isAdmin()
       );
-      allow create: if isAuthenticated() && isValidChatRoom(request.resource.data);
+      // Education DM policy: a student-involving PRIVATE 1:1 must pass dmPairAllowed.
+      allow create: if isAuthenticated() && isValidChatRoom(request.resource.data) && (
+        request.resource.data.type != 'PRIVATE' ||
+        request.resource.data.participants.size() != 2 ||
+        dmPairAllowed(request.resource.data.participants)
+      );
       allow update: if isAuthenticated() && (
         (request.auth.uid in resource.data.participants && isValidChatRoom(request.resource.data)) ||
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['typingUsers', 'updatedAt', 'lastMessage'])) ||
