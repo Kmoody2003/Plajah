@@ -167,6 +167,7 @@ const PodcastListen = retryLazy(() => import('./components/PodcastListen'));
 const ClassPointsView = retryLazy(() => import('./components/ClassPointsView'));
 const AcademiaTourView = retryLazy(() => import('./components/AcademiaTourView'));
 const AcademiaHomeView = retryLazy(() => import('./components/AcademiaHomeView'));
+const AcademiaLandingView = retryLazy(() => import('./components/AcademiaLandingView'));
 const SchoolPackageView = retryLazy(() => import('./components/SchoolPackageView'));
 const LanguageQuestView = retryLazy(() => import('./components/LanguageQuestView'));
 const EducationRail = retryLazy(() => import('./components/EducationRail'));
@@ -1266,6 +1267,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('ACADEMIA_TOUR');
     } else if (target === 'ACADEMIA_HOME') {
       setView('ACADEMIA_HOME');
+    } else if (target === 'ACADEMIA_LANDING') {
+      setView('ACADEMIA_LANDING');
+    } else if (target === 'ACADEMIA_COURSES') {
+      setView('ACADEMIA_COURSES');
     } else if (target === 'SCHOOL_PACKAGE') {
       setView('SCHOOL_PACKAGE');
     } else if (target === 'LANGUAGE_QUEST') {
@@ -4879,7 +4884,21 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
             {view === 'BIBLE' && <BibleExperience onBack={() => setView('BOOKS')} />}
-            {view === 'CLASSROOMS' && <ClassroomsView onBack={() => setView('DASHBOARD')} user={user} onNavigate={(v) => setView(v as any)} />}
+            {view === 'CLASSROOMS' && (
+              (isEducationAccount(userProfile) || (userProfile as any)?.accountType === 'PARENT')
+                ? <ClassroomsView onBack={() => setView('DASHBOARD')} user={user} onNavigate={(v) => setView(v as any)} />
+                : (
+                  <Suspense fallback={null}>
+                    <AcademiaLandingView profile={userProfile} onNavigate={(v) => setView(v as AppView)} onEnterCourses={() => setView('ACADEMIA_COURSES')} />
+                  </Suspense>
+                )
+            )}
+            {view === 'ACADEMIA_LANDING' && (
+              <Suspense fallback={null}>
+                <AcademiaLandingView profile={userProfile} onNavigate={(v) => setView(v as AppView)} onEnterCourses={() => setView('ACADEMIA_COURSES')} />
+              </Suspense>
+            )}
+            {view === 'ACADEMIA_COURSES' && <ClassroomsView onBack={() => setView('CLASSROOMS')} user={user} onNavigate={(v) => setView(v as any)} />}
             {view === 'GLOBAL_PHOTOS' && <GlobalPhotosView onVisitUser={handleVisitUser} initialMode="WATERFALL" onOpenArtMuseum={() => setView('ART_GALLERY')} />}
             {view === 'ART_GALLERY' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading…</div>}>
