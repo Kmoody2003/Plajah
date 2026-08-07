@@ -11,6 +11,7 @@ import {
   loadLanguageProgress, saveLanguageProgress, awardLanguagePoints, reviewCard, bumpStreak,
   dueCount, newCount, emptyProgress, type LanguageProgress,
 } from '../services/languageQuestService';
+import { ageTokensFor } from '../data/ageScaling';
 
 const V = '#7a2bd6';   // languages accent (matches the Academia "Languages" tile)
 const GREEN = '#2bd67a';
@@ -48,8 +49,10 @@ function buildSession(lang: Language, lesson: LangLesson, srs: LanguageProgress[
   });
 }
 
-const LanguageQuestView: React.FC<{ user?: any; onBack?: () => void }> = ({ user, onBack }) => {
+const LanguageQuestView: React.FC<{ user?: any; profile?: any; onBack?: () => void }> = ({ user, profile, onBack }) => {
   const uid: string | undefined = user?.uid;
+  const age = ageTokensFor(profile);            // Phase F — scale term size + tap targets by age band
+  const termClass = age.playful ? 'text-5xl' : 'text-4xl';
   const [progress, setProgress] = useState<LanguageProgress>(() => emptyProgress(uid || 'guest'));
   const [mode, setMode] = useState<Mode>('pick');
   const [langId, setLangId] = useState<string>('es');
@@ -217,7 +220,7 @@ const LanguageQuestView: React.FC<{ user?: any; onBack?: () => void }> = ({ user
                 <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/30 mb-6">New word</p>
                 <div className="text-6xl mb-4">{current.card.emoji || '📘'}</div>
                 <button onClick={() => speak(current.card.term, lang.voice)} className="inline-flex items-center gap-2 mb-2">
-                  <span className="text-4xl font-black">{current.card.term}</span>
+                  <span className={`${termClass} font-black`}>{current.card.term}</span>
                   <Volume2 size={22} style={{ color: V }} />
                 </button>
                 {revealed ? (
@@ -241,7 +244,7 @@ const LanguageQuestView: React.FC<{ user?: any; onBack?: () => void }> = ({ user
                     </button>
                   ) : (
                     <button onClick={() => speak(current.card.term, lang.voice)} className="inline-flex items-center gap-2">
-                      <span className="text-4xl font-black">{current.card.term}</span>
+                      <span className={`${termClass} font-black`}>{current.card.term}</span>
                       <Volume2 size={20} style={{ color: V }} />
                     </button>
                   )}
@@ -257,7 +260,8 @@ const LanguageQuestView: React.FC<{ user?: any; onBack?: () => void }> = ({ user
                     }
                     return (
                       <button key={opt} disabled={!!picked} onClick={() => answer(opt)}
-                        className="flex items-center justify-between px-4 py-3.5 rounded-xl border text-left text-[15px] font-bold transition-colors disabled:cursor-default" style={style}>
+                        style={{ ...style, minHeight: age.tapMin }}
+                        className="flex items-center justify-between px-4 py-3.5 rounded-xl border text-left text-[15px] font-bold transition-colors disabled:cursor-default">
                         {opt}
                         {picked && isCorrect && <Check size={18} style={{ color: GREEN }} />}
                         {picked && chosen && !isCorrect && <X size={18} style={{ color: RED }} />}

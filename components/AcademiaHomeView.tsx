@@ -10,6 +10,7 @@ import {
   School, ArrowRight,
 } from 'lucide-react';
 import type { UserProfile } from '../types';
+import { ageTokensFor } from '../data/ageScaling';
 
 type Role = 'teacher' | 'parent' | 'student';
 
@@ -49,22 +50,27 @@ const AcademiaHomeView: React.FC<{ profile?: UserProfile | null; onNavigate: (vi
   const role = roleOf(profile);
   const tiles = TILES.filter(t => t.roles.includes(role));
   const firstName = (profile?.displayName || '').split(' ')[0] || ROLE_LABEL[role];
+  // Phase F — one age-scaling design: the same portal feels right PreK → higher-ed.
+  const age = ageTokensFor(profile);
+  const subline =
+    age.band === 'early'
+      ? 'Tap a card to play and learn! 🎉'
+      : role === 'teacher' ? 'Your classroom, your tools, and Plajah\'s whole cultural archive — in one place.'
+      : role === 'parent'  ? 'Follow your child\'s learning, message their teacher, and explore together — safely.'
+      : 'Your quests, your lessons, and everything you\'re learning today.';
 
   return (
     <div className="min-h-full bg-[#0a0a0f] text-white">
       <div className="max-w-5xl mx-auto px-5 py-8">
         {/* Header */}
-        <div className="flex items-center gap-2 text-[#3FB98E] mb-3"><GraduationCap size={18} /><span className="text-[11px] font-black uppercase tracking-[0.3em]">Plajah Academia</span></div>
-        <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-[1.05] mb-2">Welcome back, {firstName}.</h1>
-        <p className="text-white/55 text-sm sm:text-base mb-4">
-          {role === 'teacher' && 'Your classroom, your tools, and Plajah\'s whole cultural archive — in one place.'}
-          {role === 'parent' && 'Follow your child\'s learning, message their teacher, and explore together — safely.'}
-          {role === 'student' && 'Your quests, your lessons, and everything you\'re learning today.'}
-        </p>
+        <div className="flex items-center gap-2 mb-3" style={{ color: age.accent }}><GraduationCap size={18} /><span className="text-[11px] font-black uppercase tracking-[0.3em]">Plajah Academia</span></div>
+        <h1 className={`${age.heroClass} font-black tracking-tight leading-[1.05] mb-2`}>{age.greeting(firstName)}</h1>
+        <p className={`text-white/55 ${age.bodyClass} mb-4`}>{subline}</p>
         <div className="flex flex-wrap items-center gap-2 mb-8">
           <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-green-300 bg-green-500/10 border border-green-500/25 rounded-full px-3 py-1"><ShieldCheck size={12} /> Family-safe · COPPA &amp; FERPA-minded</span>
           <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-white/50 bg-white/5 border border-white/10 rounded-full px-3 py-1">No ads · No student data sold</span>
           <button onClick={() => onNavigate('ACADEMIA_TOUR')} className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-small-orange bg-small-orange/10 border border-small-orange/25 rounded-full px-3 py-1 hover:bg-small-orange/20 transition-colors"><Sparkles size={11} /> Take the tour</button>
+          <span title="Age-appropriate design, aligned to international ISCED stages" className="inline-flex items-center gap-1.5 text-[10px] font-bold text-white/45 bg-white/5 border border-white/10 rounded-full px-3 py-1">{age.isced}</span>
         </div>
 
         {/* Tiles */}
@@ -73,12 +79,13 @@ const AcademiaHomeView: React.FC<{ profile?: UserProfile | null; onNavigate: (vi
             const Icon = t.icon;
             return (
               <button key={t.key} onClick={() => onNavigate(t.view)}
-                className="text-left rounded-2xl bg-white/[0.04] border border-white/10 p-5 hover:bg-white/[0.07] hover:-translate-y-0.5 transition-all group">
+                style={{ minHeight: age.tapMin * 2 }}
+                className={`text-left ${age.radius} bg-white/[0.04] border border-white/10 p-5 hover:bg-white/[0.07] hover:-translate-y-0.5 transition-all group`}>
                 <div className="flex items-start justify-between mb-3">
-                  <div className="w-11 h-11 rounded-xl grid place-items-center" style={{ background: `${t.accent}22`, color: t.accent }}><Icon size={22} /></div>
+                  <div className={`${age.playful ? 'w-14 h-14' : 'w-11 h-11'} ${age.radius} grid place-items-center`} style={{ background: `${t.accent}22`, color: t.accent }}><Icon size={age.playful ? 28 : 22} /></div>
                   {t.badge && <span className="text-[8px] font-black uppercase tracking-widest text-black px-2 py-0.5 rounded-full" style={{ background: t.accent }}>{t.badge}</span>}
                 </div>
-                <p className="text-[15px] font-black">{t.label}</p>
+                <p className={`${age.playful ? 'text-[17px]' : 'text-[15px]'} font-black`}>{t.label}</p>
                 <p className="text-[12px] text-white/50 leading-snug mt-0.5">{t.desc}</p>
                 <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest mt-3 group-hover:gap-2 transition-all" style={{ color: t.accent }}>Open <ChevronRight size={12} /></span>
               </button>

@@ -3949,7 +3949,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'LANGUAGE_QUEST' && (
               <Suspense fallback={null}>
-                <LanguageQuestView user={user} onBack={() => setView(user ? 'ACADEMIA_HOME' : 'DASHBOARD')} />
+                <LanguageQuestView user={user} profile={userProfile} onBack={() => setView(user ? 'ACADEMIA_HOME' : 'DASHBOARD')} />
               </Suspense>
             )}
 

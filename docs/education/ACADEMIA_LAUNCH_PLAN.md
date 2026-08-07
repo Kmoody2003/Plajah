@@ -122,7 +122,17 @@ present) into a **languages cartridge**: vocab, translation, listen/repeat, spac
 woven into lessons and offered PreK → higher-ed via CEFR levels. This is the "learn with integrated languages"
 experience inside lessons.
 
-### Phase F — Polish for PreK-12 → higher-ed
+### Phase F — Polish for PreK-12 → higher-ed *(SHIPPED)*
+- **DONE** `data/ageScaling.ts` — one age-scaling design: `ageBandFor(profile)` → early / middle / senior
+  (mapped to ISCED stages via GRADES typical-ages; teachers/parents → professional). `AGE_TOKENS` carry
+  hero/body size, radius, emoji scale, tap-target min, accent, and greeting tone per band.
+- **DONE** Applied to the Academia portal (age-scaled greeting, hero, tiles, tap targets + an ISCED
+  trust chip) and Language Quest (term size + tap targets). Browser-verified: age 6→early, 11→middle,
+  16→senior, teacher→senior.
+- REMAINING: extend the same tokens to Reading/Science/History Quest + the Dojo; a true professional
+  "higher-ed / creator course" mode via the existing INSTRUCTOR teachingKind.
+
+### Phase F (original scope reference) — Polish for PreK-12 → higher-ed
 One age-scaling design: playful for PreK-2, cleaner for middle/high, and a professional mode that flows into
 higher-ed/creator courses (`INSTRUCTOR` teachingKind already exists).
 
