@@ -899,6 +899,10 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isGuardianOf(userId);
       allow write: if isOwner(userId);
     }
+    match /languageProgress/{userId} {
+      allow read: if isOwner(userId) || isGuardianOf(userId);
+      allow write: if isOwner(userId);
+    }
     match /learnerProficiency/{studentId} {
       allow read: if isOwner(studentId) || isGuardianOf(studentId);
       allow write: if isOwner(studentId);

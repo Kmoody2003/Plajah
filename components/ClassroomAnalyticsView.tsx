@@ -7,6 +7,7 @@ import {
 import { fetchClassrooms, auth } from '../services/backendService';
 import { getDocs, query, collection, where } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { loadProficiency } from '../services/learningLedgerService';
 import type { Classroom, Submission } from '../types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -14,7 +15,7 @@ import type { Classroom, Submission } from '../types';
 interface CourseStats {
   classroom: Classroom;
   enrollments: number;
-  lessonCompletionRate: number;  // synthetic from progress reports
+  lessonCompletionRate: number;  // real: avg Learner-Ledger mastery across enrolled students
   submissionRate: number;        // submissions / (enrollments * assignments)
   avgGrade: number;
   revenue: number;
@@ -65,7 +66,7 @@ export default function ClassroomAnalyticsView() {
       } catch { /* index may not exist */ }
     }
 
-    const stats: CourseStats[] = mine.map(c => {
+    const stats: CourseStats[] = await Promise.all(mine.map(async c => {
       const enrollments     = c.enrolledStudents.length;
       const assignments     = c.assignments.length;
       const courseSubs      = allSubmissions.filter(s => c.assignments.find(a => a.id === s.assignmentId));
@@ -77,13 +78,26 @@ export default function ClassroomAnalyticsView() {
       const maxPoints       = c.assignments.reduce((a, x) => a + x.maxPoints, 0) || 100;
       const avgGradePct     = (avgGrade / maxPoints) * 100;
       const revenue         = c.price * enrollments;
-      const lessonCompletionRate = c.lessons.length > 0
-        ? Math.round(50 + Math.random() * 40) // synthetic until ProgressReport is tracked live
+
+      // Real progress from the Learner Ledger (one read per enrolled student, capped fan-out):
+      //  • completion = average mastery across students who have any ledger evidence
+      //  • at-risk    = students whose average mastery is below 50
+      // 0 when no student has any recorded progress yet — an honest empty, not a synthetic number.
+      const uids = c.enrolledStudents.slice(0, 60);
+      const profs = uids.length ? await Promise.all(uids.map(id => loadProficiency(id).catch(() => null))) : [];
+      const avgOf = (p: Awaited<ReturnType<typeof loadProficiency>>): number | null => {
+        const vals = p ? Object.values(p.byStandard) : [];
+        return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+      };
+      const overalls = profs.map(avgOf).filter((v): v is number => v != null);
+      const lessonCompletionRate = overalls.length
+        ? Math.round(overalls.reduce((a, b) => a + b, 0) / overalls.length)
         : 0;
-      const atRiskCount     = Math.max(0, Math.floor(enrollments * 0.15));
+      // Only students who HAVE evidence and are below 50 are at-risk — "no data yet" isn't at-risk.
+      const atRiskCount = profs.filter(p => { const a = avgOf(p); return a != null && a < 50; }).length;
 
       return { classroom: c, enrollments, lessonCompletionRate, submissionRate, avgGrade: avgGradePct, revenue, atRiskCount };
-    });
+    }));
 
     setCourses(stats);
     if (stats.length > 0) setSelectedId(stats[0].classroom.id);

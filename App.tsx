@@ -168,6 +168,7 @@ const ClassPointsView = retryLazy(() => import('./components/ClassPointsView'));
 const AcademiaTourView = retryLazy(() => import('./components/AcademiaTourView'));
 const AcademiaHomeView = retryLazy(() => import('./components/AcademiaHomeView'));
 const SchoolPackageView = retryLazy(() => import('./components/SchoolPackageView'));
+const LanguageQuestView = retryLazy(() => import('./components/LanguageQuestView'));
 const EducationRail = retryLazy(() => import('./components/EducationRail'));
 const ReadingQuestView = retryLazy(() => import('./components/ReadingQuestView'));
 const ScienceQuestView = retryLazy(() => import('./components/ScienceQuestView'));
@@ -1267,6 +1268,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('ACADEMIA_HOME');
     } else if (target === 'SCHOOL_PACKAGE') {
       setView('SCHOOL_PACKAGE');
+    } else if (target === 'LANGUAGE_QUEST') {
+      setView('LANGUAGE_QUEST');
     } else if (target === 'READING_QUEST') {
       setView('READING_QUEST');
     } else if (target === 'HISTORY_QUEST') {
@@ -3941,6 +3944,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'SCHOOL_PACKAGE' && (
               <Suspense fallback={null}>
                 <SchoolPackageView onNavigate={(v) => setView(v as AppView)} onBack={() => setView('ACADEMIA_HOME')} />
+              </Suspense>
+            )}
+
+            {view === 'LANGUAGE_QUEST' && (
+              <Suspense fallback={null}>
+                <LanguageQuestView user={user} onBack={() => setView(user ? 'ACADEMIA_HOME' : 'DASHBOARD')} />
               </Suspense>
             )}
 

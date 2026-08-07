@@ -22,7 +22,7 @@ const TILES: Tile[] = [
   { key: 'classes',  label: 'My Classes',        desc: 'Courses, modules, assignments & grades', icon: LayoutGrid,   view: 'CLASSROOMS',    accent: '#FF8C00', roles: ['teacher', 'student'] },
   { key: 'dojo',     label: 'Class Points',      desc: 'Behavior & skill points, attendance, class story', icon: Award, view: 'CLASS_POINTS', accent: '#2bd67a', roles: ['teacher', 'parent', 'student'] },
   { key: 'reading',  label: 'Reading Quest',     desc: 'Gamified reading practice, PreK → G7', icon: BookOpen,     view: 'READING_QUEST', accent: '#36c5f0', roles: ['teacher', 'parent', 'student'] },
-  { key: 'lang',     label: 'Languages',         desc: 'Learn a language, Duolingo-style, in the lesson', icon: Languages, view: 'READING_QUEST', accent: '#7a2bd6', roles: ['teacher', 'parent', 'student'], badge: 'New' },
+  { key: 'lang',     label: 'Languages',         desc: 'Learn a language, Duolingo-style, in the lesson', icon: Languages, view: 'LANGUAGE_QUEST', accent: '#7a2bd6', roles: ['teacher', 'parent', 'student'], badge: 'New' },
   { key: 'tools',    label: 'Teacher Tools',     desc: 'Build lessons, quests & assignments', icon: ClipboardList, view: 'TEACHER_TOOLS', accent: '#FF8C00', roles: ['teacher'] },
   { key: 'ledger',   label: 'Learning Record',   desc: 'The portable, student-owned proficiency ledger', icon: ShieldCheck, view: 'LEARNER_LEDGER', accent: '#2bd67a', roles: ['teacher', 'parent', 'student'] },
   { key: 'library',  label: 'Kids Library',      desc: 'Leveled readers, phonics & sight words', icon: Library, view: 'KIDS_LIBRARY', accent: '#36c5f0', roles: ['parent', 'student'] },
