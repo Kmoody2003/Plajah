@@ -2771,6 +2771,50 @@ async function startServer() {
     }
   });
 
+  // POST /api/live/finalize — assemble a real-time cloud recording (segments uploaded live to
+  // liveRecordings/{streamId}/seg_*) and hand it to Mux, so ending a stream needs NO device upload.
+  // Concatenates the segments (a valid WebM in order) and PUTs the result straight into a Mux
+  // direct-upload — no public Storage URL required. Returns the Mux playback id. On any failure the
+  // client falls back to uploading its on-device blob, so replays never break.
+  app.post('/api/live/finalize', authMiddleware, express.json(), async (req: any, res: any) => {
+    try {
+      const { streamId } = req.body || {};
+      if (!streamId || typeof streamId !== 'string') return res.status(400).json({ error: 'Missing streamId' });
+      const manifest = await firestoreRead('liveRecordings', streamId);
+      const count = Number(manifest?.segments || 0);
+      if (!count) return res.status(404).json({ error: 'No cloud segments for this stream' });
+
+      // Download + concat the segments in order.
+      const parts: Buffer[] = [];
+      let total = 0;
+      for (let i = 0; i < count; i++) {
+        const b = await gcsDownload(`liveRecordings/${streamId}/seg_${String(i).padStart(5, '0')}.webm`);
+        if (b && b.length) { parts.push(b); total += b.length; }
+        if (total > 1_500_000_000) return res.status(413).json({ error: 'Recording too large for cloud assemble — use device save' });
+      }
+      if (!parts.length) return res.status(404).json({ error: 'Segments missing' });
+      const combined = Buffer.concat(parts);
+
+      // Push into Mux via a direct upload (server → Mux, no public Storage object needed).
+      const mux = await getMux();
+      const upload = await mux.video.uploads.create({ new_asset_settings: MUX_ASSET_SETTINGS, cors_origin: '*', timeout: 86400 });
+      const putRes = await fetch(upload.url, { method: 'PUT', headers: { 'Content-Type': 'video/webm' }, body: combined as any });
+      if (!putRes.ok) return res.status(502).json({ error: `Mux upload failed: HTTP ${putRes.status}` });
+
+      // Resolve the asset id, then its playback id.
+      let assetId: string | undefined;
+      for (let i = 0; i < 30 && !assetId; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        try { const u = await mux.video.uploads.retrieve(upload.id); assetId = u.asset_id || undefined; if (u.status === 'errored') break; } catch { /* keep polling */ }
+      }
+      const playbackId = assetId ? await waitForPlaybackId(mux, assetId) : undefined;
+      res.json({ muxPlaybackId: playbackId, assetId });
+    } catch (error: any) {
+      console.error('[live/finalize] error:', error?.message);
+      res.status(500).json({ error: error?.message || 'finalize failed' });
+    }
+  });
+
   // ─── FAST channel feeds — the industry formats platform guides (Roku/Samsung/LG/Google/Fire)
   //     ingest. PUBLIC (no auth): the platforms PULL these over HTTP. Only PUBLISHED channels
   //     (a fast_channels doc with isPublished !== false) appear. See services/fastChannelEpg.ts.

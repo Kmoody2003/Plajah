@@ -903,6 +903,12 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isGuardianOf(userId);
       allow write: if isOwner(userId);
     }
+    // Live-stream cloud-recording manifest (segment count etc.), written live by the streamer;
+    // the server reads it (admin) to assemble the replay.
+    match /liveRecordings/{streamId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated();
+    }
     match /learnerProficiency/{studentId} {
       allow read: if isOwner(studentId) || isGuardianOf(studentId);
       allow write: if isOwner(studentId);

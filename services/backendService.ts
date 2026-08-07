@@ -6998,6 +6998,9 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
     // Store the Mux direct-upload ID so we can resume polling if the tab is
     // refreshed before Mux finishes transcoding a large file.
     ...(muxUploadId ? { muxUploadId } : {}),
+    // Real-time cloud recording (live replay) hands us the Mux playback id directly — no file
+    // upload, so persist it here so the replay plays immediately.
+    ...((video as any).muxPlaybackId ? { muxPlaybackId: (video as any).muxPlaybackId } : {}),
     // Saved live-stream replays surface in Reello's "Past Live Streams".
     ...(video.isLiveRecording ? { isLiveRecording: true } : {}),
     // Reello UGC marker — REQUIRED for the video to show in the Reello feed
@@ -8786,6 +8789,30 @@ const muxDirectCreateAsset = async (_url: string): Promise<{ assetId: string; pl
   }
 };
 */
+
+/**
+ * Finalize a real-time cloud recording: the server concatenates the segments already uploaded
+ * live (liveRecordings/{streamId}/seg_*) and hands them to Mux — NO device upload. Returns the
+ * Mux playback id + the assembled source URL. Throws if the server/segments aren't available, so
+ * the caller can fall back to the on-device blob upload.
+ */
+export const finalizeLiveRecording = async (
+  streamId: string,
+): Promise<{ muxPlaybackId?: string; url?: string }> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch('/api/live/finalize', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify({ streamId }),
+    signal: AbortSignal.timeout(240000), // concat + Mux ingest can take a bit
+  });
+  if (!res.ok) {
+    let msg = 'Cloud finalize failed';
+    try { msg = (await res.json()).error || msg; } catch { /* */ }
+    throw new Error(msg);
+  }
+  return res.json();
+};
 
 export const createMuxAssetFromUrl = async (url: string): Promise<{ assetId: string; playbackId: string | undefined }> => {
   const idToken = await getRequiredIdToken();

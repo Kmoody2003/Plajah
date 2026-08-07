@@ -86,6 +86,13 @@ service firebase.storage {
       allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
     }
 
+    // Real-time live-stream recording segments (uploaded live; server assembles → Mux, then
+    // may clear them). Public read so playback/assembly can pull; authed writes only.
+    match /liveRecordings/{streamId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+    }
+
     // ── HideNSeek game assets ─────────────────────────────────────────────────
     match /hideNSeek/{allPaths=**} {
       allow read: if true;

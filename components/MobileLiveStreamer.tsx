@@ -33,8 +33,9 @@ import { buildVTuberFromSheet } from '../services/vtuber/avatarFactory';
 import { buildBodyRig } from '../services/vtuber/bodyPuppet';
 import { VoiceFX, VOICE_EFFECTS, type VoiceEffectId } from '../services/voiceFX';
 import {
-  auth, db, createPost, updatePost, deletePost, notifyFollowers, uploadVideo,
+  auth, db, createPost, updatePost, deletePost, notifyFollowers, uploadVideo, finalizeLiveRecording,
 } from '../services/backendService';
+import { startCloudRecording, type LiveCloudSink } from '../services/liveCloudRecorder';
 import { unlockAchievementByTrigger } from '../services/achievementService';
 import { publishLiveDiscovery, endLiveDiscovery, saveSessionRecording } from '../services/liveStreamService';
 import { buildShareUrl } from '../services/deepLinkService';
@@ -548,6 +549,8 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   // user can also pick an exact file to mirror the recording into.
   const [storeLocal, setStoreLocal] = useState(true);
   const localSinkRef = useRef<LiveRecordingSink | null>(null);
+  const cloudSinkRef = useRef<LiveCloudSink | null>(null);            // real-time cloud upload sink
+  const cloudFinalizedRef = useRef<{ segments: number } | null>(null); // set on end if cloud segments landed
   const fileWritableRef = useRef<FileSystemWritableFileStream | null>(null);
   const [fileChosen, setFileChosen] = useState(false); // user picked a desktop file target
   const [savedToDevice, setSavedToDevice] = useState(false);
@@ -959,7 +962,11 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
         fileWritableRef.current = null; // ownership handed to the sink
       } catch { localSinkRef.current = null; }
     }
-    rtc.startRecording(storeLocal ? { onData: c => { localSinkRef.current?.write(c); } } : undefined);
+    // Real-time CLOUD recording: upload the recording to Storage as it happens, so ending the
+    // stream needs no big device upload. The on-device sink stays as the high-quality backup.
+    try { cloudSinkRef.current = startCloudRecording({ streamId: id, mime: 'video/webm' }); } catch { cloudSinkRef.current = null; }
+    // Feed every chunk to BOTH sinks (cloud primary + local backup). Always request onData now.
+    rtc.startRecording({ onData: c => { localSinkRef.current?.write(c); cloudSinkRef.current?.write(c); } });
 
     // ── Lifecycle side effects (all fire-and-forget; the stream never blocks) ──
     if (user) {
@@ -993,7 +1000,10 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const endStream = async () => {
     // Stop + keep the recording (the save/delete prompt uses it), then leave.
     try { recordedBlobRef.current = await rtc.stopRecording(); } catch {}
-    // Finalize the on-device copy (not-yet-uploaded — saveRecording marks it uploaded on success).
+    // Finalize the cloud upload (flush the last segment + write the manifest) — the replay is now
+    // already in the cloud, so saveRecording won't need to upload the device file.
+    try { cloudFinalizedRef.current = (await cloudSinkRef.current?.finalize()) || null; } catch { cloudFinalizedRef.current = null; }
+    // Finalize the on-device copy (the high-quality backup).
     try { await localSinkRef.current?.close(false); } catch {}
     if (streamId) {
       await updateDoc(doc(db, 'streams', streamId), { isLive: false, endedAt: Date.now() }).catch(() => {});
@@ -1008,20 +1018,42 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const saveRecording = async () => {
     setSaving('saving');
     try {
-      // The backbone recorder may not have finished on end — make sure it has.
-      const blob = recordedBlobRef.current || await rtc.stopRecording();
-      if (!blob || blob.size < 1000) throw new Error('No recording captured');
       const finalTitle = title.trim() || 'Live Stream';
-      const file = new File([blob], `live-${Date.now()}.webm`, { type: blob.type || 'video/webm' });
-      const video = await uploadVideo({
-        file,
+      const meta = {
         title: `${finalTitle} (Live Replay)`,
         description: `Recorded live on ${new Date().toLocaleDateString()} · peak ${peakViewers} viewers · ${totalViews} views`,
-        isLiveRecording: true,
+        isLiveRecording: true as const,
         isPrivate: !!isPrivate,
         duration: elapsed,
         genre: 'Live',
-      });
+      };
+      let video: any = null;
+
+      // 1) Preferred: the recording is ALREADY in the cloud (uploaded live). Finalize server-side
+      //    (assemble segments → Mux) with NO device upload, then write the replay doc client-side.
+      if (cloudFinalizedRef.current?.segments) {
+        try {
+          const { muxPlaybackId, url } = await finalizeLiveRecording(streamId);
+          if (muxPlaybackId || url) {
+            video = await uploadVideo({
+              ...meta,
+              ...(muxPlaybackId ? { muxPlaybackId } : {}),
+              ...(url ? { url } : {}),
+            } as any);
+          }
+        } catch (e) {
+          console.warn('[Live] cloud finalize failed — falling back to device upload', e);
+        }
+      }
+
+      // 2) Fallback: upload the on-device blob (previous behavior) — guarantees a replay if the
+      //    live cloud upload didn't complete (flaky network, server/Mux down, etc.).
+      if (!video) {
+        const blob = recordedBlobRef.current || await rtc.stopRecording();
+        if (!blob || blob.size < 1000) throw new Error('No recording captured');
+        const file = new File([blob], `live-${Date.now()}.webm`, { type: blob.type || 'video/webm' });
+        video = await uploadVideo({ file, ...meta });
+      }
       // The timeline post becomes the replay. Carry the Mux playback id + poster so the social
       // feed can preview + play it (Mux videos have an empty url) — and if Mux is still
       // transcoding, PostVideo recovers both by looking the video up by id.
@@ -1037,9 +1069,10 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
         }).catch(() => {});
       }
       if (streamId) await updateDoc(doc(db, 'streams', streamId), { recordingVideoId: video.id }).catch(() => {});
-      // Cloud copy is safe now → clear the on-device backup so it doesn't pile up.
+      // The cloud replay is safe. KEEP the on-device copy as the user's high-quality local backup
+      // (they asked for this) — just flag it as uploaded. They can delete it from the library later.
       const localId = localSinkRef.current?.id;
-      if (localId) { try { await markLocalRecordingUploaded(localId); await deleteLocalRecording(localId); } catch {} }
+      if (localId) { try { await markLocalRecordingUploaded(localId); } catch {} }
       setSaving('done');
       setTimeout(onClose, 1200);
     } catch (e) {
