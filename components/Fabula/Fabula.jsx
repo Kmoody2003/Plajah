@@ -725,6 +725,18 @@ export default function Fabula() {
         await stDel("studio:handoff");
         await openProduction(h.prodId);
         if (h.editId) { setEditSel(h.editId); setSceneSel(null); setPage("edit"); }
+      } else if (h?.importClip) {
+        // External clip handoff (e.g. "Send to Fabula" from a Reello live-stream replay): the clip
+        // Blob was stashed under a plain idb key; pull it, then import it as a new edit silently.
+        await stDel("studio:handoff");
+        try {
+          const rec = await idbGet("fabula:incomingClip");
+          await idbDel("fabula:incomingClip");
+          if (rec?.blob) {
+            const file = new File([rec.blob], rec.name || "live-clip.webm", { type: rec.mime || "video/webm" });
+            importEditToProduction(file, "scene");
+          }
+        } catch { /* clip missing — ignore */ }
       }
     } catch { /* no handoff */ }
   })(); }, []);
@@ -2228,17 +2240,23 @@ export default function Fabula() {
   // production. Uses a pending ref so the import runs AFTER the new edit is active (avoids stale editSel).
   const editImportRef = useRef(null);
   const pendingEditImport = useRef(null); // { file, mode: 'full'|'scene' }
-  const importEditToProduction = (file) => {
+  const importEditToProduction = (file, forcedMode) => {
     if (!file) return;
-    const full = window.confirm(
-      `Is "${file.name}" the FULL MOVIE (master timeline)?\n\n` +
-      `OK  →  Full movie: I'll populate the timeline, then analyze the whole cut in the background — ` +
-      `break it into scenes, reverse-build the screenplay, recognize characters (tagging any that match your ` +
-      `connected World), and fill in the production bible.\n\n` +
-      `Cancel  →  Just a Scene: populate the timeline and build a single scene from it.`
-    );
+    // forcedMode ('full'|'scene') skips the prompt — used by external handoffs (e.g. a live-stream
+    // replay sent straight from Reello) so the import runs without a modal on boot.
+    let mode = forcedMode;
+    if (!mode) {
+      const full = window.confirm(
+        `Is "${file.name}" the FULL MOVIE (master timeline)?\n\n` +
+        `OK  →  Full movie: I'll populate the timeline, then analyze the whole cut in the background — ` +
+        `break it into scenes, reverse-build the screenplay, recognize characters (tagging any that match your ` +
+        `connected World), and fill in the production bible.\n\n` +
+        `Cancel  →  Just a Scene: populate the timeline and build a single scene from it.`
+      );
+      mode = full ? "full" : "scene";
+    }
     const base = file.name.replace(/\.[^.]+$/, "").slice(0, 40) || "IMPORTED EDIT";
-    pendingEditImport.current = { file, mode: full ? "full" : "scene" };
+    pendingEditImport.current = { file, mode };
     newEdit(base); // creates the edit + navigates to the edit page → the effect below fires the import
   };
   useEffect(() => {

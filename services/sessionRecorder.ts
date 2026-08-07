@@ -63,14 +63,17 @@ export class SessionRecorder {
     if (this.recording) return true;
     this.provider = provider;
     try {
-      this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // Pin the mixing graph to 48 kHz so the recording keeps full-fidelity audio (a default
+      // context can open at a lower device rate and bake in the loss).
+      const AC = (window.AudioContext || (window as any).webkitAudioContext);
+      try { this.audioCtx = new AC({ sampleRate: 48000 }); } catch { this.audioCtx = new AC(); }
       this.dest = this.audioCtx.createMediaStreamDestination();
       this.reconcileAudio();
 
       if (this.opts.audioOnly) {
         const mixed = new MediaStream(this.dest.stream.getAudioTracks());
         const mime = this.pickMime();
-        this.recorder = new MediaRecorder(mixed, mime ? { mimeType: mime } : undefined);
+        this.recorder = new MediaRecorder(mixed, { ...(mime ? { mimeType: mime } : {}), audioBitsPerSecond: 256_000 });
         this.chunks = [];
         this.recorder.ondataavailable = e => { if (e.data.size > 0) { this.chunks.push(e.data); this.onData?.(e.data); } };
         this.recorder.start(1000);
@@ -89,7 +92,7 @@ export class SessionRecorder {
           const canvasStream = this.canvas.captureStream(this.opts.fps);
           const mixed = new MediaStream([...canvasStream.getVideoTracks(), ...this.dest.stream.getAudioTracks()]);
           const mime = this.pickMime();
-          this.recorder = new MediaRecorder(mixed, mime ? { mimeType: mime } : undefined);
+          this.recorder = new MediaRecorder(mixed, { ...(mime ? { mimeType: mime } : {}), audioBitsPerSecond: 256_000, videoBitsPerSecond: 8_000_000 });
           this.chunks = [];
           this.recorder.ondataavailable = e => { if (e.data.size > 0) { this.chunks.push(e.data); this.onData?.(e.data); } };
           this.recorder.start(1000);

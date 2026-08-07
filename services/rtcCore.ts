@@ -118,6 +118,40 @@ function hqVideo(v: boolean | MediaTrackConstraints | undefined): boolean | Medi
   if (v === true || v == null) return { ...HQ_VIDEO };
   return { ...HQ_VIDEO, ...v };
 }
+// High-fidelity MIC capture profile. The browser's default `audio: true` applies the voice-call
+// DSP (echo cancellation + noise suppression + auto-gain), which downsamples toward ~16 kHz mono
+// and adds the metallic, "compressed/underwater" artifacts. A one-to-many CREATOR broadcast wants
+// the raw, full-fidelity signal instead: processing OFF, 48 kHz stereo, 16-bit. IMPORTANT — this is
+// OPT-IN per session (the streamer passes it as cfg.media.audio); 2-way CALLS keep the default
+// profile with echo cancellation ON, or they'd echo/feed back.
+export const HQ_AUDIO: MediaTrackConstraints = {
+  echoCancellation: false,
+  noiseSuppression: false,
+  autoGainControl: false,
+  channelCount: 2,
+  sampleRate: 48000,
+  sampleSize: 16,
+};
+/** Keep the session's audio profile (whatever the caller configured) when switching mic device,
+ *  just pinning the chosen deviceId. So a HQ streamer stays HQ, and a call stays on its profile. */
+function withMicDevice(a: boolean | MediaTrackConstraints | undefined, deviceId: string): MediaTrackConstraints {
+  const base = (a && typeof a === 'object') ? a : {};
+  return { ...base, deviceId: { exact: deviceId } };
+}
+/** Give the outbound OPUS audio real bitrate + stereo so live viewers hear full-band, not the
+ *  ~32 kbps narrowband the WebRTC default settles on. Best-effort; runs once encodings exist. */
+function boostAudioSender(pc: RTCPeerConnection): void {
+  const sender = pc.getSenders().find(s => s.track?.kind === 'audio');
+  if (!sender) return;
+  try {
+    const params = sender.getParameters();
+    if (params.encodings && params.encodings.length) {
+      params.encodings.forEach(e => { e.maxBitrate = 256_000; });
+      sender.setParameters(params).catch(() => {});
+    }
+  } catch { /* encodings not negotiated yet — retried on connect */ }
+}
+
 /** Push the capture track to its best: detail content hint + the device's continuous
  *  auto focus/exposure/white-balance, and nudge resolution toward the hardware max. */
 async function tuneVideoTrack(track?: MediaStreamTrack | null): Promise<void> {
@@ -214,6 +248,8 @@ export class RtcSession {
       try {
         // Prefer a provided stream (e.g. a podcast mixed master) over capturing the mic/camera.
         this.local = this.cfg.localStream ?? await navigator.mediaDevices.getUserMedia({
+          // Verbatim: callers choose their audio profile. Streamers pass HQ_AUDIO (full fidelity);
+          // 2-way calls pass true (keeps echo cancellation, or they'd feed back).
           audio: this.cfg.media?.audio ?? true,
           video: hqVideo(this.cfg.media?.video),
         });
@@ -321,7 +357,7 @@ export class RtcSession {
     pc.onconnectionstatechange = () => {
       // Apply high-bitrate/maintain-resolution encoding once the sender's encodings
       // exist (post-negotiation) — this is where the sharpness win lands.
-      if (pc.connectionState === 'connected' && publishes) boostVideoSender(pc);
+      if (pc.connectionState === 'connected' && publishes) { boostVideoSender(pc); boostAudioSender(pc); }
       this.events.onPeerState?.(peerId, pc.connectionState);
     };
 
@@ -513,7 +549,7 @@ export class RtcSession {
 
   /** Switch the MICROPHONE to a specific device mid-call — hot track swap, no peer drop. */
   async switchAudioDevice(deviceId: string) {
-    const next = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } }, video: false });
+    const next = await navigator.mediaDevices.getUserMedia({ audio: withMicDevice(this.cfg.media?.audio, deviceId), video: false });
     const newTrack = next.getAudioTracks()[0];
     if (!newTrack) return;
     // Preserve the current mute state on the fresh track.

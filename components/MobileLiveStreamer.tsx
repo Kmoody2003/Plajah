@@ -26,7 +26,7 @@ import {
   Users, Share2, Check, Heart, Send, ChevronDown, Eye, Zap, Sparkles,
   Clock, Settings, Volume2, VolumeX, RotateCcw, ArrowLeft, Save, Trash2,
   LayoutGrid, Monitor, UserSquare2, Columns2, MonitorSmartphone, Plus, BarChart3,
-  HardDriveDownload, FolderOpen, Download, ShieldCheck,
+  HardDriveDownload, FolderOpen, Download, ShieldCheck, Clapperboard,
 } from 'lucide-react';
 import { LiveComposer, type ComposerMode, LOOKS, type LookId, AMBIENT_FX, type AmbientFx } from '../services/liveComposer';
 import { buildVTuberFromSheet } from '../services/vtuber/avatarFactory';
@@ -39,10 +39,12 @@ import { unlockAchievementByTrigger } from '../services/achievementService';
 import { publishLiveDiscovery, endLiveDiscovery, saveSessionRecording } from '../services/liveStreamService';
 import { buildShareUrl } from '../services/deepLinkService';
 import { useRtcSession } from '../hooks/useRtcSession';
+import { HQ_AUDIO } from '../services/rtcCore';
+import { set as idbSet } from 'idb-keyval';
 import {
   startLocalRecording, pickRecordingFile, supportsFilePicker,
   downloadLocalRecording, markLocalRecordingUploaded, deleteLocalRecording,
-  listPendingLocalRecordings, type LiveRecordingSink, type LocalRecordingMeta,
+  listPendingLocalRecordings, assembleLocalRecording, type LiveRecordingSink, type LocalRecordingMeta,
 } from '../services/localRecordingStore';
 import StreamRecoveryList from './StreamRecoveryList';
 import {
@@ -549,6 +551,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const fileWritableRef = useRef<FileSystemWritableFileStream | null>(null);
   const [fileChosen, setFileChosen] = useState(false); // user picked a desktop file target
   const [savedToDevice, setSavedToDevice] = useState(false);
+  const [sentToFabula, setSentToFabula] = useState(false);
   const [pendingRec, setPendingRec] = useState<LocalRecordingMeta | null>(null); // recovery from a prior crash
   const [showRecovery, setShowRecovery] = useState(false);
 
@@ -617,7 +620,11 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
       }
       await comp.setMode(mode);
       setCamMode(mode);
-      setMirror(false); // the canvas is already composited — no CSS mirror on top
+      // Mirror the PREVIEW for the selfie (front) camera only — matches every phone camera app,
+      // so moving right looks like moving right. It's a CSS flip on the local <video> only; the
+      // composited canvas that's published/recorded stays un-mirrored (viewers read text correctly).
+      // Rear / both / screen are never mirrored.
+      setMirror(mode === 'front');
       setCamOn(true);
       setFxError(null);
     } catch (e: any) {
@@ -674,13 +681,16 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const [lookId, setLookId] = useState<LookId | 'custom'>('none');
   const [nightOn, setNightOn] = useState(false);
   const cubeInputRef = useRef<HTMLInputElement>(null);
+  // First-publish for an effect composites the CURRENT lens (front → 'front', rear → 'rear'), so a
+  // look picked on the back camera stays on the back camera — and the mirror stays correct.
+  const currentLensMode = (): ComposerMode => (facing === 'environment' ? 'rear' : 'front');
   const applyLook = async (look: LookId) => {
-    if (!composerPublishedRef.current) await applyMode('front');
+    if (!composerPublishedRef.current) await applyMode(currentLensMode());
     composerRef.current?.setLook(look); setLookId(look);
   };
   const uploadCube = async (file?: File | null) => {
     if (!file) return;
-    if (!composerPublishedRef.current) await applyMode('front');
+    if (!composerPublishedRef.current) await applyMode(currentLensMode());
     const ok = composerRef.current?.setCubeLut(await file.text());
     if (ok) setLookId('custom');
     else alert("Couldn't load that LUT — needs a 3D .cube file (LUT_3D_SIZE), and WebGL on this device.");
@@ -788,7 +798,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     sessionId: streamId,
     topology: 'stage',
     role: 'host',
-    media: { audio: true, video: { facingMode: facing } },
+    media: { audio: HQ_AUDIO, video: { facingMode: facing } }, // HQ_AUDIO = full-fidelity mic (no voice-DSP) for the broadcast
     displayName: auth.currentUser?.displayName || 'Creator',
   });
 
@@ -839,10 +849,29 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   // alone doesn't reliably switch to the back camera on phones — and reports whether
   // the preview should be mirrored (front cameras only).
   const flipCamera = async () => {
-    // Once the composer owns the video, "flip" toggles its front/rear source.
+    // Once the composer owns the video, "flip" toggles its front/rear source — this keeps the
+    // active look/LUT/mode (setMode never touches the look), so effects survive a lens switch.
     if (composerPublishedRef.current) { await applyMode(camMode === 'rear' ? 'front' : 'rear'); return; }
-    const { mirror: m } = await rtc.cycleCamera();
+    const { facingMode: fm, mirror: m } = await rtc.cycleCamera();
     setMirror(m);
+    if (fm) setFacing(fm); // keep `facing` in sync so applyLook composites the CURRENT lens
+  };
+
+  /** Re-adopt the live camera into the composer after a raw device swap, so a device change from
+   *  the picker doesn't silently drop the active FX/look (the "FX ✓" pill kept lying otherwise). */
+  const reAdoptComposer = async () => {
+    const comp = composerRef.current;
+    if (!composerPublishedRef.current || !comp) return;
+    const t = rtc.localStream?.getVideoTracks()[0];
+    if (t && t.readyState === 'live') {
+      comp.adoptFrontTrack(t);
+      try { await rtc.publishExternalVideo(comp.getStream().getVideoTracks()[0]); } catch { /* */ }
+    }
+  };
+  const pickCameraDevice = async (deviceId: string) => {
+    await rtc.switchVideoDevice(deviceId);
+    await reAdoptComposer();      // preserve looks/FX across a specific-camera pick
+    setDeviceMenu('none');
   };
   // Live viewer count / peak ← backbone participants; mirrored to the streams doc
   // so the viewer side can display it.
@@ -1039,6 +1068,25 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     if (ok) setSavedToDevice(true);
   };
 
+  // Send the recorded clip straight into the Fabula editor. Hands the Blob off via idb, then opens
+  // Fabula (its boot handoff imports it as a new edit). Works alongside Save/Discard — the replay
+  // and the on-device backup are untouched.
+  const sendToFabula = async () => {
+    let blob = recordedBlobRef.current;
+    if ((!blob || blob.size < 1000) && localSinkRef.current?.id) {
+      try { blob = await assembleLocalRecording(localSinkRef.current.id); } catch { /* */ }
+    }
+    if (!blob || blob.size < 1000) { alert('No recording to send yet.'); return; }
+    const finalTitle = (title.trim() || 'Live Stream').replace(/[^\w.\-]+/g, '_');
+    try {
+      await idbSet('fabula:incomingClip', { blob, name: `${finalTitle}.webm`, mime: blob.type || 'video/webm' });
+      await idbSet('studio:handoff', { importClip: true });
+      setSentToFabula(true);
+      window.dispatchEvent(new CustomEvent('OPEN_FABULA'));
+      setTimeout(onClose, 800);
+    } catch (e: any) { alert(e?.message || 'Could not open Fabula.'); }
+  };
+
   const discardRecording = async () => {
     // Stream not saved → the auto-post comes down too (no dead "live" posts).
     if (postId) await deletePost(postId).catch(() => {});
@@ -1095,9 +1143,20 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
         autoPlay
         muted
         playsInline
+        onDoubleClick={() => { if (step !== 'ended') flipCamera(); }}
         className="absolute top-0 left-0 right-0 w-full object-contain bg-black transition-all duration-300"
         style={{ bottom: step === 'live' && (showChat || modeMenuOpen) ? `${bottomH}px` : '0px', transform: mirror ? 'scaleX(-1)' : 'none' }}
       />
+
+      {/* Tap-to-flip: an always-present flip button on the viewfinder (front ↔ back with one tap),
+          plus double-tap anywhere on the preview above. Composer-aware via flipCamera. */}
+      {step === 'live' && (
+        <button onClick={flipCamera} title="Switch camera (or double-tap the preview)"
+          className="absolute top-4 right-4 z-[6] w-11 h-11 rounded-full bg-black/50 backdrop-blur flex items-center justify-center active:scale-90 transition-transform"
+          style={{ marginTop: 'env(safe-area-inset-top)' }}>
+          <FlipHorizontal2 size={20} className="text-white" />
+        </button>
+      )}
 
       {/* Dim overlay when cam off */}
       {!camOn && step !== 'ended' && (
@@ -1592,7 +1651,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                       const active = deviceMenu === 'camera' ? rtc.activeDevices.cameraId === d.deviceId : rtc.activeDevices.micId === d.deviceId;
                       return (
                         <button key={d.deviceId || i}
-                          onClick={() => { if (deviceMenu === 'camera') rtc.switchVideoDevice(d.deviceId); else rtc.switchAudioDevice(d.deviceId); setDeviceMenu('none'); }}
+                          onClick={() => { if (deviceMenu === 'camera') pickCameraDevice(d.deviceId); else { rtc.switchAudioDevice(d.deviceId); setDeviceMenu('none'); } }}
                           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${active ? 'bg-orange-500/20' : 'hover:bg-white/[0.06]'}`}>
                           <span className={active ? 'text-orange-400' : 'text-white/70'}>{deviceMenu === 'camera' ? <Camera size={16} /> : <Mic size={16} />}</span>
                           <span className="flex-1 text-[13px] font-bold text-white truncate">{d.label || (deviceMenu === 'camera' ? `Camera ${i + 1}` : `Microphone ${i + 1}`)}</span>
@@ -1745,6 +1804,10 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                     {savedToDevice ? <><Check size={15} /> Saved to your device</> : <><Download size={15} /> Save to device</>}
                   </button>
                 )}
+                <button onClick={sendToFabula}
+                  className={`w-full py-3.5 rounded-2xl border active:scale-95 transition-all font-bold text-sm flex items-center justify-center gap-2 ${sentToFabula ? 'bg-violet-500/15 border-violet-500/30 text-violet-300' : 'bg-white/[0.06] border-white/10 text-white/70 hover:text-white'}`}>
+                  {sentToFabula ? <><Check size={15} /> Opening in Fabula…</> : <><Clapperboard size={15} /> Send to Fabula editor</>}
+                </button>
                 <button onClick={discardRecording}
                   className="w-full py-3.5 rounded-2xl bg-white/[0.06] border border-white/10 hover:bg-red-500/15 hover:border-red-500/30 active:scale-95 transition-all font-bold text-white/60 hover:text-red-300 text-sm flex items-center justify-center gap-2">
                   <Trash2 size={15} /> Delete stream
