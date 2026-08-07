@@ -102,7 +102,21 @@ A "**Add to lesson**" picker that pulls Plajah's rights-cleared archives straigh
 - **Labs arts & history blends** (`artMasters`, `combatAtlasData`, World-History/Architecture/Archaeology views).
 - Whole curricula: `CHORA_CURRICULUM`, `FILM_SCHOOL`, `PHOTO_ART_SCHOOL`.
 
-### Phase E — Duolingo-style integrated languages
+### Phase E — Duolingo-style integrated languages *(SHIPPED)*
+- **DONE** `LANGUAGE_QUEST` — `data/languageDecks.ts` (ES/FR/ZH A1 decks), `services/languageQuestService.ts`
+  (SM-2-lite spaced repetition + streaks + XP + `languageProgress/{uid}` + real Plajah Points),
+  `components/LanguageQuestView.tsx` (learn / translate / listen-TTS exercises, MC distractors, summary).
+  Academia "Languages" tile → LANGUAGE_QUEST. Browser-verified end-to-end.
+- REMAINING: ledger records against a LANGUAGE standard; more languages/CEFR levels; weave a language
+  step into `Lesson`/assignments so it's *in the lesson*, not only standalone.
+
+### Phase B loose end — faked analytics KILLED *(SHIPPED)*
+- **DONE** `ClassroomAnalyticsView` completion + at-risk now derive from the real Learner Ledger
+  (`loadProficiency` across enrolled students), replacing `Math.random`.
+- REMAINING (bigger): wire the Dojo (`ClassPointsView`) off `DEMO_CLASS`/`classroomStore` onto a real
+  `classrooms/` roster + write behavior/skill points to pointsService + the ledger.
+
+### Phase E (original scope reference) — Duolingo-style integrated languages
 Extend the Reading-Quest chassis (5-pillar engine, grade bands, streaks/XP, standards→CEFR mapping already
 present) into a **languages cartridge**: vocab, translation, listen/repeat, spaced repetition, streaks/leagues —
 woven into lessons and offered PreK → higher-ed via CEFR levels. This is the "learn with integrated languages"
