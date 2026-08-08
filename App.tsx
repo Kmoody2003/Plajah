@@ -4305,20 +4305,23 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       <div className="mx-auto lg:mx-0 max-w-2xl mb-6 rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-md px-6 py-5 sm:px-8 sm:py-6 text-center space-y-3 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.6)]">
                         <p className="text-white/75 text-[13px] sm:text-[15px] leading-relaxed text-balance">Stream music, movies, and books — then connect directly with the creators who made them. Plajah is the <span className="text-small-orange font-semibold">social network and streaming platform</span> built to do right by every creator, no matter how or what they create.</p>
                         <p className="text-white/55 text-[13px] sm:text-[15px] leading-relaxed text-balance">The simplest, most transparent way to share your work, grow a real audience, and earn from what you love — on a platform with a <span className="text-white font-semibold">purpose bigger than the bottom line</span>.</p>
-                        <p className="text-white/35 text-[10px] sm:text-[11px] font-black tracking-[0.25em] uppercase pt-1">Explore what inspires you · Upload what defines you</p>
+                        <p className="text-white/55 text-[13px] sm:text-[15px] leading-relaxed text-balance">And it goes far beyond streaming — <span className="text-white font-semibold">Academia</span> to learn, <span className="text-white font-semibold">Elevate</span> for churches &amp; nonprofits, <span className="text-white font-semibold">Business</span> for real storefronts, and <span className="text-white font-semibold">Museums</span> that safeguard culture. There is nothing else like it on the web: one platform built on three promises to everyone who creates — <span className="text-small-orange font-semibold">Provide, Protect &amp; Prosper</span>.</p>
+                        <p className="text-white/35 text-[10px] sm:text-[11px] font-black tracking-[0.25em] uppercase pt-1">Provide · Protect · Prosper</p>
                       </div>
-                      {/* Creators Upload Here — pulsing CTA */}
-                      <div className="relative inline-flex items-center justify-center mb-8">
-                        <span className="absolute inset-0 rounded-full bg-small-orange opacity-25 animate-ping" style={{ animationDuration: '2s' }} />
-                        <span className="absolute inset-0 rounded-full bg-small-orange opacity-15 animate-ping" style={{ animationDuration: '2s', animationDelay: '0.8s' }} />
-                        <button
-                          onClick={() => { setEditingAlbum(null); setShowCreator(true); }}
-                          className="relative inline-flex items-center gap-2 px-6 py-3 bg-small-orange text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-lg shadow-small-orange/40 animate-pulse"
-                          style={{ animationDuration: '3s' }}
-                        >
-                          <Upload size={13} />
-                          Creators Upload Here
-                        </button>
+                      {/* Creators Upload Here — pulsing CTA, centered under the text on every screen */}
+                      <div className="max-w-2xl mx-auto lg:mx-0 mb-8 flex justify-center">
+                        <div className="relative inline-flex items-center justify-center">
+                          <span className="absolute inset-0 rounded-full bg-small-orange opacity-25 animate-ping" style={{ animationDuration: '2s' }} />
+                          <span className="absolute inset-0 rounded-full bg-small-orange opacity-15 animate-ping" style={{ animationDuration: '2s', animationDelay: '0.8s' }} />
+                          <button
+                            onClick={() => { setEditingAlbum(null); setShowCreator(true); }}
+                            className="relative inline-flex items-center gap-2 px-6 py-3 bg-small-orange text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-lg shadow-small-orange/40 animate-pulse"
+                            style={{ animationDuration: '3s' }}
+                          >
+                            <Upload size={13} />
+                            Creators Upload Here
+                          </button>
+                        </div>
                       </div>
                       <Suspense fallback={null}>
                         <PlajahPlusBanner className="mb-8 max-w-2xl" />

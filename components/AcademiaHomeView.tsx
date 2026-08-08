@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import type { UserProfile } from '../types';
 import { ageTokensFor } from '../data/ageScaling';
+import AcademiaModules from './AcademiaModules';
 
 type Role = 'teacher' | 'parent' | 'student';
 
@@ -91,6 +92,11 @@ const AcademiaHomeView: React.FC<{ profile?: UserProfile | null; onNavigate: (vi
               </button>
             );
           })}
+        </div>
+
+        {/* Learning Modules — their own card-gallery section (shared with the public landing) */}
+        <div className="mb-10">
+          <AcademiaModules onNavigate={onNavigate} />
         </div>
 
         {/* School Package — the whole-school stack (clubs, store, live events, sports/streaming) */}

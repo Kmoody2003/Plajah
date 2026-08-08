@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { loginWithGoogle, loginWithTwitter, loginWithFacebook, loginWithMicrosoft, fetchRandomActiveUser, fetchLandingBgConfig } from '../services/backendService';
-import { ArrowRight, Sparkles, LogIn, X as XIcon, Facebook, Minimize2, Mail } from 'lucide-react';
+import { ArrowRight, Sparkles, LogIn, X as XIcon, Facebook, Minimize2, Mail, GraduationCap, User as UserIcon } from 'lucide-react';
 import { LandingBgAsset, LandingBgConfig, UserProfile } from '../types';
 import ThreeDImage from './ThreeDImage';
 import EarthGlobe from './EarthGlobe';
@@ -316,16 +316,39 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
           </button>
         </motion.div>
 
-        {/* Student sign-in — kids log in with a username + password (no email) */}
-        <motion.button
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 0.9 }}
-          onClick={() => setShowStudent(true)}
-          className="mt-5 text-[11px] font-black uppercase tracking-[0.3em] text-white/40 hover:text-white transition-colors"
+        {/* Plajah Academia — education sign-in as a first-class path, not a footnote */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.85 }}
+          className="mt-8 w-full max-w-2xl rounded-3xl border border-[#3FB98E]/30 bg-gradient-to-br from-[#0f1a16]/80 to-black/40 backdrop-blur-md p-5 sm:p-6"
         >
-          Student? Sign in with your username →
-        </motion.button>
+          <div className="flex items-center gap-2 text-[#3FB98E] mb-1">
+            <GraduationCap size={18} /><span className="text-[10px] font-black uppercase tracking-[0.3em]">Plajah Academia · For Schools</span>
+          </div>
+          <h3 className="text-lg sm:text-xl font-black text-white leading-tight">Teachers, students &amp; families</h3>
+          <p className="text-[12px] text-white/55 leading-snug mt-1">Class points, courses, and the portable learner record — <span className="text-green-300 font-bold">safe, ad-free, and family-visible</span>.</p>
+          <div className="flex flex-col sm:flex-row gap-3 mt-4">
+            <button
+              onClick={() => setShowStudent(true)}
+              className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-[#3FB98E] text-black font-black text-[12px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all"
+            >
+              <UserIcon size={16} /> Student sign-in
+            </button>
+            <button
+              onClick={() => setAuthMode('SIGN_IN')}
+              className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-white/10 border border-white/20 text-white font-black text-[12px] uppercase tracking-widest hover:bg-white/15 active:scale-95 transition-all"
+            >
+              <Mail size={16} /> Teacher / school sign-in
+            </button>
+          </div>
+          <button
+            onClick={() => { onEnter(); setTimeout(() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'ACADEMIA_TOUR' } })), 500); }}
+            className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-[#3FB98E]/80 hover:text-[#3FB98E] transition-colors"
+          >
+            <Sparkles size={13} /> Tour Academia — no signup →
+          </button>
+        </motion.div>
 
       </div>
 

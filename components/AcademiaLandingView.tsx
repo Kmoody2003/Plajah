@@ -8,23 +8,13 @@
 
 import React, { useState } from 'react';
 import {
-  Library, FlaskConical, Languages, Landmark, Atom, BookOpen, Palette, Music,
-  ArrowRight, Sparkles, Plus, ChevronRight, GraduationCap, Compass,
+  Library, FlaskConical, ArrowRight, Sparkles, Plus, Compass,
 } from 'lucide-react';
+import AcademiaModules from './AcademiaModules';
 
 // A grand old library for the cover (Unsplash — already used elsewhere in the app, CSP-allowed).
 const COVER = 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=1600&auto=format&fit=crop';
 const COVER_FALLBACK = 'https://images.unsplash.com/photo-1454789548928-1f63080f5509?q=80&w=1600&auto=format&fit=crop';
-
-interface Module { key: string; label: string; desc: string; icon: React.ElementType; accent: string; view: string; }
-const MODULES: Module[] = [
-  { key: 'lang',    label: 'Languages',     desc: 'Learn a language, Duolingo-style — vocab, listening, streaks.', icon: Languages,   accent: '#7a2bd6', view: 'LANGUAGE_QUEST' },
-  { key: 'history', label: 'History',       desc: 'Nano-lessons and deep dives across world history.',            icon: Landmark,     accent: '#FF8C00', view: 'HISTORY_QUEST' },
-  { key: 'science', label: 'Science',       desc: 'Interactive science quests and simulators.',                   icon: Atom,         accent: '#36c5f0', view: 'SCIENCE_QUEST' },
-  { key: 'reading', label: 'Reading',       desc: 'Gamified reading practice and a leveled library.',             icon: BookOpen,     accent: '#2bd67a', view: 'READING_QUEST' },
-  { key: 'art',     label: 'Art Masters',   desc: 'Open-access masterworks from the Met, AIC and more.',          icon: Palette,      accent: '#e23b6d', view: 'ART_GALLERY' },
-  { key: 'music',   label: 'Music History', desc: 'The Chora Vault — the story of recorded sound.',               icon: Music,        accent: '#FFD24A', view: 'MUSIC' },
-];
 
 const AcademiaLandingView: React.FC<{
   onNavigate: (view: string) => void;
@@ -88,29 +78,8 @@ const AcademiaLandingView: React.FC<{
           </button>
         </section>
 
-        {/* ── Learning Modules ───────────────────────────────────────────── */}
-        <section>
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <div className="flex items-center gap-2 text-[#3FB98E] mb-1"><GraduationCap size={16} /><span className="text-[10px] font-black uppercase tracking-[0.3em]">Learning Modules</span></div>
-              <h2 className="text-2xl font-black">Structured, self-paced tracks</h2>
-            </div>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {MODULES.map(m => {
-              const Icon = m.icon;
-              return (
-                <button key={m.key} onClick={() => onNavigate(m.view)}
-                  className="text-left rounded-2xl bg-white/[0.04] border border-white/10 p-5 hover:bg-white/[0.07] hover:-translate-y-0.5 transition-all group">
-                  <div className="w-11 h-11 rounded-xl grid place-items-center mb-3" style={{ background: `${m.accent}22`, color: m.accent }}><Icon size={22} /></div>
-                  <p className="text-[15px] font-black">{m.label}</p>
-                  <p className="text-[12px] text-white/50 leading-snug mt-0.5">{m.desc}</p>
-                  <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest mt-3 group-hover:gap-2 transition-all" style={{ color: m.accent }}>Start <ChevronRight size={12} /></span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
+        {/* ── Learning Modules (shared card gallery) ─────────────────────── */}
+        <AcademiaModules onNavigate={onNavigate} />
 
         {/* ── Learn New Skills (MasterClass-style creator courses) ────────── */}
         <section>
