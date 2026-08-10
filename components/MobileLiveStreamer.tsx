@@ -42,6 +42,10 @@ import { buildShareUrl } from '../services/deepLinkService';
 import { useRtcSession } from '../hooks/useRtcSession';
 import { HQ_AUDIO } from '../services/rtcCore';
 import { set as idbSet } from 'idb-keyval';
+
+// Bump on each camera/flip change so we can confirm on-device which build is actually running
+// (shown on the Go-Live setup screen). If the visible tag doesn't match, the device is on cached code.
+const CAM_BUILD = 'flip-r5';
 import {
   startLocalRecording, pickRecordingFile, supportsFilePicker,
   downloadLocalRecording, markLocalRecordingUploaded, deleteLocalRecording,
@@ -616,8 +620,15 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
       // black; no second getUserMedia → no device conflict) and publishes its canvas. RTC
       // keeps the source alive (swapVideoTrack keepOld). Before this, the raw camera streams
       // directly — the composer isn't running at all, so an idle stream stays cool.
-      if (!composerPublishedRef.current) {
+      const firstPublish = !composerPublishedRef.current;
+      let adoptedFacing: string | undefined;
+      if (firstPublish) {
+        // ADOPT the camera that's already live (whatever lens) as the composer's primary source —
+        // never open a second camera here. Opening a fresh rear cam (ensureRear) on first publish
+        // raced/failed on-device and made looks silently do nothing. The adopted track IS the
+        // current lens, so a look applies to exactly what's on screen.
         const rtcCam = rtc.localStream?.getVideoTracks()[0];
+        adoptedFacing = rtcCam?.getSettings?.().facingMode as string | undefined;
         if (rtcCam && rtcCam.readyState === 'live') comp.adoptFrontTrack(rtcCam);
         const track = comp.getStream().getVideoTracks()[0];
         await rtc.publishExternalVideo(track);
@@ -625,11 +636,12 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
       }
       await comp.setMode(mode);
       setCamMode(mode);
-      // Mirror the PREVIEW for the selfie (front) camera only — matches every phone camera app,
-      // so moving right looks like moving right. It's a CSS flip on the local <video> only; the
-      // composited canvas that's published/recorded stays un-mirrored (viewers read text correctly).
-      // Rear / both / screen are never mirrored.
-      setMirror(mode === 'front');
+      // Mirror the PREVIEW for the selfie (front) camera only (CSS flip on the local <video>; the
+      // published/recorded canvas is never flipped). On first publish we adopted the LIVE camera, so
+      // mirror by that camera's real lens (rear = no mirror). Otherwise mirror only for 'front' mode.
+      if (mode !== 'front') setMirror(false);
+      else if (firstPublish) setMirror(adoptedFacing ? adoptedFacing !== 'environment' : mirror);
+      else setMirror(true);
       setCamOn(true);
       setFxError(null);
     } catch (e: any) {
@@ -686,18 +698,16 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const [lookId, setLookId] = useState<LookId | 'custom'>('none');
   const [nightOn, setNightOn] = useState(false);
   const cubeInputRef = useRef<HTMLInputElement>(null);
-  // First-publish for an effect composites the CURRENT lens (front → 'front', rear → 'rear'), so a
-  // look picked on the back camera stays on the back camera — and the mirror stays correct.
-  // The lens currently on screen, derived from the mirror flag (front/selfie = mirrored). Used so a
-  // look applied before the composer exists composites the CURRENT camera, not a hardcoded 'front'.
-  const currentLensMode = (): ComposerMode => (mirror ? 'front' : 'rear');
+  // Applying an effect ADOPTS the camera that's already live (mode 'front' = "draw the adopted
+  // primary source"), whatever lens it is — it never opens a second camera, so a look reliably
+  // applies to what's on screen (front OR back). applyMode derives the mirror from the adopted lens.
   const applyLook = async (look: LookId) => {
-    if (!composerPublishedRef.current) await applyMode(currentLensMode());
+    if (!composerPublishedRef.current) await applyMode('front');
     composerRef.current?.setLook(look); setLookId(look);
   };
   const uploadCube = async (file?: File | null) => {
     if (!file) return;
-    if (!composerPublishedRef.current) await applyMode(currentLensMode());
+    if (!composerPublishedRef.current) await applyMode('front');
     const ok = composerRef.current?.setCubeLut(await file.text());
     if (ok) setLookId('custom');
     else alert("Couldn't load that LUT — needs a 3D .cube file (LUT_3D_SIZE), and WebGL on this device.");
@@ -1325,6 +1335,9 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
             >
               <Radio size={18} className="animate-pulse" /> Go Live
             </button>
+            {/* Build tag — lets us confirm the device is running the latest deploy (not a cached
+                bundle). If you don't see this label, the app is serving old code (force-close + reopen). */}
+            <p className="text-center text-[9px] font-black uppercase tracking-[0.3em] text-white/25">Camera build {CAM_BUILD}</p>
           </div>
         </motion.div>
       )}
