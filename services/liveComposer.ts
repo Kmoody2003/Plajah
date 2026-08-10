@@ -378,6 +378,8 @@ export class LiveComposer {
     this.frontEl.srcObject = this.frontStream;
     this.frontEl.play().catch(() => {});
   }
+  /** The composer's current front-slot video track (for picking the NEXT camera on a flip). */
+  getFrontTrack(): MediaStreamTrack | null { return this.frontStream?.getVideoTracks()[0] ?? null; }
   private async ensureFront() {
     if (this.frontStream?.getVideoTracks()[0]?.readyState === 'live') return;
     this.frontStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { ...HQ, facingMode: 'user' } });

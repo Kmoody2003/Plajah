@@ -572,6 +572,8 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   // until the user picks an advanced mode, then everything runs through the composer.
   const composerRef = useRef<LiveComposer | null>(null);
   const composerPublishedRef = useRef(false);
+  const flipBusyRef = useRef(false); // serialize camera flips so a double-tap can't race two switches
+  const lastTapRef = useRef(0);      // double-tap-to-flip detector (onDoubleClick doesn't fire on mobile touch)
   const [camMode, setCamMode] = useState<ComposerMode>('front');
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [fxError, setFxError] = useState<string | null>(null); // surfaced FX/composer failure (device diag)
@@ -686,7 +688,9 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const cubeInputRef = useRef<HTMLInputElement>(null);
   // First-publish for an effect composites the CURRENT lens (front → 'front', rear → 'rear'), so a
   // look picked on the back camera stays on the back camera — and the mirror stays correct.
-  const currentLensMode = (): ComposerMode => (facing === 'environment' ? 'rear' : 'front');
+  // The lens currently on screen, derived from the mirror flag (front/selfie = mirrored). Used so a
+  // look applied before the composer exists composites the CURRENT camera, not a hardcoded 'front'.
+  const currentLensMode = (): ComposerMode => (mirror ? 'front' : 'rear');
   const applyLook = async (look: LookId) => {
     if (!composerPublishedRef.current) await applyMode(currentLensMode());
     composerRef.current?.setLook(look); setLookId(look);
@@ -852,12 +856,36 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   // alone doesn't reliably switch to the back camera on phones — and reports whether
   // the preview should be mirrored (front cameras only).
   const flipCamera = async () => {
-    // Once the composer owns the video, "flip" toggles its front/rear source — this keeps the
-    // active look/LUT/mode (setMode never touches the look), so effects survive a lens switch.
-    if (composerPublishedRef.current) { await applyMode(camMode === 'rear' ? 'front' : 'rear'); return; }
-    const { facingMode: fm, mirror: m } = await rtc.cycleCamera();
-    setMirror(m);
-    if (fm) setFacing(fm); // keep `facing` in sync so applyLook composites the CURRENT lens
+    if (flipBusyRef.current) return;          // ignore re-entrancy (double-tap, rapid taps)
+    flipBusyRef.current = true;
+    try {
+      if (composerPublishedRef.current && composerRef.current) {
+        // A look/mode is live → the composer owns the PUBLISHED (canvas) track. Acquire the next
+        // camera as a SEPARATE stream and adopt it into the composer, keeping the canvas streaming.
+        // (Do NOT go through rtc.cycleCamera here — that would swap the published canvas track for a
+        // raw camera and drop the FX. This is what made "switch while a mode is on" fail.)
+        const comp = composerRef.current;
+        const curId = comp.getFrontTrack()?.getSettings?.().deviceId;
+        const { stream, mirror: m } = await rtc.nextCameraStream(curId);
+        const track = stream.getVideoTracks()[0];
+        if (track) {
+          comp.adoptFrontTrack(track);
+          try { await comp.setMode('front'); } catch { /* keep drawing the adopted track */ }
+          setCamMode('front');
+        }
+        setMirror(m);
+      } else {
+        // No composer yet → swap the raw published camera track directly (reliable deviceId cycle).
+        // IMPORTANT: do NOT setFacing() here — it triggers the [facing] effect's switchCamera(),
+        // a second switch that raced this one and made the flip fail / just mirror.
+        const { mirror: m } = await rtc.cycleCamera();
+        setMirror(m);
+      }
+    } catch (e) {
+      console.warn('[Flip] camera switch failed', e);
+    } finally {
+      flipBusyRef.current = false;
+    }
   };
 
   /** Re-adopt the live camera into the composer after a raw device swap, so a device change from
@@ -1176,7 +1204,14 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
         autoPlay
         muted
         playsInline
-        onDoubleClick={() => { if (step !== 'ended') flipCamera(); }}
+        onPointerUp={() => {
+          // Double-tap-to-flip (mobile-safe): onDoubleClick never fires on touch, so detect two
+          // taps within 300ms ourselves. A single tap does nothing (chat/controls own single taps).
+          if (step === 'ended') return;
+          const now = Date.now();
+          if (now - lastTapRef.current < 300) { lastTapRef.current = 0; flipCamera(); }
+          else { lastTapRef.current = now; }
+        }}
         className="absolute top-0 left-0 right-0 w-full object-contain bg-black transition-all duration-300"
         style={{ bottom: step === 'live' && (showChat || modeMenuOpen) ? `${bottomH}px` : '0px', transform: mirror ? 'scaleX(-1)' : 'none' }}
       />

@@ -507,6 +507,25 @@ export class TVStudioEngine {
           this.offCtxA.fillStyle = '#000'; this.offCtxA.globalAlpha = (1 - alpha) * 2;
           this.offCtxA.fillRect(0, 0, 1920, 1080); this.offCtxA.globalAlpha = 1;
         }
+      } else if (transType === 'WIPE_UP') {
+        // Preview rises in from the bottom edge, covering more of the frame as alpha → 1.
+        this._drawSource(this.offCtxB, previewSrc);
+        const h = Math.round(1080 * alpha);
+        if (h > 0) this.offCtxA.drawImage(this.offB, 0, 1080 - h, 1920, h, 0, 1080 - h, 1920, h);
+      } else if (transType === 'STING') {
+        // Branded stinger: an accent panel sweeps in from center to cover the cut, the source
+        // switches under the cover at the midpoint, then the panel sweeps back out to reveal the
+        // incoming source. Self-contained — no stinger asset required.
+        if (alpha >= 0.5) this._drawSource(this.offCtxA, previewSrc);
+        const cover = alpha < 0.5 ? alpha * 2 : (1 - alpha) * 2; // 0 → 1 → 0
+        const w = Math.round(1920 * cover);
+        if (w > 0) {
+          const x = Math.round((1920 - w) / 2);
+          const g = this.offCtxA.createLinearGradient(x, 0, x + w, 0);
+          g.addColorStop(0, '#ff6a00'); g.addColorStop(0.5, '#ff8c00'); g.addColorStop(1, '#d40055');
+          this.offCtxA.fillStyle = g;
+          this.offCtxA.fillRect(x, 0, w, 1080);
+        }
       }
     }
 

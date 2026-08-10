@@ -496,6 +496,42 @@ export class RtcSession {
     return { facingMode: fm, mirror };
   }
 
+  /** Acquire the NEXT distinct physical camera as a fresh stream WITHOUT swapping the
+   *  published track. Used when the compositor owns the published output (a look/mode is
+   *  live) so the caller can adopt this camera into the composer while the canvas keeps
+   *  streaming — the reliable flip that doesn't fight the composer. Caller owns the stream.
+   *  `currentDeviceId` = the camera currently feeding the composer (so we pick the next one). */
+  async nextCameraStream(currentDeviceId?: string): Promise<{ stream: MediaStream; facingMode?: 'user' | 'environment'; mirror: boolean }> {
+    const raw = (await navigator.mediaDevices.enumerateDevices().catch(() => []))
+      .filter(d => d.kind === 'videoinput' && d.deviceId);
+    const seen = new Set<string>();
+    const cams = raw.filter(d => {
+      const key = `${d.deviceId}`;
+      const groupKey = `${(d as any).groupId || ''}|${(d.label || '').toLowerCase()}`;
+      if (seen.has(key) || seen.has(groupKey)) return false;
+      seen.add(key); seen.add(groupKey); return true;
+    });
+    let stream: MediaStream;
+    if (cams.length <= 1) {
+      // Can't enumerate distinct cameras → toggle facingMode instead.
+      const curFm = this.local?.getVideoTracks()[0]?.getSettings().facingMode;
+      const want = curFm === 'environment' ? 'user' : 'environment';
+      try { stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ facingMode: { exact: want } }) }); }
+      catch { stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ facingMode: want }) }); }
+    } else {
+      const idx = currentDeviceId ? cams.findIndex(c => c.deviceId === currentDeviceId) : -1;
+      const next = cams[(idx + 1) % cams.length];
+      try { stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ deviceId: { exact: next.deviceId } }) }); }
+      catch { stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ deviceId: next.deviceId }) }); }
+    }
+    const t = stream.getVideoTracks()[0];
+    await tuneVideoTrack(t);
+    const fm = t?.getSettings().facingMode as 'user' | 'environment' | undefined;
+    const label = (t?.label || '').toLowerCase();
+    const mirror = fm === 'user' || (fm == null && /front|user|face|self/.test(label) && !/back|rear|environment|world/.test(label));
+    return { stream, facingMode: fm, mirror };
+  }
+
   /** Enumerate the machine's cameras / mics / speakers so the UI can offer a
    *  device picker. Labels are only populated once media permission is granted
    *  (which it is, mid-call), so call this after join(). */
