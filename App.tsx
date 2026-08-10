@@ -179,6 +179,36 @@ const TeacherToolsView = retryLazy(() => import('./components/TeacherToolsView')
 const KidsLibraryView = retryLazy(() => import('./components/KidsLibraryView'));
 import KidsSessionGuard from './components/KidsSessionGuard';
 import KidsModeBar from './components/KidsModeBar';
+
+// ── Mobile bottom nav tab sets ────────────────────────────────────────────────
+// Regular accounts get the media-first bar; SCHOOL accounts (student/teacher/child/
+// school-provisioned/verified-teacher/school-admin) get an education-tailored bar —
+// Academia (their role landing) + Labs up front, Chat (education-scoped: canDM policy +
+// no Nibbles), and the media apps (Chora/Reello/…) demoted into the "More" overflow.
+const DEFAULT_BOTTOM_TABS = [
+  { id: 'MUSIC',     icon: Music2,        label: 'Chora'  },
+  { id: 'VIDEOS',    icon: VideoIcon,     label: 'Reello' },
+  { id: 'DASHBOARD', icon: Home,          label: 'Home'   },
+  { id: 'CHAT',      icon: MessageSquare, label: 'Chat'   },
+  { id: 'FEED',      icon: Rss,           label: 'Social' },
+];
+const EDU_BOTTOM_TABS = [
+  { id: 'ACADEMIA_HOME', icon: GraduationCap, label: 'Academia' }, // far left = the role landing/home
+  { id: 'PLAJAH_LABS',   icon: FlaskConical,  label: 'Labs'     },
+  { id: 'CLASSROOMS',    icon: BookOpen,      label: 'Classes'  },
+  { id: 'CHAT',          icon: MessageSquare, label: 'Chat'     }, // education-scoped chat
+  { id: 'FEED',          icon: Rss,           label: 'Social'   },
+];
+/** School user = gets the education bottom bar. Deliberately NOT generic platform admins
+ *  (isAdmin/role ADMIN) — only real school roles — so a platform owner keeps the full bar. */
+function isSchoolNavUser(p: any): boolean {
+  if (!p) return false;
+  if (['STUDENT', 'TEACHER', 'CHILD'].includes(p.accountType)) return true;
+  if (p.childState === 'SCHOOL_PROVISIONED' || p.provisionedByTeacherUid) return true;
+  if (p.teacherVerification && p.teacherVerification !== 'UNVERIFIED') return true;
+  if (p.isSchoolAdmin) return true;
+  return false;
+}
 const ArticleEditor = retryLazy(() => import('./components/ArticleEditor'));
 const ArticleView = retryLazy(() => import('./components/ArticleView'));
 const BrandDashboard = retryLazy(() => import('./components/BrandDashboard'));
@@ -3690,13 +3720,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   </defs>
                 </svg>
                 <div className="flex items-center px-1 pt-1 pb-android-nav gap-0">
-                  {[
-                    { id: 'MUSIC',     icon: Music2,        label: 'Chora'  },
-                    { id: 'VIDEOS',    icon: VideoIcon,     label: 'Reello' },
-                    { id: 'DASHBOARD', icon: Home,          label: 'Home'   },
-                    { id: 'CHAT',      icon: MessageSquare, label: 'Chat'   },
-                    { id: 'FEED',      icon: Rss,           label: 'Social' },
-                  ].map(tab => {
+                  {(isSchoolNavUser(userProfile) ? EDU_BOTTOM_TABS : DEFAULT_BOTTOM_TABS).map(tab => {
                     const Icon = tab.icon;
                     const isActive = view === tab.id;
                     return (
