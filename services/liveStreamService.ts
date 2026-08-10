@@ -17,7 +17,7 @@
 
 import { auth, db, uploadVideo } from './backendService';
 import {
-  doc, collection, addDoc, updateDoc, serverTimestamp,
+  doc, collection, addDoc, updateDoc, serverTimestamp, query, where, getDocs,
 } from 'firebase/firestore';
 
 export const STREAMS_COLLECTION = 'streams';
@@ -112,5 +112,24 @@ export async function endLiveDiscovery(feedId: string | null | undefined): Promi
     });
   } catch (e) {
     console.warn('[live] discovery end failed:', e);
+  }
+}
+
+/**
+ * Robust discovery cleanup: mark EVERY still-LIVE discovery mirror for this stream ENDED, by
+ * streamId — so a stream still clears from "what's live now" even if the in-memory feedId was lost
+ * (publish resolved after end, page reload, etc.). Call alongside endLiveDiscovery on stop.
+ */
+export async function endLiveDiscoveryByStream(streamId: string): Promise<void> {
+  if (!streamId) return;
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'live_feeds'),
+      where('streamId', '==', streamId),
+      where('status', '==', 'LIVE'),
+    ));
+    await Promise.all(snap.docs.map(d => updateDoc(d.ref, { status: 'ENDED', endedAt: serverTimestamp() })));
+  } catch (e) {
+    console.warn('[live] discovery end-by-stream failed:', e);
   }
 }

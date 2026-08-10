@@ -11,6 +11,8 @@ import ThreeDImage from './ThreeDImage';
 import ShareButton from './ShareButton';
 import { formatDistanceToNow } from 'date-fns';
 import { auth, updatePost, deletePost, togglePostLike, processDonation, fetchUserClubs, createClubPost, searchUsers } from '../services/backendService';
+import { db } from '../services/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { Trash2, Zap } from 'lucide-react';
 import CommentSection from './CommentSection';
 import MediaWaterfallView, { WaterfallMediaItem } from './MediaWaterfallView';
@@ -147,6 +149,27 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
   const [customGift, setCustomGift] = useState('');
   const [isGifting, setIsGifting] = useState(false);
   const [giftSent, setGiftSent] = useState(false);
+
+  // A "Live now" post must reflect the REAL stream state. The post's isLiveNow flag only flips to
+  // false when the broadcaster hits Save — so a stream ended by discard, tab-close, or a crash left
+  // the pulsing LIVE bug up forever (and tapping it opened a dead viewer). Watch streams/{id} live:
+  // when it's no longer live, switch this card to the replay (or an "ended" state), instantly.
+  const [liveState, setLiveState] = useState<{ isLive: boolean; recordingVideoId?: string } | null>(null);
+  useEffect(() => {
+    if (!(post.isLiveNow && post.liveStreamId)) { setLiveState(null); return; }
+    const unsub = onSnapshot(
+      doc(db, 'streams', post.liveStreamId),
+      snap => {
+        if (!snap.exists()) { setLiveState({ isLive: false }); return; } // no stream doc → ended
+        const d = snap.data() as any;
+        // Ended when isLive is explicitly false OR an endedAt is stamped; live otherwise.
+        const ended = d.isLive === false || !!d.endedAt;
+        setLiveState({ isLive: !ended, recordingVideoId: d.recordingVideoId });
+      },
+      () => setLiveState(null), // read error → fall back to the post flag (optimistic live)
+    );
+    return () => unsub();
+  }, [post.isLiveNow, post.liveStreamId]);
   const [showWaterfall, setShowWaterfall] = useState(false);
   const [signInAction, setSignInAction] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -372,6 +395,43 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
     // opening the same WebRTC viewer a shared livestream link does.
     if (post.isLiveNow && post.liveStreamId) {
       const liveTitle = (post.text || '').replace(/^🔴\s*Live now:\s*/i, '').trim() || 'Live now';
+      // The stream has actually ENDED (isLive false / endedAt / doc gone) → don't show the LIVE bug.
+      const ended = liveState !== null && !liveState.isLive;
+      const replayId = liveState?.recordingVideoId;
+      if (ended) {
+        // Ended WITH a saved replay → a "Watch replay" card that opens the recording.
+        if (replayId) {
+          return (
+            <button
+              onClick={e => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'RELLO', params: { videoId: replayId } } })); }}
+              className="mt-4 relative w-full aspect-video rounded-3xl overflow-hidden border border-white/10 block group"
+            >
+              {post.authorPhoto
+                ? <img src={post.authorPhoto} alt="" loading="lazy" className="w-full h-full object-cover blur-[2px] scale-105 opacity-70" />
+                : <div className="w-full h-full" style={{ background: 'linear-gradient(135deg,#1a1a22,#0a0a0d)' }} />}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+              <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur text-white text-[10px] font-black uppercase tracking-widest">Replay</div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Play size={26} className="text-black ml-1" fill="black" />
+                </span>
+              </div>
+              <div className="absolute bottom-3 left-4 right-4 text-left">
+                <p className="text-white font-black text-sm truncate">{liveTitle}</p>
+                <p className="text-white/75 text-[11px] font-bold">{post.authorName} · Watch the replay</p>
+              </div>
+            </button>
+          );
+        }
+        // Ended with no replay (discarded / still processing) → a calm, non-clickable ended card.
+        return (
+          <div className="mt-4 relative w-full aspect-video rounded-3xl overflow-hidden border border-white/10 flex flex-col items-center justify-center" style={{ background: 'linear-gradient(135deg,#141418,#0a0a0d)' }}>
+            <span className="px-2.5 py-1 rounded-full bg-white/10 text-white/60 text-[10px] font-black uppercase tracking-widest mb-2">Stream ended</span>
+            <p className="text-white/80 font-black text-sm truncate max-w-[80%] text-center">{liveTitle}</p>
+            <p className="text-white/40 text-[11px] font-bold mt-0.5">{post.authorName}</p>
+          </div>
+        );
+      }
       return (
         <button
           onClick={e => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_LIVESTREAM', { detail: { streamId: post.liveStreamId, title: liveTitle, ownerName: post.authorName, ownerId: post.authorId } })); }}

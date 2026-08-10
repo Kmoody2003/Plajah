@@ -37,7 +37,7 @@ import {
 } from '../services/backendService';
 import { startCloudRecording, type LiveCloudSink } from '../services/liveCloudRecorder';
 import { unlockAchievementByTrigger } from '../services/achievementService';
-import { publishLiveDiscovery, endLiveDiscovery, saveSessionRecording } from '../services/liveStreamService';
+import { publishLiveDiscovery, endLiveDiscovery, endLiveDiscoveryByStream, saveSessionRecording } from '../services/liveStreamService';
 import { buildShareUrl } from '../services/deepLinkService';
 import { useRtcSession } from '../hooks/useRtcSession';
 import { HQ_AUDIO } from '../services/rtcCore';
@@ -1036,8 +1036,10 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     if (streamId) {
       await updateDoc(doc(db, 'streams', streamId), { isLive: false, endedAt: Date.now() }).catch(() => {});
     }
-    // Drop the discovery mirror out of "what's live now".
+    // Drop the discovery mirror out of "what's live now" — by feedId AND by streamId, so it clears
+    // even if the in-memory feedId was lost (publish resolved late, reload, etc.).
     endLiveDiscovery(discoveryFeedIdRef.current);
+    if (streamId) endLiveDiscoveryByStream(streamId);
     rtc.leave();
     setIsLive(false);
     setStep('ended');
