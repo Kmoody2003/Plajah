@@ -246,6 +246,7 @@ const LiveTvPlus: React.FC<{
       .forEach(f => {
         const ownerId = ((f as any).ownerId as string) || f.id;
         const o = ensure(ownerId, f.ownerName || f.title);
+        if (typeof (f as any).channelNumber === 'number') o.bound = (f as any).channelNumber; // account's bound guide number
         const url = (f as any).url as string;
         o.subs.push({
           id: `live_${f.id}`, name: f.title, sub: 'Live', accent: BRAND, badge: 'LIVE',

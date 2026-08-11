@@ -1011,12 +1011,16 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     // ── Lifecycle side effects (all fire-and-forget; the stream never blocks) ──
     if (user) {
       // 0. Discovery mirror → live_feeds so every "what's live now" surface +
-      //    the unified viewer find THIS stream (the one source of truth).
-      publishLiveDiscovery({
-        streamId: id, title: finalTitle,
-        ownerName: user.displayName || 'Creator', ownerPhoto: user.photoURL || '',
-        clubId, isPublic: !isPrivate,
-      }).then(fid => { discoveryFeedIdRef.current = fid; }).catch(() => {});
+      //    the unified viewer find THIS stream (the one source of truth). Stamp the account's bound
+      //    channel number on it so the Live Hub numbers live-only accounts (N.1/N.2) correctly.
+      allocateChannelNumber(user.uid).catch(() => null).then(channelNumber => {
+        publishLiveDiscovery({
+          streamId: id, title: finalTitle,
+          ownerName: user.displayName || 'Creator', ownerPhoto: user.photoURL || '',
+          clubId, isPublic: !isPrivate,
+          ...(typeof channelNumber === 'number' ? { channelNumber } : {}),
+        }).then(fid => { discoveryFeedIdRef.current = fid; }).catch(() => {});
+      });
 
       // Public-only side effects — skipped for private/club streams.
       if (!isPrivate) {
@@ -1033,8 +1037,6 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
       }
       // 3. First-stream achievement (always)
       unlockAchievementByTrigger(user.uid, 'FIRST_LIVE_STREAM').catch(() => {});
-      // Bind this account a guide channel number (idempotent) so its live feeds show as N.1/N.2.
-      allocateChannelNumber(user.uid).catch(() => {});
     }
   };
 

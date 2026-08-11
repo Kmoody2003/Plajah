@@ -34,6 +34,9 @@ export interface LiveDiscoveryInput {
   /** Optional club scoping for private/club streams. */
   clubId?: string;
   isPublic?: boolean;
+  /** The owner's bound guide channel number, denormalized so the Live Hub can show N.1/N.2 for
+   *  live-only accounts without a per-owner meta read. */
+  channelNumber?: number;
 }
 
 /**
@@ -56,6 +59,7 @@ export async function publishLiveDiscovery(input: LiveDiscoveryInput): Promise<s
       streamId: input.streamId,
       streamSource: 'webrtc',
       ...(input.clubId ? { clubId: input.clubId } : {}),
+      ...(typeof input.channelNumber === 'number' ? { channelNumber: input.channelNumber } : {}),
       timestamp: serverTimestamp(),
     });
     return ref.id;
