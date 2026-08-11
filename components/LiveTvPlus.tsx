@@ -9,8 +9,10 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, ChevronDown, LayoutGrid } from 'lucide-react';
-import type { LiveFeed, UserProfile } from '../types';
+import type { LiveFeed, UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { SCIENCE_STREAMS } from './scienceStreams';
+import { fetchFastChannelSchedule } from '../services/backendService';
+import { linearPosition, slotDurationSec } from '../services/fastChannelTimeline';
 
 export interface TvChannel {
   id: string;
@@ -24,10 +26,35 @@ export interface TvChannel {
   directUrl?: string;
   now: string;
   badge: 'LIVE' | 'FAST' | 'SCIENCE';
-  feed?: any; // original LiveFeed for the webrtc viewer handoff
+  ownerId?: string;  // user/FAST channel → drives the real per-program EPG
+  isLive?: boolean;  // true = a live stream is on air right now (vs. scheduled programming)
+  feed?: any;        // original LiveFeed for the webrtc viewer handoff
 }
 
 const BRAND = '#FF8C00';
+
+// ── Per-program EPG from a FAST channel's looping schedule ──────────────────────
+export interface EpgProgram { title: string; thumb?: string; startMs: number; endMs: number; isNow: boolean; }
+const slotTitle = (s: FastChannelSlot): string =>
+  s.videoTitle || (s as any).bumperTitle || (s.type === 'AD_BREAK' ? 'Ad break' : s.type === 'LIVE_INTERRUPT' ? 'Live' : 'Program');
+/** Walk the looping schedule from `now` to produce the current + upcoming programs with real times. */
+function computeEpg(schedule: FastChannelSchedule | null, now: number, count = 6): EpgProgram[] {
+  const slots = schedule?.slots || [];
+  if (!slots.length) return [];
+  const { index, offsetSec } = linearPosition(slots, now);
+  const out: EpgProgram[] = [];
+  let cursor = now - offsetSec * 1000;   // when the current slot began
+  let i = index;
+  for (let k = 0; k < count; k++) {
+    const s = slots[i % slots.length];
+    const dur = slotDurationSec(s) * 1000;
+    out.push({ title: slotTitle(s), thumb: s.videoThumbnail, startMs: cursor, endMs: cursor + dur, isNow: k === 0 });
+    cursor += dur; i++;
+  }
+  return out;
+}
+const fmtTime = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
 const isHlsUrl = (u: string) => u.toLowerCase().includes('.m3u8');
 const isEmbeddableUrl = (u: string) =>
   /youtube\.com|youtu\.be|twitch\.tv|vimeo\.com|archive\.org|dailymotion/.test(u);
@@ -204,7 +231,7 @@ const LiveTvPlus: React.FC<{
         out.push({
           id: `ch_${owner}`, number: n++, name: f.ownerName || f.title, sub: 'Live now', accent: BRAND, badge: 'LIVE',
           kind: isHlsUrl(url) ? 'hls' : isEmbeddableUrl(url) ? 'embed' : 'webrtc',
-          playUrl: url, now: f.title, feed: f,
+          playUrl: url, now: f.title, ownerId: owner, isLive: true, feed: f,
         });
       });
     (liveArtists || []).forEach(a => {
@@ -215,6 +242,7 @@ const LiveTvPlus: React.FC<{
       out.push({
         id: `fast_${a.uid}`, number: n++, name: a.displayName, sub: 'FAST Channel', accent: '#36c5f0', badge: 'FAST',
         kind: isHlsUrl(url) ? 'hls' : 'embed', playUrl: url, now: a.liveStreamConfig?.title || 'Scheduled programming',
+        ownerId: a.uid,
       });
     });
     SCIENCE_STREAMS.forEach(s => {
@@ -225,6 +253,21 @@ const LiveTvPlus: React.FC<{
     });
     return out;
   }, [feeds, liveArtists]);
+
+  // Per-program EPG for the selected channel (fetched once per owner, cached, refreshed each 30s).
+  const [epg, setEpg] = useState<EpgProgram[]>([]);
+  const schedCache = useRef<Map<string, FastChannelSchedule | null>>(new Map());
+  const selForEpg = channels[index];
+  useEffect(() => {
+    let cancelled = false;
+    const owner = selForEpg?.ownerId;
+    if (!owner) { setEpg([]); return; }
+    const build = (sched: FastChannelSchedule | null) => { if (!cancelled) setEpg(computeEpg(sched, Date.now())); };
+    if (schedCache.current.has(owner)) { build(schedCache.current.get(owner)!); }
+    else fetchFastChannelSchedule(owner).then(s => { schedCache.current.set(owner, s); build(s); }).catch(() => build(null));
+    const t = setInterval(() => build(schedCache.current.get(owner) ?? null), 30000); // advance "Now"
+    return () => { cancelled = true; clearInterval(t); };
+  }, [selForEpg?.ownerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setIdx = useCallback((i: number) => {
     setIndex(i);
@@ -307,9 +350,35 @@ const LiveTvPlus: React.FC<{
 
       {/* Bottom EPG guide */}
       <div className="shrink-0 border-t border-white/10 bg-black/50 backdrop-blur px-3 py-3">
+        {/* Per-program schedule for the selected channel (real times, from the FAST schedule). */}
+        {selected && (selected.isLive || epg.length > 0) && (
+          <div className="flex items-stretch gap-2 mb-3 overflow-x-auto no-scrollbar">
+            {selected.isLive && (
+              <div className="shrink-0 rounded-lg px-3 py-2 min-w-[150px]" style={{ background: `${BRAND}22`, border: `1px solid ${BRAND}` }}>
+                <p className="text-[8px] font-black uppercase tracking-widest" style={{ color: '#ff5a5a' }}>● Live now</p>
+                <p className="text-[12px] font-black leading-tight truncate">{selected.now}</p>
+                <p className="text-[9px] text-white/50">On air</p>
+              </div>
+            )}
+            {selected.isLive && epg.length > 0 && (
+              <div className="shrink-0 grid place-items-center px-1"><span className="text-[8px] font-black uppercase tracking-widest text-white/30">then →</span></div>
+            )}
+            {epg.map((p, i) => {
+              const now = p.isNow && !selected.isLive;
+              return (
+                <div key={i} className="shrink-0 rounded-lg px-3 py-2 min-w-[150px]"
+                  style={{ background: now ? `${BRAND}22` : 'rgba(255,255,255,0.04)', border: now ? `1px solid ${BRAND}` : '1px solid rgba(255,255,255,0.08)' }}>
+                  <p className="text-[8px] font-black uppercase tracking-widest text-white/40">{now ? 'Now' : fmtTime(p.startMs)}</p>
+                  <p className="text-[12px] font-black leading-tight truncate">{p.title}</p>
+                  <p className="text-[9px] text-white/45">{fmtTime(p.startMs)} – {fmtTime(p.endMs)}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Guide</span>
-          <span className="text-[9px] font-bold text-white/30">{channels.length} channels · live now</span>
+          <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Channels</span>
+          <span className="text-[9px] font-bold text-white/30">{channels.length} channels</span>
         </div>
         <div ref={guideRef} className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
           {channels.map((ch, i) => {
