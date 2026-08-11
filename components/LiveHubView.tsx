@@ -13,6 +13,7 @@ import PPVEventsView from './PPVEventsView';
 import GoLiveWizard from './GoLiveWizard';
 import MobileLiveStreamer, { MobileGoLiveButton } from './MobileLiveStreamer';
 import PresenceBadge from './PresenceBadge';
+import LiveTvPlus from './LiveTvPlus';
 
 interface LiveHubViewProps {
   onBack: () => void;
@@ -68,7 +69,7 @@ function HoverStreamPreview({ url, mutedUrl }: { url: string; mutedUrl: string }
 
 const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPool, onOpenTVStudio }) => {
   const { triggerAction } = useAchievements();
-  const [activeTab, setActiveTab] = useState<'STREAMS' | 'SCIENCE' | 'LIVE_TV' | 'EVENTS' | 'REPLAYS'>('STREAMS');
+  const [activeTab, setActiveTab] = useState<'TV_PLUS' | 'STREAMS' | 'SCIENCE' | 'LIVE_TV' | 'EVENTS' | 'REPLAYS'>('TV_PLUS');
   const [archives, setArchives] = useState<StreamArchive[]>([]);
   const [archivesLoading, setArchivesLoading] = useState(false);
   const [scienceCat, setScienceCat] = useState<ScienceCategory | 'ALL'>('ALL');
@@ -236,6 +237,20 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
     );
   };
 
+  // Samsung-TV-Plus-style channel surface — the default Live Hub experience. Full-screen; the
+  // classic tabbed hub (Streams/Events/Replays/Go Live) is one tap away via the grid button.
+  if (activeTab === 'TV_PLUS') {
+    return (
+      <LiveTvPlus
+        onBack={onBack}
+        feeds={feeds}
+        liveArtists={liveArtists}
+        onOpenClassic={() => setActiveTab('STREAMS')}
+        onWatchWebrtc={(feed) => { if (feed) window.dispatchEvent(new CustomEvent('OPEN_LIVE_FEED', { detail: { feed } })); }}
+      />
+    );
+  }
+
   return (
     <div className="w-full h-full flex flex-col pt-8 lg:pt-16 pb-24">
       <header className="px-8 lg:px-24 mb-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 shrink-0">
@@ -247,6 +262,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
             <PageHeader textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Plajah Live Hub</PageHeader>
             <div className="flex items-center gap-6 border-b border-white/5 pb-2 overflow-x-auto no-scrollbar">
               {([
+                { id: 'TV_PLUS',  label: '📺 Live TV+'    },
                 { id: 'STREAMS',  label: 'Studio Streams' },
                 { id: 'SCIENCE',  label: '🔭 Science Live' },
                 { id: 'LIVE_TV',  label: 'Live TV'        },
