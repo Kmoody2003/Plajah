@@ -33,7 +33,7 @@ import { buildVTuberFromSheet } from '../services/vtuber/avatarFactory';
 import { buildBodyRig } from '../services/vtuber/bodyPuppet';
 import { VoiceFX, VOICE_EFFECTS, type VoiceEffectId } from '../services/voiceFX';
 import {
-  auth, db, createPost, updatePost, deletePost, notifyFollowers, uploadVideo, finalizeLiveRecording,
+  auth, db, createPost, updatePost, deletePost, notifyFollowers, uploadVideo, finalizeLiveRecording, addReplayToFastChannel,
 } from '../services/backendService';
 import { startCloudRecording, type LiveCloudSink } from '../services/liveCloudRecorder';
 import { unlockAchievementByTrigger } from '../services/achievementService';
@@ -559,6 +559,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const [fileChosen, setFileChosen] = useState(false); // user picked a desktop file target
   const [savedToDevice, setSavedToDevice] = useState(false);
   const [sentToFabula, setSentToFabula] = useState(false);
+  const [addToChannel, setAddToChannel] = useState(true); // auto-schedule the replay onto the user's FAST channel
   const [pendingRec, setPendingRec] = useState<LocalRecordingMeta | null>(null); // recovery from a prior crash
   const [showRecovery, setShowRecovery] = useState(false);
 
@@ -1109,6 +1110,10 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
         }).catch(() => {});
       }
       if (streamId) await updateDoc(doc(db, 'streams', streamId), { recordingVideoId: video.id }).catch(() => {});
+      // FAST-channel flywheel: schedule this replay onto the user's channel (opt-out toggle below),
+      // so their channel keeps playing and this stream is attributed to their channel — not a
+      // one-off guide row. Non-fatal; never blocks the save.
+      if (addToChannel && user && video?.id) { addReplayToFastChannel(user.uid, video).catch(() => {}); }
       // The cloud replay is safe. KEEP the on-device copy as the user's high-quality local backup
       // (they asked for this) — just flag it as uploaded. They can delete it from the library later.
       const localId = localSinkRef.current?.id;
@@ -1874,6 +1879,19 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                     </p>
                   </div>
                 )}
+                {/* Post-stream option: add this replay to your FAST channel so your channel keeps
+                    playing it. On by default; toggle off to keep the stream off your channel. */}
+                <button onClick={() => setAddToChannel(v => !v)}
+                  className="w-full flex items-center gap-3 rounded-2xl bg-white/[0.04] border border-white/10 px-3 py-3">
+                  <div className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${addToChannel ? 'bg-[#36c5f0]/20 text-[#36c5f0]' : 'bg-white/8 text-white/40'}`}><Monitor size={18} /></div>
+                  <div className="flex-1 min-w-0 text-left">
+                    <p className="text-[12px] font-black text-white">Add to my FAST channel</p>
+                    <p className="text-[10px] text-white/45 leading-snug">Schedules the replay onto your channel in the Live Hub guide.</p>
+                  </div>
+                  <div className={`w-10 h-6 rounded-full p-0.5 transition-colors shrink-0 ${addToChannel ? 'bg-[#36c5f0]' : 'bg-white/15'}`}>
+                    <div className={`w-5 h-5 rounded-full bg-white transition-transform ${addToChannel ? 'translate-x-4' : ''}`} />
+                  </div>
+                </button>
                 <button onClick={saveRecording}
                   className="w-full py-4 rounded-2xl bg-orange-500 hover:bg-orange-400 active:scale-95 transition-all font-black text-white text-sm flex items-center justify-center gap-2">
                   <Save size={16} /> {saving === 'error' ? 'Retry — save replay to Reello' : 'Save replay to Reello'}

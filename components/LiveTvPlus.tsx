@@ -186,26 +186,35 @@ const LiveTvPlus: React.FC<{
   const settleRef = useRef<any>(null);
   const guideRef = useRef<HTMLDivElement>(null);
 
-  // Build the unified channel lineup: LIVE streams → FAST channels → Science Live.
+  // Build the unified channel lineup as USER CHANNELS (one row per account) + curated channels.
+  // An individual live STREAM is NOT its own guide row — it's attributed to that user's channel
+  // (multiple streams from the same account collapse into one). Order: live user channels →
+  // FAST channels → Science Live.
   const channels: TvChannel[] = useMemo(() => {
     const out: TvChannel[] = [];
+    const seenOwners = new Set<string>();
     let n = 1;
     (feeds || [])
       .filter(f => (f as any).status !== 'ENDED' && (f as any).status !== 'OFFLINE' && (f as any).url)
       .forEach(f => {
+        const owner = ((f as any).ownerId as string) || f.id;
+        if (seenOwners.has(owner)) return; // one channel per user account
+        seenOwners.add(owner);
         const url = (f as any).url as string;
         out.push({
-          id: `live_${f.id}`, number: n++, name: f.title, sub: f.ownerName, accent: BRAND, badge: 'LIVE',
+          id: `ch_${owner}`, number: n++, name: f.ownerName || f.title, sub: 'Live now', accent: BRAND, badge: 'LIVE',
           kind: isHlsUrl(url) ? 'hls' : isEmbeddableUrl(url) ? 'embed' : 'webrtc',
           playUrl: url, now: f.title, feed: f,
         });
       });
     (liveArtists || []).forEach(a => {
+      if (seenOwners.has(a.uid)) return; // this user already has a live channel above
       const url = a.liveStreamConfig?.fastChannelUrl || '';
       if (!url) return;
+      seenOwners.add(a.uid);
       out.push({
-        id: `fast_${a.uid}`, number: n++, name: a.displayName, sub: a.liveStreamConfig?.title || 'FAST Channel', accent: '#36c5f0', badge: 'FAST',
-        kind: isHlsUrl(url) ? 'hls' : 'embed', playUrl: url, now: a.liveStreamConfig?.title || 'Live',
+        id: `fast_${a.uid}`, number: n++, name: a.displayName, sub: 'FAST Channel', accent: '#36c5f0', badge: 'FAST',
+        kind: isHlsUrl(url) ? 'hls' : 'embed', playUrl: url, now: a.liveStreamConfig?.title || 'Scheduled programming',
       });
     });
     SCIENCE_STREAMS.forEach(s => {
