@@ -11,24 +11,25 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, ChevronDown, LayoutGrid } from 'lucide-react';
 import type { LiveFeed, UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { SCIENCE_STREAMS } from './scienceStreams';
-import { fetchFastChannelSchedule } from '../services/backendService';
-import { linearPosition, slotDurationSec } from '../services/fastChannelTimeline';
+import { fetchFastChannelSchedule, type FastChannelListing } from '../services/backendService';
+import { linearPosition, slotDurationSec, resolveSlotMedia } from '../services/fastChannelTimeline';
 
 export interface TvChannel {
   id: string;
-  number: number;
+  number: string;    // guide number — "42" or a sub-channel "42.1"/"42.2"
   name: string;
   sub: string;
   emoji?: string;
   accent: string;
-  kind: 'embed' | 'hls' | 'webrtc' | 'external';
+  kind: 'embed' | 'hls' | 'webrtc' | 'external' | 'fast';
   playUrl: string;
   directUrl?: string;
   now: string;
   badge: 'LIVE' | 'FAST' | 'SCIENCE';
-  ownerId?: string;  // user/FAST channel → drives the real per-program EPG
-  isLive?: boolean;  // true = a live stream is on air right now (vs. scheduled programming)
-  feed?: any;        // original LiveFeed for the webrtc viewer handoff
+  ownerId?: string;      // user/FAST channel → drives the real per-program EPG
+  scheduleOwner?: string; // FAST sub-channel → whose schedule to play + guide
+  isLive?: boolean;      // true = a live stream is on air right now (vs. scheduled programming)
+  feed?: any;            // original LiveFeed for the webrtc viewer handoff
 }
 
 const BRAND = '#FF8C00';
@@ -105,6 +106,17 @@ const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWat
   }
   if (channel.kind === 'hls') {
     return <video ref={videoRef} className="absolute inset-0 w-full h-full object-contain bg-black" autoPlay playsInline muted={muted} />;
+  }
+  if (channel.kind === 'fast') {
+    // FAST channel whose current slot hasn't resolved to media yet.
+    return (
+      <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-[#0a1420] to-black">
+        <div className="flex flex-col items-center gap-3 text-white/60">
+          <span className="w-16 h-16 rounded-full grid place-items-center bg-[#36c5f0]/20"><Tv size={26} className="text-[#36c5f0]" /></span>
+          <span className="text-[11px] font-black uppercase tracking-widest">Tuning channel…</span>
+        </div>
+      </div>
+    );
   }
   // webrtc / external — passive playback isn't possible; offer to open the real viewer/source.
   return (
@@ -204,55 +216,81 @@ const LiveTvPlus: React.FC<{
   onBack: () => void;
   feeds: LiveFeed[];
   liveArtists: UserProfile[];
+  fastChannels?: FastChannelListing[];
   onOpenClassic?: () => void;
   onWatchWebrtc?: (feed: any) => void;
-}> = ({ onBack, feeds, liveArtists, onOpenClassic, onWatchWebrtc }) => {
+}> = ({ onBack, feeds, liveArtists, fastChannels = [], onOpenClassic, onWatchWebrtc }) => {
   const [index, setIndex] = useState(0);
   const [muted, setMuted] = useState(true);
   const [loadedIndex, setLoadedIndex] = useState(0); // player follows the dial once it settles
   const settleRef = useRef<any>(null);
   const guideRef = useRef<HTMLDivElement>(null);
 
-  // Build the unified channel lineup as USER CHANNELS (one row per account) + curated channels.
-  // An individual live STREAM is NOT its own guide row — it's attributed to that user's channel
-  // (multiple streams from the same account collapse into one). Order: live user channels →
-  // FAST channels → Science Live.
+  // Build the lineup by USER ACCOUNT: each account is a channel (a bound "major" number) and its
+  // individual live feeds + FAST channel are SUB-CHANNELS (42.1, 42.2, …) like an over-the-air
+  // station's virtual sub-channels. So a creator running two live streams shows as N.1 and N.2 —
+  // nothing disappears — and their FAST channel is another sub. Then curated Science channels.
   const channels: TvChannel[] = useMemo(() => {
-    const out: TvChannel[] = [];
-    const seenOwners = new Set<string>();
-    let n = 1;
+    type Sub = Omit<TvChannel, 'number'>;
+    interface Owner { ownerId: string; name: string; bound?: number; subs: Sub[]; }
+    const owners = new Map<string, Owner>();
+    const ensure = (ownerId: string, name: string): Owner => {
+      let o = owners.get(ownerId);
+      if (!o) { o = { ownerId, name, subs: [] }; owners.set(ownerId, o); }
+      return o;
+    };
+
+    // Live feeds → one sub-channel EACH (do not collapse).
     (feeds || [])
       .filter(f => (f as any).status !== 'ENDED' && (f as any).status !== 'OFFLINE' && (f as any).url)
       .forEach(f => {
-        const owner = ((f as any).ownerId as string) || f.id;
-        if (seenOwners.has(owner)) return; // one channel per user account
-        seenOwners.add(owner);
+        const ownerId = ((f as any).ownerId as string) || f.id;
+        const o = ensure(ownerId, f.ownerName || f.title);
         const url = (f as any).url as string;
-        out.push({
-          id: `ch_${owner}`, number: n++, name: f.ownerName || f.title, sub: 'Live now', accent: BRAND, badge: 'LIVE',
+        o.subs.push({
+          id: `live_${f.id}`, name: f.title, sub: 'Live', accent: BRAND, badge: 'LIVE',
           kind: isHlsUrl(url) ? 'hls' : isEmbeddableUrl(url) ? 'embed' : 'webrtc',
-          playUrl: url, now: f.title, ownerId: owner, isLive: true, feed: f,
+          playUrl: url, now: f.title, ownerId, isLive: true, feed: f,
         });
       });
-    (liveArtists || []).forEach(a => {
-      if (seenOwners.has(a.uid)) return; // this user already has a live channel above
-      const url = a.liveStreamConfig?.fastChannelUrl || '';
-      if (!url) return;
-      seenOwners.add(a.uid);
-      out.push({
-        id: `fast_${a.uid}`, number: n++, name: a.displayName, sub: 'FAST Channel', accent: '#36c5f0', badge: 'FAST',
-        kind: isHlsUrl(url) ? 'hls' : 'embed', playUrl: url, now: a.liveStreamConfig?.title || 'Scheduled programming',
-        ownerId: a.uid,
+
+    // FAST channels → a sub-channel for the account (carries the custom channel name + bound number).
+    (fastChannels || []).forEach(fc => {
+      const o = ensure(fc.ownerId, fc.name || 'Channel');
+      if (fc.name) o.name = fc.name;                 // custom channel name wins for the account
+      if (typeof fc.number === 'number') o.bound = fc.number;
+      o.subs.push({
+        id: `fast_${fc.ownerId}`, name: fc.name || `${o.name} (FAST)`, sub: 'FAST Channel', accent: '#36c5f0', badge: 'FAST',
+        kind: 'fast', playUrl: '', now: 'Scheduled programming', ownerId: fc.ownerId, scheduleOwner: fc.ownerId,
       });
     });
+
+    // Assign major numbers: honor bound numbers; give the rest the smallest free positive integer.
+    const list = [...owners.values()];
+    const used = new Set<number>(list.filter(o => o.bound != null).map(o => o.bound!));
+    let free = 1;
+    const nextFree = () => { while (used.has(free)) free++; used.add(free); return free; };
+    list.sort((a, b) => (a.bound ?? 1e9) - (b.bound ?? 1e9) || a.name.localeCompare(b.name));
+    const out: TvChannel[] = [];
+    list.forEach(o => {
+      const major = o.bound ?? nextFree();
+      o.subs.forEach((s, j) => {
+        // Single-source account → plain "N"; multi-source → "N.1", "N.2".
+        const number = o.subs.length > 1 ? `${major}.${j + 1}` : `${major}`;
+        out.push({ ...s, number, name: o.subs.length > 1 ? `${o.name} · ${s.badge === 'FAST' ? 'FAST' : s.name}` : o.name });
+      });
+    });
+
+    // Curated Science Live channels — platform channels in a separate high band.
+    let sci = 9001;
     SCIENCE_STREAMS.forEach(s => {
       out.push({
-        id: `sci_${s.id}`, number: n++, name: s.title, sub: s.source, emoji: s.emoji, accent: s.accent, badge: 'SCIENCE',
+        id: `sci_${s.id}`, number: `${sci++}`, name: s.title, sub: s.source, emoji: s.emoji, accent: s.accent, badge: 'SCIENCE',
         kind: s.isEmbeddable ? 'embed' : 'external', playUrl: s.embedUrl, directUrl: s.directUrl, now: s.title,
       });
     });
     return out;
-  }, [feeds, liveArtists]);
+  }, [feeds, fastChannels]);
 
   // Per-program EPG for the selected channel (fetched once per owner, cached, refreshed each 30s).
   const [epg, setEpg] = useState<EpgProgram[]>([]);
@@ -295,6 +333,31 @@ const LiveTvPlus: React.FC<{
   const selected = channels[index] || null;
   const playing = channels[loadedIndex] || null;
 
+  // Resolve a FAST channel's CURRENT scheduled slot into playable media (Mux HLS / direct).
+  const [fastMedia, setFastMedia] = useState<{ url: string; kind: 'hls' | 'embed' } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const owner = playing?.kind === 'fast' ? playing.scheduleOwner : undefined;
+    if (!owner) { setFastMedia(null); return; }
+    const resolve = (sched: FastChannelSchedule | null) => {
+      if (cancelled) return;
+      if (!sched?.slots?.length) { setFastMedia(null); return; }
+      const { index: si } = linearPosition(sched.slots, Date.now());
+      const m = resolveSlotMedia(sched.slots[si]);
+      const url = m.muxPlaybackId ? `https://stream.mux.com/${m.muxPlaybackId}.m3u8` : (m.url || '');
+      setFastMedia(url ? { url, kind: (m.isHls || m.muxPlaybackId) ? 'hls' : (isEmbeddableUrl(url) ? 'embed' : 'hls') } : null);
+    };
+    if (schedCache.current.has(owner)) resolve(schedCache.current.get(owner)!);
+    else fetchFastChannelSchedule(owner).then(s => { schedCache.current.set(owner, s); resolve(s); }).catch(() => resolve(null));
+    const t = setInterval(() => resolve(schedCache.current.get(owner) ?? null), 30000);
+    return () => { cancelled = true; clearInterval(t); };
+  }, [playing?.scheduleOwner, playing?.kind]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The channel actually handed to the player: FAST channels play their current scheduled slot.
+  const resolvedPlaying: TvChannel | null = playing && playing.kind === 'fast'
+    ? (fastMedia ? { ...playing, kind: fastMedia.kind, playUrl: fastMedia.url } : playing)
+    : playing;
+
   if (channels.length === 0) {
     return (
       <div className="fixed inset-0 z-[60] bg-[#04050a] text-white flex flex-col items-center justify-center gap-4">
@@ -322,7 +385,7 @@ const LiveTvPlus: React.FC<{
 
       {/* Content + dial */}
       <div className="relative flex-1 min-h-0">
-        <ChannelPlayer channel={playing} muted={muted} onWatchWebrtc={(f) => onWatchWebrtc?.(f)} />
+        <ChannelPlayer channel={resolvedPlaying} muted={muted} onWatchWebrtc={(f) => onWatchWebrtc?.(f)} />
 
         {/* Now-playing overlay (top-left) */}
         {selected && (

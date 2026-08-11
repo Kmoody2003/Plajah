@@ -33,7 +33,7 @@ import { buildVTuberFromSheet } from '../services/vtuber/avatarFactory';
 import { buildBodyRig } from '../services/vtuber/bodyPuppet';
 import { VoiceFX, VOICE_EFFECTS, type VoiceEffectId } from '../services/voiceFX';
 import {
-  auth, db, createPost, updatePost, deletePost, notifyFollowers, uploadVideo, finalizeLiveRecording, addReplayToFastChannel,
+  auth, db, createPost, updatePost, deletePost, notifyFollowers, uploadVideo, finalizeLiveRecording, addReplayToFastChannel, allocateChannelNumber, setChannelName,
 } from '../services/backendService';
 import { startCloudRecording, type LiveCloudSink } from '../services/liveCloudRecorder';
 import { unlockAchievementByTrigger } from '../services/achievementService';
@@ -560,6 +560,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const [savedToDevice, setSavedToDevice] = useState(false);
   const [sentToFabula, setSentToFabula] = useState(false);
   const [addToChannel, setAddToChannel] = useState(true); // auto-schedule the replay onto the user's FAST channel
+  const [channelName, setChannelNameInput] = useState(''); // optional custom channel name (vs. the display name)
   const [pendingRec, setPendingRec] = useState<LocalRecordingMeta | null>(null); // recovery from a prior crash
   const [showRecovery, setShowRecovery] = useState(false);
 
@@ -1032,6 +1033,8 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
       }
       // 3. First-stream achievement (always)
       unlockAchievementByTrigger(user.uid, 'FIRST_LIVE_STREAM').catch(() => {});
+      // Bind this account a guide channel number (idempotent) so its live feeds show as N.1/N.2.
+      allocateChannelNumber(user.uid).catch(() => {});
     }
   };
 
@@ -1113,7 +1116,10 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
       // FAST-channel flywheel: schedule this replay onto the user's channel (opt-out toggle below),
       // so their channel keeps playing and this stream is attributed to their channel — not a
       // one-off guide row. Non-fatal; never blocks the save.
-      if (addToChannel && user && video?.id) { addReplayToFastChannel(user.uid, video).catch(() => {}); }
+      if (addToChannel && user && video?.id) {
+        if (channelName.trim()) setChannelName(user.uid, channelName).catch(() => {});
+        addReplayToFastChannel(user.uid, video).catch(() => {});
+      }
       // The cloud replay is safe. KEEP the on-device copy as the user's high-quality local backup
       // (they asked for this) — just flag it as uploaded. They can delete it from the library later.
       const localId = localSinkRef.current?.id;
@@ -1892,6 +1898,15 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                     <div className={`w-5 h-5 rounded-full bg-white transition-transform ${addToChannel ? 'translate-x-4' : ''}`} />
                   </div>
                 </button>
+                {addToChannel && (
+                  <input
+                    value={channelName}
+                    onChange={e => setChannelNameInput(e.target.value)}
+                    placeholder="Name your channel (optional)"
+                    maxLength={60}
+                    className="w-full -mt-1 px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-[12px] text-white placeholder:text-white/30 outline-none focus:border-[#36c5f0]/50"
+                  />
+                )}
                 <button onClick={saveRecording}
                   className="w-full py-4 rounded-2xl bg-orange-500 hover:bg-orange-400 active:scale-95 transition-all font-black text-white text-sm flex items-center justify-center gap-2">
                   <Save size={16} /> {saving === 'error' ? 'Retry — save replay to Reello' : 'Save replay to Reello'}

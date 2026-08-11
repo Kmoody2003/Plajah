@@ -7917,12 +7917,48 @@ export const addReplayToFastChannel = async (uid: string, video: Partial<Video>)
       } as FastChannelSchedule;
     }
     await saveFastChannelSchedule(schedule);
-    // Enable + publish the channel so it appears in the Live Hub guide as the user's channel.
+    // Enable + publish the channel + bind its guide channel number, so it appears as the user's
+    // channel in the Live Hub with a stable number.
     await updateFastChannelEnabled(uid, true).catch(() => {});
     await saveFastChannelMeta({ ownerId: uid, isPublished: true }).catch(() => {});
+    await allocateChannelNumber(uid).catch(() => {});
   } catch (e) {
     console.warn('[fast] addReplayToFastChannel failed', e);
   }
+};
+
+/**
+ * Bind a persistent, guide-style CHANNEL NUMBER to an account (the "major" number; a user's
+ * individual feeds/sources become sub-channels N.1, N.2 in the UI). Idempotent — returns the
+ * existing number if already assigned. Allocated sequentially from a global counter, capped at 5
+ * digits (99999) for now. For very large scale this single counter can later shard, but assignment
+ * is rare (once per account when it first gets a channel), so contention is minimal.
+ */
+export const allocateChannelNumber = async (uid: string): Promise<number | null> => {
+  if (!uid) return null;
+  try {
+    const existing = await fetchFastChannelMeta(uid).catch(() => null);
+    if (existing && typeof existing.number === 'number') return existing.number;
+    const counterRef = doc(db, 'counters', 'liveChannelNumber');
+    const num = await runTransaction(db, async (tx) => {
+      const snap = await tx.get(counterRef);
+      const cur = snap.exists() ? ((snap.data() as any).value || 0) : 0;
+      const next = Math.min(cur + 1, 99999);
+      tx.set(counterRef, { value: next }, { merge: true });
+      return next;
+    });
+    await saveFastChannelMeta({ ownerId: uid, number: num });
+    return num;
+  } catch (e) {
+    console.warn('[channel] allocateChannelNumber failed', e);
+    return null;
+  }
+};
+
+/** Let an account name its channel (shown in the guide instead of their display name). */
+export const setChannelName = async (uid: string, name: string): Promise<void> => {
+  if (!uid) return;
+  await saveFastChannelMeta({ ownerId: uid, name: (name || '').trim().slice(0, 60) }).catch(() => {});
 };
 
 export const scheduleLiveInterrupt = async (uid: string, scheduledAt: number, maxDurationSeconds: number, membersOnly = false): Promise<void> => {

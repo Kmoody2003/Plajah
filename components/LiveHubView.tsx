@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LiveFeed, UserProfile, StreamArchive } from '../types';
 import PageHeader from './PageHeader';
-import { fetchAllLiveFeeds, publishLiveFeed, deleteLiveFeed, searchLiveChannels, fetchStreamArchives } from '../services/backendService';
+import { fetchAllLiveFeeds, publishLiveFeed, deleteLiveFeed, searchLiveChannels, fetchStreamArchives, fetchAllFastChannels, type FastChannelListing } from '../services/backendService';
 import { ArrowLeft, Radio, Plus, X, User, ExternalLink, Trash2, Search, Tv, Maximize2, VolumeX, Play, FlaskConical, Clock, PlayCircle } from 'lucide-react';
 import { canGoLive } from '../services/tvCapabilities';
 import { User as FirebaseUser } from 'firebase/auth';
@@ -75,6 +75,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
   const [scienceCat, setScienceCat] = useState<ScienceCategory | 'ALL'>('ALL');
   const [feeds, setFeeds] = useState<LiveFeed[]>([]);
   const [liveArtists, setLiveArtists] = useState<UserProfile[]>([]);
+  const [fastChannels, setFastChannels] = useState<FastChannelListing[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [fullScreenFeed, setFullScreenFeed] = useState<{ id: string, title: string, url: string, ownerName: string } | null>(null);
   const [showGoLiveWizard, setShowGoLiveWizard] = useState(false);
@@ -90,6 +91,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
       setLiveArtists(artists);
     };
     loadLiveArtists();
+    fetchAllFastChannels(100).then(setFastChannels).catch(() => {});
 
     return () => unsubscribe();
   }, []);
@@ -245,6 +247,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
         onBack={onBack}
         feeds={feeds}
         liveArtists={liveArtists}
+        fastChannels={fastChannels}
         onOpenClassic={() => setActiveTab('STREAMS')}
         onWatchWebrtc={(feed) => { if (feed) window.dispatchEvent(new CustomEvent('OPEN_LIVE_FEED', { detail: { feed } })); }}
       />
