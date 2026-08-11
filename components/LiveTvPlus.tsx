@@ -240,14 +240,20 @@ const LiveTvPlus: React.FC<{
       return o;
     };
 
-    // Live feeds → one sub-channel EACH (do not collapse).
+    // Live feeds → channels ONLY for OFF-PLATFORM sources (external URLs not from Plajah). A Reello /
+    // on-platform (WebRTC) live stream is CONTENT, not a channel: it flows to the creator's FAST
+    // channel when it ends. A creator can opt a Reello stream in as a live channel (asChannel), and
+    // those DO get listed here; otherwise on-platform streams are excluded from the guide.
     (feeds || [])
       .filter(f => (f as any).status !== 'ENDED' && (f as any).status !== 'OFFLINE' && (f as any).url)
       .forEach(f => {
+        const url = (f as any).url as string;
+        const onPlatform = (f as any).streamSource === 'webrtc' || /[?&]stream=/.test(url);
+        const asChannel = !!(f as any).asChannel;
+        if (onPlatform && !asChannel) return; // Reello stream = content, not a channel (unless opted in)
         const ownerId = ((f as any).ownerId as string) || f.id;
         const o = ensure(ownerId, f.ownerName || f.title);
         if (typeof (f as any).channelNumber === 'number') o.bound = (f as any).channelNumber; // account's bound guide number
-        const url = (f as any).url as string;
         o.subs.push({
           id: `live_${f.id}`, name: f.title, sub: 'Live', accent: BRAND, badge: 'LIVE',
           kind: isHlsUrl(url) ? 'hls' : isEmbeddableUrl(url) ? 'embed' : 'webrtc',
@@ -295,18 +301,33 @@ const LiveTvPlus: React.FC<{
 
   // Per-program EPG for the selected channel (fetched once per owner, cached, refreshed each 30s).
   const [epg, setEpg] = useState<EpgProgram[]>([]);
+  const [preemptUntil, setPreemptUntil] = useState<number | null>(null); // FAST channel being pre-empted → show viewer warning until this ms
   const schedCache = useRef<Map<string, FastChannelSchedule | null>>(new Map());
   const selForEpg = channels[index];
   useEffect(() => {
     let cancelled = false;
     const owner = selForEpg?.ownerId;
-    if (!owner) { setEpg([]); return; }
-    const build = (sched: FastChannelSchedule | null) => { if (!cancelled) setEpg(computeEpg(sched, Date.now())); };
+    if (!owner) { setEpg([]); setPreemptUntil(null); return; }
+    const build = (sched: FastChannelSchedule | null) => {
+      if (cancelled) return;
+      setEpg(computeEpg(sched, Date.now()));
+      // Live pre-emption: warn viewers from when the interrupt is pending until it airs + 30s after.
+      const pli = (sched as any)?.pendingLiveInterrupt;
+      const until = pli ? pli.scheduledAt + 30000 : 0;
+      setPreemptUntil(until && Date.now() < until ? until : null);
+    };
     if (schedCache.current.has(owner)) { build(schedCache.current.get(owner)!); }
     else fetchFastChannelSchedule(owner).then(s => { schedCache.current.set(owner, s); build(s); }).catch(() => build(null));
     const t = setInterval(() => build(schedCache.current.get(owner) ?? null), 30000); // advance "Now"
     return () => { cancelled = true; clearInterval(t); };
   }, [selForEpg?.ownerId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tick down the pre-emption warning (auto-hide 30s after the interrupt airs).
+  useEffect(() => {
+    if (!preemptUntil) return;
+    const t = setInterval(() => { if (Date.now() >= preemptUntil) setPreemptUntil(null); }, 1000);
+    return () => clearInterval(t);
+  }, [preemptUntil]);
 
   const setIdx = useCallback((i: number) => {
     setIndex(i);
@@ -387,6 +408,20 @@ const LiveTvPlus: React.FC<{
       {/* Content + dial */}
       <div className="relative flex-1 min-h-0">
         <ChannelPlayer channel={resolvedPlaying} muted={muted} onWatchWebrtc={(f) => onWatchWebrtc?.(f)} />
+
+        {/* Live pre-emption warning — a FAST channel is being cut over to the broadcaster's live
+            stream. Shows until the interrupt airs and stays up for its first 30 seconds. */}
+        {preemptUntil && selected?.kind === 'fast' && (
+          <div className="absolute inset-0 z-30 grid place-items-center bg-black/70 backdrop-blur-sm">
+            <div className="text-center px-6 max-w-lg">
+              <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">
+                <Radio size={13} /> Live Pre-emption
+              </div>
+              <h2 className="text-2xl sm:text-4xl font-black leading-tight">Broadcast Is Being Pre-Empted by Broadcaster</h2>
+              <p className="text-white/60 text-sm mt-3">Switching this channel to the live broadcast…</p>
+            </div>
+          </div>
+        )}
 
         {/* Now-playing overlay (top-left) */}
         {selected && (

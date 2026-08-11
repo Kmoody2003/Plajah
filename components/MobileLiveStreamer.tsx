@@ -33,7 +33,7 @@ import { buildVTuberFromSheet } from '../services/vtuber/avatarFactory';
 import { buildBodyRig } from '../services/vtuber/bodyPuppet';
 import { VoiceFX, VOICE_EFFECTS, type VoiceEffectId } from '../services/voiceFX';
 import {
-  auth, db, createPost, updatePost, deletePost, notifyFollowers, uploadVideo, finalizeLiveRecording, addReplayToFastChannel, allocateChannelNumber, setChannelName,
+  auth, db, createPost, updatePost, deletePost, notifyFollowers, uploadVideo, finalizeLiveRecording, addReplayToFastChannel, allocateChannelNumber, setChannelName, scheduleLiveInterrupt,
 } from '../services/backendService';
 import { startCloudRecording, type LiveCloudSink } from '../services/liveCloudRecorder';
 import { unlockAchievementByTrigger } from '../services/achievementService';
@@ -552,6 +552,8 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   // or a closed tab never loses it. `storeLocal` is on by default; on desktop the
   // user can also pick an exact file to mirror the recording into.
   const [storeLocal, setStoreLocal] = useState(true);
+  const [asChannel, setAsChannel] = useState(false);       // surface this Reello stream as its own live channel
+  const [interruptFast, setInterruptFast] = useState(false); // cut into my FAST channel with this live stream
   const localSinkRef = useRef<LiveRecordingSink | null>(null);
   const cloudSinkRef = useRef<LiveCloudSink | null>(null);            // real-time cloud upload sink
   const cloudFinalizedRef = useRef<{ segments: number } | null>(null); // set on end if cloud segments landed
@@ -1019,8 +1021,13 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
           ownerName: user.displayName || 'Creator', ownerPhoto: user.photoURL || '',
           clubId, isPublic: !isPrivate,
           ...(typeof channelNumber === 'number' ? { channelNumber } : {}),
+          ...(asChannel ? { asChannel: true } : {}),
         }).then(fid => { discoveryFeedIdRef.current = fid; }).catch(() => {});
       });
+
+      // Interrupt my FAST channel: cut the looping channel over to this live stream a few seconds
+      // in (viewers get the "being pre-empted" warning), for up to an hour.
+      if (interruptFast) scheduleLiveInterrupt(user.uid, Date.now() + 4000, 3600).catch(() => {});
 
       // Public-only side effects — skipped for private/club streams.
       if (!isPrivate) {
@@ -1323,6 +1330,28 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                   Saved to this device's storage. After the stream you can download it or save the replay to Reello.
                 </p>
               )}
+            </div>
+
+            {/* Channel options: by default a live stream is CONTENT (it lands on your FAST channel
+                when it ends). Optionally surface it as its own live channel, or cut it into your
+                FAST channel (pre-empting the loop for viewers). */}
+            <div className="rounded-2xl bg-black/50 backdrop-blur border border-white/15 overflow-hidden">
+              <button onClick={() => setAsChannel(v => !v)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
+                <div className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${asChannel ? 'bg-[#36c5f0]/20 text-[#36c5f0]' : 'bg-white/8 text-white/40'}`}><Radio size={17} /></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-bold text-white leading-tight">Show as a live channel</p>
+                  <p className="text-[10px] text-white/45 leading-tight mt-0.5">List this stream as its own channel in the Live Hub guide.</p>
+                </div>
+                <div className={`w-10 h-6 rounded-full p-0.5 transition-colors shrink-0 ${asChannel ? 'bg-[#36c5f0]' : 'bg-white/15'}`}><div className={`w-5 h-5 rounded-full bg-white transition-transform ${asChannel ? 'translate-x-4' : ''}`} /></div>
+              </button>
+              <button onClick={() => setInterruptFast(v => !v)} className="w-full flex items-center gap-3 px-4 py-3 text-left border-t border-white/10">
+                <div className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${interruptFast ? 'bg-red-500/20 text-red-400' : 'bg-white/8 text-white/40'}`}><Zap size={17} /></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-bold text-white leading-tight">Interrupt my FAST channel</p>
+                  <p className="text-[10px] text-white/45 leading-tight mt-0.5">Cut your channel over to this live stream — viewers are told they're being pre-empted.</p>
+                </div>
+                <div className={`w-10 h-6 rounded-full p-0.5 transition-colors shrink-0 ${interruptFast ? 'bg-red-500' : 'bg-white/15'}`}><div className={`w-5 h-5 rounded-full bg-white transition-transform ${interruptFast ? 'translate-x-4' : ''}`} /></div>
+              </button>
             </div>
             <p className="text-[9px] text-white/35 leading-relaxed">
               Going live posts to your timeline and notifies your followers. When you end,

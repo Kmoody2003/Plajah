@@ -37,6 +37,9 @@ export interface LiveDiscoveryInput {
   /** The owner's bound guide channel number, denormalized so the Live Hub can show N.1/N.2 for
    *  live-only accounts without a per-owner meta read. */
   channelNumber?: number;
+  /** Opt-in: surface this ON-PLATFORM (Reello) live stream as its OWN live channel in the guide.
+   *  Off by default — Reello streams are content that flows to the creator's FAST channel on end. */
+  asChannel?: boolean;
 }
 
 /**
@@ -60,6 +63,7 @@ export async function publishLiveDiscovery(input: LiveDiscoveryInput): Promise<s
       streamSource: 'webrtc',
       ...(input.clubId ? { clubId: input.clubId } : {}),
       ...(typeof input.channelNumber === 'number' ? { channelNumber: input.channelNumber } : {}),
+      ...(input.asChannel ? { asChannel: true } : {}),
       timestamp: serverTimestamp(),
     });
     return ref.id;
