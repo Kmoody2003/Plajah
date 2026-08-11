@@ -1405,6 +1405,27 @@ export const fetchUniverses = async () => {
   };
 
 // --- POSTS & FEED ---
+// Resolve an author's education role (cached ~5min) so posts from schools/teachers/students —
+// and participating parents — get tagged for the Academia school-community feed. NOT generic
+// platform admins. Returns null for everyone else (their posts stay out of the school feed).
+const _eduRoleCache = new Map<string, { role: Post['eduRole'] | null; at: number }>();
+export const resolveEduRole = async (uid: string): Promise<Post['eduRole'] | null> => {
+  const cached = _eduRoleCache.get(uid);
+  if (cached && Date.now() - cached.at < 5 * 60 * 1000) return cached.role;
+  let role: Post['eduRole'] | null = null;
+  try {
+    const snap = await getDoc(doc(db, 'users', uid));
+    const d: any = snap.exists() ? snap.data() : {};
+    const t = d.accountType;
+    if (t === 'TEACHER' || d.isTeacher || (d.teacherVerification && d.teacherVerification !== 'UNVERIFIED')) role = 'TEACHER';
+    else if (t === 'STUDENT' || t === 'CHILD' || d.childState === 'SCHOOL_PROVISIONED' || d.provisionedByTeacherUid) role = 'STUDENT';
+    else if (d.isSchoolAdmin) role = 'SCHOOL';
+    else if (t === 'PARENT') role = 'PARENT';
+  } catch { /* non-fatal — just don't tag */ }
+  _eduRoleCache.set(uid, { role, at: Date.now() });
+  return role;
+};
+
 export const createPost = async (post: Partial<Post>) => {
   if (!auth.currentUser) return;
   const path = 'posts';
@@ -1416,12 +1437,16 @@ export const createPost = async (post: Partial<Post>) => {
     const orgId = (post as any).authorOrgId as string | undefined;
     const authorName = post.authorName || auth.currentUser.displayName || 'Anonymous';
     const authorPhoto = post.authorPhoto || auth.currentUser.photoURL || '';
+    // Tag posts from education accounts so they surface in the Academia school-community feed.
+    const eduRole = post.eduRole ?? (await resolveEduRole(auth.currentUser.uid).catch(() => null)) ?? undefined;
+    const eduFields = eduRole ? { isEduPost: true, eduRole } : {};
     const postData = removeUndefined({
       ...post,
       text: post.text || '',
       authorId: auth.currentUser.uid,
       authorName,
       authorPhoto,
+      ...eduFields,
       ...(orgId ? { authorIsOrg: true, authorOrgId: orgId } : {}),
       likesCount: 0,
       commentsCount: 0,
@@ -1718,6 +1743,35 @@ export const listenToGlobalPosts = (callback: (posts: Post[]) => void) => {
   }, (err) => handleFirestoreError(err, OperationType.LIST, postsPath));
 
   return unsubscribePosts;
+};
+
+/** The Academia school-community feed: public posts from schools, teachers & students (and
+ *  participating parents) across Plajah. Single-field `isEduPost==true` index (auto) + client
+ *  sort — no composite index needed. Callers still run filterPostsForViewer for kid safety. */
+export const listenToEduFeed = (callback: (posts: Post[]) => void) => {
+  const q = query(collection(db, 'posts'), where('isEduPost', '==', true), limit(120));
+  return onSnapshot(q, (snap) => {
+    const items = snap.docs
+      .map(d => ({ id: d.id, ...d.data(), sourceCollection: 'posts', timestamp: safeToMillis(d.data().timestamp) } as Post))
+      .filter(p => p.timestamp > 0 && p.isPublic !== false)
+      .sort((a, b) => b.timestamp - a.timestamp);
+    callback(items);
+  }, (err) => handleFirestoreError(err, OperationType.LIST, 'posts'));
+};
+
+/** A guardian's lens: their own children's posts (authorId in childUids), regardless of privacy —
+ *  the parent has visibility into their kids. `in` supports ≤10 ids; single-field authorId index. */
+export const listenToChildrenPosts = (childUids: string[], callback: (posts: Post[]) => void) => {
+  const ids = (childUids || []).filter(Boolean).slice(0, 10);
+  if (!ids.length) { callback([]); return () => {}; }
+  const q = query(collection(db, 'posts'), where('authorId', 'in', ids), limit(60));
+  return onSnapshot(q, (snap) => {
+    const items = snap.docs
+      .map(d => ({ id: d.id, ...d.data(), sourceCollection: 'posts', timestamp: safeToMillis(d.data().timestamp) } as Post))
+      .filter(p => p.timestamp > 0)
+      .sort((a, b) => b.timestamp - a.timestamp);
+    callback(items);
+  }, (err) => handleFirestoreError(err, OperationType.LIST, 'posts'));
 };
 
 /**

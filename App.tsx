@@ -170,6 +170,7 @@ const AcademiaHomeView = retryLazy(() => import('./components/AcademiaHomeView')
 const AcademiaLandingView = retryLazy(() => import('./components/AcademiaLandingView'));
 const SchoolPackageView = retryLazy(() => import('./components/SchoolPackageView'));
 const LanguageQuestView = retryLazy(() => import('./components/LanguageQuestView'));
+const EducationSocialView = retryLazy(() => import('./components/EducationSocialView'));
 const EducationRail = retryLazy(() => import('./components/EducationRail'));
 const ReadingQuestView = retryLazy(() => import('./components/ReadingQuestView'));
 const ScienceQuestView = retryLazy(() => import('./components/ScienceQuestView'));
@@ -197,7 +198,7 @@ const EDU_BOTTOM_TABS = [
   { id: 'PLAJAH_LABS',   icon: FlaskConical,  label: 'Labs'     },
   { id: 'CLASSROOMS',    icon: BookOpen,      label: 'Classes'  },
   { id: 'CHAT',          icon: MessageSquare, label: 'Chat'     }, // education-scoped chat
-  { id: 'FEED',          icon: Rss,           label: 'Social'   },
+  { id: 'EDU_SOCIAL',    icon: Rss,           label: 'Social'   }, // school-community feed (not the general one)
 ];
 /** School user = gets the education bottom bar. Deliberately NOT generic platform admins
  *  (isAdmin/role ADMIN) — only real school roles — so a platform owner keeps the full bar. */
@@ -1305,6 +1306,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('SCHOOL_PACKAGE');
     } else if (target === 'LANGUAGE_QUEST') {
       setView('LANGUAGE_QUEST');
+    } else if (target === 'EDU_SOCIAL') {
+      setView('EDU_SOCIAL');
     } else if (target === 'READING_QUEST') {
       setView('READING_QUEST');
     } else if (target === 'HISTORY_QUEST') {
@@ -3979,6 +3982,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'LANGUAGE_QUEST' && (
               <Suspense fallback={null}>
                 <LanguageQuestView user={user} profile={userProfile} onBack={() => setView(user ? 'ACADEMIA_HOME' : 'DASHBOARD')} />
+              </Suspense>
+            )}
+
+            {view === 'EDU_SOCIAL' && (
+              <Suspense fallback={null}>
+                <EducationSocialView currentUser={user} profile={userProfile} onVisitUser={handleVisitUser} />
               </Suspense>
             )}
 

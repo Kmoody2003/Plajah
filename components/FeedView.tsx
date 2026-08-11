@@ -53,7 +53,7 @@ type ResolvedMedia = { type: 'PHOTO' | 'VIDEO' | 'AUDIO' | 'GIF' | 'MODEL3D'; ur
 /** Shared composer → post media pipeline: uploads any local blobs and, for VIDEO
  *  attachments, captures + uploads a real poster frame so the feed shows a
  *  thumbnail instead of a blank/black box. Used by every composer on this page. */
-async function resolveComposerMedia(attachments: any[], uid: string): Promise<ResolvedMedia[]> {
+export async function resolveComposerMedia(attachments: any[], uid: string): Promise<ResolvedMedia[]> {
   const out = await Promise.all(attachments.map(async (att): Promise<ResolvedMedia | null> => {
     if (att.file && typeof att.url === 'string' && att.url.startsWith('blob:')) {
       try {
