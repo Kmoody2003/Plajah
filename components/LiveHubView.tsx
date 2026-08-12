@@ -14,6 +14,7 @@ import GoLiveWizard from './GoLiveWizard';
 import MobileLiveStreamer, { MobileGoLiveButton } from './MobileLiveStreamer';
 import PresenceBadge from './PresenceBadge';
 import LiveTvPlus from './LiveTvPlus';
+import PlajahEpgGuide from './tv/PlajahEpgGuide';
 
 interface LiveHubViewProps {
   onBack: () => void;
@@ -80,6 +81,15 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
   const [fullScreenFeed, setFullScreenFeed] = useState<{ id: string, title: string, url: string, ownerName: string } | null>(null);
   const [showGoLiveWizard, setShowGoLiveWizard] = useState(false);
   const [showMobileLive, setShowMobileLive] = useState(false);
+  // When the guide tunes a FAST channel, jump to the TV+ surface focused on it.
+  const [tuneOwnerId, setTuneOwnerId] = useState<string | undefined>(undefined);
+
+  // Tune a channel from the EPG guide: FAST → TV+ focused on it; live/science → their existing viewers.
+  const tuneChannel = (ch: any) => {
+    if (ch.kind === 'fast' && ch.ownerId) { setTuneOwnerId(ch.ownerId); setActiveTab('TV_PLUS'); return; }
+    if (ch.kind === 'science') { setFullScreenFeed(ch.feed); return; }
+    if (ch.feed) window.dispatchEvent(new CustomEvent('OPEN_LIVE_FEED', { detail: { feed: ch.feed } }));
+  };
 
   useEffect(() => {
     const unsubscribe = fetchAllLiveFeeds((items) => {
@@ -118,10 +128,33 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
      f.ownerName.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const filteredArtists = liveArtists.filter(a => 
+  const filteredArtists = liveArtists.filter(a =>
     a.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (a.liveStreamConfig?.title || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Replays = the various users' ENDED live streams (from live_feeds), newest first — a real, populated
+  // list even before Mux archives finish processing. Attributed to and filterable BY user account.
+  const [replayUser, setReplayUser] = useState<string>('ALL');
+  const allEndedFeeds = feeds
+    .filter(f => (f as any).status === 'ENDED')
+    .sort((a, b) => (((b as any).endedAt || 0) as number) - (((a as any).endedAt || 0) as number));
+  // Unique creators who have replays (ended streams + Mux archives), for the account filter.
+  const replayOwners = (() => {
+    const m = new Map<string, { id: string; name: string; photo?: string; count: number }>();
+    allEndedFeeds.forEach(f => {
+      const id = (f as any).ownerId || f.ownerName; if (!id) return;
+      const e = m.get(id) || { id, name: f.ownerName || 'Creator', photo: (f as any).ownerPhoto, count: 0 }; e.count++; m.set(id, e);
+    });
+    archives.forEach(a => {
+      const id = (a as any).ownerId || a.ownerName; if (!id) return;
+      const e = m.get(id) || { id, name: a.ownerName || 'Creator', photo: undefined, count: 0 }; e.count++; m.set(id, e);
+    });
+    return Array.from(m.values()).sort((a, b) => b.count - a.count);
+  })();
+  const ownerKey = (o: any) => (o.ownerId || o.ownerName) as string;
+  const endedFeedReplays = replayUser === 'ALL' ? allEndedFeeds : allEndedFeeds.filter(f => ownerKey(f) === replayUser);
+  const filteredArchives = replayUser === 'ALL' ? archives : archives.filter(a => ownerKey(a) === replayUser);
 
   const handleFeelingLucky = () => {
     triggerAction('USE_FEELING_LUCKY');
@@ -248,7 +281,8 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
         feeds={feeds}
         liveArtists={liveArtists}
         fastChannels={fastChannels}
-        onOpenClassic={() => setActiveTab('STREAMS')}
+        focusOwnerId={tuneOwnerId}
+        onOpenClassic={() => setActiveTab('LIVE_TV')}
         onWatchWebrtc={(feed) => { if (feed) window.dispatchEvent(new CustomEvent('OPEN_LIVE_FEED', { detail: { feed } })); }}
       />
     );
@@ -266,11 +300,11 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
             <div className="flex items-center gap-6 border-b border-white/5 pb-2 overflow-x-auto no-scrollbar">
               {([
                 { id: 'TV_PLUS',  label: '📺 Live TV+'    },
-                { id: 'STREAMS',  label: 'Studio Streams' },
+                { id: 'LIVE_TV',  label: '📺 Guide'       },
                 { id: 'SCIENCE',  label: '🔭 Science Live' },
-                { id: 'LIVE_TV',  label: 'Live TV'        },
                 { id: 'EVENTS',   label: 'Live Events'    },
                 { id: 'REPLAYS',  label: '▶ Replays'      },
+                // 'Studio Streams' (STREAMS) is retired — kept in code, removed from the guide.
               ] as const).map(tab => (
                 <button
                   key={tab.id}
@@ -544,7 +578,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
 
         {activeTab === 'LIVE_TV' && (
           <div className="absolute inset-0 pb-16">
-            <TVView />
+            <PlajahEpgGuide feeds={feeds} fastChannels={fastChannels} onTune={tuneChannel} />
           </div>
         )}
         
@@ -559,8 +593,27 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
           <div className="p-6 space-y-6">
             <div>
               <h2 className="text-2xl font-black uppercase tracking-tighter text-white">Past Broadcasts</h2>
-              <p className="text-white/30 text-xs font-bold uppercase tracking-widest mt-1">Saved recordings from ended live streams</p>
+              <p className="text-white/30 text-xs font-bold uppercase tracking-widest mt-1">Replays from ended live streams — filter by creator</p>
             </div>
+
+            {/* Filter replays by user account */}
+            {replayOwners.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => setReplayUser('ALL')}
+                  className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${replayUser === 'ALL' ? 'bg-small-orange text-black' : 'bg-white/5 text-white/40 hover:text-white border border-white/8'}`}>
+                  All Creators
+                </button>
+                {replayOwners.map(o => (
+                  <button key={o.id} onClick={() => setReplayUser(o.id)}
+                    className={`flex items-center gap-2 pl-1.5 pr-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${replayUser === o.id ? 'bg-small-orange text-black' : 'bg-white/5 text-white/50 hover:text-white border border-white/8'}`}>
+                    <span className="w-5 h-5 rounded-full overflow-hidden bg-white/10 shrink-0">
+                      {o.photo ? <img src={o.photo} className="w-full h-full object-cover" alt="" /> : <User size={11} className="m-1 text-white/40" />}
+                    </span>
+                    {o.name} <span className="opacity-50">{o.count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
 
             {archivesLoading && (
               <div className="flex items-center justify-center py-20">
@@ -568,7 +621,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
               </div>
             )}
 
-            {!archivesLoading && archives.length === 0 && (
+            {!archivesLoading && filteredArchives.length === 0 && endedFeedReplays.length === 0 && (
               <div className="flex flex-col items-center justify-center py-20 gap-3 text-white/20">
                 <PlayCircle size={40} strokeWidth={1.5} />
                 <p className="text-sm font-black uppercase tracking-widest">No replays yet</p>
@@ -577,7 +630,36 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {archives.map(archive => {
+              {/* Users' ended live streams — the various creators' past broadcasts. */}
+              {endedFeedReplays.map(f => {
+                const rec = (f as any).recordingVideoId as string | undefined;
+                const thumb = (f as any).thumbnailUrl || (f as any).ownerPhoto;
+                const ended = (f as any).endedAt ? new Date((f as any).endedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+                const openReplay = () => {
+                  if (rec) window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'RELLO', params: { videoId: rec } } }));
+                  else if (f.url) setFullScreenFeed({ id: f.id, title: f.title, url: f.url, ownerName: f.ownerName });
+                };
+                return (
+                  <div key={`fr_${f.id}`} className="group rounded-2xl overflow-hidden bg-white/5 border border-white/5 hover:border-white/15 transition-all cursor-pointer" onClick={openReplay}>
+                    <div className="relative aspect-video bg-black">
+                      {thumb ? <img src={thumb} alt={f.title} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        : <div className="w-full h-full flex items-center justify-center"><PlayCircle size={32} className="text-white/20" /></div>}
+                      <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-white/15 backdrop-blur text-white text-[9px] font-black uppercase tracking-widest">▶ Replay</div>
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors">
+                        <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity scale-90 group-hover:scale-100"><Play size={20} fill="black" className="ml-1 text-black" /></div>
+                      </div>
+                    </div>
+                    <div className="p-3 space-y-1">
+                      <p className="text-sm font-black text-white truncate">{f.title}</p>
+                      <div className="flex items-center gap-2 text-white/30 text-[10px]">
+                        <span className="font-semibold">{f.ownerName}</span>
+                        {ended && <><span>·</span><Clock size={9} /><span>{ended}</span></>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {filteredArchives.map(archive => {
                 const thumbUrl = archive.muxPlaybackId
                   ? `https://image.mux.com/${archive.muxPlaybackId}/thumbnail.jpg?width=640&time=5`
                   : null;

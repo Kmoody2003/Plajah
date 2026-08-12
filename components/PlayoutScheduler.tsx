@@ -131,7 +131,8 @@ const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers
     // muxPlaybackId, not a direct url) — matches slotsFromVideos / the shared resolver.
     videoId: v.id, videoUrl: (v as any).muxPlaybackId ? `https://stream.mux.com/${(v as any).muxPlaybackId}.m3u8` : (v.url || ''),
     videoTitle: v.title, videoThumbnail: v.thumbnailUrl || v.coverImageUrl,
-    videoDurationSeconds: Math.max(1, Math.round((v as any).duration || 0)) || undefined,
+    // Real length only when known (>0), else leave undefined so slotDurationSec uses the default block.
+    videoDurationSeconds: Math.round(Number((v as any).duration) || 0) > 0 ? Math.round(Number((v as any).duration)) : undefined,
     isReplay: !!(v as any).isLiveRecording, bugLabel: (v as any).isLiveRecording ? 'REPLAY' : undefined,
     assetKind: isRadio ? 'audio' : 'video',
   });

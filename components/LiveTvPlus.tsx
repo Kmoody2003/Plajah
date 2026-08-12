@@ -11,8 +11,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, ChevronDown, LayoutGrid } from 'lucide-react';
 import type { LiveFeed, UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { SCIENCE_STREAMS } from './scienceStreams';
-import { fetchFastChannelSchedule, type FastChannelListing } from '../services/backendService';
-import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight } from '../services/fastChannelTimeline';
+import { fetchFastChannelSchedule, fetchFastChannelVideos, type FastChannelListing } from '../services/backendService';
+import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, backfillScheduleDurations } from '../services/fastChannelTimeline';
 import AdBreakBumper from './tv/AdBreakBumper';
 import type { UpNextItem } from './tv/ComingUpNextBumper';
 
@@ -247,7 +247,9 @@ const LiveTvPlus: React.FC<{
   fastChannels?: FastChannelListing[];
   onOpenClassic?: () => void;
   onWatchWebrtc?: (feed: any) => void;
-}> = ({ onBack, feeds, liveArtists, fastChannels = [], onOpenClassic, onWatchWebrtc }) => {
+  /** When set, start on the channel whose FAST owner / feed owner matches (tuning in from the guide). */
+  focusOwnerId?: string;
+}> = ({ onBack, feeds, liveArtists, fastChannels = [], onOpenClassic, onWatchWebrtc, focusOwnerId }) => {
   const [index, setIndex] = useState(0);
   const [muted, setMuted] = useState(true);
   const [loadedIndex, setLoadedIndex] = useState(0); // player follows the dial once it settles
@@ -345,7 +347,19 @@ const LiveTvPlus: React.FC<{
       setPreemptUntil(until && Date.now() < until ? until : null);
     };
     if (schedCache.current.has(owner)) { build(schedCache.current.get(owner)!); }
-    else fetchFastChannelSchedule(owner).then(s => { schedCache.current.set(owner, s); build(s); }).catch(() => build(null));
+    else {
+      // Fetch the schedule AND the owner's videos, then cache a duration-corrected schedule so the
+      // guide + the player show real programme lengths even for older poisoned schedules.
+      Promise.all([
+        fetchFastChannelSchedule(owner).catch(() => null),
+        fetchFastChannelVideos(owner).catch(() => [] as any[]),
+      ]).then(([sched, vids]) => {
+        const durMap = new Map((vids as any[]).map(v => [v.id, Math.round(Number(v.duration) || 0)]));
+        const fixed = sched ? backfillScheduleDurations(sched, durMap) : null;
+        schedCache.current.set(owner, fixed);
+        build(fixed);
+      }).catch(() => build(null));
+    }
     const t = setInterval(() => build(schedCache.current.get(owner) ?? null), 30000); // advance "Now"
     return () => { cancelled = true; clearInterval(t); };
   }, [selForEpg?.ownerId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -362,6 +376,13 @@ const LiveTvPlus: React.FC<{
     if (settleRef.current) clearTimeout(settleRef.current);
     settleRef.current = setTimeout(() => setLoadedIndex(i), 320); // swap playback once the dial settles
   }, []);
+
+  // Tuned in from the guide → jump straight to the matching channel.
+  useEffect(() => {
+    if (!focusOwnerId || !channels.length) return;
+    const i = channels.findIndex(c => c.scheduleOwner === focusOwnerId || c.ownerId === focusOwnerId);
+    if (i >= 0) { setIndex(i); setLoadedIndex(i); }
+  }, [focusOwnerId, channels]);
 
   // Keyboard / D-pad (works on the TV app too).
   useEffect(() => {
@@ -417,7 +438,18 @@ const LiveTvPlus: React.FC<{
       setFastMedia(url ? { url, kind: (m.isHls || m.muxPlaybackId) ? 'hls' : (isEmbeddableUrl(url) ? 'embed' : 'hls'), offset: pos.offsetSec } : null);
     };
     if (schedCache.current.has(owner)) resolve(schedCache.current.get(owner)!);
-    else fetchFastChannelSchedule(owner).then(s => { schedCache.current.set(owner, s); resolve(s); }).catch(() => resolve(null));
+    else {
+      // Duration-correct the schedule from the library so dayAnchoredPosition selects the RIGHT slot.
+      Promise.all([
+        fetchFastChannelSchedule(owner).catch(() => null),
+        fetchFastChannelVideos(owner).catch(() => [] as any[]),
+      ]).then(([s, vids]) => {
+        const durMap = new Map((vids as any[]).map(v => [v.id, Math.round(Number(v.duration) || 0)]));
+        const fixed = s ? backfillScheduleDurations(s, durMap) : null;
+        schedCache.current.set(owner, fixed);
+        resolve(fixed);
+      }).catch(() => resolve(null));
+    }
     const t = setInterval(() => resolve(schedCache.current.get(owner) ?? null), 30000);
     return () => { cancelled = true; clearInterval(t); };
   }, [playing?.scheduleOwner, playing?.kind]); // eslint-disable-line react-hooks/exhaustive-deps

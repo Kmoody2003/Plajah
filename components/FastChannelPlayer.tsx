@@ -104,11 +104,15 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
           const v = vById.get(s.videoId);
           const resolved = v.muxPlaybackId ? `https://stream.mux.com/${v.muxPlaybackId}.m3u8` : (v.url || '');
           const needsUrl = !s.videoUrl || (!/\.m3u8|stream\.mux\.com/.test(s.videoUrl) && v.muxPlaybackId);
+          // Restore the REAL length when the stored slot duration is missing or poisoned (≤1s) — fixes
+          // the "every asset the same time" schedules built before the duration-writer bug was fixed.
+          const realDur = Math.round(Number(v.duration) || 0);
+          const storedDur = Math.round(Number(s.videoDurationSeconds) || 0);
           return {
             ...s,
             videoUrl: needsUrl && resolved ? resolved : s.videoUrl,
             videoThumbnail: s.videoThumbnail || v.thumbnailUrl || v.coverImageUrl,
-            videoDurationSeconds: s.videoDurationSeconds || (v.duration ? Math.round(v.duration) : undefined),
+            videoDurationSeconds: storedDur > 1 ? storedDur : (realDur > 0 ? realDur : undefined),
           };
         }
         return s;

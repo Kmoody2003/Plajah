@@ -7948,7 +7948,7 @@ export const autoGenerateRadioSchedule = async (uid: string): Promise<FastChanne
       id: `rslot_${order}`, type: 'VIDEO', order, assetKind: 'audio',
       videoId: t.id, videoUrl: (t as any).url || (t as any).audioUrl || '',
       videoTitle: t.title || 'Track', videoThumbnail: (t as any).coverArt || (t as any).artworkUrl,
-      videoDurationSeconds: Math.max(1, Math.round((t as any).duration || 0)) || 210,
+      videoDurationSeconds: Math.round(Number((t as any).duration) || 0) > 0 ? Math.round(Number((t as any).duration)) : 210,
       sourceUserId: uid,
     });
     order++; sinceSting++; sinceAd++;
@@ -7984,7 +7984,9 @@ export const autoGenerateRadioSchedule = async (uid: string): Promise<FastChanne
 export const addReplayToFastChannel = async (uid: string, video: Partial<Video>): Promise<void> => {
   if (!uid || !video?.id) return;
   try {
-    const durationSeconds = Math.max(1, Math.round((video as any).duration || 0)) || 1800;
+    // Real length only when known (>0); else the 30-min default. NOT `Math.max(1,…) || 1800`, which
+    // silently stored 1 second for unknown durations and broke the whole schedule's timing.
+    const durationSeconds = Math.round(Number((video as any).duration) || 0) > 0 ? Math.round(Number((video as any).duration)) : 1800;
     const slot: FastChannelSlot = {
       id: `v_${video.id}`,
       type: 'VIDEO',
@@ -8116,7 +8118,7 @@ export const autoGenerateFastChannelSchedule = async (uid: string): Promise<Fast
   for (const video of videos) {
     // Real per-asset duration drives the EPG/now-next and the deterministic player. Fall back to
     // 30 min only when a video genuinely carries no duration.
-    const durationSec = Math.max(1, Math.round((video as any).duration || 0)) || 1800;
+    const durationSec = Math.round(Number((video as any).duration) || 0) > 0 ? Math.round(Number((video as any).duration)) : 1800;
     const durationMins = durationSec / 60;
 
     // Intro bumper before each video
