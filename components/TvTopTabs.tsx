@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Film, Music2, Video, User, Play, Pause, Search } from 'lucide-react';
+import { Film, Music2, Video, User, Play, Pause, Search, Radio } from 'lucide-react';
 import { TV_NAV_VIEWS } from '../services/tvCapabilities';
 import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
 import { thumb, THUMB } from '../src/lib/imageThumb';
@@ -17,6 +17,7 @@ const TAB_META: Record<string, { label: string; icon: React.ComponentType<{ size
   MOVIES_TV:    { label: 'Taleo',   icon: Film },
   MUSIC:        { label: 'Chora',   icon: Music2 },
   VIDEOS:       { label: 'Reello',  icon: Video },
+  LIVE_HUB:     { label: 'Live',    icon: Radio },
   USER_PROFILE: { label: 'Profile', icon: User },
 };
 

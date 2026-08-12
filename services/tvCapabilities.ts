@@ -126,7 +126,7 @@ export const canGoLive = (): boolean => isFeatureAvailable('liveStream');
 // keep resident — and on a 2GB TV with a 192MB per-app heap, "not loaded" is a feature.
 
 /** Destinations shown in the TV's top tab bar, in order. */
-export const TV_NAV_VIEWS = ['MOVIES_TV', 'MUSIC', 'VIDEOS', 'USER_PROFILE'] as const;
+export const TV_NAV_VIEWS = ['MOVIES_TV', 'MUSIC', 'VIDEOS', 'LIVE_HUB', 'USER_PROFILE'] as const;
 
 /**
  * Views a TV may REACH but which are not tabs — playback, detail pages, the things a viewer

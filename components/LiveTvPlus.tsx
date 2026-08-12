@@ -15,6 +15,8 @@ import { fetchFastChannelSchedule, fetchFastChannelVideos, type FastChannelListi
 import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, backfillScheduleDurations } from '../services/fastChannelTimeline';
 import AdBreakBumper from './tv/AdBreakBumper';
 import ComingUpNextBumper, { type UpNextItem } from './tv/ComingUpNextBumper';
+import { getPlatformInfo } from '../hooks/usePlatform';
+import { isShellFocused, setShellFocus } from '../hooks/useTvShellFocus';
 
 export interface TvChannel {
   id: string;
@@ -404,9 +406,18 @@ const LiveTvPlus: React.FC<{
   // Keyboard / D-pad (works on the TV app too).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowUp') { e.preventDefault(); setIdx(Math.max(0, index - 1)); }
-      else if (e.key === 'ArrowDown') { e.preventDefault(); setIdx(Math.min(channels.length - 1, index + 1)); }
-      else if (e.key === 'Enter') { const ch = channels[index]; if (ch?.kind === 'webrtc') onWatchWebrtc?.(ch.feed); setMuted(false); }
+      // On the TV the shell's tab bar can own the remote — go inert so one press never moves two things.
+      if (isShellFocused()) return;
+      const kc = (e as any).keyCode || 0;
+      const isUp = e.key === 'ArrowUp' || kc === 38 || kc === 19;
+      const isDown = e.key === 'ArrowDown' || kc === 40 || kc === 20;
+      if (isUp) {
+        // At the top of the dial, UP hands focus back to the TV tab bar instead of trapping the viewer.
+        if (index === 0 && getPlatformInfo().isTV) { e.preventDefault(); setShellFocus(true); return; }
+        e.preventDefault(); setIdx(Math.max(0, index - 1));
+      }
+      else if (isDown) { e.preventDefault(); setIdx(Math.min(channels.length - 1, index + 1)); }
+      else if (e.key === 'Enter' || kc === 13 || kc === 23) { const ch = channels[index]; if (ch?.kind === 'webrtc') onWatchWebrtc?.(ch.feed); setMuted(false); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -420,6 +431,7 @@ const LiveTvPlus: React.FC<{
 
   const selected = channels[index] || null;
   const playing = channels[loadedIndex] || null;
+  const tvInset = getPlatformInfo().isTV;   // leave room for the TV shell's tab bar
 
   // ── FAST playout: WALL-CLOCK DRIVEN, like a real broadcast station ─────────────────────────────
   // What is on air is a PURE FUNCTION OF THE CURRENT TIME: dayAnchoredPosition(slots, now) yields the
@@ -558,7 +570,9 @@ const LiveTvPlus: React.FC<{
   }
 
   return (
-    <div className="fixed inset-0 z-[60] bg-[#04050a] text-white flex flex-col" style={{ height: '100dvh' }}>
+    // On the TV this sits BELOW the shell's tab bar (which is 64px tall) so the Live tab never covers
+    // the navigation — the viewer can always press up and move across to another tab.
+    <div className={`fixed ${tvInset ? 'inset-x-0 bottom-0 top-16' : 'inset-0'} z-[60] bg-[#04050a] text-white flex flex-col`} style={{ height: tvInset ? 'calc(100dvh - 4rem)' : '100dvh' }}>
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-2.5 shrink-0 z-30">
         <button onClick={onBack} className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15"><ArrowLeft size={17} /></button>
