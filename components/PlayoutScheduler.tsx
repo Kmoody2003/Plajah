@@ -59,9 +59,11 @@ interface Props {
   stingers?: string[];
   /** Radio: the station's existing `radioSettings.ads` URLs — surfaced in the Ads rail. */
   audioAds?: string[];
+  /** Plajah platform library assets any broadcast can pull branding from (bumpers/promos/ads/programs). */
+  platformAssets?: import('../types').PlatformMediaAsset[];
 }
 
-const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers, adDurationSeconds, onSave, saving, mode = 'tv', liveSources = [], stingers = [], audioAds = [] }) => {
+const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers, adDurationSeconds, onSave, saving, mode = 'tv', liveSources = [], stingers = [], audioAds = [], platformAssets = [] }) => {
   const isRadio = mode === 'radio';
   const stingerName = (url: string) => { try { return decodeURIComponent(url.split('/').pop() || 'Station ID').split('?')[0]; } catch { return 'Station ID'; } };
   const newStinger = (url: string): FastChannelSlot => ({ id: `sting_${Date.now()}`, type: 'BUMPER', order: 0, assetKind: 'audio', bumperUrl: url, bumperTitle: stingerName(url), bumperDurationSeconds: 8 });
@@ -187,6 +189,13 @@ const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers
   const promos = bumpers.filter(b => b.type === 'PROMO');
   const plainBumpers = bumpers.filter(b => b.type !== 'PROMO');
   const adReels = videos.filter(v => /\bad\b|advert|commercial|promo/i.test(v.title || ''));
+
+  // Plajah platform-library assets any broadcast can pull branding from.
+  const platformBumpers = platformAssets.filter(a => a.kind === 'PLATFORM_BUMPER');
+  const platformPromos = platformAssets.filter(a => a.kind === 'CHANNEL_PROMO');
+  const platformProgs = platformAssets.filter(a => a.kind === 'PLATFORM_PROGRAM' || a.kind === 'PLATFORM_AD');
+  const newPlatformBumper = (a: any, promo = false): FastChannelSlot => ({ id: `plb_${a.id}_${Date.now()}`, type: 'BUMPER', order: 0, bumperUrl: a.url, bumperTitle: a.title, bumperDurationSeconds: a.durationSeconds || 10, isPromo: promo || undefined, bugLabel: promo ? 'PROMO' : undefined });
+  const newPlatformProgram = (a: any): FastChannelSlot => ({ id: `plp_${a.id}_${Date.now()}`, type: 'VIDEO', order: 0, videoUrl: a.url, videoTitle: a.title, videoThumbnail: a.thumbnailUrl, videoDurationSeconds: a.durationSeconds });
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6">
@@ -412,16 +421,28 @@ const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers
             </div>
 
             <div className="space-y-1.5 max-h-[70vh] overflow-y-auto">
-              {rail === 'library' && (videos.length === 0
-                ? <p className="text-[9px] text-white/20 uppercase tracking-widest text-center py-6">No FAST videos yet — enable them in Video Manager.</p>
-                : videos.map(v => (
-                  <button key={v.id} onClick={() => append(newVideo(v))} className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 text-left group">
-                    <div className="w-12 h-8 rounded-lg overflow-hidden shrink-0 bg-white/5">{(v.thumbnailUrl || v.coverImageUrl) && <img src={v.thumbnailUrl || v.coverImageUrl} className="w-full h-full object-cover" alt="" />}</div>
-                    <span className="flex-1 text-[9px] font-black uppercase tracking-tight truncate text-white/60 group-hover:text-white">{v.title}</span>
-                    {(v as any).isLiveRecording && <span className="text-[7px] font-black uppercase text-red-400 shrink-0">RPL</span>}
-                    <Plus size={12} className="text-white/20 group-hover:text-white shrink-0" />
-                  </button>
-                )))}
+              {rail === 'library' && (
+                <>
+                  {videos.length === 0 && platformProgs.length === 0 && <p className="text-[9px] text-white/20 uppercase tracking-widest text-center py-6">No FAST videos yet — enable them in Video Manager.</p>}
+                  {videos.map(v => (
+                    <button key={v.id} onClick={() => append(newVideo(v))} className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 text-left group">
+                      <div className="w-12 h-8 rounded-lg overflow-hidden shrink-0 bg-white/5">{(v.thumbnailUrl || v.coverImageUrl) && <img src={v.thumbnailUrl || v.coverImageUrl} className="w-full h-full object-cover" alt="" />}</div>
+                      <span className="flex-1 text-[9px] font-black uppercase tracking-tight truncate text-white/60 group-hover:text-white">{v.title}</span>
+                      {(v as any).isLiveRecording && <span className="text-[7px] font-black uppercase text-red-400 shrink-0">RPL</span>}
+                      <Plus size={12} className="text-white/20 group-hover:text-white shrink-0" />
+                    </button>
+                  ))}
+                  {platformProgs.length > 0 && <p className="text-[8px] font-black uppercase tracking-widest text-small-orange/70 mt-2 mb-1">Plajah Programming</p>}
+                  {platformProgs.map(a => (
+                    <button key={a.id} onClick={() => append(newPlatformProgram(a))} className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 text-left group">
+                      <div className="w-12 h-8 rounded-lg overflow-hidden shrink-0 bg-white/5">{a.thumbnailUrl && <img src={a.thumbnailUrl} className="w-full h-full object-cover" alt="" />}</div>
+                      <span className="flex-1 text-[9px] font-black uppercase tracking-tight truncate text-white/60 group-hover:text-white">{a.title}</span>
+                      <span className="text-[7px] text-small-orange/60 uppercase shrink-0">Plajah</span>
+                      <Plus size={12} className="text-white/20 group-hover:text-white shrink-0" />
+                    </button>
+                  ))}
+                </>
+              )}
               {rail === 'bumpers' && isRadio && (stingers.length === 0
                 ? <p className="text-[9px] text-white/20 uppercase tracking-widest text-center py-6">No station IDs yet — add stingers to your radio station.</p>
                 : stingers.map((url, i) => (
@@ -432,25 +453,49 @@ const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers
                     <Plus size={12} className="text-white/20 group-hover:text-white shrink-0" />
                   </button>
                 )))}
-              {rail === 'bumpers' && !isRadio && (plainBumpers.length === 0
-                ? <p className="text-[9px] text-white/20 uppercase tracking-widest text-center py-6">No bumpers — add them in the Bumpers tab.</p>
-                : plainBumpers.map(b => (
-                  <button key={b.id} onClick={() => append(newBumper(b))} className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 text-left group">
-                    <CircleDot size={13} className="text-teal-400 shrink-0" />
-                    <span className="flex-1 text-[9px] font-black uppercase tracking-tight truncate text-white/60 group-hover:text-white">{b.title}</span>
-                    <span className="text-[7px] text-white/30 uppercase shrink-0">{b.type.replace('_', ' ')}</span>
-                    <Plus size={12} className="text-white/20 group-hover:text-white shrink-0" />
-                  </button>
-                )))}
-              {rail === 'promos' && (promos.length === 0
-                ? <p className="text-[9px] text-white/20 uppercase tracking-widest text-center py-6">No channel promos — set a Bumper's type to PROMO.</p>
-                : promos.map(b => (
-                  <button key={b.id} onClick={() => append(newBumper(b, true))} className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 text-left group">
-                    <Megaphone size={13} className="text-fuchsia-400 shrink-0" />
-                    <span className="flex-1 text-[9px] font-black uppercase tracking-tight truncate text-white/60 group-hover:text-white">{b.title}</span>
-                    <Plus size={12} className="text-white/20 group-hover:text-white shrink-0" />
-                  </button>
-                )))}
+              {rail === 'bumpers' && !isRadio && (
+                <>
+                  {plainBumpers.length === 0 && platformBumpers.length === 0 && <p className="text-[9px] text-white/20 uppercase tracking-widest text-center py-6">No bumpers — add your own in the Bumpers tab, or use Plajah's below.</p>}
+                  {plainBumpers.map(b => (
+                    <button key={b.id} onClick={() => append(newBumper(b))} className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 text-left group">
+                      <CircleDot size={13} className="text-teal-400 shrink-0" />
+                      <span className="flex-1 text-[9px] font-black uppercase tracking-tight truncate text-white/60 group-hover:text-white">{b.title}</span>
+                      <span className="text-[7px] text-white/30 uppercase shrink-0">{b.type.replace('_', ' ')}</span>
+                      <Plus size={12} className="text-white/20 group-hover:text-white shrink-0" />
+                    </button>
+                  ))}
+                  {platformBumpers.length > 0 && <p className="text-[8px] font-black uppercase tracking-widest text-small-orange/70 mt-2 mb-1">From Plajah Library</p>}
+                  {platformBumpers.map(a => (
+                    <button key={a.id} onClick={() => append(newPlatformBumper(a))} className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 text-left group">
+                      <CircleDot size={13} className="text-small-orange shrink-0" />
+                      <span className="flex-1 text-[9px] font-black uppercase tracking-tight truncate text-white/60 group-hover:text-white">{a.title}</span>
+                      <span className="text-[7px] text-small-orange/60 uppercase shrink-0">Plajah</span>
+                      <Plus size={12} className="text-white/20 group-hover:text-white shrink-0" />
+                    </button>
+                  ))}
+                </>
+              )}
+              {rail === 'promos' && (
+                <>
+                  {promos.length === 0 && platformPromos.length === 0 && <p className="text-[9px] text-white/20 uppercase tracking-widest text-center py-6">No channel promos — set a Bumper's type to PROMO, or use Plajah's below.</p>}
+                  {promos.map(b => (
+                    <button key={b.id} onClick={() => append(newBumper(b, true))} className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 text-left group">
+                      <Megaphone size={13} className="text-fuchsia-400 shrink-0" />
+                      <span className="flex-1 text-[9px] font-black uppercase tracking-tight truncate text-white/60 group-hover:text-white">{b.title}</span>
+                      <Plus size={12} className="text-white/20 group-hover:text-white shrink-0" />
+                    </button>
+                  ))}
+                  {platformPromos.length > 0 && <p className="text-[8px] font-black uppercase tracking-widest text-small-orange/70 mt-2 mb-1">From Plajah Library</p>}
+                  {platformPromos.map(a => (
+                    <button key={a.id} onClick={() => append(newPlatformBumper(a, true))} className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 text-left group">
+                      <Megaphone size={13} className="text-small-orange shrink-0" />
+                      <span className="flex-1 text-[9px] font-black uppercase tracking-tight truncate text-white/60 group-hover:text-white">{a.title}</span>
+                      <span className="text-[7px] text-small-orange/60 uppercase shrink-0">Plajah</span>
+                      <Plus size={12} className="text-white/20 group-hover:text-white shrink-0" />
+                    </button>
+                  ))}
+                </>
+              )}
               {rail === 'ads' && (
                 <>
                   <button onClick={() => append(newAd())} className="w-full flex items-center gap-2 p-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-300 text-[9px] font-black uppercase tracking-widest hover:bg-yellow-500/20 mb-2">

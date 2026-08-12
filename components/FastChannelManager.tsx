@@ -41,6 +41,8 @@ import {
 import { useUpload } from '../contexts/UploadContext';
 import PlayoutScheduler, { type LiveAudioSource } from './PlayoutScheduler';
 import { backfillScheduleDurations } from '../services/fastChannelTimeline';
+import { fetchPlatformMedia } from '../services/platformMediaService';
+import type { PlatformMediaAsset } from '../types';
 
 interface FastChannelManagerProps {
   user: UserProfile;
@@ -262,6 +264,10 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack, i
   // Permanently REWRITE programme durations into the stored schedule: fill from the library, then probe
   // any still-unknown slots. Fixes the "every asset the same time / black gaps" schedules at the source
   // (not just at read time), while KEEPING the user's slot order.
+  // Plajah platform library — bumpers/promos/programs any broadcast can pull branding from.
+  const [platformAssets, setPlatformAssets] = useState<PlatformMediaAsset[]>([]);
+  useEffect(() => { fetchPlatformMedia().then(setPlatformAssets).catch(() => {}); }, []);
+
   const [isRetiming, setIsRetiming] = useState(false);
   const handleRetimeSchedule = async () => {
     if (!schedule) return;
@@ -847,6 +853,7 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack, i
                       onChange={setSchedule}
                       videos={myVideos}
                       bumpers={bumpers}
+                      platformAssets={platformAssets}
                       adDurationSeconds={editAdDur}
                       onSave={handleSaveSchedule}
                       saving={isSaving}
@@ -920,6 +927,7 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack, i
                       onChange={setRadioSchedule}
                       videos={radioTracks}
                       bumpers={bumpers}
+                      platformAssets={platformAssets}
                       stingers={(user as any).radioSettings?.stingers || []}
                       audioAds={(user as any).radioSettings?.ads || []}
                       adDurationSeconds={radioSchedule.adDurationSeconds || 30}
