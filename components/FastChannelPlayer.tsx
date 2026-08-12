@@ -281,14 +281,15 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
   // offset so a mid-slot join only waits out the remaining time.
   useEffect(() => {
     if (!media) return;
-    if (media.kind === 'AD') return;                 // the AdBreakBumper's onComplete ends the break
     if (media.kind === 'MEDIA' && isPaused) return;  // a paused video shouldn't auto-advance
     const off = joinOffsetRef.current || 0;
     const remaining = Math.max(1, media.durationSec - off);
     // For AD/LIVE the offset is consumed here (no metadata handler will); MEDIA consumes it on seek.
     if (media.kind !== 'MEDIA') joinOffsetRef.current = 0;
-    const ms = (media.kind === 'MEDIA' ? remaining + 5 : remaining) * 1000; // +5s grace for MEDIA
-    const t = setTimeout(advance, ms);
+    // AD advances primarily via the bumper's onComplete; this timer is a BACKUP (+6s) so the break
+    // always ends even if the bumper never fires. MEDIA gets +5s grace; LIVE ends at its window.
+    const grace = media.kind === 'MEDIA' ? 5 : media.kind === 'AD' ? 6 : 0;
+    const t = setTimeout(advance, (remaining + grace) * 1000);
     return () => clearTimeout(t);
   }, [currentIndex, media?.kind, media?.durationSec, isPaused, advance]);
 
@@ -447,7 +448,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
         // Ad break with no user ad → the default Plajah "back shortly" bumper: Plajah FM fades in over
         // full-screen cover art (gift/like/add), a coming-up-next card opens the break, then the ad rail
         // cycles in 16:9 for the rest of the slot's duration (set by the channel's ad settings).
-        <AdBreakBumper channelName={channelName} durationSec={media.durationSec} upcoming={upNext} logoUrl={profile.photoURL || undefined} onComplete={advance} />
+        <AdBreakBumper key={`ad-${currentIndex}`} channelName={channelName} durationSec={media.durationSec} upcoming={upNext} logoUrl={profile.photoURL || undefined} onComplete={advance} />
       ) : media?.kind === 'LIVE' ? (
         // A scheduled live programme in the loop — show the creator's live feed for its window.
         liveEmbedUrl ? (

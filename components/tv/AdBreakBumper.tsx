@@ -67,10 +67,11 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
   useEffect(() => {
     let alive = true;
     (async () => {
-      const [tracks, adConfigs, platBumpers, platAds] = await Promise.all([
+      const [tracks, adConfigs, platBumpers, platPromos, platAds] = await Promise.all([
         fetchRadioTracks().catch(() => [] as Track[]),
         fetchAdConfigs().catch(() => [] as AdConfig[]),
         fetchPlatformMedia('PLATFORM_BUMPER').catch(() => []),
+        fetchPlatformMedia('CHANNEL_PROMO').catch(() => []),
         fetchPlatformMedia('PLATFORM_AD').catch(() => []),
       ]);
       if (!alive) return;
@@ -81,8 +82,11 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
       }
       // Same source as the left ad pillar, repurposed for the 16:9 TV break.
       setAds(adConfigs.filter(a => a.isActive && a.imageUrl));
-      // Plajah platform bumpers/house-ads (VIDEOS) that auto-populate the break after the FM card.
-      setPlatformVids([...platAds, ...platBumpers].filter(a => a.url).map(a => ({ url: a.url, title: a.title })));
+      // Plajah platform bumpers + promos + house-ads (VIDEOS) that fill the break — SHUFFLED so the
+      // break varies between them each time.
+      const pool = [...platBumpers, ...platPromos, ...platAds].filter(a => a.url).map(a => ({ url: a.url, title: a.title }));
+      for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+      setPlatformVids(pool);
     })();
     return () => { alive = false; };
   }, []);
@@ -98,10 +102,12 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
   // to scheduled programming even if nothing else advances it. Independent of the audio/ad state.
   const completedRef = useRef(false);
   useEffect(() => {
+    completedRef.current = false; // reset for THIS break (the instance may be reused across ads)
+    startRef.current = Date.now();
     const ms = Math.max(3, durationSec) * 1000;
     const t = setTimeout(() => { if (!completedRef.current) { completedRef.current = true; onComplete?.(); } }, ms);
     return () => clearTimeout(t);
-  }, [durationSec]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [durationSec, onComplete]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Audio: play Plajah FM, seek to the live satellite offset, fade in over 4s + out over the last 4s,
   // and flip to the ad-cycle phase at 30s.
