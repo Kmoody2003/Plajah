@@ -68,11 +68,18 @@ const isEmbeddableUrl = (u: string) =>
 const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWatchWebrtc: (feed: any) => void; onEnded?: () => void; onFail?: () => void }> = ({ channel, muted, onWatchWebrtc, onEnded, onFail }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<any>(null);
+  const startedRef = useRef(false);        // did THIS programme actually start playing?
+  const watchdogRef = useRef<any>(null);
 
   useEffect(() => {
     const v = videoRef.current;
     if (!channel || channel.kind !== 'hls' || !v) return;
     let cancelled = false;
+    startedRef.current = false;
+    // Watchdog: a programme that never STARTS within 10s is skipped fast (instead of waiting out the
+    // parent's full-duration safety timer). Only fires for FAST channels (onFail defined).
+    if (watchdogRef.current) clearTimeout(watchdogRef.current);
+    watchdogRef.current = setTimeout(() => { if (!startedRef.current) onFail?.(); }, 10000);
     (async () => {
       try {
         // Terrestrial mid-join: once the programme's media is ready, seek to where the schedule is
@@ -114,7 +121,7 @@ const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWat
         v.play().catch(() => {});
       } catch { /* */ }
     })();
-    return () => { cancelled = true; try { hlsRef.current?.destroy?.(); hlsRef.current = null; } catch { /* */ } };
+    return () => { cancelled = true; if (watchdogRef.current) clearTimeout(watchdogRef.current); try { hlsRef.current?.destroy?.(); hlsRef.current = null; } catch { /* */ } };
   }, [channel?.id, channel?.kind, channel?.playUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (videoRef.current) videoRef.current.muted = muted; }, [muted]);
@@ -133,9 +140,14 @@ const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWat
     );
   }
   if (channel.kind === 'hls') {
-    // Content-driven: advance to the next slot the moment media ends (or errors) → no black gap when a
-    // programme is shorter than its scheduled block.
-    return <video ref={videoRef} className="absolute inset-0 w-full h-full object-contain bg-black" autoPlay playsInline muted={muted} onEnded={onEnded} onError={onFail} />;
+    // Content-driven: advance to the next slot when media ENDS. On error, only skip if it never
+    // STARTED — a transient mid-play hiccup is left to hls.js recovery, so real content is not skipped
+    // (which was collapsing the channel onto the ad breaks).
+    return <video ref={videoRef} className="absolute inset-0 w-full h-full object-contain bg-black" autoPlay playsInline muted={muted}
+      onPlaying={() => { startedRef.current = true; if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; } }}
+      onLoadedData={() => { startedRef.current = true; }}
+      onEnded={onEnded}
+      onError={() => { if (!startedRef.current) onFail?.(); }} />;
   }
   if (channel.kind === 'fast') {
     // FAST channel whose current slot hasn't resolved to media yet.
