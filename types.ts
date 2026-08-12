@@ -3749,6 +3749,35 @@ export interface FastChannelSchedule {
   lastUpdated: number;
 }
 
+/**
+ * A PLATFORM-OWNED media asset in the central Plajah library (collection `platform_media`) — the one
+ * repository every on-platform broadcast pulls Plajah branding from. Admin-managed.
+ *   • PLATFORM_BUMPER  — Plajah-branded interstitial/ident any FAST channel or broadcast can insert.
+ *   • PLATFORM_AD      — a house/platform ad (the ad rail can fall back to these).
+ *   • TV_OPEN_BUMPER   — plays when the Plajah TV app launches (random per launch), replacing the
+ *                        static splash on TV APKs.
+ *   • TALEO_PREROLL    — the studio ident that plays before Taleo content (Netflix-tudum style).
+ *   • PLATFORM_PROGRAM — full programming the platform provides that channels can source.
+ *   • CHANNEL_PROMO    — cross-promo for Plajah channels/shows.
+ */
+export type PlatformMediaKind =
+  | 'PLATFORM_BUMPER' | 'PLATFORM_AD' | 'TV_OPEN_BUMPER' | 'TALEO_PREROLL' | 'PLATFORM_PROGRAM' | 'CHANNEL_PROMO';
+
+export interface PlatformMediaAsset {
+  id: string;
+  kind: PlatformMediaKind;
+  title: string;
+  url: string;               // video (or image) url in storage
+  thumbnailUrl?: string;
+  durationSeconds?: number;
+  category?: string;         // optional grouping label (e.g. 'Ident', 'Interstitial')
+  isActive: boolean;         // inactive = kept in the library but not served
+  weight?: number;           // relative weight for weighted-random selection (default 1)
+  createdBy?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface ChannelBumper {
   id: string;
   userId: string;

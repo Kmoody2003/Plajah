@@ -56,6 +56,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Plajah platform media library — bumpers, idents, house ads, TV-open + Taleo pre-roll.
+    // Public read (every broadcast/app pulls branding); admin-only write.
+    match /platform_media/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /sports_league_teams/{docId} {
       allow read: if true;
       allow write: if isAdmin();

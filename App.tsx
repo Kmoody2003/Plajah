@@ -110,6 +110,7 @@ import InAppBrowserPrompt from './components/InAppBrowserPrompt';
 import AutoPlayCountdown from './components/AutoPlayCountdown';
 import TVNavigationLayer from './components/TVNavigationLayer';
 import { getPlatformInfo } from './hooks/usePlatform';
+import PlatformBumperPlayer from './components/tv/PlatformBumperPlayer';
 import LiveFollowPills from './components/LiveFollowPills';
 import { measurePerfTier, subscribePerfTier, shouldEnableEffect, getPerfTier } from './services/tvPerformance';
 import TvUnavailableNotice from './components/TvUnavailableNotice';
@@ -502,6 +503,12 @@ const App: React.FC = () => {
   const [callinShowId] = useState<string | undefined>(callinParam || undefined);
   const [listenShowId] = useState<string | undefined>(listenParam || undefined);
   const [showStartRoom, setShowStartRoom] = useState(false);
+  // TV-app opening ident — a random Plajah bumper plays once per launch on TV APKs, replacing the
+  // static splash. Only armed on TVs; resolves to done if the library has none.
+  const [tvIntroDone, setTvIntroDone] = useState(() => !getPlatformInfo().isTV);
+  // Taleo pre-roll ident (studio ta-dum) — plays before a title starts; tracks which item id has
+  // cleared its pre-roll so the player mounts only after it (no audio under the ident).
+  const [prerollDoneFor, setPrerollDoneFor] = useState<string | null>(null);
   // In-session Kids Mode: when a parent switches into a child, the app behaves AS that
   // child (safe content + screen-time) without a separate login.
   const [activeChildProfile, setActiveChildProfile] = useState<UserProfile | null>(null);
@@ -2354,6 +2361,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         <TVNavigationLayer />
         <TooltipSuppressor />
         <ResumeUploadPrompt />
+        {/* Plajah TV-app opening ident — a random bumper from the platform library, once per launch. */}
+        {!tvIntroDone && <PlatformBumperPlayer kind="TV_OPEN_BUMPER" onDone={() => setTvIntroDone(true)} />}
         <Suspense fallback={
           <div className="fixed inset-0 flex items-center justify-center bg-black z-[200]">
             <div className="flex flex-col items-center gap-4">
@@ -5014,7 +5023,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 partyId={partyIdForAlbum || undefined}
               />
             )}
-            {view === 'MOVIE_UX' && selectedMovieItem && (
+            {/* Taleo pre-roll ident — plays before the title; player mounts only once it clears. */}
+            {view === 'MOVIE_UX' && selectedMovieItem && prerollDoneFor !== (selectedMovieItem as any).id && (
+              <PlatformBumperPlayer kind="TALEO_PREROLL" allowSkip onDone={() => setPrerollDoneFor((selectedMovieItem as any).id || 'done')} />
+            )}
+            {view === 'MOVIE_UX' && selectedMovieItem && prerollDoneFor === ((selectedMovieItem as any).id || 'done') && (
               <ErrorBlock componentName="MovieUXView">
                 <MovieUXView
                   item={selectedMovieItem}
