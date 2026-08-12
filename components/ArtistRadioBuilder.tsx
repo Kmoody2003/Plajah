@@ -28,6 +28,7 @@ export default function ArtistRadioBuilder({ user }: Props) {
   const [stationName, setStationName]   = useState('');
   const [stingerFreq, setStingerFreq]   = useState(4);
   const [adFreq, setAdFreq]             = useState(6);
+  const [ownMusicOnly, setOwnMusicOnly] = useState(false);
   const [eligibleIds, setEligibleIds]   = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -45,6 +46,7 @@ export default function ArtistRadioBuilder({ user }: Props) {
           setStationName(rs.stationName ?? '');
           setStingerFreq(rs.stingerFrequency ?? 4);
           setAdFreq(rs.adFrequency ?? 6);
+          setOwnMusicOnly(rs.ownMusicOnly ?? false);
         }
         // Build set of radio-eligible track IDs from all albums
         const ids = new Set<string>();
@@ -77,6 +79,7 @@ export default function ArtistRadioBuilder({ user }: Props) {
       ads: profile?.radioSettings?.ads ?? [],
       stingerFrequency: stingerFreq,
       adFrequency: adFreq,
+      ownMusicOnly,
       otherCreators: profile?.radioSettings?.otherCreators ?? [],
       exclusiveContentIds: profile?.radioSettings?.exclusiveContentIds ?? [],
       scheduledEvents: profile?.radioSettings?.scheduledEvents ?? [],
@@ -166,6 +169,31 @@ export default function ArtistRadioBuilder({ user }: Props) {
             onChange={e => setAdFreq(parseInt(e.target.value) || 6)} className={inputCls} />
         </div>
       </div>
+
+      {/* Own-music filter — a personal station driven by the Plajah FM engine, playing only your
+          catalogue (vs the mixed pool of collaborators + the global pool). Applies to the live queue
+          and auto-scheduling. */}
+      <button onClick={() => setOwnMusicOnly(v => !v)}
+        className="flex items-center gap-4 p-5 rounded-2xl border transition-all w-full text-left"
+        style={{
+          background:  ownMusicOnly ? 'rgba(255,140,0,0.06)' : 'rgba(255,255,255,0.02)',
+          borderColor: ownMusicOnly ? 'rgba(255,140,0,0.25)' : 'rgba(255,255,255,0.07)',
+        }}>
+        <div className={`p-3 rounded-2xl ${ownMusicOnly ? 'bg-[#FF8C00]/15' : 'bg-white/5'}`}>
+          <Music2 size={20} className={ownMusicOnly ? 'text-[#FF8C00]' : 'text-white/25'} />
+        </div>
+        <div className="flex-1">
+          <p className={`text-base font-black uppercase tracking-widest ${ownMusicOnly ? 'text-white' : 'text-white/35'}`}>
+            {ownMusicOnly ? 'Playing only my music' : 'Mixed — my music + the pool'}
+          </p>
+          <p className="text-[10px] text-white/25">
+            {ownMusicOnly ? 'Auto-filter to your own catalogue when the station plays & auto-schedules' : 'Mixes in collaborators and the global pool, like Plajah FM'}
+          </p>
+        </div>
+        <div className={`w-12 h-6 rounded-full transition-all flex items-center px-1 ${ownMusicOnly ? 'bg-[#FF8C00]' : 'bg-white/10'}`}>
+          <div className={`w-4 h-4 rounded-full bg-white transition-all shadow ${ownMusicOnly ? 'translate-x-6' : ''}`} />
+        </div>
+      </button>
 
       {/* Station stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

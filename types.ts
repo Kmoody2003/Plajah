@@ -1281,6 +1281,9 @@ export interface UserProfile {
     ads: string[];      // URLs
     stingerFrequency: number;
     adFrequency?: number; // Added for ad playback logic
+    /** When true the station plays ONLY this artist's own music (no collaborator/pool mixing) — the
+     *  opt-in "auto-filter to my own catalogue" for a personal station driven by the Plajah FM engine. */
+    ownMusicOnly?: boolean;
     otherCreators?: string[]; // UIDs of other creators to play on this station
     exclusiveContentIds?: string[]; // IDs of Tracks/Videos for members
     scheduledEvents?: {

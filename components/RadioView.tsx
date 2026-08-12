@@ -5,84 +5,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Track, UserProfile, Album } from '../types';
 import { fetchRadioTracks, likeTrack, addToLibrary, auth, processDonation, fetchUserProfile, fetchRadioSchedule } from '../services/backendService';
 import { activeDaySlots, slotDurationSec } from '../services/fastChannelTimeline';
+import { getSatellitePosition, getRecentlyPlayed, type RecentlyPlayed } from '../services/radioEngine';
 import DonationModal from './DonationModal';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import LiveRadioBrowser from './radio/LiveRadioBrowser';
 
-// ── Satellite radio helpers ───────────────────────────────────────────────────
-// The station runs continuously 24/7. When you tune in, you join wherever
-// the broadcast currently is — just like satellite or FM radio.
-
-interface SatellitePosition {
-  trackIndex: number;
-  offsetSeconds: number; // how far into the current track we are
-}
-
-function getSatellitePosition(tracks: Track[]): SatellitePosition {
-  if (!tracks.length) return { trackIndex: 0, offsetSeconds: 0 };
-
-  // Anchor: midnight UTC of the current day — gives a stable daily rotation
-  const DAY_MS = 24 * 60 * 60 * 1000;
-  const now = Date.now();
-  const dayStart = Math.floor(now / DAY_MS) * DAY_MS;
-  const msIntoDay = now - dayStart;
-
-  // Treat each track as its declared duration (fallback: 3 min average)
-  const durations = tracks.map(t => (t.duration ?? 180) * 1000); // ms
-  const totalMs = durations.reduce((s, d) => s + d, 0);
-  if (totalMs === 0) return { trackIndex: 0, offsetSeconds: 0 };
-
-  const positionMs = msIntoDay % totalMs;
-  let elapsed = 0;
-  for (let i = 0; i < tracks.length; i++) {
-    if (elapsed + durations[i] > positionMs) {
-      return { trackIndex: i, offsetSeconds: (positionMs - elapsed) / 1000 };
-    }
-    elapsed += durations[i];
-  }
-  return { trackIndex: 0, offsetSeconds: 0 };
-}
-
-interface RecentlyPlayed { track: Track; playedAt: Date }
-
-function getRecentlyPlayed(tracks: Track[], windowMs = 15 * 60 * 1000): RecentlyPlayed[] {
-  if (!tracks.length) return [];
-  const now = Date.now();
-  const windowStart = now - windowMs;
-  const DAY_MS = 24 * 60 * 60 * 1000;
-  const dayStart = Math.floor(now / DAY_MS) * DAY_MS;
-
-  const durations = tracks.map(t => (t.duration ?? 180) * 1000);
-  const totalMs = durations.reduce((s, d) => s + d, 0);
-  if (totalMs === 0) return [];
-
-  const result: RecentlyPlayed[] = [];
-  // Walk backwards from now to find what was playing in the last windowMs
-  let checkMs = now;
-  const seen = new Set<number>();
-
-  while (checkMs >= windowStart && result.length < 8) {
-    const msIntoDay = (checkMs - dayStart + DAY_MS) % DAY_MS;
-    const posInPlaylist = msIntoDay % totalMs;
-    let elapsed = 0;
-    for (let i = 0; i < tracks.length; i++) {
-      if (elapsed + durations[i] > posInPlaylist) {
-        if (!seen.has(i)) {
-          seen.add(i);
-          // Track started playing at: checkMs - (posInPlaylist - elapsed)
-          const startedAt = checkMs - (posInPlaylist - elapsed);
-          result.push({ track: tracks[i], playedAt: new Date(startedAt) });
-        }
-        // Jump back to before this track started
-        checkMs -= (posInPlaylist - elapsed) + 1000;
-        break;
-      }
-      elapsed += durations[i];
-    }
-  }
-
-  return result.filter(r => r.playedAt.getTime() >= windowStart).sort((a, b) => b.playedAt.getTime() - a.playedAt.getTime());
-}
+// ── Satellite radio engine ─────────────────────────────────────────────────────
+// The continuous 24/7 positioning lives in services/radioEngine.ts now — the SAME reusable engine
+// powers the platform-wide Plajah FM station and every individual artist/user station.
 
 function fmtTimeAgo(date: Date): string {
   const sec = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -147,8 +77,13 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
           setExclusiveTracks(exclusive);
           
           const poolTracks = allTracks.filter(t => t.artistId !== activeStationId && !otherCreatorIds.includes(t.artistId || ''));
-          
-          const mixed = [...artistTracks, ...collaboratorsTracks, ...poolTracks.sort(() => Math.random() - 0.5)];
+
+          // "Own music only" — a personal station that plays strictly this artist's catalogue (no
+          // collaborators, no global pool). Same Plajah FM engine, filtered source.
+          const ownMusicOnly = !!profile.radioSettings?.ownMusicOnly;
+          const mixed = ownMusicOnly
+            ? [...artistTracks]
+            : [...artistTracks, ...collaboratorsTracks, ...poolTracks.sort(() => Math.random() - 0.5)];
 
           // If the station has a Program Schedule (built in the radio scheduler), the SCHEDULE drives
           // the queue — the existing Plajah FM engine plays the authored line-up (in order, with the
