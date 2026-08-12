@@ -12,7 +12,7 @@ import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, 
 import type { LiveFeed, UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { SCIENCE_STREAMS } from './scienceStreams';
 import { fetchFastChannelSchedule, type FastChannelListing } from '../services/backendService';
-import { linearPosition, slotDurationSec, resolveSlotMedia, activeDaySlots } from '../services/fastChannelTimeline';
+import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight } from '../services/fastChannelTimeline';
 
 export interface TvChannel {
   id: string;
@@ -30,6 +30,7 @@ export interface TvChannel {
   scheduleOwner?: string; // FAST sub-channel → whose schedule to play + guide
   isLive?: boolean;      // true = a live stream is on air right now (vs. scheduled programming)
   feed?: any;            // original LiveFeed for the webrtc viewer handoff
+  startOffset?: number;  // FAST: seconds to seek into the current programme (terrestrial mid-join)
 }
 
 const BRAND = '#FF8C00';
@@ -42,7 +43,8 @@ const slotTitle = (s: FastChannelSlot): string =>
 function computeEpg(schedule: FastChannelSchedule | null, now: number, count = 6): EpgProgram[] {
   const slots = activeDaySlots(schedule, now);
   if (!slots.length) return [];
-  const { index, offsetSec } = linearPosition(slots, now);
+  // Same time-of-day anchor as playout so the guide's "now" matches what's actually on screen.
+  const { index, offsetSec } = dayAnchoredPosition(slots, now);
   const out: EpgProgram[] = [];
   let cursor = now - offsetSec * 1000;   // when the current slot began
   let i = index;
@@ -71,6 +73,11 @@ const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWat
     let cancelled = false;
     (async () => {
       try {
+        // Terrestrial mid-join: once the programme's media is ready, seek to where the schedule is
+        // for the current time of day, so we start in the middle of the programme (not at 0:00).
+        const off = channel.startOffset || 0;
+        const seekOnce = () => { if (off > 1) { try { v.currentTime = off; } catch { /* */ } } v.removeEventListener('loadedmetadata', seekOnce); };
+        if (off > 1) v.addEventListener('loadedmetadata', seekOnce);
         if (v.canPlayType('application/vnd.apple.mpegurl')) {
           v.src = channel.playUrl; // native HLS (Safari)
         } else {
@@ -99,7 +106,11 @@ const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWat
 
   if (channel.kind === 'embed') {
     // Reload the iframe on channel change by keying it on the channel id.
-    const src = channel.playUrl.includes('mute=') ? channel.playUrl.replace(/mute=\d/, `mute=${muted ? 1 : 0}`) : channel.playUrl;
+    let src = channel.playUrl.includes('mute=') ? channel.playUrl.replace(/mute=\d/, `mute=${muted ? 1 : 0}`) : channel.playUrl;
+    // Terrestrial mid-join for a FAST programme that resolves to a YouTube embed — start partway in.
+    if (channel.startOffset && channel.startOffset > 1 && /youtube\.com\/embed/.test(src) && !/[?&]start=/.test(src)) {
+      src += `${src.includes('?') ? '&' : '?'}start=${Math.floor(channel.startOffset)}`;
+    }
     return (
       <iframe key={channel.id} src={src} className="absolute inset-0 w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title={channel.name} />
     );
@@ -356,7 +367,7 @@ const LiveTvPlus: React.FC<{
   const playing = channels[loadedIndex] || null;
 
   // Resolve a FAST channel's CURRENT scheduled slot into playable media (Mux HLS / direct).
-  const [fastMedia, setFastMedia] = useState<{ url: string; kind: 'hls' | 'embed' } | null>(null);
+  const [fastMedia, setFastMedia] = useState<{ url: string; kind: 'hls' | 'embed'; offset: number } | null>(null);
   useEffect(() => {
     let cancelled = false;
     const owner = playing?.kind === 'fast' ? playing.scheduleOwner : undefined;
@@ -365,10 +376,12 @@ const LiveTvPlus: React.FC<{
       if (cancelled) return;
       const daySlots = activeDaySlots(sched, Date.now());
       if (!daySlots.length) { setFastMedia(null); return; }
-      const { index: si } = linearPosition(daySlots, Date.now());
-      const m = resolveSlotMedia(daySlots[si]);
+      // Terrestrial join: pick the programme on air for the TIME OF DAY and how far into it to seek.
+      const pos = sched?.midnightAnchored ? linearPositionMidnight(daySlots, Date.now()) : dayAnchoredPosition(daySlots, Date.now());
+      if ('offAir' in pos && pos.offAir) { setFastMedia(null); return; }
+      const m = resolveSlotMedia(daySlots[pos.index]);
       const url = m.muxPlaybackId ? `https://stream.mux.com/${m.muxPlaybackId}.m3u8` : (m.url || '');
-      setFastMedia(url ? { url, kind: (m.isHls || m.muxPlaybackId) ? 'hls' : (isEmbeddableUrl(url) ? 'embed' : 'hls') } : null);
+      setFastMedia(url ? { url, kind: (m.isHls || m.muxPlaybackId) ? 'hls' : (isEmbeddableUrl(url) ? 'embed' : 'hls'), offset: pos.offsetSec } : null);
     };
     if (schedCache.current.has(owner)) resolve(schedCache.current.get(owner)!);
     else fetchFastChannelSchedule(owner).then(s => { schedCache.current.set(owner, s); resolve(s); }).catch(() => resolve(null));
@@ -378,7 +391,7 @@ const LiveTvPlus: React.FC<{
 
   // The channel actually handed to the player: FAST channels play their current scheduled slot.
   const resolvedPlaying: TvChannel | null = playing && playing.kind === 'fast'
-    ? (fastMedia ? { ...playing, kind: fastMedia.kind, playUrl: fastMedia.url } : playing)
+    ? (fastMedia ? { ...playing, kind: fastMedia.kind, playUrl: fastMedia.url, startOffset: fastMedia.offset } : playing)
     : playing;
 
   if (channels.length === 0) {

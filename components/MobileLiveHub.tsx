@@ -12,7 +12,7 @@ import {
   auth, listenToMessages, sendMessage, ensureLiveChatRoom,
   fetchFastChannelVideos, fetchFastChannelSchedule,
 } from '../services/backendService';
-import { linearPosition, resolveSlotMedia, slotIsPlayable, slotsFromVideos } from '../services/fastChannelTimeline';
+import { resolveSlotMedia, slotIsPlayable, slotsFromVideos, activeDaySlots, dayAnchoredPosition } from '../services/fastChannelTimeline';
 import { hlsTuning, capLevelsToPanel } from '../services/hlsTuning';
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -249,12 +249,14 @@ const MobileFastViewer: React.FC<{ listing: FastChannelListing; onClose: () => v
         fetchFastChannelSchedule(profile.uid).catch(() => null),
       ]);
       if (!alive) return;
-      let built: FastChannelSlot[] = schedule?.slots?.length
-        ? [...schedule.slots].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      const daySlots = activeDaySlots(schedule, Date.now());
+      let built: FastChannelSlot[] = daySlots.length
+        ? [...daySlots].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
         : slotsFromVideos(vids as any);
       built = built.filter(slotIsPlayable);
       if (built.length) {
-        const { index: i, offsetSec } = linearPosition(built, Date.now());
+        // Terrestrial join: anchor to the time of day (local midnight), seek mid-programme.
+        const { index: i, offsetSec } = dayAnchoredPosition(built, Date.now());
         joinOffsetRef.current = offsetSec;
         setSlots(built); setIndex(i);
       }

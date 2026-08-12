@@ -128,6 +128,43 @@ export function buildAsRunLog(slots: FastChannelSlot[], dayStartMs?: number): As
   return out;
 }
 
+/**
+ * TIME-OF-DAY anchored position — the terrestrial-broadcast join. The schedule is anchored to LOCAL
+ * midnight and loops within the day, so tuning in at any wall-clock lands you on whatever is "on now"
+ * AND how far into it to seek (you join mid-programme, never at the top), and the day resets at
+ * midnight — matching per-day (weeklySlots) schedules. Use this for live playout instead of the
+ * epoch-anchored linearPosition so 3pm always means the 3pm programme.
+ */
+export function dayAnchoredPosition(slots: FastChannelSlot[], atMs: number): { index: number; offsetSec: number } {
+  const total = loopTotalSec(slots);
+  if (!slots?.length || total <= 0) return { index: 0, offsetSec: 0 };
+  let pos = Math.floor((atMs - localMidnightMs(atMs)) / 1000) % total;
+  if (pos < 0) pos += total;
+  for (let i = 0; i < slots.length; i++) {
+    const d = slotDurationSec(slots[i]);
+    if (pos < d) return { index: i, offsetSec: pos };
+    pos -= d;
+  }
+  return { index: 0, offsetSec: 0 };
+}
+
+/**
+ * The single "what's on this channel right now" resolver for live playout. Picks the current weekday's
+ * slots, then: a midnight-anchored channel uses the no-clip / off-air-until-midnight model; every other
+ * channel uses the day-anchored loop. Returns the slots plus either {index, offsetSec} or {offAir}.
+ */
+export function playoutPosition(
+  schedule: Pick<FastChannelSchedule, 'slots' | 'weeklySlots' | 'midnightAnchored'> | null | undefined,
+  atMs: number,
+): { slots: FastChannelSlot[]; offAir: false; index: number; offsetSec: number } | { slots: FastChannelSlot[]; offAir: true; resumesInSec: number } {
+  const slots = activeDaySlots(schedule, atMs);
+  if (schedule?.midnightAnchored) {
+    const p = linearPositionMidnight(slots, atMs);
+    return p.offAir ? { slots, offAir: true, resumesInSec: p.resumesInSec } : { slots, offAir: false, index: p.index, offsetSec: p.offsetSec };
+  }
+  return { slots, offAir: false, ...dayAnchoredPosition(slots, atMs) };
+}
+
 export type SlotMediaKind = 'MEDIA' | 'AD' | 'LIVE';
 export interface SlotMedia {
   kind: SlotMediaKind;

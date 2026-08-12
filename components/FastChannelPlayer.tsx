@@ -5,7 +5,7 @@ import Hls from 'hls.js';
 import { UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { fetchFastChannelVideos, fetchFastChannelSchedule, auth } from '../services/backendService';
 import { checkMembership } from '../services/sanctuaryService';
-import { linearPosition, resolveSlotMedia, slotIsPlayable, slotsFromVideos, activeDaySlots } from '../services/fastChannelTimeline';
+import { resolveSlotMedia, slotIsPlayable, slotsFromVideos, activeDaySlots, dayAnchoredPosition, linearPositionMidnight } from '../services/fastChannelTimeline';
 import { hlsTuning, capLevelsToPanel } from '../services/hlsTuning';
 
 interface FastChannelPlayerProps {
@@ -51,6 +51,8 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
   const [liveInterruptActive, setLiveInterruptActive] = useState(false);
   const [channelSchedule, setChannelSchedule] = useState<FastChannelSchedule | null>(null);
   const [viewerIsMember, setViewerIsMember] = useState(false);
+  // Midnight-anchored channel that has run out of programming for the day → off-air until midnight.
+  const [offAirResumeMs, setOffAirResumeMs] = useState<number | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const joinOffsetRef = useRef(0);   // seconds to seek into the joined slot (consumed once)
@@ -95,11 +97,19 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
       }
 
       if (built.length > 0) {
-        const { index, offsetSec } = linearPosition(built, Date.now());
-        joinOffsetRef.current = offsetSec;
+        // Terrestrial join: anchor to the TIME OF DAY (local-midnight) so tuning in at 3pm lands on
+        // the 3pm programme AND seeks mid-way into it — never restarts the schedule from the top.
+        const pos = schedule?.midnightAnchored
+          ? linearPositionMidnight(built, Date.now())
+          : dayAnchoredPosition(built, Date.now());
         setSlots(built);
-        setCurrentIndex(index);
         setHasExternalUrl(false);
+        if ('offAir' in pos && pos.offAir) {
+          setOffAirResumeMs(Date.now() + pos.resumesInSec * 1000);
+        } else {
+          joinOffsetRef.current = pos.offsetSec;
+          setCurrentIndex(pos.index);
+        }
       } else if (profile.liveStreamConfig?.fastChannelUrl) {
         setHasExternalUrl(true);
       }
@@ -308,6 +318,21 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
           allowFullScreen
           allow="autoplay; fullscreen"
         />
+      </div>
+    );
+  }
+
+  // Off-air card — a midnight-anchored channel that finished its day's programming (terrestrial sign-off).
+  if (offAirResumeMs) {
+    return (
+      <div className="fixed inset-0 bg-black z-[200] flex flex-col items-center justify-center gap-5 p-8">
+        {FeedTabs}
+        {profile.photoURL && <img src={profile.photoURL} className="w-16 h-16 rounded-2xl object-cover border border-white/15" alt="" />}
+        <Tv size={40} className="text-white/20" />
+        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-white/40">{channelName}</p>
+        <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white text-center">Programming resumes at midnight</h2>
+        <p className="text-[10px] uppercase tracking-widest text-white/30">Back in {Math.max(1, Math.round((offAirResumeMs - Date.now()) / 60000))} min</p>
+        <button onClick={onClose} className="mt-2 px-8 py-3 bg-white/10 rounded-full text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-colors">Close</button>
       </div>
     );
   }
