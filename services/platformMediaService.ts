@@ -79,3 +79,36 @@ export function pickRandomPlatformAsset(assets: PlatformMediaAsset[]): PlatformM
 export async function fetchRandomPlatformAsset(kind: PlatformMediaKind): Promise<PlatformMediaAsset | null> {
   return pickRandomPlatformAsset(await fetchPlatformMedia(kind));
 }
+
+// ── On-device ident cache ────────────────────────────────────────────────────
+// The launch/pre-roll idents live in platform storage, but a TV must play one INSTANTLY at boot — a
+// network fetch + stream is exactly what makes the app feel slow. So the app copies them into the
+// device's Cache Storage once, and every later launch plays the LOCAL copy (no network at all).
+const IDENT_CACHE = 'plajah-idents-v1';
+
+/** Copy the platform's idents onto the device (idempotent, best-effort, safe to call on every boot). */
+export async function precachePlatformIdents(kinds: PlatformMediaKind[] = ['TV_OPEN_BUMPER', 'TALEO_PREROLL'], max = 8): Promise<void> {
+  try {
+    if (typeof caches === 'undefined') return;
+    const cache = await caches.open(IDENT_CACHE);
+    for (const kind of kinds) {
+      const assets = await fetchPlatformMedia(kind).catch(() => []);
+      for (const a of assets.slice(0, max)) {
+        if (!a.url) continue;
+        const hit = await cache.match(a.url).catch(() => undefined);
+        if (!hit) await cache.add(a.url).catch(() => {});   // one-time copy; ignore CORS/size failures
+      }
+    }
+  } catch { /* caching is an optimisation — never let it block playback */ }
+}
+
+/** Resolve an ident url to its LOCAL copy when one exists, else the original (streams as before). */
+export async function localIdentUrl(url: string): Promise<string> {
+  try {
+    if (!url || typeof caches === 'undefined') return url;
+    const cache = await caches.open(IDENT_CACHE);
+    const hit = await cache.match(url);
+    if (hit) return URL.createObjectURL(await hit.blob());
+  } catch { /* fall through to the network url */ }
+  return url;
+}

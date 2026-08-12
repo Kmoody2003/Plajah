@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { PlatformMediaKind, PlatformMediaAsset } from '../../types';
-import { fetchRandomPlatformAsset } from '../../services/platformMediaService';
+import { fetchRandomPlatformAsset, precachePlatformIdents, localIdentUrl } from '../../services/platformMediaService';
 
 /**
  * PlatformBumperPlayer — plays ONE platform-owned bumper full-screen, then calls onDone. Used for the
@@ -69,13 +69,24 @@ const PlatformBumperPlayer: React.FC<Props> = ({ kind, onDone, allowSkip = false
     return () => { clearTimeout(t); if (skipT) clearTimeout(skipT); };
   }, [asset]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Play the device-local copy when we have one (instant), and copy the platform's idents down in the
+  // background so every later launch is local. Never blocks the ident that's playing now.
+  const [playUrl, setPlayUrl] = useState<string>('');
+  useEffect(() => {
+    if (!asset?.url) return;
+    let alive = true;
+    localIdentUrl(asset.url).then(u => { if (alive) setPlayUrl(u); }).catch(() => { if (alive) setPlayUrl(asset.url); });
+    const t = setTimeout(() => { precachePlatformIdents(); }, 2500);
+    return () => { alive = false; clearTimeout(t); };
+  }, [asset?.url]);
+
   if (!asset) return null;
 
   return (
     <div className="fixed inset-0 z-[3000] bg-black grid place-items-center">
       <video
         ref={videoRef}
-        src={asset.url}
+        src={playUrl || asset.url}
         className="w-full h-full object-contain bg-black"
         autoPlay
         playsInline

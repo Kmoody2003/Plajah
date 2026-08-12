@@ -17,6 +17,8 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
+        <!-- Brand-black behind the WebView so the splash → app handoff never flashes white. -->
+        <item name="android:windowBackground">@color/plajah_splash_bg</item>
     </style>
 
     <style name="AppTheme.NoActionBar" parent="Theme.Material3.DayNight.NoActionBar">
@@ -25,9 +27,18 @@
         <item name="android:background">@null</item>
     </style>
 
-    <!-- Splash screen — transitions into AppTheme after Compose is ready -->
+    <!-- Splash screen — transitions into AppTheme once the WebView is ready.
+         Android 12+ uses the SplashScreen API and IGNORES `android:background`, falling back to the
+         system default (the launcher icon on its own background) — that is the green Android screen.
+         Setting the SplashScreen attributes explicitly replaces it with Plajah's mark on brand black,
+         so the launch reads as Plajah and hands off to the in-app ident without a colour flash. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-        <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">@color/plajah_splash_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/plajah_splash_bg</item>
+        <!-- Pre-12 devices still honour this. -->
+        <item name="android:windowBackground">@color/plajah_splash_bg</item>
+        <item name="android:background">@color/plajah_splash_bg</item>
         <item name="postSplashScreenTheme">@style/AppTheme</item>
     </style>
 

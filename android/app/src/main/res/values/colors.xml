@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Plajah launch background — the same near-black the web app paints, so the native splash,
+         the WebView boot and the in-app opening ident are one continuous surface (no green, no
+         white flash between them). -->
+    <color name="plajah_splash_bg">#04030A</color>
+</resources>
