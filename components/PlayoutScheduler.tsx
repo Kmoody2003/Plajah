@@ -193,7 +193,8 @@ const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers
   // Plajah platform-library assets any broadcast can pull branding from.
   const platformBumpers = platformAssets.filter(a => a.kind === 'PLATFORM_BUMPER');
   const platformPromos = platformAssets.filter(a => a.kind === 'CHANNEL_PROMO');
-  const platformProgs = platformAssets.filter(a => a.kind === 'PLATFORM_PROGRAM' || a.kind === 'PLATFORM_AD');
+  const platformProgs = platformAssets.filter(a => a.kind === 'PLATFORM_PROGRAM');
+  const platformAds = platformAssets.filter(a => a.kind === 'PLATFORM_AD');
   const newPlatformBumper = (a: any, promo = false): FastChannelSlot => ({ id: `plb_${a.id}_${Date.now()}`, type: 'BUMPER', order: 0, bumperUrl: a.url, bumperTitle: a.title, bumperDurationSeconds: a.durationSeconds || 10, isPromo: promo || undefined, bugLabel: promo ? 'PROMO' : undefined });
   const newPlatformProgram = (a: any): FastChannelSlot => ({ id: `plp_${a.id}_${Date.now()}`, type: 'VIDEO', order: 0, videoUrl: a.url, videoTitle: a.title, videoThumbnail: a.thumbnailUrl, videoDurationSeconds: a.durationSeconds });
 
@@ -501,6 +502,19 @@ const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers
                   <button onClick={() => append(newAd())} className="w-full flex items-center gap-2 p-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-300 text-[9px] font-black uppercase tracking-widest hover:bg-yellow-500/20 mb-2">
                     <DollarSign size={12} /> Insert {adDurationSeconds}s Ad Break
                   </button>
+                  {platformAds.length > 0 && (
+                    <>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-small-orange/70 mb-1.5">From Plajah Library</p>
+                      {platformAds.map(a => (
+                        <button key={a.id} onClick={() => append(newPlatformProgram(a))} className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 text-left group mb-1">
+                          <DollarSign size={12} className="text-small-orange shrink-0" />
+                          <span className="flex-1 text-[9px] font-black uppercase tracking-tight truncate text-white/60 group-hover:text-white">{a.title}</span>
+                          <span className="text-[7px] text-small-orange/60 uppercase shrink-0">Plajah</span>
+                          <Plus size={12} className="text-white/20 group-hover:text-white shrink-0" />
+                        </button>
+                      ))}
+                    </>
+                  )}
                   {isRadio && audioAds.length > 0 && (
                     <>
                       <p className="text-[8px] text-white/30 uppercase tracking-widest mb-1.5">Your station ads (radioSettings)</p>

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Heart, Plus, HeartHandshake, Radio, Check } from 'lucide-react';
 import { Track, AdConfig } from '../../types';
 import { fetchRadioTracks, likeTrack, addToLibrary, fetchAdConfigs, auth } from '../../services/backendService';
+import { fetchPlatformMedia } from '../../services/platformMediaService';
 import { getSatellitePosition } from '../../services/radioEngine';
 import ComingUpNextBumper, { type UpNextItem } from './ComingUpNextBumper';
 import DonationModal from '../DonationModal';
@@ -39,6 +40,8 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
   const [track, setTrack] = useState<Track | null>(null);
   const [ads, setAds] = useState<AdConfig[]>([]);
   const [adIdx, setAdIdx] = useState(0);
+  const [platformVids, setPlatformVids] = useState<{ url: string; title: string }[]>([]);
+  const [pvIdx, setPvIdx] = useState(0);
   const [phase, setPhase] = useState<'fm' | 'ads'>('fm');
   const [showUpNext, setShowUpNext] = useState(upcoming.length > 0);
   const [gift, setGift] = useState(false);
@@ -54,9 +57,11 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
   useEffect(() => {
     let alive = true;
     (async () => {
-      const [tracks, adConfigs] = await Promise.all([
+      const [tracks, adConfigs, platBumpers, platAds] = await Promise.all([
         fetchRadioTracks().catch(() => [] as Track[]),
         fetchAdConfigs().catch(() => [] as AdConfig[]),
+        fetchPlatformMedia('PLATFORM_BUMPER').catch(() => []),
+        fetchPlatformMedia('PLATFORM_AD').catch(() => []),
       ]);
       if (!alive) return;
       if (tracks.length) {
@@ -66,6 +71,8 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
       }
       // Same source as the left ad pillar, repurposed for the 16:9 TV break.
       setAds(adConfigs.filter(a => a.isActive && a.imageUrl));
+      // Plajah platform bumpers/house-ads (VIDEOS) that auto-populate the break after the FM card.
+      setPlatformVids([...platAds, ...platBumpers].filter(a => a.url).map(a => ({ url: a.url, title: a.title })));
     })();
     return () => { alive = false; };
   }, []);
@@ -105,19 +112,26 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
       if (el < FADE_SEC) v = el / FADE_SEC;
       else if (remaining < FADE_SEC) v = Math.max(0, remaining / FADE_SEC);
       a.volume = muted ? 0 : Math.max(0, Math.min(1, v));
-      if (el >= COVER_ART_SEC && !switchedRef.current && ads.length > 0) { switchedRef.current = true; setPhase('ads'); }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => { cancelAnimationFrame(raf); a.removeEventListener('loadedmetadata', onMeta); try { a.pause(); } catch { /* */ } };
-  }, [track?.url, durationSec, ads.length, muted]);
+  }, [track?.url, durationSec, muted]);
 
-  // Cycle the ad rail once we're in the ads phase.
+  // After the FM card, switch to the interstitial phase (Plajah platform bumpers, else the ad rail).
+  // Independent of the audio so it runs even when there's no FM track.
   useEffect(() => {
-    if (phase !== 'ads' || ads.length === 0) return;
+    if (platformVids.length === 0 && ads.length === 0) return;
+    const t = setTimeout(() => setPhase('ads'), COVER_ART_SEC * 1000);
+    return () => clearTimeout(t);
+  }, [platformVids.length, ads.length]);
+
+  // Cycle the ad-rail IMAGES only when there are no platform bumper videos (those cycle on `ended`).
+  useEffect(() => {
+    if (phase !== 'ads' || platformVids.length > 0 || ads.length === 0) return;
     const t = setInterval(() => setAdIdx(i => (i + 1) % ads.length), 7000);
     return () => clearInterval(t);
-  }, [phase, ads.length]);
+  }, [phase, ads.length, platformVids.length]);
 
   const cover = (track as any)?.albumCover || (track as any)?.coverArt || (track as any)?.artworkUrl || (track as any)?.images?.[0] || '';
   const artist = track?.artist || 'Plajah FM';
@@ -132,7 +146,20 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
     <div className="absolute inset-0 overflow-hidden select-none bg-black">
       <audio ref={audioRef} playsInline />
 
-      {phase === 'ads' && currentAd ? (
+      {phase === 'ads' && platformVids.length > 0 ? (
+        // ── Plajah platform bumpers (videos) auto-populated into the break, cycling on end ──
+        <div className="absolute inset-0 bg-black">
+          <video
+            key={pvIdx}
+            src={platformVids[pvIdx % platformVids.length].url}
+            className="absolute inset-0 w-full h-full object-contain bg-black"
+            autoPlay playsInline muted={muted}
+            onEnded={() => setPvIdx(i => (i + 1) % platformVids.length)}
+            onError={() => setPvIdx(i => (i + 1) % platformVids.length)}
+          />
+          <div className="absolute bottom-0 inset-x-0 h-1.5" style={{ background: `linear-gradient(90deg, ${ORANGE}, ${MAGENTA}, ${PURPLE})` }} />
+        </div>
+      ) : phase === 'ads' && currentAd ? (
         // ── Ad rail, reworked for 16:9 ──
         <a href={currentAd.linkUrl || undefined} target="_blank" rel="noopener noreferrer" className="absolute inset-0 block">
           <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 100% at 50% 0%, #14002b 0%, #04030a 70%)' }} />

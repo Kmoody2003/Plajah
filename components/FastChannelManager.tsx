@@ -41,6 +41,7 @@ import {
 import { useUpload } from '../contexts/UploadContext';
 import PlayoutScheduler, { type LiveAudioSource } from './PlayoutScheduler';
 import { backfillScheduleDurations } from '../services/fastChannelTimeline';
+import { probeDurations } from '../services/mediaProbe';
 import { fetchPlatformMedia } from '../services/platformMediaService';
 import type { PlatformMediaAsset } from '../types';
 
@@ -212,11 +213,43 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack, i
     setIsLoading(false);
   };
 
+  // Probe the REAL length of every content slot (HLS/Mux via hls.js, direct files via <video>) and
+  // write it into the schedule — so auto-generate uses ACTUAL asset durations (specific times), not the
+  // 30-min standard fallback. Library durations win; unknowns are probed. Bounded to 120 probes.
+  const retimeSchedule = async (sched: FastChannelSchedule): Promise<FastChannelSchedule> => {
+    const durById = new Map<string, number>((myVideos as any[]).map(v => [v.id, Math.round(Number(v.duration) || 0)]));
+    const toProbe = new Set<string>();
+    const uncertain = (s: FastChannelSlot) => {
+      const lib = (s.videoId && durById.get(s.videoId)) || 0;
+      const stored = Math.round(Number(s.videoDurationSeconds) || 0);
+      return lib <= 0 && (stored <= 1 || stored === 1800); // unknown / default-block
+    };
+    const scan = (slots?: FastChannelSlot[]) => (slots || []).forEach(s => {
+      if ((s.type === 'VIDEO' || s.type === 'PUBLIC_DOMAIN') && s.videoUrl && uncertain(s)) toProbe.add(s.videoUrl);
+    });
+    scan(sched.slots); Object.values(sched.weeklySlots || {}).forEach(scan as any);
+    const probed = await probeDurations([...toProbe].slice(0, 120));
+    const fix = (slots?: FastChannelSlot[]) => (slots || []).map(s => {
+      if (s.type !== 'VIDEO' && s.type !== 'PUBLIC_DOMAIN') return s;
+      const lib = (s.videoId && durById.get(s.videoId)) || 0;
+      const real = lib > 0 ? lib : (s.videoUrl ? (probed.get(s.videoUrl) || 0) : 0);
+      const stored = Math.round(Number(s.videoDurationSeconds) || 0);
+      return (real > 0 && real !== stored) ? { ...s, videoDurationSeconds: real } : s;
+    });
+    const wk = sched.weeklySlots
+      ? Object.fromEntries(Object.entries(sched.weeklySlots).map(([k, v]) => [k, fix(v as FastChannelSlot[])]))
+      : undefined;
+    return { ...sched, slots: fix(sched.slots), ...(wk ? { weeklySlots: wk as any } : {}) };
+  };
+
   const handleAutoGenerate = async () => {
     setIsGenerating(true);
-    const generated = await autoGenerateFastChannelSchedule(user.uid);
-    setSchedule(generated);
-    setIsGenerating(false);
+    try {
+      const generated = await autoGenerateFastChannelSchedule(user.uid);
+      const retimed = await retimeSchedule(generated); // accurate per-asset times, not 30-min blocks
+      setSchedule(retimed);
+      await saveFastChannelSchedule(retimed).catch(() => {});
+    } finally { setIsGenerating(false); }
   };
 
   // Auto-build a DISTINCT schedule for every weekday from the library — a rotated ordering per day so
@@ -233,7 +266,10 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack, i
           const rot = baseSlots.length ? d % baseSlots.length : 0;
           weekly[d] = [...baseSlots.slice(rot), ...baseSlots.slice(0, rot)].map((s, i) => ({ ...s, id: `${s.id}_d${d}`, order: i }));
         }
-        setSchedule(prev => (prev ? { ...prev, weeklySlots: weekly } : (base ? { ...base, weeklySlots: weekly } : prev)));
+        const merged: FastChannelSchedule = (schedule ? { ...schedule, weeklySlots: weekly } : { ...(base as FastChannelSchedule), weeklySlots: weekly });
+        const retimed = await retimeSchedule(merged);
+        setSchedule(retimed);
+        await saveFastChannelSchedule(retimed).catch(() => {});
       }
     } finally {
       setIsGenerating(false);
@@ -249,49 +285,18 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack, i
 
   // Best-effort client-side probe of a media file's real duration (non-HLS only — a bare <video> can't
   // read an .m3u8 without hls.js). Used to permanently repair schedules whose stored durations are bad.
-  const probeDuration = (url: string, timeoutMs = 6000): Promise<number> => new Promise(resolve => {
-    if (!url || /\.m3u8($|[?#])/i.test(url)) return resolve(0);
-    const el = document.createElement('video');
-    el.preload = 'metadata'; el.muted = true;
-    let done = false;
-    const finish = (d: number) => { if (done) return; done = true; try { el.src = ''; } catch { /* */ } resolve(d); };
-    const timer = setTimeout(() => finish(0), timeoutMs);
-    el.onloadedmetadata = () => { clearTimeout(timer); finish(Number.isFinite(el.duration) && el.duration > 0 ? Math.round(el.duration) : 0); };
-    el.onerror = () => { clearTimeout(timer); finish(0); };
-    el.src = url;
-  });
-
-  // Permanently REWRITE programme durations into the stored schedule: fill from the library, then probe
-  // any still-unknown slots. Fixes the "every asset the same time / black gaps" schedules at the source
-  // (not just at read time), while KEEPING the user's slot order.
   // Plajah platform library — bumpers/promos/programs any broadcast can pull branding from.
   const [platformAssets, setPlatformAssets] = useState<PlatformMediaAsset[]>([]);
   useEffect(() => { fetchPlatformMedia().then(setPlatformAssets).catch(() => {}); }, []);
 
+  // "Fix Programme Times" — probe REAL lengths (HLS/Mux + direct) into the stored schedule, keeping
+  // the user's slot order. Same engine auto-generate uses so both produce specific per-asset times.
   const [isRetiming, setIsRetiming] = useState(false);
   const handleRetimeSchedule = async () => {
     if (!schedule) return;
     setIsRetiming(true);
     try {
-      const durMap = new Map<string, number>((myVideos as any[]).map(v => [v.id, Math.round(Number(v.duration) || 0)]));
-      // Collect slots still missing a real length after the library pass, to probe.
-      const toProbe = new Map<string, string>();
-      const collect = (slots?: FastChannelSlot[]) => (slots || []).forEach(s => {
-        if ((s.type === 'VIDEO' || s.type === 'PUBLIC_DOMAIN') && s.videoId && s.videoUrl) {
-          const known = durMap.get(s.videoId) || 0;
-          const stored = Math.round(Number(s.videoDurationSeconds) || 0);
-          if (known <= 0 && stored <= 1) toProbe.set(s.videoId, s.videoUrl);
-        }
-      });
-      collect(schedule.slots);
-      Object.values(schedule.weeklySlots || {}).forEach(collect as any);
-      const entries = [...toProbe.entries()].slice(0, 80); // bounded
-      for (let i = 0; i < entries.length; i += 4) {
-        const batch = entries.slice(i, i + 4);
-        const results = await Promise.all(batch.map(([id, url]) => probeDuration(url).then(d => [id, d] as const)));
-        results.forEach(([id, d]) => { if (d > 0) durMap.set(id, d); });
-      }
-      const fixed = backfillScheduleDurations(schedule, durMap);
+      const fixed = await retimeSchedule(schedule);
       setSchedule(fixed);
       await saveFastChannelSchedule(fixed);
     } finally { setIsRetiming(false); }
