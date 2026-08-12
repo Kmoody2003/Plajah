@@ -95,9 +95,12 @@ const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWat
         const isM3u8 = /\.m3u8($|[?#])/i.test(channel.playUrl) || channel.playUrl.includes('stream.mux.com');
         if (!isM3u8) {
           v.src = channel.playUrl; // direct file (mp4/webm) — no hls.js needed
-        } else if (v.canPlayType('application/vnd.apple.mpegurl')) {
-          v.src = channel.playUrl; // native HLS (Safari)
         } else {
+          // canPlayType('application/vnd.apple.mpegurl') is NOT a reliable native-HLS test: Chromium —
+          // including the Android TV WebView — answers "maybe", plays until the first discontinuity, then
+          // dies with DEMUXER_ERROR_COULD_NOT_PARSE. Taking that branch also skipped hls.js entirely, so
+          // the recovery below AND capLevelsToPanel never ran on the TV and a dead channel stayed dead.
+          // Try hls.js FIRST wherever MSE supports it; native src is the fallback (Safari/iOS).
           const [{ default: Hls }, { hlsTuning, capLevelsToPanel }] = await Promise.all([
             import('hls.js'),
             import('../services/hlsTuning'),

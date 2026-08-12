@@ -248,10 +248,12 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
     v.addEventListener('loadeddata', onStarted);
 
     if (hlsSrc) {
-      if (v.canPlayType('application/vnd.apple.mpegurl')) {
-        v.src = hlsSrc;                       // Safari — native adaptive HLS
-        v.play().catch(() => {});
-      } else if (Hls.isSupported()) {
+      // canPlayType('application/vnd.apple.mpegurl') answers "maybe" in Chromium (incl. the Android TV
+      // WebView), so the native branch used to win there and then fail mid-stream with
+      // DEMUXER_ERROR_COULD_NOT_PARSE. It carries no ERROR handler, and the 9s watchdog has already
+      // disarmed on `playing`, so nothing called skipBroken() and the channel sat on a dead frame for
+      // good. hls.js FIRST wherever MSE supports it; a native src is the fallback (Safari/iOS).
+      if (Hls.isSupported()) {
         const hls = new Hls(hlsTuning());
         hlsRef.current = hls;
         hls.loadSource(hlsSrc); hls.attachMedia(v);
