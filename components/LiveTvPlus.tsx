@@ -83,14 +83,29 @@ const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWat
         if (v.canPlayType('application/vnd.apple.mpegurl')) {
           v.src = channel.playUrl; // native HLS (Safari)
         } else {
-          const Hls = (await import('hls.js')).default;
+          const [{ default: Hls }, { hlsTuning, capLevelsToPanel }] = await Promise.all([
+            import('hls.js'),
+            import('../services/hlsTuning'),
+          ]);
           if (cancelled) return;
           if (Hls.isSupported()) {
             hlsRef.current?.destroy?.();
-            const hls = new Hls({ lowLatencyMode: true, enableWorker: true });
+            const hls = new Hls(hlsTuning());   // VOD-tuned config (not low-latency) + per-panel cap
             hlsRef.current = hls;
             hls.loadSource(channel.playUrl);
             hls.attachMedia(v);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => { capLevelsToPanel(hls as any); v.play().catch(() => {}); });
+            // Recover transient faults so a hiccup doesn't leave the channel black; the 30s re-resolve
+            // moves past a permanently dead slot.
+            let tries = 0;
+            hls.on(Hls.Events.ERROR, (_e: any, data: any) => {
+              if (!data?.fatal || tries >= 2) return;
+              tries++;
+              try {
+                if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+                else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+              } catch { /* */ }
+            });
           } else {
             v.src = channel.playUrl;
           }

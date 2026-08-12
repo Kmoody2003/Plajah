@@ -91,7 +91,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
       setLiveArtists(artists);
     };
     loadLiveArtists();
-    fetchAllFastChannels(100).then(setFastChannels).catch(() => {});
+    fetchAllFastChannels(300).then(setFastChannels).catch(() => {});
 
     return () => unsubscribe();
   }, []);

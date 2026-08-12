@@ -8574,8 +8574,11 @@ export interface FastChannelListing {
  * channel explicitly unpublished. The owner profile rides along so a listing plays straight through
  * FastChannelPlayer.
  */
-export const fetchAllFastChannels = async (max = 60): Promise<FastChannelListing[]> => {
+export const fetchAllFastChannels = async (max = 300): Promise<FastChannelListing[]> => {
   try {
+    // No orderBy on the query: with a small limit Firestore would return an ARBITRARY subset, so a
+    // channel could appear in one fetch and vanish in the next ("inconsistently showing up"). A high
+    // cap captures every enabled channel; sorting into guide order happens below.
     const snap = await getDocs(query(collection(db, 'users'), where('fastChannelEnabled', '==', true), limit(max)));
     const profiles = snap.docs.map(d => ({ uid: d.id, ...(d.data() as any) } as UserProfile));
     const metas = await Promise.all(profiles.map(p => fetchFastChannelMeta((p as any).uid).catch(() => null)));

@@ -61,6 +61,12 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const interruptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const returnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Reliability: a broken/empty asset must never stall the channel on black. These drive a load
+  // watchdog + HLS error recovery that skip a dead slot fast instead of waiting out its full duration.
+  const startedRef = useRef(false);      // did the current MEDIA slot actually start playing?
+  const recoverRef = useRef(0);          // HLS fatal-error recovery attempts for the current slot
+  const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipGuardRef = useRef(false);    // ensure we only auto-skip a given slot once
 
   const hasLiveFeed = Boolean(profile.liveStreamConfig?.streamUrl && profile.liveStreamConfig?.isActive);
   const liveEmbedUrl = profile.liveStreamConfig?.streamUrl ? buildEmbedUrl(profile.liveStreamConfig.streamUrl) : '';
@@ -89,6 +95,24 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
       let built: FastChannelSlot[] = daySlots.length
         ? [...daySlots].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
         : slotsFromVideos(vids as any);
+      // Backfill playable URLs: an older/auto-generated slot may have stored only a videoId (or a stale
+      // empty videoUrl). Resolve it from the live library (Mux master preferred) so it plays instead of
+      // being dropped — a major reliability win for channels built before URLs were denormalised.
+      const vById = new Map((vids as any[]).map(v => [v.id, v]));
+      built = built.map(s => {
+        if ((s.type === 'VIDEO' || s.type === 'PUBLIC_DOMAIN') && s.videoId && vById.has(s.videoId)) {
+          const v = vById.get(s.videoId);
+          const resolved = v.muxPlaybackId ? `https://stream.mux.com/${v.muxPlaybackId}.m3u8` : (v.url || '');
+          const needsUrl = !s.videoUrl || (!/\.m3u8|stream\.mux\.com/.test(s.videoUrl) && v.muxPlaybackId);
+          return {
+            ...s,
+            videoUrl: needsUrl && resolved ? resolved : s.videoUrl,
+            videoThumbnail: s.videoThumbnail || v.thumbnailUrl || v.coverImageUrl,
+            videoDurationSeconds: s.videoDurationSeconds || (v.duration ? Math.round(v.duration) : undefined),
+          };
+        }
+        return s;
+      });
       if (!isMember) built = built.filter(s => !(s.videoId && exclusiveIds.has(s.videoId)));
       built = built.filter(slotIsPlayable);
       // Robustness: a scheduled channel whose slots don't resolve to a playable URL (e.g. slots that
@@ -194,6 +218,20 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
     if (!media || media.kind !== 'MEDIA') return;
     const v = videoRef.current;
     if (!v) return;
+    startedRef.current = false;
+    recoverRef.current = 0;
+    skipGuardRef.current = false;
+
+    const clearWatch = () => { if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; } };
+    // Skip a dead slot ONCE — a broken/unreachable asset should never hold the channel on black.
+    const skipBroken = () => { if (skipGuardRef.current) return; skipGuardRef.current = true; clearWatch(); advance(); };
+    // Watchdog: if the asset hasn't started within 9s, it's almost certainly unplayable → skip.
+    clearWatch();
+    watchdogRef.current = setTimeout(() => { if (!startedRef.current) skipBroken(); }, 9000);
+    const onStarted = () => { startedRef.current = true; clearWatch(); };
+    v.addEventListener('playing', onStarted);
+    v.addEventListener('loadeddata', onStarted);
+
     if (hlsSrc) {
       if (v.canPlayType('application/vnd.apple.mpegurl')) {
         v.src = hlsSrc;                       // Safari — native adaptive HLS
@@ -203,6 +241,18 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
         hlsRef.current = hls;
         hls.loadSource(hlsSrc); hls.attachMedia(v);
         hls.on(Hls.Events.MANIFEST_PARSED, () => { capLevelsToPanel(hls as any); v.play().catch(() => {}); });
+        // Recover from transient network/media faults; give up (skip) after 2 tries so a genuinely
+        // dead stream doesn't loop errors forever behind a black screen.
+        hls.on(Hls.Events.ERROR, (_e, data) => {
+          if (!data?.fatal) return;
+          if (recoverRef.current >= 2) { skipBroken(); return; }
+          recoverRef.current++;
+          try {
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+            else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+            else skipBroken();
+          } catch { skipBroken(); }
+        });
       } else {
         v.src = hlsSrc;
         v.play().catch(() => {});
@@ -212,8 +262,13 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
       v.load?.();
       v.play().catch(() => {});
     }
-    return () => { if (hlsRef.current) { try { hlsRef.current.destroy(); } catch { /* */ } hlsRef.current = null; } };
-  }, [currentIndex, hlsSrc, mp4Src]);
+    return () => {
+      clearWatch();
+      v.removeEventListener('playing', onStarted);
+      v.removeEventListener('loadeddata', onStarted);
+      if (hlsRef.current) { try { hlsRef.current.destroy(); } catch { /* */ } hlsRef.current = null; }
+    };
+  }, [currentIndex, hlsSrc, mp4Src, advance]);
 
   // Advance driver. MEDIA slots normally advance on the element's `ended` event, but a safety timer
   // guarantees the loop never stalls if `ended` never fires (HLS stall / decode error on a TV). AD
@@ -407,6 +462,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
           muted={isMuted}
           playsInline
           preload="auto"
+          poster={media?.thumbnail || (media?.muxPlaybackId ? `https://image.mux.com/${media.muxPlaybackId}/thumbnail.jpg?width=640&time=5` : undefined)}
           onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime)}
           onLoadedMetadata={e => {
             const el = e.currentTarget;
@@ -419,6 +475,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
           onEnded={advance}
           onPlay={() => setIsPaused(false)}
           onPause={() => setIsPaused(true)}
+          onError={() => { if (!startedRef.current && !skipGuardRef.current) { skipGuardRef.current = true; advance(); } }}
         />
       )}
 
