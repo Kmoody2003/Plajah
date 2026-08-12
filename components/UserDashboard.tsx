@@ -257,6 +257,43 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
     }
   };
 
+  // ── Live feeds are ADDITIVE: an account can run any number of live-feed URLs AND its FAST
+  // channel at the same time, each with its own active/inactive toggle (no longer either/or).
+  type LiveFeedEntry = { id: string; name?: string; url: string; source?: string; isActive: boolean };
+  const getLiveFeeds = (): LiveFeedEntry[] => {
+    const c = profile?.liveStreamConfig;
+    if (c?.liveFeeds && c.liveFeeds.length) return c.liveFeeds;
+    // Migrate a legacy single streamUrl into the list so existing config still shows.
+    if (c?.streamUrl) return [{ id: 'legacy', name: c.title || 'Main', url: c.streamUrl, source: c.source, isActive: c.activeStreamType !== 'FAST' ? !!c.isActive : false }];
+    return [];
+  };
+  const patchLive = (patch: Partial<NonNullable<UserProfile['liveStreamConfig']>>) => {
+    if (!profile) return;
+    const base = profile.liveStreamConfig || { streamUrl: '', title: '', isActive: false, source: 'Custom' };
+    setProfile({ ...profile, liveStreamConfig: { ...base, ...patch } });
+  };
+  const setLiveFeeds = (feeds: LiveFeedEntry[]) => patchLive({ liveFeeds: feeds });
+  const addLiveFeed = () => setLiveFeeds([{ id: `feed_${Date.now()}`, name: '', url: '', source: 'Custom', isActive: true }, ...getLiveFeeds()]);
+  const updateLiveFeed = (id: string, patch: Partial<LiveFeedEntry>) => setLiveFeeds(getLiveFeeds().map(f => f.id === id ? { ...f, ...patch } : f));
+  const removeLiveFeed = (id: string) => setLiveFeeds(getLiveFeeds().filter(f => f.id !== id));
+  const saveBroadcastConfig = () => {
+    if (!profile) return;
+    const c = profile.liveStreamConfig || { streamUrl: '', title: '', isActive: false, source: 'Custom' };
+    const feeds = getLiveFeeds();
+    const firstActive = feeds.find(f => f.isActive);
+    const fastActive = !!c.fastActive;
+    // Derive the legacy single-URL fields so older surfaces (LandingPage, Live Hub cards, search) keep working.
+    handleUpdateLiveStream({
+      ...c,
+      liveFeeds: feeds,
+      fastActive,
+      streamUrl: firstActive?.url || c.streamUrl || '',
+      source: firstActive?.source || c.source || 'Custom',
+      activeStreamType: firstActive ? 'LIVE' : (fastActive ? 'FAST' : (c.activeStreamType || 'LIVE')),
+      isActive: fastActive || feeds.some(f => f.isActive),
+    });
+  };
+
   if (!profile) return null;
 
   return (
@@ -1641,57 +1678,94 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 </button>
               )}
 
+              {(() => {
+                const feeds = getLiveFeeds();
+                const fastUrl = profile.liveStreamConfig?.fastChannelUrl || '';
+                const fastActive = !!profile.liveStreamConfig?.fastActive;
+                const activeCount = feeds.filter(f => f.isActive).length + (fastActive && fastUrl ? 1 : 0);
+                const anyOn = activeCount > 0;
+                return (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="space-y-8">
                   <div className="p-8 bg-white/5 border border-white/5 rounded-[2.5rem] space-y-6">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest text-small-orange">Stream Configuration</h3>
-                    
-                    <div className="space-y-4">
+                    <div className="flex items-center justify-between">
                       <div>
-                        <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2 ml-2">Live Stream URL (YouTube/Twitch/HLS)</label>
-                        <input 
-                          type="text"
-                          value={profile.liveStreamConfig?.streamUrl || ''}
-                          onChange={(e) => setProfile({ ...profile, liveStreamConfig: { ...(profile.liveStreamConfig || { title: '', isActive: false, source: 'Custom' }), streamUrl: e.target.value } })}
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-xs font-bold outline-none focus:ring-2 ring-small-orange/50"
-                          placeholder="https://..."
-                        />
+                        <h3 className="text-[10px] font-black uppercase tracking-widest text-small-orange">Live Feed URLs</h3>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 mt-1">YouTube / Twitch / HLS · each toggles on independently</p>
                       </div>
+                      <button
+                        onClick={addLiveFeed}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-small-orange text-white text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-opacity shrink-0"
+                      >
+                        <Plus size={14} /> Add Stream
+                      </button>
+                    </div>
 
-                      <div>
-                        <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2 ml-2">Instant FAST Channel URL</label>
-                        <input 
+                    <div className="space-y-3">
+                      {feeds.length === 0 && (
+                        <button onClick={addLiveFeed} className="w-full p-6 rounded-2xl border border-dashed border-white/15 text-[10px] font-black uppercase tracking-widest text-white/40 hover:bg-white/5 hover:text-white/60 transition-colors flex items-center justify-center gap-2">
+                          <Plus size={14} /> Add your first stream URL
+                        </button>
+                      )}
+                      {feeds.map(f => (
+                        <div key={f.id} className={`p-4 rounded-2xl border space-y-3 transition-colors ${f.isActive ? 'bg-red-500/[0.06] border-red-500/25' : 'bg-black/20 border-white/10'}`}>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={f.name || ''}
+                              onChange={(e) => updateLiveFeed(f.id, { name: e.target.value })}
+                              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-2 ring-small-orange/40"
+                              placeholder="Feed name (e.g. Main, ASL, Español)"
+                            />
+                            <button
+                              onClick={() => updateLiveFeed(f.id, { isActive: !f.isActive })}
+                              className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-colors shrink-0 ${f.isActive ? 'bg-red-600 border-red-500 text-white' : 'bg-white/5 border-white/10 text-white/40'}`}
+                            >
+                              {f.isActive ? '● Live' : 'Off'}
+                            </button>
+                            <button onClick={() => removeLiveFeed(f.id)} className="p-2 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 shrink-0"><Trash2 size={14} /></button>
+                          </div>
+                          <input
+                            type="text"
+                            value={f.url}
+                            onChange={(e) => updateLiveFeed(f.id, { url: e.target.value })}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-[11px] outline-none focus:ring-2 ring-small-orange/40"
+                            placeholder="https://…/stream.m3u8  (or YouTube / Twitch)"
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pt-2 border-t border-white/5 space-y-3">
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-small-orange">Instant FAST Channel URL</label>
+                      <div className="flex items-center gap-2">
+                        <input
                           type="text"
-                          value={profile.liveStreamConfig?.fastChannelUrl || ''}
-                          onChange={(e) => setProfile({ ...profile, liveStreamConfig: { ...(profile.liveStreamConfig || { title: '', isActive: false, source: 'Custom', streamUrl: '' }), fastChannelUrl: e.target.value } })}
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-xs font-bold outline-none focus:ring-2 ring-small-orange/50"
-                          placeholder="https://..."
+                          value={fastUrl}
+                          onChange={(e) => patchLive({ fastChannelUrl: e.target.value })}
+                          className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-[11px] outline-none focus:ring-2 ring-small-orange/40"
+                          placeholder="https://…  (24/7 FAST loop)"
                         />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2 ml-2">Broadcast Title</label>
-                        <input 
-                          type="text"
-                          value={profile.liveStreamConfig?.title || ''}
-                          onChange={(e) => setProfile({ ...profile, liveStreamConfig: { ...(profile.liveStreamConfig || { streamUrl: '', isActive: false, source: 'Custom' }), title: e.target.value } })}
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-xs font-bold outline-none focus:ring-2 ring-small-orange/50"
-                          placeholder="My Live Show"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2 ml-2">Source Platform</label>
-                        <select 
-                          value={profile.liveStreamConfig?.source || 'Custom'}
-                          onChange={(e) => setProfile({ ...profile, liveStreamConfig: { ...(profile.liveStreamConfig || { streamUrl: '', title: '', isActive: false }), source: e.target.value } })}
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-xs font-bold outline-none focus:ring-2 ring-small-orange/50 appearance-none"
+                        <button
+                          onClick={() => patchLive({ fastActive: !fastActive })}
+                          disabled={!fastUrl}
+                          className={`px-3 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-colors shrink-0 disabled:opacity-30 ${fastActive ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-white/5 border-white/10 text-white/40'}`}
                         >
-                          <option value="YouTube" className="bg-[#0a0a0a]">YouTube</option>
-                          <option value="Twitch" className="bg-[#0a0a0a]">Twitch</option>
-                          <option value="Custom" className="bg-[#0a0a0a]">Custom HLS / RTMP</option>
-                        </select>
+                          {fastActive ? '● On Air' : 'Off'}
+                        </button>
                       </div>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-white/25 leading-relaxed">Live feeds and the FAST channel run <span className="text-white/50">together</span> — flip on any combination.</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-2 ml-2">Broadcast Title</label>
+                      <input
+                        type="text"
+                        value={profile.liveStreamConfig?.title || ''}
+                        onChange={(e) => patchLive({ title: e.target.value })}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-xs font-bold outline-none focus:ring-2 ring-small-orange/50"
+                        placeholder="My Live Show"
+                      />
                     </div>
                   </div>
                 </div>
@@ -1699,54 +1773,36 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 <div className="space-y-8">
                   <div className="p-8 bg-white/5 border border-white/5 rounded-[2.5rem] space-y-6">
                     <h3 className="text-[10px] font-black uppercase tracking-widest text-small-orange">Broadcast Controls</h3>
-                    
+
                     <div className="space-y-6">
                       <div className="flex items-center justify-between p-4 bg-black/20 rounded-2xl border border-white/5">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Active Stream Source</span>
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => setProfile({ ...profile, liveStreamConfig: { ...(profile.liveStreamConfig || { streamUrl: '', title: '', isActive: false, source: 'Custom' }), activeStreamType: 'LIVE' } })}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${profile.liveStreamConfig?.activeStreamType === 'LIVE' ? 'bg-small-orange text-white' : 'bg-white/5 text-white/40'}`}
-                          >
-                            Live Output
-                          </button>
-                          <button 
-                            onClick={() => setProfile({ ...profile, liveStreamConfig: { ...(profile.liveStreamConfig || { streamUrl: '', title: '', isActive: false, source: 'Custom' }), activeStreamType: 'FAST' } })}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${profile.liveStreamConfig?.activeStreamType === 'FAST' ? 'bg-small-orange text-white' : 'bg-white/5 text-white/40'}`}
-                          >
-                            FAST Channel
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between p-4 bg-black/20 rounded-2xl border border-white/5">
                         <div className="flex items-center gap-3">
-                          <div className={`w-2 h-2 rounded-full ${profile.liveStreamConfig?.isActive ? 'bg-red-500' : 'bg-white/10'}`} />
-                          <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Stream Status</span>
+                          <div className={`w-2 h-2 rounded-full ${anyOn ? 'bg-red-500 animate-pulse' : 'bg-white/10'}`} />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Broadcast Status</span>
                         </div>
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${profile.liveStreamConfig?.isActive ? 'text-red-500' : 'text-white/20'}`}>
-                          {profile.liveStreamConfig?.isActive ? 'ONLINE' : 'OFFLINE'}
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${anyOn ? 'text-red-500' : 'text-white/20'}`}>
+                          {anyOn ? `${activeCount} ON AIR` : 'OFFLINE'}
                         </span>
                       </div>
 
-                      <button 
-                        onClick={() => handleUpdateLiveStream({ ...profile.liveStreamConfig!, isActive: !profile.liveStreamConfig?.isActive })}
-                        className={`w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${
-                          profile.liveStreamConfig?.isActive 
-                            ? 'bg-red-600 text-white shadow-[0_0_30px_rgba(220,38,38,0.3)]' 
-                            : 'bg-white text-black'
-                        }`}
+                      <button
+                        onClick={saveBroadcastConfig}
+                        className="w-full py-5 bg-white text-black rounded-2xl font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-3"
                       >
-                        <Radio size={18} />
-                        {profile.liveStreamConfig?.isActive ? 'Stop Broadcasting' : 'Go Live Now'}
+                        <Save size={18} /> Save Broadcast Settings
                       </button>
 
-                      <button 
-                        onClick={() => handleUpdateLiveStream(profile.liveStreamConfig!)}
-                        className="w-full py-5 bg-white/5 border border-white/10 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all flex items-center justify-center gap-3"
-                      >
-                        <Save size={18} /> Save Configuration
-                      </button>
+                      {anyOn && (
+                        <button
+                          onClick={() => {
+                            const off = getLiveFeeds().map(f => ({ ...f, isActive: false }));
+                            handleUpdateLiveStream({ ...(profile.liveStreamConfig || { streamUrl: '', title: '', isActive: false, source: 'Custom' }), liveFeeds: off, fastActive: false, isActive: false });
+                          }}
+                          className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-3 bg-red-600 text-white shadow-[0_0_30px_rgba(220,38,38,0.3)]"
+                        >
+                          <Radio size={18} /> Stop All Broadcasting
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1761,6 +1817,8 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                   </div>
                 </div>
               </div>
+                );
+              })()}
             </motion.div>
           )}
 

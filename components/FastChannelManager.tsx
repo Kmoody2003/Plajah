@@ -119,10 +119,13 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
   // other languages); a regular account runs the standard 3 concurrent sources with a single feed.
   const isMultiFeedAccount = ['BRAND', 'ORGANIZATION', 'PARTNER'].includes((user as any).accountType || '');
   const maxSources = isMultiFeedAccount ? 8 : 3;
-  // On-platform live feeds come FIRST in the pick list — the account's own active live stream.
-  const onPlatformFeeds: SavedFeed[] = (user as any).liveStreamConfig?.isActive
-    ? [{ id: 'onplatform', name: `${user.displayName || 'My'} — Live (on Plajah)`, url: (user as any).liveStreamConfig?.streamUrl || '', origin: 'ON_PLATFORM', muxPlaybackId: (user as any).liveStreamConfig?.muxPlaybackId }]
-    : [];
+  // On-platform live feeds come FIRST in the pick list — the account's own active live streams.
+  // Live feeds are additive now, so enumerate EVERY active feed (main + ASL + languages), falling
+  // back to the legacy single streamUrl for older configs.
+  const _lsc: any = (user as any).liveStreamConfig;
+  const onPlatformFeeds: SavedFeed[] = (Array.isArray(_lsc?.liveFeeds) && _lsc.liveFeeds.length)
+    ? _lsc.liveFeeds.filter((f: any) => f.isActive && f.url).map((f: any, i: number) => ({ id: `onplatform_${f.id || i}`, name: f.name || `${user.displayName || 'My'} — Live ${i + 1}`, url: f.url, origin: 'ON_PLATFORM' as const, muxPlaybackId: _lsc?.muxPlaybackId }))
+    : (_lsc?.isActive ? [{ id: 'onplatform', name: `${user.displayName || 'My'} — Live (on Plajah)`, url: _lsc?.streamUrl || '', origin: 'ON_PLATFORM' as const, muxPlaybackId: _lsc?.muxPlaybackId }] : []);
   const feedOptions = [...onPlatformFeeds, ...savedFeeds];
   const [myVideos, setMyVideos] = useState<Video[]>([]);
   const [bumpers, setBumpers] = useState<ChannelBumper[]>([]);

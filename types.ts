@@ -1238,8 +1238,17 @@ export interface UserProfile {
   liveStreamConfig?: {
     streamUrl: string;
     fastChannelUrl?: string;
+    /** Legacy either/or selector. Superseded by per-feed `liveFeeds[].isActive` + `fastActive`.
+     *  Still written on save (derived) so older surfaces that read it keep working. */
     activeStreamType?: 'LIVE' | 'FAST';
+    /** Live feed URLs the account can run — each with its OWN active/inactive toggle. Live feeds
+     *  and the FAST channel are additive: any number of feeds AND the FAST channel can be active
+     *  at the same time (no longer either/or). */
+    liveFeeds?: { id: string; name?: string; url: string; source?: string; isActive: boolean }[];
+    /** Whether the FAST channel URL is broadcasting — independent of the live feeds. */
+    fastActive?: boolean;
     title: string;
+    /** Aggregate "is this account on air at all" — derived on save = fastActive || any liveFeed active. */
     isActive: boolean;
     source: string; // e.g., 'YouTube', 'Twitch', 'Custom', 'MUX'
     muxStreamId?: string;
