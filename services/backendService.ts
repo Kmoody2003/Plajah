@@ -8244,9 +8244,9 @@ export const autoGenerateFastChannelSchedule = async (uid: string): Promise<Fast
           pushVideo(v);
         }
         guard++;
-        // A catalogue too thin to carry the block gets an FM stretch (with an ad) before repeating,
-        // so viewers aren't hammered with the same few titles back to back.
-        if (catalogueSec > 0 && catalogueSec < 1800 && totalSec - blockStart < BLOCK_SEC && slots.length < MAX_SLOTS) {
+        // After a full pass, drop in an FM stretch (with an ad) before repeating — the director's call,
+        // so viewers aren't hammered with the same titles back to back.
+        if (totalSec - blockStart < BLOCK_SEC && slots.length < MAX_SLOTS) {
           pushAd();
           pushFmBlock(Math.min(fmChunkSec, BLOCK_SEC - (totalSec - blockStart)));
         }

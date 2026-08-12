@@ -202,12 +202,22 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
   const mp4Src = media?.kind === 'MEDIA' && !hlsSrc ? media.url : undefined;
   const isHlsMedia = Boolean(hlsSrc);
 
+  // Advance is CLOCK-DERIVED (same model as LiveTvPlus): re-ask the wall clock what should be on air.
+  // An ad break can therefore never loop — once its window elapses the clock resolves to the next
+  // programme. Only when the clock still points at the slot we just finished (content ended early) do
+  // we step forward by one.
   const advance = useCallback(() => {
-    setCurrentIndex(prev => (slots.length ? (prev + 1) % slots.length : 0));
+    if (!slots.length) return;
+    setCurrentIndex(prev => {
+      const pos = dayAnchoredPosition(slots, Date.now());
+      const next = pos.index !== prev ? pos.index : (prev + 1) % slots.length;
+      joinOffsetRef.current = pos.index !== prev ? pos.offsetSec : 0;
+      return next;
+    });
     setCurrentTime(0);
     setDuration(0);
     setIsPaused(false); // AD/LIVE slots have no media play event to clear a stale paused state
-  }, [slots.length]);
+  }, [slots]);
 
   const goBack = useCallback(() => {
     setCurrentIndex(prev => (slots.length ? (prev - 1 + slots.length) % slots.length : 0));

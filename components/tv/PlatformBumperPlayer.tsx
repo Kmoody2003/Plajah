@@ -28,7 +28,30 @@ const PlatformBumperPlayer: React.FC<Props> = ({ kind, onDone, allowSkip = false
   // Resolve the asset (unless preloaded). No asset → resolve immediately.
   useEffect(() => {
     if (presetAsset !== undefined) { if (!presetAsset) finish(); return; }
+    // BUNDLED FIRST: launch idents ship inside the app bundle (public/tv-bumpers/…), so the TV plays
+    // one instantly off local storage instead of waiting on a network fetch + stream. Drop any number
+    // of files in that folder and list them in tv-bumpers/manifest.json — one is picked at random per
+    // launch. Falls back to the streamed platform library when no bundle is present.
     let alive = true;
+    if (kind === 'TV_OPEN_BUMPER') {
+      fetch('/tv-bumpers/manifest.json', { cache: 'force-cache' })
+        .then(r => (r.ok ? r.json() : null))
+        .then((list: any) => {
+          if (!alive) return;
+          const files: string[] = Array.isArray(list) ? list : (list?.files || []);
+          if (files.length) {
+            const pick = files[Math.floor(Math.random() * files.length)];
+            setAsset({ id: 'bundled', kind, title: 'Plajah', url: pick.startsWith('http') || pick.startsWith('/') ? pick : `/tv-bumpers/${pick}`, isActive: true, createdAt: 0, updatedAt: 0 } as PlatformMediaAsset);
+            return;
+          }
+          throw new Error('no bundled bumpers');
+        })
+        .catch(() => {
+          if (!alive) return;
+          fetchRandomPlatformAsset(kind).then(a => { if (!alive) return; if (a) setAsset(a); else finish(); }).catch(finish);
+        });
+      return () => { alive = false; };
+    }
     fetchRandomPlatformAsset(kind).then(a => { if (!alive) return; if (a) setAsset(a); else finish(); }).catch(finish);
     return () => { alive = false; };
   }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps

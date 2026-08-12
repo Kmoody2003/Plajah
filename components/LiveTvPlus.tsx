@@ -8,7 +8,7 @@
 // channels into one numbered lineup.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, ChevronDown, LayoutGrid } from 'lucide-react';
+import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, ChevronDown, LayoutGrid, Maximize2, Minimize2 } from 'lucide-react';
 import type { LiveFeed, UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { SCIENCE_STREAMS } from './scienceStreams';
 import { fetchFastChannelSchedule, fetchFastChannelVideos, type FastChannelListing } from '../services/backendService';
@@ -72,6 +72,9 @@ const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWat
   const hlsRef = useRef<any>(null);
   const startedRef = useRef(false);        // did THIS programme actually start playing?
   const watchdogRef = useRef<any>(null);
+  // Branded tune-in state instead of a grey video box with the platform's default play glyph.
+  const [ready, setReady] = useState(false);
+  useEffect(() => { setReady(false); }, [channel?.id, channel?.playUrl]);
 
   useEffect(() => {
     const v = videoRef.current;
@@ -148,11 +151,24 @@ const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWat
     // Content-driven: advance to the next slot when media ENDS. On error, only skip if it never
     // STARTED — a transient mid-play hiccup is left to hls.js recovery, so real content is not skipped
     // (which was collapsing the channel onto the ad breaks).
-    return <video ref={videoRef} className="absolute inset-0 w-full h-full object-contain bg-black" autoPlay playsInline muted={muted}
-      onPlaying={() => { startedRef.current = true; if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; } }}
-      onLoadedData={() => { startedRef.current = true; }}
-      onEnded={onEnded}
-      onError={() => { if (!startedRef.current) onFail?.(); }} />;
+    return (
+      <>
+        <video ref={videoRef} className="absolute inset-0 w-full h-full object-contain bg-black" autoPlay playsInline muted={muted}
+          onPlaying={() => { startedRef.current = true; setReady(true); if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; } }}
+          onLoadedData={() => { startedRef.current = true; }}
+          onEnded={onEnded}
+          onError={() => { if (!startedRef.current) onFail?.(); }} />
+        {/* Tuning card — covers the grey/decoder frame so a channel change never flashes a bare box. */}
+        {!ready && (
+          <div className="absolute inset-0 grid place-items-center bg-[#04050a]">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-10 h-10 rounded-full border-2 border-white/15 border-t-[#FF8C00] animate-spin" />
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-white/45">{channel.name}</span>
+            </div>
+          </div>
+        )}
+      </>
+    );
   }
   if (channel.kind === 'fast') {
     // FAST channel whose current slot hasn't resolved to media yet.
@@ -433,6 +449,30 @@ const LiveTvPlus: React.FC<{
   const playing = channels[loadedIndex] || null;
   const tvInset = getPlatformInfo().isTV;   // leave room for the TV shell's tab bar
 
+  // Full-screen viewing: hides the dial + guide so the programme fills the panel. On a TV it engages
+  // automatically after a spell with no remote input (long enough not to fight browsing, short enough
+  // that leaning back gets you a full picture); ANY input brings the chrome straight back.
+  const [immersive, setImmersive] = useState(false);
+  const idleRef = useRef<any>(null);
+  useEffect(() => {
+    const armIdle = () => {
+      if (idleRef.current) clearTimeout(idleRef.current);
+      if (!getPlatformInfo().isTV) return;
+      idleRef.current = setTimeout(() => setImmersive(true), 15000);
+    };
+    const wake = () => { setImmersive(false); armIdle(); };
+    armIdle();
+    window.addEventListener('keydown', wake);
+    window.addEventListener('pointerdown', wake);
+    window.addEventListener('mousemove', wake);
+    return () => {
+      if (idleRef.current) clearTimeout(idleRef.current);
+      window.removeEventListener('keydown', wake);
+      window.removeEventListener('pointerdown', wake);
+      window.removeEventListener('mousemove', wake);
+    };
+  }, []);
+
   // ── FAST playout: WALL-CLOCK DRIVEN, like a real broadcast station ─────────────────────────────
   // What is on air is a PURE FUNCTION OF THE CURRENT TIME: dayAnchoredPosition(slots, now) yields the
   // slot plus how far into it we are, so we join mid-programme and every ad break airs exactly in its
@@ -583,7 +623,8 @@ const LiveTvPlus: React.FC<{
     // On the TV this sits BELOW the shell's tab bar (which is 64px tall) so the Live tab never covers
     // the navigation — the viewer can always press up and move across to another tab.
     <div className={`fixed ${tvInset ? 'inset-x-0 bottom-0 top-16' : 'inset-0'} z-[60] bg-[#04050a] text-white flex flex-col`} style={{ height: tvInset ? 'calc(100dvh - 4rem)' : '100dvh' }}>
-      {/* Top bar */}
+      {/* Top bar (hidden in full-screen viewing) */}
+      {!immersive && (
       <div className="flex items-center justify-between px-4 py-2.5 shrink-0 z-30">
         <button onClick={onBack} className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15"><ArrowLeft size={17} /></button>
         <div className="flex items-center gap-2">
@@ -592,9 +633,11 @@ const LiveTvPlus: React.FC<{
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setMuted(m => !m)} className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15">{muted ? <VolumeX size={16} /> : <Volume2 size={16} />}</button>
+          <button onClick={() => setImmersive(true)} title="Full screen" className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15"><Maximize2 size={16} /></button>
           {onOpenClassic && <button onClick={onOpenClassic} title="All live" className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15"><LayoutGrid size={16} /></button>}
         </div>
       </div>
+      )}
 
       {/* Content + dial */}
       <div className="relative flex-1 min-h-0">
@@ -643,17 +686,23 @@ const LiveTvPlus: React.FC<{
           </div>
         )}
 
-        {/* Rolling dial pinned right */}
-        <div className="absolute right-2 top-0 bottom-0 z-20 flex items-center">
-          <div className="flex flex-col items-center gap-1">
-            <button onClick={() => setIdx(Math.max(0, index - 1))} className="w-8 h-6 rounded-lg bg-white/10 grid place-items-center hover:bg-white/20"><ChevronUp size={16} /></button>
+        {/* Rolling dial pinned right — z-40 so the ad/FM/up-next overlays never swallow the channel
+            buttons, and a bigger hit area so they work on touch and with a remote. */}
+        {!immersive && (
+        <div className="absolute right-2 top-0 bottom-0 z-40 flex items-center">
+          <div className="flex flex-col items-center gap-1.5">
+            <button aria-label="Channel up" onClick={() => setIdx(Math.max(0, index - 1))}
+              className="w-11 h-10 rounded-xl bg-black/60 border border-white/15 backdrop-blur grid place-items-center hover:bg-white/20 active:scale-95"><ChevronUp size={20} /></button>
             <div className="h-[62vh]"><ChannelDial channels={channels} index={index} onIndex={setIdx} /></div>
-            <button onClick={() => setIdx(Math.min(channels.length - 1, index + 1))} className="w-8 h-6 rounded-lg bg-white/10 grid place-items-center hover:bg-white/20"><ChevronDown size={16} /></button>
+            <button aria-label="Channel down" onClick={() => setIdx(Math.min(channels.length - 1, index + 1))}
+              className="w-11 h-10 rounded-xl bg-black/60 border border-white/15 backdrop-blur grid place-items-center hover:bg-white/20 active:scale-95"><ChevronDown size={20} /></button>
           </div>
         </div>
+        )}
       </div>
 
-      {/* Bottom EPG guide */}
+      {/* Bottom EPG guide (hidden in full-screen viewing) */}
+      {!immersive && (
       <div className="shrink-0 border-t border-white/10 bg-black/50 backdrop-blur px-3 py-3">
         {/* Per-program schedule for the selected channel (real times, from the FAST schedule). */}
         {selected && (selected.isLive || epg.length > 0) && (
@@ -707,6 +756,15 @@ const LiveTvPlus: React.FC<{
           })}
         </div>
       </div>
+      )}
+
+      {/* Full-screen: a quiet hint that any press brings the guide back. */}
+      {immersive && (
+        <button onClick={() => setImmersive(false)}
+          className="absolute bottom-5 right-5 z-40 flex items-center gap-2 px-4 py-2 rounded-full bg-black/55 border border-white/15 backdrop-blur text-[10px] font-black uppercase tracking-widest text-white/70 hover:text-white">
+          <Minimize2 size={14} /> Show guide
+        </button>
+      )}
     </div>
   );
 };
