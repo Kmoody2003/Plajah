@@ -29,9 +29,11 @@ interface Props {
   upcoming?: UpNextItem[];
   logoUrl?: string;
   accent?: string;
+  /** Mirror the player's mute — when true, Plajah FM fills silently (visuals only). */
+  muted?: boolean;
 }
 
-const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [], logoUrl, accent = ORANGE }) => {
+const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [], logoUrl, accent = ORANGE, muted = false }) => {
   const [track, setTrack] = useState<Track | null>(null);
   const [ads, setAds] = useState<AdConfig[]>([]);
   const [adIdx, setAdIdx] = useState(0);
@@ -91,13 +93,13 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
       let v = 1;
       if (el < FADE_SEC) v = el / FADE_SEC;
       else if (remaining < FADE_SEC) v = Math.max(0, remaining / FADE_SEC);
-      a.volume = Math.max(0, Math.min(1, v));
+      a.volume = muted ? 0 : Math.max(0, Math.min(1, v));
       if (el >= COVER_ART_SEC && !switchedRef.current && ads.length > 0) { switchedRef.current = true; setPhase('ads'); }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => { cancelAnimationFrame(raf); a.removeEventListener('loadedmetadata', onMeta); try { a.pause(); } catch { /* */ } };
-  }, [track?.url, durationSec, ads.length]);
+  }, [track?.url, durationSec, ads.length, muted]);
 
   // Cycle the ad rail once we're in the ads phase.
   useEffect(() => {
