@@ -246,7 +246,8 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack, i
     setIsGenerating(true);
     try {
       const generated = await autoGenerateFastChannelSchedule(user.uid);
-      const retimed = await retimeSchedule(generated); // accurate per-asset times, not 30-min blocks
+      setSchedule(generated); // show the reshuffled order immediately…
+      const retimed = await retimeSchedule(generated); // …then fill in accurate per-asset times
       setSchedule(retimed);
       await saveFastChannelSchedule(retimed).catch(() => {});
     } finally { setIsGenerating(false); }
@@ -839,8 +840,13 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack, i
                   <>
                     {/* per-day auto-generate helper */}
                     <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-2xl bg-white/[0.02] border border-white/10">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Auto-build a distinct schedule for every weekday from your library</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Rebuild the schedule from your library — real asset lengths, reshuffled order</p>
                       <div className="flex flex-wrap gap-2">
+                        <button onClick={handleAutoGenerate} disabled={isGenerating || myVideos.length === 0}
+                          title="Rebuild this schedule from your library — reorders the programming and probes real asset durations"
+                          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#6B0099] to-[#D40055] rounded-xl text-[9px] font-black uppercase tracking-widest hover:opacity-90 disabled:opacity-40">
+                          {isGenerating ? <RefreshCw size={12} className="animate-spin" /> : <Shuffle size={12} />} Auto-Generate
+                        </button>
                         <button onClick={handleRetimeSchedule} disabled={isRetiming || !schedule}
                           title="Rewrite each programme's real length into the schedule (fixes wrong times & black gaps), keeping your order"
                           className="flex items-center gap-2 px-4 py-2 bg-small-orange/15 border border-small-orange/30 text-small-orange rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-small-orange/25 disabled:opacity-40">

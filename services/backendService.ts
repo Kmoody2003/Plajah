@@ -5756,8 +5756,12 @@ export const fetchRadioTracks = async (): Promise<Track[]> => {
           radioTracks.push({
             ...track,
             artistId: album.ownerId,
-            artist: album.artist
-          });
+            artist: album.artist,
+            // Propagate the album artwork so Plajah FM (RadioView + the ad-break FM card) can show the
+            // cover for each song — the track itself often carries no image, only the album does.
+            albumCover: (album as any).coverImage || (album as any).coverImageUrl || (album as any).coverArt || (track as any).images?.[0],
+            albumId: (track as any).albumId || (album as any).id,
+          } as any);
         }
       });
     });
@@ -8146,6 +8150,12 @@ export const autoGenerateFastChannelSchedule = async (uid: string): Promise<Fast
   const adDur = existing?.adDurationSeconds ?? 60;
   const commercialFree = existing?.commercialFree ?? false;   // no ad breaks when true
   const includePublicDomain = existing?.includePublicDomain ?? false;
+
+  // Shuffle so every generation REORDERS the programming (Fisher-Yates; Math.random ok in app runtime).
+  for (let i = videos.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [videos[i], videos[j]] = [videos[j], videos[i]];
+  }
 
   const slots: FastChannelSlot[] = [];
   let order = 0;

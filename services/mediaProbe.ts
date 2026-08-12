@@ -8,12 +8,16 @@ export async function probeDurationSec(url: string, timeoutMs = 9000): Promise<n
   if (!url) return 0;
   return new Promise<number>(resolve => {
     const el = document.createElement('video');
-    el.preload = 'metadata'; el.muted = true;
+    el.preload = 'metadata'; el.muted = true; (el as any).playsInline = true;
+    // Some engines only load metadata for an attached element — mount it hidden while probing.
+    el.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;top:-9999px';
+    try { document.body.appendChild(el); } catch { /* */ }
     let hls: any = null; let done = false;
     const finish = (d: number) => {
       if (done) return; done = true;
       try { hls?.destroy?.(); } catch { /* */ }
       try { el.removeAttribute('src'); el.load?.(); } catch { /* */ }
+      try { el.remove(); } catch { /* */ }
       resolve(d > 0 ? Math.round(d) : 0);
     };
     const timer = setTimeout(() => finish(0), timeoutMs);
