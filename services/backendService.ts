@@ -7873,7 +7873,19 @@ export const fetchFastChannelSchedule = async (uid: string): Promise<FastChannel
 
 export const saveFastChannelSchedule = async (schedule: FastChannelSchedule): Promise<void> => {
   try {
-    await setDoc(doc(db, 'fast_channel_schedules', schedule.userId), { ...schedule, lastUpdated: Date.now() });
+    // Firestore is initialized without ignoreUndefinedProperties → an `undefined` field THROWS. The
+    // playout scheduler builds slots with optional keys (bugLabel, isReplay, weeklySlots, …), so deep-
+    // strip undefined before the write or the whole schedule fails to persist.
+    const stripUndefined = (v: any): any => {
+      if (Array.isArray(v)) return v.map(stripUndefined);
+      if (v && typeof v === 'object') {
+        const out: Record<string, any> = {};
+        for (const k of Object.keys(v)) { if (v[k] !== undefined) out[k] = stripUndefined(v[k]); }
+        return out;
+      }
+      return v;
+    };
+    await setDoc(doc(db, 'fast_channel_schedules', schedule.userId), stripUndefined({ ...schedule, lastUpdated: Date.now() }));
   } catch (e) {
     handleFirestoreError(e, OperationType.WRITE, `fast_channel_schedules/${schedule.userId}`);
     throw e;
@@ -7899,6 +7911,9 @@ export const addReplayToFastChannel = async (uid: string, video: Partial<Video>)
       videoTitle: video.title || 'Live Replay',
       videoThumbnail: (video as any).thumbnailUrl || (video as any).coverImageUrl,
       videoDurationSeconds: durationSeconds,
+      // Saved live streams from Reello air as a REPLAY — the playout shows a corner "REPLAY" bug.
+      isReplay: true,
+      bugLabel: 'REPLAY',
     };
     const existing = await fetchFastChannelSchedule(uid).catch(() => null);
     let schedule: FastChannelSchedule;

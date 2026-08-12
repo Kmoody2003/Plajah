@@ -5,9 +5,11 @@ import {
   fetchUserProfile, updateUserProfile, updateLiveStreamConfig,
   fetchUserAlbums, deleteCloudAlbum, fetchUserPhotos, deletePhoto,
   bulkDeletePhotos, addPhotosToAlbum, updateAccountType, fetchArtistMerch,
-  fetchUserWorlds, createIPWorld, propagateDisplayName, serverResyncDisplayName
+  fetchUserWorlds, createIPWorld, propagateDisplayName, serverResyncDisplayName,
+  updateFastChannelEnabled
 } from '../services/backendService';
 import { accountFlagUpdate, hasCapability, capabilitiesFor, ACCOUNT_TYPE_META, type Capability } from '../services/accountCapabilities';
+import FastChannelManager from './FastChannelManager';
 
 // Human labels for the capabilities shown in the "your account unlocks" panel.
 const CAP_LABELS: Record<Capability, string> = {
@@ -276,6 +278,16 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
   const addLiveFeed = () => setLiveFeeds([{ id: `feed_${Date.now()}`, name: '', url: '', source: 'Custom', isActive: true }, ...getLiveFeeds()]);
   const updateLiveFeed = (id: string, patch: Partial<LiveFeedEntry>) => setLiveFeeds(getLiveFeeds().map(f => f.id === id ? { ...f, ...patch } : f));
   const removeLiveFeed = (id: string) => setLiveFeeds(getLiveFeeds().filter(f => f.id !== id));
+  // FAST channel (the scheduled linear channel) — an independent broadcast source alongside live
+  // feeds. Its active/inactive state IS `fastChannelEnabled` (what gates guide listing).
+  const [showScheduler, setShowScheduler] = useState(false);
+  const toggleFastChannel = async () => {
+    if (!profile) return;
+    const next = !profile.fastChannelEnabled;
+    setProfile({ ...profile, fastChannelEnabled: next });
+    try { await updateFastChannelEnabled(profile.uid, next); } catch (e) { console.error(e); }
+  };
+
   const saveBroadcastConfig = () => {
     if (!profile) return;
     const c = profile.liveStreamConfig || { streamUrl: '', title: '', isActive: false, source: 'Custom' };
@@ -1678,6 +1690,30 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 </button>
               )}
 
+              {/* FAST Channel + Playout Scheduler — a broadcast source alongside live feeds, with its
+                  own active/inactive toggle (fastChannelEnabled = guide listing) and the scheduler. */}
+              <div className="w-full flex flex-col sm:flex-row items-stretch sm:items-center gap-4 p-6 rounded-[2rem] bg-white/5 border border-white/10">
+                <div className="w-14 h-14 rounded-2xl bg-small-orange/20 border border-small-orange/30 flex items-center justify-center shrink-0">
+                  <Radio size={24} className="text-small-orange" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-base font-black text-white tracking-tight">FAST Channel & Playout Scheduler</p>
+                  <p className="text-sm text-white/40 mt-0.5">Your 24/7 linear channel — drag-and-drop programs, ad breaks, bumpers & promos; per-day schedules; as-run reports</p>
+                </div>
+                <button
+                  onClick={toggleFastChannel}
+                  className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-colors shrink-0 ${profile.fastChannelEnabled ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-white/5 border-white/10 text-white/40'}`}
+                >
+                  {profile.fastChannelEnabled ? '● Active' : 'Inactive'}
+                </button>
+                <button
+                  onClick={() => setShowScheduler(true)}
+                  className="px-4 py-2.5 rounded-xl bg-small-orange text-white text-[10px] font-black uppercase tracking-widest shrink-0 hover:opacity-90"
+                >
+                  Open Scheduler
+                </button>
+              </div>
+
               {(() => {
                 const feeds = getLiveFeeds();
                 const fastUrl = profile.liveStreamConfig?.fastChannelUrl || '';
@@ -2199,6 +2235,13 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
       {/* Launch a Business Page */}
       {showBusinessLaunch && createPortal(
         <BusinessLaunchModal onClose={() => setShowBusinessLaunch(false)} />,
+        document.body,
+      )}
+
+      {showScheduler && profile && createPortal(
+        <div className="fixed inset-0 z-[300] bg-black overflow-y-auto">
+          <FastChannelManager user={profile} onBack={() => setShowScheduler(false)} />
+        </div>,
         document.body,
       )}
     </div>

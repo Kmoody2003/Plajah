@@ -12,7 +12,7 @@ import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, 
 import type { LiveFeed, UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { SCIENCE_STREAMS } from './scienceStreams';
 import { fetchFastChannelSchedule, type FastChannelListing } from '../services/backendService';
-import { linearPosition, slotDurationSec, resolveSlotMedia } from '../services/fastChannelTimeline';
+import { linearPosition, slotDurationSec, resolveSlotMedia, activeDaySlots } from '../services/fastChannelTimeline';
 
 export interface TvChannel {
   id: string;
@@ -40,7 +40,7 @@ const slotTitle = (s: FastChannelSlot): string =>
   s.videoTitle || (s as any).bumperTitle || (s.type === 'AD_BREAK' ? 'Ad break' : s.type === 'LIVE_INTERRUPT' ? 'Live' : 'Program');
 /** Walk the looping schedule from `now` to produce the current + upcoming programs with real times. */
 function computeEpg(schedule: FastChannelSchedule | null, now: number, count = 6): EpgProgram[] {
-  const slots = schedule?.slots || [];
+  const slots = activeDaySlots(schedule, now);
   if (!slots.length) return [];
   const { index, offsetSec } = linearPosition(slots, now);
   const out: EpgProgram[] = [];
@@ -363,9 +363,10 @@ const LiveTvPlus: React.FC<{
     if (!owner) { setFastMedia(null); return; }
     const resolve = (sched: FastChannelSchedule | null) => {
       if (cancelled) return;
-      if (!sched?.slots?.length) { setFastMedia(null); return; }
-      const { index: si } = linearPosition(sched.slots, Date.now());
-      const m = resolveSlotMedia(sched.slots[si]);
+      const daySlots = activeDaySlots(sched, Date.now());
+      if (!daySlots.length) { setFastMedia(null); return; }
+      const { index: si } = linearPosition(daySlots, Date.now());
+      const m = resolveSlotMedia(daySlots[si]);
       const url = m.muxPlaybackId ? `https://stream.mux.com/${m.muxPlaybackId}.m3u8` : (m.url || '');
       setFastMedia(url ? { url, kind: (m.isHls || m.muxPlaybackId) ? 'hls' : (isEmbeddableUrl(url) ? 'embed' : 'hls') } : null);
     };

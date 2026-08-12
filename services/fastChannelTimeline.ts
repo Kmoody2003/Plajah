@@ -12,7 +12,9 @@
 // (and the guide) lands on the same slot at the same wall-clock — that is what makes it "linear TV"
 // rather than everyone starting from slot #0.
 
-import type { FastChannelSlot } from '../types';
+import type { FastChannelSlot, FastChannelSchedule, AsRunEntry } from '../types';
+
+export const DAY_SEC = 86400;
 
 export const DEFAULT_VIDEO_SEC = 1800; // 30-min fallback when a video carries no probed duration
 export const DEFAULT_BUMPER_SEC = 10;
@@ -52,6 +54,78 @@ export function linearPosition(slots: FastChannelSlot[], atMs: number): { index:
     pos -= d;
   }
   return { index: 0, offsetSec: 0 };
+}
+
+/** Local-midnight (00:00) unix-ms for the day that contains `atMs`, in the runtime's timezone. */
+export function localMidnightMs(atMs: number): number {
+  const d = new Date(atMs);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+/** The slots that play on the weekday containing `atMs` — a per-day override if present, else the
+ *  default "same every day" loop. Keeps the resolver a pure function of (schedule, time). */
+export function activeDaySlots(schedule: Pick<FastChannelSchedule, 'slots' | 'weeklySlots'> | null | undefined, atMs: number): FastChannelSlot[] {
+  if (!schedule) return [];
+  const day = new Date(atMs).getDay(); // 0=Sun … 6=Sat
+  const perDay = schedule.weeklySlots?.[day];
+  return perDay && perDay.length ? perDay : (schedule.slots || []);
+}
+
+/**
+ * Midnight-anchored position: the day's slots start at local 00:00 and NEVER clip — once the next
+ * asset would cross midnight the channel is OFF_AIR (show a "resumes at midnight" card) until 00:00.
+ * Returns the on-air slot + seek, or {offAir:true, resumesInSec} when past the day's content.
+ */
+export function linearPositionMidnight(
+  slots: FastChannelSlot[], atMs: number,
+): { index: number; offsetSec: number; offAir: false } | { offAir: true; resumesInSec: number } {
+  const midnight = localMidnightMs(atMs);
+  const elapsed = Math.floor((atMs - midnight) / 1000);
+  let acc = 0;
+  for (let i = 0; i < (slots?.length || 0); i++) {
+    const d = slotDurationSec(slots[i]);
+    if (acc + d > DAY_SEC) break;      // would clip past midnight — stop the day here (no-clip rule)
+    if (elapsed < acc + d) return { index: i, offsetSec: elapsed - acc, offAir: false };
+    acc += d;
+  }
+  return { offAir: true, resumesInSec: Math.max(0, DAY_SEC - elapsed) };
+}
+
+/**
+ * As-run log: exactly what plays and when across a midnight-anchored day, starting at `dayStartMs`
+ * (defaults to local midnight). Never clips an asset; a trailing OFF_AIR entry marks the gap to the
+ * next midnight when the last asset would have crossed it. Deterministic → this IS the proof/report.
+ */
+export function buildAsRunLog(slots: FastChannelSlot[], dayStartMs?: number): AsRunEntry[] {
+  const start = dayStartMs ?? localMidnightMs(Date.now());
+  const out: AsRunEntry[] = [];
+  let acc = 0;
+  for (let i = 0; i < (slots?.length || 0); i++) {
+    const s = slots[i];
+    const d = slotDurationSec(s);
+    if (acc + d > DAY_SEC) break; // no-clip: this asset would cross midnight, so it doesn't air today
+    const m = resolveSlotMedia(s);
+    out.push({
+      slotId: s.id,
+      type: s.type,
+      title: m.title,
+      startMs: start + acc * 1000,
+      endMs: start + (acc + d) * 1000,
+      durationSec: d,
+      isAd: m.isAd,
+      isReplay: s.isReplay,
+      isPromo: s.isPromo,
+    });
+    acc += d;
+  }
+  if (acc < DAY_SEC && out.length) {
+    out.push({
+      slotId: 'off_air', type: 'OFF_AIR', title: 'Schedule resumes at midnight',
+      startMs: start + acc * 1000, endMs: start + DAY_SEC * 1000, durationSec: DAY_SEC - acc, isAd: false,
+    });
+  }
+  return out;
 }
 
 export type SlotMediaKind = 'MEDIA' | 'AD' | 'LIVE';

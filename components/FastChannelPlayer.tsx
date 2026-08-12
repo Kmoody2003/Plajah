@@ -5,7 +5,7 @@ import Hls from 'hls.js';
 import { UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { fetchFastChannelVideos, fetchFastChannelSchedule, auth } from '../services/backendService';
 import { checkMembership } from '../services/sanctuaryService';
-import { linearPosition, resolveSlotMedia, slotIsPlayable, slotsFromVideos } from '../services/fastChannelTimeline';
+import { linearPosition, resolveSlotMedia, slotIsPlayable, slotsFromVideos, activeDaySlots } from '../services/fastChannelTimeline';
 import { hlsTuning, capLevelsToPanel } from '../services/hlsTuning';
 
 interface FastChannelPlayerProps {
@@ -78,13 +78,21 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
       // Which videos are members-only? Used to drop their slots for non-members.
       const exclusiveIds = new Set(vids.filter(v => (v as any).isExclusive).map(v => v.id));
 
-      // Prefer the generated slot schedule; fall back to an ad-hoc video-only schedule so a channel
-      // that hasn't been generated yet still plays. Then gate + keep only playable slots.
-      let built: FastChannelSlot[] = schedule?.slots?.length
-        ? [...schedule.slots].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      // Prefer the generated slot schedule for TODAY (per-day weeklySlots override → default loop);
+      // fall back to an ad-hoc video-only schedule so a channel that hasn't been generated yet still
+      // plays. Then gate + keep only playable slots.
+      const daySlots = activeDaySlots(schedule, Date.now());
+      let built: FastChannelSlot[] = daySlots.length
+        ? [...daySlots].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
         : slotsFromVideos(vids as any);
       if (!isMember) built = built.filter(s => !(s.videoId && exclusiveIds.has(s.videoId)));
       built = built.filter(slotIsPlayable);
+      // Robustness: a scheduled channel whose slots don't resolve to a playable URL (e.g. slots that
+      // stored only a videoId, or a Mux id that never got written to videoUrl) would otherwise show
+      // "No content". Fall back to the raw library so the channel still airs its videos.
+      if (built.length === 0 && vids.length > 0) {
+        built = slotsFromVideos(vids as any).filter(s => (isMember || !(s.videoId && exclusiveIds.has(s.videoId)))).filter(slotIsPlayable);
+      }
 
       if (built.length > 0) {
         const { index, offsetSec } = linearPosition(built, Date.now());
@@ -374,6 +382,13 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
       )}
 
       <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/70 via-transparent to-black/30" />
+
+      {/* Corner bug — REPLAY (saved Reello live stream) / PROMO, over the playout like broadcast TV. */}
+      {media?.kind === 'MEDIA' && (currentSlot?.isReplay || currentSlot?.isPromo || currentSlot?.bugLabel) && (
+        <div className={`absolute top-4 right-4 z-20 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-[0.3em] backdrop-blur-sm border ${currentSlot?.isReplay ? 'bg-red-600/80 border-red-400/40 text-white' : 'bg-fuchsia-600/80 border-fuchsia-400/40 text-white'}`}>
+          {currentSlot?.bugLabel || (currentSlot?.isReplay ? 'REPLAY' : 'PROMO')}
+        </div>
+      )}
 
       {FeedTabs}
 
