@@ -8209,17 +8209,66 @@ export const autoGenerateFastChannelSchedule = async (uid: string): Promise<Fast
     }
   };
 
-  // Fill a full 24h day by looping the catalogue; each pass ROTATES the running order so a small
-  // library still plays continuously (never black) and repeats in a different order each cycle.
-  let pass = 0;
-  while (videos.length && totalSec < DAY_SEC && slots.length < MAX_SLOTS && pass < 60) {
-    const shift = pass % videos.length;
-    const rotated = [...videos.slice(shift), ...videos.slice(0, shift)];
-    for (const v of rotated) {
-      if (totalSec >= DAY_SEC || slots.length >= MAX_SLOTS) break;
-      pushVideo(v);
+  // ── Program-director scheduling ──────────────────────────────────────────────────────────────
+  // The day is built as 3-HOUR BLOCKS whose order is randomised, so a channel doesn't play the same
+  // run every cycle. A small library simply repeats within a block (short-form airing a few times an
+  // hour is normal for a linear channel), and when the catalogue can't carry a block we schedule
+  // PLAJAH FM as programming — chunked by the channel's ad frequency so commercials still run inside
+  // it. That way the 24h grid is always filled with something real, never dead air.
+  const BLOCK_SEC = 3 * 3600;
+  const catalogueSec = videos.reduce((a, v) => a + (Math.round(Number((v as any).duration) || 0) > 0 ? Math.round(Number((v as any).duration)) : 1800), 0);
+  const fmChunkSec = Math.max(300, Math.min(3600, Math.round(adFreq * 60))); // an FM stretch between ads
+
+  const pushFmBlock = (sec: number) => {
+    slots.push({ id: `slot_${order}`, type: 'FM_BLOCK', order, videoTitle: 'Plajah FM', videoDurationSeconds: Math.round(sec) });
+    order++; totalSec += Math.round(sec);
+  };
+  const pushAd = () => {
+    if (commercialFree) return;
+    slots.push({ id: `slot_${order}`, type: 'AD_BREAK', order, adDurationSeconds: adDur });
+    order++; totalSec += adDur; minutesSinceLastAd = 0;
+  };
+
+  /** Build one ~3h block. `seed` rotates/varies the running order so blocks differ from each other. */
+  const buildBlock = (seed: number) => {
+    const blockStart = totalSec;
+    if (videos.length) {
+      const shift = seed % videos.length;
+      let rotated = [...videos.slice(shift), ...videos.slice(0, shift)];
+      // Every other block reverses, so repeats of a small library don't feel identical.
+      if (seed % 2 === 1) rotated = rotated.slice().reverse();
+      let guard = 0;
+      while (totalSec - blockStart < BLOCK_SEC && slots.length < MAX_SLOTS && guard < 200) {
+        for (const v of rotated) {
+          if (totalSec - blockStart >= BLOCK_SEC || slots.length >= MAX_SLOTS) break;
+          pushVideo(v);
+        }
+        guard++;
+        // A catalogue too thin to carry the block gets an FM stretch (with an ad) before repeating,
+        // so viewers aren't hammered with the same few titles back to back.
+        if (catalogueSec > 0 && catalogueSec < 1800 && totalSec - blockStart < BLOCK_SEC && slots.length < MAX_SLOTS) {
+          pushAd();
+          pushFmBlock(Math.min(fmChunkSec, BLOCK_SEC - (totalSec - blockStart)));
+        }
+      }
     }
-    pass++;
+    // No content at all (or the block still has room): fill with FM programming, ad-broken per settings.
+    let fmGuard = 0;
+    while (totalSec - blockStart < BLOCK_SEC && slots.length < MAX_SLOTS && fmGuard < 40) {
+      const room = BLOCK_SEC - (totalSec - blockStart);
+      pushFmBlock(Math.min(fmChunkSec, room));
+      if (BLOCK_SEC - (totalSec - blockStart) > adDur) pushAd();
+      fmGuard++;
+    }
+  };
+
+  // Build the day out of blocks, then air them in a RANDOM order.
+  const blockCount = Math.max(1, Math.ceil(DAY_SEC / BLOCK_SEC)); // 8 × 3h = 24h
+  const seeds = Array.from({ length: blockCount }, (_, i) => i);
+  for (let i = seeds.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [seeds[i], seeds[j]] = [seeds[j], seeds[i]]; }
+  for (const seed of seeds) {
+    if (totalSec >= DAY_SEC || slots.length >= MAX_SLOTS) break;
+    buildBlock(seed);
   }
 
   const schedule: FastChannelSchedule = {

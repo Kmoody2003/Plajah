@@ -3595,7 +3595,9 @@ export interface StatCardData {
 
 // ── FAST CHANNEL TYPES ────────────────────────────────────────────────────────
 
-export type FastChannelSlotType = 'VIDEO' | 'BUMPER' | 'AD_BREAK' | 'LIVE_INTERRUPT' | 'PUBLIC_DOMAIN';
+/** FM_BLOCK = a scheduled stretch of Plajah FM used as PROGRAMMING (fills the 24h grid when a channel
+ *  has little content); commercials still run inside it per the channel's ad settings. */
+export type FastChannelSlotType = 'VIDEO' | 'BUMPER' | 'AD_BREAK' | 'LIVE_INTERRUPT' | 'PUBLIC_DOMAIN' | 'FM_BLOCK';
 
 export interface FastChannelSlot {
   id: string;

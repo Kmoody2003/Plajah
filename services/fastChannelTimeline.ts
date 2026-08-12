@@ -20,6 +20,9 @@ export const DEFAULT_VIDEO_SEC = 1800; // 30-min fallback when a video carries n
 export const DEFAULT_BUMPER_SEC = 10;
 export const DEFAULT_AD_SEC = 60;
 export const DEFAULT_LIVE_SEC = 1800;
+export const DEFAULT_FM_SEC = 3600;   // an FM programming block defaults to an hour
+/** Any non-video hold longer than this automatically becomes a Plajah FM insertion. */
+export const FM_FILL_THRESHOLD_SEC = 30;
 
 /** Canonical whole-second duration of a slot. The single source of truth for loop math everywhere. */
 export function slotDurationSec(s: FastChannelSlot): number {
@@ -35,6 +38,7 @@ export function slotDurationSec(s: FastChannelSlot): number {
     }
     case 'BUMPER':         return n(s.bumperDurationSeconds, DEFAULT_BUMPER_SEC);
     case 'AD_BREAK':       return n(s.adDurationSeconds, DEFAULT_AD_SEC);
+    case 'FM_BLOCK':       return n(s.videoDurationSeconds, DEFAULT_FM_SEC);
     case 'LIVE_INTERRUPT': return n(s.liveInterruptMaxDurationSeconds, DEFAULT_LIVE_SEC);
     default:               return DEFAULT_VIDEO_SEC;
   }
@@ -189,7 +193,7 @@ export function backfillScheduleDurations(sched: FastChannelSchedule, durMap: Ma
   return { ...sched, slots: fix(sched.slots), ...(wk ? { weeklySlots: wk as any } : {}) };
 }
 
-export type SlotMediaKind = 'MEDIA' | 'AD' | 'LIVE';
+export type SlotMediaKind = 'MEDIA' | 'AD' | 'LIVE' | 'FM';
 export interface SlotMedia {
   kind: SlotMediaKind;
   muxPlaybackId?: string; // play via MuxPlayer
@@ -223,6 +227,10 @@ export function resolveSlotMedia(s: FastChannelSlot): SlotMedia {
   if (s.type === 'AD_BREAK') {
     return { kind: 'AD', isHls: false, title: 'Commercial Break', durationSec, isAd: true, isBumper: false, isPublicDomain: false };
   }
+  if (s.type === 'FM_BLOCK') {
+    // Plajah FM as scheduled programming — the player renders the FM surface for the block's window.
+    return { kind: 'FM', isHls: false, title: s.videoTitle || 'Plajah FM', durationSec, isAd: false, isBumper: false, isPublicDomain: false };
+  }
   if (s.type === 'LIVE_INTERRUPT') {
     return { kind: 'LIVE', isHls: false, title: s.videoTitle || 'Live', durationSec, isAd: false, isBumper: false, isPublicDomain: false };
   }
@@ -250,7 +258,7 @@ export function resolveSlotMedia(s: FastChannelSlot): SlotMedia {
 
 /** True when a slot has something to render (media url/mux, an ad interstitial, or a live slot). */
 export function slotIsPlayable(s: FastChannelSlot): boolean {
-  if (s.type === 'AD_BREAK' || s.type === 'LIVE_INTERRUPT') return true;
+  if (s.type === 'AD_BREAK' || s.type === 'LIVE_INTERRUPT' || s.type === 'FM_BLOCK') return true;
   const m = resolveSlotMedia(s);
   // FAST plays platform/stream media only — an iframe-only embed (YouTube/etc.) is NOT playable here.
   if (m.url && !m.muxPlaybackId && isEmbedUrl(m.url)) return false;

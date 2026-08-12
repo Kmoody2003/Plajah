@@ -12,7 +12,7 @@ import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, 
 import type { LiveFeed, UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { SCIENCE_STREAMS } from './scienceStreams';
 import { fetchFastChannelSchedule, fetchFastChannelVideos, type FastChannelListing } from '../services/backendService';
-import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, backfillScheduleDurations } from '../services/fastChannelTimeline';
+import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, backfillScheduleDurations, FM_FILL_THRESHOLD_SEC } from '../services/fastChannelTimeline';
 import AdBreakBumper from './tv/AdBreakBumper';
 import ComingUpNextBumper, { type UpNextItem } from './tv/ComingUpNextBumper';
 import { getPlatformInfo } from '../hooks/usePlatform';
@@ -42,7 +42,7 @@ const BRAND = '#FF8C00';
 // ── Per-program EPG from a FAST channel's looping schedule ──────────────────────
 export interface EpgProgram { title: string; thumb?: string; startMs: number; endMs: number; isNow: boolean; }
 const slotTitle = (s: FastChannelSlot): string =>
-  s.videoTitle || (s as any).bumperTitle || (s.type === 'AD_BREAK' ? 'Ad break' : s.type === 'LIVE_INTERRUPT' ? 'Live' : 'Program');
+  s.videoTitle || (s as any).bumperTitle || (s.type === 'AD_BREAK' ? 'Ad break' : s.type === 'FM_BLOCK' ? 'Plajah FM' : s.type === 'LIVE_INTERRUPT' ? 'Live' : 'Program');
 /** Walk the looping schedule from `now` to produce the current + upcoming programs with real times. */
 function computeEpg(schedule: FastChannelSchedule | null, now: number, count = 6): EpgProgram[] {
   const slots = activeDaySlots(schedule, now);
@@ -483,7 +483,9 @@ const LiveTvPlus: React.FC<{
     fastTimerRef.current = setTimeout(() => syncRef.current(), remaining * 1000 + 400);
     const key = `${fastOwnerRef.current}_${idx}`;
     const m = resolveSlotMedia(s);
-    if (m.isAd) {
+    // Ad break, a scheduled Plajah FM programming block, or any non-video hold — all play the FM
+    // surface (FM audio + cover art + platform bumpers) for the window.
+    if (m.isAd || m.kind === 'FM') {
       setFastMedia(null); setFastFiller(null);
       setFastAd({ key, durationSec: Math.max(3, Math.round(remaining)), upcoming: upNextFrom(slots, idx) });
       return;
@@ -491,11 +493,13 @@ const LiveTvPlus: React.FC<{
     setFastAd(null);
     const url = m.muxPlaybackId ? `https://stream.mux.com/${m.muxPlaybackId}.m3u8` : (m.url || '');
     const isHls = !!(m.isHls || m.muxPlaybackId);
-    // FAST plays platform/stream media only. An unplayable slot holds the branded up-next card for its
-    // window instead of cascading skips (which used to dump the channel into ads-only).
+    // FAST plays platform/stream media only. An unplayable slot never sits on a static card for long:
+    // holds ≤30s show the up-next card, anything longer becomes a Plajah FM insertion until the next
+    // programme is due.
     if (!url || (!isHls && isEmbeddableUrl(url))) {
       setFastMedia(null);
-      setFastFiller({ key, upcoming: upNextFrom(slots, idx) });
+      if (remaining > FM_FILL_THRESHOLD_SEC) { setFastFiller(null); setFastAd({ key: `${key}_fm`, durationSec: Math.round(remaining), upcoming: upNextFrom(slots, idx) }); }
+      else setFastFiller({ key, upcoming: upNextFrom(slots, idx) });
       return;
     }
     setFastFiller(null);
@@ -511,9 +515,15 @@ const LiveTvPlus: React.FC<{
     const pos = clockPos(slots, Date.now());
     if ('offAir' in pos && pos.offAir) { syncRef.current(); return; }
     const remaining = slotDurationSec(slots[pos.index]) - Math.max(0, pos.offsetSec);
-    if (remaining > 5) {
+    const up = upNextFrom(slots, pos.index);
+    if (remaining > FM_FILL_THRESHOLD_SEC) {
+      // A long gap after the programme ended → Plajah FM plays until the next programme is due,
+      // rather than parking on a static graphic.
+      setFastMedia(null); setFastFiller(null);
+      setFastAd({ key: `${fastOwnerRef.current}_${pos.index}_fm`, durationSec: Math.round(remaining), upcoming: up });
+    } else if (remaining > 5) {
       setFastMedia(null);
-      setFastFiller({ key: `${fastOwnerRef.current}_${pos.index}_f`, upcoming: upNextFrom(slots, pos.index) });
+      setFastFiller({ key: `${fastOwnerRef.current}_${pos.index}_f`, upcoming: up });
     } else {
       syncRef.current();
     }

@@ -444,7 +444,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
       onClick={resetControlsTimer}
     >
       {/* Media layer — the current slot decides what renders. */}
-      {media?.kind === 'AD' ? (
+      {(media?.kind === 'AD' || media?.kind === 'FM') ? (
         // Ad break with no user ad → the default Plajah "back shortly" bumper: Plajah FM fades in over
         // full-screen cover art (gift/like/add), a coming-up-next card opens the break, then the ad rail
         // cycles in 16:9 for the rest of the slot's duration (set by the channel's ad settings).
