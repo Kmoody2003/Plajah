@@ -65,7 +65,7 @@ const isEmbeddableUrl = (u: string) =>
   /youtube\.com|youtu\.be|twitch\.tv|vimeo\.com|archive\.org|dailymotion/.test(u);
 
 // ── HLS/embed channel player ──────────────────────────────────────────────────
-const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWatchWebrtc: (feed: any) => void }> = ({ channel, muted, onWatchWebrtc }) => {
+const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWatchWebrtc: (feed: any) => void; onEnded?: () => void; onFail?: () => void }> = ({ channel, muted, onWatchWebrtc, onEnded, onFail }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<any>(null);
 
@@ -133,7 +133,9 @@ const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWat
     );
   }
   if (channel.kind === 'hls') {
-    return <video ref={videoRef} className="absolute inset-0 w-full h-full object-contain bg-black" autoPlay playsInline muted={muted} />;
+    // Content-driven: advance to the next slot the moment media ends (or errors) → no black gap when a
+    // programme is shorter than its scheduled block.
+    return <video ref={videoRef} className="absolute inset-0 w-full h-full object-contain bg-black" autoPlay playsInline muted={muted} onEnded={onEnded} onError={onFail} />;
   }
   if (channel.kind === 'fast') {
     // FAST channel whose current slot hasn't resolved to media yet.
@@ -404,42 +406,68 @@ const LiveTvPlus: React.FC<{
   const selected = channels[index] || null;
   const playing = channels[loadedIndex] || null;
 
-  // Resolve a FAST channel's CURRENT scheduled slot into playable media (Mux HLS / direct).
+  // FAST playout is CONTENT-DRIVEN: we join at the time-of-day slot, then advance the moment the media
+  // ends (or fails) — so a programme shorter than its block never leaves black; the next one rolls in.
   const [fastMedia, setFastMedia] = useState<{ url: string; kind: 'hls' | 'embed'; offset: number } | null>(null);
-  // When the current FAST slot is an ad break, drive the Plajah "back shortly" bumper instead.
   const [fastAd, setFastAd] = useState<{ key: string; durationSec: number; upcoming: UpNextItem[] } | null>(null);
+  const fastSlotsRef = useRef<FastChannelSlot[]>([]);
+  const fastIdxRef = useRef(0);
+  const fastOwnerRef = useRef<string | undefined>(undefined);
+  const fastTimerRef = useRef<any>(null);
+  const applyFastRef = useRef<(offsetSec: number) => void>(() => {});
+  const clearFastTimer = () => { if (fastTimerRef.current) { clearTimeout(fastTimerRef.current); fastTimerRef.current = null; } };
+
+  const advanceFast = useCallback(() => { fastIdxRef.current += 1; applyFastRef.current(0); }, []);
+
+  const applyFast = useCallback((offsetSec: number) => {
+    clearFastTimer();
+    const slots = fastSlotsRef.current;
+    if (!slots.length) { setFastMedia(null); setFastAd(null); return; }
+    const idx = ((fastIdxRef.current % slots.length) + slots.length) % slots.length;
+    fastIdxRef.current = idx;
+    const s = slots[idx];
+    const m = resolveSlotMedia(s);
+    const remaining = Math.max(1, slotDurationSec(s) - Math.max(0, offsetSec));
+    if (m.isAd) {
+      const upcoming: UpNextItem[] = [];
+      for (let k = 1; k <= slots.length && upcoming.length < 3; k++) {
+        const ns = slots[(idx + k) % slots.length];
+        if (!ns || !(ns.type === 'VIDEO' || ns.type === 'PUBLIC_DOMAIN' || ns.type === 'LIVE_INTERRUPT')) continue;
+        const um = resolveSlotMedia(ns);
+        upcoming.push({ title: um.title, thumbnail: um.thumbnail || (um.muxPlaybackId ? `https://image.mux.com/${um.muxPlaybackId}/thumbnail.jpg?width=320&time=5` : undefined), badge: ns.isReplay ? 'Replay' : undefined });
+      }
+      setFastMedia(null);
+      setFastAd({ key: `${fastOwnerRef.current}_${idx}`, durationSec: Math.max(5, Math.round(remaining)), upcoming });
+      fastTimerRef.current = setTimeout(advanceFast, remaining * 1000); // AD has no media 'ended'
+      return;
+    }
+    setFastAd(null);
+    const url = m.muxPlaybackId ? `https://stream.mux.com/${m.muxPlaybackId}.m3u8` : (m.url || '');
+    if (!url) { setFastMedia(null); fastTimerRef.current = setTimeout(advanceFast, 1200); return; } // skip unplayable
+    setFastMedia({ url, kind: (m.isHls || m.muxPlaybackId) ? 'hls' : (isEmbeddableUrl(url) ? 'embed' : 'hls'), offset: Math.max(0, offsetSec) });
+    // Safety net if 'ended' never fires (stall / embed): advance after the expected remaining + grace.
+    fastTimerRef.current = setTimeout(advanceFast, (remaining + 8) * 1000);
+  }, [advanceFast]);
+  useEffect(() => { applyFastRef.current = applyFast; }, [applyFast]);
+
   useEffect(() => {
     let cancelled = false;
+    clearFastTimer();
     const owner = playing?.kind === 'fast' ? playing.scheduleOwner : undefined;
-    if (!owner) { setFastMedia(null); setFastAd(null); return; }
-    const resolve = (sched: FastChannelSchedule | null) => {
+    fastOwnerRef.current = owner;
+    if (!owner) { setFastMedia(null); setFastAd(null); fastSlotsRef.current = []; return; }
+    const start = (sched: FastChannelSchedule | null) => {
       if (cancelled) return;
       const daySlots = activeDaySlots(sched, Date.now());
+      fastSlotsRef.current = daySlots;
       if (!daySlots.length) { setFastMedia(null); setFastAd(null); return; }
-      // Terrestrial join: pick the programme on air for the TIME OF DAY and how far into it to seek.
       const pos = sched?.midnightAnchored ? linearPositionMidnight(daySlots, Date.now()) : dayAnchoredPosition(daySlots, Date.now());
       if ('offAir' in pos && pos.offAir) { setFastMedia(null); setFastAd(null); return; }
-      const m = resolveSlotMedia(daySlots[pos.index]);
-      // Ad break with no user ad → the Plajah "back shortly" bumper for the rest of the slot.
-      if (m.isAd) {
-        const upcoming: UpNextItem[] = [];
-        for (let k = 1; k <= daySlots.length && upcoming.length < 3; k++) {
-          const s = daySlots[(pos.index + k) % daySlots.length];
-          if (!s || !(s.type === 'VIDEO' || s.type === 'PUBLIC_DOMAIN' || s.type === 'LIVE_INTERRUPT')) continue;
-          const um = resolveSlotMedia(s);
-          upcoming.push({ title: um.title, thumbnail: um.thumbnail || (um.muxPlaybackId ? `https://image.mux.com/${um.muxPlaybackId}/thumbnail.jpg?width=320&time=5` : undefined), badge: s.isReplay ? 'Replay' : undefined });
-        }
-        setFastMedia(null);
-        setFastAd({ key: `${owner}_${pos.index}`, durationSec: Math.max(5, Math.round(m.durationSec - pos.offsetSec)), upcoming });
-        return;
-      }
-      setFastAd(null);
-      const url = m.muxPlaybackId ? `https://stream.mux.com/${m.muxPlaybackId}.m3u8` : (m.url || '');
-      setFastMedia(url ? { url, kind: (m.isHls || m.muxPlaybackId) ? 'hls' : (isEmbeddableUrl(url) ? 'embed' : 'hls'), offset: pos.offsetSec } : null);
+      fastIdxRef.current = pos.index;
+      applyFast(pos.offsetSec);
     };
-    if (schedCache.current.has(owner)) resolve(schedCache.current.get(owner)!);
+    if (schedCache.current.has(owner)) start(schedCache.current.get(owner)!);
     else {
-      // Duration-correct the schedule from the library so dayAnchoredPosition selects the RIGHT slot.
       Promise.all([
         fetchFastChannelSchedule(owner).catch(() => null),
         fetchFastChannelVideos(owner).catch(() => [] as any[]),
@@ -447,12 +475,11 @@ const LiveTvPlus: React.FC<{
         const durMap = new Map((vids as any[]).map(v => [v.id, Math.round(Number(v.duration) || 0)]));
         const fixed = s ? backfillScheduleDurations(s, durMap) : null;
         schedCache.current.set(owner, fixed);
-        resolve(fixed);
-      }).catch(() => resolve(null));
+        start(fixed);
+      }).catch(() => start(null));
     }
-    const t = setInterval(() => resolve(schedCache.current.get(owner) ?? null), 30000);
-    return () => { cancelled = true; clearInterval(t); };
-  }, [playing?.scheduleOwner, playing?.kind]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => { cancelled = true; clearFastTimer(); };
+  }, [playing?.scheduleOwner, playing?.kind, applyFast]);
 
   // The channel actually handed to the player: FAST channels play their current scheduled slot.
   const resolvedPlaying: TvChannel | null = playing && playing.kind === 'fast'
@@ -486,7 +513,9 @@ const LiveTvPlus: React.FC<{
 
       {/* Content + dial */}
       <div className="relative flex-1 min-h-0">
-        <ChannelPlayer channel={resolvedPlaying} muted={muted} onWatchWebrtc={(f) => onWatchWebrtc?.(f)} />
+        <ChannelPlayer channel={resolvedPlaying} muted={muted} onWatchWebrtc={(f) => onWatchWebrtc?.(f)}
+          onEnded={playing?.kind === 'fast' ? advanceFast : undefined}
+          onFail={playing?.kind === 'fast' ? advanceFast : undefined} />
 
         {/* Ad break with no user ad → the Plajah "back shortly" bumper (Plajah FM + coming-up-next). */}
         {playing?.kind === 'fast' && fastAd && (

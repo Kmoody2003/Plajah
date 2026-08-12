@@ -7,7 +7,7 @@ import {
   Camera, Image as ImageIcon,
 } from 'lucide-react';
 import { Album, Video, StoreProduct, Photo } from '../types';
-import { fetchUserAlbums, fetchUserVideos, fetchUserPhotos, updateAlbum, updateVideo, updatePhoto } from '../services/backendService';
+import { fetchUserAlbums, fetchUserVideos, fetchUserPhotos, updateAlbum, updateVideo, updatePhoto, addVideoToFastChannel, auth } from '../services/backendService';
 import { fetchUnifiedSellerProducts } from '../services/storeService';
 import { crossover, type MediaKind, type Recipe, type ConvertResult } from '../services/crossover';
 
@@ -225,6 +225,22 @@ const ContentAssetManager: React.FC<{
     } finally { setBusy(false); }
   };
 
+  // Add the selected Reello videos (incl. live recordings) to the user's FAST channel — appends them
+  // as programmes and enables/publishes the channel. Live recordings air with the REPLAY bug.
+  const bulkAddToFast = async () => {
+    const uid = auth.currentUser?.uid; if (!uid) return;
+    setBusy(true);
+    try {
+      let n = 0;
+      for (const id of [...selected]) {
+        const a = assets.find(x => x.id === id);
+        if (a?.video) { await addVideoToFastChannel(uid, a.video); n++; }
+      }
+      clearSel();
+      alert(n ? `Added ${n} programme${n > 1 ? 's' : ''} to your FAST channel.` : 'Select Reello videos to add to your FAST channel.');
+    } finally { setBusy(false); }
+  };
+
   const edit = (a: Asset) => { if (a.album) onEditAlbum(a.album); else if (a.product) onManageStore?.(); };
 
   // Save edits to a Reello video's settings (title / description / visibility) right here in
@@ -317,6 +333,7 @@ const ContentAssetManager: React.FC<{
           <span className="text-[11px] font-black uppercase tracking-widest text-[#FF8C00]">{selected.size} selected</span>
           <button disabled={busy} onClick={() => bulkSetPublic(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 text-[9px] font-black uppercase tracking-widest text-white hover:bg-white/20"><Globe size={11} /> Publish</button>
           <button disabled={busy} onClick={() => bulkSetPublic(false)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 text-[9px] font-black uppercase tracking-widest text-white hover:bg-white/20"><Lock size={11} /> Make private</button>
+          <button disabled={busy} onClick={bulkAddToFast} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FF8C00] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90"><Tv size={11} /> Add to FAST</button>
           {busy && <Loader2 size={13} className="animate-spin text-white/50" />}
           <button onClick={clearSel} className="ml-auto text-white/40 hover:text-white"><X size={15} /></button>
         </div>
