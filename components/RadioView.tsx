@@ -3,7 +3,8 @@ import { Radio, Play, Pause, SkipForward, Heart, Plus, HeartHandshake, Volume2, 
 import PageHeader from './PageHeader';
 import { motion, AnimatePresence } from 'motion/react';
 import { Track, UserProfile, Album } from '../types';
-import { fetchRadioTracks, likeTrack, addToLibrary, auth, processDonation, fetchUserProfile } from '../services/backendService';
+import { fetchRadioTracks, likeTrack, addToLibrary, auth, processDonation, fetchUserProfile, fetchRadioSchedule } from '../services/backendService';
+import { activeDaySlots, slotDurationSec } from '../services/fastChannelTimeline';
 import DonationModal from './DonationModal';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import LiveRadioBrowser from './radio/LiveRadioBrowser';
@@ -148,13 +149,43 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
           const poolTracks = allTracks.filter(t => t.artistId !== activeStationId && !otherCreatorIds.includes(t.artistId || ''));
           
           const mixed = [...artistTracks, ...collaboratorsTracks, ...poolTracks.sort(() => Math.random() - 0.5)];
-          setTracks(mixed);
+
+          // If the station has a Program Schedule (built in the radio scheduler), the SCHEDULE drives
+          // the queue — the existing Plajah FM engine plays the authored line-up (in order, with the
+          // day's per-weekday override) instead of the shuffle, and satellite positioning tunes you in
+          // at the right wall-clock spot. Ads/live slots are skipped in the music rotation. Falls back
+          // to the shuffle when there's no schedule.
+          const schedule = await fetchRadioSchedule(activeStationId).catch(() => null);
+          let queue = mixed;
+          if (schedule) {
+            const byId = new Map(mixed.map(t => [t.id, t]));
+            const scheduled: Track[] = [];
+            for (const s of activeDaySlots(schedule, Date.now())) {
+              if (s.type === 'AD_BREAK' || s.type === 'LIVE_INTERRUPT') continue;
+              const real = s.videoId ? byId.get(s.videoId) : undefined;
+              if (real) { scheduled.push(real); continue; }
+              const url = s.type === 'BUMPER' ? s.bumperUrl : s.videoUrl;
+              if (!url) continue;
+              scheduled.push({
+                id: s.videoId || s.bumperId || s.id,
+                title: s.type === 'BUMPER' ? (s.bumperTitle || 'Station ID') : (s.videoTitle || 'Track'),
+                artist: profile.displayName || 'Radio',
+                artistId: activeStationId,
+                url,
+                duration: slotDurationSec(s),
+                albumCover: s.videoThumbnail,
+                isRadioEligible: true,
+              } as Track);
+            }
+            if (scheduled.length) queue = scheduled;
+          }
+          setTracks(queue);
 
           // Satellite mode: join mid-song based on wall-clock position
-          const pos = getSatellitePosition(mixed);
-          setCurrentTrack(mixed[pos.trackIndex] ?? null);
+          const pos = getSatellitePosition(queue);
+          setCurrentTrack(queue[pos.trackIndex] ?? null);
           setSatelliteOffset(pos.offsetSeconds);
-          setRecentlyPlayed(getRecentlyPlayed(mixed));
+          setRecentlyPlayed(getRecentlyPlayed(queue));
         } else {
           const allTracks = await fetchRadioTracks();
           setTracks(allTracks);
