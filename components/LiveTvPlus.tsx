@@ -14,7 +14,7 @@ import { SCIENCE_STREAMS } from './scienceStreams';
 import { fetchFastChannelSchedule, fetchFastChannelVideos, type FastChannelListing } from '../services/backendService';
 import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, backfillScheduleDurations } from '../services/fastChannelTimeline';
 import AdBreakBumper from './tv/AdBreakBumper';
-import type { UpNextItem } from './tv/ComingUpNextBumper';
+import ComingUpNextBumper, { type UpNextItem } from './tv/ComingUpNextBumper';
 
 export interface TvChannel {
   id: string;
@@ -421,68 +421,103 @@ const LiveTvPlus: React.FC<{
   const selected = channels[index] || null;
   const playing = channels[loadedIndex] || null;
 
-  // FAST playout is CONTENT-DRIVEN: we join at the time-of-day slot, then advance the moment the media
-  // ends (or fails) — so a programme shorter than its block never leaves black; the next one rolls in.
-  const [fastMedia, setFastMedia] = useState<{ url: string; kind: 'hls' | 'embed'; offset: number } | null>(null);
+  // ── FAST playout: WALL-CLOCK DRIVEN, like a real broadcast station ─────────────────────────────
+  // What is on air is a PURE FUNCTION OF THE CURRENT TIME: dayAnchoredPosition(slots, now) yields the
+  // slot plus how far into it we are, so we join mid-programme and every ad break airs exactly in its
+  // guide window. There is deliberately NO advancing index pointer — each tick RE-DERIVES the position
+  // from the clock and schedules the next tick at the current slot's window end. An ad therefore CANNOT
+  // loop: once its window elapses the clock resolves to the next programme no matter what the player
+  // did (the old index pointer could re-enter the ad and never escape — that was the looping bug).
+  const [fastMedia, setFastMedia] = useState<{ url: string; offset: number; key: string } | null>(null);
   const [fastAd, setFastAd] = useState<{ key: string; durationSec: number; upcoming: UpNextItem[] } | null>(null);
+  const [fastFiller, setFastFiller] = useState<{ key: string; upcoming: UpNextItem[] } | null>(null);
   const fastSlotsRef = useRef<FastChannelSlot[]>([]);
-  const fastIdxRef = useRef(0);
+  const fastSchedRef = useRef<FastChannelSchedule | null>(null);
   const fastOwnerRef = useRef<string | undefined>(undefined);
   const fastTimerRef = useRef<any>(null);
-  const applyFastRef = useRef<(offsetSec: number) => void>(() => {});
+  const syncRef = useRef<() => void>(() => {});
   const clearFastTimer = () => { if (fastTimerRef.current) { clearTimeout(fastTimerRef.current); fastTimerRef.current = null; } };
 
-  const advanceFast = useCallback(() => { fastIdxRef.current += 1; applyFastRef.current(0); }, []);
+  const upNextFrom = (slots: FastChannelSlot[], idx: number): UpNextItem[] => {
+    const out: UpNextItem[] = [];
+    for (let k = 1; k <= slots.length && out.length < 3; k++) {
+      const ns = slots[(idx + k) % slots.length];
+      if (!ns || !(ns.type === 'VIDEO' || ns.type === 'PUBLIC_DOMAIN' || ns.type === 'LIVE_INTERRUPT')) continue;
+      const um = resolveSlotMedia(ns);
+      out.push({ title: um.title, thumbnail: um.thumbnail || (um.muxPlaybackId ? `https://image.mux.com/${um.muxPlaybackId}/thumbnail.jpg?width=320&time=5` : undefined), badge: ns.isReplay ? 'Replay' : undefined });
+    }
+    return out;
+  };
+  const clockPos = (slots: FastChannelSlot[], now: number) => {
+    const sched = fastSchedRef.current;
+    return sched?.midnightAnchored ? linearPositionMidnight(slots, now) : dayAnchoredPosition(slots, now);
+  };
 
-  const applyFast = useCallback((offsetSec: number) => {
+  /** Re-derive what is on air from the CLOCK and arm the next boundary. Idempotent and loop-proof. */
+  const syncFast = useCallback(() => {
     clearFastTimer();
     const slots = fastSlotsRef.current;
-    if (!slots.length) { setFastMedia(null); setFastAd(null); return; }
-    const idx = ((fastIdxRef.current % slots.length) + slots.length) % slots.length;
-    fastIdxRef.current = idx;
+    if (!slots.length) { setFastMedia(null); setFastAd(null); setFastFiller(null); return; }
+    const pos = clockPos(slots, Date.now());
+    if ('offAir' in pos && pos.offAir) {
+      setFastMedia(null); setFastAd(null); setFastFiller(null);
+      fastTimerRef.current = setTimeout(() => syncRef.current(), Math.min(pos.resumesInSec, 300) * 1000);
+      return;
+    }
+    const idx = pos.index;
     const s = slots[idx];
+    const remaining = Math.max(1, slotDurationSec(s) - Math.max(0, pos.offsetSec));
+    // THE boundary: this is what ends an ad break and returns the channel to programming, on time.
+    fastTimerRef.current = setTimeout(() => syncRef.current(), remaining * 1000 + 400);
+    const key = `${fastOwnerRef.current}_${idx}`;
     const m = resolveSlotMedia(s);
-    const remaining = Math.max(1, slotDurationSec(s) - Math.max(0, offsetSec));
     if (m.isAd) {
-      const upcoming: UpNextItem[] = [];
-      for (let k = 1; k <= slots.length && upcoming.length < 3; k++) {
-        const ns = slots[(idx + k) % slots.length];
-        if (!ns || !(ns.type === 'VIDEO' || ns.type === 'PUBLIC_DOMAIN' || ns.type === 'LIVE_INTERRUPT')) continue;
-        const um = resolveSlotMedia(ns);
-        upcoming.push({ title: um.title, thumbnail: um.thumbnail || (um.muxPlaybackId ? `https://image.mux.com/${um.muxPlaybackId}/thumbnail.jpg?width=320&time=5` : undefined), badge: ns.isReplay ? 'Replay' : undefined });
-      }
-      setFastMedia(null);
-      setFastAd({ key: `${fastOwnerRef.current}_${idx}`, durationSec: Math.max(5, Math.round(remaining)), upcoming });
-      fastTimerRef.current = setTimeout(advanceFast, (remaining + 6) * 1000); // backup; the bumper's onComplete is primary
+      setFastMedia(null); setFastFiller(null);
+      setFastAd({ key, durationSec: Math.max(3, Math.round(remaining)), upcoming: upNextFrom(slots, idx) });
       return;
     }
     setFastAd(null);
     const url = m.muxPlaybackId ? `https://stream.mux.com/${m.muxPlaybackId}.m3u8` : (m.url || '');
     const isHls = !!(m.isHls || m.muxPlaybackId);
-    // FAST plays platform/stream media only — skip anything with no url or a fragile iframe embed
-    // (YouTube/Twitch/…). Real content is Mux/HLS or a direct file.
-    if (!url || (!isHls && isEmbeddableUrl(url))) { setFastMedia(null); fastTimerRef.current = setTimeout(advanceFast, 1200); return; }
-    setFastMedia({ url, kind: 'hls', offset: Math.max(0, offsetSec) }); // ChannelPlayer plays HLS or a direct file
-    // Safety net if 'ended' never fires (stall / embed): advance after the expected remaining + grace.
-    fastTimerRef.current = setTimeout(advanceFast, (remaining + 8) * 1000);
-  }, [advanceFast]);
-  useEffect(() => { applyFastRef.current = applyFast; }, [applyFast]);
+    // FAST plays platform/stream media only. An unplayable slot holds the branded up-next card for its
+    // window instead of cascading skips (which used to dump the channel into ads-only).
+    if (!url || (!isHls && isEmbeddableUrl(url))) {
+      setFastMedia(null);
+      setFastFiller({ key, upcoming: upNextFrom(slots, idx) });
+      return;
+    }
+    setFastFiller(null);
+    setFastMedia({ url, offset: Math.max(0, pos.offsetSec), key });
+  }, []);
+  useEffect(() => { syncRef.current = syncFast; }, [syncFast]);
+
+  /** Media finished (or failed) before its scheduled window ends: show the up-next card for the rest of
+   *  the window — no black, and the clock boundary still moves us on exactly on schedule. */
+  const onFastMediaEnded = useCallback(() => {
+    const slots = fastSlotsRef.current;
+    if (!slots.length) return;
+    const pos = clockPos(slots, Date.now());
+    if ('offAir' in pos && pos.offAir) { syncRef.current(); return; }
+    const remaining = slotDurationSec(slots[pos.index]) - Math.max(0, pos.offsetSec);
+    if (remaining > 5) {
+      setFastMedia(null);
+      setFastFiller({ key: `${fastOwnerRef.current}_${pos.index}_f`, upcoming: upNextFrom(slots, pos.index) });
+    } else {
+      syncRef.current();
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     clearFastTimer();
     const owner = playing?.kind === 'fast' ? playing.scheduleOwner : undefined;
     fastOwnerRef.current = owner;
-    if (!owner) { setFastMedia(null); setFastAd(null); fastSlotsRef.current = []; return; }
+    if (!owner) { setFastMedia(null); setFastAd(null); setFastFiller(null); fastSlotsRef.current = []; return; }
     const start = (sched: FastChannelSchedule | null) => {
       if (cancelled) return;
-      const daySlots = activeDaySlots(sched, Date.now());
-      fastSlotsRef.current = daySlots;
-      if (!daySlots.length) { setFastMedia(null); setFastAd(null); return; }
-      const pos = sched?.midnightAnchored ? linearPositionMidnight(daySlots, Date.now()) : dayAnchoredPosition(daySlots, Date.now());
-      if ('offAir' in pos && pos.offAir) { setFastMedia(null); setFastAd(null); return; }
-      fastIdxRef.current = pos.index;
-      applyFast(pos.offsetSec);
+      fastSchedRef.current = sched;
+      fastSlotsRef.current = activeDaySlots(sched, Date.now());
+      syncFast();   // join at the current wall-clock position
     };
     if (schedCache.current.has(owner)) start(schedCache.current.get(owner)!);
     else {
@@ -497,11 +532,19 @@ const LiveTvPlus: React.FC<{
       }).catch(() => start(null));
     }
     return () => { cancelled = true; clearFastTimer(); };
-  }, [playing?.scheduleOwner, playing?.kind, applyFast]);
+  }, [playing?.scheduleOwner, playing?.kind, syncFast]);
+
+  // Re-sync from the clock when the tab returns to the foreground (background timers get throttled on
+  // mobile/TV, which would otherwise leave the channel parked on a stale slot).
+  useEffect(() => {
+    const onVis = () => { if (!document.hidden && playing?.kind === 'fast') syncRef.current(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [playing?.kind]);
 
   // The channel actually handed to the player: FAST channels play their current scheduled slot.
   const resolvedPlaying: TvChannel | null = playing && playing.kind === 'fast'
-    ? (fastMedia ? { ...playing, kind: fastMedia.kind, playUrl: fastMedia.url, startOffset: fastMedia.offset } : playing)
+    ? (fastMedia ? { ...playing, kind: 'hls', playUrl: fastMedia.url, startOffset: fastMedia.offset } : playing)
     : playing;
 
   if (channels.length === 0) {
@@ -531,13 +574,21 @@ const LiveTvPlus: React.FC<{
 
       {/* Content + dial */}
       <div className="relative flex-1 min-h-0">
-        <ChannelPlayer channel={resolvedPlaying} muted={muted} onWatchWebrtc={(f) => onWatchWebrtc?.(f)}
-          onEnded={playing?.kind === 'fast' ? advanceFast : undefined}
-          onFail={playing?.kind === 'fast' ? advanceFast : undefined} />
+        {/* Keyed per scheduled slot so a repeat of the same url still reloads the player. */}
+        <ChannelPlayer key={fastMedia?.key || resolvedPlaying?.id || 'none'} channel={resolvedPlaying} muted={muted} onWatchWebrtc={(f) => onWatchWebrtc?.(f)}
+          onEnded={playing?.kind === 'fast' ? onFastMediaEnded : undefined}
+          onFail={playing?.kind === 'fast' ? onFastMediaEnded : undefined} />
 
-        {/* Ad break with no user ad → the Plajah "back shortly" bumper (Plajah FM + coming-up-next). */}
+        {/* Ad break with no user ad → the Plajah "back shortly" bumper (Plajah FM + coming-up-next).
+            onComplete re-syncs from the clock; the boundary timer is the real guarantee it ends. */}
         {playing?.kind === 'fast' && fastAd && (
-          <AdBreakBumper key={fastAd.key} channelName={playing.name} durationSec={fastAd.durationSec} upcoming={fastAd.upcoming} accent={playing.accent} muted={muted} onComplete={advanceFast} />
+          <AdBreakBumper key={fastAd.key} channelName={playing.name} durationSec={fastAd.durationSec} upcoming={fastAd.upcoming} accent={playing.accent} muted={muted} onComplete={() => syncRef.current()} />
+        )}
+
+        {/* Filler: the scheduled programme ended early or can't play — hold the branded up-next card
+            for the rest of its window instead of black (the clock boundary moves us on, on time). */}
+        {playing?.kind === 'fast' && !fastAd && fastFiller && (
+          <ComingUpNextBumper key={fastFiller.key} channelName={playing.name} items={fastFiller.upcoming} accent={playing.accent} />
         )}
 
         {/* Live pre-emption warning — a FAST channel is being cut over to the broadcaster's live
