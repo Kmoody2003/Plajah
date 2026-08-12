@@ -32,6 +32,14 @@ const fmtDur = (sec: number) => {
 };
 const fmtClock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+export interface LiveAudioSource {
+  kind: 'reello_live' | 'live_talk' | 'podcast';
+  id?: string;
+  url?: string;
+  title: string;
+  durationSec?: number;
+}
+
 interface Props {
   schedule: FastChannelSchedule;
   onChange: (next: FastChannelSchedule) => void;
@@ -40,13 +48,28 @@ interface Props {
   adDurationSeconds: number;
   onSave: () => void;
   saving?: boolean;
+  /** 'tv' = FAST video channel, 'radio' = audio station. TV and radio run side-by-side (a parent
+   *  station switch chooses which one this editor targets — they are never mutually exclusive). */
+  mode?: 'tv' | 'radio';
+  /** Live audio/video feeds that can be scheduled as LIVE slots — the account's Reello live stream,
+   *  a Live Talk room, or a podcast episode (radio can break to live audio inline). */
+  liveSources?: LiveAudioSource[];
+  /** Radio: the station's existing `radioSettings.stingers` URLs — surfaced in the Stingers rail so
+   *  the scheduler taps the SAME station assets rather than a parallel set. */
+  stingers?: string[];
+  /** Radio: the station's existing `radioSettings.ads` URLs — surfaced in the Ads rail. */
+  audioAds?: string[];
 }
 
-const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers, adDurationSeconds, onSave, saving }) => {
+const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers, adDurationSeconds, onSave, saving, mode = 'tv', liveSources = [], stingers = [], audioAds = [] }) => {
+  const isRadio = mode === 'radio';
+  const stingerName = (url: string) => { try { return decodeURIComponent(url.split('/').pop() || 'Station ID').split('?')[0]; } catch { return 'Station ID'; } };
+  const newStinger = (url: string): FastChannelSlot => ({ id: `sting_${Date.now()}`, type: 'BUMPER', order: 0, assetKind: 'audio', bumperUrl: url, bumperTitle: stingerName(url), bumperDurationSeconds: 8 });
+  const newAudioAd = (url: string): FastChannelSlot => ({ id: `aad_${Date.now()}`, type: 'VIDEO', order: 0, assetKind: 'audio', videoUrl: url, videoTitle: stingerName(url) || 'Ad', videoDurationSeconds: 30 });
   const [day, setDay] = useState<DayTab>('every');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [clip, setClip] = useState<FastChannelSlot | null>(null);
-  const [rail, setRail] = useState<'library' | 'bumpers' | 'promos' | 'ads'>('library');
+  const [rail, setRail] = useState<'library' | 'bumpers' | 'promos' | 'ads' | 'live'>('library');
   const [showReport, setShowReport] = useState(false);
   const dragFrom = useRef<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
@@ -110,7 +133,15 @@ const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers
     videoTitle: v.title, videoThumbnail: v.thumbnailUrl || v.coverImageUrl,
     videoDurationSeconds: Math.max(1, Math.round((v as any).duration || 0)) || undefined,
     isReplay: !!(v as any).isLiveRecording, bugLabel: (v as any).isLiveRecording ? 'REPLAY' : undefined,
-    assetKind: schedule.stationKind === 'radio' ? 'audio' : 'video',
+    assetKind: isRadio ? 'audio' : 'video',
+  });
+  const newLive = (src: LiveAudioSource): FastChannelSlot => ({
+    id: `live_${src.kind}_${Date.now()}`, type: 'LIVE_INTERRUPT', order: 0,
+    assetKind: isRadio ? 'audio' : 'video',
+    liveSourceKind: src.kind, liveSourceId: src.id, liveSourceUrl: src.url,
+    liveSourceTitle: src.title, videoTitle: src.title,
+    liveInterruptMaxDurationSeconds: src.durationSec || 1800,
+    bugLabel: 'LIVE',
   });
 
   // clipboard
@@ -164,8 +195,8 @@ const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
             <h2 className="text-2xl font-black uppercase tracking-tight flex items-center gap-2">
-              {schedule.stationKind === 'radio' ? <Music2 size={20} className="text-small-orange" /> : <Tv size={20} className="text-small-orange" />}
-              Playout Scheduler
+              {isRadio ? <Music2 size={20} className="text-small-orange" /> : <Tv size={20} className="text-small-orange" />}
+              {isRadio ? 'Radio Scheduler' : 'Playout Scheduler'}
             </h2>
             <p className="text-[9px] text-white/40 uppercase tracking-widest font-bold mt-1">
               {editing.length} slots · {fmtDur(totalSec)} of 24h {usesPerDay ? `· ${DAY_LABELS[day as number]} override` : '· same every day'}
@@ -181,16 +212,8 @@ const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers
           </div>
         </div>
 
-        {/* station kind + midnight loop toggles */}
+        {/* midnight loop toggle (TV/Radio is chosen by the parent station switch — both run at once) */}
         <div className="flex flex-wrap items-center gap-2 mb-3">
-          <div className="flex rounded-xl overflow-hidden border border-white/10">
-            {(['tv', 'radio'] as const).map(k => (
-              <button key={k} onClick={() => onChange({ ...schedule, stationKind: k })}
-                className={`px-3 py-2 text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5 ${(schedule.stationKind || 'tv') === k ? 'bg-small-orange text-white' : 'bg-white/5 text-white/40 hover:text-white/70'}`}>
-                {k === 'tv' ? <Tv size={11} /> : <Music2 size={11} />} {k === 'tv' ? 'TV Channel' : 'Radio'}
-              </button>
-            ))}
-          </div>
           <button onClick={() => onChange({ ...schedule, midnightAnchored: !schedule.midnightAnchored })}
             className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border flex items-center gap-1.5 transition-colors ${schedule.midnightAnchored ? 'bg-indigo-500/15 border-indigo-400/30 text-indigo-200' : 'bg-white/5 border-white/10 text-white/40'}`}>
             <Clock size={11} /> {schedule.midnightAnchored ? 'Midnight-anchored loop' : 'Continuous loop'}
@@ -373,7 +396,13 @@ const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers
           <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/10">
             {/* rail tabs */}
             <div className="flex gap-1 mb-3">
-              {([['library', 'Library', <Film size={11} key="l" />], ['bumpers', 'Bumpers', <CircleDot size={11} key="b" />], ['promos', 'Promos', <Megaphone size={11} key="p" />], ['ads', 'Ads', <DollarSign size={11} key="a" />]] as const).map(([k, label, icon]) => (
+              {([
+                ['library', isRadio ? 'Tracks' : 'Library', <Film size={11} key="l" />],
+                ['bumpers', isRadio ? 'Stingers' : 'Bumpers', <CircleDot size={11} key="b" />],
+                ['promos', 'Promos', <Megaphone size={11} key="p" />],
+                ['ads', 'Ads', <DollarSign size={11} key="a" />],
+                ['live', 'Live', <Radio size={11} key="lv" />],
+              ] as const).map(([k, label, icon]) => (
                 <button key={k} onClick={() => setRail(k as any)}
                   className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-colors ${rail === k ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/70'}`}>
                   {icon} {label}
@@ -392,7 +421,17 @@ const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers
                     <Plus size={12} className="text-white/20 group-hover:text-white shrink-0" />
                   </button>
                 )))}
-              {rail === 'bumpers' && (plainBumpers.length === 0
+              {rail === 'bumpers' && isRadio && (stingers.length === 0
+                ? <p className="text-[9px] text-white/20 uppercase tracking-widest text-center py-6">No station IDs yet — add stingers to your radio station.</p>
+                : stingers.map((url, i) => (
+                  <button key={`st_${i}`} onClick={() => append(newStinger(url))} className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 text-left group">
+                    <CircleDot size={13} className="text-teal-400 shrink-0" />
+                    <span className="flex-1 text-[9px] font-black uppercase tracking-tight truncate text-white/60 group-hover:text-white">{stingerName(url)}</span>
+                    <span className="text-[7px] text-white/30 uppercase shrink-0">Station ID</span>
+                    <Plus size={12} className="text-white/20 group-hover:text-white shrink-0" />
+                  </button>
+                )))}
+              {rail === 'bumpers' && !isRadio && (plainBumpers.length === 0
                 ? <p className="text-[9px] text-white/20 uppercase tracking-widest text-center py-6">No bumpers — add them in the Bumpers tab.</p>
                 : plainBumpers.map(b => (
                   <button key={b.id} onClick={() => append(newBumper(b))} className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 text-left group">
@@ -416,6 +455,18 @@ const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers
                   <button onClick={() => append(newAd())} className="w-full flex items-center gap-2 p-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-300 text-[9px] font-black uppercase tracking-widest hover:bg-yellow-500/20 mb-2">
                     <DollarSign size={12} /> Insert {adDurationSeconds}s Ad Break
                   </button>
+                  {isRadio && audioAds.length > 0 && (
+                    <>
+                      <p className="text-[8px] text-white/30 uppercase tracking-widest mb-1.5">Your station ads (radioSettings)</p>
+                      {audioAds.map((url, i) => (
+                        <button key={`aad_${i}`} onClick={() => append(newAudioAd(url))} className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 text-left group mb-1">
+                          <DollarSign size={12} className="text-yellow-400 shrink-0" />
+                          <span className="flex-1 text-[9px] font-black uppercase tracking-tight truncate text-white/60 group-hover:text-white">{stingerName(url)}</span>
+                          <Plus size={12} className="text-white/20 group-hover:text-white shrink-0" />
+                        </button>
+                      ))}
+                    </>
+                  )}
                   <p className="text-[8px] text-white/30 uppercase tracking-widest mb-1.5">Your ad reels (from Artist Manager)</p>
                   {adReels.length === 0
                     ? <p className="text-[9px] text-white/20 uppercase tracking-widest text-center py-4">No ad creatives found in your library.</p>
@@ -423,6 +474,25 @@ const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers
                       <button key={v.id} onClick={() => append({ ...newVideo(v), bugLabel: undefined })} className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 text-left group">
                         <DollarSign size={12} className="text-yellow-400 shrink-0" />
                         <span className="flex-1 text-[9px] font-black uppercase tracking-tight truncate text-white/60 group-hover:text-white">{v.title}</span>
+                        <Plus size={12} className="text-white/20 group-hover:text-white shrink-0" />
+                      </button>
+                    ))}
+                </>
+              )}
+              {rail === 'live' && (
+                <>
+                  <p className="text-[8px] text-white/30 uppercase tracking-widest mb-1.5">
+                    {isRadio ? 'Break to live audio — your Reello stream, a Live Talk room, or a podcast episode' : 'Schedule a live break inline in the loop'}
+                  </p>
+                  {liveSources.length === 0
+                    ? <p className="text-[9px] text-white/20 uppercase tracking-widest text-center py-4">No live sources available. Go live on Reello or add a podcast to schedule live audio.</p>
+                    : liveSources.map((src, i) => (
+                      <button key={`${src.kind}_${i}`} onClick={() => append(newLive(src))} className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 text-left group">
+                        <Radio size={12} className="text-red-400 shrink-0" />
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-[9px] font-black uppercase tracking-tight truncate text-white/60 group-hover:text-white">{src.title}</span>
+                          <span className="block text-[7px] text-white/30 uppercase tracking-widest">{src.kind.replace('_', ' ')}</span>
+                        </span>
                         <Plus size={12} className="text-white/20 group-hover:text-white shrink-0" />
                       </button>
                     ))}

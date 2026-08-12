@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { fetchUserAlbums, fetchUserProfile, updateUserProfile, auth } from '../services/backendService';
 import type { Album, Track, UserProfile } from '../types';
+import FastChannelManager from './FastChannelManager';
+import { createPortal } from 'react-dom';
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
@@ -22,6 +24,7 @@ export default function ArtistRadioBuilder({ user }: Props) {
 
   // Radio settings state
   const [enabled, setEnabled]           = useState(false);
+  const [showScheduler, setShowScheduler] = useState(false);
   const [stationName, setStationName]   = useState('');
   const [stingerFreq, setStingerFreq]   = useState(4);
   const [adFreq, setAdFreq]             = useState(6);
@@ -125,6 +128,25 @@ export default function ArtistRadioBuilder({ user }: Props) {
           <div className={`w-4 h-4 rounded-full bg-white transition-all shadow ${enabled ? 'translate-x-6' : ''}`} />
         </div>
       </button>
+
+      {/* Program Scheduler — the linear playout timeline for THIS station (taps the same radio
+          settings: eligible tracks, stingers, ads) plus live audio breaks (Reello / Live Talk / podcast). */}
+      <button onClick={() => setShowScheduler(true)}
+        className="w-full flex items-center gap-4 p-5 rounded-2xl border border-[#FF8C00]/25 bg-[#FF8C00]/[0.06] hover:bg-[#FF8C00]/[0.1] transition-all text-left">
+        <div className="p-3 rounded-2xl bg-[#FF8C00]/15"><Clock size={20} className="text-[#FF8C00]" /></div>
+        <div className="flex-1">
+          <p className="text-base font-black uppercase tracking-widest text-white">Program Scheduler</p>
+          <p className="text-[10px] text-white/30">Build a linear line-up — drag tracks, stingers, ads & live audio breaks; per-day schedules; as-run reports</p>
+        </div>
+        <span className="px-4 py-2 rounded-xl bg-[#FF8C00] text-black text-[10px] font-black uppercase tracking-widest shrink-0">Open</span>
+      </button>
+
+      {showScheduler && profile && createPortal(
+        <div className="fixed inset-0 z-[300] bg-black overflow-y-auto">
+          <FastChannelManager user={profile} initialTab="SCHEDULE" initialStation="radio" onBack={() => setShowScheduler(false)} />
+        </div>,
+        document.body,
+      )}
 
       {/* Station settings */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

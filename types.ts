@@ -3614,6 +3614,12 @@ export interface FastChannelSlot {
   // LIVE_INTERRUPT — when to break to live and how long to stay
   liveInterruptAt?: number; // unix ms
   liveInterruptMaxDurationSeconds?: number;
+  /** For a scheduled LIVE slot (esp. radio): where the live audio/video comes from — the account's own
+   *  Reello live stream, a Live Talk room, or a podcast episode. Lets radio schedule live audio inline. */
+  liveSourceKind?: 'reello_live' | 'live_talk' | 'podcast';
+  liveSourceId?: string;      // stream/room/episode id
+  liveSourceUrl?: string;     // direct audio/HLS url when known (podcast episode, external feed)
+  liveSourceTitle?: string;
   // per-slot overrides
   adMarkersSeconds?: number[]; // timestamps within this video to insert mid-roll ads
   adFrequencyOverrideMinutes?: number;

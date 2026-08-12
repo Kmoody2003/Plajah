@@ -7871,25 +7871,108 @@ export const fetchFastChannelSchedule = async (uid: string): Promise<FastChannel
   }
 };
 
+// Firestore is initialized without ignoreUndefinedProperties → an `undefined` field THROWS. Playout
+// slots carry optional keys (bugLabel, isReplay, weeklySlots, liveSourceKind, …), so deep-strip
+// undefined before any schedule write or the whole doc fails to persist.
+const stripUndefinedDeep = (v: any): any => {
+  if (Array.isArray(v)) return v.map(stripUndefinedDeep);
+  if (v && typeof v === 'object') {
+    const out: Record<string, any> = {};
+    for (const k of Object.keys(v)) { if (v[k] !== undefined) out[k] = stripUndefinedDeep(v[k]); }
+    return out;
+  }
+  return v;
+};
+
 export const saveFastChannelSchedule = async (schedule: FastChannelSchedule): Promise<void> => {
   try {
-    // Firestore is initialized without ignoreUndefinedProperties → an `undefined` field THROWS. The
-    // playout scheduler builds slots with optional keys (bugLabel, isReplay, weeklySlots, …), so deep-
-    // strip undefined before the write or the whole schedule fails to persist.
-    const stripUndefined = (v: any): any => {
-      if (Array.isArray(v)) return v.map(stripUndefined);
-      if (v && typeof v === 'object') {
-        const out: Record<string, any> = {};
-        for (const k of Object.keys(v)) { if (v[k] !== undefined) out[k] = stripUndefined(v[k]); }
-        return out;
-      }
-      return v;
-    };
-    await setDoc(doc(db, 'fast_channel_schedules', schedule.userId), stripUndefined({ ...schedule, lastUpdated: Date.now() }));
+    await setDoc(doc(db, 'fast_channel_schedules', schedule.userId), stripUndefinedDeep({ ...schedule, lastUpdated: Date.now() }));
   } catch (e) {
     handleFirestoreError(e, OperationType.WRITE, `fast_channel_schedules/${schedule.userId}`);
     throw e;
   }
+};
+
+// ── RADIO station schedule ──────────────────────────────────────────────────
+// A radio station is the SAME linear-slot model as a FAST channel (reuses FastChannelSchedule /
+// FastChannelSlot / the shared timeline resolver) but its slots are AUDIO — music tracks, audio
+// stingers/station-IDs, ad breaks, and scheduled LIVE audio (a Reello live stream, Live Talk room,
+// or podcast episode). Stored in its own collection so TV and Radio run side-by-side (never either/or).
+export const fetchRadioSchedule = async (uid: string): Promise<FastChannelSchedule | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'radio_schedules', uid));
+    if (snap.exists()) return snap.data() as FastChannelSchedule;
+    return null;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.GET, `radio_schedules/${uid}`);
+    return null;
+  }
+};
+
+export const saveRadioSchedule = async (schedule: FastChannelSchedule): Promise<void> => {
+  try {
+    await setDoc(doc(db, 'radio_schedules', schedule.userId), stripUndefinedDeep({ ...schedule, stationKind: 'radio', lastUpdated: Date.now() }));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, `radio_schedules/${schedule.userId}`);
+    throw e;
+  }
+};
+
+/**
+ * Auto-build a radio station schedule from the artist's radio-eligible tracks (falls back to all
+ * tracks), interleaving audio stingers every N songs and ad breaks every M songs per radioSettings.
+ * Audio tracks become VIDEO slots tagged assetKind:'audio' so the shared resolver plays their url.
+ */
+export const autoGenerateRadioSchedule = async (uid: string): Promise<FastChannelSchedule> => {
+  const [albums, profile, existing] = await Promise.all([
+    fetchUserAlbums(uid),
+    fetchUserProfile(uid),
+    fetchRadioSchedule(uid),
+  ]);
+  const rs = (profile as any)?.radioSettings || {};
+  const stingerFreq = Math.max(1, rs.stingerFrequency || 4);
+  const adFreq = Math.max(1, rs.adFrequency || 6);
+  const stingers: string[] = rs.stingers || [];
+  const adDur = existing?.adDurationSeconds ?? 30;
+
+  const tracks = albums
+    .filter(a => a.type === 'MUSIC' || !a.type)
+    .flatMap(a => (a.tracks || []).map(t => ({ ...t, albumTitle: a.title })));
+  const eligible = tracks.filter(t => (t as any).isRadioEligible);
+  const pool = (eligible.length ? eligible : tracks).filter(t => (t as any).url || (t as any).audioUrl);
+
+  const slots: FastChannelSlot[] = [];
+  let order = 0, sinceSting = 0, sinceAd = 0;
+  for (const t of pool) {
+    slots.push({
+      id: `rslot_${order}`, type: 'VIDEO', order, assetKind: 'audio',
+      videoId: t.id, videoUrl: (t as any).url || (t as any).audioUrl || '',
+      videoTitle: t.title || 'Track', videoThumbnail: (t as any).coverArt || (t as any).artworkUrl,
+      videoDurationSeconds: Math.max(1, Math.round((t as any).duration || 0)) || 210,
+      sourceUserId: uid,
+    });
+    order++; sinceSting++; sinceAd++;
+    if (stingers.length && sinceSting >= stingerFreq) {
+      const url = stingers[order % stingers.length];
+      slots.push({ id: `rslot_${order}`, type: 'BUMPER', order, assetKind: 'audio', bumperUrl: url, bumperTitle: 'Station ID', bumperDurationSeconds: 8 });
+      order++; sinceSting = 0;
+    }
+    if (sinceAd >= adFreq) {
+      slots.push({ id: `rslot_${order}`, type: 'AD_BREAK', order, adDurationSeconds: adDur });
+      order++; sinceAd = 0;
+    }
+  }
+
+  const schedule: FastChannelSchedule = {
+    userId: uid, slots,
+    adFrequencyMinutes: existing?.adFrequencyMinutes ?? 20,
+    adDurationSeconds: adDur,
+    commercialFree: existing?.commercialFree ?? false,
+    loopSchedule: true, autoGenerated: true, includePublicDomain: false,
+    stationKind: 'radio', lastUpdated: Date.now(),
+  };
+  await saveRadioSchedule(schedule);
+  return schedule;
 };
 
 /**
