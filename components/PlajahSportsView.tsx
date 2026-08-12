@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { scoreText } from '../src/lib/scoreText';
 import { motion, AnimatePresence } from 'motion/react';
 import { SportsCenterView } from './SportsCenterView';
+import ErrorBoundary from './ErrorBoundary';
 // WorldCupHub is now lazy-loaded inside SportsCenterView (FIFA → Relive World Cup 2026).
 import WorldCupTopBoard from './WorldCupTopBoard';
 import WorldCupVictory from './WorldCupVictory';
@@ -993,9 +994,13 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
               />
             )}
 
-            {/* League-specific sports center (FIFA hosts Relive World Cup 2026 + History/Museum) */}
+            {/* League-specific sports center (FIFA hosts Relive World Cup 2026 + History/Museum).
+                Wrapped so a bad upstream (ESPN) payload in any sport degrades to a fallback instead
+                of white-screening the whole app. */}
             {activeTab !== 'ALL' && activeTab !== 'FITNESS' && activeTab !== 'HEALTH' && (
-              <SportsCenterView selectedSportsTab={activeTab as any} currentUser={currentUser ?? null} />
+              <ErrorBoundary>
+                <SportsCenterView selectedSportsTab={activeTab as any} currentUser={currentUser ?? null} />
+              </ErrorBoundary>
             )}
 
             {/* ALL view: league grid */}

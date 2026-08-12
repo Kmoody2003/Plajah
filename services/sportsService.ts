@@ -1,5 +1,14 @@
 // ESPN public API – no key required.  All responses are cached in-memory.
+import { scoreText } from '../src/lib/scoreText';
 import { findStaticTeam } from '../data/leagueTeams';
+
+/** Coerce an ESPN stat value (number | string | {value,displayValue}) to a number. */
+const statNum = (v: any): number => {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') return parseFloat(v) || 0;
+  if (v && typeof v === 'object') return Number(v.value ?? v.displayValue) || 0;
+  return 0;
+};
 import { fetchTeamSquad, type SquadPlayer } from './worldCupDepth';
 import { legendsForNation } from '../data/soccerLegends';
 import {
@@ -1510,13 +1519,14 @@ export async function fetchRacingSchedule(tab: string): Promise<RaceEvent[]> {
       .sort((a: any, b: any) => (a.order ?? 99) - (b.order ?? 99))
       .slice(0, 10)
       .map((c: any, i: number) => ({
-        pos: c.order ?? i + 1,
-        driverName: c.athlete?.displayName ?? c.displayName ?? 'Driver',
-        teamName: c.team?.displayName ?? c.team?.shortDisplayName ?? '',
+        pos: statNum(c.order) || (i + 1),
+        driverName: scoreText(c.athlete?.displayName ?? c.displayName) || 'Driver',
+        teamName: scoreText(c.team?.displayName ?? c.team?.shortDisplayName),
         driverLogo: c.athlete?.headshot?.href ?? c.athlete?.flag?.href ?? '',
-        points: c.statistics?.find((s: any) => s.name === 'points')?.value,
-        time: c.time ?? c.statistics?.find((s: any) => s.name === 'time')?.displayValue,
-        laps: c.laps,
+        points: statNum(c.statistics?.find((s: any) => s.name === 'points')?.value),
+        // time can arrive as a string OR an ESPN {value,displayValue} object — coerce to a string.
+        time: scoreText(c.time) || scoreText(c.statistics?.find((s: any) => s.name === 'time')?.displayValue),
+        laps: statNum(c.laps),
       }));
 
     return {
@@ -1549,13 +1559,15 @@ export async function fetchRacingStandings(tab: string): Promise<RacingStanding[
 
   const standings: RacingStanding[] = entries.slice(0, 20).map((e: any, i: number) => {
     const stats = e.stats ?? [];
-    const get = (name: string) => stats.find((s: any) => s.name === name)?.value ?? 0;
+    // ESPN stats arrive as number | string | {value,displayValue}; ALWAYS coerce to a number so a
+    // stat object can never reach the UI as a raw React child (minified React #31 → whole-page crash).
+    const get = (name: string): number => statNum(stats.find((s: any) => s.name === name)?.value);
     return {
-      rank: (e.stats?.find((s: any) => s.name === 'rank')?.value ?? i + 1),
-      driverName: e.athlete?.displayName ?? e.team?.displayName ?? `Driver ${i + 1}`,
-      teamName: e.team?.displayName ?? e.team?.shortDisplayName ?? '',
+      rank: get('rank') || (i + 1),
+      driverName: scoreText(e.athlete?.displayName ?? e.team?.displayName) || `Driver ${i + 1}`,
+      teamName: scoreText(e.team?.displayName ?? e.team?.shortDisplayName),
       driverLogo: e.athlete?.headshot?.href ?? '',
-      points: get('points') || get('pointsFor') || 0,
+      points: get('points') || get('pointsFor') || get('championshipPts') || 0,
       wins: get('wins') || 0,
     };
   });
@@ -1723,11 +1735,11 @@ export async function fetchRacingConstructors(tab: string): Promise<RacingConstr
   const entries: any[] = constructorGroup?.standings?.entries ?? [];
   const result: RacingConstructor[] = entries.slice(0, 15).map((e: any, i: number) => {
     const stats = e.stats ?? [];
-    const get = (n: string) => stats.find((s: any) => s.name === n)?.value ?? 0;
+    const get = (n: string): number => statNum(stats.find((s: any) => s.name === n)?.value);
     return {
-      id: e.team?.id ?? e.athlete?.id ?? `${i}`,
-      name: e.team?.displayName ?? e.athlete?.displayName ?? `Team ${i + 1}`,
-      abbreviation: e.team?.abbreviation ?? '',
+      id: String(e.team?.id ?? e.athlete?.id ?? i),
+      name: scoreText(e.team?.displayName ?? e.athlete?.displayName) || `Team ${i + 1}`,
+      abbreviation: scoreText(e.team?.abbreviation),
       logo: e.team?.logos?.[0]?.href ?? '',
       color: e.team?.color ? `#${e.team.color}` : '#FF8C00',
       wins: get('wins') || 0,

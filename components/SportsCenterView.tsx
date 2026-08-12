@@ -238,7 +238,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab, currentUs
   }, [selectedTeam, selectedOrg, selectedEsportsPlayer]);
 
   // â"€â"€â"€ RACING â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-  if (isRacing) return <RacingCenterView tab={selectedSportsTab} />;
+  if (isRacing) return <ErrorBoundary><RacingCenterView tab={selectedSportsTab} /></ErrorBoundary>;
   if (!isLeague) return null;
 
   // ─── SPORT EXPLAINER ────────────────────────────────────────────────────────
@@ -1724,7 +1724,7 @@ const RacingCenterView: React.FC<{ tab: string }> = ({ tab }) => {
                         style={{ color: i === 0 ? SERIES_COLOR : 'rgba(255,255,255,0.25)' }}>{r.pos}</span>
                       {r.driverLogo && <img src={r.driverLogo} alt="" className="w-5 h-5 rounded-full object-cover opacity-80" loading="lazy" />}
                       <span className="flex-1 text-[9px] font-bold truncate">{r.driverName}</span>
-                      {r.time && <span className="text-[8px] font-black text-white/50 shrink-0">{r.time}</span>}
+                      {r.time && <span className="text-[8px] font-black text-white/50 shrink-0">{scoreText(r.time)}</span>}
                     </div>
                   ))}
                 </div>

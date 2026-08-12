@@ -8,6 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { ChevronLeft, Trophy, Flag, Calendar, Newspaper, User, MapPin, Car, Gauge } from 'lucide-react';
 import { fetchRacingDriverDetail, RacingDriver, RacingStanding, RaceEvent } from '../../services/sportsService';
+import { scoreText } from '../../src/lib/scoreText';
 
 interface Props {
   driver: RacingDriver;
@@ -104,9 +105,9 @@ const RacerProfileView: React.FC<Props> = ({ driver, tab, seriesColor, standings
         <Section icon={<Trophy size={12} />} title={`${tab} Championship`}>
           <div className="grid grid-cols-3 gap-3 text-center">
             {[
-              { label: 'Position', value: standing.rank ? `P${standing.rank}` : '—' },
-              { label: 'Points', value: standing.points ?? 0 },
-              { label: 'Wins', value: standing.wins ?? 0 },
+              { label: 'Position', value: standing.rank ? `P${scoreText(standing.rank) || standing.rank}` : '—' },
+              { label: 'Points', value: scoreText(standing.points) || '0' },
+              { label: 'Wins', value: scoreText(standing.wins) || '0' },
             ].map(s => (
               <div key={s.label} className="bg-white/[0.04] rounded-xl py-3">
                 <p className="text-xl font-black tabular-nums" style={{ color: seriesColor }}>{s.value}</p>
