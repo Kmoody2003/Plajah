@@ -5,7 +5,7 @@ import Hls from 'hls.js';
 import { UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { fetchFastChannelVideos, fetchFastChannelSchedule, auth } from '../services/backendService';
 import { checkMembership } from '../services/sanctuaryService';
-import { resolveSlotMedia, slotIsPlayable, slotsFromVideos, activeDaySlots, dayAnchoredPosition, linearPositionMidnight } from '../services/fastChannelTimeline';
+import { resolveSlotMedia, slotIsPlayable, slotsFromVideos, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, isEmbedUrl } from '../services/fastChannelTimeline';
 import { hlsTuning, capLevelsToPanel } from '../services/hlsTuning';
 import AdBreakBumper from './tv/AdBreakBumper';
 import type { UpNextItem } from './tv/ComingUpNextBumper';
@@ -140,7 +140,8 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
           joinOffsetRef.current = pos.offsetSec;
           setCurrentIndex(pos.index);
         }
-      } else if (profile.liveStreamConfig?.fastChannelUrl) {
+      } else if (profile.liveStreamConfig?.fastChannelUrl && !isEmbedUrl(profile.liveStreamConfig.fastChannelUrl)) {
+        // FAST plays platform/stream media only — never a fragile YouTube/Twitch embed.
         setHasExternalUrl(true);
       }
       setIsLoading(false);
@@ -279,7 +280,9 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
   // and LIVE slots have no media end event, so their timer IS the advance. All timers honor the join
   // offset so a mid-slot join only waits out the remaining time.
   useEffect(() => {
-    if (!media || isPaused) return;
+    if (!media) return;
+    if (media.kind === 'AD') return;                 // the AdBreakBumper's onComplete ends the break
+    if (media.kind === 'MEDIA' && isPaused) return;  // a paused video shouldn't auto-advance
     const off = joinOffsetRef.current || 0;
     const remaining = Math.max(1, media.durationSec - off);
     // For AD/LIVE the offset is consumed here (no metadata handler will); MEDIA consumes it on seek.
@@ -444,7 +447,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
         // Ad break with no user ad → the default Plajah "back shortly" bumper: Plajah FM fades in over
         // full-screen cover art (gift/like/add), a coming-up-next card opens the break, then the ad rail
         // cycles in 16:9 for the rest of the slot's duration (set by the channel's ad settings).
-        <AdBreakBumper channelName={channelName} durationSec={media.durationSec} upcoming={upNext} logoUrl={profile.photoURL || undefined} />
+        <AdBreakBumper channelName={channelName} durationSec={media.durationSec} upcoming={upNext} logoUrl={profile.photoURL || undefined} onComplete={advance} />
       ) : media?.kind === 'LIVE' ? (
         // A scheduled live programme in the loop — show the creator's live feed for its window.
         liveEmbedUrl ? (

@@ -87,7 +87,10 @@ const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWat
         const off = channel.startOffset || 0;
         const seekOnce = () => { if (off > 1) { try { v.currentTime = off; } catch { /* */ } } v.removeEventListener('loadedmetadata', seekOnce); };
         if (off > 1) v.addEventListener('loadedmetadata', seekOnce);
-        if (v.canPlayType('application/vnd.apple.mpegurl')) {
+        const isM3u8 = /\.m3u8($|[?#])/i.test(channel.playUrl) || channel.playUrl.includes('stream.mux.com');
+        if (!isM3u8) {
+          v.src = channel.playUrl; // direct file (mp4/webm) — no hls.js needed
+        } else if (v.canPlayType('application/vnd.apple.mpegurl')) {
           v.src = channel.playUrl; // native HLS (Safari)
         } else {
           const [{ default: Hls }, { hlsTuning, capLevelsToPanel }] = await Promise.all([
@@ -450,13 +453,16 @@ const LiveTvPlus: React.FC<{
       }
       setFastMedia(null);
       setFastAd({ key: `${fastOwnerRef.current}_${idx}`, durationSec: Math.max(5, Math.round(remaining)), upcoming });
-      fastTimerRef.current = setTimeout(advanceFast, remaining * 1000); // AD has no media 'ended'
+      fastTimerRef.current = setTimeout(advanceFast, (remaining + 6) * 1000); // backup; the bumper's onComplete is primary
       return;
     }
     setFastAd(null);
     const url = m.muxPlaybackId ? `https://stream.mux.com/${m.muxPlaybackId}.m3u8` : (m.url || '');
-    if (!url) { setFastMedia(null); fastTimerRef.current = setTimeout(advanceFast, 1200); return; } // skip unplayable
-    setFastMedia({ url, kind: (m.isHls || m.muxPlaybackId) ? 'hls' : (isEmbeddableUrl(url) ? 'embed' : 'hls'), offset: Math.max(0, offsetSec) });
+    const isHls = !!(m.isHls || m.muxPlaybackId);
+    // FAST plays platform/stream media only — skip anything with no url or a fragile iframe embed
+    // (YouTube/Twitch/…). Real content is Mux/HLS or a direct file.
+    if (!url || (!isHls && isEmbeddableUrl(url))) { setFastMedia(null); fastTimerRef.current = setTimeout(advanceFast, 1200); return; }
+    setFastMedia({ url, kind: 'hls', offset: Math.max(0, offsetSec) }); // ChannelPlayer plays HLS or a direct file
     // Safety net if 'ended' never fires (stall / embed): advance after the expected remaining + grace.
     fastTimerRef.current = setTimeout(advanceFast, (remaining + 8) * 1000);
   }, [advanceFast]);
@@ -531,7 +537,7 @@ const LiveTvPlus: React.FC<{
 
         {/* Ad break with no user ad → the Plajah "back shortly" bumper (Plajah FM + coming-up-next). */}
         {playing?.kind === 'fast' && fastAd && (
-          <AdBreakBumper key={fastAd.key} channelName={playing.name} durationSec={fastAd.durationSec} upcoming={fastAd.upcoming} accent={playing.accent} muted={muted} />
+          <AdBreakBumper key={fastAd.key} channelName={playing.name} durationSec={fastAd.durationSec} upcoming={fastAd.upcoming} accent={playing.accent} muted={muted} onComplete={advanceFast} />
         )}
 
         {/* Live pre-emption warning — a FAST channel is being cut over to the broadcaster's live

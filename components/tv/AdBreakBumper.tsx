@@ -31,9 +31,11 @@ interface Props {
   accent?: string;
   /** Mirror the player's mute — when true, Plajah FM fills silently (visuals only). */
   muted?: boolean;
+  /** Fired once when the break's time is up — the player uses this to return to scheduled programming. */
+  onComplete?: () => void;
 }
 
-const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [], logoUrl, accent = ORANGE, muted = false }) => {
+const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [], logoUrl, accent = ORANGE, muted = false, onComplete }) => {
   const [track, setTrack] = useState<Track | null>(null);
   const [ads, setAds] = useState<AdConfig[]>([]);
   const [adIdx, setAdIdx] = useState(0);
@@ -74,6 +76,15 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
     const t = setTimeout(() => setShowUpNext(false), UPNEXT_SEC * 1000);
     return () => clearTimeout(t);
   }, [upcoming.length]);
+
+  // THE break end: fire onComplete once when the break's time is up, so the channel reliably returns
+  // to scheduled programming even if nothing else advances it. Independent of the audio/ad state.
+  const completedRef = useRef(false);
+  useEffect(() => {
+    const ms = Math.max(3, durationSec) * 1000;
+    const t = setTimeout(() => { if (!completedRef.current) { completedRef.current = true; onComplete?.(); } }, ms);
+    return () => clearTimeout(t);
+  }, [durationSec]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Audio: play Plajah FM, seek to the live satellite offset, fade in over 4s + out over the last 4s,
   // and flip to the ad-cycle phase at 30s.

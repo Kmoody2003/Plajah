@@ -207,6 +207,14 @@ const MUX_M3U8 = /stream\.mux\.com\/([^./?#]+)\.m3u8/i;
 const isHlsUrl = (u = '') => /\.m3u8($|[?#])/i.test(u);
 
 /**
+ * A URL that can only play inside a third-party iframe embed (YouTube/Twitch/Vimeo/…). FAST channels
+ * must NOT play these — embeds break too easily (autoplay gates, TV iframe limits) and aren't real
+ * platform/stream media. Used to drop such slots from FAST playout.
+ */
+export const isEmbedUrl = (u = ''): boolean =>
+  /youtube\.com|youtu\.be|twitch\.tv|vimeo\.com|dailymotion\.com|facebook\.com\/plugins/i.test(u);
+
+/**
  * Resolve a slot to something playable. Mux ids are extracted from the stored stream url so old
  * schedules (which stored videoUrl = https://stream.mux.com/<id>.m3u8) still play via MuxPlayer.
  */
@@ -244,6 +252,8 @@ export function resolveSlotMedia(s: FastChannelSlot): SlotMedia {
 export function slotIsPlayable(s: FastChannelSlot): boolean {
   if (s.type === 'AD_BREAK' || s.type === 'LIVE_INTERRUPT') return true;
   const m = resolveSlotMedia(s);
+  // FAST plays platform/stream media only — an iframe-only embed (YouTube/etc.) is NOT playable here.
+  if (m.url && !m.muxPlaybackId && isEmbedUrl(m.url)) return false;
   return Boolean(m.muxPlaybackId || m.url);
 }
 
