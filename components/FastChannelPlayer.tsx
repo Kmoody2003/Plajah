@@ -7,6 +7,8 @@ import { fetchFastChannelVideos, fetchFastChannelSchedule, auth } from '../servi
 import { checkMembership } from '../services/sanctuaryService';
 import { resolveSlotMedia, slotIsPlayable, slotsFromVideos, activeDaySlots, dayAnchoredPosition, linearPositionMidnight } from '../services/fastChannelTimeline';
 import { hlsTuning, capLevelsToPanel } from '../services/hlsTuning';
+import AdBreakBumper from './tv/AdBreakBumper';
+import type { UpNextItem } from './tv/ComingUpNextBumper';
 
 interface FastChannelPlayerProps {
   profile: UserProfile;
@@ -146,6 +148,22 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
 
   const currentSlot = slots[currentIndex];
   const media = currentSlot ? resolveSlotMedia(currentSlot) : null;
+
+  // The next 3 real programmes after the current slot (skip ads/bumpers), for the coming-up-next bumper.
+  const upNext: UpNextItem[] = (() => {
+    const out: UpNextItem[] = [];
+    for (let k = 1; k <= slots.length && out.length < 3; k++) {
+      const s = slots[(currentIndex + k) % slots.length];
+      if (!s || !(s.type === 'VIDEO' || s.type === 'PUBLIC_DOMAIN' || s.type === 'LIVE_INTERRUPT')) continue;
+      const m = resolveSlotMedia(s);
+      out.push({
+        title: m.title,
+        thumbnail: m.thumbnail || (m.muxPlaybackId ? `https://image.mux.com/${m.muxPlaybackId}/thumbnail.jpg?width=320&time=5` : undefined),
+        badge: s.isReplay ? 'Replay' : s.type === 'LIVE_INTERRUPT' ? 'Live' : s.type === 'PUBLIC_DOMAIN' ? 'Public Domain' : undefined,
+      });
+    }
+    return out;
+  })();
   // All FAST video plays through ONE adaptive HLS.js path (like VideoPlayer) rather than MuxPlayer —
   // so it honors the app's per-panel rendition cap (capLevelsToPanel) on the TV instead of letting a
   // web component authorise a 4K rendition on a 1080p Mali GPU. Mux ids become their master .m3u8.
@@ -364,12 +382,10 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
     >
       {/* Media layer — the current slot decides what renders. */}
       {media?.kind === 'AD' ? (
-        // House ad break / commercial break — a branded interstitial for the slot's duration.
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-gradient-to-br from-[#1a0033] via-black to-[#33001a]">
-          {profile.photoURL && <img src={profile.photoURL} className="w-16 h-16 rounded-2xl object-cover border border-white/15" alt="" />}
-          <p className="text-[10px] font-black uppercase tracking-[0.5em] text-white/40">We'll be right back</p>
-          <p className="text-2xl font-black uppercase tracking-tight text-white">{channelName}</p>
-        </div>
+        // Ad break with no user ad → the default Plajah "back shortly" bumper: Plajah FM fades in over
+        // full-screen cover art (gift/like/add), a coming-up-next card opens the break, then the ad rail
+        // cycles in 16:9 for the rest of the slot's duration (set by the channel's ad settings).
+        <AdBreakBumper channelName={channelName} durationSec={media.durationSec} upcoming={upNext} logoUrl={profile.photoURL || undefined} />
       ) : media?.kind === 'LIVE' ? (
         // A scheduled live programme in the loop — show the creator's live feed for its window.
         liveEmbedUrl ? (
