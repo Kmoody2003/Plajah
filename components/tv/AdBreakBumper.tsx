@@ -52,6 +52,16 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
   const seekRef = useRef(0);
   const startRef = useRef(Date.now());
   const switchedRef = useRef(false);
+  // Duck Plajah FM out the moment platform bumper/promo videos (which carry their own audio) take over.
+  const duckRef = useRef(false);
+  const duckStartRef = useRef(0);
+
+  // Arm the FM audio duck when the interstitial phase shows platform bumper VIDEOS.
+  useEffect(() => {
+    if (phase === 'ads' && platformVids.length > 0 && !duckRef.current) {
+      duckRef.current = true; duckStartRef.current = Date.now();
+    }
+  }, [phase, platformVids.length]);
 
   // Load the Plajah FM current song (satellite position) + the ad-rail source.
   useEffect(() => {
@@ -111,7 +121,10 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
       let v = 1;
       if (el < FADE_SEC) v = el / FADE_SEC;
       else if (remaining < FADE_SEC) v = Math.max(0, remaining / FADE_SEC);
+      // Platform bumper videos on screen → fade FM to silence over ~1s, then pause it.
+      if (duckRef.current) v = Math.min(v, Math.max(0, 1 - (Date.now() - duckStartRef.current) / 1000));
       a.volume = muted ? 0 : Math.max(0, Math.min(1, v));
+      if (duckRef.current && a.volume <= 0.01 && !a.paused) { try { a.pause(); } catch { /* */ } }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
