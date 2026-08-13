@@ -242,6 +242,9 @@ const SportsHero: React.FC<{
   const prev = () => { setDir(-1); setIdx(i => (i - 1 + items.length) % items.length); };
 
   useEffect(() => {
+    // Reset to the first slide whenever the set changes (e.g. switching to a league with fewer
+    // hero items) so `idx` can never point past the end → `items[idx]` undefined → crash.
+    setIdx(0);
     timer.current = setInterval(next, 7000);
     return () => { if (timer.current) clearInterval(timer.current); };
   }, [items.length]);
@@ -275,7 +278,10 @@ const SportsHero: React.FC<{
     </div>
   );
 
-  const item = items[idx];
+  // Belt-and-suspenders: if `idx` is momentarily out of range (items shrank this render before the
+  // reset effect runs), fall back to the first slide so we never read `.imageUrl` off undefined.
+  const item = items[idx] ?? items[0];
+  if (!item) return null;
 
   return (
     <div
