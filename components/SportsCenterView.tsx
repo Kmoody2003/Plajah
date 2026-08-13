@@ -289,7 +289,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab, currentUs
             <div className="flex items-start gap-6 p-6 bg-white/[0.03] rounded-[2.5rem] border border-white/8">
               <div className="w-28 h-28 rounded-[1.5rem] overflow-hidden bg-white/10 shrink-0">
                 {playerProfile.headshot?.href
-                  ? <img loading="lazy" decoding="async" src={playerProfile.headshot.href} alt="" className="w-full h-full object-cover object-top" />
+                  ? <img loading="lazy" decoding="async" src={playerProfile.headshot.href} alt="" className="w-full h-full object-cover" style={{ objectPosition: 'center 22%' }} />
                   : <div className="w-full h-full flex items-center justify-center"><User size={32} className="text-white/20" /></div>
                 }
               </div>
@@ -1839,7 +1839,7 @@ const RacingCenterView: React.FC<{ tab: string }> = ({ tab }) => {
                           {d.headshot ? (
                             <div className="h-24 flex items-end overflow-hidden rounded-xl bg-white/5">
                               <img src={d.headshot} alt={d.name}
-                                className="h-full w-full object-cover object-top" loading="lazy" />
+                                className="h-full w-full object-cover" style={{ objectPosition: 'center 22%' }} loading="lazy" />
                             </div>
                           ) : (
                             <div className="h-24 flex items-center justify-center rounded-xl bg-white/5">

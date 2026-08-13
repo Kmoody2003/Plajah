@@ -84,7 +84,7 @@ const RacerProfileView: React.FC<Props> = ({ driver, tab, seriesColor, standings
         <div className="relative flex items-end gap-4 p-5">
           <div className="w-28 h-32 rounded-2xl overflow-hidden bg-white/5 border border-white/10 shrink-0 flex items-end justify-center">
             {photo
-              ? <img src={photo} alt={driver.name} className="w-full h-full object-cover object-top" />
+              ? <img src={photo} alt={driver.name} className="w-full h-full object-cover" style={{ objectPosition: 'center 22%' }} />
               : <User size={48} className="text-white/15 mb-4" />}
           </div>
           <div className="min-w-0 pb-1">
