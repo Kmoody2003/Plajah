@@ -176,14 +176,21 @@ export function playoutPosition(
 }
 
 /** Restore real per-asset durations on a schedule from an id→seconds map (the owner's video library).
- *  Fixes older schedules poisoned with videoDurationSeconds=1, which collapsed the guide onto a single
- *  minute. Only replaces a stored duration that is missing/≤1 with a real (>0) library value. */
+ *  Repairs the two PLACEHOLDER durations, never a real one:
+ *   - ≤1  — older schedules poisoned by a writer bug, which collapsed the guide onto a single minute.
+ *   - exactly DEFAULT_VIDEO_SEC — the "duration unknown" 30-min block written when an asset was never
+ *     probed. Left unrepaired this is far worse than the ≤1 case: the slot claims 30 minutes for what
+ *     may be a 100-second teaser, playout seeks past the asset's end, it ends instantly, and the rest
+ *     of the half hour becomes FM/bumper filler — indistinguishable from a stuck ad break.
+ *  FastChannelManager.retimeSchedule already treats both as "unknown / default-block"; this is the
+ *  viewer-side path (LiveTvPlus / the EPG) and must agree with it, or a channel never self-heals. */
 export function backfillScheduleDurations(sched: FastChannelSchedule, durMap: Map<string, number>): FastChannelSchedule {
   const fix = (slots?: FastChannelSlot[]) => (slots || []).map(s => {
     if ((s.type === 'VIDEO' || s.type === 'PUBLIC_DOMAIN') && s.videoId) {
       const stored = Math.round(Number(s.videoDurationSeconds) || 0);
       const real = durMap.get(s.videoId) || 0;
-      if (stored <= 1 && real > 0) return { ...s, videoDurationSeconds: real };
+      const isPlaceholder = stored <= 1 || stored === DEFAULT_VIDEO_SEC;
+      if (isPlaceholder && real > 0 && real !== stored) return { ...s, videoDurationSeconds: real };
     }
     return s;
   });
