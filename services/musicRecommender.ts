@@ -13,9 +13,10 @@
 import type { Album, Track } from '../types';
 import { fetchAllPublicAlbums, fetchUserProfile, auth } from './backendService';
 import {
-  fetchAudiusChartsByGenre, fetchAudiusTrending,
+  fetchAudiusChartsByGenre, fetchAudiusTrending, fetchAudiusArtistTracks,
   archiveTrackToNativeTrack, audiusTrackToNativeAlbum, isAudiusOwner,
 } from './audiusService';
+import { followedAudiusOwnerIds } from './audiusLibrary';
 
 export interface UpNextItem { track: Track; album: Album; native: boolean; reason: string; }
 
@@ -39,12 +40,18 @@ async function userSignals(): Promise<Signals> {
   const uid = auth.currentUser?.uid || '';
   const now = Date.now();
   if (_signalsCache && _signalsCache.uid === uid && now - _signalsCache.at < ALBUMS_TTL) return _signalsCache.signals;
-  const empty: Signals = { followingIds: new Set(), libraryIds: new Set() };
+  // Artists you follow ON AUDIUS count as follows here too — a connected Audius account
+  // should steer the radio the same way a native follow does.
+  const audiusFollows = followedAudiusOwnerIds();
+  const empty: Signals = { followingIds: new Set(audiusFollows), libraryIds: new Set() };
   if (!uid) return empty;
   try {
     const profile: any = await fetchUserProfile(uid);
     const signals: Signals = {
-      followingIds: new Set<string>(Array.isArray(profile?.following) ? profile.following : []),
+      followingIds: new Set<string>([
+        ...(Array.isArray(profile?.following) ? profile.following : []),
+        ...audiusFollows,
+      ]),
       libraryIds: new Set<string>(Array.isArray(profile?.library) ? profile.library : []),
     };
     _signalsCache = { at: now, uid, signals };
@@ -118,12 +125,19 @@ export async function buildRadioQueue(
   // ── Audius fill — genre-matched first, then trending. ──
   let audius: UpNextItem[] = [];
   try {
-    const [byGenre, trending] = await Promise.all([
+    // Artists the listener follows on Audius come FIRST in the Audius tail — a connected
+    // library should be felt in the radio, not just genre charts and global trending.
+    const followed = followedAudiusOwnerIds().slice(0, 3).map(id => id.replace(/^audius:/, ''));
+    const [fromFollows, byGenre, trending] = await Promise.all([
+      followed.length
+        ? Promise.all(followed.map(id => fetchAudiusArtistTracks(id, 5).catch(() => [])))
+            .then(rs => rs.flat())
+        : Promise.resolve([]),
       seed.genre ? fetchAudiusChartsByGenre(seed.genre, 15).catch(() => []) : Promise.resolve([]),
       fetchAudiusTrending(undefined, 15).catch(() => []),
     ]);
     const seen = new Set<string>();
-    for (const at of [...byGenre, ...trending]) {
+    for (const at of [...fromFollows, ...byGenre, ...trending]) {
       const nt = archiveTrackToNativeTrack(at);
       if (!nt.id || skip.has(nt.id) || seen.has(nt.id) || !nt.url) continue;
       seen.add(nt.id);

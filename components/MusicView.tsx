@@ -91,6 +91,7 @@ const VAULT_SORTS: { id: VaultSort; label: string }[] = [
 
 const AudiusArtistPage = lazy(() => import('./AudiusArtistPage'));
 const AudiusAlbumView  = lazy(() => import('./AudiusAlbumView'));
+const AudiusLibraryPanel = lazy(() => import('./AudiusLibraryPanel'));
 const ChoraConservatory = lazy(() => import('./ChoraConservatory'));
 
 // ── World Cup Anthem Banner ────────────────────────────────────────────────────
@@ -1626,6 +1627,17 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   <FeaturedCarousel items={artists.slice(0, 5).map(artist => ({ id: artist.uid, title: artist.displayName, subtitle: "Featured Artist", imageUrl: artist.coverArt || artist.featuredArtistPhoto || artist.photoURL || `https://picsum.photos/seed/${artist.uid}/1280/720`, onClick: () => onVisitUser(artist.uid, 'CONTENT') }))} />
                 </section>
                 
+                {/* ── Your Audius (connected account: favorites, reposts, playlists, follows) ── */}
+                {audiusEnabled && (
+                  <Suspense fallback={null}>
+                    <AudiusLibraryPanel
+                      onOpenCollection={openAudiusAlbumNative}
+                      onPlayTrack={handlePlayVaultTrack}
+                      onOpenArtist={handleOpenAudiusArtist}
+                    />
+                  </Suspense>
+                )}
+
                 {/* ── Audius Trending ── */}
                 {audiusEnabled && audiusCuration && audiusCuration.trending.length > 0 && (
                   <section className="animate-in fade-in duration-500">

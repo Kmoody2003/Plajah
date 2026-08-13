@@ -6,19 +6,20 @@ import type { ArchiveTrack } from './archiveContentService';
 import type { Album, Track } from '../types';
 
 const APP_NAME = 'Plajah';
-const AUDIUS_API_KEY = '9504e71d3b7450c321850ca4451aff09e72d6b01';
-const AUDIUS_BEARER = '4kTr0I7iM5Ae1bH_XnfwDYhlhuToV-IcpBdGMe60nMA=';
+// Public app identifier (the developer-app address, not a secret). Env-overridable.
+const AUDIUS_API_KEY =
+  (import.meta as any).env?.VITE_AUDIUS_API_KEY || '9504e71d3b7450c321850ca4451aff09e72d6b01';
 const FALLBACK_HOST = 'https://discoveryprovider.audius.co';
 const HOST_CACHE_TTL = 1000 * 60 * 60; // 1 hour
 
 let _cachedHost: string | null = null;
 let _hostCachedAt = 0;
 
+// Reads need nothing but `app_name`/`X-API-KEY`. The app's OAuth BEARER token must never be
+// sent from the browser — it acts on behalf of every user who authorized the app, and a
+// client bundle is public. Per-user calls use the user's own OAuth token (services/audiusAuth).
 function audiusHeaders(): HeadersInit {
-  return {
-    'X-API-KEY': AUDIUS_API_KEY,
-    Authorization: `Bearer ${AUDIUS_BEARER}`,
-  };
+  return { 'X-API-KEY': AUDIUS_API_KEY };
 }
 
 // ─── Host Discovery ────────────────────────────────────────────────────────────
@@ -121,7 +122,14 @@ function mapArtist(u: any): AudiusArtist {
   };
 }
 
-async function audiusFetch(path: string, params: Record<string, string> = {}): Promise<any> {
+/** Map a raw Audius track to an ArchiveTrack. Exported for the library importer. */
+export const mapAudiusTrack = (t: any, host: string): ArchiveTrack => mapTrack(t, host);
+/** Map a raw Audius collection to an AudiusAlbum (playlists AND albums share the shape). */
+export const mapAudiusCollection = (p: any): AudiusAlbum => mapAlbum(p);
+/** Map a raw Audius user to an AudiusArtist. */
+export const mapAudiusUser = (u: any): AudiusArtist => mapArtist(u);
+
+export async function audiusFetch(path: string, params: Record<string, string> = {}): Promise<any> {
   const host = await getAudiusHost();
   const p = new URLSearchParams({ app_name: APP_NAME, ...params });
   const res = await fetch(`${host}${path}?${p}`, {
@@ -396,39 +404,15 @@ export async function loadAudiusCuration(genres: string[] = ['Electronic', 'Hip-
 }
 
 // ─── OAuth Connect ────────────────────────────────────────────────────────────
+// The real "Log in with Audius" (Authorization Code + PKCE) lives in services/audiusAuth.ts.
+// The stubs that used to sit here — an authorize URL with no PKCE and a code exchange that
+// GET-ed /v1/oauth/token with no code — never worked; they are gone.
 
-const AUDIUS_OAUTH_BASE = 'https://audius.co/oauth/auth';
-
-export interface AudiusConnectResult {
-  userId: string;
-  handle: string;
-  name: string;
-  profilePicture?: string;
-  token: string;
-}
-
-export function openAudiusOAuth(redirectUri: string): Window | null {
-  const params = new URLSearchParams({
-    scope: 'write',
-    app_name: APP_NAME,
-    redirect_uri: redirectUri,
-    response_type: 'code',
-  });
-  return window.open(`${AUDIUS_OAUTH_BASE}?${params}`, 'audius_oauth', 'width=520,height=680,scrollbars=yes');
-}
-
-export async function exchangeAudiusCode(code: string, redirectUri: string): Promise<AudiusConnectResult | null> {
-  try {
-    const data = await audiusFetch('/v1/oauth/token');
-    return {
-      userId: data.data?.user_id ?? data.user_id,
-      handle: data.data?.handle ?? data.handle,
-      name: data.data?.name ?? data.name,
-      profilePicture: data.data?.profile_picture?.['150x150'],
-      token: data.data?.token ?? data.token,
-    };
-  } catch { return null; }
-}
+export {
+  loginWithAudius, logoutAudius, getAudiusSession, getAudiusAccessToken,
+  completeAudiusRedirect, AUDIUS_SESSION_EVENT,
+} from './audiusAuth';
+export type { AudiusSession, AudiusScope } from './audiusAuth';
 
 // ─── Publish (Chora → Audius) ─────────────────────────────────────────────────
 

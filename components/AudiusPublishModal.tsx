@@ -2,36 +2,32 @@
  * AudiusPublishModal — end-to-end publish flow from Plajah to Audius.
  *
  * Flow:
- *  1. Check localStorage for cached Audius credentials (bearerToken + userId).
- *  2. If missing → open OAuth popup via openAudiusOAuth().
- *  3. Handle the OAuth redirect callback in a message event (or a separate route).
- *  4. Call publishAlbumToAudius() with progress tracking per track.
- *  5. Show results with permalink links.
+ *  1. Reuse an existing `write`-scoped Audius session (services/audiusAuth).
+ *  2. If there isn't one → loginWithAudius({ scope: 'write' }) — real OAuth + PKCE.
+ *  3. Call publishAlbumToAudius() with progress tracking per track.
+ *  4. Show results with permalink links.
  *
  * Add to any component that shows album actions: <AudiusPublishModal album={album} />
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Music2, ExternalLink, Loader2, Check, AlertCircle, LogIn } from 'lucide-react';
 import { Album } from '../types';
-import {
-  openAudiusOAuth,
-  exchangeAudiusCode,
-  publishAlbumToAudius,
-  AudiusConnectResult,
-} from '../services/audiusService';
+import { publishAlbumToAudius } from '../services/audiusService';
+import { loginWithAudius, logoutAudius, getAudiusSession } from '../services/audiusAuth';
 
-const CREDS_KEY = 'plajah_audius_credentials';
-const REDIRECT_URI = `${window.location.origin}/auth/audius/callback`;
-
+// Publishing needs the `write` scope, which Audius only grants to an app authenticated with
+// its API key. The session (tokens + identity) is owned by services/audiusAuth — this modal
+// no longer keeps its own credential blob.
 interface AudiusCreds { bearerToken: string; userId: string; handle: string }
 
 function loadCreds(): AudiusCreds | null {
-  try { return JSON.parse(localStorage.getItem(CREDS_KEY) ?? 'null'); } catch { return null; }
+  const s = getAudiusSession();
+  return s && s.scope === 'write'
+    ? { bearerToken: s.accessToken, userId: s.userId, handle: s.handle }
+    : null;
 }
-function saveCreds(c: AudiusCreds) { localStorage.setItem(CREDS_KEY, JSON.stringify(c)); }
-function clearCreds() { localStorage.removeItem(CREDS_KEY); }
 
 interface Props { album: Album; onClose: () => void }
 
@@ -46,33 +42,18 @@ export default function AudiusPublishModal({ album, onClose }: Props) {
   const [results, setResults] = useState<TrackResult[]>([]);
   const [error, setError] = useState('');
 
-  // Listen for OAuth popup callback message
-  useEffect(() => {
-    const handler = async (e: MessageEvent) => {
-      if (e.origin !== window.location.origin) return;
-      const { type, code } = e.data ?? {};
-      if (type !== 'audius_oauth_callback' || !code) return;
-
-      setStep('publishing');
-      try {
-        const result: AudiusConnectResult | null = await exchangeAudiusCode(code, REDIRECT_URI);
-        if (!result) throw new Error('Token exchange failed');
-        const c: AudiusCreds = { bearerToken: result.token, userId: result.userId, handle: result.handle };
-        saveCreds(c);
-        setCreds(c);
-        await runPublish(c);
-      } catch (err: any) {
-        setError(err.message ?? 'Connection failed');
-        setStep('error');
-      }
-    };
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
-  }, [album]);
-
-  const startOAuth = () => {
+  const startOAuth = async () => {
     setStep('oauth');
-    openAudiusOAuth(REDIRECT_URI);
+    setError('');
+    try {
+      const session = await loginWithAudius({ scope: 'write' });
+      const c: AudiusCreds = { bearerToken: session.accessToken, userId: session.userId, handle: session.handle };
+      setCreds(c);
+      await runPublish(c);
+    } catch (err: any) {
+      setError(err?.message ?? 'Connection failed');
+      setStep('error');
+    }
   };
 
   const runPublish = useCallback(async (c: AudiusCreds) => {
@@ -142,7 +123,7 @@ export default function AudiusPublishModal({ album, onClose }: Props) {
             {creds ? (
               <div className="mb-4 flex items-center gap-2 text-xs text-purple-400">
                 <Check size={12}/> Connected as <strong>@{creds.handle}</strong>
-                <button onClick={() => { clearCreds(); setCreds(null); }} className="ml-auto text-white/20 hover:text-white underline">Disconnect</button>
+                <button onClick={() => { void logoutAudius(); setCreds(null); }} className="ml-auto text-white/20 hover:text-white underline">Disconnect</button>
               </div>
             ) : (
               <div className="mb-4 p-3 bg-purple-500/5 border border-purple-500/15 rounded-xl text-xs text-white/50">

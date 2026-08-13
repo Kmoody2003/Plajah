@@ -313,6 +313,7 @@ import { TrackBreakdownController } from './components/TrackBreakdownModal';
 import { LoreaScoresController } from './components/LoreaScoresModal';
 import { initLoreaScoreListener } from './services/loreaScoreService';
 import { fetchAudiusArtistById, fetchAudiusPlaylistTracks, audiusAlbumToNativeAlbum, type AudiusArtist } from './services/audiusService';
+import { completeAudiusRedirect } from './services/audiusAuth';
 const BusinessDashboard = retryLazy(() => import('./components/BusinessDashboard'));
 const PlajahBusinessHub = retryLazy(() => import('./components/PlajahBusinessHub'));
 const TerraHub = retryLazy(() => import('./components/terra/TerraHub'));

@@ -17,7 +17,31 @@
     <meta name="msapplication-tap-highlight" content="no">
     <meta name="android-tv-app" content="true">
     <title>Plajah</title>
-    
+    <script>
+      // ── "Log in with Audius" popup bridge ──────────────────────────────────
+      // Audius sends the consent popup back to /audius/callback with ?code&state.
+      // Hand them to the opener and close IMMEDIATELY — booting the whole app inside
+      // a 420px popup just to read two query params would be slow and pointless.
+      // (No opener = a full-page redirect: fall through and let completeAudiusRedirect()
+      // in the app finish the exchange.)
+      (function () {
+        if (window.location.pathname !== '/audius/callback' || !window.opener) return;
+        var q = new URLSearchParams(window.location.search);
+        var h = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+        var get = function (k) { return q.get(k) || h.get(k); };
+        var code = get('code'), state = get('state'), error = get('error');
+        if (!code && !error) return;
+        try {
+          window.opener.postMessage({
+            source: 'plajah-audius-oauth',
+            code: code, state: state,
+            error: error, error_description: get('error_description'),
+          }, get('origin') || window.location.origin);
+        } catch (e) { /* opener gone — nothing to do */ }
+        window.close();
+      })();
+    </script>
+
     <!-- Open Graph / Social Media Preview -->
     <meta property="og:title" content="Plajah">
     <meta property="og:description" content="A high-fidelity music microsite studio with social features, global feed, artist search, site-wide radio, TV channels, game library, and customizable photo gallery experiences.">

@@ -32,10 +32,26 @@ it has obligations. Treat this as the gate.
       Content that 404s / disappears from the API must disappear from Plajah too; never cache around it.
 - [ ] **Follow brand.audius.co** — use the Audius name/marks per their brand guidelines in any UI badge,
       landing page, or outreach material. Don't imply endorsement/partnership we don't have.
-- [ ] **Developer app + rate limits** — register a proper Audius developer app; move off any hard-coded
-      key; respect rate limits with caching (host discovery + curation are already cached).
-- [ ] **"Log in with Audius"** for any library import (Phase 3) — read a user's OWN favorites/follows only
-      with their OAuth consent; never scrape.
+- [x] **Honor the API opt-out** — the library importer treats a 404/403 on a user's endpoints as
+      "opted out", returns empty, and never caches around it (5-minute TTL, `invalidateAudiusLibrary`).
+- [x] **Developer app + rate limits** — the app IS registered (`Plajah Intergration`, owner `J5Rvo4Z`).
+      The key moved to `VITE_AUDIUS_API_KEY`, and the app's **bearer token was removed from the client
+      entirely** — it used to ship in the bundle on every read, which handed anyone who opened devtools
+      the ability to act for every user who ever authorized us. Reads need only `app_name`/`X-API-KEY`.
+      **Action required: rotate that bearer token** — it is in git history.
+- [x] **"Log in with Audius"** — real OAuth 2.0 + PKCE (`services/audiusAuth.ts`), `read` scope, consented
+      per user. The importer only ever reads the library of the account that just authorized; never scrapes.
+
+### Developer app setup (one-time, on the Audius dashboard)
+
+audius.co → Settings → Developer Apps → *Plajah Intergration*:
+
+1. **Register the redirect URIs**: `https://plajah.com/audius/callback` (prod) and
+   `http://localhost:3000/audius/callback` (dev). The app currently has an EMPTY `redirect_uris`
+   list; the consent screen renders fine without them, but Audius may reject the token exchange.
+   If login fails with a redirect error, this is why — `audiusAuth` says so in the error message.
+2. **Fix the app name typo** — it reads "Plajah Intergration" on the live consent screen users see.
+3. `write` scope (publish Chora → Audius) additionally requires the API key, which is already wired.
 
 ## 3. Channels (where the Audius community actually is)
 
@@ -65,9 +81,15 @@ Supporting points, in order of strength:
 
 - **[Ships with this plan] Claim-your-page CTA** on the Audius artist page: "This is an Audius artist —
   Plajah is built for you too" + Learn more / Claim. Turns passive discovery into an onboarding entry.
-- **[Phase 3] "Log in with Audius" → import your library** — favorites, playlists, followed artists flow
-  into the native library (normalizers already exist). This is the "have the library" ask; it needs the
-  OAuth developer-app credentials. Optional write-back (favorite / add-to-playlist on Audius from Chora).
+- **[SHIPPED — Phase 3] "Log in with Audius" → your library in Chora.** `services/audiusAuth.ts`
+  (OAuth 2.0 Authorization Code + PKCE, no client secret, popup with a full-page-redirect fallback),
+  `services/audiusLibrary.ts` (favorites / reposts / playlists / albums / following via the discovery
+  `library` endpoints), and `components/AudiusLibraryPanel.tsx` ("Your Audius" in Chora's discover
+  feed). Every item opens in the NATIVE surfaces — PlayerView album, artist page, Breakdown, Pixels,
+  DJ. Artists you follow on Audius now count as follows in the up-next radio (`musicRecommender`),
+  and their tracks lead the Audius tail. Still open: **write-back** (favorite / add-to-playlist on
+  Audius from Chora) — needs `write` scope, and the REST publish path is unverified (Audius uploads
+  normally go through the SDK, which signs and pushes to content nodes).
 - **[Later] Verified claim** — match an Audius handle (via OAuth) to a Plajah creator account so a claimed
   page merges into a native profile (resolves the current split where Audius albums are native but Audius
   artists render on a separate page).
