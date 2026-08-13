@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { FastChannelSchedule, FastChannelSlot, FastChannelSlotType, ChannelBumper, Video } from '../types';
 import { slotDurationSec, buildAsRunLog, localMidnightMs, DAY_SEC } from '../services/fastChannelTimeline';
+import { now as clockNow } from '../services/platformClock';
 
 /**
  * PlayoutScheduler — a graphical, drag-and-drop LINEAR timeline for a FAST channel or radio station.
@@ -18,13 +19,25 @@ import { slotDurationSec, buildAsRunLog, localMidnightMs, DAY_SEC } from '../ser
 type DayTab = 'every' | 0 | 1 | 2 | 3 | 4 | 5 | 6;
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const TYPE_META: Record<FastChannelSlotType, { label: string; color: string; icon: React.ReactNode }> = {
+interface SlotTypeMeta { label: string; color: string; icon: React.ReactNode }
+
+const TYPE_META: Record<FastChannelSlotType, SlotTypeMeta> = {
   VIDEO: { label: 'Program', color: '#6B0099', icon: <Film size={12} /> },
   PUBLIC_DOMAIN: { label: 'Public Domain', color: '#2563eb', icon: <Film size={12} /> },
   BUMPER: { label: 'Bumper', color: '#0d9488', icon: <CircleDot size={12} /> },
   AD_BREAK: { label: 'Ad Break', color: '#ca8a04', icon: <DollarSign size={12} /> },
   LIVE_INTERRUPT: { label: 'Live', color: '#dc2626', icon: <Radio size={12} /> },
+  // FM_BLOCK arrived with program-director auto-generate (Plajah FM fills any hold over 30s and any
+  // block a short catalogue can't carry). It was added to the types and the timeline resolver but not
+  // here, so `TYPE_META[s.type]` was undefined and `meta.color` threw — taking the whole scheduler
+  // down with SYSTEM INTERRUPTION for exactly the channels FM was meant to rescue.
+  FM_BLOCK: { label: 'Plajah FM', color: '#FF8C00', icon: <Music2 size={12} /> },
 };
+
+/** A slot type this build predates must degrade to a neutral row, never crash the timeline. */
+const FALLBACK_META: SlotTypeMeta = { label: 'Segment', color: '#64748b', icon: <CircleDot size={12} /> };
+const metaFor = (t: FastChannelSlotType | string | undefined): SlotTypeMeta =>
+  (t && (TYPE_META as Record<string, SlotTypeMeta>)[t]) || FALLBACK_META;
 
 const fmtDur = (sec: number) => {
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = Math.round(sec % 60);
@@ -95,8 +108,9 @@ const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers
   const totalSec = editing.reduce((a, s) => a + slotDurationSec(s), 0);
   const overflows = totalSec > DAY_SEC;
   const fillPct = Math.min(100, (totalSec / DAY_SEC) * 100);
-  const midnight = localMidnightMs(Date.now());
-  const asRun = useMemo(() => buildAsRunLog(editing, midnight), [editing, midnight]);
+  // Times shown here are the STATION's, on the server-synced clock — what will actually air.
+  const midnight = localMidnightMs(clockNow(), schedule.timezone);
+  const asRun = useMemo(() => buildAsRunLog(editing, midnight, schedule.timezone), [editing, midnight, schedule.timezone]);
   // running start offset (sec) for each slot, for the on-screen clock times
   const starts = useMemo(() => {
     const arr: number[] = []; let acc = 0;
@@ -269,7 +283,7 @@ const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers
         {/* quick insert bar */}
         <div className="flex flex-wrap gap-2 mb-3">
           <button onClick={() => append(newAd())} className="flex items-center gap-1.5 px-3 py-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-300 rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-yellow-500/20"><DollarSign size={11} /> Ad Break</button>
-          {clip && <button onClick={paste} className="flex items-center gap-1.5 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-white/10"><ClipboardPaste size={11} /> Paste {TYPE_META[clip.type].label}</button>}
+          {clip && <button onClick={paste} className="flex items-center gap-1.5 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-white/10"><ClipboardPaste size={11} /> Paste {metaFor(clip.type).label}</button>}
         </div>
 
         {/* THE TIMELINE */}
@@ -281,7 +295,7 @@ const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers
           <div className="relative space-y-1">
             {editing.map((s, i) => {
               const dur = slotDurationSec(s);
-              const meta = TYPE_META[s.type];
+              const meta = metaFor(s.type);
               const h = Math.max(52, Math.min(180, 40 + (dur / DAY_SEC) * 900));
               const selected = selectedId === s.id;
               const crossesMidnight = starts[i] + dur > DAY_SEC && starts[i] < DAY_SEC;
