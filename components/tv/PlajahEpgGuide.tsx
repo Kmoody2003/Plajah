@@ -3,6 +3,7 @@ import { Radio, Tv, Play, ChevronLeft, ChevronRight, FlaskConical, Clock } from 
 import type { LiveFeed } from '../../types';
 import { fetchFastChannelSchedule, fetchFastChannelVideos, fetchVideoById, type FastChannelListing } from '../../services/backendService';
 import { activeDaySlots, dayAnchoredPosition, linearPositionMidnight, slotDurationSec, resolveSlotMedia, backfillScheduleDurations } from '../../services/fastChannelTimeline';
+import { exactDurationSec } from '../../services/mediaTimebase';
 import { SCIENCE_STREAMS } from '../scienceStreams';
 
 /**
@@ -109,7 +110,7 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune }) => {
               fetchFastChannelSchedule(ch.ownerId).catch(() => null),
               fetchFastChannelVideos(ch.ownerId).catch(() => [] as any[]),
             ]);
-            const durMap = new Map((vids as any[]).map(v => [v.id, Math.round(Number(v.duration) || 0)]));
+            const durMap = new Map((vids as any[]).map(v => [v.id, Math.round(exactDurationSec(v))]));
             sched = s ? backfillScheduleDurations(s, durMap) : null;
             schedCache.current.set(ch.ownerId, sched);
           }

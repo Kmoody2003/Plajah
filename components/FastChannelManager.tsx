@@ -42,6 +42,8 @@ import { useUpload } from '../contexts/UploadContext';
 import PlayoutScheduler, { type LiveAudioSource } from './PlayoutScheduler';
 import { backfillScheduleDurations } from '../services/fastChannelTimeline';
 import { probeDurations } from '../services/mediaProbe';
+import { backfillLibraryOnce } from '../services/timebaseBackfill';
+import { exactDurationSec } from '../services/mediaTimebase';
 import { fetchPlatformMedia } from '../services/platformMediaService';
 import type { PlatformMediaAsset } from '../types';
 
@@ -178,6 +180,23 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack, i
 
   useEffect(() => { loadAll(); }, [user.uid]);
 
+  // Bring the library up to the timebase standard exactly once. Older uploads carry no duration at
+  // all, which is what let auto-generate pad them into 30-minute DEFAULT_VIDEO_SEC blocks; probing
+  // here writes the real length back to each video doc so every future schedule (and the EPG, and
+  // Fabula) starts from truth instead of re-measuring on each viewer's device.
+  useEffect(() => {
+    if (!user?.uid || !myVideos.length) return;
+    let cancelled = false;
+    backfillLibraryOnce(user.uid, myVideos, { limit: 200 })
+      .then(report => {
+        if (cancelled || !report?.repaired) return;
+        // Reload so the newly-stamped durations are what auto-generate sees.
+        loadAll();
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [user?.uid, myVideos.length]);
+
   const loadAll = async () => {
     setIsLoading(true);
     const [sched, vids, bumpList, grantList, lib, channelMeta, srcs] = await Promise.all([
@@ -217,7 +236,7 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack, i
   // write it into the schedule — so auto-generate uses ACTUAL asset durations (specific times), not the
   // 30-min standard fallback. Library durations win; unknowns are probed. Bounded to 120 probes.
   const retimeSchedule = async (sched: FastChannelSchedule): Promise<FastChannelSchedule> => {
-    const durById = new Map<string, number>((myVideos as any[]).map(v => [v.id, Math.round(Number(v.duration) || 0)]));
+    const durById = new Map<string, number>((myVideos as any[]).map(v => [v.id, Math.round(exactDurationSec(v))]));
     const toProbe = new Set<string>();
     const uncertain = (s: FastChannelSlot) => {
       const lib = (s.videoId && durById.get(s.videoId)) || 0;

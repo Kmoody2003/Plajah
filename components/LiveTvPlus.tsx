@@ -13,6 +13,7 @@ import type { LiveFeed, UserProfile, FastChannelSchedule, FastChannelSlot } from
 import { SCIENCE_STREAMS } from './scienceStreams';
 import { fetchFastChannelSchedule, fetchFastChannelVideos, type FastChannelListing } from '../services/backendService';
 import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, backfillScheduleDurations, FM_FILL_THRESHOLD_SEC } from '../services/fastChannelTimeline';
+import { exactDurationSec } from '../services/mediaTimebase';
 import AdBreakBumper from './tv/AdBreakBumper';
 import ComingUpNextBumper, { type UpNextItem } from './tv/ComingUpNextBumper';
 import { getPlatformInfo } from '../hooks/usePlatform';
@@ -392,7 +393,7 @@ const LiveTvPlus: React.FC<{
         fetchFastChannelSchedule(owner).catch(() => null),
         fetchFastChannelVideos(owner).catch(() => [] as any[]),
       ]).then(([sched, vids]) => {
-        const durMap = new Map((vids as any[]).map(v => [v.id, Math.round(Number(v.duration) || 0)]));
+        const durMap = new Map((vids as any[]).map(v => [v.id, Math.round(exactDurationSec(v))]));
         const fixed = sched ? backfillScheduleDurations(sched, durMap) : null;
         schedCache.current.set(owner, fixed);
         build(fixed);
@@ -590,7 +591,7 @@ const LiveTvPlus: React.FC<{
         fetchFastChannelSchedule(owner).catch(() => null),
         fetchFastChannelVideos(owner).catch(() => [] as any[]),
       ]).then(([s, vids]) => {
-        const durMap = new Map((vids as any[]).map(v => [v.id, Math.round(Number(v.duration) || 0)]));
+        const durMap = new Map((vids as any[]).map(v => [v.id, Math.round(exactDurationSec(v))]));
         const fixed = s ? backfillScheduleDurations(s, durMap) : null;
         schedCache.current.set(owner, fixed);
         start(fixed);

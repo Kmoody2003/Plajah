@@ -885,7 +885,15 @@ export interface Video {
   coverImageUrl?: string;
   coverImageFile?: File;
   description?: string;
+  /** Whole seconds, kept for back-compat and cheap reads. `timebase` is the authority — see below. */
   duration?: number;
+  /**
+   * REQUIRED STANDARD for anything scheduled or cut against time (FAST channels, the EPG, Fabula).
+   * Exact float duration + real fps + frame count + SMPTE. Written at upload from the source file and
+   * re-stamped authoritatively once Mux reports the asset. Consumers MUST branch on
+   * isCompleteTimebase() and re-probe when it is absent — never substitute a default block.
+   */
+  timebase?: import('./services/mediaTimebase').MediaTimebase;
   playsCount?: number;
   price?: number;
   isPaywalled?: boolean;

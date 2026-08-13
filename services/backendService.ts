@@ -89,6 +89,7 @@ import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, 
 import { accountFlagUpdate } from './accountCapabilities';
 // Creator Passport provenance (blueprint 1C.5) — attribution record, not crypto proof.
 import { buildProvenance, stampVideo } from './creatorPassport';
+import { extractTimeInfoFromFile, extractTimeInfoFromUrl } from './mediaTimebase';
 // Education-chat safety (Phase C): student DM policy backstop on the write path.
 import { canDM, isStudentAccount, classroomRoomId, classroomParticipants } from './educationChat';
 
@@ -7014,6 +7015,14 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
   const id = `vid_${Date.now()}`;
   const path = `videos/${id}`;
 
+  // Measure the source's real timebase from the local bytes, in parallel with the upload. This is the
+  // most accurate moment we will ever have, and it costs no wall-clock: a probe is seconds, the upload
+  // is minutes. Without this every consumer falls back to a default block — the bug that made a
+  // 102-second teaser occupy a 30-minute FAST slot.
+  const timeInfoPromise: Promise<import('./mediaTimebase').TimeInfo> = video.file
+    ? extractTimeInfoFromFile(video.file).catch(() => ({ timebase: null, durationSec: 0 }))
+    : Promise.resolve({ timebase: null, durationSec: 0 });
+
   let videoUrl = video.url || '';
   let muxUploadId: string | undefined;
   if (video.file) {
@@ -7037,6 +7046,10 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
     coverUrl = await uploadFile(`videos/${id}/cover.png`, video.coverImageFile);
   }
   
+  // Resolves well before a real upload finishes. A duration with no fps is still recorded — losing
+  // the length is what forces consumers back onto a default block.
+  const sourceTime = await timeInfoPromise;
+
   const newVideo: Video = {
     id,
     ownerId: uploaderUid,
@@ -7070,7 +7083,13 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
     // Taleo routing: MoviesTVView surfaces videos with subType MOVIE / TV_SERIES.
     ...((video as any).subType ? { subType: (video as any).subType } : {}),
     ...(Array.isArray(video.tags) && video.tags.length ? { tags: video.tags } : {}),
-    ...(typeof video.duration === 'number' ? { duration: video.duration } : {}),
+    // The measured timebase wins over a caller-supplied duration; `duration` stays in sync for the
+    // many existing readers that only know about whole seconds.
+    ...(sourceTime.timebase
+      ? { timebase: sourceTime.timebase, duration: Math.round(sourceTime.timebase.durationSec) }
+      : sourceTime.durationSec > 0
+        ? { duration: Math.round(sourceTime.durationSec) }
+        : (typeof video.duration === 'number' ? { duration: video.duration } : {})),
     // Remix lineage must survive the write — provenance below depends on it.
     ...(video.remixOfVideoId ? { remixOfVideoId: video.remixOfVideoId } : {}),
     // Creator Passport provenance (blueprint 1C.5). For an ORIGINAL upload the record
@@ -7108,6 +7127,14 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
           muxAssetId: assetId,
           muxUploadId: null, // clear once resolved
         });
+      } catch {}
+      // Re-stamp from the transcoded asset: Mux's master playlist DECLARES frame rate and exact VOD
+      // duration, so this supersedes the locally measured (possibly fps-estimated) source timebase.
+      // Fire-and-forget — a failed stamp must never undo an upload that already succeeded.
+      try {
+        const info = await extractTimeInfoFromUrl(`https://stream.mux.com/${playbackId}.m3u8`);
+        if (info.timebase) await updateDoc(doc(db, 'videos', id), { timebase: info.timebase, duration: Math.round(info.timebase.durationSec) });
+        else if (info.durationSec > 0) await updateDoc(doc(db, 'videos', id), { duration: Math.round(info.durationSec) });
       } catch {}
     }, 450, 4000);
   } else if (videoUrl && !videoUrl.includes('youtube.com') && !videoUrl.includes('youtu.be') && !videoUrl.includes('vimeo.com')) {
