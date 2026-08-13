@@ -3731,6 +3731,14 @@ export interface ChannelSourceSet {
 
 export interface FastChannelSchedule {
   userId: string;
+  /**
+   * The station's home timezone (IANA, e.g. "America/Detroit"). Day boundaries, weeklySlots selection
+   * and time-of-day anchoring all resolve HERE, so every viewer worldwide is on the same programme at
+   * the same instant and a published EPG can carry absolute times. Absent = legacy behaviour, where
+   * each device anchors to its OWN midnight and viewers in different zones silently diverge.
+   * Presentation still converts to the viewer's local zone — see services/platformClock.
+   */
+  timezone?: string;
   slots: FastChannelSlot[];
   // Global channel defaults
   adFrequencyMinutes: number; // insert an ad break every N minutes

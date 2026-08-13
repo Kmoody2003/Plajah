@@ -3,6 +3,7 @@ import { Album, AppView, ThemeType, Game, IPWorld } from './types';
 import Logo from './components/Logo';
 import { motion, AnimatePresence } from 'motion/react';
 import { recoverFromStaleChunk } from './src/lib/staleChunk';
+import { startClockAutoSync } from './services/platformClock';
 
 // Suppress Firestore SDK internal assertion errors that occur during onSnapshot teardown.
 // This is a known Firestore SDK bug (ID: b815/ca9) where the watch stream delivers
@@ -124,6 +125,9 @@ const TvFxSurface = retryLazy(() => import('./components/tv/TvFxSurface'));
 const ReelloTvView = retryLazy(() => import('./components/tv/ReelloTvView'));
 const TvSlideshowSurface = retryLazy(() => import('./components/tv/TvSlideshowSurface'));
 const TvLinkApproval = retryLazy(() => import('./components/TvLinkApproval'));
+// Design-system gallery at /ds — every control in every theme. Lazy, so it costs
+// nothing to anyone who never opens it. See docs/PLAJAH_DESIGN_SYSTEM.md.
+const DesignSystemGallery = retryLazy(() => import('./components/ui/DesignSystemGallery'));
 const TvSettingsView = retryLazy(() => import('./components/TvSettingsView'));
 import { type TvDisabledFeature, TV_NAV_VIEWS, getTvHome, isViewAllowedOnTv, themesAllowed } from './services/tvCapabilities';
 import { useTvShellFocus, setShellFocus } from './hooks/useTvShellFocus';
@@ -497,6 +501,12 @@ const App: React.FC = () => {
   // Load platform feature flags (config/featureFlags) + live-update — without this,
   // isFeatureEnabled() always returns the built-in defaults (e.g. CONTENT_LICENSING off).
   useEffect(() => { const unsub = initFeatureFlagListener(); return () => unsub(); }, []);
+
+  // Time authority. Measures this device's clock skew against the server and re-checks periodically
+  // and on resume, so FAST playout, the EPG and every other scheduled feature agree on "now" even on
+  // hardware with a badly drifted clock (common on cheap TVs). Never throws; worst case it no-ops and
+  // the device clock is used as-is.
+  useEffect(() => { try { return startClockAutoSync(); } catch { return undefined; } }, []);
   const [fanRoomMatchId, setFanRoomMatchId] = useState<string | undefined>(undefined);
   const [fanRoomMatch, setFanRoomMatch] = useState<any | null>(null);
   const [currentRoomId, setCurrentRoomId] = useState<string | undefined>(roomParam || undefined);
@@ -2383,7 +2393,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               view = 'LANDING' — which used to render the marketing page instead, leaving the
               approval screen unreachable and the TV waiting forever. It renders signed-in or
               not; TvLinkApproval itself asks the viewer to sign in when there is no session. */}
-          {typeof window !== 'undefined' && window.location.pathname.startsWith('/link') ? (
+          {/* /ds is the design-system gallery. Tested before view routing for the same
+              reason /link is: a fresh load computes view = 'LANDING', which would render
+              the marketing page instead. It renders standalone — no shell, no auth — because
+              its job is to isolate the control layer from everything around it. */}
+          {typeof window !== 'undefined' && window.location.pathname.startsWith('/ds') ? (
+            <Suspense fallback={null}><DesignSystemGallery /></Suspense>
+          ) : typeof window !== 'undefined' && window.location.pathname.startsWith('/link') ? (
             <Suspense fallback={null}><TvLinkApproval /></Suspense>
           ) : /* A television never sees the marketing landing page. It gets the sign-in screen a TV
               actually needs — logo, saved profiles, QR — because the alternative is asking

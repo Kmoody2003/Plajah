@@ -7,6 +7,7 @@ import { fetchFastChannelVideos, fetchFastChannelSchedule, auth } from '../servi
 import { checkMembership } from '../services/sanctuaryService';
 import { resolveSlotMedia, slotIsPlayable, slotsFromVideos, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, isEmbedUrl } from '../services/fastChannelTimeline';
 import { hlsTuning, capLevelsToPanel } from '../services/hlsTuning';
+import { now as clockNow } from '../services/platformClock';
 import AdBreakBumper from './tv/AdBreakBumper';
 import type { UpNextItem } from './tv/ComingUpNextBumper';
 
@@ -91,7 +92,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
       // Prefer the generated slot schedule for TODAY (per-day weeklySlots override → default loop);
       // fall back to an ad-hoc video-only schedule so a channel that hasn't been generated yet still
       // plays. Then gate + keep only playable slots.
-      const daySlots = activeDaySlots(schedule, Date.now());
+      const daySlots = activeDaySlots(schedule, clockNow());
       let built: FastChannelSlot[] = daySlots.length
         ? [...daySlots].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
         : slotsFromVideos(vids as any);
@@ -130,8 +131,8 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
         // Terrestrial join: anchor to the TIME OF DAY (local-midnight) so tuning in at 3pm lands on
         // the 3pm programme AND seeks mid-way into it — never restarts the schedule from the top.
         const pos = schedule?.midnightAnchored
-          ? linearPositionMidnight(built, Date.now())
-          : dayAnchoredPosition(built, Date.now());
+          ? linearPositionMidnight(built, clockNow(), schedule?.timezone)
+          : dayAnchoredPosition(built, clockNow(), schedule?.timezone);
         setSlots(built);
         setHasExternalUrl(false);
         if ('offAir' in pos && pos.offAir) {
@@ -209,7 +210,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
   const advance = useCallback(() => {
     if (!slots.length) return;
     setCurrentIndex(prev => {
-      const pos = dayAnchoredPosition(slots, Date.now());
+      const pos = dayAnchoredPosition(slots, clockNow(), channelSchedule?.timezone);
       const next = pos.index !== prev ? pos.index : (prev + 1) % slots.length;
       joinOffsetRef.current = pos.index !== prev ? pos.offsetSec : 0;
       return next;

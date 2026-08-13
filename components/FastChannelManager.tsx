@@ -187,13 +187,17 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack, i
   useEffect(() => {
     if (!user?.uid || !myVideos.length) return;
     let cancelled = false;
-    backfillLibraryOnce(user.uid, myVideos, { limit: 200 })
-      .then(report => {
-        if (cancelled || !report?.repaired) return;
-        // Reload so the newly-stamped durations are what auto-generate sees.
-        loadAll();
-      })
-      .catch(() => {});
+    // Hard-isolated: this is opportunistic maintenance, so nothing it does — including a synchronous
+    // throw before a promise even exists — may take down the scheduler around it.
+    try {
+      Promise.resolve(backfillLibraryOnce(user.uid, myVideos, { limit: 200 }))
+        .then(report => {
+          if (cancelled || !report?.repaired) return;
+          // Reload so the newly-stamped durations are what auto-generate sees.
+          loadAll();
+        })
+        .catch(() => {});
+    } catch { /* never surface to the error boundary */ }
     return () => { cancelled = true; };
   }, [user?.uid, myVideos.length]);
 

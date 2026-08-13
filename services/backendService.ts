@@ -90,6 +90,7 @@ import { accountFlagUpdate } from './accountCapabilities';
 // Creator Passport provenance (blueprint 1C.5) — attribution record, not crypto proof.
 import { buildProvenance, stampVideo } from './creatorPassport';
 import { extractTimeInfoFromFile, extractTimeInfoFromUrl } from './mediaTimebase';
+import { viewerTimeZone } from './platformClock';
 // Education-chat safety (Phase C): student DM policy backstop on the write path.
 import { canDM, isStudentAccount, classroomRoomId, classroomParticipants } from './educationChat';
 
@@ -7917,7 +7918,12 @@ const stripUndefinedDeep = (v: any): any => {
 
 export const saveFastChannelSchedule = async (schedule: FastChannelSchedule): Promise<void> => {
   try {
-    await setDoc(doc(db, 'fast_channel_schedules', schedule.userId), stripUndefinedDeep({ ...schedule, lastUpdated: Date.now() }));
+    // Stamp the station's home timezone once, from whoever is editing. Without it each viewer anchors
+    // the schedule to their OWN midnight, so two viewers in different zones see different programmes
+    // at the same instant and no absolute-time EPG can be published. Never overwrite an existing zone —
+    // that would silently re-time a live channel.
+    const timezone = schedule.timezone || viewerTimeZone();
+    await setDoc(doc(db, 'fast_channel_schedules', schedule.userId), stripUndefinedDeep({ ...schedule, timezone, lastUpdated: Date.now() }));
   } catch (e) {
     handleFirestoreError(e, OperationType.WRITE, `fast_channel_schedules/${schedule.userId}`);
     throw e;

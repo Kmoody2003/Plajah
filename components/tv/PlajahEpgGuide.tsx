@@ -4,6 +4,7 @@ import type { LiveFeed } from '../../types';
 import { fetchFastChannelSchedule, fetchFastChannelVideos, fetchVideoById, type FastChannelListing } from '../../services/backendService';
 import { activeDaySlots, dayAnchoredPosition, linearPositionMidnight, slotDurationSec, resolveSlotMedia, backfillScheduleDurations } from '../../services/fastChannelTimeline';
 import { exactDurationSec } from '../../services/mediaTimebase';
+import { now as clockNow } from '../../services/platformClock';
 import { SCIENCE_STREAMS } from '../scienceStreams';
 
 /**
@@ -46,8 +47,8 @@ interface Props {
 }
 
 const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune }) => {
-  const [nowTick, setNowTick] = useState(Date.now());
-  useEffect(() => { const t = setInterval(() => setNowTick(Date.now()), 30000); return () => clearInterval(t); }, []);
+  const [nowTick, setNowTick] = useState(clockNow());
+  useEffect(() => { const t = setInterval(() => setNowTick(clockNow()), 30000); return () => clearInterval(t); }, []);
 
   // Window anchored to the current half-hour.
   const windowStart = Math.floor(nowTick / (SLOT_MIN * 60000)) * (SLOT_MIN * 60000);

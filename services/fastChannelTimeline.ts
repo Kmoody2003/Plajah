@@ -14,6 +14,9 @@
 
 import type { FastChannelSlot, FastChannelSchedule, AsRunEntry } from '../types';
 
+// platformClock is import-safe on the server too: nothing at module scope touches window/document.
+import { zonedMidnightMs, zonedDayIndex, now as clockNow } from './platformClock';
+
 export const DAY_SEC = 86400;
 
 export const DEFAULT_VIDEO_SEC = 1800; // 30-min fallback when a video carries no probed duration
@@ -67,17 +70,21 @@ export function linearPosition(slots: FastChannelSlot[], atMs: number): { index:
 }
 
 /** Local-midnight (00:00) unix-ms for the day that contains `atMs`, in the runtime's timezone. */
-export function localMidnightMs(atMs: number): number {
-  const d = new Date(atMs);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
+/**
+ * Midnight for scheduling purposes. With a channel timezone this is midnight on the STATION's wall
+ * clock, so every viewer worldwide is on the same programme at the same instant; without one it falls
+ * back to the viewer's device midnight (legacy behaviour — see platformClock for why that diverges).
+ */
+export function localMidnightMs(atMs: number, tz?: string): number {
+  return zonedMidnightMs(atMs, tz);
 }
 
 /** The slots that play on the weekday containing `atMs` — a per-day override if present, else the
  *  default "same every day" loop. Keeps the resolver a pure function of (schedule, time). */
-export function activeDaySlots(schedule: Pick<FastChannelSchedule, 'slots' | 'weeklySlots'> | null | undefined, atMs: number): FastChannelSlot[] {
+export function activeDaySlots(schedule: Pick<FastChannelSchedule, 'slots' | 'weeklySlots' | 'timezone'> | null | undefined, atMs: number): FastChannelSlot[] {
   if (!schedule) return [];
-  const day = new Date(atMs).getDay(); // 0=Sun … 6=Sat
+  // Weekday on the CHANNEL's clock — otherwise a viewer across the date line pulls the wrong day.
+  const day = zonedDayIndex(atMs, (schedule as any).timezone); // 0=Sun … 6=Sat
   const perDay = schedule.weeklySlots?.[day];
   return perDay && perDay.length ? perDay : (schedule.slots || []);
 }
@@ -88,9 +95,9 @@ export function activeDaySlots(schedule: Pick<FastChannelSchedule, 'slots' | 'we
  * Returns the on-air slot + seek, or {offAir:true, resumesInSec} when past the day's content.
  */
 export function linearPositionMidnight(
-  slots: FastChannelSlot[], atMs: number,
+  slots: FastChannelSlot[], atMs: number, tz?: string,
 ): { index: number; offsetSec: number; offAir: false } | { offAir: true; resumesInSec: number } {
-  const midnight = localMidnightMs(atMs);
+  const midnight = localMidnightMs(atMs, tz);
   const elapsed = Math.floor((atMs - midnight) / 1000);
   let acc = 0;
   for (let i = 0; i < (slots?.length || 0); i++) {
@@ -107,8 +114,8 @@ export function linearPositionMidnight(
  * (defaults to local midnight). Never clips an asset; a trailing OFF_AIR entry marks the gap to the
  * next midnight when the last asset would have crossed it. Deterministic → this IS the proof/report.
  */
-export function buildAsRunLog(slots: FastChannelSlot[], dayStartMs?: number): AsRunEntry[] {
-  const start = dayStartMs ?? localMidnightMs(Date.now());
+export function buildAsRunLog(slots: FastChannelSlot[], dayStartMs?: number, tz?: string): AsRunEntry[] {
+  const start = dayStartMs ?? localMidnightMs(clockNow(), tz);
   const out: AsRunEntry[] = [];
   let acc = 0;
   for (let i = 0; i < (slots?.length || 0); i++) {
@@ -145,10 +152,10 @@ export function buildAsRunLog(slots: FastChannelSlot[], dayStartMs?: number): As
  * midnight — matching per-day (weeklySlots) schedules. Use this for live playout instead of the
  * epoch-anchored linearPosition so 3pm always means the 3pm programme.
  */
-export function dayAnchoredPosition(slots: FastChannelSlot[], atMs: number): { index: number; offsetSec: number } {
+export function dayAnchoredPosition(slots: FastChannelSlot[], atMs: number, tz?: string): { index: number; offsetSec: number } {
   const total = loopTotalSec(slots);
   if (!slots?.length || total <= 0) return { index: 0, offsetSec: 0 };
-  let pos = Math.floor((atMs - localMidnightMs(atMs)) / 1000) % total;
+  let pos = Math.floor((atMs - localMidnightMs(atMs, tz)) / 1000) % total;
   if (pos < 0) pos += total;
   for (let i = 0; i < slots.length; i++) {
     const d = slotDurationSec(slots[i]);
@@ -164,15 +171,16 @@ export function dayAnchoredPosition(slots: FastChannelSlot[], atMs: number): { i
  * channel uses the day-anchored loop. Returns the slots plus either {index, offsetSec} or {offAir}.
  */
 export function playoutPosition(
-  schedule: Pick<FastChannelSchedule, 'slots' | 'weeklySlots' | 'midnightAnchored'> | null | undefined,
+  schedule: Pick<FastChannelSchedule, 'slots' | 'weeklySlots' | 'midnightAnchored' | 'timezone'> | null | undefined,
   atMs: number,
 ): { slots: FastChannelSlot[]; offAir: false; index: number; offsetSec: number } | { slots: FastChannelSlot[]; offAir: true; resumesInSec: number } {
   const slots = activeDaySlots(schedule, atMs);
+  const tz = (schedule as any)?.timezone as string | undefined;
   if (schedule?.midnightAnchored) {
-    const p = linearPositionMidnight(slots, atMs);
+    const p = linearPositionMidnight(slots, atMs, tz);
     return p.offAir ? { slots, offAir: true, resumesInSec: p.resumesInSec } : { slots, offAir: false, index: p.index, offsetSec: p.offsetSec };
   }
-  return { slots, offAir: false, ...dayAnchoredPosition(slots, atMs) };
+  return { slots, offAir: false, ...dayAnchoredPosition(slots, atMs, tz) };
 }
 
 /** Restore real per-asset durations on a schedule from an id→seconds map (the owner's video library).

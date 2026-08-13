@@ -14,6 +14,7 @@ import { SCIENCE_STREAMS } from './scienceStreams';
 import { fetchFastChannelSchedule, fetchFastChannelVideos, type FastChannelListing } from '../services/backendService';
 import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, backfillScheduleDurations, FM_FILL_THRESHOLD_SEC } from '../services/fastChannelTimeline';
 import { exactDurationSec } from '../services/mediaTimebase';
+import { now as clockNow } from '../services/platformClock';
 import AdBreakBumper from './tv/AdBreakBumper';
 import ComingUpNextBumper, { type UpNextItem } from './tv/ComingUpNextBumper';
 import { getPlatformInfo } from '../hooks/usePlatform';
@@ -379,7 +380,7 @@ const LiveTvPlus: React.FC<{
     if (!owner) { setEpg([]); setPreemptUntil(null); return; }
     const build = (sched: FastChannelSchedule | null) => {
       if (cancelled) return;
-      setEpg(computeEpg(sched, Date.now()));
+      setEpg(computeEpg(sched, clockNow()));
       // Live pre-emption: warn viewers from when the interrupt is pending until it airs + 30s after.
       const pli = (sched as any)?.pendingLiveInterrupt;
       const until = pli ? pli.scheduledAt + 30000 : 0;
@@ -506,7 +507,9 @@ const LiveTvPlus: React.FC<{
   };
   const clockPos = (slots: FastChannelSlot[], now: number) => {
     const sched = fastSchedRef.current;
-    return sched?.midnightAnchored ? linearPositionMidnight(slots, now) : dayAnchoredPosition(slots, now);
+    // Anchor to the STATION's zone when it declares one, so every viewer is on the same programme.
+    const tz = (sched as any)?.timezone as string | undefined;
+    return sched?.midnightAnchored ? linearPositionMidnight(slots, now, tz) : dayAnchoredPosition(slots, now, tz);
   };
 
   /** Re-derive what is on air from the CLOCK and arm the next boundary. Idempotent and loop-proof. */
@@ -514,7 +517,7 @@ const LiveTvPlus: React.FC<{
     clearFastTimer();
     const slots = fastSlotsRef.current;
     if (!slots.length) { setFastMedia(null); setFastAd(null); setFastFiller(null); return; }
-    const pos = clockPos(slots, Date.now());
+    const pos = clockPos(slots, clockNow());
     if ('offAir' in pos && pos.offAir) {
       setFastMedia(null); setFastAd(null); setFastFiller(null);
       fastTimerRef.current = setTimeout(() => syncRef.current(), Math.min(pos.resumesInSec, 300) * 1000);
@@ -556,7 +559,7 @@ const LiveTvPlus: React.FC<{
   const onFastMediaEnded = useCallback(() => {
     const slots = fastSlotsRef.current;
     if (!slots.length) return;
-    const pos = clockPos(slots, Date.now());
+    const pos = clockPos(slots, clockNow());
     if ('offAir' in pos && pos.offAir) { syncRef.current(); return; }
     const remaining = slotDurationSec(slots[pos.index]) - Math.max(0, pos.offsetSec);
     const up = upNextFrom(slots, pos.index);
@@ -582,7 +585,7 @@ const LiveTvPlus: React.FC<{
     const start = (sched: FastChannelSchedule | null) => {
       if (cancelled) return;
       fastSchedRef.current = sched;
-      fastSlotsRef.current = activeDaySlots(sched, Date.now());
+      fastSlotsRef.current = activeDaySlots(sched, clockNow());
       syncFast();   // join at the current wall-clock position
     };
     if (schedCache.current.has(owner)) start(schedCache.current.get(owner)!);
