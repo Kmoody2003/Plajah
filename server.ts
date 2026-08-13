@@ -24,6 +24,8 @@ import os from 'node:os';
 import Stripe from 'stripe';
 import { coraRouter } from './routes/cora';
 import { learnerAuthRouter } from './routes/learnerAuth';
+import { postmanRouter } from './routes/postman';
+import { campaignsRouter } from './routes/campaigns';
 import { createCustomToken, fsGet, fsSet, fsPatch, fsDelete } from './services/firebaseAdminRest';
 import { buildFfmpegArgs } from './services/crossover/engine';
 import { extFor } from './services/crossover/formats';
@@ -7365,6 +7367,13 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
   // ── Learner identity (child username/password → custom token; provision; claim) ──
   app.use('/api/learner-auth/login', authLimiter);
   app.use('/api/learner-auth', express.json({ limit: '10kb' }), learnerAuthRouter);
+
+  // ── The Post Man (native mail client — per-user, per-account Gmail) ───────────
+  app.use('/api/postman', express.json({ limit: '1mb' }), postmanRouter);
+
+  // Campaigns — built-in email marketing. Compliance (postal address, one-click
+  // unsubscribe, suppression) is enforced inside the router, not by its callers.
+  app.use('/api/campaigns', express.json({ limit: '2mb' }), campaignsRouter);
 
   if (process.env.SPORTS_INGESTION_WORKER !== 'false') {
     const intervalMs = Number(process.env.SPORTS_INGESTION_INTERVAL_MS) || undefined;

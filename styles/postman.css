@@ -1,0 +1,164 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE POST MAN — feature styles
+   Design: the artifact published alongside this work, and docs/PLAJAH_DESIGN_SYSTEM.md
+
+   Kept out of styles/plajah-ds.css on purpose: that file is the platform-wide
+   design system, this is a single feature. Tokens flow one way — The Post Man
+   consumes design-system tokens and defines no brand colours of its own.
+
+   THE TWO-TIER RULE
+   The app arrived from AI Studio carrying four themes of its own. Plajah already
+   has nine, switched by a class on <body>, so a second theme system would mean a
+   user picking "Void" inside the mail client while the rail around it stayed
+   dark — two systems disagreeing on screen.
+
+   So the split is:
+     tier one — chrome (header, rails, lists, sheets, controls) inherits the
+                platform theme via bg-theme / --pj-* and is not skinnable here.
+     tier two — the page (letter body, journal page, composer paper) carries a
+                LETTER SKIN, set with data-letter-skin on the surface itself.
+
+   This is the same rule the Melos workspace uses: paper skins stop at the door.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── The page surface ──────────────────────────────────────────────────────
+   Every skinnable surface reads these four variables and nothing else, so a new
+   skin is four declarations and never a component change. Defaults below are
+   the "plate" skin, i.e. the platform ground — a surface with no data-letter-skin
+   attribute is already correct. */
+.pm-page {
+  --pm-paper:     transparent;
+  --pm-ink:       var(--text-primary);
+  --pm-ink-soft:  var(--on-surface-variant);
+  --pm-mark:      var(--pj-orange);
+  --pm-page-font: var(--font-headline);
+  --pm-page-size: 1.0625rem;
+  --pm-page-lead: 1.75;
+  --pm-page-radius: var(--pj-radius-lg);
+
+  background: var(--pm-paper);
+  color: var(--pm-ink);
+  border-radius: var(--pm-page-radius);
+  font-family: var(--pm-page-font);
+  font-size: var(--pm-page-size);
+  line-height: var(--pm-page-lead);
+  transition: background var(--pj-dur-slow) var(--pj-ease-standard),
+              color var(--pj-dur-slow) var(--pj-ease-standard);
+}
+
+/* Ink — the app's original editorial page. Warmer black than the platform
+   ground, rose marginalia, Georgia italic. */
+.pm-page[data-letter-skin="ink"] {
+  --pm-paper:    #0f1218;
+  --pm-ink:      #f4efe7;
+  --pm-ink-soft: rgba(244, 239, 231, 0.62);
+  --pm-mark:     #fb7185;
+  --pm-page-font: Georgia, "Noto Serif", serif;
+}
+
+/* Void — paper white, for long drafting. Deliberately light inside a dark app;
+   the chrome dims around it rather than following it (see .pm-shell--focus). */
+.pm-page[data-letter-skin="void"] {
+  --pm-paper:    #ffffff;
+  --pm-ink:      #0a0a0a;
+  --pm-ink-soft: rgba(10, 10, 10, 0.58);
+  --pm-mark:     #0a0a0a;
+  --pm-page-font: "Noto Serif", Georgia, serif;
+  --pm-page-lead: 1.85;
+}
+
+/* Brute — monospace, hard edges, no radius. Deliberately unbeautiful; it exists
+   because some people draft better when nothing is trying to be pretty. */
+.pm-page[data-letter-skin="brute"] {
+  --pm-paper:    #ececec;
+  --pm-ink:      #000000;
+  --pm-ink-soft: rgba(0, 0, 0, 0.6);
+  --pm-mark:     #000000;
+  --pm-page-font: var(--font-mono-tech);
+  --pm-page-size: 0.9375rem;
+  --pm-page-lead: 1.65;
+  --pm-page-radius: 4px;
+}
+
+/* Padding is the skin's job too — a white page wants more margin than a
+   transparent one, because the edge is visible. */
+.pm-page[data-letter-skin="void"],
+.pm-page[data-letter-skin="brute"],
+.pm-page[data-letter-skin="ink"] { padding: var(--pj-space-8) var(--pj-space-10); }
+
+/* ── Letter body typography ───────────────────────────────────────────────
+   Received mail is arbitrary third-party HTML. These rules constrain it to the
+   page rather than letting it impose its own layout — the server strips scripts
+   and handlers, this stops the rest from breaking the column. */
+.pm-letter { color: var(--pm-ink-soft); overflow-wrap: anywhere; }
+.pm-letter > * + * { margin-top: 0.9em; }
+.pm-letter p { max-width: 68ch; margin: 0; }
+.pm-letter a { color: var(--pm-mark); text-underline-offset: 2px; }
+.pm-letter img { max-width: 100%; height: auto; border-radius: var(--pj-radius-sm); }
+.pm-letter table { max-width: 100%; display: block; overflow-x: auto; }
+.pm-letter blockquote {
+  margin: 0;
+  padding-left: var(--pj-space-4);
+  border-left: 2px solid color-mix(in srgb, var(--pm-mark) 45%, transparent);
+  color: var(--pm-ink-soft);
+}
+.pm-letter pre { overflow-x: auto; font-family: var(--font-mono-tech); font-size: 0.9em; }
+/* Quoted trailing history: present but stepped back, the way a mail client should. */
+.pm-letter .gmail_quote, .pm-letter blockquote blockquote { opacity: 0.55; }
+
+/* ── Subject line ─────────────────────────────────────────────────────────
+   The serif italic is the one gesture kept from the original app. It is what
+   makes the list read as correspondence rather than a queue, and it survives in
+   exactly two places: here and the letter body. */
+.pm-subject {
+  font-family: var(--font-headline);
+  font-style: italic;
+  letter-spacing: -0.01em;
+}
+
+/* ── Unread marker ────────────────────────────────────────────────────────
+   Orange is the platform's action colour, so it carries "needs you" here too.
+   A left rule rather than a dot: it survives at TV viewing distance, where a
+   6px dot does not. */
+.pm-row-mark {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--pj-orange);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--pj-orange) 50%, transparent);
+}
+
+/* ── Focus mode ───────────────────────────────────────────────────────────
+   Used by the Void skin and the composer: the surrounding chrome steps back so
+   the page is the only lit thing. Not display:none — the controls stay reachable
+   by keyboard and by pointer, they just stop competing. */
+.pm-shell--focus [data-pm-dimmable="true"] {
+  opacity: 0.28;
+  transition: opacity var(--pj-dur-slow) var(--pj-ease-standard);
+}
+.pm-shell--focus [data-pm-dimmable="true"]:hover,
+.pm-shell--focus [data-pm-dimmable="true"]:focus-within { opacity: 1; }
+
+/* ── Composer caret ───────────────────────────────────────────────────────
+   The empty composer shows where typing will land. Cosmetic, so it yields to
+   the reduced-motion setting entirely. */
+.pm-caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 1.05em;
+  background: var(--pj-orange);
+  vertical-align: -0.18em;
+  animation: pm-blink 1.15s steps(1, end) infinite;
+}
+@keyframes pm-blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
+
+/* ── List fade ────────────────────────────────────────────────────────────
+   A scrolling list that ends in a hard cut reads as broken. The fade says
+   "continues" without a scrollbar, which the platform hides globally. */
+.pm-fade-b { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent 100%);
+                     mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent 100%); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pm-caret { animation: none; opacity: 1; }
+  .pm-page, .pm-shell--focus [data-pm-dimmable="true"] { transition: none; }
+}

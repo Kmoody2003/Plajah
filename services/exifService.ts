@@ -164,6 +164,88 @@ export function parseExifFromBuffer(buffer: ArrayBuffer): ExifData | null {
   }
 }
 
+/**
+ * Strip ALL metadata from an image by re-encoding its pixels through a canvas.
+ *
+ * A canvas holds only pixel data, so drawing an image to one and exporting it
+ * discards EXIF, GPS, XMP, IPTC and the maker-note blocks — every place a camera
+ * or phone hides location and device identity. This is the correct way to
+ * sanitise a photo before it is sent in a protected thread: GPS coordinates in a
+ * photo are one of the most common ways a source is unmasked.
+ *
+ * Returns a fresh Blob (JPEG by default; PNG when the source has transparency and
+ * quality is not the concern). It THROWS if the image cannot be decoded or re-encoded
+ * — it never returns the original bytes — so a protected-thread caller fails closed
+ * ("do not send") rather than leaking an unsanitised photo.
+ */
+export async function stripImageMetadata(
+  file: Blob,
+  opts: { type?: 'image/jpeg' | 'image/png'; quality?: number; maxDimension?: number } = {},
+): Promise<Blob> {
+  const { type = 'image/jpeg', quality = 0.92, maxDimension = 4096 } = opts;
+
+  const bitmap = await createImageBitmap(file).catch(() => null);
+  if (!bitmap) throw new Error('This image could not be processed for sending.');
+
+  try {
+    // Cap absurd dimensions so a hostile image cannot exhaust memory; keep aspect.
+    let { width, height } = bitmap;
+    if (Math.max(width, height) > maxDimension) {
+      const scale = maxDimension / Math.max(width, height);
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+    }
+
+    const canvas =
+      typeof OffscreenCanvas !== 'undefined'
+        ? new OffscreenCanvas(width, height)
+        : Object.assign(document.createElement('canvas'), { width, height });
+    const ctx = (canvas as HTMLCanvasElement | OffscreenCanvas).getContext('2d');
+    if (!ctx) throw new Error('This image could not be processed for sending.');
+    (ctx as CanvasRenderingContext2D).drawImage(bitmap, 0, 0, width, height);
+
+    if (canvas instanceof OffscreenCanvas) {
+      return await canvas.convertToBlob({ type, quality });
+    }
+    return await new Promise<Blob>((resolve, reject) => {
+      (canvas as HTMLCanvasElement).toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error('Image encoding failed.'))),
+        type,
+        quality,
+      );
+    });
+  } finally {
+    bitmap.close?.();
+  }
+}
+
+/**
+ * Detect an image by its magic bytes rather than trusting file.type, which is often
+ * empty or 'application/octet-stream' on real upload paths. A JPEG with GPS EXIF that
+ * arrives with a stripped MIME must still be recognised and sanitised — that is exactly
+ * the case where a leak matters. Covers JPEG, PNG, GIF, WebP, HEIC/HEIF, BMP, TIFF.
+ */
+export async function isProbablyImage(file: Blob): Promise<boolean> {
+  if (file.type && file.type.startsWith('image/')) return true;
+  try {
+    const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+    const b = (i: number) => head[i];
+    const ascii = (i: number, s: string) => s.split('').every((c, k) => head[i + k] === c.charCodeAt(0));
+    if (b(0) === 0xff && b(1) === 0xd8) return true;                       // JPEG
+    if (b(0) === 0x89 && ascii(1, 'PNG')) return true;                    // PNG
+    if (ascii(0, 'GIF8')) return true;                                    // GIF
+    if (ascii(0, 'RIFF') && ascii(8, 'WEBP')) return true;               // WebP
+    if (ascii(4, 'ftyp') && (ascii(8, 'heic') || ascii(8, 'heif') || ascii(8, 'mif1') || ascii(8, 'hevc'))) return true; // HEIC/HEIF
+    if (b(0) === 0x42 && b(1) === 0x4d) return true;                      // BMP
+    if ((b(0) === 0x49 && b(1) === 0x49 && b(2) === 0x2a) || (b(0) === 0x4d && b(1) === 0x4d && b(2) === 0x00)) return true; // TIFF
+    return false;
+  } catch {
+    // If we cannot even read the header, treat it as an image so a protected-thread
+    // caller runs it through the (fail-closed) stripper rather than sending raw.
+    return true;
+  }
+}
+
 const exifCache = new Map<string, Promise<ExifData | null>>();
 
 /** Fetch (partial) and parse EXIF for a remote image URL. Cached; never throws. */

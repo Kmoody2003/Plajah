@@ -839,6 +839,34 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // ── Ora — personal productivity & wellbeing (services/oraService) ──────
+      // The most sensitive data on the platform: mood, journals, goals.
+      // Owner-only, with NO admin escape hatch — an admin has no legitimate
+      // reason to read someone's journal, and a rule that allows it is a rule
+      // that will eventually be used. Journal bodies and check-in notes are
+      // additionally encrypted client-side, so a database dump is ciphertext.
+      // Note these are subcollections: the public `allow read: if true` on the
+      // parent users/{userId} document does not reach them.
+      match /ora_profile/{docId}  { allow read, write: if isOwner(userId); }
+      match /ora_checkins/{docId} { allow read, write: if isOwner(userId); }
+      match /ora_entries/{docId}  { allow read, write: if isOwner(userId); }
+      match /ora_goals/{docId}    { allow read, write: if isOwner(userId); }
+      match /ora_rituals/{docId}  { allow read, write: if isOwner(userId); }
+      match /ora_sessions/{docId} { allow read, write: if isOwner(userId); }
+
+      // The Post Man. `postman_prefs` is the only one the CLIENT touches — letter
+      // skin and focus mode. `postman_accounts` holds OAuth refresh tokens and is
+      // written by the server with a service account, which bypasses these rules;
+      // the deny here is what stops a signed-in user reading their own tokens out
+      // of the browser, which is the whole point of holding them server-side.
+      match /postman_prefs/{docId}    { allow read, write: if isOwner(userId); }
+      match /postman_accounts/{docId} { allow read, write: if false; }
+
+      // Source Mode vault — ciphertext only, and the key never leaves the device.
+      // The client is the only thing that ever reads or writes it.
+      match /vault_meta/{docId}    { allow read, write: if isOwner(userId); }
+      match /vault_records/{docId} { allow read, write: if isOwner(userId); }
+
       // Watch / listen history + Continue Watching (services/watchHistoryService).
       // Private to the owner; localStorage is the offline fallback.
       match /watchHistory/{itemId} {
@@ -895,6 +923,77 @@ service cloud.firestore {
     // this already; it is written out because "nobody added a rule" is a weaker guarantee than
     // "someone wrote deny on purpose".
     match /tvPairings/{code}                  { allow read, write: if false; }
+
+    // ── Ora Rest — the shared ambient loop library (services/oraRest) ──────
+    // One platform-wide library, rendered once and watched by everyone. Users
+    // may submit their own serene backgrounds; the Rest channel itself only ever
+    // plays entries that are APPROVED *and* carry a measured seam within
+    // SEAM_THRESHOLD (enforced client-side by isRestEligible, since the seam is
+    // computed from the rendered file rather than claimed by the author).
+    match /oraRestLoops/{loopId} {
+      // Approved loops are public — this is a channel. Work in progress is
+      // visible only to its author (and to a reviewer).
+      allow read: if resource.data.status == 'APPROVED'
+                  || (isAuthenticated() && resource.data.get('authorUid', '') == request.auth.uid)
+                  || isAdmin();
+
+      // A submission may never arrive pre-approved: an author can only create
+      // DRAFT or SUBMITTED, and must own it. Approval is a reviewer's act.
+      allow create: if isAuthenticated()
+                    && request.resource.data.authorUid == request.auth.uid
+                    && request.resource.data.status in ['DRAFT', 'SUBMITTED'];
+
+      // The author may keep editing until it is approved, but can never move it
+      // to APPROVED themselves, and can never change who wrote it.
+      allow update: if isAdmin()
+                    || (isAuthenticated()
+                        && resource.data.get('authorUid', '') == request.auth.uid
+                        && resource.data.status != 'APPROVED'
+                        && request.resource.data.status in ['DRAFT', 'SUBMITTED']
+                        && request.resource.data.authorUid == resource.data.authorUid);
+
+      allow delete: if isAdmin()
+                    || (isAuthenticated() && resource.data.get('authorUid', '') == request.auth.uid);
+    }
+
+    // ── Ora "your corner" — accountability (services/oraCorner) ────────────
+    // The only cross-user surface in Ora. Membership is owner-written and
+    // member-readable; the status card is owner-written and readable only by
+    // the uids the owner has listed.
+    //
+    // The card is counts-only by construction (streak, checked-in-today, goal
+    // counts) — no entries, no titles, no mood values. These rules are the
+    // second line of that promise, not the first: oraCorner.publishStatus
+    // assembles the card field by field so a private value cannot ride along.
+    match /oraCorner/{cornerId} {
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.memberUids;
+      // A corner is five people. Enforced here too, so a hand-rolled client
+      // cannot turn a corner into a broadcast audience.
+      allow create: if isAuthenticated()
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.memberUids is list
+                    && request.resource.data.memberUids.size() <= 5;
+      allow update: if isAuthenticated()
+                    && resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.ownerUid == resource.data.ownerUid
+                    && request.resource.data.memberUids.size() <= 5;
+      // The owner dissolves it; a member may delete only to remove themselves,
+      // which the client models as dissolving their own single-member corner.
+      allow delete: if isAuthenticated()
+                    && (resource.data.ownerUid == request.auth.uid
+                        || request.auth.uid in resource.data.memberUids);
+    }
+
+    match /oraCornerStatus/{statusUid} {
+      allow read: if isAuthenticated()
+                  && (request.auth.uid == statusUid
+                      || request.auth.uid in resource.data.visibleToUids);
+      // Only ever your own card, and the doc id must be your uid — otherwise a
+      // client could publish a card in someone else's name.
+      allow write: if isOwner(statusUid)
+                   && (request.method == 'delete'
+                       || request.resource.data.uid == request.auth.uid);
+    }
 
     // ── Education: the Learner Ledger. A student owns their record; a guardian may read it. ──
     function isGuardianOf(studentId) {
@@ -1414,6 +1513,25 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && (resource.data.artistId == request.auth.uid || isAdmin());
     }
 
+    // ── Campaigns (routes/campaigns.ts) ──────────────────────────────────────
+    // All three are written by the SERVER with a service account, which bypasses
+    // these rules. The client is read-only, and only for its own records, so a
+    // sender can see their history and who they may no longer contact — but
+    // cannot forge a send record or quietly delete someone off the suppression
+    // list. Suppression that a sender can edit is not suppression.
+    match /campaign_senders/{ownerId} {
+      allow read: if isOwner(ownerId);
+      allow write: if false;
+    }
+    match /campaigns/{campaignId} {
+      allow read: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+    match /campaign_suppression/{entryId} {
+      allow read: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+
     match /articles/{articleId} {
       allow read: if (!('isPublic' in resource.data) || resource.data.isPublic == true) || (isAuthenticated() && resource.data.authorId == request.auth.uid) || isAdmin();
       allow create: if isAuthenticated() && isValidArticle(request.resource.data) && request.resource.data.authorId == request.auth.uid;
@@ -1480,6 +1598,28 @@ service cloud.firestore {
       allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
       allow update: if isOwner(resource.data.ownerId) || isAdmin();
       allow delete: if isOwner(resource.data.ownerId) || isAdmin();
+    }
+
+    // Melos productions — album workspaces + the Beats room's grooves. Owner or roster member
+    // only; every subcollection (songs, arrangements, pins, samples, grooves…) inherits access
+    // through the parent production lookup. PRIVATE by default; collaborator sharing = the
+    // memberUids roster maintained by melosService.
+    match /melosProductions/{prodId} {
+      function isMelosMember() {
+        return isAuthenticated()
+          && (resource.data.ownerUid == request.auth.uid
+              || request.auth.uid in resource.data.get('memberUids', []));
+      }
+      allow read, update, delete: if isMelosMember() || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      match /{document=**} {
+        function isParentMember() {
+          let p = get(/databases/$(database)/documents/melosProductions/$(prodId)).data;
+          return isAuthenticated()
+            && (p.ownerUid == request.auth.uid || request.auth.uid in p.get('memberUids', []));
+        }
+        allow read, write: if isParentMember() || isAdmin();
+      }
     }
 
     // Sync-license requests: a filmmaker asks a track owner to license an un-priced

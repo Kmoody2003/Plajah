@@ -1,5 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Gochi+Hand&family=Noto+Serif:ital,wght@0,400;0,700;1,400&family=Manrope:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
+/* Canonical design-system tokens + control layer. Spec: docs/PLAJAH_DESIGN_SYSTEM.md */
+@import "./styles/plajah-ds.css";
+/* Ora — personal productivity & wellbeing. Consumes DS tokens, defines no colours. */
+@import "./styles/ora.css";
+
+@import "./styles/melos.css";
+
+/* The Post Man — mail + letter skins. Consumes DS tokens, defines no colours. */
+@import "./styles/postman.css";
 
 @theme {
   --font-bebas: "Outfit", "Space Grotesk", sans-serif;
@@ -11,7 +20,37 @@
   --font-handwritten: "Gochi Hand", cursive;
   --radius-3xl: 28px;
   --radius-4xl: 36px;
-  
+
+  /* ── Design-system Tailwind utilities ───────────────────────────────────
+     So brand colours and shape roles are reachable as normal utilities and
+     nobody has to write bg-[#6B0099] again. Values live in styles/plajah-ds.css.
+       bg-brand-purple, text-brand-orange, border-brand-magenta, …
+       rounded-control / rounded-card / rounded-sheet / rounded-hero
+       shadow-elev-1 … shadow-elev-5, shadow-glow-brand                     */
+  --color-brand-purple:  #6B0099;
+  --color-brand-magenta: #D40055;
+  --color-brand-orange:  #FF8C00;
+  --color-brand-cyan:    #00DAF3;
+  --color-brand-lilac:   #D0BCFF;
+  --color-state-success: #06D6A0;
+  --color-state-warning: #F59E0B;
+  --color-state-danger:  #EF4444;
+  --color-state-info:    #3B82F6;
+
+  --radius-control: 9999px;
+  --radius-card:    24px;
+  --radius-sheet:   28px;
+  --radius-hero:    36px;
+
+  --shadow-elev-1: 0 1px 2px rgba(0,0,0,0.30);
+  --shadow-elev-2: 0 4px 12px rgba(0,0,0,0.35);
+  --shadow-elev-3: 0 10px 28px rgba(0,0,0,0.45);
+  --shadow-elev-4: 0 20px 48px rgba(0,0,0,0.55);
+  --shadow-elev-5: 0 30px 60px -12px rgba(0,0,0,0.60), 0 18px 36px -18px rgba(0,0,0,0.60);
+  --shadow-glow-brand:  0 6px 22px rgba(212, 0, 85, 0.34);
+  --shadow-glow-orange: 0 6px 22px rgba(255, 140, 0, 0.30);
+
+
   --color-theme: var(--bg-color);
   --color-theme-card: var(--card-bg);
   --color-small-orange: var(--text-secondary);

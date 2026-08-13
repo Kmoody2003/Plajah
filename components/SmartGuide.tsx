@@ -143,7 +143,7 @@ const TEXT_TIPS: Record<string, Tip> = {
   "clubs":              { icon: "🏛️", label: "Clubs", desc: "Community groups around shared interests — genres, artists, sports, topics. Join public clubs instantly." },
   "chat":               { icon: "💬", label: "Chats", desc: "Private and group messaging. Send text, voice notes, and drop music tracks directly into conversations." },
   "discussion":         { icon: "🗣️", label: "Discussion Boards", desc: "Open forum boards for community conversation. Post questions, opinions, and debates on any topic." },
-  "the postman":        { icon: "📬", label: "The Postman", desc: "Formal AI-assisted dispatch and messaging system for studio, business, and creator communications." },
+  "the postman":        { icon: "📬", label: "The Postman", desc: "Your Gmail inbox inside Plajah — read, reply and write letters without switching tabs." },
   "find people":        { icon: "🔍", label: "Find People", desc: "Search for artists, fans, and profiles on Plajah. Follow people to see their content in your feed." },
   "help center":        { icon: "❓", label: "Help Center", desc: "Guides, FAQs, and tutorials for every part of Plajah. Search by topic or browse by section." },
   "sanctuary":          { icon: "🛡️", label: "Sanctuary", desc: "Support your favorite creators through exclusive memberships, private content, and direct fan support." },

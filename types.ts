@@ -1241,6 +1241,17 @@ export interface UserProfile {
     audiusEnabled?: boolean;
     syncedFolders?: { id: string; name: string }[];
   };
+  /** A connected Audius account ("Log in with Audius"). PUBLIC identity only — the OAuth
+   *  access/refresh tokens stay device-local in localStorage and are never written here.
+   *  `null` once disconnected. See services/audiusAuth.ts. */
+  audiusAccount?: {
+    userId: string;
+    handle: string;
+    name: string;
+    profilePicture?: string;
+    verified: boolean;
+    connectedAt: number;
+  } | null;
   pinnedItems?: { id: string; refId: string; type: 'POST' | 'VIDEO' | 'AUDIO' }[];
   fastChannelEnabled?: boolean;
   liveStreamConfig?: {
@@ -2576,7 +2587,7 @@ export interface ParentalControls {
   updatedBy?: string;
 }
 
-export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'AD_PACKAGES' | 'RELLO' | 'PLAJAH_SPORTS' | 'CREATOR_PAYMENTS' | 'ARTIST_MANAGER' | 'ARTIST_BOARDS' | 'EVENT_PRODUCTION_STUDIO' | 'TICKET_DESIGNER' | 'PLAJAH_PIXELS' | 'BIBLE' | 'ATHLETE_SHOWCASE' | 'MATCH_FAN_ROOMS' | 'CLASS_POINTS' | 'ACADEMIA_TOUR' | 'ACADEMIA_HOME' | 'ACADEMIA_LANDING' | 'ACADEMIA_COURSES' | 'SCHOOL_PACKAGE' | 'LANGUAGE_QUEST' | 'EDU_SOCIAL' | 'KIDS_LIBRARY' | 'ROOM' | 'PODCAST_STUDIO' | 'LIVE_TRANSLATION' | 'PODCAST_CALLIN' | 'PODCAST_LISTEN' | 'ORG_HUB' | 'TELEPROMPTER' | 'SPATIAL_MIXER' | 'MEDIA_CONVERTER' | 'COMIC_MUSEUM' | 'AUDIUS_ARTIST' | 'PLAJAH_ELEVATE' | 'PLATFORM_CHANGELOG' | 'MEDIA_ROUTER' | 'CROSSOVER' | 'SMART_DIRECTOR' | 'HISTORY_QUEST' | 'TV_SEARCH' | 'TERRA' | 'TERRA_MAP' | 'TERRA_PASSPORT' | 'TERRA_STUDIO' | 'TERRA_SCOUT' | 'TERRA_FILM' | 'TERRA_FEED' | 'TERRA_LISTINGS'
+export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'AD_PACKAGES' | 'RELLO' | 'PLAJAH_SPORTS' | 'CREATOR_PAYMENTS' | 'ARTIST_MANAGER' | 'MELOS' | 'ARTIST_BOARDS' | 'EVENT_PRODUCTION_STUDIO' | 'TICKET_DESIGNER' | 'PLAJAH_PIXELS' | 'BIBLE' | 'ATHLETE_SHOWCASE' | 'MATCH_FAN_ROOMS' | 'CLASS_POINTS' | 'ACADEMIA_TOUR' | 'ACADEMIA_HOME' | 'ACADEMIA_LANDING' | 'ACADEMIA_COURSES' | 'SCHOOL_PACKAGE' | 'LANGUAGE_QUEST' | 'EDU_SOCIAL' | 'KIDS_LIBRARY' | 'ROOM' | 'PODCAST_STUDIO' | 'LIVE_TRANSLATION' | 'PODCAST_CALLIN' | 'PODCAST_LISTEN' | 'ORG_HUB' | 'TELEPROMPTER' | 'SPATIAL_MIXER' | 'MELOS_BEATS' | 'MEDIA_CONVERTER' | 'COMIC_MUSEUM' | 'AUDIUS_ARTIST' | 'PLAJAH_ELEVATE' | 'PLATFORM_CHANGELOG' | 'MEDIA_ROUTER' | 'CROSSOVER' | 'SMART_DIRECTOR' | 'HISTORY_QUEST' | 'TV_SEARCH' | 'TERRA' | 'TERRA_MAP' | 'TERRA_PASSPORT' | 'TERRA_STUDIO' | 'TERRA_SCOUT' | 'TERRA_FILM' | 'TERRA_FEED' | 'TERRA_LISTINGS'
   | 'EVENTS' | 'EVENT_DETAIL' | 'EVENT_CREATE' | 'EVENT_DASHBOARD' | 'MY_TICKETS' | 'EVENT_KIOSK'
   | 'EVENT_PRODUCTION' | 'EVENT_PRODUCTION_DETAIL' | 'ARTIST_SERVICES'
   // Internal pitch documents — not linked in nav. Access via ?view=pitch-music|pitch-film|pitch-writer
@@ -2589,6 +2600,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'PITCH_DECK_STUDIO'
   // History Moments — Chora (music) and Taleo (film/TV)
   | 'CHORA_HISTORY' | 'TALEO_HISTORY'
+  // Ora — personal productivity & wellbeing suite (docs/PLAJAH_WELLBEING_SUITE_BLUEPRINT.md)
+  | 'ORA'
   // Music Theory Studio — Chora
   | 'MUSIC_THEORY'
   // Chora Conservatory — music museum (composers/musicians) + music history
@@ -3047,6 +3060,13 @@ export interface ChatRoom {
   ccGuardianUids?: string[];
   /** True once guardian CC has been resolved for this room (so the send path doesn't re-scan). */
   guardianCcResolved?: boolean;
+  // ─── Source Mode: Protected Threads ────────────────────────────────────────
+  /** When true, this thread obeys the protected-thread rules: no AI, no notification
+   *  previews, photo EXIF stripped on send, breadcrumbs suspended, capture-deterred.
+   *  Enforced through services/protectedThreads.ts. */
+  protected?: boolean;
+  /** Auto-delete window in days for a protected thread, or null/undefined to keep. */
+  retentionDays?: number | null;
 }
 
 /**
@@ -3567,7 +3587,7 @@ export interface DiscussionVote {
 // ── STAT CARD (digital trading card) ─────────────────────────────────────────
 // One generic schema so the SAME card renderer + image exporter works for a profile today and for
 // worlds / characters / scenes / environments next. Built by services/statCardService.
-export type StatCardKind = 'PROFILE' | 'WORLD' | 'CHARACTER' | 'SCENE' | 'ENVIRONMENT' | 'EMPLOYEE';
+export type StatCardKind = 'PROFILE' | 'WORLD' | 'CHARACTER' | 'SCENE' | 'ENVIRONMENT' | 'EMPLOYEE' | 'SEASON';
 /** Visual variant. DEFAULT = Plajah brand gradient, round avatar. WORK_BADGE = blue+yellow
  *  employee work badge with a rectangular avatar (an actual work ID). */
 export type StatCardVariant = 'DEFAULT' | 'WORK_BADGE';
@@ -5077,4 +5097,345 @@ export interface ArtistServicesSubscription {
   adBudgetCents: number;
   adBudgetUsedCents: number;
   createdAt: number;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ORA — personal productivity & wellbeing suite
+// Blueprint: docs/PLAJAH_WELLBEING_SUITE_BLUEPRINT.md
+//
+// PRIVACY CONTRACT. Everything in this section is the most sensitive data on
+// the platform. None of it may ever be written to a feed, a search index, an
+// OG/link preview, a recommendation surface, an ad rail, or a training set.
+// All Ora documents live under users/{uid}/ora_* and are owner-only by rule.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Which Plajah service proved a goal. `MANUAL` means the user said so. */
+export type OraSourceService =
+  | 'MANUAL' | 'CHORA' | 'LOREA' | 'REELLO' | 'TALEO' | 'FABULA'
+  | 'ATHLETE' | 'ACADEMIA' | 'SANCTUARY' | 'ORA';
+
+/**
+ * The provenance chip — the single thing no standalone tracker can print.
+ * A goal is `verified` only when a real platform signal moved it.
+ */
+export interface OraProvenance {
+  service: OraSourceService;
+  /** Human label shown on the chip, e.g. "Chora" or "Lorea reader". */
+  label: string;
+  /** Deep link to the artefact that proved it, when there is one. */
+  ref?: string;
+  /** When the signal was last read. */
+  checkedAt: number;
+}
+
+/** Tides — the five-second check-in. Deliberately cheaper than unlocking a phone. */
+export interface OraCheckin {
+  id: string;
+  /** Local calendar day, YYYY-MM-DD. One canonical check-in per day (last write wins). */
+  day: string;
+  /** 1 = worst, 5 = best. Never rendered as a score or averaged into a "grade". */
+  mood: 1 | 2 | 3 | 4 | 5;
+  energy?: 1 | 2 | 3 | 4 | 5;
+  /** Freeform single-line note. Encrypted at rest like a journal entry. */
+  note?: string;
+  /** Where the check-in was captured, for the rail's own analytics only. */
+  surface?: 'RAIL' | 'ROOM' | 'RITUAL';
+  createdAt: number;
+}
+
+/** Longhand — a journal entry. Body is stored encrypted; title is not. */
+export interface OraEntry {
+  id: string;
+  day: string;
+  title?: string;
+  /** Ciphertext (see services/cryptoService encryptWith). Never plaintext at rest. */
+  body: string;
+  /** Attachments live in the Content Asset Manager, referenced not embedded. */
+  assetIds?: string[];
+  moodAtWriting?: 1 | 2 | 3 | 4 | 5;
+  /** Prompt shown when the entry was written, if any. */
+  promptId?: string;
+  /** Private is the floor and the default. Nothing moves up without a deliberate act. */
+  visibility: 'PRIVATE' | 'CIRCLE' | 'SHARED' | 'SANCTUARY';
+  /** Set only when visibility is SHARED — the second author's uid. */
+  sharedWithUid?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Compass — a goal. The unit that auto-verification acts on. */
+export interface OraGoal {
+  id: string;
+  title: string;
+  detail?: string;
+  /** Season the goal belongs to, e.g. "2026-Q3". */
+  season: string;
+  /** Countable goals show a bar; binary goals show a state. */
+  target?: number;
+  progress: number;
+  unit?: string;
+  /** How progress arrives. AUTO goals are read from a platform adapter. */
+  mode: 'AUTO' | 'MANUAL';
+  provenance?: OraProvenance;
+  /** Adapter key for AUTO goals, e.g. 'chora.releases' or 'lorea.wordcount'. */
+  adapter?: string;
+  status: 'ACTIVE' | 'DONE' | 'ARCHIVED';
+  createdAt: number;
+  updatedAt: number;
+  completedAt?: number;
+}
+
+/** Rituals — a named chain of Ora actions (Stoic's structure, Finch's warmth). */
+export interface OraRitual {
+  id: string;
+  name: string;
+  /** Local time HH:MM the ritual is offered. Never a hard notification by default. */
+  at?: string;
+  steps: Array<'CHECKIN' | 'JOURNAL' | 'BREATH' | 'GOALS' | 'GRATITUDE'>;
+  /** Days of week, 0=Sun. Empty means every day. */
+  days: number[];
+  active: boolean;
+  createdAt: number;
+}
+
+/**
+ * Streaks that forgive. The category's dark pattern is punishing lapses, which
+ * is also why people delete these apps — so a miss costs a grace, not the streak.
+ */
+export interface OraStreak {
+  current: number;
+  longest: number;
+  /** Misses forgiven this month. Refills monthly; never shown as a failure. */
+  gracesLeft: number;
+  lastDay?: string;
+}
+
+/**
+ * Stillness — one completed practice session.
+ *
+ * Logged only when a session actually finishes or is stopped part-way; a session
+ * the user abandoned by navigating away is not counted, because inflating
+ * practice minutes would corrupt the one thing Ora promises to get right.
+ */
+export interface OraSession {
+  id: string;
+  day: string;
+  kind: 'BREATH' | 'STILL' | 'REST' | 'FOCUS';
+  /** Breath pattern key, when kind is BREATH. */
+  pattern?: string;
+  /** Seconds actually practised, not the length that was scheduled. */
+  seconds: number;
+  /** True when the full planned duration elapsed. */
+  completed: boolean;
+  createdAt: number;
+}
+
+/** The per-user root document. Small, hot, read on app boot. */
+export interface OraProfile {
+  uid: string;
+  /** Ora is opt-in. Nothing renders, and nothing is written, until this is true. */
+  enabled: boolean;
+  /** Quiet Hours dims the rest of Plajah while a session is running. */
+  quietHours: boolean;
+  streak: OraStreak;
+  /** Re-auth before opening the room, for users who want the extra door. */
+  lockRoom?: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE POST MAN — mail, letters, and the desk around them.
+
+   Replaces the AI Studio applet that Plajah used to load in an iframe. That
+   version stored every user's Gmail tokens under a single Firestore document
+   named `default_user`, because it ran on a different origin and had no idea
+   who was signed in. Nothing below is shared between users: mail lives at
+   users/{uid}/postman_* and tokens never reach the client at all.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** Rooms in the app. Only LETTERS is built; the rest are declared so the nav
+ *  and the persistence layer do not need editing when each one lands. */
+export type PostmanRoom = 'LETTERS' | 'CAMPAIGNS' | 'SOURCES' | 'SCHEDULE' | 'DESK' | 'JOURNAL' | 'STICKIES' | 'BOARD';
+
+/** Tier-two theming: the reading and writing surface only. The chrome always
+ *  follows the platform theme — see the two-tier rule in styles/postman.css. */
+export type PostmanLetterSkin = 'plate' | 'ink' | 'void' | 'brute';
+
+export interface PostmanAddress {
+  name: string;
+  email: string;
+}
+
+/** A connected mail account, as the CLIENT sees it. The server holds the OAuth
+ *  tokens and never serialises them into this shape. */
+export interface PostmanAccount {
+  /** Deterministic, URL-safe id derived from the address by the server. */
+  id: string;
+  provider: 'google' | 'microsoft';
+  email: string;
+  displayName?: string;
+  connectedAt: string;
+  /** 'reauth' means the refresh token was rejected and the user must reconnect. */
+  status: 'ok' | 'reauth';
+}
+
+/** A message in the list. Body is fetched separately — a list of 25 full bodies
+ *  is megabytes of third-party HTML nobody has asked to read yet. */
+export interface PostmanMessage {
+  id: string;
+  threadId: string;
+  accountId: string;
+  provider: 'google' | 'microsoft';
+  from: PostmanAddress;
+  to: PostmanAddress[];
+  subject: string;
+  snippet: string;
+  /** ISO 8601. */
+  date: string;
+  unread: boolean;
+  starred: boolean;
+}
+
+/** A message with its body loaded. `bodyHtml` is sanitised server-side and
+ *  rendered inside a sandboxed container — treat it as hostile regardless. */
+export interface PostmanMessageDetail extends PostmanMessage {
+  bodyHtml?: string;
+  bodyText?: string;
+}
+
+/** An outgoing letter. `inReplyTo` + `threadId` keep replies threaded. */
+export interface PostmanDraft {
+  accountId: string;
+  to: string[];
+  cc?: string[];
+  bcc?: string[];
+  subject: string;
+  bodyHtml: string;
+  bodyText: string;
+  inReplyTo?: string;
+  threadId?: string;
+}
+
+/** Per-user app preferences. Small, read on room open, written on change.
+ *  Stored at users/{uid}/postman_prefs/settings. */
+export interface PostmanPrefs {
+  letterSkin: PostmanLetterSkin;
+  /** Last account the user was reading, so the room reopens where they left it. */
+  lastAccountId?: string;
+  /** Dim the chrome while reading and writing. */
+  focusMode: boolean;
+  updatedAt: number;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CAMPAIGNS — The Post Man's business side.
+
+   Individuals get an inbox; businesses and organisations get broadcast. The
+   audience already lives on the platform (followers, Sanctuary backers, club
+   members, ticket buyers, customers), so a campaign mails people who genuinely
+   opted in rather than a list imported from somewhere else.
+
+   Compliance lives in routes/campaigns.ts and is enforced server-side — these
+   types describe what the client is allowed to see, not what it is trusted with.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** Who the mail says it is from. Incomplete profiles cannot send — the postal
+ *  address is a legal requirement in every marketing email, not a nicety. */
+export interface CampaignSender {
+  fromName: string;
+  replyTo: string;
+  postalAddress: string;
+  /** What the audience opted into, restated in the footer. */
+  listDescription: string;
+  updatedAt: string;
+}
+
+/** Server's verdict on whether this sender may send yet, and what is missing. */
+export interface CampaignSenderReadiness {
+  ready: boolean;
+  missing: string[];
+}
+
+/** Audience sizes, computed server-side from the sender's own list. */
+export interface CampaignAudience {
+  total: number;
+  /** Unsubscribed, bounced or complained — permanently excluded. */
+  suppressed: number;
+  deliverable: number;
+}
+
+/** A send that happened. Kept as the record of what went out, to how many, and
+ *  under which sender details — the proof you want if a complaint arrives. */
+export interface Campaign {
+  id: string;
+  ownerId: string;
+  subject: string;
+  recipientCount: number;
+  failedCount: number;
+  fromName: string;
+  replyTo: string;
+  postalAddress: string;
+  sentAt: string;
+}
+
+/** Someone who must never be mailed again by this sender. */
+export interface CampaignSuppression {
+  email: string;
+  reason: string;
+  at: string;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SOURCE MODE — Phase 1.
+
+   Two features share these types: the Source Vault (real client-side encryption,
+   Plajah cannot read it) and Protected Threads (operational hardening on chat and
+   mail — no AI, no notification previews, EXIF stripped, auto-delete). Spec:
+   the "Source Mode — Phase 1" artifact. Deliberately NOT full anonymity; the
+   disclosure panel in the UI states the limits.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** A way to reach a source, kept inside the encrypted record. */
+export interface SourceContact {
+  kind: 'signal' | 'phone' | 'email' | 'proton' | 'other';
+  value: string;
+  note?: string;
+}
+
+/** The decryptable body of a vault record. Everything a source's safety depends on. */
+export interface SourceRecordInput {
+  /** The name used in conversation — the only identity that ever leaves the vault. */
+  codename: string;
+  /** The real identity. The single most sensitive field on the platform. */
+  realName?: string;
+  contacts: SourceContact[];
+  /** What was agreed — on/off record, embargo, anonymity terms. */
+  agreedTerms?: string;
+  notes?: string;
+  /** Protected chat/mail threads tied to this source, by id. */
+  linkedThreadIds: string[];
+}
+
+/** A vault record as returned to the UI: the body plus storage timestamps. */
+export interface SourceRecord extends SourceRecordInput {
+  id: string;
+  createdAt: number;
+  updatedAt: number;
+  /** True when the stored ciphertext failed to decrypt (wrong key / tampering). */
+  corrupt?: boolean;
+}
+
+/** Lock/unlock state broadcast by sourceVaultService. */
+export interface VaultState {
+  unlocked: boolean;
+  /** Whether a vault has been set up, or 'unknown' before the first check. */
+  exists: boolean | 'unknown';
+}
+
+/** Per-thread protection settings. Stored on chat_rooms/{id}. */
+export interface ProtectedThreadConfig {
+  protected: boolean;
+  /** Auto-delete window in days, or null to keep until manually removed. */
+  retentionDays: number | null;
 }

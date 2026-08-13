@@ -16,6 +16,9 @@ import {
   uploadFile, updateRoomIntimate, updateUserProfile,
 } from '../services/backendService';
 import { encryptText, decryptText } from '../services/cryptoService';
+import { markProtectedSurfaceOpen, setThreadProtected } from '../services/protectedThreads';
+import { isProbablyImage, stripImageMetadata } from '../services/exifService';
+import { Shield } from 'lucide-react';
 import GifStickerPicker from './GifStickerPicker';
 import VoiceRecorder from './VoiceRecorder';
 import WalkieTalkie from './WalkieTalkie';
@@ -238,6 +241,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   // ── Intimate mode (shared, read from the room doc) ──────────────────────────
   const isIntimate = !!room.isIntimate;
+  // Source Mode — Protected Threads. Local state seeded from the room doc so the toggle
+  // is responsive even if the parent does not immediately re-supply the room prop.
+  const [protectedThread, setProtectedThread] = useState(!!room.protected);
+  useEffect(() => { setProtectedThread(!!room.protected); }, [room.id, room.protected]);
   const intimateTheme = intimateThemeOf(room);
   const intimateBg = room.intimateBackgroundUrl || undefined;
   const petName = room.intimatePetName || undefined;
@@ -501,8 +508,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // moment the tab loses focus or is backgrounded — defeating casual "switch away and
   // capture" and many screen-recorders (which trigger a visibility change). Paired with
   // the per-image identity watermark, leaks are deterred + traceable.
+  // Also active for protected threads: a source's messages should black out the moment
+  // the tab is backgrounded, exactly as intimate chats do.
   useEffect(() => {
-    if (!isIntimate) { setScreenGuard(false); return; }
+    if (!isIntimate && !protectedThread) { setScreenGuard(false); return; }
     const onVis = () => setScreenGuard(document.hidden);
     const onBlur = () => setScreenGuard(true);
     const onFocus = () => setScreenGuard(document.hidden);
@@ -514,7 +523,25 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       window.removeEventListener('blur', onBlur);
       window.removeEventListener('focus', onFocus);
     };
-  }, [isIntimate]);
+  }, [isIntimate, protectedThread]);
+
+  // While a protected thread is open, suspend the breadcrumb trail so "opened
+  // conversation with <name>" cannot survive into a bug report.
+  useEffect(() => {
+    if (!protectedThread) return;
+    markProtectedSurfaceOpen(true);
+    return () => markProtectedSurfaceOpen(false);
+  }, [protectedThread, room.id]);
+
+  const toggleProtected = async () => {
+    const next = !protectedThread;
+    setProtectedThread(next); // optimistic
+    try {
+      await setThreadProtected(room.id, next);
+    } catch {
+      setProtectedThread(!next); // revert on failure
+    }
+  };
 
   // Permanently remove a burned/gift message — the Firestore doc AND any Storage object.
   const burnMessage = (m: ExtendedMessage) => {
@@ -553,13 +580,26 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   const handleImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    let file: Blob | undefined = e.target.files?.[0];
+    const originalName = e.target.files?.[0]?.name || 'photo.jpg';
     const isGift = giftNextRef.current; giftNextRef.current = false;
     if (!file) return;
     setUploadingImage(true);
     try {
-      const path = `chat/${room.id}/images/${Date.now()}_${file.name}`;
-      const url = await uploadFile(path, file);
+      // In a protected thread, strip EXIF/GPS before the bytes ever leave the device —
+      // location in a photo is a classic way a source is unmasked. Detect images by magic
+      // bytes (not the often-empty MIME type). Fail CLOSED: if it can't be sanitised, abort.
+      if (protectedThread && (await isProbablyImage(file))) {
+        try {
+          file = await stripImageMetadata(file);
+        } catch {
+          alert('That image could not be stripped of its location data, so it was not sent. Try another photo.');
+          return;
+        }
+      }
+      const safeName = protectedThread ? `${Date.now()}.jpg` : originalName;
+      const path = `chat/${room.id}/images/${Date.now()}_${safeName}`;
+      const url = await uploadFile(path, new File([file], safeName, { type: file.type || 'image/jpeg' }));
       if (url) {
         await sendMessage(room.id, {
           senderId: auth.currentUser?.uid || '',
@@ -753,7 +793,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         <RoomHeaderAvatar room={room} profiles={profiles} />
 
         <div className="flex-1 min-w-0" onClick={() => room.type === 'GROUP' && setShowMembersPanel(true)} style={{ cursor: room.type === 'GROUP' ? 'pointer' : 'default' }}>
-          <h3 className="text-sm font-black uppercase tracking-wider truncate">{roomName}</h3>
+          <h3 className="text-sm font-black uppercase tracking-wider truncate flex items-center gap-1.5">
+            {protectedThread && <Shield size={12} className="text-small-orange shrink-0" aria-label="Protected thread" />}
+            {roomName}
+          </h3>
           <div className="flex items-center gap-2">
             {typingUsers.length > 0 ? (
               <span className="text-[9px] font-bold text-small-orange">typing…</span>
@@ -835,6 +878,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     ...(walkiePeerUid && uid ? [{ icon: Radio, label: 'Two-Way', action: () => setShowWalkie(p => !p), phoneOnly: true }] : []),
                     { icon: Layers, label: 'Collab Boards', action: () => setShowCollabMenu(p => !p), phoneOnly: true },
                     { icon: Pin, label: `${showPinnedPanel ? 'Hide' : 'Show'} Pinned`, action: () => setShowPinnedPanel(p => !p), phoneOnly: false },
+                    { icon: Shield, label: protectedThread ? 'Protected ✓' : 'Protect thread', action: () => { void toggleProtected(); setShowMoreMenu(false); }, phoneOnly: false },
                     { icon: Globe, label: 'Fediverse Broadcast', action: () => { setShowFediversePanel(p => !p); setShowMoreMenu(false); }, phoneOnly: false },
                     { icon: Globe, label: 'Members', action: () => { setShowMembersPanel(p => !p); setShowMoreMenu(false); }, phoneOnly: false },
                   ].map(({ icon: Icon, label, action, phoneOnly }) => (

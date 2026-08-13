@@ -128,6 +128,10 @@ const TvLinkApproval = retryLazy(() => import('./components/TvLinkApproval'));
 // Design-system gallery at /ds — every control in every theme. Lazy, so it costs
 // nothing to anyone who never opens it. See docs/PLAJAH_DESIGN_SYSTEM.md.
 const DesignSystemGallery = retryLazy(() => import('./components/ui/DesignSystemGallery'));
+// Ora — personal productivity & wellbeing (docs/PLAJAH_WELLBEING_SUITE_BLUEPRINT.md).
+// Both lazy: a user who never turns Ora on never downloads it.
+const OraRoom = retryLazy(() => import('./components/ora/OraRoom'));
+const OraRail = retryLazy(() => import('./components/ora/OraRail'));
 const TvSettingsView = retryLazy(() => import('./components/TvSettingsView'));
 import { type TvDisabledFeature, TV_NAV_VIEWS, getTvHome, isViewAllowedOnTv, themesAllowed } from './services/tvCapabilities';
 import { useTvShellFocus, setShellFocus } from './hooks/useTvShellFocus';
@@ -282,6 +286,7 @@ const PlajahPixelsView = retryLazy(() => import('./components/PlajahPixelsView')
 const TeleprompterApp = retryLazy(() => import('./components/teleprompter/TeleprompterApp'));
 const SpatialMixer = retryLazy(() => import('./components/spatialMixer/SpatialMixer'));
 const MediaConverter = retryLazy(() => import('./components/MediaConverter'));
+const MelosBeatsRoom = retryLazy(() => import('./components/melos/beats/BeatsRoom'));
 const SmartDirectorView = retryLazy(() => import('./components/SmartDirectorView'));
 const ComicMangaMuseum = retryLazy(() => import('./components/ComicMangaMuseum'));
 const AudiusArtistPage = retryLazy(() => import('./components/AudiusArtistPage'));
@@ -320,6 +325,7 @@ const TerraFeed = retryLazy(() => import('./components/terra/TerraFeed'));
 const TerraListings = retryLazy(() => import('./components/terra/ListingsManager'));
 const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
 const ArtistProjectManager = retryLazy(() => import('./components/ArtistProjectManager'));
+const MelosWorkspace = retryLazy(() => import('./components/melos/MelosWorkspace'));
 const StudioView = retryLazy(() => import('./components/ManagerSuite/StudioView'));
 const Fabula = retryLazy(() => import('./components/Fabula/Fabula'));
 const ArtistBoards = retryLazy(() => import('./components/ArtistBoards'));
@@ -480,6 +486,7 @@ const App: React.FC = () => {
     pitchParam === 'crossover'    ? 'CROSSOVER'          :
     pitchParam === 'terra'        ? 'TERRA'              :
     pitchParam === 'business'     ? 'PLAJAH_BUSINESS'    :
+    pitchParam === 'ora'          ? 'ORA'                :
     'LANDING';
 
   // Is the app being opened on a shared deep link? If so, a signed-out visitor must
@@ -699,12 +706,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | undefined>(undefined);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [pixelsPayload, setPixelsPayload] = useState<{ album?: any; track?: any } | null>(null);
+  const [melosBeatsPayload, setMelosBeatsPayload] = useState<{ grooveId?: string; productionId?: string; sampleUrl?: string; sampleName?: string } | null>(null);
   const [smartDirectorPayload, setSmartDirectorPayload] = useState<{ productionId?: string; event?: any } | null>(null);
   const [labsDiscipline, setLabsDiscipline] = useState<string | null>(null);
   // Shared-track landing: shows the 5s auto-play countdown, then plays that track.
   const [autoPlayShare, setAutoPlayShare] = useState<{ album: any; track: any } | null>(null);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [kioskEventId, setKioskEventId] = useState<string | null>(null);
+  /** Melos: open straight into a specific production (see the MELOS navigate target). */
+  const [melosProductionId, setMelosProductionId] = useState<string | null>(null);
   const [scannerEventId, setScannerEventId] = useState<string | null>(null);
   const [isPIFModalOpen, setIsPIFModalOpen] = useState(false);
   const [pifWins, setPifWins] = useState<PayItForwardWinner[]>([]);
@@ -913,6 +923,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       }
     } catch { /* */ }
 
+    // "Log in with Audius" returning via a FULL-PAGE redirect (popup blocked / WebView).
+    // The popup path never gets here — index.html hands the code straight to the opener.
+    // No-op unless this load carries an Audius OAuth code we started.
+    void completeAudiusRedirect();
+
     // Open the Plajah Pixels visualizer. detail: { album?, track? }. Empty detail
     // (from the Apps page) opens the standalone studio. The wrapper handles any
     // seamless playback start via the global player.
@@ -937,6 +952,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
     const handleOpenMediaConverter = () => setView('MEDIA_CONVERTER' as AppView);
     window.addEventListener('OPEN_MEDIA_CONVERTER', handleOpenMediaConverter);
+
+    // Melos Beats — the Chora DAW room (pads + step sequencer + timeline, .dawproject in/out).
+    // detail: { grooveId?, productionId?, sampleUrl?, sampleName? } — productionId is the
+    // future Melos-shell hook; sampleUrl lets Chora send a sound straight to a pad.
+    const handleOpenMelosBeats = (e: Event) => {
+      setMelosBeatsPayload((e as CustomEvent)?.detail || null);
+      setView('MELOS_BEATS' as AppView);
+    };
+    window.addEventListener('OPEN_MELOS_BEATS', handleOpenMelosBeats);
+
+    // The Post Man — dispatched from the Mail tab inside ChatSystem, which is a
+    // narrow sidebar and only shows a summary of the mailbox.
+    const handleOpenPostman = () => setView('POSTMAN');
+    window.addEventListener('OPEN_POSTMAN', handleOpenPostman);
 
     // Smart Director — multi-camera auto-production. detail: { productionId?, event? }.
     const handleOpenSmartDirector = (e: Event) => { setSmartDirectorPayload((e as CustomEvent)?.detail || {}); setView('SMART_DIRECTOR' as AppView); };
@@ -1004,6 +1033,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
       window.removeEventListener('OPEN_SPATIAL_MIXER', handleOpenSpatialMixer);
       window.removeEventListener('OPEN_MEDIA_CONVERTER', handleOpenMediaConverter);
+      window.removeEventListener('OPEN_MELOS_BEATS', handleOpenMelosBeats);
+      window.removeEventListener('OPEN_POSTMAN', handleOpenPostman);
       window.removeEventListener('OPEN_SMART_DIRECTOR', handleOpenSmartDirector);
       window.removeEventListener('OPEN_LABS_DISCIPLINE', handleOpenLabsDiscipline);
       window.removeEventListener('OPEN_BRAND_ACTIVATION', handleOpenBrandActivation);
@@ -1346,6 +1377,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     } else if (target === 'CREATOR_PAYMENTS') {
       if (!user) { loginWithGoogle(); return; }
       setView('CREATOR_PAYMENTS');
+    } else if (target === 'MELOS') {
+      if (!user) { loginWithGoogle(); return; }
+      if (params?.productionId) setMelosProductionId(params.productionId);
+      setView('MELOS');
     } else if (target === 'ARTIST_MANAGER' || target === 'AD_PACKAGES' || target === 'ARTIST_BOARDS' || target === 'EVENT_PRODUCTION_STUDIO' || target === 'TICKET_DESIGNER') {
       if (!user) { loginWithGoogle(); return; }
       setView(target as any);
@@ -2527,7 +2562,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {/* Ad Billboard — full-height canvas. Sits on the LEFT normally; Split (B) AND the
                 horizontal Bar (C) move it to the FAR RIGHT (order + left border); Bar makes it
                 narrower and drops it below the fixed top nav bar. */}
-          {(!isPublicView && view !== 'MOVIE_UX' && view !== 'GAME_PLAYER' && view !== 'EVENT_PHOTO_POOL') && (
+          {/* ORA is excluded by policy, not by taste: it is the one surface holding
+              journals and mood, and an ad rail beside it both breaks the promise that
+              this data never touches advertising and destroys the quiet the room exists
+              for. See docs/PLAJAH_WELLBEING_SUITE_BLUEPRINT.md §6. */}
+          {(!isPublicView && view !== 'MOVIE_UX' && view !== 'GAME_PLAYER' && view !== 'EVENT_PHOTO_POOL' && view !== 'ORA') && (
             <aside className={`hidden lg:block z-50 shrink-0 overflow-hidden border-white/[0.06] relative ${
               navLayout.isBar
                 ? 'lg:order-last border-l lg:w-56 sticky lg:top-14 h-[calc(100vh-3.5rem)]'
@@ -3046,7 +3085,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         PAY_IT_FORWARD: "Support the community through our unique giving platform.",
                         CHAT: "Connect with artists and fans in private or group chats.",
                         DISCUSSION: "Join community discussion boards and open forums.",
-                        POSTMAN: "Access the formal AI-Studio dispatch system.",
+                        POSTMAN: "Read and write your mail without leaving Plajah.",
                         FEED: "See the latest updates and posts from everyone you follow.",
                         LIVE_HUB: "Discover what's happening live on the platform right now.",
                         TV_STUDIO: "Browser-based TV production switcher — cameras, graphics, audio mixing, lighting, NDI, EDL export.",
@@ -4538,6 +4577,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <CreatorPaymentDashboard currentUser={userProfile} />
             )}
 
+            {view === 'MELOS' && user && userProfile && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <MelosWorkspace
+                  currentUser={userProfile}
+                  initialProductionId={melosProductionId || undefined}
+                  onBack={() => { setMelosProductionId(null); setView('MUSIC'); }}
+                />
+              </Suspense>
+            )}
+
             {view === 'ARTIST_MANAGER' && user && userProfile && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <ArtistProjectManager currentUser={userProfile} />
@@ -4933,6 +4982,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <TeleprompterApp onClose={() => setView('APPS')} />
               </Suspense>
             )}
+            {view === 'ORA' && (
+              <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <OraRoom onBack={() => setView('DASHBOARD')} />
+              </Suspense>
+            )}
             {view === 'SPATIAL_MIXER' && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <SpatialMixer onClose={() => setView('APPS')} />
@@ -4941,6 +4995,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'MEDIA_CONVERTER' && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <MediaConverter onClose={() => setView('APPS')} />
+              </Suspense>
+            )}
+            {view === 'MELOS_BEATS' && (
+              <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <MelosBeatsRoom onClose={() => setView('APPS')} payload={melosBeatsPayload} />
               </Suspense>
             )}
             {view === 'SMART_DIRECTOR' && (
@@ -5382,6 +5441,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       {view !== 'LANDING' && !!user && (
         <Suspense fallback={null}>
           <BugReportButton currentView={view} />
+        </Suspense>
+      )}
+
+      {/* Ora's Companion Rail — the ambient orb. It renders nothing at all until the
+          user has switched Ora on, and mutes itself on the surfaces where a wellbeing
+          nudge would be an intrusion. Tap = check in, hold = open the room. */}
+      {view !== 'LANDING' && view !== 'ORA' && !!user && (
+        <Suspense fallback={null}>
+          <OraRail currentView={view} onOpenRoom={() => setView('ORA')} />
         </Suspense>
       )}
 

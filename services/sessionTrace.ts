@@ -27,8 +27,26 @@ function prune(now: number) {
   }
 }
 
+// Private mode — Source Mode sets this while a protected thread or the vault is open.
+// The breadcrumb trail records navigation and clicked element labels, which never
+// includes message text but CAN include "opened conversation with <name>". That is
+// exactly what must not survive into a bug report when a source is on screen, so while
+// private mode is on we record nothing and hold the existing buffer flushed.
+let privateMode = false;
+
+/** Turn breadcrumb recording off (and clear the buffer) or back on. */
+export function setTracePrivate(on: boolean): void {
+  privateMode = on;
+  if (on) buf = [];
+}
+
+export function isTracePrivate(): boolean {
+  return privateMode;
+}
+
 /** Record a breadcrumb. Safe to call from anywhere; never throws. */
 export function trace(type: string, label: string): void {
+  if (privateMode) return;
   try {
     const now = Date.now();
     buf.push({ t: now, type, label: String(label ?? '').slice(0, 180) });

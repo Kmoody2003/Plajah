@@ -1,12 +1,21 @@
 /**
- * Application-layer AES-GCM-256 encryption for private messages.
- * Keys are derived per-room via PBKDF2 so no message text is ever stored in
- * plaintext in Firestore, protecting data at rest against database breaches.
+ * ⚠️  THIS IS AT-REST ENCRYPTION, NOT END-TO-END. Do NOT use it for Source Mode
+ *     or anything where the promise is "Plajah cannot read this."
  *
- * Security model: keys are deterministically derived from the room ID + an
- * app-wide salt. This means the ciphertext is unreadable to anyone without
- * the source — it is NOT true end-to-end encryption (the server owner could
- * derive keys). For full E2E, per-user asymmetric keys are required.
+ * The key is derived from the room ID plus APP_SALT, a constant compiled into the
+ * client bundle — so anyone with the bundle, INCLUDING the server operator and anyone
+ * who compels them, can derive the key. That is fine for its actual job (keeping
+ * plaintext out of Firestore so a database breach yields nothing readable), and it is
+ * why the Intimate Mode diary and Ora use it. It is NOT a confidentiality guarantee
+ * against Plajah itself.
+ *
+ * For real client-side encryption where the passphrase never reaches the server, use
+ * services/vaultCrypto.ts (Source Mode's vault). The "e2e" in APP_SALT below is a
+ * legacy misnomer kept only because changing the value would make existing ciphertext
+ * undecryptable — it does NOT mean this module is end-to-end encrypted.
+ *
+ * (Original note preserved:) Application-layer AES-GCM-256 for private messages; keys
+ * derived per-room via PBKDF2 so no message text is stored in plaintext at rest.
  */
 
 const APP_SALT = 'plajah-e2e-v1-salt-2026';
