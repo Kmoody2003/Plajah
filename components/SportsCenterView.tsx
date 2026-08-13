@@ -1839,7 +1839,7 @@ const RacingCenterView: React.FC<{ tab: string }> = ({ tab }) => {
                           {d.headshot ? (
                             <div className="h-24 flex items-end overflow-hidden rounded-xl bg-white/5">
                               <img src={d.headshot} alt={d.name}
-                                className="h-full w-full object-cover" style={{ objectPosition: 'center 22%' }} loading="lazy" />
+                                className="h-full w-full object-contain object-bottom" loading="lazy" />
                             </div>
                           ) : (
                             <div className="h-24 flex items-center justify-center rounded-xl bg-white/5">
