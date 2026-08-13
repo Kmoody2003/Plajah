@@ -6556,16 +6556,24 @@ export const sendMessage = async (roomId: string, message: Omit<ChatMessage, 'id
       const participants: string[] = Array.from(new Set([...(roomData.participants || []), ...ccGuardians]));
       const others = participants.filter((pId: string) => pId !== (auth.currentUser?.uid || ''));
 
+      // Source Mode — Protected Threads: a protected room's notification must name nothing.
+      // The payload flows through FCM/APNs and renders on a lock screen, so no sender name,
+      // no photo, no message text. This is the source of the notification, so redacting here
+      // guarantees nothing downstream re-introduces the preview.
+      const isProtected = roomData.protected === true;
+
       others.forEach((pId: string) => {
         const isGuardianCopy = ccGuardians.includes(pId);
         createNotification({
           userId: pId,
           senderId: auth.currentUser?.uid || '',
-          senderName: auth.currentUser?.displayName || 'Anonymous',
-          senderPhoto: auth.currentUser?.photoURL || '',
+          senderName: isProtected ? '' : (auth.currentUser?.displayName || 'Anonymous'),
+          senderPhoto: isProtected ? '' : (auth.currentUser?.photoURL || ''),
           type: 'MESSAGE',
-          title: isGuardianCopy ? 'Copied on your child\'s message' : 'New Message',
-          message: `${auth.currentUser?.displayName}: ${(message.text ?? '').substring(0, 50)}${(message.text ?? '').length > 50 ? '...' : ''}`,
+          title: isProtected ? 'Plajah' : (isGuardianCopy ? 'Copied on your child\'s message' : 'New Message'),
+          message: isProtected
+            ? 'New protected message'
+            : `${auth.currentUser?.displayName}: ${(message.text ?? '').substring(0, 50)}${(message.text ?? '').length > 50 ? '...' : ''}`,
           link: 'MESSAGES',
           targetId: roomId
         });
@@ -6576,8 +6584,12 @@ export const sendMessage = async (roomId: string, message: Omit<ChatMessage, 'id
     // Only default type for truly new rooms (lazy-created live chats that have no document yet)
     const existingType = roomSnap.exists() ? roomSnap.data().type : null;
     const roomType = existingType || (roomId.startsWith('live_chat_') ? 'PUBLIC_LIVE' : 'GROUP');
+    // A protected room's list preview must not carry message text either.
+    const protectedRoom = roomSnap.exists() && roomSnap.data().protected === true;
     await setDoc(doc(db, 'chat_rooms', roomId), {
-      lastMessage: message.text || (message.type === 'VOICE' ? 'Voice Note' : message.type === 'MEDIA' ? 'Shared Media' : ''),
+      lastMessage: protectedRoom
+        ? 'Protected message'
+        : (message.text || (message.type === 'VOICE' ? 'Voice Note' : message.type === 'MEDIA' ? 'Shared Media' : '')),
       updatedAt: Date.now(),
       type: roomType,
       // Always add sender to participants so Firestore security rules never block reads

@@ -244,7 +244,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Source Mode — Protected Threads. Local state seeded from the room doc so the toggle
   // is responsive even if the parent does not immediately re-supply the room prop.
   const [protectedThread, setProtectedThread] = useState(!!room.protected);
+  const [retentionDays, setRetentionDays] = useState<number | null>(room.retentionDays ?? null);
   useEffect(() => { setProtectedThread(!!room.protected); }, [room.id, room.protected]);
+  useEffect(() => { setRetentionDays(room.retentionDays ?? null); }, [room.id, room.retentionDays]);
   const intimateTheme = intimateThemeOf(room);
   const intimateBg = room.intimateBackgroundUrl || undefined;
   const petName = room.intimatePetName || undefined;
@@ -535,13 +537,39 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const toggleProtected = async () => {
     const next = !protectedThread;
-    setProtectedThread(next); // optimistic
+    // Turning protection ON defaults to a 30-day auto-delete window — the spec's most
+    // legally protective control, on by default. Turning it OFF clears retention.
+    const nextRetention = next ? (retentionDays ?? 30) : null;
+    setProtectedThread(next);
+    setRetentionDays(nextRetention);
     try {
-      await setThreadProtected(room.id, next);
+      await setThreadProtected(room.id, next, nextRetention);
     } catch {
       setProtectedThread(!next); // revert on failure
+      setRetentionDays(room.retentionDays ?? null);
     }
   };
+
+  // Cycle the auto-delete window: 7 → 30 → 90 → Off → 7. Only meaningful while protected.
+  const cycleRetention = async () => {
+    const order: (number | null)[] = [7, 30, 90, null];
+    const idx = order.findIndex((v) => v === retentionDays);
+    const next = order[(idx + 1) % order.length];
+    setRetentionDays(next);
+    try { await setThreadProtected(room.id, true, next); } catch { setRetentionDays(retentionDays); }
+  };
+
+  // Retention sweep: in a protected thread, permanently delete messages older than the
+  // window (doc + any Storage object), reusing the burn mechanism. Runs on load and
+  // whenever the message set changes; a message crossing the line is removed within a tick.
+  useEffect(() => {
+    if (!protectedThread || !retentionDays) return;
+    const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+    decryptedMessages.forEach((m) => {
+      const ts = (m as ExtendedMessage).timestamp;
+      if (typeof ts === 'number' && ts < cutoff) burnMessage(m as ExtendedMessage);
+    });
+  }, [protectedThread, retentionDays, decryptedMessages]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Permanently remove a burned/gift message — the Firestore doc AND any Storage object.
   const burnMessage = (m: ExtendedMessage) => {
@@ -879,6 +907,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     { icon: Layers, label: 'Collab Boards', action: () => setShowCollabMenu(p => !p), phoneOnly: true },
                     { icon: Pin, label: `${showPinnedPanel ? 'Hide' : 'Show'} Pinned`, action: () => setShowPinnedPanel(p => !p), phoneOnly: false },
                     { icon: Shield, label: protectedThread ? 'Protected ✓' : 'Protect thread', action: () => { void toggleProtected(); setShowMoreMenu(false); }, phoneOnly: false },
+                    ...(protectedThread ? [{ icon: Timer, label: `Auto-delete: ${retentionDays ? `${retentionDays}d` : 'Off'}`, action: () => { void cycleRetention(); }, phoneOnly: false }] : []),
                     { icon: Globe, label: 'Fediverse Broadcast', action: () => { setShowFediversePanel(p => !p); setShowMoreMenu(false); }, phoneOnly: false },
                     { icon: Globe, label: 'Members', action: () => { setShowMembersPanel(p => !p); setShowMoreMenu(false); }, phoneOnly: false },
                   ].map(({ icon: Icon, label, action, phoneOnly }) => (
