@@ -134,6 +134,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Replaces Artifact Analysis scanning, which was disabled on the
+      # cloud-run-source-deploy repo (it billed $0.26 per push at ~17 deploys/day for
+      # ~$130/month to re-scan near-identical images). See infra/README.md.
+      #
+      # HARD-FAILING, deliberately: `npm audit fix` cleared all 3 critical production
+      # advisories on 2026-08-13, so this passes clean today and a red build means a NEW
+      # critical actually landed. Scoped to --omit=dev (build tooling isn't shipped) and
+      # --audit-level=critical (high/moderate would be too noisy to ever stay green, and a
+      # gate nobody can keep green gets disabled, which is worse than no gate).
+      - name: Dependency audit (production deps, critical only)
+        run: npm audit --omit=dev --audit-level=critical
+
       - name: Build SPA (Dockerfile copies the prebuilt dist/)
         env:
           NODE_OPTIONS: --max-old-space-size=8192
