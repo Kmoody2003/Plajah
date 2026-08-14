@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useUpload } from '../contexts/UploadContext';
 import AlbumCreator from './AlbumCreator';
 import CuratedBuilder from './CuratedBuilder';
@@ -114,6 +114,30 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, currentUser }) => {
+  // Image-optimisation backfill state. stopRef (not state) so the running loop reads the
+  // current value rather than the one captured when it started.
+  const [backfillBusy, setBackfillBusy] = useState(false);
+  const [backfillLog, setBackfillLog] = useState<string[]>([]);
+  const backfillStopRef = useRef(false);
+
+  const runImageBackfill = async (kind: 'albums' | 'photos', dryRun: boolean) => {
+    setBackfillBusy(true);
+    backfillStopRef.current = false;
+    setBackfillLog([`${dryRun ? 'Dry run' : 'Optimising'} — ${kind}…`]);
+    const push = (m: string) => setBackfillLog(l => [...l.slice(-200), m]);
+    try {
+      const bf = await import('../services/imageBackfill');
+      const run = kind === 'albums' ? bf.backfillAlbumCovers : bf.backfillPhotos;
+      const rep = await run({ dryRun, onProgress: push, shouldStop: () => backfillStopRef.current });
+      push(bf.summarize(rep));
+      if (dryRun) push('Nothing was written. Re-run without "dry" to apply.');
+    } catch (e: any) {
+      push(`Failed: ${e?.message || e}`);
+    } finally {
+      setBackfillBusy(false);
+    }
+  };
+
   const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS' | 'NOTIFY' | 'CHORA_STREAMS' | 'PLATFORM_MEDIA'>('STATS');
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettingsConfig | null>(null);
@@ -1855,6 +1879,55 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                   <p className="text-white/40 text-sm font-bold uppercase tracking-widest mt-2">System operations, caching, and database health</p>
                   <p className="text-white/40 text-sm font-bold uppercase tracking-widest">System-wide cleanup and backfill tasks</p>
                 </header>
+
+                {/* Image optimisation backfill — retro-fits WebP derivatives onto content
+                    uploaded before the pipeline existed. Dry run first: it measures the saving
+                    without writing anything. Safe to stop and re-run; finished rows are skipped. */}
+                <div className="p-8 bg-white/5 border border-white/5 rounded-[3rem] space-y-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-4 bg-orange-500/20 rounded-2xl">
+                      <Database className="text-orange-500" size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black uppercase tracking-tight">Optimise Existing Images</h3>
+                      <p className="text-white/40 text-xs font-bold uppercase tracking-widest mt-1">
+                        Album art was stored as lossless PNG and photos as raw camera files
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    {([
+                      { label: 'Dry run — covers', kind: 'albums', dry: true },
+                      { label: 'Dry run — photos', kind: 'photos', dry: true },
+                      { label: 'Optimise covers', kind: 'albums', dry: false },
+                      { label: 'Optimise photos', kind: 'photos', dry: false },
+                    ] as const).map(b => (
+                      <button
+                        key={b.label}
+                        disabled={backfillBusy}
+                        onClick={() => runImageBackfill(b.kind, b.dry)}
+                        className={`px-5 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-colors disabled:opacity-40 ${
+                          b.dry ? 'bg-white/8 text-white/70 hover:bg-white/12' : 'bg-orange-500 text-black hover:bg-orange-400'
+                        }`}
+                      >
+                        {b.label}
+                      </button>
+                    ))}
+                    {backfillBusy && (
+                      <button onClick={() => { backfillStopRef.current = true; }}
+                        className="px-5 py-3 rounded-2xl bg-red-500/20 text-red-300 text-[11px] font-black uppercase tracking-widest hover:bg-red-500/30 transition-colors">
+                        Stop
+                      </button>
+                    )}
+                  </div>
+
+                  {!!backfillLog.length && (
+                    <div className="max-h-56 overflow-y-auto rounded-2xl bg-black/40 border border-white/5 p-4 font-mono text-[11px] text-white/50 space-y-1">
+                      {backfillLog.map((l, i) => <div key={i}>{l}</div>)}
+                    </div>
+                  )}
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="p-8 bg-white/5 border border-white/5 rounded-[3rem] space-y-6">

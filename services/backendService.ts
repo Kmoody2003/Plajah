@@ -2348,6 +2348,59 @@ export const uploadFile = async (path: string, blobOrFile: Blob | File, onProgre
   }
 };
 
+/** What an optimised image upload produced. `display` is what the platform should render. */
+export interface UploadedImage {
+  /** Optimised, render-everywhere URL. Falls back to the original if optimisation was skipped. */
+  display: string;
+  /** Grid-sized variant, when the source was big enough to warrant one. */
+  thumb?: string;
+  /** The untouched upload — for editors, downloads, and re-derivation. */
+  original: string;
+  width?: number;
+  height?: number;
+}
+
+/**
+ * Upload an image AND its derivatives. `basePath` is the path WITHOUT an extension, e.g.
+ * `albums/abc/cover`; variants land beside it as `cover.webp` / `cover_thumb.webp`, with the
+ * untouched upload at `cover_original.<ext>`.
+ *
+ * Callers should store `display` in whatever field the app already renders and keep `original`
+ * in a companion field — that way every existing reader gets the small file with no code change.
+ *
+ * Never throws for optimisation reasons: if derivation fails we upload the original alone, because
+ * a heavy image is a performance bug while a failed upload loses the user's work.
+ */
+export const uploadImageWithDerivatives = async (
+  basePath: string,
+  file: Blob | File,
+  onProgress?: (p: number) => void,
+): Promise<UploadedImage> => {
+  const srcExt = ((file as File).name?.split('.').pop() || (file.type.split('/')[1] || 'bin'))
+    .toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+
+  let set: import('./imageDerivatives').DerivativeSet | null = null;
+  try {
+    const { makeDerivatives } = await import('./imageDerivatives');
+    set = await makeDerivatives(file);
+  } catch { /* optimisation is best-effort */ }
+
+  // The original always goes up — it is the source of truth for editing and re-derivation.
+  const original = await uploadFile(`${basePath}_original.${srcExt}`, file, onProgress);
+  if (!set?.display) return { display: original, original, width: set?.srcWidth, height: set?.srcHeight };
+
+  try {
+    const display = await uploadFile(`${basePath}.${set.display.ext}`, set.display.blob);
+    let thumb: string | undefined;
+    if (set.thumb) {
+      thumb = await uploadFile(`${basePath}_thumb.${set.thumb.ext}`, set.thumb.blob).catch(() => undefined) || undefined;
+    }
+    return { display, thumb, original, width: set.srcWidth, height: set.srcHeight };
+  } catch {
+    return { display: original, original, width: set.srcWidth, height: set.srcHeight };
+  }
+};
+
 // ─── Audio metadata fixer ─────────────────────────────────────────────────────
 
 /**
@@ -2956,15 +3009,22 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
   onProgress?.("Initiating Cloud Uplink...", 5);
 
   // 1. Upload Cover Image
+  // Artwork was written as cover.png. PNG is lossless and built for flat graphics — for a
+  // photographic cover it costs 30–50× WebP at identical pixel size, which is what made album
+  // art the slowest thing on the platform. Now: coverImage carries the optimised copy (so all
+  // ~90 existing readers speed up untouched) and the original is kept for editing.
   let finalCover = album.coverImage || '';
-  if (album.coverFile) {
-    onProgress?.("Uploading Artwork...", 10);
-    finalCover = await uploadFile(`albums/${album.id}/cover.png`, album.coverFile);
-  } else if (finalCover.startsWith('blob:')) {
-    // Fallback for legacy or if file was lost
-    onProgress?.("Uploading Artwork (Legacy)...", 10);
-    const blob = await dataUrlToBlob(album.coverImage);
-    finalCover = await uploadFile(`albums/${album.id}/cover.png`, blob);
+  let coverThumb: string | undefined;
+  let coverOriginal: string | undefined;
+  const coverSource = album.coverFile
+    ? album.coverFile
+    : finalCover.startsWith('blob:') ? await dataUrlToBlob(album.coverImage) : null;
+  if (coverSource) {
+    onProgress?.(album.coverFile ? "Uploading Artwork..." : "Uploading Artwork (Legacy)...", 10);
+    const img = await uploadImageWithDerivatives(`albums/${album.id}/cover`, coverSource);
+    finalCover = img.display;
+    coverThumb = img.thumb;
+    if (img.original !== img.display) coverOriginal = img.original;
   }
 
   // 2. Upload Artist Image
@@ -3105,6 +3165,8 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
     ...album,
     ownerId: auth.currentUser?.uid,
     coverImage: finalCover,
+    coverThumb,
+    coverOriginal,
     artistImage: finalArtistImg || finalCover,
     tracks: finalTracks.map(t => {
       const { file, ...rest } = t;
@@ -4804,10 +4866,18 @@ export const uploadPhoto = async (file: File, metadata: Partial<Photo>) => {
   const id = `photo_${Date.now()}`;
   const path = `photos/${id}`;
   try {
-    const url = await uploadFile(`users/${auth.currentUser.uid}/photos/${id}`, file);
+    // Photos are the platform's heaviest image traffic — a raw camera File is 4–8 MB and that
+    // exact file was what every grid downloaded. `url` now carries the optimised copy so all
+    // existing readers get it for free; the original stays available for editing and download.
+    const isVideo = file.type.startsWith('video/');
+    const img = isVideo ? null : await uploadImageWithDerivatives(`users/${auth.currentUser.uid}/photos/${id}`, file);
+    const url = img ? img.display : await uploadFile(`users/${auth.currentUser.uid}/photos/${id}`, file);
     const newPhoto: Photo = {
       id,
       url,
+      ...(img?.thumb ? { thumbUrl: img.thumb } : {}),
+      ...(img && img.original !== url ? { originalUrl: img.original } : {}),
+      ...(img?.width ? { width: img.width, height: img.height } : {}),
       ownerId: auth.currentUser!.uid,
       timestamp: Date.now(),
       isPublic: metadata.isPublic ?? false, // Default to private

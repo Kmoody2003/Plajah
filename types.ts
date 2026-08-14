@@ -188,7 +188,15 @@ export interface AudioAnalysis {
 
 export interface Photo {
   id: string;
+  /** The OPTIMISED image — render this everywhere. Legacy rows still point at the original. */
   url: string;
+  /** Grid-sized variant, present when the source was large enough to warrant one. */
+  thumbUrl?: string;
+  /** The untouched upload. Only editors and downloads should request it. */
+  originalUrl?: string;
+  /** Source pixel size — lets galleries reserve layout space and avoid reflow on load. */
+  width?: number;
+  height?: number;
   title?: string;
   description?: string;
   timestamp: number;
@@ -434,7 +442,12 @@ export interface Album {
   artistBio?: string;
   artistImage?: string;
   artistFile?: File; // For direct upload
+  /** The OPTIMISED cover — render this everywhere. Legacy rows still point at the original PNG. */
   coverImage: string;
+  /** Grid-sized cover variant, for dense listings. */
+  coverThumb?: string;
+  /** The untouched artwork upload. Editors and downloads only. */
+  coverOriginal?: string;
   coverFile?: File; // For direct upload
   headerImage?: string;
   description: string;
