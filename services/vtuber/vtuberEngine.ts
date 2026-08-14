@@ -43,6 +43,34 @@ export interface VTuberHandle {
 
 const NEUTRAL: RetargetResult = { expressions: {}, head: { x: 0, y: 0, z: 0 } };
 
+/**
+ * Ease `shown` toward `target` and return it. The tracker delivers a new pose only as fast as
+ * inference allows — on a CPU-delegate phone that can be 15/sec — while the compositor runs at
+ * 30. Applying the pose only on detection frames therefore made the avatar visibly step, which
+ * reads as bad tracking even when the landmarks are perfect. Interpolating every rendered frame
+ * decouples smoothness from inference speed.
+ *
+ * `k` is per-frame, so it is corrected for elapsed time — otherwise a frame drop makes the
+ * avatar lurch. Expressions chase harder than head pose: a blink must land, not glide.
+ */
+function easeFace(shown: RetargetResult, target: RetargetResult, dtMs: number): RetargetResult {
+  const rate = (perFrame: number) => 1 - Math.pow(1 - perFrame, Math.max(0.5, Math.min(4, dtMs / 33)));
+  const ke = rate(0.55), kh = rate(0.35);
+  const expressions: Record<string, number> = {};
+  for (const k in target.expressions) {
+    const from = shown.expressions[k] ?? 0;
+    expressions[k] = from + (target.expressions[k] - from) * ke;
+  }
+  return {
+    expressions,
+    head: {
+      x: shown.head.x + (target.head.x - shown.head.x) * kh,
+      y: shown.head.y + (target.head.y - shown.head.y) * kh,
+      z: shown.head.z + (target.head.z - shown.head.z) * kh,
+    },
+  };
+}
+
 /** Full-body path: PoseLandmarker on the person drives the paper-doll rig over live video. */
 async function createBodyStream(input: MediaStream, opts: VTuberOptions): Promise<VTuberHandle> {
   const W = opts.width ?? 540;
@@ -177,6 +205,9 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
   });
 
   let lastTs = -1;
+  // targetFace = newest pose from the tracker; lastFace = what is actually drawn, eased toward
+  // it every rendered frame so motion is smooth regardless of how fast inference lands.
+  let targetFace: RetargetResult = NEUTRAL;
   let lastFace: RetargetResult = NEUTRAL;
   let lastBbox: { x: number; y: number; w: number; h: number } | null = null;
   let smoothBox: { x: number; y: number; w: number; h: number } | null = null;
@@ -191,9 +222,15 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
     raf = requestAnimationFrame(loop);
     const t = performance.now();
     if (t - lastRender < 31) return; // ~30fps cap — output is 24fps; per-RAF render is wasted heat
+    const dtMs = lastRender ? t - lastRender : 33;
     lastRender = t;
 
-    if (tracker.isReady && video.readyState >= 2 && (t - lastDetect) >= detectMs * 0.85) {
+    // detectForVideo is SYNCHRONOUS and runs on this thread, so every detection stalls the
+    // compositor — 30-60ms whenever the GPU delegate is unavailable and it falls back to CPU.
+    // Chasing the detector as fast as it can go therefore spent the whole frame budget on
+    // inference and starved rendering. A 33ms floor caps it at 30 detections/sec, which is
+    // plenty now that easeFace() interpolates between them. (A worker is the structural fix.)
+    if (tracker.isReady && video.readyState >= 2 && (t - lastDetect) >= Math.max(33, detectMs * 0.85)) {
       const ts = Math.max(lastTs + 1, Math.round(t)); // detectForVideo needs monotonic timestamps
       lastTs = ts;
       const d0 = performance.now();
@@ -202,11 +239,16 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
       lastDetect = t;
       if (frame) {
         if (!lastBbox) setStatus(feed.boost > 1.15 ? `face locked ✓ (low light ×${feed.boost.toFixed(1)})` : 'face locked ✓');
-        lastFace = retargeter.retarget(frame, t / 1000);
+        targetFace = retargeter.retarget(frame, t / 1000);
         lastBbox = frame.bbox;
-        if (rig) rig.applyFace(lastFace.expressions, lastFace.head);
       }
     }
+
+    // Drive the avatar EVERY rendered frame, not only when a detection landed — this is what
+    // makes the puppet feel continuous instead of stepping at the inference rate.
+    lastFace = easeFace(lastFace, targetFace, dtMs);
+    if (rig) rig.applyFace(lastFace.expressions, lastFace.head);
+
     // render the avatar to its canvas (at the avatar canvas's own aspect)
     if (rig) rig.render();
     if (puppet && avatarCtx) puppet.render(avatarCtx, avatarCanvas.width, avatarCanvas.height, lastFace);

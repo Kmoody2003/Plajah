@@ -8,6 +8,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRM, VRMHumanBoneName } from '@pixiv/three-vrm';
 
+const clampRad = (v: number, limit: number) => Math.max(-limit, Math.min(limit, v || 0));
+
 export class VrmRig {
   readonly canvas: HTMLCanvasElement;
   private renderer: THREE.WebGLRenderer;
@@ -15,6 +17,11 @@ export class VrmRig {
   private camera: THREE.PerspectiveCamera;
   private vrm: VRM | null = null;
   private clock = new THREE.Clock();
+  /** Expression names this avatar actually defines. setValue() silently ignores unknown
+   *  names, so without this a model missing the standard presets renders a completely
+   *  frozen face with no error anywhere — the hardest kind of bug to see. */
+  private exprNames = new Set<string>();
+  private missingLogged = false;
 
   constructor(width: number, height: number) {
     this.canvas = document.createElement('canvas');
@@ -40,6 +47,23 @@ export class VrmRig {
       this.vrm = vrm;
       vrm.scene.rotation.y = Math.PI; // face the camera
       this.scene.add(vrm.scene);
+
+      // Catalogue what this avatar can actually express, and say so. A VRM exported without
+      // expression presets will never animate its face no matter how good the tracking is,
+      // and that needs to read as "this model has no expressions" rather than "tracking broke".
+      this.exprNames.clear();
+      this.missingLogged = false;
+      const em: any = (vrm as any).expressionManager;
+      const list: any[] = em?.expressions ?? [];
+      for (const e of list) {
+        const n = e?.expressionName || e?.name;
+        if (n) this.exprNames.add(String(n));
+      }
+      if (!this.exprNames.size) {
+        console.warn('[vtuber] This VRM defines NO expressions — its face cannot animate. Re-export with expression presets (aa/ih/ou/ee/oh, blink, happy…).');
+      } else {
+        console.info(`[vtuber] avatar expressions (${this.exprNames.size}):`, [...this.exprNames].join(', '));
+      }
       return true;
     } catch (e) {
       console.warn('[vtuber] VRM load failed:', e);
@@ -53,11 +77,23 @@ export class VrmRig {
     if (!vrm) return;
     const em: any = (vrm as any).expressionManager;
     if (em?.setValue) {
-      for (const k in expressions) { try { em.setValue(k, expressions[k]); } catch { /* expression absent on this avatar */ } }
+      const missing: string[] = [];
+      for (const k in expressions) {
+        // Only drive what exists. Unknown names are a no-op inside three-vrm, so sending
+        // them costs work and — worse — hides the fact that they were never applied.
+        if (this.exprNames.size && !this.exprNames.has(k)) { missing.push(k); continue; }
+        try { em.setValue(k, expressions[k]); } catch { /* */ }
+      }
+      if (missing.length && !this.missingLogged) {
+        this.missingLogged = true;
+        console.warn(`[vtuber] avatar has no expression for: ${missing.join(', ')} — those signals are dropped.`);
+      }
     }
     const h: any = vrm.humanoid;
     const headBone = h?.getNormalizedBoneNode?.(VRMHumanBoneName.Head) || h?.getBoneNode?.(VRMHumanBoneName.Head);
-    if (headBone) headBone.rotation.set(head.x, head.y, head.z);
+    // Clamp: a bad transform matrix (partial occlusion, extreme angle) otherwise snaps the
+    // head through impossible rotations, which reads as the tracker "glitching out".
+    if (headBone) headBone.rotation.set(clampRad(head.x, 0.7), clampRad(head.y, 0.9), clampRad(head.z, 0.6));
   }
 
   render(): void {
