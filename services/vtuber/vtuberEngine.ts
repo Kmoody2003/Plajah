@@ -12,6 +12,7 @@
 
 import { FaceTracker } from './faceTracker';
 import { DetectFeed } from './detectFeed';
+import { AsyncFaceTracker } from './faceTrackerAsync';
 import { FaceRetargeter, type RetargetResult } from './retarget';
 import { VrmRig } from './vrmRig';
 import { Puppet2DDriver } from './puppet2D';
@@ -164,6 +165,11 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
   const setStatus = (s: string) => { status = s; opts.onStatus?.(s); };
 
   const tracker = new FaceTracker();
+  // Preferred path: inference on a worker thread, so it cannot stall the compositor. The
+  // synchronous tracker above stays as the fallback for environments without module workers
+  // or createImageBitmap. Exactly one of the two is active — see startAsync() below.
+  const asyncTracker = new AsyncFaceTracker();
+  let useWorker = false;
   const retargeter = new FaceRetargeter();
   const feed = new DetectFeed(); // low-light auto-gain + downscale for detection
 
@@ -198,10 +204,21 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
 
   setStatus('loading tracker…');
   // Timeout so a hung CDN/model load reads as a visible failure, not eternal "loading".
-  const initTimeout = setTimeout(() => { if (!tracker.isReady) setStatus('tracker timed out — check connection'); }, 25000);
-  tracker.init().then(ok => {
+  const initTimeout = setTimeout(() => {
+    if (!tracker.isReady && !useWorker) setStatus('tracker timed out — check connection');
+  }, 25000);
+  // Try the worker first; only pay for the blocking main-thread tracker if it cannot run. Both
+  // download the same model, so initialising them in parallel would double the cold-start cost.
+  asyncTracker.init().then(async ok => {
+    if (ok) {
+      useWorker = true;
+      clearTimeout(initTimeout);
+      setStatus('tracking — looking for you…');
+      return;
+    }
+    const sync = await tracker.init();
     clearTimeout(initTimeout);
-    setStatus(ok ? 'tracking — looking for you…' : 'tracker unavailable on this device');
+    setStatus(sync ? 'tracking — looking for you…' : 'tracker unavailable on this device');
   });
 
   let lastTs = -1;
@@ -225,23 +242,34 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
     const dtMs = lastRender ? t - lastRender : 33;
     lastRender = t;
 
-    // detectForVideo is SYNCHRONOUS and runs on this thread, so every detection stalls the
-    // compositor — 30-60ms whenever the GPU delegate is unavailable and it falls back to CPU.
-    // Chasing the detector as fast as it can go therefore spent the whole frame budget on
-    // inference and starved rendering. A 33ms floor caps it at 30 detections/sec, which is
-    // plenty now that easeFace() interpolates between them. (A worker is the structural fix.)
-    if (tracker.isReady && video.readyState >= 2 && (t - lastDetect) >= Math.max(33, detectMs * 0.85)) {
-      const ts = Math.max(lastTs + 1, Math.round(t)); // detectForVideo needs monotonic timestamps
+    const onFrame = (frame: import('./faceTracker').FaceFrame | null) => {
+      if (!frame) return;
+      if (!lastBbox) setStatus(feed.boost > 1.15 ? `face locked ✓ (low light ×${feed.boost.toFixed(1)})` : 'face locked ✓');
+      targetFace = retargeter.retarget(frame, t / 1000);
+      lastBbox = frame.bbox;
+    };
+
+    if (useWorker && video.readyState >= 2) {
+      // Non-blocking. send() returns instantly and drops the frame if inference is still busy,
+      // so the render loop runs at full rate no matter how slow the device's delegate is.
+      if ((t - lastDetect) >= Math.max(16, detectMs * 0.6)) {
+        const ts = Math.max(lastTs + 1, Math.round(t)); // detectForVideo needs monotonic timestamps
+        lastTs = ts;
+        asyncTracker.send(feed.src(video), ts);
+        lastDetect = t;
+      }
+      onFrame(asyncTracker.take()); // collect whatever finished since the last frame
+    } else if (tracker.isReady && video.readyState >= 2 && (t - lastDetect) >= Math.max(33, detectMs * 0.85)) {
+      // Fallback: synchronous inference on this thread. It stalls the compositor for the whole
+      // of detection, so it is throttled to 30/sec to leave the renderer some budget — easeFace()
+      // covers the gaps. Only reached where module workers or createImageBitmap are unavailable.
+      const ts = Math.max(lastTs + 1, Math.round(t));
       lastTs = ts;
       const d0 = performance.now();
       const frame = tracker.detect(feed.src(video), ts);
       detectMs = detectMs * 0.8 + (performance.now() - d0) * 0.2;
       lastDetect = t;
-      if (frame) {
-        if (!lastBbox) setStatus(feed.boost > 1.15 ? `face locked ✓ (low light ×${feed.boost.toFixed(1)})` : 'face locked ✓');
-        targetFace = retargeter.retarget(frame, t / 1000);
-        lastBbox = frame.bbox;
-      }
+      onFrame(frame);
     }
 
     // Drive the avatar EVERY rendered frame, not only when a detection landed — this is what
@@ -312,6 +340,9 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
     dispose: () => {
       cancelAnimationFrame(raf);
       tracker.dispose();
+      // Terminate the worker too — an orphaned one holds the WASM runtime and the loaded model
+      // alive for the life of the tab, which is tens of MB per abandoned session.
+      asyncTracker.dispose();
       rig?.dispose();
       puppet?.dispose();
       try { (video as any).srcObject = null; } catch { /* */ }
