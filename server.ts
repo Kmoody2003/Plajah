@@ -3228,6 +3228,75 @@ async function startServer() {
     }
   });
 
+  // ── Pokee (Isaac) proxy — the long-corpus / bulk lane ───────────────────────
+  // Pokee-Isaac 28B is a 10M-token-context, text-only agentic model at $0.15/$1.00
+  // per Mtok. It's the provider for work that needs a WHOLE corpus in one prompt —
+  // a full manuscript, a student's entire ledger, a production's every transcript —
+  // where chunk-and-retrieve loses the signal. Claude stays the creative/persona
+  // lane; Gemini stays the audio/vision lane (Isaac has neither).
+  //
+  // OpenAI-compatible, so the body is a standard chat-completions payload and the
+  // response is passed through untouched — any OpenAI client can point at this.
+  // Logged-in + rate-limited, key stays server-side.
+  app.post('/api/ai/pokee', apiLimiter, authMiddleware, express.json({ limit: '25mb' }), async (req: any, res) => {
+    const key = process.env.POKEE_API_KEY;
+    if (!key) return res.status(503).json({ error: 'POKEE_API_KEY not configured' });
+    const { model, max_tokens, messages, temperature, tools, tool_choice, response_format } = req.body as {
+      model?: string; max_tokens?: number; messages?: unknown; temperature?: number;
+      tools?: unknown; tool_choice?: unknown; response_format?: unknown;
+    };
+    if (!Array.isArray(messages) || !messages.length) {
+      return res.status(400).json({ error: 'messages[] required' });
+    }
+    // Constrain to Pokee models and a sane token ceiling to prevent abuse.
+    const safeModel = typeof model === 'string' && /^pokee-/.test(model) ? model : 'pokee-isaac';
+    const safeMax = Math.min(Math.max(Number(max_tokens) || 1024, 1), 8192);
+
+    // Cap the INPUT well below the model's 10M ceiling. Cost and prefill latency both
+    // scale with it (1M ≈ $0.15 and ~24s; 10M ≈ $1.50 and ~73s), and the headline
+    // 10M retrieval score is vendor-claimed and unverified — so 1M is the working
+    // ceiling until our own eval earns more. That still holds a whole novel, a full
+    // screenplay with every take's transcript, or a learner's entire ledger.
+    // Raise with POKEE_MAX_INPUT_TOKENS (no deploy) up to the 25mb body limit (~6M).
+    const maxIn = Number(process.env.POKEE_MAX_INPUT_TOKENS) || 1_000_000;
+    const approxIn = Math.ceil(JSON.stringify(messages).length / 4); // ~4 chars/token
+    if (approxIn > maxIn) {
+      return res.status(413).json({
+        error: `Input is ~${approxIn.toLocaleString()} tokens, over the ${maxIn.toLocaleString()} cap. Trim the corpus or raise POKEE_MAX_INPUT_TOKENS.`,
+        approxInputTokens: approxIn,
+        maxInputTokens: maxIn,
+      });
+    }
+    try {
+      // Long contexts prefill SLOWLY (~73s at the full 10M window), so this needs a
+      // generous timeout — but under the 300s Cloud Run request cap, not at it.
+      const upstream = await fetch('https://api.pokee.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          model: safeModel,
+          messages,
+          max_tokens: safeMax,
+          // Streaming is a follow-up; Phase 0 answers in one shot so callers stay simple.
+          stream: false,
+          ...(typeof temperature === 'number' ? { temperature } : {}),
+          ...(tools ? { tools } : {}),
+          ...(tool_choice ? { tool_choice } : {}),
+          ...(response_format ? { response_format } : {}),
+        }),
+        signal: AbortSignal.timeout(240000),
+      });
+      const data = await upstream.json();
+      // Isaac bills per token on a 10M window — log usage so cost stays visible.
+      const u = (data as any)?.usage;
+      if (u) console.log(`[AI] Pokee ${safeModel} in=${u.prompt_tokens} out=${u.completion_tokens}`);
+      res.status(upstream.status).json(data);
+    } catch (err: any) {
+      console.error('[AI] Pokee proxy failed:', err?.message || err);
+      res.status(502).json({ error: 'Pokee request failed' });
+    }
+  });
+
   // ── Character chatbot — talk to a living character persona (creator-gated) ───────
   // Phase 1 of the character-avatars system. Fetches the character, verifies its creator turned the
   // chatbot ON, builds a GUARDRAILED persona system prompt SERVER-SIDE (so the safety rules can't be

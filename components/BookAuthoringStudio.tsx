@@ -20,12 +20,13 @@ import {
   Download, Save, FileDown, Globe, Printer, Settings2, Eye,
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List,
   Link2, Palette, X, Check, ChevronRight, ChevronLeft,
-  Sparkles, PenTool, MoreHorizontal, Loader2,
+  Sparkles, PenTool, MoreHorizontal, Loader2, ScanSearch, AlertTriangle,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { StudioBook, StudioPage, StudioPanel, StudioPageType, Album } from '../types';
 import { setComicHandoff, peekComicHandoff } from '../services/comicHandoff';
 import { extractDocument, type ImportedParagraph } from '../services/documentImport';
+import type { ContinuityReport } from '../services/manuscriptContinuity';
 import { auth, storage, db } from '../services/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -806,6 +807,28 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
   const [publishing, setPublishing] = useState(false);
   const [publishOutcome, setPublishOutcome] = useState<{ albumId: string; certificateId?: string; certError?: string } | null>(null);
 
+  // Continuity pass: read the whole manuscript in one shot and surface the
+  // contradictions that only exist BETWEEN distant chapters. See
+  // services/manuscriptContinuity — runs on the Pokee long-context lane.
+  const [showContinuity, setShowContinuity] = useState(false);
+  const [continuityRunning, setContinuityRunning] = useState(false);
+  const [continuityReport, setContinuityReport] = useState<ContinuityReport | null>(null);
+  const [continuityError, setContinuityError] = useState<string | null>(null);
+
+  const runContinuity = async () => {
+    setContinuityRunning(true);
+    setContinuityError(null);
+    setContinuityReport(null);
+    try {
+      const { runContinuityPass } = await import('../services/manuscriptContinuity');
+      setContinuityReport(await runContinuityPass(book));
+    } catch (err: any) {
+      setContinuityError(err?.message || 'The continuity pass could not be completed.');
+    } finally {
+      setContinuityRunning(false);
+    }
+  };
+
   const handlePublish = async () => {
     const user = auth.currentUser;
     if (!user) { alert('Sign in to publish your book.'); return; }
@@ -999,6 +1022,11 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
           <button onClick={() => setShowImport(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-xs text-white/50 hover:bg-white/8 hover:text-white transition-colors">
             <Upload size={11}/> Import
+          </button>
+
+          <button onClick={() => { setShowContinuity(true); if (!continuityReport && !continuityRunning) runContinuity(); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-xs text-white/50 hover:bg-white/8 hover:text-white transition-colors">
+            <ScanSearch size={11}/> Continuity
           </button>
 
           {/* Export */}
@@ -1242,6 +1270,125 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
                   </button>
                 </>
               )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Continuity pass modal ── */}
+      <AnimatePresence>
+        {showContinuity && (
+          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+            className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+            onClick={() => !continuityRunning && setShowContinuity(false)}>
+            <motion.div initial={{scale:.96,opacity:0}} animate={{scale:1,opacity:1}} exit={{scale:.96,opacity:0}} transition={{duration:.15}}
+              className="bg-[#141414] border border-white/8 rounded-2xl max-w-2xl w-full max-h-[80vh] flex flex-col"
+              onClick={e => e.stopPropagation()}>
+
+              <div className="flex items-start justify-between p-8 pb-5 shrink-0">
+                <div>
+                  <h3 className="text-lg font-black text-white mb-1 flex items-center gap-2">
+                    <ScanSearch size={17} className="text-orange-400"/> Continuity Pass
+                  </h3>
+                  <p className="text-xs text-white/40 leading-relaxed">
+                    Reads “{book.title || 'Untitled'}” whole and finds what contradicts itself across chapters.
+                  </p>
+                </div>
+                {!continuityRunning && (
+                  <button onClick={() => setShowContinuity(false)} className="p-1 text-white/25 hover:text-white transition-colors">
+                    <X size={16}/>
+                  </button>
+                )}
+              </div>
+
+              <div className="px-8 pb-8 overflow-y-auto">
+                {continuityRunning && (
+                  <div className="py-12 text-center">
+                    <Loader2 size={26} className="animate-spin text-orange-400 mx-auto mb-4"/>
+                    <p className="text-xs text-white/50">Reading the whole manuscript…</p>
+                    <p className="text-[10px] text-white/25 mt-1.5">
+                      The entire book goes in as one piece, so this takes a moment.
+                    </p>
+                  </div>
+                )}
+
+                {continuityError && !continuityRunning && (
+                  <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                    <p className="text-xs text-amber-300/90 leading-relaxed">{continuityError}</p>
+                    <button onClick={runContinuity}
+                      className="mt-3 px-3 py-1.5 rounded-lg bg-white/8 text-[10px] font-black uppercase tracking-widest text-white/70 hover:bg-white/12 transition-colors">
+                      Try again
+                    </button>
+                  </div>
+                )}
+
+                {continuityReport && !continuityRunning && (
+                  <>
+                    {continuityReport.summary && (
+                      <p className="text-xs text-white/55 leading-relaxed mb-5 pb-5 border-b border-white/8">
+                        {continuityReport.summary}
+                      </p>
+                    )}
+
+                    {continuityReport.findings.length === 0 ? (
+                      <div className="py-8 text-center">
+                        <Check size={22} className="text-emerald-400 mx-auto mb-3"/>
+                        <p className="text-sm text-white/70 font-bold">No contradictions found.</p>
+                        <p className="text-[11px] text-white/35 mt-1">The manuscript reads as internally consistent.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {continuityReport.findings.map((f, i) => (
+                          <div key={i} className="p-4 rounded-xl bg-white/[0.03] border border-white/8">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${
+                                f.severity === 'high' ? 'bg-red-500/15 text-red-300'
+                                : f.severity === 'medium' ? 'bg-amber-500/15 text-amber-300'
+                                : 'bg-white/8 text-white/40'}`}>
+                                {f.severity}
+                              </span>
+                              <span className="text-[9px] font-black uppercase tracking-widest text-white/30">{f.kind}</span>
+                            </div>
+                            <p className="text-sm font-bold text-white/90 leading-snug mb-1.5">{f.title}</p>
+                            <p className="text-[11px] text-white/45 leading-relaxed">{f.detail}</p>
+                            {!!f.quotes?.length && (
+                              <div className="mt-2.5 space-y-1.5">
+                                {f.quotes.map((q, qi) => (
+                                  <p key={qi} className="text-[10px] text-white/40 italic leading-relaxed pl-3 border-l-2 border-orange-500/30">“{q}”</p>
+                                ))}
+                              </div>
+                            )}
+                            {f.suggestion && (
+                              <p className="text-[10px] text-emerald-300/70 leading-relaxed mt-2.5">→ {f.suggestion}</p>
+                            )}
+                            {!!f.chapters.length && (
+                              <p className="text-[9px] text-white/25 mt-2.5 uppercase tracking-widest font-black">{f.chapters.join('  ·  ')}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* What the pass actually read, and what it actually cost. */}
+                    <div className="mt-5 pt-4 border-t border-white/8 flex items-center justify-between gap-3 flex-wrap">
+                      <p className="text-[10px] text-white/25">
+                        {continuityReport.chaptersAnalyzed} chapters · {continuityReport.wordCount.toLocaleString()} words ·{' '}
+                        {continuityReport.inputTokens.toLocaleString()} tokens · {(continuityReport.elapsedMs / 1000).toFixed(1)}s ·{' '}
+                        ${continuityReport.costUsd.toFixed(4)}
+                      </p>
+                      <button onClick={runContinuity}
+                        className="px-3 py-1.5 rounded-lg bg-white/8 text-[10px] font-black uppercase tracking-widest text-white/70 hover:bg-white/12 transition-colors">
+                        Re-run
+                      </button>
+                    </div>
+
+                    <p className="text-[10px] text-white/25 leading-relaxed mt-3 flex items-start gap-1.5">
+                      <AlertTriangle size={11} className="shrink-0 mt-0.5"/>
+                      A machine read this, not an editor. Verify every finding against your own text before changing anything.
+                    </p>
+                  </>
+                )}
+              </div>
             </motion.div>
           </motion.div>
         )}
