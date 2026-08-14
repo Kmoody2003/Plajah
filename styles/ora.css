@@ -1,0 +1,58 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   ORA — feature styles
+   Blueprint: docs/PLAJAH_WELLBEING_SUITE_BLUEPRINT.md
+
+   Kept out of styles/plajah-ds.css on purpose: that file is the platform-wide
+   design system, this one is a single feature. Tokens flow one way — Ora
+   consumes design-system tokens and never defines its own colours.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* The breath ring. The one piece of motion in Ora that is the feature rather
+   than decoration: the ring expands and contracts on a slow cycle, and the
+   user breathes with it. Transform + opacity only, so it composites on the GPU
+   and costs a cheap phone nothing. */
+.ora-breath {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(
+    from 200deg,
+    color-mix(in srgb, var(--pj-lilac) 90%, transparent),
+    color-mix(in srgb, var(--pj-cyan) 55%, transparent),
+    color-mix(in srgb, var(--pj-magenta) 50%, transparent),
+    color-mix(in srgb, var(--pj-lilac) 90%, transparent)
+  );
+  animation: ora-breathe 9s ease-in-out infinite;
+  will-change: transform;
+}
+.ora-breath > span {
+  width: calc(100% - 18px);
+  height: calc(100% - 18px);
+  border-radius: 50%;
+  background: var(--bg-color);
+}
+
+@keyframes ora-breathe {
+  0%, 100% { transform: scale(0.9); }
+  50%      { transform: scale(1.06); }
+}
+
+/* Reduced motion is not a downgrade here — a still ring is a perfectly good
+   ring, and a breathing exercise that ignores the setting is a bad one. */
+@media (prefers-reduced-motion: reduce) {
+  .ora-breath { animation: none; transform: scale(1); }
+}
+
+/* Quiet Hours — Ora's own answer to digital detox. When a session is running,
+   the rest of the platform steps back rather than competing with it. A wellbeing
+   feature that can turn the host app down is a credibility signal no standalone
+   app is able to make. */
+body.ora-quiet-hours [data-ora-dimmable="true"] {
+  opacity: 0.34;
+  filter: saturate(0.6);
+  transition: opacity var(--pj-dur-slower) var(--pj-ease-standard),
+              filter var(--pj-dur-slower) var(--pj-ease-standard);
+  pointer-events: none;
+}
