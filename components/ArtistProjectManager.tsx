@@ -1283,6 +1283,49 @@ const EventsLaunchTab: React.FC = () => {
  * A production is the album BEFORE it's a release; once it publishes it shows up
  * next door in Releases as a campaign. This tab is the bridge between the two.
  */
+/**
+ * Artist Manager › Import Work — the door into Career Import.
+ *
+ * Deliberately a launch card rather than the flow itself: the studio is a full-screen,
+ * multi-step surface, and running it inside a tab's scroll container fights it.
+ */
+const CareerImportLaunchTab: React.FC = () => {
+  const navigate = () => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'CAREER_IMPORT' } }));
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+      <div>
+        <h3 className="text-base font-black uppercase tracking-widest text-white">Import Work</h3>
+        <p className="text-xs text-white/35 mt-0.5">
+          Bring what you have already released into Plajah, instead of starting from an empty account
+        </p>
+      </div>
+
+      <div className="p-6 rounded-2xl border border-white/10 bg-white/[0.03]">
+        <div className="flex items-start gap-4">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/15 flex items-center justify-center shrink-0">
+            <Download size={16} className="text-purple-300" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-black text-white">Point us at your work</p>
+            <p className="text-xs text-white/40 leading-relaxed mt-1.5 max-w-xl">
+              Paste an Audius profile, a podcast feed, or just your name. We read what is publicly
+              published — nothing behind a login — and you confirm what is actually yours before any
+              of it is added.
+            </p>
+            <button
+              onClick={navigate}
+              className="mt-4 flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:opacity-90"
+              style={{ background: 'linear-gradient(120deg,#6B0099,#D40055)', color: '#fff', border: 0 }}
+            >
+              <Download size={13} /> Find my work
+            </button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 const MelosLaunchTab: React.FC<{ currentUser?: UserProfile | null }> = ({ currentUser }) => {
   const navigate = (target: string, extra: object = {}) =>
     window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target, ...extra } }));
@@ -2602,7 +2645,7 @@ const WriterPressTab: React.FC = () => (
 // ─── Main component ────────────────────────────────────────────────────────────
 
 type PMTab =
-  | 'overview' | 'releases' | 'productions' | 'payroll' | 'contracts' | 'invoices' | 'tasks' | 'vendors' | 'venues' | 'events' | 'boards' | 'promote'
+  | 'overview' | 'releases' | 'productions' | 'import' | 'payroll' | 'contracts' | 'invoices' | 'tasks' | 'vendors' | 'venues' | 'events' | 'boards' | 'promote'
   | 'film_overview' | 'film_script' | 'film_budget' | 'film_crew' | 'film_locations' | 'film_schedule' | 'film_distro'
   | 'film_hub' | 'film_callsheets' | 'film_roster' | 'film_brief' | 'film_craft' | 'film_reports'
   | 'writer_overview' | 'writer_projects' | 'writer_manuscripts' | 'writer_research' | 'writer_submissions' | 'writer_events' | 'writer_press';
@@ -2617,6 +2660,7 @@ const PM_TABS: { id: PMTab; label: string; icon: React.ReactNode; color: string 
   { id: 'overview',   label: 'Overview',    icon: <Briefcase size={13} />,  color: '#FF8C00' },
   { id: 'releases',   label: 'Releases',    icon: <Music2 size={13} />,     color: '#FF8C00' },
   { id: 'productions',label: 'Productions', icon: <Disc3 size={13} />,      color: '#D40055' },
+  { id: 'import',     label: 'Import Work', icon: <Download size={13} />,   color: '#6B0099' },
   { id: 'events',     label: 'Events',      icon: <Mic size={13} />,        color: '#FF8C00' },
   { id: 'boards',     label: 'Boards',      icon: <Layers size={13} />,     color: '#a855f7' },
   { id: 'promote',    label: 'Promote',     icon: <Megaphone size={13} />,  color: '#6366f1' },
@@ -2687,6 +2731,7 @@ export const ArtistProjectManager: React.FC<Props> = ({ currentUser }) => {
       case 'overview':            return <OverviewTab onSwitchTab={setActiveTab} />;
       case 'releases':            return <MusicReleasesTab currentUser={currentUser} />;
       case 'productions':         return <MelosLaunchTab currentUser={currentUser} />;
+      case 'import':              return <CareerImportLaunchTab />;
       case 'events':              return <EventsLaunchTab />;
       case 'boards':              return <BoardsLaunchTab />;
       case 'promote':             return <AdHubTab />;

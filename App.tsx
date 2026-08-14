@@ -296,6 +296,8 @@ const LicenseRequestsInbox = retryLazy(() => import('./components/LicenseRequest
 const LicenseForFilmModal = retryLazy(() => import('./components/LicenseForFilmModal'));
 import { acceptNibbleInvite, pendingNibbleCode } from './services/nibbleInvites';
 const BibleExperience = retryLazy(() => import('./components/BibleExperience'));
+const AmboPresenter = retryLazy(() => import('./components/scripture/AmboPresenter'));
+const FollowAlongView = retryLazy(() => import('./components/scripture/FollowAlongView'));
 
 const AriaEventBridge: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
   useEffect(() => {
@@ -328,6 +330,7 @@ const TerraListings = retryLazy(() => import('./components/terra/ListingsManager
 const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
 const ArtistProjectManager = retryLazy(() => import('./components/ArtistProjectManager'));
 const MelosWorkspace = retryLazy(() => import('./components/melos/MelosWorkspace'));
+const CareerImportStudio = retryLazy(() => import('./components/CareerImportStudio'));
 const StudioView = retryLazy(() => import('./components/ManagerSuite/StudioView'));
 const Fabula = retryLazy(() => import('./components/Fabula/Fabula'));
 const ArtistBoards = retryLazy(() => import('./components/ArtistBoards'));
@@ -532,6 +535,10 @@ const App: React.FC = () => {
   // In-session Kids Mode: when a parent switches into a child, the app behaves AS that
   // child (safe content + screen-time) without a separate login.
   const [activeChildProfile, setActiveChildProfile] = useState<UserProfile | null>(null);
+  // Passage a scripture chip asked the reader to open at, as a refId ("45.8.28").
+  const [bibleRefId, setBibleRefId] = useState<string | null>(null);
+  // Kairos session a congregant is following (?follow=<id>, or the Elevate card).
+  const [followSessionId, setFollowSessionId] = useState<string | null>(null);
 
   const setView = useCallback((newView: AppView | ((prev: AppView) => AppView), path?: string) => {
     setViewInternal((prev) => {
@@ -944,8 +951,23 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     };
     window.addEventListener('OPEN_PLAJAH_PIXELS', handleOpenPixels);
 
-    const handleOpenBible = () => setView('BIBLE');
+    // A scripture chip anywhere on the platform opens the reader at its passage.
+    const handleOpenBible = (e: Event) => {
+      const id = (e as CustomEvent)?.detail?.refId;
+      setBibleRefId(typeof id === 'string' ? id : null);
+      setView('BIBLE');
+    };
     window.addEventListener('OPEN_BIBLE', handleOpenBible);
+
+    const handleOpenAmbo = () => setView('AMBO' as AppView);
+    window.addEventListener('OPEN_AMBO', handleOpenAmbo);
+
+    const handleOpenFollowAlong = (e: Event) => {
+      const id = (e as CustomEvent)?.detail?.sessionId;
+      setFollowSessionId(typeof id === 'string' ? id : null);
+      setView('FOLLOW_ALONG' as AppView);
+    };
+    window.addEventListener('OPEN_FOLLOW_ALONG', handleOpenFollowAlong);
 
     const handleOpenTeleprompter = () => setView('TELEPROMPTER');
     window.addEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
@@ -1380,6 +1402,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     } else if (target === 'CREATOR_PAYMENTS') {
       if (!user) { loginWithGoogle(); return; }
       setView('CREATOR_PAYMENTS');
+    } else if (target === 'CAREER_IMPORT') {
+      if (!user) { loginWithGoogle(); return; }
+      setView('CAREER_IMPORT');
     } else if (target === 'MELOS') {
       if (!user) { loginWithGoogle(); return; }
       if (params?.productionId) setMelosProductionId(params.productionId);
@@ -1659,7 +1684,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         return;
       }
 
+      // Deep-link: ?follow={sessionId} — the code on the pre-service countdown
+      // slide. Deliberately no auth gate: a congregation must be able to follow
+      // along without an account.
+      const followParam = params.get('follow');
+      if (followParam) {
+        setFollowSessionId(followParam);
+        setView('FOLLOW_ALONG' as AppView);
+        document.title = 'Follow along | Plajah';
+        setIsLoading(false);
+        return;
+      }
+
       // Deep-link: ?party={id} — join a synchronized watch/read/listen party and follow the host.
+
       const partyParam = params.get('party');
       if (partyParam) {
         import('./services/partyService').then(async (ps) => {
@@ -4580,6 +4618,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <CreatorPaymentDashboard currentUser={userProfile} />
             )}
 
+            {view === 'CAREER_IMPORT' && user && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <CareerImportStudio onBack={() => setView('ARTIST_MANAGER')} />
+              </Suspense>
+            )}
             {view === 'MELOS' && user && userProfile && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <MelosWorkspace
@@ -5015,7 +5058,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <SmartDirectorView productionId={smartDirectorPayload?.productionId} event={smartDirectorPayload?.event} currentUser={userProfile} onBack={() => setView('DASHBOARD')} />
               </Suspense>
             )}
-            {view === 'BIBLE' && <BibleExperience onBack={() => setView('BOOKS')} />}
+            {view === 'BIBLE' && <BibleExperience onBack={() => setView('BOOKS')} initialRefId={bibleRefId} />}
+            {view === 'AMBO' && <AmboPresenter onBack={() => setView('APPS')} />}
+            {view === 'FOLLOW_ALONG' && <FollowAlongView sessionId={followSessionId} onBack={() => setView('APPS')} />}
             {view === 'CLASSROOMS' && (
               (isEducationAccount(userProfile) || (userProfile as any)?.accountType === 'PARENT')
                 ? <ClassroomsView onBack={() => setView('DASHBOARD')} user={user} onNavigate={(v) => setView(v as any)} />
