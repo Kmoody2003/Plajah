@@ -1,0 +1,444 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   PLAJAH DESIGN SYSTEM — canonical tokens + control layer
+   Spec: docs/PLAJAH_DESIGN_SYSTEM.md
+   Imported from index.css. Pure CSS (no Tailwind directives) so it is safe to
+   import and cannot break the Tailwind v4 pipeline.
+
+   WHY THIS FILE EXISTS
+   The platform already had good bones — the M3 shape scale, the .type-* scale,
+   the glass layers, TYPE/MOTION in src/lib/designSystem.tsx. What it did not
+   have was a *control* layer, so 5,136 raw <button> tags grew 25+ padding
+   combinations, 20 corner radii and 6,984 hardcoded hex values. Everything
+   below is the single source of truth for those three things.
+
+   RULE: components consume tokens, never literals. If you are typing a hex
+   value or a px padding on a control, there is a token missing — add it here.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── BRAND ────────────────────────────────────────────────────────────────
+     The triad, extracted from actual platform usage. These are theme-INVARIANT:
+     Plajah is these colours in every theme. Surfaces re-theme; the brand does not. */
+  --pj-purple:      #6B0099;   /* primary brand — the deep Plajah purple      */
+  --pj-magenta:     #D40055;   /* brand accent — high-contrast partner        */
+  --pj-orange:      #FF8C00;   /* signal / action — the platform's live wire  */
+  --pj-cyan:        #00DAF3;   /* spatial, live, realtime                     */
+  --pj-lilac:       #D0BCFF;   /* ethereal / soft states                      */
+
+  /* Brand tints + shades (use instead of eyeballing an opacity) */
+  --pj-purple-soft:   rgba(107, 0, 153, 0.16);
+  --pj-magenta-soft:  rgba(212, 0, 85, 0.16);
+  --pj-orange-soft:   rgba(255, 140, 0, 0.14);
+  --pj-cyan-soft:     rgba(0, 218, 243, 0.14);
+
+  /* ── SEMANTIC ─────────────────────────────────────────────────────────────
+     Status only. Never use a semantic colour for decoration, and never use a
+     brand colour to mean "success" or "error". */
+  --pj-success:     #06D6A0;
+  --pj-warning:     #F59E0B;
+  --pj-danger:      #EF4444;
+  --pj-info:        #3B82F6;
+  --pj-success-soft: rgba(6, 214, 160, 0.14);
+  --pj-warning-soft: rgba(245, 158, 11, 0.14);
+  --pj-danger-soft:  rgba(239, 68, 68, 0.14);
+  --pj-info-soft:    rgba(59, 130, 246, 0.14);
+
+  /* ── GRADIENTS ────────────────────────────────────────────────────────────
+     Five, and only five. `from-[#6B0099] to-[#D40055]` appears inline dozens of
+     times across the codebase — that is --pj-grad-brand. Use the token. */
+  --pj-grad-brand:    linear-gradient(135deg, var(--pj-purple) 0%, var(--pj-magenta) 100%);
+  --pj-grad-warm:     linear-gradient(135deg, var(--pj-purple) 0%, var(--pj-magenta) 55%, var(--pj-orange) 100%);
+  --pj-grad-ember:    linear-gradient(135deg, var(--pj-magenta) 0%, var(--pj-orange) 100%);
+  --pj-grad-spatial:  linear-gradient(135deg, var(--pj-purple) 0%, var(--pj-cyan) 100%);
+  --pj-grad-ethereal: linear-gradient(135deg, var(--pj-lilac) 0%, var(--pj-cyan) 100%);
+
+  /* Scrim for text over artwork — the correct fix for unreadable overlay text */
+  --pj-scrim-bottom: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 45%, transparent 100%);
+  --pj-scrim-top:    linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, transparent 100%);
+
+  /* ── RADIUS ───────────────────────────────────────────────────────────────
+     Aliases onto the existing --m3-shape-* scale so the two systems can never
+     drift. Twenty radii in the codebase collapse to these seven.
+
+       control  → --pj-radius-full  (pills) or --pj-radius-md (square controls)
+       card     → --pj-radius-lg
+       sheet    → --pj-radius-xl
+       hero     → --pj-radius-2xl
+       inline   → --pj-radius-xs / sm  (chips, tags, inputs, code)  */
+  --pj-radius-xs:   var(--m3-shape-xs);    /*  8px */
+  --pj-radius-sm:   var(--m3-shape-sm);    /* 12px */
+  --pj-radius-md:   var(--m3-shape-md);    /* 16px */
+  --pj-radius-lg:   var(--m3-shape-lg);    /* 24px */
+  --pj-radius-xl:   var(--m3-shape-xl);    /* 28px */
+  --pj-radius-2xl:  36px;
+  --pj-radius-full: 9999px;
+
+  /* ── CONTROL GEOMETRY ─────────────────────────────────────────────────────
+     THE button fix. Every control picks one row of this table and nothing else.
+     Height is fixed so buttons on the same line always align, regardless of
+     whether they contain an icon, a label, or both. */
+  --pj-ctl-h-xs: 28px;  --pj-ctl-px-xs: 10px;  --pj-ctl-gap-xs: 4px;   --pj-ctl-icon-xs: 12px;
+  --pj-ctl-h-sm: 34px;  --pj-ctl-px-sm: 14px;  --pj-ctl-gap-sm: 6px;   --pj-ctl-icon-sm: 14px;
+  --pj-ctl-h-md: 42px;  --pj-ctl-px-md: 18px;  --pj-ctl-gap-md: 8px;   --pj-ctl-icon-md: 16px;
+  --pj-ctl-h-lg: 50px;  --pj-ctl-px-lg: 24px;  --pj-ctl-gap-lg: 10px;  --pj-ctl-icon-lg: 20px;
+  --pj-ctl-h-xl: 60px;  --pj-ctl-px-xl: 32px;  --pj-ctl-gap-xl: 12px;  --pj-ctl-icon-xl: 24px;
+
+  /* ── SPACING ──────────────────────────────────────────────────────────────
+     4px base. Layout gaps come from here so vertical rhythm survives contact
+     with a new screen. */
+  --pj-space-1: 4px;   --pj-space-2: 8px;   --pj-space-3: 12px;
+  --pj-space-4: 16px;  --pj-space-5: 20px;  --pj-space-6: 24px;
+  --pj-space-8: 32px;  --pj-space-10: 40px; --pj-space-12: 48px;
+  --pj-space-16: 64px; --pj-space-20: 80px;
+
+  /* ── ELEVATION ────────────────────────────────────────────────────────────
+     Plajah is a dark, translucent platform: elevation reads as shadow depth
+     plus glass opacity, not as a lighter grey. Pair --pj-elev-N with --glass-N. */
+  --pj-elev-0: none;
+  --pj-elev-1: 0 1px 2px rgba(0,0,0,0.30);
+  --pj-elev-2: 0 4px 12px rgba(0,0,0,0.35);
+  --pj-elev-3: 0 10px 28px rgba(0,0,0,0.45);
+  --pj-elev-4: 0 20px 48px rgba(0,0,0,0.55);
+  --pj-elev-5: 0 30px 60px -12px rgba(0,0,0,0.60), 0 18px 36px -18px rgba(0,0,0,0.60);
+
+  /* Brand glows — for the primary CTA and "live"/"on air" states only.
+     If everything glows, nothing does. */
+  --pj-glow-brand:   0 6px 22px rgba(212, 0, 85, 0.34);
+  --pj-glow-orange:  0 6px 22px rgba(255, 140, 0, 0.30);
+  --pj-glow-cyan:    0 0 20px rgba(0, 218, 243, 0.40);
+
+  /* ── MOTION ───────────────────────────────────────────────────────────────
+     Mirrors MOTION in src/lib/designSystem.tsx so CSS and motion/react agree. */
+  --pj-ease-standard:   cubic-bezier(0.2, 0, 0, 1);
+  --pj-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --pj-ease-exit:       cubic-bezier(0.3, 0, 1, 1);
+  --pj-dur-fast:   120ms;
+  --pj-dur-base:   200ms;
+  --pj-dur-slow:   300ms;
+  --pj-dur-slower: 500ms;
+
+  /* ── SURFACE OVERLAYS (DS-local) ──────────────────────────────────────────
+     The platform's --glass-* and --m3-border are white overlays defined once at
+     :root, and the nine theme classes never redefine them. On the two light-ground
+     themes that means white-on-white: a `secondary` control is a 10% white wash
+     with a 9% white border sitting on #f8fafc — invisible.
+
+     These aliases default to the platform values (so dark themes are byte-identical)
+     and flip to dark overlays on light grounds. DS components consume THESE, not the
+     raw tokens, so nothing outside components/ui changes appearance.
+
+     The same bug affects the existing .glass / .glass-low / .glass-high utilities
+     app-wide; fixing that is a separate, wider change — see docs/PLAJAH_DESIGN_SYSTEM.md. */
+  --pj-glass-1: var(--glass-1);
+  --pj-glass-2: var(--glass-2);
+  --pj-glass-3: var(--glass-3);
+  --pj-glass-4: var(--glass-4);
+  --pj-glass-5: var(--glass-5);
+  --pj-border:        var(--m3-border);
+  --pj-border-strong: var(--m3-border-strong);
+
+  /* ── FOCUS ────────────────────────────────────────────────────────────────
+     One ring, everywhere — keyboard, TV D-pad and screen readers all depend on
+     it. Matches the TV focus ring convention in components/tv/tvFocusRing.ts. */
+  --pj-focus-color: var(--pj-orange);
+  --pj-focus-ring: 0 0 0 2px var(--bg-color), 0 0 0 4px var(--pj-focus-color), 0 0 18px rgba(255,140,0,0.35);
+}
+
+/* Light-ground themes: flip the overlays to dark and soften the shadows, or glass
+   controls disappear against paper backgrounds. Scoped to the DS aliases so this
+   corrects components/ui without changing any existing screen. */
+.theme-light,
+.theme-pastel {
+  --pj-glass-1: rgba(0,0,0,0.03);
+  --pj-glass-2: rgba(0,0,0,0.05);
+  --pj-glass-3: rgba(0,0,0,0.08);
+  --pj-glass-4: rgba(0,0,0,0.11);
+  --pj-glass-5: rgba(0,0,0,0.14);
+  --pj-border:        rgba(0,0,0,0.12);
+  --pj-border-strong: rgba(0,0,0,0.24);
+  --pj-elev-1: 0 1px 2px rgba(0,0,0,0.08);
+  --pj-elev-2: 0 4px 12px rgba(0,0,0,0.10);
+  --pj-elev-3: 0 10px 28px rgba(0,0,0,0.14);
+  --pj-elev-4: 0 20px 48px rgba(0,0,0,0.18);
+  --pj-elev-5: 0 30px 60px -12px rgba(0,0,0,0.22);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CONTROL LAYER
+   `.pj-btn` is the only button geometry in the system. React consumers should
+   use <Button> from components/ui — these classes exist so non-React surfaces
+   (TV shells, injected HTML, email/OG templates) get identical geometry.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.pj-btn {
+  /* geometry — size modifier supplies the four custom properties */
+  --_h:    var(--pj-ctl-h-md);
+  --_px:   var(--pj-ctl-px-md);
+  --_gap:  var(--pj-ctl-gap-md);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--_gap);
+  height: var(--_h);
+  padding-inline: var(--_px);
+  border-radius: var(--pj-radius-full);
+  border: 1px solid transparent;
+
+  font-family: var(--font-label);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--pj-dur-base) var(--pj-ease-standard),
+    border-color     var(--pj-dur-base) var(--pj-ease-standard),
+    box-shadow       var(--pj-dur-base) var(--pj-ease-standard),
+    transform        var(--pj-dur-fast) var(--pj-ease-standard),
+    opacity          var(--pj-dur-base) var(--pj-ease-standard);
+}
+
+.pj-btn:active:not(:disabled) { transform: scale(0.97); }
+
+.pj-btn:disabled,
+.pj-btn[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.pj-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--pj-focus-ring);
+}
+
+/* ── sizes ─────────────────────────────────────────────────────────────────
+   Only these five. `xs` and `sm` fall below the 44px comfortable hit area, so
+   on touch surfaces wrap them in `.tap` or use `md` and up. */
+.pj-btn--xs { --_h: var(--pj-ctl-h-xs); --_px: var(--pj-ctl-px-xs); --_gap: var(--pj-ctl-gap-xs); font-size: var(--type-label-sm); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 800; }
+.pj-btn--sm { --_h: var(--pj-ctl-h-sm); --_px: var(--pj-ctl-px-sm); --_gap: var(--pj-ctl-gap-sm); font-size: var(--type-label-md); text-transform: uppercase; letter-spacing: 0.04em; }
+.pj-btn--md { --_h: var(--pj-ctl-h-md); --_px: var(--pj-ctl-px-md); --_gap: var(--pj-ctl-gap-md); font-size: var(--type-label-lg); }
+.pj-btn--lg { --_h: var(--pj-ctl-h-lg); --_px: var(--pj-ctl-px-lg); --_gap: var(--pj-ctl-gap-lg); font-size: var(--type-title-md); }
+.pj-btn--xl { --_h: var(--pj-ctl-h-xl); --_px: var(--pj-ctl-px-xl); --_gap: var(--pj-ctl-gap-xl); font-size: var(--type-title-lg); }
+
+/* Icon-only: square, never a squashed pill */
+.pj-btn--icon { padding-inline: 0; width: var(--_h); aspect-ratio: 1; }
+
+/* Square-cornered variant, for controls docked into a toolbar or grid */
+.pj-btn--square { border-radius: var(--pj-radius-md); }
+
+.pj-btn--block { display: flex; width: 100%; }
+
+/* ── variants ──────────────────────────────────────────────────────────────
+   Exactly one `primary` per view. If a screen has three gradient buttons, two
+   of them are lying about their importance. */
+
+/* primary — the brand gradient CTA */
+.pj-btn--primary {
+  background-image: var(--pj-grad-brand);
+  color: #fff;
+  box-shadow: var(--pj-glow-brand);
+}
+.pj-btn--primary:hover:not(:disabled) { filter: brightness(1.12); }
+
+/* accent — the orange signal button (play, go live, record) */
+.pj-btn--accent {
+  background-color: var(--pj-orange);
+  color: #12080a;
+  box-shadow: var(--pj-glow-orange);
+}
+.pj-btn--accent:hover:not(:disabled) { filter: brightness(1.10); }
+
+/* secondary — glass surface, the workhorse. Re-themes automatically. */
+.pj-btn--secondary {
+  background-color: var(--pj-glass-3);
+  color: var(--text-primary);
+  border-color: var(--pj-border);
+  -webkit-backdrop-filter: var(--blur-sm);
+  backdrop-filter: var(--blur-sm);
+}
+.pj-btn--secondary:hover:not(:disabled) { background-color: var(--pj-glass-4); border-color: var(--pj-border-strong); }
+
+/* outline — same weight as secondary, less fill */
+.pj-btn--outline {
+  background-color: transparent;
+  color: var(--text-primary);
+  border-color: var(--pj-border-strong);
+}
+.pj-btn--outline:hover:not(:disabled) { background-color: var(--pj-glass-2); }
+
+/* ghost — lowest weight; toolbars, dense rows, dismissals */
+.pj-btn--ghost {
+  background-color: transparent;
+  color: var(--on-surface-variant, rgba(255,255,255,0.7));
+}
+.pj-btn--ghost:hover:not(:disabled) { background-color: var(--pj-glass-2); color: var(--text-primary); }
+
+/* danger — destructive only. Never for "cancel". */
+.pj-btn--danger {
+  background-color: var(--pj-danger);
+  color: #fff;
+}
+.pj-btn--danger:hover:not(:disabled) { filter: brightness(1.10); }
+
+/* danger-quiet — destructive in a dense list, where a red slab would shout */
+.pj-btn--danger-quiet {
+  background-color: var(--pj-danger-soft);
+  color: var(--pj-danger);
+  border-color: var(--pj-danger-soft);
+}
+.pj-btn--danger-quiet:hover:not(:disabled) { background-color: var(--pj-danger); color: #fff; }
+
+/* success — confirmations, verified states */
+.pj-btn--success {
+  background-color: var(--pj-success-soft);
+  color: var(--pj-success);
+  border-color: var(--pj-success-soft);
+}
+
+/* ── loading ───────────────────────────────────────────────────────────────
+   Width does not change when a button enters loading, so rows never reflow. */
+.pj-btn__spinner {
+  width: 1em; height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: pj-spin 0.7s linear infinite;
+  flex: none;
+}
+@keyframes pj-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pj-btn { transition-duration: 1ms; }
+  .pj-btn:active:not(:disabled) { transform: none; }
+  .pj-btn__spinner { animation-duration: 2s; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SURFACE LAYER
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.pj-surface {
+  background-color: var(--pj-glass-1);
+  border: 1px solid var(--pj-border);
+  border-radius: var(--pj-radius-lg);
+  box-shadow: var(--pj-elev-1);
+}
+.pj-surface--2 { background-color: var(--pj-glass-2); box-shadow: var(--pj-elev-2); }
+.pj-surface--3 { background-color: var(--pj-glass-3); box-shadow: var(--pj-elev-3); -webkit-backdrop-filter: var(--blur-md); backdrop-filter: var(--blur-md); }
+.pj-surface--4 { background-color: var(--pj-glass-4); box-shadow: var(--pj-elev-4); -webkit-backdrop-filter: var(--blur-lg); backdrop-filter: var(--blur-lg); border-color: var(--pj-border-strong); }
+.pj-surface--5 { background-color: var(--pj-glass-5); box-shadow: var(--pj-elev-5); -webkit-backdrop-filter: var(--blur-xl); backdrop-filter: var(--blur-xl); border-color: var(--pj-border-strong); }
+
+/* Sheets and modals sit one step rounder than cards */
+.pj-surface--sheet { border-radius: var(--pj-radius-xl); }
+.pj-surface--hero  { border-radius: var(--pj-radius-2xl); }
+
+/* Brand-edged surface — a hairline gradient border for featured cards */
+.pj-surface--brand {
+  border-color: transparent;
+  background-image:
+    linear-gradient(var(--bg-color), var(--bg-color)),
+    var(--pj-grad-brand);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INPUT + CHIP
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.pj-input {
+  display: block;
+  width: 100%;
+  height: var(--pj-ctl-h-md);
+  padding-inline: var(--pj-ctl-px-md);
+  border-radius: var(--pj-radius-md);
+  border: 1px solid var(--pj-border);
+  background-color: var(--pj-glass-1);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--type-body-md);
+  transition: border-color var(--pj-dur-base) var(--pj-ease-standard),
+              background-color var(--pj-dur-base) var(--pj-ease-standard);
+}
+.pj-input::placeholder { color: var(--on-surface-variant, rgba(255,255,255,0.45)); }
+.pj-input:hover:not(:disabled) { border-color: var(--pj-border-strong); }
+.pj-input:focus {
+  outline: none;
+  border-color: var(--pj-orange);
+  background-color: var(--pj-glass-2);
+  box-shadow: 0 0 0 3px var(--pj-orange-soft);
+}
+.pj-input:disabled { opacity: 0.4; cursor: not-allowed; }
+.pj-input[aria-invalid="true"] { border-color: var(--pj-danger); box-shadow: 0 0 0 3px var(--pj-danger-soft); }
+
+textarea.pj-input { height: auto; min-height: 96px; padding-block: var(--pj-space-3); line-height: 1.55; resize: vertical; }
+
+.pj-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pj-ctl-gap-sm);
+  height: var(--pj-ctl-h-sm);
+  padding-inline: var(--pj-ctl-px-sm);
+  border-radius: var(--pj-radius-full);
+  border: 1px solid var(--pj-border);
+  background-color: var(--pj-glass-2);
+  color: var(--text-primary);
+  font-family: var(--font-label);
+  font-size: var(--type-label-md);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.pj-chip--selected { background-color: var(--pj-orange-soft); border-color: var(--pj-orange); color: var(--pj-orange); }
+.pj-chip--brand    { background-image: var(--pj-grad-brand); border-color: transparent; color: #fff; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TEXT + GRADIENT HELPERS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.pj-text-brand,
+.pj-text-ember {
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+.pj-text-brand { background-image: var(--pj-grad-brand); }
+.pj-text-ember { background-image: var(--pj-grad-ember); }
+
+/* Eyebrow — the tiny hyper-tracked label above a section title. Codified
+   because it is the platform's most recognisable typographic gesture. */
+.pj-eyebrow {
+  font-family: var(--font-label);
+  font-size: var(--type-label-sm);
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* Stack utilities — kill one-off margin soup on vertical rhythm */
+.pj-stack   > * + * { margin-top: var(--pj-space-4); }
+.pj-stack-2 > * + * { margin-top: var(--pj-space-2); }
+.pj-stack-6 > * + * { margin-top: var(--pj-space-6); }
+.pj-row { display: flex; align-items: center; gap: var(--pj-space-3); }
+
+/* Action row — the canonical footer for dialogs/forms. Primary action LAST on
+   desktop (reading order), full-width stacked on narrow screens. */
+.pj-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--pj-space-3);
+  flex-wrap: wrap;
+}
+@media (max-width: 480px) {
+  .pj-actions { flex-direction: column-reverse; align-items: stretch; }
+  .pj-actions > .pj-btn { width: 100%; }
+}
