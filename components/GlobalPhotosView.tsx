@@ -1,5 +1,6 @@
 ﻿import { createPortal } from 'react-dom';
 import React, { useState, useEffect } from 'react';
+import { gridSrc } from '../services/imageDerivatives';
 import { Photo, UserProfile } from '../types';
 import PageHeader from './PageHeader';
 import { 
@@ -422,7 +423,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                            {asset.type === 'VIDEO' ? (
                              <video src={asset.url} className="w-full h-full object-cover" autoPlay muted loop />
                            ) : (
-                             <img loading="lazy" decoding="async" src={asset.url} className="w-full h-full object-cover" alt="" />
+                             <img loading="lazy" decoding="async" src={gridSrc(asset)} className="w-full h-full object-cover" alt="" />
                            )}
                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <span className="text-[10px] font-black uppercase tracking-widest text-white">{asset.type}</span>

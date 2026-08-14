@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { gridSrc } from '../services/imageDerivatives';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Plus,
@@ -1122,7 +1123,7 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
                        {worldPhotos.map(photo => (
                          <div key={photo.id} className="group relative aspect-square rounded-2xl overflow-hidden bg-white/5 border border-white/10">
-                           <img src={photo.url} alt={photo.title} className="w-full h-full object-cover" />
+                           <img src={gridSrc(photo)} alt={photo.title} className="w-full h-full object-cover" />
                            {photo.addedToLibrary && (
                              <div className="absolute top-1.5 right-1.5">
                                <Library size={10} className="text-primary" />

@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
+import { gridSrc } from '../services/imageDerivatives';
 import { createPortal } from 'react-dom';
 import { 
   Tv,
@@ -2419,7 +2420,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2">
                       {profile.photos.slice(0, 14).map((photo, i) => (
                         <div key={i} className="aspect-square rounded-xl overflow-hidden bg-white/5 border border-white/5 hover:border-white/20 transition-all cursor-pointer group">
-                          <img loading="lazy" decoding="async" src={photo.url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
+                          <img loading="lazy" decoding="async" src={gridSrc(photo)} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
                         </div>
                       ))}
                       <div
@@ -2652,7 +2653,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                             {item.type === 'VIDEO' ? (
                               <video src={item.url} className="w-full h-full object-cover opacity-50" muted playsInline />
                             ) : (
-                              <img loading="lazy" decoding="async" src={item.url} className="w-full h-full object-cover opacity-50" />
+                              <img loading="lazy" decoding="async" src={gridSrc(item)} className="w-full h-full object-cover opacity-50" />
                             )}
                             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 gap-2">
                               {index > 0 && (

@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { gridSrc } from '../services/imageDerivatives';
 import { Photo, PhotoAlbum, UserProfile } from '../types';
 import {
   Plus,
@@ -205,7 +206,7 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
                     }
                   }}
                 >
-                  <img src={photo.url || null} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <img src={gridSrc(photo) || null} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   
                   {/* Selection Check */}
                   {isSelectionMode && selectedPhotos.includes(photo.id) && (

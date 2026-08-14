@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { gridSrc } from '../services/imageDerivatives';
 import { Photo, EventPhotoPool, PPVEvent } from '../types';
 import { 
   QrCode, 
@@ -177,7 +178,7 @@ const EventPhotoPoolView: React.FC<EventPhotoPoolViewProps> = ({ poolId, event, 
                     <Play size={24} className="absolute text-white" fill="currentColor" />
                   </div>
                 ) : (
-                  <img src={item.url || null} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <img src={gridSrc(item) || null} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 )}
                 <div className="absolute bottom-3 left-3 px-2 py-1 bg-black/60 backdrop-blur-md rounded-md">
                   <span className="text-[8px] font-black text-white/60 uppercase tracking-widest">

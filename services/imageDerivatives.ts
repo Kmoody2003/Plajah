@@ -137,6 +137,23 @@ export async function makeDerivatives(file: Blob): Promise<DerivativeSet | null>
   }
 }
 
+/**
+ * The right src for a GRID cell: the 320px thumb when one exists, otherwise the display image.
+ * The fallback is load-bearing — every row uploaded before the derivative pipeline has no thumb,
+ * and legacy content must keep rendering rather than showing a hole.
+ *
+ * Use this anywhere images are shown small and many-at-once. Do NOT use it for a lightbox,
+ * player, or detail view — 320px will look soft at full size.
+ */
+export function gridSrc(o: { thumbUrl?: string; url?: string } | null | undefined): string {
+  return o?.thumbUrl || o?.url || '';
+}
+
+/** Same idea for album artwork in dense listings. */
+export function coverGridSrc(a: { coverThumb?: string; coverImage?: string } | null | undefined): string {
+  return a?.coverThumb || a?.coverImage || '';
+}
+
 /** Human-readable saving, for upload UI and the backfill report. */
 export function describeSaving(originalBytes: number, newBytes: number): string {
   if (!originalBytes || newBytes >= originalBytes) return 'no saving';
