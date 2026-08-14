@@ -3228,6 +3228,51 @@ async function startServer() {
     }
   });
 
+  // ── Career Import: read a public feed ───────────────────────────────────────
+  // Podcast RSS is the one import lane that is open end to end — an enclosure exists precisely
+  // to be fetched — but arbitrary podcast hosts send no CORS headers, so the browser cannot read
+  // the feed itself. This proxies the GET and nothing more.
+  //
+  // Deliberately narrow, because a URL-taking fetcher on a server is an SSRF primitive: http(s)
+  // only, no private/loopback hosts, no redirects followed off-protocol, a size cap, and the
+  // response is returned as text for the client to parse. It cannot reach anything internal and
+  // it cannot be used to fetch media.
+  app.get('/api/import/feed', apiLimiter, authMiddleware, async (req: any, res) => {
+    const raw = String(req.query.url || '');
+    let target: URL;
+    try { target = new URL(raw); } catch { return res.status(400).json({ error: 'Not a valid URL.' }); }
+    if (!/^https?:$/.test(target.protocol)) return res.status(400).json({ error: 'Only http and https are supported.' });
+
+    const host = target.hostname.toLowerCase();
+    const isPrivate =
+      host === 'localhost' || host.endsWith('.localhost') || host === '0.0.0.0' ||
+      /^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(host) || /^169\.254\./.test(host) ||
+      host.endsWith('.internal') || host.endsWith('.local') || !host.includes('.');
+    if (isPrivate) return res.status(400).json({ error: 'That host is not reachable from here.' });
+
+    try {
+      const upstream = await fetch(target.toString(), {
+        redirect: 'follow',
+        headers: { Accept: 'application/rss+xml, application/xml, text/xml, */*', 'User-Agent': 'Plajah-CareerImport/1.0' },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!upstream.ok) return res.status(502).json({ error: `The feed host returned ${upstream.status}.` });
+
+      // Feeds are text. A 5MB ceiling covers even long-running shows and stops this being used
+      // to pull large binaries through the API.
+      const len = Number(upstream.headers.get('content-length') || 0);
+      if (len && len > 5_000_000) return res.status(413).json({ error: 'That feed is too large to read.' });
+      const body = await upstream.text();
+      if (body.length > 5_000_000) return res.status(413).json({ error: 'That feed is too large to read.' });
+
+      res.type('application/xml').send(body);
+    } catch (err: any) {
+      console.warn('[import] feed fetch failed:', err?.message || err);
+      res.status(502).json({ error: 'That feed could not be reached.' });
+    }
+  });
+
   // ── Pokee (Isaac) proxy — the long-corpus / bulk lane ───────────────────────
   // Pokee-Isaac 28B is a 10M-token-context, text-only agentic model at $0.15/$1.00
   // per Mtok. It's the provider for work that needs a WHOLE corpus in one prompt —
