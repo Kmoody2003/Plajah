@@ -121,6 +121,14 @@ export default defineConfig(({ mode }) => {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
       },
+      build: {
+        // AudioWorklet processors must stay REAL FILES. Small assets are inlined as data: URLs
+        // by default, which changes addModule()'s behaviour between dev (a served URL) and prod
+        // (an opaque-origin data: URL) — the exact dev/prod divergence that makes worklet bugs
+        // only appear in production. Melos Beats' clock is ~1.5KB, well under the inline limit,
+        // so it has to be excluded explicitly.
+        assetsInlineLimit: (filePath: string) => (filePath.endsWith('.worklet.js') ? false : undefined),
+      },
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),

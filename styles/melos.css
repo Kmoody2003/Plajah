@@ -1,0 +1,245 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   MELOS — the Chora production workspace
+   Blueprint: docs/PLAJAH_MELOS_BLUEPRINT.md
+   Imported from index.css after plajah-ds.css, so --pj-* tokens are available.
+
+   THE TWO-TIER RULE — the load-bearing decision in this file.
+
+   Melos has two surface tiers and skins stop at the boundary between them:
+
+     .melos-paper   — where you THINK. Pad, Tracklist, Arrange, Board, Sessions,
+                      Notebook. Takes the full skin token set.
+     .melos-instr   — where you PLAY. Beats, Sequence, Mixer, Score, Feel. Holds
+                      a matte slab in EVERY skin and inherits only --mel-accent.
+
+   A 16-step grid on a soft warm pad is unreadable; a lyric pad needs the exact
+   opposite of what a sequencer needs. Letting skin tokens reach .melos-instr is
+   a bug, not a shortcut. If you are about to write `var(--mel-paper)` inside an
+   instrument-tier rule, stop.
+
+   Skins are a TOKEN SWAP on a single .melos root — never a second codepath.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Shared substrate textures ─────────────────────────────────────────────
+   Manuscript staff rulings: the thing composers have actually scribbled on for
+   four hundred years, and specific to music in a way generic paper is not. */
+.melos {
+  --mel-stave: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='58'%3E%3Cg fill='%23ffffff' opacity='0.055'%3E%3Crect width='6' height='1' y='0'/%3E%3Crect width='6' height='1' y='8'/%3E%3Crect width='6' height='1' y='16'/%3E%3Crect width='6' height='1' y='24'/%3E%3Crect width='6' height='1' y='32'/%3E%3C/g%3E%3C/svg%3E");
+  --mel-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  /* Semantic states are brand-invariant — they do NOT change with the skin. */
+  --mel-ok:   var(--pj-success, #06D6A0);
+  --mel-warn: var(--pj-warning, #F59E0B);
+  --mel-bad:  var(--pj-danger,  #EF4444);
+
+  --mel-r-sm: 10px;
+  --mel-r-md: 16px;
+  --mel-r-lg: 24px;
+
+  font-family: var(--font-label, "Outfit", system-ui, sans-serif);
+  color: var(--mel-ink);
+  background: var(--mel-ground);
+}
+
+/* ── SKIN · LAMPLIGHT (default) ────────────────────────────────────────────
+   Near-black with the staff rulings faint under a warm pool of light on the
+   work. Lilac accent, purple bleeding down the rails. Chosen as the default
+   because its ground is already near-black, so stepping into the instrument
+   tier reads as a lamp swinging over rather than another app opening. */
+.melos,
+.melos[data-skin="LAMPLIGHT"] {
+  --mel-ground:  #0A0910;
+  --mel-rail:    #08070C;
+  --mel-paper:   rgba(208, 188, 255, 0.045);
+  --mel-paper-2: rgba(208, 188, 255, 0.075);
+  --mel-edge:    rgba(208, 188, 255, 0.10);
+  --mel-hover:   rgba(208, 188, 255, 0.06);
+  --mel-ink:     #EDE9F7;
+  --mel-dim:     #9C96B4;
+  --mel-faint:   #5E5876;
+  --mel-accent:  var(--pj-lilac, #D0BCFF);
+  --mel-hand:    var(--pj-lilac, #D0BCFF);
+  --mel-lamp:    radial-gradient(78% 62% at 40% 26%, rgba(255,214,170,.13), rgba(255,214,170,.03) 46%, transparent 72%);
+  --mel-rail-wash: linear-gradient(to bottom, rgba(107,0,153,.16), transparent 55%);
+  --mel-blk-sh:  0 10px 30px -18px rgba(107, 0, 153, 0.85);
+  --mel-grain-op: .05;
+}
+
+/* ── SKIN · ONION SKIN ─────────────────────────────────────────────────────
+   Deep warm ink; every lyric block is a sheet of translucent tracing paper laid
+   over it. One amber desk-lamp accent, brand almost entirely withdrawn. The
+   private room — 2am, everyone asleep. */
+.melos[data-skin="ONION_SKIN"] {
+  --mel-ground:  #15110F;
+  --mel-rail:    #100D0C;
+  --mel-paper:   rgba(247, 235, 214, 0.055);
+  --mel-paper-2: rgba(247, 235, 214, 0.085);
+  --mel-edge:    rgba(247, 235, 214, 0.10);
+  --mel-hover:   rgba(255, 255, 255, 0.045);
+  --mel-ink:     #EDE6DC;
+  --mel-dim:     #A79C8E;
+  --mel-faint:   #6E6459;
+  --mel-accent:  #E9A85C;
+  --mel-hand:    #E9A85C;
+  --mel-lamp:    radial-gradient(120% 85% at 22% 0%, rgba(233,168,92,.075), transparent 62%);
+  --mel-rail-wash: none;
+  --mel-blk-sh:  0 1px 0 rgba(255,255,255,.05) inset, 0 8px 22px -14px rgba(0,0,0,.9);
+  --mel-grain-op: .07;
+}
+
+/* ── Paper tier ────────────────────────────────────────────────────────────
+   Low contrast, generous, textured, calm. No metric tiles, no progress bars
+   that shame you, no red badges. */
+.melos-paper {
+  position: relative;
+  background-color: var(--mel-ground);
+  background-image: var(--mel-lamp), var(--mel-stave);
+}
+.melos-paper::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: var(--mel-grain);
+  opacity: var(--mel-grain-op);
+  mix-blend-mode: overlay;
+}
+.melos-paper > * { position: relative; z-index: 1; }
+
+.melos-rail {
+  background-color: var(--mel-rail);
+  background-image: var(--mel-rail-wash);
+  border-color: var(--mel-edge);
+}
+
+/* A lyric block. Onion Skin makes it literal tracing paper. */
+.melos-sheet {
+  background: linear-gradient(180deg, var(--mel-paper-2), var(--mel-paper));
+  border: 1px solid var(--mel-edge);
+  border-radius: var(--mel-r-md);
+  box-shadow: var(--mel-blk-sh);
+}
+.melos[data-skin="ONION_SKIN"] .melos-sheet { backdrop-filter: blur(2px); }
+
+.melos-sheet--drag {
+  transform: rotate(-0.9deg) translateY(-2px);
+  outline: 1.5px dashed var(--mel-accent);
+  outline-offset: 3px;
+}
+.melos-sheet--locked { border-style: dashed; }
+
+/* Handwriting appears in MARGINS ONLY — never in body text. */
+.melos-hand {
+  font-family: var(--font-handwritten, "Gochi Hand", cursive);
+  color: var(--mel-hand);
+  opacity: .88;
+  transform: rotate(-0.8deg);
+}
+
+.melos-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .26em;
+  text-transform: uppercase;
+  color: var(--mel-faint);
+}
+
+/* ── Instrument tier ───────────────────────────────────────────────────────
+   Matte slab in EVERY skin. Inherits --mel-accent and nothing else. Density,
+   contrast and meter legibility win here; calm does not apply.
+
+   Colour logic is strict and semantic, never decorative:
+     orange  armed / recording / live signal
+     cyan    playhead, realtime
+     magenta selection, focus
+     purple  brand chrome only — wordmark and the publish CTA
+     lilac   .dawproject in/out, automation lanes                            */
+.melos-instr {
+  --mel-slab:    #0A0A0D;
+  --mel-slab-2:  #0C0C10;
+  --mel-slab-3:  #17171C;
+  --mel-slab-4:  #1A1A20;
+  --mel-slab-edge: rgba(255, 255, 255, 0.09);
+  --mel-slab-ink: #F4F0F7;
+  --mel-slab-dim: rgba(244, 240, 247, 0.64);
+  --mel-slab-faint: rgba(244, 240, 247, 0.38);
+
+  --mel-armed:   var(--pj-orange, #FF8C00);
+  --mel-playhead: var(--pj-cyan, #00DAF3);
+  --mel-select:  var(--pj-magenta, #D40055);
+  --mel-chrome:  var(--pj-purple, #6B0099);
+  --mel-dawx:    var(--pj-lilac, #D0BCFF);
+
+  background: var(--mel-slab);
+  color: var(--mel-slab-ink);
+  border-radius: 0;
+}
+
+/* ── Notebook view ─────────────────────────────────────────────────────────
+   NOT a Pad Skin — its own surface. The reference is the vintage black-page
+   photo album: deep warm leaf, cream ink, brass photo corners, a lamp across
+   the open book and the edges dropping into the dark. Warm and close rather
+   than bright, because a diary is read alone. */
+.melos-notebook {
+  --nb-leaf:   #171210;
+  --nb-leaf-2: #1B1513;
+  --nb-ink:    #EFE4D4;
+  --nb-dim:    #A2937F;
+  --nb-faint:  #6F6254;
+  --nb-amber:  #E9A85C;
+  --nb-brass:  #C9A76B;
+  --nb-stave: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='58'%3E%3Cg fill='%23E9A85C' opacity='0.055'%3E%3Crect width='6' height='1' y='0'/%3E%3Crect width='6' height='1' y='8'/%3E%3Crect width='6' height='1' y='16'/%3E%3Crect width='6' height='1' y='24'/%3E%3Crect width='6' height='1' y='32'/%3E%3C/g%3E%3C/svg%3E");
+
+  position: relative;
+  background-color: var(--nb-leaf);
+  background-image: var(--nb-stave);
+  color: var(--nb-ink);
+}
+/* the lamp across the open book + the fall-off into the dark */
+.melos-notebook::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(72% 58% at 50% 22%, rgba(255, 206, 150, .11), transparent 68%),
+    radial-gradient(120% 100% at 50% 50%, transparent 42%, rgba(0, 0, 0, .46) 100%);
+}
+/* the spine swallows the light */
+.melos-notebook-gutter {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 58px;
+  transform: translateX(-50%);
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(0,0,0,.34) 40%, rgba(0,0,0,.52) 50%, rgba(0,0,0,.34) 60%, transparent);
+}
+/* brass photo corners — what makes it an album and not a grid */
+.melos-photo { position: relative; box-shadow: 0 6px 16px -6px rgba(0, 0, 0, .85); }
+.melos-photo::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  background:
+    linear-gradient(135deg,  var(--nb-brass) 0 11px, transparent 11px) top left / 17px 17px no-repeat,
+    linear-gradient(-135deg, var(--nb-brass) 0 11px, transparent 11px) top right / 17px 17px no-repeat,
+    linear-gradient(45deg,   var(--nb-brass) 0 11px, transparent 11px) bottom left / 17px 17px no-repeat,
+    linear-gradient(-45deg,  var(--nb-brass) 0 11px, transparent 11px) bottom right / 17px 17px no-repeat;
+  opacity: .82;
+}
+
+/* ── Motion ────────────────────────────────────────────────────────────────
+   This is a room to zone into. Nothing should twitch. */
+@media (prefers-reduced-motion: reduce) {
+  .melos *,
+  .melos *::before,
+  .melos *::after {
+    animation-duration: .001ms !important;
+    transition-duration: .001ms !important;
+  }
+}
