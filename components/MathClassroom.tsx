@@ -3,13 +3,15 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Star, RefreshCw, Check, X, Share2, Flag,
   ChevronRight, ChevronLeft, Sparkles, Zap, Trophy,
-  AlertTriangle, Settings, Plus, Trash2, Edit3,
+  AlertTriangle, Settings, Plus, Trash2, Edit3, Flame, Users,
 } from 'lucide-react';
 import { db } from '../services/firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import { appendRecord, loadProficiency } from '../services/learningLedgerService';
 import { addPoints } from '../services/pointsService';
 import { mathStandardForGrade, bandFor } from '../data/educationStandards';
+import { fetchClassLeaderboard, recordTimeAttackResult, createChallenge, type LeaderRow } from '../services/mathChallengeService';
+import { DEMO_CLASS } from '../data/demoClassroom';
 
 interface Props {
   onBack: () => void;
@@ -17,7 +19,7 @@ interface Props {
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-interface MathProblem {
+export interface MathProblem {
   id: string;
   grade: number;
   topic: string;
@@ -56,7 +58,7 @@ function rand(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function generateProblem(grade: number, topic: string): Omit<MathProblem, 'id'> {
+export function generateProblem(grade: number, topic: string): Omit<MathProblem, 'id'> {
   const makeChoices = (correct: string, min: number, max: number, isInt = true): string[] => {
     const pool = new Set([correct]);
     let attempts = 0;
@@ -501,10 +503,113 @@ const GRADE_COLORS: Record<number, string> = {
 
 const GRADE_EMOJI: Record<number, string> = { 1: '🌱', 2: '⭐', 3: '🚀', 4: '🎯', 5: '🔭', 6: '🔬', 7: '🧮', 8: '🏆' };
 
+// ── Time Attack Mode ───────────────────────────────────────────────────────────
+// Rapid-fire session against a shared clock. Correct answers build a streak → combo multiplier →
+// bigger point swings. Wrong answers reset the streak. Runs until the clock hits zero.
+export interface TimeAttackSessionResult {
+  score: number; correct: number; total: number; grade: number; topic: string; comboMax: number; streakMax: number;
+}
+const DURATION = 60;
+const comboFor = (streak: number) => Math.min(5, 1 + Math.floor(streak / 3));
+
+export const TimeAttackMode: React.FC<{ problems: MathProblem[]; onComplete: (r: TimeAttackSessionResult) => void }> = ({ problems, onComplete }) => {
+  const [index, setIndex] = useState(0);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [score, setScore] = useState(0);
+  const [correct, setCorrect] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [comboMax, setComboMax] = useState(1);
+  const [timeLeft, setTimeLeft] = useState(DURATION);
+  const [badge, setBadge] = useState(false);
+  const stateRef = useRef({ score: 0, correct: 0, answered: 0, comboMax: 1, streakMax: 0 });
+  const problem = problems[index % problems.length];
+  const grade = problems[0]?.grade ?? 3;
+  const topic = problems[0]?.topic ?? '';
+
+  useEffect(() => {
+    const t = setInterval(() => setTimeLeft(s => s - 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  useEffect(() => {
+    if (timeLeft > 0) return;
+    const s = stateRef.current;
+    onComplete({ score: s.score, correct: s.correct, total: s.answered, grade, topic, comboMax: s.comboMax, streakMax: s.streakMax });
+  }, [timeLeft]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSelect = (choice: string) => {
+    if (selected || timeLeft <= 0) return;
+    setSelected(choice);
+    const isRight = choice === problem.answer;
+    const s = stateRef.current;
+    s.answered++;
+    if (isRight) {
+      const newStreak = streak + 1;
+      const combo = comboFor(newStreak);
+      const gain = 10 * combo;
+      s.score += gain; s.correct++; s.comboMax = Math.max(s.comboMax, combo); s.streakMax = Math.max(s.streakMax, newStreak);
+      setScore(s.score); setCorrect(s.correct); setStreak(newStreak); setComboMax(s.comboMax);
+      if (newStreak === 10) setBadge(true);
+    } else {
+      setStreak(0);
+    }
+    setTimeout(() => { setIndex(i => i + 1); setSelected(null); }, 350);
+  };
+
+  const combo = comboFor(streak);
+  const pct = Math.max(0, (timeLeft / DURATION) * 100);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* HUD */}
+      <div className="flex items-center justify-between text-white">
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1 text-sm font-black"><Star size={14} className="text-amber-400" /> {score}</span>
+          <span className="flex items-center gap-1 text-sm font-black"><Flame size={14} className="text-orange-400" /> {streak}</span>
+          <span className="flex items-center gap-1 text-sm font-black"><Zap size={14} className="text-purple-400" /> x{combo}</span>
+        </div>
+        <span className={`text-sm font-black tabular-nums ${timeLeft <= 10 ? 'text-red-400' : 'text-white/70'}`}>{timeLeft}s</span>
+      </div>
+      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+        <motion.div className={`h-full ${timeLeft <= 10 ? 'bg-red-500' : 'bg-purple-500'}`} animate={{ width: `${pct}%` }} transition={{ ease: 'linear', duration: 1 }} />
+      </div>
+
+      <div className="bg-white/[0.04] border border-white/[0.08] rounded-[1.5rem] p-6 text-center">
+        <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2">Grade {problem.grade} · {problem.topic}</p>
+        <p className="text-2xl font-black text-white leading-snug">{problem.question}</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {problem.choices.map(choice => {
+          const isCorrect = choice === problem.answer;
+          const isSelected = selected === choice;
+          let cls = 'bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08]';
+          if (isSelected && isCorrect) cls = 'bg-green-600/40 border border-green-500/60';
+          else if (isSelected && !isCorrect) cls = 'bg-red-600/40 border border-red-500/60';
+          return (
+            <motion.button key={choice} whileTap={{ scale: 0.97 }} onClick={() => handleSelect(choice)} disabled={!!selected}
+              className={`${cls} rounded-2xl p-4 text-sm font-bold text-white text-center transition-all`}>
+              {choice}
+            </motion.button>
+          );
+        })}
+      </div>
+
+      <AnimatePresence>
+        {badge && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-black">
+            <Trophy size={14} /> Achievement unlocked · 10-streak Blazer
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 const MathClassroom: React.FC<Props> = ({ onBack, user }) => {
   const [grade, setGrade] = useState(3);
   const [topic, setTopic] = useState(GRADE_TOPICS[3][0]);
-  const [mode, setMode] = useState<'flash' | 'quiz'>('flash');
+  const [mode, setMode] = useState<'flash' | 'quiz' | 'timeattack'>('flash');
   const [problem, setProblem] = useState<MathProblem>(() => ({ id: `gen_${Date.now()}`, ...generateProblem(3, GRADE_TOPICS[3][0]) }));
   const [quizProblems, setQuizProblems] = useState<MathProblem[]>([]);
   const [quizActive, setQuizActive] = useState(false);
@@ -536,6 +641,47 @@ const MathClassroom: React.FC<Props> = ({ onBack, user }) => {
   const [showAdmin, setShowAdmin] = useState(false);
   const [flashIndex, setFlashIndex] = useState(0);
   const [flashDeck, setFlashDeck] = useState<MathProblem[]>([]);
+
+  // ── Time Attack state ──
+  const [taProblems, setTaProblems] = useState<MathProblem[]>([]);
+  const [taActive, setTaActive] = useState(false);
+  const [taResult, setTaResult] = useState<TimeAttackSessionResult | null>(null);
+  const [leaderboard, setLeaderboard] = useState<LeaderRow[]>([]);
+  const [challenged, setChallenged] = useState<Record<string, boolean>>({});
+
+  const startTimeAttack = () => {
+    const probs = Array.from({ length: 40 }, (_, i) => ({ id: `ta_${Date.now()}_${i}`, ...generateProblem(grade, topic) }));
+    setTaProblems(probs);
+    setTaActive(true);
+    setTaResult(null);
+    setChallenged({});
+  };
+
+  const handleTimeAttackComplete = (r: TimeAttackSessionResult) => {
+    setTaResult(r); setTaActive(false);
+    const pct = r.total > 0 ? Math.round((r.correct / r.total) * 100) : 0;
+    const std = mathStandardForGrade(r.grade);
+    if (user?.uid) {
+      if (std) {
+        const before = mathProf[std.id] ?? 0;
+        const after = mathProf[std.id] == null ? pct : Math.round(before * 0.4 + pct * 0.6);
+        setMathProf(m => ({ ...m, [std.id]: after }));
+        appendRecord({ studentId: user.uid, standardId: std.id, framework: 'CCSS_MATH', source: 'math-classroom', masteryBefore: before, masteryAfter: after }).catch(() => {});
+      }
+      recordTimeAttackResult(user.uid, r).catch(() => {});
+    }
+    // Class-scoped leaderboard for the result screen.
+    fetchClassLeaderboard(DEMO_CLASS.students.map(s => ({ id: s.id, name: s.name })), user?.uid).then(setLeaderboard).catch(() => {});
+  };
+
+  const sendChallenge = (opponent: { id: string; name: string }) => {
+    setChallenged(c => ({ ...c, [opponent.id]: true }));
+    createChallenge({
+      from: { id: user?.uid || 'me', name: user?.displayName || 'You', photo: user?.photoURL || '' },
+      to: { id: opponent.id, name: opponent.name },
+      grade, topic,
+    }).catch(() => {});
+  };
 
   const isAdmin = user?.email?.includes('@plajah') || false;
 
@@ -658,10 +804,10 @@ const MathClassroom: React.FC<Props> = ({ onBack, user }) => {
 
         {/* Mode toggle */}
         <div className="flex gap-2 mt-2">
-          {([['flash', '🃏 Flash Cards'], ['quiz', '⚡ Quiz Mode']] as const).map(([m, label]) => (
+          {([['flash', '🃏 Flash Cards'], ['quiz', '⚡ Quiz Mode'], ['timeattack', '⏱ Time Attack']] as const).map(([m, label]) => (
             <button
               key={m}
-              onClick={() => { setMode(m); setQuizActive(false); setQuizResult(null); }}
+              onClick={() => { setMode(m); setQuizActive(false); setQuizResult(null); setTaActive(false); setTaResult(null); }}
               className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${mode === m ? 'bg-purple-600 text-white' : 'bg-white/5 text-white/40'}`}
             >
               {label}
@@ -770,6 +916,65 @@ const MathClassroom: React.FC<Props> = ({ onBack, user }) => {
                 <Share2 size={13} /> Share
               </button>
             </div>
+          </div>
+        )}
+
+        {mode === 'timeattack' && !taActive && !taResult && (
+          <div className="flex flex-col items-center gap-6 pt-8 text-center">
+            <div className={`w-24 h-24 rounded-[2rem] bg-gradient-to-br ${GRADE_COLORS[grade]} flex items-center justify-center text-4xl shadow-2xl`}>⏱️</div>
+            <div>
+              <h2 className="text-2xl font-black text-white">Time Attack</h2>
+              <p className="text-white/50 text-sm mt-1">Grade {grade} · {topic}</p>
+              <p className="text-white/30 text-xs mt-2">{DURATION}s · answer fast, build your combo</p>
+            </div>
+            <button onClick={startTimeAttack} className={`flex items-center gap-2 px-8 py-4 bg-gradient-to-r ${GRADE_COLORS[grade]} rounded-[2rem] text-sm font-black uppercase tracking-widest shadow-2xl hover:scale-105 transition-all`}>
+              <Flame size={16} /> Start Time Attack
+            </button>
+          </div>
+        )}
+
+        {mode === 'timeattack' && taActive && (
+          <TimeAttackMode problems={taProblems} onComplete={handleTimeAttackComplete} />
+        )}
+
+        {mode === 'timeattack' && taResult && !taActive && (
+          <div className="flex flex-col items-center gap-5 pt-6 text-center">
+            <p className="text-5xl">{taResult.total > 0 && taResult.correct >= taResult.total * 0.8 ? '🏆' : '⚡'}</p>
+            <div>
+              <h2 className="text-4xl font-black text-white">{taResult.score}</h2>
+              <p className="text-white/40 text-sm mt-1">{taResult.correct}/{taResult.total} correct · best combo x{taResult.comboMax}</p>
+              {user?.uid && <p className="text-[10px] text-white/30 uppercase tracking-widest mt-1">Points added · saved to your Learner Ledger</p>}
+            </div>
+
+            <div className="w-full bg-white/[0.04] border border-white/[0.08] rounded-2xl p-4 text-left">
+              <div className="flex items-center gap-2 mb-3 text-white/50"><Users size={13} /><span className="text-[10px] font-black uppercase tracking-widest">{DEMO_CLASS.name} leaderboard</span></div>
+              {leaderboard.length === 0 ? (
+                <p className="text-white/30 text-xs">Loading…</p>
+              ) : leaderboard.slice(0, 6).map((row, i) => (
+                <div key={row.id} className={`flex items-center gap-3 py-1.5 text-sm ${row.isSelf ? 'text-white font-black' : 'text-white/70'}`}>
+                  <span className="w-4 text-white/30 text-xs">{i + 1}</span>
+                  <span className="w-6 h-6 rounded-full bg-purple-600/30 flex items-center justify-center text-[11px] font-black">{row.name.charAt(0)}</span>
+                  <span className="flex-1">{row.isSelf ? 'You' : row.name}</span>
+                  <span className="text-white/40 tabular-nums">{row.points}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="w-full text-left">
+              <div className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Challenge a classmate</div>
+              <div className="flex gap-2 flex-wrap">
+                {DEMO_CLASS.students.filter(s => s.id !== user?.uid).slice(0, 4).map(s => (
+                  <button key={s.id} onClick={() => sendChallenge({ id: s.id, name: s.name })} disabled={challenged[s.id]}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-black transition-all ${challenged[s.id] ? 'bg-green-600/20 text-green-400 border border-green-500/30' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}>
+                    {challenged[s.id] ? <Check size={12} /> : <Zap size={12} />} {s.name.split(' ')[0]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button onClick={startTimeAttack} className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-500 rounded-2xl text-xs font-black uppercase tracking-widest transition-all">
+              <RefreshCw size={13} /> Play Again
+            </button>
           </div>
         )}
       </div>

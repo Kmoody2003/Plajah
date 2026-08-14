@@ -132,6 +132,21 @@ const AcademiaHomeView: React.FC<{ profile?: UserProfile | null; onNavigate: (vi
             </div>
           </div>
         )}
+
+        {/* Student homework — into the actual assignment view (worksheet + tutor + Time Attack) */}
+        {role === 'student' && (
+          <button onClick={() => onNavigate('STUDENT_ASSIGNMENT')}
+            className="w-full text-left rounded-2xl border border-[#FF8C00]/30 bg-gradient-to-br from-[#1a130a] to-[#0a0a0f] p-5 hover:border-[#FF8C00]/60 transition-colors group">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl grid place-items-center shrink-0 bg-[#FF8C00]/15 text-[#FF8C00]"><ClipboardList size={24} /></div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[15px] font-black">Today's homework · Addition practice</p>
+                <p className="text-[12px] text-white/55 leading-snug mt-0.5">Do the worksheet with Plajah's help, or warm up with a Time Attack.</p>
+              </div>
+              <ArrowRight size={20} className="text-[#FF8C00] shrink-0 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </button>
+        )}
       </div>
     </div>
   );
