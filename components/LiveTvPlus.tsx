@@ -505,11 +505,22 @@ const LiveTvPlus: React.FC<{
     }
     return out;
   };
-  const clockPos = (slots: FastChannelSlot[], now: number) => {
+  /** Always the same shape, whichever anchor the station uses. The two underlying
+   *  resolvers disagree — linearPositionMidnight discriminates on `offAir`, while
+   *  dayAnchoredPosition has no such field — so unioning them raw produces a type
+   *  callers cannot narrow (and, with strictNullChecks off, could not narrow even
+   *  if it did). Normalising here keeps every caller a plain property read. */
+  type ClockPos = { offAir: boolean; index: number; offsetSec: number; resumesInSec: number };
+  const clockPos = (slots: FastChannelSlot[], now: number): ClockPos => {
     const sched = fastSchedRef.current;
     // Anchor to the STATION's zone when it declares one, so every viewer is on the same programme.
     const tz = (sched as any)?.timezone as string | undefined;
-    return sched?.midnightAnchored ? linearPositionMidnight(slots, now, tz) : dayAnchoredPosition(slots, now, tz);
+    const p = (sched?.midnightAnchored
+      ? linearPositionMidnight(slots, now, tz)
+      : dayAnchoredPosition(slots, now, tz)) as Partial<ClockPos>;
+    return p.offAir
+      ? { offAir: true, index: 0, offsetSec: 0, resumesInSec: p.resumesInSec || 0 }
+      : { offAir: false, index: p.index || 0, offsetSec: p.offsetSec || 0, resumesInSec: 0 };
   };
 
   /** Re-derive what is on air from the CLOCK and arm the next boundary. Idempotent and loop-proof. */
@@ -518,7 +529,7 @@ const LiveTvPlus: React.FC<{
     const slots = fastSlotsRef.current;
     if (!slots.length) { setFastMedia(null); setFastAd(null); setFastFiller(null); return; }
     const pos = clockPos(slots, clockNow());
-    if ('offAir' in pos && pos.offAir) {
+    if (pos.offAir) {
       setFastMedia(null); setFastAd(null); setFastFiller(null);
       fastTimerRef.current = setTimeout(() => syncRef.current(), Math.min(pos.resumesInSec, 300) * 1000);
       return;
@@ -560,7 +571,7 @@ const LiveTvPlus: React.FC<{
     const slots = fastSlotsRef.current;
     if (!slots.length) return;
     const pos = clockPos(slots, clockNow());
-    if ('offAir' in pos && pos.offAir) { syncRef.current(); return; }
+    if (pos.offAir) { syncRef.current(); return; }
     const remaining = slotDurationSec(slots[pos.index]) - Math.max(0, pos.offsetSec);
     const up = upNextFrom(slots, pos.index);
     if (remaining > FM_FILL_THRESHOLD_SEC) {

@@ -47,7 +47,9 @@ export const DEFAULT_ICE: RTCIceServer[] = [
 ];
 
 export interface RtcMediaConfig {
-  audio?: boolean;
+  /** Constraints, not just on/off — the streamer passes HQ_AUDIO here to get a
+   *  full-fidelity 48k stereo mic with the voice-DSP chain off. */
+  audio?: boolean | MediaTrackConstraints;
   video?: boolean | MediaTrackConstraints;
 }
 

@@ -22,7 +22,7 @@ import { createPortal } from 'react-dom';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Radio, X, Camera, CameraOff, Mic, MicOff, FlipHorizontal2, MessageCircle,
+  Radio, X, Camera, CameraOff, Video, Mic, MicOff, FlipHorizontal2, MessageCircle,
   Users, Share2, Check, Heart, Send, ChevronDown, Eye, Zap, Sparkles,
   Clock, Settings, Volume2, VolumeX, RotateCcw, ArrowLeft, Save, Trash2,
   LayoutGrid, Monitor, UserSquare2, Columns2, MonitorSmartphone, Plus, BarChart3,
@@ -1070,6 +1070,10 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
 
   const saveRecording = async () => {
     setSaving('saving');
+    // Needed by the FAST-channel step below. Without it that step threw a
+    // ReferenceError which the catch swallowed as "save failed" — after the upload
+    // had already succeeded, so the replay was safe but reported as lost.
+    const user = auth.currentUser;
     try {
       const finalTitle = title.trim() || 'Live Stream';
       const meta = {

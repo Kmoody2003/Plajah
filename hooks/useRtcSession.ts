@@ -51,6 +51,11 @@ export interface UseRtcSession {
   /** Cycle to the next physical camera (front → back → back-wide → …). Resolves
    *  to the new camera's facingMode (when known) + whether the preview should mirror. */
   cycleCamera: () => Promise<{ facingMode?: 'user' | 'environment'; mirror: boolean }>;
+  /** The next physical camera as its OWN stream, WITHOUT publishing it. Use this when
+   *  something else owns the published track — the live composer adopts the returned
+   *  stream while its canvas keeps streaming, which cycleCamera would clobber. Pass the
+   *  deviceId currently on screen, since the session's own track may be the canvas. */
+  nextCameraStream: (currentDeviceId?: string) => Promise<{ stream: MediaStream; facingMode?: 'user' | 'environment'; mirror: boolean }>;
   /** Publish an external video track (composited canvas) in place of the camera. */
   publishExternalVideo: (track: MediaStreamTrack) => Promise<void>;
   /** Publish an external audio track (voice-changer output) in place of the mic. */
@@ -154,6 +159,14 @@ export function useRtcSession(
       return res ?? { mirror: false };
     } catch { return { mirror: false }; }
   }, []);
+  const nextCameraStream = useCallback(async (currentDeviceId?: string) => {
+    // No silent fallback here: the caller adopts the returned stream into a live
+    // composer, and handing back an empty one would blank the broadcast. Let it throw.
+    const res = await sessionRef.current?.nextCameraStream(currentDeviceId);
+    if (!res) throw new Error('No active session');
+    setActiveDevices(sessionRef.current?.getActiveDevices() || {});
+    return res;
+  }, []);
   const publishExternalVideo = useCallback(async (track: MediaStreamTrack) => {
     await sessionRef.current?.publishExternalVideo(track);
   }, []);
@@ -245,7 +258,7 @@ export function useRtcSession(
   return {
     localStream, remoteStreams, remotePeers, participants, peerStates, error,
     audioEnabled, videoEnabled, sharingScreen,
-    toggleAudio, toggleVideo, setAudio, setVideo, switchCamera, cycleCamera, publishExternalVideo, publishExternalAudio, toggleScreenShare, leave,
+    toggleAudio, toggleVideo, setAudio, setVideo, switchCamera, cycleCamera, nextCameraStream, publishExternalVideo, publishExternalAudio, toggleScreenShare, leave,
     isRecording, startRecording, stopRecording, sendData,
     devices, activeDevices, refreshDevices, switchVideoDevice, switchAudioDevice,
     useDesktopAudio, screenStream,
