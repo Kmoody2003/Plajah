@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { AudioTrack, AudioClip, IAMFMetadata, SerializedTrack } from './types';
+// PCM16 WAV encoding comes from the shared encoder (byte-identical to the old inline one).
+import { encodeWav } from '../../services/audio/wavEncode';
 
 // Settings applied to a track when rebuilt from a saved project.
 interface TrackSeed {
@@ -11,30 +13,6 @@ interface TrackSeed {
   eq?: { low: number; mid: number; high: number };
   iamf?: IAMFMetadata;
   sourceUrl?: string;
-}
-
-// Minimal WAV encoder (replaces the audiobuffer-to-wav dep; interleaves + PCM16).
-function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
-  const numCh = buffer.numberOfChannels, sr = buffer.sampleRate;
-  const len = buffer.length * numCh * 2 + 44;
-  const ab = new ArrayBuffer(len);
-  const view = new DataView(ab);
-  const chans: Float32Array[] = [];
-  for (let i = 0; i < numCh; i++) chans.push(buffer.getChannelData(i));
-  const writeStr = (o: number, s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
-  writeStr(0, 'RIFF'); view.setUint32(4, len - 8, true); writeStr(8, 'WAVE');
-  writeStr(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
-  view.setUint16(22, numCh, true); view.setUint32(24, sr, true);
-  view.setUint32(28, sr * numCh * 2, true); view.setUint16(32, numCh * 2, true); view.setUint16(34, 16, true);
-  writeStr(36, 'data'); view.setUint32(40, len - 44, true);
-  let off = 44;
-  for (let i = 0; i < buffer.length; i++) {
-    for (let ch = 0; ch < numCh; ch++) {
-      const s = Math.max(-1, Math.min(1, chans[ch][i]));
-      view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true); off += 2;
-    }
-  }
-  return ab;
 }
 
 export function useSpatialAudioEngine() {
@@ -195,8 +173,7 @@ export function useSpatialAudioEngine() {
       src.connect(panner); panner.connect(gain); gain.connect(offline.destination); src.start(0);
     }
     const rendered = await offline.startRendering();
-    const wav = audioBufferToWav(rendered);
-    return new Blob([new Uint8Array(wav)], { type: 'audio/wav' });
+    return encodeWav(rendered, 16);
   };
 
   // IAMF/Eclipsa authoring descriptor (scene/object groups + spatial mix config).

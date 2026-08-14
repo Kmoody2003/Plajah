@@ -27,7 +27,8 @@ import {
   Sparkles,
   ScrollText,
   Boxes,
-  RefreshCw
+  RefreshCw,
+  Grid3x3
 } from 'lucide-react';
 import { fetchGlobalApps, fetchUserApps, saveWebApp, fetchAppReviews, submitAppReview, updateAppStats } from '../services/backendService';
 import Logo from './Logo';
@@ -545,6 +546,32 @@ const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, 
                   <div className="space-y-2 px-2">
                     <h3 className="text-lg font-black uppercase tracking-tight text-white truncate">Media Converter</h3>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">Audio · Image · Video · runs in-browser</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Native platform app — Melos Beats (the Chora DAW room: pads + step sequencer) */}
+              {activeTab === 'DISCOVER' && ('melos beats daw drum machine step sequencer maschine groove sampler dawproject'.includes(searchQuery.toLowerCase()) || searchQuery === '') && (
+                <div
+                  key="native-melos-beats"
+                  onClick={() => window.dispatchEvent(new CustomEvent('OPEN_MELOS_BEATS', { detail: {} }))}
+                  className="group cursor-pointer space-y-6"
+                >
+                  <div className="relative aspect-square rounded-[2.5rem] overflow-hidden border border-orange-400/20 shadow-2xl transition-all group-hover:scale-105 group-hover:-translate-y-2 bg-[#0A0A0D]">
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#6B0099]/25 via-transparent to-[#FF8C00]/15" />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center p-8">
+                      <Grid3x3 size={56} className="text-[#FF8C00] drop-shadow-[0_0_24px_rgba(255,140,0,0.5)]" />
+                      <p className="text-2xl font-black uppercase tracking-tighter italic text-white">Beats</p>
+                    </div>
+                    <div className="absolute top-4 left-4 px-2.5 py-1 rounded-md bg-white/90 text-black text-[8px] font-black uppercase tracking-widest">Native</div>
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center backdrop-blur-sm">
+                      <Play fill="white" size={48} className="mb-4 text-white scale-75 group-hover:scale-100 transition-transform" />
+                      <p className="text-[10px] font-black uppercase tracking-widest">Make a beat</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 px-2">
+                    <h3 className="text-lg font-black uppercase tracking-tight text-white truncate">Melos Beats</h3>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">Pads · step sequencer · .dawproject</p>
                   </div>
                 </div>
               )}

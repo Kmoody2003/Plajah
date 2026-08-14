@@ -96,6 +96,7 @@ const MusicTheoryStudio = retryLazy(() => import('./components/MusicTheoryStudio
 const FilmSchoolView = retryLazy(() => import('./components/FilmSchoolView'));
 // Math Classroom BETA (Classrooms)
 const MathClassroom = retryLazy(() => import('./components/MathClassroom'));
+const StudentAssignmentView = retryLazy(() => import('./components/StudentAssignmentView'));
 // Science & Engineering hub
 const PlajahLabsView = retryLazy(() => import('./components/PlajahLabsView'));
 // Health & Fitness hub
@@ -488,6 +489,7 @@ const App: React.FC = () => {
     pitchParam === 'terra'        ? 'TERRA'              :
     pitchParam === 'business'     ? 'PLAJAH_BUSINESS'    :
     pitchParam === 'ora'          ? 'ORA'                :
+    pitchParam === 'assignment'   ? 'STUDENT_ASSIGNMENT' :
     'LANDING';
 
   // Is the app being opened on a shared deep link? If so, a signed-out visitor must
@@ -4909,6 +4911,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'MATH_CLASSROOM' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading…</div>}>
                 <MathClassroom onBack={() => setView('CLASSROOMS')} user={user} />
+              </Suspense>
+            )}
+            {view === 'STUDENT_ASSIGNMENT' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading…</div>}>
+                <StudentAssignmentView onBack={() => setView('ACADEMIA_HOME')} user={user} worksheetId={new URLSearchParams(window.location.search).get('id') || undefined} />
               </Suspense>
             )}
             {view === 'BOOK_READER' && selectedBook && (

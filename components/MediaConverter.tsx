@@ -4,6 +4,9 @@ import {
   X, Upload, Download, Music2, Image as ImageIcon, Film, Loader2, Check, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 import { transcodeToProxy, canTranscode } from './plajahPixels/engine/core/proxyTranscoder';
+// WAV encoding lives in the shared services/audio/wavEncode.ts (used by Beats + Spatial Mixer
+// too) — one implementation, byte-identical output everywhere.
+import { encodeWav } from '../services/audio/wavEncode';
 
 // ── Media Converter Lite ──────────────────────────────────────────────────────
 // A browser-only converter surfaced on the Apps page. It is deliberately the LITE
@@ -20,31 +23,6 @@ type Status = 'idle' | 'working' | 'done' | 'error';
 
 const fmtBytes = (n: number) => n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(1)} MB`;
 
-// ── WAV encoder (PCM 16- or 24-bit, interleaved) ──────────────────────────────
-function encodeWav(buffer: AudioBuffer, bitDepth: 16 | 24): Blob {
-  const numCh = buffer.numberOfChannels, sr = buffer.sampleRate, bytesPer = bitDepth / 8;
-  const frames = buffer.length;
-  const dataLen = frames * numCh * bytesPer;
-  const ab = new ArrayBuffer(44 + dataLen);
-  const view = new DataView(ab);
-  const ws = (o: number, s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
-  ws(0, 'RIFF'); view.setUint32(4, 36 + dataLen, true); ws(8, 'WAVE');
-  ws(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
-  view.setUint16(22, numCh, true); view.setUint32(24, sr, true);
-  view.setUint32(28, sr * numCh * bytesPer, true); view.setUint16(32, numCh * bytesPer, true); view.setUint16(34, bitDepth, true);
-  ws(36, 'data'); view.setUint32(40, dataLen, true);
-  const chans: Float32Array[] = [];
-  for (let c = 0; c < numCh; c++) chans.push(buffer.getChannelData(c));
-  let off = 44;
-  for (let i = 0; i < frames; i++) {
-    for (let c = 0; c < numCh; c++) {
-      let s = Math.max(-1, Math.min(1, chans[c][i]));
-      if (bitDepth === 16) { view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true); off += 2; }
-      else { const v = Math.round(s < 0 ? s * 0x800000 : s * 0x7fffff); view.setUint8(off, v & 0xff); view.setUint8(off + 1, (v >> 8) & 0xff); view.setUint8(off + 2, (v >> 16) & 0xff); off += 3; }
-    }
-  }
-  return new Blob([ab], { type: 'audio/wav' });
-}
 
 async function convertAudio(file: File, opts: { bitDepth: 16 | 24; sampleRate: number | 'keep'; channels: 'keep' | 1 | 2 }): Promise<Blob> {
   const AC = (window.AudioContext || (window as any).webkitAudioContext);

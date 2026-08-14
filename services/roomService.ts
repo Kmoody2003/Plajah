@@ -102,6 +102,10 @@ export function roomIdForContext(kind: RoomKind, ctx: RoomContext): string {
   if (kind === 'LEAGUE' && ctx.leagueId) return `league_${slug(ctx.leagueId)}`;
   if (kind === 'PROFILE' && ctx.userId) return `profile_${slug(ctx.userId)}`;
   if ((kind === 'WATCH' || kind === 'LISTEN') && ctx.contentId) return `${kind.toLowerCase()}_${slug(ctx.contentId)}`;
+  // STUDY rooms are addressable too, so Ora's focus rooms are a stable place people
+  // arrive at rather than a new random room per visit — body doubling only works if
+  // everyone lands in the same room.
+  if (kind === 'STUDY' && ctx.contentId) return `study_${slug(ctx.contentId)}`;
   return `room_${slug(kind)}_${Math.random().toString(36).slice(2, 9)}`;
 }
 

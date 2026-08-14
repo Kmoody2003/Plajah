@@ -1455,6 +1455,21 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   )}
                 </button>
               )}
+              {/* Melos — the production workspace. Sits beside Upload because the two are
+                  the same decision at different stages: upload a finished record, or open
+                  the room where one gets made. */}
+              {userProfile && onNavigate && canUpload() && (
+                <button
+                  onClick={() => onNavigate('MELOS')}
+                  title="Open Melos — write, sequence and build an album in progress"
+                  className="flex items-center gap-2 px-3 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap hover:scale-105 active:scale-95"
+                  style={{ background: 'linear-gradient(120deg, #6B0099, #D40055)', color: '#fff', boxShadow: '0 0 16px rgba(212,0,85,0.35)' }}
+                >
+                  <Disc size={12} />
+                  <span className="hidden sm:inline">Start a Production</span>
+                  <span className="sm:hidden">Produce</span>
+                </button>
+              )}
               {onUploadMusic && canUpload() && (
                 <button
                   onClick={onUploadMusic}

@@ -13,7 +13,7 @@ import {
   Clock, AlertCircle, DollarSign, Calendar, Phone, Mail, Globe,
   Star, TrendingUp, BarChart2, Briefcase, Music2, Building2,
   Copy, Eye, Package, Zap, ArrowRight, Shield, Search, Filter,
-  Mic, Layers, Ticket, Radio, Sparkles,
+  Mic, Layers, Ticket, Radio, Sparkles, Disc3,
   Camera, Film, Clapperboard, Scissors, BookOpen, PenLine, Newspaper, Award, Target, BookMarked,
   LayoutDashboard, ClipboardList, Utensils, UserCheck,
 } from 'lucide-react';
@@ -23,6 +23,10 @@ import {
 } from './film/FilmProductionSuite';
 import { listWritingProjects, type WritingProject, type WritingChapter } from '../services/loreaProjectsService';
 import { MusicReleasesTab } from './music/MusicReleasesTab';
+import {
+  fetchMyProductions, fetchSongs, IS_ON_RECORD,
+  PRODUCTION_STATUSES as MELOS_STATUSES, type MelosProduction,
+} from '../services/melosService';
 
 // ─── Storage helpers ────────────────────────────────────────────────────────────
 
@@ -1273,6 +1277,130 @@ const EventsLaunchTab: React.FC = () => {
 
 // ─── Tab: Boards (launch pad for Artist Boards) ───────────────────────────────
 
+/**
+ * Artist Manager › Music › Productions — the business-side door into Melos.
+ *
+ * A production is the album BEFORE it's a release; once it publishes it shows up
+ * next door in Releases as a campaign. This tab is the bridge between the two.
+ */
+const MelosLaunchTab: React.FC<{ currentUser?: UserProfile | null }> = ({ currentUser }) => {
+  const navigate = (target: string, extra: object = {}) =>
+    window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target, ...extra } }));
+
+  const [productions, setProductions] = React.useState<MelosProduction[]>([]);
+  const [counts, setCounts] = React.useState<Record<string, { songs: number; onRecord: number; finished: number }>>({});
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let alive = true;
+    const uid = currentUser?.uid;
+    if (!uid) { setLoading(false); return; }
+    (async () => {
+      const rows = await fetchMyProductions(uid);
+      if (!alive) return;
+      setProductions(rows);
+      setLoading(false);
+      // Per-production song counts, so the card says something true rather than "0".
+      const entries = await Promise.all(rows.map(async p => {
+        const songs = await fetchSongs(p.id);
+        const onRecord = songs.filter(s => IS_ON_RECORD.includes(s.commitment));
+        return [p.id, {
+          songs: songs.length,
+          onRecord: onRecord.length,
+          finished: onRecord.filter(s => s.state === 'FINISHED').length,
+        }] as const;
+      }));
+      if (alive) setCounts(Object.fromEntries(entries));
+    })();
+    return () => { alive = false; };
+  }, [currentUser?.uid]);
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h3 className="text-base font-black uppercase tracking-widest text-white">Productions</h3>
+          <p className="text-xs text-white/35 mt-0.5">
+            Albums in progress — writing, sequencing, samples and sessions, before there's anything to release
+          </p>
+        </div>
+        <button
+          onClick={() => navigate('MELOS')}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:opacity-90"
+          style={{ background: 'linear-gradient(120deg,#6B0099,#D40055)', color: '#fff', border: 0 }}
+        >
+          <Disc3 size={13} /> Open Melos
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="text-xs text-white/30 uppercase tracking-widest py-8">Loading…</p>
+      ) : productions.length === 0 ? (
+        <div className="p-6 rounded-2xl border border-white/10 bg-white/[0.03]">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-xl bg-pink-500/15 flex items-center justify-center shrink-0">
+              <PenLine size={16} className="text-pink-400" />
+            </div>
+            <div>
+              <p className="text-sm font-black text-white">No productions yet</p>
+              <p className="text-xs text-white/40 mt-1 max-w-md leading-relaxed">
+                Melos is where the record gets made — a writing pad that treats lyrics as blocks you
+                can rearrange, honest track states, running orders you can compare side by side, and
+                a board for everything that caught your ear.
+              </p>
+              <button
+                onClick={() => navigate('MELOS')}
+                className="mt-4 flex items-center gap-2 text-xs font-black text-pink-400 hover:text-pink-300 uppercase tracking-widest transition-colors"
+                style={{ background: 'none', border: 0, padding: 0 }}
+              >
+                Start a production <ArrowRight size={11} />
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+          {productions.map(p => {
+            const c = counts[p.id];
+            const status = MELOS_STATUSES.find(x => x.key === p.status);
+            return (
+              <button
+                key={p.id}
+                onClick={() => navigate('MELOS', { productionId: p.id })}
+                className="text-left p-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06] transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-black text-white truncate">{p.title}</p>
+                    {p.workingTitle && <p className="text-[11px] text-white/30 truncate">— {p.workingTitle}</p>}
+                  </div>
+                  {status && (
+                    <span
+                      className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full shrink-0"
+                      style={{ background: `${status.color}22`, color: status.color }}
+                    >{status.label}</span>
+                  )}
+                </div>
+
+                {c && (
+                  <p className="text-[11px] text-white/40 mt-3">
+                    {c.onRecord} on the record · {c.finished} finished
+                    {c.songs > c.onRecord && <span className="text-white/25"> · {c.songs - c.onRecord} set aside</span>}
+                  </p>
+                )}
+
+                {p.albumId && (
+                  <p className="text-[10px] uppercase tracking-widest mt-2 text-emerald-400">Released</p>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
 const BoardsLaunchTab: React.FC = () => {
   const navigate = (target: string) => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target } }));
   const BOARDS_KEY = 'plajah_artist_boards_v1';
@@ -2474,7 +2602,7 @@ const WriterPressTab: React.FC = () => (
 // ─── Main component ────────────────────────────────────────────────────────────
 
 type PMTab =
-  | 'overview' | 'releases' | 'payroll' | 'contracts' | 'invoices' | 'tasks' | 'vendors' | 'venues' | 'events' | 'boards' | 'promote'
+  | 'overview' | 'releases' | 'productions' | 'payroll' | 'contracts' | 'invoices' | 'tasks' | 'vendors' | 'venues' | 'events' | 'boards' | 'promote'
   | 'film_overview' | 'film_script' | 'film_budget' | 'film_crew' | 'film_locations' | 'film_schedule' | 'film_distro'
   | 'film_hub' | 'film_callsheets' | 'film_roster' | 'film_brief' | 'film_craft' | 'film_reports'
   | 'writer_overview' | 'writer_projects' | 'writer_manuscripts' | 'writer_research' | 'writer_submissions' | 'writer_events' | 'writer_press';
@@ -2488,6 +2616,7 @@ interface Props {
 const PM_TABS: { id: PMTab; label: string; icon: React.ReactNode; color: string }[] = [
   { id: 'overview',   label: 'Overview',    icon: <Briefcase size={13} />,  color: '#FF8C00' },
   { id: 'releases',   label: 'Releases',    icon: <Music2 size={13} />,     color: '#FF8C00' },
+  { id: 'productions',label: 'Productions', icon: <Disc3 size={13} />,      color: '#D40055' },
   { id: 'events',     label: 'Events',      icon: <Mic size={13} />,        color: '#FF8C00' },
   { id: 'boards',     label: 'Boards',      icon: <Layers size={13} />,     color: '#a855f7' },
   { id: 'promote',    label: 'Promote',     icon: <Megaphone size={13} />,  color: '#6366f1' },
@@ -2557,6 +2686,7 @@ export const ArtistProjectManager: React.FC<Props> = ({ currentUser }) => {
     switch (activeTab) {
       case 'overview':            return <OverviewTab onSwitchTab={setActiveTab} />;
       case 'releases':            return <MusicReleasesTab currentUser={currentUser} />;
+      case 'productions':         return <MelosLaunchTab currentUser={currentUser} />;
       case 'events':              return <EventsLaunchTab />;
       case 'boards':              return <BoardsLaunchTab />;
       case 'promote':             return <AdHubTab />;

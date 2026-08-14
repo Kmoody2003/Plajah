@@ -2610,6 +2610,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'FILM_SCHOOL'
   // Math Classroom (BETA) — Classrooms
   | 'MATH_CLASSROOM'
+  // Student assignment view — do a worksheet (tutor + auto-grade) or practice via Time Attack
+  | 'STUDENT_ASSIGNMENT'
   // Reading Quest (BETA) — Classrooms, Class-Points-integrated
   | 'READING_QUEST'
   // Science Quest (BETA) — NGSS cartridge on the same chassis
@@ -3376,6 +3378,8 @@ export type AchievementTriggerType =
   | 'FIRST_LIVE_STREAM'
   | 'HNS_DISCOVER_FIRST' | 'HNS_BOTH_SLOTS' | 'HNS_ARTIST_10' | 'HNS_ARTIST_50'
   | 'THEME_FIRST_ADD' | 'THEME_RECEIVED' | 'USE_FEELING_LUCKY'
+  // Academia — gamified learning
+  | 'MATH_FIRST_SESSION' | 'MATH_STREAK_10' | 'MATH_TIME_ATTACK_100' | 'WORKSHEET_TURNED_IN' | 'WORKSHEET_PERFECT'
   | 'CUSTOM' | 'MANUAL';
 
 export interface AchievementUnlockRequirement {
