@@ -37,7 +37,11 @@ export const Surface = React.forwardRef<HTMLDivElement, SurfaceProps>(function S
     className,
   ].filter(Boolean).join(' ');
 
-  const Component = Tag as React.ElementType;
+  // `as` accepts any intrinsic tag, but handing that whole union to JSX makes TS
+  // intersect every element's props — which collapses to `never` and rejects even
+  // className. One concrete signature is enough here; SurfaceProps above is what
+  // actually type-checks the caller.
+  const Component = Tag as unknown as React.ComponentType<React.ComponentPropsWithRef<'div'>>;
   return (
     <Component
       ref={ref}
