@@ -1512,6 +1512,30 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                 </div>
               </button>
 
+              {/* Melos — the making side of Chora. Sits beside the Conservatory deliberately:
+                  one is where music was made, this is where yours gets made. */}
+              <button
+                onClick={() => onNavigate?.('MELOS')}
+                className="shrink-0 relative w-64 h-36 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
+                style={{ border: '1px solid rgba(212,0,85,0.4)' }}
+              >
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #6B0099 0%, #D40055 100%)' }} />
+                <div className="absolute inset-0 opacity-40 group-hover:opacity-60 transition-opacity duration-500"
+                  style={{ background: 'radial-gradient(circle at 80% 15%, rgba(255,140,0,0.55) 0%, transparent 55%)' }} />
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, transparent 35%, rgba(0,0,0,0.75) 100%)' }} />
+                <div className="relative h-full flex flex-col justify-between p-4">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#FF8C00' }} />
+                    <span className="text-[7px] font-black uppercase tracking-[0.35em]" style={{ color: '#FFB86B' }}>The Studio</span>
+                  </div>
+                  <div>
+                    <p className="text-[8px] font-black uppercase tracking-widest mb-0.5" style={{ color: 'rgba(255,255,255,0.75)' }}>Write · Sequence · Produce</p>
+                    <h3 className="text-base font-black text-white leading-tight">Melos</h3>
+                    <p className="text-[9px] text-white/60 mt-0.5">Where your record gets made →</p>
+                  </div>
+                </div>
+              </button>
+
               {/* History Moments */}
               <button
                 onClick={() => onNavigate?.('CHORA_HISTORY')}

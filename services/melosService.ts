@@ -818,7 +818,12 @@ export async function fetchMyProductions(uidStr: string): Promise<MelosProductio
     const q = query(collection(db, COL), where('memberUids', 'array-contains', uidStr));
     const snap = await getDocs(q);
     return snap.docs.map(d => d.data() as MelosProduction).sort((a, b) => b.updatedAt - a.updatedAt);
-  } catch { return []; }
+  } catch (e: any) {
+    // Swallowing this silently made a permission-denied read look identical to "you have no
+    // productions yet" — which is exactly how undeployed rules stayed invisible. Say it out loud.
+    console.warn('[melos] fetchMyProductions failed:', e?.code || '', e?.message?.slice(0, 200) || e);
+    return [];
+  }
 }
 
 export function subProductions(uidStr: string, cb: (rows: MelosProduction[]) => void): () => void {
