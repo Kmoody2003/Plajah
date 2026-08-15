@@ -9,6 +9,8 @@ import { buildGraph } from './engine/graph';
 import { VoiceBank } from './engine/voices';
 import { StepScheduler, seededRng } from './engine/scheduler';
 import { startAudioClipSource } from './engine/clips';
+import { Instrument } from './engine/InstrumentHost';
+import { applyPatch, deserializePatch } from '../instruments/onda/patch';
 import { encodeWav } from '../../audio/wavEncode';
 import { uploadFile } from '../../backendService';
 import { auth } from '../../firebase';
@@ -16,7 +18,13 @@ import { auth } from '../../firebase';
 const SAMPLE_RATE = 48000;
 const TAIL_SEC = 2; // let releases/reverbs ring out past the last step
 
-export interface RenderResult { blob: Blob; buffer: AudioBuffer; seconds: number }
+export interface RenderResult {
+  blob: Blob;
+  buffer: AudioBuffer;
+  seconds: number;
+  /** Instrument tracks that could not be rendered (engine failed to load). Normally 0. */
+  skippedInstruments: number;
+}
 
 function hashSeed(s: string): number {
   let h = 2166136261;
@@ -40,13 +48,60 @@ export async function renderGroove(
   }
   const seconds = endBeats * spb + TAIL_SEC;
   const offline = new OfflineAudioContext(2, Math.ceil(seconds * SAMPLE_RATE), SAMPLE_RATE);
+  const anchor = 0.05; // tiny lead-in so t=0 events get their attack ramp
 
   const graph = buildGraph(offline, 16);
   graph.applyDoc(doc);
   const voices = new VoiceBank(graph);
   for (const [key, buf] of buffers) voices.setBuffer(key, buf);
 
-  const anchor = 0.05; // tiny lead-in so t=0 events get their attack ramp
+  // ── Instruments ───────────────────────────────────────────────────────────
+  // Worklet nodes work in an OfflineAudioContext, but rendering outruns message delivery — so
+  // every note is queued at an ABSOLUTE sample frame BEFORE startRendering(), and the engine's
+  // own frame counter fires it. That's what pa_schedule_note_* exists for.
+  const instrumentTracks = doc.arrangement.filter(
+    (t) => t.kind === 'instrument' && !t.mute && !t.foreign && t.clips.some((c) => c.notes?.length),
+  );
+  const anySolo = doc.arrangement.some((t) => t.solo);
+  let skippedInstruments = 0;
+
+  for (const track of instrumentTracks) {
+    if (anySolo && !track.solo) continue;
+    try {
+      const inst = await Instrument.create(offline, {
+        onError: (m) => console.warn('[beats] offline instrument error', track.name, m),
+      });
+      await inst.whenReady();
+      inst.output.connect(graph.trackDestination(track));
+      inst.setTempo(1 / spb);
+      if (track.position) inst.setSpatial({ position: track.position });
+      if (track.instrument?.patch) {
+        const patch = deserializePatch(track.instrument.patch);
+        if (patch) applyPatch(inst, patch);
+      }
+      inst.resetTransport(0);
+      inst.clearSchedule();
+
+      for (const clip of track.clips) {
+        if (!clip.notes?.length) continue;
+        for (const note of clip.notes) {
+          const startBeats = clip.startBeats + note.startBeats;
+          if (startBeats >= endBeats) continue;
+          const maxLen = clip.lengthBeats - note.startBeats;
+          const lenBeats = Math.max(0.05, Math.min(note.lengthBeats, maxLen));
+          // anchor mirrors the drum scheduler's lead-in so both land on the same grid.
+          const onFrame = Math.round((anchor + startBeats * spb) * SAMPLE_RATE);
+          const offFrame = Math.round((anchor + (startBeats + lenBeats) * spb) * SAMPLE_RATE);
+          const voiceId = inst.scheduleNoteOn(note.key, Math.max(0.05, note.vel / 127), onFrame);
+          inst.scheduleNoteOff(voiceId, offFrame);
+        }
+      }
+    } catch (e) {
+      console.warn('[beats] offline instrument failed', track.name, e);
+      skippedInstruments++;
+    }
+  }
+
   const scheduler = new StepScheduler({
     doc: () => doc,
     toTime: (beats) => anchor + beats * spb,
@@ -55,6 +110,7 @@ export async function renderGroove(
     trigger: (padIdx, vel, when, gateSec, semiOffset) => voices.trigger(doc, padIdx, vel, when, gateSec, semiOffset),
     startAudioClip: (track, clip, when, offset) =>
       void startAudioClipSource(offline, graph, (k) => voices.getBuffer(k), track, clip, when, offset, spb),
+    startInstrumentNote: () => { /* see RenderResult.skippedInstruments */ },
   });
   if (opts.range === 'pattern') {
     scheduler.start('pattern', 0, opts.patternId);
@@ -65,7 +121,7 @@ export async function renderGroove(
   }
 
   const rendered = await offline.startRendering();
-  return { blob: encodeWav(rendered, opts.bitDepth ?? 24), buffer: rendered, seconds };
+  return { blob: encodeWav(rendered, opts.bitDepth ?? 24), buffer: rendered, seconds, skippedInstruments };
 }
 
 /** Bounce → locker upload → seed the Album Creator (the Spatial Mixer publish flow, verbatim shape). */

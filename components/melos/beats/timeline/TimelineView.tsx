@@ -6,12 +6,16 @@
 // right-edge grip = trim (beat snap) · click = select · Delete = remove · drop audio = clip.
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Music2, AudioWaveform } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Music2, AudioWaveform, Piano, Circle } from 'lucide-react';
 import type { GrooveDoc, Pattern, TimelineClip } from '../../../../services/melos/beats/grooveDoc';
 import { grooveUid } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { ingestSample, backupToLocker } from '../../../../services/melos/beats/sampleStore';
 import { MixerPanel } from '../shared/MixerPanel';
+import { PianoRoll } from './PianoRoll';
+import { InstrumentPanel } from '../instrument/InstrumentPanel';
+import { FACTORY_PRESETS } from '../../../../services/melos/instruments/onda/presets';
+import { serializePatch } from '../../../../services/melos/instruments/onda/patch';
 import { PLAYHEAD, SELECT, glassPanel } from '../theme';
 
 const BEATS_PER_BAR = 4;
@@ -33,6 +37,9 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const [pxPerBeat, setPxPerBeat] = useState(14);
   const [selectedClip, setSelectedClip] = useState<string | null>(null);
   const [showMixer, setShowMixer] = useState(true);
+  const [showAddInstrument, setShowAddInstrument] = useState(false);
+  const [openClip, setOpenClip] = useState<{ trackId: string; clipId: string } | null>(null);
+  const [openInstrument, setOpenInstrument] = useState<string | null>(null);
   const drag = useRef<{ clipId: string; trackId: string; mode: 'move' | 'trim'; startX: number; orig: TimelineClip } | null>(null);
 
   const contentBeats = Math.max(
@@ -102,6 +109,36 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     });
   }, [p.onMutate]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** Add an ONDA track. Arming it immediately is the point — you want to play it right away. */
+  const addInstrumentTrack = useCallback((presetName: string) => {
+    const preset = FACTORY_PRESETS.find((x) => x.name === presetName) || FACTORY_PRESETS[0];
+    p.onMutate((d) => {
+      for (const t of d.arrangement) t.armed = false;
+      d.arrangement.push({
+        id: grooveUid(),
+        kind: 'instrument',
+        name: preset.name,
+        color: '#D0BCFF',
+        mute: false, solo: false, gainDb: 0, pan: 0,
+        clips: [],
+        instrument: { type: 'onda', patch: serializePatch(preset), presetName: preset.name },
+        armed: true,
+        position: [0, 0, -1],
+      });
+    });
+    setShowAddInstrument(false);
+  }, [p.onMutate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const addMidiClip = useCallback((trackId: string, atBeats: number) => {
+    p.onMutate((d) => {
+      const track = d.arrangement.find((t) => t.id === trackId);
+      if (!track || track.kind !== 'instrument') return;
+      const startBeats = Math.floor(atBeats / BEATS_PER_BAR) * BEATS_PER_BAR;
+      if (track.clips.some((c) => startBeats < c.startBeats + c.lengthBeats && startBeats + 1 > c.startBeats)) return;
+      track.clips.push({ id: grooveUid(), startBeats, lengthBeats: BEATS_PER_BAR * 2, notes: [] });
+    });
+  }, [p.onMutate]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const playheadX = p.running && p.playMode === 'song' ? p.beats * pxPerBeat : -1;
 
   return (
@@ -137,7 +174,17 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
               {p.doc.arrangement.map((track) => (
                 <div key={track.id} className="flex border-b border-white/[0.06]" style={{ height: LANE_H, opacity: track.foreign ? 0.65 : 1 }}>
                   <div className="sticky left-0 z-10 flex items-center gap-2 px-3 bg-[#0E0916] border-r border-white/10" style={{ width: HEADER_W, minWidth: HEADER_W }}>
-                    <span className="w-[4px] h-6 rounded-[2px] flex-none" style={{ background: track.color }} />
+                    {track.kind === 'instrument' && !track.foreign ? (
+                      <button
+                        onClick={() => setOpenInstrument(track.id)}
+                        className="w-[4px] h-6 rounded-[2px] flex-none hover:h-7 transition-all"
+                        style={{ background: track.color }}
+                        title="Open the instrument"
+                        aria-label={`Open ${track.name}`}
+                      />
+                    ) : (
+                      <span className="w-[4px] h-6 rounded-[2px] flex-none" style={{ background: track.color }} />
+                    )}
                     <input
                       value={track.name}
                       onChange={(e) => p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === track.id); if (t) t.name = e.target.value; })}
@@ -149,6 +196,23 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                       <span className="text-[8px] text-[#D0BCFF] border border-[#D0BCFF]/35 rounded px-1 flex-none">preserved</span>
                     ) : (
                       <>
+                        {track.kind === 'instrument' && (
+                          <button
+                            onClick={() => p.onMutate((d) => {
+                              const on = !track.armed;
+                              // Only one armed track: playing the keyboard has to be unambiguous.
+                              for (const t of d.arrangement) t.armed = false;
+                              const t = d.arrangement.find((x) => x.id === track.id);
+                              if (t) t.armed = on;
+                            })}
+                            className="w-[17px] h-[17px] rounded-full border grid place-items-center flex-none"
+                            style={track.armed
+                              ? { background: 'rgba(255,140,0,0.22)', borderColor: '#FF8C00', color: '#FF8C00' }
+                              : { borderColor: 'rgba(255,255,255,0.16)', color: 'rgba(255,255,255,0.3)' }}
+                            title={track.armed ? 'Armed — your keyboard plays this' : 'Arm for playing and recording'}
+                            aria-label={`Arm ${track.name}`}
+                          ><Circle size={7} fill="currentColor" /></button>
+                        )}
                         <button onClick={() => p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === track.id); if (t) t.mute = !t.mute; })}
                           className="w-[17px] h-[17px] rounded-[5px] border text-[8px] grid place-items-center flex-none"
                           style={track.mute ? { background: 'rgba(255,255,255,0.14)', borderColor: 'rgba(255,255,255,0.3)', color: '#fff' } : { borderColor: 'rgba(255,255,255,0.16)', color: 'rgba(255,255,255,0.35)' }}
@@ -164,9 +228,10 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                   <div
                     className="relative flex-1"
                     onDoubleClick={(e) => {
-                      if (track.kind !== 'pattern') return;
                       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                      paintClip(track.id, (e.clientX - rect.left) / pxPerBeat);
+                      const at = (e.clientX - rect.left) / pxPerBeat;
+                      if (track.kind === 'pattern') paintClip(track.id, at);
+                      else if (track.kind === 'instrument' && !track.foreign) addMidiClip(track.id, at);
                     }}
                     onDragOver={(e) => { if (track.kind === 'audio' && !track.foreign) e.preventDefault(); }}
                     onDrop={(e) => {
@@ -210,16 +275,26 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                             });
                           }}
                           onPointerUp={() => { drag.current = null; }}
+                          onDoubleClick={(e) => {
+                            // A MIDI clip opens its editor; that's the whole point of the clip.
+                            if (track.kind === 'instrument' && !track.foreign) {
+                              e.stopPropagation();
+                              setOpenClip({ trackId: track.id, clipId: clip.id });
+                            }
+                          }}
                           className="absolute top-[6px] bottom-[6px] rounded-[8px] flex items-center px-2 overflow-hidden select-none"
                           style={{
                             left: clip.startBeats * pxPerBeat,
                             width: Math.max(10, clip.lengthBeats * pxPerBeat - 2),
                             background: track.foreign
                               ? 'rgba(208,188,255,0.08)'
-                              : clip.audio ? 'rgba(0,218,243,0.14)' : 'linear-gradient(135deg, #6B0099, #D40055)',
+                              : clip.audio ? 'rgba(0,218,243,0.14)'
+                              : clip.notes ? 'rgba(208,188,255,0.15)'
+                              : 'linear-gradient(135deg, #6B0099, #D40055)',
                             border: track.foreign
                               ? '1px dashed rgba(208,188,255,0.4)'
-                              : clip.audio ? '1px solid rgba(0,218,243,0.45)' : 'none',
+                              : clip.audio ? '1px solid rgba(0,218,243,0.45)'
+                              : clip.notes ? '1px solid rgba(208,188,255,0.42)' : 'none',
                             outline: selected ? `2px solid ${SELECT}` : 'none',
                             outlineOffset: 1,
                             cursor: track.foreign ? 'default' : 'grab',
@@ -233,8 +308,27 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                               mask: 'linear-gradient(180deg, transparent 0 30%, #000 45% 55%, transparent 70% 100%)',
                             }} />
                           )}
-                          <span className="relative text-[10px] font-semibold truncate" style={{ color: track.foreign ? '#D0BCFF' : clip.audio ? PLAYHEAD : '#fff' }}>
-                            {track.foreign ? track.name : pat?.name || clip.audio?.name || 'Clip'}
+                          {/* MIDI clips draw their notes, so the arrangement shows the music. */}
+                          {clip.notes && clip.notes.length > 0 && !track.foreign && (() => {
+                            const keys = clip.notes.map((n) => n.key);
+                            const lo = Math.min(...keys) - 1;
+                            const span = Math.max(6, Math.max(...keys) + 1 - lo);
+                            return (
+                              <span className="absolute inset-x-0 top-[3px] bottom-[3px] pointer-events-none">
+                                {clip.notes.map((n) => (
+                                  <span key={n.id} className="absolute rounded-[1px]" style={{
+                                    left: `${(n.startBeats / clip.lengthBeats) * 100}%`,
+                                    width: `${Math.max(1.5, (n.lengthBeats / clip.lengthBeats) * 100)}%`,
+                                    bottom: `${((n.key - lo) / span) * 100}%`,
+                                    height: 2,
+                                    background: 'rgba(208,188,255,0.85)',
+                                  }} />
+                                ))}
+                              </span>
+                            );
+                          })()}
+                          <span className="relative text-[10px] font-semibold truncate" style={{ color: track.foreign ? '#D0BCFF' : clip.audio ? PLAYHEAD : clip.notes ? '#D0BCFF' : '#fff' }}>
+                            {track.foreign ? track.name : pat?.name || clip.audio?.name || (clip.notes ? `${clip.notes.length} notes` : 'Clip')}
                           </span>
                           {!track.foreign && <span className="absolute right-0 top-0 bottom-0 w-[8px] cursor-ew-resize" style={{ background: 'rgba(255,255,255,0.12)' }} />}
                         </div>
@@ -247,7 +341,29 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
               <div className="flex items-center gap-2 px-3" style={{ height: 36 }}>
                 <button onClick={() => addTrack('pattern')} className="h-6 px-2 rounded-lg border border-white/10 text-white/40 hover:text-white text-[10px] flex items-center gap-1"><Plus size={10} /><Music2 size={10} /> Pattern track</button>
                 <button onClick={() => addTrack('audio')} className="h-6 px-2 rounded-lg border border-white/10 text-white/40 hover:text-white text-[10px] flex items-center gap-1"><Plus size={10} /><AudioWaveform size={10} /> Audio track</button>
-                <span className="text-[9px] text-white/20">double-click a pattern lane to paint “{p.activePattern.name}” · drop audio files on audio lanes</span>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowAddInstrument((v) => !v)}
+                    className="h-6 px-2 rounded-lg border text-[10px] flex items-center gap-1"
+                    style={{ borderColor: 'rgba(208,188,255,0.4)', color: '#D0BCFF' }}
+                  ><Plus size={10} /><Piano size={10} /> Instrument</button>
+                  {showAddInstrument && (
+                    <div className="absolute bottom-8 left-0 z-40 w-60 max-h-64 overflow-y-auto rounded-xl border border-white/15 bg-[#0A0A0D]/97 backdrop-blur-xl p-1.5 shadow-2xl">
+                      <p className="px-2 py-1 text-[9px] uppercase tracking-[0.16em] text-white/30 font-semibold">ONDA · pick a preset</p>
+                      {FACTORY_PRESETS.map((preset) => (
+                        <button
+                          key={preset.name}
+                          onClick={() => addInstrumentTrack(preset.name)}
+                          className="w-full text-left px-2 py-1.5 rounded-lg text-[11px] text-white/65 hover:text-white hover:bg-white/8"
+                        >
+                          {preset.name}
+                          <span className="block text-[9px] text-white/25">{preset.category} · {preset.tags.slice(0, 3).join(' · ')}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <span className="text-[9px] text-white/20">double-click a lane to add a clip · drop audio on audio lanes</span>
               </div>
             </div>
           </div>
@@ -266,6 +382,32 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
       </div>
 
       {showMixer && <div className="rounded-b-[18px] overflow-hidden -mt-px"><MixerPanel doc={p.doc} meters={p.meters} onMutate={p.onMutate} /></div>}
+
+      {(() => {
+        if (!openInstrument) return null;
+        const t = p.doc.arrangement.find((x) => x.id === openInstrument);
+        if (!t || t.kind !== 'instrument') return null;
+        return <InstrumentPanel doc={p.doc} track={t} onMutate={p.onMutate} onClose={() => setOpenInstrument(null)} />;
+      })()}
+
+      {(() => {
+        if (!openClip) return null;
+        const t = p.doc.arrangement.find((x) => x.id === openClip.trackId);
+        const c = t?.clips.find((x) => x.id === openClip.clipId);
+        if (!t || !c) return null;
+        return (
+          <PianoRoll
+            doc={p.doc}
+            trackId={t.id}
+            clip={c}
+            beats={p.beats}
+            running={p.running}
+            playMode={p.playMode}
+            onMutate={p.onMutate}
+            onClose={() => setOpenClip(null)}
+          />
+        );
+      })()}
     </div>
   );
 };

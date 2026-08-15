@@ -4,7 +4,7 @@
 // lookahead) are scheduled immediately — catch up, never skip. All positions are in BEATS;
 // `toTime(beats)` is owned by the transport so a live BPM change only moves the anchor.
 
-import type { ArrangeTrack, GrooveDoc, Pattern, TimelineClip } from '../grooveDoc';
+import type { ArrangeTrack, GrooveDoc, NoteEvent, Pattern, TimelineClip } from '../grooveDoc';
 
 export const LOOKAHEAD_SEC = 0.15;
 const STEP_BEATS = 0.25; // 16th notes on a 4/4 grid
@@ -20,6 +20,8 @@ export interface SchedulerDeps {
   rng(): number;
   trigger(padIdx: number, vel127: number, when: number, gateSec?: number, semiOffset?: number): void;
   startAudioClip(track: ArrangeTrack, clip: TimelineClip, when: number, offsetIntoClipSec: number): void;
+  /** Instrument tracks: one MIDI note, at an absolute context time, for `durSec`. */
+  startInstrumentNote(track: ArrangeTrack, note: NoteEvent, when: number, durSec: number): void;
 }
 
 /** Deterministic PRNG for offline renders (mulberry32). */
@@ -155,6 +157,26 @@ export class StepScheduler {
         this.fireRow(doc, pattern, localStep, beat);
       }
     }
+    // Instrument tracks: fire every note whose absolute start falls inside this step window, at
+    // its EXACT time — the piano roll allows off-grid notes and that timing has to survive.
+    const anySoloTrack = doc.arrangement.some((t) => t.solo);
+    for (const track of doc.arrangement) {
+      if (track.kind !== 'instrument' || track.mute || (anySoloTrack && !track.solo)) continue;
+      for (const clip of track.clips) {
+        if (!clip.notes?.length) continue;
+        if (beat < clip.startBeats - 1e-9 || beat >= clip.startBeats + clip.lengthBeats - 1e-9) continue;
+        const intoClip = beat - clip.startBeats;
+        for (const note of clip.notes) {
+          if (note.startBeats < intoClip - 1e-9 || note.startBeats >= intoClip + STEP_BEATS - 1e-9) continue;
+          const when = d.toTime(clip.startBeats + note.startBeats);
+          // Clamp the note to the clip end so a long note never outlives its clip.
+          const maxLen = clip.lengthBeats - note.startBeats;
+          const lenBeats = Math.max(0.05, Math.min(note.lengthBeats, maxLen));
+          d.startInstrumentNote(track, note, when, lenBeats * d.secPerBeat());
+        }
+      }
+    }
+
     // Audio clips whose start lands on this step: schedule once, sample-accurately.
     const anySolo = doc.arrangement.some((t) => t.solo);
     for (const track of doc.arrangement) {

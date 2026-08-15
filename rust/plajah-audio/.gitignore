@@ -1,0 +1,4 @@
+# Cargo build output. The SHIPPED artifact is the copy `npm run audio:build` places at
+# services/melos/beats/engine/dsp/plajah_audio.wasm — that one IS committed, because CI has no
+# Rust toolchain (the workflows run only `npm ci && npm run build`).
+/target

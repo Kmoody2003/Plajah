@@ -70,18 +70,46 @@ export interface Pattern {
 // The arrangement is the single timeline truth: Glass's Sequence strip renders it compactly,
 // the Timeline view (Bitwig/S1 arranger paradigm) edits it in full, and .dawproject import
 // lands every foreign track here — nothing is dropped for being "track 17+".
+/**
+ * A note on an instrument track. Absolute pitch (unlike the pads' `MeloNote`, which is an offset
+ * from the pad's tuning) because an instrument track IS a keyboard instrument.
+ *
+ * ONE note list, three editors: the piano roll edits it freely, the step grid renders it
+ * quantized to 16ths, and the timeline draws it as a clip. Same data — no conversion, no drift.
+ */
+export interface NoteEvent {
+  id: string;
+  startBeats: number;   // relative to the clip start
+  lengthBeats: number;
+  key: number;          // MIDI note number
+  vel: number;          // 1–127
+  /** MPE per-note expression, recorded when the controller sends it. */
+  expr?: { bend?: number; pressure?: number; timbre?: number };
+}
+
 export interface TimelineClip {
   id: string;
   startBeats: number;
   lengthBeats: number;
   patternId?: string;                              // kind 'pattern'
+  /** kind 'instrument' — a MIDI clip. */
+  notes?: NoteEvent[];
   audio?: { sampleKey: string; name: string; offsetSec: number; gainDb: number;
             durationSec: number; stretch?: number /* simple linear rate only */ };
 }
 
+export type InstrumentType = 'onda' | 'kera';
+
+export interface TrackInstrument {
+  type: InstrumentType;
+  /** Serialized patch — an OndaPatch today; typed loosely here so grooveDoc stays engine-agnostic. */
+  patch: Record<string, unknown>;
+  presetName?: string;
+}
+
 export interface ArrangeTrack {
   id: string;
-  kind: 'pattern' | 'audio';
+  kind: 'pattern' | 'audio' | 'instrument';
   name: string;
   color: string;
   mute: boolean;
@@ -89,6 +117,12 @@ export interface ArrangeTrack {
   gainDb: number;
   pan: number;
   clips: TimelineClip[];
+  /** kind 'instrument' — the sound this track plays. */
+  instrument?: TrackInstrument;
+  /** Armed for live play and recording. Only one track is armed at a time. */
+  armed?: boolean;
+  /** Spatial source position — the engine pans from this, stereo is just one rendering. */
+  position?: [number, number, number];
   foreign?: { trackXml: string }; // imported .dawproject track we render but don't fully model
 }
 

@@ -1,0 +1,20 @@
+[package]
+name = "plajah-audio"
+version = "0.1.0"
+edition = "2024"
+description = "Real-time DSP core for Melos instruments (ONDA / KERA / FONDO). Compiles to wasm32 for the browser AudioWorklet; the same crate is the audio half of the plajah-core native target."
+license = "UNLICENSED"
+
+[lib]
+crate-type = ["cdylib"]
+
+# No wasm-bindgen, no wasm-pack: the worklet instantiates a bare module and calls a flat
+# extern "C" ABI. Nothing marshals, nothing allocates, nothing garbage-collects on the audio
+# thread — which is the whole point of running DSP here instead of in JS.
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true

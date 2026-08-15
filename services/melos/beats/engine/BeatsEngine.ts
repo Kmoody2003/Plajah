@@ -10,6 +10,8 @@ import { buildGraph, type BeatsGraph } from './graph';
 import { VoiceBank } from './voices';
 import { StepScheduler, type PlayMode, LOOKAHEAD_SEC } from './scheduler';
 import { startAudioClipSource } from './clips';
+import { Instrument } from './InstrumentHost';
+import type { ArrangeTrack as ATrack, NoteEvent } from '../grooveDoc';
 
 export interface EngineDiagnostics {
   sampleRate: number;
@@ -38,6 +40,13 @@ export class BeatsEngine {
   private clock: AudioWorkletNode | null = null;
   private doc: GrooveDoc = newGrooveDoc('');
   private liveClipSources: LiveClipSource[] = [];
+
+  // One Instrument (worklet node + Rust engine) per instrument track, connected into the same
+  // track strips audio clips use — the bus architecture doesn't change for instruments.
+  private instruments = new Map<string, Instrument>();
+  private instrumentLoading = new Set<string>();
+  /** Notes started live from the keyboard/MIDI, so a key-up can find its voice. */
+  private liveNotes = new Map<string, number>();
 
   // Transport: beats↔time anchoring. A live BPM change re-anchors at the current position, so
   // posBeats is continuous and only events beyond the lookahead window feel the new tempo.
@@ -88,6 +97,7 @@ export class BeatsEngine {
       rng: Math.random, // offline renders inject a seeded rng in render.ts instead
       trigger: (padIdx, vel, when, gateSec, semiOffset) => this.trigger(padIdx, vel, when, gateSec, semiOffset),
       startAudioClip: (track, clip, when, offset) => this.startAudioClip(track, clip, when, offset),
+      startInstrumentNote: (track, note, when, durSec) => this.startInstrumentNote(track, note, when, durSec),
     });
     this.graph.applyDoc(this.doc);
   }
@@ -96,6 +106,7 @@ export class BeatsEngine {
     this.doc = doc;
     this.secPerBeat = 60 / (doc.bpm || 120);
     this.graph?.applyDoc(doc);
+    if (this.ctx) this.syncInstruments();
   }
 
   /**
@@ -110,8 +121,11 @@ export class BeatsEngine {
       // Re-anchor at the current position so the playhead is continuous across a tempo change.
       if (this.running && this.ctx) { this.anchorBeats = this.posBeats(); this.anchorTime = this.ctx.currentTime; }
       this.secPerBeat = wantSpb;
+      const bps = 1 / this.secPerBeat;
+      for (const inst of this.instruments.values()) inst.setTempo(bps);
     }
     this.graph?.applyDoc(this.doc);
+    if (this.ctx) this.syncInstruments();
   }
 
   setSampleBuffer(key: string, buf: AudioBuffer): void { this.voices?.setBuffer(key, buf); }
@@ -132,6 +146,114 @@ export class BeatsEngine {
   /** Note-off for held pads (pointer up / key up / MIDI note-off). */
   release(padIdx: number, when?: number): void {
     this.voices?.release(padIdx, when);
+  }
+
+  // ── Instruments ─────────────────────────────────────────────────────────────
+
+  /**
+   * Ensure a track's instrument exists and is connected. Idempotent and safe to call from
+   * render/effect paths — instantiation is async (the wasm module compiles once per page) so the
+   * first note on a brand-new track may be silent; every note after it is not.
+   */
+  async ensureInstrument(track: ATrack): Promise<Instrument | null> {
+    if (track.kind !== 'instrument') return null;
+    const existing = this.instruments.get(track.id);
+    if (existing) return existing;
+    if (this.instrumentLoading.has(track.id)) return null;
+    this.instrumentLoading.add(track.id);
+    try {
+      await this.init();
+      if (!this.ctx || !this.graph) return null;
+      const inst = await Instrument.create(this.ctx, {
+        onError: (m) => console.warn('[beats] instrument error', track.name, m),
+      });
+      inst.output.connect(this.graph.trackDestination(track));
+      inst.setTempo((this.doc.bpm || 120) / 60);
+      if (track.position) inst.setSpatial({ position: track.position });
+      // Load the track's saved patch. Imported lazily so the ONDA preset bank and its wavetable
+      // generators aren't pulled into the engine chunk for users who never open an instrument.
+      if (track.instrument?.patch) {
+        const [{ deserializePatch, applyPatch }] = await Promise.all([
+          import('../../instruments/onda/patch'),
+        ]);
+        const patch = deserializePatch(track.instrument.patch);
+        if (patch) applyPatch(inst, patch);
+      }
+      this.instruments.set(track.id, inst);
+      return inst;
+    } catch (e) {
+      console.warn('[beats] instrument create failed', e);
+      return null;
+    } finally {
+      this.instrumentLoading.delete(track.id);
+    }
+  }
+
+  getInstrument(trackId: string): Instrument | null {
+    return this.instruments.get(trackId) ?? null;
+  }
+
+  /** The track your keyboard plays. Exactly one, or none. */
+  armedTrack(): ATrack | null {
+    return this.doc.arrangement.find((t) => t.kind === 'instrument' && t.armed) ?? null;
+  }
+
+  /** Reload a track's patch into its live instrument (preset change, macro edit). */
+  async reloadPatch(track: ATrack): Promise<void> {
+    const inst = this.instruments.get(track.id);
+    if (!inst || !track.instrument?.patch) return;
+    const { deserializePatch, applyPatch } = await import('../../instruments/onda/patch');
+    const patch = deserializePatch(track.instrument.patch);
+    if (patch) applyPatch(inst, patch);
+  }
+
+  /** Drop instruments whose track no longer exists — called after doc edits. */
+  syncInstruments(): void {
+    const live = new Set(this.doc.arrangement.filter((t) => t.kind === 'instrument').map((t) => t.id));
+    for (const [id, inst] of this.instruments) {
+      if (!live.has(id)) {
+        inst.dispose();
+        this.instruments.delete(id);
+      }
+    }
+    for (const t of this.doc.arrangement) {
+      if (t.kind === 'instrument' && !this.instruments.has(t.id)) void this.ensureInstrument(t);
+    }
+  }
+
+  /** Live keyboard/MIDI note on an instrument track. Returns the voice id for the matching off. */
+  instrumentNoteOn(track: ATrack, key: number, vel127: number): void {
+    const inst = this.instruments.get(track.id);
+    if (!inst || !this.ctx) { void this.ensureInstrument(track); return; }
+    const id = inst.noteOn(key, Math.max(0.05, vel127 / 127), this.ctx.currentTime, this.ctx.currentTime, this.ctx.sampleRate);
+    this.liveNotes.set(`${track.id}:${key}`, id);
+  }
+
+  instrumentNoteOff(track: ATrack, key: number): void {
+    const inst = this.instruments.get(track.id);
+    if (!inst) return;
+    const k = `${track.id}:${key}`;
+    const id = this.liveNotes.get(k);
+    if (id === undefined) return;
+    this.liveNotes.delete(k);
+    inst.noteOff(id, true);
+  }
+
+  /** Per-note expression from an MPE controller. */
+  instrumentExpression(track: ATrack, key: number, bend: number, pressure: number, timbre: number): void {
+    const inst = this.instruments.get(track.id);
+    const id = this.liveNotes.get(`${track.id}:${key}`);
+    if (inst && id !== undefined) inst.setExpression(id, bend, pressure, timbre);
+  }
+
+  private startInstrumentNote(track: ATrack, note: NoteEvent, when: number, durSec: number): void {
+    const inst = this.instruments.get(track.id);
+    if (!inst || !this.ctx) return;
+    const voiceId = inst.noteOn(note.key, Math.max(0.05, note.vel / 127), when, this.ctx.currentTime, this.ctx.sampleRate);
+    if (note.expr) inst.setExpression(voiceId, note.expr.bend ?? 0, note.expr.pressure ?? 0, note.expr.timbre ?? 0);
+    // Schedule the note-off. The engine's own release stage shapes the tail; this just gates it.
+    const offIn = Math.max(0, (when - this.ctx.currentTime) + durSec) * 1000;
+    setTimeout(() => inst.noteOff(voiceId, true), offIn);
   }
 
   play(mode: PlayMode, opts: { patternId?: string; fromBeats?: number } = {}): void {
@@ -156,6 +278,8 @@ export class BeatsEngine {
     this.running = false;
     this.clock?.port.postMessage({ cmd: 'stop' });
     this.scheduler?.stop();
+    for (const inst of this.instruments.values()) inst.allNotesOff();
+    this.liveNotes.clear();
     const t = this.ctx?.currentTime;
     this.voices?.stopAll(t);
     for (const c of this.liveClipSources) {
@@ -194,6 +318,9 @@ export class BeatsEngine {
 
   dispose(): void {
     this.stop();
+    for (const inst of this.instruments.values()) inst.dispose();
+    this.instruments.clear();
+    this.liveNotes.clear();
     try { this.clock?.disconnect(); } catch { /* */ }
     this.graph?.dispose();
     this.voices?.clearBuffers();

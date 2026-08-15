@@ -19,6 +19,7 @@ import { VJ_PAD_BY_NOTE } from '../../plajahPixels/services/midiService';
 import { useBeatsDoc } from './useBeatsDoc';
 import { useEngineBridge } from './useEngineBridge';
 import { useBeatsHid } from './useBeatsHid';
+import { useInstrumentKeyboard } from './instrument/useInstrumentKeyboard';
 import { TransportBar, type BeatsViewId } from './shared/TransportBar';
 import { DiagnosticsReadout } from './shared/DiagnosticsReadout';
 import { MachineView } from './machine/MachineView';
@@ -72,6 +73,22 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const [activePatternId, setActivePatternId] = useState(doc.patterns[0]?.id || '');
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showGrooves, setShowGrooves] = useState(false);
+  const [octave, setOctave] = useState(4);
+  const [recording, setRecording] = useState(false);
+
+  // The armed instrument track owns the QWERTY keyboard (the pads stand down while it does),
+  // and receives anything played or recorded.
+  const armedTrack = doc.arrangement.find((t) => t.kind === 'instrument' && t.armed) || null;
+  useInstrumentKeyboard({
+    doc,
+    armedTrack,
+    recording,
+    running: snap.running,
+    posBeats: () => BeatsEngine.get().posBeats(),
+    onMutate: mutate,
+    octave,
+    onOctaveChange: setOctave,
+  });
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [importReport, setImportReport] = useState<string[] | null>(null);
@@ -117,6 +134,17 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     };
     return subscribeMidi((e) => {
       const engine = BeatsEngine.get();
+      // An armed instrument track takes the keyboard: notes play the instrument at their real
+      // pitch instead of being folded onto the 16 pads.
+      const armed = engine.armedTrack();
+      if (armed && (e.kind === 'noteon' || e.kind === 'noteoff') && e.note !== undefined) {
+        if (e.kind === 'noteon') {
+          void engine.ensureInstrument(armed).then(() => engine.instrumentNoteOn(armed, e.note!, e.velocity ?? 100));
+        } else {
+          engine.instrumentNoteOff(armed, e.note);
+        }
+        return;
+      }
       if (e.kind === 'noteon' && e.note !== undefined) {
         const pad = padForNote(e.note, e.deviceType);
         if (pad < 0) return;
@@ -176,13 +204,17 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       await engine.init();
       const result = await renderGroove(doc, engine.getSampleEntries(), { range: 'song', bitDepth: 24 });
       if (!result) { flash('Nothing to render yet'); return; }
+      // Never let a bounce quietly lose tracks — say what didn't make it.
+      const missing = result.skippedInstruments
+        ? ` · ${result.skippedInstruments} instrument track${result.skippedInstruments > 1 ? 's' : ''} failed to render`
+        : '';
       if (onRenderTake) {
         // Inside a production with a song selected: the bounce IS a take on that song.
         onRenderTake({ blob: result.blob, name: doc.name || 'Groove', durationSec: result.seconds });
-        flash(`Take saved to “${takeTargetName || 'the song'}” — ${result.seconds.toFixed(1)}s`);
+        flash(`Take saved to “${takeTargetName || 'the song'}” — ${result.seconds.toFixed(1)}s${missing}`);
       } else {
         downloadBlob(result.blob, `${(doc.name || 'groove').replace(/[^\w -]+/g, '')}.wav`);
-        flash(`Rendered ${result.seconds.toFixed(1)}s — 24-bit WAV downloaded`);
+        flash(`Rendered ${result.seconds.toFixed(1)}s — 24-bit WAV downloaded${missing}`);
       }
     } catch (e) { console.warn('[beats] bounce failed', e); flash('Render failed'); }
     finally { setBusy(null); }
