@@ -104,6 +104,43 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     void backupToLocker(result.ref);
   }, [p.onMutate, p.doc.bpm]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Drop audio onto empty space → one NEW labelled audio track per file, at the drop point. The
+  // Bitwig / Studio One behaviour: no manual track creation, no renaming.
+  const [dropHot, setDropHot] = useState(false);
+  const dropNewTracks = useCallback(async (files: File[], atBeats: number) => {
+    const audio = files.filter((f) => f.type.startsWith('audio/') || /\.(wav|mp3|ogg|flac|m4a|aif|aiff)$/i.test(f.name));
+    if (!audio.length) return;
+    const engine = BeatsEngine.get();
+    await engine.init();
+    const ctx = engine.getContext();
+    if (!ctx) return;
+    const spb = 60 / p.doc.bpm;
+    const startBar = Math.max(0, Math.floor(atBeats / BEATS_PER_BAR) * BEATS_PER_BAR);
+    const made: { name: string; key: string; dur: number }[] = [];
+    for (const file of audio) {
+      const name = file.name.replace(/\.[^.]+$/, '').slice(0, 40) || 'Audio';
+      const result = await ingestSample(file, name, ctx);
+      if (!result) continue;
+      engine.setSampleBuffer(result.ref.key, result.buffer);
+      void backupToLocker(result.ref);
+      made.push({ name, key: result.ref.key, dur: result.buffer.duration });
+    }
+    if (!made.length) return;
+    p.onMutate((d) => {
+      for (const m of made) {
+        d.arrangement.push({
+          id: grooveUid(), kind: 'audio', name: m.name, color: '#00DAF3',
+          mute: false, solo: false, gainDb: 0, pan: 0,
+          clips: [{
+            id: grooveUid(), startBeats: startBar,
+            lengthBeats: Math.max(1, Math.round((m.dur / spb) * 4) / 4),
+            audio: { sampleKey: m.key, name: m.name, offsetSec: 0, gainDb: 0, durationSec: m.dur },
+          }],
+        });
+      }
+    });
+  }, [p.onMutate, p.doc.bpm]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const addTrack = useCallback((kind: 'pattern' | 'audio') => {
     p.onMutate((d) => {
       d.arrangement.push({
@@ -360,7 +397,19 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                 </div>
               ))}
 
-              <div className="flex items-center gap-2 px-3" style={{ height: 36 }}>
+              <div
+                className="flex items-center gap-2 px-3 transition-colors"
+                style={{ height: 40, background: dropHot ? 'rgba(0,218,243,0.10)' : 'transparent', outline: dropHot ? '1.5px dashed rgba(0,218,243,0.5)' : 'none', outlineOffset: -3 }}
+                onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDropHot(true); } }}
+                onDragLeave={() => setDropHot(false)}
+                onDrop={(e) => {
+                  e.preventDefault(); setDropHot(false);
+                  const files = Array.from(e.dataTransfer.files || []);
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  const atBeats = Math.max(0, (e.clientX - rect.left - HEADER_W + (e.currentTarget.parentElement?.parentElement?.scrollLeft || 0)) / pxPerBeat);
+                  if (files.length) void dropNewTracks(files, atBeats);
+                }}
+              >
                 <button onClick={() => addTrack('pattern')} className="h-6 px-2 rounded-lg border border-white/10 text-white/40 hover:text-white text-[10px] flex items-center gap-1"><Plus size={10} /><Music2 size={10} /> Pattern track</button>
                 <button onClick={() => addTrack('audio')} className="h-6 px-2 rounded-lg border border-white/10 text-white/40 hover:text-white text-[10px] flex items-center gap-1"><Plus size={10} /><AudioWaveform size={10} /> Audio track</button>
                 <button
@@ -368,7 +417,9 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                   className="h-6 px-2 rounded-lg border text-[10px] flex items-center gap-1"
                   style={{ borderColor: 'rgba(208,188,255,0.4)', color: '#D0BCFF' }}
                 ><Plus size={10} /><Piano size={10} /> Instrument</button>
-                <span className="text-[9px] text-white/20">double-click a lane to add a clip · drop audio on audio lanes</span>
+                <span className="text-[9px]" style={{ color: dropHot ? '#00DAF3' : 'rgba(255,255,255,0.2)' }}>
+                  {dropHot ? 'Drop to add one labelled track per file' : 'double-click a lane to add a clip · drop audio files here to make tracks'}
+                </span>
               </div>
             </div>
           </div>
