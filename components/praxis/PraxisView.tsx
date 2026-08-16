@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import AriaMark from '../aria/AriaMark';
 import {
-  STAGES, THREE_P, ARCHETYPES, FOUNDER_BANDS, SPARK_LESSON, KNOWLEDGE_SOURCES,
+  STAGES, THREE_P, ARCHETYPES, FOUNDER_BANDS, SPARK_LESSON, KNOWLEDGE_SOURCES, ENTITIES, getEntity,
   type PKey, type FounderBand, type Stage,
 } from '../../data/praxisJourney';
 import {
@@ -444,7 +444,10 @@ const Chapter: React.FC<{ stage: Stage; venture: Venture; uid?: string; onBack: 
               onComplete={(patch) => completeChapter(patch, {}, 'form')}
             />
           ) : stage.key === 'form' ? (
-            <FormPreview state={venture.jurisdiction.state} />
+            <FormDo
+              venture={venture} saved={saved} uid={uid}
+              onComplete={(patch) => completeChapter(patch, {}, 'books')}
+            />
           ) : (
             <LockedPreview stage={stage} />
           )}
@@ -577,27 +580,110 @@ const ValidateDo: React.FC<{ venture: Venture; saved: boolean; uid?: string; onC
   );
 };
 
-const FormPreview: React.FC<{ state?: string }> = ({ state }) => {
+const EIN_URL = 'https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online';
+const REGISTER_URL = 'https://www.sba.gov/business-guide/launch-your-business/register-your-business';
+const LICENSE_URL = 'https://www.sba.gov/business-guide/launch-your-business/apply-licenses-permits';
+const NP_1023_URL = 'https://www.irs.gov/charities-non-profits/application-for-recognition-of-exemption';
+
+const FormDo: React.FC<{ venture: Venture; saved: boolean; uid?: string; onComplete: (patch: Record<string, string>) => void }> = ({ venture, saved, uid, onComplete }) => {
+  const state = venture.jurisdiction.state;
+  const [entityId, setEntityId] = useState(venture.plan.form_entity || (venture.archetype === 'nonprofit' ? 'nonprofit' : venture.archetype === 'startup' ? 'c_corp' : 'llc'));
+  const entity = getEntity(entityId)!;
+
+  // Checklist adapts to the chosen entity
   const items = [
-    { t: 'Choose your entity', d: 'LLC, S-corp, C-corp, or sole prop — Aria explains the trade-offs for your situation.', p: 'protect' as PKey },
-    { t: 'Get your EIN (free)', d: 'Your federal tax ID, straight from the IRS — never pay a third party for this.', p: 'protect' as PKey, url: 'https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online' },
-    { t: `Register in ${state || 'your state'}`, d: 'File with your Secretary of State. We deep-link you to the official site.', p: 'protect' as PKey },
-    { t: 'Licenses & permits', d: 'Only the ones your business actually needs — no upsells.', p: 'protect' as PKey, url: 'https://www.sba.gov/business-guide/launch-your-business/apply-licenses-permits' },
-    { t: 'Open a business bank account', d: 'Keep business and personal money separate — this protects you legally and at tax time.', p: 'protect' as PKey },
-  ];
+    { key: 'name', t: `Check the name "${venture.name}" is free`, d: `Search ${state || 'your state'}'s business registry so nobody already has it.` },
+    { key: 'ein', t: 'Get your EIN — free', d: 'Your federal tax ID, straight from the IRS. Never pay a third party for this.', url: EIN_URL },
+    { key: 'register', t: `Register your ${entity.label} in ${state || 'your state'}`, d: 'File with your Secretary of State — the step that makes it official.', url: REGISTER_URL },
+    ...(entity.doc ? [{ key: 'doc', t: `Put your ${entity.doc} in place`, d: 'Spells out ownership and rules — and helps hold your liability shield.', url: entityId === 'nonprofit' ? NP_1023_URL : undefined }] : []),
+    { key: 'licenses', t: 'Get only the licenses & permits you need', d: `${venture.archetype === 'restaurant' ? 'Food businesses also need health permits & a food-handler card. ' : ''}No upsells — just what your business actually requires.`, url: LICENSE_URL },
+    ...(entity.needsAgent ? [{ key: 'agent', t: 'Name a registered agent', d: 'Whoever officially receives legal mail — can be you at a real address.' }] : []),
+    { key: 'bank', t: 'Open a business bank account', d: 'Keep business and personal money apart — protects your shield and makes taxes sane.' },
+  ] as { key: string; t: string; d: string; url?: string }[];
+
+  const [checks, setChecks] = useState<Record<string, boolean>>(() => {
+    const seed: Record<string, boolean> = {};
+    items.forEach(it => { if (venture.plan[`form_ck_${it.key}`] === '1') seed[it.key] = true; });
+    return seed;
+  });
+  const toggle = (k: string) => setChecks(c => ({ ...c, [k]: !c[k] }));
+  const doneCount = items.filter(it => checks[it.key]).length;
+
+  const complete = () => {
+    const patch: Record<string, string> = { form_entity: entityId };
+    items.forEach(it => { patch[`form_ck_${it.key}`] = checks[it.key] ? '1' : ''; });
+    onComplete(patch);
+  };
+
   return (
-    <div className="space-y-2">
-      {items.map(it => (
-        <div key={it.t} className="flex items-center gap-3 rounded-xl bg-white/[0.03] border border-white/[0.07] px-3.5 py-3">
-          <span className="w-6 h-6 rounded-lg border flex items-center justify-center shrink-0" style={{ borderColor: pColor(it.p) + '55', color: pColor(it.p) }}><Shield size={12} /></span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-bold">{it.t}</p>
-            <p className="text-[11px] text-white/45 leading-snug">{it.d}</p>
-          </div>
-          {it.url && <a href={it.url} target="_blank" rel="noreferrer" className="shrink-0 text-[9px] font-black uppercase tracking-widest text-[#00daf3] flex items-center gap-1 hover:underline">Official <ExternalLink size={11} /></a>}
+    <div className="space-y-5">
+      {/* Entity picker */}
+      <div>
+        <Eyebrow className="mb-2">Choose your legal structure</Eyebrow>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {ENTITIES.map(e => (
+            <button key={e.id} onClick={() => setEntityId(e.id)}
+              className={`rounded-2xl px-3 py-3 text-left border transition-all ${entityId === e.id ? 'bg-white/10 border-white/30' : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.06]'}`}>
+              <div className="text-[12px] font-black">{e.label}</div>
+              <div className="text-[10px] text-white/40 mt-0.5 leading-snug">{e.blurb}</div>
+            </button>
+          ))}
         </div>
-      ))}
-      <p className="text-[10px] text-white/35 pt-1 leading-snug">This chapter unlocks after Validate. Aria prepares every form and hands you off to the official government site to file — she can't and won't file on your behalf.</p>
+      </div>
+
+      {/* Entity detail */}
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 space-y-2.5">
+        <div className="flex items-center gap-2"><span className="text-sm font-black">{entity.label}</span><PTag k="protect" /></div>
+        {([['Liability', entity.liability], ['Taxes', entity.taxes], ['Best for', entity.bestFor]] as const).map(([k, v]) => (
+          <div key={k} className="flex gap-3">
+            <span className="text-[9px] font-black uppercase tracking-widest text-white/40 w-16 shrink-0 pt-0.5">{k}</span>
+            <span className="text-[12.5px] text-white/75 leading-snug flex-1">{v}</span>
+          </div>
+        ))}
+        <button onClick={() => askAria(`You are Aria, my Praxis coach. I'm leaning toward a ${entity.label} for my ${venture.archetype} "${venture.name}" in ${state || 'my state'}. Explain in plain terms whether that's right for me, what it protects me from, and the one thing people get wrong. Compare it to an LLC if that's better for my case.`)}
+          className="mt-1 w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 text-[#c4b5fd] hover:bg-[#8b5cf6]/20 flex items-center justify-center gap-2">
+          <AriaMark size={16} petals={false} /> Ask Aria if this is right for me
+        </button>
+      </div>
+
+      {/* Checklist */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <Eyebrow>Your formation checklist</Eyebrow>
+          <span className="text-[10px] font-black text-white/40 tabular-nums">{doneCount}/{items.length} done</span>
+        </div>
+        <div className="space-y-2">
+          {items.map(it => (
+            <div key={it.key} className={`flex items-center gap-3 rounded-xl border px-3.5 py-3 transition-all ${checks[it.key] ? 'bg-[#06d6a0]/[0.06] border-[#06d6a0]/25' : 'bg-white/[0.03] border-white/[0.07]'}`}>
+              <button onClick={() => toggle(it.key)} aria-pressed={!!checks[it.key]}
+                className="w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-all"
+                style={checks[it.key] ? { background: '#06d6a0', borderColor: '#06d6a0' } : { borderColor: 'rgba(255,255,255,0.25)' }}>
+                {checks[it.key] && <Check size={13} className="text-black" />}
+              </button>
+              <div className="min-w-0 flex-1">
+                <p className={`text-[13px] font-bold ${checks[it.key] ? 'text-white/60 line-through' : ''}`}>{it.t}</p>
+                <p className="text-[11px] text-white/45 leading-snug">{it.d}</p>
+              </div>
+              {it.url && <a href={it.url} target="_blank" rel="noreferrer" className="shrink-0 text-[9px] font-black uppercase tracking-widest text-[#00daf3] flex items-center gap-1 hover:underline">Official <ExternalLink size={11} /></a>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-2 pt-1">
+        <button onClick={() => askAria(`You are Aria, my Praxis coach on the Three P's. Walk me through forming my ${entity.label} in ${state || 'my state'} step by step — name check, EIN, state registration, ${entity.doc || 'documents'}, licenses, and a bank account. Deep-link me to the official sites and flag every deadline. You prepare; I file.`)}
+          className="flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 text-[#c4b5fd] hover:bg-[#8b5cf6]/20 flex items-center justify-center gap-2">
+          <AriaMark size={16} petals={false} /> Coach me through filing
+        </button>
+        <button onClick={complete}
+          className="flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white hover:brightness-110 flex items-center justify-center gap-2">
+          <Check size={13} /> {doneCount === items.length ? 'Complete Form → Books' : 'Save & continue → Books'}
+        </button>
+      </div>
+      <p className="text-[10px] text-white/35 leading-snug text-center">
+        This is education, not legal or tax advice. Aria prepares everything and takes you to the official government site — she never files for you, and confirm anything binding with a professional.
+      </p>
+      {saved && <p className="text-[11px] text-[#06d6a0] text-center flex items-center justify-center gap-1.5"><Check size={12} /> Saved to your Blueprint{uid ? ' · +15 points' : ''}. Next: Books — understand your money.</p>}
     </div>
   );
 };
@@ -625,6 +711,7 @@ const Blueprint: React.FC<{ venture: Venture; onBack: () => void }> = ({ venture
     { k: 'Market size', v: [p.val_tam, p.val_sam, p.val_som].filter(Boolean).join('  →  ') },
     { k: 'Ideal customer', v: p.icp_who },
     { k: 'Starting price', v: p.price ? `$${p.price}${p.price_basis ? ` · ${p.price_basis.replace('_', '-')}` : ''}` : '' },
+    { k: 'Legal structure', v: getEntity(p.form_entity)?.label },
     { k: 'Where', v: [venture.jurisdiction.city, venture.jurisdiction.state, venture.jurisdiction.country].filter(Boolean).join(', ') },
   ];
   return (

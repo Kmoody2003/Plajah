@@ -118,6 +118,44 @@ export const SPARK_LESSON: Record<FounderBand, { intro: string; why: string }> =
   },
 };
 
+/** Legal structures, in plain language. Education — never legal advice. */
+export interface EntityOption {
+  id: string; label: string; blurb: string;
+  liability: string; taxes: string; bestFor: string;
+  /** the governing document this structure needs */
+  doc?: string;
+  needsAgent?: boolean;
+}
+
+export const ENTITIES: EntityOption[] = [
+  { id: 'sole_prop', label: 'Sole Proprietor', blurb: 'You, doing business. No separate entity.',
+    liability: 'None — you and the business are legally the same, so your personal savings, car, and home are exposed if it\'s sued or owes money.',
+    taxes: 'Simplest — profit goes on your personal return (Schedule C).',
+    bestFor: 'Testing an idea or side income at the lowest cost.' },
+  { id: 'llc', label: 'LLC', blurb: 'A separate legal shield around you.',
+    liability: 'Strong — your personal assets are generally protected from business debts and lawsuits.',
+    taxes: 'Flexible — pass-through by default; you can elect S-corp taxation later.',
+    bestFor: 'Most small businesses — the popular default.', doc: 'Operating Agreement', needsAgent: true },
+  { id: 's_corp', label: 'S-Corp', blurb: 'A tax election on an LLC or corporation.',
+    liability: 'Strong (it sits on top of an LLC or corp).',
+    taxes: 'Pass-through, and can lower self-employment tax once you\'re reliably profitable — but adds payroll and paperwork.',
+    bestFor: 'Profitable owners who pay themselves a real salary.', doc: 'Operating Agreement / Bylaws', needsAgent: true },
+  { id: 'c_corp', label: 'C-Corp', blurb: 'A full corporation, separate taxpayer.',
+    liability: 'Strong.',
+    taxes: 'Taxed separately from you (the "double taxation" you\'ll hear about) — but it\'s the standard for outside investment.',
+    bestFor: 'Startups raising venture capital (often Delaware).', doc: 'Bylaws + issue stock', needsAgent: true },
+  { id: 'nonprofit', label: 'Nonprofit', blurb: 'A mission-first organization.',
+    liability: 'Strong.',
+    taxes: 'Can become tax-exempt (501(c)(3)); donations may be deductible — but you file for exemption (IRS Form 1023).',
+    bestFor: 'Mission-first orgs funded by grants and donors.', doc: 'Bylaws + 501(c)(3) filing', needsAgent: true },
+  { id: 'partnership', label: 'Partnership', blurb: 'Two or more owners, no LLC.',
+    liability: 'General partners are personally exposed — an LLC is usually the safer way to have partners.',
+    taxes: 'Pass-through to each partner.',
+    bestFor: 'Multiple owners not forming an LLC (uncommon today).', doc: 'Partnership Agreement' },
+];
+
+export const getEntity = (id?: string) => ENTITIES.find(e => e.id === id);
+
 /** Open / public sources Praxis draws on — surfaced so founders can go deeper. */
 export const KNOWLEDGE_SOURCES: { name: string; url: string; what: string }[] = [
   { name: 'IRS — Apply for an EIN', url: 'https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online', what: 'Get your federal tax ID — free, official.' },
