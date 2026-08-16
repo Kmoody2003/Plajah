@@ -322,6 +322,7 @@ import { fetchAudiusArtistById, fetchAudiusPlaylistTracks, audiusAlbumToNativeAl
 import { completeAudiusRedirect } from './services/audiusAuth';
 const BusinessDashboard = retryLazy(() => import('./components/BusinessDashboard'));
 const PlajahBusinessHub = retryLazy(() => import('./components/PlajahBusinessHub'));
+const PraxisView = retryLazy(() => import('./components/praxis/PraxisView'));
 const TerraHub = retryLazy(() => import('./components/terra/TerraHub'));
 const TerraExplorer = retryLazy(() => import('./components/terra/TerraExplorer'));
 const PropertyPassport = retryLazy(() => import('./components/terra/PropertyPassport'));
@@ -1438,6 +1439,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('ACADEMIA_COURSES');
     } else if (target === 'SCHOOL_PACKAGE') {
       setView('SCHOOL_PACKAGE');
+    } else if (target === 'PRAXIS') {
+      setView('PRAXIS');
     } else if (target === 'LANGUAGE_QUEST') {
       setView('LANGUAGE_QUEST');
     } else if (target === 'EDU_SOCIAL') {
@@ -2069,6 +2072,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('keyup', onKeyUp);
     };
   }, [user, linkedAccounts]);
+
+  // ⌘K / Ctrl+K — summon Aria from anywhere (the "Halo" ambient shortcut)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setIsMuseOpen(o => !o);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const getThemeStyles = () => {
     switch (theme) {
@@ -4399,6 +4414,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   currentUser={userProfile}
                   isLoggedIn={!!user}
                 />
+              </Suspense>
+            )}
+
+            {view === 'PRAXIS' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <PraxisView user={user} profile={userProfile} onBack={() => setView('PLAJAH_BUSINESS')} />
               </Suspense>
             )}
 

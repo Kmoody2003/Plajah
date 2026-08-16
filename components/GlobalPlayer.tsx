@@ -4,6 +4,7 @@ import { useGoogleCast } from '../hooks/useGoogleCast';
 import { useViewport } from '../hooks/useViewport';
 import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Shuffle, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box, Video as VideoIcon, Headphones, ZapOff } from 'lucide-react';
 import Logo from './Logo';
+import AriaMark from './aria/AriaMark';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import MuxPlayer from '@mux/mux-player-react';
@@ -1285,8 +1286,8 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                 {!isShrunk && (
                   <div className="flex items-center gap-4">
                     {onOpenAria && (
-                      <button onClick={onOpenAria} className="text-white/20 hover:text-purple-300 transition-colors" title="Aria AI">
-                        <Sparkles size={14} />
+                      <button onClick={onOpenAria} className="transition-transform hover:scale-110" title="Ask Aria">
+                        <AriaMark size={17} petals={false} />
                       </button>
                     )}
                     <button onClick={handleShare} className="text-white/20 hover:text-white"><Share2 size={14} /></button>
@@ -1365,11 +1366,11 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                   {onOpenAria && (
                     <button
                       onClick={onOpenAria}
-                      className="p-2 android-press transition-all rounded-full text-white/30 hover:text-purple-300"
+                      className="p-2 android-press transition-all rounded-full"
                       style={{ minWidth: 36, minHeight: 36 }}
-                      title="Aria AI"
+                      title="Ask Aria"
                     >
-                      <Sparkles size={16} />
+                      <AriaMark size={18} petals={false} />
                     </button>
                   )}
                   <button

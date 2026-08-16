@@ -32,6 +32,7 @@ import {
 } from '../services/agentService';
 import { auth } from '../services/backendService';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
+import AriaMark from './aria/AriaMark';
 
 interface Props {
   isOpen: boolean;
@@ -152,9 +153,7 @@ const MessageBubble: React.FC<{ msg: AgentMessage; onApplyBuild?: (b: AgentBuild
     >
       {/* Avatar */}
       {!isUser && (
-        <div className="shrink-0 w-7 h-7 rounded-xl bg-gradient-to-br from-purple-600 to-violet-700 flex items-center justify-center shadow-lg mt-0.5">
-          <Sparkles size={12} className="text-white" />
-        </div>
+        <AriaMark size={28} className="shrink-0 mt-0.5" />
       )}
 
       <div className={`flex-1 max-w-[85%] ${isUser ? 'items-end' : 'items-start'} flex flex-col gap-2`}>
@@ -209,9 +208,7 @@ const MessageBubble: React.FC<{ msg: AgentMessage; onApplyBuild?: (b: AgentBuild
 // ── Thinking indicator ─────────────────────────────────────────────────────────
 const ThinkingBubble: React.FC<{ toolLabel?: string }> = ({ toolLabel }) => (
   <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2.5">
-    <div className="shrink-0 w-7 h-7 rounded-xl bg-gradient-to-br from-purple-600 to-violet-700 flex items-center justify-center shadow-lg">
-      <Sparkles size={12} className="text-white animate-pulse" />
-    </div>
+    <AriaMark size={28} thinking className="shrink-0" />
     <div className="bg-white/[0.07] border border-white/[0.09] rounded-[1.1rem] rounded-tl-sm px-4 py-3">
       {toolLabel ? (
         <div className="flex items-center gap-2 text-[9px] text-purple-300/80 font-black uppercase tracking-widest">
@@ -473,9 +470,7 @@ const PlajahAgent: React.FC<Props> = ({
 
               {/* Identity */}
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-purple-600 to-violet-700 flex items-center justify-center shadow-lg shrink-0">
-                  <Sparkles size={13} className="text-white" />
-                </div>
+                <AriaMark size={28} className="shrink-0" />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-black text-white">Aria</span>
@@ -561,9 +556,7 @@ const PlajahAgent: React.FC<Props> = ({
               {messages.length === 0 && !isThinking && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-4 pt-4">
                   <div className="text-center">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-600 to-violet-700 flex items-center justify-center mx-auto mb-3 shadow-2xl">
-                      <Sparkles size={22} className="text-white" />
-                    </div>
+                    <AriaMark size={56} className="mx-auto mb-3" />
                     <h3 className="text-base font-black text-white">Hi, I'm Aria</h3>
                     <p className="text-xs text-white/40 mt-1 max-w-[260px] mx-auto leading-relaxed">
                       Your private creative agent. I can build module experiences, design gallery views, curate content, and research the web — all just for you.
@@ -728,7 +721,7 @@ export const AriaButton: React.FC<{ onClick: () => void; isOpen: boolean; hasUnr
     }}
     title="Open Aria — your private creative agent"
   >
-    {isOpen ? <X size={18} className="text-white" /> : <Sparkles size={18} className="text-purple-300" />}
+    {isOpen ? <X size={18} className="text-white" /> : <AriaMark size={30} petals={false} />}
     {hasUnread && !isOpen && (
       <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-small-orange border-2 border-[#08041a]" />
     )}
