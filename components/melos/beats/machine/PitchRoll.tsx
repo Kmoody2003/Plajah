@@ -7,7 +7,13 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { GrooveDoc, MeloNote, Pattern } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
-import { PLAYHEAD, SURFACE_CELL } from '../theme';
+import { CHORDS, chordById } from '../../../../services/melos/theory';
+import { PLAYHEAD, SELECT, SURFACE_CELL } from '../theme';
+
+// The chord palette in the roll: single-note plus the everyday chords. Painting one cell drops the
+// whole chord (root + intervals), and because a step holds several notes at once, a painted chord
+// is also "one step triggers the chord" when the sequence plays it.
+const CHORD_PALETTE = ['maj', 'min', 'sus4', 'sus2', 'maj7', 'min7', 'dom7', 'dim', 'add9', 'min9'];
 
 const SEMI_TOP = 12;    // +1 octave above the pad's base pitch…
 const SEMI_BOTTOM = -12; // …down to -1 octave. Base row (0) is the pad's own tuning.
@@ -33,6 +39,7 @@ interface PitchRollProps {
 
 export const PitchRoll: React.FC<PitchRollProps> = ({ doc, pattern, selectedPad, beats, running, playMode, onMutate }) => {
   const [open, setOpen] = useState(true);
+  const [chordId, setChordId] = useState<string | null>(null); // null = single note
   const scrollRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ semi: number; step: number; startX: number; startLen: number; moved: boolean } | null>(null);
 
@@ -59,15 +66,19 @@ export const PitchRoll: React.FC<PitchRollProps> = ({ doc, pattern, selectedPad,
     });
   }, [onMutate, pattern.id, selectedPad]);
 
-  const addNote = useCallback((semi: number, step: number) => {
+  const addNote = useCallback((rootSemi: number, step: number) => {
+    // In chord mode, one click drops the whole chord (root + intervals) that fits the roll range.
+    const semis = chordId
+      ? chordById(chordId).intervals.map((iv) => rootSemi + iv).filter((s) => s >= SEMI_BOTTOM && s <= SEMI_TOP)
+      : [rootSemi];
     mutateLane((l) => {
       const arr = l[step] || (l[step] = []);
-      if (!arr.some((n) => n.semi === semi)) arr.push({ semi, v: 100, len: 1 });
+      for (const semi of semis) if (!arr.some((n) => n.semi === semi)) arr.push({ semi, v: 100, len: 1 });
     });
-    // Audition the drawn pitch for one step so drawing is musical, not clerical.
+    // Audition — the whole chord, so drawing is musical, not clerical.
     const engine = BeatsEngine.get();
-    void engine.init().then(() => engine.trigger(selectedPad, 100, undefined, (60 / doc.bpm) * 0.25, semi));
-  }, [mutateLane, selectedPad, doc.bpm]);
+    void engine.init().then(() => { for (const semi of semis) engine.trigger(selectedPad, 100, undefined, (60 / doc.bpm) * 0.25, semi); });
+  }, [mutateLane, selectedPad, doc.bpm, chordId]);
 
   const removeNote = useCallback((semi: number, step: number) => {
     mutateLane((l) => {
@@ -88,6 +99,24 @@ export const PitchRoll: React.FC<PitchRollProps> = ({ doc, pattern, selectedPad,
         {open ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
         Notes · {pad.name} <span className="text-white/20 normal-case tracking-normal">draw pitched notes — length gates the envelope</span>
       </button>
+      {open && (
+        <div className="flex items-center gap-1 mb-1.5 flex-wrap">
+          <span className="text-[8px] font-mono uppercase tracking-[0.14em] text-white/25 mr-1">Chord</span>
+          <button onClick={() => setChordId(null)} className="h-5 px-2 rounded-md text-[9px] font-mono border"
+            style={!chordId ? { borderColor: SELECT, color: '#fff', background: `${SELECT}22` } : { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}>Single</button>
+          {CHORD_PALETTE.map((id) => {
+            const c = chordById(id);
+            return (
+              <button key={id} onClick={() => setChordId(chordId === id ? null : id)}
+                title={`${c.name} — click a cell to paint the chord`}
+                className="h-5 px-2 rounded-md text-[9px] font-mono border"
+                style={chordId === id ? { borderColor: PLAYHEAD, color: PLAYHEAD, background: `${PLAYHEAD}18` } : { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.45)' }}>
+                {id === 'maj' ? 'Maj' : id === 'min' ? 'min' : c.symbol || id}
+              </button>
+            );
+          })}
+        </div>
+      )}
       {open && (
         <div ref={scrollRef} className="relative overflow-y-auto rounded-lg border border-white/10" style={{ height: 200, background: '#0B0B0F' }}>
           <div className="relative" style={{ height: (SEMI_TOP - SEMI_BOTTOM + 1) * ROW_H, marginLeft: 34 }}>
