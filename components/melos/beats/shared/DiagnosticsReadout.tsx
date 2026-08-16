@@ -4,6 +4,7 @@
 import React from 'react';
 import type { EngineSnapshot } from '../useEngineBridge';
 import { midiStatus } from '../../../../services/melos/midiInput';
+import { deviceLabel, deviceCapabilities } from '../../../../services/melos/midiMap';
 
 interface DiagnosticsProps {
   snap: EngineSnapshot;
@@ -36,7 +37,18 @@ export const DiagnosticsReadout: React.FC<DiagnosticsProps> = ({ snap, hidStatus
 
       <div className="pt-2 mt-2 border-t border-white/10 space-y-1.5">
         <p className="text-[9px] uppercase tracking-[0.18em] text-white/30 font-semibold">Hardware</p>
-        {row('MIDI', midi.connected.length ? midi.connected[0] : midi.supported ? 'none connected' : 'unsupported')}
+        {midi.connected.length === 0 && row('MIDI', midi.supported ? 'none connected' : 'unsupported')}
+        {midi.connected.map((d, i) => (
+          <div key={i} className="space-y-0.5">
+            <div className="flex justify-between gap-6">
+              <span className="text-white/40">MIDI</span>
+              <span className="font-mono" style={{ color: d.type === 'generic' ? 'rgba(255,255,255,0.8)' : '#06D6A0' }}>
+                {deviceLabel(d.type)}
+              </span>
+            </div>
+            <p className="text-[9px] text-white/25 leading-snug">{deviceCapabilities(d.type)}</p>
+          </div>
+        ))}
         {onConnectHid && (
           <>
             <button

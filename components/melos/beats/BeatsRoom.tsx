@@ -10,12 +10,12 @@ import { defaultPattern, grooveUid, type GrooveDoc } from '../../../services/mel
 import { autoFill, quantizePattern } from '../../../services/melos/beats/grooveTools';
 import { ingestSample, backupToLocker } from '../../../services/melos/beats/sampleStore';
 import { renderGroove, publishGroove, downloadBlob } from '../../../services/melos/beats/render';
-import { subscribeMidi } from '../../../services/melos/midiInput';
+import { subscribeMidi, ensureMidi } from '../../../services/melos/midiInput';
+import { mapMidiEvent } from '../../../services/melos/midiMap';
 import { exportDawproject } from '../../../services/melos/beats/dawproject/exportDawproject';
 import { importDawproject } from '../../../services/melos/beats/dawproject/importDawproject';
 import { transcribeToPattern, addTranscribedPattern } from '../../../services/melos/beats/transcribeImport';
 import type { MelosSampleRef } from './melosSamples';
-import { VJ_PAD_BY_NOTE } from '../../plajahPixels/services/midiService';
 import { useBeatsDoc } from './useBeatsDoc';
 import { useEngineBridge } from './useEngineBridge';
 import { useBeatsHid } from './useBeatsHid';
@@ -125,55 +125,63 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   // Stop the transport when the room unmounts — the engine singleton outlives the view.
   useEffect(() => () => { BeatsEngine.get().stop(); }, []);
 
-  // NKS tier 1 — hardware MIDI. Maschine pads (note 60+, the Pixels preset grid) or generic
-  // chromatic 36–51 both land on the 16 pads; note-off releases sustaining pads; CC 14–21
-  // shape the selected pad's first eight macros. Trigger path is synchronous from midimessage.
+  // Hardware MIDI — premapped for Maschine, Komplete Kontrol and Maschine Jam (the same devices
+  // Pixels sees). mapMidiEvent turns each event into ONE Melos action given the device and
+  // whether an instrument is armed, so a Maschine's pads play drums, its knobs turn the synth's
+  // macros, and — when an instrument track is armed — its pads become a playable keyboard.
   useEffect(() => {
-    const padForNote = (note: number, deviceType: string): number => {
-      if (deviceType.startsWith('maschine') || deviceType === 'komplete_kontrol') {
-        const m = VJ_PAD_BY_NOTE[note];
-        if (m) return (m.row - 1) * 4 + (m.col - 1);
-      }
-      if (note >= 36 && note <= 51) return note - 36;
-      return -1;
-    };
+    ensureMidi(); // request access now so the device readout populates before you play
     return subscribeMidi((e) => {
       const engine = BeatsEngine.get();
-      // An armed instrument track takes the keyboard: notes play the instrument at their real
-      // pitch instead of being folded onto the 16 pads.
       const armed = engine.armedTrack();
-      if (armed && (e.kind === 'noteon' || e.kind === 'noteoff') && e.note !== undefined) {
-        if (e.kind === 'noteon') {
-          void engine.ensureInstrument(armed).then(() => engine.instrumentNoteOn(armed, e.note!, e.velocity ?? 100));
-        } else {
-          engine.instrumentNoteOff(armed, e.note);
-        }
-        return;
-      }
-      if (e.kind === 'noteon' && e.note !== undefined) {
-        const pad = padForNote(e.note, e.deviceType);
-        if (pad < 0) return;
-        void engine.init().then(() => engine.trigger(pad, e.velocity ?? 100));
-        setSelectedPad(pad);
-      } else if (e.kind === 'noteoff' && e.note !== undefined) {
-        const pad = padForNote(e.note, e.deviceType);
-        if (pad >= 0) engine.release(pad);
-      } else if (e.kind === 'cc' && e.cc !== undefined && e.cc >= 14 && e.cc <= 21 && e.value !== undefined) {
-        const v = e.value / 127;
-        mutate((d) => {
-          const p = d.kit[selectedPadRef.current];
-          if (!p) return;
-          switch (e.cc) {
-            case 14: p.pitchSemis = Math.round(-24 + v * 48); break;
-            case 15: p.env.attackMs = Math.round(v * 200); break;
-            case 16: p.env.decayMs = Math.round(20 + v * 1980); break;
-            case 17: p.env.holdMs = Math.round(v * 500); break;
-            case 18: p.env.sustain = v; break;
-            case 19: p.env.releaseMs = Math.round(5 + v * 1995); break;
-            case 20: p.filter.cutoff = Math.round(60 + v * 17940); break;
-            case 21: p.filter.q = 0.3 + v * 11.7; break;
+      const action = mapMidiEvent(e, !!armed);
+      if (!action) return;
+      switch (action.kind) {
+        case 'pad':
+          void engine.init().then(() => engine.trigger(action.pad, action.velocity));
+          setSelectedPad(action.pad);
+          break;
+        case 'padOff':
+          engine.release(action.pad);
+          break;
+        case 'note':
+          if (armed) void engine.ensureInstrument(armed).then(() => engine.instrumentNoteOn(armed, action.note, action.velocity));
+          break;
+        case 'noteOff':
+          if (armed) engine.instrumentNoteOff(armed, action.note);
+          break;
+        case 'macro':
+          // The eight knobs drive the armed instrument's macros, else the selected pad's first
+          // eight parameters (so a Maschine is useful whether you're on drums or a synth).
+          if (armed) {
+            engine.getInstrument(armed.id)?.setMacro(action.index, action.value);
+            mutate((d) => {
+              const t = d.arrangement.find((x) => x.id === armed.id);
+              const macros = (t?.instrument?.patch as { macros?: { value: number }[] } | undefined)?.macros;
+              if (macros?.[action.index]) macros[action.index].value = action.value;
+            });
+          } else {
+            mutate((d) => {
+              const p = d.kit[selectedPadRef.current];
+              if (!p) return;
+              const v = action.value;
+              switch (action.index) {
+                case 0: p.pitchSemis = Math.round(-24 + v * 48); break;
+                case 1: p.env.attackMs = Math.round(v * 200); break;
+                case 2: p.env.decayMs = Math.round(20 + v * 1980); break;
+                case 3: p.env.holdMs = Math.round(v * 500); break;
+                case 4: p.env.sustain = v; break;
+                case 5: p.env.releaseMs = Math.round(5 + v * 1995); break;
+                case 6: p.filter.cutoff = Math.round(60 + v * 17940); break;
+                case 7: p.filter.q = 0.3 + v * 11.7; break;
+              }
+            });
           }
-        });
+          break;
+        case 'transport':
+          if (action.action === 'play') handlePlay();
+          else if (action.action === 'stop') handleStop();
+          break;
       }
     });
   }, [mutate]); // eslint-disable-line react-hooks/exhaustive-deps

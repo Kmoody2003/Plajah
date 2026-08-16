@@ -70,8 +70,20 @@ export function subscribeMidi(fn: Listener): () => void {
   return () => { listeners.delete(fn); };
 }
 
-export function midiStatus(): { supported: boolean; connected: string[] } {
-  const connected: string[] = [];
-  access?.inputs.forEach((i) => { if (i.state === 'connected') connected.push(i.name || i.id); });
+export interface MidiDeviceInfo { name: string; type: ReturnType<typeof detectDeviceType> }
+
+export function midiStatus(): { supported: boolean; connected: MidiDeviceInfo[] } {
+  const connected: MidiDeviceInfo[] = [];
+  access?.inputs.forEach((i) => {
+    if (i.state === 'connected') {
+      const name = i.name || i.id;
+      connected.push({ name, type: detectDeviceType(name) });
+    }
+  });
   return { supported: 'requestMIDIAccess' in navigator, connected };
+}
+
+/** Force the access request now (so the UI can show devices before any note is played). */
+export function ensureMidi(): void {
+  void ensureAccess();
 }
