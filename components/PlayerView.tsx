@@ -35,7 +35,7 @@ import {
   Layers, Music2, Plus, MessageSquare, Send, User, Users, Clock, Activity, BookOpen, ChevronDown, ChevronUp, Image as ImageIcon,
   AlertCircle, Video as VideoIcon, Radio, List, HeartHandshake, Heart, Pen, Maximize2, Minimize2, GripVertical, Upload, EyeOff, Eye,
   SkipBack, SkipForward, ChevronLeft, ChevronRight, Waves, RotateCcw, ListPlus,
-  Languages, RefreshCw, Film, ZapOff
+  Languages, RefreshCw, Film, ZapOff, Scissors
 } from 'lucide-react';
 
 import { User as FirebaseUser } from 'firebase/auth';
@@ -48,6 +48,8 @@ import The411 from './The411';
 import { LyricItem, TimeCodedLyrics } from './LyricItem';
 import { translateLyrics, LYRIC_LANGS } from '../services/lyricTranslator';
 import HoverPreviewThumb, { previewSourceFor } from './HoverPreviewThumb';
+import type { SampleClearance } from '../services/melos/sampling/clearance';
+const SampleThisModal = React.lazy(() => import('./melos/sampling/SampleThisModal').then((m) => ({ default: m.SampleThisModal })));
 import PlajahPlusButton from './PlajahPlusButton';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
@@ -759,6 +761,17 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   }, [currentTrack, album]);
   const isOwner = user && album.ownerId === user.uid;
 
+  // Sample clearance: if the artist cleared this track for sampling, offer "Sample this".
+  const [sampleClearance, setSampleClearance] = useState<SampleClearance | null>(null);
+  const [sampleOpen, setSampleOpen] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    setSampleClearance(null); setSampleOpen(false);
+    const id = currentTrack?.id;
+    if (id) import('../services/melos/sampling/clearanceStore').then((m) => m.getClearanceForTrack(id)).then((c) => { if (alive) setSampleClearance(c); }).catch(() => {});
+    return () => { alive = false; };
+  }, [currentTrack?.id]);
+
   const reorderTracks = async (from: number, to: number) => {
     const reordered = [...localTracks];
     const [moved] = reordered.splice(from, 1);
@@ -1207,6 +1220,18 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 <button onClick={() => setIsVisualizerLayout(false)} aria-label="Exit FX Stage" className="shrink-0 p-2 rounded-full bg-black/60 border border-white/10 text-white/60 hover:text-white transition-all"><X size={14} /></button>
                 <div className="flex-1 flex items-center justify-center min-w-0">{fxSelectorEl}</div>
                 <button onClick={openPlajahPixels} aria-label="Open Plajah Pixels" title="Open the full Plajah Pixels experience" className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-full bg-purple-500/20 border border-purple-400/30 text-purple-200 text-[9px] font-black uppercase tracking-widest"><Sparkles size={11} /> PP</button>
+                {sampleClearance && currentTrack && (
+                  <button onClick={() => setSampleOpen(true)} aria-label="Sample this" title="Sample this track — the artist cleared it" className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-full bg-cyan-500/20 border border-cyan-400/30 text-cyan-200 text-[9px] font-black uppercase tracking-widest"><Scissors size={11} /> Sample</button>
+                )}
+                {sampleOpen && sampleClearance && currentTrack && (
+                  <React.Suspense fallback={null}>
+                    <SampleThisModal
+                      track={{ id: currentTrack.id, title: currentTrack.title, artist: currentTrack.artist, url: currentTrack.url, duration: currentTrack.duration, peaks: trackPeaks }}
+                      clearance={sampleClearance}
+                      onClose={() => setSampleOpen(false)}
+                    />
+                  </React.Suspense>
+                )}
               </div>
             </div>
           )}
