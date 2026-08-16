@@ -146,7 +146,7 @@ export class StepScheduler {
     if (!d.runArp) return;
     const anySolo = doc.arrangement.some((t) => t.solo);
     for (const track of doc.arrangement) {
-      if (track.kind !== 'instrument' || track.mute || (anySolo && !track.solo)) continue;
+      if (track.kind !== 'instrument' || track.mute || track.padOwned || (anySolo && !track.solo)) continue;
       if (d.arpActive?.(track)) d.runArp(track, this.nextStep, beat);
     }
   }
@@ -180,7 +180,7 @@ export class StepScheduler {
     // its EXACT time — the piano roll allows off-grid notes and that timing has to survive.
     const anySoloTrack = doc.arrangement.some((t) => t.solo);
     for (const track of doc.arrangement) {
-      if (track.kind !== 'instrument' || track.mute || (anySoloTrack && !track.solo)) continue;
+      if (track.kind !== 'instrument' || track.mute || track.padOwned || (anySoloTrack && !track.solo)) continue;
       // Arps are fired by runArps() (both modes); when a track's arp is active its clip notes
       // are skipped so an arped performance doesn't double against a recording.
       if (d.arpActive?.(track)) continue;

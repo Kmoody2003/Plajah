@@ -87,8 +87,30 @@ export class Instrument {
       if (!d) return;
       if (d.type === 'voices') this.activeVoices = d.count;
       else if (d.type === 'ready') resolveReady();
+      else if (d.type === 'pong') { const r = this.pendingPings.get(d.id); if (r) { this.pendingPings.delete(d.id); r(); } }
       else if (d.type === 'error') { opts.onError?.(d.message); resolveReady(); }
     };
+  }
+
+  private pingId = 0;
+  private pendingPings = new Map<number, () => void>();
+
+  /**
+   * Resolve once the worklet has drained every message posted before this call. Messages are
+   * processed in order, so the returned pong proves the wavetable/sample uploads (and their
+   * synchronous mip-pyramid build) are fully committed. The offline render awaits this before
+   * startRendering() — without it, a bounce can read a table that hasn't been built yet and go
+   * silent, even though live playback (which has real time between load and note) is fine.
+   */
+  flush(): Promise<void> {
+    if (this.disposed) return Promise.resolve();
+    const id = ++this.pingId;
+    return new Promise<void>((resolve) => {
+      this.pendingPings.set(id, resolve);
+      this.post({ type: 'ping', id });
+      // Safety valve: a dropped message must never hang a render.
+      setTimeout(() => { if (this.pendingPings.delete(id)) resolve(); }, 750);
+    });
   }
 
   static async create(ctx: BaseAudioContext, opts: InstrumentOptions = {}): Promise<Instrument> {

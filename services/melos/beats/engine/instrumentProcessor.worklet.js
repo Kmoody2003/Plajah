@@ -148,6 +148,13 @@ class InstrumentProcessor extends AudioWorkletProcessor {
         }
         break;
       }
+      // A round-trip flush: because messages are processed in order, a 'pong' proves every
+      // message queued before this ping — crucially the wavetable/sample uploads and their
+      // (synchronous) mip-pyramid build — has been fully applied. The offline render awaits this
+      // before startRendering(), so a bounce never reads a table that isn't committed yet.
+      case 'ping':
+        this.port.postMessage({ type: 'pong', id: msg.id });
+        break;
       case 'dispose':
         this.dispose();
         break;

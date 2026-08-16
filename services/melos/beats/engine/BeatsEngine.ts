@@ -4,7 +4,7 @@
 // resumed on every gesture + visibilitychange (recipe: services/fabula/audioGraph.ts:40-104).
 
 import clockUrl from './clockProcessor.worklet.js?url';
-import type { ArrangeTrack, GrooveDoc, TimelineClip } from '../grooveDoc';
+import type { ArrangeTrack, GrooveDoc, PadConfig, TimelineClip } from '../grooveDoc';
 import { newGrooveDoc } from '../grooveDoc';
 import { buildGraph, type BeatsGraph } from './graph';
 import { VoiceBank } from './voices';
@@ -49,6 +49,8 @@ export class BeatsEngine {
   private instrumentLoading = new Set<string>();
   /** Notes started live from the keyboard/MIDI, so a key-up can find its voice. */
   private liveNotes = new Map<string, number>();
+  /** Live-held instrument-pad notes (padIdx → the voice sounding), so a pad release finds it. */
+  private padLiveNotes = new Map<number, { trackId: string; note: number; voiceId: number; kera: boolean }>();
   /** Keys feeding each track's arp: `keys` is the held set, `order` preserves press order. */
   private heldKeys = new Map<string, { keys: number[]; order: number[] }>();
   private arpPrevFired = new Map<string, boolean>();
@@ -147,12 +149,68 @@ export class BeatsEngine {
    */
   trigger(padIdx: number, vel127: number, when?: number, gateSec?: number, semiOffset?: number): void {
     if (!this.voices || !this.ctx) return;
+    const pad = this.doc.kit[padIdx];
+    // An instrument pad plays a full ONDA/KERA voice at its base note instead of a one-shot.
+    if (pad?.source === 'instrument' && pad.instrumentTrackId) {
+      this.triggerPadInstrument(pad, padIdx, vel127, when, gateSec, semiOffset ?? 0);
+      this.lastHit[padIdx] = performance.now();
+      return;
+    }
     this.voices.trigger(this.doc, padIdx, vel127, when, gateSec, semiOffset);
     this.lastHit[padIdx] = performance.now();
   }
 
+  /**
+   * Route a pad hit to its instrument track's voice. Gated hits (sequencer / drawn notes) fire and
+   * schedule their own note-off; a live hit HOLDS until release(padIdx), exactly like a sustaining
+   * sample pad — so an instrument pad feels the same under a finger.
+   */
+  private triggerPadInstrument(pad: PadConfig, padIdx: number, vel127: number, when: number | undefined, gateSec: number | undefined, semiOffset: number): void {
+    const track = this.doc.arrangement.find((t) => t.id === pad.instrumentTrackId && t.kind === 'instrument');
+    if (!track || !this.ctx) return;
+    const inst = this.instruments.get(track.id);
+    if (!inst) { void this.ensureInstrument(track); return; } // first hit on a fresh instrument is silent; the rest aren't
+    const note = Math.max(0, Math.min(127, (pad.instrumentNote ?? 60) + (pad.pitchSemis || 0) + semiOffset));
+    const t = Math.max(when ?? this.ctx.currentTime, this.ctx.currentTime);
+    const vel01 = Math.max(0.05, vel127 / 127);
+    const kera = inst.hasKeraProgram();
+
+    if (gateSec !== undefined) {
+      const offIn = Math.max(0, (t - this.ctx.currentTime) + gateSec) * 1000;
+      if (kera) {
+        inst.keraNoteOn(note, vel127);
+        setTimeout(() => inst.keraNoteOff(note), offIn);
+      } else {
+        const voiceId = inst.noteOn(note, vel01, t, this.ctx.currentTime, this.ctx.sampleRate);
+        setTimeout(() => inst.noteOff(voiceId, true), offIn);
+      }
+      return;
+    }
+
+    // Live hit — retrigger cleanly by releasing whatever this pad was holding first.
+    this.releasePadInstrument(padIdx);
+    if (kera) {
+      inst.keraNoteOn(note, vel127);
+      this.padLiveNotes.set(padIdx, { trackId: track.id, note, voiceId: -1, kera: true });
+    } else {
+      const voiceId = inst.noteOn(note, vel01, t, this.ctx.currentTime, this.ctx.sampleRate);
+      this.padLiveNotes.set(padIdx, { trackId: track.id, note, voiceId, kera: false });
+    }
+  }
+
+  private releasePadInstrument(padIdx: number): void {
+    const live = this.padLiveNotes.get(padIdx);
+    if (!live) return;
+    this.padLiveNotes.delete(padIdx);
+    const inst = this.instruments.get(live.trackId);
+    if (!inst) return;
+    if (live.kera) inst.keraNoteOff(live.note);
+    else inst.noteOff(live.voiceId, true);
+  }
+
   /** Note-off for held pads (pointer up / key up / MIDI note-off). */
   release(padIdx: number, when?: number): void {
+    if (this.doc.kit[padIdx]?.source === 'instrument') { this.releasePadInstrument(padIdx); return; }
     this.voices?.release(padIdx, when);
   }
 
@@ -400,6 +458,7 @@ export class BeatsEngine {
     this.scheduler?.stop();
     for (const inst of this.instruments.values()) inst.allNotesOff();
     this.liveNotes.clear();
+    this.padLiveNotes.clear();
     const t = this.ctx?.currentTime;
     this.voices?.stopAll(t);
     for (const c of this.liveClipSources) {

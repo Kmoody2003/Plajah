@@ -2,11 +2,14 @@
 // NKS/Melos-Samples browser; for now it's local files + the starter synth voices.
 
 import React, { useRef, useState } from 'react';
-import { Upload } from 'lucide-react';
+import { Upload, Piano, SlidersHorizontal } from 'lucide-react';
 import type { GrooveDoc, SynthVoiceId } from '../../../../services/melos/beats/grooveDoc';
 import { NksBrowser } from './NksBrowser';
 import type { MelosSampleRef } from '../melosSamples';
-import { SELECT, SURFACE_RAISED } from '../theme';
+import { PLAYHEAD, SELECT, SURFACE_RAISED } from '../theme';
+
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const noteLabel = (n: number) => `${NOTE_NAMES[((n % 12) + 12) % 12]}${Math.floor(n / 12) - 1}`;
 
 type RailTab = 'kit' | 'samples' | 'nks';
 
@@ -23,12 +26,19 @@ interface BrowserRailProps {
   onLoadSampleFile: (padIdx: number, file: File) => void;
   melosSamples?: MelosSampleRef[];
   onLoadMelosSample?: (padIdx: number, ref: MelosSampleRef) => void;
+  /** Open the instrument picker targeting this pad (turns the pad into an ONDA/KERA instrument). */
+  onPickInstrumentForPad?: (padIdx: number) => void;
+  /** Open the editor panel for the instrument already on this pad. */
+  onEditPadInstrument?: (padIdx: number) => void;
 }
 
-export const BrowserRail: React.FC<BrowserRailProps> = ({ doc, selectedPad, onSelectPad, onMutate, onLoadSampleFile, melosSamples, onLoadMelosSample }) => {
+export const BrowserRail: React.FC<BrowserRailProps> = ({ doc, selectedPad, onSelectPad, onMutate, onLoadSampleFile, melosSamples, onLoadMelosSample, onPickInstrumentForPad, onEditPadInstrument }) => {
   const fileRef = useRef<HTMLInputElement>(null);
   const [tab, setTab] = useState<RailTab>('kit');
   const pad = doc.kit[selectedPad];
+  const padInstTrack = pad?.source === 'instrument' && pad.instrumentTrackId
+    ? doc.arrangement.find((t) => t.id === pad.instrumentTrackId)
+    : undefined;
 
   return (
     <div className="flex flex-col gap-3 h-full min-h-0">
@@ -93,7 +103,9 @@ export const BrowserRail: React.FC<BrowserRailProps> = ({ doc, selectedPad, onSe
             >
               <span className="w-4 text-[9px] font-mono text-white/25">{i + 1}</span>
               <span className="flex-1 truncate">{p.name}</span>
-              <span className="text-[8px] font-mono text-white/25">{p.source === 'synth' ? 'SYN' : 'SMP'}</span>
+              <span className="text-[8px] font-mono" style={{ color: p.source === 'instrument' ? PLAYHEAD : 'rgba(255,255,255,0.25)' }}>
+                {p.source === 'instrument' ? 'INS' : p.source === 'synth' ? 'SYN' : 'SMP'}
+              </span>
             </button>
           ))}
         </div>
@@ -108,30 +120,67 @@ export const BrowserRail: React.FC<BrowserRailProps> = ({ doc, selectedPad, onSe
             className="w-full h-7 mb-2 rounded-lg bg-black/40 border border-white/10 px-2 text-[11px] text-white outline-none focus:border-white/30"
             aria-label="Pad name"
           />
-          <div className="grid grid-cols-3 gap-1 mb-2">
-            {SYNTH_VOICES.map((v) => (
+
+          {pad.source === 'instrument' ? (
+            // The pad IS an instrument — show it, let them open the full editor, tune the base note,
+            // or swap back to a one-shot sound.
+            <div className="flex flex-col gap-2">
               <button
-                key={v.id}
-                onClick={() => onMutate((d) => { const p = d.kit[selectedPad]; if (p) { p.source = 'synth'; p.synthVoice = v.id; } })}
-                className={`h-6 rounded-lg text-[10px] border ${pad.source === 'synth' && pad.synthVoice === v.id ? 'bg-white/15 border-white/25 text-white font-semibold' : 'border-white/10 text-white/40 hover:text-white'}`}
-              >{v.label}</button>
-            ))}
-          </div>
-          <button
-            onClick={() => fileRef.current?.click()}
-            className="w-full h-8 rounded-lg border border-dashed border-white/20 text-[11px] text-white/50 hover:text-white hover:border-white/40 flex items-center justify-center gap-2"
-            style={{ background: SURFACE_RAISED }}
-          >
-            <Upload size={12} /> {pad.source === 'sample' && pad.sample ? pad.sample.name : 'Load sample…'}
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a,.aif,.aiff"
-            className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) onLoadSampleFile(selectedPad, f); e.target.value = ''; }}
-          />
-          <p className="mt-1.5 text-[9px] text-white/25">or drop an audio file straight onto a pad</p>
+                onClick={() => onEditPadInstrument?.(selectedPad)}
+                className="w-full h-9 rounded-lg border text-[11px] font-semibold flex items-center justify-center gap-2"
+                style={{ borderColor: `${PLAYHEAD}59`, color: PLAYHEAD, background: `${PLAYHEAD}14` }}
+              >
+                <SlidersHorizontal size={12} /> {padInstTrack?.instrument?.type === 'kera' ? 'KERA' : 'ONDA'} · Edit
+              </button>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] uppercase tracking-wide text-white/35 flex-1 flex items-center gap-1"><Piano size={10} /> Base note</span>
+                <button onClick={() => onMutate((d) => { const p = d.kit[selectedPad]; if (p) p.instrumentNote = Math.max(0, (p.instrumentNote ?? 60) - 1); })}
+                  className="w-6 h-6 rounded-md border border-white/12 text-white/60 hover:text-white">–</button>
+                <span className="w-9 text-center text-[11px] font-mono text-white/80">{noteLabel(pad.instrumentNote ?? 60)}</span>
+                <button onClick={() => onMutate((d) => { const p = d.kit[selectedPad]; if (p) p.instrumentNote = Math.min(127, (p.instrumentNote ?? 60) + 1); })}
+                  className="w-6 h-6 rounded-md border border-white/12 text-white/60 hover:text-white">+</button>
+              </div>
+              <button
+                onClick={() => onMutate((d) => { const p = d.kit[selectedPad]; if (p) { p.source = 'synth'; p.synthVoice = p.synthVoice || 'kick'; p.instrumentTrackId = undefined; } })}
+                className="text-[9px] text-white/30 hover:text-white/60 underline decoration-dotted"
+              >Replace with a one-shot sound</button>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-1 mb-2">
+                {SYNTH_VOICES.map((v) => (
+                  <button
+                    key={v.id}
+                    onClick={() => onMutate((d) => { const p = d.kit[selectedPad]; if (p) { p.source = 'synth'; p.synthVoice = v.id; } })}
+                    className={`h-6 rounded-lg text-[10px] border ${pad.source === 'synth' && pad.synthVoice === v.id ? 'bg-white/15 border-white/25 text-white font-semibold' : 'border-white/10 text-white/40 hover:text-white'}`}
+                  >{v.label}</button>
+                ))}
+              </div>
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="w-full h-8 rounded-lg border border-dashed border-white/20 text-[11px] text-white/50 hover:text-white hover:border-white/40 flex items-center justify-center gap-2"
+                style={{ background: SURFACE_RAISED }}
+              >
+                <Upload size={12} /> {pad.source === 'sample' && pad.sample ? pad.sample.name : 'Load sample…'}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a,.aif,.aiff"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) onLoadSampleFile(selectedPad, f); e.target.value = ''; }}
+              />
+              <button
+                onClick={() => onPickInstrumentForPad?.(selectedPad)}
+                className="w-full h-8 mt-2 rounded-lg border text-[11px] flex items-center justify-center gap-2"
+                style={{ borderColor: `${PLAYHEAD}40`, color: PLAYHEAD, background: `${PLAYHEAD}0f` }}
+                title="Make this pad play a full ONDA or KERA instrument"
+              >
+                <SlidersHorizontal size={12} /> Load an instrument…
+              </button>
+              <p className="mt-1.5 text-[9px] text-white/25">drop an audio file onto a pad, or make the pad an instrument</p>
+            </>
+          )}
         </div>
       )}
     </div>

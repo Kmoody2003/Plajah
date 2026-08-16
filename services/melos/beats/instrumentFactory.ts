@@ -49,6 +49,29 @@ export function makeInstrumentTrack(type: InstrumentType, count: number, presetP
   };
 }
 
+/**
+ * Make a pad's instrument a real instrument track, flagged `padOwned` so the arranger hides it and
+ * the pad sequencer — not clips — drives it. The pad then plays this instrument at its base note;
+ * every instrument surface (editor panels, arp, offline render, patch persistence) is reused as-is.
+ * Returns the new track id; the caller links it onto the pad.
+ */
+export function addPadInstrument(
+  doc: { arrangement: ArrangeTrack[] },
+  padIdx: number,
+  type: InstrumentType,
+  presetPatch?: ReturnType<typeof serializePatch>,
+  presetName?: string,
+): string {
+  const count = doc.arrangement.filter((t) => t.kind === 'instrument').length;
+  const track = makeInstrumentTrack(type, count, presetPatch, presetName);
+  track.armed = false;          // pads are triggered, never the armed keyboard target
+  track.padOwned = true;
+  track.padIndex = padIdx;
+  track.name = presetName || `Pad ${padIdx + 1} · ${type === 'kera' ? 'KERA' : 'ONDA'}`;
+  doc.arrangement.push(track);
+  return track.id;
+}
+
 /** Add an instrument track to the doc, disarming whatever was armed before. Returns its id. */
 export function addInstrument(
   doc: { arrangement: ArrangeTrack[] },

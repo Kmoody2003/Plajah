@@ -29,7 +29,7 @@ import { MixerView } from './mixer/MixerView';
 import { InstrumentPicker } from './instrument/InstrumentPicker';
 import { InstrumentPanel } from './instrument/InstrumentPanel';
 import { KeraPanel } from './instrument/KeraPanel';
-import { addInstrument } from '../../../services/melos/beats/instrumentFactory';
+import { addInstrument, addPadInstrument } from '../../../services/melos/beats/instrumentFactory';
 import { SELECT, WASH_BG } from './theme';
 
 export interface BeatsLaunchPayload {
@@ -81,6 +81,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const [recording, setRecording] = useState(false);
   const [showInstrumentPicker, setShowInstrumentPicker] = useState(false);
   const [openInstrumentId, setOpenInstrumentId] = useState<string | null>(null);
+  // When set, the instrument picker is targeting a PAD (turn the pad into an ONDA/KERA instrument)
+  // rather than adding a new arranger track.
+  const [padPickerFor, setPadPickerFor] = useState<number | null>(null);
 
   // The armed instrument track owns the QWERTY keyboard (the pads stand down while it does),
   // and receives anything played or recorded.
@@ -539,6 +542,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           onLoadSampleFile={(padIdx, file) => { void loadSampleFile(padIdx, file); }}
           melosSamples={melosSamples}
           onLoadMelosSample={(padIdx, ref) => { void loadMelosSample(padIdx, ref); }}
+          onPickInstrumentForPad={(padIdx) => setPadPickerFor(padIdx)}
+          onEditPadInstrument={(padIdx) => { const id = doc.kit[padIdx]?.instrumentTrackId; if (id) setOpenInstrumentId(id); }}
         />
       )}
 
@@ -567,6 +572,26 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
             void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
             // Jump to the arranger where instrument tracks live, and open the new one.
             setView('timeline');
+            if (newId) setTimeout(() => setOpenInstrumentId(newId), 60);
+          }}
+        />
+      )}
+
+      {/* Pad → instrument: the picker targets a specific pad. On pick we mint a padOwned instrument
+          track, link it to the pad, and open its editor — the same panels a track instrument uses. */}
+      {padPickerFor !== null && (
+        <InstrumentPicker
+          destination={`on pad ${padPickerFor + 1}`}
+          onClose={() => setPadPickerFor(null)}
+          onPick={(type) => {
+            const padIdx = padPickerFor;
+            let newId = '';
+            mutate((d) => {
+              newId = addPadInstrument(d, padIdx, type);
+              const pad = d.kit[padIdx];
+              if (pad) { pad.source = 'instrument'; pad.instrumentTrackId = newId; if (pad.instrumentNote === undefined) pad.instrumentNote = 60; }
+            });
+            void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
             if (newId) setTimeout(() => setOpenInstrumentId(newId), 60);
           }}
         />

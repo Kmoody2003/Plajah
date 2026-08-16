@@ -27,6 +27,8 @@ interface MachineViewProps {
   onLoadSampleFile: (padIdx: number, file: File) => void;
   melosSamples?: MelosSampleRef[];
   onLoadMelosSample?: (padIdx: number, ref: MelosSampleRef) => void;
+  onPickInstrumentForPad?: (padIdx: number) => void;
+  onEditPadInstrument?: (padIdx: number) => void;
 }
 
 export const MachineView: React.FC<MachineViewProps> = (p) => {
@@ -69,6 +71,8 @@ export const MachineView: React.FC<MachineViewProps> = (p) => {
           onLoadSampleFile={p.onLoadSampleFile}
           melosSamples={p.melosSamples}
           onLoadMelosSample={p.onLoadMelosSample}
+          onPickInstrumentForPad={p.onPickInstrumentForPad}
+          onEditPadInstrument={p.onEditPadInstrument}
         />
       </div>
 

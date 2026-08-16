@@ -157,7 +157,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
               {playheadX >= 0 && (
                 <div className="absolute top-0 bottom-0 w-[2px] z-20 pointer-events-none" style={{ left: HEADER_W + playheadX, background: PLAYHEAD, boxShadow: `0 0 12px ${PLAYHEAD}88` }} />
               )}
-              {p.doc.arrangement.map((track) => (
+              {p.doc.arrangement.filter((track) => !track.padOwned).map((track) => (
                 <div key={track.id} className="flex border-b border-white/[0.06]" style={{ height: LANE_H, opacity: track.foreign ? 0.65 : 1 }}>
                   <div className="sticky left-0 z-10 flex items-center gap-2 px-3 bg-[#0E0916] border-r border-white/10" style={{ width: HEADER_W, minWidth: HEADER_W }}>
                     {track.kind === 'instrument' && !track.foreign ? (

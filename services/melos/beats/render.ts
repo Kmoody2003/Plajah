@@ -59,10 +59,17 @@ export async function renderGroove(
   // Worklet nodes work in an OfflineAudioContext, but rendering outruns message delivery — so
   // every note is queued at an ABSOLUTE sample frame BEFORE startRendering(), and the engine's
   // own frame counter fires it. That's what pa_schedule_note_* exists for.
+  // Tracks that back an instrument pad have no clips but must still be created — the pad sequencer
+  // drives them (via the trigger() dep below), not the arranger.
+  const padInstrumentTrackIds = new Set(
+    doc.kit.filter((p) => p.source === 'instrument' && p.instrumentTrackId).map((p) => p.instrumentTrackId!),
+  );
   const instrumentTracks = doc.arrangement.filter(
-    (t) => t.kind === 'instrument' && !t.mute && !t.foreign && t.clips.some((c) => c.notes?.length),
+    (t) => t.kind === 'instrument' && !t.mute && !t.foreign &&
+      (t.clips.some((c) => c.notes?.length) || padInstrumentTrackIds.has(t.id)),
   );
   const anySolo = doc.arrangement.some((t) => t.solo);
+  const instByTrackId = new Map<string, Instrument>();
   let skippedInstruments = 0;
 
   for (const track of instrumentTracks) {
@@ -81,6 +88,7 @@ export async function renderGroove(
       }
       inst.resetTransport(0);
       inst.clearSchedule();
+      instByTrackId.set(track.id, inst);
 
       for (const clip of track.clips) {
         if (!clip.notes?.length) continue;
@@ -102,12 +110,37 @@ export async function renderGroove(
     }
   }
 
+  // KERA pads can't render offline yet — a KERA program is decoded audio loaded at runtime, not
+  // part of the serialized patch, so there's nothing to re-instantiate here. Count them honestly
+  // rather than bouncing silence that reads as "rendered".
+  const trackById = new Map(doc.arrangement.map((t) => [t.id, t]));
+  const keraPadTrackIds = new Set(
+    [...padInstrumentTrackIds].filter((id) => trackById.get(id)?.instrument?.type === 'kera'),
+  );
+  skippedInstruments += keraPadTrackIds.size;
+
   const scheduler = new StepScheduler({
     doc: () => doc,
     toTime: (beats) => anchor + beats * spb,
     secPerBeat: () => spb,
     rng: seededRng(hashSeed(doc.id || 'groove')),
-    trigger: (padIdx, vel, when, gateSec, semiOffset) => voices.trigger(doc, padIdx, vel, when, gateSec, semiOffset),
+    trigger: (padIdx, vel, when, gateSec, semiOffset) => {
+      const pad = doc.kit[padIdx];
+      if (pad?.source === 'instrument' && pad.instrumentTrackId) {
+        // ONDA pad: pre-schedule at absolute frames, the same path clip notes use.
+        if (keraPadTrackIds.has(pad.instrumentTrackId)) return; // KERA offline: see above
+        const inst = instByTrackId.get(pad.instrumentTrackId);
+        if (!inst) return;
+        const note = Math.max(0, Math.min(127, (pad.instrumentNote ?? 60) + (pad.pitchSemis || 0) + (semiOffset || 0)));
+        const onFrame = Math.round(when * SAMPLE_RATE);
+        const gate = gateSec ?? 0.25; // one-shot instrument pads get a short articulating gate
+        const offFrame = Math.round((when + gate) * SAMPLE_RATE);
+        const voiceId = inst.scheduleNoteOn(note, Math.max(0.05, vel / 127), onFrame);
+        inst.scheduleNoteOff(voiceId, offFrame);
+        return;
+      }
+      voices.trigger(doc, padIdx, vel, when, gateSec, semiOffset);
+    },
     startAudioClip: (track, clip, when, offset) =>
       void startAudioClipSource(offline, graph, (k) => voices.getBuffer(k), track, clip, when, offset, spb),
     startInstrumentNote: () => { /* see RenderResult.skippedInstruments */ },
@@ -119,6 +152,12 @@ export async function renderGroove(
     scheduler.start('song', 0);
     scheduler.scheduleAll(endBeats);
   }
+
+  // Drain every instrument's message queue before rendering. Wavetable/sample uploads are async
+  // postMessage with a synchronous mip build on the far side; the OfflineAudioContext renders
+  // faster than messages deliver, so without this flush a bounce can read an uncommitted table and
+  // go silent (live playback is unaffected — it always has real time between load and note).
+  await Promise.all([...instByTrackId.values()].map((i) => i.flush()));
 
   const rendered = await offline.startRendering();
   return { blob: encodeWav(rendered, opts.bitDepth ?? 24), buffer: rendered, seconds, skippedInstruments };

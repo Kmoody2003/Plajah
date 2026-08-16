@@ -20,9 +20,15 @@ export interface PadConfig {
   id: string;
   name: string;
   color: string;
-  source: 'sample' | 'synth';
+  source: 'sample' | 'synth' | 'instrument';
   sample: SampleRef | null;
   synthVoice?: SynthVoiceId;
+  // source 'instrument' — the pad plays a full ONDA/KERA instrument instead of a one-shot. It
+  // references a `padOwned` ArrangeTrack (so every instrument surface — the editor panels, the
+  // arp, patch persistence, offline render — is reused verbatim rather than forked onto the pad).
+  // The pad plays `instrumentNote` (+ its own pitchSemis + any drawn note offset) as a MIDI note.
+  instrumentTrackId?: string;
+  instrumentNote?: number;      // base MIDI note the pad triggers (default 60 = C4)
   group: 0 | 1 | 2 | 3;         // bus A–D
   choke: number;                // 0 = none, 1–8 = choke group (open/closed hat pairs etc.)
   mute?: boolean;               // per-channel mute (FL rack style) — scheduler skips, live hits too
@@ -125,6 +131,11 @@ export interface ArrangeTrack {
   armed?: boolean;
   /** Spatial source position — the engine pans from this, stereo is just one rendering. */
   position?: [number, number, number];
+  // Created to back a pad's `source:'instrument'` — driven by the pad sequencer, not by clips, so
+  // it's hidden from the arranger and skipped by song-mode clip scheduling. `padIndex` is the pad
+  // it belongs to (its notes come from that pad's steps).
+  padOwned?: boolean;
+  padIndex?: number;
   foreign?: { trackXml: string }; // imported .dawproject track we render but don't fully model
 }
 
