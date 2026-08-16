@@ -14,6 +14,7 @@ import { E, F, O, P, env, flt, formatParam, osc } from '../../../../services/mel
 import { Knob } from '../shared/Knob';
 import { WavetableDisplay } from './WavetableDisplay';
 import { ArpPanel } from './ArpPanel';
+import { OndaEditor } from './OndaEditor';
 import { defaultArpPatch, type ArpPatch } from '../../../../services/melos/arp';
 import { ARMED, PLAYHEAD, SELECT, SURFACE, SURFACE_RAISED } from '../theme';
 
@@ -29,11 +30,11 @@ const MACRO_COLORS = ['#FF8C00', '#D0BCFF', '#FF8C00', '#00DAF3', '#F4F0F7', '#F
 export const InstrumentPanel: React.FC<Props> = ({ doc, track, onMutate, onClose }) => {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
 
-  const patch = useMemo<OndaPatch | null>(
-    () => (track.instrument?.patch ? deserializePatch(track.instrument.patch) : null),
-    [track.instrument?.patch],
-  );
+  // Deliberately not memoised — the doc mutates in place, so a memo keyed on the patch object
+  // would never invalidate and every control would freeze after the first render.
+  const patch: OndaPatch | null = track.instrument?.patch ? deserializePatch(track.instrument.patch) : null;
 
   /** Edit a param: update the stored patch AND push it to the live engine in the same gesture. */
   const setParam = useCallback((id: number, value: number) => {
@@ -121,6 +122,10 @@ export const InstrumentPanel: React.FC<Props> = ({ doc, track, onMutate, onClose
     });
   }, [track]);
 
+  if (editorOpen) {
+    return <OndaEditor doc={doc} track={track} onMutate={onMutate} onClose={() => setEditorOpen(false)} />;
+  }
+
   return (
     <div className="absolute inset-0 z-40 grid place-items-center bg-black/65 backdrop-blur-sm p-5" onClick={onClose}>
       <div
@@ -147,6 +152,12 @@ export const InstrumentPanel: React.FC<Props> = ({ doc, track, onMutate, onClose
               ? { borderColor: ARMED, color: ARMED, background: 'rgba(255,140,0,0.12)' }
               : { borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.45)' }}
           ><Piano size={12} /> {track.armed ? 'Armed' : 'Arm'}</button>
+          <button
+            onClick={() => setEditorOpen(true)}
+            className="h-7 px-3 rounded-lg text-[11px] font-semibold border"
+            style={{ borderColor: 'rgba(208,188,255,0.45)', color: '#D0BCFF', background: 'rgba(208,188,255,0.12)' }}
+            title="Oscillators, filters, Motion and spatial"
+          >Open ▸</button>
           <button onClick={onClose} aria-label="Close instrument" className="w-8 h-8 grid place-items-center rounded-lg border border-white/10 text-white/50 hover:text-white hover:bg-white/10">
             <X size={15} />
           </button>
