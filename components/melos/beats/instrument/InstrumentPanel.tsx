@@ -13,6 +13,8 @@ import { deserializePatch, serializePatch, type OndaPatch } from '../../../../se
 import { E, F, O, P, env, flt, formatParam, osc } from '../../../../services/melos/instruments/onda/params';
 import { Knob } from '../shared/Knob';
 import { WavetableDisplay } from './WavetableDisplay';
+import { ArpPanel } from './ArpPanel';
+import { defaultArpPatch, type ArpPatch } from '../../../../services/melos/arp';
 import { ARMED, PLAYHEAD, SELECT, SURFACE, SURFACE_RAISED } from '../theme';
 
 interface Props {
@@ -78,6 +80,34 @@ export const InstrumentPanel: React.FC<Props> = ({ doc, track, onMutate, onClose
       return p.name.toLowerCase().includes(q) || p.tags.some((t) => t.includes(q)) || p.category.toLowerCase().includes(q);
     });
   }, [query, category]);
+
+  // The Arp lives on the instrument, so a preset can BE a riff.
+  const arp: ArpPatch = { ...defaultArpPatch(), ...((track.instrument?.arp || {}) as Partial<ArpPatch>) };
+  const editArp = useCallback((fn: (a: ArpPatch) => void) => {
+    onMutate((d) => {
+      const t = d.arrangement.find((x) => x.id === track.id);
+      if (!t?.instrument) return;
+      const next: ArpPatch = { ...defaultArpPatch(), ...((t.instrument.arp || {}) as Partial<ArpPatch>) };
+      // Steps are cloned so an edit never mutates the shared default array.
+      next.steps = next.steps.map((s) => ({ ...s, locks: s.locks.map((l) => ({ ...l })) }));
+      fn(next);
+      t.instrument.arp = next as unknown as Record<string, unknown>;
+    });
+  }, [onMutate, track.id]);
+
+  /** What a step can lock: the parameters worth reaching for, named as the UI names them. */
+  const lockTargets = useMemo(() => ([
+    { id: flt(0, F.CUTOFF), name: 'Filter cutoff' },
+    { id: flt(0, F.RES), name: 'Filter resonance' },
+    { id: osc(0, O.MORPH), name: 'Wavetable morph' },
+    { id: osc(0, O.LEVEL), name: 'Osc 1 level' },
+    { id: osc(0, O.COARSE), name: 'Osc 1 pitch' },
+    { id: P.UNISON_DETUNE, name: 'Unison detune' },
+    { id: P.UNISON_WIDTH, name: 'Width' },
+    { id: env(0, E.DECAY), name: 'Amp decay' },
+    { id: env(0, E.RELEASE), name: 'Amp release' },
+    { id: P.MASTER_GAIN, name: 'Level' },
+  ]), []);
 
   const val = (id: number, fallback: number) => patch?.params?.[id] ?? fallback;
   const morph = val(osc(0, O.MORPH), 0);
@@ -250,6 +280,10 @@ export const InstrumentPanel: React.FC<Props> = ({ doc, track, onMutate, onClose
                     format={(v) => `${Math.round(v * 100)}`} onChange={(v) => setParam(P.MASTER_GAIN, v)} />
                 </div>
               </div>
+            </div>
+
+            <div className="mt-4">
+              <ArpPanel arp={arp} lockTargets={lockTargets} onChange={editArp} />
             </div>
 
             {/* mini keyboard — audition without leaving the panel */}

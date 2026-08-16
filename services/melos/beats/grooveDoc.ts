@@ -105,6 +105,8 @@ export interface TrackInstrument {
   /** Serialized patch — an OndaPatch today; typed loosely here so grooveDoc stays engine-agnostic. */
   patch: Record<string, unknown>;
   presetName?: string;
+  /** Serialized ArpPatch. Loosely typed for the same reason as `patch`. */
+  arp?: Record<string, unknown>;
 }
 
 export interface ArrangeTrack {

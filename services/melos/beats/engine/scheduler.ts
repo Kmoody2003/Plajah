@@ -22,6 +22,11 @@ export interface SchedulerDeps {
   startAudioClip(track: ArrangeTrack, clip: TimelineClip, when: number, offsetIntoClipSec: number): void;
   /** Instrument tracks: one MIDI note, at an absolute context time, for `durSec`. */
   startInstrumentNote(track: ArrangeTrack, note: NoteEvent, when: number, durSec: number): void;
+  /**
+   * Instrument tracks whose Arp is on: the arp consumes held keys and emits the notes instead.
+   * Returns true if it handled this step, so clip notes on an arped track don't double up.
+   */
+  runArp?(track: ArrangeTrack, stepIndex: number, beat: number): boolean;
 }
 
 /** Deterministic PRNG for offline renders (mulberry32). */
@@ -162,6 +167,9 @@ export class StepScheduler {
     const anySoloTrack = doc.arrangement.some((t) => t.solo);
     for (const track of doc.arrangement) {
       if (track.kind !== 'instrument' || track.mute || (anySoloTrack && !track.solo)) continue;
+      // An armed Arp consumes the held keys and emits its own notes. When it handles the step,
+      // clip notes are skipped so an arped performance doesn't double against the recording.
+      if (d.runArp?.(track, this.nextStep, beat)) continue;
       for (const clip of track.clips) {
         if (!clip.notes?.length) continue;
         if (beat < clip.startBeats - 1e-9 || beat >= clip.startBeats + clip.lengthBeats - 1e-9) continue;

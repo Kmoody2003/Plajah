@@ -12,6 +12,7 @@ import { StepScheduler, type PlayMode, LOOKAHEAD_SEC } from './scheduler';
 import { startAudioClipSource } from './clips';
 import { Instrument } from './InstrumentHost';
 import type { ArrangeTrack as ATrack, NoteEvent } from '../grooveDoc';
+import { arpStep, defaultArpPatch, type ArpPatch } from '../../arp';
 
 export interface EngineDiagnostics {
   sampleRate: number;
@@ -47,6 +48,10 @@ export class BeatsEngine {
   private instrumentLoading = new Set<string>();
   /** Notes started live from the keyboard/MIDI, so a key-up can find its voice. */
   private liveNotes = new Map<string, number>();
+  /** Keys feeding each track's arp: `keys` is the held set, `order` preserves press order. */
+  private heldKeys = new Map<string, { keys: number[]; order: number[] }>();
+  private arpPrevFired = new Map<string, boolean>();
+  private arpFill = false;
 
   // Transport: beats↔time anchoring. A live BPM change re-anchors at the current position, so
   // posBeats is continuous and only events beyond the lookahead window feel the new tempo.
@@ -98,6 +103,7 @@ export class BeatsEngine {
       trigger: (padIdx, vel, when, gateSec, semiOffset) => this.trigger(padIdx, vel, when, gateSec, semiOffset),
       startAudioClip: (track, clip, when, offset) => this.startAudioClip(track, clip, when, offset),
       startInstrumentNote: (track, note, when, durSec) => this.startInstrumentNote(track, note, when, durSec),
+      runArp: (track, stepIndex, beat) => this.runArp(track, stepIndex, beat),
     });
     this.graph.applyDoc(this.doc);
   }
@@ -223,6 +229,15 @@ export class BeatsEngine {
 
   /** Live keyboard/MIDI note on an instrument track. Returns the voice id for the matching off. */
   instrumentNoteOn(track: ATrack, key: number, vel127: number): void {
+    // With the Arp armed the keyboard FEEDS it rather than sounding directly — holding a chord
+    // is the gesture, and the arp turns it into a performance on the transport grid.
+    const arp = this.arpFor(track);
+    if (arp?.enabled) {
+      const held = this.heldKeys.get(track.id) || { keys: [], order: [] };
+      if (!held.keys.includes(key)) { held.keys.push(key); held.order.push(key); }
+      this.heldKeys.set(track.id, held);
+      return;
+    }
     const inst = this.instruments.get(track.id);
     if (!inst || !this.ctx) { void this.ensureInstrument(track); return; }
     const id = inst.noteOn(key, Math.max(0.05, vel127 / 127), this.ctx.currentTime, this.ctx.currentTime, this.ctx.sampleRate);
@@ -230,6 +245,15 @@ export class BeatsEngine {
   }
 
   instrumentNoteOff(track: ATrack, key: number): void {
+    const arp = this.arpFor(track);
+    if (arp?.enabled) {
+      const held = this.heldKeys.get(track.id);
+      if (held && !arp.latch) {
+        held.keys = held.keys.filter((k) => k !== key);
+        held.order = held.order.filter((k) => k !== key);
+      }
+      return;
+    }
     const inst = this.instruments.get(track.id);
     if (!inst) return;
     const k = `${track.id}:${key}`;
@@ -237,6 +261,61 @@ export class BeatsEngine {
     if (id === undefined) return;
     this.liveNotes.delete(k);
     inst.noteOff(id, true);
+  }
+
+  /** Keys currently feeding a track's arp — the UI highlights them on its keyboard. */
+  heldFor(trackId: string): number[] {
+    return this.heldKeys.get(trackId)?.keys ?? [];
+  }
+
+  clearHeld(trackId: string): void {
+    this.heldKeys.delete(trackId);
+  }
+
+  /** Fill is a momentary performance control: hold it and `fill` trig conditions fire. */
+  setArpFill(on: boolean): void {
+    this.arpFill = on;
+  }
+
+  private arpFor(track: ATrack): ArpPatch | null {
+    const raw = track.instrument?.arp;
+    if (!raw) return null;
+    return { ...defaultArpPatch(), ...(raw as Partial<ArpPatch>) } as ArpPatch;
+  }
+
+  /**
+   * One arp step for one track. Returns true when the arp owns this step.
+   * The arp itself is pure — it holds no playback state — so this only supplies held keys and
+   * routes the notes it returns.
+   */
+  private runArp(track: ATrack, stepIndex: number, beat: number): boolean {
+    const arp = this.arpFor(track);
+    if (!arp?.enabled) return false;
+    const held = this.heldKeys.get(track.id);
+    if (!held?.keys.length) return true; // armed but nothing held: still owns the step
+
+    const prev = this.arpPrevFired.get(track.id) ?? false;
+    const res = arpStep(arp, held.keys, held.order, stepIndex, { fill: this.arpFill, prevFired: prev });
+    this.arpPrevFired.set(track.id, res.played);
+
+    const inst = this.instruments.get(track.id);
+    if (!inst || !this.ctx) return true;
+
+    for (const n of res.notes) {
+      const when = this.toTime(beat + n.offsetBeats);
+      // Parameter locks hold for the step: set on the way in, restored after it passes.
+      for (const lock of n.locks) inst.setParam(lock.paramId, lock.value);
+      const voiceId = inst.noteOn(n.key, Math.max(0.05, n.velocity / 127), when, this.ctx.currentTime, this.ctx.sampleRate);
+      const offIn = Math.max(0, (when - this.ctx.currentTime) + n.durationBeats * this.secPerBeat) * 1000;
+      setTimeout(() => inst.noteOff(voiceId, true), offIn);
+      if (n.locks.length) {
+        const patch = track.instrument?.patch as { params?: Record<number, number> } | undefined;
+        setTimeout(() => {
+          for (const lock of n.locks) inst.setParam(lock.paramId, patch?.params?.[lock.paramId] ?? 0);
+        }, offIn + 5);
+      }
+    }
+    return true;
   }
 
   /** Per-note expression from an MPE controller. */
