@@ -40,6 +40,7 @@ interface TransportBarProps {
   onExportDawproject?: () => void;
   onImportDawproject?: () => void;
   onBounce?: () => void;
+  onSendToFabula?: () => void;
   /** "Bounce to take" inside a Melos production, plain "Bounce" standalone. */
   bounceLabel?: string;
   onPublish?: () => void;
@@ -222,6 +223,15 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
       >
         <Download size={12} /> {p.busy === 'bounce' ? 'Rendering…' : (p.bounceLabel || 'Bounce')}
       </button>
+
+      {p.onSendToFabula && (
+        <button
+          onClick={p.onSendToFabula}
+          disabled={!!p.busy}
+          title="Send this groove to Fabula as a music track (round-trips back to Melos)"
+          className="h-8 px-3 rounded-lg text-[11px] border border-[#B84DFF]/40 text-[#D0BCFF] hover:bg-[#B84DFF]/12 flex items-center gap-1.5 disabled:opacity-40"
+        >{p.busy === 'fabula' ? 'Sending…' : '→ Fabula'}</button>
+      )}
 
       {/* Brand gradient is reserved for exactly this: the Publish CTA (and the wordmark). */}
       <button

@@ -11,6 +11,7 @@ import { autoFill, quantizePattern } from '../../../services/melos/beats/grooveT
 import { ingestSample, backupToLocker } from '../../../services/melos/beats/sampleStore';
 import { renderGroove, publishGroove, downloadBlob } from '../../../services/melos/beats/render';
 import { exportGrooveFile, importGrooveFile } from '../../../services/melos/beats/grooveFile';
+import { sendGrooveToFabula } from '../../../services/melos/beats/sendToFabula';
 import { subscribeMidi, ensureMidi } from '../../../services/melos/midiInput';
 import { mapMidiEvent } from '../../../services/melos/midiMap';
 import { exportDawproject } from '../../../services/melos/beats/dawproject/exportDawproject';
@@ -256,6 +257,18 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     finally { setBusy(null); }
   }, [doc, flash]);
 
+  const handleSendToFabula = useCallback(async () => {
+    setBusy('fabula');
+    try {
+      const engine = BeatsEngine.get();
+      await engine.init();
+      const res = await sendGrooveToFabula(doc, engine.getSampleEntries());
+      if (res === 'ok') flash('Sent to Fabula — opening the editor…');
+      else flash('Nothing to send yet');
+    } catch (e) { console.warn('[beats] send to fabula failed', e); flash('Send to Fabula failed'); }
+    finally { setBusy(null); }
+  }, [doc, flash]);
+
   const handlePublish = useCallback(async () => {
     setBusy('publish');
     try {
@@ -394,6 +407,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         onExportDawproject={() => { void handleExportDawproject(); }}
         onImportDawproject={() => dawFileRef.current?.click()}
         onBounce={() => { void handleBounce(); }}
+        onSendToFabula={() => { void handleSendToFabula(); }}
         bounceLabel={onRenderTake ? 'Bounce to take' : 'Bounce'}
         onPublish={() => { void handlePublish(); }}
         busy={busy}
