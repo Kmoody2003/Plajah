@@ -152,6 +152,7 @@
       <div class="stat lives">❤ <b id="lives">5</b></div>
       <div class="stat score">HITS <b id="score">0</b></div>
       <div class="stat clock">⏱ <b id="clock">90</b></div>
+      <button class="gear" id="recenterBtn" aria-label="Recenter forward">⟳</button>
       <button class="gear" id="openSettings" aria-label="Settings">⚙</button>
     </div>
     <div class="lockchip">lock <span id="lockLabel">700</span>ms · <span id="accLabel">–</span>% acc</div>
@@ -200,6 +201,21 @@
           <button data-v="700" class="sel">700</button><button data-v="900">900</button>
         </div>
       </div>
+      <button class="ghost" id="recenterSheet">⟳ Recenter — set “forward” to where I’m facing</button>
+      <div class="row">
+        <div class="lab">Steadiness <b id="steadyVal">Balanced</b></div>
+        <div class="seg" id="steadySeg">
+          <button data-v="0.32">Responsive</button><button data-v="0.16" class="sel">Balanced</button><button data-v="0.08">Steady</button>
+        </div>
+      </div>
+      <div class="row">
+        <div class="lab">Aim sensitivity <b id="sensVal">Med</b></div>
+        <div class="seg" id="sensSeg">
+          <button data-v="0.7">Low</button><button data-v="1.0" class="sel">Med</button><button data-v="1.4">High</button>
+        </div>
+      </div>
+      <div class="tog"><span>Invert turn (left / right)</span><div class="switch" id="tInvX"><i></i></div></div>
+      <div class="tog"><span>Invert tilt (up / down)</span><div class="switch" id="tInvY"><i></i></div></div>
       <div class="tog"><span>Can't fire while moving</span><div class="switch on" id="tMove"><i></i></div></div>
       <div class="tog"><span>Go dark when phone lowered</span><div class="switch on" id="tDark"><i></i></div></div>
       <div class="tog"><span>Targets fire back</span><div class="switch on" id="tFire"><i></i></div></div>
@@ -215,10 +231,15 @@
   const $=s=>document.querySelector(s), el=id=>document.getElementById(id);
   const app={ // config
     lockMs:700, moveLock:true, goDark:true, enemyFire:true,
-    roundS:90, lives:5, maxTargets:3, fuseMs:4200, fovDeg:66, targetRadius:44, darkPitch:-32, moveG:1.35
+    roundS:90, lives:5, maxTargets:3, fuseMs:4200, fovDeg:60, targetRadius:48, darkPitch:-32, moveG:1.35,
+    // feel tuning (adjustable in settings)
+    smooth:0.16,        // 0..1 per-frame easing toward the raw sensor (lower = steadier)
+    deadzoneDeg:0.25,   // ignore sub-degree sensor noise so a held aim holds still
+    sensitivity:1.0,    // screen travel per degree turned
+    invertX:false, invertY:false
   };
   const S={ // state
-    phase:"intro", yaw:0, pitch:0, yaw0:null, haveOrient:false, dark:false, moving:false,
+    phase:"intro", yaw:0, pitch:0, rawYaw:0, rawPitch:0, yaw0:null, haveOrient:false, dark:false, moving:false,
     targets:[], score:0, shots:0, hits:0, lives:5, tLeft:app.roundS,
     holding:false, lockStart:0, lockTgt:null, exposedMax:0, lockTimes:[],
     touchAim:{x:0,y:0}, lastMove:0
@@ -241,10 +262,11 @@
     let yaw = (typeof e.webkitCompassHeading==="number") ? e.webkitCompassHeading : (360 - e.alpha);
     if(S.yaw0==null) S.yaw0=yaw;
     let rel = yaw - S.yaw0; rel=((rel+540)%360)-180; // -180..180
-    S.yaw = rel;
+    S.rawYaw = rel;                                   // smoothed toward in the loop
     // pitch from beta (-180..180). Upright portrait ≈ 90 → map to 0.
-    S.pitch = (e.beta==null?90:e.beta) - 90;
+    S.rawPitch = (e.beta==null?90:e.beta) - 90;
   }
+  function recenter(){ S.yaw0=null; S.yaw=0; S.rawYaw=0; } // next reading sets forward = here
   function onMotion(e){
     const a=e.acceleration||e.accelerationIncludingGravity; if(!a) return;
     const g=Math.hypot(a.x||0,a.y||0,a.z||0)/9.81;
@@ -265,17 +287,19 @@
     const a=el("app");
     a.addEventListener("touchstart",ev=>{ if(ev.target.closest("#fire,button,.switch"))return; drag=true; px=ev.touches[0].clientX; py=ev.touches[0].clientY; },{passive:true});
     a.addEventListener("touchmove",ev=>{ if(!drag)return; const t=ev.touches[0];
-      S.yaw+=(t.clientX-px)*0.18; S.pitch-=(t.clientY-py)*0.18; px=t.clientX; py=t.clientY; },{passive:true});
+      S.rawYaw+=(t.clientX-px)*0.18; S.rawPitch-=(t.clientY-py)*0.18; px=t.clientX; py=t.clientY; },{passive:true});
     a.addEventListener("touchend",()=>drag=false); a.addEventListener("mouseleave",()=>drag=false);
   }
 
   // ── target math: world (az,el) → screen ────────────────
-  const pxPerDeg=()=> W/app.fovDeg;
+  const pxPerDeg=()=> (W/app.fovDeg)*app.sensitivity;
   function screenPos(t){
     let dy=t.az-S.yaw; dy=((dy+540)%360)-180;
-    const x=W/2 + dy*pxPerDeg();
-    const y=H/2 + (S.pitch - t.el)*pxPerDeg();
-    return {x,y, on: Math.abs(dy)<app.fovDeg/2+8};
+    const sx=app.invertX?-1:1, sy=app.invertY?-1:1;
+    const x=W/2 + sx*dy*pxPerDeg();
+    const y=H/2 + sy*(S.pitch - t.el)*pxPerDeg();
+    // on-screen if it lands within the viewport (+margin) and is in front of you
+    return {x,y, on: Math.abs(dy)<100 && x>-90 && x<W+90 && y>-90 && y<H+90};
   }
   function spawnTarget(){
     // place ahead-ish of where you're looking, spread around
@@ -343,6 +367,13 @@
   function loop(){
     raf=requestAnimationFrame(loop);
     const now=performance.now();
+
+    // smooth the sensor toward its raw reading — kills jitter, keeps a held aim steady.
+    let dyaw=S.rawYaw-S.yaw; dyaw=((dyaw+540)%360)-180;
+    if(Math.abs(dyaw)>app.deadzoneDeg) S.yaw += dyaw*app.smooth;
+    let dp=S.rawPitch-S.pitch;
+    if(Math.abs(dp)>app.deadzoneDeg) S.pitch += dp*app.smooth;
+
     // status
     S.dark = app.goDark && S.pitch < app.darkPitch;
     S.moving = app.moveLock && (now - S.lastMove < 260);
@@ -405,6 +436,15 @@
     [...el("lockSeg").children].forEach(c=>c.classList.toggle("sel",c===b)); });
   function bindTog(id,key){ const s=el(id); s.addEventListener("click",()=>{ app[key]=!app[key]; s.classList.toggle("on",app[key]); }); }
   bindTog("tMove","moveLock"); bindTog("tDark","goDark"); bindTog("tFire","enemyFire");
+  bindTog("tInvX","invertX"); bindTog("tInvY","invertY");
+
+  // aim-feel segmented controls + recenter
+  function bindSeg(id,apply,labelId){ el(id).addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b)return;
+    apply(+b.dataset.v); [...el(id).children].forEach(c=>c.classList.toggle("sel",c===b)); if(labelId) el(labelId).textContent=b.textContent; }); }
+  bindSeg("steadySeg",v=>app.smooth=v,"steadyVal");
+  bindSeg("sensSeg",v=>app.sensitivity=v,"sensVal");
+  el("recenterBtn").addEventListener("click",recenter);
+  el("recenterSheet").addEventListener("click",recenter);
 
   // prevent scroll/zoom gestures
   document.addEventListener("gesturestart",e=>e.preventDefault());
