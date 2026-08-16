@@ -165,7 +165,7 @@ export const KeraPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
         </div>
 
         {editorOpen && program && (
-          <KeraEditor program={program} onChange={commitProgram} onClose={() => setEditorOpen(false)} />
+          <KeraEditor program={program} trackId={track.id} onChange={commitProgram} onClose={() => setEditorOpen(false)} />
         )}
 
         <div className="p-4 space-y-3">
