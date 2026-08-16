@@ -28,6 +28,8 @@ import { MachineView } from './machine/MachineView';
 import { GlassView } from './glass/GlassView';
 import { TimelineView } from './timeline/TimelineView';
 import { MixerView } from './mixer/MixerView';
+import { BeatsMobileShell } from './mobile/BeatsMobileShell';
+import { useViewport } from '../../../hooks/useViewport';
 import { InstrumentPicker } from './instrument/InstrumentPicker';
 import { InstrumentPanel } from './instrument/InstrumentPanel';
 import { KeraPanel } from './instrument/KeraPanel';
@@ -64,6 +66,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const { doc, saveState, grooves, mutate, replace, saveNow, openGroove, newGroove, removeGroove } =
     useBeatsDoc(payload?.grooveId, production?.prodId || payload?.productionId);
   const snap = useEngineBridge();
+  const vp = useViewport();
   const hid = useBeatsHid(doc, true);
   const [view, setViewState] = useState<BeatsViewId>(() => {
     const saved = localStorage.getItem('plajah_beats_view') as BeatsViewId | null;
@@ -377,6 +380,83 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       setActivePatternId(p.id);
     });
   }, [mutate]);
+
+  // The phone morph — the SAME GrooveDoc, folded into focused full-screen MODES. Gated on the live
+  // viewport so the desktop layout below is never touched. Modals (instrument picker, EQ, Muse,
+  // grooves) still mount from the shared tail after the branch, so nothing phone-specific is lost.
+  if (vp.isPhone) {
+    return (
+      <>
+        <BeatsMobileShell
+          doc={doc}
+          pattern={pattern}
+          selectedPad={selectedPad}
+          beats={snap.beats}
+          running={snap.running}
+          suspended={snap.suspended}
+          frame={snap.frame}
+          playMode={playMode}
+          meters={snap.meters}
+          limiterReduction={snap.limiterReduction}
+          recording={recording}
+          onMutate={mutate}
+          onSelectPad={setSelectedPad}
+          onPlay={handlePlay}
+          onStop={handleStop}
+          onToggleRecord={() => setRecording((v) => !v)}
+          onSetPlayMode={setPlayMode}
+          onPlayFrom={(fromBeats) => { setPlayMode('song'); void BeatsEngine.get().init().then(() => BeatsEngine.get().play('song', { fromBeats })); }}
+          onLoadSampleFile={(padIdx, file) => { void loadSampleFile(padIdx, file); }}
+          melosSamples={melosSamples}
+          onLoadMelosSample={(padIdx, ref) => { void loadMelosSample(padIdx, ref); }}
+          onOpenInstrument={(id) => setOpenInstrumentId(id)}
+          onAddInstrument={() => setShowInstrumentPicker(true)}
+          onClose={onClose}
+          hideClose={embedded}
+        />
+        {showInstrumentPicker && (
+          <InstrumentPicker
+            onClose={() => setShowInstrumentPicker(false)}
+            onPick={(type) => {
+              let newId = '';
+              mutate((d) => { newId = addInstrument(d, type); });
+              void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
+              setShowInstrumentPicker(false);
+              if (newId) setTimeout(() => setOpenInstrumentId(newId), 60);
+            }}
+          />
+        )}
+        {padPickerFor !== null && (
+          <InstrumentPicker
+            destination={`on pad ${padPickerFor + 1}`}
+            onClose={() => setPadPickerFor(null)}
+            onPick={(type) => {
+              const padIdx = padPickerFor;
+              let newId = '';
+              mutate((d) => {
+                newId = addPadInstrument(d, padIdx, type);
+                const pad = d.kit[padIdx];
+                if (pad) { pad.source = 'instrument'; pad.instrumentTrackId = newId; if (pad.instrumentNote === undefined) pad.instrumentNote = 60; }
+              });
+              void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
+              setPadPickerFor(null);
+              if (newId) setTimeout(() => setOpenInstrumentId(newId), 60);
+            }}
+          />
+        )}
+        {openInstrumentId && (() => {
+          const t = doc.arrangement.find((x) => x.id === openInstrumentId && x.kind === 'instrument');
+          if (!t) return null;
+          const close = () => setOpenInstrumentId(null);
+          return t.instrument?.type === 'kera'
+            ? <KeraPanel doc={doc} track={t} onMutate={mutate} onClose={close} />
+            : <InstrumentPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
+        })()}
+        {showEq && <SpectraPanel doc={doc} onMutate={mutate} onClose={() => setShowEq(false)} />}
+        {showLibrary && <MuseLibrary doc={doc} onMutate={mutate} onClose={() => setShowLibrary(false)} />}
+      </>
+    );
+  }
 
   return (
     <div
