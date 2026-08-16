@@ -2,7 +2,7 @@
 // Purple appears here ONLY in the wordmark (brand-chrome rule).
 
 import React, { useCallback, useRef, useState } from 'react';
-import { Play, Square, Activity, X, FileDown, FileUp, Download, UploadCloud, OctagonX } from 'lucide-react';
+import { Play, Square, Activity, X, FileDown, FileUp, Download, UploadCloud, OctagonX, Repeat } from 'lucide-react';
 import type { GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { PLAYHEAD } from '../theme';
@@ -31,6 +31,9 @@ interface TransportBarProps {
   onSetBpm: (bpm: number) => void;
   onSetSwing: (swing: number) => void;
   onSetPlayMode: (m: 'pattern' | 'song') => void;
+  /** Live playhead position in beats (already loop-wrapped for display). */
+  beats: number;
+  onSetLoop: (loop: { on: boolean; startBeats: number; endBeats: number }) => void;
   onToggleDiagnostics: () => void;
   onExportDawproject?: () => void;
   onImportDawproject?: () => void;
@@ -135,6 +138,39 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
         />
         <span className="font-mono text-white/60 w-7">{Math.round(p.doc.swing * 100)}%</span>
       </label>
+
+      {/* Position readout — bar.beat.16th, the clock every DAW shows. */}
+      {(() => {
+        const b = Math.max(0, p.beats);
+        const bar = Math.floor(b / 4) + 1;
+        const beat = Math.floor(b % 4) + 1;
+        const six = Math.floor((b % 1) * 4) + 1;
+        return (
+          <span className="font-mono text-[13px] text-white/80 tabular-nums select-none w-[70px] text-center" title="Bar . beat . 16th">
+            {bar}.{beat}.{six}
+          </span>
+        );
+      })()}
+
+      {/* Loop / cycle: toggle + the in–out range in bars, draggable on the timeline ruler too. */}
+      {(() => {
+        const loop = p.doc.loop ?? { on: false, startBeats: 0, endBeats: 16 };
+        const inBar = Math.floor(loop.startBeats / 4) + 1;
+        const outBar = Math.floor(loop.endBeats / 4) + 1;
+        const set = (patch: Partial<typeof loop>) => p.onSetLoop({ ...loop, ...patch });
+        return (
+          <div className="flex items-center gap-1 rounded-[10px] border border-white/10 bg-white/[0.06] p-0.5" title="Cycle: loop the arrangement between the in and out bars (Song mode)">
+            <button
+              onClick={() => set({ on: !loop.on })}
+              aria-label="Toggle loop"
+              className={`h-7 px-2 rounded-lg flex items-center gap-1 text-[11px] ${loop.on ? 'text-[#00DAF3] bg-[#00DAF3]/12' : 'text-white/45 hover:text-white'}`}
+            ><Repeat size={13} /></button>
+            <button onClick={() => set({ startBeats: Math.max(0, loop.startBeats - 4) })} className="w-5 h-6 text-white/40 hover:text-white text-[12px] leading-none" aria-label="Loop in earlier">‹</button>
+            <span className="font-mono text-[11px] text-white/70 tabular-nums w-12 text-center">{inBar}–{outBar}</span>
+            <button onClick={() => set({ endBeats: loop.endBeats + 4 })} className="w-5 h-6 text-white/40 hover:text-white text-[12px] leading-none" aria-label="Loop out later">›</button>
+          </div>
+        );
+      })()}
 
       {p.running ? (
         <button onClick={p.onStop} aria-label="Stop" className="w-9 h-8 grid place-items-center rounded-lg bg-white/10 border border-white/15 text-white hover:bg-white/20">

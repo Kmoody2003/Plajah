@@ -153,6 +153,9 @@ export interface GrooveDoc {
   ownerId: string;
   bpm: number;      // 20–300
   swing: number;    // 0..1 on offbeat 16ths
+  // Song-mode loop/cycle region (beats). Optional for back-compat with docs saved before it
+  // existed — consumers default it off. Pattern mode loops the pattern itself, independently.
+  loop?: { on: boolean; startBeats: number; endBeats: number };
   kit: PadConfig[]; // exactly 16; index = pad position, 0 = bottom-left (Maschine order)
   patterns: Pattern[];
   arrangement: ArrangeTrack[];
@@ -216,6 +219,7 @@ export function newGrooveDoc(ownerId: string, name = 'New Groove'): GrooveDoc {
     id: uid() + uid(),
     name, ownerId,
     bpm: 120, swing: 0,
+    loop: { on: false, startBeats: 0, endBeats: 16 },
     kit: Array.from({ length: PAD_COUNT }, (_, i) => defaultPad(i)),
     patterns: [pattern],
     // One pattern track by default — the FL-style Sequence experience; Timeline view and

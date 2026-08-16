@@ -61,6 +61,7 @@ export class BeatsEngine {
   // posBeats is continuous and only events beyond the lookahead window feel the new tempo.
   private running = false;
   private mode: PlayMode = 'pattern';
+  private currentPatternId: string | undefined;
   private anchorBeats = 0;
   private anchorTime = 0;
   private secPerBeat = 0.5;
@@ -109,6 +110,7 @@ export class BeatsEngine {
       startInstrumentNote: (track, note, when, durSec) => this.startInstrumentNote(track, note, when, durSec),
       runArp: (track, stepIndex, beat) => this.runArp(track, stepIndex, beat),
       arpActive: (track) => this.arpIsActive(track),
+      loop: () => this.doc.loop ?? null,
     });
     this.graph.applyDoc(this.doc);
   }
@@ -453,6 +455,7 @@ export class BeatsEngine {
     this.running = true;
     this.jitterWindow.length = 0;
     this.lastTickAudio = 0;
+    this.currentPatternId = opts.patternId;
     this.scheduler.start(mode, from, opts.patternId);
     this.clock.port.postMessage({ cmd: 'start' });
     // First window immediately — don't wait ~21ms for the first worklet tick.
@@ -532,7 +535,34 @@ export class BeatsEngine {
     }
     this.lastTickAudio = tick.t;
     this.lastTickPerf = perfNow;
+
+    // Song-mode cycle: when the playhead reaches the loop end, jump back to the start. The
+    // scheduler already stopped queuing at loopEnd, so this just restarts the window from the top.
+    const loop = this.doc.loop;
+    if (this.mode === 'song' && loop?.on && loop.endBeats > loop.startBeats && this.posBeats() >= loop.endBeats - 1e-6) {
+      this.seekTo(loop.startBeats);
+      return;
+    }
     this.scheduler?.onTick(tick.t);
+  }
+
+  /** Re-anchor the transport to a beat and restart scheduling there (loop wrap / click-to-play). */
+  private seekTo(beats: number): void {
+    if (!this.ctx || !this.scheduler) return;
+    this.anchorBeats = beats;
+    this.anchorTime = this.ctx.currentTime;
+    this.scheduler.start(this.mode, beats, this.currentPatternId);
+    this.scheduler.onTick(this.ctx.currentTime);
+  }
+
+  /** Playhead position mapped into the loop for display — the cursor visibly jumps back. */
+  posBeatsDisplay(): number {
+    const loop = this.doc.loop;
+    const p = this.posBeats();
+    if (this.mode === 'song' && loop?.on && loop.endBeats > loop.startBeats && p >= loop.startBeats) {
+      return loop.startBeats + ((p - loop.startBeats) % (loop.endBeats - loop.startBeats));
+    }
+    return p;
   }
 
   private startAudioClip(track: ArrangeTrack, clip: TimelineClip, when: number, offsetIntoClipSec: number): void {

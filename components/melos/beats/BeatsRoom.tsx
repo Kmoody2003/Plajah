@@ -366,6 +366,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         onPanic={() => BeatsEngine.get().panic()}
         onSetBpm={(bpm) => mutate((d) => { d.bpm = bpm; })}
         onSetSwing={(s) => mutate((d) => { d.swing = s; })}
+        beats={snap.beats}
+        onSetLoop={(loop) => mutate((d) => { d.loop = loop; })}
         onSetPlayMode={setPlayMode}
         onToggleDiagnostics={() => setShowDiagnostics((v) => !v)}
         onExportDawproject={() => { void handleExportDawproject(); }}

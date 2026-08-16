@@ -26,6 +26,9 @@ export interface SchedulerDeps {
   runArp?(track: ArrangeTrack, stepIndex: number, beat: number): void;
   /** Is this track's arp enabled? Used to skip its clip notes so they don't double the arp. */
   arpActive?(track: ArrangeTrack): boolean;
+  /** Song-mode loop region. When on, scheduling stops at endBeats and the engine re-seeks to
+   *  startBeats — so nothing past the loop is ever queued. Null/off = play straight through. */
+  loop?(): { on: boolean; startBeats: number; endBeats: number } | null;
 }
 
 /** Deterministic PRNG for offline renders (mulberry32). */
@@ -80,10 +83,14 @@ export class StepScheduler {
   private scheduleWindow(horizonSec: number, endBeats = Number.POSITIVE_INFINITY) {
     const d = this.deps;
     const doc = d.doc();
+    // Song-mode loop: never schedule past the loop end — the engine re-seeks to the start when the
+    // playhead gets there, so the region repeats without stray events from after it.
+    const loop = this.mode === 'song' ? d.loop?.() : null;
+    const loopCap = loop?.on && loop.endBeats > loop.startBeats ? loop.endBeats : endBeats;
     // Hard bound per pass: at 300bpm a 150ms window is ~7 steps; 4096 only trips on scheduleAll.
     for (let guard = 0; guard < 4096 * 64; guard++) {
       const beat = this.nextStep * STEP_BEATS;
-      if (beat >= endBeats) break;
+      if (beat >= endBeats || beat >= loopCap - 1e-9) break;
       const baseTime = d.toTime(beat);
       if (baseTime >= horizonSec) break;
       if (this.mode === 'pattern') this.schedulePatternStep(doc, beat);

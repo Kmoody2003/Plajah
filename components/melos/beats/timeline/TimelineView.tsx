@@ -127,6 +127,30 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
 
   const playheadX = p.running && p.playMode === 'song' ? p.beats * pxPerBeat : -1;
 
+  // Draggable loop/cycle region on the ruler — move the body, drag either edge to resize; snaps
+  // to the bar grid, and turns the loop on the moment you touch it.
+  const loop = p.doc.loop ?? { on: false, startBeats: 0, endBeats: BEATS_PER_BAR * 4 };
+  const dragLoop = (mode: 'move' | 'l' | 'r') => (e: React.PointerEvent) => {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).parentElement!.getBoundingClientRect();
+    const start = { ...loop };
+    const startX = e.clientX;
+    const snap = (beats: number) => Math.round(beats / BEATS_PER_BAR) * BEATS_PER_BAR;
+    const move = (ev: PointerEvent) => {
+      const dBeats = (ev.clientX - startX) / pxPerBeat;
+      p.onMutate((d) => {
+        const l = d.loop ?? { on: true, startBeats: start.startBeats, endBeats: start.endBeats };
+        if (mode === 'move') { const span = start.endBeats - start.startBeats; const s = Math.max(0, snap(start.startBeats + dBeats)); l.startBeats = s; l.endBeats = s + span; }
+        else if (mode === 'l') l.startBeats = Math.max(0, Math.min(l.endBeats - BEATS_PER_BAR, snap(start.startBeats + dBeats)));
+        else l.endBeats = Math.max(l.startBeats + BEATS_PER_BAR, snap(start.endBeats + dBeats));
+        l.on = true;
+        d.loop = l;
+      });
+    };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  };
+
   return (
     <div className="flex-1 min-h-0 flex flex-col p-4 pt-3 gap-0">
       <div className={`${glassPanel} flex-1 min-h-0 overflow-hidden flex flex-col`}>
@@ -149,6 +173,18 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                     {b % 4 === 0 ? b + 1 : ''}
                   </span>
                 ))}
+                {/* loop/cycle region */}
+                <div
+                  className="absolute top-0 h-full cursor-grab"
+                  style={{ left: loop.startBeats * pxPerBeat, width: Math.max(2, (loop.endBeats - loop.startBeats) * pxPerBeat),
+                    background: loop.on ? 'rgba(0,218,243,0.18)' : 'rgba(255,255,255,0.05)',
+                    borderLeft: `2px solid ${loop.on ? '#00DAF3' : 'rgba(255,255,255,0.3)'}`, borderRight: `2px solid ${loop.on ? '#00DAF3' : 'rgba(255,255,255,0.3)'}` }}
+                  title="Drag to move the loop; drag an edge to resize"
+                  onPointerDown={dragLoop('move')}
+                >
+                  <span onPointerDown={dragLoop('l')} className="absolute left-0 top-0 bottom-0 w-2 -ml-1 cursor-ew-resize" />
+                  <span onPointerDown={dragLoop('r')} className="absolute right-0 top-0 bottom-0 w-2 -mr-1 cursor-ew-resize" />
+                </div>
               </div>
             </div>
 

@@ -28,7 +28,7 @@ export function useEngineBridge(): EngineSnapshot {
       const ctx = e.getContext();
       frame++;
       setSnap({
-        beats: e.posBeats(),
+        beats: e.posBeatsDisplay(),
         running: e.isRunning(),
         suspended: !ctx || ctx.state !== 'running',
         meters: e.meters(),
