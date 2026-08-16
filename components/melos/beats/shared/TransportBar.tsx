@@ -36,6 +36,7 @@ interface TransportBarProps {
   onSetLoop: (loop: { on: boolean; startBeats: number; endBeats: number }) => void;
   onToggleDiagnostics: () => void;
   onOpenEq?: () => void;
+  onOpenLibrary?: () => void;
   onExportDawproject?: () => void;
   onImportDawproject?: () => void;
   onBounce?: () => void;
@@ -233,6 +234,9 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
         <UploadCloud size={12} /> {p.busy === 'publish' ? 'Rendering…' : 'Publish'}
       </button>
 
+      {p.onOpenLibrary && (
+        <button onClick={p.onOpenLibrary} title="Muse Library — browse instruments, samples, loops" className="h-8 px-2.5 rounded-lg text-[11px] border border-white/10 text-white/50 hover:text-white hover:bg-white/10 font-mono">Library</button>
+      )}
       {p.onOpenEq && (
         <button onClick={p.onOpenEq} title="Spectra — mix-bus EQ + dynamics" className="h-8 px-2.5 rounded-lg text-[11px] border border-white/10 text-white/50 hover:text-white hover:bg-white/10 font-mono">EQ</button>
       )}

@@ -31,6 +31,7 @@ import { InstrumentPicker } from './instrument/InstrumentPicker';
 import { InstrumentPanel } from './instrument/InstrumentPanel';
 import { KeraPanel } from './instrument/KeraPanel';
 import { SpectraPanel } from './mixer/SpectraPanel';
+import { MuseLibrary } from './muse/MuseLibrary';
 import { addInstrument, addPadInstrument } from '../../../services/melos/beats/instrumentFactory';
 import { SELECT, WASH_BG } from './theme';
 
@@ -87,6 +88,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   // rather than adding a new arranger track.
   const [padPickerFor, setPadPickerFor] = useState<number | null>(null);
   const [showEq, setShowEq] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
 
   // The armed instrument track owns the QWERTY keyboard (the pads stand down while it does),
   // and receives anything played or recorded.
@@ -380,6 +382,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         onSetPlayMode={setPlayMode}
         onToggleDiagnostics={() => setShowDiagnostics((v) => !v)}
         onOpenEq={() => { void BeatsEngine.get().init().then(() => setShowEq(true)); }}
+        onOpenLibrary={() => setShowLibrary(true)}
         onExportDawproject={() => { void handleExportDawproject(); }}
         onImportDawproject={() => dawFileRef.current?.click()}
         onBounce={() => { void handleBounce(); }}
@@ -605,6 +608,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       )}
 
       {showEq && <SpectraPanel doc={doc} onMutate={mutate} onClose={() => setShowEq(false)} />}
+      {showLibrary && <MuseLibrary doc={doc} onMutate={mutate} onClose={() => setShowLibrary(false)} />}
 
       {/* Pad → instrument: the picker targets a specific pad. On pick we mint a padOwned instrument
           track, link it to the pad, and open its editor — the same panels a track instrument uses. */}
