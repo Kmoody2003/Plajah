@@ -14,6 +14,7 @@ import { Instrument } from './InstrumentHost';
 import type { ArrangeTrack as ATrack, NoteEvent } from '../grooveDoc';
 import { arpStep, defaultArpPatch, type ArpPatch } from '../../arp';
 import type { KeraProgram } from '../../instruments/kera/zones';
+import { deserializeKeraProgram, type SerializedKeraProgram } from '../../instruments/kera/persist';
 
 export interface EngineDiagnostics {
   sampleRate: number;
@@ -244,6 +245,12 @@ export class BeatsEngine {
         ]);
         const patch = deserializePatch(track.instrument.patch);
         if (patch) applyPatch(inst, patch);
+      }
+      // Re-hydrate a saved KERA program: sample PCM comes back from the owner's OPFS/locker, zones
+      // from the doc. Without this, a KERA track opened from a saved groove would be silent.
+      if (track.instrument?.type === 'kera' && track.instrument.kera) {
+        const prog = await deserializeKeraProgram(track.instrument.kera as unknown as SerializedKeraProgram);
+        if (prog) inst.loadKeraProgram(prog);
       }
       this.instruments.set(track.id, inst);
       return inst;

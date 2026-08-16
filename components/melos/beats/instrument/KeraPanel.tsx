@@ -4,12 +4,13 @@
 // zone map and the four playback modes are the next phase; this is the honest MVP: the shared
 // Rust sample engine, actually making sound, with the formats that are open to play.
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X, Upload, Piano, Waves, Info } from 'lucide-react';
 import type { GrooveDoc, ArrangeTrack } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { programFromFile, programFromSf2 } from '../../../../services/melos/instruments/kera/loader';
 import { programStats, type KeraProgram } from '../../../../services/melos/instruments/kera/zones';
+import { serializeKeraProgram, keraProgramShell, type SerializedKeraProgram } from '../../../../services/melos/instruments/kera/persist';
 import { PLAYHEAD, SELECT, SURFACE } from '../theme';
 
 interface Props {
@@ -26,14 +27,42 @@ export const KeraPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
   const sf2Bytes = useRef<Uint8Array | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Reopening a saved KERA track: show what's loaded from the doc's metadata instantly (the audible
+  // program hydrates separately in the engine). Runs once for the initial saved program.
+  useEffect(() => {
+    const saved = track.instrument?.kera as unknown as SerializedKeraProgram | undefined;
+    if (saved?.samples?.length) {
+      const shell = keraProgramShell(saved);
+      setProgram(shell);
+      const s = programStats(shell);
+      setStatus(`${saved.name} · ${s.zones} zone${s.zones !== 1 ? 's' : ''}, ${s.samples} sample${s.samples !== 1 ? 's' : ''} · saved`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const applyProgram = useCallback(async (prog: KeraProgram | null, label: string) => {
     if (!prog) { setStatus('Could not read that file'); return; }
     setProgram(prog);
     const s = programStats(prog);
     setStatus(`${label} · ${s.zones} zone${s.zones !== 1 ? 's' : ''}, ${s.samples} sample${s.samples !== 1 ? 's' : ''}`);
     await BeatsEngine.get().loadKeraProgram(track, prog);
-    // Name the track after the loaded content.
+    // Name the track after the loaded content, immediately.
     onMutate((d) => { const t = d.arrangement.find((x) => x.id === track.id); if (t) t.name = prog.name; });
+    // Persist the program so it survives reload: samples → the owner's OPFS + private locker,
+    // zones/metadata → the doc (which autosaves to the owner's Firestore). Runs after the sound is
+    // already playing, so a heavy SoundFont doesn't block audition.
+    setStatus(`${label} · saving to your library…`);
+    try {
+      const serialized = await serializeKeraProgram(prog);
+      onMutate((d) => {
+        const t = d.arrangement.find((x) => x.id === track.id);
+        if (t?.instrument) t.instrument.kera = serialized as unknown as Record<string, unknown>;
+      });
+      setStatus(`${label} · ${s.zones} zone${s.zones !== 1 ? 's' : ''}, ${s.samples} sample${s.samples !== 1 ? 's' : ''} · saved`);
+    } catch (e) {
+      console.warn('[kera] save failed', e);
+      setStatus(`${label} · loaded (save failed — will retry on next change)`);
+    }
   }, [track, onMutate]);
 
   const handleFile = useCallback(async (file: File) => {

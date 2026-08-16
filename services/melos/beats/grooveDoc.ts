@@ -113,6 +113,9 @@ export interface TrackInstrument {
   presetName?: string;
   /** Serialized ArpPatch. Loosely typed for the same reason as `patch`. */
   arp?: Record<string, unknown>;
+  /** type 'kera' — a SerializedKeraProgram: zones + amp + sample refs (PCM lives in the owner's
+   *  OPFS/locker, not in this doc). Loosely typed so grooveDoc stays engine-agnostic. */
+  kera?: Record<string, unknown>;
 }
 
 export interface ArrangeTrack {
