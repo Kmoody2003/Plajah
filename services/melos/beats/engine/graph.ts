@@ -37,10 +37,15 @@ export interface BeatsGraph {
     limiter: DynamicsCompressorNode; limiterOn: boolean;
     makeup: GainNode;
     analyser: AnalyserNode;
+    eqIn: AudioNode | null;   // Spectra EQ insert (pre-fader), or null = no insert
+    eqOut: AudioNode | null;
   };
   applyDoc(doc: GrooveDoc): void;         // idempotent — push mixer/pad params into the nodes
   padDestination(padIdx: number): AudioNode;
   trackDestination(track: ArrangeTrack): AudioNode;
+  /** Insert a device (Spectra EQ) on the mix bus, pre-fader. Passing the same nodes is idempotent. */
+  setMasterEq(input: AudioNode, output: AudioNode): void;
+  clearMasterEq(): void;
   meters(): { groups: number[]; master: number };
   limiterReduction(): number;
   dispose(): void;
@@ -73,11 +78,14 @@ export function buildGraph(ctx: BaseAudioContext, padCount = 16): BeatsGraph {
   input.connect(fader); fader.connect(limiter); limiter.connect(makeup);
   makeup.connect(analyser); analyser.connect(ctx.destination);
 
-  const master = { input, glue, glueOn: false, fader, limiter, limiterOn: true, makeup, analyser };
+  const master = { input, glue, glueOn: false, fader, limiter, limiterOn: true, makeup, analyser, eqIn: null as AudioNode | null, eqOut: null as AudioNode | null };
 
   const repatchMaster = () => {
-    try { input.disconnect(); glue.disconnect(); fader.disconnect(); limiter.disconnect(); } catch { /* */ }
-    if (master.glueOn) { input.connect(glue); glue.connect(fader); } else { input.connect(fader); }
+    try { input.disconnect(); glue.disconnect(); fader.disconnect(); limiter.disconnect(); master.eqOut?.disconnect(); } catch { /* */ }
+    // input → [Spectra EQ] → glue? → fader → limiter? → makeup
+    let node: AudioNode = input;
+    if (master.eqIn && master.eqOut) { input.connect(master.eqIn); node = master.eqOut; }
+    if (master.glueOn) { node.connect(glue); glue.connect(fader); } else { node.connect(fader); }
     if (master.limiterOn) { fader.connect(limiter); limiter.connect(makeup); } else { fader.connect(makeup); }
   };
 
@@ -169,6 +177,17 @@ export function buildGraph(ctx: BaseAudioContext, padCount = 16): BeatsGraph {
         strip = { gain: g, pan: p }; tracks.set(track.id, strip);
       }
       return strip.gain;
+    },
+
+    setMasterEq(eqInput: AudioNode, eqOutput: AudioNode) {
+      master.eqIn = eqInput; master.eqOut = eqOutput;
+      repatchMaster();
+    },
+    clearMasterEq() {
+      if (!master.eqIn && !master.eqOut) return;
+      try { master.eqOut?.disconnect(); } catch { /* */ }
+      master.eqIn = null; master.eqOut = null;
+      repatchMaster();
     },
 
     meters() {

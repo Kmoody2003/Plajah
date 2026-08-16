@@ -35,6 +35,7 @@ interface TransportBarProps {
   beats: number;
   onSetLoop: (loop: { on: boolean; startBeats: number; endBeats: number }) => void;
   onToggleDiagnostics: () => void;
+  onOpenEq?: () => void;
   onExportDawproject?: () => void;
   onImportDawproject?: () => void;
   onBounce?: () => void;
@@ -232,6 +233,9 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
         <UploadCloud size={12} /> {p.busy === 'publish' ? 'Rendering…' : 'Publish'}
       </button>
 
+      {p.onOpenEq && (
+        <button onClick={p.onOpenEq} title="Spectra — mix-bus EQ + dynamics" className="h-8 px-2.5 rounded-lg text-[11px] border border-white/10 text-white/50 hover:text-white hover:bg-white/10 font-mono">EQ</button>
+      )}
       <button onClick={p.onToggleDiagnostics} aria-label="Engine diagnostics" className={`w-8 h-8 grid place-items-center rounded-lg border transition-colors ${p.showDiagnostics ? 'border-[#00DAF3]/50 text-[#00DAF3] bg-[#00DAF3]/10' : 'border-white/10 text-white/40 hover:text-white'}`}>
         <Activity size={14} />
       </button>

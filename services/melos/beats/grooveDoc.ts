@@ -144,7 +144,9 @@ export interface ArrangeTrack {
 
 export interface MixerState {
   groups: { gainDb: number; mute: boolean; solo: boolean }[]; // length 4 (A–D)
-  master: { gainDb: number; limiterOn: boolean };
+  // master.eq is a serialized SpectraState (EQ + dynamics on the mix bus); loosely typed so
+  // grooveDoc stays engine-agnostic, like instrument.patch / instrument.kera.
+  master: { gainDb: number; limiterOn: boolean; eq?: Record<string, unknown> };
 }
 
 export interface GrooveDoc {

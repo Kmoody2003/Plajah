@@ -15,6 +15,7 @@ import type { ArrangeTrack as ATrack, NoteEvent } from '../grooveDoc';
 import { arpStep, defaultArpPatch, type ArpPatch } from '../../arp';
 import type { KeraProgram } from '../../instruments/kera/zones';
 import { deserializeKeraProgram, type SerializedKeraProgram } from '../../instruments/kera/persist';
+import { SpectraEQ, defaultSpectra, type SpectraState } from '../fx/spectraEq';
 
 export interface EngineDiagnostics {
   sampleRate: number;
@@ -119,7 +120,7 @@ export class BeatsEngine {
     this.doc = doc;
     this.secPerBeat = 60 / (doc.bpm || 120);
     this.graph?.applyDoc(doc);
-    if (this.ctx) this.syncInstruments();
+    if (this.ctx) { this.syncInstruments(); this.syncMasterEq(); }
   }
 
   /**
@@ -266,6 +267,33 @@ export class BeatsEngine {
 
   getInstrument(trackId: string): Instrument | null {
     return this.instruments.get(trackId) ?? null;
+  }
+
+  // ── Spectra EQ (mix bus) ─────────────────────────────────────────────────────
+  private masterEq: SpectraEQ | null = null;
+
+  /** The live mix-bus EQ, created + inserted on first use, seeded from the saved doc state. */
+  masterEqDevice(): SpectraEQ | null {
+    if (!this.ctx || !this.graph) return null;
+    if (!this.masterEq) {
+      this.masterEq = new SpectraEQ(this.ctx);
+      this.graph.setMasterEq(this.masterEq.input, this.masterEq.output);
+      const saved = this.doc.mixer.master.eq as unknown as SpectraState | undefined;
+      this.masterEq.setState(saved?.bands ? saved : defaultSpectra());
+    }
+    return this.masterEq;
+  }
+
+  /** Push EQ state to the live device (the panel persists it to the doc separately). */
+  updateMasterEq(state: SpectraState): void {
+    this.masterEqDevice()?.setState(state);
+  }
+
+  /** Apply a saved EQ on doc load, if one is present and on. */
+  private syncMasterEq(): void {
+    const saved = this.doc.mixer.master.eq as unknown as SpectraState | undefined;
+    if (saved?.on && saved.bands?.length) this.masterEqDevice()?.setState(saved);
+    else if (this.masterEq) this.masterEq.setState({ on: false, mode: (saved?.mode ?? 5) as 5 | 30, bands: saved?.bands ?? [] });
   }
 
   /** The track your keyboard plays. Exactly one, or none. */
