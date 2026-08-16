@@ -114,6 +114,14 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     if (opened) { replace(opened); setShowGrooves(false); flash(`Opened ${opened.name}`); }
     else flash('That file could not be read as a Melos groove');
   }, [replace, flash]);
+  const handleSaveCopy = useCallback(() => {
+    // Fork the current groove into a NEW one (fresh id) so the original is untouched; the autosave
+    // then persists the copy to the owner's cloud as a separate project.
+    const copy = JSON.parse(JSON.stringify(doc));
+    copy.id = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+    copy.name = `${(doc.name || 'Groove').replace(/ copy( \d+)?$/, '')} copy`;
+    replace(copy); setShowGrooves(false); flash(`Saved a copy — ${copy.name}`);
+  }, [doc, replace, flash]);
 
   const pattern = doc.patterns.find((p) => p.id === activePatternId) || doc.patterns[0];
 
@@ -461,6 +469,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           </button>
           {showGrooves && (
             <div className="absolute top-8 left-0 z-30 w-64 max-h-72 overflow-y-auto rounded-xl border border-white/15 bg-[#0A0A0D]/95 backdrop-blur-xl p-1.5 shadow-2xl">
+              <button onClick={handleSaveCopy} className="w-full h-7 mb-1 rounded-lg text-[10px] border border-[#00DAF3]/30 text-[#00DAF3] hover:bg-[#00DAF3]/10 flex items-center justify-center gap-1.5" title="Duplicate this groove as a new project in your cloud">
+                <FilePlus2 size={10} /> Save a copy
+              </button>
               <div className="flex gap-1 px-1 pb-1.5 mb-1 border-b border-white/10">
                 <button onClick={() => { exportGrooveFile(doc); }} className="flex-1 h-7 rounded-lg text-[10px] border border-white/12 text-white/60 hover:text-white hover:bg-white/5 flex items-center justify-center gap-1.5" title="Save this groove as a local .melos file">
                   <Download size={10} /> Save as file

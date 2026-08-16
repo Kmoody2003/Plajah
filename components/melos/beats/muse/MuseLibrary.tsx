@@ -6,7 +6,7 @@
 // project" drops audio onto a new track or loads a preset. Cloud-folder listing is the next source.
 
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { X, Search, FolderPlus, Play, Plus, Folder, Box, LayoutGrid } from 'lucide-react';
+import { X, Search, FolderPlus, Play, Plus, Folder, Box, LayoutGrid, Cloud } from 'lucide-react';
 import type { GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { grooveUid } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
@@ -15,6 +15,7 @@ import { addInstrument } from '../../../../services/melos/beats/instrumentFactor
 import { FACTORY_PRESETS } from '../../../../services/melos/instruments/onda/presets';
 import { serializePatch } from '../../../../services/melos/instruments/onda/patch';
 import { analyzeBuffer, keyLabel, CATEGORY_FOR, type MuseAsset, type MuseAnalysis, type MuseKind, type MuseSource } from '../../../../services/melos/beats/muse/museAsset';
+import { listCloudAssets, resolveCloudFile, cloudSupported } from '../../../../services/melos/beats/muse/cloudSource';
 import { coverCss, accentFor } from '../../../../services/melos/instruments/presetArt';
 import { PLAYHEAD, SELECT, SURFACE } from '../theme';
 
@@ -34,6 +35,7 @@ export const MuseLibrary: React.FC<Props> = ({ doc, onMutate, onClose }) => {
   const [query, setQuery] = useState('');
   const [sel, setSel] = useState<string | null>(null);
   const [localRows, setLocalRows] = useState<Row[]>([]);
+  const [cloudRows, setCloudRows] = useState<Row[] | null>(null); // null = not loaded yet
   const [status, setStatus] = useState('');
   const analyzed = useRef(new Map<string, { analysis: MuseAnalysis; buffer: AudioBuffer }>());
   const [, force] = useState(0);
@@ -55,7 +57,19 @@ export const MuseLibrary: React.FC<Props> = ({ doc, onMutate, onClose }) => {
     return out;
   }, [doc]);
 
-  const rows: Row[] = source === 'local' ? localRows : source === 'factory' ? factoryRows : projectRows;
+  // ── CLOUD: the owner's locker samples, loaded on demand ──
+  const loadCloud = useCallback(async () => {
+    if (!cloudSupported()) { setCloudRows([]); setStatus('Sign in to see your cloud library'); return; }
+    setStatus('Loading your cloud library…');
+    const items = await listCloudAssets();
+    setCloudRows(items.map((c) => ({
+      id: `c:${c.path}`, kind: 'sample', name: c.name, source: 'cloud',
+      ref: {}, tags: ['locker'], category: 'Samples', getFile: () => resolveCloudFile(c.path, c.name),
+    })));
+    setStatus(`${items.length} in your cloud library`);
+  }, []);
+
+  const rows: Row[] = source === 'local' ? localRows : source === 'factory' ? factoryRows : source === 'cloud' ? (cloudRows || []) : projectRows;
   const categories = useMemo(() => [...new Set(rows.map((r) => r.category).filter(Boolean))] as string[], [rows]);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -175,6 +189,11 @@ export const MuseLibrary: React.FC<Props> = ({ doc, onMutate, onClose }) => {
             <p className="text-[9px] uppercase tracking-[0.18em] text-white/30 font-semibold px-1 mb-1.5">Sources</p>
             <SourceBtn id="factory" icon={<Box size={14} />} label="Factory" count={factoryRows.length} />
             <SourceBtn id="project" icon={<LayoutGrid size={14} />} label="This project" count={projectRows.length} />
+            <button onClick={() => { setSource('cloud'); setCategory(null); setSel(null); if (cloudRows === null) void loadCloud(); }} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12px]"
+              style={source === 'cloud' ? { background: 'rgba(0,218,243,0.12)', color: '#fff' } : { color: 'rgba(255,255,255,0.5)' }}>
+              <span style={{ color: source === 'cloud' ? PLAYHEAD : 'rgba(255,255,255,0.3)' }}><Cloud size={14} /></span>My cloud library
+              {cloudRows && <span className="ml-auto font-mono text-[9px] text-white/30">{cloudRows.length}</span>}
+            </button>
             <SourceBtn id="local" icon={<Folder size={14} />} label="Local folder" count={source === 'local' ? localRows.length : undefined} />
             <button onClick={() => void addFolder()} className="w-full h-8 mt-2 rounded-lg border border-dashed border-white/15 text-white/45 hover:text-white text-[11px] flex items-center justify-center gap-1.5"><FolderPlus size={12} /> Add a folder</button>
             {categories.length > 0 && (<>
