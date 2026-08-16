@@ -7,7 +7,7 @@ import React from 'react';
 import {
   GraduationCap, ShieldCheck, LayoutGrid, Award, BookOpen, Languages,
   ClipboardList, Library, Sparkles, FlaskConical, Music, Film, Image as ImageIcon, ChevronRight,
-  School, ArrowRight,
+  School, ArrowRight, Rocket,
 } from 'lucide-react';
 import type { UserProfile } from '../types';
 import { ageTokensFor } from '../data/ageScaling';
@@ -29,6 +29,7 @@ const TILES: Tile[] = [
   { key: 'ledger',   label: 'Learning Record',   desc: 'The portable, student-owned proficiency ledger', icon: ShieldCheck, view: 'LEARNER_LEDGER', accent: '#2bd67a', roles: ['teacher', 'parent', 'student'] },
   { key: 'library',  label: 'Kids Library',      desc: 'Leveled readers, phonics & sight words', icon: Library, view: 'KIDS_LIBRARY', accent: '#36c5f0', roles: ['parent', 'student'] },
   { key: 'labs',     label: 'Plajah Labs',       desc: 'Arts, history & science across the disciplines', icon: FlaskConical, view: 'PLAJAH_LABS', accent: '#7a2bd6', roles: ['teacher', 'parent', 'student'] },
+  { key: 'praxis',   label: 'Start a Business',  desc: 'Learn entrepreneurship & money by building a real venture, with Aria', icon: Rocket, view: 'PRAXIS', accent: '#8b5cf6', roles: ['teacher', 'student'], badge: 'New' },
 ];
 
 // Content sources a teacher can pull into a lesson (Phase D preview — links into the archives).

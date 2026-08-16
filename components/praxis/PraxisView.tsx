@@ -350,17 +350,23 @@ const Chapter: React.FC<{ stage: Stage; venture: Venture; uid?: string; onBack: 
 
   const lesson = SPARK_LESSON[venture.band];
 
-  const finishSpark = async () => {
-    let v = updatePlan(venture, {
-      spark_thesis: thesis, spark_serves: serves, bmc_value: value, bmc_customer: customer, bmc_revenue: revenue,
-    });
-    v = { ...v, thesis: thesis || v.thesis, serves: serves || v.serves };
-    v = completeStage({ ...v }, 'spark', 'validate');
+  // Shared: write plan sections, apply any venture-field updates, complete the
+  // stage, persist, award points, and surface the "saved" confirmation.
+  const completeChapter = async (patch: Record<string, string>, fieldUpdates: Partial<Venture>, next: string) => {
+    let v = updatePlan(venture, patch);
+    if (Object.keys(fieldUpdates).length) v = { ...v, ...fieldUpdates };
+    v = completeStage(v, stage.key, next);
     saveVenture(v);
     onUpdate(v);
-    if (uid) await awardPraxisPoints(uid, 'spark');
+    if (uid) await awardPraxisPoints(uid, stage.key);
     setSaved(true);
   };
+
+  const finishSpark = () => completeChapter(
+    { spark_thesis: thesis, spark_serves: serves, bmc_value: value, bmc_customer: customer, bmc_revenue: revenue },
+    { thesis: thesis || venture.thesis, serves: serves || venture.serves },
+    'validate',
+  );
 
   return (
     <div className="min-h-full bg-black/30 text-white">
@@ -432,6 +438,11 @@ const Chapter: React.FC<{ stage: Stage; venture: Venture; uid?: string; onBack: 
               </div>
               {saved && <p className="text-[11px] text-[#06d6a0] text-center flex items-center justify-center gap-1.5"><Check size={12} /> Saved to your Blueprint{uid ? ' · +15 points' : ''}. On to Validate whenever you're ready.</p>}
             </div>
+          ) : stage.key === 'validate' ? (
+            <ValidateDo
+              venture={venture} saved={saved} uid={uid}
+              onComplete={(patch) => completeChapter(patch, {}, 'form')}
+            />
           ) : stage.key === 'form' ? (
             <FormPreview state={venture.jurisdiction.state} />
           ) : (
@@ -440,7 +451,7 @@ const Chapter: React.FC<{ stage: Stage; venture: Venture; uid?: string; onBack: 
         </section>
 
         {/* COACH */}
-        {!isSpark && (
+        {!isSpark && stage.key !== 'validate' && (
           <button onClick={() => askAria(`You are Aria, my Praxis business coach on the Three P's. Walk me through the "${stage.title}" stage for my venture "${venture.name}" (${venture.thesis}). Teach it plainly, protect me from common mistakes, and give me the single next action.`)}
             className="w-full py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white bg-gradient-to-br from-[#7c3aed] to-[#8b5cf6] hover:scale-[1.01] transition-all flex items-center justify-center gap-2">
             <AriaMark size={18} petals={false} /> Coach me through {stage.title}
@@ -457,6 +468,114 @@ const MiniField: React.FC<{ label: string; children: React.ReactNode }> = ({ lab
     {children}
   </div>
 );
+
+// ── Validate chapter (interactive) ───────────────────────────────────────────
+const PRICE_BASES: { id: string; label: string; hint: string }[] = [
+  { id: 'value', label: 'Value-based', hint: 'Price on the value you create — usually the most you can charge.' },
+  { id: 'competitor', label: 'Competitor', hint: 'Anchor to what rivals charge, then justify a difference.' },
+  { id: 'cost_plus', label: 'Cost-plus', hint: 'Your cost + a margin. Simple, but leaves money on the table.' },
+];
+
+const ValidateDo: React.FC<{ venture: Venture; saved: boolean; uid?: string; onComplete: (patch: Record<string, string>) => void }> = ({ venture, saved, uid, onComplete }) => {
+  const p = venture.plan;
+  const [tam, setTam] = useState(p.val_tam || '');
+  const [sam, setSam] = useState(p.val_sam || '');
+  const [som, setSom] = useState(p.val_som || '');
+  const [who, setWho] = useState(p.icp_who || venture.serves);
+  const [problem, setProblem] = useState(p.icp_problem || '');
+  const [where, setWhere] = useState(p.icp_where || '');
+  const [price, setPrice] = useState(p.price || '');
+  const [basis, setBasis] = useState(p.price_basis || 'value');
+
+  const canComplete = !!who.trim() && (!!som.trim() || !!sam.trim()) && !!price.trim();
+  const funnel = [
+    { label: 'Everyone with this problem', sub: 'TAM', v: tam, w: '100%', c: '#b692f6' },
+    { label: 'The slice you can serve', sub: 'SAM', v: sam, w: '66%', c: '#d40055' },
+    { label: 'What you can win in year one', sub: 'SOM', v: som, w: '38%', c: '#ff8c00' },
+  ];
+
+  return (
+    <div className="space-y-5">
+      {/* Market sizing funnel */}
+      <div>
+        <Eyebrow className="mb-2">Size the market · top to bottom</Eyebrow>
+        <div className="space-y-2">
+          {funnel.map((f, i) => (
+            <div key={f.sub} className="flex items-center gap-3">
+              <div className="h-11 rounded-xl border flex items-center px-3 shrink-0" style={{ width: f.w, minWidth: 140, background: f.c + '18', borderColor: f.c + '44' }}>
+                <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: f.c }}>{f.sub}</span>
+                <span className="text-[10px] text-white/45 ml-2 leading-tight">{f.label}</span>
+              </div>
+              <input
+                value={f.v}
+                onChange={e => { const val = e.target.value; i === 0 ? setTam(val) : i === 1 ? setSam(val) : setSom(val); }}
+                placeholder={i === 0 ? 'e.g. 40,000' : i === 1 ? 'e.g. 8,000' : 'e.g. 400'}
+                className="flex-1 bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#8b5cf6]/50 placeholder:text-white/25" />
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] text-white/35 mt-2 leading-snug">Rough is fine — this is a first estimate, not a promise. Aria can ground these in real Census &amp; BLS data.</p>
+      </div>
+
+      {/* ICP */}
+      <div>
+        <Eyebrow className="mb-2">Your ideal customer</Eyebrow>
+        <div className="grid sm:grid-cols-3 gap-2">
+          <MiniField label="Who exactly">
+            <textarea value={who} onChange={e => setWho(e.target.value)} rows={3} placeholder="Be specific"
+              className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2.5 text-[13px] outline-none focus:border-[#8b5cf6]/50 placeholder:text-white/25 resize-none" />
+          </MiniField>
+          <MiniField label="Their real problem">
+            <textarea value={problem} onChange={e => setProblem(e.target.value)} rows={3} placeholder="The pain you remove"
+              className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2.5 text-[13px] outline-none focus:border-[#8b5cf6]/50 placeholder:text-white/25 resize-none" />
+          </MiniField>
+          <MiniField label="Where you'll find them">
+            <textarea value={where} onChange={e => setWhere(e.target.value)} rows={3} placeholder="Channels, places, communities"
+              className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2.5 text-[13px] outline-none focus:border-[#8b5cf6]/50 placeholder:text-white/25 resize-none" />
+          </MiniField>
+        </div>
+      </div>
+
+      {/* Pricing draft */}
+      <div>
+        <Eyebrow className="mb-2">First price</Eyebrow>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="sm:w-40">
+            <div className="flex items-center bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2.5 focus-within:border-[#8b5cf6]/50">
+              <span className="text-white/40 text-sm mr-1">$</span>
+              <input value={price} onChange={e => setPrice(e.target.value)} placeholder="0"
+                className="w-full bg-transparent text-sm outline-none placeholder:text-white/25" inputMode="decimal" />
+            </div>
+          </div>
+          <div className="flex-1 grid grid-cols-3 gap-2">
+            {PRICE_BASES.map(b => (
+              <button key={b.id} onClick={() => setBasis(b.id)}
+                className={`rounded-xl px-3 py-2 text-left border transition-all ${basis === b.id ? 'bg-white/10 border-white/30' : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.06]'}`}>
+                <div className="text-[11px] font-black">{b.label}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="text-[10px] text-white/35 mt-2 leading-snug">{PRICE_BASES.find(b => b.id === basis)?.hint} Aria will pressure-test your margin here.</p>
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-col sm:flex-row gap-2 pt-1">
+        <button onClick={() => askAria(
+          `You are Aria, my Praxis coach. Help me validate "${venture.thesis || venture.name}" serving "${who || venture.serves}" in ${venture.jurisdiction.state || 'my area'}. Use public data (U.S. Census County Business Patterns, BLS) to sanity-check my market size (TAM ${tam || '?'}, SAM ${sam || '?'}, SOM ${som || '?'}) and my $${price || '?'} ${basis} price. Point out anything I'm getting wrong.`
+        )} className="flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 text-[#c4b5fd] hover:bg-[#8b5cf6]/20 flex items-center justify-center gap-2">
+          <AriaMark size={16} petals={false} /> Ask Aria to size it with real data
+        </button>
+        <button onClick={() => onComplete({ val_tam: tam, val_sam: sam, val_som: som, icp_who: who, icp_problem: problem, icp_where: where, price, price_basis: basis })}
+          disabled={!canComplete}
+          className="flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white disabled:opacity-30 hover:brightness-110 flex items-center justify-center gap-2">
+          <Check size={13} /> Complete Validate → Form
+        </button>
+      </div>
+      {saved && <p className="text-[11px] text-[#06d6a0] text-center flex items-center justify-center gap-1.5"><Check size={12} /> Saved to your Blueprint{uid ? ' · +15 points' : ''}. Next up: Form — make it legal.</p>}
+    </div>
+  );
+};
 
 const FormPreview: React.FC<{ state?: string }> = ({ state }) => {
   const items = [
@@ -503,6 +622,9 @@ const Blueprint: React.FC<{ venture: Venture; onBack: () => void }> = ({ venture
     { k: 'Value you give', v: p.bmc_value },
     { k: 'Who pays', v: p.bmc_customer },
     { k: 'How you earn', v: p.bmc_revenue },
+    { k: 'Market size', v: [p.val_tam, p.val_sam, p.val_som].filter(Boolean).join('  →  ') },
+    { k: 'Ideal customer', v: p.icp_who },
+    { k: 'Starting price', v: p.price ? `$${p.price}${p.price_basis ? ` · ${p.price_basis.replace('_', '-')}` : ''}` : '' },
     { k: 'Where', v: [venture.jurisdiction.city, venture.jurisdiction.state, venture.jurisdiction.country].filter(Boolean).join(', ') },
   ];
   return (
