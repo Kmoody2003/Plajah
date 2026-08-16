@@ -240,6 +240,9 @@ export class BeatsEngine {
       const held = this.heldKeys.get(track.id) || { keys: [], order: [] };
       if (!held.keys.includes(key)) { held.keys.push(key); held.order.push(key); }
       this.heldKeys.set(track.id, held);
+      // The arp plays through the instrument worklet, so make sure it exists — otherwise the
+      // first held note before the instrument was ever touched arps into silence.
+      if (!this.instruments.has(track.id)) void this.ensureInstrument(track);
       if (this.running) return; // playing: the arp owns the sound
     }
     const inst = this.instruments.get(track.id);

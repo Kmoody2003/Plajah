@@ -554,6 +554,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           onPick={(type) => {
             let newId = '';
             mutate((d) => { newId = addInstrument(d, type); });
+            // Instantiate the worklet now so the first note (or arp step) has something to play.
+            void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
             // Jump to the arranger where instrument tracks live, and open the new one.
             setView('timeline');
             if (newId) setTimeout(() => setOpenInstrumentId(newId), 60);
