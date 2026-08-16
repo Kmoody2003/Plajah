@@ -4,6 +4,7 @@ use crate::lfo::Lfo;
 use crate::modmatrix::{ModMatrix, ModSource, ModValues, Route};
 use crate::osc::Rng;
 use crate::params::*;
+use crate::sample::{LoopMode, SampleBank};
 use crate::spatial::{IamfRole, Layout, Position, MAX_CHANNELS};
 use crate::tables::WaveTable;
 use crate::voice::{Voice, MAX_UNISON};
@@ -38,6 +39,7 @@ pub struct Engine {
     voices: Vec<Voice>,
     lfos: [Lfo; NUM_LFO],
     tables: Vec<WaveTable>,
+    samples: SampleBank,
     rng: Rng,
     age_counter: u64,
 
@@ -78,6 +80,7 @@ impl Engine {
             voices,
             lfos: [Lfo::default(); NUM_LFO],
             tables,
+            samples: SampleBank::new(),
             rng: Rng(0x1234_5678),
             age_counter: 0,
             scratch: Box::new([[0.0; MAX_BLOCK]; MAX_CHANNELS]),
@@ -112,6 +115,32 @@ impl Engine {
             return;
         }
         self.tables[slot] = WaveTable::from_frames(&self.upload[..need], frames, frame_size);
+    }
+
+    /// Load a sample into a slot from the staged upload buffer (channel-major).
+    #[allow(clippy::too_many_arguments)]
+    pub fn load_sample(
+        &mut self, slot: usize, frames: usize, channels: usize, sample_rate: f32,
+        root_note: f32, loop_start: usize, loop_end: usize, loop_mode: u32,
+    ) {
+        let need = frames * channels;
+        if need > self.upload.len() {
+            return;
+        }
+        self.samples.load(
+            slot, &self.upload[..need], frames, channels, sample_rate, root_note,
+            loop_start, loop_end, LoopMode::from_index(loop_mode),
+        );
+    }
+
+    /// Play a note using a loaded sample slot — the KERA note-on. Same voice allocation as the
+    /// synth, then the voice is switched to sample mode.
+    pub fn note_on_sampled(&mut self, note: f32, vel: f32, voice_id: u32, frame_offset: u32, slot: i32, detune_cents: f32, start_frame: f64) {
+        self.note_on(note, vel, voice_id, frame_offset);
+        // note_on picked a voice; find the one it just started (matching voice_id, newest age).
+        if let Some(v) = self.voices.iter_mut().filter(|v| v.active && v.voice_id == voice_id).max_by_key(|v| v.age) {
+            v.set_sample(slot, start_frame, detune_cents);
+        }
     }
 
     pub fn set_route(&mut self, index: usize, source: u32, dest: u32, depth: f32, via: u32) {
@@ -330,10 +359,10 @@ impl Engine {
         globals.macros = self.macros;
 
         // Split the borrow: voices render into scratch while reading shared state immutably.
-        let Engine { voices, scratch, params, matrix, tables, sr, layout, position, .. } = self;
+        let Engine { voices, scratch, params, matrix, tables, samples, sr, layout, position, .. } = self;
         for v in voices.iter_mut() {
             if v.active {
-                v.render(scratch, frames, params, matrix, &globals, tables, *sr, *layout, *position);
+                v.render(scratch, frames, params, matrix, &globals, tables, samples, *sr, *layout, *position);
             }
         }
 

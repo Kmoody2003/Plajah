@@ -10,6 +10,7 @@ use crate::filter::{Ladder, Svf, SvfMode};
 use crate::modmatrix::{ModMatrix, ModValues};
 use crate::osc::{unison_detune_curve, AnalogShape, Noise, Phasor, Rng};
 use crate::params::*;
+use crate::sample::{SampleBank, SampleVoice};
 use crate::shaper::{ShapeMode, Shaper};
 use crate::spatial::{pan_gains, Layout, Position, MAX_CHANNELS};
 use crate::tables::WaveTable;
@@ -60,6 +61,12 @@ pub struct Voice {
     glide_note: f32,
     cutoff_smooth: [f32; 2],
     amp_smooth: f32,
+
+    /// Sample playback (KERA). Inactive (slot -1) for synth voices; when active the sample
+    /// replaces the oscillators and everything downstream is shared with the synth path.
+    sample: SampleVoice,
+    /// Extra detune in cents from the zone, folded into the sample's resampling ratio.
+    sample_detune: f32,
 }
 
 impl Voice {
@@ -90,7 +97,20 @@ impl Voice {
             glide_note: 60.0,
             cutoff_smooth: [1000.0; 2],
             amp_smooth: 0.0,
+            sample: {
+                let mut s = SampleVoice::default();
+                s.clear();
+                s
+            },
+            sample_detune: 0.0,
         }
+    }
+
+    /// Assign a sample to this voice — call right after `note_on` for a KERA voice. `start_frame`
+    /// lets the host honour a zone's play-start offset; `detune_cents` folds in the zone tuning.
+    pub fn set_sample(&mut self, slot: i32, start_frame: f64, detune_cents: f32) {
+        self.sample.start(slot, start_frame);
+        self.sample_detune = detune_cents;
     }
 
     pub fn note_on(&mut self, note: f32, vel: f32, id: u32, p: &Params, glide_from: Option<f32>, delay: u32) {
@@ -102,6 +122,7 @@ impl Voice {
         self.start_delay = delay;
         self.expr = Expression::default();
         self.glide_note = glide_from.unwrap_or(note);
+        self.sample.clear(); // synth mode by default; a KERA note-on calls set_sample after
 
         let free_phase = p.get(osc_param(0, O_PHASE)) >= 0.999;
         for o in 0..NUM_OSC {
@@ -165,6 +186,7 @@ impl Voice {
         matrix: &ModMatrix,
         globals: &ModValues,
         tables: &[WaveTable],
+        bank: &SampleBank,
         sr: f32,
         layout: Layout,
         base_pos: Position,
@@ -321,6 +343,55 @@ impl Voice {
                 // Per-unison-voice accumulation into channel gains.
                 let mut ch_acc = [0.0f32; MAX_CHANNELS];
                 let mut mono_pre = 0.0f32;
+
+                // ── sample source (KERA): replaces the oscillators, keeps everything downstream ──
+                if self.sample.is_active() {
+                    // Ratio: pitch distance from the sample's root, plus the sample-rate mismatch,
+                    // plus the zone detune. Read once, panned by the (centre) source position.
+                    let root = bank.get(self.sample.slot as usize).map(|s| s.root_note).unwrap_or(60.0);
+                    let native = bank.get(self.sample.slot as usize).map(|s| s.sample_rate).unwrap_or(sr);
+                    let semis = bent - root + self.sample_detune / 100.0;
+                    let rate = (2.0f32).powf(semis / 12.0) as f64 * (native as f64 / sr as f64);
+                    let (sl, sr_ch) = self.sample.next(bank, rate, self.released);
+                    let g = &uni_gains[uni_count / 2];
+                    // Stereo samples keep their own image; mono spreads to the source position.
+                    if bank.get(self.sample.slot as usize).map(|s| s.channels.len() > 1).unwrap_or(false) {
+                        // L/R fold into the first two channels, then the source-position pan tints.
+                        for c in 0..nch {
+                            let s_ch = if c == 0 { sl } else if c == 1 { sr_ch } else { (sl + sr_ch) * 0.5 };
+                            ch_acc[c] += s_ch * g[c].max(0.5);
+                        }
+                    } else {
+                        for c in 0..nch {
+                            ch_acc[c] += sl * g[c];
+                        }
+                    }
+                    // Sample ran out (one-shot end, or a post-release tail past the loop): release
+                    // the envelopes so the voice frees instead of holding silence forever.
+                    if !self.sample.is_active() {
+                        for e in self.envs.iter_mut() { e.note_off(); }
+                    }
+                    // Skip the synth sources entirely for a sample voice.
+                    let mut y_acc = ch_acc;
+                    for c in 0..nch {
+                        let x = ch_acc[c];
+                        let mut y = x;
+                        if f_on[0] {
+                            y = if is_ladder[0] { self.ladders[0][c].process(x, cut[0], res[0], drv[0], sr) }
+                                else { self.svfs[0][c].process(x, cut[0], res[0], sr, svf_mode[0]) };
+                        }
+                        if f_on[1] {
+                            let input2 = if parallel { x } else { y };
+                            let y2 = if is_ladder[1] { self.ladders[1][c].process(input2, cut[1], res[1], drv[1], sr) }
+                                else { self.svfs[1][c].process(input2, cut[1], res[1], sr, svf_mode[1]) };
+                            y = if parallel { (y + y2) * 0.7071 } else { y2 };
+                        }
+                        y_acc[c] = y;
+                        out[c][idx] += y * self.amp_smooth;
+                    }
+                    let _ = y_acc;
+                    continue;
+                }
 
                 for o in 0..NUM_OSC {
                     if !o_on[o] || o_lvl[o] <= 0.0001 {

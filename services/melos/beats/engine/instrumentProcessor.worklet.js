@@ -115,6 +115,24 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       case 'iamfRole':
         x.pa_set_iamf_role(this.eng, msg.role);
         break;
+      // KERA sample playback (ABI v3).
+      case 'loadSample': {
+        const ptr = x.pa_upload_ptr(this.eng);
+        const cap = x.pa_upload_capacity(this.eng);
+        const data = msg.data; // channel-major Float32
+        if (ptr && data && data.length <= cap) {
+          new Float32Array(x.memory.buffer, ptr, data.length).set(data);
+          x.pa_load_sample(this.eng, msg.slot, msg.frames, msg.channels, msg.sampleRate, msg.rootNote, msg.loopStart, msg.loopEnd, msg.loopMode);
+        }
+        break;
+      }
+      case 'noteOnSampled':
+        // One or more zones (velocity layers), each its own voice.
+        for (let i = 0; i < msg.voices.length; i++) {
+          const z = msg.voices[i];
+          x.pa_note_on_sampled(this.eng, msg.note, msg.velocity, z.voiceId, msg.frameOffset | 0, z.slot, z.detune || 0, z.startFrame || 0);
+        }
+        break;
       case 'tempo':
         x.pa_set_tempo(this.eng, msg.beatsPerSec);
         break;

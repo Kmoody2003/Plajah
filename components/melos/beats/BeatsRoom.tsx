@@ -28,6 +28,7 @@ import { TimelineView } from './timeline/TimelineView';
 import { MixerView } from './mixer/MixerView';
 import { InstrumentPicker } from './instrument/InstrumentPicker';
 import { InstrumentPanel } from './instrument/InstrumentPanel';
+import { KeraPanel } from './instrument/KeraPanel';
 import { addInstrument } from '../../../services/melos/beats/instrumentFactory';
 import { SELECT, WASH_BG } from './theme';
 
@@ -575,7 +576,10 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       {openInstrumentId && (() => {
         const t = doc.arrangement.find((x) => x.id === openInstrumentId && x.kind === 'instrument');
         if (!t) return null;
-        return <InstrumentPanel doc={doc} track={t} onMutate={mutate} onClose={() => setOpenInstrumentId(null)} />;
+        const close = () => setOpenInstrumentId(null);
+        return t.instrument?.type === 'kera'
+          ? <KeraPanel doc={doc} track={t} onMutate={mutate} onClose={close} />
+          : <InstrumentPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
       })()}
     </div>
   );

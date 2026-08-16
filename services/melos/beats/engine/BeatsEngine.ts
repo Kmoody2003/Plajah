@@ -13,6 +13,7 @@ import { startAudioClipSource } from './clips';
 import { Instrument } from './InstrumentHost';
 import type { ArrangeTrack as ATrack, NoteEvent } from '../grooveDoc';
 import { arpStep, defaultArpPatch, type ArpPatch } from '../../arp';
+import type { KeraProgram } from '../../instruments/kera/zones';
 
 export interface EngineDiagnostics {
   sampleRate: number;
@@ -247,8 +248,20 @@ export class BeatsEngine {
     }
     const inst = this.instruments.get(track.id);
     if (!inst || !this.ctx) { void this.ensureInstrument(track); return; }
+    // KERA (sample) instruments select zones and fire sampled voices; ONDA plays synth voices.
+    if (inst.hasKeraProgram()) {
+      inst.keraNoteOn(key, vel127);
+      this.liveNotes.set(`${track.id}:${key}`, -1); // sentinel: KERA tracks its own voices by note
+      return;
+    }
     const id = inst.noteOn(key, Math.max(0.05, vel127 / 127), this.ctx.currentTime, this.ctx.currentTime, this.ctx.sampleRate);
     this.liveNotes.set(`${track.id}:${key}`, id);
+  }
+
+  /** Load a KERA program onto a track (from a dropped file / SF2). Ensures the instrument first. */
+  async loadKeraProgram(track: ATrack, program: KeraProgram): Promise<void> {
+    const inst = await this.ensureInstrument(track);
+    inst?.loadKeraProgram(program);
   }
 
   instrumentNoteOff(track: ATrack, key: number): void {
@@ -263,6 +276,7 @@ export class BeatsEngine {
     }
     const inst = this.instruments.get(track.id);
     if (!inst) return;
+    if (inst.hasKeraProgram()) { inst.keraNoteOff(key); this.liveNotes.delete(`${track.id}:${key}`); return; }
     const k = `${track.id}:${key}`;
     const id = this.liveNotes.get(k);
     if (id === undefined) return;

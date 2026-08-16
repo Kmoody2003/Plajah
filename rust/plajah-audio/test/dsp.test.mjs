@@ -72,7 +72,85 @@ function magAt(sig, freq, sr) {
 
 test('ABI version matches the host contract', async () => {
   const { x } = await boot();
-  assert.equal(x.pa_abi_version(), 2);
+  assert.equal(x.pa_abi_version(), 3);
+});
+
+/** Stage a mono sample into the upload buffer and load it into a slot. Returns the frame count. */
+function loadSample({ x, eng }, slot, fn, frames, sr = SR, root = 60, loopStart = 0, loopEnd = 0, loopMode = 0) {
+  const ptr = x.pa_upload_ptr(eng);
+  const view = new Float32Array(x.memory.buffer, ptr, frames);
+  for (let i = 0; i < frames; i++) view[i] = fn(i);
+  x.pa_load_sample(eng, slot, frames, 1, sr, root, loopStart, loopEnd, loopMode);
+  return frames;
+}
+
+test('KERA: a loaded sample plays back, and pitch resamples correctly', async () => {
+  const ctx = await boot();
+  const { x, eng } = ctx;
+  x.pa_set_param(eng, P.envAttack(0), 0.0);
+  x.pa_set_param(eng, P.envSustain(0), 1.0);
+  x.pa_set_param(eng, P.fltEnable(0), 0.0);
+
+  // A 480 Hz sine at 48k, one full second, root note 60.
+  const freq = 480;
+  loadSample(ctx, 0, (i) => Math.sin((2 * Math.PI * freq * i) / SR) * 0.8, SR, SR, 60, 0, 0, 0);
+
+  // Play at the root: the sample should come out at its native 480 Hz.
+  x.pa_note_on_sampled(eng, 60, 1.0, 1, 0, 0, 0, 0);
+  renderMono(ctx, 2048);
+  const atRoot = renderMono(ctx, 16384);
+  assert.ok(magAt(atRoot, 480, SR) > 0.1, 'the sample sounds at its native pitch at the root note');
+  assert.ok(magAt(atRoot, 960, SR) < magAt(atRoot, 480, SR) * 0.25, 'and not an octave up');
+
+  // Play an octave up: 480 → 960 Hz.
+  const c2 = await boot();
+  loadSample(c2, 0, (i) => Math.sin((2 * Math.PI * freq * i) / SR) * 0.8, SR, SR, 60, 0, 0, 0);
+  c2.x.pa_set_param(c2.eng, P.envSustain(0), 1.0);
+  c2.x.pa_set_param(c2.eng, P.fltEnable(0), 0.0);
+  c2.x.pa_note_on_sampled(c2.eng, 72, 1.0, 1, 0, 0, 0, 0);
+  renderMono(c2, 2048);
+  const octaveUp = renderMono(c2, 16384);
+  assert.ok(magAt(octaveUp, 960, SR) > magAt(octaveUp, 480, SR), 'an octave up shifts the sample to 960 Hz');
+});
+
+test('KERA: a one-shot sample frees the voice when it ends', async () => {
+  const ctx = await boot();
+  const { x, eng } = ctx;
+  x.pa_set_param(eng, P.envSustain(0), 1.0);
+  x.pa_set_param(eng, P.fltEnable(0), 0.0);
+  // A short 2000-frame click, no loop.
+  loadSample(ctx, 0, (i) => (i < 1900 ? 0.5 : 0.0), 2000, SR, 60, 0, 0, 0);
+  x.pa_note_on_sampled(eng, 60, 1.0, 1, 0, 0, 0, 0);
+  renderMono(ctx, 512);
+  assert.equal(x.pa_active_voices(eng), 1, 'sounding while the sample plays');
+  renderMono(ctx, 8192); // well past the 2000-frame sample
+  assert.equal(x.pa_active_voices(eng), 0, 'the voice frees when a one-shot ends');
+});
+
+test('KERA: a looping sample keeps sounding past its end', async () => {
+  const ctx = await boot();
+  const { x, eng } = ctx;
+  x.pa_set_param(eng, P.envSustain(0), 1.0);
+  x.pa_set_param(eng, P.fltEnable(0), 0.0);
+  // Forward loop over the whole 1000-frame sine.
+  loadSample(ctx, 0, (i) => Math.sin((2 * Math.PI * 5 * i) / 1000) * 0.6, 1000, SR, 60, 0, 999, 1);
+  x.pa_note_on_sampled(eng, 60, 1.0, 1, 0, 0, 0, 0);
+  const long = renderMono(ctx, 48000); // a full second, far past the 1000-frame sample
+  const tailEnergy = long.slice(40000).reduce((a, v) => a + Math.abs(v), 0);
+  assert.ok(tailEnergy > 10, 'a looping sample is still sounding a second later');
+  assert.equal(x.pa_active_voices(eng), 1, 'and the voice is still held');
+});
+
+test('KERA: sample and synth voices coexist', async () => {
+  const ctx = await boot();
+  const { x, eng } = ctx;
+  x.pa_set_param(eng, P.envSustain(0), 1.0);
+  loadSample(ctx, 0, (i) => Math.sin((2 * Math.PI * 300 * i) / SR) * 0.6, SR, SR, 60, 0, SR - 1, 1);
+  x.pa_note_on_sampled(eng, 60, 1.0, 1, 0, 0, 0, 0); // KERA voice
+  x.pa_note_on(eng, 67, 1.0, 2, 0);                   // synth voice
+  const sig = renderMono(ctx, 8192);
+  assert.equal(x.pa_active_voices(eng), 2, 'both a sample and a synth voice play at once');
+  assert.ok(sig.every(Number.isFinite), 'no NaN mixing sample and synth');
 });
 
 test('GATE: pre-scheduled notes fire at the exact absolute frame (offline render path)', async () => {

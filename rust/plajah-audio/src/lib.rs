@@ -14,6 +14,7 @@ mod modmatrix;
 mod osc;
 mod params;
 mod shaper;
+mod sample;
 mod spatial;
 mod tables;
 mod voice;
@@ -23,8 +24,8 @@ use spatial::{IamfRole, Layout, Position};
 
 /// Bump when the ABI changes so the host can refuse a stale committed `.wasm`.
 /// v2 adds absolute-frame scheduling (`pa_schedule_note_*`), which is what makes offline
-/// rendering of instrument tracks possible.
-pub const ABI_VERSION: u32 = 2;
+/// rendering of instrument tracks possible. v3 adds sample playback (KERA).
+pub const ABI_VERSION: u32 = 3;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn pa_abi_version() -> u32 {
@@ -241,6 +242,32 @@ pub unsafe extern "C" fn pa_commit_table(p: *mut Engine, slot: u32, frames: u32,
 pub unsafe extern "C" fn pa_active_voices(p: *mut Engine) -> u32 {
     let e = eng!(p, 0);
     e.active_voices()
+}
+
+/// Load a sample into a slot from the upload staging buffer (channel-major layout).
+/// loop_mode: 0 off, 1 forward, 2 sustain.
+///
+/// # Safety
+/// `p` must be a live engine pointer.
+#[unsafe(no_mangle)]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn pa_load_sample(
+    p: *mut Engine, slot: u32, frames: u32, channels: u32, sample_rate: f32,
+    root_note: f32, loop_start: u32, loop_end: u32, loop_mode: u32,
+) {
+    let e = eng!(p);
+    e.load_sample(slot as usize, frames as usize, channels as usize, sample_rate, root_note, loop_start as usize, loop_end as usize, loop_mode);
+}
+
+/// Play a note from a loaded sample slot — the KERA note-on. `detune_cents` folds in a zone's
+/// tuning; `start_frame` honours a play-start offset.
+///
+/// # Safety
+/// `p` must be a live engine pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pa_note_on_sampled(p: *mut Engine, note: f32, velocity: f32, voice_id: u32, frame_offset: u32, slot: i32, detune_cents: f32, start_frame: f64) {
+    let e = eng!(p);
+    e.note_on_sampled(note, velocity, voice_id, frame_offset, slot, detune_cents, start_frame);
 }
 
 /// Queue a note at an ABSOLUTE sample position. Live playback can use `pa_note_on` with a

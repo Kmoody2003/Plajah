@@ -7,8 +7,15 @@
 
 import wasmUrl from './dsp/plajah_audio.wasm?url';
 import workletUrl from './instrumentProcessor.worklet.js?url';
+import { selectZones, type KeraProgram } from '../../instruments/kera/zones';
 
-export const DSP_ABI_VERSION = 2;
+/** Envelope seconds → the engine's normalised 0..1 (inverse of env_time in params.rs: 0.001 + 12·n³). */
+function secToNorm(sec: number): number {
+  const n = Math.cbrt(Math.max(0, sec - 0.001) / 12);
+  return Math.max(0, Math.min(1, n));
+}
+
+export const DSP_ABI_VERSION = 3;
 
 /** Output layouts — must mirror `spatial::Layout` in the Rust crate. */
 export enum SpatialLayout {
@@ -120,7 +127,77 @@ export class Instrument {
 
   allNotesOff(hard = false): void {
     this.heldVoices.clear();
+    this.keraHeld.clear();
     this.post({ type: 'allNotesOff', hard });
+  }
+
+  // ── KERA sample playback (ABI v3) ────────────────────────────────────────────
+
+  private keraProgram: KeraProgram | null = null;
+  private keraSlotOf = new Map<string, number>(); // KeraSample.id → engine slot
+  private keraRr = new Map<number, number>();       // round-robin counters
+  private keraHeld = new Map<number, number[]>();    // note → voiceIds (velocity layers)
+
+  /** Upload a KERA program's samples into engine slots. Idempotent per program id. */
+  loadKeraProgram(program: KeraProgram): void {
+    this.keraProgram = program;
+    this.keraSlotOf.clear();
+    this.keraRr.clear();
+    let slot = 0;
+    for (const s of program.samples) {
+      if (slot >= 128) break; // engine slot cap
+      this.keraSlotOf.set(s.id, slot);
+      // Interleave channel-major for the engine.
+      const frames = s.channels[0]?.length ?? 0;
+      const chCount = s.channels.length;
+      const data = new Float32Array(frames * chCount);
+      for (let c = 0; c < chCount; c++) data.set(s.channels[c], c * frames);
+      this.node.port.postMessage({
+        type: 'loadSample', slot, data, frames, channels: chCount,
+        sampleRate: s.sampleRate, rootNote: s.rootNote,
+        loopStart: Math.max(0, s.loopStart), loopEnd: Math.max(0, s.loopEnd),
+        loopMode: s.loopMode === 'forward' ? 1 : s.loopMode === 'sustain' ? 2 : 0,
+      }, [data.buffer]);
+      slot += 1;
+    }
+    // The program's amp envelope maps onto the shared engine envelope (slot 0).
+    const a = program.amp;
+    this.setParams([
+      [700 + 0, secToNorm(a.attack)],
+      [700 + 1, secToNorm(a.decay)],
+      [700 + 2, a.sustain],
+      [700 + 3, secToNorm(a.release)],
+    ]);
+  }
+
+  /** Play a note through the loaded KERA program — selects zones (velocity layers, round-robins)
+   *  and fires one sampled voice per matching zone. */
+  keraNoteOn(note: number, velocity127: number): void {
+    if (!this.keraProgram) return;
+    const zones = selectZones(this.keraProgram, note, velocity127, this.keraRr);
+    if (!zones.length) return;
+    const voices: Array<{ voiceId: number; slot: number; detune: number; startFrame: number }> = [];
+    for (const z of zones) {
+      const slot = this.keraSlotOf.get(z.sampleId);
+      if (slot === undefined) continue;
+      // Fold zone semis into detune cents so the engine's root-relative resample stays one path.
+      const detune = z.tuneSemis * 100 + z.tuneCents + this.keraProgram.transpose * 100;
+      voices.push({ voiceId: this.nextVoiceId++, slot, detune, startFrame: 0 });
+    }
+    if (!voices.length) return;
+    this.keraHeld.set(note, voices.map((v) => v.voiceId));
+    this.post({ type: 'noteOnSampled', note, velocity: Math.max(0.05, velocity127 / 127), frameOffset: 0, voices });
+  }
+
+  keraNoteOff(note: number): void {
+    const ids = this.keraHeld.get(note);
+    if (!ids) return;
+    this.keraHeld.delete(note);
+    for (const id of ids) this.post({ type: 'noteOff', voiceId: id });
+  }
+
+  hasKeraProgram(): boolean {
+    return !!this.keraProgram;
   }
 
   /**
