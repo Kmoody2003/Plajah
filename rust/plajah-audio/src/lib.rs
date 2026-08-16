@@ -25,7 +25,7 @@ use spatial::{IamfRole, Layout, Position};
 /// Bump when the ABI changes so the host can refuse a stale committed `.wasm`.
 /// v2 adds absolute-frame scheduling (`pa_schedule_note_*`), which is what makes offline
 /// rendering of instrument tracks possible. v3 adds sample playback (KERA).
-pub const ABI_VERSION: u32 = 3;
+pub const ABI_VERSION: u32 = 4;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn pa_abi_version() -> u32 {
@@ -257,6 +257,38 @@ pub unsafe extern "C" fn pa_load_sample(
 ) {
     let e = eng!(p);
     e.load_sample(slot as usize, frames as usize, channels as usize, sample_rate, root_note, loop_start as usize, loop_end as usize, loop_mode);
+}
+
+/// Chunked sample upload — the path the host uses so a sample of any length loads through the
+/// small staging buffer. `begin` allocates, `chunk` fills from the staging buffer at a flat
+/// channel-major offset, `end` makes it playable.
+///
+/// # Safety
+/// `p` must be a live engine pointer.
+#[unsafe(no_mangle)]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn pa_sample_begin(
+    p: *mut Engine, slot: u32, frames: u32, channels: u32, sample_rate: f32,
+    root_note: f32, loop_start: u32, loop_end: u32, loop_mode: u32,
+) {
+    let e = eng!(p);
+    e.sample_begin(slot as usize, frames as usize, channels as usize, sample_rate, root_note, loop_start as usize, loop_end as usize, loop_mode);
+}
+
+/// # Safety
+/// `p` must be a live engine pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pa_sample_chunk(p: *mut Engine, slot: u32, offset: u32, len: u32) {
+    let e = eng!(p);
+    e.sample_chunk(slot as usize, offset as usize, len as usize);
+}
+
+/// # Safety
+/// `p` must be a live engine pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pa_sample_end(p: *mut Engine, slot: u32) {
+    let e = eng!(p);
+    e.sample_end(slot as usize);
 }
 
 /// Play a note from a loaded sample slot — the KERA note-on. `detune_cents` folds in a zone's

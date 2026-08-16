@@ -133,6 +133,24 @@ impl Engine {
         );
     }
 
+    /// Chunked sample load — the path the host actually uses, so a sample of any length loads
+    /// (the staging buffer is small and shared with wavetables). `begin` allocates the slot,
+    /// `chunk` fills it from the staging buffer in pieces, `end` makes it playable.
+    #[allow(clippy::too_many_arguments)]
+    pub fn sample_begin(
+        &mut self, slot: usize, frames: usize, channels: usize, sample_rate: f32,
+        root_note: f32, loop_start: usize, loop_end: usize, loop_mode: u32,
+    ) {
+        self.samples.begin(slot, frames, channels, sample_rate, root_note, loop_start, loop_end, LoopMode::from_index(loop_mode));
+    }
+    pub fn sample_chunk(&mut self, slot: usize, offset: usize, len: usize) {
+        let n = len.min(self.upload.len());
+        self.samples.chunk(slot, offset, &self.upload[..n]);
+    }
+    pub fn sample_end(&mut self, slot: usize) {
+        self.samples.end(slot);
+    }
+
     /// Play a note using a loaded sample slot — the KERA note-on. Same voice allocation as the
     /// synth, then the voice is switched to sample mode.
     pub fn note_on_sampled(&mut self, note: f32, vel: f32, voice_id: u32, frame_offset: u32, slot: i32, detune_cents: f32, start_frame: f64) {

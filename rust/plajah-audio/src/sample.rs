@@ -120,6 +120,69 @@ impl SampleBank {
         };
     }
 
+    /// Chunked load — allocate the slot, then fill it in pieces through the small staging buffer.
+    /// A real multi-second WAV is far larger than the staging buffer, so a single upload can't
+    /// carry it; `begin`/`chunk`/`end` stream it in without a giant buffer. `begin` may grow wasm
+    /// memory (it allocates the per-channel Vecs), which is why the host re-views after it.
+    #[allow(clippy::too_many_arguments)]
+    pub fn begin(
+        &mut self,
+        slot: usize,
+        frames: usize,
+        channels: usize,
+        sample_rate: f32,
+        root_note: f32,
+        loop_start: usize,
+        loop_end: usize,
+        loop_mode: LoopMode,
+    ) {
+        if slot >= MAX_SAMPLES || frames == 0 || channels == 0 || channels > 2 {
+            return;
+        }
+        let mut chans: Vec<Vec<f32>> = Vec::with_capacity(channels);
+        for _ in 0..channels {
+            chans.push(vec![0.0f32; frames]);
+        }
+        self.samples[slot] = Sample {
+            channels: chans,
+            frames,
+            sample_rate: if sample_rate > 100.0 { sample_rate } else { 44100.0 },
+            root_note,
+            loop_start: loop_start.min(frames),
+            loop_end: loop_end.min(frames),
+            loop_mode,
+            loaded: false, // not playable until `end`
+        };
+    }
+
+    /// Copy `src` into the slot at channel-major flat position `offset` (crossing channel bounds).
+    pub fn chunk(&mut self, slot: usize, offset: usize, src: &[f32]) {
+        if slot >= MAX_SAMPLES {
+            return;
+        }
+        let s = &mut self.samples[slot];
+        let frames = s.frames;
+        let nch = s.channels.len();
+        if frames == 0 || nch == 0 {
+            return;
+        }
+        let total = frames * nch;
+        for (k, &v) in src.iter().enumerate() {
+            let g = offset + k;
+            if g >= total {
+                break;
+            }
+            s.channels[g / frames][g % frames] = v;
+        }
+    }
+
+    /// Mark the slot playable once every chunk has landed.
+    pub fn end(&mut self, slot: usize) {
+        if slot < MAX_SAMPLES {
+            self.samples[slot].loaded = true;
+        }
+    }
+
     #[inline]
     pub fn get(&self, slot: usize) -> Option<&Sample> {
         self.samples.get(slot).filter(|s| s.loaded)

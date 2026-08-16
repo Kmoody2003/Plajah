@@ -345,7 +345,11 @@ impl Voice {
                 let mut mono_pre = 0.0f32;
 
                 // ── sample source (KERA): replaces the oscillators, keeps everything downstream ──
-                if self.sample.is_active() {
+                // Gate on "is a sample voice" (slot >= 0), NOT is_active(): once the sample ends or
+                // fails to load, is_active() goes false — and the old code then fell through to the
+                // oscillators, so a KERA note played a synth tone. A sample voice stays silent (and
+                // frees via the envelope) instead of ever running the synth.
+                if self.sample.slot >= 0 {
                     // Ratio: pitch distance from the sample's root, plus the sample-rate mismatch,
                     // plus the zone detune. Read once, panned by the (centre) source position.
                     let root = bank.get(self.sample.slot as usize).map(|s| s.root_note).unwrap_or(60.0);
@@ -367,8 +371,11 @@ impl Voice {
                         }
                     }
                     // Sample ran out (one-shot end, or a post-release tail past the loop): release
-                    // the envelopes so the voice frees instead of holding silence forever.
-                    if !self.sample.is_active() {
+                    // the envelopes ONCE so the voice frees. Guard on `released` — the branch now
+                    // runs every block for a sample voice, and re-calling note_off each block would
+                    // keep restarting the release so the voice never frees.
+                    if !self.sample.is_active() && !self.released {
+                        self.released = true;
                         for e in self.envs.iter_mut() { e.note_off(); }
                     }
                     // Skip the synth sources entirely for a sample voice.

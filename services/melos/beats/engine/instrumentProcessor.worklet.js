@@ -115,14 +115,21 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       case 'iamfRole':
         x.pa_set_iamf_role(this.eng, msg.role);
         break;
-      // KERA sample playback (ABI v3).
+      // KERA sample playback (ABI v4) — CHUNKED, so a real multi-second WAV loads through the
+      // small staging buffer instead of being silently dropped for exceeding it (the v3 bug).
       case 'loadSample': {
-        const ptr = x.pa_upload_ptr(this.eng);
+        const data = msg.data; // channel-major Float32, length = frames*channels
         const cap = x.pa_upload_capacity(this.eng);
-        const data = msg.data; // channel-major Float32
-        if (ptr && data && data.length <= cap) {
-          new Float32Array(x.memory.buffer, ptr, data.length).set(data);
-          x.pa_load_sample(this.eng, msg.slot, msg.frames, msg.channels, msg.sampleRate, msg.rootNote, msg.loopStart, msg.loopEnd, msg.loopMode);
+        if (data && data.length && cap > 0 && typeof x.pa_sample_begin === 'function') {
+          // begin allocates (may grow wasm memory → re-fetch buffer inside the loop below).
+          x.pa_sample_begin(this.eng, msg.slot, msg.frames, msg.channels, msg.sampleRate, msg.rootNote, msg.loopStart, msg.loopEnd, msg.loopMode);
+          const ptr = x.pa_upload_ptr(this.eng);
+          for (let off = 0; off < data.length; off += cap) {
+            const n = Math.min(cap, data.length - off);
+            new Float32Array(x.memory.buffer, ptr, n).set(data.subarray(off, off + n));
+            x.pa_sample_chunk(this.eng, msg.slot, off, n);
+          }
+          x.pa_sample_end(this.eng, msg.slot);
         }
         break;
       }

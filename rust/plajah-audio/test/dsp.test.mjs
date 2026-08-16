@@ -72,7 +72,7 @@ function magAt(sig, freq, sr) {
 
 test('ABI version matches the host contract', async () => {
   const { x } = await boot();
-  assert.equal(x.pa_abi_version(), 3);
+  assert.equal(x.pa_abi_version(), 4);
 });
 
 /** Stage a mono sample into the upload buffer and load it into a slot. Returns the frame count. */
@@ -151,6 +151,49 @@ test('KERA: sample and synth voices coexist', async () => {
   const sig = renderMono(ctx, 8192);
   assert.equal(x.pa_active_voices(eng), 2, 'both a sample and a synth voice play at once');
   assert.ok(sig.every(Number.isFinite), 'no NaN mixing sample and synth');
+});
+
+/** Load a sample of ANY length via the chunked path — the way the worklet host does it, so a
+ *  sample larger than the staging buffer streams in instead of being dropped. */
+function loadSampleChunked({ x, eng }, slot, fn, frames, channels = 1, sr = SR, root = 60, loopStart = 0, loopEnd = 0, loopMode = 0) {
+  const data = new Float32Array(frames * channels);
+  for (let c = 0; c < channels; c++) for (let i = 0; i < frames; i++) data[c * frames + i] = fn(i, c);
+  x.pa_sample_begin(eng, slot, frames, channels, sr, root, loopStart, loopEnd, loopMode);
+  const ptr = x.pa_upload_ptr(eng);
+  const cap = x.pa_upload_capacity(eng);
+  for (let off = 0; off < data.length; off += cap) {
+    const n = Math.min(cap, data.length - off);
+    new Float32Array(x.memory.buffer, ptr, n).set(data.subarray(off, off + n));
+    x.pa_sample_chunk(eng, slot, off, n);
+  }
+  x.pa_sample_end(eng, slot);
+}
+
+test('KERA: a LARGE sample (bigger than the staging buffer) plays back — the real-WAV bug', async () => {
+  const ctx = await boot();
+  const { x, eng } = ctx;
+  x.pa_set_param(eng, P.envAttack(0), 0.0);
+  x.pa_set_param(eng, P.envSustain(0), 1.0);
+  x.pa_set_param(eng, P.fltEnable(0), 0.0);
+  // 200,000 frames > the 131,072-float staging buffer — the exact size that used to be dropped.
+  const frames = 200000;
+  assert.ok(frames > x.pa_upload_capacity(eng), 'the sample is genuinely larger than the staging buffer');
+  loadSampleChunked(ctx, 0, (i) => Math.sin((2 * Math.PI * 480 * i) / SR) * 0.8, frames, 1, SR, 60, 0, 0, 0);
+  x.pa_note_on_sampled(eng, 60, 1.0, 1, 0, 0, 0, 0);
+  renderMono(ctx, 2048);
+  const sig = renderMono(ctx, 16384);
+  assert.ok(magAt(sig, 480, SR) > 0.1, 'the large sample sounds at its native 480 Hz, not silence');
+});
+
+test('KERA: an EMPTY slot is SILENT, never a synth fallback', async () => {
+  const ctx = await boot();
+  const { x, eng } = ctx;
+  x.pa_set_param(eng, P.envSustain(0), 1.0);
+  // note_on_sampled on slot 5 which was never loaded — the failed-load case. Must NOT run oscillators.
+  x.pa_note_on_sampled(eng, 60, 1.0, 1, 0, 5, 0, 0);
+  const sig = renderMono(ctx, 4096);
+  const energy = sig.reduce((a, v) => a + Math.abs(v), 0);
+  assert.ok(energy < 1, 'an unloaded sample slot produces silence, not a synth tone');
 });
 
 test('GATE: pre-scheduled notes fire at the exact absolute frame (offline render path)', async () => {

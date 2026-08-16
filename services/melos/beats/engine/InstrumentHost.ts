@@ -15,7 +15,7 @@ function secToNorm(sec: number): number {
   return Math.max(0, Math.min(1, n));
 }
 
-export const DSP_ABI_VERSION = 3;
+export const DSP_ABI_VERSION = 4;
 
 /** Output layouts — must mirror `spatial::Layout` in the Rust crate. */
 export enum SpatialLayout {
