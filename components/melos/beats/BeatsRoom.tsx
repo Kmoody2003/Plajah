@@ -26,6 +26,9 @@ import { MachineView } from './machine/MachineView';
 import { GlassView } from './glass/GlassView';
 import { TimelineView } from './timeline/TimelineView';
 import { MixerView } from './mixer/MixerView';
+import { InstrumentPicker } from './instrument/InstrumentPicker';
+import { InstrumentPanel } from './instrument/InstrumentPanel';
+import { addInstrument } from '../../../services/melos/beats/instrumentFactory';
 import { SELECT, WASH_BG } from './theme';
 
 export interface BeatsLaunchPayload {
@@ -75,6 +78,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const [showGrooves, setShowGrooves] = useState(false);
   const [octave, setOctave] = useState(4);
   const [recording, setRecording] = useState(false);
+  const [showInstrumentPicker, setShowInstrumentPicker] = useState(false);
+  const [openInstrumentId, setOpenInstrumentId] = useState<string | null>(null);
 
   // The armed instrument track owns the QWERTY keyboard (the pads stand down while it does),
   // and receives anything played or recorded.
@@ -346,6 +351,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         onSetView={setView}
         onPlay={handlePlay}
         onStop={handleStop}
+        onPanic={() => BeatsEngine.get().panic()}
         onSetBpm={(bpm) => mutate((d) => { d.bpm = bpm; })}
         onSetSwing={(s) => mutate((d) => { d.swing = s; })}
         onSetPlayMode={setPlayMode}
@@ -481,6 +487,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
             const engine = BeatsEngine.get();
             void engine.init().then(() => engine.play('song', { fromBeats }));
           }}
+          onOpenInstrument={(id) => setOpenInstrumentId(id)}
+          onAddInstrument={() => setShowInstrumentPicker(true)}
         />
       )}
 
@@ -528,6 +536,37 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       {showDiagnostics && (
         <DiagnosticsReadout snap={snap} hidStatus={hid.status} onConnectHid={() => { void hid.connect(); }} />
       )}
+
+      {/* Add an instrument from ANY view — the button is always present, and the picker leads
+          with the instrument choice rather than a preset list. */}
+      <button
+        onClick={() => setShowInstrumentPicker(true)}
+        className="absolute bottom-4 right-4 z-30 h-10 px-4 rounded-full text-[12px] font-semibold text-white flex items-center gap-2 shadow-xl"
+        style={{ background: 'linear-gradient(135deg, #6B0099, #B84DFF)' }}
+        title="Add an instrument to this groove"
+      >
+        <Plus size={15} /> Instrument
+      </button>
+
+      {showInstrumentPicker && (
+        <InstrumentPicker
+          onClose={() => setShowInstrumentPicker(false)}
+          onPick={(type) => {
+            let newId = '';
+            mutate((d) => { newId = addInstrument(d, type); });
+            // Jump to the arranger where instrument tracks live, and open the new one.
+            setView('timeline');
+            if (newId) setTimeout(() => setOpenInstrumentId(newId), 60);
+          }}
+        />
+      )}
+
+      {/* Room-level instrument panel: opened by the picker or by a track header from any view. */}
+      {openInstrumentId && (() => {
+        const t = doc.arrangement.find((x) => x.id === openInstrumentId && x.kind === 'instrument');
+        if (!t) return null;
+        return <InstrumentPanel doc={doc} track={t} onMutate={mutate} onClose={() => setOpenInstrumentId(null)} />;
+      })()}
     </div>
   );
 };

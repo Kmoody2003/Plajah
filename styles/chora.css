@@ -1,0 +1,404 @@
+/* ============================================================================
+   Chora Next — the opt-in "Listening Room" skin + "Observatory" night variant.
+   Consumes DS tokens, defines no colours (brand/glass/border vars only).
+   Scope: everything lives under .chora-next; .chora-night flips the palette
+   from warm ember to spatial cyan/lilac.
+   ========================================================================== */
+
+/* ── masthead ─────────────────────────────────────────────────────────── */
+.chora-next .cn-mast h1 {
+  margin: 0;
+  font-size: clamp(2.2rem, 6vw, 4.2rem);
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -0.02em;
+  line-height: 0.9;
+  text-transform: uppercase;
+  color: var(--text-primary, #fff);
+  user-select: none;
+}
+.chora-next .cn-mast h1 .cn-grad {
+  background: var(--pj-grad-ember);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.chora-night .cn-mast h1 .cn-grad { background: var(--pj-grad-spatial); }
+
+.chora-next .cn-issue {
+  margin-top: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.38);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.chora-next .cn-issue b { color: var(--pj-orange); font-weight: 800; }
+.chora-night .cn-issue b { color: var(--pj-cyan); }
+
+/* ── masthead controls (mode toggle · feedback · exit) ────────────────── */
+.chora-next .cn-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--pj-ctl-h-sm, 34px);
+  padding-inline: 14px;
+  border-radius: var(--pj-radius-full, 9999px);
+  border: 1px solid var(--pj-border);
+  background: var(--pj-glass-2);
+  color: var(--text-primary, #fff);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.chora-next .cn-pill:hover { background: var(--pj-glass-3); border-color: var(--pj-border-strong); }
+.chora-next .cn-pill--brand {
+  background: var(--pj-grad-brand);
+  border-color: transparent;
+}
+.chora-next .cn-pill--brand:hover { box-shadow: var(--pj-glow-brand); }
+
+/* ── shelf headers ────────────────────────────────────────────────────────
+   The classic UI's tiny uppercase section labels become named shelves:
+   editorial italic titles in sentence case. One selector covers every
+   section header inside Chora — they all share the tracking-[0.4em]
+   signature — so Coming Soon, Recent Releases, the Audius groups, Vault
+   shelves, charts etc. restyle together. Headers with their own inline
+   color (Audius purple, Vault accents) keep it — provenance survives. */
+.chora-next h2[class*="tracking-[0.4em]"],
+.chora-next h3[class*="tracking-[0.4em]"] {
+  /* px + !important: the global text-[10px]→11px readability bump is
+     !important, so the shelf title must outrank it (we're more specific). */
+  font-size: 17px !important;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--text-primary, #fff);
+  line-height: 1.15;
+}
+/* ── day hero · "Today's selections" panes ────────────────────────────── */
+.chora-next .cn-panes {
+  display: flex;
+  gap: 6px;
+  height: clamp(170px, 24vh, 230px);
+  margin-top: 14px;
+}
+.chora-next .cn-pane {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: var(--pj-radius-md, 16px);
+  overflow: hidden;
+  border: 1px solid var(--pj-border);
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  background: none;
+  transition: flex-grow 0.45s var(--pj-ease-standard, cubic-bezier(0.2, 0, 0, 1));
+}
+.chora-next .cn-pane:hover,
+.chora-next .cn-pane:focus-visible { flex-grow: 2.1; }
+.chora-next .cn-pane .cn-art {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+.chora-next .cn-pane .cn-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.82), transparent 55%);
+}
+.chora-next .cn-pane .cn-k {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(0, 0, 0, 0.45);
+  padding: 3px 9px;
+  border-radius: var(--pj-radius-full, 9999px);
+  backdrop-filter: blur(6px);
+  max-width: calc(100% - 16px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chora-next .cn-meta {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 9px;
+}
+.chora-next .cn-meta h5 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 900;
+  font-style: italic;
+  line-height: 1.05;
+  color: #fff;
+}
+.chora-next .cn-meta p {
+  margin: 2px 0 0;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.65);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* sound pill + EQ, shared by panes & discs */
+.chora-next .cn-snd {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(0, 0, 0, 0.45);
+  padding: 3px 9px;
+  border-radius: var(--pj-radius-full, 9999px);
+  transition: color 0.2s;
+}
+.chora-next .cn-pane:hover .cn-snd,
+.chora-next .cn-disc:hover .cn-snd { color: #fff; outline: 1px solid var(--pj-orange); }
+.chora-night .cn-pane:hover .cn-snd,
+.chora-night .cn-disc:hover .cn-snd { outline-color: var(--pj-cyan); }
+.chora-next .cn-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 9px; }
+.chora-next .cn-eq i {
+  width: 2px;
+  height: 30%;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.35);
+}
+.chora-next .cn-pane:hover .cn-eq i,
+.chora-next .cn-disc:hover .cn-eq i {
+  background: var(--pj-orange);
+  animation: cnEq 0.6s ease-in-out infinite alternate;
+}
+.chora-night .cn-pane:hover .cn-eq i,
+.chora-night .cn-disc:hover .cn-eq i { background: var(--pj-cyan); }
+.chora-next .cn-eq i:nth-child(2) { animation-delay: 0.12s; }
+.chora-next .cn-eq i:nth-child(3) { animation-delay: 0.22s; }
+@keyframes cnEq { from { height: 22%; } to { height: 100%; } }
+
+/* ── night hero · "The Sky Tonight" disc field ────────────────────────── */
+.chora-next .cn-sky {
+  position: relative;
+  height: clamp(190px, 26vh, 250px);
+  margin-top: 14px;
+  border-radius: var(--pj-radius-md, 16px);
+  overflow: hidden;
+  border: 1px solid var(--pj-border);
+  background:
+    radial-gradient(80% 110% at 50% 125%, var(--pj-cyan-soft, rgba(0, 218, 243, 0.14)), transparent 60%),
+    radial-gradient(55% 75% at 12% -5%, var(--pj-purple-soft, rgba(107, 0, 153, 0.16)), transparent 60%),
+    rgba(0, 0, 0, 0.5);
+}
+.chora-next .cn-sky::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.8;
+  background-image:
+    radial-gradient(1px 1px at 12% 24%, rgba(255, 255, 255, 0.6), transparent 2px),
+    radial-gradient(1px 1px at 34% 68%, rgba(255, 255, 255, 0.4), transparent 2px),
+    radial-gradient(1.5px 1.5px at 55% 18%, rgba(255, 255, 255, 0.5), transparent 2px),
+    radial-gradient(1px 1px at 71% 52%, rgba(255, 255, 255, 0.45), transparent 2px),
+    radial-gradient(1px 1px at 88% 30%, rgba(255, 255, 255, 0.55), transparent 2px),
+    radial-gradient(1.5px 1.5px at 22% 84%, rgba(255, 255, 255, 0.35), transparent 2px),
+    radial-gradient(1px 1px at 64% 86%, rgba(255, 255, 255, 0.4), transparent 2px);
+}
+.chora-next .cn-sky .cn-cap {
+  position: absolute;
+  left: 12px;
+  top: 10px;
+  z-index: 2;
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--pj-lilac);
+  opacity: 0.75;
+}
+.chora-next .cn-disc {
+  position: absolute;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  border: 1px solid var(--pj-border-strong);
+  background-size: cover;
+  background-position: center;
+  box-shadow: var(--pj-glow-cyan, 0 0 20px rgba(0, 218, 243, 0.4));
+  transition: transform 0.35s var(--pj-ease-standard, cubic-bezier(0.2, 0, 0, 1)), box-shadow 0.35s;
+  animation: cnDrift 8s ease-in-out infinite alternate;
+}
+.chora-next .cn-disc:hover,
+.chora-next .cn-disc:focus-visible {
+  transform: scale(1.14);
+  box-shadow: var(--pj-glow-orange, 0 6px 22px rgba(255, 140, 0, 0.3));
+  z-index: 4;
+}
+@keyframes cnDrift { from { translate: 0 -5px; } to { translate: 0 6px; } }
+.chora-next .cn-disc .cn-lbl {
+  position: absolute;
+  left: 50%;
+  top: 105%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid var(--pj-border);
+  padding: 3px 9px;
+  border-radius: var(--pj-radius-full, 9999px);
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
+  z-index: 5;
+}
+.chora-next .cn-disc .cn-lbl i {
+  font-style: normal;
+  color: var(--pj-cyan);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  margin-left: 5px;
+}
+.chora-next .cn-disc:hover .cn-lbl,
+.chora-next .cn-disc:focus-visible .cn-lbl { opacity: 1; }
+
+/* countdown chip on upcoming panes */
+.chora-next .cn-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 9px;
+  color: var(--pj-orange);
+}
+.chora-night .cn-count { color: var(--pj-cyan); }
+
+/* ── Gatefold album view · Orrery stage ───────────────────────────────────
+   Tracks orbit the album art. Wrapped nodes: the orbit container spins, each
+   node sits at a fixed angle, and the inner <i> counter-rotates (offset by
+   --a, the node's own angle) so the track numbers stay upright. Hovering the
+   stage pauses both orbits so nodes are easy to hit. */
+.pv-orr {
+  position: relative;
+  width: min(340px, 100%);
+  aspect-ratio: 1 / 1;
+  margin-inline: auto;
+}
+.pv-orr-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border: 1px dashed rgba(0, 218, 243, 0.25);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.pv-orr-ring.r1 { width: 180px; height: 180px; }
+.pv-orr-ring.r2 { width: 274px; height: 274px; }
+.pv-orr-orbit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  animation: pvOrrSpin 60s linear infinite;
+}
+.pv-orr-orbit.o2 { animation-duration: 96s; animation-direction: reverse; }
+.pv-orr:hover .pv-orr-orbit,
+.pv-orr:hover .pv-orr-node i { animation-play-state: paused; }
+@keyframes pvOrrSpin { to { transform: rotate(360deg); } }
+.pv-orr-node {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  margin: -17px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--pj-glass-3);
+  border: 1px solid var(--pj-border-strong);
+  cursor: pointer;
+  padding: 0;
+  transition: box-shadow 0.25s, background 0.25s;
+}
+.pv-orr-node:hover,
+.pv-orr-node:focus-visible {
+  background: var(--pj-glass-4);
+  box-shadow: var(--pj-glow-cyan, 0 0 20px rgba(0, 218, 243, 0.4));
+}
+.pv-orr-node.is-active {
+  background-image: var(--pj-grad-ember);
+  border-color: transparent;
+  box-shadow: var(--pj-glow-orange, 0 6px 22px rgba(255, 140, 0, 0.3));
+}
+.pv-orr-node i {
+  font-style: normal;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  animation: pvOrrCounter1 60s linear infinite;
+}
+.pv-orr-orbit.o2 .pv-orr-node i { animation: pvOrrCounter2 96s linear infinite; }
+/* Counter-rotations: o1 spins +360 so its numbers spin −360 (from −a to −a−360);
+   o2 spins −360 so its numbers spin +360. */
+@keyframes pvOrrCounter1 { from { transform: rotate(var(--a, 0deg)); } to { transform: rotate(calc(var(--a, 0deg) - 360deg)); } }
+@keyframes pvOrrCounter2 { from { transform: rotate(var(--a, 0deg)); } to { transform: rotate(calc(var(--a, 0deg) + 360deg)); } }
+.pv-orr-sun {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 112px;
+  height: 112px;
+  margin: -56px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid var(--pj-border-strong);
+  box-shadow: var(--pj-glow-brand, 0 6px 22px rgba(212, 0, 85, 0.34)), 0 0 44px rgba(212, 0, 85, 0.4);
+  pointer-events: none;
+}
+.pv-orr-more {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  transform: translateX(-50%);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chora-next .cn-disc { animation: none; }
+  .chora-next .cn-eq i { animation: none !important; height: 60%; }
+  .chora-next .cn-pane { transition: none; }
+  .pv-orr-orbit, .pv-orr-node i { animation: none !important; }
+}

@@ -1,0 +1,85 @@
+rules_version = '2';
+
+// ============================================================
+// Plajah Academia — Integrity Wall security rules
+// Core invariant: Independent-persona services can NEVER read
+// districtPersona data. The only bridge is the conflictCheck
+// Cloud Function (Admin SDK, bypasses these rules, returns
+// booleans only).
+// ============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+    function isDistrictAdmin(districtId) {
+      return signedIn() &&
+        request.auth.token.districtAdmin == districtId;
+    }
+
+    // ---- User root: profile + integrity settings ----
+    match /users/{uid} {
+      allow read: if isSelf(uid);
+      allow create: if isSelf(uid);
+      // integritySettings.campusSilentMode may never be written to "off"
+      // while a verified district persona is active.
+      allow update: if isSelf(uid) &&
+        !(
+          resource.data.personas.district.active == true &&
+          request.resource.data.integritySettings.campusSilentMode == "off"
+        );
+      allow delete: if false;
+    }
+
+    // ---- District persona subtree ----
+    // Rosters hold SALTED HASHES only, never raw student identity.
+    // Readable by the owning teacher and their district admin. Not by
+    // anyone else — and there is no rule granting creator-context reads.
+    match /districtPersona/{uid}/rosters/{termId} {
+      allow read: if isSelf(uid) ||
+        isDistrictAdmin(resource.data.districtId);
+      allow write: if isSelf(uid) ||
+        isDistrictAdmin(request.resource.data.districtId);
+    }
+
+    // ---- Integrity log: append-only, owned by the teacher ----
+    // The teacher's exportable proof they never operated on campus.
+    match /integrityLog/{uid}/events/{eventId} {
+      allow read: if isSelf(uid);
+      allow create: if isSelf(uid);
+      allow update, delete: if false;  // append-only
+    }
+
+    // ---- Independent persona: creator offerings ----
+    match /creators/{creatorId}/offerings/{offeringId} {
+      allow read: if resource.data.visibility == "public" ||
+        (signedIn() && request.auth.token.creatorId == creatorId);
+      allow write: if signedIn() &&
+        request.auth.token.creatorId == creatorId &&
+        // Writes blocked while Silent Mode is engaged (mirrored to a
+        // custom claim by the silentMode function; defense in depth —
+        // the client also locks the UI).
+        request.auth.token.silentMode != true;
+    }
+
+    // ---- OER library: license gating at the rules layer ----
+    // Non-commercial items may never be attached to a paid offering.
+    match /libraryItems/{itemId} {
+      allow read: if true;   // library metadata is public
+      allow write: if signedIn() && request.auth.token.librarian == true;
+    }
+
+    match /assignmentTemplates/{templateId} {
+      allow read: if resource.data.visibility == "public" ||
+        (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow create, update: if signedIn() &&
+        request.resource.data.ownerUid == request.auth.uid &&
+        // A template destined for commercial use must declare it, and the
+        // materials check is enforced server-side in validateTemplate();
+        // rules enforce the flag can't be forged without that check.
+        (request.resource.data.commercialUse == false ||
+         request.resource.data.licenseValidated == true);
+    }
+  }
+}

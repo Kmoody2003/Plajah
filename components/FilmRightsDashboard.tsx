@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Shield, Upload, Check, AlertTriangle, X, ChevronDown,
   ChevronUp, FileText, Music2, Captions, Star, Clock,
-  Lock, Globe, Plus, Trash2, ExternalLink,
+  Lock, Globe, Plus, Trash2, ExternalLink, Fingerprint,
 } from 'lucide-react';
 import { fetchUserAlbums, auth } from '../services/backendService';
 import type { Album } from '../types';
+import type { RegistrySubject } from '../services/registry/registryService';
+
+// Opt-in registry layer — EIDR/ISAN the studio already holds, plus the free ARK and
+// content fingerprint Plajah issues itself. Off until the owner turns it on.
+const RightsIdentifiersPanel = lazy(() => import('./registry/RightsIdentifiersPanel'));
 
 // ── Film & TV insurance provider directory ──────────────────────────────────────
 // Real entertainment E&O / production insurers filmmakers can go get covered with.
@@ -152,6 +157,7 @@ export default function FilmRightsDashboard() {
   const [loading, setLoading] = useState(true);
   const [rightsMap, setRightsMap] = useState<Record<string, FilmRights>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [rightsSubject, setRightsSubject] = useState<RegistrySubject | null>(null);
   const [newMusicLabel, setNewMusicLabel] = useState('');
 
   useEffect(() => {
@@ -315,6 +321,24 @@ export default function FilmRightsDashboard() {
                   className="overflow-hidden"
                 >
                   <div className="px-7 pb-7 space-y-6 border-t border-white/5 pt-6">
+                    {/* Identifiers — opt-in registry layer (EIDR/ISAN the studio supplies,
+                        plus the free ARK + fingerprint Plajah mints itself). */}
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/20 mb-3 flex items-center gap-1.5">
+                        <Fingerprint size={10} /> Identifiers
+                      </p>
+                      <button
+                        onClick={() => setRightsSubject({ kind: 'FILM', id: film.id, title: film.title, creatorName: film.artist })}
+                        className="w-full flex items-center gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.05] transition-colors text-left"
+                      >
+                        <Fingerprint size={16} className="text-white/30 flex-shrink-0" />
+                        <span className="flex-1 text-xs text-white/60">
+                          EIDR, ISAN, IMDb — plus the permanent ID and fingerprint Plajah issues free
+                        </span>
+                        <ExternalLink size={13} className="text-white/25 flex-shrink-0" />
+                      </button>
+                    </div>
+
                     {/* E&O Insurance */}
                     <div>
                       <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/20 mb-3 flex items-center gap-1.5">
@@ -448,6 +472,12 @@ export default function FilmRightsDashboard() {
           </div>
         );
       })}
+
+      {rightsSubject && (
+        <Suspense fallback={null}>
+          <RightsIdentifiersPanel subject={rightsSubject} onClose={() => setRightsSubject(null)} />
+        </Suspense>
+      )}
     </motion.div>
   );
 }

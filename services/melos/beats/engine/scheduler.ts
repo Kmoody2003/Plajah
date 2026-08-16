@@ -22,11 +22,10 @@ export interface SchedulerDeps {
   startAudioClip(track: ArrangeTrack, clip: TimelineClip, when: number, offsetIntoClipSec: number): void;
   /** Instrument tracks: one MIDI note, at an absolute context time, for `durSec`. */
   startInstrumentNote(track: ArrangeTrack, note: NoteEvent, when: number, durSec: number): void;
-  /**
-   * Instrument tracks whose Arp is on: the arp consumes held keys and emits the notes instead.
-   * Returns true if it handled this step, so clip notes on an arped track don't double up.
-   */
-  runArp?(track: ArrangeTrack, stepIndex: number, beat: number): boolean;
+  /** Fire an armed arp for this track+step. Called for EVERY step in both play modes. */
+  runArp?(track: ArrangeTrack, stepIndex: number, beat: number): void;
+  /** Is this track's arp enabled? Used to skip its clip notes so they don't double the arp. */
+  arpActive?(track: ArrangeTrack): boolean;
 }
 
 /** Deterministic PRNG for offline renders (mulberry32). */
@@ -89,6 +88,10 @@ export class StepScheduler {
       if (baseTime >= horizonSec) break;
       if (this.mode === 'pattern') this.schedulePatternStep(doc, beat);
       else this.scheduleSongStep(doc, beat, horizonSec);
+      // Arps run in BOTH modes — an armed instrument responds to held keys whether you're
+      // auditioning a pattern or playing the whole song. (Song mode's clip loop skips arped
+      // tracks so they don't double.)
+      this.runArps(doc, beat);
       this.nextStep++;
     }
   }
@@ -137,6 +140,17 @@ export class StepScheduler {
     }
   }
 
+  /** Fire every armed instrument arp for this step — runs in pattern AND song mode. */
+  private runArps(doc: GrooveDoc, beat: number) {
+    const d = this.deps;
+    if (!d.runArp) return;
+    const anySolo = doc.arrangement.some((t) => t.solo);
+    for (const track of doc.arrangement) {
+      if (track.kind !== 'instrument' || track.mute || (anySolo && !track.solo)) continue;
+      if (d.arpActive?.(track)) d.runArp(track, this.nextStep, beat);
+    }
+  }
+
   private schedulePatternStep(doc: GrooveDoc, beat: number) {
     const pattern = doc.patterns.find((p) => p.id === this.patternId) || doc.patterns[0];
     if (!pattern) return;
@@ -167,9 +181,9 @@ export class StepScheduler {
     const anySoloTrack = doc.arrangement.some((t) => t.solo);
     for (const track of doc.arrangement) {
       if (track.kind !== 'instrument' || track.mute || (anySoloTrack && !track.solo)) continue;
-      // An armed Arp consumes the held keys and emits its own notes. When it handles the step,
-      // clip notes are skipped so an arped performance doesn't double against the recording.
-      if (d.runArp?.(track, this.nextStep, beat)) continue;
+      // Arps are fired by runArps() (both modes); when a track's arp is active its clip notes
+      // are skipped so an arped performance doesn't double against a recording.
+      if (d.arpActive?.(track)) continue;
       for (const clip of track.clips) {
         if (!clip.notes?.length) continue;
         if (beat < clip.startBeats - 1e-9 || beat >= clip.startBeats + clip.lengthBeats - 1e-9) continue;

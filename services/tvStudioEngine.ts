@@ -13,6 +13,8 @@
  *  - EDL: CMX3600 + FCPXML event list built from cut events
  */
 
+import { drawScriptureGraphic } from './scriptureGraphic';
+
 export type SourceType =
   | 'CAMERA' | 'SCREEN' | 'MEDIA' | 'GRAPHIC' | 'COLOR' | 'BARS' | 'BLACK';
 
@@ -49,11 +51,18 @@ export interface StudioSource {
 export interface GraphicOverlay {
   id: string;
   label: string;
-  type: 'LOWER_THIRD' | 'FULLSCREEN' | 'BUG' | 'CLOCK' | 'LOTTIE' | 'WEBM';
+  type: 'LOWER_THIRD' | 'FULLSCREEN' | 'BUG' | 'CLOCK' | 'LOTTIE' | 'WEBM' | 'SCRIPTURE';
   // Lower third
   title?: string;
   subtitle?: string;
   style?: 'MODERN' | 'CLASSIC' | 'MINIMAL';
+  // Scripture (Ambo). Lines are pre-split by amboService so the renderer never
+  // has to decide where a verse breaks — see splitForScreen.
+  lines?: string[];
+  reference?: string;
+  /** Attribution some translations require on screen. Rendered when present. */
+  copyright?: string;
+  scriptureVariant?: 'LOWER_THIRD' | 'FULLSCREEN';
   // Image/video overlay
   url?: string;
   videoEl?: HTMLVideoElement;
@@ -413,6 +422,8 @@ export class TVStudioEngine {
       ctx.globalAlpha = ov.opacity;
       if (ov.type === 'LOWER_THIRD') {
         this._drawLowerThird(ctx, ov);
+      } else if (ov.type === 'SCRIPTURE') {
+        this._drawScripture(ctx, ov);
       } else if ((ov.type === 'WEBM' || ov.type === 'FULLSCREEN') && ov.videoEl) {
         const x = (ov.x ?? 0) * 1920 / 100;
         const y = (ov.y ?? 0) * 1080 / 100;
@@ -446,6 +457,16 @@ export class TVStudioEngine {
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
     ctx.font = '36px system-ui, sans-serif';
     ctx.fillText(ov.subtitle ?? '', padX + 28, y + 140);
+  }
+
+  /** Delegates to the shared renderer so program out and Ambo preview match exactly. */
+  private _drawScripture(ctx: CanvasRenderingContext2D, ov: GraphicOverlay) {
+    drawScriptureGraphic(ctx, {
+      lines: ov.lines ?? [],
+      reference: ov.reference ?? '',
+      variant: ov.scriptureVariant ?? 'LOWER_THIRD',
+      copyright: ov.copyright,
+    });
   }
 
   private _drawClock(ctx: CanvasRenderingContext2D) {

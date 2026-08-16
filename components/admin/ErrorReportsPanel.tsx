@@ -27,6 +27,8 @@ const ErrorReportsPanel: React.FC = () => {
   const [reports, setReports] = useState<Report[]>([]);
   const [logins, setLogins] = useState<LoginIssue[]>([]);
   const [filter, setFilter] = useState('');
+  // Feature-context quick filter — 'chora-next' shows only the Chora Next beta feedback.
+  const [ctxFilter, setCtxFilter] = useState<string | null>(null);
   const [grouped, setGrouped] = useState(true);
   const [sel, setSel] = useState<Report | null>(null);
   const [selLogin, setSelLogin] = useState<LoginIssue | null>(null);
@@ -57,13 +59,16 @@ const ErrorReportsPanel: React.FC = () => {
   );
 
   const filtered = useMemo(() => {
+    const base = ctxFilter ? reports.filter(r => r.context === ctxFilter) : reports;
     const f = filter.trim().toLowerCase();
-    if (!f) return reports;
-    return reports.filter(r =>
+    if (!f) return base;
+    return base.filter(r =>
       (r.userEmail || '').toLowerCase().includes(f) || (r.userId || '').toLowerCase().includes(f) ||
       (r.userName || '').toLowerCase().includes(f) || (r.message || '').toLowerCase().includes(f) ||
-      (r.source || '').toLowerCase().includes(f));
-  }, [reports, filter]);
+      (r.source || '').toLowerCase().includes(f) || (r.context || '').toLowerCase().includes(f));
+  }, [reports, filter, ctxFilter]);
+
+  const choraNextCount = useMemo(() => reports.filter(r => r.context === 'chora-next').length, [reports]);
 
   const groups = useMemo(() => {
     const m = new Map<string, { message: string; count: number; latest: number; users: Set<string>; source: string; sample: Report }>();
@@ -88,6 +93,15 @@ const ErrorReportsPanel: React.FC = () => {
           <Search size={13} color={T.muted} />
           <input value={filter} onChange={e => setFilter(e.target.value)} placeholder="Filter by user, email, message…" style={{ background: 'transparent', border: 'none', color: T.ink, fontSize: 12.5, outline: 'none', width: 220 }} />
         </div>
+        {/* Chora Next beta-feedback quick filter */}
+        <button
+          onClick={() => setCtxFilter(c => (c === 'chora-next' ? null : 'chora-next'))}
+          title="Show only Chora Next beta feedback"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 800, border: ctxFilter === 'chora-next' ? '1px solid transparent' : `1px solid ${T.border}`, background: ctxFilter === 'chora-next' ? 'linear-gradient(120deg,#6B0099,#00DAF3)' : 'transparent', color: T.ink }}
+        >
+          💿 Chora Next
+          <span style={{ fontSize: 10.5, fontWeight: 800, borderRadius: 6, padding: '1px 6px', background: ctxFilter === 'chora-next' ? 'rgba(0,0,0,0.3)' : `${T.orange}22`, color: ctxFilter === 'chora-next' ? '#fff' : T.orange }}>{choraNextCount}</span>
+        </button>
         <button onClick={() => setGrouped(g => !g)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, border: `1px solid ${T.border}`, background: 'transparent', color: T.ink, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
           {grouped ? <><Layers size={13} /> Grouped</> : <><ListIcon size={13} /> Stream</>}
         </button>
@@ -136,7 +150,9 @@ const ErrorReportsPanel: React.FC = () => {
             <span style={{ width: 8, height: 8, borderRadius: 99, background: sevColor(r.severity), flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.message}</div>
-              <div style={{ fontSize: 10.5, color: T.muted, marginTop: 2 }}>{r.source} · {r.userEmail || r.userName || r.userId || 'anon'} · {ago(r.createdAt)} ago</div>
+              <div style={{ fontSize: 10.5, color: T.muted, marginTop: 2 }}>
+                {r.source}{r.context ? <span style={{ color: '#00DAF3', fontWeight: 800 }}> · {r.context}</span> : null} · {r.userEmail || r.userName || r.userId || 'anon'} · {ago(r.createdAt)} ago
+              </div>
             </div>
           </button>
         ))}

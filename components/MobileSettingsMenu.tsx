@@ -3,7 +3,7 @@ import {
   User, Baby, ShieldCheck, Mail, Share2, Database, Image as ImageIcon, Globe, Notebook,
   LayoutTemplate, LayoutGrid, Send, Tv, Radio, Film, FileText, BarChart2, Music2, Rss,
   Activity, BookOpen, CalendarClock, Users, CheckSquare, ShoppingBag, DollarSign,
-  ChevronRight, LogOut,
+  ChevronRight, LogOut, Fingerprint,
 } from 'lucide-react';
 
 // Phone-only settings surface — an iOS/Android-style grouped drill-down. The desktop dashboard packs
@@ -25,6 +25,7 @@ const SECTIONS: Section[] = [
   ] },
   { title: 'My Content', items: [
     { id: 'ASSETS', label: 'My Assets', icon: Database, tint: '#FF8C00' },
+    { id: 'RIGHTS_REGISTRY', label: 'Rights & Identifiers', icon: Fingerprint, tint: '#fbbf24' },
     { id: 'PHOTOS', label: 'Photo Gallery', icon: ImageIcon, tint: '#38bdf8' },
     { id: 'WORLDS', label: 'My Worlds', icon: Globe, tint: '#34d399' },
     { id: 'INTERESTS', label: 'Interest Notebook', icon: Notebook, tint: '#a78bfa' },

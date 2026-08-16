@@ -37,6 +37,8 @@ import { saveStudioEpisode } from '../services/podcastStudio/studioService';
 import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { User as FirebaseUser } from 'firebase/auth';
 import TVStudioLightingBoard from './TVStudioLightingBoard';
+import AmboPresenter from './scripture/AmboPresenter';
+import { BookOpen } from 'lucide-react';
 import TVStudioImportModal, { ImportedAsset, HotFolder } from './TVStudioImportModal';
 import { RtcSession } from '../services/rtcCore';
 import { fetchLiveProgramFeedsForUser } from '../services/multiSiteService';
@@ -87,7 +89,7 @@ export interface TVStudioProps {
   onStreamReady?: (stream: MediaStream) => void;
 }
 
-type StudioTab = 'SWITCHER' | 'AUDIO' | 'GRAPHICS_BUILDER' | 'LIGHTING' | 'SETTINGS';
+type StudioTab = 'SWITCHER' | 'AUDIO' | 'GRAPHICS_BUILDER' | 'AMBO' | 'LIGHTING' | 'SETTINGS';
 
 // ── SourceCanvas ──────────────────────────────────────────────────────────────
 
@@ -806,6 +808,7 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
               {id:'SWITCHER' as StudioTab,label:'Video Switcher'},
               {id:'AUDIO'    as StudioTab,label:'Audio Mixer'},
               {id:'GRAPHICS_BUILDER' as StudioTab,label:'Graphics Builder'},
+              {id:'AMBO' as StudioTab,label:'Ambo Scripture'},
               {id:'LIGHTING' as StudioTab,label:'Lighting Board'},
               {id:'SETTINGS' as StudioTab,label:'System Config'},
             ]).map(tab=>(
@@ -847,6 +850,7 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
             {id:'SWITCHER' as StudioTab,icon:<Activity size={15}/>,label:'Video SW'},
             {id:'AUDIO'    as StudioTab,icon:<Sliders size={15}/>,label:'Audio'},
             {id:'GRAPHICS_BUILDER' as StudioTab,icon:<Layers size={15}/>,label:'Graphics'},
+            {id:'AMBO' as StudioTab,icon:<BookOpen size={15}/>,label:'Ambo'},
             {id:'LIGHTING' as StudioTab,icon:<Lightbulb size={15}/>,label:'Lighting'},
             {id:'SETTINGS' as StudioTab,icon:<Settings size={15}/>,label:'Config'},
           ]).map(item=>(
@@ -1259,6 +1263,16 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
           )}
 
           {/* ════ LIGHTING BOARD TAB ═══════════════════════════════════════ */}
+          {studioTab === 'AMBO' && (
+            <div className="flex-1 min-h-0 flex">
+              <div style={{width:300}} className="shrink-0 border-r border-white/10">
+                <AmboPresenter engine={engineRef.current} compact />
+              </div>
+              <div className="flex-1 min-w-0 flex items-center justify-center text-[10px] uppercase tracking-widest text-white/25">
+                Program output keys from the panel on the left
+              </div>
+            </div>
+          )}
           {studioTab === 'LIGHTING' && <TVStudioLightingBoard/>}
 
           {/* ════ SETTINGS TAB ════════════════════════════════════════════ */}

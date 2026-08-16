@@ -11,10 +11,17 @@ import {
   ChevronLeft, ChevronRight, BookOpen, ScrollText, Users, Landmark, Pickaxe,
   Map as MapIcon, Swords, Crown, Gem, Music2, Sparkles, StickyNote, MessageCircle,
   X, ExternalLink, Play, ChevronDown, Cross, FileText, Maximize2,
+  Radio, MonitorPlay, NotebookPen, CalendarDays,
 } from 'lucide-react';
 import {
   BOOKS, BibleBook, BibleVerse, fetchParallel, translationsForBook, BibleTranslation,
 } from '../services/bibleService';
+import { parseRefId } from '../services/scriptureRef';
+import {
+  migrateLegacyReceipts, serviceNotesByDay, syncServiceNotes, pushAllSessions,
+  formatTC as svcTC, type ServiceNoteDay,
+} from '../services/serviceNotes';
+import LectioReader from './scripture/LectioReader';
 import { SACRED_SECTIONS, HYMNS, LibrarySection, PRIMARY_TEXTS } from '../data/sacredLibrary';
 import { auth, loadBibleNotes, saveBibleNote } from '../services/backendService';
 
@@ -33,11 +40,20 @@ const SACRED_BG: React.CSSProperties = {
     'repeating-linear-gradient(45deg, rgba(255,255,255,0.014) 0 2px, transparent 2px 6px)',
 };
 
-type View = { kind: 'home' } | { kind: 'read' } | { kind: 'hymns' } | { kind: 'texts' } | { kind: 'section'; id: string };
+type View = { kind: 'home' } | { kind: 'read' } | { kind: 'hymns' } | { kind: 'texts' }
+  | { kind: 'servicenotes' } | { kind: 'section'; id: string };
 
-const BibleExperience: React.FC<{ onBack: () => void }> = ({ onBack }) => {
-  const [view, setView] = useState<View>({ kind: 'home' });
+const BibleExperience: React.FC<{ onBack: () => void; initialRefId?: string | null }> = ({ onBack, initialRefId }) => {
+  // A scripture chip elsewhere on the platform opens straight into the reader
+  // at its passage, skipping the landing.
+  const openAt = initialRefId ? parseRefId(initialRefId) : null;
+  const [view, setView] = useState<View>(openAt ? { kind: 'read' } : { kind: 'home' });
   const [viewer, setViewer] = useState<{ url: string; title: string } | null>(null); // in-app manuscript embed
+
+  // A later chip tap while the reader is already mounted re-points it.
+  useEffect(() => {
+    if (initialRefId && parseRefId(initialRefId)) setView({ kind: 'read' });
+  }, [initialRefId]);
 
   const back = () => {
     if (view.kind === 'home') onBack();
@@ -60,7 +76,8 @@ const BibleExperience: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
       <AnimatePresence mode="wait">
         {view.kind === 'home' && <Home key="home" onOpen={setView} />}
-        {view.kind === 'read' && <Reader key="read" />}
+        {view.kind === 'read' && <LectioReader key="read" openAt={openAt} />}
+        {view.kind === 'servicenotes' && <ServiceNotesView key="svcnotes" />}
         {view.kind === 'hymns' && <Hymns key="hymns" />}
         {view.kind === 'texts' && <Texts key="texts" />}
         {view.kind === 'section' && <Section key={view.id} section={SACRED_SECTIONS.find(s => s.id === view.id)!} onEmbed={(url, title) => setViewer({ url, title })} />}
@@ -130,6 +147,41 @@ const Home: React.FC<{ onOpen: (v: View) => void }> = ({ onOpen }) => (
       ))}
     </div>
 
+    {/* Live service band — the way into the presenter, the follow-along and the
+        briefing. Sits above the library because on a Sunday it's the only thing
+        anyone is looking for. */}
+    <div className="mb-10">
+      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#d4af37]/70 mb-3">In service</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {[
+          {
+            icon: <Radio size={18} />, title: 'Follow along',
+            sub: 'Your phone turns to each passage as it’s read',
+            act: () => window.dispatchEvent(new CustomEvent('OPEN_FOLLOW_ALONG', { detail: {} })),
+          },
+          {
+            icon: <MonitorPlay size={18} />, title: 'Ambo — present',
+            sub: 'Put Scripture on the screens and key the switcher',
+            act: () => window.dispatchEvent(new CustomEvent('OPEN_AMBO', { detail: {} })),
+          },
+          {
+            icon: <NotebookPen size={18} />, title: 'Service notes',
+            sub: 'Every passage you’ve been taught, by the day you heard it',
+            act: () => onOpen({ kind: 'servicenotes' }),
+          },
+        ].map(c => (
+          <button key={c.title} onClick={c.act}
+            className="text-left p-4 rounded-2xl border border-[#d4af37]/20 bg-[#d4af37]/[0.04] hover:bg-[#d4af37]/[0.09] hover:border-[#d4af37]/45 transition-all group">
+            <div className="flex items-center gap-2 text-[#d4af37] mb-1.5">
+              {c.icon}
+              <span className="text-[12px] font-black uppercase tracking-wide">{c.title}</span>
+            </div>
+            <p className="text-[10.5px] text-white/40 leading-relaxed">{c.sub}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+
     {/* Sections grid */}
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <FeatureCard icon={<BookOpen size={22} />} title="Read Scripture" subtitle="Parallel · KJV · Vulgate · Greek · Hebrew"
@@ -168,164 +220,85 @@ const FeatureCard: React.FC<{ icon: React.ReactNode; title: string; subtitle: st
   </button>
 );
 
-// ── Scripture reader ─────────────────────────────────────────────────────────
-const Reader: React.FC = () => {
-  const [book, setBook] = useState<BibleBook>(BOOKS.find(b => b.name === 'John')!);
-  const [chapter, setChapter] = useState(1);
-  const avail = useMemo(() => translationsForBook(book.testament), [book]);
-  const [active, setActive] = useState<string[]>(['kjv', 'vulgate']);
-  const [data, setData] = useState<Record<string, BibleVerse[]>>({});
-  const [loading, setLoading] = useState(true);
-  const [notes, setNotes] = useState<Record<string, string>>(loadNotes);
-  const [openVerse, setOpenVerse] = useState<number | null>(null);
-  const [pickBook, setPickBook] = useState(false);
-  const saveTimers = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+// The reader now lives in components/scripture/LectioReader.tsx — three panes,
+// a skinnable reading surface, the study rail and offline preload.
 
-  // Cloud-synced notes: pull the signed-in user's notes once and merge them in.
-  useEffect(() => {
-    const uid = auth.currentUser?.uid;
-    if (!uid) return;
-    loadBibleNotes(uid).then(cloud => { if (Object.keys(cloud).length) setNotes(prev => ({ ...prev, ...cloud })); });
-  }, []);
-
-  // Keep active translations valid for the current testament.
-  useEffect(() => {
-    setActive(prev => {
-      const ok = prev.filter(s => avail.some(t => t.slug === s));
-      return ok.length ? ok : ['kjv', avail.find(t => t.slug === 'vulgate') ? 'vulgate' : avail[1]?.slug].filter(Boolean) as string[];
-    });
-  }, [avail]);
+// ── Service notes ────────────────────────────────────────────────────────────
+// Every passage this member has been taught, grouped by the day they heard it.
+// Kept apart from the notes they wrote — see services/serviceNotes.ts.
+const ServiceNotesView: React.FC = () => {
+  const [days, setDays] = useState<ServiceNoteDay[]>([]);
+  const [synced, setSynced] = useState(false);
 
   useEffect(() => {
     let dead = false;
-    setLoading(true);
-    fetchParallel(book.num, chapter, active.length ? active : ['kjv']).then(d => { if (!dead) { setData(d); setLoading(false); } });
-    return () => { dead = true; };
-  }, [book, chapter, active]);
-
-  const verseNums = useMemo(() => {
-    const set = new Set<number>();
-    Object.values(data).forEach(vs => vs.forEach(v => set.add(v.verse)));
-    return [...set].sort((a, b) => a - b);
-  }, [data]);
-
-  const refKey = (v: number) => `${book.num}:${chapter}:${v}`;
-  const setNote = (v: number, text: string) => {
-    const ref = refKey(v);
-    setNotes(prev => { const n = { ...prev }; if (text.trim()) n[ref] = text; else delete n[ref]; saveNotes(n); return n; });
-    // Debounced cloud sync (signed-in users get cross-device notes).
+    migrateLegacyReceipts();
+    setDays(serviceNotesByDay());
     const uid = auth.currentUser?.uid;
-    if (uid) {
-      clearTimeout(saveTimers.current[ref]);
-      saveTimers.current[ref] = setTimeout(() => saveBibleNote(uid, ref, text), 800);
-    }
-  };
-  const toggleT = (slug: string) => setActive(prev => prev.includes(slug) ? (prev.length > 1 ? prev.filter(s => s !== slug) : prev) : [...prev, slug]);
+    if (!uid) return;
+    void (async () => {
+      await syncServiceNotes(uid);
+      await pushAllSessions(uid);
+      if (!dead) { setDays(serviceNotesByDay()); setSynced(true); }
+    })();
+    return () => { dead = true; };
+  }, []);
 
-  const prevCh = () => { if (chapter > 1) setChapter(chapter - 1); else { const i = BOOKS.indexOf(book); if (i > 0) { setBook(BOOKS[i - 1]); setChapter(BOOKS[i - 1].chapters); } } };
-  const nextCh = () => { if (chapter < book.chapters) setChapter(chapter + 1); else { const i = BOOKS.indexOf(book); if (i < BOOKS.length - 1) { setBook(BOOKS[i + 1]); setChapter(1); } } };
+  const total = days.reduce((n, d) => n + d.notes.length, 0);
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="max-w-5xl mx-auto px-4 sm:px-8 pb-24">
-      {/* Reference + translation controls */}
-      <div className="sticky top-[49px] z-10 -mx-4 sm:-mx-8 px-4 sm:px-8 py-3 bg-[#08070c]/85 backdrop-blur-xl border-b border-white/8 space-y-2.5">
-        <div className="flex items-center gap-2 flex-wrap">
-          <button onClick={() => setPickBook(v => !v)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] border border-white/10 text-xs font-black hover:bg-white/[0.1] transition-all">
-            {book.name} <ChevronDown size={12} />
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="max-w-3xl mx-auto px-5 sm:px-8 pb-24 pt-8">
+      <h2 className="text-3xl font-black tracking-tight">Service notes</h2>
+      <p className="mt-2 text-white/40 text-sm leading-relaxed max-w-lg">
+        Recorded automatically as each passage came up in a service you followed. Your own
+        notes live in the reader and are never mixed in here.
+      </p>
+      <p className="mt-3 text-[9px] font-black uppercase tracking-widest text-white/25">
+        {total} {total === 1 ? 'passage' : 'passages'} · {days.length} {days.length === 1 ? 'service' : 'services'}
+        {auth.currentUser
+          ? synced ? ' · synced to your account' : ' · syncing…'
+          : ' · sign in to keep these across devices'}
+      </p>
+
+      {days.length === 0 ? (
+        <div className="mt-10 py-14 text-center rounded-2xl border border-white/8">
+          <Radio size={22} className="mx-auto text-white/15 mb-3" />
+          <p className="text-[11px] text-white/35 max-w-xs mx-auto leading-relaxed">
+            Nothing yet. Follow a service and the passages will collect here on their own.
+          </p>
+          <button onClick={() => window.dispatchEvent(new CustomEvent('OPEN_FOLLOW_ALONG', { detail: {} }))}
+            className="mt-5 px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest text-black"
+            style={{ background: '#d4af37' }}>
+            Follow a service
           </button>
-          <select value={chapter} onChange={e => setChapter(Number(e.target.value))}
-            className="px-2.5 py-1.5 rounded-lg bg-white/[0.06] border border-white/10 text-xs font-black outline-none">
-            {Array.from({ length: book.chapters }, (_, i) => i + 1).map(c => <option key={c} value={c} className="bg-[#08070c]">Ch {c}</option>)}
-          </select>
-          <div className="ml-auto flex items-center gap-1">
-            <button onClick={prevCh} className="w-8 h-8 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center hover:bg-white/[0.12]"><ChevronLeft size={14} /></button>
-            <button onClick={nextCh} className="w-8 h-8 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center hover:bg-white/[0.12]"><ChevronRight size={14} /></button>
-          </div>
         </div>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {avail.map(t => (
-            <button key={t.slug} onClick={() => toggleT(t.slug)}
-              className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${active.includes(t.slug) ? 'text-black' : 'border-white/10 text-white/40 hover:text-white'}`}
-              style={active.includes(t.slug) ? { background: '#d4af37', borderColor: '#d4af37' } : {}}>
-              {t.label}
-            </button>
+      ) : (
+        <div className="mt-8 space-y-7">
+          {days.map(g => (
+            <section key={`${g.day}-${g.sessionId}`}>
+              <div className="flex items-baseline gap-2.5 mb-2.5">
+                <CalendarDays size={13} className="text-[#d4af37]" />
+                <span className="text-[11px] font-black uppercase tracking-widest text-[#d4af37]">{g.label}</span>
+                <span className="text-[11px] text-white/35 truncate">{g.serviceTitle}</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {g.notes.map(n => {
+                  const r = parseRefId(n.refId);
+                  return (
+                    <button key={`${n.sessionId}-${n.refId}`}
+                      onClick={() => r && window.dispatchEvent(new CustomEvent('OPEN_BIBLE', { detail: { refId: n.refId } }))}
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-white/10 hover:border-[#d4af37]/45 hover:bg-[#d4af37]/[0.05] transition-all text-left">
+                      <span className="flex-1 font-mono text-[10.5px] uppercase tracking-wider text-white/70">{n.label}</span>
+                      <span className="font-mono text-[9.5px] text-white/25 tabular-nums">{svcTC(n.programTC)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
           ))}
         </div>
-        {pickBook && (
-          <div className="absolute left-4 sm:left-8 top-full mt-1 w-[min(560px,90vw)] max-h-[60vh] overflow-y-auto bg-[#0d0b14] border border-white/12 rounded-2xl p-2 shadow-2xl grid grid-cols-2 sm:grid-cols-3 gap-1 custom-scrollbar">
-            {(['OT', 'NT'] as const).map(test => (
-              <React.Fragment key={test}>
-                <p className="col-span-full px-2 py-1 text-[8px] font-black uppercase tracking-widest text-[#d4af37]/60">{test === 'OT' ? 'Old Testament' : 'New Testament'}</p>
-                {BOOKS.filter(b => b.testament === test).map(b => (
-                  <button key={b.num} onClick={() => { setBook(b); setChapter(1); setPickBook(false); }}
-                    className={`text-left px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${b.num === book.num ? 'bg-[#d4af37]/25 text-[#d4af37]' : 'text-white/60 hover:bg-white/10'}`}>
-                    {b.name}
-                  </button>
-                ))}
-              </React.Fragment>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Verses */}
-      <div className="mt-6">
-        <h2 className="text-2xl font-black tracking-tight mb-1">{book.name} <span className="text-[#d4af37]">{chapter}</span></h2>
-        <p className="text-[9px] font-black uppercase tracking-widest text-white/25 mb-5">{active.map(s => avail.find(t => t.slug === s)?.label).filter(Boolean).join('  ·  ')}</p>
-
-        {loading ? (
-          <div className="py-20 text-center text-[10px] font-black uppercase tracking-widest text-white/25">Gathering the witnesses…</div>
-        ) : verseNums.length === 0 ? (
-          <div className="py-20 text-center text-[10px] text-white/30">This text isn’t available in the selected translations for this chapter.</div>
-        ) : (
-          <div className="space-y-1.5">
-            {verseNums.map(v => {
-              const note = notes[refKey(v)];
-              const isOpen = openVerse === v;
-              return (
-                <div key={v} className={`rounded-xl transition-colors ${isOpen ? 'bg-[#d4af37]/[0.06] ring-1 ring-[#d4af37]/25' : 'hover:bg-white/[0.03]'}`}>
-                  <div onClick={() => setOpenVerse(isOpen ? null : v)} className="flex gap-3 p-3 cursor-pointer">
-                    <span className="text-[10px] font-black text-[#d4af37] w-6 shrink-0 pt-0.5 tabular-nums">{v}</span>
-                    <div className={`flex-1 grid gap-3 ${active.length > 1 ? 'sm:grid-cols-2' : ''}`}>
-                      {active.map(slug => {
-                        const t = avail.find(x => x.slug === slug)!;
-                        const text = data[slug]?.find(x => x.verse === v)?.text || '';
-                        return (
-                          <div key={slug}>
-                            {active.length > 1 && <p className="text-[7px] font-black uppercase tracking-widest text-white/25 mb-0.5">{t.label}</p>}
-                            <p dir={t.rtl ? 'rtl' : 'ltr'} lang={t.lang}
-                              className={`text-[14px] leading-relaxed ${t.rtl ? 'text-right' : ''} ${t.lang === 'en' ? 'text-white/85 font-serif' : 'text-white/70'}`}
-                              style={t.lang === 'he' ? { fontSize: 18 } : t.lang === 'el' ? { fontFamily: 'Georgia, serif' } : {}}>
-                              {text || <span className="text-white/20">—</span>}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {note && <StickyNote size={11} className="text-[#d4af37] shrink-0 mt-1" />}
-                  </div>
-                  {isOpen && (
-                    <div className="px-3 pb-3 pl-12 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => askAria(`You are Aria, a learned and reverent Bible teacher. Explain ${book.name} ${chapter}:${v}. Give the historical and cultural context, the meaning in the original language, how the Church Fathers understood it, and how it connects to the rest of Scripture.`)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#d4af37]/15 border border-[#d4af37]/30 text-[9px] font-black uppercase tracking-widest text-[#d4af37] hover:bg-[#d4af37]/25 transition-all">
-                          <Sparkles size={11} /> Ask Aria about this verse
-                        </button>
-                      </div>
-                      <textarea
-                        value={note || ''}
-                        onChange={e => setNote(v, e.target.value)}
-                        placeholder={`Your notes on ${book.name} ${chapter}:${v}…`}
-                        className="w-full bg-black/30 border border-white/10 rounded-xl px-3 py-2.5 text-[12px] text-white/85 placeholder-white/20 outline-none focus:border-[#d4af37]/40 resize-none min-h-[60px]"
-                      />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      )}
     </motion.div>
   );
 };

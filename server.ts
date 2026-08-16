@@ -26,6 +26,7 @@ import { coraRouter } from './routes/cora';
 import { learnerAuthRouter } from './routes/learnerAuth';
 import { postmanRouter } from './routes/postman';
 import { campaignsRouter } from './routes/campaigns';
+import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { createCustomToken, fsGet, fsSet, fsPatch, fsDelete } from './services/firebaseAdminRest';
 import { buildFfmpegArgs } from './services/crossover/engine';
 import { extFor } from './services/crossover/formats';
@@ -7488,6 +7489,14 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
   // Campaigns — built-in email marketing. Compliance (postal address, one-click
   // unsubscribe, suppression) is enforced inside the router, not by its callers.
   app.use('/api/campaigns', express.json({ limit: '2mb' }), campaignsRouter);
+
+  // Academia Integrity Wall — conflict check (the only bridge between a teacher's district and
+  // independent personas), Silent Mode claim mirroring, and OER licence validation. Rate-limited
+  // because conflict-check is an oracle: unthrottled, it would let someone probe a teacher's
+  // roster by trying references until one comes back blocked.
+  app.use('/api/academia/conflict-check', authLimiter);
+  app.use('/api/academia/district-salt', authLimiter);
+  app.use('/api/academia', express.json({ limit: '64kb' }), academiaIntegrityRouter);
 
   if (process.env.SPORTS_INGESTION_WORKER !== 'false') {
     const intervalMs = Number(process.env.SPORTS_INGESTION_INTERVAL_MS) || undefined;

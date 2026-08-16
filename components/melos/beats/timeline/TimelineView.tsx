@@ -14,8 +14,7 @@ import { ingestSample, backupToLocker } from '../../../../services/melos/beats/s
 import { MixerPanel } from '../shared/MixerPanel';
 import { PianoRoll } from './PianoRoll';
 import { InstrumentPanel } from '../instrument/InstrumentPanel';
-import { FACTORY_PRESETS } from '../../../../services/melos/instruments/onda/presets';
-import { serializePatch } from '../../../../services/melos/instruments/onda/patch';
+
 import { PLAYHEAD, SELECT, glassPanel } from '../theme';
 
 const BEATS_PER_BAR = 4;
@@ -31,15 +30,22 @@ interface TimelineViewProps {
   meters: { groups: number[]; master: number };
   onMutate: (fn: (d: GrooveDoc) => void) => void;
   onPlayFrom: (fromBeats: number) => void;
+  /** Room-owned: open a specific instrument's panel (so the add-picker can too). */
+  onOpenInstrument?: (id: string) => void;
+  /** Room-owned: open the instrument picker (choose ONDA/KERA/…). */
+  onAddInstrument?: () => void;
 }
 
 export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const [pxPerBeat, setPxPerBeat] = useState(14);
   const [selectedClip, setSelectedClip] = useState<string | null>(null);
   const [showMixer, setShowMixer] = useState(true);
-  const [showAddInstrument, setShowAddInstrument] = useState(false);
   const [openClip, setOpenClip] = useState<{ trackId: string; clipId: string } | null>(null);
-  const [openInstrument, setOpenInstrument] = useState<string | null>(null);
+  // Opening an instrument is owned by the room now (so the add-instrument picker can open one
+  // from any view), and this view just asks. A local fallback keeps it working standalone.
+  const [localOpen, setLocalOpen] = useState<string | null>(null);
+  const openInstrument = p.onOpenInstrument ? null : localOpen;
+  const requestOpen = (id: string) => (p.onOpenInstrument ? p.onOpenInstrument(id) : setLocalOpen(id));
   const drag = useRef<{ clipId: string; trackId: string; mode: 'move' | 'trim'; startX: number; orig: TimelineClip } | null>(null);
 
   const contentBeats = Math.max(
@@ -109,26 +115,6 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     });
   }, [p.onMutate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** Add an ONDA track. Arming it immediately is the point — you want to play it right away. */
-  const addInstrumentTrack = useCallback((presetName: string) => {
-    const preset = FACTORY_PRESETS.find((x) => x.name === presetName) || FACTORY_PRESETS[0];
-    p.onMutate((d) => {
-      for (const t of d.arrangement) t.armed = false;
-      d.arrangement.push({
-        id: grooveUid(),
-        kind: 'instrument',
-        name: preset.name,
-        color: '#D0BCFF',
-        mute: false, solo: false, gainDb: 0, pan: 0,
-        clips: [],
-        instrument: { type: 'onda', patch: serializePatch(preset), presetName: preset.name },
-        armed: true,
-        position: [0, 0, -1],
-      });
-    });
-    setShowAddInstrument(false);
-  }, [p.onMutate]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const addMidiClip = useCallback((trackId: string, atBeats: number) => {
     p.onMutate((d) => {
       const track = d.arrangement.find((t) => t.id === trackId);
@@ -176,7 +162,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                   <div className="sticky left-0 z-10 flex items-center gap-2 px-3 bg-[#0E0916] border-r border-white/10" style={{ width: HEADER_W, minWidth: HEADER_W }}>
                     {track.kind === 'instrument' && !track.foreign ? (
                       <button
-                        onClick={() => setOpenInstrument(track.id)}
+                        onClick={() => requestOpen(track.id)}
                         className="w-[4px] h-6 rounded-[2px] flex-none hover:h-7 transition-all"
                         style={{ background: track.color }}
                         title="Open the instrument"
@@ -341,28 +327,11 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
               <div className="flex items-center gap-2 px-3" style={{ height: 36 }}>
                 <button onClick={() => addTrack('pattern')} className="h-6 px-2 rounded-lg border border-white/10 text-white/40 hover:text-white text-[10px] flex items-center gap-1"><Plus size={10} /><Music2 size={10} /> Pattern track</button>
                 <button onClick={() => addTrack('audio')} className="h-6 px-2 rounded-lg border border-white/10 text-white/40 hover:text-white text-[10px] flex items-center gap-1"><Plus size={10} /><AudioWaveform size={10} /> Audio track</button>
-                <div className="relative">
-                  <button
-                    onClick={() => setShowAddInstrument((v) => !v)}
-                    className="h-6 px-2 rounded-lg border text-[10px] flex items-center gap-1"
-                    style={{ borderColor: 'rgba(208,188,255,0.4)', color: '#D0BCFF' }}
-                  ><Plus size={10} /><Piano size={10} /> Instrument</button>
-                  {showAddInstrument && (
-                    <div className="absolute bottom-8 left-0 z-40 w-60 max-h-64 overflow-y-auto rounded-xl border border-white/15 bg-[#0A0A0D]/97 backdrop-blur-xl p-1.5 shadow-2xl">
-                      <p className="px-2 py-1 text-[9px] uppercase tracking-[0.16em] text-white/30 font-semibold">ONDA · pick a preset</p>
-                      {FACTORY_PRESETS.map((preset) => (
-                        <button
-                          key={preset.name}
-                          onClick={() => addInstrumentTrack(preset.name)}
-                          className="w-full text-left px-2 py-1.5 rounded-lg text-[11px] text-white/65 hover:text-white hover:bg-white/8"
-                        >
-                          {preset.name}
-                          <span className="block text-[9px] text-white/25">{preset.category} · {preset.tags.slice(0, 3).join(' · ')}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <button
+                  onClick={() => p.onAddInstrument?.()}
+                  className="h-6 px-2 rounded-lg border text-[10px] flex items-center gap-1"
+                  style={{ borderColor: 'rgba(208,188,255,0.4)', color: '#D0BCFF' }}
+                ><Plus size={10} /><Piano size={10} /> Instrument</button>
                 <span className="text-[9px] text-white/20">double-click a lane to add a clip · drop audio on audio lanes</span>
               </div>
             </div>
@@ -383,11 +352,11 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
 
       {showMixer && <div className="rounded-b-[18px] overflow-hidden -mt-px"><MixerPanel doc={p.doc} meters={p.meters} onMutate={p.onMutate} /></div>}
 
-      {(() => {
-        if (!openInstrument) return null;
+      {/* When standalone (no room handler), fall back to opening the panel here. */}
+      {openInstrument && (() => {
         const t = p.doc.arrangement.find((x) => x.id === openInstrument);
         if (!t || t.kind !== 'instrument') return null;
-        return <InstrumentPanel doc={p.doc} track={t} onMutate={p.onMutate} onClose={() => setOpenInstrument(null)} />;
+        return <InstrumentPanel doc={p.doc} track={t} onMutate={p.onMutate} onClose={() => setLocalOpen(null)} />;
       })()}
 
       {(() => {

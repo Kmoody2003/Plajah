@@ -9,9 +9,20 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
+    "audio:build": "cargo build --release --manifest-path rust/plajah-audio/Cargo.toml --target wasm32-unknown-unknown && node scripts/buildAudioWasm.mjs",
+    "test:dsp": "node --test rust/plajah-audio/test/dsp.test.mjs",
     "sports:agent": "tsx scripts/localSportsAgent.ts",
     "sports:archive": "tsx scripts/localArchiveAgent.ts",
-    "test:cora": "npx tsx --test tests/coraAnalysis.test.ts"
+    "test:cora": "npx tsx --test tests/coraAnalysis.test.ts",
+    "test:scripture": "npx tsx --test tests/scriptureRef.test.ts tests/amboService.test.ts tests/kairosService.test.ts tests/vespersService.test.ts tests/serviceNotes.test.ts tests/showModel.test.ts tests/serviceRunner.test.ts",
+    "test:ambo": "npx tsx --test tests/amboService.test.ts tests/showModel.test.ts tests/serviceRunner.test.ts",
+    "test:kairos": "npx tsx --test tests/kairosService.test.ts",
+    "test:vespers": "npx tsx --test tests/vespersService.test.ts",
+    "test:serviceNotes": "npx tsx --test tests/serviceNotes.test.ts",
+    "test:academia": "npx tsx --test tests/academiaIntegrity.test.ts",
+    "test:melos": "npx tsx --test tests/melosArp.test.ts tests/melosKera.test.ts",
+    "academia:ingest": "npx tsx scripts/ingestOerLibrary.ts",
+    "test:runner": "npx tsx --test tests/serviceRunner.test.ts"
   },
   "dependencies": {
     "@atproto/api": "^0.19.10",

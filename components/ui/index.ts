@@ -19,6 +19,9 @@ export type { SurfaceLevel, SurfaceShape } from './Surface';
 
 export { Input, Textarea, Chip } from './Field';
 
+export { default as ChipRail } from './ChipRail';
+export type { ChipRailItem } from './ChipRail';
+
 export {
   TYPE,
   MOTION,

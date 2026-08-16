@@ -32,6 +32,7 @@ import {
 } from 'firebase/firestore';
 import { db, storage } from '../services/firebase';
 import { ref as storageRef, deleteObject } from 'firebase/storage';
+import RichText from '../src/lib/richText';
 
 // ── Extended ChatMessage with reactions + reply ───────────────────────────────
 type ExtendedMessage = ChatMessage & {
@@ -1302,7 +1303,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     <p className={`leading-relaxed break-words whitespace-pre-wrap ${
                       msg.text && msg.text.trim().length <= 6 && !/[a-z0-9]/i.test(msg.text) && /\p{Extended_Pictographic}/u.test(msg.text)
                         ? 'text-4xl leading-none' : 'text-sm'
-                    }`}>{msg.text}</p>
+                    }`}>
+                      <RichText text={msg.text || ''} clean={false} scripturePreview={false} />
+                    </p>
                   )}
                 </div>
 

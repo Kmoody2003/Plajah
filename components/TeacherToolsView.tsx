@@ -10,7 +10,7 @@
 // deterministically for the demo; in production this reads learnerProficiency for each student.
 
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, LayoutGrid, Wand2, ClipboardCheck, Sparkles, Check, Plug, Globe, Download, CalendarDays, FileDown, Send, Trash2, Plus, ListChecks, Printer, Library, Copy, ExternalLink, Music, Film, Image as ImageIcon, Camera, UploadCloud, Loader2, Bell, Users, MessageSquare, Hand, Palette, ScanLine, KeyRound, RefreshCw } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, Wand2, ClipboardCheck, Sparkles, Check, Plug, Globe, Download, CalendarDays, FileDown, Send, Trash2, Plus, ListChecks, Printer, Library, Copy, ExternalLink, Music, Film, Image as ImageIcon, Camera, UploadCloud, Loader2, Bell, Users, MessageSquare, Hand, Palette, ScanLine, KeyRound, RefreshCw, BookOpen, ShieldCheck } from 'lucide-react';
 import LessonContentPicker, { type PickedResource } from './LessonContentPicker';
 import { DEMO_CLASS } from '../data/demoClassroom';
 import {
@@ -28,6 +28,8 @@ import { digitizeWorksheet, completionPercent, type DigitalWorksheet, type Works
 import { publishWorksheet, type WireResult } from '../services/worksheetAssignmentService';
 import WorksheetTutorPanel from './WorksheetTutorPanel';
 import WorksheetFillable from './WorksheetFillable';
+import IntegrityWallPanel from './academia/IntegrityWallPanel';
+import AssignmentTemplateStudio from './academia/AssignmentTemplateStudio';
 
 export interface LessonPlan {
   id: string; title: string; subject: Subject; band: string; standardCode: string;
@@ -70,7 +72,7 @@ const Bar: React.FC<{ value: number; color: string }> = ({ value, color }) => (
   </div>
 );
 
-type Tab = 'grade' | 'plan' | 'planner' | 'checks' | 'assess' | 'reports' | 'connect' | 'context' | 'library' | 'worksheet';
+type Tab = 'grade' | 'plan' | 'planner' | 'checks' | 'assess' | 'reports' | 'connect' | 'context' | 'library' | 'worksheet' | 'templates' | 'integrity';
 
 const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBack, user }) => {
   const [tab, setTab] = useState<Tab>('plan');
@@ -109,7 +111,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
 
         {/* tabs */}
         <div style={{ display: 'flex', gap: 8, margin: '18px 0 20px', flexWrap: 'wrap' }}>
-          {([['worksheet', 'Scan Worksheet', ScanLine], ['plan', 'Plan from Mastery', Wand2], ['library', 'Content Library', Library], ['planner', `Planner${plans.length ? ` (${plans.length})` : ''}`, CalendarDays], ['checks', `Checks${assignments.length ? ` (${assignments.length})` : ''}`, ListChecks], ['grade', 'Gradebook', LayoutGrid], ['assess', 'Assess Work', ClipboardCheck], ['reports', 'Reports', Printer], ['connect', 'Integrations', Plug], ['context', 'Context', Globe]] as [Tab, string, any][]).map(([v, l, Icon]) => (
+          {([['worksheet', 'Scan Worksheet', ScanLine], ['plan', 'Plan from Mastery', Wand2], ['library', 'Content Library', Library], ['planner', `Planner${plans.length ? ` (${plans.length})` : ''}`, CalendarDays], ['checks', `Checks${assignments.length ? ` (${assignments.length})` : ''}`, ListChecks], ['grade', 'Gradebook', LayoutGrid], ['assess', 'Assess Work', ClipboardCheck], ['reports', 'Reports', Printer], ['templates', 'Assignment Templates', BookOpen], ['integrity', 'Integrity Wall', ShieldCheck], ['connect', 'Integrations', Plug], ['context', 'Context', Globe]] as [Tab, string, any][]).map(([v, l, Icon]) => (
             <button key={v} onClick={() => setTab(v)} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 15px', borderRadius: 10, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800, border: `1px solid ${tab === v ? T.orange : T.border}`, background: tab === v ? T.orange : 'transparent', color: tab === v ? '#1a1a1a' : T.muted }}>
               <Icon size={13} /> {l}
             </button>
@@ -118,6 +120,23 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
 
         {tab === 'worksheet' ? (
           <ScanWorksheet user={user} />
+        ) : tab === 'templates' ? (
+          // Deliberately above the standards-seeded guard below: the template library spans
+          // 6–12, where the K-7 ledger standards graph has nothing seeded yet.
+          <AssignmentTemplateStudio
+            uid={user?.uid || 'demo'}
+            classroom={{
+              classId: DEMO_CLASS.id,
+              className: DEMO_CLASS.name,
+              students: DEMO_CLASS.students.map(s => ({ id: s.id, name: s.name })),
+              teacher: { uid: user?.uid || 'demo', name: user?.displayName || DEMO_CLASS.teacherName, photo: user?.photoURL || '' },
+              // DEMO_CLASS students are placeholder ids, not real accounts — write the
+              // assignment record but never fan notifications out at uids that don't exist.
+              simulate: DEMO_CLASS.isDemo,
+            }}
+          />
+        ) : tab === 'integrity' ? (
+          <IntegrityWallPanel uid={user?.uid || 'demo'} teacherName={user?.displayName || DEMO_CLASS.teacherName} />
         ) : tab === 'connect' ? (
           <Integrations />
         ) : tab === 'library' ? (

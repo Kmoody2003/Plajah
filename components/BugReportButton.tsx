@@ -18,10 +18,17 @@ const BugReportButton: React.FC<BugReportButtonProps> = ({ currentView }) => {
   const [message, setMessage] = useState('');
   const [severity, setSeverity] = useState<'warning' | 'error'>('warning');
   const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  // Feature-scoped feedback tag ('chora-next', …) passed via the open event's
+  // detail — tags the report so admins can filter beta feedback.
+  const [context, setContext] = useState<string | undefined>(undefined);
 
-  // Opened from the main navigation "More" drawer (the floating button was removed).
+  // Opened from the main navigation "More" drawer (the floating button was removed)
+  // or from feature beta "Give feedback" pills (with a context in the event detail).
   useEffect(() => {
-    const h = () => setOpen(true);
+    const h = (e: Event) => {
+      setContext((e as CustomEvent).detail?.context || undefined);
+      setOpen(true);
+    };
     window.addEventListener('OPEN_BUG_REPORT', h);
     return () => window.removeEventListener('OPEN_BUG_REPORT', h);
   }, []);
@@ -29,7 +36,7 @@ const BugReportButton: React.FC<BugReportButtonProps> = ({ currentView }) => {
   const submit = async () => {
     if (!message.trim() || state === 'sending') return;
     setState('sending');
-    const ok = await reportBug({ message: message.trim(), currentView, severity });
+    const ok = await reportBug({ message: message.trim(), currentView, severity, context });
     setState(ok ? 'sent' : 'error');
     if (ok) {
       setTimeout(() => { setOpen(false); setMessage(''); setState('idle'); setSeverity('warning'); }, 1800);
@@ -56,7 +63,12 @@ const BugReportButton: React.FC<BugReportButtonProps> = ({ currentView }) => {
               <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/8">
                 <div className="flex items-center gap-2">
                   <Bug size={16} className="text-[#EF4444]" />
-                  <span className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">Report a bug</span>
+                  <span className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">
+                    {context === 'chora-next' ? 'Chora Next — feedback' : 'Report a bug'}
+                  </span>
+                  {context && (
+                    <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest text-white" style={{ background: 'linear-gradient(120deg,#6B0099,#00DAF3)' }}>Beta</span>
+                  )}
                 </div>
                 <button onClick={() => setOpen(false)} disabled={state === 'sending'} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white transition-colors disabled:opacity-40">
                   <X size={15} />
@@ -78,7 +90,9 @@ const BugReportButton: React.FC<BugReportButtonProps> = ({ currentView }) => {
                       onChange={e => setMessage(e.target.value)}
                       autoFocus
                       rows={4}
-                      placeholder="Describe what went wrong or what you expected to happen…"
+                      placeholder={context === 'chora-next'
+                        ? 'What do you think of the new Chora — what works, what feels off, what’s missing?'
+                        : 'Describe what went wrong or what you expected to happen…'}
                       className="mt-2 w-full bg-white/[0.05] border border-white/12 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none focus:border-white/30 transition-colors resize-none"
                     />
                   </div>

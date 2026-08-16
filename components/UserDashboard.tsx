@@ -30,7 +30,7 @@ import {
   CreditCard, Globe, Shield, Bell, LogOut, Save, Plus, Trash2, X,
   ExternalLink, Play, Sparkles, Radio, Tv, Search, Notebook, Mail,
   CheckSquare, Square, Check, FolderPlus, LayoutGrid, Eye, EyeOff, ChevronUp, ChevronDown, Building2, ShoppingBag, Pen, Box, Heart, HeartHandshake, Trophy, Baby, DollarSign, UploadCloud, LayoutTemplate, Share2, ArrowRight,
-  Film, BarChart2, FileText, Users, Activity, ChevronLeft,
+  Film, BarChart2, FileText, Users, Activity, ChevronLeft, Fingerprint,
 } from 'lucide-react';
 import { useViewport } from '../hooks/useViewport';
 import MobileSettingsMenu, { SETTINGS_TAB_LABELS } from './MobileSettingsMenu';
@@ -64,6 +64,8 @@ import ClassroomAnalyticsView from './ClassroomAnalyticsView';
 import CertificateGenerator from './CertificateGenerator';
 // Content & Safety
 const LazyContentSafetySettings = React.lazy(() => import('./safety/ContentSafetySettings'));
+// Opt-in rights layer: the switch, plus every work that already has a record.
+const LazyRegistrySettings = React.lazy(() => import('./registry/RegistrySettings'));
 
 interface UserDashboardProps {
   user: any;
@@ -94,7 +96,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
     'FILM_STUDIO' | 'FILM_RIGHTS' | 'FILM_ANALYTICS' |
     'MUSIC_STUDIO' | 'ARTIST_RADIO' | 'PODCAST_HUB' | 'AUDIO_HEALTH' |
     'BOOKS_STUDIO' | 'SERIAL_SCHEDULER' | 'BOOK_CLUBS' |
-    'CLASSROOM_ANALYTICS' | 'CERTIFICATES' | 'SAFETY' | 'FAMILY'
+    'CLASSROOM_ANALYTICS' | 'CERTIFICATES' | 'SAFETY' | 'FAMILY' | 'RIGHTS_REGISTRY'
   >((initialTab as any) || 'ACCOUNT');
   // Phone-only settings shell: a touch-first drill-down replaces the sidebar. 'list' = the grouped
   // menu; 'detail' = one section full-screen with a back header. Deep-linked (initialTab) opens detail.
@@ -342,6 +344,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
             { id: 'INTERESTS', label: 'Interest Notebook', icon: Notebook },
             { id: 'WORLDS', label: 'My Worlds', icon: Globe },
             { id: 'ASSETS', label: 'My Assets', icon: Database },
+            { id: 'RIGHTS_REGISTRY', label: 'Rights & Identifiers', icon: Fingerprint },
             { id: 'PHOTOS', label: 'Photo Gallery', icon: ImageIcon },
             { id: 'BROADCAST', label: 'Master Control', icon: Tv, cap: 'LIVE_STREAM' as Capability },
             { id: 'MAILING_LIST', label: 'Mailing List', icon: Mail },
@@ -863,6 +866,14 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 <p className="text-white/40 text-sm font-bold uppercase tracking-widest mt-2">Kid accounts, parental controls & screen-time</p>
               </header>
               {user?.uid && <FamilyAccountManager guardianUid={user.uid} />}
+            </motion.div>
+          )}
+
+          {activeTab === 'RIGHTS_REGISTRY' && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+              <React.Suspense fallback={<div className="w-8 h-8 border-2 border-white/10 border-t-white rounded-full animate-spin" />}>
+                <LazyRegistrySettings />
+              </React.Suspense>
             </motion.div>
           )}
 

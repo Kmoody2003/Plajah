@@ -10,6 +10,9 @@
 /* The Post Man — mail + letter skins. Consumes DS tokens, defines no colours. */
 @import "./styles/postman.css";
 
+/* Chora Next — opt-in Listening Room skin + Observatory night variant. Consumes DS tokens. */
+@import "./styles/chora.css";
+
 @theme {
   --font-bebas: "Outfit", "Space Grotesk", sans-serif;
   --font-display: "Outfit", "Space Grotesk", sans-serif;

@@ -15,6 +15,7 @@ import MobileLiveStreamer, { MobileGoLiveButton } from './MobileLiveStreamer';
 import PresenceBadge from './PresenceBadge';
 import LiveTvPlus from './LiveTvPlus';
 import PlajahEpgGuide from './tv/PlajahEpgGuide';
+import ChipRail from './ui/ChipRail';
 
 interface LiveHubViewProps {
   onBack: () => void;
@@ -297,24 +298,19 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
           </button>
           <div>
             <PageHeader textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Plajah Live Hub</PageHeader>
-            <div className="flex items-center gap-6 border-b border-white/5 pb-2 overflow-x-auto no-scrollbar">
-              {([
+            {/* Platform Chip Rail treatment (components/ui/ChipRail).
+                'Studio Streams' (STREAMS) is retired — kept in code, removed from the guide. */}
+            <ChipRail
+              items={[
                 { id: 'TV_PLUS',  label: '📺 Live TV+'    },
                 { id: 'LIVE_TV',  label: '📺 Guide'       },
                 { id: 'SCIENCE',  label: '🔭 Science Live' },
                 { id: 'EVENTS',   label: 'Live Events'    },
                 { id: 'REPLAYS',  label: '▶ Replays'      },
-                // 'Studio Streams' (STREAMS) is retired — kept in code, removed from the guide.
-              ] as const).map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`text-xs font-black uppercase tracking-[0.3em] transition-all whitespace-nowrap pb-2 border-b-2 ${activeTab === tab.id ? 'text-small-orange border-small-orange' : 'text-white/20 border-transparent hover:text-white/40'}`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+              ]}
+              activeId={activeTab}
+              onSelect={(id) => setActiveTab(id as any)}
+            />
           </div>
         </div>
         
@@ -641,8 +637,14 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
                 };
                 return (
                   <div key={`fr_${f.id}`} className="group rounded-2xl overflow-hidden bg-white/5 border border-white/5 hover:border-white/15 transition-all cursor-pointer" onClick={openReplay}>
-                    <div className="relative aspect-video bg-black">
-                      {thumb ? <img src={thumb} alt={f.title} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    <div className="relative aspect-video bg-black overflow-hidden">
+                      {/* Blanking fill: the full image (often a portrait-orientation profile
+                          photo) is shown whole via object-contain, over a blurred copy of
+                          itself filling the frame — no more cover-crop zooming into faces. */}
+                      {thumb ? <>
+                        <img src={thumb} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-50" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        <img src={thumb} alt={f.title} className="relative w-full h-full object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      </>
                         : <div className="w-full h-full flex items-center justify-center"><PlayCircle size={32} className="text-white/20" /></div>}
                       <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-white/15 backdrop-blur text-white text-[9px] font-black uppercase tracking-widest">▶ Replay</div>
                       <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors">
@@ -679,15 +681,25 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
 
                 return (
                   <div key={archive.id} className="group rounded-2xl overflow-hidden bg-white/5 border border-white/5 hover:border-white/15 transition-all">
-                    {/* Thumbnail */}
-                    <div className="relative aspect-video bg-black">
+                    {/* Thumbnail — blanking fill (contain over blurred self-fill), same as
+                        the ended-stream cards, so no source ever gets a zoom-crop. */}
+                    <div className="relative aspect-video bg-black overflow-hidden">
                       {thumbUrl ? (
-                        <img
-                          src={thumbUrl}
-                          alt={archive.title}
-                          className="w-full h-full object-cover"
-                          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        />
+                        <>
+                          <img
+                            src={thumbUrl}
+                            alt=""
+                            aria-hidden="true"
+                            className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-50"
+                            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                          <img
+                            src={thumbUrl}
+                            alt={archive.title}
+                            className="relative w-full h-full object-contain"
+                            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        </>
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <PlayCircle size={32} className="text-white/20" />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit, FilmDistribution, FilmVersion, Character } from '../types';
 import { getPlatformInfo } from '../hooks/usePlatform';
@@ -13,7 +13,7 @@ import {
   Camera, Film, Tv, Info, Check, Layers, Settings, Twitter, Instagram, Youtube, Music2,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Minimize2, BookOpen, Gamepad2, Mic2, GripVertical,
   Eye, EyeOff, Loader2, Lock, Pencil, ExternalLink, Share2,
-  RefreshCw, Play, Pause, Square, SkipBack, ShieldCheck, AlertTriangle, ShieldX, Heart,
+  RefreshCw, Play, Pause, Square, SkipBack, ShieldCheck, AlertTriangle, ShieldX, Heart, Megaphone,
 } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
 import { usePublishQueue } from '../contexts/PublishQueueContext';
@@ -23,6 +23,11 @@ import FilmVersionsManager from './FilmVersionsManager';
 import LicensePicker from './LicensePicker';
 import { isFeatureEnabled } from '../services/featureFlagService';
 import { DEFAULT_LICENSE, type ContentLicenseId } from '../services/licensingService';
+import type { RegistrySubject } from '../services/registry/registryService';
+// Opt-in registry layer — off for every account until the owner turns it on.
+const RightsIdentifiersPanel = lazy(() => import('./registry/RightsIdentifiersPanel'));
+// Project Promo — the promo-kit folder (specs + assets for every promotion surface).
+const ProjectPromoManager = lazy(() => import('./ProjectPromoManager'));
 import { AUDIO_ACCEPT } from '../services/audioFormatService';
 import AudioHealthPanel from './AudioHealthPanel';
 
@@ -63,6 +68,8 @@ const hasSubtype = (t: AssetType) => t === 'MUSIC' || t === 'VIDEO';
 const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMinimize, isMinimized, initialAlbum, initialType }) => {
   const resolvedInitialType: AssetType = (initialAlbum?.type as AssetType) || initialType || 'MUSIC';
   const [step, setStep] = useState(initialAlbum ? 3 : initialType ? 1 : 0);
+  // Project Promo mode — the promo-kit folder, opened from the step-0 category grid.
+  const [promoMode, setPromoMode] = useState(false);
   const [title, setTitle] = useState(initialAlbum?.title || '');
   const [artist, setArtist] = useState(initialAlbum?.artist || '');
   const [type, setType] = useState<AssetType>(resolvedInitialType);
@@ -163,6 +170,9 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [seasons, setSeasons] = useState<TVSeason[]>(initialAlbum?.seasons || []);
   const [relatedProjectIds, setRelatedProjectIds] = useState<string[]>(initialAlbum?.relatedProjectIds || []);
   const [publishToAudius, setPublishToAudius] = useState<boolean>(initialAlbum?.publishToAudius ?? false);
+  // Which thing the Rights & Identifiers panel is open on: the release (UPC, catalogue
+  // number) or one track (ISRC, ISWC). Null = closed.
+  const [rightsSubject, setRightsSubject] = useState<RegistrySubject | null>(null);
   // Fresh-on-Plajah strip shown while the upload deploys.
   const [recentAdditions, setRecentAdditions] = useState<Album[]>([]);
   const [availableAlbums, setAvailableAlbums] = useState<Album[]>([]);
@@ -1099,6 +1109,19 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             </div>
           </button>
         ))}
+        {/* Project Promo — not an asset type: opens the promo-kit folder for an existing project. */}
+        <button
+          type="button"
+          onClick={() => setPromoMode(true)}
+          className="relative flex flex-col items-start gap-5 p-8 rounded-2xl border border-small-orange/40 bg-gradient-to-br from-[#6B0099]/25 via-[#D40055]/15 to-transparent hover:from-[#6B0099]/40 hover:via-[#D40055]/25 transition-all text-left hover:scale-[1.02] active:scale-95 text-white"
+        >
+          <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest text-white" style={{ background: 'linear-gradient(135deg,#D40055,#FF8C00)' }}>New</span>
+          <div className="p-4 rounded-2xl bg-white/5 text-small-orange"><Megaphone size={32} /></div>
+          <div>
+            <p className="text-sm font-black uppercase tracking-widest mb-1">Project Promo</p>
+            <p className="text-[9px] font-bold uppercase tracking-widest leading-relaxed text-white/30">Trailers, teasers, key art & audio samples — sized for every Plajah surface</p>
+          </div>
+        </button>
       </div>
     </div>
   );
@@ -2482,6 +2505,28 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Configure pricing, visibility, and distribution</p>
       </div>
 
+      {/* Rights & Identifiers — opt-in professional layer. UPC/GRid/catalogue number the
+          label already holds, plus the free permanent ID and fingerprint Plajah issues. */}
+      <button
+        type="button"
+        onClick={() => setRightsSubject({
+          kind: 'ALBUM',
+          id: initialAlbum?.id || projectIdRef.current,
+          title: title || 'Untitled',
+          creatorName: artist,
+        })}
+        className="w-full flex items-center gap-4 p-5 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/[0.07] transition-colors text-left"
+      >
+        <ShieldCheck size={18} className="text-white/40 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base font-black uppercase tracking-widest">Rights &amp; Identifiers</h3>
+          <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">
+            UPC · catalogue no. · credits &amp; splits · permanent ID
+          </p>
+        </div>
+        <ChevronRight size={16} className="text-white/25 shrink-0" />
+      </button>
+
       {/* Project Gallery / Slideshow */}
       <div className="p-5 bg-white/5 rounded-2xl border border-white/10 space-y-6">
         <div className="flex items-center justify-between">
@@ -2969,6 +3014,15 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                   className="flex-1 bg-transparent border-b border-white/10 focus:border-small-orange/60 outline-none text-sm font-black uppercase tracking-wide text-white placeholder:text-white/20 pb-0.5 transition-colors"
                   placeholder="Track title…"
                 />
+                {/* Per-recording identifiers: ISRC lives on the track, never the release. */}
+                <button
+                  type="button"
+                  title="ISRC, composition & splits for this recording"
+                  onClick={(e) => { e.stopPropagation(); setRightsSubject({ kind: 'TRACK', id: track.id, title: track.title, creatorName: artist }); }}
+                  className="p-1.5 shrink-0 text-white/20 hover:text-white transition-colors rounded"
+                >
+                  <ShieldCheck size={13} />
+                </button>
                 <div className="flex flex-col gap-0.5 shrink-0">
                   <button type="button" disabled={i === 0} onClick={() => { const r = [...tracks]; [r[i-1], r[i]] = [r[i], r[i-1]]; setTracks(r); }} className="p-1 text-white/20 hover:text-white disabled:opacity-10 transition-colors rounded"><ChevronUp size={12} /></button>
                   <button type="button" disabled={i === tracks.length - 1} onClick={() => { const r = [...tracks]; [r[i+1], r[i]] = [r[i], r[i+1]]; setTracks(r); }} className="p-1 text-white/20 hover:text-white disabled:opacity-10 transition-colors rounded"><ChevronDown size={12} /></button>
@@ -3052,6 +3106,30 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-[200] p-4 md:p-8" style={{ background: 'rgba(4,3,10,0.60)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+
+      {/* Rights & Identifiers — opened from the release settings or from a track row.
+          Mounted here so it survives step changes. */}
+      {rightsSubject && (
+        <Suspense fallback={null}>
+          <RightsIdentifiersPanel subject={rightsSubject} onClose={() => setRightsSubject(null)} />
+        </Suspense>
+      )}
+
+      {/* Project Promo — the promo-kit folder, layered over the wizard like the HNS picker. */}
+      {promoMode && (
+        <div className="absolute inset-0 z-[350] flex items-center justify-center p-4 md:p-8" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+          <div
+            className="max-w-3xl w-full h-full lg:h-[88vh] max-h-[900px] rounded-3xl border border-white/10 overflow-hidden flex flex-col animate-in zoom-in-95 duration-300"
+            style={{ background: 'radial-gradient(ellipse 80% 55% at 8% -8%, rgba(107,0,153,0.30) 0%, transparent 56%), radial-gradient(ellipse 62% 50% at 94% 108%, rgba(212,0,85,0.22) 0%, transparent 55%), #0b0714' }}
+          >
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-5 sm:p-8">
+              <Suspense fallback={<div className="py-20 flex justify-center"><Loader2 className="animate-spin text-white/30" size={28} /></div>}>
+                <ProjectPromoManager onBack={() => setPromoMode(false)} preselectedAlbum={initialAlbum} />
+              </Suspense>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* HNS Track Picker Modal */}
       {hnsTrackPicker && (

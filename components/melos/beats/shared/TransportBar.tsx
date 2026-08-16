@@ -2,7 +2,7 @@
 // Purple appears here ONLY in the wordmark (brand-chrome rule).
 
 import React, { useCallback, useRef, useState } from 'react';
-import { Play, Square, Activity, X, FileDown, FileUp, Download, UploadCloud } from 'lucide-react';
+import { Play, Square, Activity, X, FileDown, FileUp, Download, UploadCloud, OctagonX } from 'lucide-react';
 import type { GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { PLAYHEAD } from '../theme';
@@ -27,6 +27,7 @@ interface TransportBarProps {
   onSetView: (v: BeatsViewId) => void;
   onPlay: () => void;
   onStop: () => void;
+  onPanic: () => void;
   onSetBpm: (bpm: number) => void;
   onSetSwing: (swing: number) => void;
   onSetPlayMode: (m: 'pattern' | 'song') => void;
@@ -144,6 +145,16 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
           <Play size={14} fill="currentColor" />
         </button>
       )}
+
+      {/* Panic — cut every sounding voice. The safety net for a synth note left ringing. */}
+      <button
+        onClick={p.onPanic}
+        aria-label="Panic — stop all sound"
+        title="Panic: silence every sounding note"
+        className="w-9 h-8 grid place-items-center rounded-lg border border-[#EF4444]/45 text-[#EF4444] hover:bg-[#EF4444]/12"
+      >
+        <OctagonX size={15} />
+      </button>
 
       <div className="flex rounded-lg border border-[#00DAF3]/40 overflow-hidden">
         <button

@@ -46,6 +46,7 @@ import Portal from './Portal';
 // Blueprint 1B.4 ("Today" — 24h ephemeral posts) + Part 2B student walls.
 import { TODAY_TTL_MS, withoutExpiredTodays } from '../services/todayPosts';
 import { StudentWallRow } from './StudentWall';
+import RichText from '../src/lib/richText';
 const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
 const LiveTalkView = lazy(() => import('./LiveTalkView'));
 
@@ -905,35 +906,11 @@ const DeepLinkPost: React.FC<{ type: 'WATCH_ALONG' | 'LIVE_FEED'; url: string; t
   );
 };
 
-const RenderTextWithMentions: React.FC<{ text: string; onVisitUser: (uid: string) => void }> = ({ text, onVisitUser }) => {
-  // Regex to find @[Name](uid) pattern or just @Name
-  // We'll use @[Name](uid) as the canonical mention format internally
-  const parts = text.split(/(@\[[^\]]+\]\([^\)]+\))/g);
-  return (
-    <>
-      {parts.map((part, i) => {
-        const mentionMatch = part.match(/@\[([^\]]+)\]\(([^)]+)\)/);
-        if (mentionMatch) {
-          const name = mentionMatch[1];
-          const uid = mentionMatch[2];
-          return (
-            <span 
-              key={i}
-              className="text-small-orange hover:underline cursor-pointer font-bold transition-all hover:scale-105 inline-block"
-              onClick={(e) => {
-                e.stopPropagation();
-                onVisitUser(uid);
-              }}
-            >
-              @{name}
-            </span>
-          );
-        }
-        return part;
-      })}
-    </>
-  );
-};
+// Mentions, scripture references and plain text — see src/lib/richText.tsx.
+// Was duplicated with PostCard; both now share one implementation.
+const RenderTextWithMentions: React.FC<{ text: string; onVisitUser: (uid: string) => void }> = ({ text, onVisitUser }) => (
+  <RichText text={text} onVisitUser={onVisitUser} />
+);
 
 const FeedItemComponent: React.FC<{
   item: FeedItem;

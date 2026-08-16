@@ -4,6 +4,7 @@ import PageHeader from './PageHeader';
 import { motion, AnimatePresence } from 'motion/react';
 import { Game, UserProfile } from '../types';
 import { fetchGames, updateGamePlayCount, fetchUserProfile, auth } from '../services/backendService';
+import ChipRail from './ui/ChipRail';
 
 interface FreeToGame {
   id: number;
@@ -123,19 +124,16 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame }) => {
         </div>
       </div>
 
-      <div className="px-8 pt-6 border-b border-white/5 flex items-center gap-6">
-         <button 
-           onClick={() => setActiveTab('HOME_BASE')}
-           className={`pb-4 text-xs font-black uppercase tracking-[0.3em] transition-all border-b-2 ${activeTab === 'HOME_BASE' ? 'border-small-orange text-small-orange' : 'border-transparent text-white/40 hover:text-white'}`}
-         >
-           <div className="flex items-center gap-2"><Library size={16} /> Home Base</div>
-         </button>
-         <button 
-           onClick={() => setActiveTab('GLOBAL')}
-           className={`pb-4 text-xs font-black uppercase tracking-[0.3em] transition-all border-b-2 ${activeTab === 'GLOBAL' ? 'border-small-orange text-small-orange' : 'border-transparent text-white/40 hover:text-white'}`}
-         >
-           <div className="flex items-center gap-2"><Globe size={16} /> Global Games Community</div>
-         </button>
+      {/* Platform Chip Rail treatment (components/ui/ChipRail) */}
+      <div className="px-8 pt-6 pb-4 border-b border-white/5">
+        <ChipRail
+          items={[
+            { id: 'HOME_BASE', label: 'Home Base', icon: <Library size={13} /> },
+            { id: 'GLOBAL', label: 'Global Games Community', icon: <Globe size={13} /> },
+          ]}
+          activeId={activeTab}
+          onSelect={(id) => setActiveTab(id as any)}
+        />
       </div>
 
       <div className="flex-1 overflow-y-auto p-8 relative">

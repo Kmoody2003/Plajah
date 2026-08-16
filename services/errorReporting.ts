@@ -100,6 +100,9 @@ export interface BugReportInput {
   /** What the user was doing / current view. */
   currentView?: string;
   severity?: ErrorSeverity;
+  /** Feature-scoped feedback tag (e.g. 'chora-next') — lets the admin panel
+   *  filter beta feedback out of the general error stream. */
+  context?: string;
 }
 
 /**
@@ -118,6 +121,7 @@ export async function reportBug(input: BugReportInput): Promise<boolean> {
       source: 'user-report',
       severity: input.severity || 'warning',
       currentView: input.currentView || '',
+      context: input.context || '',
       trace: events.slice(-200),                 // structured breadcrumbs
       traceText: formatTrace(events).slice(0, 8000), // readable transcript
       url: typeof location !== 'undefined' ? location.href.slice(0, 500) : '',

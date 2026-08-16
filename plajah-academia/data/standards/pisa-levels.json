@@ -1,0 +1,27 @@
+{
+  "MATH": {
+    "1": "Answer questions in familiar contexts where all information is present and questions are clearly defined.",
+    "2": "Interpret and recognize situations needing no more than direct inference; use basic algorithms and procedures.",
+    "3": "Execute clearly described procedures including sequential decisions; interpret and use representations.",
+    "4": "Work effectively with explicit models for complex concrete situations; select and integrate representations.",
+    "5": "Develop and work with models for complex situations; select and evaluate problem-solving strategies.",
+    "6": "Conceptualize, generalize, and use information from investigations and modeling of complex situations."
+  },
+  "READ": {
+    "1": "Locate explicitly stated information in short, simple texts on familiar topics.",
+    "2": "Locate information meeting several conditions; identify the main idea; make low-level inferences.",
+    "3": "Integrate several parts of a text; compare, contrast, or categorize competing information.",
+    "4": "Interpret nuanced language; critically evaluate a text; handle unfamiliar content and formats.",
+    "5": "Locate and organize deeply embedded information; evaluate critically and build hypotheses.",
+    "6": "Make multiple inferences, comparisons and contrasts with precision across multiple full texts."
+  },
+  "SCI": {
+    "1": "Use basic everyday scientific knowledge to recognize simple phenomena.",
+    "2": "Draw on everyday knowledge and basic procedural knowledge to identify scientific explanations.",
+    "3": "Use moderately complex content knowledge to construct explanations of familiar phenomena.",
+    "4": "Interpret data and evidence from different sources; justify choices of experimental design.",
+    "5": "Evaluate ways of exploring questions scientifically; construct explanations from multiple evidence lines.",
+    "6": "Draw on interrelated scientific ideas to justify novel predictions and evaluate competing designs."
+  },
+  "note": "Descriptors paraphrased from OECD PISA proficiency scales for internal calibration. For released items and exact scale descriptors, source from OECD publications directly and verify redistribution terms before ingesting item text verbatim."
+}

@@ -23,6 +23,7 @@ import { ExploreView } from './ExploreView';
 import { MoviesSpecificView } from './MoviesSpecificView';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import ScrollableTabRow from './ScrollableTabRow';
+import ChipRail from './ui/ChipRail';
 import PlajahPlusBanner from './PlajahPlusBanner';
 import { fetchPublicClubs, fetchVideoById } from '../services/backendService';
 import HoverPreviewThumb, { previewSourceFor } from './HoverPreviewThumb';
@@ -47,41 +48,29 @@ const TaleoTabNav: React.FC<{
   setCurrentSubView: (v: SubView) => void;
   onNavigate?: (view: 'WORLDS' | 'USER_PROFILE') => void;
 }> = ({ currentSubView, setCurrentSubView, onNavigate }) => (
-  <div className="sticky top-16 z-40 bg-[#131314]/90 backdrop-blur-xl border-b border-white/5 px-2">
-    <ScrollableTabRow innerClassName="max-w-2xl mx-auto py-1 justify-around gap-1">
-      {[
-        { id: 'HOME',     icon: Home,        label: 'Home'     },
-        { id: 'MOVIES',   icon: Film,        label: 'Movies'   },
-        { id: 'TV',       icon: Monitor,     label: 'TV'       },
-        { id: 'MUSEUM',   icon: Landmark,    label: 'Museum'   },
-        { id: 'CLUBS',    icon: Users,       label: 'Clubs'    },
-        { id: 'UNIVERSE', icon: Globe,       label: 'Universe' },
-        { id: 'EXPLORE',  icon: ExploreIcon, label: 'Explore'  },
-        { id: 'LIBRARY',  icon: Library,     label: 'Library'  },
-        { id: 'PROFILE',  icon: PersonIcon,  label: 'Profile'  },
-      ].map(({ id, icon: Icon, label }) => {
-        const isActive =
-          currentSubView === id ||
-          (id === 'HOME' && currentSubView === 'HOME') ||
-          (id === 'EXPLORE' && currentSubView === 'HIVE');
-        return (
-          <button
-            key={id}
-            onClick={() => {
-              if (id === 'EXPLORE')      onNavigate?.('WORLDS');
-              else if (id === 'PROFILE') onNavigate?.('USER_PROFILE');
-              else                       setCurrentSubView(id as SubView);
-            }}
-            className={`flex flex-col items-center justify-center px-3 py-2.5 rounded-xl transition-all duration-200 flex-shrink-0 ${
-              isActive ? 'text-[#D0BCFF] bg-[#D0BCFF]/10' : 'text-white/30 hover:text-white/70'
-            }`}
-          >
-            <Icon size={18} />
-            <span className="text-[7px] font-black uppercase tracking-wider mt-0.5">{label}</span>
-          </button>
-        );
-      })}
-    </ScrollableTabRow>
+  // Platform Chip Rail treatment (components/ui/ChipRail — same rail as the
+  // Global Archive + Chora). Explore/Profile are honest doors: they navigate
+  // away, so they carry the ↗.
+  <div className="sticky top-16 z-40 bg-[#131314]/90 backdrop-blur-xl border-b border-white/5 px-2 py-2 flex justify-center">
+    <ChipRail
+      items={[
+        { id: 'HOME',     icon: <Home size={13} />,        label: 'Home'     },
+        { id: 'MOVIES',   icon: <Film size={13} />,        label: 'Movies'   },
+        { id: 'TV',       icon: <Monitor size={13} />,     label: 'TV'       },
+        { id: 'MUSEUM',   icon: <Landmark size={13} />,    label: 'Museum'   },
+        { id: 'CLUBS',    icon: <Users size={13} />,       label: 'Clubs'    },
+        { id: 'UNIVERSE', icon: <Globe size={13} />,       label: 'Universe' },
+        { id: 'EXPLORE',  icon: <ExploreIcon size={13} />, label: 'Explore', door: true },
+        { id: 'LIBRARY',  icon: <Library size={13} />,     label: 'Library'  },
+        { id: 'PROFILE',  icon: <PersonIcon size={13} />,  label: 'Profile', door: true },
+      ]}
+      activeId={currentSubView === 'HIVE' ? 'EXPLORE' : currentSubView}
+      onSelect={(id) => {
+        if (id === 'EXPLORE')      onNavigate?.('WORLDS');
+        else if (id === 'PROFILE') onNavigate?.('USER_PROFILE');
+        else                       setCurrentSubView(id as SubView);
+      }}
+    />
   </div>
 );
 

@@ -35,6 +35,7 @@ import PortfolioRoom from './photo/PortfolioRoom';
 import WeeklySalon from './photo/WeeklySalon';
 import { PHOTO_ART_SCHOOL } from '../data/photoArtCurriculum';
 import { PHOTO_IMPORT_SOURCES, PHOTOGRAPHER_PRO_FEATURES } from '../services/photoEditingService';
+import ChipRail from './ui/ChipRail';
 
 interface GlobalPhotosViewProps {
   onVisitUser: (uid: string) => void;
@@ -166,38 +167,25 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center bg-white/5 p-1 rounded-2xl border border-white/10 self-start max-w-3xl">
-            {[
-              { id: 'WATERFALL', label: 'Waterfall', icon: Camera },
-              { id: 'GALLERY', label: 'Art Gallery', icon: Sparkles },
-              { id: 'EVENTS', label: 'Events', icon: QrCode },
-              { id: 'IMPORTS', label: 'Import', icon: Cloud },
-              { id: 'PRO', label: 'Pro', icon: Wand2 },
-              { id: 'THEMES', label: 'Themes', icon: ImageIcon },
-              { id: 'SOCIAL', label: 'From Social', icon: Share2 },
-              { id: 'SCHOOL', label: 'School', icon: GraduationCap },
-              { id: 'SALON', label: 'Salon', icon: Trophy },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setMode(tab.id as any)}
-                className={`px-4 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${mode === tab.id ? 'bg-white text-black shadow-xl' : 'text-white/40 hover:text-white'}`}
-              >
-                <tab.icon size={13} />
-                {tab.label}
-              </button>
-            ))}
-            {onOpenArtMuseum && (
-              <button
-                onClick={onOpenArtMuseum}
-                className="px-4 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 text-[#C9A55C] hover:bg-[#C9A55C]/15 border border-[#C9A55C]/30"
-                title="The masters, art history & open-access museum collections"
-              >
-                <Landmark size={13} />
-                The Masters
-              </button>
-            )}
-          </div>
+          {/* Platform Chip Rail treatment (components/ui/ChipRail).
+              "The Masters" is an honest door — it navigates to the art museum. */}
+          <ChipRail
+            className="self-start"
+            items={[
+              { id: 'WATERFALL', label: 'Waterfall', icon: <Camera size={13} /> },
+              { id: 'GALLERY', label: 'Art Gallery', icon: <Sparkles size={13} /> },
+              { id: 'EVENTS', label: 'Events', icon: <QrCode size={13} /> },
+              { id: 'IMPORTS', label: 'Import', icon: <Cloud size={13} /> },
+              { id: 'PRO', label: 'Pro', icon: <Wand2 size={13} /> },
+              { id: 'THEMES', label: 'Themes', icon: <ImageIcon size={13} /> },
+              { id: 'SOCIAL', label: 'From Social', icon: <Share2 size={13} /> },
+              { id: 'SCHOOL', label: 'School', icon: <GraduationCap size={13} /> },
+              { id: 'SALON', label: 'Salon', icon: <Trophy size={13} /> },
+              ...(onOpenArtMuseum ? [{ id: 'MASTERS', label: 'The Masters', icon: <Landmark size={13} />, color: '#C9A55C', door: true }] : []),
+            ]}
+            activeId={mode}
+            onSelect={(id) => { if (id === 'MASTERS') onOpenArtMuseum?.(); else setMode(id as any); }}
+          />
         </div>
       </header>
 

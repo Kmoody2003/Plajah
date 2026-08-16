@@ -44,6 +44,7 @@ import { TrendingSection, WatchLaterSection } from './reello/ReelloDiscoverySect
 import { SoundChip, SoundRailSheet, UseThisSoundButton } from './reello/SoundsRail';
 // Live → Short (blueprint 1C.3) — "clip this" on a live or just-ended stream.
 import { LiveClipStudio, ClipThisButton, MyClipsSection } from './reello/LiveClipStudio';
+import ChipRail from './ui/ChipRail';
 
 interface VideoTabProps {
   profile: UserProfile | null;
@@ -1166,11 +1167,17 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
             />
           )}
 
-          {/* Mobile view tabs */}
-          <div className={`gap-2 lg:hidden mb-6 overflow-x-auto no-scrollbar ${profileScoped ? 'hidden' : 'flex'}`}>
-            {(['discover', 'trending', 'subscriptions', 'shorts', 'uploads', 'live', 'playlists', 'liked', 'watchlater', 'history', 'social', 'channel'] as const).map(v => (
-              <button key={v} onClick={() => setActiveView(v)} className={`px-4 py-2 rounded-full font-black text-[9px] uppercase tracking-widest whitespace-nowrap shrink-0 transition-all ${activeView === v ? 'bg-white text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>{v === 'channel' ? 'My Channel' : v === 'uploads' ? 'My Videos' : v === 'social' ? 'From Social' : v === 'watchlater' ? 'Watch Later' : v}</button>
-            ))}
+          {/* Mobile view tabs — platform Chip Rail treatment (components/ui/ChipRail);
+              desktop keeps its sidebar. */}
+          <div className={`lg:hidden mb-6 ${profileScoped ? 'hidden' : ''}`}>
+            <ChipRail
+              items={(['discover', 'trending', 'subscriptions', 'shorts', 'uploads', 'live', 'playlists', 'liked', 'watchlater', 'history', 'social', 'channel'] as const).map(v => ({
+                id: v,
+                label: v === 'channel' ? 'My Channel' : v === 'uploads' ? 'My Videos' : v === 'social' ? 'From Social' : v === 'watchlater' ? 'Watch Later' : v.charAt(0).toUpperCase() + v.slice(1),
+              }))}
+              activeId={activeView}
+              onSelect={(id) => setActiveView(id as any)}
+            />
           </div>
 
           {/* â"€â"€ DISCOVER â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}

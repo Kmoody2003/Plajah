@@ -12,6 +12,8 @@ import { getCachedAnalysis, getOrComputeAnalysis } from '../services/djAnalysis'
 import { getTrackStream } from '../services/choraStreamService';
 import { canUseFxStage } from '../services/tvCapabilities';
 import { getPlatformInfo } from '../hooks/usePlatform';
+import { useChoraNext } from '../hooks/useChoraNext';
+import OrreryStage from './OrreryStage';
 import AlbumTvView from './tv/AlbumTvView';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
 import FxStageVisualizers, { type FxEngine, fxPresetName, FX_ENGINE_PRESETS, loadMilkdropNames } from './FxStageVisualizers';
@@ -560,6 +562,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const leaveListeningParty = useCallback(() => { if (party.isHost) party.end(); setActivePartyId(null); }, [party]);
   const [playlistPickerTrack, setPlaylistPickerTrack] = useState<Track | null>(null);
   const [activeHUD, setActiveHUD] = useState<'INFO' | 'COMMENTS' | 'TRACKS' | 'ABOUT' | 'MEDIA' | 'LYRICS'>('TRACKS');
+  // Chora Next "Gatefold" album skin (opt-in, per-device): on desktop the
+  // right-edge icon rail becomes a bottom chip dock. Same state, same items.
+  const choraNext = useChoraNext();
+  const gatefoldOn = choraNext.enabled && !getPlatformInfo().isTV;
+  // Orrery stage (Gatefold only): tracks orbit the album art in place of the cover card.
+  const [isOrreryActive, setIsOrreryActive] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isTracksCollapsed, setIsTracksCollapsed] = useState(false);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
@@ -1125,7 +1133,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
   if (isMobile && !isTVMode) {
     return (
-      <div className="h-[100dvh] bg-transparent text-primary overflow-hidden relative selection:bg-white selection:text-black font-sans flex flex-col">
+      <div className={`h-[100dvh] bg-transparent text-primary overflow-hidden relative selection:bg-white selection:text-black font-sans flex flex-col${gatefoldOn ? (choraNext.isNight ? ' chora-next chora-night' : ' chora-next') : ''}`}>
         {/* Mobile Atmospheric Background — blurred artwork at 60%, fades into app bg at bottom */}
         <div className="fixed inset-0 z-0 pointer-events-none">
           <img
@@ -1296,6 +1304,20 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     themeColor={album.themeColor}
                   />
                 </div>
+              ) : gatefoldOn && choraNext.isNight ? (
+                /* Night Registry (mobile Gatefold): the Orrery replaces the cover —
+                   tracks orbit the album; tapping a node plays it. */
+                <div
+                  className="w-full h-full flex items-center justify-center"
+                  style={{ background: 'radial-gradient(90% 120% at 50% -20%, rgba(107,0,153,0.45), transparent 65%), radial-gradient(60% 80% at 85% 10%, rgba(0,218,243,0.12), transparent 60%), #060210' }}
+                >
+                  <OrreryStage
+                    album={album}
+                    tracks={localTracks}
+                    activeIndex={currentTrackIndex}
+                    onPlayTrack={(t, i) => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }}
+                  />
+                </div>
               ) : (
                 <img
                   src={thumb((currentTrack?.images?.[0]) || album.coverImage, THUMB.large) || undefined}
@@ -1309,7 +1331,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent pointer-events-none" />
               
               <div className="absolute inset-0 flex items-center justify-center p-8">
-                {(!globalIsPlaying || !isCurrentTrackGlobal) && (
+                {(!globalIsPlaying || !isCurrentTrackGlobal) && !(gatefoldOn && choraNext.isNight) && (
                   <button 
                     onClick={(e) => { e.stopPropagation(); playTrack(album.tracks[0], album, 'LIBRARY'); setCurrentTrackIndex(0); }}
                     className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center transform scale-100 opacity-100 transition-all duration-500 border border-white/30 shadow-2xl z-10"
@@ -1346,16 +1368,30 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               >
                 <Activity size={12} /> FX Stage
               </button>
-              {/* Floating Track Info on Cover */}
+              {/* Floating Track Info on Cover — Gatefold: sleeve credits (italic title,
+                  gradient artist, live ember progress bar); classic keeps the old style */}
               <div className="absolute bottom-6 left-6 right-6" style={{bottom:'max(1.5rem, env(safe-area-inset-bottom))'}}>
-                <h2 className="text-2xl font-black uppercase tracking-tightest leading-none mb-1 shadow-md">{currentTrack?.title}</h2>
-                <p className="text-xs font-bold text-small-orange uppercase tracking-widest shadow-md">{album.artist}</p>
+                {gatefoldOn ? (
+                  <>
+                    <h2 className="text-2xl font-black italic tracking-tight leading-none mb-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">{currentTrack?.title || album.title}</h2>
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] w-fit bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#6B0099] bg-clip-text text-transparent drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)]">{album.artist}</p>
+                    <div className="h-[3px] rounded-full bg-white/15 mt-2 overflow-hidden">
+                      <div className="h-full rounded-full bg-gradient-to-r from-[#D40055] to-[#FF8C00] transition-[width] duration-500" style={{ width: `${isCurrentTrackGlobal && globalDuration > 0 ? Math.min(100, (globalCurrentTime / globalDuration) * 100) : 0}%` }} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-2xl font-black uppercase tracking-tightest leading-none mb-1 shadow-md">{currentTrack?.title}</h2>
+                    <p className="text-xs font-bold text-small-orange uppercase tracking-widest shadow-md">{album.artist}</p>
+                  </>
+                )}
               </div>
             </div>
           )}
         </div>
 
-        {/* Tabbed Navigation */}
+        {/* Tabbed Navigation — Gatefold moves this to the bottom dock (thumb-reach) */}
+        {!gatefoldOn && (
         <div className="relative sticky top-0 z-40 overflow-hidden shrink-0" style={{
           background: 'linear-gradient(135deg, rgba(6,4,10,0.92) 0%, rgba(10,4,8,0.92) 100%)',
           backdropFilter: 'blur(24px)',
@@ -1433,6 +1469,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             </div>
           </div>
         </div>
+        )}
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 z-10 relative">
@@ -1931,6 +1968,49 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             </div>
           )}
         </div>
+
+        {/* ── Gatefold mobile dock — the HUD tabs as chips + the day/night toggle,
+              at the bottom of the flex column so nothing can overlap content. ── */}
+        {gatefoldOn && (
+          <div
+            className="shrink-0 z-50 px-2 pt-1.5"
+            style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))', background: 'rgba(10,6,16,0.88)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            <div className="flex items-center gap-[3px] overflow-x-auto no-scrollbar">
+              {([
+                { id: 'TRACKS', label: album.trackListLabel || (album.type === 'BOOK' ? 'Contents' : 'Tracks'), icon: album.type === 'BOOK' ? BookOpen : List },
+                { id: 'LYRICS', label: 'Lyrics', icon: Music2 },
+                { id: 'MEDIA', label: 'Videos', icon: VideoIcon },
+                { id: 'COMMENTS', label: 'Feed', icon: MessageSquare },
+                { id: 'INFO', label: 'Notes', icon: Sparkles },
+              ] as const).map(tab => {
+                const active = activeHUD === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveHUD(tab.id as any)}
+                    className="shrink-0 flex items-center gap-1.5 h-[30px] px-3 rounded-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all"
+                    style={active
+                      ? { backgroundImage: choraNext.isNight ? 'var(--pj-grad-spatial, linear-gradient(135deg,#6B0099,#00DAF3))' : 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))', color: '#fff' }
+                      : { color: 'rgba(255,255,255,0.5)' }}
+                  >
+                    <tab.icon size={11} className={active ? 'text-white' : 'text-white/40'} />
+                    {tab.label}
+                  </button>
+                );
+              })}
+              <div className="w-px h-4 bg-white/15 mx-1 shrink-0" />
+              {/* Day / Night / Auto — the same toggle as the Chora masthead */}
+              <button
+                onClick={choraNext.cycleMode}
+                title="Cycle day / night / auto"
+                className="shrink-0 flex items-center gap-1 h-[30px] px-3 rounded-full border border-white/15 bg-white/[0.06] text-[9px] font-black uppercase tracking-widest text-white/70 whitespace-nowrap"
+              >
+                {choraNext.mode === 'auto' ? (choraNext.isNight ? 'Auto ☾' : 'Auto ☀') : choraNext.mode === 'day' ? 'Day ☀' : 'Night ☾'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -2282,7 +2362,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   }
 
   return (
-    <div className="h-[100dvh] bg-transparent text-primary overflow-hidden relative selection:bg-white selection:text-black font-sans">
+    <div className={`h-[100dvh] bg-transparent text-primary overflow-hidden relative selection:bg-white selection:text-black font-sans${gatefoldOn ? (choraNext.isNight ? ' chora-next chora-night' : ' chora-next') : ''}`}>
       {/* ── Full-page cover art — clear, fades to transparent at bottom ── */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
         {/* Ambient blurred base (very soft, low opacity) */}
@@ -2502,8 +2582,17 @@ const PlayerView: React.FC<PlayerViewProps> = ({
              </div>
            </div>
          ) : (
-           /* ── DEFAULT MODE: cover art full-page bg + floating cards ── */
-           <div className="w-full h-full relative flex flex-col">
+           /* ── DEFAULT MODE: cover art full-page bg + floating cards.
+                Gatefold: this column becomes the sleeve's LEFT LEAF — a solid
+                glass panel that folds open (rotateY from its right hinge) as
+                the album opens. Classic skin renders exactly as before. ── */
+           <motion.div
+             className={`relative flex flex-col ${gatefoldOn ? 'w-full flex-1 min-h-0 rounded-[1.75rem] border border-white/12 overflow-hidden' : 'w-full h-full'}`}
+             initial={gatefoldOn ? { rotateY: -55, opacity: 0.35 } : false}
+             animate={gatefoldOn ? { rotateY: 0, opacity: 1 } : {}}
+             transition={{ duration: 0.9, ease: [0.2, 0, 0, 1] }}
+             style={gatefoldOn ? { transformOrigin: '100% 50%', transformPerspective: 1400, background: 'rgba(14,8,22,0.66)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } : undefined}
+           >
              {/* Layer 0 — subtle visualizer at very low opacity for ambient movement */}
              <div className="absolute inset-0 pointer-events-none opacity-20">
                <div className="absolute inset-0" style={{ opacity: visualizerType === "PAINT" ? 0.35 : 1, transition: 'opacity 0.8s ease' }}>
@@ -2516,8 +2605,17 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                )}
              </div>
 
-             {/* Layer 1 — album art card (centered top half) + WorldBadge overlay */}
+             {/* Layer 1 — album art card (centered top half) + WorldBadge overlay.
+                 Gatefold's Orrery stage swaps in for the cover card when toggled. */}
              <div className="flex-1 flex flex-col items-center justify-center gap-5 px-8 pt-8 relative z-10">
+               {gatefoldOn && isOrreryActive ? (
+                 <OrreryStage
+                   album={album}
+                   tracks={localTracks}
+                   activeIndex={currentTrackIndex}
+                   onPlayTrack={(t, i) => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }}
+                 />
+               ) : (
                <motion.div
                  initial={{ scale: 0.9, opacity: 0 }}
                  animate={{ scale: 1, opacity: 1 }}
@@ -2545,21 +2643,62 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                    <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest drop-shadow-md">{album.artist}</p>
                  </div>
                </motion.div>
+               )}
+
+               {/* ── Gatefold left leaf — permanent credits under the art (Chora Next
+                     only): the record sleeve's front matter. Title, gradient artist,
+                     release chips, and a liner-notes excerpt (full notes stay in the
+                     Notes panel). Hidden on short viewports so nothing overflows. */}
+               {gatefoldOn && (
+                 <div className="w-full max-w-[340px] hidden [@media(min-height:820px)]:block">
+                   <h2 className="text-2xl font-black italic tracking-tight text-white leading-[1.02]" style={{ textWrap: 'balance' } as React.CSSProperties}>{album.title}</h2>
+                   <p
+                     className="mt-1 text-[11px] font-black uppercase tracking-[0.22em] inline-block"
+                     style={{ background: 'var(--pj-grad-ember, linear-gradient(135deg,#D40055,#FF8C00))', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}
+                   >
+                     {album.artist}
+                   </p>
+                   <div className="mt-2.5 flex flex-wrap gap-1.5">
+                     {(album.releaseDate || album.createdAt) && (
+                       <span className="px-2.5 py-1 rounded-full border border-white/15 text-[8px] font-black uppercase tracking-widest text-white/60">{new Date(album.releaseDate || album.createdAt).getFullYear()}</span>
+                     )}
+                     {album.genre && (
+                       <span className="px-2.5 py-1 rounded-full border border-white/15 text-[8px] font-black uppercase tracking-widest text-white/60">{album.genre}</span>
+                     )}
+                     <span className="px-2.5 py-1 rounded-full border border-white/15 text-[8px] font-black uppercase tracking-widest text-white/60">
+                       {album.type === 'BOOK' ? `${album.bookChapters?.length || 0} chapters` : `${album.tracks?.length || 0} tracks`}
+                     </span>
+                   </div>
+                   {(album.linerNotes || album.description) && (
+                     <p className="mt-3 text-[11px] leading-relaxed text-white/55 line-clamp-3">{album.linerNotes || album.description}</p>
+                   )}
+                 </div>
+               )}
 
                {/* View mode toggle */}
                <div className="flex items-center gap-2">
                  <button
-                   onClick={() => setIsSlideshowActive(false)}
-                   className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${!isSlideshowActive ? 'bg-white text-black border-white' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white'}`}
+                   onClick={() => { setIsSlideshowActive(false); setIsOrreryActive(false); }}
+                   className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${!isSlideshowActive && !isOrreryActive ? 'bg-white text-black border-white' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white'}`}
                  >
                    Art
                  </button>
                  <button
-                   onClick={() => setIsSlideshowActive(true)}
+                   onClick={() => { setIsSlideshowActive(true); setIsOrreryActive(false); }}
                    className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${isSlideshowActive ? 'bg-white text-black border-white' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white'}`}
                  >
                    Slideshow
                  </button>
+                 {/* Orrery — the Observatory's orbital stage (Gatefold skin only) */}
+                 {gatefoldOn && (
+                   <button
+                     onClick={() => { setIsOrreryActive(true); setIsSlideshowActive(false); }}
+                     className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${isOrreryActive ? 'text-white border-transparent' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white hover:border-[#00DAF3]/50'}`}
+                     style={isOrreryActive ? { backgroundImage: 'var(--pj-grad-spatial, linear-gradient(135deg,#6B0099,#00DAF3))' } : {}}
+                   >
+                     Orrery
+                   </button>
+                 )}
                  {/* FX Stage is a continuous full-screen shader and the heaviest thing this
                      view can do, so a television does not offer it. Everything else does — a
                      listener asking for it on their own machine should get it. */}
@@ -2650,13 +2789,18 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                  </motion.div>
                )}
              </div>
-           </div>
+           </motion.div>
          )}
-         
+
+         {/* Gatefold: the live lyric rides ON the leaf's lower edge as a subtitle
+             overlay (z-20, pointer-events-none) — it can never be covered by the
+             leaf again. Classic keeps the old stacked strip below the art. */}
          {showCaptions && (currentTrack.lyrics || currentTrack.timeCodedLyrics) && !activeVideoId && (
-           <div className="mt-auto mb-8 animate-in slide-in-from-bottom-4 duration-700">
+           <div className={gatefoldOn
+             ? 'absolute bottom-10 inset-x-8 z-20 pointer-events-none animate-in slide-in-from-bottom-4 duration-700'
+             : 'mt-auto mb-8 animate-in slide-in-from-bottom-4 duration-700'}>
              <div className="h-16 flex items-center justify-center overflow-hidden">
-               <p className="text-xl lg:text-2xl font-display font-black text-center text-white/80 tracking-tight leading-tight transition-all duration-700">
+               <p className={`text-xl lg:text-2xl font-display font-black text-center tracking-tight leading-tight transition-all duration-700 ${gatefoldOn ? 'text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]' : 'text-white/80'}`}>
                  {getCurrentCaption()}
                </p>
              </div>
@@ -2690,7 +2834,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           <ZapOff size={13} className={isFxActive ? 'text-red-300' : 'text-white/60'} />
           <span className={`text-[9px] font-black uppercase tracking-widest ${isFxActive ? 'text-red-200' : 'text-white/60'}`}>Kill</span>
         </button>
-        {/* ── Right-side vertical action column (desktop only) ── */}
+        {/* ── Right-side vertical action column (desktop only; hidden in the
+               Gatefold skin, which renders the bottom chip dock instead) ── */}
+        {!gatefoldOn && (
         <div className="hidden lg:flex absolute right-6 top-0 bottom-0 z-50 flex-col items-end justify-center gap-[3px] pointer-events-auto" style={{ paddingRight: '0px' }}>
           {/* Helper: icon + expandable label pill */}
           {[
@@ -2792,6 +2938,74 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             </button>
           ))}
         </div>
+        )}
+
+        {/* ── Gatefold bottom chip dock (Chora Next skin, desktop only) ──
+            The same three groups as the vertical rail — HUD tabs as labeled
+            chips (Chip Rail language, gradient active), then icon chips for
+            About/Captions/Share/Gallery and the action set. Item definitions
+            mirror the rail above; consolidate when Gatefold graduates. */}
+        {gatefoldOn && (
+          <div className="hidden lg:flex absolute bottom-4 inset-x-0 z-50 justify-center pointer-events-none px-6">
+            <div
+              className="pointer-events-auto flex items-center gap-[3px] p-[5px] rounded-full border border-white/15 overflow-x-auto no-scrollbar max-w-full"
+              style={{ background: 'rgba(10,6,16,0.72)', backdropFilter: 'blur(24px) saturate(160%)' }}
+            >
+              {([
+                { id: 'TRACKS', label: album.trackListLabel || (album.type === 'BOOK' ? 'Contents' : 'Tracks'), icon: album.type === 'BOOK' ? BookOpen : List },
+                { id: 'LYRICS', label: 'Lyrics', icon: Music2 },
+                { id: 'MEDIA', label: 'Videos & Art', icon: VideoIcon },
+                { id: 'COMMENTS', label: 'Feed', icon: MessageSquare },
+                { id: 'INFO', label: album.type === 'BOOK' ? 'Synopsis' : 'Notes', icon: Sparkles },
+              ] as const).map(tab => {
+                const active = activeHUD === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveHUD(tab.id as any)}
+                    className="shrink-0 flex items-center gap-1.5 h-[30px] px-3.5 rounded-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all"
+                    style={active
+                      ? { backgroundImage: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))', color: '#fff' }
+                      : { color: 'rgba(255,255,255,0.55)' }}
+                  >
+                    <tab.icon size={12} className={active ? 'text-white' : 'text-white/40'} />
+                    {tab.label}
+                  </button>
+                );
+              })}
+              <div className="w-px h-5 bg-white/15 mx-1 shrink-0" />
+              {[
+                { key: 'about', icon: User, label: 'About Artist', onClick: () => setActiveHUD(activeHUD === 'ABOUT' ? 'TRACKS' : 'ABOUT'), active: activeHUD === 'ABOUT' },
+                ...(album.galleryUrl ? [{ key: 'gallery', icon: Globe, label: 'Gallery', onClick: () => window.open(album.galleryUrl!, '_blank'), active: false }] : []),
+                { key: 'captions', icon: MessageSquare, label: showCaptions ? 'Hide Captions' : 'Captions', onClick: () => setShowCaptions(!showCaptions), active: showCaptions },
+                ...(!isPublic ? [{ key: 'share', icon: Share2, label: 'Share', onClick: () => setShowShareModal(true), active: false }] : []),
+                ...(isOwner && onEdit ? [{ key: 'edit', icon: Zap, label: 'Edit Album', onClick: () => onEdit(album), active: false }] : []),
+                ...(isVisualizerLayout ? [{ key: 'fx', icon: Activity, label: 'FX Stage On', onClick: () => setIsVisualizerLayout(false), active: true }] : []),
+                { key: 'tv', icon: VideoIcon, label: isTVMode ? 'TV On' : 'TV Mode', onClick: () => setIsTVMode(!isTVMode), active: isTVMode },
+                { key: 'dj', icon: Disc, label: 'DJ Mode', onClick: () => { getAudioContext?.(); setIsDJMode(true); }, active: false },
+                { key: 'lights', icon: Zap, label: 'Lights', onClick: () => setIsLightingOpen(true), active: isLightingOpen },
+                { key: 'pixels', icon: Sparkles, label: 'Pixels', onClick: () => window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { album } })), active: false },
+                ...(!isOwner && !isPreview ? [
+                  { key: 'gifts', icon: HeartHandshake, label: 'Gifts & Tips', onClick: () => setIsDonationModalOpen(true), active: false },
+                  { key: 'pif', icon: Heart, label: 'Pay It Forward', onClick: () => window.dispatchEvent(new CustomEvent('OPEN_PIF_MODAL')), active: false },
+                ] : []),
+                ...(isPublic ? [{ key: 'live', icon: Globe, label: 'Live Microsite', onClick: undefined as (() => void) | undefined, active: false }] : []),
+              ].map(item => (
+                <button
+                  key={item.key}
+                  onClick={item.onClick}
+                  disabled={!item.onClick}
+                  title={item.label}
+                  aria-label={item.label}
+                  className="shrink-0 w-[30px] h-[30px] rounded-full flex items-center justify-center transition-all hover:bg-white/10 disabled:opacity-40"
+                  style={item.active ? { background: 'rgba(255,140,0,0.18)', border: '1px solid rgba(255,140,0,0.4)' } : {}}
+                >
+                  <item.icon size={13} className={item.active ? 'text-small-orange' : 'text-white/45'} />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── LEGACY horizontal header kept as empty anchor (remove chevron refs) ── */}
         {false && <header ref={tabScrollRef} onScroll={onTabScroll} className="hidden">
@@ -2912,7 +3126,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
              )}
           </header>}
 
-        <div className={`pointer-events-auto flex flex-col gap-6 flex-1 overflow-hidden ${isVisualizerLayout ? 'lg:w-[50%] lg:ml-[50%] lg:mr-0' : 'lg:w-[50%] lg:ml-[44%] lg:mr-auto'}`}>
+        {/* Gatefold: the RIGHT LEAF — panel-framed, seamed at 50% beside the left
+            leaf (classic skin keeps the overlapping floating-card layout). */}
+        <div
+          className={`pointer-events-auto flex flex-col gap-6 flex-1 overflow-hidden ${isVisualizerLayout ? 'lg:w-[50%] lg:ml-[50%] lg:mr-0' : gatefoldOn ? 'lg:w-[50%] lg:ml-[50%] lg:mr-auto rounded-[1.75rem] border border-white/12 p-5' : 'lg:w-[50%] lg:ml-[44%] lg:mr-auto'}`}
+          style={gatefoldOn && !isVisualizerLayout ? { background: 'rgba(10,6,16,0.6)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } : undefined}
+        >
           {/* ── Compact album art strip (shown only in visualizer layout mode) ── */}
           {isVisualizerLayout && (
             <motion.div
@@ -2944,14 +3163,43 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             </motion.div>
           )}
 
-          <div className={`relative overflow-hidden w-full bg-theme-card backdrop-blur-3xl rounded-[2.5rem] shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_8px_40px_rgba(0,0,0,0.25)] ${isVisualizerLayout ? 'p-4 lg:p-5' : 'p-6 lg:p-8'}`}>
+          {/* Gatefold: the Audio Session card compresses into the Marquee Strip —
+              cover thumb, eyebrow status, compact title, live progress + countdown.
+              Every action chip below survives unchanged. Classic keeps the big card. */}
+          <div className={`relative overflow-hidden w-full bg-theme-card backdrop-blur-3xl ${gatefoldOn ? 'rounded-2xl border border-white/12 shadow-lg' : 'rounded-[2.5rem] shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_8px_40px_rgba(0,0,0,0.25)]'} ${isVisualizerLayout ? 'p-4 lg:p-5' : gatefoldOn ? 'p-4' : 'p-6 lg:p-8'}`}>
              {/* Animated Plajah brand gradient — living sweep, weighted to purple + magenta */}
              <div className="absolute inset-0 audio-session-gradient opacity-40 pointer-events-none" aria-hidden="true" />
              <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/20 to-black/45 pointer-events-none" aria-hidden="true" />
-             <div className="relative z-10 flex flex-col gap-4">
+             <div className={`relative z-10 flex flex-col ${gatefoldOn ? 'gap-3' : 'gap-4'}`}>
+                {gatefoldOn && (
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={thumb(album.coverImage, THUMB.small) || undefined}
+                      alt={album.title}
+                      loading="lazy"
+                      decoding="async"
+                      onError={onThumbError(album.coverImage)}
+                      className="w-12 h-12 rounded-lg object-cover border border-white/20 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[9px] font-black uppercase tracking-[0.22em] text-white/45">
+                        <span className="text-small-orange">●</span> Audio Session · Track {currentTrackIndex + 1} / {album.tracks.length}
+                      </p>
+                      <h2 className="text-lg font-black italic tracking-tight leading-tight text-white truncate">{currentTrack?.title || album.title}</h2>
+                      <p className="text-[11px] font-black uppercase tracking-[0.18em] w-fit bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#6B0099] bg-clip-text text-transparent">{album.artist}</p>
+                      <div className="h-[3px] rounded-full bg-white/10 mt-1.5 overflow-hidden">
+                        <div className="h-full rounded-full bg-gradient-to-r from-[#D40055] to-[#FF8C00] transition-[width] duration-500" style={{ width: `${isCurrentTrackGlobal && globalDuration > 0 ? Math.min(100, (globalCurrentTime / globalDuration) * 100) : 0}%` }} />
+                      </div>
+                    </div>
+                    {isCurrentTrackGlobal && globalDuration > 0 && (
+                      <span className={`self-start font-mono tabular-nums text-xs font-black ${isEndingSoon ? 'text-red-400' : 'text-small-orange'}`}>-{formatTime(trackRemaining)}</span>
+                    )}
+                  </div>
+                )}
                 <div className="flex items-center gap-4">
-                   <span className="px-3 py-1 bg-white/10 rounded-md text-[10px] font-black tracking-widest text-small-orange uppercase">Audio Session</span>
-                   <span className="text-[10px] font-bold opacity-30 uppercase tracking-widest">Track {currentTrackIndex+1} / {album.tracks.length}</span>
+                   {/* Marquee already announces session + track position in Gatefold */}
+                   {!gatefoldOn && <span className="px-3 py-1 bg-white/10 rounded-md text-[10px] font-black tracking-widest text-small-orange uppercase">Audio Session</span>}
+                   {!gatefoldOn && <span className="text-[10px] font-bold opacity-30 uppercase tracking-widest">Track {currentTrackIndex+1} / {album.tracks.length}</span>}
                    {isOwner && (
                      <button 
                        onClick={async () => {
@@ -3075,8 +3323,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     <button onClick={() => setCaptionError(null)} className="ml-auto text-red-300/60 hover:text-red-200 shrink-0" aria-label="Dismiss">✕</button>
                   </div>
                 )}
-                <h1 className={`font-black uppercase tracking-tighter leading-[0.9] text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] ${isVisualizerLayout ? 'text-lg lg:text-2xl' : 'text-3xl lg:text-5xl'}`}>{currentTrack?.title || album.title}</h1>
-                {!isVisualizerLayout && (
+                {/* Gatefold: the marquee above carries title + artist compactly */}
+                {!gatefoldOn && (
+                  <h1 className={`font-black uppercase tracking-tighter leading-[0.9] text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] ${isVisualizerLayout ? 'text-lg lg:text-2xl' : 'text-3xl lg:text-5xl'}`}>{currentTrack?.title || album.title}</h1>
+                )}
+                {!isVisualizerLayout && !gatefoldOn && (
                   <p className="text-lg lg:text-2xl font-display font-black italic tracking-tight bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#6B0099] bg-clip-text text-transparent w-fit drop-shadow-[0_1px_8px_rgba(0,0,0,0.4)]">{album.artist}</p>
                 )}
                 {(() => { const ecl = currentTrack?.isEclipsa || album.tracks?.some(t => t.isEclipsa); const atm = currentTrack?.isAtmos || album.tracks?.some(t => t.isAtmos); return (ecl || atm) ? <ImmersiveBadge isEclipsa={ecl} isAtmos={atm} showHint className="mt-3" /> : null; })()}
@@ -3216,10 +3467,21 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     {activeHUD === 'TRACKS' && (
                       <div className="flex-1 flex flex-col gap-4 overflow-hidden">
                         <div className="flex items-center justify-between">
+                          {/* Gatefold: shelf line ("The registry · N tracks · runtime"); classic keeps the label */}
+                          {gatefoldOn ? (
+                            <div className="flex items-baseline gap-3 min-w-0">
+                              <h5 className="text-base font-black italic tracking-tight text-white whitespace-nowrap">{album.type === 'BOOK' ? 'The contents' : 'The registry'}</h5>
+                              <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-white/35 truncate">
+                                {localTracks.length} {album.type === 'BOOK' ? 'chapters' : 'tracks'}
+                                {(() => { const s = localTracks.reduce((a, t) => a + (t.duration || 0), 0); return s > 0 && localTracks.every(t => t.duration) ? ` · ${formatTime(s)}` : ''; })()}
+                              </span>
+                            </div>
+                          ) : (
                           <div className="flex items-center gap-3">
                             {album.type === 'BOOK' ? <BookOpen size={16} className="text-small-orange" /> : <List size={16} className="text-small-orange" />}
                             <span className="text-[10px] font-black uppercase tracking-widest text-white/40">{album.trackListLabel || (album.type === 'BOOK' ? 'Table of Contents' : 'Track List')}</span>
                           </div>
+                          )}
                           <div className="flex items-center gap-2">
                             {isOwner && <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Drag to reorder</span>}
                             <button onClick={() => setIsTracksCollapsed(!isTracksCollapsed)} className="p-2 hover:bg-white/5 rounded-lg transition-all text-white/20 hover:text-white">
@@ -3244,19 +3506,21 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                   onDragLeave={() => setDragOverTrackIndex(null)}
                                   onDrop={(e) => { e.preventDefault(); const from = dragTrackIndexRef.current; setDragOverTrackIndex(null); if (from !== null && from !== i) reorderTracks(from, i); dragTrackIndexRef.current = null; }}
                                   onDragEnd={() => { dragTrackIndexRef.current = null; setDragOverTrackIndex(null); }}
-                                  className={`relative shrink-0 min-h-[3.25rem] overflow-hidden rounded-2xl border transition-all ${isNextUp ? 'track-next-glow' : ''} ${dragOverTrackIndex === i ? 'scale-[1.01] border-small-orange/60' : isActive ? 'border-[#FF8C00]/50' : 'border-white/5'}`}
+                                  className={`relative shrink-0 min-h-[3.25rem] overflow-hidden border transition-all ${gatefoldOn ? 'rounded-[10px]' : 'rounded-2xl'} ${isNextUp ? 'track-next-glow' : ''} ${dragOverTrackIndex === i ? 'scale-[1.01] border-small-orange/60' : isActive ? 'border-[#FF8C00]/50' : gatefoldOn ? 'border-transparent' : 'border-white/5'}`}
                                 >
-                                  <div className={`flex items-center gap-3 px-3 py-[9px] relative overflow-hidden rounded-2xl group ${isActive ? 'backdrop-blur-2xl shadow-[0_0_30px_rgba(107,0,153,0.3)]' : 'bg-gradient-to-r from-[#6B0099]/10 via-transparent to-[#FF8C00]/10 backdrop-blur-xl hover:from-[#6B0099]/20 hover:to-[#FF8C00]/20'} ${isExpanded ? '!rounded-b-none' : ''}`}>
+                                  {/* Gatefold registry rows are quiet glass; the classic skin keeps its gradient wash. */}
+                                  <div className={`flex items-center gap-3 px-3 py-[9px] relative overflow-hidden group ${gatefoldOn ? 'rounded-[10px]' : 'rounded-2xl'} ${isActive ? 'backdrop-blur-2xl shadow-[0_0_30px_rgba(107,0,153,0.3)]' : gatefoldOn ? 'bg-white/[0.03] hover:bg-white/[0.07] backdrop-blur-xl' : 'bg-gradient-to-r from-[#6B0099]/10 via-transparent to-[#FF8C00]/10 backdrop-blur-xl hover:from-[#6B0099]/20 hover:to-[#FF8C00]/20'} ${isExpanded ? '!rounded-b-none' : ''}`}>
                                     {/* Active row: animated brand gradient + repeat-one green + final-10s red flash */}
                                     {isActive && <div className="absolute inset-0 track-gradient-active pointer-events-none" aria-hidden="true" />}
                                     {isActive && repeatOneGreenOpacity > 0 && <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{ background: 'linear-gradient(90deg, rgba(34,197,94,0.55) 0%, rgba(34,197,94,0) 34%)', opacity: repeatOneGreenOpacity }} />}
                                     {isActive && isEndingSoon && <div className="absolute inset-0 pointer-events-none track-ending-flash" aria-hidden="true" />}
                                     {isOwner && <GripVertical size={14} className="text-white/20 shrink-0 cursor-grab active:cursor-grabbing relative z-10" />}
                                     <button onClick={() => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }} className="flex items-center gap-4 text-left flex-1 min-w-0 relative z-10">
-                                      <span className={`text-[10px] font-black w-4 shrink-0 ${isActive ? 'text-small-orange' : 'text-white/20'}`}>{i + 1}</span>
+                                      <span className={`text-[10px] font-black w-4 shrink-0 ${gatefoldOn ? 'font-mono tabular-nums' : ''} ${isActive ? 'text-small-orange' : 'text-white/20'}`}>{i + 1}</span>
                                       <span className="min-w-0 flex-1">
-                                        {/* Track-list titles stay a single line (full title is the big header above) */}
-                                        <span className={`block text-sm font-bold uppercase tracking-widest truncate ${isActive ? 'text-white' : 'text-white/60 group-hover:text-white'}`}>{t.title || 'Untitled'}</span>
+                                        {/* Track-list titles stay a single line (full title is the big header above).
+                                            Gatefold registry: sentence-case bold, no letterspacing shout. */}
+                                        <span className={`block truncate ${gatefoldOn ? 'text-[13px] font-bold' : 'text-sm font-bold uppercase tracking-widest'} ${isActive ? 'text-white' : 'text-white/60 group-hover:text-white'}`}>{t.title || 'Untitled'}</span>
                                         {/* Live lyrics — only when there's a real caption (getActiveCaption returns '...' when none) */}
                                         {isActive && isCurrentTrackGlobal && getCurrentCaption() !== '...' && <CaptionTicker caption={getCurrentCaption()} />}
                                       </span>
@@ -3267,6 +3531,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                           <span className={isEndingSoon ? 'text-red-400' : 'text-white/70'}>-{formatTime(trackRemaining)}</span>
                                           <span className="text-white/35">{formatTime(globalDuration)}</span>
                                         </div>
+                                      )}
+                                      {/* Gatefold registry: queued rows carry a mono NEXT tag; resting rows show their duration */}
+                                      {gatefoldOn && isNextUp && <span className="font-mono text-[8px] font-bold text-[#06D6A0] tracking-[0.14em]">NEXT</span>}
+                                      {gatefoldOn && !isActive && !!t.duration && (
+                                        <span className="font-mono tabular-nums text-[9px] text-white/35">{formatTime(t.duration)}</span>
                                       )}
                                       {t.isExclusive && <span className="text-[8px] font-black text-small-orange uppercase">Excl.</span>}
                                       {isActive && globalIsPlaying && isCurrentTrackGlobal
@@ -3694,8 +3963,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           </div>
         </div>
 
-        <footer className="mt-auto pt-16 flex justify-between items-center text-[10px] font-black uppercase tracking-[0.4em] text-white/10">
-           <div className="flex gap-16"><span>System v3.0</span><span>End-to-End Encryption</span></div>
+        {/* Gatefold: bottom margin lifts the footer clear of the fixed chip dock */}
+        <footer className={`mt-auto pt-16 flex justify-between items-center text-[10px] font-black uppercase tracking-[0.4em] text-white/10${gatefoldOn ? ' mb-12' : ''}`}>
+           {/* Only true claims here — the old "System v3.0 / End-to-End Encryption"
+               decorative labels were fiction and are gone for every skin. */}
+           <div className="flex gap-16"><span>Plajah Chora</span><span>Provide · Protect · Prosper</span></div>
            <div className="flex gap-6 items-center">
              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#6B0099] to-[#FF8C00] flex items-center justify-center shadow-lg">
                <Logo size={16} />

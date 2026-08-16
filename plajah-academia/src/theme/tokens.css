@@ -1,0 +1,28 @@
+/* ============================================================
+   PLACEHOLDER TOKENS — flagged blocker, carried from prior sessions:
+   Plajah brand/design tokens have never been provided. Every value
+   below is a stand-in. Swap this file when the real tokens land;
+   nothing else should need to change.
+   ============================================================ */
+:root {
+  --pj-ink: #16211f;
+  --pj-ink-soft: #51625d;
+  --pj-paper: #f6f5f1;
+  --pj-surface: #ffffff;
+  --pj-rule: #dcd9d0;
+
+  --pj-primary: #14532d;      /* deep green placeholder */
+  --pj-primary-soft: #e6efe9;
+  --pj-alert: #92400e;
+  --pj-alert-soft: #fdf3e7;
+  --pj-block: #7f1d1d;
+
+  --pj-font-display: "Georgia", serif;      /* placeholder */
+  --pj-font-body: system-ui, -apple-system, sans-serif;
+
+  --pj-radius: 6px;
+  --pj-space-1: 6px;
+  --pj-space-2: 12px;
+  --pj-space-3: 20px;
+  --pj-space-4: 32px;
+}

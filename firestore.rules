@@ -1170,11 +1170,35 @@ service cloud.firestore {
       }
     }
 
+    // An OER textbook is free to every account, permanently. Plajah does not sell textbooks
+    // and never places them behind Plajah+. That is not only policy — it is the condition that
+    // makes hosting the CC BY-NC-SA titles lawful, since NonCommercial restricts commercial
+    // use rather than hosting. So the "free" half of the record is pinned here: once a doc is
+    // an oerTextbook, nobody (including an admin, including a future feature that means well)
+    // can price it, paywall it, or quietly drop the flag to get around the first two.
+    // NOTE the .get(field, default) accessors. Reading a field that does not exist is an ERROR
+    // in rules, and an error denies the write — so `resource.data.oerTextbook` on an ordinary
+    // album (which has no such field) would refuse every normal album create, edit and delete
+    // on the platform. Optional fields must always be read with a default.
+    function oerTextbookStaysFree() {
+      return !(resource.data.get('oerTextbook', false) == true) || (
+        request.resource.data.get('oerTextbook', false) == true &&
+        request.resource.data.get('price', 1) == 0 &&
+        request.resource.data.get('isPaywalled', true) == false &&
+        request.resource.data.get('oerLicense', '') == resource.data.get('oerLicense', '') &&
+        request.resource.data.get('oerAttribution', '') == resource.data.get('oerAttribution', '')
+      );
+    }
+
     match /albums/{albumId} {
       allow read: if true;
-      allow create: if (isAuthenticated() && isValidAlbum(request.resource.data) && request.resource.data.ownerId == request.auth.uid) || isAdmin();
-      allow update: if (isDocOwner() || isAdmin()) && isValidAlbum(request.resource.data);
-      allow delete: if isDocOwner() || isAdmin();
+      // A client may not mint an OER textbook — those come from the ingest script over the
+      // Admin REST path, which bypasses rules. Otherwise anyone could stamp oerTextbook on
+      // their own work and inherit a protection that isn't theirs.
+      allow create: if ((isAuthenticated() && isValidAlbum(request.resource.data) && request.resource.data.ownerId == request.auth.uid) || isAdmin())
+                    && !(request.resource.data.get('oerTextbook', false) == true);
+      allow update: if (isDocOwner() || isAdmin()) && isValidAlbum(request.resource.data) && oerTextbookStaysFree();
+      allow delete: if (isDocOwner() || isAdmin()) && !(resource.data.get('oerTextbook', false) == true);
 
       match /comments/{commentId} {
         allow read: if true;
@@ -2394,6 +2418,21 @@ service cloud.firestore {
     }
 
     // ── Sacred Library: per-user Bible notes (doc id = {uid}__{ref}) ─────────────
+    // Lectio service notes — the record of which passages a member was shown,
+    // and when. One doc per user per service (id = {uid}__{sessionId}).
+    // OWNER-ONLY IN BOTH DIRECTIONS: what someone was shown, and when they were
+    // in a service, is a fact about their spiritual life. The church must never
+    // be able to read this — it is the member's copy, and it leaves with them.
+    match /lectioServiceNotes/{noteId} {
+      allow read:   if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow create, update: if isAuthenticated()
+                    && request.resource.data.uid == request.auth.uid
+                    && noteId == request.auth.uid + '__' + request.resource.data.sessionId
+                    && request.resource.data.notes is list
+                    && request.resource.data.notes.size() <= 200;
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
     match /bibleNotes/{noteId} {
       allow read:   if isAuthenticated() && resource.data.uid == request.auth.uid;
       allow create, update: if isAuthenticated()
@@ -2628,6 +2667,28 @@ service cloud.firestore {
     // Synchronized parties (watch-along / read-along / listening party). The host broadcasts a
     // playback state; the audience reads it and follows locally. Public read (shareable/joinable);
     // only the host may create/update/end their own party.
+    // Service recaps (Vespers). Built from the Kairos cue log when a service
+    // ends. Public read — a member must be able to open their briefing without
+    // signing in. Only the host who filed it may write. NOTE: this doc holds
+    // only what happened in public (passages, timecodes, the summary). What a
+    // person highlighted or wrote is folded in on their own device and is
+    // never stored here.
+    match /serviceRecaps/{recapId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.hostId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.hostId == request.auth.uid;
+    }
+
+    // Live scripture cue sessions (Kairos). The operator broadcasts the passage
+    // on screen; phones in the room and stream viewers read it and resolve
+    // locally against their own clock. Public read — a congregation must be able
+    // to follow along without an account. Only the host may write.
+    match /scriptureSessions/{sessionId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.hostId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.hostId == request.auth.uid;
+    }
+
     match /parties/{partyId} {
       allow read: if true;
       allow create: if isAuthenticated() && request.resource.data.hostId == request.auth.uid;
@@ -2730,6 +2791,178 @@ service cloud.firestore {
                       || (isParentMember() && resource.data.requestedByUid == request.auth.uid)
                       || isAdmin();
       }
+    }
+
+    // ── Identifier registry (opt-in rights layer) ─────────────────────────────
+    // Works, editions, releases and the subject→triple index. Public read: a rights
+    // record is meant to be citable and checkable by anyone (that is the whole point of
+    // a registry). Writes are owner-only, and ownerUid is immutable once set so a record
+    // cannot be reassigned to another account.
+    match /registryWorks/{docId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if (isAuthenticated() && resource.data.ownerUid == request.auth.uid
+                        && request.resource.data.ownerUid == resource.data.ownerUid) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    match /registryManifestations/{docId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if (isAuthenticated() && resource.data.ownerUid == request.auth.uid
+                        && request.resource.data.ownerUid == resource.data.ownerUid) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    match /registryProducts/{docId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if (isAuthenticated() && resource.data.ownerUid == request.auth.uid
+                        && request.resource.data.ownerUid == resource.data.ownerUid) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    // subjectKey (e.g. BOOK_abc123) → { workId, manifestationId, productId }. Never
+    // deletable by a client: losing the index would orphan a work's whole rights record.
+    match /registryRefs/{subjectKey} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if (isAuthenticated() && resource.data.ownerUid == request.auth.uid
+                        && request.resource.data.ownerUid == resource.data.ownerUid) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // PLAJAH ACADEMIA — THE INTEGRITY WALL
+    //
+    // Core invariant: NO rule below grants an Independent-persona (creator/checkout) context
+    // any read of districtPersona data. The only bridge is the server's conflict-check
+    // endpoint, which uses the Admin REST path — it bypasses these rules entirely and returns
+    // booleans, never records. If you are adding a rule here, the question to ask is not "can
+    // this user read it" but "could a creator-side code path reach it".
+    // ===============================================================
+
+    // The teacher's own integrity configuration: personas + Silent Mode settings.
+    // Silent Mode may never be switched off while a verified district persona is active —
+    // enforced here rather than only in the UI, because the UI is the part an attacker skips.
+    match /teacherIntegrity/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid);
+      // Traversed with .get() defaults throughout: a teacher who hasn't linked a district has
+      // no personas.district map at all, and a bare `resource.data.personas.district.active`
+      // raises on the missing key — which denies the write. That would lock every teacher
+      // WITHOUT a district out of their own settings, the exact opposite of the intent.
+      allow update: if isOwner(uid) &&
+        !(resource.data.get('personas', {}).get('district', {}).get('active', false) == true &&
+          request.resource.data.get('integritySettings', {}).get('campusSilentMode', 'auto') == 'off');
+      allow delete: if false;
+    }
+
+    // District-persona rosters. SALTED HASHES ONLY — raw student identity never reaches
+    // Plajah. Readable by the owning teacher and their district admin; by no one else, and by
+    // no creator-context path at all. Deletable by the teacher so leaving a district actually
+    // removes the data.
+    match /districtPersona/{uid}/rosters/{termId} {
+      allow read: if isOwner(uid) ||
+        (isAuthenticated() && request.auth.token.districtAdmin == resource.data.districtId);
+      allow create, update: if isOwner(uid) ||
+        (isAuthenticated() && request.auth.token.districtAdmin == request.resource.data.districtId);
+      allow delete: if isOwner(uid);
+    }
+
+    // District roster salts. Server-only: with the salt, the hashes above become brute-forceable
+    // against a list of student names, so no client — teacher, district admin, or Plajah admin —
+    // reads or writes this from the SDK. Registration goes through POST /api/academia/district-salt.
+    match /districtSecrets/{districtId} {
+      allow read, write: if false;
+    }
+
+    // The integrity log — APPEND-ONLY, and the teacher's own property. This is the artifact
+    // they hand to HR to prove they never operated on district time, so it must be impossible
+    // to edit or prune after the fact, including by the person it protects.
+    match /integrityLog/{uid}/events/{eventId} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid);
+      allow update, delete: if false;
+    }
+
+    // Independent-persona offerings. Writes are refused while the Silent Mode claim is set —
+    // the server mirrors that claim from the geofence/schedule engine, so a modified client
+    // that ignores the UI lock still cannot transact or edit a storefront on campus.
+    // Reads are unaffected: the storefront stays live to buyers the whole time.
+    match /creators/{creatorId}/offerings/{offeringId} {
+      allow read: if resource.data.visibility == 'public' || isOwner(creatorId);
+      allow create, update, delete: if isOwner(creatorId) &&
+        request.auth.token.silentMode != true;
+    }
+
+    // The OER library. Metadata is public — attribution and licence must be visible wherever
+    // an item appears. Only a librarian may write, because `license` and `commercialOk` are
+    // what the commercial gate reads; a teacher who could edit them could relicense CK-12.
+    match /libraryItems/{itemId} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.auth.token.librarian == true;
+    }
+
+    // Assignment templates. The licence wall: a template may only claim commercialUse if the
+    // server has already validated its materials. licenseValidated is server-set (Admin REST),
+    // so a client cannot forge its way past the gate — it can only ever write the flag false.
+    match /assignmentTemplates/{templateId} {
+      allow read: if resource.data.visibility == 'public' || isOwner(resource.data.ownerUid);
+
+      // A new template is always unvalidated and non-commercial. Validation is something the
+      // server grants afterwards; it is never a property a document can be born with.
+      allow create: if isAuthenticated() &&
+        request.resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.licenseValidated == false &&
+        request.resource.data.commercialUse == false;
+
+      // The client may LOWER licenseValidated (editing materials invalidates prior approval)
+      // but never raise it — writing `true` is the one transition reserved for the server's
+      // Admin REST path, which bypasses these rules. Without this clause a client could simply
+      // set the flag itself and walk straight through the commercial gate.
+      allow update: if isAuthenticated() &&
+        resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.ownerUid == resource.data.ownerUid &&
+        (request.resource.data.licenseValidated == false ||
+         request.resource.data.licenseValidated == resource.data.licenseValidated) &&
+        (request.resource.data.commercialUse == false ||
+         request.resource.data.licenseValidated == true);
+
+      allow delete: if isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    // A template handed to a class. Readable by the assigning teacher and by the students it
+    // was assigned to — students need it to actually do the work, but must never be able to
+    // edit the rubric they're about to be graded against.
+    match /templateAssignments/{assignmentId} {
+      allow read: if isAuthenticated() && (
+        resource.data.teacherUid == request.auth.uid ||
+        request.auth.uid in resource.data.studentIds
+      );
+      allow create: if isAuthenticated() && request.resource.data.teacherUid == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.teacherUid == request.auth.uid;
+    }
+
+    // A student's turned-in work. The student owns the submission; the teacher owns the grade.
+    match /templateSubmissions/{submissionId} {
+      allow read: if isAuthenticated() && (
+        resource.data.studentId == request.auth.uid ||
+        resource.data.teacherUid == request.auth.uid
+      );
+      // Turning in must arrive ungraded — otherwise a student could submit with a grade
+      // already attached and the ledger would credit mastery nobody assessed.
+      allow create: if isAuthenticated() &&
+        request.resource.data.studentId == request.auth.uid &&
+        request.resource.data.status == 'submitted' &&
+        request.resource.data.grade == null;
+      // Only the teacher grades. A student may still edit their own work, but may never
+      // touch the grade field — hence the two separate, non-overlapping update paths.
+      allow update: if isAuthenticated() && (
+        (resource.data.teacherUid == request.auth.uid) ||
+        (resource.data.studentId == request.auth.uid &&
+         resource.data.status != 'graded' &&
+         request.resource.data.grade == resource.data.grade &&
+         request.resource.data.status == resource.data.status)
+      );
+      allow delete: if isAuthenticated() && resource.data.teacherUid == request.auth.uid;
     }
   }
 }

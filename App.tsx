@@ -97,6 +97,7 @@ const FilmSchoolView = retryLazy(() => import('./components/FilmSchoolView'));
 // Math Classroom BETA (Classrooms)
 const MathClassroom = retryLazy(() => import('./components/MathClassroom'));
 const StudentAssignmentView = retryLazy(() => import('./components/StudentAssignmentView'));
+const AssignedLessonView = retryLazy(() => import('./components/academia/AssignedLessonView'));
 // Science & Engineering hub
 const PlajahLabsView = retryLazy(() => import('./components/PlajahLabsView'));
 // Health & Fitness hub
@@ -298,6 +299,8 @@ import { acceptNibbleInvite, pendingNibbleCode } from './services/nibbleInvites'
 const BibleExperience = retryLazy(() => import('./components/BibleExperience'));
 const AmboPresenter = retryLazy(() => import('./components/scripture/AmboPresenter'));
 const FollowAlongView = retryLazy(() => import('./components/scripture/FollowAlongView'));
+const VespersRecap = retryLazy(() => import('./components/scripture/VespersRecap'));
+const AmboOutputWindow = retryLazy(() => import('./components/scripture/AmboOutputWindow'));
 
 const AriaEventBridge: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
   useEffect(() => {
@@ -405,9 +408,9 @@ const THEME_BG: Record<string, string> = {
     '#080200',
   ].join(','),
 };
-import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd, fetchSystemSettingsConfig, allocateChannelNumber } from './services/backendService';
+import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd, fetchSystemSettingsConfig, allocateChannelNumber, fetchAllLiveFeeds } from './services/backendService';
 import { initFeatureFlagListener } from './services/featureFlagService';
-import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark, Cctv, Bug, AlertTriangle, MapPin } from 'lucide-react';
+import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark, Cctv, Bug, AlertTriangle, MapPin, Cross, MonitorPlay } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -455,6 +458,8 @@ import SpatialToggle from './components/SpatialToggle';
 import SpatialImage from './components/SpatialImage';
 import { useSpatial } from './contexts/SpatialContext';
 import ArchiveItemCard from './components/ArchiveItemCard';
+import GlobalArchiveHero, { ArchiveRails } from './components/GlobalArchiveHero';
+import ArchiveTabRow, { type ArchiveTabId } from './components/ArchiveTabRow';
 
 import SpatialUIRoot from './components/SpatialUIRoot';
 import SidebarSearch from './components/SidebarSearch';
@@ -493,6 +498,7 @@ const App: React.FC = () => {
     pitchParam === 'business'     ? 'PLAJAH_BUSINESS'    :
     pitchParam === 'ora'          ? 'ORA'                :
     pitchParam === 'assignment'   ? 'STUDENT_ASSIGNMENT' :
+    pitchParam === 'lesson'       ? 'STUDENT_LESSON'     :
     'LANDING';
 
   // Is the app being opened on a shared deep link? If so, a signed-out visitor must
@@ -539,6 +545,8 @@ const App: React.FC = () => {
   const [bibleRefId, setBibleRefId] = useState<string | null>(null);
   // Kairos session a congregant is following (?follow=<id>, or the Elevate card).
   const [followSessionId, setFollowSessionId] = useState<string | null>(null);
+  // Vespers briefing being read (?recap=<id>, a push tap, or Ambo's "Service filed").
+  const [vespersRecapId, setVespersRecapId] = useState<string | null>(null);
 
   const setView = useCallback((newView: AppView | ((prev: AppView) => AppView), path?: string) => {
     setViewInternal((prev) => {
@@ -623,6 +631,51 @@ const App: React.FC = () => {
   }, []);
 
 const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | 'BOOK' | 'GAMES' | 'MY_ARCHIVE'>('MUSIC');
+  // Live-now feeds for the archive hero (ticker, Live-channel panes) + the Live
+  // tab badge. Subscribed only while the Global Archive is on screen
+  // (live_feeds is world-readable).
+  const [dashLiveFeeds, setDashLiveFeeds] = useState<any[]>([]);
+  const liveCount = dashLiveFeeds.length;
+  useEffect(() => {
+    if (view !== 'DASHBOARD') return;
+    const unsub = fetchAllLiveFeeds(feeds =>
+      setDashLiveFeeds(feeds.filter(f => (f as any).status !== 'ENDED' && (f as any).status !== 'OFFLINE')));
+    return () => unsub();
+  }, [view]);
+  // Floating tab dock — appears once the real archive tab row scrolls above the
+  // viewport. Capture-phase window listener so it works no matter which inner
+  // container actually scrolls (the app scrolls an inner div, not the window).
+  const [showTabDock, setShowTabDock] = useState(false);
+  const archiveTabsSentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (view !== 'DASHBOARD') { setShowTabDock(false); return; }
+    let pending = 0;
+    const check = () => {
+      pending = 0;
+      const el = archiveTabsSentinelRef.current;
+      if (el) setShowTabDock(el.getBoundingClientRect().top < 0);
+    };
+    const onScroll = () => { if (!pending) pending = window.setTimeout(check, 80); };
+    window.addEventListener('scroll', onScroll, true);
+    check();
+    return () => { window.removeEventListener('scroll', onScroll, true); if (pending) window.clearTimeout(pending); };
+  }, [view]);
+  // One click handler for both the inline tab row and the floating dock —
+  // same semantics as the original inline row (navigate-vs-filter).
+  const handleArchiveTabSelect = (tab: ArchiveTabId) => {
+    if (tab === 'WORLDS') setView('WORLDS');
+    else if (tab === 'CLUBS') setView('CLUBS');
+    else if (tab === 'SOCIAL') setView('FEED');
+    else if (tab === 'SPORTS') setView('PLAJAH_SPORTS');
+    else if (tab === 'LIVE_HUB') setView('LIVE_HUB');
+    else if (tab === 'GAMES') setView('GAMES');
+    else if (tab === 'VIDEO') setView('VIDEOS');
+    else if (tab === 'MOVIES_TV') setView('MOVIES_TV');
+    else if (tab === 'BOOK') setView('BOOKS');
+    else if (tab === 'MODULES') setView('CLASSROOMS');
+    else if (tab === 'MY_ARCHIVE' && !user) loginWithGoogle();
+    else setArchiveTab(tab as any);
+  };
   const [musicInitialTab, setMusicInitialTab] = useState<'NEW' | 'FOR_YOU' | 'ARTISTS' | 'ALBUMS' | 'GENRES' | 'VAULT' | 'PODCASTS' | 'AUDIO_BOOKS' | 'MY_LIBRARY' | 'PLAYLISTS'>('NEW');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   // The profile the app behaves as — the active child overrides the logged-in parent.
@@ -968,6 +1021,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('FOLLOW_ALONG' as AppView);
     };
     window.addEventListener('OPEN_FOLLOW_ALONG', handleOpenFollowAlong);
+
+    const handleOpenVespers = (e: Event) => {
+      const id = (e as CustomEvent)?.detail?.recapId;
+      if (typeof id !== 'string') return;
+      setVespersRecapId(id);
+      setView('VESPERS' as AppView);
+    };
+    window.addEventListener('OPEN_VESPERS', handleOpenVespers);
 
     const handleOpenTeleprompter = () => setView('TELEPROMPTER');
     window.addEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
@@ -1680,6 +1741,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       if (lsId) {
         setActiveLiveFeed({ id: lsId, streamId: lsId, url: `livestream:${lsId}`, status: 'LIVE', isPublic: true, ownerId: '', ownerName: '', title: 'Live Stream', timestamp: Date.now() } as any);
         document.title = 'Live Stream | Plajah';
+        setIsLoading(false);
+        return;
+      }
+
+      // Deep-link: ?recap={id} — a member opening their Vespers briefing, which
+      // is where the push notification and the church's link both land.
+      const recapParam = params.get('recap');
+      if (recapParam) {
+        setVespersRecapId(recapParam);
+        setView('VESPERS' as AppView);
+        document.title = 'Service recap | Plajah';
         setIsLoading(false);
         return;
       }
@@ -2475,9 +2547,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               its job is to isolate the control layer from everything around it. */}
           {typeof window !== 'undefined' && window.location.pathname.startsWith('/ds') ? (
             <Suspense fallback={null}><DesignSystemGallery /></Suspense>
+          ) : typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('amboOut') ? (
+            /* An Ambo output window is ONLY the output — no chrome, no nav, no
+               player. Short-circuits above everything else so a projector can
+               never show the app by mistake. */
+            <Suspense fallback={null}><AmboOutputWindow /></Suspense>
           ) : typeof window !== 'undefined' && window.location.pathname.startsWith('/link') ? (
             <Suspense fallback={null}><TvLinkApproval /></Suspense>
-          ) : /* A television never sees the marketing landing page. It gets the sign-in screen a TV
+          ) :/* A television never sees the marketing landing page. It gets the sign-in screen a TV
               actually needs — logo, saved profiles, QR — because the alternative is asking
               someone to type a password with a D-pad. */
           view === 'LANDING' && getPlatformInfo().isTV && !user ? (
@@ -3005,6 +3082,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     { id: 'HEALTH_FITNESS', order: 4.3, isVisible: true },
                     { id: 'ARTICLES', order: 5, isVisible: true },
                     { id: 'BOOKS', order: 6, isVisible: true },
+                    { id: 'BIBLE', order: 6.1, isVisible: true },
                     { id: 'PLAJAH_LABS', order: 6.5, isVisible: true },
                     { id: 'RADIO', order: 7, isVisible: true },
                     { id: 'APPS', order: 8.5, isVisible: true },
@@ -3024,6 +3102,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     { id: 'LIVE_HUB', order: 19, isVisible: true },
                     { id: 'FABULA', order: 19.05, isVisible: true },
                     { id: 'TV_STUDIO', order: 19.1, isVisible: true },
+                    { id: 'AMBO', order: 19.12, isVisible: true },
                     { id: 'MEDIA_ROUTER', order: 19.15, isVisible: true },
                     { id: 'POSTMAN', order: 19.5, isVisible: true },
                     { id: 'SEARCH', order: 20, isVisible: true },
@@ -3063,6 +3142,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         HEALTH_FITNESS: { label: 'Health & Fitness', icon: Activity },
                         ARTICLES: { label: 'The Newstand', icon: Newspaper },
                         BOOKS: { label: 'Lorea', icon: BookOpen },
+                        BIBLE: { label: 'Lectio', icon: Cross },
                         PLAJAH_LABS: { label: 'Plajah Labs', icon: FlaskConical },
                         RADIO: { label: 'Radio', icon: Radio },
                         LIVE_TV: { label: 'Live TV', icon: Tv },
@@ -3084,7 +3164,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         FEED: { label: 'Plajah Social', icon: Rss },
                         LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
                         FABULA: { label: 'Fabula', icon: Film },
-                        TV_STUDIO: { label: 'TV Studio', icon: Clapperboard },
+                        TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Ambo Presenter', icon: MonitorPlay },
                         MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv },
                         SEARCH: { label: 'Find People', icon: Search },
                         HELP_CENTER: { label: 'Help Center', icon: HelpCircle },
@@ -3221,7 +3301,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       VIDEOS: { label: 'Reello', icon: VideoIcon }, MOVIES_TV: { label: 'Taleo', icon: Film },
                       PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap }, HEALTH_FITNESS: { label: 'Health & Fitness', icon: Activity },
                       ARTICLES: { label: 'The Newstand', icon: Newspaper },
-                      BOOKS: { label: 'Lorea', icon: BookOpen }, PLAJAH_LABS: { label: 'Plajah Labs', icon: FlaskConical },
+                      BOOKS: { label: 'Lorea', icon: BookOpen }, BIBLE: { label: 'Lectio', icon: Cross },
+                      PLAJAH_LABS: { label: 'Plajah Labs', icon: FlaskConical },
                       RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow }, CROSSOVER: { label: 'Crossover', icon: Repeat },
                       GAMES: { label: 'Games', icon: Gamepad2 }, CLUBS: { label: 'Clubs', icon: Users },
                       CHARITY: { label: 'Charity', icon: Heart }, PLAJAH_ELEVATE: { label: 'Plajah Elevate', icon: Landmark }, SANCTUARY_HUB: { label: 'Sanctuary', icon: Shield },
@@ -3230,7 +3311,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart }, CHAT: { label: 'Chat', icon: MessageSquare },
                       DISCUSSION: { label: 'Discussion', icon: MessageCircle }, POSTMAN: { label: 'The Postman', icon: Mail },
                       FEED: { label: 'Plajah Social', icon: Rss }, LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
-                      FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
+                      FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Ambo Presenter', icon: MonitorPlay }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
                       HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
                       BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, TERRA: { label: 'Terra', icon: MapPin }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
                       ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
@@ -3262,8 +3343,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       { id: 'entertain', label: 'Entertainment', ids: ['MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', ...(crossoverSystemEnabled ? ['CROSSOVER'] : []), 'GLOBAL_PHOTOS'] },
                       { id: 'sports', label: 'Sports & News', ids: ['PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES'] },
                       { id: 'education', label: 'Education', ids: ['BOOKS', 'CLASSROOMS', 'PLAJAH_LABS'] },
-                      { id: 'community', label: 'Community', ids: ['CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB'] },
-                      { id: 'creator', label: 'Creator Tools', ids: ['CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : []), 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'MEDIA_ROUTER', 'POSTMAN'] },
+                      { id: 'community', label: 'Community', ids: ['CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'BIBLE', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB'] },
+                      { id: 'creator', label: 'Creator Tools', ids: ['CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : []), 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'AMBO', 'MEDIA_ROUTER', 'POSTMAN'] },
                       { id: 'platform', label: 'Platform', ids: ['HELP_CENTER', 'BROWSER'] },
                     ];
                     return groups.map(group => {
@@ -3315,7 +3396,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       VIDEOS: { label: 'Reello', icon: VideoIcon }, MOVIES_TV: { label: 'Taleo', icon: Film },
                       PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap }, HEALTH_FITNESS: { label: 'Health & Fitness', icon: Activity },
                       ARTICLES: { label: 'The Newstand', icon: Newspaper },
-                      BOOKS: { label: 'Lorea', icon: BookOpen }, PLAJAH_LABS: { label: 'Plajah Labs', icon: FlaskConical },
+                      BOOKS: { label: 'Lorea', icon: BookOpen }, BIBLE: { label: 'Lectio', icon: Cross },
+                      PLAJAH_LABS: { label: 'Plajah Labs', icon: FlaskConical },
                       RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow }, CROSSOVER: { label: 'Crossover', icon: Repeat },
                       GAMES: { label: 'Games', icon: Gamepad2 }, CLUBS: { label: 'Clubs', icon: Users },
                       CHARITY: { label: 'Charity', icon: Heart }, PLAJAH_ELEVATE: { label: 'Plajah Elevate', icon: Landmark }, SANCTUARY_HUB: { label: 'Sanctuary', icon: Shield },
@@ -3324,7 +3406,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart }, CHAT: { label: 'Chat', icon: MessageSquare },
                       DISCUSSION: { label: 'Discussion', icon: MessageCircle }, POSTMAN: { label: 'The Postman', icon: Mail },
                       FEED: { label: 'Plajah Social', icon: Rss }, LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
-                      FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
+                      FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Ambo Presenter', icon: MonitorPlay }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
                       HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
                       BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, TERRA: { label: 'Terra', icon: MapPin }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
                       ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
@@ -4429,20 +4511,34 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'DASHBOARD' && (
               <div className="relative flex flex-col lg:flex-row w-full h-full">
-                {/* Hero globe — the same moving Earth from the landing, filling the top of the
-                    page and fading into the background as it reaches the content/categories
-                    (like the Chora page). Lazy + error-boundaried; pointer-events-none so it
-                    never blocks the UI. */}
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-[85vh] overflow-hidden" style={{ zIndex: 0 }} aria-hidden="true">
-                  <Suspense fallback={null}>
-                    <div className="absolute inset-0 opacity-[0.55]"><EarthGlobe /></div>
-                  </Suspense>
-                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(2,2,2,0.10) 0%, rgba(2,2,2,0.45) 48%, var(--bg-color, #020202) 92%)' }} />
+                {/* Ambient brand glow behind the panorama wall (replaces the Earth globe hero). */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-[70vh] overflow-hidden" style={{ zIndex: 0 }} aria-hidden="true">
+                  <div className="absolute inset-0" style={{ background: 'radial-gradient(60% 40% at 18% 0%, rgba(107,0,153,0.28), transparent 70%), radial-gradient(50% 35% at 85% 8%, rgba(212,0,85,0.16), transparent 70%)' }} />
+                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 40%, var(--bg-color, #020202) 96%)' }} />
                 </div>
-                <div className="relative z-10 flex-1 p-6 lg:p-16 max-w-7xl mx-auto w-full">
+                <div className="relative z-10 flex-1 p-6 lg:p-12 max-w-[1440px] mx-auto w-full">
+                  {/* ── Panorama wall + issue line + live ticker (the "Front Row" hero) ── */}
+                  <GlobalArchiveHero
+                    albums={albums}
+                    liveFeeds={dashLiveFeeds}
+                    liveCount={liveCount}
+                    onSelectItem={handleSelectItem}
+                    onOpenCreator={() => { setEditingAlbum(null); setShowCreator(true); }}
+                    onNavigate={(v) => setView(v as any)}
+                    isPublicView={isPublicView}
+                  />
+                  {/* ── Premiere rails — per-service new releases + Lorea classics ── */}
+                  <ArchiveRails albums={albums} onSelectItem={handleSelectItem} onOpenBooks={() => setView('BOOKS' as any)} />
+                  {/* Floating tab dock — wayfinding once the real tab row scrolls above the viewport */}
+                  {showTabDock && (
+                    <div className="fixed top-3 inset-x-0 z-[90] flex justify-center px-3 pointer-events-none animate-in fade-in slide-in-from-top-2 duration-300">
+                      <div className="pointer-events-auto max-w-full">
+                        <ArchiveTabRow compact active={archiveTab} onSelect={handleArchiveTabSelect} liveCount={liveCount} />
+                      </div>
+                    </div>
+                  )}
                   <header className="mb-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
                     <div>
-                      <h1 className="text-5xl md:text-[9rem] lg:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.82] italic select-none mb-6 text-center lg:text-left">Plajah Global Archive</h1>
                       {/* Intro copy — centered in its own frosted panel for symmetry (was loose,
                           left-ragged text that read as sloppy). */}
                       <div className="mx-auto lg:mx-0 max-w-2xl mb-6 rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-md px-6 py-5 sm:px-8 sm:py-6 text-center space-y-3 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.6)]">
@@ -4450,21 +4546,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         <p className="text-white/55 text-[13px] sm:text-[15px] leading-relaxed text-balance">It all lives in one place, built on a single promise to every creator — <span className="text-small-orange font-semibold">Provide, Protect &amp; Prosper</span>. There is nothing else like it on the web.</p>
                         <p className="text-white/35 text-[10px] sm:text-[11px] font-black tracking-[0.25em] uppercase pt-1">Provide · Protect · Prosper</p>
                       </div>
-                      {/* Creators Upload Here — pulsing CTA, centered under the text on every screen */}
-                      <div className="max-w-2xl mx-auto lg:mx-0 mb-8 flex justify-center">
-                        <div className="relative inline-flex items-center justify-center">
-                          <span className="absolute inset-0 rounded-full bg-small-orange opacity-25 animate-ping" style={{ animationDuration: '2s' }} />
-                          <span className="absolute inset-0 rounded-full bg-small-orange opacity-15 animate-ping" style={{ animationDuration: '2s', animationDelay: '0.8s' }} />
-                          <button
-                            onClick={() => { setEditingAlbum(null); setShowCreator(true); }}
-                            className="relative inline-flex items-center gap-2 px-6 py-3 bg-small-orange text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-lg shadow-small-orange/40 animate-pulse"
-                            style={{ animationDuration: '3s' }}
-                          >
-                            <Upload size={13} />
-                            Creators Upload Here
-                          </button>
-                        </div>
-                      </div>
+                      {/* The pulsing "Creators Upload Here" CTA now lives in the hero masthead. */}
                       <Suspense fallback={null}>
                         <PlajahPlusBanner className="mb-8 max-w-2xl" />
                       </Suspense>
@@ -4501,29 +4583,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         </div>
                       )}
 
-                      <div className="flex items-center gap-6 mt-8 overflow-x-auto no-scrollbar pb-2">
-                        {(['MUSIC', 'WORLDS', 'CLUBS', 'SOCIAL', 'SPORTS', 'LIVE_HUB', 'VIDEO', 'MOVIES_TV', 'BOOK', 'GAMES', 'MODULES', 'MY_ARCHIVE'] as const).map(tab => (
-                          <button
-                            key={tab}
-                            onClick={() => {
-                              if (tab === 'WORLDS') setView('WORLDS');
-                              else if (tab === 'CLUBS') setView('CLUBS');
-                              else if (tab === 'SOCIAL') setView('FEED');
-                              else if (tab === 'SPORTS') setView('PLAJAH_SPORTS');
-                              else if (tab === 'LIVE_HUB') setView('LIVE_HUB');
-                              else if (tab === 'GAMES') setView('GAMES');
-                              else if (tab === 'VIDEO') setView('VIDEOS');
-                              else if (tab === 'MOVIES_TV') setView('MOVIES_TV');
-                              else if (tab === 'BOOK') setView('BOOKS');
-                              else if (tab === 'MODULES') setView('CLASSROOMS');
-                              else if (tab === 'MY_ARCHIVE' && !user) loginWithGoogle();
-                              else setArchiveTab(tab as any);
-                            }}
-                            className={`text-sm font-black uppercase tracking-[0.3em] transition-all pb-2 border-b-2 whitespace-nowrap shrink-0 ${archiveTab === tab ? 'text-white border-white' : 'text-white/20 border-transparent hover:text-white/40'}`}
-                          >
-                            {tab === 'MY_ARCHIVE' ? 'My Archive' : tab === 'MOVIES_TV' ? 'Movies & TV' : tab === 'VIDEO' ? 'Videos' : tab === 'LIVE_HUB' ? 'Live' : tab === 'SPORTS' ? 'Sports' : tab === 'SOCIAL' ? 'Social' : tab}
-                          </button>
-                        ))}
+                      {/* Sentinel for the floating dock, then the upgraded tab row
+                          (honest doors ↗ · service colors · live count). Same 12 tabs,
+                          same navigate-vs-filter semantics as before. */}
+                      <div ref={archiveTabsSentinelRef} aria-hidden="true" />
+                      <div className="mt-8">
+                        <ArchiveTabRow active={archiveTab} onSelect={handleArchiveTabSelect} liveCount={liveCount} />
                       </div>
                       {archiveTab === 'MUSIC' && (
                         <div className="flex items-center gap-6 mt-4 overflow-x-auto no-scrollbar pb-2 border-b border-white/10">
@@ -4961,6 +5026,21 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <StudentAssignmentView onBack={() => setView('ACADEMIA_HOME')} user={user} worksheetId={new URLSearchParams(window.location.search).get('id') || undefined} />
               </Suspense>
             )}
+            {view === 'STUDENT_LESSON' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading…</div>}>
+                <AssignedLessonView
+                  onBack={() => setView('ACADEMIA_HOME')}
+                  user={user}
+                  assignmentId={new URLSearchParams(window.location.search).get('id') || undefined}
+                  onOpenBook={async (bookId) => {
+                    // Open the hosted textbook in place — a reload here would drop the
+                    // student's checked steps and half-written reflection.
+                    const book = await fetchProjectFromCloud(bookId);
+                    if (book) { setSelectedBook(book); setView('BOOK_READER'); }
+                  }}
+                />
+              </Suspense>
+            )}
             {view === 'BOOK_READER' && selectedBook && (
               // Relative, full-height wrapper so the CONTAINED reader (absolute inset-0)
               // fills the content column between the pillars and the right edge.
@@ -5061,6 +5141,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'BIBLE' && <BibleExperience onBack={() => setView('BOOKS')} initialRefId={bibleRefId} />}
             {view === 'AMBO' && <AmboPresenter onBack={() => setView('APPS')} />}
             {view === 'FOLLOW_ALONG' && <FollowAlongView sessionId={followSessionId} onBack={() => setView('APPS')} />}
+            {view === 'VESPERS' && vespersRecapId && <VespersRecap recapId={vespersRecapId} onBack={() => setView('APPS')} />}
             {view === 'CLASSROOMS' && (
               (isEducationAccount(userProfile) || (userProfile as any)?.accountType === 'PARENT')
                 ? <ClassroomsView onBack={() => setView('DASHBOARD')} user={user} onNavigate={(v) => setView(v as any)} />

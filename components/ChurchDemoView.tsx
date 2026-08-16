@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   ChevronLeft, Users, Image as ImageIcon, Calendar, Play, Heart, MessageSquare,
   MapPin, Clock, Ticket, ShoppingBag, ArrowRight, Home, HandHeart, Church, MessageCircle,
-  BookOpen, Gift, Check, ExternalLink,
+  BookOpen, Gift, Check, ExternalLink, Radio, NotebookPen,
 } from 'lucide-react';
 import DemoRibbon from './DemoRibbon';
 import ChurchAdminDemoView from './ChurchAdminDemoView';
@@ -293,6 +293,22 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
 
             {/* ── WATCH ── */}
             {tab === 'WATCH' && (
+              <>
+              {/* Live scripture sync — the thing no other church platform does. */}
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('OPEN_FOLLOW_ALONG', { detail: {} }))}
+                className="w-full text-left mb-4 p-4 rounded-2xl border transition-all hover:brightness-110"
+                style={{ borderColor: 'rgba(212,175,55,0.35)', background: 'linear-gradient(135deg, rgba(212,175,55,0.12), rgba(139,92,246,0.08))' }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <Radio size={14} style={{ color: '#d4af37' }} />
+                  <span className={`${TYPE.labelMd} text-white`}>Follow along with the service</span>
+                  <span className="ml-auto px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest" style={{ background: 'rgba(212,175,55,0.2)', color: '#d4af37' }}>Live</span>
+                </div>
+                <p className="type-body-sm text-white/50 leading-relaxed">
+                  Whether you’re in the room or watching from home, your phone turns to each passage
+                  as it’s read — and saves it to your notes with the moment it happened.
+                </p>
+              </button>
               <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="1rem">
                 {DEMO_CHURCH_VIDEOS.map(v => (
                   <button key={v.id} onClick={demoAction} className="text-left group">
@@ -307,6 +323,7 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
                   </button>
                 ))}
               </AdaptiveGrid>
+              </>
             )}
 
             {/* ── PRAYER ── */}
@@ -333,9 +350,30 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
             {/* ── LIBRARY ── */}
             {tab === 'LIBRARY' && (
               <div>
+                {/* Scripture is free for everyone, so these open for real rather
+                    than showing the demo nudge. */}
+                <div className="mb-5 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  {[
+                    { icon: BookOpen, title: 'Read Scripture', sub: 'KJV · Vulgate · Greek · Hebrew, side by side', ev: 'OPEN_BIBLE' },
+                    { icon: Radio, title: 'Follow along', sub: 'Your phone turns to each passage in service', ev: 'OPEN_FOLLOW_ALONG' },
+                    { icon: NotebookPen, title: 'Service notes', sub: 'Every passage you’ve been taught, by day', ev: 'OPEN_BIBLE' },
+                  ].map(({ icon: Icon, title, sub, ev }) => (
+                    <button key={title}
+                      onClick={() => window.dispatchEvent(new CustomEvent(ev, { detail: {} }))}
+                      className="text-left p-3.5 rounded-2xl border transition-all hover:brightness-125"
+                      style={{ borderColor: 'rgba(212,175,55,0.28)', background: 'rgba(212,175,55,0.05)' }}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Icon size={14} style={{ color: '#d4af37' }} />
+                        <span className={`${TYPE.labelMd} text-white`}>{title}</span>
+                      </div>
+                      <p className="type-body-sm text-white/45 leading-snug">{sub}</p>
+                    </button>
+                  ))}
+                </div>
+
                 <div className="flex items-center justify-between mb-4">
                   <p className="type-title-sm text-white/55 max-w-md">A reading list curated by our teaching team, powered by Lorea.</p>
-                  <button onClick={demoAction} className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full ${TYPE.labelMd} text-white`} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)' }}>
+                  <button onClick={() => window.dispatchEvent(new CustomEvent('OPEN_BIBLE', { detail: {} }))} className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full ${TYPE.labelMd} text-white`} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)' }}>
                     <BookOpen size={12} style={{ color: VS }} /> Sacred Library <ExternalLink size={11} />
                   </button>
                 </div>

@@ -24,6 +24,7 @@ import CharacterDetailModal from './CharacterDetailModal';
 import CharacterCard from './CharacterCard';
 import { HoldNavigate } from './HoldNavigate';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
+import ChipRail from './ui/ChipRail';
 
 interface WorldsViewProps {
   onNavigate: (view: AppView) => void;
@@ -549,21 +550,19 @@ const WorldsView: React.FC<WorldsViewProps> = ({ onNavigate, onEdit, userProfile
             </div>
           )}
 
-          {/* Tabs */}
-          <div className="flex overflow-x-auto gap-3 mb-10 no-scrollbar">
-            {[
-              { id: 'Overview',   icon: LayoutGrid },
-              { id: 'Characters', icon: Users },
-              { id: 'Lore',       icon: Scroll },
-              { id: 'Timeline',   icon: History },
-              { id: 'Graph',      icon: Network },
-            ].map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id as any)}
-                className={`px-7 py-3.5 rounded-2xl font-black uppercase text-[9px] tracking-widest transition-all flex items-center gap-2.5 whitespace-nowrap shadow-lg flex-shrink-0 ${activeTab === tab.id ? 'bg-small-orange text-black' : 'bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-black/60'}`}>
-                <tab.icon size={14} /> {tab.id}
-              </button>
-            ))}
-          </div>
+          {/* Tabs — platform Chip Rail treatment (components/ui/ChipRail) */}
+          <ChipRail
+            className="mb-10"
+            items={[
+              { id: 'Overview',   label: 'Overview',   icon: <LayoutGrid size={13} /> },
+              { id: 'Characters', label: 'Characters', icon: <Users size={13} /> },
+              { id: 'Lore',       label: 'Lore',       icon: <Scroll size={13} /> },
+              { id: 'Timeline',   label: 'Timeline',   icon: <History size={13} /> },
+              { id: 'Graph',      label: 'Graph',      icon: <Network size={13} /> },
+            ]}
+            activeId={activeTab}
+            onSelect={(id) => setActiveTab(id as any)}
+          />
 
           {/* Content */}
           <AnimatePresence mode="wait">

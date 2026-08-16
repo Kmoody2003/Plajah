@@ -459,8 +459,13 @@ const MobileLiveHub: React.FC<MobileLiveHubProps> = ({ onBack, uid }) => {
           <div className="grid grid-cols-2 gap-3">
             {fastChannels.map(c => (
               <button key={c.ownerId} onClick={() => setViewChannel(c)} className="text-left rounded-2xl overflow-hidden bg-white/5 border border-white/8 active:scale-[0.98] transition-transform">
-                <div className="relative aspect-video bg-black">
-                  {c.logoUrl || c.profile?.photoURL ? <img src={c.logoUrl || c.profile?.photoURL} className="w-full h-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center"><Tv size={28} className="text-white/15" /></div>}
+                <div className="relative aspect-video bg-black overflow-hidden">
+                  {/* Blanking fill — whole image contained over a blurred self-fill (profile
+                      photos in a 16:9 frame must never be cover-cropped into faces). */}
+                  {c.logoUrl || c.profile?.photoURL ? <>
+                    <img src={c.logoUrl || c.profile?.photoURL} aria-hidden="true" className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-50" alt="" />
+                    <img src={c.logoUrl || c.profile?.photoURL} className="relative w-full h-full object-contain" alt="" />
+                  </> : <div className="w-full h-full flex items-center justify-center"><Tv size={28} className="text-white/15" /></div>}
                   <div className="absolute top-2 left-2 px-2 py-0.5 bg-red-600 rounded-full text-white text-[8px] font-black uppercase tracking-widest flex items-center gap-1"><Tv size={9} /> FAST</div>
                   {typeof c.number === 'number' && <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/70 rounded text-white text-[9px] font-mono">CH {c.number}</div>}
                 </div>
@@ -486,7 +491,11 @@ const MobileLiveHub: React.FC<MobileLiveHubProps> = ({ onBack, uid }) => {
 const LiveRow: React.FC<{ feed: LiveFeed; onOpen: () => void }> = ({ feed, onOpen }) => (
   <button onClick={onOpen} className="w-full flex items-center gap-3 rounded-2xl overflow-hidden bg-white/5 border border-white/8 p-2 active:scale-[0.99] transition-transform text-left">
     <div className="relative w-28 aspect-video rounded-xl overflow-hidden bg-black shrink-0">
-      {feed.ownerPhoto ? <img src={feed.ownerPhoto} className="w-full h-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center"><Tv size={22} className="text-white/15" /></div>}
+      {/* Blanking fill — no cover-crop zoom on profile photos */}
+      {feed.ownerPhoto ? <>
+        <img src={feed.ownerPhoto} aria-hidden="true" className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-50" alt="" />
+        <img src={feed.ownerPhoto} className="relative w-full h-full object-contain" alt="" />
+      </> : <div className="w-full h-full flex items-center justify-center"><Tv size={22} className="text-white/15" /></div>}
       <div className="absolute top-1.5 left-1.5 flex items-center gap-1 px-2 py-0.5 bg-red-600 rounded-full text-white text-[8px] font-black uppercase tracking-widest"><span className="w-1 h-1 rounded-full bg-white animate-ping" /> Live</div>
     </div>
     <div className="min-w-0 flex-1 pr-1">

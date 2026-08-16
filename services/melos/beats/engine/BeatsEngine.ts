@@ -104,6 +104,7 @@ export class BeatsEngine {
       startAudioClip: (track, clip, when, offset) => this.startAudioClip(track, clip, when, offset),
       startInstrumentNote: (track, note, when, durSec) => this.startInstrumentNote(track, note, when, durSec),
       runArp: (track, stepIndex, beat) => this.runArp(track, stepIndex, beat),
+      arpActive: (track) => this.arpIsActive(track),
     });
     this.graph.applyDoc(this.doc);
   }
@@ -232,11 +233,14 @@ export class BeatsEngine {
     // With the Arp armed the keyboard FEEDS it rather than sounding directly — holding a chord
     // is the gesture, and the arp turns it into a performance on the transport grid.
     const arp = this.arpFor(track);
+    // The arp only produces notes while the transport runs (it's driven by the step clock). When
+    // stopped, feed the note to the arp's held set AND sound it directly, so holding a key always
+    // makes sound — pressing play then hands the performance to the arp.
     if (arp?.enabled) {
       const held = this.heldKeys.get(track.id) || { keys: [], order: [] };
       if (!held.keys.includes(key)) { held.keys.push(key); held.order.push(key); }
       this.heldKeys.set(track.id, held);
-      return;
+      if (this.running) return; // playing: the arp owns the sound
     }
     const inst = this.instruments.get(track.id);
     if (!inst || !this.ctx) { void this.ensureInstrument(track); return; }
@@ -288,18 +292,39 @@ export class BeatsEngine {
    * The arp itself is pure — it holds no playback state — so this only supplies held keys and
    * routes the notes it returns.
    */
-  private runArp(track: ATrack, stepIndex: number, beat: number): boolean {
+  /** True when the track has an enabled arp — used by the scheduler to skip its clip notes. */
+  arpIsActive(track: ATrack): boolean {
+    return !!this.arpFor(track)?.enabled;
+  }
+
+  /**
+   * PANIC — cut every sounding voice immediately. The safety net for a synth note whose note-off
+   * got lost (a dropped MIDI message, a held key on a focus change, a sustained patch left
+   * ringing). Stops the transport, silences pads, hard-kills every instrument voice and clears
+   * the held-key and arp state so nothing re-triggers.
+   */
+  panic(): void {
+    this.stop();
+    this.voices?.stopAll(this.ctx?.currentTime);
+    for (const inst of this.instruments.values()) inst.allNotesOff(true);
+    this.heldKeys.clear();
+    this.arpPrevFired.clear();
+    this.liveNotes.clear();
+    this.arpFill = false;
+  }
+
+  private runArp(track: ATrack, stepIndex: number, beat: number): void {
     const arp = this.arpFor(track);
-    if (!arp?.enabled) return false;
+    if (!arp?.enabled) return;
     const held = this.heldKeys.get(track.id);
-    if (!held?.keys.length) return true; // armed but nothing held: still owns the step
+    if (!held?.keys.length) return; // armed but nothing held — nothing to arpeggiate
 
     const prev = this.arpPrevFired.get(track.id) ?? false;
     const res = arpStep(arp, held.keys, held.order, stepIndex, { fill: this.arpFill, prevFired: prev });
     this.arpPrevFired.set(track.id, res.played);
 
     const inst = this.instruments.get(track.id);
-    if (!inst || !this.ctx) return true;
+    if (!inst || !this.ctx) return;
 
     for (const n of res.notes) {
       const when = this.toTime(beat + n.offsetBeats);
@@ -315,7 +340,6 @@ export class BeatsEngine {
         }, offIn + 5);
       }
     }
-    return true;
   }
 
   /** Per-note expression from an MPE controller. */

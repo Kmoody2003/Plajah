@@ -16,6 +16,9 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { fetchAllPublicAlbums, fetchUpcomingAlbums, fetchUserProfile, searchUsers, fetchSystemSettingsConfig, fetchPlaylistsByIds, syncPublicDomainAsset, fetchPersonalPlaylists, fetchPersonalTracks, createPlaylist, deletePlaylist, addTrackToPlaylist, addExternalTrackToPlaylist, removeTrackFromPlaylist, fetchTrackStats, updateUserProfile, auth } from '../services/backendService';
 import SignInPrompt from './SignInPrompt';
+import ChipRail from './ui/ChipRail';
+import ChoraNextMasthead from './ChoraNextMasthead';
+import { useChoraNext } from '../hooks/useChoraNext';
 import PlaylistPickerModal from './PlaylistPickerModal';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import MyLibraryView from './MyLibraryView';
@@ -277,6 +280,10 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const [curatedPlaylists, setCuratedPlaylists] = useState<Playlist[]>([]);
   const [vaultTracks, setVaultTracks] = useState<ArchiveTrack[]>([]);
   const isTvUi = getPlatformInfo().isTV;
+  // Opt-in "Chora Next" skin (Listening Room / Observatory night) — per-device,
+  // entered via the "Try the new Chora" pill, exit via Switch back. Not on TV.
+  const choraNext = useChoraNext();
+  const choraNextOn = choraNext.enabled && !isTvUi;
   const [activeTab, setActiveTab] = useState<TabType>(initialTab ?? 'NEW');
   const [isLoading, setIsLoading] = useState(true);
   const [sortOrder, setSortOrder] = useState<'RECENT' | 'ALPHA'>('RECENT');
@@ -641,6 +648,14 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
   const genres = ['Hip Hop', 'R&B', 'Electronic', 'Jazz', 'Rock', 'Pop', 'Lo-Fi', 'Ambient', 'Classical', 'Folk', 'World'];
 
+  // Chora Next (Listening Room) collapses the giant per-tab wordmarks into shelf
+  // eyebrows — the masthead already carries the identity. Classic UI keeps them.
+  const tabWordmark = (label: string, tight = false) => choraNextOn ? (
+    <p className="pj-eyebrow mb-6" style={{ color: 'rgba(255,255,255,0.4)' }}>{label}</p>
+  ) : (
+    <h1 style={{ fontSize: 'clamp(2.5rem, 12vw, 12rem)' }} className={`break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none${tight ? '' : ' mb-6 sm:mb-12'}`}>{label}</h1>
+  );
+
   const getSortedAlbums = () => {
     let sorted = [...albums];
     if (sortOrder === 'ALPHA') {
@@ -825,7 +840,14 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
           <div className="shrink-0">
-            <PageHeader wrapperClassName="mb-12">Plajah Vault</PageHeader>
+            {choraNextOn ? (
+              <div className="mb-12">
+                <p className="pj-eyebrow mb-2" style={{ color: 'rgba(255,255,255,0.4)' }}>The archive shelf</p>
+                <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter text-white italic leading-[0.85] select-none">Plajah <span style={{ background: 'var(--pj-grad-ember)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>Vault</span></h2>
+              </div>
+            ) : (
+              <PageHeader wrapperClassName="mb-12">Plajah Vault</PageHeader>
+            )}
             <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-2 px-1">
               Library of Congress · Internet Archive · Wikimedia · Audius
             </p>
@@ -1366,7 +1388,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   }
 
   return (
-    <div className="flex-1 bg-transparent text-white overflow-y-auto custom-scrollbar pb-40 relative">
+    <div className={`flex-1 bg-transparent text-white overflow-y-auto custom-scrollbar pb-40 relative${choraNextOn ? (choraNext.isNight ? ' chora-next chora-night' : ' chora-next') : ''}`}>
       {bgAlbums.length > 0 && (
         <div className="fixed top-0 left-0 w-screen h-[80vh] pointer-events-none" style={{ zIndex: 0, WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)', maskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)' }}>
           <AnimatePresence mode="sync">
@@ -1385,8 +1407,21 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
       )}
       <div className="flex flex-col h-full relative z-[1]">
         <div className="flex-1 min-w-0">
-          <div className="px-4 sm:px-6 lg:px-12 pt-8 mb-6 relative z-10" style={{ opacity: 0.82 }}>
-            <PageHeader>Plajah Chora</PageHeader>
+          <div className="px-4 sm:px-6 lg:px-12 pt-8 mb-6 relative z-10" style={{ opacity: choraNextOn ? 1 : 0.82 }}>
+            {choraNextOn ? (
+              <ChoraNextMasthead
+                albums={albums}
+                upcomingAlbums={upcomingAlbums}
+                isNight={choraNext.isNight}
+                mode={choraNext.mode}
+                onCycleMode={choraNext.cycleMode}
+                onExit={() => choraNext.setEnabled(false)}
+                onFeedback={() => window.dispatchEvent(new CustomEvent('OPEN_BUG_REPORT', { detail: { context: 'chora-next' } }))}
+                onSelectAlbum={onSelectAlbum}
+              />
+            ) : (
+              <PageHeader>Plajah Chora</PageHeader>
+            )}
             {/* Both banners are off on TV. The Plajah+ promo belongs in the side panel, not
                 stacked above the content a viewer came for; and the World Cup anthems banner is
                 for a tournament that has finished — the playlist still lives in Playlists, which
@@ -1399,23 +1434,37 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
             {!isTvUi && <WcAnthemBanner onOpenPlaylist={() => { setActiveTab('PLAYLISTS'); }} />}
           </div>
           <nav className={`px-4 lg:px-12 mb-6 lg:mb-12 sticky top-0 backdrop-blur-2xl bg-black/40 border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.5)] z-40 py-3 ${s.nav} transition-all duration-500`}>
-            {/* Row 1: swipeable tabs — always full-width */}
-            <div className="flex items-center gap-6 overflow-x-auto no-scrollbar pb-2">
-              {/* On a TV, Chora IS the audio app: Radio folds in as a tab rather than living as a
-                  separate destination, and the creator-facing tabs drop out — there is nothing to
-                  manage from a remote. Everywhere else the full set stays. */}
-              {(CHORA_TABS()).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => { setActiveTab(tab); setSelectedArchiveArtist(null); setSelectedAudiusArtist(null); setSelectedAudiusAlbum(null); setShowConservatory(false); }}
-                  className={`text-xs font-black uppercase tracking-[0.3em] whitespace-nowrap transition-all pb-1 border-b-2 shrink-0 ${activeTab === tab ? 'text-small-orange border-small-orange' : s.tabInactive}`}
-                >
-                  {tab === 'VAULT' ? 'The Vault' : tab.replace('_', ' ')}
-                </button>
-              ))}
+            {/* Tabs + actions share one flex row: the Chip Rail takes flex-1/min-w-0
+                and scrolls inside its own lane, the action buttons keep their own
+                reserved space on the right (never absolutely positioned — that was
+                why Sync/Audius/Produce/Upload kept landing ON TOP of the tabs).
+                On mobile the actions wrap to a second row below the rail.
+                On a TV, Chora IS the audio app: Radio folds in as a tab rather
+                than living as a separate destination, and the creator-facing
+                tabs drop out — there is nothing to manage from a remote. */}
+            <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+            <div className="min-w-0 flex-1">
+              <ChipRail
+                items={(CHORA_TABS()).map(tab => ({ id: tab, label: tab === 'VAULT' ? 'The Vault' : tab.replace('_', ' ') }))}
+                activeId={activeTab}
+                onSelect={(id) => { setActiveTab(id as TabType); setSelectedArchiveArtist(null); setSelectedAudiusArtist(null); setSelectedAudiusAlbum(null); setShowConservatory(false); }}
+              />
             </div>
-            {/* Row 2: action buttons — below tabs on mobile, inline on md+ */}
-            <div className="flex items-center gap-2 pt-2 md:pt-0 md:absolute md:right-12 md:top-1/2 md:-translate-y-1/2">
+            {/* Row 2: action buttons — beside the rail on md+, below it on mobile */}
+            <div className="flex items-center gap-2 shrink-0 overflow-x-auto no-scrollbar">
+              {/* Opt-in door to the Chora Next skin — beta, per-device, reversible. */}
+              {!choraNextOn && !isTvUi && (
+                <button
+                  onClick={() => choraNext.setEnabled(true)}
+                  className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all text-white hover:scale-105"
+                  style={{ background: 'linear-gradient(120deg, #6B0099, #00DAF3)', boxShadow: '0 0 14px rgba(0,218,243,0.3)' }}
+                  title="Preview the new Chora UI — switch back anytime"
+                >
+                  <Sparkles size={12} />
+                  <span className="hidden sm:inline">Try the new Chora</span>
+                  <span className="sm:hidden">New UI</span>
+                </button>
+              )}
               {(activeTab === 'ARTISTS' || activeTab === 'ALBUMS') && (
                 <div className="flex items-center bg-white/5 rounded-full p-0.5 border border-white/10">
                   {([['ALL', 'All'], ['CHORA', 'Chora Only'], ['OWNED', 'Owned']] as const).map(([id, label]) => (
@@ -1481,9 +1530,17 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                 </button>
               )}
             </div>
+            </div>
           </nav>
 
-          {/* Conservatory + History Moments + Music Theory Studio — below tab bar */}
+          {/* Conservatory + History Moments + Music Theory Studio — below tab bar.
+              Chora Next names this shelf "The Rooms" (honest doors, per the
+              Listening Room direction); the cards themselves are unchanged. */}
+          {choraNextOn && (
+            <p className="pj-eyebrow px-4 sm:px-6 lg:px-12 pt-6 -mb-3" style={{ color: 'rgba(255,255,255,0.4)' }}>
+              The Rooms · Chora's studios &amp; museum <span aria-hidden="true" style={{ color: 'var(--pj-orange)' }}>↗</span>
+            </p>
+          )}
           {(onNavigate || true) && (
             <div className="flex gap-4 px-4 sm:px-6 lg:px-12 pt-6 pb-2 overflow-x-auto no-scrollbar">
               {/* Chora Conservatory — music museum + history */}
@@ -1593,7 +1650,13 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
           {activeTab === 'NEW' && !selectedArchiveArtist && (
             <div className="px-4 sm:px-6 lg:px-12 pt-8 mb-6">
-              <h1 style={{ fontSize: 'clamp(2.5rem, 12vw, 12rem)' }} className="break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-6 sm:mb-12">New</h1>
+              {/* Chora Next: the masthead + hero already announce NEW — the giant
+                  wordmark collapses to a shelf eyebrow. Classic UI keeps it. */}
+              {choraNextOn ? (
+                <p className="pj-eyebrow mb-6" style={{ color: 'rgba(255,255,255,0.4)' }}>New this week</p>
+              ) : (
+                <h1 style={{ fontSize: 'clamp(2.5rem, 12vw, 12rem)' }} className="break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-6 sm:mb-12">New</h1>
+              )}
               <AdaptiveGrid phone={1} tablet={2} desktop={3} gap="2rem">
               <div className="lg:col-span-2 space-y-12">
 
@@ -2021,7 +2084,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
           {activeTab === 'FOR_YOU' && !selectedArchiveArtist && userProfile && (
              <div className="px-4 sm:px-6 lg:px-12 pt-8 mb-6 space-y-12 animate-in fade-in">
-               <h1 style={{ fontSize: 'clamp(2.5rem, 12vw, 12rem)' }} className="break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-6 sm:mb-12">For You</h1>
+               {tabWordmark('For You')}
 
                {/* ── Coming Soon ── */}
                {upcomingAlbums.length > 0 && (
@@ -2104,7 +2167,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                 
                 {activeTab === 'PLAYLISTS' && (
                   <section className="animate-in fade-in duration-500 space-y-16">
-                    <h1 style={{ fontSize: 'clamp(2.5rem, 12vw, 12rem)' }} className="break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Playlists</h1>
+                    {tabWordmark('Playlists', true)}
 
                     {/* ── World Cup 2026 National Anthems ── */}
                     <WcAnthemPlaylist onOpenAlbum={onSelectAlbum} />
@@ -2301,7 +2364,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                 {activeTab === 'ARTISTS' && (
                   <section className="animate-in fade-in duration-500 space-y-16">
                     <div className="flex items-center justify-between">
-                      <h1 style={{ fontSize: 'clamp(2.5rem, 12vw, 12rem)' }} className="break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Artists</h1>
+                      {tabWordmark('Artists', true)}
                       <button onClick={() => setSortOrder(sortOrder === 'RECENT' ? 'ALPHA' : 'RECENT')} className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-all flex items-center gap-2">
                         <ArrowUpDown size={16} />
                         <span className="text-[9px] font-black uppercase tracking-widest">{sortOrder === 'RECENT' ? 'Recently Joined' : 'Alphabetical'}</span>
@@ -2391,7 +2454,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                 {activeTab === 'ALBUMS' && (
                   <section className="animate-in fade-in duration-500 space-y-16">
                     <div className="flex items-center justify-between">
-                      <h1 style={{ fontSize: 'clamp(2.5rem, 12vw, 12rem)' }} className="break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Albums</h1>
+                      {tabWordmark('Albums', true)}
                       <button onClick={() => setSortOrder(sortOrder === 'RECENT' ? 'ALPHA' : 'RECENT')} className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-all flex items-center gap-2">
                         <ArrowUpDown size={16} />
                         <span className="text-[9px] font-black uppercase tracking-widest">{sortOrder === 'RECENT' ? 'Newest First' : 'Alphabetical'}</span>
@@ -2517,7 +2580,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
                 {activeTab === 'GENRES' && (
                   <section className="animate-in fade-in duration-500">
-                    <h1 style={{ fontSize: 'clamp(2.5rem, 12vw, 12rem)' }} className="break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-6 sm:mb-12">Genres</h1>
+                    {tabWordmark('Genres')}
                     <div className="space-y-16">
                       {genres.map(genre => {
                         const genreAlbums = albums
@@ -2592,7 +2655,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                 {activeTab === 'AUDIO_BOOKS' && (
                   <section className="animate-in fade-in duration-500">
                     <div className="flex items-center justify-between mb-12">
-                      <h1 style={{ fontSize: 'clamp(2.5rem, 12vw, 12rem)' }} className="break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-6 sm:mb-12">Audiobooks</h1>
+                      {tabWordmark('Audiobooks')}
                       <div className="p-2 px-4 bg-white/5 rounded-xl border border-white/10 text-[8px] font-black uppercase tracking-widest text-white/40">
                         Historical Archive
                       </div>

@@ -11,6 +11,7 @@ import PlajahPlusBanner from './PlajahPlusBanner';
 import { motion, AnimatePresence } from 'motion/react';
 import LazyImage from './LazyImage';
 import { warmImages } from '../src/lib/performanceCache';
+import ChipRail from './ui/ChipRail';
 
 interface BookTabProps {
   onSelectBook: (book: any) => void;
@@ -352,32 +353,16 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
             }} />
         </label>
         <PlajahPlusBanner variant="PILL" />
-        <div className="flex bg-white/5 rounded-full p-1 border border-white/10">
-          <button
-            onClick={() => setActiveTab('CLASSICS')}
-            className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
-              activeTab === 'CLASSICS' ? 'bg-white text-black' : 'text-white/50 hover:text-white'
-            }`}
-          >
-            Classics
-          </button>
-          <button
-            onClick={() => setActiveTab('MARKETPLACE')}
-            className={`px-4 py-2 rounded-full text-[10px] flex items-center gap-1.5 font-black uppercase tracking-widest transition-all ${
-              activeTab === 'MARKETPLACE' ? 'bg-small-orange text-white' : 'text-white/50 hover:text-white'
-            }`}
-          >
-            <ShoppingCart size={14} /> Marketplace
-          </button>
-          <button
-            onClick={() => setActiveTab('GLOBAL')}
-            className={`px-4 py-2 rounded-full text-[10px] flex items-center gap-1.5 font-black uppercase tracking-widest transition-all ${
-              activeTab === 'GLOBAL' ? 'bg-blue-500 text-white' : 'text-white/50 hover:text-white'
-            }`}
-          >
-            <Globe size={14} /> Global
-          </button>
-        </div>
+        {/* Platform Chip Rail treatment (components/ui/ChipRail) */}
+        <ChipRail
+          items={[
+            { id: 'CLASSICS', label: 'Classics' },
+            { id: 'MARKETPLACE', label: 'Marketplace', icon: <ShoppingCart size={13} /> },
+            { id: 'GLOBAL', label: 'Global', icon: <Globe size={13} /> },
+          ]}
+          activeId={activeTab}
+          onSelect={(id) => setActiveTab(id as any)}
+        />
         <div className="relative group w-full sm:w-auto">
           <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-small-orange transition-all" size={20} />
           <input

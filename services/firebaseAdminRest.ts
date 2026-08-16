@@ -240,6 +240,69 @@ export async function fsDelete(path: string): Promise<boolean> {
   } catch { return false; }
 }
 
+/** List a collection's documents (id + data), following pagination. Server-side only — this
+ *  bypasses security rules, so callers must do their own authorization. */
+export async function fsList(
+  collection: string,
+  opts: { pageSize?: number; maxDocs?: number } = {},
+): Promise<Array<{ id: string; data: Record<string, any> }>> {
+  const pageSize = opts.pageSize ?? 100;
+  const maxDocs = opts.maxDocs ?? 1000;
+  const out: Array<{ id: string; data: Record<string, any> }> = [];
+  let pageToken: string | undefined;
+  try {
+    do {
+      const qs = `pageSize=${pageSize}${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
+      const res = await fetch(`${FS_BASE}/${collection}?${qs}`, { headers: await authHeaders() });
+      if (!res.ok) break;
+      const json = await res.json() as any;
+      for (const d of json.documents ?? []) {
+        out.push({ id: String(d.name).split('/').pop()!, data: d.fields ? fromFields(d.fields) : {} });
+        if (out.length >= maxDocs) return out;
+      }
+      pageToken = json.nextPageToken;
+    } while (pageToken);
+  } catch { /* return whatever we got */ }
+  return out;
+}
+
+// ── Custom auth claims (Identity Toolkit) ────────────────────────────────────────
+// Claims are how a server-side decision reaches firestore.rules: the rules can read
+// request.auth.token.<claim> but cannot call out. Note the propagation cost — a client keeps
+// its old ID token for up to an hour, so callers should force getIdToken(true) after a change.
+
+export async function getCustomClaims(uid: string): Promise<Record<string, unknown>> {
+  const at = await getAccessToken();
+  if (!at) return {};
+  try {
+    const res = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}/accounts:lookup`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${at}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ localId: [uid] }),
+    });
+    if (!res.ok) return {};
+    const data = await res.json() as any;
+    const raw = data.users?.[0]?.customAttributes;
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+/** Merge-set custom claims. Reads the existing set first so unrelated claims survive. */
+export async function setCustomClaims(uid: string, claims: Record<string, unknown>): Promise<boolean> {
+  const at = await getAccessToken();
+  if (!at) return false;
+  try {
+    const merged = { ...(await getCustomClaims(uid)), ...claims };
+    const res = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}/accounts:update`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${at}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ localId: uid, customAttributes: JSON.stringify(merged) }),
+    });
+    if (!res.ok) console.error('[admin] setCustomClaims failed:', res.status, (await res.text().catch(() => '')).slice(0, 180));
+    return res.ok;
+  } catch (e) { console.error('[admin] setCustomClaims error:', e); return false; }
+}
+
 // ── Password hashing (scrypt — built-in, no dependency) ──────────────────────────
 export function hashPassword(password: string): string {
   const salt = nodeCrypto.randomBytes(16);

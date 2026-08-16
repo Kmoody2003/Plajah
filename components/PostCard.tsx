@@ -24,6 +24,7 @@ import SignInPrompt from './SignInPrompt';
 import SocialEmbedCard from './SocialEmbedCard';
 import { parseSocialUrl, detectSocialEmbeds, extractUrlsFromText, stripUrlsFromText } from '../utils/socialEmbed';
 import { SensitiveContentGate, MutedContentGate, CleanText } from './safety/SafetyGates';
+import { RenderTextWithMentions } from '../src/lib/richText';
 import { useGateAccess, SanctuaryGateLock } from './sanctuary/SanctuaryGate';
 const CommunityNoteBadge = lazy(() => import('./notes/CommunityNotes'));
 import { TYPE } from '../src/lib/designSystem';
@@ -34,34 +35,8 @@ interface PostCardProps {
   onVisitUser?: (uid: string) => void;
 }
 
-const RenderTextWithMentions: React.FC<{ text: string; onVisitUser?: (uid: string) => void }> = ({ text, onVisitUser }) => {
-  const parts = text.split(/(@\[[^\]]+\]\([^\)]+\))/g);
-  return (
-    <>
-      {parts.map((part, i) => {
-        const mentionMatch = part.match(/@\[([^\]]+)\]\(([^)]+)\)/);
-        if (mentionMatch) {
-          const name = mentionMatch[1];
-          const uid = mentionMatch[2];
-          return (
-            <span
-              key={i}
-              className="text-small-orange hover:underline cursor-pointer font-bold inline-block"
-              onClick={(e) => {
-                e.stopPropagation();
-                onVisitUser?.(uid);
-              }}
-            >
-              @{name}
-            </span>
-          );
-        }
-        // Plain text runs through the viewer's Clean Speech filter
-        return <CleanText key={i} text={part} />;
-      })}
-    </>
-  );
-};
+// Mentions, scripture references and plain text — see src/lib/richText.tsx.
+// Was a local copy duplicated with FeedView; both now share one implementation.
 
 // Inline embedded 3D-scan viewer for academic/artifact posts. Shows a poster with
 // a "View in 3D" affordance; the interactive iframe loads only on click so a feed

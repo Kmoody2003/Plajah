@@ -20,7 +20,7 @@ import {
   Download, Save, FileDown, Globe, Printer, Settings2, Eye,
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List,
   Link2, Palette, X, Check, ChevronRight, ChevronLeft,
-  Sparkles, PenTool, MoreHorizontal, Loader2, ScanSearch, AlertTriangle,
+  Sparkles, PenTool, MoreHorizontal, Loader2, ScanSearch, AlertTriangle, ShieldCheck,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { StudioBook, StudioPage, StudioPanel, StudioPageType, Album } from '../types';
@@ -32,6 +32,9 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 const ComicPanelBuilder = lazy(() => import('./ComicPanelBuilder'));
+// Opt-in professional layer: ARK, content fingerprint, ISBN/ASIN, credits & splits.
+// Off for every account until the author turns it on inside the panel.
+const RightsIdentifiersPanel = lazy(() => import('./registry/RightsIdentifiersPanel'));
 
 // ─── Typography CSS (injected once) ──────────────────────────────────────────
 
@@ -815,6 +818,22 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
   const [continuityReport, setContinuityReport] = useState<ContinuityReport | null>(null);
   const [continuityError, setContinuityError] = useState<string | null>(null);
 
+  // Rights & Identifiers — the opt-in professional layer (ARK, fingerprint, ISBN, splits).
+  const [showRights, setShowRights] = useState(false);
+
+  /** Plain-text manuscript, used for the content fingerprint. Same shape the publisher sends. */
+  const manuscriptText = useCallback(() => {
+    const strip = (html: string) => {
+      const el = document.createElement('div');
+      el.innerHTML = html;
+      return (el.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+    };
+    return [...book.pages]
+      .sort((a, b) => a.order - b.order)
+      .map((p, i) => `${p.chapterTitle || `Chapter ${i + 1}`}\n\n${p.richText ? strip(p.richText) : ''}`)
+      .join('\n\n— — —\n\n');
+  }, [book.pages]);
+
   const runContinuity = async () => {
     setContinuityRunning(true);
     setContinuityError(null);
@@ -1029,6 +1048,12 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
             <ScanSearch size={11}/> Continuity
           </button>
 
+          <button onClick={() => setShowRights(true)}
+            title="ARK, content fingerprint, ISBN, credits & splits"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-xs text-white/50 hover:bg-white/8 hover:text-white transition-colors">
+            <ShieldCheck size={11}/> Rights
+          </button>
+
           {/* Export */}
           <div className="relative">
             <button onClick={() => setShowExport(v => !v)}
@@ -1209,6 +1234,25 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
           )}
         </AnimatePresence>
       </div>
+
+      {/* ── Rights & Identifiers (opt-in) ── */}
+      {showRights && (
+        <Suspense fallback={null}>
+          <RightsIdentifiersPanel
+            subject={{
+              kind: ['COMIC', 'MANGA', 'GRAPHIC_NOVEL', 'WEBTOON'].includes(book.format) ? 'COMIC' : 'BOOK',
+              id: book.id,
+              title: book.title,
+              creatorName: book.author,
+            }}
+            computeHash={async () => {
+              const { hashContent } = await import('../services/ordinalsService');
+              return hashContent(manuscriptText());
+            }}
+            onClose={() => setShowRights(false)}
+          />
+        </Suspense>
+      )}
 
       {/* ── Publish & Protect modal ── */}
       <AnimatePresence>

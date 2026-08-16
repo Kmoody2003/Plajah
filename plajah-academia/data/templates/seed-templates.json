@@ -1,0 +1,207 @@
+{
+  "templates": [
+    {
+      "subject": "math",
+      "gradeBand": "6-8",
+      "taskType": "practiceSet",
+      "structure": {
+        "title": "Ratios in the Real World",
+        "objective": "Students use ratio language to describe relationships between quantities and solve unit-rate problems from real contexts.",
+        "standardsAlignment": [
+          { "framework": "CCSS", "code": "CCSS.MATH.6.RP.A.1" },
+          { "framework": "CCSS", "code": "CCSS.MATH.6.RP.A.2" },
+          { "framework": "PISA", "code": "PISA.MATH.L2" }
+        ],
+        "steps": [
+          "Warm-up: identify three ratios in the classroom (5 min)",
+          "Guided practice from OpenStax Prealgebra Ch. 5 exercise set",
+          "Partner task: price-per-unit comparison at a real store flyer",
+          "Exit check: two unit-rate problems, self-scored against rubric"
+        ],
+        "differentiation": {
+          "support": "Provide a ratio-table graphic organizer; use whole-number quantities only.",
+          "extension": "Introduce three-quantity ratios and part:part:whole reasoning."
+        },
+        "rubric": {
+          "criteria": [
+            { "name": "Ratio reasoning", "levels": [
+              { "label": "Beginning", "descriptor": "Identifies ratios with support", "points": 1 },
+              { "label": "Developing", "descriptor": "Writes ratios correctly in context", "points": 2 },
+              { "label": "Proficient", "descriptor": "Solves unit-rate problems accurately", "points": 3 },
+              { "label": "Advanced", "descriptor": "Justifies method and checks reasonableness", "points": 4 }
+            ]}
+          ]
+        },
+        "estimatedMinutes": 45
+      }
+    },
+    {
+      "subject": "ela",
+      "gradeBand": "9-12",
+      "taskType": "readingResponse",
+      "structure": {
+        "title": "Author's Argument Deep Read",
+        "objective": "Students trace and evaluate an author's argument, citing strong textual evidence.",
+        "standardsAlignment": [
+          { "framework": "CCSS", "code": "CCSS.ELA.RI.9-10.8" },
+          { "framework": "PISA", "code": "PISA.READ.L4" }
+        ],
+        "steps": [
+          "First read: annotate claims vs. evidence (public-domain text from library)",
+          "Second read: map the argument structure in pairs",
+          "Written response: evaluate whether the evidence supports the claim",
+          "Peer review against the rubric"
+        ],
+        "differentiation": {
+          "support": "Sentence starters for claims/evidence; chunked text.",
+          "extension": "Compare two authors' arguments on the same subject."
+        },
+        "rubric": {
+          "criteria": [
+            { "name": "Evidence use", "levels": [
+              { "label": "Beginning", "descriptor": "Cites evidence loosely tied to claim", "points": 1 },
+              { "label": "Developing", "descriptor": "Cites relevant evidence", "points": 2 },
+              { "label": "Proficient", "descriptor": "Integrates strong, specific evidence", "points": 3 },
+              { "label": "Advanced", "descriptor": "Evaluates sufficiency and bias of evidence", "points": 4 }
+            ]}
+          ]
+        },
+        "estimatedMinutes": 60
+      }
+    },
+    {
+      "subject": "science",
+      "gradeBand": "6-8",
+      "taskType": "labReport",
+      "structure": {
+        "title": "Matter and Its Interactions Lab",
+        "objective": "Students develop a model to describe how particle arrangement changes with state of matter.",
+        "standardsAlignment": [
+          { "framework": "NGSS", "code": "MS-PS1-4" },
+          { "framework": "PISA", "code": "PISA.SCI.L3" }
+        ],
+        "steps": [
+          "Phenomenon hook: condensation on a cold glass",
+          "Investigation in station groups; record observations",
+          "Model drawing: particle diagrams across three states",
+          "CER write-up: Claim, Evidence, Reasoning"
+        ],
+        "differentiation": {
+          "support": "Pre-drawn particle diagram frames to annotate.",
+          "extension": "Add energy transfer arrows and explain anomalies (evaporative cooling)."
+        },
+        "rubric": {
+          "criteria": [
+            { "name": "Modeling", "levels": [
+              { "label": "Beginning", "descriptor": "Model shows states without particles", "points": 1 },
+              { "label": "Developing", "descriptor": "Particle model mostly accurate", "points": 2 },
+              { "label": "Proficient", "descriptor": "Accurate model tied to observations", "points": 3 },
+              { "label": "Advanced", "descriptor": "Model predicts a new scenario correctly", "points": 4 }
+            ]}
+          ]
+        },
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "subject": "socialStudies",
+      "gradeBand": "6-8",
+      "taskType": "projectBrief",
+      "structure": {
+        "title": "Primary Source Investigation: My City",
+        "objective": "Students corroborate multiple primary sources to construct an account of a local historical event.",
+        "standardsAlignment": [
+          { "framework": "CCSS", "code": "CCSS.ELA.RH.6-8.1" },
+          { "framework": "PISA", "code": "PISA.READ.L3" }
+        ],
+        "steps": [
+          "Select an event from the local history source set (Library of Congress / DPLA)",
+          "Source analysis sheets: author, audience, purpose, perspective",
+          "Corroboration matrix across 3+ sources",
+          "Final product: exhibit panel, podcast segment, or short essay"
+        ],
+        "differentiation": {
+          "support": "Curated 3-source packet with guiding questions.",
+          "extension": "Locate one additional source independently and assess reliability."
+        },
+        "rubric": {
+          "criteria": [
+            { "name": "Corroboration", "levels": [
+              { "label": "Beginning", "descriptor": "Summarizes one source", "points": 1 },
+              { "label": "Developing", "descriptor": "Compares two sources", "points": 2 },
+              { "label": "Proficient", "descriptor": "Corroborates 3+ sources into an account", "points": 3 },
+              { "label": "Advanced", "descriptor": "Addresses conflicting evidence explicitly", "points": 4 }
+            ]}
+          ]
+        },
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "subject": "worldLang",
+      "gradeBand": "9-12",
+      "taskType": "discussion",
+      "structure": {
+        "title": "Interpretive Listening Circle",
+        "objective": "Students interpret an authentic audio text and sustain a target-language discussion.",
+        "standardsAlignment": [
+          { "framework": "PISA", "code": "PISA.READ.L3" }
+        ],
+        "steps": [
+          "Two listens of an authentic clip with structured note frames",
+          "Small-group meaning negotiation in target language",
+          "Whole-class discussion with sentence frames",
+          "Self-assessment against can-do statements"
+        ],
+        "differentiation": {
+          "support": "Transcript available on second listen; glossary of 8 key terms.",
+          "extension": "No transcript; students summarize register and tone."
+        },
+        "rubric": {
+          "criteria": [
+            { "name": "Interpretation", "levels": [
+              { "label": "Beginning", "descriptor": "Identifies topic and some words", "points": 1 },
+              { "label": "Developing", "descriptor": "Identifies main idea", "points": 2 },
+              { "label": "Proficient", "descriptor": "Main idea + supporting details", "points": 3 },
+              { "label": "Advanced", "descriptor": "Infers tone, purpose, and audience", "points": 4 }
+            ]}
+          ]
+        },
+        "estimatedMinutes": 50
+      }
+    },
+    {
+      "subject": "arts",
+      "gradeBand": "3-5",
+      "taskType": "projectBrief",
+      "structure": {
+        "title": "Rhythm Patterns to Composition",
+        "objective": "Students create and notate a four-measure rhythm composition and perform it.",
+        "standardsAlignment": [
+          { "framework": "PISA", "code": "PISA.MATH.L1" }
+        ],
+        "steps": [
+          "Echo-clap warm-up with quarter/eighth patterns",
+          "Pattern bank building on rhythm cards",
+          "Compose four measures; notate with icon or standard notation",
+          "Perform for a partner; partner claps it back from notation"
+        ],
+        "differentiation": {
+          "support": "Icon notation and two-measure length.",
+          "extension": "Add rests and a second voice (body percussion ostinato)."
+        },
+        "rubric": {
+          "criteria": [
+            { "name": "Composition", "levels": [
+              { "label": "Beginning", "descriptor": "Pattern copied from bank", "points": 1 },
+              { "label": "Developing", "descriptor": "Original pattern, notation gaps", "points": 2 },
+              { "label": "Proficient", "descriptor": "Original, accurately notated, performable", "points": 3 },
+              { "label": "Advanced", "descriptor": "Uses rests/syncopation intentionally", "points": 4 }
+            ]}
+          ]
+        },
+        "estimatedMinutes": 40
+      }
+    }
+  ]
+}
