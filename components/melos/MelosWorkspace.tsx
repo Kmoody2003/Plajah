@@ -30,6 +30,7 @@ import {
 
 import { auth } from '../../services/firebase';
 import { uploadFile } from '../../services/backendService';
+import { useViewport } from '../../hooks/useViewport';
 import { toMelosSampleRefs } from './beats/melosSamples';
 
 import PadRoom from './PadRoom';
@@ -182,6 +183,7 @@ interface Props {
 
 const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, initialRoom, onBack }) => {
   const uid = currentUser?.uid || '';
+  const vp = useViewport();
 
   const [productions, setProductions] = useState<MelosProduction[]>([]);
   const [prodId, setProdId] = useState<string>(initialProductionId || '');
@@ -371,7 +373,12 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
 
   return (
     <Ctx.Provider value={ctx}>
-      <div className="melos min-h-screen flex flex-col" data-skin={skin}>
+      {/* On a phone the app's content wrapper is an overflow-y-auto scroll column, and `min-h-screen`
+          has no DEFINITE height there — so the flex-1 room area collapses and rooms (which size with
+          h-full) render at ~0px, leaving only the near-black shell. Escaping to a definite-height
+          fixed shell gives the room area real height (a focused takeover, exited via the back arrow —
+          the same paradigm as Beats). Desktop is unchanged. */}
+      <div className={`melos flex flex-col ${vp.isPhone ? 'fixed inset-0 z-[90]' : 'min-h-screen'}`} data-skin={skin}>
 
         {/* ── Top bar ─────────────────────────────────────────────────────── */}
         <header
@@ -481,7 +488,7 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
         </nav>
 
         {/* ── Room ────────────────────────────────────────────────────────── */}
-        <div className={`flex-1 ${activeRoom.tier === 'paper' ? 'melos-paper' : 'melos-instr'}`}>
+        <div className={`flex-1 min-h-0 ${activeRoom.tier === 'paper' ? 'melos-paper' : 'melos-instr'}`}>
           <AnimatePresence mode="wait">
             <motion.div
               key={room}

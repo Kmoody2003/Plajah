@@ -50,6 +50,9 @@ export interface BeatsMobileProps {
   onAddInstrument?: () => void;
   onClose?: () => void;
   hideClose?: boolean;
+  /** When embedded in the Melos workspace, fill the room container (absolute) instead of taking
+      over the whole viewport (fixed) — so the workspace's own top room-nav stays reachable. */
+  embedded?: boolean;
 }
 
 export const BeatsMobileShell: React.FC<BeatsMobileProps> = (p) => {
@@ -59,7 +62,7 @@ export const BeatsMobileShell: React.FC<BeatsMobileProps> = (p) => {
   const bar = Math.floor(b / 4) + 1, beat = Math.floor(b % 4) + 1, six = Math.floor((b % 1) * 4) + 1;
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col text-white" style={{ background: `radial-gradient(700px 320px at 20% -10%, rgba(107,0,153,0.28), transparent 60%), ${WASH_BG}` }}>
+    <div className={`${p.embedded ? 'absolute inset-0' : 'fixed inset-0 z-[100]'} flex flex-col text-white`} style={{ background: `radial-gradient(700px 320px at 20% -10%, rgba(107,0,153,0.28), transparent 60%), ${WASH_BG}` }}>
       {/* appbar */}
       <div className="flex items-center gap-2 px-3 h-12 border-b border-white/10 flex-none bg-white/[0.04] backdrop-blur-xl">
         {!p.hideClose && (

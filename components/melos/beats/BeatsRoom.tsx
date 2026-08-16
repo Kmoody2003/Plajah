@@ -413,6 +413,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           onAddInstrument={() => setShowInstrumentPicker(true)}
           onClose={onClose}
           hideClose={embedded}
+          embedded={embedded}
         />
         {showInstrumentPicker && (
           <InstrumentPicker
