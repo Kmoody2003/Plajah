@@ -3,13 +3,14 @@
 // one groove document; the engine is a singleton the views never own.
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Plus, Sparkles, AlignStartVertical, FolderOpen, FilePlus2, Trash2 } from 'lucide-react';
+import { Plus, Sparkles, AlignStartVertical, FolderOpen, FilePlus2, Trash2, Download } from 'lucide-react';
 import { auth } from '../../../services/firebase';
 import { BeatsEngine } from '../../../services/melos/beats/engine/BeatsEngine';
 import { defaultPattern, grooveUid, type GrooveDoc } from '../../../services/melos/beats/grooveDoc';
 import { autoFill, quantizePattern } from '../../../services/melos/beats/grooveTools';
 import { ingestSample, backupToLocker } from '../../../services/melos/beats/sampleStore';
 import { renderGroove, publishGroove, downloadBlob } from '../../../services/melos/beats/render';
+import { exportGrooveFile, importGrooveFile } from '../../../services/melos/beats/grooveFile';
 import { subscribeMidi, ensureMidi } from '../../../services/melos/midiInput';
 import { mapMidiEvent } from '../../../services/melos/midiMap';
 import { exportDawproject } from '../../../services/melos/beats/dawproject/exportDawproject';
@@ -104,7 +105,13 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const [notice, setNotice] = useState<string | null>(null);
   const [importReport, setImportReport] = useState<string[] | null>(null);
   const dawFileRef = React.useRef<HTMLInputElement>(null);
+  const melosFileRef = React.useRef<HTMLInputElement>(null);
   const flash = useCallback((msg: string) => { setNotice(msg); setTimeout(() => setNotice(null), 3200); }, []);
+  const handleOpenMelosFile = useCallback(async (file: File) => {
+    const opened = await importGrooveFile(file);
+    if (opened) { replace(opened); setShowGrooves(false); flash(`Opened ${opened.name}`); }
+    else flash('That file could not be read as a Melos groove');
+  }, [replace, flash]);
 
   const pattern = doc.patterns.find((p) => p.id === activePatternId) || doc.patterns[0];
 
@@ -390,6 +397,13 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleImportDawproject(f); e.target.value = ''; }}
       />
+      <input
+        ref={melosFileRef}
+        type="file"
+        accept=".melos,application/json"
+        className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleOpenMelosFile(f); e.target.value = ''; }}
+      />
 
       {importReport && (
         <div className="absolute inset-0 z-50 grid place-items-center bg-black/70 backdrop-blur-sm p-6" onClick={() => setImportReport(null)}>
@@ -444,6 +458,14 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           </button>
           {showGrooves && (
             <div className="absolute top-8 left-0 z-30 w-64 max-h-72 overflow-y-auto rounded-xl border border-white/15 bg-[#0A0A0D]/95 backdrop-blur-xl p-1.5 shadow-2xl">
+              <div className="flex gap-1 px-1 pb-1.5 mb-1 border-b border-white/10">
+                <button onClick={() => { exportGrooveFile(doc); }} className="flex-1 h-7 rounded-lg text-[10px] border border-white/12 text-white/60 hover:text-white hover:bg-white/5 flex items-center justify-center gap-1.5" title="Save this groove as a local .melos file">
+                  <Download size={10} /> Save as file
+                </button>
+                <button onClick={() => melosFileRef.current?.click()} className="flex-1 h-7 rounded-lg text-[10px] border border-white/12 text-white/60 hover:text-white hover:bg-white/5 flex items-center justify-center gap-1.5" title="Open a .melos file as a new groove">
+                  <FolderOpen size={10} /> Open file
+                </button>
+              </div>
               {grooves.length === 0 && <p className="px-2 py-3 text-[11px] text-white/35">No saved grooves yet — they autosave as you work.</p>}
               {grooves.map((g) => (
                 <div key={g.id} className="flex items-center gap-1 group">
