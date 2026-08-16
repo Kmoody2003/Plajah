@@ -26,6 +26,7 @@ import { DEFAULT_LICENSE, type ContentLicenseId } from '../services/licensingSer
 import type { RegistrySubject } from '../services/registry/registryService';
 // Opt-in registry layer — off for every account until the owner turns it on.
 const RightsIdentifiersPanel = lazy(() => import('./registry/RightsIdentifiersPanel'));
+const SamplingRightsPanel = lazy(() => import('./melos/sampling/SamplingRightsPanel').then((m) => ({ default: m.SamplingRightsPanel })));
 // Project Promo — the promo-kit folder (specs + assets for every promotion surface).
 const ProjectPromoManager = lazy(() => import('./ProjectPromoManager'));
 import { AUDIO_ACCEPT } from '../services/audioFormatService';
@@ -173,6 +174,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   // Which thing the Rights & Identifiers panel is open on: the release (UPC, catalogue
   // number) or one track (ISRC, ISWC). Null = closed.
   const [rightsSubject, setRightsSubject] = useState<RegistrySubject | null>(null);
+  const [samplingSubject, setSamplingSubject] = useState<import('./melos/sampling/SamplingRightsPanel').SamplingSubject | null>(null);
+  const [samplingOn, setSamplingOn] = useState(false);
   // Fresh-on-Plajah strip shown while the upload deploys.
   const [recentAdditions, setRecentAdditions] = useState<Album[]>([]);
   const [availableAlbums, setAvailableAlbums] = useState<Album[]>([]);
@@ -2527,6 +2530,29 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         <ChevronRight size={16} className="text-white/25 shrink-0" />
       </button>
 
+      {/* Sampling & rights — let this release be sampled on the creator's terms (whole/region,
+          sell/free/library/gated, splits). Sits with the professional rights layer. */}
+      <button
+        type="button"
+        onClick={() => setSamplingSubject({
+          trackId: initialAlbum?.id || projectIdRef.current,
+          title: title || 'Untitled',
+          ownerId: '',
+          ownerName: artist,
+          durationSec: undefined,
+        })}
+        className="w-full flex items-center gap-4 p-5 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/[0.07] transition-colors text-left"
+      >
+        <Music2 size={18} className={samplingOn ? 'text-[#00DAF3] shrink-0' : 'text-white/40 shrink-0'} />
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base font-black uppercase tracking-widest">Sampling &amp; rights</h3>
+          <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">
+            {samplingOn ? 'sampling enabled · region · offer · splits' : 'let others sample this — region · sell/free · splits'}
+          </p>
+        </div>
+        <ChevronRight size={16} className="text-white/25 shrink-0" />
+      </button>
+
       {/* Project Gallery / Slideshow */}
       <div className="p-5 bg-white/5 rounded-2xl border border-white/10 space-y-6">
         <div className="flex items-center justify-between">
@@ -3112,6 +3138,21 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       {rightsSubject && (
         <Suspense fallback={null}>
           <RightsIdentifiersPanel subject={rightsSubject} onClose={() => setRightsSubject(null)} />
+        </Suspense>
+      )}
+
+      {/* Sampling & rights — persists the owner's terms so the listener "Sample this" flow can
+          resolve them. Mounted here so it survives step changes. */}
+      {samplingSubject && (
+        <Suspense fallback={null}>
+          <SamplingRightsPanel
+            subject={samplingSubject}
+            onSave={(c) => {
+              setSamplingOn(!!c);
+              if (c) void import('../services/melos/sampling/clearanceStore').then((m) => m.saveClearance(c));
+            }}
+            onClose={() => setSamplingSubject(null)}
+          />
         </Suspense>
       )}
 
