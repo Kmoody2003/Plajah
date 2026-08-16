@@ -10,7 +10,8 @@ import type { GrooveDoc, ArrangeTrack } from '../../../../services/melos/beats/g
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { programFromFile, programFromSf2 } from '../../../../services/melos/instruments/kera/loader';
 import { programStats, type KeraProgram } from '../../../../services/melos/instruments/kera/zones';
-import { serializeKeraProgram, keraProgramShell, type SerializedKeraProgram } from '../../../../services/melos/instruments/kera/persist';
+import { serializeKeraProgram, deserializeKeraProgram, keraProgramShell, type SerializedKeraProgram } from '../../../../services/melos/instruments/kera/persist';
+import { KeraEditor } from './KeraEditor';
 import { PLAYHEAD, SELECT, SURFACE } from '../theme';
 
 interface Props {
@@ -24,8 +25,10 @@ export const KeraPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
   const [program, setProgram] = useState<KeraProgram | null>(null);
   const [status, setStatus] = useState('Drop a sound to begin');
   const [sf2Presets, setSf2Presets] = useState<{ name: string; index: number }[] | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
   const sf2Bytes = useRef<Uint8Array | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reopening a saved KERA track: show what's loaded from the doc's metadata instantly (the audible
   // program hydrates separately in the engine). Runs once for the initial saved program.
@@ -64,6 +67,37 @@ export const KeraPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
       setStatus(`${label} · loaded (save failed — will retry on next change)`);
     }
   }, [track, onMutate]);
+
+  // An edit from the deep editor: reload the live engine immediately, then persist (debounced, and
+  // reusing prior sample refs so metadata-only edits never re-hash the PCM).
+  const commitProgram = useCallback((next: KeraProgram) => {
+    setProgram(next);
+    void BeatsEngine.get().loadKeraProgram(track, next);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      const prior = track.instrument?.kera as unknown as SerializedKeraProgram | undefined;
+      void serializeKeraProgram(next, prior).then((serialized) => {
+        onMutate((d) => {
+          const t = d.arrangement.find((x) => x.id === track.id);
+          if (t?.instrument) t.instrument.kera = serialized as unknown as Record<string, unknown>;
+        });
+      });
+    }, 500);
+  }, [track, onMutate]);
+
+  // Opening the deep editor needs real PCM for the waveform. A freshly loaded program already has
+  // it; a reopened one is a metadata shell, so hydrate the full program first.
+  const openEditor = useCallback(async () => {
+    if (program && program.samples.some((s) => s.channels.length && s.channels[0]?.length)) { setEditorOpen(true); return; }
+    const saved = track.instrument?.kera as unknown as SerializedKeraProgram | undefined;
+    if (saved) {
+      setStatus('Loading samples to edit…');
+      const full = await deserializeKeraProgram(saved);
+      if (full) setProgram(full);
+      setStatus(`${saved.name} · ready to edit`);
+    }
+    setEditorOpen(true);
+  }, [program, track]);
 
   const handleFile = useCallback(async (file: File) => {
     setStatus('Loading…');
@@ -120,8 +154,19 @@ export const KeraPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
               ? { borderColor: '#FF8C00', color: '#FF8C00', background: 'rgba(255,140,0,0.12)' }
               : { borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.45)' }}
           ><Piano size={12} /> {track.armed ? 'Armed' : 'Arm'}</button>
+          {stats && stats.zones > 0 && (
+            <button onClick={() => void openEditor()}
+              className="h-7 px-3 rounded-lg text-[11px] font-semibold border"
+              style={{ borderColor: 'rgba(0,218,243,0.45)', color: PLAYHEAD, background: 'rgba(0,218,243,0.12)' }}
+              title="Zone map, loops and playback modes"
+            >Edit ▸</button>
+          )}
           <button onClick={onClose} aria-label="Close" className="w-8 h-8 grid place-items-center rounded-lg border border-white/10 text-white/50 hover:text-white"><X size={15} /></button>
         </div>
+
+        {editorOpen && program && (
+          <KeraEditor program={program} onChange={commitProgram} onClose={() => setEditorOpen(false)} />
+        )}
 
         <div className="p-4 space-y-3">
           {/* drop zone */}

@@ -126,13 +126,20 @@ async function getSamplePcm(s: SerializedKeraSample): Promise<{ channels: Float3
  * deduped by content hash, and the returned object (metadata + refs, no PCM) is what gets written
  * into TrackInstrument.kera. Safe to run after the sound is already playing — it only persists.
  */
-export async function serializeKeraProgram(program: KeraProgram): Promise<SerializedKeraProgram> {
+export async function serializeKeraProgram(program: KeraProgram, prior?: SerializedKeraProgram | null): Promise<SerializedKeraProgram> {
+  // Editing zones/loops/amp doesn't change PCM, so reuse a prior store-ref when the audio is
+  // provably identical (same id, frame count, rate, channels) instead of re-hashing megabytes on
+  // every drag. Fresh PCM (a newly loaded sample) has no match and is stored.
+  const priorById = new Map((prior?.samples ?? []).map((s) => [s.id, s]));
   const samples: SerializedKeraSample[] = [];
   for (const s of program.samples) {
-    const { key, lockerUrl } = await putSamplePcm(s);
+    const frames = s.channels[0]?.length ?? 0;
+    const p = priorById.get(s.id);
+    const reusable = p && p.frames === frames && p.sampleRate === s.sampleRate && p.channelCount === s.channels.length;
+    const { key, lockerUrl } = reusable ? { key: p.key, lockerUrl: p.lockerUrl } : await putSamplePcm(s);
     samples.push({
       id: s.id, name: s.name, sampleRate: s.sampleRate,
-      frames: s.channels[0]?.length ?? 0, channelCount: s.channels.length,
+      frames, channelCount: s.channels.length,
       rootNote: s.rootNote, fineTune: s.fineTune,
       loopStart: s.loopStart, loopEnd: s.loopEnd, loopMode: s.loopMode,
       key, lockerUrl,
