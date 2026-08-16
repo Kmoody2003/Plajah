@@ -4,6 +4,8 @@
 //! a signed depth, evaluated per voice. The UI's drag-a-source-onto-a-knob gesture creates one
 //! `Route`; the coloured arc it draws on the knob is just `depth` rendered honestly.
 
+use crate::params::{NUM_ENV, NUM_LFO};
+
 pub const MAX_ROUTES: usize = 32;
 
 /// Modulation sources. Per-voice sources (envelopes, velocity, per-voice random) are evaluated
@@ -15,9 +17,15 @@ pub enum ModSource {
     Env1 = 1,
     Env2 = 2,
     Env3 = 3,
+    Env4 = 4,
+    Env5 = 5,
+    Env6 = 6,
     Lfo1 = 8,
     Lfo2 = 9,
     Lfo3 = 10,
+    Lfo4 = 11,
+    Lfo5 = 12,
+    Lfo6 = 13,
     Velocity = 16,
     KeyTrack = 17,
     ModWheel = 18,
@@ -40,7 +48,9 @@ impl ModSource {
     pub fn from_u32(v: u32) -> Self {
         match v {
             1 => Self::Env1, 2 => Self::Env2, 3 => Self::Env3,
+            4 => Self::Env4, 5 => Self::Env5, 6 => Self::Env6,
             8 => Self::Lfo1, 9 => Self::Lfo2, 10 => Self::Lfo3,
+            11 => Self::Lfo4, 12 => Self::Lfo5, 13 => Self::Lfo6,
             16 => Self::Velocity, 17 => Self::KeyTrack, 18 => Self::ModWheel,
             19 => Self::Pressure, 20 => Self::Timbre, 21 => Self::PitchBend,
             22 => Self::RandomPerVoice,
@@ -72,8 +82,8 @@ impl Default for Route {
 /// The per-voice snapshot of every modulation source, refreshed once per control block.
 #[derive(Clone, Copy, Default)]
 pub struct ModValues {
-    pub env: [f32; 3],
-    pub lfo: [f32; 3],
+    pub env: [f32; NUM_ENV],
+    pub lfo: [f32; NUM_LFO],
     pub velocity: f32,
     pub key_track: f32,
     pub mod_wheel: f32,
@@ -92,9 +102,15 @@ impl ModValues {
             ModSource::Env1 => self.env[0],
             ModSource::Env2 => self.env[1],
             ModSource::Env3 => self.env[2],
+            ModSource::Env4 => self.env[3],
+            ModSource::Env5 => self.env[4],
+            ModSource::Env6 => self.env[5],
             ModSource::Lfo1 => self.lfo[0],
             ModSource::Lfo2 => self.lfo[1],
             ModSource::Lfo3 => self.lfo[2],
+            ModSource::Lfo4 => self.lfo[3],
+            ModSource::Lfo5 => self.lfo[4],
+            ModSource::Lfo6 => self.lfo[5],
             ModSource::Velocity => self.velocity,
             ModSource::KeyTrack => self.key_track,
             ModSource::ModWheel => self.mod_wheel,

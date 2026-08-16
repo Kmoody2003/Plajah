@@ -50,7 +50,7 @@ pub struct Voice {
     rng: Rng,
     drift: [f32; NUM_OSC],
 
-    envs: [Envelope; 3],
+    envs: [Envelope; NUM_ENV],
     // One filter instance per channel per slot: the panned channels are different signals, and
     // sharing one filter state across them would smear the image and mismatch the response.
     ladders: [[Ladder; MAX_CHANNELS]; 2],
@@ -83,7 +83,7 @@ impl Voice {
             noise: Noise::default(),
             rng,
             drift,
-            envs: [Envelope::default(); 3],
+            envs: [Envelope::default(); NUM_ENV],
             ladders: [[Ladder::default(); MAX_CHANNELS]; 2],
             svfs: [[Svf::default(); MAX_CHANNELS]; 2],
             shapers: [Shaper::default(); NUM_OSC],
@@ -124,7 +124,7 @@ impl Voice {
             }
         }
 
-        for e in 0..3 {
+        for e in 0..NUM_ENV {
             self.envs[e].set_adsr(
                 env_time(p.get(env_param(e, E_ATTACK))),
                 env_time(p.get(env_param(e, E_DECAY))),
@@ -189,7 +189,7 @@ impl Voice {
 
             // ── control rate: envelopes, mod values, resolved parameters ──────────
             let mut mv = *globals;
-            for e in 0..3 {
+            for e in 0..NUM_ENV {
                 mv.env[e] = self.envs[e].tick(dt * CONTROL_BLOCK as f32);
             }
             mv.velocity = self.velocity;

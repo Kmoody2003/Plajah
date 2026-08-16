@@ -10,6 +10,9 @@ import {
   buildChord, diatonicDegrees, identifyChord, realiseProgression, PROGRESSIONS,
   scalePitchClasses, snapToScale,
 } from '../services/melos/theory';
+import {
+  compileMotions, depthFor, newMotion, setRoute, MOD_SOURCE, NUM_LFO_SLOTS,
+} from '../services/melos/motion';
 
 const Cmaj = [60, 64, 67];
 
@@ -171,4 +174,72 @@ test('euclidean spreads pulses evenly', () => {
   assert.equal(euclidean(8, 8).filter(Boolean).length, 8);
   const rotated = euclidean(8, 3, 1);
   assert.equal(rotated.filter(Boolean).length, 3, 'rotation preserves the pulse count');
+});
+
+// ── Motion ───────────────────────────────────────────────────────────────────
+
+test('Motion compiles onto engine slots, and the amp envelope is never stolen', () => {
+  const envs = [newMotion('envelope', 0), newMotion('envelope', 1)];
+  const c = compileMotions(envs);
+  const sources = envs.map((m) => c.assigned.get(m.id));
+  // Env slot 0 is the amp envelope, so Motions start at Env2 (source id 2).
+  assert.deepEqual(sources, [MOD_SOURCE.Env2, MOD_SOURCE.Env3]);
+  assert.equal(c.unplaced.length, 0);
+});
+
+test('Motion runs out of slots honestly rather than silently dropping', () => {
+  const many = Array.from({ length: 8 }, (_, i) => newMotion('curve', i));
+  const c = compileMotions(many);
+  assert.equal(c.assigned.size, NUM_LFO_SLOTS, 'six cycle slots get filled');
+  assert.equal(c.unplaced.length, 2, 'the surplus is reported, not swallowed');
+  assert.match(c.unplaced[0].reason, /No cycle slots left/);
+});
+
+test('play and macro Motions map to their engine sources without consuming a slot', () => {
+  const vel = newMotion('play', 0);
+  vel.playSource = 'pressure';
+  const mac = newMotion('macro', 2);
+  mac.macroIndex = 2;
+  const c = compileMotions([vel, mac]);
+  assert.equal(c.assigned.get(vel.id), MOD_SOURCE.Pressure);
+  assert.equal(c.assigned.get(mac.id), MOD_SOURCE.Macro3);
+});
+
+test('routes compile with depth, and stale slots are cleared', () => {
+  const m = newMotion('curve', 0);
+  setRoute(m, 503, 0.6);
+  setRoute(m, 504, -0.3);
+  const c = compileMotions([m]);
+  const live = c.routes.filter((r) => r[1] !== 0);
+  assert.equal(live.length, 2);
+  assert.deepEqual(live[0].slice(2), [503, 0.6, 0]);
+  assert.deepEqual(live[1].slice(2), [504, -0.3, 0]);
+  assert.equal(c.routes.length, 32, 'every route slot is written so stale ones are cleared');
+});
+
+test('setRoute updates in place and removes at zero depth', () => {
+  const m = newMotion('curve', 0);
+  setRoute(m, 503, 0.5);
+  setRoute(m, 503, 0.9);
+  assert.equal(m.routes.length, 1, 'same destination updates rather than duplicating');
+  assert.equal(m.routes[0].depth, 0.9);
+  setRoute(m, 503, 0);
+  assert.equal(m.routes.length, 0, 'zero depth unmaps');
+});
+
+test('depthFor reports every Motion reaching a parameter, for the knob arcs', () => {
+  const a = newMotion('curve', 0);
+  const b = newMotion('envelope', 1);
+  setRoute(a, 503, 0.4);
+  setRoute(b, 503, -0.7);
+  const arcs = depthFor([a, b], 503);
+  assert.equal(arcs.length, 2);
+  assert.notEqual(arcs[0].color, arcs[1].color, 'two Motions must be distinguishable at a glance');
+});
+
+test('Follow is reported as unavailable rather than pretending to work', () => {
+  const f = newMotion('follow', 0);
+  const c = compileMotions([f]);
+  assert.equal(c.assigned.has(f.id), false);
+  assert.match(c.unplaced[0].reason, /sidechain/i);
 });

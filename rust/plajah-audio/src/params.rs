@@ -5,6 +5,12 @@
 //! Ids are grouped by block of 100 so the layout stays readable and extending a section never
 //! renumbers another. Values are normalised 0..1 unless noted; the engine maps to real units.
 
+/// Modulator slot counts. Six of each is what makes "Motion" feel unlimited in practice — the
+/// host assigns a Motion to a free slot, and six time-based plus six envelope Motions per
+/// instrument is past the point where anyone hits the wall.
+pub const NUM_ENV: usize = 6;
+pub const NUM_LFO: usize = 6;
+
 pub const P_MASTER_GAIN: u32 = 0;
 pub const P_GLIDE: u32 = 1; // seconds, 0..1 → 0..2s
 pub const P_VOICE_MODE: u32 = 2; // 0 poly, 1 mono, 2 legato
@@ -162,13 +168,13 @@ impl Params {
         self.set(env_param(0, E_DECAY), 0.2);
         self.set(env_param(0, E_SUSTAIN), 0.8);
         self.set(env_param(0, E_RELEASE), 0.15);
-        for e in 1..3 {
+        for e in 1..NUM_ENV {
             self.set(env_param(e, E_ATTACK), 0.0);
             self.set(env_param(e, E_DECAY), 0.3);
             self.set(env_param(e, E_SUSTAIN), 0.5);
             self.set(env_param(e, E_RELEASE), 0.2);
         }
-        for l in 0..3 {
+        for l in 0..NUM_LFO {
             self.set(lfo_param(l, L_RATE), 0.35);
             self.set(lfo_param(l, L_BIPOLAR), 1.0);
             self.set(lfo_param(l, L_RETRIGGER), 1.0);
