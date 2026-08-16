@@ -7,8 +7,12 @@
  * plajah-firestore-gotchas). The Venture shape is intentionally Firestore-ready
  * — a later phase lifts it to `ventures/{id}` unchanged.
  */
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { addPoints } from './pointsService';
+import { db } from './firebase';
 import type { FounderBand } from '../data/praxisJourney';
+
+const VENTURES_COLLECTION = 'ventures';
 
 export interface Venture {
   id: string;
@@ -64,7 +68,46 @@ export function loadVenture(uid?: string | null): Venture | null {
 export function saveVenture(v: Venture): Venture {
   const next = { ...v, updatedAt: Date.now() };
   try { localStorage.setItem(keyFor(v.ownerUid), JSON.stringify(next)); } catch { /* quota — non-fatal */ }
+  saveVentureRemote(next);
   return next;
+}
+
+/**
+ * Fire-and-forget sync to Firestore `ventures/{uid}`. Never blocks the UI; if it
+ * fails (offline, or rules not yet deployed) the localStorage copy is the source
+ * of truth. Guests (no real uid) never touch Firestore. JSON round-trip strips
+ * undefined — Firestore rejects undefined fields (see plajah-firestore-gotchas).
+ */
+export function saveVentureRemote(v: Venture): void {
+  if (!v.ownerUid || v.ownerUid === 'guest') return;
+  try {
+    const clean = JSON.parse(JSON.stringify(v));
+    setDoc(doc(db, VENTURES_COLLECTION, v.ownerUid), clean, { merge: true }).catch(() => { /* offline / denied → local wins */ });
+  } catch { /* noop */ }
+}
+
+/**
+ * Load the venture, reconciling the local cache with Firestore by updatedAt.
+ * Returns instantly-usable data and, when signed in, prefers whichever copy is
+ * newer (so a venture started on one device shows up on another).
+ */
+export async function loadVentureFor(uid?: string | null): Promise<Venture | null> {
+  const local = loadVenture(uid);
+  if (!uid || uid === 'guest') return local;
+  try {
+    const snap = await getDoc(doc(db, VENTURES_COLLECTION, uid));
+    const remote = snap.exists() ? (snap.data() as Venture) : null;
+    if (remote && (!local || (remote.updatedAt || 0) >= (local.updatedAt || 0))) {
+      try { localStorage.setItem(keyFor(uid), JSON.stringify(remote)); } catch { /* noop */ }
+      return remote;
+    }
+    if (local && (!remote || (local.updatedAt || 0) > (remote.updatedAt || 0))) {
+      saveVentureRemote(local); // push the newer local copy up
+    }
+    return local || remote;
+  } catch {
+    return local; // offline / permission → localStorage is fine
+  }
 }
 
 export function clearVenture(uid?: string | null): void {

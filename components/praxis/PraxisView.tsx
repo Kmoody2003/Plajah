@@ -23,7 +23,7 @@ import {
   type PKey, type FounderBand, type Stage,
 } from '../../data/praxisJourney';
 import {
-  type Venture, newVenture, loadVenture, saveVenture, updatePlan, completeStage, awardPraxisPoints,
+  type Venture, newVenture, loadVenture, loadVentureFor, saveVenture, updatePlan, completeStage, awardPraxisPoints,
 } from '../../services/praxisService';
 
 interface Props { user?: any; profile?: any; onBack?: () => void; }
@@ -53,10 +53,18 @@ const PraxisView: React.FC<Props> = ({ user, profile, onBack }) => {
   const [venture, setVenture] = useState<Venture | null>(null);
   const [activeStage, setActiveStage] = useState<Stage | null>(null);
 
-  // Resume an existing venture
+  // Resume an existing venture — instant from the local cache, then reconciled
+  // with Firestore (whichever copy is newer wins) so it follows you across devices.
   useEffect(() => {
-    const v = loadVenture(uid);
-    if (v) { setVenture(v); setMode('journey'); }
+    let alive = true;
+    const local = loadVenture(uid);
+    if (local) { setVenture(local); setMode('journey'); }
+    loadVentureFor(uid).then(v => {
+      if (!alive || !v) return;
+      setVenture(cur => (!cur || (v.updatedAt || 0) > (cur.updatedAt || 0)) ? v : cur);
+      setMode(m => (m === 'intake' ? 'journey' : m));
+    });
+    return () => { alive = false; };
   }, [uid]);
 
   const persist = (v: Venture) => { setVenture(v); return v; };

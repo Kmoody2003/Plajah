@@ -1009,6 +1009,13 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isGuardianOf(userId);
       allow write: if isOwner(userId);
     }
+    // Praxis venture — a founder's business-in-progress (one active per user).
+    // Owner-owned; a guardian may read a minor's (simulated) venture, mirroring
+    // the learner-progress collections above.
+    match /ventures/{userId} {
+      allow read: if isOwner(userId) || isGuardianOf(userId);
+      allow write: if isOwner(userId);
+    }
     // Live-stream cloud-recording manifest (segment count etc.), written live by the streamer;
     // the server reads it (admin) to assemble the replay.
     match /liveRecordings/{streamId} {
