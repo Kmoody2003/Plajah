@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B0712">
+<title>Pew Pew — Prototype</title>
+<style>
+  /* Pew Pew mechanic prototype — Plajah design language, committed dark, phone-first.
+     Tests the core tempo loop only: aim → hold-to-lock → fire → go dark.
+     No localization (that needs native AR) — this is a feel test. */
+  :root{
+    --pj-purple:#6B0099; --pj-magenta:#D40055; --pj-orange:#FF8C00; --pj-cyan:#00DAF3; --pj-lilac:#D0BCFF;
+    --pj-success:#06D6A0; --pj-danger:#EF4444; --pj-warning:#F59E0B;
+    --ink:#0B0712; --paper:#F3ECFA; --paper-dim:#B7A9CC; --paper-faint:#7C6E92;
+    --glass-2:rgba(255,255,255,0.06); --glass-3:rgba(255,255,255,0.09); --border:rgba(255,255,255,0.12);
+    --grad-warm:linear-gradient(135deg,#6B0099 0%,#D40055 55%,#FF8C00 100%);
+    --font-d:"Outfit","Segoe UI",system-ui,sans-serif;
+    --font-b:"Inter",system-ui,"Segoe UI",sans-serif;
+    --font-m:"JetBrains Mono",ui-monospace,"Cascadia Code",monospace;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0; height:100%; overflow:hidden; background:var(--ink); color:var(--paper);
+    font-family:var(--font-b); user-select:none; -webkit-user-select:none; touch-action:none}
+  #app{position:fixed; inset:0}
+  video{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#0B0712;
+    filter:saturate(0.85) brightness(0.7)}
+  #tint{position:absolute; inset:0; background:
+    radial-gradient(60% 50% at 50% 40%, transparent 40%, rgba(11,7,18,0.55) 100%),
+    radial-gradient(50rem 30rem at 82% -8%, rgba(107,0,153,0.35), transparent 60%)}
+  .layer{position:absolute; inset:0}
+  .hidden{display:none !important}
+
+  /* ── intro / summary panels ─────────────────────────────── */
+  .panel{position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center;
+    align-items:center; text-align:center; padding:28px; gap:16px;
+    background:radial-gradient(70rem 50rem at 50% -10%, rgba(107,0,153,0.4), transparent 60%), var(--ink); z-index:40}
+  .brand{font-family:var(--font-d); font-weight:900; letter-spacing:-0.04em; font-size:clamp(3rem,18vw,5rem);
+    line-height:0.9; background:var(--grad-warm); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .tag{color:var(--paper-dim); font-size:1rem; max-width:30ch; line-height:1.5}
+  .steps{display:flex; flex-direction:column; gap:10px; margin:6px 0 8px; width:100%; max-width:340px}
+  .step{display:flex; gap:12px; align-items:center; text-align:left; background:var(--glass-2);
+    border:1px solid var(--border); border-radius:16px; padding:12px 14px; font-size:0.9rem}
+  .step b{color:var(--pj-orange); font-family:var(--font-d)}
+  .num{width:26px; height:26px; flex:none; border-radius:50%; background:var(--pj-lilac); color:#2a0033;
+    display:grid; place-items:center; font-family:var(--font-d); font-weight:800; font-size:0.85rem}
+  button{font-family:var(--font-d); font-weight:800; border:none; cursor:pointer; color:#fff;
+    background:var(--grad-warm); padding:0 30px; height:56px; border-radius:9999px; font-size:1.05rem;
+    box-shadow:0 8px 26px rgba(212,0,85,0.35); letter-spacing:0.01em}
+  button:active{transform:scale(0.97)}
+  button.ghost{background:var(--glass-3); box-shadow:none; border:1px solid var(--border); color:var(--paper); height:48px; font-size:0.95rem}
+  .note{color:var(--paper-faint); font-size:0.78rem; max-width:32ch}
+
+  /* ── HUD ─────────────────────────────────────────────────── */
+  #hud{z-index:20; pointer-events:none}
+  .topbar{position:absolute; top:0; left:0; right:0; padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;
+    display:flex; align-items:center; gap:12px; font-family:var(--font-m)}
+  .stat{background:rgba(11,7,18,0.5); backdrop-filter:blur(8px); border:1px solid var(--border);
+    border-radius:12px; padding:7px 11px; font-size:0.78rem; display:flex; gap:7px; align-items:center}
+  .stat b{font-family:var(--font-d); font-size:0.95rem}
+  .lives{color:var(--pj-danger)} .score b{color:var(--pj-cyan)} .clock b{color:var(--paper)}
+  .gear{margin-left:auto; pointer-events:auto; width:40px; height:40px; padding:0; border-radius:12px;
+    background:rgba(11,7,18,0.5); border:1px solid var(--border); box-shadow:none; font-size:1.1rem}
+  .lockchip{position:absolute; top:calc(env(safe-area-inset-top) + 60px); left:50%; transform:translateX(-50%);
+    font-family:var(--font-m); font-size:0.72rem; color:var(--pj-lilac); background:rgba(11,7,18,0.5);
+    border:1px solid var(--border); border-radius:9999px; padding:5px 12px}
+
+  /* status banners */
+  .banner{position:absolute; top:50%; left:50%; transform:translate(-50%,-140px); font-family:var(--font-d);
+    font-weight:800; font-size:1.1rem; letter-spacing:0.08em; text-transform:uppercase; padding:8px 18px;
+    border-radius:9999px; text-align:center}
+  #b-dark{color:#fff; background:rgba(11,7,18,0.82); border:1px solid var(--border)}
+  #b-move{color:#2a0033; background:var(--pj-warning)}
+
+  /* ── reticle ─────────────────────────────────────────────── */
+  #reticle{position:absolute; top:50%; left:50%; width:78px; height:78px; transform:translate(-50%,-50%);
+    z-index:15; pointer-events:none}
+  .ring{position:absolute; inset:0; border-radius:50%; border:2px solid rgba(243,236,250,0.55)}
+  .ring.on{border-color:var(--pj-orange)}
+  .dot{position:absolute; top:50%; left:50%; width:6px; height:6px; margin:-3px; border-radius:50%; background:#fff}
+  /* lock progress ring via conic-gradient */
+  #lockring{position:absolute; inset:-6px; border-radius:50%;
+    background:conic-gradient(var(--pj-orange) calc(var(--p,0)*1turn), transparent 0);
+    -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 5px));
+            mask:radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 5px)); opacity:0}
+  #lockring.show{opacity:1}
+
+  /* ── targets ─────────────────────────────────────────────── */
+  #targets{z-index:12}
+  .tgt{position:absolute; width:64px; height:64px; transform:translate(-50%,-50%); will-change:left,top}
+  .tgt .body{position:absolute; inset:0; border-radius:16px; background:rgba(212,0,85,0.16);
+    border:2px solid var(--pj-magenta); display:grid; place-items:center; font-size:1.6rem;
+    box-shadow:0 0 18px rgba(212,0,85,0.4)}
+  .tgt .fuse{position:absolute; left:6px; right:6px; bottom:-10px; height:4px; border-radius:2px; background:rgba(255,255,255,0.15); overflow:hidden}
+  .tgt .fuse i{display:block; height:100%; background:var(--pj-warning); width:100%; transform-origin:left}
+  .tgt.locking .body{border-color:var(--pj-orange); background:rgba(255,140,0,0.2); box-shadow:0 0 22px rgba(255,140,0,0.5)}
+
+  /* fire flash + hit toast */
+  #flash{position:absolute; inset:0; background:var(--pj-orange); opacity:0; z-index:16; pointer-events:none}
+  .toast{position:absolute; left:50%; top:50%; transform:translate(-50%,60px); font-family:var(--font-d);
+    font-weight:800; font-size:1.4rem; color:var(--pj-cyan); text-shadow:0 2px 10px rgba(0,0,0,0.6); z-index:18; pointer-events:none}
+
+  /* fire button (thumb) */
+  #fire{position:absolute; bottom:calc(env(safe-area-inset-bottom) + 26px); left:50%; transform:translateX(-50%);
+    width:88px; height:88px; border-radius:50%; z-index:22; background:rgba(255,140,0,0.16);
+    border:2px solid var(--pj-orange); box-shadow:0 0 24px rgba(255,140,0,0.35); color:var(--pj-orange);
+    font-family:var(--font-d); font-weight:800; font-size:0.8rem; letter-spacing:0.08em; padding:0}
+  #fire:active{background:rgba(255,140,0,0.32)}
+  #fire small{display:block; font-size:0.62rem; color:var(--paper-dim); font-weight:600; margin-top:2px}
+
+  /* ── settings sheet ──────────────────────────────────────── */
+  #settings{z-index:50; background:rgba(11,7,18,0.78); backdrop-filter:blur(10px); display:flex; align-items:flex-end}
+  .sheet{width:100%; background:#140a1f; border-top-left-radius:28px; border-top-right-radius:28px;
+    border-top:1px solid var(--border); padding:20px 20px calc(env(safe-area-inset-bottom) + 24px); display:flex; flex-direction:column; gap:16px}
+  .sheet h3{font-family:var(--font-d); margin:0; font-size:1.1rem}
+  .row{display:flex; flex-direction:column; gap:8px}
+  .row .lab{display:flex; justify-content:space-between; font-size:0.85rem; color:var(--paper-dim)}
+  .row .lab b{color:var(--pj-orange); font-family:var(--font-m)}
+  .seg{display:flex; gap:6px}
+  .seg button{flex:1; height:42px; padding:0; font-size:0.85rem; background:var(--glass-3); border:1px solid var(--border);
+    box-shadow:none; color:var(--paper-dim); font-family:var(--font-m); font-weight:600}
+  .seg button.sel{background:var(--grad-warm); color:#fff; border-color:transparent}
+  .tog{display:flex; align-items:center; justify-content:space-between; font-size:0.9rem; padding:4px 0}
+  .switch{width:50px; height:30px; border-radius:9999px; background:var(--glass-3); border:1px solid var(--border); position:relative; transition:0.2s}
+  .switch.on{background:var(--pj-success)}
+  .switch i{position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%; background:#fff; transition:0.2s}
+  .switch.on i{left:23px}
+
+  .big{font-family:var(--font-d); font-weight:900; font-size:clamp(2.4rem,12vw,3.2rem); letter-spacing:-0.02em}
+  .sumgrid{display:grid; grid-template-columns:1fr 1fr; gap:12px; width:100%; max-width:360px}
+  .sumcard{background:var(--glass-2); border:1px solid var(--border); border-radius:16px; padding:14px}
+  .sumcard .k{font-size:0.72rem; color:var(--paper-faint); text-transform:uppercase; letter-spacing:0.1em; font-family:var(--font-d)}
+  .sumcard .v{font-family:var(--font-d); font-weight:800; font-size:1.5rem; margin-top:2px}
+</style>
+</head>
+<body>
+<div id="app">
+  <video id="cam" playsinline muted autoplay></video>
+  <div id="tint" class="layer"></div>
+
+  <!-- PLAY LAYERS -->
+  <div id="targets" class="layer hidden"></div>
+  <div id="flash" class="hidden"></div>
+  <div id="reticle" class="hidden">
+    <div id="lockring"></div>
+    <div class="ring" id="ring"></div>
+    <div class="dot"></div>
+  </div>
+
+  <div id="hud" class="layer hidden">
+    <div class="topbar">
+      <div class="stat lives">❤ <b id="lives">5</b></div>
+      <div class="stat score">HITS <b id="score">0</b></div>
+      <div class="stat clock">⏱ <b id="clock">90</b></div>
+      <button class="gear" id="openSettings" aria-label="Settings">⚙</button>
+    </div>
+    <div class="lockchip">lock <span id="lockLabel">700</span>ms · <span id="accLabel">–</span>% acc</div>
+    <div id="b-dark" class="banner hidden">Dark — raise to re-anchor</div>
+    <div id="b-move" class="banner hidden">Moving — can't fire</div>
+  </div>
+
+  <button id="fire" class="hidden">HOLD<small>to lock</small></button>
+
+  <!-- INTRO -->
+  <div id="intro" class="panel">
+    <div class="brand">PEW<br>PEW</div>
+    <div class="tag">A live-action tag game. This is a <b>feel test</b> for the core move — nothing is tracked, nothing is shared.</div>
+    <div class="steps">
+      <div class="step"><span class="num">1</span><div><b>Point</b> your phone at a target to put it in the ring.</div></div>
+      <div class="step"><span class="num">2</span><div><b>Hold</b> the button — stay on target while the ring fills (~0.7s).</div></div>
+      <div class="step"><span class="num">3</span><div><b>Release</b> to fire. Lower the phone and you go <b>dark</b>.</div></div>
+    </div>
+    <button id="start">Tap to start</button>
+    <div class="note">Works best on a phone. Allow camera + motion when asked — face an open area with room to turn around.</div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div id="summary" class="panel hidden">
+    <div style="font-family:var(--font-d); color:var(--paper-dim); letter-spacing:0.1em; text-transform:uppercase; font-size:0.8rem">Round over</div>
+    <div class="big" id="sumTitle">Nice.</div>
+    <div class="sumgrid">
+      <div class="sumcard"><div class="k">Hits</div><div class="v" id="sHits" style="color:var(--pj-cyan)">0</div></div>
+      <div class="sumcard"><div class="k">Accuracy</div><div class="v" id="sAcc" style="color:var(--pj-orange)">0%</div></div>
+      <div class="sumcard"><div class="k">Avg lock</div><div class="v" id="sLock">0.0s</div></div>
+      <div class="sumcard"><div class="k">Longest exposed</div><div class="v" id="sExp">0.0s</div></div>
+    </div>
+    <button id="again">Play again</button>
+    <button class="ghost" id="tune">Tune the feel</button>
+    <div class="note">Testing note: try the same round at 500ms and 900ms lock and see which feels fair.</div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="settings" class="panel hidden">
+    <div class="sheet">
+      <h3>Tune the feel</h3>
+      <div class="row">
+        <div class="lab">Lock delay <b><span id="lockVal">700</span>ms</b></div>
+        <div class="seg" id="lockSeg">
+          <button data-v="400">400</button><button data-v="600">600</button>
+          <button data-v="700" class="sel">700</button><button data-v="900">900</button>
+        </div>
+      </div>
+      <div class="tog"><span>Can't fire while moving</span><div class="switch on" id="tMove"><i></i></div></div>
+      <div class="tog"><span>Go dark when phone lowered</span><div class="switch on" id="tDark"><i></i></div></div>
+      <div class="tog"><span>Targets fire back</span><div class="switch on" id="tFire"><i></i></div></div>
+      <button id="closeSettings">Done</button>
+      <div class="note">Lock delay is the single most important dial — it's the whole reason someone upgrades to real gear.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $=s=>document.querySelector(s), el=id=>document.getElementById(id);
+  const app={ // config
+    lockMs:700, moveLock:true, goDark:true, enemyFire:true,
+    roundS:90, lives:5, maxTargets:3, fuseMs:4200, fovDeg:66, targetRadius:44, darkPitch:-32, moveG:1.35
+  };
+  const S={ // state
+    phase:"intro", yaw:0, pitch:0, yaw0:null, haveOrient:false, dark:false, moving:false,
+    targets:[], score:0, shots:0, hits:0, lives:5, tLeft:app.roundS,
+    holding:false, lockStart:0, lockTgt:null, exposedMax:0, lockTimes:[],
+    touchAim:{x:0,y:0}, lastMove:0
+  };
+  let W=innerWidth, H=innerHeight, raf=0, tickT=0;
+  addEventListener("resize",()=>{W=innerWidth;H=innerHeight;});
+
+  // ── camera ──────────────────────────────────────────────
+  async function startCam(){
+    try{
+      const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
+      const v=el("cam"); v.srcObject=s; await v.play().catch(()=>{});
+    }catch(e){ /* no camera → dark bg, still playable */ }
+  }
+  // ── orientation ─────────────────────────────────────────
+  function onOrient(e){
+    if(e.alpha==null) return;
+    S.haveOrient=true;
+    // yaw from alpha (0..360). Use webkitCompassHeading if present (iOS, true heading).
+    let yaw = (typeof e.webkitCompassHeading==="number") ? e.webkitCompassHeading : (360 - e.alpha);
+    if(S.yaw0==null) S.yaw0=yaw;
+    let rel = yaw - S.yaw0; rel=((rel+540)%360)-180; // -180..180
+    S.yaw = rel;
+    // pitch from beta (-180..180). Upright portrait ≈ 90 → map to 0.
+    S.pitch = (e.beta==null?90:e.beta) - 90;
+  }
+  function onMotion(e){
+    const a=e.acceleration||e.accelerationIncludingGravity; if(!a) return;
+    const g=Math.hypot(a.x||0,a.y||0,a.z||0)/9.81;
+    // accelerationIncludingGravity hovers ~1g at rest; spike above threshold = moving
+    if(g>app.moveG){ S.lastMove=performance.now(); }
+  }
+  async function requestSensors(){
+    try{ if(window.DeviceOrientationEvent&&DeviceOrientationEvent.requestPermission){
+      const p=await DeviceOrientationEvent.requestPermission(); if(p!=="granted"){} } }catch(e){}
+    try{ if(window.DeviceMotionEvent&&DeviceMotionEvent.requestPermission){ await DeviceMotionEvent.requestPermission(); } }catch(e){}
+    addEventListener("deviceorientation",onOrient,true);
+    addEventListener("devicemotion",onMotion,true);
+    // fallback: if no orientation in 1.2s, enable touch-look
+    setTimeout(()=>{ if(!S.haveOrient) enableTouchLook(); },1200);
+  }
+  function enableTouchLook(){
+    let px=0,py=0,drag=false;
+    const a=el("app");
+    a.addEventListener("touchstart",ev=>{ if(ev.target.closest("#fire,button,.switch"))return; drag=true; px=ev.touches[0].clientX; py=ev.touches[0].clientY; },{passive:true});
+    a.addEventListener("touchmove",ev=>{ if(!drag)return; const t=ev.touches[0];
+      S.yaw+=(t.clientX-px)*0.18; S.pitch-=(t.clientY-py)*0.18; px=t.clientX; py=t.clientY; },{passive:true});
+    a.addEventListener("touchend",()=>drag=false); a.addEventListener("mouseleave",()=>drag=false);
+  }
+
+  // ── target math: world (az,el) → screen ────────────────
+  const pxPerDeg=()=> W/app.fovDeg;
+  function screenPos(t){
+    let dy=t.az-S.yaw; dy=((dy+540)%360)-180;
+    const x=W/2 + dy*pxPerDeg();
+    const y=H/2 + (S.pitch - t.el)*pxPerDeg();
+    return {x,y, on: Math.abs(dy)<app.fovDeg/2+8};
+  }
+  function spawnTarget(){
+    // place ahead-ish of where you're looking, spread around
+    const az = S.yaw + (Math.random()*140-70);
+    const el0 = (Math.random()*24-6);
+    S.targets.push({id:Math.random().toString(36).slice(2), az, el:el0, born:performance.now(), node:null});
+  }
+  function ensureTargets(){ while(S.targets.length<app.maxTargets) spawnTarget(); }
+
+  // ── round lifecycle ─────────────────────────────────────
+  function startRound(){
+    Object.assign(S,{score:0,shots:0,hits:0,lives:app.lives,tLeft:app.roundS,targets:[],
+      holding:false,lockStart:0,lockTgt:null,exposedMax:0,lockTimes:[],phase:"play"});
+    el("targets").innerHTML=""; ensureTargets();
+    ["intro","summary","settings"].forEach(i=>el(i).classList.add("hidden"));
+    ["targets","hud","reticle"].forEach(i=>el(i).classList.remove("hidden"));
+    el("fire").classList.remove("hidden");
+    el("lockLabel").textContent=app.lockMs; el("lockVal").textContent=app.lockMs;
+    tickT=performance.now(); loop();
+    clearInterval(S.clockI); S.clockI=setInterval(()=>{ if(S.phase!=="play")return;
+      S.tLeft--; el("clock").textContent=Math.max(0,S.tLeft); if(S.tLeft<=0) endRound(); },1000);
+  }
+  function endRound(){
+    S.phase="over"; clearInterval(S.clockI); cancelAnimationFrame(raf);
+    ["targets","hud","reticle","fire"].forEach(i=>el(i).classList.add("hidden"));
+    const acc=S.shots?Math.round(S.hits/S.shots*100):0;
+    const avg=S.lockTimes.length?(S.lockTimes.reduce((a,b)=>a+b,0)/S.lockTimes.length/1000):0;
+    el("sHits").textContent=S.hits; el("sAcc").textContent=acc+"%";
+    el("sLock").textContent=avg.toFixed(1)+"s"; el("sExp").textContent=(S.exposedMax/1000).toFixed(1)+"s";
+    el("sumTitle").textContent = S.lives<=0 ? "Tagged out." : (acc>=70?"Sharp.":"Not bad.");
+    el("summary").classList.remove("hidden");
+  }
+
+  // ── firing / lock ───────────────────────────────────────
+  function beginHold(){ if(S.phase!=="play"||S.dark||(S.moving&&app.moveLock))return;
+    S.holding=true; S.lockStart=performance.now(); }
+  function endHold(){
+    if(!S.holding)return; S.holding=false;
+    const held=performance.now()-S.lockStart;
+    el("lockring").classList.remove("show"); el("lockring").style.setProperty("--p",0);
+    el("ring").classList.remove("on");
+    if(held>=app.lockMs && S.lockTgt){ // valid shot
+      S.shots++; S.lockTimes.push(held);
+      const t=S.lockTgt; hitTarget(t);
+    } else if(held>=app.lockMs){ S.shots++; /* fired but no target */ }
+    S.lockTgt=null;
+  }
+  function hitTarget(t){
+    S.hits++; S.score++; el("score").textContent=S.score;
+    flash(); toast("PEW!");
+    S.targets=S.targets.filter(x=>x!==t); if(t.node)t.node.remove(); ensureTargets();
+  }
+  function flash(){ const f=el("flash"); f.classList.remove("hidden"); f.style.opacity=0.5;
+    requestAnimationFrame(()=>{ f.style.transition="opacity .25s"; f.style.opacity=0;
+      setTimeout(()=>{f.classList.add("hidden");f.style.transition="";},260); }); }
+  function toast(txt){ const d=document.createElement("div"); d.className="toast"; d.textContent=txt;
+    el("app").appendChild(d); d.animate([{opacity:1,transform:"translate(-50%,60px)"},{opacity:0,transform:"translate(-50%,10px)"}],{duration:600,easing:"ease-out"}).onfinish=()=>d.remove(); }
+  function takeHit(){ S.lives--; el("lives").textContent=Math.max(0,S.lives);
+    navigator.vibrate&&navigator.vibrate(80); const f=el("flash"); f.style.background="#EF4444";
+    f.classList.remove("hidden"); f.style.opacity=0.4; requestAnimationFrame(()=>{f.style.transition="opacity .3s";f.style.opacity=0;
+      setTimeout(()=>{f.classList.add("hidden");f.style.transition="";f.style.background="";},320);});
+    if(S.lives<=0) endRound(); }
+
+  // ── main loop ───────────────────────────────────────────
+  function loop(){
+    raf=requestAnimationFrame(loop);
+    const now=performance.now();
+    // status
+    S.dark = app.goDark && S.pitch < app.darkPitch;
+    S.moving = app.moveLock && (now - S.lastMove < 260);
+    el("b-dark").classList.toggle("hidden",!S.dark);
+    el("b-move").classList.toggle("hidden",!(S.moving&&!S.dark));
+    el("reticle").style.opacity = S.dark? 0.25:1;
+
+    // targets render + fuse
+    let best=null, bestD=1e9;
+    for(const t of S.targets){
+      if(!t.node){ t.node=document.createElement("div"); t.node.className="tgt";
+        t.node.innerHTML='<div class="body">🎯</div><div class="fuse"><i></i></div>'; el("targets").appendChild(t.node); }
+      const p=screenPos(t);
+      t.node.style.display = p.on? "block":"none";
+      if(p.on){ t.node.style.left=p.x+"px"; t.node.style.top=p.y+"px";
+        const age=now-t.born, frac=Math.max(0,1-age/app.fuseMs);
+        t.node.querySelector(".fuse i").style.transform="scaleX("+frac+")";
+        // enemy fires
+        if(app.enemyFire && age>app.fuseMs){ takeHit(); S.targets=S.targets.filter(x=>x!==t); t.node.remove(); ensureTargets(); continue; }
+        // nearest to reticle center
+        const d=Math.hypot(p.x-W/2,p.y-H/2);
+        if(d<bestD){bestD=d;best=t;}
+      } else if(app.enemyFire && now-t.born>app.fuseMs){ // off-screen fuse still burns
+        S.targets=S.targets.filter(x=>x!==t); t.node.remove(); ensureTargets();
+      }
+    }
+    // reticle over a target?
+    const onTgt = best && bestD < app.targetRadius && !S.dark && !(S.moving);
+    el("ring").classList.toggle("on",!!onTgt);
+    for(const t of S.targets){ if(t.node) t.node.classList.toggle("locking", t===best && !!onTgt && S.holding); }
+
+    // lock progress
+    if(S.holding && !S.dark && !S.moving){
+      if(onTgt){ S.lockTgt=best; } else { S.lockTgt=null; S.lockStart=now; /* reset if off target */ }
+      const p=Math.min(1,(now-S.lockStart)/app.lockMs);
+      el("lockring").classList.add("show"); el("lockring").style.setProperty("--p",p.toFixed(3));
+      const exp=now-S.lockStart; if(exp>S.exposedMax)S.exposedMax=exp;
+    } else if(S.holding && (S.dark||S.moving)){ S.lockStart=now; el("lockring").style.setProperty("--p",0); }
+
+    // acc label
+    el("accLabel").textContent = S.shots? Math.round(S.hits/S.shots*100):"–";
+  }
+
+  // ── UI wiring ───────────────────────────────────────────
+  el("start").addEventListener("click",async()=>{ await startCam(); await requestSensors(); startRound(); });
+  el("again").addEventListener("click",startRound);
+  el("fire").addEventListener("touchstart",e=>{e.preventDefault();beginHold();},{passive:false});
+  el("fire").addEventListener("touchend",e=>{e.preventDefault();endHold();},{passive:false});
+  el("fire").addEventListener("mousedown",beginHold); el("fire").addEventListener("mouseup",endHold);
+
+  function openSheet(){ S.wasPlay=(S.phase==="play"); S.phase="pause"; cancelAnimationFrame(raf); el("settings").classList.remove("hidden"); }
+  function closeSheet(){ el("settings").classList.add("hidden");
+    if(S.wasPlay){ S.phase="play"; loop(); } }
+  el("openSettings").addEventListener("click",openSheet);
+  el("closeSettings").addEventListener("click",closeSheet);
+  el("tune").addEventListener("click",()=>{ el("summary").classList.add("hidden"); S.wasPlay=false; el("settings").classList.remove("hidden"); });
+
+  el("lockSeg").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b)return;
+    app.lockMs=+b.dataset.v; el("lockVal").textContent=app.lockMs; el("lockLabel").textContent=app.lockMs;
+    [...el("lockSeg").children].forEach(c=>c.classList.toggle("sel",c===b)); });
+  function bindTog(id,key){ const s=el(id); s.addEventListener("click",()=>{ app[key]=!app[key]; s.classList.toggle("on",app[key]); }); }
+  bindTog("tMove","moveLock"); bindTog("tDark","goDark"); bindTog("tFire","enemyFire");
+
+  // prevent scroll/zoom gestures
+  document.addEventListener("gesturestart",e=>e.preventDefault());
+  document.addEventListener("touchmove",e=>{ if(e.touches.length>1)e.preventDefault(); },{passive:false});
+})();
+</script>
+</body>
+</html>

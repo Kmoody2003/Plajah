@@ -27,5 +27,5 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "exclude": ["node_modules", "dist", "android", "blockchain"]
+  "exclude": ["node_modules", "dist", "android", "blockchain", "packages/first-party-games"]
 }

@@ -36,6 +36,19 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState<string>('All');
 
+  // Admin-only visibility for the in-development first-party prototype (Pew Pew).
+  // Hidden from the public until the status ladder advances it; see
+  // packages/first-party-games/games/live-action/docs/platform-integration.md
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    const u = auth.currentUser;
+    if (!u) return;
+    if (u.email === 'kmoody2003@gmail.com') { setIsAdmin(true); return; }
+    fetchUserProfile(u.uid)
+      .then(p => { if (p && (p.role === 'admin' || p.role === 'staff')) setIsAdmin(true); })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     const loadGames = async () => {
       const allGames = await fetchGames();
@@ -145,6 +158,36 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame }) => {
              </div>
            ) : (
              <div className="max-w-7xl mx-auto space-y-12">
+               {/* Plajah Originals — admin-only first-party prototype (Pew Pew) */}
+               {isAdmin && (
+               <div>
+                 <div className="flex items-center gap-3 mb-8">
+                   <Gamepad2 size={20} className="text-small-orange" />
+                   <h3 className="text-xl font-black uppercase tracking-tightest">Plajah Originals</h3>
+                   <span className="px-2.5 py-1 rounded-md bg-white/10 border border-white/15 text-[8px] font-black uppercase tracking-widest text-white/70">Prototype · Admin</span>
+                 </div>
+                 <div
+                   className="relative rounded-[3rem] overflow-hidden border border-white/10 p-8 md:p-10"
+                   style={{ background: 'radial-gradient(60rem 30rem at 80% -20%, rgba(255,140,0,0.18), transparent 60%), linear-gradient(135deg, rgba(107,0,153,0.35), rgba(212,0,85,0.25) 55%, rgba(255,140,0,0.15))' }}
+                 >
+                   <div className="flex flex-col md:flex-row md:items-center gap-8">
+                     <div className="flex-1">
+                       <h4 className="font-black tracking-tightest text-4xl md:text-5xl" style={{ background: 'linear-gradient(135deg,#FF8C00,#D40055)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>PEW PEW</h4>
+                       <p className="text-white/70 text-sm mt-3 max-w-md leading-relaxed">The live-action shooter — early feel test. Point your phone (or headset) at targets, hold to lock, release to fire. Needs camera + motion, so open it on a phone.</p>
+                     </div>
+                     <div className="flex flex-col gap-3 w-full md:w-auto">
+                       <a href="/pewpew/" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-widest hover:scale-105 transition-all">
+                         <Play size={16} fill="currentColor" /> Play on Phone
+                       </a>
+                       <a href="/pewpew/xr.html" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-white/10 border border-white/15 text-white text-[11px] font-black uppercase tracking-widest hover:bg-white/20 transition-all">
+                         <ExternalLink size={16} /> Headset (Quest)
+                       </a>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+               )}
+
                {/* Trending Section */}
                {games.length > 0 && (
                <div>

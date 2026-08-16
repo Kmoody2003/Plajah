@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pew Pew — Quest (WebXR)</title>
+<style>
+  :root{--pj-purple:#6B0099;--pj-magenta:#D40055;--pj-orange:#FF8C00;--pj-cyan:#00DAF3;--ink:#0B0712;--paper:#F3ECFA;--paper-dim:#B7A9CC;
+    --grad:linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00);--fd:"Outfit","Segoe UI",system-ui,sans-serif;--fb:"Inter",system-ui,sans-serif}
+  *{box-sizing:border-box} html,body{margin:0;height:100%;background:var(--ink);color:var(--paper);font-family:var(--fb);overflow:hidden}
+  #overlay{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:16px;padding:28px;
+    background:radial-gradient(70rem 50rem at 50% -10%,rgba(107,0,153,0.4),transparent 60%),var(--ink);z-index:10}
+  .brand{font-family:var(--fd);font-weight:900;letter-spacing:-0.04em;font-size:clamp(3rem,16vw,5rem);line-height:0.9;
+    background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .kick{font-family:var(--fd);text-transform:uppercase;letter-spacing:0.18em;font-size:0.8rem;color:var(--paper-dim)}
+  p{max-width:40ch;color:var(--paper-dim);line-height:1.6;margin:0}
+  .steps{display:flex;flex-direction:column;gap:10px;max-width:400px;width:100%;text-align:left}
+  .step{display:flex;gap:12px;align-items:center;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:12px 14px;font-size:0.92rem}
+  .step b{color:var(--pj-orange);font-family:var(--fd)} .num{width:26px;height:26px;flex:none;border-radius:50%;background:#D0BCFF;color:#2a0033;display:grid;place-items:center;font-family:var(--fd);font-weight:800}
+  #status{font-family:var(--fd);font-weight:700;padding:8px 16px;border-radius:9999px;font-size:0.85rem}
+  .ok{color:#06D6A0;background:rgba(6,214,160,0.12);border:1px solid rgba(6,214,160,0.3)}
+  .bad{color:#F59E0B;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3)}
+  /* three.js VRButton is styled by the lib; nudge it into our language */
+  #VRButton{font-family:var(--fd)!important;font-weight:800!important;border-radius:9999px!important}
+  .note{font-size:0.78rem;color:#7C6E92;max-width:36ch}
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="overlay">
+  <div class="kick">Plajah Originals · MR tier</div>
+  <div class="brand">PEW PEW</div>
+  <p>The headset build. Aim with your controller, <b style="color:var(--pj-orange)">hold the trigger</b> to lock a target, release to fire. Same tempo as the phone — the headset is just a nicer surface, never an advantage.</p>
+  <div class="steps">
+    <div class="step"><span class="num">1</span><div>Open this page in the <b>Meta Quest Browser</b>.</div></div>
+    <div class="step"><span class="num">2</span><div>Press <b>Enter VR</b> below and put the headset on.</div></div>
+    <div class="step"><span class="num">3</span><div>Point at a target, <b>hold the trigger</b> until the ring fills, release to fire.</div></div>
+  </div>
+  <div id="status" class="bad">Checking for VR…</div>
+  <div class="note">Needs a Quest (or any WebXR headset). On a desktop this page only shows these instructions.</div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { VRButton } from 'three/addons/webxr/VRButton.js';
+
+const CFG = { lockMs:700, roundS:90, lives:5, maxTargets:4, fuseMs:5000, spawnR:3.2 };
+const S = { score:0, hits:0, shots:0, lives:CFG.lives, tLeft:CFG.roundS, running:false, tEnd:0 };
+
+const statusEl = document.getElementById('status');
+const overlay = document.getElementById('overlay');
+
+// ── check WebXR support ─────────────────────────────────
+if (navigator.xr && navigator.xr.isSessionSupported) {
+  navigator.xr.isSessionSupported('immersive-vr').then(ok=>{
+    statusEl.className = ok ? 'ok' : 'bad';
+    statusEl.textContent = ok ? 'VR ready — press Enter VR' : 'No VR headset detected on this device';
+  });
+} else { statusEl.textContent = 'This browser has no WebXR — open in the Quest Browser'; }
+
+// ── scene ───────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0B0712);
+scene.fog = new THREE.Fog(0x0B0712, 6, 16);
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 100);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(devicePixelRatio);
+renderer.setSize(innerWidth, innerHeight);
+renderer.xr.enabled = true;
+document.body.appendChild(renderer.domElement);
+addEventListener('resize', ()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+
+const vrBtn = VRButton.createButton(renderer);
+overlay.appendChild(vrBtn);
+
+// lights + ground
+scene.add(new THREE.HemisphereLight(0xD0BCFF, 0x1a0b2e, 1.1));
+const key = new THREE.DirectionalLight(0xffffff, 0.8); key.position.set(2,5,2); scene.add(key);
+const grid = new THREE.GridHelper(30, 30, 0x6B0099, 0x2a1440); grid.position.y=0; scene.add(grid);
+// a subtle glowing floor ring where the player stands
+const ring = new THREE.Mesh(new THREE.RingGeometry(0.9,1.0,48), new THREE.MeshBasicMaterial({color:0x00DAF3, side:THREE.DoubleSide, transparent:true, opacity:0.5}));
+ring.rotation.x = -Math.PI/2; ring.position.y=0.01; scene.add(ring);
+
+// ── controllers ─────────────────────────────────────────
+const raycaster = new THREE.Raycaster();
+const tmpM = new THREE.Matrix4();
+const controllers = [];
+function makeController(i){
+  const c = renderer.xr.getController(i);
+  // aim ray
+  const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-6)]);
+  const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color:0xFF8C00, transparent:true, opacity:0.6 }));
+  line.scale.z = 1; c.add(line);
+  // reticle at ray end
+  const dot = new THREE.Mesh(new THREE.SphereGeometry(0.02,12,12), new THREE.MeshBasicMaterial({color:0xffffff}));
+  dot.position.set(0,0,-2); c.add(dot);
+  c.userData = { holding:false, lockStart:0, lockTarget:null, line, dot };
+  c.addEventListener('selectstart', ()=>{ c.userData.holding=true; c.userData.lockStart=performance.now(); });
+  c.addEventListener('selectend', ()=>{ endHold(c); });
+  scene.add(c);
+  controllers.push(c);
+  return c;
+}
+makeController(0); makeController(1);
+
+// ── targets ─────────────────────────────────────────────
+const targets = [];
+const tGeo = new THREE.IcosahedronGeometry(0.28, 0);
+function spawnTarget(){
+  const mat = new THREE.MeshStandardMaterial({ color:0xD40055, emissive:0xD40055, emissiveIntensity:0.5, roughness:0.4, metalness:0.1 });
+  const m = new THREE.Mesh(tGeo, mat);
+  const ang = (Math.random()*2-1) * Math.PI*0.7;      // front-ish hemisphere
+  const r = CFG.spawnR + Math.random()*1.5;
+  m.position.set(Math.sin(ang)*r, 1.2 + (Math.random()*1.1-0.4), -Math.cos(ang)*r);
+  // fuse ring around it
+  const fring = new THREE.Mesh(new THREE.RingGeometry(0.34,0.4,32), new THREE.MeshBasicMaterial({color:0xF59E0B, side:THREE.DoubleSide, transparent:true, opacity:0.9}));
+  m.add(fring);
+  m.userData = { born:performance.now(), fring, ang };
+  scene.add(m); targets.push(m);
+}
+function ensureTargets(){ while(targets.length<CFG.maxTargets && S.running) spawnTarget(); }
+function removeTarget(m){ const i=targets.indexOf(m); if(i>=0)targets.splice(i,1); scene.remove(m); }
+
+// ── HUD (camera-attached canvas panel) ──────────────────
+const hudCanvas = document.createElement('canvas'); hudCanvas.width=512; hudCanvas.height=128;
+const hudCtx = hudCanvas.getContext('2d');
+const hudTex = new THREE.CanvasTexture(hudCanvas);
+const hud = new THREE.Mesh(new THREE.PlaneGeometry(0.5,0.125), new THREE.MeshBasicMaterial({map:hudTex, transparent:true}));
+hud.position.set(0,-0.28,-1); camera.add(hud); scene.add(camera);
+function drawHUD(msg){
+  hudCtx.clearRect(0,0,512,128);
+  hudCtx.fillStyle='rgba(11,7,18,0.72)'; roundRect(hudCtx,0,0,512,128,20); hudCtx.fill();
+  hudCtx.textBaseline='middle'; hudCtx.font='700 40px Outfit, sans-serif';
+  if(msg){ hudCtx.fillStyle='#F3ECFA'; hudCtx.textAlign='center'; hudCtx.fillText(msg,256,64); }
+  else {
+    hudCtx.textAlign='left';
+    hudCtx.fillStyle='#EF4444'; hudCtx.fillText('❤ '+Math.max(0,S.lives), 24, 64);
+    hudCtx.fillStyle='#00DAF3'; hudCtx.fillText('HITS '+S.hits, 150, 64);
+    hudCtx.fillStyle='#F3ECFA'; hudCtx.textAlign='right'; hudCtx.fillText('⏱ '+Math.max(0,S.tLeft), 488, 64);
+  }
+  hudTex.needsUpdate = true;
+}
+function roundRect(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+
+// ── firing / hit ────────────────────────────────────────
+function endHold(c){
+  const u=c.userData; if(!u.holding) return; u.holding=false;
+  const held = performance.now()-u.lockStart;
+  if(held>=CFG.lockMs){ S.shots++; if(u.lockTarget){ hitTarget(u.lockTarget); } }
+  u.lockTarget=null;
+}
+function hitTarget(m){
+  S.hits++; S.score++;
+  pulse(0.4);
+  // pop animation then remove
+  removeTarget(m); ensureTargets();
+}
+function takeHit(){ S.lives--; pulse(0.8, true); if(S.lives<=0) endRound(); }
+let flashUntil=0, flashColor=0xEF4444;
+function pulse(dur, red){ flashUntil=performance.now()+ (red?260:120); flashColor = red?0xEF4444:0xFF8C00;
+  for(const c of controllers){ const gp=c.gamepad; }
+  // haptics
+  const sess = renderer.xr.getSession();
+  if(sess) for(const src of sess.inputSources){ if(src.gamepad && src.gamepad.hapticActuators && src.gamepad.hapticActuators[0]){ try{src.gamepad.hapticActuators[0].pulse(red?1.0:0.5, red?120:60);}catch(e){} } }
+}
+const flashMesh = new THREE.Mesh(new THREE.SphereGeometry(0.5,8,8), new THREE.MeshBasicMaterial({color:0xEF4444, side:THREE.BackSide, transparent:true, opacity:0}));
+camera.add(flashMesh);
+
+// ── round lifecycle ─────────────────────────────────────
+function startRound(){
+  for(const m of [...targets]) removeTarget(m);
+  Object.assign(S,{score:0,hits:0,shots:0,lives:CFG.lives,tLeft:CFG.roundS,running:true,tEnd:performance.now()+CFG.roundS*1000});
+  ensureTargets();
+}
+function endRound(){ S.running=false; for(const m of [...targets]) removeTarget(m); }
+renderer.xr.addEventListener('sessionstart', ()=>{ overlay.style.display='none'; startRound(); });
+renderer.xr.addEventListener('sessionend', ()=>{ overlay.style.display='flex'; S.running=false; });
+
+// ── main loop (XR-aware) ────────────────────────────────
+let clockAcc=0;
+renderer.setAnimationLoop((t)=>{
+  const now = performance.now();
+  // clock
+  if(S.running){ S.tLeft = Math.max(0, Math.ceil((S.tEnd-now)/1000)); if(now>=S.tEnd) endRound(); }
+
+  // targets: spin, fuse, fire
+  for(const m of [...targets]){
+    m.rotation.y += 0.01; m.rotation.x += 0.006;
+    const age = now-m.userData.born, frac=Math.max(0,1-age/CFG.fuseMs);
+    m.userData.fring.scale.set(frac,frac,1);
+    m.userData.fring.lookAt(camera.getWorldPosition(new THREE.Vector3()));
+    m.material.emissiveIntensity = 0.4 + (1-frac)*0.6;
+    if(S.running && age>CFG.fuseMs){ takeHit(); removeTarget(m); ensureTargets(); }
+  }
+
+  // controller raycasts + lock
+  for(const c of controllers){
+    const u=c.userData;
+    tmpM.identity().extractRotation(c.matrixWorld);
+    raycaster.ray.origin.setFromMatrixPosition(c.matrixWorld);
+    raycaster.ray.direction.set(0,0,-1).applyMatrix4(tmpM);
+    const hit = raycaster.intersectObjects(targets, false)[0];
+    // reticle position
+    u.dot.position.z = hit ? -Math.min(hit.distance,8) : -2;
+    const onT = hit ? hit.object : null;
+    // reset previous highlight
+    if(u.lockTarget && u.lockTarget!==onT){ u.lockTarget.material.color.setHex(0xD40055); u.lockTarget.material.emissive.setHex(0xD40055); }
+    if(u.holding && S.running){
+      if(onT){ if(u.lockTarget!==onT){ u.lockStart=now; } u.lockTarget=onT;
+        const p=Math.min(1,(now-u.lockStart)/CFG.lockMs);
+        onT.material.color.setHex(0xFF8C00); onT.material.emissive.setHex(0xFF8C00);
+        onT.scale.setScalar(1 + p*0.12);
+        u.line.material.color.setHex(0xFF8C00);
+      } else { u.lockTarget=null; u.lockStart=now; u.line.material.color.setHex(0xFF8C00); }
+    } else { u.line.material.color.setHex(hit?0x00DAF3:0xFF8C00); if(onT) onT.scale.setScalar(1); }
+  }
+
+  // flash
+  const fa = Math.max(0,(flashUntil-now)/220);
+  flashMesh.material.opacity = fa*0.5; flashMesh.material.color.setHex(flashColor);
+
+  drawHUD(S.running ? null : (S.lives<=0?'Tagged out — exit & re-enter':'Round over — exit & re-enter'));
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>
