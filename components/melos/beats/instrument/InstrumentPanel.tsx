@@ -15,6 +15,7 @@ import { Knob } from '../shared/Knob';
 import { WavetableDisplay } from './WavetableDisplay';
 import { ArpPanel } from './ArpPanel';
 import { OndaEditor } from './OndaEditor';
+import { PresetGallery } from './PresetGallery';
 import { defaultArpPatch, type ArpPatch } from '../../../../services/melos/arp';
 import { ARMED, PLAYHEAD, SELECT, SURFACE, SURFACE_RAISED } from '../theme';
 
@@ -31,6 +32,7 @@ export const InstrumentPanel: React.FC<Props> = ({ doc, track, onMutate, onClose
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
   // Deliberately not memoised — the doc mutates in place, so a memo keyed on the patch object
   // would never invalidate and every control would freeze after the first render.
@@ -126,6 +128,10 @@ export const InstrumentPanel: React.FC<Props> = ({ doc, track, onMutate, onClose
     return <OndaEditor doc={doc} track={track} onMutate={onMutate} onClose={() => setEditorOpen(false)} />;
   }
 
+  if (galleryOpen) {
+    return <PresetGallery presets={FACTORY_PRESETS} engineLabel="ONDA" currentName={patch?.name} onPick={loadPreset} onClose={() => setGalleryOpen(false)} />;
+  }
+
   return (
     <div className="absolute inset-0 z-40 grid place-items-center bg-black/65 backdrop-blur-sm p-5" onClick={onClose}>
       <div
@@ -166,7 +172,10 @@ export const InstrumentPanel: React.FC<Props> = ({ doc, track, onMutate, onClose
         <div className="grid" style={{ gridTemplateColumns: '212px 1fr' }}>
           {/* preset browser */}
           <div className="p-3 border-r border-white/10" style={{ background: '#0C0C10' }}>
-            <p className="text-[9.5px] uppercase tracking-[0.18em] text-white/30 font-semibold mb-2">Presets</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[9.5px] uppercase tracking-[0.18em] text-white/30 font-semibold">Presets</p>
+              <button onClick={() => setGalleryOpen(true)} className="text-[10px] font-semibold" style={{ color: SELECT }} title="Browse the sound library with covers and notes">Browse ▸</button>
+            </div>
             <div className="relative mb-2">
               <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-white/25" />
               <input

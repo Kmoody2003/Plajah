@@ -25,6 +25,10 @@ export interface OndaPatch {
   category: string;
   tags: string[];
   author?: string;
+  /** One line for the gallery — what it is and, ideally, the trick behind it (the teaching hook). */
+  description?: string;
+  /** Seed for the procedural cover art (defaults to the name). Lets a re-skin keep its cover. */
+  cover?: string;
   /** Wavetable ids per oscillator slot, resolved to engine slots on load. */
   tables: string[];
   /** Raw param id → 0..1 value. Anything absent keeps the engine default. */
