@@ -1290,7 +1290,12 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         const dur = audio.duration;
         if (Math.abs(t - stallRef.current.lastT) < 0.02) {
           if (!stallRef.current.since) stallRef.current.since = now;
-          else if (now - stallRef.current.since > 3500 && dur && isFinite(dur) && dur - t < 8) {
+          // This is a FOREGROUND memory-stall heuristic (a WAV freezing near the end on a
+          // memory-pressured TV). It must never fire while the tab is hidden — a throttled
+          // background rAF makes `now` jump and can look like a stall, which would wrongly
+          // advance/restart a track playing on the lock screen. And a natively-looping element
+          // (repeat-ONE) is never "stuck at the end", so exclude it too.
+          else if (now - stallRef.current.since > 3500 && dur && isFinite(dur) && dur - t < 8 && !audio.loop && !document.hidden) {
             stallRef.current = { lastT: -1, since: 0 };
             onEndedRef.current();
             raf = requestAnimationFrame(tick);
@@ -1312,6 +1317,19 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [isPlaying, audioSource]);
+
+  // Repeat-ONE loops at the MEDIA layer, not via JS. The browser replays the already-buffered
+  // track seamlessly and — the fix — keeps looping when the screen is locked. The old path
+  // (onEnded → currentTime = 0 → play()) stuttered there: with the tab backgrounded the re-issued
+  // play() races and the progressive stream re-buffers from zero on throttled background network,
+  // so a locked, repeating track "went in and out like a bad connection". Native loop has no JS
+  // timing dependency and doesn't re-fetch, so the loop is silent-seam and background-safe.
+  // Scoped to element-driven audio: HLS/MSE (hls.js owns its buffer) and video keep the JS path.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.loop = repeatMode === 'ONE' && audioSource !== 'VIDEO' && audioSource !== 'RADIO' && !hlsRef.current;
+  }, [repeatMode, audioSource, currentTrack?.id]);
 
   // Release any prewarmed next-track blob + in-flight warm on unmount (no leaks).
   useEffect(() => () => { discardPrewarm(); if (hlsRef.current) { try { hlsRef.current.destroy(); } catch { /* */ } hlsRef.current = null; } }, []);
