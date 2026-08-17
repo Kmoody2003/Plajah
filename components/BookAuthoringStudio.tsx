@@ -809,6 +809,40 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
   const [protectOnChain, setProtectOnChain] = useState(true);
   const [publishing, setPublishing] = useState(false);
   const [publishOutcome, setPublishOutcome] = useState<{ albumId: string; certificateId?: string; certError?: string } | null>(null);
+  // Payout readiness — a priced book only pays out if the author has connected Stripe.
+  const [payoutStatus, setPayoutStatus] = useState<'unknown' | 'checking' | 'ready' | 'missing'>('unknown');
+  const [connectingPayouts, setConnectingPayouts] = useState(false);
+
+  // When the publish modal opens, check whether payouts are set up (only matters if priced).
+  useEffect(() => {
+    if (!showPublish) return;
+    let alive = true;
+    (async () => {
+      setPayoutStatus('checking');
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) { if (alive) setPayoutStatus('missing'); return; }
+        const res = await fetch('/api/stripe/connect/status', { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json().catch(() => ({}));
+        if (!alive) return;
+        setPayoutStatus(data?.connected && data?.onboarded && data?.payoutsEnabled ? 'ready' : 'missing');
+      } catch { if (alive) setPayoutStatus('missing'); }
+    })();
+    return () => { alive = false; };
+  }, [showPublish]);
+
+  const handleConnectPayouts = async () => {
+    setConnectingPayouts(true);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) { alert('Sign in first to set up payouts.'); setConnectingPayouts(false); return; }
+      const { connectStripe } = await import('../services/stripeService');
+      await connectStripe({ userIdToken: token }); // redirects to Stripe onboarding
+    } catch (e: any) {
+      setConnectingPayouts(false);
+      alert(e?.message || 'Could not start payout setup.');
+    }
+  };
 
   // Continuity pass: read the whole manuscript in one shot and surface the
   // contradictions that only exist BETWEEN distant chapters. See
@@ -1296,6 +1330,24 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
                   <input type="number" min="0" step="0.01" value={publishPrice}
                     onChange={e => setPublishPrice(e.target.value)}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white mb-4 focus:outline-none focus:border-orange-500/50" />
+
+                  {/* Payout nudge — a priced book only pays out to a connected Stripe account. */}
+                  {(parseFloat(publishPrice) || 0) > 0 && payoutStatus === 'missing' && (
+                    <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 mb-4">
+                      <AlertTriangle size={15} className="text-amber-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold text-amber-200/90">Connect payouts to get paid</p>
+                        <p className="text-[10px] text-white/40 leading-relaxed mt-0.5">
+                          You can publish now, but you'll only receive your ~90% until you connect a payout account. Earnings are held as pending until then.
+                        </p>
+                        <button type="button" onClick={handleConnectPayouts} disabled={connectingPayouts}
+                          className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-400 text-black text-[10px] font-black uppercase tracking-widest hover:bg-amber-300 disabled:opacity-50 transition-colors">
+                          {connectingPayouts ? <Loader2 size={12} className="animate-spin" /> : null}
+                          Connect payouts
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <button onClick={() => setProtectOnChain(v => !v)}
                     className={`w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-colors mb-6 ${protectOnChain ? 'bg-orange-500/10 border-orange-500/30' : 'bg-white/[0.03] border-white/8'}`}>
                     <div className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 ${protectOnChain ? 'bg-orange-500 border-orange-500' : 'border-white/20'}`}>
