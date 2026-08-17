@@ -737,7 +737,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                       >
                         <Layers size={isMinimized ? 12 : 16} />
                       </button>
-                      <button onClick={() => setIsMinimized(!isMinimized)} className={`p-1 rounded-lg transition-all ${isMinimized ? 'text-small-orange bg-small-orange/10' : 'text-white/40 hover:text-white hover:bg-white/5'}`} title="Minimize/Expand">
+                      <button onClick={() => setIsMinimized(v => !v)} className={`p-1 rounded-lg transition-all ${isMinimized ? 'text-small-orange bg-small-orange/10' : 'text-white/40 hover:text-white hover:bg-white/5'}`} title="Minimize/Expand">
                         {isMinimized ? <Maximize2 size={isMinimized ? 12 : 16} /> : <Minimize2 size={isMinimized ? 12 : 16} />}
                       </button>
                       <button onClick={() => setIsNanoView?.(false)} className="p-1 text-white/40 hover:text-white hover:bg-white/5 rounded-lg transition-all" title="Expand View">
@@ -1052,7 +1052,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
               else if (currentVideo) onNavigate?.('PLAYER', { video: currentVideo });
               else setIsSpillOverOpen(o => !o);
             } else {
-              setIsMinimized(!isMinimized);
+              setIsMinimized(v => !v);
             }
           }}
           className={`absolute p-2 bg-theme-card/90 backdrop-blur-3xl border border-white/5 rounded-t-xl transition-all shadow-2xl left-1/2 -translate-x-1/2 ${isPhoneMode ? 'text-small-orange hover:text-white' : (isMinimized ? 'text-small-orange' : 'text-white/40 hover:text-white')} ${isLandscape && !isMinimized ? 'hidden' : '-top-10'} ${isMinimized ? 'animate-pulse hover:animate-none' : ''}`}
@@ -1912,7 +1912,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                       <Box size={16} />
                     </button>
                     <button
-                      onClick={() => setIsMinimized(!isMinimized)}
+                      onClick={() => setIsMinimized(v => !v)}
                       className={`p-1.5 rounded-xl transition-all hover:scale-110 active:scale-95 ${isMinimized ? 'opacity-50' : 'opacity-100'}`}
                       title={isMinimized ? 'Show Player Controls' : 'Hide Player Controls'}
                     >
