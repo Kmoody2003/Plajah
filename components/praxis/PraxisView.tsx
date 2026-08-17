@@ -472,6 +472,11 @@ const Chapter: React.FC<{ stage: Stage; venture: Venture; uid?: string; onBack: 
               onLaunched={setOrg} onNavigate={onNavigate}
               onComplete={(patch) => completeChapter(patch, {}, 'comply')}
             />
+          ) : stage.key === 'comply' ? (
+            <ComplyDo
+              venture={venture} saved={saved} uid={uid}
+              onComplete={(patch) => completeChapter(patch, {}, 'fund')}
+            />
           ) : (
             <LockedPreview stage={stage} />
           )}
@@ -973,6 +978,97 @@ const OperateDo: React.FC<{
   );
 };
 
+// ── Comply chapter (interactive — the Protect compliance calendar) ────────────
+const COMPLY_URLS = {
+  taxes: 'https://www.sba.gov/business-guide/manage-your-business/pay-business-taxes',
+  estimated: 'https://www.irs.gov/businesses/small-businesses-self-employed/estimated-taxes',
+  f941: 'https://www.irs.gov/forms-pubs/about-form-941',
+  f1099: 'https://www.irs.gov/forms-pubs/about-form-1099-nec',
+  boi: 'https://www.fincen.gov/boi',
+  f990: 'https://www.irs.gov/forms-pubs/about-form-990',
+};
+const passThrough = (e?: string) => ['sole_prop', 'llc', 'partnership', 's_corp'].includes(e || '');
+const entityIsRegistered = (e?: string) => ['llc', 's_corp', 'c_corp', 'nonprofit'].includes(e || '');
+const sellsGoods = (a: string) => ['retail', 'restaurant', 'ecommerce'].includes(a);
+
+interface Obligation { key: string; title: string; cadence: string; url?: string; on: (v: Venture) => boolean; }
+const OBLIGATIONS: Obligation[] = [
+  { key: 'income', title: 'Federal income tax return', cadence: 'Annual · around Apr 15', url: COMPLY_URLS.taxes, on: () => true },
+  { key: 'estimated', title: 'Quarterly estimated taxes', cadence: 'Quarterly · Apr / Jun / Sep / Jan', url: COMPLY_URLS.estimated, on: v => passThrough(v.plan.form_entity) },
+  { key: 'sales', title: 'Sales tax filing', cadence: 'Monthly or quarterly (your state)', url: COMPLY_URLS.taxes, on: v => sellsGoods(v.archetype) },
+  { key: 'payroll', title: 'Payroll taxes — Form 941', cadence: 'Quarterly, plus deposits', url: COMPLY_URLS.f941, on: () => false },
+  { key: 'w2', title: 'W-2s to your team', cadence: 'Annual · Jan 31', on: () => false },
+  { key: 'f1099', title: '1099-NEC to contractors', cadence: 'Annual · Jan 31', url: COMPLY_URLS.f1099, on: () => false },
+  { key: 'boi', title: 'Beneficial Ownership (BOI) report', cadence: 'Once, soon after forming', url: COMPLY_URLS.boi, on: v => entityIsRegistered(v.plan.form_entity) && v.plan.form_entity !== 'nonprofit' },
+  { key: 'annual_report', title: 'State annual report / franchise', cadence: 'Annual (your state)', on: v => entityIsRegistered(v.plan.form_entity) },
+  { key: 'license', title: 'Renew licenses & permits', cadence: 'Annual', on: () => true },
+  { key: 'insurance', title: 'Review business insurance', cadence: 'Annual', on: v => ['restaurant', 'retail', 'local_service'].includes(v.archetype) },
+  { key: 'f990', title: 'Form 990 (nonprofit)', cadence: 'Annual', url: COMPLY_URLS.f990, on: v => v.plan.form_entity === 'nonprofit' },
+];
+
+const ComplyDo: React.FC<{ venture: Venture; saved: boolean; uid?: string; onComplete: (patch: Record<string, string>) => void }> = ({ venture, saved, uid, onComplete }) => {
+  const p = venture.plan;
+  const [items, setItems] = useState<Record<string, boolean>>(() => {
+    const seed: Record<string, boolean> = {};
+    const savedKeys = (p.comply_items || '').split(',').filter(Boolean);
+    OBLIGATIONS.forEach(o => { seed[o.key] = savedKeys.length ? savedKeys.includes(o.key) : o.on(venture); });
+    return seed;
+  });
+  const [reminders, setReminders] = useState(p.comply_reminders !== '0');
+  const toggle = (k: string) => setItems(s => ({ ...s, [k]: !s[k] }));
+  const active = OBLIGATIONS.filter(o => items[o.key]);
+
+  const complete = () => onComplete({ comply_items: active.map(o => o.key).join(','), comply_reminders: reminders ? '1' : '0' });
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-2xl border p-4 flex items-start gap-3" style={{ borderColor: 'rgba(0,218,243,.25)', background: 'rgba(0,218,243,.06)' }}>
+        <Shield size={18} className="text-[#00daf3] mt-0.5 shrink-0" />
+        <p className="text-[12px] text-white/60 leading-snug">The Protect layer. Every business has a rhythm of filings and renewals — miss one and it costs penalties or your good standing. Here's your calendar, built from your structure and what you sell.</p>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <Eyebrow>Your compliance calendar</Eyebrow>
+          <span className="text-[10px] font-black text-white/40 tabular-nums">{active.length} tracked</span>
+        </div>
+        <div className="space-y-2">
+          {OBLIGATIONS.map(o => (
+            <div key={o.key} className={`flex items-center gap-3 rounded-xl border px-3.5 py-3 transition-all ${items[o.key] ? 'bg-[#00daf3]/[0.05] border-[#00daf3]/25' : 'bg-white/[0.03] border-white/[0.07]'}`}>
+              <button onClick={() => toggle(o.key)} aria-pressed={!!items[o.key]} className="w-6 h-6 rounded-lg border flex items-center justify-center shrink-0"
+                style={items[o.key] ? { background: '#00daf3', borderColor: '#00daf3' } : { borderColor: 'rgba(255,255,255,.25)' }}>
+                {items[o.key] && <Check size={13} className="text-black" />}
+              </button>
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-bold">{o.title}</p>
+                <p className="text-[11px] text-white/45">{o.cadence}</p>
+              </div>
+              {o.url && <a href={o.url} target="_blank" rel="noreferrer" className="shrink-0 text-[9px] font-black uppercase tracking-widest text-[#00daf3] flex items-center gap-1 hover:underline">Official <ExternalLink size={11} /></a>}
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] text-white/35 mt-2 leading-snug">Exact dates and thresholds vary by state and revenue — confirm with your state's site or a CPA, and uncheck anything that doesn't apply to you.</p>
+      </div>
+
+      <button onClick={() => setReminders(r => !r)} className={`w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all ${reminders ? 'bg-[#8b5cf6]/[0.1] border-[#8b5cf6]/30' : 'bg-white/[0.03] border-white/[0.07]'}`}>
+        <span className="w-5 h-5 rounded-md border flex items-center justify-center shrink-0" style={reminders ? { background: '#8b5cf6', borderColor: '#8b5cf6' } : { borderColor: 'rgba(255,255,255,.25)' }}>{reminders && <Check size={12} className="text-white" />}</span>
+        <div><div className="text-[12.5px] font-bold flex items-center gap-2"><AriaMark size={16} petals={false} /> Let Aria watch these deadlines</div><div className="text-[11px] text-white/45">She'll flag anything coming due so it never sneaks up on you.</div></div>
+      </button>
+
+      <div className="flex flex-col sm:flex-row gap-2 pt-1">
+        <button onClick={() => askAria(`You are Aria, my Praxis coach on the Three P's (Protect). Build my compliance calendar for a ${getEntity(venture.plan.form_entity)?.label || 'small business'} ${venture.archetype} in ${venture.jurisdiction.state || 'my state'}: which tax filings, reports, and renewals I owe, exactly when they're due, and the official link for each. Flag the ones people miss most.`)}
+          className="flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 text-[#c4b5fd] hover:bg-[#8b5cf6]/20 flex items-center justify-center gap-2">
+          <AriaMark size={16} petals={false} /> Build my calendar with Aria
+        </button>
+        <button onClick={complete} className="flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white hover:brightness-110 flex items-center justify-center gap-2">
+          <Check size={13} /> Complete Comply → Fund
+        </button>
+      </div>
+      {saved && <p className="text-[11px] text-[#06d6a0] text-center flex items-center justify-center gap-1.5"><Check size={12} /> Saved to your Blueprint{uid ? ' · +15 points' : ''}. Next: Fund — fuel the growth.</p>}
+    </div>
+  );
+};
+
 const LockedPreview: React.FC<{ stage: Stage }> = ({ stage }) => (
   <div className="rounded-2xl bg-white/[0.02] border border-dashed border-white/10 p-5">
     <div className="flex items-center gap-2 text-white/50 mb-2"><Lock size={13} /><span className="text-[10px] font-black uppercase tracking-widest">Unlocks as you build</span></div>
@@ -999,6 +1095,7 @@ const Blueprint: React.FC<{ venture: Venture; onBack: () => void }> = ({ venture
     { k: 'Legal structure', v: getEntity(p.form_entity)?.label },
     { k: 'Monthly net', v: p.books_net ? `$${Number(p.books_net).toLocaleString('en-US', { maximumFractionDigits: 0 })} · ${p.books_margin}% margin` : '' },
     { k: 'Business page', v: venture.orgId ? 'Launched ✓' : '' },
+    { k: 'Compliance', v: p.comply_items ? `${p.comply_items.split(',').filter(Boolean).length} deadlines tracked` : '' },
     { k: 'Where', v: [venture.jurisdiction.city, venture.jurisdiction.state, venture.jurisdiction.country].filter(Boolean).join(', ') },
   ];
   return (
