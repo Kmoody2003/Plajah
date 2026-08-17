@@ -477,6 +477,9 @@ import { installSessionTrace, traceView } from './services/sessionTrace';
 import { installHealthMonitor } from './services/healthMonitor';
 import { useHardwareBack } from './hooks/useHardwareBack';
 import { useNavLayout } from './hooks/useNavLayout';
+import { useShellNext } from './hooks/useShellNext';
+import CommandSplitNav from './components/CommandSplitNav';
+import CommandSplitBar from './components/CommandSplitBar';
 import { ChoraNavBar, NavLayoutSwitcher, type NavPage } from './components/ChoraCompactNav';
 
 const App: React.FC = () => {
@@ -803,6 +806,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   // Adaptive nav layout — slim rail on compact desktop (12–20"), horizontal bar on
   // touch tablets, split pillars as an opt-in. See hooks/useNavLayout.
   const navLayout = useNavLayout();
+  const shellNext = useShellNext();
   // Transient red warning toast (e.g. nano view isn't available in bar mode).
   const [navWarning, setNavWarning] = useState<string | null>(null);
   const navWarnTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -3009,6 +3013,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
           {/* Concept C — horizontal top bar for touch tablets / portrait (fixed chrome) */}
           {(!isPublicView && !navLayout.isPhone && navLayout.isBar) && (
+            shellNext.enabled ? (
+              <CommandSplitBar
+                view={view}
+                onNavigate={(id) => setView(id as AppView)}
+                hasUser={!!user}
+                displayName={user?.displayName || userProfile?.displayName || undefined}
+                avatarUrl={userProfile?.photoURL || undefined}
+                onCreate={() => setShowCreator(true)}
+                onOpenAccountSwitcher={() => setShowAccountSwitcher(true)}
+                onExitNew={() => shellNext.setEnabled(false)}
+              />
+            ) : (
             <ChoraNavBar
               pages={barPages}
               activeView={view}
@@ -3017,6 +3033,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               onCreate={() => setShowCreator(true)}
               switcher={<NavLayoutSwitcher pref={navLayout.pref} onSetPref={navLayout.setPref} compact />}
             />
+            )
           )}
 
           {/* Transient red warning toast (e.g. nano view blocked in bar mode) */}
@@ -3029,6 +3046,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           )}
 
           {(!isPublicView && !isMobile && theme !== 'PHONE' && !navLayout.isBar) && (
+            shellNext.enabled ? (
+              <CommandSplitNav
+                view={view}
+                onNavigate={(v) => setView(v as any)}
+                hasUser={!!user}
+                displayName={user?.displayName || userProfile?.displayName || undefined}
+                avatarUrl={userProfile?.photoURL || undefined}
+                onCreate={() => setShowCreator(true)}
+                onOpenAccountSwitcher={() => setShowAccountSwitcher(true)}
+                onSignOut={() => { try { logout(); } catch { /* ignore */ } }}
+                onExitNew={() => shellNext.setEnabled(false)}
+                slim={navLayout.isSlim || navLayout.isSplit}
+              />
+            ) : (
             <aside className={`${isSidebarCollapsed ? 'w-24' : (theme === 'BIG_SCREEN' ? 'w-24 hover:w-80' : (navLayout.isSlim || navLayout.isSplit) ? 'w-52' : 'w-80')} border-r border-white/[0.07] hidden lg:flex flex-col ${(navLayout.isSlim || navLayout.isSplit) && !isSidebarCollapsed ? 'p-3 lg:p-4' : 'p-4 lg:p-6'} sticky top-0 h-screen glass-high transition-colors duration-300 group/sidebar z-50 overflow-x-hidden shrink-0`}>
               <div className={`flex items-center gap-4 mb-10 px-1 h-14 ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
                 <button 
@@ -3083,6 +3114,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <div className={`flex items-center justify-center gap-1 pb-2 mb-1 ${isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:flex' : 'flex')}`}>
                 <NavLayoutSwitcher pref={navLayout.pref} onSetPref={navLayout.setPref} compact />
               </div>
+
+              {/* ── Try the new Command Split navigation (beta, per-device) ── */}
+              <button
+                onClick={() => shellNext.setEnabled(true)}
+                title="Preview the new navigation — switch back anytime"
+                className={`flex items-center justify-center gap-1.5 mb-3 px-3 py-2 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg transition-transform hover:scale-[1.02] ${isSidebarCollapsed ? 'mx-auto w-12 h-12 !px-0' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:flex' : 'flex')}`}
+                style={{ background: 'linear-gradient(120deg, #6B0099, #00DAF3)' }}
+              >
+                <Sparkles size={12} />
+                <span className={isSidebarCollapsed ? 'hidden' : 'inline'}>Try New Nav</span>
+              </button>
 
               {sidebarMode === 'og' && <nav className="flex-1 flex flex-col gap-2 overflow-y-auto pr-1 custom-scrollbar overflow-x-hidden w-full">
                 {(() => {
@@ -3910,6 +3952,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 </p>
               </div>
             </aside>
+            )
           )}
 
           {/* Mobile Bottom Tab Bar */}
