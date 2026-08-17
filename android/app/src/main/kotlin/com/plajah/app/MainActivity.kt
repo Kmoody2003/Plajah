@@ -55,6 +55,9 @@ class MainActivity : BridgeActivity() {
         // nothing. It writes the TV home-screen "continue watching" row (Reello + Taleo); on a
         // phone the plugin loads but every method reports unsupported, so this is harmless there.
         registerPlugin(WatchNextPlugin::class.java)
+        // PlajahCamera (Phase N1): native max-quality local recording + real per-lens enumeration.
+        // On a phone without CameraX wired it simply reports unavailable to JS (harmless).
+        registerPlugin(PlajahCameraPlugin::class.java)
 
         installSplashScreen()
         super.onCreate(savedInstanceState)
