@@ -221,7 +221,7 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
                     onClick={() => onNavigate('AVATAR_STUDIO')}
                     className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#ff8c00]/15 border border-[#ff8c00]/30 text-[#ff8c00] text-[9px] font-black uppercase tracking-widest hover:bg-[#ff8c00]/25 transition-all"
                   >
-                    ✦ Avatar Studio
+                    Avatar Studio
                   </button>
                 )}
                 <ShareButton

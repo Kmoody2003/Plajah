@@ -585,7 +585,7 @@ const NanoCard: React.FC<CommandPlayerProps & { onOpenSheet: () => void }> = ({ 
             border: `1px solid ${flipped ? CYAN : HAIRLINE}`,
           }}
         >
-          <span aria-hidden style={{ fontSize: 12, lineHeight: 1 }}>◱</span> Slides
+          <Images size={12} /> Slides
         </button>
       </div>
 

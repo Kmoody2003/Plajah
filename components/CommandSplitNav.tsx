@@ -20,7 +20,7 @@ import {
   Mail, Rss, Sparkles, Clapperboard, MonitorPlay, Cctv, Search, HelpCircle, Monitor,
   Briefcase, MapPin, TrendingUp, Tv, Ticket, Home,
   Compass, Palette, Trophy, Bell, Plus, ChevronLeft,
-  ChevronRight, LogOut,
+  ChevronRight, LogOut, Command, RotateCcw, X,
 } from 'lucide-react';
 
 type ViewId = string;
@@ -184,7 +184,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
       <button onClick={openLauncher}
         className="mx-3 mb-2 flex items-center gap-2 text-[.75rem] text-white/45 hover:text-white bg-white/[0.045] hover:bg-white/[0.08] border border-white/[0.12] rounded-xl px-3 py-2 transition-colors">
         <Search size={13} /> Jump to anything
-        <span className="ml-auto text-[.58rem] font-bold border border-white/15 rounded px-1.5 py-0.5">⌘K</span>
+        <span className="ml-auto text-[.58rem] font-bold border border-white/15 rounded px-1.5 py-0.5">Ctrl K</span>
       </button>
       <div className="flex-1 overflow-y-auto custom-scrollbar pb-2">
         <div className="text-[.58rem] font-black uppercase tracking-[0.2em] text-white/35 px-4 pt-2 pb-1">Pinned</div>
@@ -218,7 +218,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
           <button onClick={() => go('DASHBOARD')} title="Home"
             className="w-10 h-10 rounded-xl grid place-items-center font-display italic text-white text-[1rem] mb-1"
             style={{ background: 'linear-gradient(135deg,#6B0099 0%,#D40055 55%,#FF8C00 100%)' }}>P</button>
-          <IconBtn title="Command · ⌘K" onClick={openLauncher} className="!text-[#00DAF3]"><span className="text-[19px] font-bold leading-none">⌘</span></IconBtn>
+          <IconBtn title="Command menu (Ctrl K)" onClick={openLauncher} className="!text-[#00DAF3]"><Command size={20} /></IconBtn>
           <div className="w-10 h-px bg-white/[0.08] my-2" />
           {NAV_SECTIONS.map((s, i) => (
             <button key={s.key} title={s.key}
@@ -238,7 +238,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
             {hasUser && <IconBtn title="Sign out" onClick={onSignOut}><LogOut size={18} /></IconBtn>}
             {onExitNew && (
               <button title="Back to Classic navigation" onClick={onExitNew}
-                className="grid place-items-center w-11 h-11 rounded-[13px] text-[#00DAF3] hover:bg-white/[0.08] transition-colors text-[15px] font-black">↩</button>
+                className="grid place-items-center w-11 h-11 rounded-[13px] text-[#00DAF3] hover:bg-white/[0.08] transition-colors"><RotateCcw size={18} /></button>
             )}
             <div className="w-10 h-px bg-white/[0.08] my-1" />
             <button title="Switch account" onClick={onOpenAccountSwitcher}
@@ -274,7 +274,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
       {launcher && (
         <div className="fixed inset-0 z-[400] bg-[rgba(6,4,10,.74)] backdrop-blur-md px-[6%] py-11 overflow-y-auto"
           onClick={(e) => { if (e.target === e.currentTarget) setLauncher(false); }}>
-          <button className="absolute top-4 right-6 text-white/60 hover:text-white text-2xl" onClick={() => setLauncher(false)}>✕</button>
+          <button className="absolute top-4 right-6 text-white/60 hover:text-white" onClick={() => setLauncher(false)}><X size={22} /></button>
           <div className="max-w-[720px] mx-auto">
             <div className="flex items-center gap-3 bg-[#1B1329] border border-white/[0.14] rounded-2xl px-4 py-3.5 shadow-2xl">
               <Search size={18} className="text-white/60" />

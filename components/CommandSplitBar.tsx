@@ -12,7 +12,7 @@
  * CommandSplitNav so there is a single source of truth for the shell's routes.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, Plus, Bell } from 'lucide-react';
+import { Search, Plus, Bell, Command, RotateCcw, X } from 'lucide-react';
 import { NAV_SECTIONS, NavDest, NavSection } from './CommandSplitNav';
 
 type ViewId = string;
@@ -97,9 +97,9 @@ const CommandSplitBar: React.FC<CommandSplitBarProps> = ({
 
           {/* tools cluster */}
           <div className="shrink-0 flex items-center gap-1.5 pl-1">
-            <button onClick={openLauncher} title="Command · ⌘K"
+            <button onClick={openLauncher} title="Command menu (Ctrl K)"
               className="grid place-items-center w-9 h-9 rounded-xl text-[#00DAF3] hover:bg-white/[0.08] transition-colors">
-              <span className="text-[17px] font-bold leading-none">⌘</span>
+              <Command size={18} />
             </button>
             <button onClick={onCreate} title="Create"
               className="grid place-items-center w-9 h-9 rounded-xl text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors">
@@ -114,8 +114,8 @@ const CommandSplitBar: React.FC<CommandSplitBarProps> = ({
             </button>
             {onExitNew && (
               <button onClick={onExitNew} title="Back to Classic navigation"
-                className="grid place-items-center h-9 px-2 rounded-xl text-[#00DAF3] hover:bg-white/[0.08] transition-colors text-[.7rem] font-bold gap-1">
-                <span className="text-[14px] font-black leading-none">↩</span>
+                className="grid grid-flow-col place-items-center h-9 px-2 rounded-xl text-[#00DAF3] hover:bg-white/[0.08] transition-colors text-[.7rem] font-bold gap-1">
+                <RotateCcw size={15} />
                 <span className="hidden sm:inline">Classic</span>
               </button>
             )}
@@ -154,7 +154,7 @@ const CommandSplitBar: React.FC<CommandSplitBarProps> = ({
       {launcher && (
         <div className="fixed inset-0 z-[400] bg-[rgba(6,4,10,.74)] backdrop-blur-md px-[6%] py-11 overflow-y-auto"
           onClick={(e) => { if (e.target === e.currentTarget) setLauncher(false); }}>
-          <button className="absolute top-4 right-6 text-white/60 hover:text-white text-2xl" onClick={() => setLauncher(false)}>✕</button>
+          <button className="absolute top-4 right-6 text-white/60 hover:text-white" onClick={() => setLauncher(false)}><X size={22} /></button>
           <div className="max-w-[720px] mx-auto">
             <div className="flex items-center gap-3 bg-[#1B1329] border border-white/[0.14] rounded-2xl px-4 py-3.5 shadow-2xl">
               <Search size={18} className="text-white/60" />
