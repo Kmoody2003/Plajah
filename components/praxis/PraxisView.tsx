@@ -456,6 +456,11 @@ const Chapter: React.FC<{ stage: Stage; venture: Venture; uid?: string; onBack: 
               venture={venture} saved={saved} uid={uid}
               onComplete={(patch) => completeChapter(patch, {}, 'books')}
             />
+          ) : stage.key === 'books' ? (
+            <BooksDo
+              venture={venture} saved={saved} uid={uid}
+              onComplete={(patch) => completeChapter(patch, {}, 'operate')}
+            />
           ) : (
             <LockedPreview stage={stage} />
           )}
@@ -696,6 +701,154 @@ const FormDo: React.FC<{ venture: Venture; saved: boolean; uid?: string; onCompl
   );
 };
 
+// ── Books chapter (interactive) ──────────────────────────────────────────────
+const bkNum = (s: string) => parseFloat((s || '').replace(/[^0-9.-]/g, '')) || 0;
+const bkMoney = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+const COA_GROUPS: { group: string; color: string; accounts: string[] }[] = [
+  { group: 'Income', color: '#06d6a0', accounts: ['Sales revenue', 'Service revenue', 'Other income'] },
+  { group: 'Cost of goods', color: '#ff8c00', accounts: ['Materials / inventory', 'Merchant fees', 'Shipping'] },
+  { group: 'Expenses', color: '#00daf3', accounts: ['Payroll', 'Rent / space', 'Marketing', 'Software', 'Utilities', 'Insurance'] },
+  { group: 'Assets & liabilities', color: '#b692f6', accounts: ['Business bank', 'Equipment', 'Loans / credit'] },
+];
+
+const PLRow: React.FC<{ label: string; hint?: string; value: string; onChange: (v: string) => void; accent?: string }> = ({ label, hint, value, onChange, accent }) => (
+  <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-white/[0.05]">
+    <div className="min-w-0">
+      <div className="text-[12.5px] font-bold" style={accent ? { color: accent } : undefined}>{label}</div>
+      {hint && <div className="text-[10px] text-white/35 leading-tight">{hint}</div>}
+    </div>
+    <div className="flex items-center bg-white/[0.05] border border-white/10 rounded-lg px-2.5 py-1.5 focus-within:border-[#8b5cf6]/50 shrink-0" style={{ width: 118 }}>
+      <span className="text-white/40 text-[13px] mr-1">$</span>
+      <input value={value} onChange={e => onChange(e.target.value)} placeholder="0" inputMode="decimal"
+        className="w-full bg-transparent text-[13px] outline-none placeholder:text-white/25 tabular-nums" />
+    </div>
+  </div>
+);
+
+const BooksDo: React.FC<{ venture: Venture; saved: boolean; uid?: string; onComplete: (patch: Record<string, string>) => void }> = ({ venture, saved, uid, onComplete }) => {
+  const p = venture.plan;
+  const [method, setMethod] = useState(p.books_method || 'cash');
+  const [revenue, setRevenue] = useState(p.books_revenue || '');
+  const [cogs, setCogs] = useState(p.books_cogs || '');
+  const [payroll, setPayroll] = useState(p.books_payroll || '');
+  const [rent, setRent] = useState(p.books_rent || '');
+  const [marketing, setMarketing] = useState(p.books_marketing || '');
+  const [other, setOther] = useState(p.books_other || '');
+  const [accounts, setAccounts] = useState<Record<string, boolean>>(() => {
+    const seed: Record<string, boolean> = {};
+    (p.books_accounts || 'Sales revenue,Payroll,Rent / space,Marketing,Business bank').split(',').forEach(a => { if (a) seed[a] = true; });
+    return seed;
+  });
+  const toggle = (a: string) => setAccounts(s => ({ ...s, [a]: !s[a] }));
+
+  const rev = bkNum(revenue), cg = bkNum(cogs);
+  const opex = bkNum(payroll) + bkNum(rent) + bkNum(marketing) + bkNum(other);
+  const gross = rev - cg;
+  const net = gross - opex;
+  const gm = rev ? Math.round((gross / rev) * 100) : 0;
+  const nm = rev ? Math.round((net / rev) * 100) : 0;
+  const canComplete = rev > 0;
+
+  const complete = () => {
+    const chosen = Object.keys(accounts).filter(a => accounts[a]);
+    onComplete({
+      books_method: method, books_revenue: revenue, books_cogs: cogs,
+      books_payroll: payroll, books_rent: rent, books_marketing: marketing, books_other: other,
+      books_accounts: chosen.join(','),
+      books_net: rev ? String(net) : '', books_margin: rev ? String(nm) : '',
+    });
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Accounting method */}
+      <div>
+        <Eyebrow className="mb-2">How you'll count money</Eyebrow>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { id: 'cash', label: 'Cash basis', hint: 'Count it when money actually moves. Simplest — where most small businesses start.' },
+            { id: 'accrual', label: 'Accrual basis', hint: 'Count it when earned or owed, before cash moves. Required as you scale.' },
+          ].map(m => (
+            <button key={m.id} onClick={() => setMethod(m.id)}
+              className={`rounded-2xl px-3 py-3 text-left border transition-all ${method === m.id ? 'bg-white/10 border-white/30' : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.06]'}`}>
+              <div className="text-[12px] font-black">{m.label}</div>
+              <div className="text-[10px] text-white/45 mt-0.5 leading-snug">{m.hint}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Chart of accounts */}
+      <div>
+        <Eyebrow className="mb-2">Your starting chart of accounts</Eyebrow>
+        <p className="text-[11px] text-white/45 mb-2.5 leading-snug">Every dollar lands in a bucket. Pick the ones you'll actually use — this is the backbone every report is built from.</p>
+        <div className="space-y-2.5">
+          {COA_GROUPS.map(g => (
+            <div key={g.group}>
+              <div className="text-[9px] font-black uppercase tracking-widest mb-1.5" style={{ color: g.color }}>{g.group}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {g.accounts.map(a => (
+                  <button key={a} onClick={() => toggle(a)}
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all ${accounts[a] ? 'text-black' : 'text-white/55 bg-white/[0.04] border-white/10 hover:bg-white/[0.08]'}`}
+                    style={accounts[a] ? { background: g.color, borderColor: g.color } : undefined}>
+                    {a}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* First P&L */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <Eyebrow>Your first P&amp;L · one month</Eyebrow>
+          <PTag k="provide" />
+        </div>
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] overflow-hidden">
+          <PLRow label="Revenue" hint="Everything you sold" value={revenue} onChange={setRevenue} accent="#06d6a0" />
+          <PLRow label="− Cost of goods" hint="What each sale cost you to deliver" value={cogs} onChange={setCogs} />
+          <div className="flex items-center justify-between px-4 py-2.5 bg-white/[0.03] border-t border-white/[0.06]">
+            <span className="text-[11px] font-black uppercase tracking-widest text-white/60">Gross profit <span className="text-white/30 normal-case font-bold tracking-normal">· {gm}% margin</span></span>
+            <span className="text-sm font-black tabular-nums" style={{ color: gross >= 0 ? '#06d6a0' : '#ff5468' }}>${bkMoney(gross)}</span>
+          </div>
+          <PLRow label="− Payroll" hint="You + any team" value={payroll} onChange={setPayroll} />
+          <PLRow label="− Rent / space" value={rent} onChange={setRent} />
+          <PLRow label="− Marketing" value={marketing} onChange={setMarketing} />
+          <PLRow label="− Other expenses" value={other} onChange={setOther} />
+          <div className="flex items-center justify-between px-4 py-3 border-t-2" style={{ borderColor: net >= 0 ? 'rgba(6,214,160,.4)' : 'rgba(255,84,104,.4)', background: net >= 0 ? 'rgba(6,214,160,.08)' : 'rgba(255,84,104,.08)' }}>
+            <span className="text-[12px] font-black uppercase tracking-widest">Net profit <span className="text-white/40 normal-case font-bold tracking-normal">· {nm}% margin</span></span>
+            <span className="text-lg font-black tabular-nums" style={{ color: net >= 0 ? '#06d6a0' : '#ff5468' }}>${bkMoney(net)}</span>
+          </div>
+        </div>
+        <p className="text-[10px] text-white/35 mt-2 leading-snug">
+          {net >= 0
+            ? 'Positive net means the business feeds itself. Margin is what’s left of each dollar after costs — grow it before you grow revenue.'
+            : 'Negative net is normal early — you’re spending ahead of sales. Watch how many months of runway that leaves you.'}
+          {' '}Later, connect your Plajah storefront and this fills from real POS &amp; orders.
+        </p>
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-col sm:flex-row gap-2 pt-1">
+        <button onClick={() => askAria(
+          `You are Aria, my Praxis coach on the Three P's. Read my first monthly P&L for "${venture.name}" — revenue $${revenue || '0'}, COGS $${cogs || '0'}, payroll $${payroll || '0'}, rent $${rent || '0'}, marketing $${marketing || '0'}, other $${other || '0'} (net $${bkMoney(net)}, ${nm}% margin, ${method} basis). Explain in plain terms what it's telling me, where my margin is weak versus a typical ${venture.archetype}, and the one number to fix first. Teach me — don't just report.`
+        )} className="flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 text-[#c4b5fd] hover:bg-[#8b5cf6]/20 flex items-center justify-center gap-2">
+          <AriaMark size={16} petals={false} /> Ask Aria to read my P&amp;L
+        </button>
+        <button onClick={complete} disabled={!canComplete}
+          className="flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white disabled:opacity-30 hover:brightness-110 flex items-center justify-center gap-2">
+          <Check size={13} /> Complete Books → Operate
+        </button>
+      </div>
+      <p className="text-[10px] text-white/35 leading-snug text-center">Cash vs accrual and the tax treatment of specific items vary — confirm anything binding with a bookkeeper or CPA.</p>
+      {saved && <p className="text-[11px] text-[#06d6a0] text-center flex items-center justify-center gap-1.5"><Check size={12} /> Saved to your Blueprint{uid ? ' · +15 points' : ''}. Next: Operate — build &amp; run it.</p>}
+    </div>
+  );
+};
+
 const LockedPreview: React.FC<{ stage: Stage }> = ({ stage }) => (
   <div className="rounded-2xl bg-white/[0.02] border border-dashed border-white/10 p-5">
     <div className="flex items-center gap-2 text-white/50 mb-2"><Lock size={13} /><span className="text-[10px] font-black uppercase tracking-widest">Unlocks as you build</span></div>
@@ -720,6 +873,7 @@ const Blueprint: React.FC<{ venture: Venture; onBack: () => void }> = ({ venture
     { k: 'Ideal customer', v: p.icp_who },
     { k: 'Starting price', v: p.price ? `$${p.price}${p.price_basis ? ` · ${p.price_basis.replace('_', '-')}` : ''}` : '' },
     { k: 'Legal structure', v: getEntity(p.form_entity)?.label },
+    { k: 'Monthly net', v: p.books_net ? `$${Number(p.books_net).toLocaleString('en-US', { maximumFractionDigits: 0 })} · ${p.books_margin}% margin` : '' },
     { k: 'Where', v: [venture.jurisdiction.city, venture.jurisdiction.state, venture.jurisdiction.country].filter(Boolean).join(', ') },
   ];
   return (
