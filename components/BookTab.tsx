@@ -553,13 +553,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                         transition={{ delay: idx * 0.05 }}
                         key={book.id}
                         className="group flex flex-col cursor-pointer snap-start shrink-0 w-48"
-                        onClick={() => {
-                          if (book.price && book.price > 0 && onVisitUser && book.ownerId) {
-                            onVisitUser(book.ownerId, 'MERCH');
-                          } else {
-                            onSelectBook(book);
-                          }
-                        }}
+                        onClick={() => onSelectBook(book)}
                       >
                         <div className="relative aspect-[2/3] rounded-[1.5rem] overflow-hidden mb-4 shadow-xl bg-white/5 ring-1 ring-white/10 group-hover:ring-green-500/40 transition-all duration-500 group-hover:-translate-y-2">
                           <LazyImage 
@@ -575,7 +569,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-4 gap-2 backdrop-blur-[2px]">
                              <button className="w-full py-2 bg-green-500 text-white rounded-xl font-black text-[10px] uppercase tracking-tightest shadow-2xl hover:scale-105 active:scale-95 transition-all">
-                                {book.price ? 'View in Store' : 'Read Now'}
+                                {book.price ? `Buy to Read · $${book.price.toFixed(2)}` : 'Read Now'}
                              </button>
                           </div>
                           {book.price ? (
@@ -674,11 +668,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
               <div 
                 className="relative aspect-[2/3] rounded-[2rem] overflow-hidden mb-6 shadow-2xl bg-white/5 ring-1 ring-white/10 group-hover:ring-small-orange/40 transition-all duration-500 group-hover:-translate-y-2"
                 onClick={() => {
-                  if (book.price && book.price > 0 && onVisitUser && book.ownerId) {
-                    onVisitUser(book.ownerId, 'MERCH');
-                  } else {
-                    onSelectBook(book);
-                  }
+                  onSelectBook(book);
                 }}
               >
                 <LazyImage 
@@ -694,7 +684,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-4 sm:p-8 gap-2 sm:gap-4 backdrop-blur-[2px]">
                    <button className="w-full py-4 bg-small-orange text-white rounded-2xl font-black text-xs uppercase tracking-tightest shadow-2xl hover:scale-105 active:scale-95 transition-all">
-                      {book.price ? 'View in Store' : 'Read Now'}
+                      {book.price ? `Buy to Read · $${book.price.toFixed(2)}` : 'Read Now'}
                    </button>
                 </div>
                 {book.price ? (
@@ -709,11 +699,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
               </div>
               <div className="px-2 space-y-2 flex-1 flex flex-col">
                 <h3 onClick={() => {
-                  if (book.price && book.price > 0 && onVisitUser && book.ownerId) {
-                    onVisitUser(book.ownerId, 'MERCH');
-                  } else {
-                    onSelectBook(book);
-                  }
+                  onSelectBook(book);
                 }} className="font-display font-black uppercase tracking-tighter text-lg leading-none line-clamp-2 hover:text-small-orange transition-colors">{book.title}</h3>
                 <div 
                   className="text-white/40 font-black uppercase tracking-widest text-[9px] truncate hover:text-white flex items-center gap-1 z-10"

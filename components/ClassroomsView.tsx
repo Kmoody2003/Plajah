@@ -770,7 +770,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
         {/* Tour Academia — the full teacher/parent/student walkthrough, no signup */}
         {onNavigate && (
           <button
-            onClick={() => onNavigate('ACADEMIA_TOUR')}
+            onClick={() => onNavigate('ACADEMIA_DEMOS')}
             className="w-full mb-4 flex items-center gap-3 rounded-2xl px-5 py-4 text-left transition-all hover:scale-[1.005]"
             style={{ border: '1px solid rgba(255,140,0,0.35)', background: 'linear-gradient(120deg, rgba(255,140,0,0.16), rgba(43,214,122,0.1), rgba(54,197,240,0.12))' }}
           >

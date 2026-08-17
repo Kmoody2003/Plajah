@@ -286,6 +286,25 @@ export async function backSanctuaryCampaign(opts: {
   await redirectToCheckout('/api/stripe/sanctuary-pledge', opts);
 }
 
+// ── Content purchase (Taleo films + Lorea books) ───────────────────────────────
+// One-time "buy to own" (or rent) of a film or book. Routes to Stripe Checkout; the
+// webhook mints the "own it forever" license (services/contentLicense) + records the
+// creator earning (90/10). Caller redirects away — completion happens on return, and
+// the license appears in the buyer's account. See server.ts /api/stripe/content-purchase.
+export async function purchaseContent(opts: {
+  kind: 'film' | 'book';
+  contentId: string;
+  creatorUid: string;
+  title?: string;
+  grant?: 'PURCHASE' | 'RENTAL' | 'PPV';   // default PURCHASE
+  price: number;                            // dollars
+  delivery?: 'DOWNLOAD_OPEN' | 'PLAJAH_ONLY';
+  watermark?: boolean;
+  rentalWindowHrs?: number;                 // RENTAL only
+}): Promise<void> {
+  await redirectToCheckout('/api/stripe/content-purchase', opts);
+}
+
 // ── Tier Metadata ─────────────────────────────────────────────────────────────
 
 export const TIER_META = {

@@ -890,6 +890,15 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // "Own it forever" content licenses for paid films + books (services/contentLicense)
+      // — owner-private entitlement/VC records. READ-ONLY to the client: licenses are
+      // minted SERVER-SIDE in the Stripe webhook after a real charge (admin writes bypass
+      // rules), so a buyer can never self-grant an entitlement.
+      match /contentLicenses/{licenseId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
       // Media dedup index (services/mediaDedup) — fingerprint → uploaded url, so identical
       // re-uploads reuse the existing asset. Owner-only.
       match /mediaIndex/{fingerprint} {
@@ -1006,6 +1015,13 @@ service cloud.firestore {
       allow write: if isOwner(userId);
     }
     match /languageProgress/{userId} {
+      allow read: if isOwner(userId) || isGuardianOf(userId);
+      allow write: if isOwner(userId);
+    }
+    // Praxis venture — a founder's business-in-progress (one active per user).
+    // Owner-owned; a guardian may read a minor's (simulated) venture, mirroring
+    // the learner-progress collections above.
+    match /ventures/{userId} {
       allow read: if isOwner(userId) || isGuardianOf(userId);
       allow write: if isOwner(userId);
     }
@@ -1662,6 +1678,15 @@ service cloud.firestore {
 
     // Private movie/TV locker (Plex-style, surfaced in Taleo). Owner-only, never shared.
     match /personal_videos/{videoId} {
+      allow read: if isOwner(resource.data.ownerId) || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isOwner(resource.data.ownerId) || isAdmin();
+      allow delete: if isOwner(resource.data.ownerId) || isAdmin();
+    }
+
+    // Private ebook library (own EPUB/PDF the user imports, surfaced in Lorea).
+    // Owner-only, never shared — same legal invariant as the music/video lockers.
+    match /personal_books/{bookId} {
       allow read: if isOwner(resource.data.ownerId) || isAdmin();
       allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
       allow update: if isOwner(resource.data.ownerId) || isAdmin();

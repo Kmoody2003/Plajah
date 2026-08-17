@@ -2,8 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { useGoogleCast } from '../hooks/useGoogleCast';
 import { useViewport } from '../hooks/useViewport';
+import { useShellNext } from '../hooks/useShellNext';
+import CommandPlayer from './CommandPlayer';
 import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Shuffle, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box, Video as VideoIcon, Headphones, ZapOff } from 'lucide-react';
 import Logo from './Logo';
+import AriaMark from './aria/AriaMark';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import MuxPlayer from '@mux/mux-player-react';
@@ -56,6 +59,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   onOpenAria,
 }) => {
   const vp = useViewport(); // live breakpoint — reacts to resize/rotate/fold (unlike the static isMobile prop)
+  const shellNextGP = useShellNext();
   const isBigScreen = theme === 'BIG_SCREEN';
   const isPhoneMode = theme === 'PHONE' || isMobile || vp.isPhone;
   // On phones the persistent music transport is a distraction on text-centered
@@ -381,6 +385,29 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   const snapReset = async () => {
     await nanoControls.start({ x: 0, y: 0, transition: { type: 'spring', damping: 20 } });
   };
+
+  // ── New shell (beta): the Command Player owns every desktop surface. The new
+  // Command Split pillar doesn't host a nano, so we float it here instead of the
+  // sidebar — nano = a bottom-left card, full = the bottom bar. Phones keep classic.
+  if (shellNextGP.enabled && !isPhoneMode) {
+    const cp = (variant: 'full' | 'nano') => (
+      <CommandPlayer
+        variant={variant}
+        onOpenStage={() => onNavigate?.('PLAYER', currentAlbum ? ({ album: currentAlbum } as any) : undefined)}
+        onOpenQueue={() => onNavigate?.('QUEUE')}
+        onExpandFromNano={() => { setIsNanoDocked(false); setIsNanoView(false); }}
+        onMinimize={() => setIsMinimized(true)}
+      />
+    );
+    if (isNanoView) {
+      return (
+        <div className="fixed z-[1000]" style={{ left: '1rem', bottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+          {cp('nano')}
+        </div>
+      );
+    }
+    return <div className="fixed left-0 right-0 bottom-0 z-[1000]">{cp('full')}</div>;
+  }
 
   if (isNanoView && isNanoDocked && !isPhoneMode) return null;
 
@@ -710,7 +737,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                       >
                         <Layers size={isMinimized ? 12 : 16} />
                       </button>
-                      <button onClick={() => setIsMinimized(!isMinimized)} className={`p-1 rounded-lg transition-all ${isMinimized ? 'text-small-orange bg-small-orange/10' : 'text-white/40 hover:text-white hover:bg-white/5'}`} title="Minimize/Expand">
+                      <button onClick={() => setIsMinimized(v => !v)} className={`p-1 rounded-lg transition-all ${isMinimized ? 'text-small-orange bg-small-orange/10' : 'text-white/40 hover:text-white hover:bg-white/5'}`} title="Minimize/Expand">
                         {isMinimized ? <Maximize2 size={isMinimized ? 12 : 16} /> : <Minimize2 size={isMinimized ? 12 : 16} />}
                       </button>
                       <button onClick={() => setIsNanoView?.(false)} className="p-1 text-white/40 hover:text-white hover:bg-white/5 rounded-lg transition-all" title="Expand View">
@@ -1025,7 +1052,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
               else if (currentVideo) onNavigate?.('PLAYER', { video: currentVideo });
               else setIsSpillOverOpen(o => !o);
             } else {
-              setIsMinimized(!isMinimized);
+              setIsMinimized(v => !v);
             }
           }}
           className={`absolute p-2 bg-theme-card/90 backdrop-blur-3xl border border-white/5 rounded-t-xl transition-all shadow-2xl left-1/2 -translate-x-1/2 ${isPhoneMode ? 'text-small-orange hover:text-white' : (isMinimized ? 'text-small-orange' : 'text-white/40 hover:text-white')} ${isLandscape && !isMinimized ? 'hidden' : '-top-10'} ${isMinimized ? 'animate-pulse hover:animate-none' : ''}`}
@@ -1285,8 +1312,8 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                 {!isShrunk && (
                   <div className="flex items-center gap-4">
                     {onOpenAria && (
-                      <button onClick={onOpenAria} className="text-white/20 hover:text-purple-300 transition-colors" title="Aria AI">
-                        <Sparkles size={14} />
+                      <button onClick={onOpenAria} className="transition-transform hover:scale-110" title="Ask Aria">
+                        <AriaMark size={17} petals={false} />
                       </button>
                     )}
                     <button onClick={handleShare} className="text-white/20 hover:text-white"><Share2 size={14} /></button>
@@ -1365,11 +1392,11 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                   {onOpenAria && (
                     <button
                       onClick={onOpenAria}
-                      className="p-2 android-press transition-all rounded-full text-white/30 hover:text-purple-300"
+                      className="p-2 android-press transition-all rounded-full"
                       style={{ minWidth: 36, minHeight: 36 }}
-                      title="Aria AI"
+                      title="Ask Aria"
                     >
-                      <Sparkles size={16} />
+                      <AriaMark size={18} petals={false} />
                     </button>
                   )}
                   <button
@@ -1885,7 +1912,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                       <Box size={16} />
                     </button>
                     <button
-                      onClick={() => setIsMinimized(!isMinimized)}
+                      onClick={() => setIsMinimized(v => !v)}
                       className={`p-1.5 rounded-xl transition-all hover:scale-110 active:scale-95 ${isMinimized ? 'opacity-50' : 'opacity-100'}`}
                       title={isMinimized ? 'Show Player Controls' : 'Hide Player Controls'}
                     >

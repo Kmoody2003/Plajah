@@ -402,6 +402,94 @@ export async function listSubmissions(assignmentId: string): Promise<TemplateSub
   }
 }
 
+// ── "Due first" — what the Today screen leads with ────────────────────────────
+
+export interface DueItem {
+  assignmentId: string;
+  title: string;
+  className: string;
+  subject: string;
+  dueDate: number | null;
+  /** null when never opened; 0–1 once the student has ticked steps. */
+  progress: number | null;
+  overdue: boolean;
+}
+
+/**
+ * Everything a student still owes, soonest first.
+ *
+ * Two single-field queries and a client-side join rather than one clever query: `array-contains`
+ * combined with an orderBy would need a composite index, and an index that isn't deployed fails
+ * SILENTLY at read time ([[plajah-firestore-gotchas]]) — which here would mean a student's Today
+ * screen quietly showing no homework. A class-sized result set sorts fine in memory.
+ */
+export async function fetchStudentDueWork(studentId: string, max = 20): Promise<DueItem[]> {
+  if (!studentId) return [];
+  try {
+    const [assignedSnap, mineSnap] = await Promise.all([
+      getDocs(query(collection(db, 'templateAssignments'), where('studentIds', 'array-contains', studentId), limit(100))),
+      getDocs(query(collection(db, 'templateSubmissions'), where('studentId', '==', studentId), limit(200))),
+    ]);
+
+    const handedIn = new Set(mineSnap.docs.map(d => (d.data() as TemplateSubmission).assignmentId));
+    const now = Date.now();
+
+    return assignedSnap.docs
+      .map(d => ({ ...(d.data() as TemplateAssignment), id: d.id }))
+      .filter(a => !handedIn.has(a.id))
+      .map(a => ({
+        assignmentId: a.id,
+        title: a.title,
+        className: a.className,
+        subject: a.subject,
+        dueDate: a.dueDate ?? null,
+        progress: null,
+        overdue: !!a.dueDate && a.dueDate < now,
+      }))
+      // Undated work sorts last — it isn't a deadline, so it must never outrank one.
+      .sort((x, y) => (x.dueDate ?? Number.MAX_SAFE_INTEGER) - (y.dueDate ?? Number.MAX_SAFE_INTEGER))
+      .slice(0, max);
+  } catch (e) {
+    console.warn('[templates] due work read failed:', (e as Error)?.message);
+    return [];
+  }
+}
+
+export interface ReviewItem {
+  submissionId: string;
+  assignmentId: string;
+  studentName: string;
+  title: string;
+  submittedAt: number;
+}
+
+/** What's waiting on a teacher — the deadline that belongs to them. */
+export async function fetchTeacherReviewQueue(teacherUid: string, max = 50): Promise<ReviewItem[]> {
+  if (!teacherUid) return [];
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'templateSubmissions'),
+      where('teacherUid', '==', teacherUid),
+      limit(200),
+    ));
+    return snap.docs
+      .map(d => ({ ...(d.data() as TemplateSubmission), id: d.id }))
+      .filter(s => s.status !== 'graded')
+      .sort((a, b) => a.submittedAt - b.submittedAt) // oldest first — longest wait gets seen
+      .slice(0, max)
+      .map(s => ({
+        submissionId: s.id,
+        assignmentId: s.assignmentId,
+        studentName: s.studentName,
+        title: '',
+        submittedAt: s.submittedAt,
+      }));
+  } catch (e) {
+    console.warn('[templates] review queue read failed:', (e as Error)?.message);
+    return [];
+  }
+}
+
 /** A student's own submission for an assignment, so the view can show "already turned in". */
 export async function fetchMySubmission(assignmentId: string, studentId: string): Promise<TemplateSubmission | null> {
   try {

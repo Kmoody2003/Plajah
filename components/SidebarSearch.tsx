@@ -8,6 +8,7 @@ import {
   fetchGlobalApps, fetchGlobalPhotos, listenToGlobalArticles, fetchAllLiveFeeds,
   searchUsers, fetchDiscussionPosts,
 } from '../services/backendService';
+import { semanticSearch, AzureSearchResult } from '../services/microsoftAIService';
 import { Album, Video, Article, UserProfile } from '../types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -124,6 +125,9 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [userSearching, setUserSearching] = useState(false);
   const userTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Azure semantic search results
+  const [azureResults, setAzureResults] = useState<AzureSearchResult[]>([]);
+  const azureTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load all content catalogs once on mount
   useEffect(() => {
@@ -167,6 +171,20 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
       setUserSearching(false);
     }, 280);
     return () => { if (userTimer.current) clearTimeout(userTimer.current); };
+  }, [query]);
+
+  // Debounced Azure semantic search
+  useEffect(() => {
+    if (azureTimer.current) clearTimeout(azureTimer.current);
+    const q = query.trim();
+    if (q.length < 2) { setAzureResults([]); return; }
+    azureTimer.current = setTimeout(async () => {
+      try {
+        const res = await semanticSearch(q).catch(() => []);
+        setAzureResults(res || []);
+      } catch (e) { setAzureResults([]); }
+    }, 320);
+    return () => { if (azureTimer.current) clearTimeout(azureTimer.current); };
   }, [query]);
 
   // Build ranked results from all catalogs
@@ -255,6 +273,27 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
         id: p.id, title: p.title || 'Photo', subtitle: 'Photo',
         thumbnail: p.url, type: 'PHOTO', raw: p, _score: s,
       });
+    });
+
+    // Integrate Azure semantic search results (prefer the service's score but avoid duplicates)
+    azureResults.forEach(ar => {
+      // map Azure types to our ResultType
+      let t: ResultType = 'ARTICLE';
+      if (ar.type === 'BOOK') t = 'BOOK';
+      else if (ar.type === 'ALBUM') t = 'MUSIC';
+      else if (ar.type === 'VIDEO') t = 'VIDEO';
+      const exists = all.find(a => a.id === ar.id && a.type === t);
+      if (!exists) {
+        all.push({
+          id: ar.id,
+          title: ar.title || ar.id,
+          subtitle: ar.snippet || '',
+          thumbnail: undefined,
+          type: t,
+          raw: ar,
+          _score: Math.max(0, (ar.score || 0) * 1.0),
+        });
+      }
     });
 
     // Live Feeds

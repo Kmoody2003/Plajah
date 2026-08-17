@@ -141,6 +141,8 @@ import AdCreator from './AdCreator';
 import { loadUserAd } from '../services/backendService';
 import { UserAd } from '../types';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
+import { useShellNext } from '../hooks/useShellNext';
+import GlassDockProfileHeader from './GlassDockProfileHeader';
 
 interface UserProfileViewProps {
   uid: string;
@@ -247,6 +249,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   onNotificationNavigate,
   initialTab
 }) => {
+  const { enabled: shellNext } = useShellNext();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [content, setContent] = useState<Album[]>([]);
   const [showStatCard, setShowStatCard] = useState(false);
@@ -857,6 +860,34 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
           </div>
         )}
 
+        {shellNext ? (
+        <GlassDockProfileHeader
+          profile={profile}
+          uid={uid}
+          isOwnProfile={isOwnProfile}
+          isMobile={isMobile}
+          showArtistMode={showArtistMode}
+          following={following}
+          isSubscribed={isSubscribed}
+          hasFastContent={hasFastContent}
+          isLivePlayerExpanded={isLivePlayerExpanded}
+          onProfileUpdate={handleProfileUpdate}
+          onFollowToggle={handleFollowToggle}
+          onMailingListToggle={handleMailingListToggle}
+          onClaimPioneerReward={handleClaimPioneerReward}
+          onMessage={onMessage}
+          onVisitUser={onVisitUser}
+          onNavigate={onNavigate}
+          onShowStatCard={() => setShowStatCard(true)}
+          onOpenDonation={() => setIsDonationModalOpen(true)}
+          onOpenPlajahPlusLanding={() => setShowPlajahPlusLanding(true)}
+          onSetLivePlayerExpanded={setIsLivePlayerExpanded}
+          onSetLivePlaying={setIsLivePlaying}
+          onShowFastChannel={() => setShowFastChannel(true)}
+          onShowFastChannelManager={() => setShowFastChannelManager(true)}
+          onOpenXFeed={() => { setFeedInitialType('X_FEED'); setFeedKey(k => k + 1); setActiveTab('FEED'); }}
+        />
+        ) : (
         <div className={`flex flex-col ${isMobile ? 'items-center text-center' : 'lg:flex-row lg:items-end'} gap-6 lg:gap-10`}>
           <div className="relative group/avatar flex flex-col items-center gap-2">
             <div className="absolute -inset-3 bg-gradient-to-r from-small-orange via-[#D40055] to-[#6B0099] rounded-[3rem] blur-xl opacity-20 group-hover/avatar:opacity-50 transition-all duration-[1200ms]" />
@@ -1191,6 +1222,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
 
           </div>
         </div>
+        )}
 
         {/* Pinned Items Row */}
         {profile.pinnedItems && profile.pinnedItems.length > 0 && (
@@ -1529,6 +1561,86 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             saveOrder(ids);
           };
           const handleDragEnd = () => { dragTabRef.current = null; };
+
+          // ── Glass Dock: segmented glass tabs (pill style, brand-gradient active) ──
+          // Drives the exact same activeTab state and tab list as the classic bar.
+          if (shellNext) {
+            return (
+              <div className={`mt-12 lg:mt-16 sticky ${isMobile ? 'top-14' : 'top-0'} z-40 -mx-4 px-4 lg:mx-0 lg:px-0 py-2`}>
+                <div
+                  className="relative rounded-full px-2 py-1.5 backdrop-blur-2xl backdrop-saturate-150"
+                  style={{ background: 'linear-gradient(180deg, rgba(20,18,28,0.6), rgba(12,10,18,0.5))' }}
+                >
+                  {/* 1px brand hairline */}
+                  <div
+                    aria-hidden="true"
+                    className="absolute inset-0 pointer-events-none rounded-full"
+                    style={{
+                      padding: 1,
+                      background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)',
+                      WebkitMask: 'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
+                      WebkitMaskComposite: 'xor',
+                      maskComposite: 'exclude',
+                    }}
+                  />
+                  <ScrollableTabRow innerClassName="gap-1.5 py-0.5 px-0.5">
+                    {orderedTabs.map((tab, idx) => {
+                      const active = activeTab === tab.id;
+                      return (
+                        <div
+                          key={tab.id}
+                          className="flex items-center flex-shrink-0 group/tab"
+                          draggable={isOwnProfile}
+                          onDragStart={() => handleDragStart(idx)}
+                          onDragOver={(e) => handleDragOver(e, idx)}
+                          onDragEnd={handleDragEnd}
+                        >
+                          {isOwnProfile && (
+                            <button
+                              onClick={() => moveTab(idx, -1)}
+                              disabled={idx === 0}
+                              className="opacity-0 group-hover/tab:opacity-100 transition-opacity p-0.5 text-white/20 hover:text-white/60 disabled:opacity-0 disabled:pointer-events-none"
+                              aria-label="Move tab left"
+                            >
+                              <ChevronLeft size={10} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              setActiveTab(tab.id as any);
+                              const el = document.getElementById(`tab-${tab.id}`);
+                              el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                            }}
+                            id={`tab-${tab.id}`}
+                            className={`px-4 py-2 rounded-full text-[10px] lg:text-xs font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap border ${
+                              isOwnProfile ? 'cursor-grab active:cursor-grabbing' : ''
+                            } ${
+                              active
+                                ? 'text-white border-transparent shadow-[0_0_18px_rgba(212,0,85,0.35)]'
+                                : 'text-white/40 border-white/10 bg-white/[0.03] hover:text-white/80 hover:bg-white/[0.07]'
+                            }`}
+                            style={active ? { background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' } : undefined}
+                          >
+                            {tab.label}
+                          </button>
+                          {isOwnProfile && (
+                            <button
+                              onClick={() => moveTab(idx, 1)}
+                              disabled={idx === orderedTabs.length - 1}
+                              className="opacity-0 group-hover/tab:opacity-100 transition-opacity p-0.5 text-white/20 hover:text-white/60 disabled:opacity-0 disabled:pointer-events-none"
+                              aria-label="Move tab right"
+                            >
+                              <ChevronRight size={10} />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </ScrollableTabRow>
+                </div>
+              </div>
+            );
+          }
 
           return (
             <div className={`mt-12 lg:mt-16 sticky ${isMobile ? 'top-14' : 'top-0'} bg-black/55 backdrop-blur-2xl backdrop-saturate-150 z-40 border-b border-white/[0.08] -mx-4 px-4 lg:mx-0 lg:px-0`}>

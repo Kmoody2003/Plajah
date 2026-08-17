@@ -54,7 +54,7 @@ const UploadManager: React.FC<UploadManagerProps> = ({ isMinimizedCreator, onRes
         {/* Header */}
         <div 
           className="p-4 bg-white/5 flex items-center justify-between cursor-pointer hover:bg-white/10 transition-all"
-          onClick={() => setIsMinimized(!isMinimized)}
+          onClick={() => setIsMinimized(v => !v)}
         >
           <div className="flex items-center gap-3">
             <div className="p-2 bg-small-orange/20 rounded-xl text-small-orange">

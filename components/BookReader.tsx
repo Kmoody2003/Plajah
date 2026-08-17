@@ -8,13 +8,14 @@ import { useParty } from '../hooks/useParty';
 import { ChevronLeft, ChevronRight, X, Maximize2, Minimize2, ZoomIn, ZoomOut, Grid, Bookmark, Settings, MessageSquare, Edit3, Mic, Link as LinkIcon, Play, Pause, Users, Video as VideoIcon, Highlighter, RefreshCw, List, Book as BookIcon, Type, Smartphone, Monitor, Moon, Sun, Coffee, Columns, Square, Download, Loader2, BookOpen as BookOpenIcon, Share2, Trash2, Headphones, ChevronDown, Volume2, Sparkles, AlertCircle, ExternalLink } from 'lucide-react';
 import { MAI_VOICES, synthesizeParagraphs, estimateNarrationDurationMs } from '../services/microsoftAIService';
 import { motion, AnimatePresence } from 'motion/react';
-import { subscribeToComments, postComment, createPost } from '../services/backendService';
+import { subscribeToComments, postComment, createPost, loginWithGoogle } from '../services/backendService';
 import { cacheExternalBookAssets } from '../services/bookStorageService';
 import { fetchBookBinary, fetchBookText } from '../services/bookContentService';
 import CommentSection from './CommentSection';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import PlajahPlusButton from './PlajahPlusButton';
 import { BookOpeningScene } from './BookOpeningScene';
+import { BuyToOwn, useOwnership } from './BuyToOwn';
 import { ReactReader, ReactReaderStyle } from 'react-reader';
 import { Rendition, Book as EPubBook } from 'epubjs';
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -167,6 +168,15 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
+
+  // ── Buy-to-own gate (Lorea) ────────────────────────────────────────────────
+  // A paid book (Album.price > 0) opens into a purchase screen unless the reader is
+  // the author or holds a contentLicense. Books default to DOWNLOAD_OPEN + watermark
+  // (the license service fills those defaults). The gate is the final return below.
+  const isPaidBook = !!book.price && book.price > 0;
+  const isBookOwner = !!(currentUser?.uid && currentUser.uid === book.ownerId);
+  const bookOwnership = useOwnership('book', book.id, currentUser?.uid);
+  const hasBookAccess = isBookOwner || !isPaidBook || bookOwnership.owned;
 
   const getThemeStyles = () => {
     switch (theme) {
@@ -2141,6 +2151,39 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     )}
     </>
   );
+  // Paid-book gate: no license (and not the author) → purchase screen, not the pages.
+  if (!hasBookAccess) {
+    return (
+      <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#0A0A0A]/95 backdrop-blur-2xl p-6">
+        <button onClick={onBack} className="absolute top-5 left-5 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors" title="Back">
+          <ChevronLeft size={20} />
+        </button>
+        <div className="w-full max-w-md text-center">
+          {book.coverImage && (
+            <img src={book.coverImage} alt={book.title} className="w-40 h-60 object-cover rounded-2xl mx-auto shadow-2xl mb-6" />
+          )}
+          <h2 className="text-2xl font-black text-white leading-tight">{book.title}</h2>
+          {book.artist && <p className="text-white/50 text-sm font-bold mt-1">by {book.artist}</p>}
+          <p className="text-white/40 text-xs mt-4 leading-relaxed">
+            Buy once and it's yours to keep — read it anywhere, and your ownership is recorded as a portable OCME credential.
+          </p>
+          <div className="mt-6 flex justify-center">
+            <BuyToOwn
+              kind="book"
+              contentId={book.id}
+              creatorUid={book.ownerId || ''}
+              title={book.title}
+              purchasePrice={book.price}
+              uid={currentUser?.uid}
+              ownership={bookOwnership}
+              onRequestSignIn={() => loginWithGoogle()}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Full-bleed: portal to <body> so `fixed inset-0` is viewport-relative. Contained:
   // render inline in the content column (between the pillars and the right edge).
   return isFullscreen ? createPortal(readerTree, document.body) : readerTree;

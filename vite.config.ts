@@ -11,7 +11,9 @@ export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
       server: {
-        port: 3000,
+        // Honor a PORT assigned by the harness (autoPort) so a second dev server
+        // can run alongside one already holding 3000; defaults to 3000 otherwise.
+        port: Number(process.env.PORT) || 3000,
         host: '0.0.0.0',
         hmr: false
       },

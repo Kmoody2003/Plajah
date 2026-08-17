@@ -10,6 +10,7 @@ import { fetchAllBusinessPages } from '../services/businessService';
 import { VERTICAL_LABELS, VERTICAL_COLORS } from '../services/businessVerticals';
 import { fetchAllPublicBrandAccounts } from '../services/backendService';
 import { DEMO_BUSINESS } from '../data/demoBusiness';
+import AriaMark from './aria/AriaMark';
 
 type HubTab = 'BUSINESSES' | 'BRANDS';
 
@@ -247,6 +248,15 @@ const PlajahBusinessHub: React.FC<PlajahBusinessHubProps> = ({ onNavigate, curre
                 className="w-56 sm:w-72 bg-white/[0.05] border border-white/10 rounded-2xl py-2.5 pl-9 pr-4 text-[10px] font-bold outline-none focus:border-white/30 transition-all placeholder:text-white/20"
               />
             </div>
+
+            <button
+              onClick={() => onNavigate('PRAXIS')}
+              className="relative flex items-center gap-2 px-4 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest text-white bg-gradient-to-br from-[#7c3aed] to-[#8b5cf6] shadow-lg shadow-[#8b5cf6]/30 hover:scale-105 transition-all whitespace-nowrap"
+              title="Learn as you build a real business, with Aria"
+            >
+              <AriaMark size={14} petals={false} /> Start a Business
+              <span className="absolute -top-1.5 -right-1.5 text-[7px] font-black tracking-widest bg-[#FF8C00] text-black rounded-full px-1.5 py-0.5">NEW</span>
+            </button>
 
             {isLoggedIn && (
               <button

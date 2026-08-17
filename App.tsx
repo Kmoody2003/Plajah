@@ -98,6 +98,8 @@ const FilmSchoolView = retryLazy(() => import('./components/FilmSchoolView'));
 const MathClassroom = retryLazy(() => import('./components/MathClassroom'));
 const StudentAssignmentView = retryLazy(() => import('./components/StudentAssignmentView'));
 const AssignedLessonView = retryLazy(() => import('./components/academia/AssignedLessonView'));
+const AcademiaDemosView = retryLazy(() => import('./components/academia/AcademiaDemosView'));
+const SkyRoute = retryLazy(() => import('./components/academia/SkyRoute'));
 // Science & Engineering hub
 const PlajahLabsView = retryLazy(() => import('./components/PlajahLabsView'));
 // Health & Fitness hub
@@ -143,6 +145,7 @@ import SanctuaryDemoView from './components/sanctuary/SanctuaryDemoView';
 import StoreDemoView from './components/StoreDemoView';
 import { DEMO_SANCTUARY_ID, DEMO_STORE_ID, DEMO_STORE_PRODUCTS } from './data/demoShowcase';
 import PlajahAgent from './components/PlajahAgent';
+import AriaHalo from './components/aria/AriaHalo';
 import { resolveAgentTier } from './services/agentService';
 
 import NebulaBackground from './components/NebulaBackground';
@@ -204,13 +207,47 @@ const DEFAULT_BOTTOM_TABS = [
   { id: 'CHAT',      icon: MessageSquare, label: 'Chat'   },
   { id: 'FEED',      icon: Rss,           label: 'Social' },
 ];
-const EDU_BOTTOM_TABS = [
-  { id: 'ACADEMIA_HOME', icon: GraduationCap, label: 'Academia' }, // far left = the role landing/home
-  { id: 'PLAJAH_LABS',   icon: FlaskConical,  label: 'Labs'     },
-  { id: 'CLASSROOMS',    icon: BookOpen,      label: 'Classes'  },
-  { id: 'CHAT',          icon: MessageSquare, label: 'Chat'     }, // education-scoped chat
-  { id: 'EDU_SOCIAL',    icon: Rss,           label: 'Social'   }, // school-community feed (not the general one)
+// The education bar is ROLE-AWARE. One bar for every school account meant a teacher and a
+// twelve-year-old got the identical five tabs, so neither got the one thing they open the app
+// for: a student's is work that is due, a teacher's is other people's work waiting on them.
+//
+// Slot 2 is always that deadline, and it's the only badged slot — it's where a thumb lands
+// without looking. Chat holds slot 4 in every role. Everything displaced (Labs for a student,
+// the school feed for a teacher) stays one tap away in the existing "More" overflow, which is
+// what that chevron beside the tabs is for.
+//
+// Slot 5 is the Sky, in every role: the far corner from Today, hard against the More chevron.
+// The two ends of the bar are the two ways to think about school — what is due right now at one
+// end, and the whole map of where you are at the other. Putting the map anywhere in the middle
+// made it read as just another section.
+const EDU_TABS_STUDENT = [
+  { id: 'ACADEMIA_HOME', icon: GraduationCap, label: 'Today'   },
+  { id: 'CLASSROOMS',    icon: ClipboardList, label: 'My Work' }, // assignments, due dates, grades
+  { id: 'PLAJAH_LABS',   icon: FlaskConical,  label: 'Explore' },
+  { id: 'CHAT',          icon: MessageSquare, label: 'Chat'    },
+  { id: 'ACADEMIA_SKY',  icon: Sparkles,      label: 'Sky'     },
 ];
+const EDU_TABS_TEACHER = [
+  { id: 'ACADEMIA_HOME', icon: GraduationCap, label: 'Today'   },
+  { id: 'TEACHER_TOOLS', icon: ClipboardList, label: 'Review'  }, // grading + what needs them
+  { id: 'CLASSROOMS',    icon: BookOpen,      label: 'Classes' },
+  { id: 'CHAT',          icon: MessageSquare, label: 'Chat'    },
+  { id: 'ACADEMIA_SKY',  icon: Sparkles,      label: 'Sky'     },
+];
+const EDU_TABS_PARENT = [
+  { id: 'ACADEMIA_HOME', icon: GraduationCap, label: 'Today'    },
+  { id: 'CLASS_POINTS',  icon: Users,         label: 'My Kids'  },
+  { id: 'LEARNER_LEDGER',icon: ShieldCheck,   label: 'Progress' },
+  { id: 'CHAT',          icon: MessageSquare, label: 'Chat'     },
+  { id: 'ACADEMIA_SKY',  icon: Sparkles,      label: 'Sky'      },
+];
+
+function eduTabsFor(p: any) {
+  const t = p?.accountType;
+  if (t === 'TEACHER' || p?.isSchoolAdmin) return EDU_TABS_TEACHER;
+  if (t === 'PARENT') return EDU_TABS_PARENT;
+  return EDU_TABS_STUDENT; // STUDENT + CHILD + school-provisioned
+}
 /** School user = gets the education bottom bar. Deliberately NOT generic platform admins
  *  (isAdmin/role ADMIN) — only real school roles — so a platform owner keeps the full bar. */
 function isSchoolNavUser(p: any): boolean {
@@ -322,6 +359,7 @@ import { fetchAudiusArtistById, fetchAudiusPlaylistTracks, audiusAlbumToNativeAl
 import { completeAudiusRedirect } from './services/audiusAuth';
 const BusinessDashboard = retryLazy(() => import('./components/BusinessDashboard'));
 const PlajahBusinessHub = retryLazy(() => import('./components/PlajahBusinessHub'));
+const PraxisView = retryLazy(() => import('./components/praxis/PraxisView'));
 const TerraHub = retryLazy(() => import('./components/terra/TerraHub'));
 const TerraExplorer = retryLazy(() => import('./components/terra/TerraExplorer'));
 const PropertyPassport = retryLazy(() => import('./components/terra/PropertyPassport'));
@@ -410,7 +448,7 @@ const THEME_BG: Record<string, string> = {
 };
 import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd, fetchSystemSettingsConfig, allocateChannelNumber, fetchAllLiveFeeds } from './services/backendService';
 import { initFeatureFlagListener } from './services/featureFlagService';
-import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark, Cctv, Bug, AlertTriangle, MapPin, Cross, MonitorPlay } from 'lucide-react';
+import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ClipboardList, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark, Cctv, Bug, AlertTriangle, MapPin, Cross, MonitorPlay } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -476,6 +514,9 @@ import { installSessionTrace, traceView } from './services/sessionTrace';
 import { installHealthMonitor } from './services/healthMonitor';
 import { useHardwareBack } from './hooks/useHardwareBack';
 import { useNavLayout } from './hooks/useNavLayout';
+import { useShellNext } from './hooks/useShellNext';
+import CommandSplitNav from './components/CommandSplitNav';
+import CommandSplitBar from './components/CommandSplitBar';
 import { ChoraNavBar, NavLayoutSwitcher, type NavPage } from './components/ChoraCompactNav';
 
 const App: React.FC = () => {
@@ -514,6 +555,8 @@ const App: React.FC = () => {
   })();
 
   const [view, setViewInternal] = useState<AppView>(pitchInitialView);
+  // Which role the Demos corridor opened the tour at, so it skips its own role picker.
+  const [demoRole, setDemoRole] = useState<'teacher' | 'parent' | 'student' | undefined>(undefined);
   // Admin kill-switch for the standalone Crossover converter (systemConfig/settings).
   const [crossoverSystemEnabled, setCrossoverSystemEnabled] = useState(true);
   useEffect(() => { fetchSystemSettingsConfig().then(c => setCrossoverSystemEnabled(c?.crossoverEnabled !== false)).catch(() => {}); }, []);
@@ -709,6 +752,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [licenseForFilm, setLicenseForFilm] = useState<{ track: any; album: any } | null>(null);
   const [audiusArtist, setAudiusArtist] = useState<AudiusArtist | null>(null);
   const [isMuseOpen, setIsMuseOpen] = useState(false);
+  const [isHaloOpen, setIsHaloOpen] = useState(false);
   const [creatorInitialType, setCreatorInitialType] = useState<string | undefined>(undefined);
   const [isCreatorMinimized, setIsCreatorMinimized] = useState(false);
   const [isProjectTrayOpen, setIsProjectTrayOpen] = useState(false);
@@ -802,6 +846,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   // Adaptive nav layout — slim rail on compact desktop (12–20"), horizontal bar on
   // touch tablets, split pillars as an opt-in. See hooks/useNavLayout.
   const navLayout = useNavLayout();
+  const shellNext = useShellNext();
   // Transient red warning toast (e.g. nano view isn't available in bar mode).
   const [navWarning, setNavWarning] = useState<string | null>(null);
   const navWarnTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1430,6 +1475,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('CLASS_POINTS');
     } else if (target === 'ACADEMIA_TOUR') {
       setView('ACADEMIA_TOUR');
+    } else if (target === 'ACADEMIA_SKY') {
+      setView('ACADEMIA_SKY');
+    } else if (target === 'ACADEMIA_DEMOS') {
+      setView('ACADEMIA_DEMOS');
     } else if (target === 'ACADEMIA_HOME') {
       setView('ACADEMIA_HOME');
     } else if (target === 'ACADEMIA_LANDING') {
@@ -1438,6 +1487,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('ACADEMIA_COURSES');
     } else if (target === 'SCHOOL_PACKAGE') {
       setView('SCHOOL_PACKAGE');
+    } else if (target === 'PRAXIS') {
+      setView('PRAXIS');
     } else if (target === 'LANGUAGE_QUEST') {
       setView('LANGUAGE_QUEST');
     } else if (target === 'EDU_SOCIAL') {
@@ -2069,6 +2120,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('keyup', onKeyUp);
     };
   }, [user, linkedAccounts]);
+
+  // ⌘K / Ctrl+K — bloom Aria's Halo command palette from anywhere.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setIsHaloOpen(o => !o);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const getThemeStyles = () => {
     switch (theme) {
@@ -2994,6 +3057,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
           {/* Concept C — horizontal top bar for touch tablets / portrait (fixed chrome) */}
           {(!isPublicView && !navLayout.isPhone && navLayout.isBar) && (
+            shellNext.enabled ? (
+              <CommandSplitBar
+                view={view}
+                onNavigate={(id) => setView(id as AppView)}
+                hasUser={!!user}
+                displayName={user?.displayName || userProfile?.displayName || undefined}
+                avatarUrl={userProfile?.photoURL || undefined}
+                onCreate={() => setShowCreator(true)}
+                onOpenAccountSwitcher={() => setShowAccountSwitcher(true)}
+                onExitNew={() => shellNext.setEnabled(false)}
+              />
+            ) : (
             <ChoraNavBar
               pages={barPages}
               activeView={view}
@@ -3002,6 +3077,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               onCreate={() => setShowCreator(true)}
               switcher={<NavLayoutSwitcher pref={navLayout.pref} onSetPref={navLayout.setPref} compact />}
             />
+            )
           )}
 
           {/* Transient red warning toast (e.g. nano view blocked in bar mode) */}
@@ -3014,6 +3090,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           )}
 
           {(!isPublicView && !isMobile && theme !== 'PHONE' && !navLayout.isBar) && (
+            shellNext.enabled ? (
+              <CommandSplitNav
+                view={view}
+                onNavigate={(v) => setView(v as any)}
+                hasUser={!!user}
+                displayName={user?.displayName || userProfile?.displayName || undefined}
+                avatarUrl={userProfile?.photoURL || undefined}
+                onCreate={() => setShowCreator(true)}
+                onOpenAccountSwitcher={() => setShowAccountSwitcher(true)}
+                onSignOut={() => { try { logout(); } catch { /* ignore */ } }}
+                onExitNew={() => shellNext.setEnabled(false)}
+                slim={navLayout.isSlim || navLayout.isSplit}
+              />
+            ) : (
             <aside className={`${isSidebarCollapsed ? 'w-24' : (theme === 'BIG_SCREEN' ? 'w-24 hover:w-80' : (navLayout.isSlim || navLayout.isSplit) ? 'w-52' : 'w-80')} border-r border-white/[0.07] hidden lg:flex flex-col ${(navLayout.isSlim || navLayout.isSplit) && !isSidebarCollapsed ? 'p-3 lg:p-4' : 'p-4 lg:p-6'} sticky top-0 h-screen glass-high transition-colors duration-300 group/sidebar z-50 overflow-x-hidden shrink-0`}>
               <div className={`flex items-center gap-4 mb-10 px-1 h-14 ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
                 <button 
@@ -3068,6 +3158,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <div className={`flex items-center justify-center gap-1 pb-2 mb-1 ${isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:flex' : 'flex')}`}>
                 <NavLayoutSwitcher pref={navLayout.pref} onSetPref={navLayout.setPref} compact />
               </div>
+
+              {/* ── Try the new Command Split navigation (beta, per-device) ── */}
+              <button
+                onClick={() => shellNext.setEnabled(true)}
+                title="Preview the new navigation — switch back anytime"
+                className={`flex items-center justify-center gap-1.5 mb-3 px-3 py-2 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg transition-transform hover:scale-[1.02] ${isSidebarCollapsed ? 'mx-auto w-12 h-12 !px-0' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:flex' : 'flex')}`}
+                style={{ background: 'linear-gradient(120deg, #6B0099, #00DAF3)' }}
+              >
+                <Sparkles size={12} />
+                <span className={isSidebarCollapsed ? 'hidden' : 'inline'}>Try New Nav</span>
+              </button>
 
               {sidebarMode === 'og' && <nav className="flex-1 flex flex-col gap-2 overflow-y-auto pr-1 custom-scrollbar overflow-x-hidden w-full">
                 {(() => {
@@ -3895,6 +3996,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 </p>
               </div>
             </aside>
+            )
           )}
 
           {/* Mobile Bottom Tab Bar */}
@@ -3915,7 +4017,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   </defs>
                 </svg>
                 <div className="flex items-center px-1 pt-1 pb-android-nav gap-0">
-                  {(isSchoolNavUser(userProfile) ? EDU_BOTTOM_TABS : DEFAULT_BOTTOM_TABS).map(tab => {
+                  {(isSchoolNavUser(userProfile) ? eduTabsFor(userProfile) : DEFAULT_BOTTOM_TABS).map(tab => {
                     const Icon = tab.icon;
                     const isActive = view === tab.id;
                     return (
@@ -4155,7 +4257,28 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'ACADEMIA_TOUR' && (
               <Suspense fallback={null}>
-                <AcademiaTourView onExit={() => setView(user ? 'CLASSROOMS' : 'DASHBOARD')} onNavigate={(v) => setView(v as AppView)} />
+                {/* Exiting a tour returns to Demos, not the dashboard — someone who just tried the
+                    teacher walkthrough is far more likely to want the student one than to be done. */}
+                <AcademiaTourView
+                  onExit={() => setView('ACADEMIA_DEMOS')}
+                  onNavigate={(v) => setView(v as AppView)}
+                  initialRole={demoRole}
+                />
+              </Suspense>
+            )}
+            {view === 'ACADEMIA_SKY' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading…</div>}>
+                <SkyRoute user={user} profile={userProfile} onBack={() => setView('ACADEMIA_HOME')} onNavigate={(v) => setView(v as any)} />
+              </Suspense>
+            )}
+
+            {view === 'ACADEMIA_DEMOS' && (
+              <Suspense fallback={null}>
+                <AcademiaDemosView
+                  onBack={() => setView('ACADEMIA_HOME')}
+                  onOpenTour={(role) => { setDemoRole(role); setView('ACADEMIA_TOUR'); }}
+                  onNavigate={(v) => setView(v as AppView)}
+                />
               </Suspense>
             )}
 
@@ -4399,6 +4522,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   currentUser={userProfile}
                   isLoggedIn={!!user}
                 />
+              </Suspense>
+            )}
+
+            {view === 'PRAXIS' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <PraxisView user={user} profile={userProfile} onBack={() => setView('PLAJAH_BUSINESS')} onNavigate={handleGlobalNavigate} />
               </Suspense>
             )}
 
@@ -5488,6 +5617,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         )}
 
         {/* ── Plajah Aria — private creative agent ── */}
+        <AriaHalo
+          isOpen={isHaloOpen}
+          onClose={() => setIsHaloOpen(false)}
+          currentView={view}
+          onSubmit={(prompt) => {
+            setIsMuseOpen(true);
+            window.dispatchEvent(new CustomEvent('OPEN_ARIA', { detail: { prompt } }));
+          }}
+        />
         <AriaEventBridge onOpen={() => setIsMuseOpen(true)} />
         <PlajahAgent
           isOpen={isMuseOpen}

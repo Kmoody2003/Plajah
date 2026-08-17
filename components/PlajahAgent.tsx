@@ -23,7 +23,7 @@ import {
   ChevronDown, ChevronRight, RefreshCw, Layers, Music2,
   Film, GraduationCap, Search, Image as ImageIcon, FileText,
   Zap, Star, Check, AlertTriangle, Trash2, MessageSquare,
-  Settings, ChevronLeft, ExternalLink,
+  Settings, ChevronLeft, ExternalLink, Maximize2, Minimize2,
 } from 'lucide-react';
 import {
   AGENT_TIERS, AgentTier, AgentMessage, AgentSession, AgentBuildOutput,
@@ -32,6 +32,7 @@ import {
 } from '../services/agentService';
 import { auth } from '../services/backendService';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
+import AriaMark from './aria/AriaMark';
 
 interface Props {
   isOpen: boolean;
@@ -152,9 +153,7 @@ const MessageBubble: React.FC<{ msg: AgentMessage; onApplyBuild?: (b: AgentBuild
     >
       {/* Avatar */}
       {!isUser && (
-        <div className="shrink-0 w-7 h-7 rounded-xl bg-gradient-to-br from-purple-600 to-violet-700 flex items-center justify-center shadow-lg mt-0.5">
-          <Sparkles size={12} className="text-white" />
-        </div>
+        <AriaMark size={28} className="shrink-0 mt-0.5" />
       )}
 
       <div className={`flex-1 max-w-[85%] ${isUser ? 'items-end' : 'items-start'} flex flex-col gap-2`}>
@@ -209,9 +208,7 @@ const MessageBubble: React.FC<{ msg: AgentMessage; onApplyBuild?: (b: AgentBuild
 // ── Thinking indicator ─────────────────────────────────────────────────────────
 const ThinkingBubble: React.FC<{ toolLabel?: string }> = ({ toolLabel }) => (
   <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2.5">
-    <div className="shrink-0 w-7 h-7 rounded-xl bg-gradient-to-br from-purple-600 to-violet-700 flex items-center justify-center shadow-lg">
-      <Sparkles size={12} className="text-white animate-pulse" />
-    </div>
+    <AriaMark size={28} thinking className="shrink-0" />
     <div className="bg-white/[0.07] border border-white/[0.09] rounded-[1.1rem] rounded-tl-sm px-4 py-3">
       {toolLabel ? (
         <div className="flex items-center gap-2 text-[9px] text-purple-300/80 font-black uppercase tracking-widest">
@@ -278,6 +275,7 @@ const PlajahAgent: React.FC<Props> = ({
   const [thinkingLabel, setThinkingLabel] = useState<string | undefined>();
   const [attachments, setAttachments] = useState<Array<{ name: string; dataUrl: string; type: string }>>([]);
   const [showSessions, setShowSessions] = useState(false);
+  const [expanded, setExpanded] = useState(false); // Atrium — full-workspace mode
   const [showUsage, setShowUsage] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(tier !== 'FREE' && tier !== 'CREATOR');
   const [limitBanner, setLimitBanner] = useState<string | null>(null);
@@ -444,6 +442,11 @@ const PlajahAgent: React.FC<Props> = ({
             height: isPlayerExpanded ? 'min(420px, 50dvh)' : 'min(560px, 65dvh)',
             borderRadius: '1.5rem',
             transition: 'bottom 0.35s cubic-bezier(0.4,0,0.2,1), height 0.35s cubic-bezier(0.4,0,0.2,1)',
+          } : expanded ? {
+            top: 0, bottom: 0, left: 0, right: 0, margin: 'auto',
+            width: 'min(940px, 94vw)',
+            height: 'min(86vh, 900px)',
+            borderRadius: '1.5rem',
           } : {
             bottom: 0,
             right: 0,
@@ -460,7 +463,7 @@ const PlajahAgent: React.FC<Props> = ({
               background: 'rgba(8,4,20,0.92)',
               backdropFilter: 'blur(32px)',
               border: '1px solid rgba(139,92,246,0.25)',
-              ...(isMobile ? {} : { borderBottom: 'none' }),
+              ...(isMobile || expanded ? {} : { borderBottom: 'none' }),
             }}
           >
 
@@ -473,9 +476,7 @@ const PlajahAgent: React.FC<Props> = ({
 
               {/* Identity */}
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-purple-600 to-violet-700 flex items-center justify-center shadow-lg shrink-0">
-                  <Sparkles size={13} className="text-white" />
-                </div>
+                <AriaMark size={28} className="shrink-0" />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-black text-white">Aria</span>
@@ -504,10 +505,26 @@ const PlajahAgent: React.FC<Props> = ({
                 </button>
               )}
 
+              {/* Expand / collapse — Atrium workspace (desktop) */}
+              {!isMobile && (
+                <button onClick={() => setExpanded(e => !e)} title={expanded ? 'Collapse' : 'Expand to workspace'}
+                  className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all">
+                  {expanded ? <Minimize2 size={12} className="text-white/40" /> : <Maximize2 size={12} className="text-white/40" />}
+                </button>
+              )}
+
               <button onClick={onClose} className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all">
                 <X size={14} className="text-white/50" />
               </button>
             </div>
+
+            {/* ── Grounding strip (Atrium) — the model lanes behind Aria ── */}
+            {expanded && (
+              <div className="px-4 py-1.5 border-b border-white/5 shrink-0 flex items-center gap-2">
+                <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Grounded by</span>
+                <span className="text-[8px] font-bold text-white/45">Pokee · Gemini · Claude — the right mind for each task</span>
+              </div>
+            )}
 
             {/* ── Usage panel ── */}
             <AnimatePresence>
@@ -561,9 +578,7 @@ const PlajahAgent: React.FC<Props> = ({
               {messages.length === 0 && !isThinking && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-4 pt-4">
                   <div className="text-center">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-600 to-violet-700 flex items-center justify-center mx-auto mb-3 shadow-2xl">
-                      <Sparkles size={22} className="text-white" />
-                    </div>
+                    <AriaMark size={56} className="mx-auto mb-3" />
                     <h3 className="text-base font-black text-white">Hi, I'm Aria</h3>
                     <p className="text-xs text-white/40 mt-1 max-w-[260px] mx-auto leading-relaxed">
                       Your private creative agent. I can build module experiences, design gallery views, curate content, and research the web — all just for you.
@@ -728,7 +743,7 @@ export const AriaButton: React.FC<{ onClick: () => void; isOpen: boolean; hasUnr
     }}
     title="Open Aria — your private creative agent"
   >
-    {isOpen ? <X size={18} className="text-white" /> : <Sparkles size={18} className="text-purple-300" />}
+    {isOpen ? <X size={18} className="text-white" /> : <AriaMark size={30} petals={false} />}
     {hasUnread && !isOpen && (
       <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-small-orange border-2 border-[#08041a]" />
     )}

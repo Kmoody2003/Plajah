@@ -7,11 +7,14 @@ import React from 'react';
 import {
   GraduationCap, ShieldCheck, LayoutGrid, Award, BookOpen, Languages,
   ClipboardList, Library, Sparkles, FlaskConical, Music, Film, Image as ImageIcon, ChevronRight,
-  School, ArrowRight,
+  School, ArrowRight, Rocket,
 } from 'lucide-react';
 import type { UserProfile } from '../types';
 import { ageTokensFor } from '../data/ageScaling';
 import AcademiaModules from './AcademiaModules';
+import TodayDueFirst from './academia/TodayDueFirst';
+import DiscoveryDoors from './academia/DiscoveryDoors';
+import { lessonLink } from '../services/assignmentTemplateService';
 
 type Role = 'teacher' | 'parent' | 'student';
 
@@ -29,6 +32,7 @@ const TILES: Tile[] = [
   { key: 'ledger',   label: 'Learning Record',   desc: 'The portable, student-owned proficiency ledger', icon: ShieldCheck, view: 'LEARNER_LEDGER', accent: '#2bd67a', roles: ['teacher', 'parent', 'student'] },
   { key: 'library',  label: 'Kids Library',      desc: 'Leveled readers, phonics & sight words', icon: Library, view: 'KIDS_LIBRARY', accent: '#36c5f0', roles: ['parent', 'student'] },
   { key: 'labs',     label: 'Plajah Labs',       desc: 'Arts, history & science across the disciplines', icon: FlaskConical, view: 'PLAJAH_LABS', accent: '#7a2bd6', roles: ['teacher', 'parent', 'student'] },
+  { key: 'praxis',   label: 'Start a Business',  desc: 'Learn entrepreneurship & money by building a real venture, with Aria', icon: Rocket, view: 'PRAXIS', accent: '#8b5cf6', roles: ['teacher', 'student'], badge: 'New' },
 ];
 
 // Content sources a teacher can pull into a lesson (Phase D preview — links into the archives).
@@ -70,8 +74,30 @@ const AcademiaHomeView: React.FC<{ profile?: UserProfile | null; onNavigate: (vi
         <div className="flex flex-wrap items-center gap-2 mb-8">
           <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-green-300 bg-green-500/10 border border-green-500/25 rounded-full px-3 py-1"><ShieldCheck size={12} /> Family-safe · COPPA &amp; FERPA-minded</span>
           <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-white/50 bg-white/5 border border-white/10 rounded-full px-3 py-1">No ads · No student data sold</span>
-          <button onClick={() => onNavigate('ACADEMIA_TOUR')} className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-small-orange bg-small-orange/10 border border-small-orange/25 rounded-full px-3 py-1 hover:bg-small-orange/20 transition-colors"><Sparkles size={11} /> Take the tour</button>
+          <button onClick={() => onNavigate('ACADEMIA_DEMOS')} className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-small-orange bg-small-orange/10 border border-small-orange/25 rounded-full px-3 py-1 hover:bg-small-orange/20 transition-colors"><Sparkles size={11} /> Learn the platform</button>
           <span title="Age-appropriate design, aligned to international ISCED stages" className="inline-flex items-center gap-1.5 text-[10px] font-bold text-white/45 bg-white/5 border border-white/10 rounded-full px-3 py-1">{age.isced}</span>
+        </div>
+
+        {/* Due first — the fixed slot. Always above the tiles, for every role, because a
+            deadline that sits inside a tile is a deadline nobody sees. */}
+        <div className="mb-8">
+          <TodayDueFirst
+            uid={(profile as any)?.uid}
+            role={role}
+            // STUDENT_LESSON reads its id from the query string, so push the link before
+            // switching view — otherwise the lesson opens with no idea which one it is.
+            onOpenAssignment={(id) => {
+              try { window.history.pushState({}, '', lessonLink(id)); } catch { /* non-fatal */ }
+              onNavigate('STUDENT_LESSON');
+            }}
+            onNavigate={onNavigate}
+          />
+        </div>
+
+        {/* Worth a look — invitation, not navigation. Sits between the deadline and the tile
+            grid: what you owe, then what you might want, then everything else. */}
+        <div className="mb-9">
+          <DiscoveryDoors role={role} onNavigate={onNavigate} />
         </div>
 
         {/* Tiles */}

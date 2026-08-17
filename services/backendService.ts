@@ -6333,6 +6333,68 @@ export const deletePersonalVideo = async (videoId: string) => {
   }
 };
 
+// ── Personal BOOK locker (ebooks the user OWNS → private Lorea library) ───────────
+// Private to the owner (personal_books, owner-only rules). Stored as a BOOK Album with
+// a single chapter pointing at the uploaded file, so it opens in the native reader.
+// LEGAL INVARIANT: these are the user's own files — NEVER shared, posted, or discoverable.
+export const uploadPersonalBook = async (meta: Partial<Album>, file: File): Promise<Album | undefined> => {
+  if (!auth.currentUser) return;
+  const uid = auth.currentUser.uid;
+  const path = `personal/${uid}/books/${Date.now()}_${file.name}`;
+  const url = await uploadFile(path, file);
+  const id = `pbook_${Math.random().toString(36).substr(2, 9)}`;
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const format = ext === 'pdf' ? 'PDF' : ext === 'txt' ? 'TXT' : ext === 'epub' ? 'EPUB'
+    : (ext === 'cbz' || ext === 'cbr') ? 'COMIC' : 'FILE';
+  const title = meta.title || file.name.replace(/\.[^/.]+$/, '');
+  const chapter = removeUndefined({ id: `${id}-c0`, title, url, format });
+  const album = removeUndefined({
+    id,
+    ownerId: uid,
+    type: 'BOOK',
+    title,
+    artist: meta.artist || '',
+    coverImage: meta.coverImage || '',
+    description: meta.description || 'Imported to your private library',
+    genre: 'My Library',
+    bookChapters: [chapter],
+    isPersonalMedia: true,
+    isPrivate: true,
+    rightsOwnerId: uid,
+    tracks: [],
+    createdAt: Date.now(),
+    timestamp: Date.now(),
+  }) as unknown as Album;
+  try {
+    await setDoc(doc(db, 'personal_books', id), album);
+    return album;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.CREATE, `personal_books/${id}`);
+  }
+};
+
+/** The owner's private ebook library, newest first (no composite index needed). */
+export const fetchPersonalBooks = async (): Promise<Album[]> => {
+  if (!auth.currentUser) return [];
+  try {
+    const q = query(collection(db, 'personal_books'), where('ownerId', '==', auth.currentUser.uid));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as Album).sort((a, b) => ((b as any).timestamp || 0) - ((a as any).timestamp || 0));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'personal_books');
+    return [];
+  }
+};
+
+export const deletePersonalBook = async (bookId: string) => {
+  if (!auth.currentUser) return;
+  try {
+    await deleteDoc(doc(db, 'personal_books', bookId));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, `personal_books/${bookId}`);
+  }
+};
+
 export const fetchUserLibraryTracks = async (trackIds: string[]) => {
   if (!trackIds || !trackIds.length) return [];
   const albums = await fetchAllPublicAlbums();

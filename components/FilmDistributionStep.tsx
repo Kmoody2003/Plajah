@@ -6,7 +6,7 @@
 // Distribution Hub; this is the create-time essentials. Controlled via value + onChange.
 
 import React, { useState } from 'react';
-import { Tv, DollarSign, Calendar, Users, Radio, Lock, Zap, Clapperboard, ChevronDown, Globe, FileCheck, Send, Award } from 'lucide-react';
+import { Tv, DollarSign, Calendar, Users, Radio, Lock, Zap, Clapperboard, ChevronDown, Globe, FileCheck, Send, Award, Download, ShieldCheck } from 'lucide-react';
 import type { FilmDistribution } from '../types';
 
 // Deep distribution tools that live in the Film Distribution Hub (available after publish).
@@ -20,7 +20,13 @@ const ADVANCED = [
 export const DEFAULT_FILM_DISTRIBUTION: FilmDistribution = {
   model: 'FREE_FAST', release: 'NOW', rentalPrice: 3.99, purchasePrice: 12.99,
   rentalWindowHrs: 48, fastChannel: true, watchParty: false, contentRating: 'NR',
+  delivery: 'DOWNLOAD_OPEN', watermark: true,
 };
+
+const DELIVERY: { id: NonNullable<FilmDistribution['delivery']>; label: string; desc: string; icon: any }[] = [
+  { id: 'DOWNLOAD_OPEN', label: 'Own the file', desc: 'DRM-free download, plays anywhere · yours forever via OCME', icon: Download },
+  { id: 'PLAJAH_ONLY',   label: 'Plajah player only', desc: 'Streams & plays only inside Plajah', icon: Lock },
+];
 
 const MODELS: { id: FilmDistribution['model']; label: string; desc: string; icon: any }[] = [
   { id: 'FREE_FAST', label: 'Free · FAST', desc: 'Ad-supported, free to watch', icon: Radio },
@@ -102,6 +108,33 @@ const FilmDistributionStep: React.FC<{ value: FilmDistribution; onChange: (v: Fi
                 className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-4 py-3 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5" />
             </div>
           )}
+        </div>
+      )}
+
+      {/* Delivery — only when the film can be BOUGHT (owned). Rentals always stream in-app. */}
+      {showBuy && (
+        <div className="space-y-3">
+          <label className="block text-[9px] font-black uppercase tracking-widest text-white/40">What does a buyer get?</label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {DELIVERY.map(d => {
+              const on = (v.delivery ?? 'DOWNLOAD_OPEN') === d.id;
+              return (
+                <button key={d.id} type="button" onClick={() => set({ delivery: d.id })}
+                  className={`text-left p-3 rounded-2xl border transition-all ${on ? 'bg-white text-black border-white shadow-xl' : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'}`}>
+                  <d.icon size={16} className={on ? 'text-black' : 'text-small-orange'} />
+                  <div className="text-[11px] font-black mt-1.5">{d.label}</div>
+                  <div className={`text-[9px] ${on ? 'text-black/60' : 'text-white/35'}`}>{d.desc}</div>
+                </button>
+              );
+            })}
+          </div>
+          {(v.delivery ?? 'DOWNLOAD_OPEN') === 'DOWNLOAD_OPEN' && (
+            <Toggle label="Forensic watermark" sub="Stamp each copy with the buyer's id — deters leaks, doesn't restrict playback"
+              icon={<ShieldCheck size={15} />} on={v.watermark ?? true} onToggle={() => set({ watermark: !(v.watermark ?? true) })} />
+          )}
+          <p className="text-[9px] text-white/30 leading-relaxed">
+            One price includes the film — Plajah never charges extra to remove restrictions. Ownership is recorded as an OCME credential, so a purchase is provably the buyer's for good.
+          </p>
         </div>
       )}
 
