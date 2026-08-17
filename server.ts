@@ -1388,6 +1388,50 @@ async function startServer() {
             });
           }
 
+          // ── Content purchase: mint the "own it forever" license ───────────────
+          // Films (Taleo) + books (Lorea). Server-only mint after a real charge —
+          // the client can never self-grant (contentLicenses is read-only in rules).
+          // Idempotent: deterministic id `${kind}_${contentId}` + merge write, so a
+          // re-fired webhook updates rather than duplicates. Shape mirrors
+          // services/contentLicense.ts buildContentLicense() exactly.
+          if (mode === 'payment' && meta.type === 'content_purchase' && meta.kind && meta.contentId) {
+            const buyerUid = meta.uid || '';
+            const kind = meta.kind;                 // 'film' | 'book'
+            const contentId = meta.contentId;
+            const grant = meta.grant || 'PURCHASE';
+            const delivery = meta.delivery === 'PLAJAH_ONLY' ? 'PLAJAH_ONLY' : 'DOWNLOAD_OPEN';
+            const wantsWatermark = meta.watermark !== 'false';
+            const rentalHrs = parseInt(meta.rentalWindowHrs || '0', 10) || 0;
+            // Deterministic forensic stamp — MUST match contentLicense.watermarkTagFor.
+            const wm = (() => {
+              let h = 0; const s = `${buyerUid}:${contentId}`;
+              for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+              return `PLJ-${(h >>> 0).toString(36).toUpperCase().padStart(7, '0')}`;
+            })();
+            const licenseDoc: Record<string, any> = {
+              id: `${kind}_${contentId}`,
+              kind, contentId,
+              title: meta.title || '',
+              buyerUid,
+              issuerDid: `plajah:${meta.creatorUid || ''}`,   // real DID under OCME
+              subjectDid: `plajah:${buyerUid}`,               // real DID under OCME
+              grant,
+              delivery,
+              priceCents: session.amount_total || Math.round(parseFloat(meta.price || '0') * 100),
+              currency: (session.currency || 'usd').toUpperCase(),
+              paymentRef: (session.payment_intent as string) || '',
+              issuedAt: now,
+              proof: null,
+              placeholder: true,   // plajah:<uid> placeholders until OCME DIDs land
+            };
+            if (grant === 'RENTAL' && rentalHrs > 0) licenseDoc.expiresAt = now + rentalHrs * 3600_000;
+            if (delivery === 'DOWNLOAD_OPEN' && wantsWatermark) licenseDoc.watermarkTag = wm;
+            await firestoreWrite(`users/${buyerUid}/contentLicenses`, `${kind}_${contentId}`, licenseDoc);
+            // TODO(ocme): also POST this as a VC to OCME's registry + emit a settlement
+            // receipt carrying paymentRef (buyer identity must NOT cross). See the
+            // plajah-payments-direction + plajah-ocme-integration memos.
+          }
+
           // ── Sanctuary: one-time campaign pledge ───────────────────────────────
           // Recorded as its own doc; the campaign's raised/backer totals are summed
           // from these client-side (firestoreWrite can't safely mutate the nested
@@ -1526,6 +1570,7 @@ async function startServer() {
             store_order: 'store_order',
             club_membership: 'club',
             seedraiser_pledge: 'seedraiser',
+            content_purchase: 'content_purchase',
           };
           const earningCategory = CREATOR_PAYMENT_TYPES[meta.type];
           const recipientUid = meta.creatorUid || meta.artistId || meta.uid;
@@ -1566,7 +1611,8 @@ async function startServer() {
               meta.type === 'plajahplus'            ? `Plajah+ Subscription` :
               meta.type === 'store_order'           ? `Store Order${meta.title ? `: ${meta.title}` : ''}` :
               meta.type === 'club_membership'       ? `Club Membership` :
-              meta.type === 'seedraiser_pledge'     ? `SeedRaiser Pledge` : 'Payment';
+              meta.type === 'seedraiser_pledge'     ? `SeedRaiser Pledge` :
+              meta.type === 'content_purchase'      ? `${meta.kind === 'book' ? 'Book' : 'Film'} ${meta.grant === 'RENTAL' ? 'Rental' : 'Sale'}${meta.title ? `: ${meta.title}` : ''}` : 'Payment';
 
             await firestoreCreate('creatorEarnings', {
               creatorUid:            recipientUid,
@@ -6581,6 +6627,51 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       res.json({ url: session.url });
     } catch (err: any) {
       console.error('[Stripe] sanctuary-unlock error:', err.message);
+      res.status(500).json({ error: err.message || 'Failed to create checkout session' });
+    }
+  });
+
+  // ── Content purchase: "buy to own" a Taleo film or a Lorea book ──────────────
+  // One-time payment. On success the webhook (type 'content_purchase') mints the
+  // "own it forever" license into users/{buyer}/contentLicenses AND records the
+  // creator earning via the generic 90/10 split path. Delivery/watermark ride in
+  // metadata so the license reflects what the creator chose in the uploader.
+  app.post('/api/stripe/content-purchase', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const { kind, contentId, creatorUid, title, grant, price, delivery, watermark, rentalWindowHrs } = req.body;
+      if ((kind !== 'film' && kind !== 'book') || !contentId || !creatorUid || typeof price !== 'number' || price <= 0) {
+        return res.status(400).json({ error: 'kind (film|book), contentId, creatorUid and a positive price are required' });
+      }
+      const g = grant === 'RENTAL' || grant === 'PPV' ? grant : 'PURCHASE';
+      const stripe = getStripe();
+      const origin = req.headers.origin ?? process.env.VITE_APP_URL ?? '';
+      const noun = kind === 'book' ? 'Book' : 'Film';
+      const verb = g === 'RENTAL' ? 'Rental' : g === 'PPV' ? 'Premiere' : 'Purchase';
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: { name: `${title || noun} — ${noun} ${verb}` },
+            unit_amount: Math.round(price * 100),
+          },
+          quantity: 1,
+        }],
+        success_url: `${origin}/?content_purchased=${kind}:${contentId}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/?content_cancelled=${kind}:${contentId}`,
+        metadata: {
+          type: 'content_purchase', uid: req.uid, creatorUid,
+          kind, contentId, title: title || '', grant: g,
+          price: String(price),
+          delivery: delivery === 'PLAJAH_ONLY' ? 'PLAJAH_ONLY' : 'DOWNLOAD_OPEN',
+          watermark: watermark === false ? 'false' : 'true',
+          rentalWindowHrs: rentalWindowHrs ? String(rentalWindowHrs) : '',
+        },
+      });
+      res.json({ url: session.url });
+    } catch (err: any) {
+      console.error('[Stripe] content-purchase error:', err.message);
       res.status(500).json({ error: err.message || 'Failed to create checkout session' });
     }
   });

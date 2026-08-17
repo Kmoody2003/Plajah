@@ -26,6 +26,7 @@ import {
   addToWatchlist, removeFromWatchlist, isInWatchlist,
   fetchUserClubs, createClubEvent,
   fetchDiscussionPostsByContentId,
+  loginWithGoogle,
 } from '../services/backendService';
 import The411 from './The411';
 import { shareAsset, shareText } from '../services/deepLinkService';
@@ -33,6 +34,7 @@ import CharacterWorldView from './CharacterWorldView';
 import { createPortal } from 'react-dom';
 import { hlsTuning, capLevelsToPanel } from '../services/hlsTuning';
 import { getPlatformInfo } from '../hooks/usePlatform';
+import { BuyToOwn, useOwnership } from './BuyToOwn';
 
 interface MovieUXViewProps {
   item: Video | Album;
@@ -854,7 +856,21 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
   const castMembers = (item as Video).movieMetadata?.castMembers || [];
   const releaseYear = (item as Video).movieMetadata?.releaseYear;
 
+  // ── Buy-to-own gate (Taleo) ────────────────────────────────────────────────
+  // Paid films carry filmDistribution.{model,purchasePrice,rentalPrice,delivery,...}.
+  // Access = the creator themselves, OR a valid contentLicense (buy/rent) for this uid.
+  const filmDist = (item as any).filmDistribution as import('../types').FilmDistribution | undefined;
+  const filmBuyPrice = filmDist?.purchasePrice ?? 0;
+  const filmRentPrice = (filmDist?.model === 'RENTAL' || filmDist?.model === 'HYBRID') ? (filmDist?.rentalPrice ?? 0) : 0;
+  const isPaidFilm = !!filmDist && filmDist.model !== 'FREE_FAST' && (filmBuyPrice > 0 || filmRentPrice > 0);
+  const filmOwnership = useOwnership('film', item.id, currentUser?.uid);
+  const hasFilmAccess = isOwner || !isPaidFilm || filmOwnership.owned;
+
   const handlePlay = () => {
+    // Gate paid films: without a license (or being the creator), don't start playback —
+    // the hero shows Buy/Rent instead. Belt-and-suspenders in case the CTA is reached.
+    if (!hasFilmAccess) { setIsUIVisible(true); return; }
+
     const album = item as Album;
     const vid = item as Video;
     let payload: Video | null = null;
@@ -1242,14 +1258,31 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
 
                   {/* CTAs */}
                   <div className="flex flex-wrap gap-3 pt-1">
-                    <motion.button
-                      whileHover={{ scale: 1.04 }}
-                      whileTap={{ scale: 0.97 }}
-                      onClick={handlePlay}
-                      className="h-12 px-6 sm:px-8 bg-[#D0BCFF] hover:bg-[#E8DAFF] text-[#1C1B1F] font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-3 transition-colors shadow-lg"
-                    >
-                      <Play fill="currentColor" size={18} /> Watch Now
-                    </motion.button>
+                    {hasFilmAccess ? (
+                      <motion.button
+                        whileHover={{ scale: 1.04 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={handlePlay}
+                        className="h-12 px-6 sm:px-8 bg-[#D0BCFF] hover:bg-[#E8DAFF] text-[#1C1B1F] font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-3 transition-colors shadow-lg"
+                      >
+                        <Play fill="currentColor" size={18} /> Watch Now
+                      </motion.button>
+                    ) : (
+                      <BuyToOwn
+                        kind="film"
+                        contentId={item.id}
+                        creatorUid={ownerId || ''}
+                        title={title}
+                        purchasePrice={filmBuyPrice || undefined}
+                        rentalPrice={filmRentPrice || undefined}
+                        rentalWindowHrs={filmDist?.rentalWindowHrs}
+                        delivery={filmDist?.delivery}
+                        watermark={filmDist?.watermark}
+                        uid={currentUser?.uid}
+                        ownership={filmOwnership}
+                        onRequestSignIn={() => loginWithGoogle()}
+                      />
+                    )}
                     {isOwner && onEditFilm && (
                       <motion.button
                         whileHover={{ scale: 1.04 }}

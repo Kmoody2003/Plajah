@@ -83,6 +83,23 @@ export interface FilmDistribution {
   fastChannel?: boolean;         // also run on the free 24/7 FAST channel
   watchParty?: boolean;          // host a premiere watch party
   contentRating?: string;        // G / PG / PG-13 / R / NC-17 / TV-MA …
+  /**
+   * How a BUYER receives the film once they own it (PURCHASE/HYBRID/PPV). Rentals
+   * always stream in-app regardless of this. Default 'DOWNLOAD_OPEN' — the pro-consumer,
+   * pro-indie stance: a real, downloadable, DRM-free file that plays in any player, with
+   * ownership made portable + permanent by the OCME license credential (see
+   * services/filmLicense.ts). Creators who need tighter control pick 'PLAJAH_ONLY'
+   * (soft-encrypted, plays only in the Plajah player). Deliberately NOT a paid upsell:
+   * one price includes the file — never charge extra to remove a restriction.
+   */
+  delivery?: 'DOWNLOAD_OPEN' | 'PLAJAH_ONLY';
+  /**
+   * Forensically watermark each downloaded copy with a per-buyer id (invisible or a
+   * visible tag). Deters casual re-sharing without restricting legitimate use — the
+   * traceability substitute for hard DRM. Default true; only meaningful when
+   * delivery === 'DOWNLOAD_OPEN'.
+   */
+  watermark?: boolean;
 }
 
 /** An alternate cut/version of a film (extended, director's, unrated, …). The main film
@@ -2652,6 +2669,10 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'MATH_CLASSROOM'
   // Student assignment view — do a worksheet (tutor + auto-grade) or practice via Time Attack
   | 'STUDENT_ASSIGNMENT'
+  // "Learn the platform" — the one home for every Academia demo, tour and sandbox.
+  | 'ACADEMIA_DEMOS'
+  // The Sky — a learner's position in the real standards prerequisite graph.
+  | 'ACADEMIA_SKY'
   // Assigned template lesson — steps + materials + rubric, turned in and graded by hand.
   // Separate from STUDENT_ASSIGNMENT: that route's `id` is a worksheetId, this one's is a
   // templateAssignment, and a lesson has no fillable fields to auto-grade.

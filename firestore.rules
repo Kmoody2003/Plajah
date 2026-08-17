@@ -890,6 +890,15 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // "Own it forever" content licenses for paid films + books (services/contentLicense)
+      // — owner-private entitlement/VC records. READ-ONLY to the client: licenses are
+      // minted SERVER-SIDE in the Stripe webhook after a real charge (admin writes bypass
+      // rules), so a buyer can never self-grant an entitlement.
+      match /contentLicenses/{licenseId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
       // Media dedup index (services/mediaDedup) — fingerprint → uploaded url, so identical
       // re-uploads reuse the existing asset. Owner-only.
       match /mediaIndex/{fingerprint} {

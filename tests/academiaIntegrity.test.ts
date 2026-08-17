@@ -20,6 +20,7 @@ import {
 } from '../data/oerLibrary';
 import { TEMPLATE_SEEDS, type Rubric } from '../data/assignmentTemplates';
 import { scoresToMastery, lessonLink } from '../services/assignmentTemplateService';
+import { relativeDue, curiosityOfTheDay } from '../components/academia/TodayDueFirst';
 
 // ── Licence classification ──────────────────────────────────────────────────────
 
@@ -295,4 +296,46 @@ test('a lesson link does not collide with the worksheet assignment route', () =>
   // ?view=assignment belongs to StudentAssignmentView, whose `id` is a worksheetId — sending a
   // templateAssignment there would look up a worksheet that does not exist.
   assert.ok(!link.includes('view=assignment'));
+});
+
+// ── "Due first" date labelling ──────────────────────────────────────────────────
+// This is the copy a student reads to decide what to do tonight. An off-by-one here
+// doesn't throw — it just quietly tells someone their homework is due a day later
+// than it is, which is the worst kind of bug this feature could have.
+
+const DAY = 86_400_000;
+
+test('the near deadlines read as urgent, in plain words', () => {
+  assert.deepEqual(relativeDue(Date.now() + DAY * 0.2), { label: 'Due today', urgent: true });
+  assert.deepEqual(relativeDue(Date.now() + DAY), { label: 'Due tomorrow', urgent: true });
+});
+
+test('overdue work says so, and stays urgent', () => {
+  const yesterday = relativeDue(Date.now() - DAY);
+  assert.equal(yesterday.label, 'Due yesterday');
+  assert.equal(yesterday.urgent, true);
+
+  const late = relativeDue(Date.now() - DAY * 4);
+  assert.match(late.label, /4 days late/);
+  assert.equal(late.urgent, true);
+});
+
+test('this week reads as a weekday, next week as a date', () => {
+  const soon = relativeDue(Date.now() + DAY * 3);
+  assert.match(soon.label, /^Due \w+day$/, `expected a weekday, got "${soon.label}"`);
+  assert.equal(soon.urgent, false, 'three days out is not urgent');
+
+  const later = relativeDue(Date.now() + DAY * 20);
+  assert.match(later.label, /^Due \w{3} \d+$/, `expected a date, got "${later.label}"`);
+});
+
+test('undated work is never presented as a deadline', () => {
+  assert.deepEqual(relativeDue(null), { label: 'No date set', urgent: false });
+});
+
+test('the curiosity is stable within a day and drawn from the set', () => {
+  // It must not change on every render — a prompt that flickers reads as noise, not as "today's".
+  assert.equal(curiosityOfTheDay(), curiosityOfTheDay());
+  assert.ok(curiosityOfTheDay().length > 20);
+  assert.ok(curiosityOfTheDay().includes('?'), 'a curiosity should ask something');
 });

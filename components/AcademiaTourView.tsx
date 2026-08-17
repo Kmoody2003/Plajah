@@ -34,8 +34,13 @@ const SectionTitle: React.FC<{ children: React.ReactNode; icon?: React.ElementTy
   </div>
 );
 
-const AcademiaTourView: React.FC<{ onExit: () => void; onNavigate?: (view: string) => void }> = ({ onExit, onNavigate }) => {
-  const [role, setRole] = useState<Role | null>(null);
+const AcademiaTourView: React.FC<{
+  onExit: () => void;
+  onNavigate?: (view: string) => void;
+  /** Opens straight into a role, skipping the picker — the Demos doors already asked. */
+  initialRole?: Role;
+}> = ({ onExit, onNavigate, initialRole }) => {
+  const [role, setRole] = useState<Role | null>(initialRole ?? null);
   const { students, awards, attendance } = useClassroom();
   const child = students.find(s => s.id === DEMO_CLASS.parent.childId) || students[0];
 

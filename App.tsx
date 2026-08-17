@@ -98,6 +98,8 @@ const FilmSchoolView = retryLazy(() => import('./components/FilmSchoolView'));
 const MathClassroom = retryLazy(() => import('./components/MathClassroom'));
 const StudentAssignmentView = retryLazy(() => import('./components/StudentAssignmentView'));
 const AssignedLessonView = retryLazy(() => import('./components/academia/AssignedLessonView'));
+const AcademiaDemosView = retryLazy(() => import('./components/academia/AcademiaDemosView'));
+const SkyRoute = retryLazy(() => import('./components/academia/SkyRoute'));
 // Science & Engineering hub
 const PlajahLabsView = retryLazy(() => import('./components/PlajahLabsView'));
 // Health & Fitness hub
@@ -143,6 +145,7 @@ import SanctuaryDemoView from './components/sanctuary/SanctuaryDemoView';
 import StoreDemoView from './components/StoreDemoView';
 import { DEMO_SANCTUARY_ID, DEMO_STORE_ID, DEMO_STORE_PRODUCTS } from './data/demoShowcase';
 import PlajahAgent from './components/PlajahAgent';
+import AriaHalo from './components/aria/AriaHalo';
 import { resolveAgentTier } from './services/agentService';
 
 import NebulaBackground from './components/NebulaBackground';
@@ -204,13 +207,47 @@ const DEFAULT_BOTTOM_TABS = [
   { id: 'CHAT',      icon: MessageSquare, label: 'Chat'   },
   { id: 'FEED',      icon: Rss,           label: 'Social' },
 ];
-const EDU_BOTTOM_TABS = [
-  { id: 'ACADEMIA_HOME', icon: GraduationCap, label: 'Academia' }, // far left = the role landing/home
-  { id: 'PLAJAH_LABS',   icon: FlaskConical,  label: 'Labs'     },
-  { id: 'CLASSROOMS',    icon: BookOpen,      label: 'Classes'  },
-  { id: 'CHAT',          icon: MessageSquare, label: 'Chat'     }, // education-scoped chat
-  { id: 'EDU_SOCIAL',    icon: Rss,           label: 'Social'   }, // school-community feed (not the general one)
+// The education bar is ROLE-AWARE. One bar for every school account meant a teacher and a
+// twelve-year-old got the identical five tabs, so neither got the one thing they open the app
+// for: a student's is work that is due, a teacher's is other people's work waiting on them.
+//
+// Slot 2 is always that deadline, and it's the only badged slot — it's where a thumb lands
+// without looking. Chat holds slot 4 in every role. Everything displaced (Labs for a student,
+// the school feed for a teacher) stays one tap away in the existing "More" overflow, which is
+// what that chevron beside the tabs is for.
+//
+// Slot 5 is the Sky, in every role: the far corner from Today, hard against the More chevron.
+// The two ends of the bar are the two ways to think about school — what is due right now at one
+// end, and the whole map of where you are at the other. Putting the map anywhere in the middle
+// made it read as just another section.
+const EDU_TABS_STUDENT = [
+  { id: 'ACADEMIA_HOME', icon: GraduationCap, label: 'Today'   },
+  { id: 'CLASSROOMS',    icon: ClipboardList, label: 'My Work' }, // assignments, due dates, grades
+  { id: 'PLAJAH_LABS',   icon: FlaskConical,  label: 'Explore' },
+  { id: 'CHAT',          icon: MessageSquare, label: 'Chat'    },
+  { id: 'ACADEMIA_SKY',  icon: Sparkles,      label: 'Sky'     },
 ];
+const EDU_TABS_TEACHER = [
+  { id: 'ACADEMIA_HOME', icon: GraduationCap, label: 'Today'   },
+  { id: 'TEACHER_TOOLS', icon: ClipboardList, label: 'Review'  }, // grading + what needs them
+  { id: 'CLASSROOMS',    icon: BookOpen,      label: 'Classes' },
+  { id: 'CHAT',          icon: MessageSquare, label: 'Chat'    },
+  { id: 'ACADEMIA_SKY',  icon: Sparkles,      label: 'Sky'     },
+];
+const EDU_TABS_PARENT = [
+  { id: 'ACADEMIA_HOME', icon: GraduationCap, label: 'Today'    },
+  { id: 'CLASS_POINTS',  icon: Users,         label: 'My Kids'  },
+  { id: 'LEARNER_LEDGER',icon: ShieldCheck,   label: 'Progress' },
+  { id: 'CHAT',          icon: MessageSquare, label: 'Chat'     },
+  { id: 'ACADEMIA_SKY',  icon: Sparkles,      label: 'Sky'      },
+];
+
+function eduTabsFor(p: any) {
+  const t = p?.accountType;
+  if (t === 'TEACHER' || p?.isSchoolAdmin) return EDU_TABS_TEACHER;
+  if (t === 'PARENT') return EDU_TABS_PARENT;
+  return EDU_TABS_STUDENT; // STUDENT + CHILD + school-provisioned
+}
 /** School user = gets the education bottom bar. Deliberately NOT generic platform admins
  *  (isAdmin/role ADMIN) — only real school roles — so a platform owner keeps the full bar. */
 function isSchoolNavUser(p: any): boolean {
@@ -411,7 +448,7 @@ const THEME_BG: Record<string, string> = {
 };
 import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd, fetchSystemSettingsConfig, allocateChannelNumber, fetchAllLiveFeeds } from './services/backendService';
 import { initFeatureFlagListener } from './services/featureFlagService';
-import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark, Cctv, Bug, AlertTriangle, MapPin, Cross, MonitorPlay } from 'lucide-react';
+import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ClipboardList, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark, Cctv, Bug, AlertTriangle, MapPin, Cross, MonitorPlay } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -515,6 +552,8 @@ const App: React.FC = () => {
   })();
 
   const [view, setViewInternal] = useState<AppView>(pitchInitialView);
+  // Which role the Demos corridor opened the tour at, so it skips its own role picker.
+  const [demoRole, setDemoRole] = useState<'teacher' | 'parent' | 'student' | undefined>(undefined);
   // Admin kill-switch for the standalone Crossover converter (systemConfig/settings).
   const [crossoverSystemEnabled, setCrossoverSystemEnabled] = useState(true);
   useEffect(() => { fetchSystemSettingsConfig().then(c => setCrossoverSystemEnabled(c?.crossoverEnabled !== false)).catch(() => {}); }, []);
@@ -710,6 +749,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [licenseForFilm, setLicenseForFilm] = useState<{ track: any; album: any } | null>(null);
   const [audiusArtist, setAudiusArtist] = useState<AudiusArtist | null>(null);
   const [isMuseOpen, setIsMuseOpen] = useState(false);
+  const [isHaloOpen, setIsHaloOpen] = useState(false);
   const [creatorInitialType, setCreatorInitialType] = useState<string | undefined>(undefined);
   const [isCreatorMinimized, setIsCreatorMinimized] = useState(false);
   const [isProjectTrayOpen, setIsProjectTrayOpen] = useState(false);
@@ -1431,6 +1471,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('CLASS_POINTS');
     } else if (target === 'ACADEMIA_TOUR') {
       setView('ACADEMIA_TOUR');
+    } else if (target === 'ACADEMIA_SKY') {
+      setView('ACADEMIA_SKY');
+    } else if (target === 'ACADEMIA_DEMOS') {
+      setView('ACADEMIA_DEMOS');
     } else if (target === 'ACADEMIA_HOME') {
       setView('ACADEMIA_HOME');
     } else if (target === 'ACADEMIA_LANDING') {
@@ -2073,12 +2117,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     };
   }, [user, linkedAccounts]);
 
-  // ⌘K / Ctrl+K — summon Aria from anywhere (the "Halo" ambient shortcut)
+  // ⌘K / Ctrl+K — bloom Aria's Halo command palette from anywhere.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault();
-        setIsMuseOpen(o => !o);
+        setIsHaloOpen(o => !o);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -3930,7 +3974,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   </defs>
                 </svg>
                 <div className="flex items-center px-1 pt-1 pb-android-nav gap-0">
-                  {(isSchoolNavUser(userProfile) ? EDU_BOTTOM_TABS : DEFAULT_BOTTOM_TABS).map(tab => {
+                  {(isSchoolNavUser(userProfile) ? eduTabsFor(userProfile) : DEFAULT_BOTTOM_TABS).map(tab => {
                     const Icon = tab.icon;
                     const isActive = view === tab.id;
                     return (
@@ -4170,7 +4214,28 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'ACADEMIA_TOUR' && (
               <Suspense fallback={null}>
-                <AcademiaTourView onExit={() => setView(user ? 'CLASSROOMS' : 'DASHBOARD')} onNavigate={(v) => setView(v as AppView)} />
+                {/* Exiting a tour returns to Demos, not the dashboard — someone who just tried the
+                    teacher walkthrough is far more likely to want the student one than to be done. */}
+                <AcademiaTourView
+                  onExit={() => setView('ACADEMIA_DEMOS')}
+                  onNavigate={(v) => setView(v as AppView)}
+                  initialRole={demoRole}
+                />
+              </Suspense>
+            )}
+            {view === 'ACADEMIA_SKY' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading…</div>}>
+                <SkyRoute user={user} profile={userProfile} onBack={() => setView('ACADEMIA_HOME')} onNavigate={(v) => setView(v as any)} />
+              </Suspense>
+            )}
+
+            {view === 'ACADEMIA_DEMOS' && (
+              <Suspense fallback={null}>
+                <AcademiaDemosView
+                  onBack={() => setView('ACADEMIA_HOME')}
+                  onOpenTour={(role) => { setDemoRole(role); setView('ACADEMIA_TOUR'); }}
+                  onNavigate={(v) => setView(v as AppView)}
+                />
               </Suspense>
             )}
 
@@ -5509,6 +5574,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         )}
 
         {/* ── Plajah Aria — private creative agent ── */}
+        <AriaHalo
+          isOpen={isHaloOpen}
+          onClose={() => setIsHaloOpen(false)}
+          currentView={view}
+          onSubmit={(prompt) => {
+            setIsMuseOpen(true);
+            window.dispatchEvent(new CustomEvent('OPEN_ARIA', { detail: { prompt } }));
+          }}
+        />
         <AriaEventBridge onOpen={() => setIsMuseOpen(true)} />
         <PlajahAgent
           isOpen={isMuseOpen}

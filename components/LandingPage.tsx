@@ -343,7 +343,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
             </button>
           </div>
           <button
-            onClick={() => { onEnter(); setTimeout(() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'ACADEMIA_TOUR' } })), 500); }}
+            onClick={() => { onEnter(); setTimeout(() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'ACADEMIA_DEMOS' } })), 500); }}
             className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-[#3FB98E]/80 hover:text-[#3FB98E] transition-colors"
           >
             <Sparkles size={13} /> Tour Academia — no signup →
