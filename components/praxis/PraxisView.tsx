@@ -15,7 +15,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft, Shield, TrendingUp, Rocket, Check, ChevronRight, ExternalLink,
-  Lock, FileText, Lightbulb, BookOpen, Sparkles,
+  Lock, FileText, Lightbulb, BookOpen, Sparkles, Download,
 } from 'lucide-react';
 import AriaMark from '../aria/AriaMark';
 import {
@@ -27,6 +27,7 @@ import {
 } from '../../services/praxisService';
 import { launchBusinessPage } from '../../services/brandActivation';
 import { runWatchers, type Nudge as NudgeData } from '../../services/praxisWatchers';
+import { exportBusinessPlan } from '../../services/praxisExport';
 
 interface Props { user?: any; profile?: any; onBack?: () => void; onNavigate?: (view: string) => void; }
 type Mode = 'intake' | 'journey' | 'chapter' | 'plan';
@@ -1367,7 +1368,10 @@ const Blueprint: React.FC<{ venture: Venture; onBack: () => void }> = ({ venture
             <h1 className="text-lg font-black tracking-tight">Blueprint</h1>
             <Eyebrow className="mt-0.5">{venture.name} · your living plan</Eyebrow>
           </div>
-          <FileText size={18} className="text-white/40" />
+          <button onClick={() => exportBusinessPlan(venture)} title="Export as a printable business plan (Save as PDF)"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white hover:brightness-110">
+            <Download size={12} /> Export plan
+          </button>
         </div>
       </div>
       <div className="max-w-3xl mx-auto px-6 py-7 space-y-5">
