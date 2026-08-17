@@ -25,6 +25,7 @@ export interface Venture {
   jurisdiction: { country: string; state: string; city?: string };
   band: FounderBand;       // founder level → depth of every lesson
   mode: 'real' | 'simulate';
+  orgId?: string;          // set once Operate launches a real Plajah business page
   currentStage: string;
   completedStages: string[];
   plan: Record<string, string>;   // stage/section key -> content (the Blueprint)

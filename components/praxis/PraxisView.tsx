@@ -25,8 +25,9 @@ import {
 import {
   type Venture, newVenture, loadVenture, loadVentureFor, saveVenture, updatePlan, completeStage, awardPraxisPoints,
 } from '../../services/praxisService';
+import { launchBusinessPage } from '../../services/brandActivation';
 
-interface Props { user?: any; profile?: any; onBack?: () => void; }
+interface Props { user?: any; profile?: any; onBack?: () => void; onNavigate?: (view: string) => void; }
 type Mode = 'intake' | 'journey' | 'chapter' | 'plan';
 
 const askAria = (prompt: string) =>
@@ -47,7 +48,7 @@ const PTag: React.FC<{ k: PKey }> = ({ k }) => (
 );
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-const PraxisView: React.FC<Props> = ({ user, profile, onBack }) => {
+const PraxisView: React.FC<Props> = ({ user, profile, onBack, onNavigate }) => {
   const uid: string | undefined = user?.uid || profile?.uid;
   const [mode, setMode] = useState<Mode>('intake');
   const [venture, setVenture] = useState<Venture | null>(null);
@@ -85,6 +86,7 @@ const PraxisView: React.FC<Props> = ({ user, profile, onBack }) => {
         stage={activeStage} venture={venture} uid={uid}
         onBack={() => { setMode('journey'); }}
         onUpdate={(v) => persist(v)}
+        onNavigate={onNavigate}
       />
     );
   }
@@ -344,7 +346,7 @@ const Field: React.FC<{ label: string; hint?: string; children: React.ReactNode 
 );
 
 // ── Chapter ──────────────────────────────────────────────────────────────────
-const Chapter: React.FC<{ stage: Stage; venture: Venture; uid?: string; onBack: () => void; onUpdate: (v: Venture) => void }> = ({ stage, venture, uid, onBack, onUpdate }) => {
+const Chapter: React.FC<{ stage: Stage; venture: Venture; uid?: string; onBack: () => void; onUpdate: (v: Venture) => void; onNavigate?: (view: string) => void }> = ({ stage, venture, uid, onBack, onUpdate, onNavigate }) => {
   const isSpark = stage.key === 'spark';
   const done = venture.completedStages.includes(stage.key);
 
@@ -369,6 +371,9 @@ const Chapter: React.FC<{ stage: Stage; venture: Venture; uid?: string; onBack: 
     if (uid) await awardPraxisPoints(uid, stage.key);
     setSaved(true);
   };
+
+  // Persist the launched Organization id onto the venture without completing the stage.
+  const setOrg = (orgId: string) => { const v = saveVenture({ ...venture, orgId }); onUpdate(v); };
 
   const finishSpark = () => completeChapter(
     { spark_thesis: thesis, spark_serves: serves, bmc_value: value, bmc_customer: customer, bmc_revenue: revenue },
@@ -460,6 +465,12 @@ const Chapter: React.FC<{ stage: Stage; venture: Venture; uid?: string; onBack: 
             <BooksDo
               venture={venture} saved={saved} uid={uid}
               onComplete={(patch) => completeChapter(patch, {}, 'operate')}
+            />
+          ) : stage.key === 'operate' ? (
+            <OperateDo
+              venture={venture} saved={saved} uid={uid}
+              onLaunched={setOrg} onNavigate={onNavigate}
+              onComplete={(patch) => completeChapter(patch, {}, 'comply')}
             />
           ) : (
             <LockedPreview stage={stage} />
@@ -849,6 +860,119 @@ const BooksDo: React.FC<{ venture: Venture; saved: boolean; uid?: string; onComp
   );
 };
 
+// ── Operate chapter (interactive — launches a REAL Plajah business page) ──────
+const templateForArchetype = (a: string) => (a === 'restaurant' ? 'restaurant' : 'custom');
+
+const OperateDo: React.FC<{
+  venture: Venture; saved: boolean; uid?: string;
+  onLaunched: (orgId: string) => void;
+  onComplete: (patch: Record<string, string>) => void;
+  onNavigate?: (view: string) => void;
+}> = ({ venture, saved, uid, onLaunched, onComplete, onNavigate }) => {
+  const p = venture.plan;
+  const [name, setName] = useState(venture.name);
+  const [about, setAbout] = useState(p.operate_about || venture.thesis || '');
+  const [store, setStore] = useState(p.operate_store !== '0');
+  const [club, setClub] = useState(p.operate_club === '1');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const templateId = templateForArchetype(venture.archetype);
+  const launched = !!venture.orgId;
+  const canLaunch = venture.mode === 'real' && !!uid && !launched;
+
+  const launch = async () => {
+    if (busy) return;
+    setBusy(true); setErr(null);
+    try {
+      const r = await launchBusinessPage(templateId, {
+        name: name.trim() || venture.name, about: about.trim(), createClub: club, enableStore: store,
+      });
+      if (r.error || !r.organization) { setErr(r.error || 'Could not create your business page — try again.'); setBusy(false); return; }
+      onLaunched(r.organization.id);
+    } catch (e: any) {
+      setErr(e?.message || 'Something went wrong launching your page.');
+    }
+    setBusy(false);
+  };
+
+  const complete = () => onComplete({
+    operate_about: about, operate_store: store ? '1' : '0', operate_club: club ? '1' : '0', operate_template: templateId,
+  });
+
+  const wires = [
+    { t: 'A public business page', d: 'your storefront, hours, and brand on the Business directory' },
+    { t: 'Products & services', d: 'list what you sell — it powers your store, POS, and kiosk' },
+    { t: 'Team & roles', d: 'invite people with the right permissions for your kind of business' },
+  ];
+
+  return (
+    <div className="space-y-5">
+      {launched ? (
+        <div className="rounded-2xl border p-5 text-center space-y-3" style={{ borderColor: 'rgba(6,214,160,.35)', background: 'rgba(6,214,160,.07)' }}>
+          <div className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center" style={{ background: 'rgba(6,214,160,.16)' }}><Rocket size={22} className="text-[#06d6a0]" /></div>
+          <div>
+            <div className="text-lg font-black">{venture.name} is live</div>
+            <div className="text-[12px] text-white/50 mt-0.5 leading-snug">Your real Plajah business page is created. Now fill it in — products, team, and settings all live in your dashboard.</div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 pt-1">
+            <button onClick={() => onNavigate?.('BUSINESS_DASHBOARD')} className="flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white text-black hover:brightness-90 flex items-center justify-center gap-2">Open your dashboard <ChevronRight size={13} /></button>
+            <button onClick={() => askAria(`You are Aria, my Praxis coach. My ${venture.archetype} "${venture.name}" just launched its Plajah page. Give me a concrete opening-week operations playbook — first products to list, roles to fill, and a simple daily routine to run it.`)} className="flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 text-[#c4b5fd] hover:bg-[#8b5cf6]/20 flex items-center justify-center gap-2"><AriaMark size={16} petals={false} /> Ops playbook</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 space-y-3">
+            <div className="flex items-center gap-2"><Rocket size={15} className="text-[#ff8c00]" /><span className="text-[13px] font-black">Turn the plan into a real page</span></div>
+            <p className="text-[12px] text-white/55 leading-snug">This creates your actual Plajah business page — the same one on the Business directory — wired into everything Plajah already runs:</p>
+            <div className="space-y-1.5">
+              {wires.map(w => (
+                <div key={w.t} className="flex gap-2.5"><ChevronRight size={13} className="text-[#8b5cf6] mt-0.5 shrink-0" /><div><span className="text-[12.5px] font-bold">{w.t}</span><span className="text-[11px] text-white/40"> — {w.d}</span></div></div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <MiniField label="Business name">
+              <input value={name} onChange={e => setName(e.target.value)} className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#8b5cf6]/50" />
+            </MiniField>
+            <MiniField label="One-line about">
+              <input value={about} onChange={e => setAbout(e.target.value)} placeholder="What you do, for whom" className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#8b5cf6]/50 placeholder:text-white/25" />
+            </MiniField>
+            <div className="grid grid-cols-2 gap-2">
+              {([['store', 'Storefront', 'Sell products & services', store, setStore], ['club', 'Community club', 'A space for your customers', club, setClub]] as const).map(([id, t, d, val, set]) => (
+                <button key={id} onClick={() => set(v => !v)} className={`rounded-2xl px-3 py-3 text-left border transition-all ${val ? 'bg-white/10 border-white/30' : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.06]'}`}>
+                  <div className="flex items-center justify-between"><span className="text-[12px] font-black">{t}</span><span className="w-4 h-4 rounded-md border flex items-center justify-center" style={val ? { background: '#8b5cf6', borderColor: '#8b5cf6' } : { borderColor: 'rgba(255,255,255,.25)' }}>{val && <Check size={11} className="text-white" />}</span></div>
+                  <div className="text-[10px] text-white/45 mt-0.5">{d}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {err && <p className="text-[11px] text-[#ff5468] text-center">{err}</p>}
+
+          {canLaunch ? (
+            <button onClick={launch} disabled={busy} className="w-full py-3.5 rounded-xl text-[11px] font-black uppercase tracking-widest bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white disabled:opacity-50 hover:brightness-110 flex items-center justify-center gap-2">
+              {busy ? 'Creating your page…' : <><Rocket size={14} /> Launch my business page</>}
+            </button>
+          ) : (
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-center">
+              <p className="text-[11px] text-white/50 leading-snug">{venture.mode === 'simulate' ? 'Practice mode — in a real venture this button creates your live Plajah page. You can still walk through every step here.' : 'Sign in to launch your real business page. You can keep learning the steps meanwhile.'}</p>
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="pt-1">
+        <button onClick={complete} className="w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white/[0.06] border border-white/10 hover:bg-white/[0.1] flex items-center justify-center gap-2">
+          <Check size={13} /> {launched ? 'Complete Operate → Comply' : 'Continue → Comply'}
+        </button>
+      </div>
+      {saved && <p className="text-[11px] text-[#06d6a0] text-center flex items-center justify-center gap-1.5"><Check size={12} /> Saved to your Blueprint{uid ? ' · +15 points' : ''}. Next: Comply — stay protected.</p>}
+    </div>
+  );
+};
+
 const LockedPreview: React.FC<{ stage: Stage }> = ({ stage }) => (
   <div className="rounded-2xl bg-white/[0.02] border border-dashed border-white/10 p-5">
     <div className="flex items-center gap-2 text-white/50 mb-2"><Lock size={13} /><span className="text-[10px] font-black uppercase tracking-widest">Unlocks as you build</span></div>
@@ -874,6 +998,7 @@ const Blueprint: React.FC<{ venture: Venture; onBack: () => void }> = ({ venture
     { k: 'Starting price', v: p.price ? `$${p.price}${p.price_basis ? ` · ${p.price_basis.replace('_', '-')}` : ''}` : '' },
     { k: 'Legal structure', v: getEntity(p.form_entity)?.label },
     { k: 'Monthly net', v: p.books_net ? `$${Number(p.books_net).toLocaleString('en-US', { maximumFractionDigits: 0 })} · ${p.books_margin}% margin` : '' },
+    { k: 'Business page', v: venture.orgId ? 'Launched ✓' : '' },
     { k: 'Where', v: [venture.jurisdiction.city, venture.jurisdiction.state, venture.jurisdiction.country].filter(Boolean).join(', ') },
   ];
   return (

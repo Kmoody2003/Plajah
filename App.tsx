@@ -4419,7 +4419,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'PRAXIS' && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <PraxisView user={user} profile={userProfile} onBack={() => setView('PLAJAH_BUSINESS')} />
+                <PraxisView user={user} profile={userProfile} onBack={() => setView('PLAJAH_BUSINESS')} onNavigate={handleGlobalNavigate} />
               </Suspense>
             )}
 
