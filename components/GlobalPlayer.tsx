@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { useGoogleCast } from '../hooks/useGoogleCast';
 import { useViewport } from '../hooks/useViewport';
+import { useShellNext } from '../hooks/useShellNext';
+import CommandPlayer from './CommandPlayer';
 import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Shuffle, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box, Video as VideoIcon, Headphones, ZapOff } from 'lucide-react';
 import Logo from './Logo';
 import AriaMark from './aria/AriaMark';
@@ -57,6 +59,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   onOpenAria,
 }) => {
   const vp = useViewport(); // live breakpoint — reacts to resize/rotate/fold (unlike the static isMobile prop)
+  const shellNextGP = useShellNext();
   const isBigScreen = theme === 'BIG_SCREEN';
   const isPhoneMode = theme === 'PHONE' || isMobile || vp.isPhone;
   // On phones the persistent music transport is a distraction on text-centered
@@ -382,6 +385,29 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   const snapReset = async () => {
     await nanoControls.start({ x: 0, y: 0, transition: { type: 'spring', damping: 20 } });
   };
+
+  // ── New shell (beta): the Command Player owns every desktop surface. The new
+  // Command Split pillar doesn't host a nano, so we float it here instead of the
+  // sidebar — nano = a bottom-left card, full = the bottom bar. Phones keep classic.
+  if (shellNextGP.enabled && !isPhoneMode) {
+    const cp = (variant: 'full' | 'nano') => (
+      <CommandPlayer
+        variant={variant}
+        onOpenStage={() => onNavigate?.('PLAYER', currentAlbum ? ({ album: currentAlbum } as any) : undefined)}
+        onOpenQueue={() => onNavigate?.('QUEUE')}
+        onExpandFromNano={() => { setIsNanoDocked(false); setIsNanoView(false); }}
+        onMinimize={() => setIsMinimized(true)}
+      />
+    );
+    if (isNanoView) {
+      return (
+        <div className="fixed z-[1000]" style={{ left: '1rem', bottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+          {cp('nano')}
+        </div>
+      );
+    }
+    return <div className="fixed left-0 right-0 bottom-0 z-[1000]">{cp('full')}</div>;
+  }
 
   if (isNanoView && isNanoDocked && !isPhoneMode) return null;
 
