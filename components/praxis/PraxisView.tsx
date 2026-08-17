@@ -477,6 +477,16 @@ const Chapter: React.FC<{ stage: Stage; venture: Venture; uid?: string; onBack: 
               venture={venture} saved={saved} uid={uid}
               onComplete={(patch) => completeChapter(patch, {}, 'fund')}
             />
+          ) : stage.key === 'fund' ? (
+            <FundDo
+              venture={venture} saved={saved} uid={uid} onNavigate={onNavigate}
+              onComplete={(patch) => completeChapter(patch, {}, 'grow')}
+            />
+          ) : stage.key === 'grow' ? (
+            <GrowDo
+              venture={venture} saved={saved} uid={uid}
+              onComplete={(patch) => completeChapter(patch, {}, 'grow')}
+            />
           ) : (
             <LockedPreview stage={stage} />
           )}
@@ -1069,6 +1079,222 @@ const ComplyDo: React.FC<{ venture: Venture; saved: boolean; uid?: string; onCom
   );
 };
 
+// ── Fund chapter (interactive — the capital ladder + dilution) ────────────────
+interface Rung { key: string; title: string; desc: string; equity?: boolean; internal?: string; url?: string; fits: (v: Venture) => boolean; }
+const fitsLocal = (a: string) => ['local_service', 'retail', 'restaurant', 'ecommerce'].includes(a);
+const RUNGS: Rung[] = [
+  { key: 'bootstrap', title: 'Bootstrap', desc: 'Fund it from savings and revenue — you keep 100% ownership and control.', fits: () => true },
+  { key: 'credit', title: 'Business credit', desc: 'Build EIN-based credit (Net-30 vendors, a business card) — separate from your personal score, and the key to bigger financing later.', fits: () => true },
+  { key: 'grants', title: 'Grants', desc: "Money you don't repay — competitive. Try grants.gov and local/industry programs.", url: 'https://www.grants.gov/', fits: v => ['nonprofit', 'local_service', 'retail', 'restaurant'].includes(v.archetype) },
+  { key: 'loan', title: 'Microloan / SBA', desc: 'Small loans built for small businesses (SBA, CDFIs, credit unions).', url: 'https://www.sba.gov/funding-programs/loans', fits: v => fitsLocal(v.archetype) },
+  { key: 'crowd', title: 'Crowdfunding', desc: 'Raise from your audience and customers. On Plajah: Sanctuary & SeedRaiser.', internal: 'SANCTUARY_HUB', fits: () => true },
+  { key: 'angel', title: 'Angel investors', desc: 'Early individuals buy equity, usually via a SAFE. Money plus mentorship.', equity: true, fits: v => ['startup', 'creator'].includes(v.archetype) },
+  { key: 'vc', title: 'Venture capital', desc: 'Funds buy equity to fuel fast growth — the raise-and-scale track.', equity: true, fits: v => v.archetype === 'startup' },
+];
+
+const FundDo: React.FC<{ venture: Venture; saved: boolean; uid?: string; onNavigate?: (view: string) => void; onComplete: (patch: Record<string, string>) => void }> = ({ venture, saved, uid, onNavigate, onComplete }) => {
+  const p = venture.plan;
+  const [picked, setPicked] = useState<Record<string, boolean>>(() => {
+    const seed: Record<string, boolean> = {};
+    const savedKeys = (p.fund_rungs || '').split(',').filter(Boolean);
+    RUNGS.forEach(r => { seed[r.key] = savedKeys.length ? savedKeys.includes(r.key) : r.fits(venture); });
+    return seed;
+  });
+  const [amount, setAmount] = useState(p.fund_amount || '');
+  const [use, setUse] = useState(p.fund_use || '');
+  const [premoney, setPremoney] = useState(p.fund_premoney || '');
+  const toggle = (k: string) => setPicked(s => ({ ...s, [k]: !s[k] }));
+
+  const equitySelected = RUNGS.some(r => r.equity && picked[r.key]);
+  const raise = bkNum(amount), pre = bkNum(premoney);
+  const post = pre + raise;
+  const invPct = post > 0 ? (raise / post) * 100 : 0;
+  const founderPct = 100 - invPct;
+
+  const complete = () => onComplete({
+    fund_rungs: RUNGS.filter(r => picked[r.key]).map(r => r.key).join(','),
+    fund_amount: amount, fund_use: use, fund_premoney: premoney,
+  });
+
+  return (
+    <div className="space-y-5">
+      <p className="text-[12px] text-white/55 leading-snug">How you'll fuel it — the capital ladder. Cheapest and most in-your-control at the top; more money and more strings as you go down. Pick what fits where you are.</p>
+
+      {/* Ladder */}
+      <div className="space-y-2">
+        {RUNGS.map(r => {
+          const fits = r.fits(venture);
+          return (
+            <div key={r.key} className={`rounded-xl border px-3.5 py-3 transition-all ${picked[r.key] ? 'bg-[#ff8c00]/[0.06] border-[#ff8c00]/25' : 'bg-white/[0.03] border-white/[0.07]'}`}>
+              <div className="flex items-center gap-3">
+                <button onClick={() => toggle(r.key)} aria-pressed={!!picked[r.key]} className="w-6 h-6 rounded-lg border flex items-center justify-center shrink-0"
+                  style={picked[r.key] ? { background: '#ff8c00', borderColor: '#ff8c00' } : { borderColor: 'rgba(255,255,255,.25)' }}>
+                  {picked[r.key] && <Check size={13} className="text-black" />}
+                </button>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[13px] font-bold">{r.title}</span>
+                    {r.equity && <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-white/10 text-white/50">gives up equity</span>}
+                    {fits && <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded" style={{ background: 'rgba(6,214,160,.15)', color: '#06d6a0' }}>fits you</span>}
+                  </div>
+                  <p className="text-[11px] text-white/45 leading-snug mt-0.5">{r.desc}</p>
+                </div>
+                {r.url && <a href={r.url} target="_blank" rel="noreferrer" className="shrink-0 text-[9px] font-black uppercase tracking-widest text-[#00daf3] flex items-center gap-1 hover:underline">Official <ExternalLink size={11} /></a>}
+                {r.internal && <button onClick={() => onNavigate?.(r.internal!)} className="shrink-0 text-[9px] font-black uppercase tracking-widest text-[#8b5cf6] flex items-center gap-1 hover:underline">Open <ChevronRight size={11} /></button>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Raise plan */}
+      <div className="grid sm:grid-cols-2 gap-3">
+        <MiniField label="How much do you need?">
+          <div className="flex items-center bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2.5 focus-within:border-[#8b5cf6]/50">
+            <span className="text-white/40 text-sm mr-1">$</span>
+            <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="25,000" inputMode="decimal" className="w-full bg-transparent text-sm outline-none placeholder:text-white/25 tabular-nums" />
+          </div>
+        </MiniField>
+        <MiniField label="What it's for">
+          <input value={use} onChange={e => setUse(e.target.value)} placeholder="Inventory, hiring, equipment…" className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#8b5cf6]/50 placeholder:text-white/25" />
+        </MiniField>
+      </div>
+
+      {/* Dilution calculator (equity paths) */}
+      {equitySelected && (
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 space-y-3">
+          <div className="flex items-center gap-2"><TrendingUp size={15} className="text-[#ff8c00]" /><span className="text-[13px] font-black">What raising costs you — dilution</span></div>
+          <MiniField label="Your company's value before the raise (pre-money)">
+            <div className="flex items-center bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2.5 focus-within:border-[#8b5cf6]/50">
+              <span className="text-white/40 text-sm mr-1">$</span>
+              <input value={premoney} onChange={e => setPremoney(e.target.value)} placeholder="250,000" inputMode="decimal" className="w-full bg-transparent text-sm outline-none placeholder:text-white/25 tabular-nums" />
+            </div>
+          </MiniField>
+          {raise > 0 && pre > 0 ? (
+            <div className="flex gap-2">
+              <div className="flex-1 rounded-xl border border-white/10 bg-black/20 p-3 text-center">
+                <div className="text-[9px] font-black uppercase tracking-widest text-white/40">Investor gets</div>
+                <div className="text-xl font-black tabular-nums text-[#ff8c00]">{invPct.toFixed(1)}%</div>
+              </div>
+              <div className="flex-1 rounded-xl border border-white/10 bg-black/20 p-3 text-center">
+                <div className="text-[9px] font-black uppercase tracking-widest text-white/40">You keep</div>
+                <div className="text-xl font-black tabular-nums text-[#06d6a0]">{founderPct.toFixed(1)}%</div>
+              </div>
+              <div className="flex-1 rounded-xl border border-white/10 bg-black/20 p-3 text-center">
+                <div className="text-[9px] font-black uppercase tracking-widest text-white/40">Post-money</div>
+                <div className="text-xl font-black tabular-nums">${bkMoney(post)}</div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-[11px] text-white/40">Enter a raise amount above and a pre-money value to see how much of the company you'd give up.</p>
+          )}
+          <p className="text-[10px] text-white/35 leading-snug">Dilution is the trade: cash now for a smaller slice. Raising ${bkMoney(raise)} at ${bkMoney(pre)} pre-money hands over {invPct.toFixed(1)}% of everything you build next. Raise what you need, not the most you can.</p>
+        </div>
+      )}
+
+      <div className="flex flex-col sm:flex-row gap-2 pt-1">
+        <button onClick={() => askAria(`You are Aria, my Praxis coach on the Three P's (Prosper). Map a realistic funding path for my ${venture.archetype} "${venture.name}" that needs $${amount || '?'} for ${use || 'growth'}. Which rungs fit — bootstrapping, business credit, grants, SBA loans, crowdfunding, angels, VC — in what order, and what I need ready for each. If I'm giving up equity, sanity-check my dilution.`)}
+          className="flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 text-[#c4b5fd] hover:bg-[#8b5cf6]/20 flex items-center justify-center gap-2">
+          <AriaMark size={16} petals={false} /> Map my funding path
+        </button>
+        <button onClick={complete} className="flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white hover:brightness-110 flex items-center justify-center gap-2">
+          <Check size={13} /> Complete Fund → Grow
+        </button>
+      </div>
+      {saved && <p className="text-[11px] text-[#06d6a0] text-center flex items-center justify-center gap-1.5"><Check size={12} /> Saved to your Blueprint{uid ? ' · +15 points' : ''}. Next: Grow — scale &amp; build wealth.</p>}
+    </div>
+  );
+};
+
+// ── Grow chapter (interactive — unit economics + wealth / financial literacy) ──
+const MONEY_MOVES = [
+  { key: 'reinvest', t: 'Reinvest profit first', d: 'Early on, money put back in compounds faster than money taken out.' },
+  { key: 'bizcredit', t: 'Build business credit', d: 'Net-30 vendors + a card on your EIN — unlocks bigger, cheaper financing later.' },
+  { key: 'safety', t: 'Personal safety net', d: '3–6 months of personal expenses saved, so the business never forces a bad call.' },
+  { key: 'retirement', t: 'Founder retirement account', d: 'A SEP-IRA or Solo 401(k) — large tax-advantaged saving for the self-employed.' },
+  { key: 'invest', t: 'Invest the surplus', d: 'Cash beyond your reserve can work — low-cost index funds are the boring, proven path.' },
+  { key: 'crypto', t: 'Understand crypto & blockchain', d: "Learn what it is, the real risks, custody, and stablecoins first — never put in what you can't lose." },
+];
+
+const GrowDo: React.FC<{ venture: Venture; saved: boolean; uid?: string; onComplete: (patch: Record<string, string>) => void }> = ({ venture, saved, uid, onComplete }) => {
+  const p = venture.plan;
+  const [cac, setCac] = useState(p.grow_cac || '');
+  const [ltv, setLtv] = useState(p.grow_ltv || '');
+  const [moves, setMoves] = useState<Record<string, boolean>>(() => {
+    const seed: Record<string, boolean> = {};
+    const savedKeys = (p.grow_moves || '').split(',').filter(Boolean);
+    MONEY_MOVES.forEach(m => { seed[m.key] = savedKeys.length ? savedKeys.includes(m.key) : ['reinvest', 'bizcredit', 'safety'].includes(m.key); });
+    return seed;
+  });
+  const toggle = (k: string) => setMoves(s => ({ ...s, [k]: !s[k] }));
+
+  const c = bkNum(cac), l = bkNum(ltv);
+  const ratio = c > 0 ? l / c : 0;
+  const verdict = ratio >= 3 ? { t: 'Healthy — each customer pays back well', col: '#06d6a0' }
+    : ratio >= 1 ? { t: 'Thin — you profit, but slowly. Lift LTV or cut CAC', col: '#f59e0b' }
+      : c > 0 ? { t: 'Underwater — each customer costs more than they return', col: '#ff5468' }
+        : { t: '', col: '#9e99ad' };
+
+  const complete = () => onComplete({ grow_cac: cac, grow_ltv: ltv, grow_moves: MONEY_MOVES.filter(m => moves[m.key]).map(m => m.key).join(',') });
+
+  return (
+    <div className="space-y-5">
+      {/* Unit economics */}
+      <div>
+        <div className="flex items-center justify-between mb-2"><Eyebrow>Do the unit economics work?</Eyebrow><PTag k="prosper" /></div>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <MiniField label="Cost to get one customer (CAC)">
+            <div className="flex items-center bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2.5 focus-within:border-[#8b5cf6]/50"><span className="text-white/40 text-sm mr-1">$</span><input value={cac} onChange={e => setCac(e.target.value)} placeholder="30" inputMode="decimal" className="w-full bg-transparent text-sm outline-none placeholder:text-white/25 tabular-nums" /></div>
+          </MiniField>
+          <MiniField label="What a customer is worth (LTV)">
+            <div className="flex items-center bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2.5 focus-within:border-[#8b5cf6]/50"><span className="text-white/40 text-sm mr-1">$</span><input value={ltv} onChange={e => setLtv(e.target.value)} placeholder="120" inputMode="decimal" className="w-full bg-transparent text-sm outline-none placeholder:text-white/25 tabular-nums" /></div>
+          </MiniField>
+        </div>
+        {ratio > 0 && (
+          <div className="mt-2 rounded-xl border px-4 py-3 flex items-center gap-3" style={{ borderColor: verdict.col + '44', background: verdict.col + '14' }}>
+            <div className="text-2xl font-black tabular-nums" style={{ color: verdict.col }}>{ratio.toFixed(1)}<span className="text-sm">:1</span></div>
+            <div className="text-[12px] text-white/70 leading-snug"><b>LTV : CAC.</b> {verdict.t}. Aim for 3:1 or better before you spend hard on growth.</div>
+          </div>
+        )}
+      </div>
+
+      {/* Wealth / money moves */}
+      <div>
+        <Eyebrow className="mb-2">Build wealth, not just revenue</Eyebrow>
+        <p className="text-[11px] text-white/45 mb-2.5 leading-snug">A profitable business is the engine — these are how the money it makes builds lasting wealth. Track the moves you'll make.</p>
+        <div className="space-y-2">
+          {MONEY_MOVES.map(m => (
+            <div key={m.key} className={`flex items-center gap-3 rounded-xl border px-3.5 py-3 transition-all ${moves[m.key] ? 'bg-[#ff8c00]/[0.06] border-[#ff8c00]/25' : 'bg-white/[0.03] border-white/[0.07]'}`}>
+              <button onClick={() => toggle(m.key)} aria-pressed={!!moves[m.key]} className="w-6 h-6 rounded-lg border flex items-center justify-center shrink-0" style={moves[m.key] ? { background: '#ff8c00', borderColor: '#ff8c00' } : { borderColor: 'rgba(255,255,255,.25)' }}>{moves[m.key] && <Check size={13} className="text-black" />}</button>
+              <div className="min-w-0 flex-1"><p className="text-[13px] font-bold">{m.t}</p><p className="text-[11px] text-white/45 leading-snug">{m.d}</p></div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Personal vs business credit */}
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+        <div className="text-[10px] font-black uppercase tracking-widest text-white/45 mb-2.5">Two credit scores, kept separate</div>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div><div className="text-[12px] font-black text-[#00daf3] mb-1">Personal credit</div><p className="text-[11px] text-white/55 leading-snug">Tied to your SSN. Driven by payment history &amp; how much of your limit you use. It backs you early — protect it.</p></div>
+          <div><div className="text-[12px] font-black text-[#ff8c00] mb-1">Business credit</div><p className="text-[11px] text-white/55 leading-snug">Tied to your EIN (and a D-U-N-S number). Built with vendors &amp; cards in the business's name — it's what lets the business borrow without risking you.</p></div>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-2 pt-1">
+        <button onClick={() => askAria(`You are Aria, my Praxis coach on the Three P's (Prosper). Teach me the money side of growing "${venture.name}" — my unit economics (CAC $${cac || '?'}, LTV $${ltv || '?'}), then plain-English basics of investing my surplus, personal vs business credit, and what to actually understand about crypto & blockchain before touching it. Keep it honest about risk; I'm at a ${venture.band === 'pro' ? 'confident' : 'beginner'} level.`)}
+          className="flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 text-[#c4b5fd] hover:bg-[#8b5cf6]/20 flex items-center justify-center gap-2">
+          <AriaMark size={16} petals={false} /> Teach me the money side
+        </button>
+        <button onClick={complete} className="flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white hover:brightness-110 flex items-center justify-center gap-2">
+          <Check size={13} /> Complete Grow
+        </button>
+      </div>
+      {saved && <p className="text-[11px] text-[#06d6a0] text-center flex items-center justify-center gap-1.5"><Check size={12} /> That's the whole walkthrough{uid ? ' · +15 points' : ''} — you just walked a business into being. Your Blueprint is complete.</p>}
+    </div>
+  );
+};
+
 const LockedPreview: React.FC<{ stage: Stage }> = ({ stage }) => (
   <div className="rounded-2xl bg-white/[0.02] border border-dashed border-white/10 p-5">
     <div className="flex items-center gap-2 text-white/50 mb-2"><Lock size={13} /><span className="text-[10px] font-black uppercase tracking-widest">Unlocks as you build</span></div>
@@ -1096,6 +1322,8 @@ const Blueprint: React.FC<{ venture: Venture; onBack: () => void }> = ({ venture
     { k: 'Monthly net', v: p.books_net ? `$${Number(p.books_net).toLocaleString('en-US', { maximumFractionDigits: 0 })} · ${p.books_margin}% margin` : '' },
     { k: 'Business page', v: venture.orgId ? 'Launched ✓' : '' },
     { k: 'Compliance', v: p.comply_items ? `${p.comply_items.split(',').filter(Boolean).length} deadlines tracked` : '' },
+    { k: 'Funding', v: p.fund_rungs ? `${p.fund_rungs.split(',').filter(Boolean).length} routes${p.fund_amount ? ` · $${p.fund_amount} target` : ''}` : '' },
+    { k: 'Unit economics', v: (p.grow_cac && p.grow_ltv && bkNum(p.grow_cac) > 0) ? `LTV:CAC ${(bkNum(p.grow_ltv) / bkNum(p.grow_cac)).toFixed(1)}:1` : '' },
     { k: 'Where', v: [venture.jurisdiction.city, venture.jurisdiction.state, venture.jurisdiction.country].filter(Boolean).join(', ') },
   ];
   return (
