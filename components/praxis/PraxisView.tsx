@@ -26,6 +26,7 @@ import {
   type Venture, newVenture, loadVenture, loadVentureFor, saveVenture, updatePlan, completeStage, awardPraxisPoints,
 } from '../../services/praxisService';
 import { launchBusinessPage } from '../../services/brandActivation';
+import { runWatchers, type Nudge as NudgeData } from '../../services/praxisWatchers';
 
 interface Props { user?: any; profile?: any; onBack?: () => void; onNavigate?: (view: string) => void; }
 type Mode = 'intake' | 'journey' | 'chapter' | 'plan';
@@ -154,12 +155,23 @@ const PraxisView: React.FC<Props> = ({ user, profile, onBack, onNavigate }) => {
           </button>
         </div>
 
-        {/* Proactive nudges */}
-        <div className="space-y-2 mb-8">
-          <Eyebrow className="pl-1">Aria is watching</Eyebrow>
-          <Nudge k="protect" text="Before you spend money or hire anyone, we'll set up your EIN and entity — so your personal savings aren't on the line." />
-          <Nudge k="prosper" text="When you price, we'll price for margin — not just to undercut the shop down the street." />
-        </div>
+        {/* Proactive nudges — the live watcher engine */}
+        {(() => {
+          const nudges = runWatchers(venture);
+          return (
+            <div className="space-y-2 mb-8">
+              <div className="flex items-center gap-2 pl-1">
+                <Eyebrow>Aria is watching</Eyebrow>
+                {nudges.length > 0 && <span className="text-[9px] font-black text-white/40 tabular-nums">{nudges.length}</span>}
+              </div>
+              {nudges.length === 0 ? (
+                <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-4 py-3 text-[12px] text-white/45 flex items-center gap-2">
+                  <Check size={13} className="text-[#06d6a0]" /> Nothing needs you right now — she'll flag anything the moment it comes up.
+                </div>
+              ) : nudges.map(n => <Nudge key={n.id} nudge={n} />)}
+            </div>
+          );
+        })()}
 
         {/* Journey */}
         <Eyebrow className="pl-1 mb-3">Your walkthrough · 8 stages</Eyebrow>
@@ -211,16 +223,34 @@ const PraxisView: React.FC<Props> = ({ user, profile, onBack, onNavigate }) => {
   );
 };
 
-// ── Nudge row ──
-const Nudge: React.FC<{ k: PKey; text: string }> = ({ k, text }) => (
-  <div className="flex items-start gap-3 rounded-2xl bg-white/[0.03] border border-white/[0.07] px-4 py-3">
-    <span className="mt-0.5 shrink-0">
-      {k === 'protect' ? <Shield size={15} style={{ color: pColor(k) }} /> : <TrendingUp size={15} style={{ color: pColor(k) }} />}
-    </span>
-    <p className="text-[12.5px] text-white/70 leading-snug flex-1">{text}</p>
-    <span className="shrink-0"><PTag k={k} /></span>
-  </div>
-);
+// ── Nudge row (live watcher output) ──
+const SEV_STYLE: Record<NudgeData['severity'], { ring: string; bg: string; label: string; col: string }> = {
+  urgent: { ring: 'rgba(255,84,104,.4)', bg: 'rgba(255,84,104,.08)', label: 'Urgent', col: '#ff5468' },
+  warn: { ring: 'rgba(245,166,35,.35)', bg: 'rgba(245,166,35,.07)', label: 'Heads up', col: '#f5a623' },
+  info: { ring: 'rgba(255,255,255,.1)', bg: 'rgba(255,255,255,.03)', label: '', col: '#9e99ad' },
+};
+const Nudge: React.FC<{ nudge: NudgeData }> = ({ nudge: n }) => {
+  const sev = SEV_STYLE[n.severity];
+  return (
+    <div className="rounded-2xl border px-4 py-3.5 flex items-start gap-3" style={{ borderColor: sev.ring, background: sev.bg }}>
+      <span className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5" style={{ background: pColor(n.p) + '1f', border: `1px solid ${pColor(n.p)}44`, color: pColor(n.p) }}>
+        {n.p === 'protect' ? <Shield size={14} /> : n.p === 'prosper' ? <TrendingUp size={14} /> : <Lightbulb size={14} />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[13px] font-bold">{n.title}</span>
+          <PTag k={n.p} />
+          {n.severity !== 'info' && <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded" style={{ background: sev.col + '22', color: sev.col }}>{sev.label}</span>}
+        </div>
+        <p className="text-[11.5px] text-white/55 leading-snug mt-1">{n.body}</p>
+      </div>
+      <button onClick={() => askAria(n.actionPrompt)}
+        className="shrink-0 self-center px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 text-[#c4b5fd] hover:bg-[#8b5cf6]/20 flex items-center gap-1.5 whitespace-nowrap">
+        <AriaMark size={14} petals={false} /> {n.actionLabel}
+      </button>
+    </div>
+  );
+};
 
 // ── Intake ───────────────────────────────────────────────────────────────────
 const Intake: React.FC<{ uid?: string; onBack?: () => void; onCreate: (v: Venture) => void }> = ({ uid, onBack, onCreate }) => {
