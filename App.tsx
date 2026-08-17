@@ -742,13 +742,6 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [partyIdForAlbum, setPartyIdForAlbum] = useState<string | null>(null);
   const [selectedScriptId, setSelectedScriptId] = useState<string | undefined>(undefined);
 
-  // A production invite is a direct enrollment route: after sign-in, open Film Staffing
-  // where the token is validated and accepted. Keep the token in the URL until acceptance.
-  useEffect(() => {
-    if (!user || !new URLSearchParams(window.location.search).get('productionInvite')) return;
-    localStorage.setItem('plajah_pm_discipline_v1', 'film');
-    setView('ARTIST_MANAGER');
-  }, [user]);
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [selectedPoolId, setSelectedPoolId] = useState<string | null>(null);
   const [selectedRadioArtistId, setSelectedRadioArtistId] = useState<string | undefined>(undefined);
@@ -775,6 +768,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [cloudStatus, setCloudStatus] = useState<'CONNECTED' | 'OFFLINE' | 'CHECKING'>('CHECKING');
   const [user, setUser] = useState<FirebaseUser | null>(null);
+
+  // A production invite is a direct enrollment route: after sign-in, open Film Staffing
+  // where the token is validated and accepted. This must live after the user state declaration;
+  // evaluating [user] before its const initializer crashes the entire application at startup.
+  useEffect(() => {
+    if (!user || !new URLSearchParams(window.location.search).get('productionInvite')) return;
+    localStorage.setItem('plajah_pm_discipline_v1', 'film');
+    setView('ARTIST_MANAGER');
+  }, [user]);
 
   // Sync the followed-podcast library to Firestore so it's available on every device.
   useEffect(() => {
