@@ -30,6 +30,10 @@ export async function createJobPosting(data: Partial<JobPosting> & { orgId: stri
     postingType: data.postingType || 'JOB',
     title: data.title,
     roleKey: data.roleKey,
+    productionId: data.productionId,
+    productionTitle: data.productionTitle,
+    productionDepartment: data.productionDepartment,
+    productionRoleKey: data.productionRoleKey,
     description: data.description || '',
     location: data.location,
     isRemote: data.isRemote,
@@ -78,6 +82,7 @@ export async function submitApplication(
     id: ref.id,
     jobId: posting.id,
     orgId: posting.orgId,
+    productionId: posting.productionId,
     applicantUid: u?.uid,
     // Auto-seed from the Plajah profile — the "one-tap apply" win.
     applicantName: data.applicantName || u?.displayName || 'Applicant',

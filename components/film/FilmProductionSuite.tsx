@@ -12,7 +12,7 @@ import {
   LayoutDashboard, FileText, Users, ClipboardList, Utensils, Plus, X, Sparkles,
   Radio, CheckCircle2, Clock, MapPin, Sun, Sunset, AlertTriangle, Hospital,
   Coffee, Send, Copy, Zap, ChevronRight, CalendarDays, ShieldAlert, Wand2,
-  CircleDot, CheckCheck, UserCheck, Soup, Circle, Bell, Camera as CameraIcon, Printer,
+  CircleDot, CheckCheck, UserCheck, Soup, Circle, Bell, Camera as CameraIcon, Printer, FolderPlus,
 } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { LiveStudio } from '../MobileLiveStreamer';
@@ -23,15 +23,26 @@ import {
   type Production, type ProductionMember, type ProductionScene, type CallSheet,
   type ProdTask, type CraftItem, type CraftOrder, type DeptKey,
   type DailyProductionReport, type DprSceneRow, type CastWorkCode, type SceneShootStatus, type SidePage,
+  type ProductionPermission, type ProductionRoleKey,
+  type ProductionBudgetLine, type ProductionLocation, type ProductionFestival,
 } from '../../services/filmProductionService';
 import { listWritingProjects, fetchScriptScenes, type WritingProject } from '../../services/loreaProjectsService';
+import { Button, Surface, Input, Eyebrow } from '../ui';
+import { hasLegacyFilmData, importLegacyFilmData } from '../../services/legacyFilmMigration';
 
 // ─── Shared live production context ──────────────────────────────────────────
 
 interface Ctx {
   prod: Production | null;
+  productions: Production[];
+  selectProduction: (id: string) => void;
+  createProduction: (title: string) => Promise<void>;
+  applySample: () => Promise<void>;
   members: ProductionMember[];
   scenes: ProductionScene[];
+  budgetLines: ProductionBudgetLine[];
+  locations: ProductionLocation[];
+  festivals: ProductionFestival[];
   callSheets: CallSheet[];
   tasks: ProdTask[];
   menu: CraftItem[];
@@ -42,22 +53,27 @@ interface Ctx {
   setActiveSheetId: (id: string) => void;
   me: ProductionMember | null;
   isOwner: boolean;
+  can: (permission: ProductionPermission) => boolean;
   loading: boolean;
   goTab: (t: string) => void;
 }
 const ProdCtx = createContext<Ctx | null>(null);
-const useProd = () => {
+export const useProd = () => {
   const c = useContext(ProdCtx);
   if (!c) throw new Error('useProd outside provider');
   return c;
 };
 
 export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null; onGoTab: (t: string) => void; children: React.ReactNode }> = ({ currentUser, onGoTab, children }) => {
-  const uid = currentUser?.uid || FP.currentUid() || 'demo';
-  const prodId = FP.defaultProductionId(uid);
+  const uid = currentUser?.uid || FP.currentUid() || '';
+  const [productions, setProductions] = useState<Production[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [prod, setProd] = useState<Production | null>(null);
   const [members, setMembers] = useState<ProductionMember[]>([]);
   const [scenes, setScenes] = useState<ProductionScene[]>([]);
+  const [budgetLines, setBudgetLines] = useState<ProductionBudgetLine[]>([]);
+  const [locations, setLocations] = useState<ProductionLocation[]>([]);
+  const [festivals, setFestivals] = useState<ProductionFestival[]>([]);
   const [callSheets, setCallSheets] = useState<CallSheet[]>([]);
   const [tasks, setTasks] = useState<ProdTask[]>([]);
   const [menu, setMenu] = useState<CraftItem[]>([]);
@@ -66,39 +82,46 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
   const [activeSheetId, setActiveSheetId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Ensure a production exists + seed a rich demo on first run.
+  const selectionKey = `plajah_active_production_${uid}`;
+
+  // Membership drives the production list. Nothing is created or seeded implicitly.
   useEffect(() => {
     let alive = true;
     (async () => {
-      const p = await FP.ensureProduction(uid, currentUser?.displayName ? `${currentUser.displayName}'s Production` : 'Untitled Production');
+      if (!uid) { setLoading(false); return; }
+      const rows = await FP.fetchMyProductions(uid);
       if (!alive) return;
-      setProd(p);
-      // Seed demo content once (only if empty).
-      const existing = await new Promise<ProductionMember[]>(res => {
-        const unsub = FP.subMembers(prodId, rows => { unsub(); res(rows); });
-      });
-      if (alive && existing.length === 0) {
-        FP.demoMembers().forEach(m => FP.putMember(prodId, m));
-        FP.demoScenes().forEach(s => FP.putScene(prodId, s));
-        FP.demoCraftMenu().forEach(i => FP.putCraftItem(prodId, i));
-      }
+      setProductions(rows);
+      const saved = localStorage.getItem(selectionKey);
+      setSelectedId(rows.some(row => row.id === saved) ? saved : (rows.find(row => row.status !== 'ARCHIVED') || rows[0])?.id || null);
       setLoading(false);
     })();
     return () => { alive = false; };
-  }, [uid]);
+  }, [uid, selectionKey]);
 
   useEffect(() => {
+    let alive = true;
+    if (!selectedId) { setProd(null); return; }
+    localStorage.setItem(selectionKey, selectedId);
+    FP.fetchProduction(selectedId).then(row => { if (alive) setProd(row); });
+    return () => { alive = false; };
+  }, [selectedId, selectionKey]);
+
+  useEffect(() => {
+    if (!selectedId) {
+      setMembers([]); setScenes([]); setCallSheets([]); setTasks([]); setMenu([]); setOrders([]); setDprs([]);
+      setBudgetLines([]); setLocations([]); setFestivals([]);
+      return;
+    }
     const unsubs = [
-      FP.subMembers(prodId, setMembers),
-      FP.subScenes(prodId, setScenes),
-      FP.subCallSheets(prodId, setCallSheets),
-      FP.subTasks(prodId, setTasks),
-      FP.subCraftMenu(prodId, setMenu),
-      FP.subCraftOrders(prodId, setOrders),
-      FP.subDprs(prodId, setDprs),
+      FP.subMembers(selectedId, setMembers), FP.subScenes(selectedId, setScenes),
+      FP.subCallSheets(selectedId, setCallSheets), FP.subTasks(selectedId, setTasks),
+      FP.subCraftMenu(selectedId, setMenu), FP.subCraftOrders(selectedId, setOrders),
+      FP.subDprs(selectedId, setDprs), FP.subBudgetLines(selectedId, setBudgetLines),
+      FP.subLocations(selectedId, setLocations), FP.subFestivals(selectedId, setFestivals),
     ];
     return () => unsubs.forEach(u => u());
-  }, [prodId]);
+  }, [selectedId]);
 
   // Default active sheet = published sheet dated today, else nearest upcoming, else lowest day.
   const sorted = useMemo(() => [...callSheets].sort((a, b) => a.shootDay - b.shootDay), [callSheets]);
@@ -114,13 +137,82 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
   const activeSheet = callSheets.find(c => c.id === activeSheetId) || null;
   const me = members.find(m => m.uid && m.uid === uid) || null;
   const isOwner = !!prod && prod.ownerUid === uid;
+  const can = useCallback((permission: ProductionPermission) => FP.hasProductionPermission(prod, uid, permission), [prod, uid]);
+  const selectProduction = useCallback((id: string) => setSelectedId(id), []);
+  const createProduction = useCallback(async (title: string) => {
+    const created = await FP.createProduction(uid, title);
+    setProductions(rows => [created, ...rows]);
+    setSelectedId(created.id);
+  }, [uid]);
+  const applySample = useCallback(async () => {
+    if (!prod) return;
+    await FP.applySampleProduction(prod.id, uid);
+    setProd({ ...prod, sampleAppliedAt: Date.now() });
+  }, [prod, uid]);
 
   const value: Ctx = {
-    prod, members, scenes, callSheets, tasks, menu, orders, dprs,
-    activeSheet, activeSheetId, setActiveSheetId, me, isOwner, loading, goTab: onGoTab,
+    prod, productions, selectProduction, createProduction, applySample,
+    members, scenes, budgetLines, locations, festivals, callSheets, tasks, menu, orders, dprs,
+    activeSheet, activeSheetId, setActiveSheetId, me, isOwner, can, loading, goTab: onGoTab,
   };
-  return <ProdCtx.Provider value={value}>{children}</ProdCtx.Provider>;
+  return (
+    <ProdCtx.Provider value={value}>
+      <ProductionWorkspaceBar />
+      {prod ? children : <ProductionEmptyState signedIn={!!uid} />}
+    </ProdCtx.Provider>
+  );
 };
+
+const ProductionWorkspaceBar: React.FC = () => {
+  const { prod, productions, selectProduction, createProduction, applySample, isOwner } = useProd();
+  const [creating, setCreating] = useState(false);
+  const [title, setTitle] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [legacyAvailable, setLegacyAvailable] = useState(() => hasLegacyFilmData(prod?.id));
+  useEffect(() => setLegacyAvailable(hasLegacyFilmData(prod?.id)), [prod?.id]);
+  const submit = async () => {
+    setBusy(true);
+    try { await createProduction(title); setTitle(''); setCreating(false); } finally { setBusy(false); }
+  };
+  const importLegacy = async () => {
+    if (!prod) return;
+    setBusy(true);
+    try { await importLegacyFilmData(prod.id); setLegacyAvailable(false); } finally { setBusy(false); }
+  };
+  return (
+    <Surface level={2} shape="sheet" className="mb-5 flex flex-wrap items-center gap-3" aria-label="Production workspace">
+      <div className="min-w-0 flex-1">
+        <Eyebrow>Production workspace</Eyebrow>
+        {productions.length > 0 && (
+          <select className="pj-input mt-2" value={prod?.id || ''} onChange={event => selectProduction(event.target.value)} aria-label="Active production">
+            {productions.map(row => <option key={row.id} value={row.id}>{row.title}{row.status === 'ARCHIVED' ? ' · Archived' : ''}</option>)}
+          </select>
+        )}
+      </div>
+      {creating ? (
+        <div className="flex flex-1 items-end gap-2 min-w-[260px]">
+          <Input label="Production title" value={title} onChange={event => setTitle(event.target.value)} autoFocus />
+          <Button variant="primary" size="md" loading={busy} disabled={!title.trim()} onClick={submit}>Create</Button>
+          <Button variant="ghost" size="md" onClick={() => setCreating(false)}>Cancel</Button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {prod && isOwner && legacyAvailable && <Button variant="outline" size="sm" loading={busy} onClick={importLegacy}>Import old film data</Button>}
+          {prod && isOwner && !prod.sampleAppliedAt && <Button variant="outline" size="sm" onClick={applySample}>Use sample data</Button>}
+          <Button variant={prod ? 'secondary' : 'primary'} size="sm" icon={<FolderPlus />} onClick={() => setCreating(true)}>New production</Button>
+        </div>
+      )}
+    </Surface>
+  );
+};
+
+const ProductionEmptyState: React.FC<{ signedIn: boolean }> = ({ signedIn }) => (
+  <Surface level={1} shape="hero" brand className="text-center py-12">
+    <Eyebrow>Film production</Eyebrow>
+    <h2 className="type-title-lg mt-3">{signedIn ? 'Create or join a production' : 'Sign in to manage productions'}</h2>
+    <p className="type-body-md mt-2 text-white/55">Productions keep script, crew authority, schedule, call sheets, and reports on one shared record.</p>
+  </Surface>
+);
 
 // ─── Small shared UI atoms (match ArtistProjectManager styling) ──────────────
 
@@ -332,7 +424,8 @@ const TaskBoard: React.FC = () => {
 // ─── Call Sheets tab ─────────────────────────────────────────────────────────
 
 export const CallSheetsTab: React.FC = () => {
-  const { prod, scenes, members, callSheets, activeSheetId, setActiveSheetId, isOwner } = useProd();
+  const { prod, scenes, members, callSheets, activeSheetId, setActiveSheetId, can } = useProd();
+  const canManage = can('MANAGE_CALL_SHEETS');
   const sorted = [...callSheets].sort((a, b) => a.shootDay - b.shootDay);
   const cs = callSheets.find(c => c.id === activeSheetId) || sorted[0] || null;
 
@@ -352,16 +445,16 @@ export const CallSheetsTab: React.FC = () => {
             <button key={c.id} onClick={() => setActiveSheetId(c.id)} className={pill(c.id === cs?.id)}>Day {c.shootDay}{c.status === 'PUBLISHED' ? ' ●' : ''}</button>
           ))}
         </div>
-        <button onClick={generate} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-400 text-xs font-black uppercase tracking-widest hover:bg-violet-500/25 shrink-0"><Wand2 size={13} /> Auto-Generate</button>
+        {canManage && <button onClick={generate} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-400 text-xs font-black uppercase tracking-widest hover:bg-violet-500/25 shrink-0"><Wand2 size={13} /> Auto-Generate</button>}
       </div>
       {!cs ? (
         <div className={`${card} p-10 text-center`}>
           <p className="text-sm font-black text-white/50 mb-2">No call sheets</p>
           <p className="text-xs text-white/30 mb-5">Generate one from your scheduled scenes — call times, cast pickups, meals and walkie channels fill in automatically.</p>
-          <button onClick={generate} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-500 text-white text-xs font-black uppercase tracking-widest hover:bg-violet-400"><Wand2 size={14} /> Generate First Call Sheet</button>
+          {canManage && <button onClick={generate} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-500 text-white text-xs font-black uppercase tracking-widest hover:bg-violet-400"><Wand2 size={14} /> Generate First Call Sheet</button>}
         </div>
       ) : (
-        <CallSheetEditor key={cs.id} cs={cs} editable={isOwner} />
+        <CallSheetEditor key={cs.id} cs={cs} editable={canManage} />
       )}
     </motion.div>
   );
@@ -505,22 +598,37 @@ const Field: React.FC<{ label: string; value: string; onChange?: (v: string) => 
 // ─── Roster tab ──────────────────────────────────────────────────────────────
 
 export const RosterTab: React.FC = () => {
-  const { prod, members } = useProd();
+  const { prod, members, isOwner, can } = useProd();
   const [adding, setAdding] = useState(false);
   const [deptFilter, setDeptFilter] = useState<DeptKey | 'ALL'>('ALL');
-  const [form, setForm] = useState({ name: '', role: '', dept: 'CAMERA' as DeptKey, email: '', phone: '', character: '', dietary: '' });
-  const save = () => {
+  const [form, setForm] = useState({ name: '', role: '', roleKey: 'CREW' as ProductionRoleKey, linkedUid: '', dept: 'CAMERA' as DeptKey, email: '', phone: '', character: '', dietary: '' });
+  const [authorityError, setAuthorityError] = useState('');
+  const save = async () => {
     if (!prod || !form.name.trim()) return;
+    setAuthorityError('');
     const isCast = form.dept === 'CAST';
     const m: ProductionMember = {
       id: FP.uid8(), name: form.name.trim(), role: form.role.trim() || deptMeta(form.dept).label, dept: form.dept,
+      uid: form.linkedUid.trim() || undefined, roleKey: form.roleKey,
       email: form.email || undefined, phone: form.phone || undefined, isCast, character: isCast ? (form.character || form.role) : undefined,
       dietary: form.dietary ? form.dietary.split(',').map(s => s.trim()).filter(Boolean) : undefined, status: 'ACTIVE', createdAt: Date.now(),
     };
-    FP.putMember(prod.id, m); setForm({ name: '', role: '', dept: 'CAMERA', email: '', phone: '', character: '', dietary: '' }); setAdding(false);
+    try {
+      if (m.uid) await FP.assignProductionAuthority(prod.id, m, form.roleKey);
+      else await FP.putMember(prod.id, m);
+      setForm({ name: '', role: '', roleKey: 'CREW', linkedUid: '', dept: 'CAMERA', email: '', phone: '', character: '', dietary: '' });
+      setAdding(false);
+    } catch (e) { setAuthorityError((e as Error).message || 'Could not assign this role.'); }
   };
   const byDept = deptFilter === 'ALL' ? members : members.filter(m => m.dept === deptFilter);
   const grouped = DEPARTMENTS.map(d => ({ d, list: byDept.filter(m => m.dept === d.key) })).filter(g => g.list.length);
+  const removeRosterMember = async (member: ProductionMember) => {
+    if (!prod) return;
+    try {
+      if (member.uid) await FP.revokeProductionAuthority(prod.id, member);
+      await FP.removeMember(prod.id, member.id);
+    } catch (e) { setAuthorityError((e as Error).message || 'Could not remove this roster member.'); }
+  };
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
@@ -529,7 +637,7 @@ export const RosterTab: React.FC = () => {
           <button onClick={() => setDeptFilter('ALL')} className={pill(deptFilter === 'ALL')}>All</button>
           {DEPARTMENTS.filter(d => members.some(m => m.dept === d.key)).map(d => <button key={d.key} onClick={() => setDeptFilter(d.key)} className={pill(deptFilter === d.key)}>{d.emoji} {d.label}</button>)}
         </div>
-        <button onClick={() => setAdding(a => !a)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-400 text-xs font-black uppercase tracking-widest hover:bg-violet-500/25 shrink-0"><Plus size={12} /> Add</button>
+        {can('MANAGE_ROSTER') && <button onClick={() => setAdding(a => !a)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-400 text-xs font-black uppercase tracking-widest hover:bg-violet-500/25 shrink-0"><Plus size={12} /> Add</button>}
       </div>
       {adding && (
         <div className={`${card} p-5 space-y-3 border-violet-500/20`}>
@@ -542,10 +650,18 @@ export const RosterTab: React.FC = () => {
             {form.dept === 'CAST' && <input className={inputCls} placeholder="Character name" value={form.character} onChange={e => setForm(f => ({ ...f, character: e.target.value }))} />}
           </div>
           <div className="grid grid-cols-2 gap-3">
+            <select className={inputCls} value={form.roleKey} onChange={e => setForm(f => ({ ...f, roleKey: e.target.value as ProductionRoleKey }))} disabled={!isOwner}>
+              {FP.PRODUCTION_ROLE_TEMPLATES.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
+            </select>
+            <input className={inputCls} placeholder="Plajah user ID (enables access)" value={form.linkedUid} onChange={e => setForm(f => ({ ...f, linkedUid: e.target.value }))} disabled={!isOwner} />
+          </div>
+          <p className="text-[10px] text-white/35">{FP.PRODUCTION_ROLE_TEMPLATES.find(r => r.key === form.roleKey)?.description} Only the production owner can grant authority.</p>
+          <div className="grid grid-cols-2 gap-3">
             <input className={inputCls} placeholder="Email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
             <input className={inputCls} placeholder="Phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
           </div>
           <input className={inputCls} placeholder="Dietary flags (comma-separated: vegan, nut-allergy…)" value={form.dietary} onChange={e => setForm(f => ({ ...f, dietary: e.target.value }))} />
+          {authorityError && <p className="text-[10px] text-red-400">{authorityError}</p>}
           <div className="flex gap-3">
             <button onClick={save} className="flex-1 py-2.5 rounded-xl bg-violet-500 text-white text-xs font-black uppercase tracking-widest hover:bg-violet-400">Add to Roster</button>
             <button onClick={() => setAdding(false)} className="px-5 py-2.5 rounded-xl bg-white/5 text-white/40 text-xs font-black uppercase tracking-widest hover:bg-white/10">Cancel</button>
@@ -569,7 +685,7 @@ export const RosterTab: React.FC = () => {
                 {m.dietary && m.dietary.length > 0 && (
                   <div className="flex gap-1 flex-wrap justify-end">{m.dietary.map(dt => <span key={dt} className="text-[8px] font-black px-1.5 py-0.5 rounded bg-teal-500/15 text-teal-300">{dt}</span>)}</div>
                 )}
-                <button onClick={() => prod && FP.removeMember(prod.id, m.id)} className="text-white/20 hover:text-red-400 shrink-0"><X size={13} /></button>
+                {can('MANAGE_ROSTER') && (!m.uid || isOwner) && <button onClick={() => removeRosterMember(m)} className="text-white/20 hover:text-red-400 shrink-0"><X size={13} /></button>}
               </div>
             ))}
           </div>
@@ -700,7 +816,8 @@ const CAT_META: Record<FP.CraftCategory, { label: string; icon: React.ReactNode 
 };
 
 export const CraftServicesTab: React.FC = () => {
-  const { prod, menu, orders, members, me, isOwner } = useProd();
+  const { prod, menu, orders, members, me, can } = useProd();
+  const canManage = can('MANAGE_CRAFT');
   const [tab, setTab] = useState<'order' | 'queue' | 'manage'>('order');
   const [addingItem, setAddingItem] = useState(false);
   const [itemForm, setItemForm] = useState({ name: '', category: 'SNACK' as FP.CraftCategory, desc: '', dietaryTags: '' });
@@ -770,8 +887,8 @@ export const CraftServicesTab: React.FC = () => {
                 <p className="text-[10px] text-white/40">{o.requestedByName}{o.dept ? ` · ${deptMeta(o.dept).label}` : ''}{o.dietary && o.dietary.length ? ` · ⚠ ${o.dietary.join(', ')}` : ''}</p>
               </div>
               <span className={`text-[9px] font-black px-2 py-1 rounded-full ${ORDER_FLOW[o.status].color}`}>{ORDER_FLOW[o.status].label}</span>
-              {isOwner && ORDER_FLOW[o.status].next && <button onClick={() => advance(o)} className="px-3 py-1.5 rounded-lg bg-white/5 text-white/60 text-[9px] font-black uppercase tracking-widest hover:bg-white/10">→ {ORDER_FLOW[ORDER_FLOW[o.status].next!].label}</button>}
-              {isOwner && <button onClick={() => cancel(o)} className="text-white/20 hover:text-red-400"><X size={13} /></button>}
+              {canManage && ORDER_FLOW[o.status].next && <button onClick={() => advance(o)} className="px-3 py-1.5 rounded-lg bg-white/5 text-white/60 text-[9px] font-black uppercase tracking-widest hover:bg-white/10">→ {ORDER_FLOW[ORDER_FLOW[o.status].next!].label}</button>}
+              {canManage && <button onClick={() => cancel(o)} className="text-white/20 hover:text-red-400"><X size={13} /></button>}
             </div>
           ))}
         </div>
@@ -786,7 +903,7 @@ export const CraftServicesTab: React.FC = () => {
               <div className="flex flex-wrap gap-2">{Object.entries(dietaryManifest).map(([d, n]) => <span key={d} className="px-3 py-1.5 rounded-xl bg-teal-500/15 text-teal-300 text-[11px] font-black">{n}× {d}</span>)}</div>
             )}
           </div>
-          {isOwner && (
+          {canManage && (
             <div className={`${card} p-5 space-y-3`}>
               <div className="flex items-center justify-between">
                 <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Menu Items</p>
@@ -929,7 +1046,8 @@ const STATUS_STYLE: Record<SceneShootStatus, string> = {
 };
 
 const DprView: React.FC<{ cs: CallSheet }> = ({ cs }) => {
-  const { prod, dprs, scenes, isOwner, me } = useProd();
+  const { prod, dprs, scenes, can, me } = useProd();
+  const canManage = can('MANAGE_REPORTS');
   const existing = dprs.find(d => d.callSheetId === cs.id) || dprs.find(d => d.shootDay === cs.shootDay) || null;
 
   const generate = () => { if (prod) FP.putDpr(prod.id, generateDPR(prod, cs, me?.name)); };
@@ -940,13 +1058,13 @@ const DprView: React.FC<{ cs: CallSheet }> = ({ cs }) => {
         <ClipboardList size={26} className="text-white/20 mx-auto mb-3" />
         <p className="text-sm font-black text-white/60 mb-1">No report for Day {cs.shootDay}</p>
         <p className="text-xs text-white/30 mb-5 max-w-sm mx-auto">Generate the Daily Production Report from this call sheet — scenes, cast, and scheduled times are prefilled; you fill in the day's actuals.</p>
-        {isOwner
+        {canManage
           ? <button onClick={generate} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-500 text-white text-xs font-black uppercase tracking-widest hover:bg-violet-400"><Wand2 size={14} /> Generate DPR</button>
           : <p className="text-[11px] text-white/30">The production office generates the report.</p>}
       </div>
     );
   }
-  return <DprEditor key={existing.id} dpr={existing} cs={cs} allDprs={dprs} totalScenes={scenes.length} totalPages={scenes.reduce((s, x) => s + x.pages, 0)} editable={isOwner} />;
+  return <DprEditor key={existing.id} dpr={existing} cs={cs} allDprs={dprs} totalScenes={scenes.length} totalPages={scenes.reduce((s, x) => s + x.pages, 0)} editable={canManage} />;
 };
 
 const DprEditor: React.FC<{ dpr: DailyProductionReport; cs: CallSheet; allDprs: DailyProductionReport[]; totalScenes: number; totalPages: number; editable: boolean }> = ({ dpr, cs, allDprs, totalScenes, totalPages, editable }) => {

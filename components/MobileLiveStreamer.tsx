@@ -633,7 +633,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
         // current lens, so a look applies to exactly what's on screen.
         const rtcCam = rtc.localStream?.getVideoTracks()[0];
         adoptedFacing = rtcCam?.getSettings?.().facingMode as string | undefined;
-        if (rtcCam && rtcCam.readyState === 'live') comp.adoptFrontTrack(rtcCam);
+        if (rtcCam && rtcCam.readyState === 'live') await comp.adoptFrontTrack(rtcCam);
         const track = comp.getStream().getVideoTracks()[0];
         await rtc.publishExternalVideo(track);
         composerPublishedRef.current = true;
@@ -882,11 +882,9 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
         const curId = comp.getFrontTrack()?.getSettings?.().deviceId;
         const { stream, mirror: m } = await rtc.nextCameraStream(curId);
         const track = stream.getVideoTracks()[0];
-        if (track) {
-          comp.adoptFrontTrack(track);
-          try { await comp.setMode('front'); } catch { /* keep drawing the adopted track */ }
-          setCamMode('front');
-        }
+        if (track) await comp.adoptFrontTrack(track);
+        // adoptFrontTrack deliberately preserves the active composer mode. In particular,
+        // switching lenses must not turn VTuber off or detach its tracker from the camera.
         setMirror(m);
       } else {
         // No composer yet → swap the raw published camera track directly (reliable deviceId cycle).
@@ -902,20 +900,15 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     }
   };
 
-  /** Re-adopt the live camera into the composer after a raw device swap, so a device change from
-   *  the picker doesn't silently drop the active FX/look (the "FX ✓" pill kept lying otherwise). */
-  const reAdoptComposer = async () => {
-    const comp = composerRef.current;
-    if (!composerPublishedRef.current || !comp) return;
-    const t = rtc.localStream?.getVideoTracks()[0];
-    if (t && t.readyState === 'live') {
-      comp.adoptFrontTrack(t);
-      try { await rtc.publishExternalVideo(comp.getStream().getVideoTracks()[0]); } catch { /* */ }
-    }
-  };
   const pickCameraDevice = async (deviceId: string) => {
-    await rtc.switchVideoDevice(deviceId);
-    await reAdoptComposer();      // preserve looks/FX across a specific-camera pick
+    const comp = composerRef.current;
+    if (composerPublishedRef.current && comp) {
+      const stream = await rtc.cameraStreamForDevice(deviceId);
+      const track = stream.getVideoTracks()[0];
+      if (track) await comp.adoptFrontTrack(track);
+    } else {
+      await rtc.switchVideoDevice(deviceId);
+    }
     setDeviceMenu('none');
   };
   // Live viewer count / peak ← backbone participants; mirrored to the streams doc

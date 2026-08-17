@@ -210,7 +210,7 @@ const PlajahPlusButton: React.FC<PlajahPlusButtonProps> = ({
           {isOwnProfile ? (
             <button
               onClick={() => setShowModal(true)}
-              className="inline-flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-[#D40055] via-[#6B0099] to-[#FF8C00] rounded-full text-[10px] font-black uppercase tracking-widest text-white hover:scale-105 transition-all shadow-lg"
+              className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#D40055] via-[#6B0099] to-[#FF8C00] px-4 text-[10px] font-black uppercase tracking-widest text-white shadow-lg transition-all hover:scale-[1.02] active:scale-95"
             >
               <Settings size={12} />
               Manage Plajah+
@@ -219,7 +219,7 @@ const PlajahPlusButton: React.FC<PlajahPlusButtonProps> = ({
             <button
               onClick={handleManageBilling}
               disabled={loading}
-              className="inline-flex items-center gap-2 px-5 py-2 bg-white/10 border border-white/20 rounded-full text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/15 transition-all"
+              className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-white/15"
             >
               <Check size={12} className="text-green-400" />
               Subscribed
@@ -228,11 +228,11 @@ const PlajahPlusButton: React.FC<PlajahPlusButtonProps> = ({
           ) : (
             <button
               onClick={handleOpenLanding}
-              className="group inline-flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-[#D40055] to-[#FF8C00] rounded-full text-[10px] font-black uppercase tracking-widest text-white hover:scale-105 transition-all shadow-lg shadow-[#D40055]/20"
+              className="group inline-flex h-[42px] items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#D40055] to-[#FF8C00] px-4 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-[#D40055]/20 transition-all hover:scale-[1.02] active:scale-95"
             >
               <Zap size={12} />
               Plajah+
-              <span className="opacity-60 group-hover:opacity-100 transition-opacity">Subscribe</span>
+              <span className="opacity-60 transition-opacity group-hover:opacity-100">Subscribe</span>
             </button>
           )}
 

@@ -20,9 +20,14 @@
 
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
-  onSnapshot, query, where, serverTimestamp,
+  onSnapshot, query, where, serverTimestamp, runTransaction, writeBatch,
 } from 'firebase/firestore';
 import { db, auth } from './backendService';
+import type { ScriptData } from '../types';
+import {
+  makeScriptDraft, projectScriptScenes, reconcileSceneProjection,
+  type ScriptDraft, type WorkflowEvent,
+} from './productionGraph';
 
 // ─── Departments — the atom that drives per-role briefs ──────────────────────
 
@@ -69,6 +74,59 @@ export const deptMeta = (k: DeptKey): DeptMeta => DEPARTMENTS.find(d => d.key ==
 
 export type MemberStatus = 'ACTIVE' | 'PENDING' | 'ON_HOLD' | 'WRAPPED';
 
+export type ProductionPermission =
+  | 'MANAGE_ROSTER' | 'MANAGE_HIRING' | 'EDIT_SCRIPT_BREAKDOWN' | 'MANAGE_SCHEDULE'
+  | 'MANAGE_CALL_SHEETS' | 'MANAGE_TASKS' | 'MANAGE_CRAFT'
+  | 'MANAGE_REPORTS' | 'MANAGE_BUDGET' | 'MANAGE_LOCATIONS'
+  | 'MANAGE_POST' | 'VIEW_SENSITIVE_CONTACTS';
+
+export type ProductionRoleKey =
+  | 'EXECUTIVE_PRODUCER' | 'PRODUCER' | 'DIRECTOR' | 'FIRST_AD'
+  | 'SCRIPT_SUPERVISOR' | 'DEPARTMENT_HEAD' | 'CREW' | 'CAST' | 'VIEWER';
+
+export interface ProductionAuthority {
+  roleKey: ProductionRoleKey;
+  position: string;
+  department?: DeptKey;
+  permissions: ProductionPermission[];
+  assignedBy: string;
+  assignedAt: number;
+}
+
+export const ALL_PRODUCTION_PERMISSIONS: ProductionPermission[] = [
+  'MANAGE_ROSTER', 'MANAGE_HIRING', 'EDIT_SCRIPT_BREAKDOWN', 'MANAGE_SCHEDULE',
+  'MANAGE_CALL_SHEETS', 'MANAGE_TASKS', 'MANAGE_CRAFT',
+  'MANAGE_REPORTS', 'MANAGE_BUDGET', 'MANAGE_LOCATIONS',
+  'MANAGE_POST', 'VIEW_SENSITIVE_CONTACTS',
+];
+
+export const PRODUCTION_ROLE_TEMPLATES: Array<{
+  key: ProductionRoleKey; label: string; description: string; permissions: ProductionPermission[];
+}> = [
+  { key: 'EXECUTIVE_PRODUCER', label: 'Executive Producer', description: 'Full operational authority except ownership transfer.', permissions: [...ALL_PRODUCTION_PERMISSIONS] },
+  { key: 'PRODUCER', label: 'Producer', description: 'Runs people, hiring, schedule, budget, locations, call sheets, tasks, and reports.', permissions: ['MANAGE_ROSTER', 'MANAGE_HIRING', 'MANAGE_SCHEDULE', 'MANAGE_CALL_SHEETS', 'MANAGE_TASKS', 'MANAGE_REPORTS', 'MANAGE_BUDGET', 'MANAGE_LOCATIONS', 'VIEW_SENSITIVE_CONTACTS'] },
+  { key: 'DIRECTOR', label: 'Director', description: 'Controls creative breakdown, schedule input, reports, and post handoff.', permissions: ['EDIT_SCRIPT_BREAKDOWN', 'MANAGE_SCHEDULE', 'MANAGE_TASKS', 'MANAGE_REPORTS', 'MANAGE_POST'] },
+  { key: 'FIRST_AD', label: '1st Assistant Director', description: 'Controls crew staffing, breakdown, schedule, call sheets, tasks, and daily reports.', permissions: ['MANAGE_HIRING', 'EDIT_SCRIPT_BREAKDOWN', 'MANAGE_SCHEDULE', 'MANAGE_CALL_SHEETS', 'MANAGE_TASKS', 'MANAGE_REPORTS', 'VIEW_SENSITIVE_CONTACTS'] },
+  { key: 'SCRIPT_SUPERVISOR', label: 'Script Supervisor', description: 'Maintains breakdown, continuity, sides, and production reports.', permissions: ['EDIT_SCRIPT_BREAKDOWN', 'MANAGE_REPORTS'] },
+  { key: 'DEPARTMENT_HEAD', label: 'Department Head', description: 'Runs department tasks and reports without changing production-wide authority.', permissions: ['MANAGE_TASKS', 'MANAGE_REPORTS'] },
+  { key: 'CREW', label: 'Crew', description: 'Receives briefs and completes assigned work.', permissions: [] },
+  { key: 'CAST', label: 'Cast', description: 'Receives personal calls, sides, and approved production information.', permissions: [] },
+  { key: 'VIEWER', label: 'Viewer / Offsite Producer', description: 'Read-only production access.', permissions: [] },
+];
+
+export function permissionsForRole(roleKey: ProductionRoleKey): ProductionPermission[] {
+  return [...(PRODUCTION_ROLE_TEMPLATES.find(r => r.key === roleKey)?.permissions || [])];
+}
+
+export function hasProductionPermission(
+  prod: Pick<Production, 'ownerUid' | 'authority'> | null | undefined,
+  uid: string | null | undefined,
+  permission: ProductionPermission,
+): boolean {
+  if (!prod || !uid) return false;
+  return prod.ownerUid === uid || !!prod.authority?.[uid]?.permissions?.includes(permission);
+}
+
 export interface ProductionMember {
   id: string;
   uid?: string;              // linked Plajah account → unlocks their personal brief + confirmations
@@ -81,7 +139,10 @@ export interface ProductionMember {
   character?: string;        // for cast
   dietary?: string[];        // persistent, travels with the person
   dietaryNotes?: string;
+  rate?: string;
+  notes?: string;
   status: MemberStatus;
+  roleKey?: ProductionRoleKey;
   createdAt: number;
 }
 
@@ -96,6 +157,32 @@ export interface ProductionScene {
   pages: number;             // eighths as decimal (e.g. 1.5 = 1 4/8)
   shootDay: number;
   status: 'NOT_SHOT' | 'SHOT' | 'PARTIAL' | 'OMIT';
+  notes?: string;
+  locationId?: string;
+  sourceScriptId?: string;
+  sourceDraftId?: string;
+  sourceElementId?: string;
+  heading?: string;
+  order?: number;
+  projectionVersion?: number;
+}
+
+export interface ProductionBudgetLine {
+  id: string; department: string; lineItem: string;
+  estimated: number; actual: number; notes: string; createdAt: number; updatedAt?: number;
+}
+
+export interface ProductionLocation {
+  id: string; name: string; type: 'INT' | 'EXT' | 'BOTH';
+  address: string; city: string; contactName: string; contactPhone: string;
+  permitStatus: 'SCOUTED' | 'PENDING' | 'APPROVED' | 'DENIED' | 'WRAPPED';
+  rentalFee: number; notes: string; createdAt: number; updatedAt?: number;
+}
+
+export interface ProductionFestival {
+  id: string; festival: string; tier: 'A' | 'B' | 'C' | 'D'; deadline: number; fee: number;
+  status: 'PLANNING' | 'SUBMITTED' | 'OFFICIAL_SELECTION' | 'REJECTED' | 'WINNER' | 'WITHDRAWN';
+  category: string; notes: string; createdAt: number; updatedAt?: number;
 }
 
 export interface CallSheetDeptCall { dept: DeptKey; callTime: string; note?: string; }
@@ -193,13 +280,18 @@ export interface Production {
   title: string;
   format?: string;             // "Feature" | "Short" | "Series" | "Commercial"
   memberUids: string[];        // denormalized for rules + "productions I'm in" queries
+  authority?: Record<string, ProductionAuthority>; // uid -> server-enforced role and scopes
   totalDays: number;
   productionOffice?: string;
   emergencyContact?: string;
   timezone?: string;
   lat?: number;
   lng?: number;
-  linkedScriptId?: string;     // optional Lorea screenplay → real sides
+  linkedScriptId?: string;
+  currentDraftId?: string;
+  status?: 'ACTIVE' | 'ARCHIVED';
+  sampleAppliedAt?: number;
+  legacyImportedAt?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -537,6 +629,25 @@ const sub = (prodId: string, name: string) => collection(db, 'productions', prod
 /** The signed-in user's default production id. One primary production per user for v1. */
 export function defaultProductionId(uid: string) { return `film_${uid}`; }
 
+export async function createProduction(uid: string, title = 'Untitled Production', format = 'Feature'): Promise<Production> {
+  if (!uid) throw new Error('Sign in to create a production.');
+  const now = Date.now();
+  const id = `prod_${uid8()}`;
+  const prod: Production = {
+    id, ownerUid: uid, title: title.trim() || 'Untitled Production', format,
+    memberUids: [uid], totalDays: 1, status: 'ACTIVE',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    createdAt: now, updatedAt: now,
+  };
+  await setDoc(prodRef(id), stripUndefined(prod));
+  await putMember(id, {
+    id: uid, uid, name: auth.currentUser?.displayName || 'Production Owner',
+    role: 'Executive Producer', dept: 'PRODUCTION', status: 'ACTIVE',
+    roleKey: 'EXECUTIVE_PRODUCER', createdAt: now,
+  });
+  return prod;
+}
+
 export async function fetchProduction(prodId: string): Promise<Production | null> {
   try {
     const snap = await getDoc(prodRef(prodId));
@@ -561,13 +672,99 @@ export async function updateProduction(prodId: string, patch: Partial<Production
   try { await updateDoc(prodRef(prodId), stripUndefined({ ...patch, updatedAt: Date.now() })); } catch {}
 }
 
+/** Owner-only authority assignment. The parent production map is the rules source of truth. */
+export async function assignProductionAuthority(
+  prodId: string,
+  member: ProductionMember,
+  roleKey: ProductionRoleKey,
+  permissions: ProductionPermission[] = permissionsForRole(roleKey),
+): Promise<void> {
+  if (!member.uid) throw new Error('A linked Plajah user ID is required before authority can be assigned.');
+  const memberUid = member.uid;
+  const actorUid = currentUid();
+  if (!actorUid) throw new Error('Sign in to assign production authority.');
+  const cleanPermissions = [...new Set(permissions)].filter(p => ALL_PRODUCTION_PERMISSIONS.includes(p));
+  await runTransaction(db, async tx => {
+    const pRef = prodRef(prodId);
+    const snap = await tx.get(pRef);
+    if (!snap.exists()) throw new Error('Production not found.');
+    const production = snap.data() as Production;
+    if (production.ownerUid !== actorUid) throw new Error('Only the production owner can assign authority.');
+    const authority: Record<string, ProductionAuthority> = { ...(production.authority || {}) };
+    authority[memberUid] = {
+      roleKey, position: member.role, department: member.dept,
+      permissions: cleanPermissions, assignedBy: actorUid, assignedAt: Date.now(),
+    };
+    tx.update(pRef, { authority, memberUids: [...new Set([...(production.memberUids || []), memberUid])], updatedAt: Date.now() });
+    tx.set(doc(db, 'productions', prodId, 'members', member.id), stripUndefined({ ...member, roleKey }), { merge: true });
+  });
+}
+
+export async function revokeProductionAuthority(prodId: string, member: ProductionMember): Promise<void> {
+  if (!member.uid) return;
+  const memberUid = member.uid;
+  const actorUid = currentUid();
+  if (!actorUid) throw new Error('Sign in to change production authority.');
+  await runTransaction(db, async tx => {
+    const pRef = prodRef(prodId);
+    const snap = await tx.get(pRef);
+    if (!snap.exists()) throw new Error('Production not found.');
+    const production = snap.data() as Production;
+    if (production.ownerUid !== actorUid) throw new Error('Only the production owner can revoke authority.');
+    const authority = { ...(production.authority || {}) };
+    delete authority[memberUid];
+    tx.update(pRef, { authority, memberUids: (production.memberUids || []).filter(x => x !== memberUid), updatedAt: Date.now() });
+    tx.update(doc(db, 'productions', prodId, 'members', member.id), { roleKey: 'VIEWER', updatedAt: Date.now() });
+  });
+}
+
 /** Productions the user is a crew member on (besides their own). */
 export async function fetchMyProductions(uid: string): Promise<Production[]> {
   try {
     const q = query(collection(db, 'productions'), where('memberUids', 'array-contains', uid));
     const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as Production);
+    return snap.docs.map(d => d.data() as Production)
+      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   } catch { return []; }
+}
+
+export async function archiveProduction(prodId: string): Promise<void> {
+  await updateDoc(prodRef(prodId), { status: 'ARCHIVED', updatedAt: Date.now() });
+}
+
+export async function greenlightScriptToProduction(
+  prodId: string,
+  script: ScriptData,
+  actorUid: string,
+): Promise<{ draft: ScriptDraft; scenes: ProductionScene[] }> {
+  if (!actorUid) throw new Error('Sign in to greenlight a script.');
+  const production = await fetchProduction(prodId);
+  if (!production) throw new Error('Production not found.');
+  if (!hasProductionPermission(production, actorUid, 'EDIT_SCRIPT_BREAKDOWN')) {
+    throw new Error('Your production role cannot greenlight or revise the script.');
+  }
+  const existingSnap = await getDocs(sub(prodId, 'scenes'));
+  const existing = existingSnap.docs.map(d => d.data() as ProductionScene);
+  const now = Date.now();
+  const draft = makeScriptDraft(prodId, script, actorUid, now);
+  const projected = projectScriptScenes({ scriptId: script.id, draftId: draft.id, elements: script.elements });
+  const scenes = reconcileSceneProjection(projected, existing);
+  const event: WorkflowEvent = {
+    id: `evt_${uid8()}`, productionId: prodId,
+    type: production.currentDraftId ? 'SCRIPT_REVISED' : 'SCRIPT_GREENLIT',
+    actorUid, entityType: 'scriptDraft', entityId: draft.id,
+    summary: `${draft.title} ${production.currentDraftId ? 'revision approved' : 'greenlit for production'}`,
+    data: { scriptId: script.id, sceneCount: scenes.length }, createdAt: now,
+  };
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'productions', prodId, 'scriptDrafts', draft.id), stripUndefined(draft));
+  scenes.forEach(scene => batch.set(doc(db, 'productions', prodId, 'scenes', scene.id), stripUndefined(scene), { merge: true }));
+  batch.set(doc(db, 'productions', prodId, 'workflowEvents', event.id), stripUndefined(event));
+  batch.update(prodRef(prodId), {
+    linkedScriptId: script.id, currentDraftId: draft.id, updatedAt: now,
+  });
+  await batch.commit();
+  return { draft, scenes };
 }
 
 // Generic subcollection helpers
@@ -597,7 +794,20 @@ export const removeMember = (p: string, id: string) => remove(p, 'members', id);
 // Scenes
 export const subScenes = (p: string, cb: (r: ProductionScene[]) => void) => subscribe<ProductionScene>(p, 'scenes', cb);
 export const putScene = (p: string, s: ProductionScene) => put(p, 'scenes', s);
+export const patchScene = (p: string, id: string, x: Partial<ProductionScene>) => patch(p, 'scenes', id, x);
 export const removeScene = (p: string, id: string) => remove(p, 'scenes', id);
+
+// Shared planning records used by Artist Manager and the on-set suite.
+export const subBudgetLines = (p: string, cb: (r: ProductionBudgetLine[]) => void) => subscribe<ProductionBudgetLine>(p, 'budgetLines', cb);
+export const putBudgetLine = (p: string, row: ProductionBudgetLine) => put(p, 'budgetLines', row);
+export const removeBudgetLine = (p: string, id: string) => remove(p, 'budgetLines', id);
+export const subLocations = (p: string, cb: (r: ProductionLocation[]) => void) => subscribe<ProductionLocation>(p, 'locations', cb);
+export const putLocation = (p: string, row: ProductionLocation) => put(p, 'locations', row);
+export const removeLocation = (p: string, id: string) => remove(p, 'locations', id);
+export const subFestivals = (p: string, cb: (r: ProductionFestival[]) => void) => subscribe<ProductionFestival>(p, 'festivals', cb);
+export const putFestival = (p: string, row: ProductionFestival) => put(p, 'festivals', row);
+export const removeFestival = (p: string, id: string) => remove(p, 'festivals', id);
+export const subWorkflowEvents = (p: string, cb: (r: WorkflowEvent[]) => void) => subscribe<WorkflowEvent>(p, 'workflowEvents', cb);
 
 // Call sheets
 export const subCallSheets = (p: string, cb: (r: CallSheet[]) => void) => subscribe<CallSheet>(p, 'callsheets', cb);
@@ -701,4 +911,23 @@ export function demoCraftMenu(): CraftItem[] {
     c('Electrolyte Water', 'DRINK', 'Cold, restocked hourly', ['vegan', 'gluten-free']),
     c('Gluten-Free Snack Box', 'SPECIAL', 'Certified GF', ['gluten-free']),
   ];
+}
+
+/** Optional starter data, installed only after the owner explicitly chooses it. */
+export async function applySampleProduction(prodId: string, actorUid: string): Promise<void> {
+  const production = await fetchProduction(prodId);
+  if (!production || production.ownerUid !== actorUid) throw new Error('Only the production owner can apply the sample template.');
+  if (production.sampleAppliedAt) throw new Error('The sample template is already installed.');
+  const now = Date.now();
+  const batch = writeBatch(db);
+  demoMembers().forEach(row => batch.set(doc(db, 'productions', prodId, 'members', row.id), stripUndefined(row)));
+  demoScenes().forEach(row => batch.set(doc(db, 'productions', prodId, 'scenes', row.id), stripUndefined(row)));
+  demoCraftMenu().forEach(row => batch.set(doc(db, 'productions', prodId, 'craftMenu', row.id), stripUndefined(row)));
+  const event: WorkflowEvent = {
+    id: `evt_${uid8()}`, productionId: prodId, type: 'SAMPLE_APPLIED', actorUid,
+    entityType: 'production', entityId: prodId, summary: 'Sample production template applied', createdAt: now,
+  };
+  batch.set(doc(db, 'productions', prodId, 'workflowEvents', event.id), event);
+  batch.update(prodRef(prodId), { sampleAppliedAt: now, updatedAt: now });
+  await batch.commit();
 }

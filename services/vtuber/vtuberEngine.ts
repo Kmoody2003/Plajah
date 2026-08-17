@@ -31,6 +31,16 @@ export interface VTuberOptions {
   onStatus?: (s: string) => void;
 }
 
+function androidDevice(): boolean {
+  return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+}
+
+function outputFps(opts: VTuberOptions, fallback: number): number {
+  // Android's sustained thermal envelope matters more than a nominal 30/60-fps selector.
+  // The avatar remains smooth through easing while camera inference/rendering stays bounded.
+  return Math.max(12, Math.min(androidDevice() ? 24 : 30, opts.fps ?? fallback));
+}
+
 export interface VTuberHandle {
   canvas: HTMLCanvasElement;            // composited output (for the switcher to drawImage)
   stream: MediaStream;                  // captureStream of the output (for live/WebRTC)
@@ -108,11 +118,17 @@ async function createBodyStream(input: MediaStream, opts: VTuberOptions): Promis
   let locked = false;
   let lastDetect = -1e9, detectMs = 22; // pose inference is heavier than face
   let lastRender = 0;
+  const fps = outputFps(opts, 24);
+  const frameInterval = 1000 / fps;
+  let hidden = typeof document !== 'undefined' && document.hidden;
+  const onVisibility = () => { hidden = document.hidden; };
+  document.addEventListener('visibilitychange', onVisibility);
   let raf = 0;
   const loop = () => {
     raf = requestAnimationFrame(loop);
+    if (hidden) return;
     const t = performance.now();
-    if (t - lastRender < 31) return; // ~30fps cap — the output is 24fps; per-RAF is wasted heat
+    if (t - lastRender < frameInterval) return;
     lastRender = t;
     if (tracker.isReady && video.readyState >= 2 && (t - lastDetect) >= detectMs * 0.85) {
       const ts = Math.max(lastTs + 1, Math.round(t));
@@ -132,7 +148,7 @@ async function createBodyStream(input: MediaStream, opts: VTuberOptions): Promis
   };
   loop();
 
-  const stream = out.captureStream(opts.fps ?? 24);
+  const stream = out.captureStream(fps);
   input.getAudioTracks().forEach(tr => { try { stream.addTrack(tr); } catch { /* */ } });
 
   return {
@@ -144,7 +160,9 @@ async function createBodyStream(input: MediaStream, opts: VTuberOptions): Promis
     getStatus: () => status,
     dispose: () => {
       cancelAnimationFrame(raf);
+      document.removeEventListener('visibilitychange', onVisibility);
       tracker.dispose();
+      stream.getVideoTracks().forEach(track => track.stop());
       try { (video as any).srcObject = null; } catch { /* */ }
     },
   };
@@ -234,12 +252,21 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
   // the render loop (saves battery + keeps the puppet fluid). Fast devices detect near 1:1.
   let lastDetect = -1e9, detectMs = 16;
   let lastRender = 0;
+  const fps = outputFps(opts, 24);
+  const frameInterval = 1000 / fps;
+  // Face inference is the dominant sustained cost. On Android, 15 detections/sec plus
+  // per-frame interpolation is materially cooler while retaining a fluid 24-fps avatar.
+  const detectionInterval = androidDevice() ? 1000 / 15 : 1000 / 30;
+  let hidden = typeof document !== 'undefined' && document.hidden;
+  const onVisibility = () => { hidden = document.hidden; };
+  document.addEventListener('visibilitychange', onVisibility);
   let raf = 0;
   const loop = () => {
     raf = requestAnimationFrame(loop);
+    if (hidden) return;
     const t = performance.now();
-    if (t - lastRender < 31) return; // ~30fps cap — output is 24fps; per-RAF render is wasted heat
-    const dtMs = lastRender ? t - lastRender : 33;
+    if (t - lastRender < frameInterval) return;
+    const dtMs = lastRender ? t - lastRender : frameInterval;
     lastRender = t;
 
     const onFrame = (frame: import('./faceTracker').FaceFrame | null) => {
@@ -252,14 +279,14 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
     if (useWorker && video.readyState >= 2) {
       // Non-blocking. send() returns instantly and drops the frame if inference is still busy,
       // so the render loop runs at full rate no matter how slow the device's delegate is.
-      if ((t - lastDetect) >= Math.max(16, detectMs * 0.6)) {
+      if ((t - lastDetect) >= Math.max(detectionInterval, detectMs * 0.6)) {
         const ts = Math.max(lastTs + 1, Math.round(t)); // detectForVideo needs monotonic timestamps
         lastTs = ts;
         asyncTracker.send(feed.src(video), ts);
         lastDetect = t;
       }
       onFrame(asyncTracker.take()); // collect whatever finished since the last frame
-    } else if (tracker.isReady && video.readyState >= 2 && (t - lastDetect) >= Math.max(33, detectMs * 0.85)) {
+    } else if (tracker.isReady && video.readyState >= 2 && (t - lastDetect) >= Math.max(detectionInterval, detectMs * 0.85)) {
       // Fallback: synchronous inference on this thread. It stalls the compositor for the whole
       // of detection, so it is throttled to 30/sec to leave the renderer some budget — easeFace()
       // covers the gaps. Only reached where module workers or createImageBitmap are unavailable.
@@ -327,7 +354,7 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
   };
   loop();
 
-  const stream = out.captureStream(opts.fps ?? 30);
+  const stream = out.captureStream(fps);
   input.getAudioTracks().forEach(tr => { try { stream.addTrack(tr); } catch { /* */ } });
 
   return {
@@ -339,12 +366,14 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
     getStatus: () => status,
     dispose: () => {
       cancelAnimationFrame(raf);
+      document.removeEventListener('visibilitychange', onVisibility);
       tracker.dispose();
       // Terminate the worker too — an orphaned one holds the WASM runtime and the loaded model
       // alive for the life of the tab, which is tens of MB per abandoned session.
       asyncTracker.dispose();
       rig?.dispose();
       puppet?.dispose();
+      stream.getVideoTracks().forEach(track => track.stop());
       try { (video as any).srcObject = null; } catch { /* */ }
     },
   };

@@ -4,6 +4,7 @@ import Logo from './components/Logo';
 import { motion, AnimatePresence } from 'motion/react';
 import { recoverFromStaleChunk } from './src/lib/staleChunk';
 import { startClockAutoSync } from './services/platformClock';
+import { resolvePostLoginDefaultView } from './services/postLoginRouting';
 
 // Suppress Firestore SDK internal assertion errors that occur during onSnapshot teardown.
 // This is a known Firestore SDK bug (ID: b815/ca9) where the watch stream delivers
@@ -146,6 +147,7 @@ import StoreDemoView from './components/StoreDemoView';
 import { DEMO_SANCTUARY_ID, DEMO_STORE_ID, DEMO_STORE_PRODUCTS } from './data/demoShowcase';
 import PlajahAgent from './components/PlajahAgent';
 import AriaHalo from './components/aria/AriaHalo';
+import AriaMark from './components/aria/AriaMark';
 import { resolveAgentTier } from './services/agentService';
 
 import NebulaBackground from './components/NebulaBackground';
@@ -517,6 +519,7 @@ import { useNavLayout } from './hooks/useNavLayout';
 import { useShellNext } from './hooks/useShellNext';
 import CommandSplitNav from './components/CommandSplitNav';
 import CommandSplitBar from './components/CommandSplitBar';
+import CommandPlayer from './components/CommandPlayer';
 import { ChoraNavBar, NavLayoutSwitcher, type NavPage } from './components/ChoraCompactNav';
 
 const App: React.FC = () => {
@@ -738,6 +741,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [partyIdForReader, setPartyIdForReader] = useState<string | null>(null);
   const [partyIdForAlbum, setPartyIdForAlbum] = useState<string | null>(null);
   const [selectedScriptId, setSelectedScriptId] = useState<string | undefined>(undefined);
+
+  // A production invite is a direct enrollment route: after sign-in, open Film Staffing
+  // where the token is validated and accepted. Keep the token in the URL until acceptance.
+  useEffect(() => {
+    if (!user || !new URLSearchParams(window.location.search).get('productionInvite')) return;
+    localStorage.setItem('plajah_pm_discipline_v1', 'film');
+    setView('ARTIST_MANAGER');
+  }, [user]);
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [selectedPoolId, setSelectedPoolId] = useState<string | null>(null);
   const [selectedRadioArtistId, setSelectedRadioArtistId] = useState<string | undefined>(undefined);
@@ -912,7 +923,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   const tooltipsActive = userProfile?.tooltipsEnabled ?? isFirstWeek;
 
-  const { isShrunk, setIsShrunk, setView: setGlobalView, analyser, isPlaying, isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, currentTrack, currentAlbum, playTrack, pause, resume, next, prev, isMinimized, setIsMinimized, transportForced, setTransportForced, repeatMode, setRepeatMode, volume, setVolume, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, isSlideshowActive, setIsSlideshowActive, isMiniPlayerActive, setIsMiniPlayerActive, isThreeDEnabled, setIsThreeDEnabled, isSpatialAudioEnabled, setSpatialAudioEnabled, audioSource } = useGlobalPlayerState();
+  const { isShrunk, setIsShrunk, setView: setGlobalView, analyser, isPlaying, isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, currentTrack, currentAlbum, playTrack, pause, resume, next, prev, isMinimized, setIsMinimized, transportForced, setTransportForced, repeatMode, setRepeatMode, volume, setVolume, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, isSlideshowActive, setIsSlideshowActive, isMiniPlayerActive, setIsMiniPlayerActive, isThreeDEnabled, setIsThreeDEnabled, isSpatialAudioEnabled, setSpatialAudioEnabled, audioSource, isPhoneMode } = useGlobalPlayerState();
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
   // Persistent now-playing pill: tap → tracklist, swipe-up → extra-settings drawer.
   const nowPlayingTouchY = useRef<number | null>(null);
@@ -926,6 +937,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   useEffect(() => {
     if (isPublicView && view === 'PLAYER') { setIsNanoView(false); setIsNanoDocked(false); }
   }, [isPublicView, view, setIsNanoView, setIsNanoDocked]);
+
+  // Side-pillar collapse should not hide the player: the docked nano card drops to the
+  // bottom full-player state automatically so playback remains visible and accessible.
+  useEffect(() => {
+    if (!isPhoneMode && isSidebarCollapsed && !isPublicView && !navLayout.isBar) {
+      setIsNanoDocked(false);
+      setIsNanoView(false);
+      setIsMinimized(false);
+    }
+  }, [isPhoneMode, isSidebarCollapsed, isPublicView, navLayout.isBar, setIsNanoDocked, setIsNanoView, setIsMinimized]);
 
   // Horizontal-bar (Concept C) nav: the floating nano player fights the top bar and hides the
   // transport — keep the full global bottom bar instead. If the user tries to turn nano ON here,
@@ -1582,18 +1603,37 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       }
 
       if (u) {
-        // Immediately route away from LANDING — device-aware only (no profile yet)
+        // Immediately route away from LANDING — device-aware, with a dedicated
+        // profile landing for the enabled New UX shell. Otherwise new users end up
+        // on the dashboard and never see their own profile page after login.
         setViewInternal(prev => {
           if (prev === 'LANDING') {
             const ua = navigator.userAgent;
-            // TV first — the mobile regex below matches Android TVs, so testing it first
-            // silently sent every TV to the phone layout.
-            if (getPlatformInfo().isTV) { setTheme('BIG_SCREEN'); return getTvHome(); }
             const isMobileDevice =
               /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
               (ua.includes('Mac') && navigator.maxTouchPoints > 1) ||
               window.innerWidth < 768;
-            if (isMobileDevice) { setTheme('PHONE'); return 'MUSIC'; }
+            const nextView = resolvePostLoginDefaultView({
+              isTV: getPlatformInfo().isTV,
+              isMobileDevice,
+              shellNextEnabled: shellNext.enabled,
+            });
+
+            if (nextView === 'USER_PROFILE') {
+              setViewedUserId(u.uid);
+              setInitialProfileTab(undefined);
+              setTheme('PLAJAH');
+              return 'USER_PROFILE';
+            }
+
+            if (getPlatformInfo().isTV) {
+              setTheme('BIG_SCREEN');
+              return getTvHome();
+            }
+            if (isMobileDevice) {
+              setTheme('PHONE');
+              return 'MUSIC';
+            }
             return 'DASHBOARD';
           }
           return prev;
@@ -3063,7 +3103,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onNavigate={(id) => setView(id as AppView)}
                 hasUser={!!user}
                 displayName={user?.displayName || userProfile?.displayName || undefined}
-                avatarUrl={userProfile?.photoURL || undefined}
+                avatarUrl={user?.photoURL || userProfile?.photoURL || undefined}
+                accountSlot={linkedAccounts.find(a => a.uid === user?.uid)?.slot ?? null}
                 onCreate={() => setShowCreator(true)}
                 onOpenAccountSwitcher={() => setShowAccountSwitcher(true)}
                 onExitNew={() => shellNext.setEnabled(false)}
@@ -3096,7 +3137,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onNavigate={(v) => setView(v as any)}
                 hasUser={!!user}
                 displayName={user?.displayName || userProfile?.displayName || undefined}
-                avatarUrl={userProfile?.photoURL || undefined}
+                subtitle={user?.email || undefined}
+                avatarUrl={user?.photoURL || userProfile?.photoURL || undefined}
+                accountSlot={linkedAccounts.find(a => a.uid === user?.uid)?.slot ?? null}
+                linkedAccounts={linkedAccounts}
+                playerController={currentTrack && isNanoView ? (
+                  <CommandPlayer
+                    variant="nano"
+                    onOpenStage={() => currentAlbum ? handleGlobalNavigate('PLAYER', { album: currentAlbum }) : setView('MUSIC')}
+                    onOpenQueue={() => setView('MUSIC')}
+                    onExpandFromNano={() => { setIsNanoView(false); setIsNanoDocked(false); setIsMinimized(false); }}
+                  />
+                ) : undefined}
                 onCreate={() => setShowCreator(true)}
                 onOpenAccountSwitcher={() => setShowAccountSwitcher(true)}
                 onSignOut={() => { try { logout(); } catch { /* ignore */ } }}
@@ -5575,6 +5627,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
           <KidsSessionGuard profile={effectiveProfile} />
           {activeChildProfile && <KidsModeBar child={activeChildProfile} onExit={() => setActiveChildProfile(null)} />}
+          {shellNext.enabled && !isMobile && !getPlatformInfo().isTV && currentTrack && !isNanoView ? (
+            <div className="fixed inset-x-0 bottom-0 z-[240]">
+              <CommandPlayer
+                variant="full"
+                onOpenStage={() => currentAlbum ? handleGlobalNavigate('PLAYER', { album: currentAlbum }) : setView('MUSIC')}
+                onOpenQueue={() => setView('MUSIC')}
+                onMinimize={() => { setIsNanoView(true); setIsNanoDocked(true); setIsMinimized(true); }}
+              />
+            </div>
+          ) : shellNext.enabled && !isMobile && !getPlatformInfo().isTV && currentTrack && isNanoView ? null : (
           <GlobalPlayer
             onNavigate={handleGlobalNavigate}
             bottomOffset={(isMobile || theme === 'PHONE') ? "0px" : "0px"} 
@@ -5603,6 +5665,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             setUserProfile(prev => prev ? { ...prev, ...updates } : prev);
           }}
         />
+          )}
+
+        {!isMobile && !getPlatformInfo().isTV && (
+          <button
+            type="button"
+            aria-label="Open Aria"
+            title="Ask Aria"
+            onClick={() => setIsMuseOpen(true)}
+            className="fixed right-5 bottom-24 z-[260] flex items-center justify-center rounded-full border border-violet-400/40 bg-[#120b1f]/90 shadow-[0_20px_60px_rgba(99,102,241,0.45)] backdrop-blur-xl transition-all hover:scale-105 hover:border-violet-300 active:scale-95"
+            style={{ width: 58, height: 58 }}
+          >
+            <AriaMark size={26} petals={false} />
+          </button>
+        )}
 
          {/* Custom Delete Confirmation Modal */}
         {/* Not on TV: the floating chat widget is a 10-foot irrelevance, and worse, its focusable
@@ -5614,7 +5690,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             onSelectRoom={(roomId) => setSelectedChatRoomId(roomId)}
             userProfile={userProfile}
           />
-        )}
+          )}
 
         {/* ── Plajah Aria — private creative agent ── */}
         <AriaHalo

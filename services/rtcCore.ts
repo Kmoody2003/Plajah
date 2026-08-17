@@ -581,8 +581,22 @@ export class RtcSession {
 
   /** Switch the CAMERA to a specific device mid-call — hot track swap, no peer drop. */
   async switchVideoDevice(deviceId: string) {
-    const next = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ deviceId: { exact: deviceId } }) });
+    const next = await this.cameraStreamForDevice(deviceId);
     await this.swapVideoTrack(next.getVideoTracks()[0]);
+  }
+
+  /** Open a selected physical camera without changing the published track. Composer users
+   *  need this because their published track is a canvas; swapping it first would stop the
+   *  canvas and briefly discard the active look/VTuber mode. Caller owns the returned stream. */
+  async cameraStreamForDevice(deviceId: string): Promise<MediaStream> {
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ deviceId: { exact: deviceId } }) });
+    } catch {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ deviceId }) });
+    }
+    await tuneVideoTrack(stream.getVideoTracks()[0]);
+    return stream;
   }
 
   /** Switch the MICROPHONE to a specific device mid-call — hot track swap, no peer drop. */

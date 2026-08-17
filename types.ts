@@ -2294,6 +2294,10 @@ export interface JobPosting {
   postingType: 'JOB' | 'VOLUNTEER';
   title: string;
   roleKey?: string;              // maps to the org's template roleDefs (the role being filled)
+  productionId?: string;         // film staffing target; uses the same ATS without requiring an organization
+  productionTitle?: string;
+  productionDepartment?: string;
+  productionRoleKey?: string;
   description: string;
   location?: string;
   isRemote?: boolean;
@@ -2319,6 +2323,7 @@ export interface Application {
   id: string;
   jobId: string;
   orgId: string;
+  productionId?: string;
   applicantUid?: string;         // absent for anonymous volunteer signups
   applicantName: string;
   applicantEmail?: string;

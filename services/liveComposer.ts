@@ -186,6 +186,7 @@ export class LiveComposer {
   private greenScreen = false;
   private vtuber: VTuberHandle | null = null;
   private vtuberStarting = false;
+  private vtuberGeneration = 0;
 
   // Fun FX layer (emoji bursts + ambient effects), baked into the published output.
   private parts: FxParticle[] = [];
@@ -288,11 +289,11 @@ export class LiveComposer {
    *  effect next time 'vtuber' mode starts; if already in vtuber mode, restart it. */
   setAvatar(a: AvatarDescriptor | null) {
     this.avatar = a;
-    if (this.vtuber) { this.vtuber.dispose(); this.vtuber = null; }
+    if (this.vtuber || this.vtuberStarting) this.releaseVtuber();
   }
   setBodyAvatar(a: AvatarDescriptor | null) {
     this.bodyAvatar = a;
-    if (this.vtuberStyle === 'body' && this.vtuber) { this.vtuber.dispose(); this.vtuber = null; }
+    if (this.vtuberStyle === 'body' && (this.vtuber || this.vtuberStarting)) this.releaseVtuber();
   }
   hasAvatar() { return !!(this.avatar || this.bodyAvatar); }
   getVtuberStyle() { return this.vtuberStyle; }
@@ -315,6 +316,7 @@ export class LiveComposer {
     const desc = this.vtuberStyle === 'body' ? this.bodyAvatar : this.avatar;
     if (this.vtuber || this.vtuberStarting || !desc || !this.frontStream) return;
     this.vtuberStarting = true;
+    const generation = ++this.vtuberGeneration;
     try {
       // Lazy-load the VTuber engine (pulls in three.js) only when actually used.
       const { createVTuberStream } = await import('./vtuber/vtuberEngine');
@@ -325,13 +327,24 @@ export class LiveComposer {
       const background = this.greenScreen
         ? { type: 'color' as const, value: '#00b140' }
         : { type: 'transparent' as const };
-      this.vtuber = await createVTuberStream(this.frontStream, {
+      const handle = await createVTuberStream(this.frontStream, {
         avatar: desc, mode, width: 540, height: 960, fps: 24, background,
       });
-    } catch (e) { console.warn('[liveComposer] vtuber start failed:', e); this.vtuber = null; }
-    this.vtuberStarting = false;
+      // Camera/style changes can arrive while MediaPipe or a VRM is loading. Never let an
+      // obsolete async start replace the newer session or leave a hidden tracker running.
+      if (generation !== this.vtuberGeneration) handle.dispose();
+      else this.vtuber = handle;
+    } catch (e) {
+      console.warn('[liveComposer] vtuber start failed:', e);
+      if (generation === this.vtuberGeneration) this.vtuber = null;
+    }
+    if (generation === this.vtuberGeneration) this.vtuberStarting = false;
   }
-  private releaseVtuber() { if (this.vtuber) { this.vtuber.dispose(); this.vtuber = null; } }
+  private releaseVtuber() {
+    this.vtuberGeneration++;
+    this.vtuberStarting = false;
+    if (this.vtuber) { this.vtuber.dispose(); this.vtuber = null; }
+  }
 
   /** Parse + upload a .cube 3D LUT (LUT_3D_SIZE). Needs the WebGL grade path. */
   setCubeLut(text: string): boolean {
@@ -372,11 +385,18 @@ export class LiveComposer {
   /** Use an already-open camera track as the front source. Pass a CLONE — the composer
    *  owns it from here. Avoids a second getUserMedia on the same camera, which fails on
    *  some Android devices (double-capture). */
-  adoptFrontTrack(track: MediaStreamTrack) {
+  async adoptFrontTrack(track: MediaStreamTrack): Promise<void> {
+    // A VTuber handle owns a video element bound to the previous front stream. Replacing
+    // the camera without rebuilding that handle leaves tracking attached to a stopped track.
+    // Preserve the selected mode/look, but move tracking onto the new physical camera.
+    const restartVtuber = this.mode === 'vtuber';
+    if (restartVtuber) this.releaseVtuber();
     this.releaseFront();
     this.frontStream = new MediaStream([track]);
     this.frontEl.srcObject = this.frontStream;
-    this.frontEl.play().catch(() => {});
+    await this.frontEl.play().catch(() => {});
+    if (this.night) await this.setNightMode(true).catch(() => {});
+    if (restartVtuber) await this.ensureVtuber();
   }
   /** The composer's current front-slot video track (for picking the NEXT camera on a flip). */
   getFrontTrack(): MediaStreamTrack | null { return this.frontStream?.getVideoTracks()[0] ?? null; }

@@ -23,6 +23,8 @@ import type {
   ScriptData, ScriptElement, ScriptElementType,
   ScriptBeat, ScriptTitlePage, ScriptFormat, RevisionColor,
 } from '../types';
+import { Button, Surface, Eyebrow } from './ui';
+import { fetchMyProductions, greenlightScriptToProduction, type Production } from '../services/filmProductionService';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -218,6 +220,10 @@ export default function ScriptWritingStudio({
   const [showRight, setShowRight]     = useState(false);
   const [rightTab, setRightTab]       = useState<'PROPERTIES' | 'NOTES' | 'AI' | 'EXPORT'>('PROPERTIES');
   const [showTitlePage, setShowTitlePage] = useState(false);
+  const [greenlightProductions, setGreenlightProductions] = useState<Production[]>([]);
+  const [greenlightProductionId, setGreenlightProductionId] = useState('');
+  const [greenlightBusy, setGreenlightBusy] = useState(false);
+  const [greenlightMessage, setGreenlightMessage] = useState('');
   const [isFullscreen, setIsFullscreen]   = useState(false);
   const [sceneSearch, setSceneSearch]     = useState('');
   const [showRevMenu, setShowRevMenu]     = useState(false);
@@ -343,6 +349,35 @@ export default function ScriptWritingStudio({
     saveTimer.current = setTimeout(saveNow, 1500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [saveNow]);
+
+  const prepareGreenlight = useCallback(async () => {
+    const actorUid = auth.currentUser?.uid || user?.uid;
+    if (!actorUid) { setGreenlightMessage('Sign in to greenlight this script.'); return; }
+    setGreenlightBusy(true);
+    try {
+      const rows = (await fetchMyProductions(actorUid)).filter(row => row.status !== 'ARCHIVED');
+      setGreenlightProductions(rows);
+      setGreenlightProductionId(current => rows.some(row => row.id === current) ? current : rows[0]?.id || '');
+      setGreenlightMessage(rows.length ? '' : 'Create or join a film production first.');
+    } finally { setGreenlightBusy(false); }
+  }, [user?.uid]);
+
+  const greenlight = useCallback(async () => {
+    const actorUid = auth.currentUser?.uid || user?.uid;
+    if (!actorUid || !greenlightProductionId) return;
+    setGreenlightBusy(true);
+    setGreenlightMessage('');
+    try {
+      await saveNow();
+      await greenlightScriptToProduction(greenlightProductionId, {
+        id: scriptId, format, titlePage, elements, beats, logline, synopsis,
+        linkedWorldId, currentRevisionColor: currentRevColor, pageCount, ownerId: actorUid,
+      }, actorUid);
+      setGreenlightMessage(`Greenlit ${elements.filter(element => element.type === 'SCENE_HEADING').length} scenes to production.`);
+    } catch (error) {
+      setGreenlightMessage(error instanceof Error ? error.message : 'Could not greenlight this script.');
+    } finally { setGreenlightBusy(false); }
+  }, [user?.uid, greenlightProductionId, saveNow, scriptId, format, titlePage, elements, beats, logline, synopsis, linkedWorldId, currentRevColor, pageCount]);
 
   // ── World integration ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -1241,6 +1276,22 @@ export default function ScriptWritingStudio({
           {rightTab === 'EXPORT' && (
             <div className="space-y-3">
               <div className="text-[8px] font-black uppercase tracking-widest text-white/25">Export</div>
+
+              <Surface level={2} brand className="space-y-3">
+                <Eyebrow>Production handoff</Eyebrow>
+                <p className="type-body-sm text-white/55">Approve an immutable draft and sync stable scene records into Film Tools.</p>
+                {greenlightProductions.length > 0 && (
+                  <select className="pj-input" aria-label="Production" value={greenlightProductionId} onChange={event => setGreenlightProductionId(event.target.value)}>
+                    {greenlightProductions.map(row => <option key={row.id} value={row.id}>{row.title}</option>)}
+                  </select>
+                )}
+                {greenlightProductions.length === 0 ? (
+                  <Button variant="primary" size="sm" fullWidth loading={greenlightBusy} onClick={prepareGreenlight} icon={<Film />}>Choose production</Button>
+                ) : (
+                  <Button variant="primary" size="sm" fullWidth loading={greenlightBusy} onClick={greenlight} icon={<Check />}>Greenlight draft</Button>
+                )}
+                {greenlightMessage && <p className="type-body-sm text-white/60" role="status">{greenlightMessage}</p>}
+              </Surface>
 
               <div className="space-y-1.5">
                 <button onClick={exportFountain}

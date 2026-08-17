@@ -526,8 +526,8 @@ const NanoCard: React.FC<CommandPlayerProps & { onOpenSheet: () => void }> = ({ 
 
   return (
     <div
-      className="rounded-2xl overflow-hidden flex flex-col"
-      style={{ width: 320, background: PANEL, backdropFilter: 'blur(20px)', border: `1px solid ${HAIRLINE}`, color: '#fff', boxShadow: '0 12px 48px rgba(0,0,0,0.55)' }}
+      className="w-full rounded-card overflow-hidden flex flex-col"
+      style={{ background: 'var(--glass-3)', backdropFilter: 'blur(var(--glassmorphism-blur, 20px))', border: '1px solid var(--border-color)', color: 'var(--text-primary)', boxShadow: 'var(--pj-elev-3)' }}
     >
       {/* album art with real 3D flip */}
       <div className="relative flex items-center justify-center pt-4 pb-3">

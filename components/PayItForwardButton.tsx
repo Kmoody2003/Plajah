@@ -15,7 +15,7 @@ const PayItForwardButton: React.FC<PayItForwardButtonProps> = ({ className, vari
     return (
       <button 
         onClick={handleClick}
-        className={className || "flex items-center gap-3 px-6 py-3 bg-small-orange text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-small-orange/20 active:scale-95"}
+        className={className || "inline-flex h-[42px] items-center justify-center gap-2 rounded-full bg-small-orange px-4 text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-small-orange/20 transition-all hover:scale-[1.02] active:scale-95"}
       >
         <Banknote size={16} fill="white" />
         Pay It Forward

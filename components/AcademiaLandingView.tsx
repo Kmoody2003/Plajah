@@ -8,7 +8,7 @@
 
 import React, { useState } from 'react';
 import {
-  Library, FlaskConical, ArrowRight, Sparkles, Plus, Compass,
+  Library, FlaskConical, ArrowRight, Sparkles, Plus, Compass, Rocket,
 } from 'lucide-react';
 import AcademiaModules from './AcademiaModules';
 
@@ -50,6 +50,9 @@ const AcademiaLandingView: React.FC<{
             </button>
             <button onClick={onEnterCourses} className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white/10 border border-white/20 text-white text-[12px] font-black uppercase tracking-widest hover:bg-white/15 transition-colors">
               <Compass size={16} /> Browse courses
+            </button>
+            <button onClick={() => onNavigate('PRAXIS')} className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-violet-500/20 border border-violet-400/30 text-violet-100 text-[12px] font-black uppercase tracking-widest hover:bg-violet-500/30 transition-colors">
+              <Rocket size={16} /> Start a business
             </button>
           </div>
         </div>

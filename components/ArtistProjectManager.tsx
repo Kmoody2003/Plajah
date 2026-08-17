@@ -19,8 +19,10 @@ import {
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import {
-  FilmProductionProvider, ProductionHubTab, CallSheetsTab, RosterTab, DailyBriefTab, CraftServicesTab, ReportsTab,
+  FilmProductionProvider, ProductionHubTab, CallSheetsTab, RosterTab, DailyBriefTab, CraftServicesTab, ReportsTab, useProd,
 } from './film/FilmProductionSuite';
+import * as FilmProduction from '../services/filmProductionService';
+import { FilmStaffingTab } from './film/FilmStaffingTab';
 import { listWritingProjects, type WritingProject, type WritingChapter } from '../services/loreaProjectsService';
 import { MusicReleasesTab } from './music/MusicReleasesTab';
 import {
@@ -1609,12 +1611,7 @@ function ensureFilmDemo() {
 // ─── Film Tab: Overview ─────────────────────────────────────────────────────
 
 const FilmOverviewTab: React.FC = () => {
-  useEffect(() => { ensureFilmDemo(); }, []);
-  const scenes    = filmSceneStore.get();
-  const budget    = filmBudgetStore.get();
-  const crew      = filmCrewStore.get();
-  const locations = filmLocationStore.get();
-  const festivals = filmFestivalStore.get();
+  const { scenes, budgetLines: budget, members: crew, locations, festivals } = useProd();
   const totalEst  = budget.reduce((s, b) => s + b.estimated, 0);
   const totalAct  = budget.reduce((s, b) => s + b.actual, 0);
   const pct       = totalEst > 0 ? Math.min(100, (totalAct / totalEst) * 100) : 0;
@@ -1633,7 +1630,7 @@ const FilmOverviewTab: React.FC = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard icon={<Film size={16} />} label="Scenes" value={scenes.length} sub={`${scenesShot} shot`} color="#a855f7" />
         <StatCard icon={<Calendar size={16} />} label="Shoot Days" value={shootDays} sub={`${Math.max(...(scenes.filter(s => s.status === 'SHOT').map(s => s.shootDay).concat([0])))} done`} color="#3b82f6" />
-        <StatCard icon={<Users size={16} />} label="Crew" value={crew.length} sub={`${crew.filter(c => c.department === 'Cast').length} cast`} color="#FF8C00" />
+        <StatCard icon={<Users size={16} />} label="Crew" value={crew.length} sub={`${crew.filter(c => c.dept === 'CAST').length} cast`} color="#FF8C00" />
         <StatCard icon={<MapPin size={16} />} label="Locations" value={locations.length} sub={`${locations.filter(l => l.permitStatus === 'APPROVED').length} permitted`} color="#ef4444" />
       </div>
       <div>
@@ -1670,20 +1667,24 @@ const FilmOverviewTab: React.FC = () => {
 // ─── Film Tab: Script & Breakdown ──────────────────────────────────────────
 
 const FilmScriptTab: React.FC = () => {
-  useEffect(() => { ensureFilmDemo(); }, []);
-  const [scenes, setScenes] = useState<FilmScene[]>(() => filmSceneStore.get());
+  const { prod, scenes } = useProd();
   const [filter, setFilter] = useState<string>('ALL');
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ sceneNum: '', setting: 'INT' as FilmScene['setting'], location: '', timeOfDay: 'DAY' as FilmScene['timeOfDay'], synopsis: '', characters: '', pages: '1.0', shootDay: '1', notes: '' });
   const save = () => {
-    const n: FilmScene = { id: uuid(), ...form, pages: parseFloat(form.pages) || 1, shootDay: parseInt(form.shootDay) || 1, status: 'NOT_SHOT', createdAt: Date.now() };
-    const next = [...scenes, n].sort((a, b) => parseFloat(a.sceneNum) - parseFloat(b.sceneNum));
-    filmSceneStore.set(next); setScenes(next); setAdding(false);
+    if (!prod) return;
+    FilmProduction.putScene(prod.id, {
+      id: uuid(), sceneNum: form.sceneNum, intExt: form.setting, set: form.location,
+      dayNight: form.timeOfDay, synopsis: form.synopsis,
+      characters: form.characters.split(',').map(x => x.trim().toUpperCase()).filter(Boolean),
+      pages: parseFloat(form.pages) || 1, shootDay: parseInt(form.shootDay) || 1,
+      status: 'NOT_SHOT', notes: form.notes,
+    });
+    setAdding(false);
     setForm({ sceneNum: '', setting: 'INT', location: '', timeOfDay: 'DAY', synopsis: '', characters: '', pages: '1.0', shootDay: '1', notes: '' });
   };
   const toggle = (id: string, status: FilmScene['status']) => {
-    const next = scenes.map(s => s.id === id ? { ...s, status } : s);
-    filmSceneStore.set(next); setScenes(next);
+    if (prod) FilmProduction.patchScene(prod.id, id, { status });
   };
   const filtered = filter === 'ALL' ? scenes : scenes.filter(s => s.status === filter);
   const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-violet-500/50';
@@ -1731,12 +1732,12 @@ const FilmScriptTab: React.FC = () => {
             <div key={s.id} className="p-4 bg-white/[0.03] border border-white/[0.06] rounded-xl flex items-start gap-4 hover:border-white/15 transition-all">
               <div className="shrink-0 text-center min-w-[40px]">
                 <p className="text-lg font-black text-white">{s.sceneNum}</p>
-                <p className="text-[9px] font-black text-white/30 uppercase">{s.setting}</p>
+                <p className="text-[9px] font-black text-white/30 uppercase">{s.intExt}</p>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-black text-white uppercase tracking-wide mb-0.5">{s.location} — {s.timeOfDay}</p>
+                <p className="text-xs font-black text-white uppercase tracking-wide mb-0.5">{s.set} — {s.dayNight}</p>
                 <p className="text-[11px] text-white/50 leading-relaxed">{s.synopsis}</p>
-                {s.characters && <p className="text-[10px] text-violet-400/70 mt-1 font-bold">{s.characters}</p>}
+                {s.characters.length > 0 && <p className="text-[10px] text-violet-400/70 mt-1 font-bold">{s.characters.join(', ')}</p>}
               </div>
               <div className="shrink-0 flex flex-col items-end gap-2">
                 <span className="text-[9px] font-black text-white/30">{s.pages}p · Day {s.shootDay}</span>
@@ -1756,13 +1757,13 @@ const FilmScriptTab: React.FC = () => {
 // ─── Film Tab: Budget ───────────────────────────────────────────────────────
 
 const FilmBudgetTab: React.FC = () => {
-  useEffect(() => { ensureFilmDemo(); }, []);
-  const [lines, setLines] = useState<FilmBudgetLine[]>(() => filmBudgetStore.get());
+  const { prod, budgetLines: lines } = useProd();
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ department: FILM_CREW_DEPTS[0], lineItem: '', estimated: '', actual: '', notes: '' });
   const save = () => {
     const n: FilmBudgetLine = { id: uuid(), department: form.department, lineItem: form.lineItem, estimated: parseFloat(form.estimated) || 0, actual: parseFloat(form.actual) || 0, notes: form.notes, createdAt: Date.now() };
-    const next = [...lines, n]; filmBudgetStore.set(next); setLines(next); setAdding(false);
+    if (prod) FilmProduction.putBudgetLine(prod.id, n);
+    setAdding(false);
     setForm({ department: FILM_CREW_DEPTS[0], lineItem: '', estimated: '', actual: '', notes: '' });
   };
   const depts = [...new Set(lines.map(l => l.department))].sort();
@@ -1838,14 +1839,29 @@ const FilmBudgetTab: React.FC = () => {
 // ─── Film Tab: Crew ─────────────────────────────────────────────────────────
 
 const FilmCrewTab: React.FC = () => {
-  useEffect(() => { ensureFilmDemo(); }, []);
-  const [crew, setCrew] = useState<FilmCrewMember[]>(() => filmCrewStore.get());
+  const { prod, members } = useProd();
+  const crew: FilmCrewMember[] = useMemo(() => members.map(member => ({
+    id: member.id, name: member.name, role: member.role,
+    department: member.dept === 'CAST' ? 'Cast' : member.dept.replace(/_/g, ' '),
+    email: member.email || '', phone: member.phone || '', status: member.status,
+    rate: member.rate || '', notes: member.notes || '', createdAt: member.createdAt,
+  })), [members]);
   const [adding, setAdding] = useState(false);
   const [deptFilter, setDeptFilter] = useState('ALL');
   const [form, setForm] = useState({ name: '', role: '', department: FILM_CREW_DEPTS[0], email: '', phone: '', status: 'ACTIVE' as FilmCrewMember['status'], rate: '', notes: '' });
   const save = () => {
     const n: FilmCrewMember = { id: uuid(), ...form, createdAt: Date.now() };
-    const next = [...crew, n]; filmCrewStore.set(next); setCrew(next); setAdding(false);
+    const deptMap: Record<string, FilmProduction.DeptKey> = {
+      Direction: 'DIRECTION', Production: 'PRODUCTION', Camera: 'CAMERA', 'Lighting/Grip': 'GRIP_ELECTRIC',
+      Sound: 'SOUND', 'Art/Design': 'ART', Wardrobe: 'WARDROBE', 'Makeup/Hair': 'HAIR_MAKEUP',
+      VFX: 'STUNTS_SFX', Cast: 'CAST', Transport: 'TRANSPORT', 'Post-Production': 'POST', Other: 'OTHER',
+    };
+    if (prod) FilmProduction.putMember(prod.id, {
+      id: n.id, name: n.name, role: n.role, dept: deptMap[n.department] || 'OTHER',
+      email: n.email, phone: n.phone, status: n.status, rate: n.rate, notes: n.notes,
+      isCast: n.department === 'Cast', createdAt: n.createdAt,
+    });
+    setAdding(false);
     setForm({ name: '', role: '', department: FILM_CREW_DEPTS[0], email: '', phone: '', status: 'ACTIVE', rate: '', notes: '' });
   };
   const depts = ['ALL', ...new Set(crew.map(c => c.department))].sort((a, b) => a === 'ALL' ? -1 : b === 'ALL' ? 1 : a.localeCompare(b));
@@ -1913,13 +1929,13 @@ const FilmCrewTab: React.FC = () => {
 // ─── Film Tab: Locations ────────────────────────────────────────────────────
 
 const FilmLocationsTab: React.FC = () => {
-  useEffect(() => { ensureFilmDemo(); }, []);
-  const [locs, setLocs] = useState<FilmLocation[]>(() => filmLocationStore.get());
+  const { prod, locations: locs } = useProd();
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: '', type: 'INT' as FilmLocation['type'], address: '', city: '', contactName: '', contactPhone: '', permitStatus: 'SCOUTED' as FilmLocation['permitStatus'], rentalFee: '', notes: '' });
   const save = () => {
     const n: FilmLocation = { id: uuid(), ...form, rentalFee: parseFloat(form.rentalFee) || 0, createdAt: Date.now() };
-    const next = [...locs, n]; filmLocationStore.set(next); setLocs(next); setAdding(false);
+    if (prod) FilmProduction.putLocation(prod.id, n);
+    setAdding(false);
     setForm({ name: '', type: 'INT', address: '', city: '', contactName: '', contactPhone: '', permitStatus: 'SCOUTED', rentalFee: '', notes: '' });
   };
   const permitColor: Record<string, string> = { SCOUTED: 'text-blue-400 bg-blue-500/10', PENDING: 'text-yellow-400 bg-yellow-500/10', APPROVED: 'text-emerald-400 bg-emerald-500/10', DENIED: 'text-red-400 bg-red-500/10', WRAPPED: 'text-white/30 bg-white/5' };
@@ -1993,8 +2009,7 @@ const FilmLocationsTab: React.FC = () => {
 // ─── Film Tab: Schedule ─────────────────────────────────────────────────────
 
 const FilmScheduleTab: React.FC = () => {
-  useEffect(() => { ensureFilmDemo(); }, []);
-  const scenes = filmSceneStore.get();
+  const { scenes } = useProd();
   const days = [...new Set(scenes.map(s => s.shootDay))].sort((a, b) => a - b);
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -2005,7 +2020,7 @@ const FilmScheduleTab: React.FC = () => {
         days.map(day => {
           const dayScenes = scenes.filter(s => s.shootDay === day);
           const totalPages = dayScenes.reduce((s, sc) => s + sc.pages, 0);
-          const locations = [...new Set(dayScenes.map(s => s.location))];
+          const locations = [...new Set(dayScenes.map(s => s.set))];
           return (
             <div key={day} className="bg-white/[0.03] border border-white/[0.06] rounded-2xl overflow-hidden">
               <div className="px-5 py-3 bg-violet-500/10 border-b border-white/[0.06] flex items-center justify-between">
@@ -2016,7 +2031,7 @@ const FilmScheduleTab: React.FC = () => {
                 {dayScenes.map(s => (
                   <div key={s.id} className="flex items-center gap-4 px-5 py-3">
                     <span className="text-xs font-black text-violet-400 w-8">#{s.sceneNum}</span>
-                    <span className="text-[9px] text-white/30 font-black w-16">{s.setting} · {s.timeOfDay}</span>
+                    <span className="text-[9px] text-white/30 font-black w-16">{s.intExt} · {s.dayNight}</span>
                     <span className="flex-1 text-[11px] text-white/60 truncate">{s.synopsis}</span>
                     <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${s.status === 'SHOT' ? 'text-emerald-400 bg-emerald-500/10' : s.status === 'PARTIAL' ? 'text-yellow-400 bg-yellow-500/10' : 'text-white/30 bg-white/5'}`}>{s.status.replace('_', ' ')}</span>
                   </div>
@@ -2039,13 +2054,13 @@ const FilmScheduleTab: React.FC = () => {
 // ─── Film Tab: Distribution ─────────────────────────────────────────────────
 
 const FilmDistroTab: React.FC = () => {
-  useEffect(() => { ensureFilmDemo(); }, []);
-  const [subs, setSubs] = useState<FilmFestivalSub[]>(() => filmFestivalStore.get());
+  const { prod, festivals: subs } = useProd();
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ festival: '', tier: 'B' as FilmFestivalSub['tier'], deadline: '', fee: '', status: 'PLANNING' as FilmFestivalSub['status'], category: '', notes: '' });
   const save = () => {
     const n: FilmFestivalSub = { id: uuid(), ...form, deadline: form.deadline ? new Date(form.deadline).getTime() : Date.now(), fee: parseFloat(form.fee) || 0, createdAt: Date.now() };
-    const next = [...subs, n]; filmFestivalStore.set(next); setSubs(next); setAdding(false);
+    if (prod) FilmProduction.putFestival(prod.id, n);
+    setAdding(false);
     setForm({ festival: '', tier: 'B', deadline: '', fee: '', status: 'PLANNING', category: '', notes: '' });
   };
   const statusColor: Record<string, string> = { PLANNING: 'text-white/40 bg-white/5', SUBMITTED: 'text-blue-400 bg-blue-500/15', OFFICIAL_SELECTION: 'text-emerald-400 bg-emerald-500/15', REJECTED: 'text-red-400/70 bg-red-500/10', WINNER: 'text-amber-400 bg-amber-500/20', WITHDRAWN: 'text-white/20 bg-white/5' };
@@ -2647,7 +2662,7 @@ const WriterPressTab: React.FC = () => (
 type PMTab =
   | 'overview' | 'releases' | 'productions' | 'import' | 'payroll' | 'contracts' | 'invoices' | 'tasks' | 'vendors' | 'venues' | 'events' | 'boards' | 'promote'
   | 'film_overview' | 'film_script' | 'film_budget' | 'film_crew' | 'film_locations' | 'film_schedule' | 'film_distro'
-  | 'film_hub' | 'film_callsheets' | 'film_roster' | 'film_brief' | 'film_craft' | 'film_reports'
+  | 'film_hub' | 'film_callsheets' | 'film_staffing' | 'film_roster' | 'film_brief' | 'film_craft' | 'film_reports'
   | 'writer_overview' | 'writer_projects' | 'writer_manuscripts' | 'writer_research' | 'writer_submissions' | 'writer_events' | 'writer_press';
 
 type Discipline = 'music' | 'film' | 'writer';
@@ -2682,6 +2697,7 @@ const FILM_TABS: { id: PMTab; label: string; icon: React.ReactNode; color: strin
   { id: 'film_overview',   label: 'Overview',     icon: <BarChart2 size={13} />,    color: '#a855f7' },
   { id: 'film_hub',        label: 'On Set',       icon: <LayoutDashboard size={13} />, color: '#a855f7' },
   { id: 'film_callsheets', label: 'Call Sheets',  icon: <FileText size={13} />,     color: '#a855f7' },
+  { id: 'film_staffing',   label: 'Staffing',     icon: <Briefcase size={13} />,    color: '#6366f1' },
   { id: 'film_brief',      label: 'My Brief',     icon: <UserCheck size={13} />,    color: '#f59e0b' },
   { id: 'film_roster',     label: 'Roster',       icon: <Users size={13} />,        color: '#a855f7' },
   { id: 'film_craft',      label: 'Craft',        icon: <Utensils size={13} />,     color: '#14b8a6' },
@@ -2714,7 +2730,9 @@ export const ArtistProjectManager: React.FC<Props> = ({ currentUser }) => {
   const [discipline, setDiscipline] = useState<Discipline>(() =>
     (localStorage.getItem('plajah_pm_discipline_v1') as Discipline) || 'music'
   );
-  const [activeTab, setActiveTab] = useState<PMTab>('overview');
+  const [activeTab, setActiveTab] = useState<PMTab>(() =>
+    new URLSearchParams(window.location.search).get('productionInvite') ? 'film_staffing' : 'overview'
+  );
 
   const switchDiscipline = (d: Discipline) => {
     setDiscipline(d);
@@ -2744,6 +2762,7 @@ export const ArtistProjectManager: React.FC<Props> = ({ currentUser }) => {
       case 'film_overview':       return <FilmOverviewTab />;
       case 'film_hub':            return <ProductionHubTab />;
       case 'film_callsheets':     return <CallSheetsTab />;
+      case 'film_staffing':       return <FilmStaffingTab />;
       case 'film_brief':          return <DailyBriefTab />;
       case 'film_roster':         return <RosterTab />;
       case 'film_craft':          return <CraftServicesTab />;

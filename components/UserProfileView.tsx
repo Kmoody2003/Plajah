@@ -1048,11 +1048,11 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             {/* Action buttons — their own left-aligned row so Claim / Pay It Forward /
                 Manage Plajah+ line up as a grid with the radio/channel strip below,
                 instead of being pushed onto the followers line. */}
-            <div className={`flex flex-wrap items-center gap-2 mb-3 ${isMobile ? 'justify-center' : ''}`}>
+            <div className={`flex flex-wrap items-center gap-2.5 mb-3 ${isMobile ? 'justify-center' : ''}`}>
               {isOwnProfile && profile.isPioneer && !profile.pioneerRewardClaimed && (
                 <button
                   onClick={handleClaimPioneerReward}
-                  className="inline-flex items-center justify-center px-5 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full text-white text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
+                  className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 px-4 text-[10px] font-black uppercase tracking-widest text-white shadow-[0_0_20px_rgba(139,92,246,0.28)] transition-all hover:scale-[1.02] active:scale-95"
                 >
                   Claim Pioneer Reward
                 </button>
@@ -1061,7 +1061,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               {/* Own-profile: Share + Plajah+ + X + Pay It Forward */}
               {isOwnProfile && (
                 <>
-                  <PayItForwardButton variant="FULL" className="inline-flex items-center gap-2 px-5 py-2 bg-small-orange text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-lg" />
+                  <PayItForwardButton variant="FULL" className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full bg-small-orange px-4 text-[10px] font-black uppercase tracking-widest text-white shadow-[0_0_20px_rgba(255,140,0,0.25)] transition-all hover:brightness-110 active:scale-95" />
                   <PlajahPlusButton
                     creatorId={profile.uid}
                     creatorName={profile.displayName}
@@ -1071,7 +1071,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                   {(profile.xUrl || profile.xHandle) && (
                     <button
                       onClick={() => { setFeedInitialType('X_FEED'); setFeedKey(k => k + 1); setActiveTab('FEED'); }}
-                      className="px-5 py-2 rounded-full inline-flex items-center gap-2 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest"
+                      className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 text-[10px] font-black uppercase tracking-widest text-white/70 transition-all hover:bg-white/10 hover:text-white"
                       title="View X Feed"
                     >
                       <X size={13} /> X Feed
@@ -1085,10 +1085,10 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 <>
                   <button
                     onClick={handleFollowToggle}
-                    className={`px-5 py-2 rounded-full font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${
+                    className={`inline-flex h-[42px] items-center justify-center gap-2 rounded-full px-4 font-black text-[10px] uppercase tracking-widest transition-all ${
                       following
                         ? 'bg-white/10 text-white hover:bg-red-500/20 hover:text-red-500'
-                        : 'bg-small-orange text-black hover:scale-105 active:scale-95'
+                        : 'bg-small-orange text-black hover:scale-[1.02] active:scale-95'
                     }`}
                   >
                     {following ? <UserMinus size={12} /> : <UserPlus size={12} />}
@@ -1096,10 +1096,10 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                   </button>
                   <button
                     onClick={handleMailingListToggle}
-                    className={`px-5 py-2 rounded-full font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${
+                    className={`inline-flex h-[42px] items-center justify-center gap-2 rounded-full px-4 font-black text-[10px] uppercase tracking-widest transition-all ${
                       isSubscribed
-                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                        : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'
+                        ? 'border border-blue-500/30 bg-blue-500/20 text-blue-400'
+                        : 'border border-white/10 bg-white/5 text-white hover:bg-white/10'
                     }`}
                   >
                     <Mail size={12} />
@@ -1107,7 +1107,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                   </button>
                   <button
                     onClick={() => setIsDonationModalOpen(true)}
-                    className="px-5 py-2 bg-white/5 border border-white/10 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2"
+                    className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 font-black text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/10"
                   >
                     <HeartHandshake size={12} className="text-small-orange" />
                     Gifts
@@ -1121,7 +1121,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                   {onMessage && uid !== auth.currentUser?.uid && (
                     <button
                       onClick={() => onMessage(uid)}
-                      className="px-5 py-2 bg-small-orange text-white font-black text-[10px] uppercase tracking-widest rounded-full hover:bg-small-orange/80 transition-all flex items-center gap-2"
+                      className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full bg-small-orange px-4 font-black text-[10px] uppercase tracking-widest text-white transition-all hover:bg-small-orange/80"
                     >
                       <MessageSquare size={12} />
                       Message
@@ -1134,7 +1134,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               {isOwnProfile && (profile.role === 'admin' || profile.role === 'staff') && (
                 <button
                   onClick={() => { window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'ADMIN_DASHBOARD' } })); }}
-                  className="px-5 py-2 bg-red-600 text-white font-black text-[10px] uppercase tracking-widest rounded-full hover:bg-red-700 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.3)]"
+                  className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full bg-red-600 px-4 text-[10px] font-black uppercase tracking-widest text-white shadow-[0_0_20px_rgba(220,38,38,0.3)] transition-all hover:bg-red-700"
                 >
                   <Shield size={12} />
                   Admin Panel

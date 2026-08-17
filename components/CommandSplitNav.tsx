@@ -104,6 +104,8 @@ export interface CommandSplitNavProps {
   subtitle?: string;
   avatarUrl?: string;
   accountSlot?: number | null;
+  linkedAccounts?: Array<{ uid: string; displayName: string; email: string; photoURL?: string; slot: number }>;
+  playerController?: React.ReactNode;
   notificationCount?: number;
   onCreate?: () => void;
   onGoLive?: () => void;
@@ -117,7 +119,7 @@ export interface CommandSplitNavProps {
 }
 
 const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
-  view, onNavigate, hasUser, displayName, subtitle, avatarUrl, accountSlot,
+  view, onNavigate, hasUser, displayName, subtitle, avatarUrl, accountSlot, linkedAccounts = [], playerController,
   notificationCount = 0, onCreate, onGoLive, onOpenNotifications, onOpenAccountSwitcher,
   onSignOut, onExitNew, slim,
 }) => {
@@ -202,6 +204,39 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
           </button>
         ); })}
       </div>
+      {playerController && (
+        <div className="px-3 py-3 border-t border-[var(--border-color)]">
+          <p className="pj-eyebrow mb-2 text-[var(--on-surface-variant)]">Nano controller</p>
+          {playerController}
+        </div>
+      )}
+      {hasUser && (
+        <button
+          type="button"
+          onClick={onOpenAccountSwitcher}
+          className="mx-3 mb-3 flex items-center gap-3 rounded-card border border-[var(--border-color)] bg-[var(--glass-2)] p-3 text-left transition-colors hover:bg-[var(--glass-3)]"
+          aria-label="Switch account"
+        >
+          <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-[var(--glass-3)] ring-2 ring-[var(--pj-orange-soft)]">
+            {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : <User size={18} className="m-3 text-[var(--on-surface-variant)]" />}
+            {!!accountSlot && <span className="absolute bottom-0 right-0 grid h-4 w-4 place-items-center rounded-full bg-[var(--pj-orange)] text-[8px] font-black text-black">{accountSlot}</span>}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate type-label-md text-[var(--text-primary)]">{displayName || 'Signed in'}</span>
+            <span className="block truncate type-body-sm text-[var(--on-surface-variant)]">{subtitle || 'Manage accounts'}</span>
+          </span>
+          {linkedAccounts.length > 1 && (
+            <span className="flex -space-x-2" aria-label={`${linkedAccounts.length} linked accounts`}>
+              {linkedAccounts.filter(a => a.uid !== linkedAccounts.find(x => x.slot === accountSlot)?.uid).slice(0, 3).map(a => (
+                <span key={a.uid} className="h-6 w-6 overflow-hidden rounded-full border-2 border-[var(--bg-color)] bg-[var(--glass-3)]">
+                  {a.photoURL ? <img src={a.photoURL} alt="" className="h-full w-full object-cover" /> : <User size={10} className="m-1.5" />}
+                </span>
+              ))}
+            </span>
+          )}
+          <ChevronRight size={16} className="shrink-0 text-[var(--on-surface-variant)]" />
+        </button>
+      )}
     </>
   );
 
@@ -272,41 +307,43 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
 
       {/* Command launcher */}
       {launcher && (
-        <div className="fixed inset-0 z-[400] bg-[rgba(6,4,10,.74)] backdrop-blur-md px-[6%] py-11 overflow-y-auto"
+        <div className="fixed inset-0 z-[400] bg-[rgba(7,6,12,0.72)] backdrop-blur-2xl px-[6%] py-11 overflow-y-auto"
           onClick={(e) => { if (e.target === e.currentTarget) setLauncher(false); }}>
-          <button className="absolute top-4 right-6 text-white/60 hover:text-white" onClick={() => setLauncher(false)}><X size={22} /></button>
-          <div className="max-w-[720px] mx-auto">
-            <div className="flex items-center gap-3 bg-[#1B1329] border border-white/[0.14] rounded-2xl px-4 py-3.5 shadow-2xl">
-              <Search size={18} className="text-white/60" />
-              <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)}
-                placeholder="Search Plajah — pages, people, music…"
-                className="flex-1 bg-transparent border-0 outline-none text-white text-[1rem] placeholder:text-white/35" />
-              <span className="text-[.6rem] font-bold text-white/45 border border-white/15 rounded px-1.5 py-0.5">ESC</span>
-            </div>
-            {!query && (
-              <>
-                <div className="text-[.6rem] font-black uppercase tracking-[0.2em] text-white/40 mt-6 mb-2.5">Recent</div>
-                <div className="flex flex-wrap gap-2">
-                  {['FEED', 'MUSIC', 'PLAJAH_SPORTS', 'FABULA'].map(id => { const d = destById(id); if (!d) return null; const A = d.icon; return (
-                    <button key={id} onClick={() => go(id)} className="inline-flex items-center gap-1.5 text-[.74rem] font-semibold text-white/85 px-3 py-1.5 rounded-full border border-white/[0.14] bg-white/[0.045] hover:bg-white/[0.09]"><A size={13} /> {d.label}</button>
-                  ); })}
-                </div>
-              </>
-            )}
-            {(query ? [{ key: results.length + ' result' + (results.length === 1 ? '' : 's'), icon: Search, items: results }] as NavSection[] : NAV_SECTIONS).map((s, si) => (
-              <div key={si}>
-                <div className="text-[.6rem] font-black uppercase tracking-[0.2em] text-white/40 mt-5 mb-2.5 flex items-center gap-1.5">{React.createElement(s.icon, { size: 12 })} {s.key}</div>
-                <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(92px,1fr))' }}>
-                  {(query ? results : visibleSection(s)).map(d => { const A = d.icon; return (
-                    <button key={d.id} onClick={() => go(d.id)}
-                      className="flex flex-col items-center gap-1.5 text-center p-3.5 rounded-2xl border border-white/[0.08] bg-white/[0.045] hover:bg-white/[0.1] hover:-translate-y-0.5 transition-all">
-                      <span className="w-11 h-11 rounded-xl grid place-items-center bg-[#1B1329]"><A size={20} className="text-white/85" /></span>
-                      <span className="text-[.66rem] font-bold text-white/90 leading-tight">{d.label}</span>
-                    </button>
-                  ); })}
-                </div>
+          <div className="max-w-[720px] mx-auto animate-[fadeInUp_420ms_ease-out]">
+            <button className="absolute top-4 right-6 text-white/60 hover:text-white" onClick={() => setLauncher(false)}><X size={22} /></button>
+            <div className="rounded-[28px] border border-white/10 bg-[rgba(17,12,25,0.72)] shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl p-3.5">
+              <div className="flex items-center gap-3 bg-[rgba(27,19,41,0.85)] border border-white/[0.12] rounded-2xl px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                <Search size={18} className="text-white/60" />
+                <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)}
+                  placeholder="Search Plajah — pages, people, music…"
+                  className="flex-1 bg-transparent border-0 outline-none text-white text-[1rem] placeholder:text-white/35" />
+                <span className="text-[.6rem] font-bold text-white/45 border border-white/15 rounded px-1.5 py-0.5">ESC</span>
               </div>
-            ))}
+              {!query && (
+                <>
+                  <div className="text-[.6rem] font-black uppercase tracking-[0.2em] text-white/40 mt-6 mb-2.5">Recent</div>
+                  <div className="flex flex-wrap gap-2">
+                    {['FEED', 'MUSIC', 'PLAJAH_SPORTS', 'FABULA'].map(id => { const d = destById(id); if (!d) return null; const A = d.icon; return (
+                      <button key={id} onClick={() => go(id)} className="inline-flex items-center gap-1.5 text-[.74rem] font-semibold text-white/85 px-3 py-1.5 rounded-full border border-white/[0.14] bg-white/[0.045] hover:bg-white/[0.09]"><A size={13} /> {d.label}</button>
+                    ); })}
+                  </div>
+                </>
+              )}
+              {(query ? [{ key: results.length + ' result' + (results.length === 1 ? '' : 's'), icon: Search, items: results }] as NavSection[] : NAV_SECTIONS).map((s, si) => (
+                <div key={si}>
+                  <div className="text-[.6rem] font-black uppercase tracking-[0.2em] text-white/40 mt-5 mb-2.5 flex items-center gap-1.5">{React.createElement(s.icon, { size: 12 })} {s.key}</div>
+                  <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(92px,1fr))' }}>
+                    {(query ? results : visibleSection(s)).map(d => { const A = d.icon; return (
+                      <button key={d.id} onClick={() => go(d.id)}
+                        className="flex flex-col items-center gap-1.5 text-center p-3.5 rounded-2xl border border-white/[0.08] bg-white/[0.045] hover:bg-white/[0.1] hover:-translate-y-0.5 transition-all">
+                        <span className="w-11 h-11 rounded-xl grid place-items-center bg-[#1B1329]"><A size={20} className="text-white/85" /></span>
+                        <span className="text-[.66rem] font-bold text-white/90 leading-tight">{d.label}</span>
+                      </button>
+                    ); })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

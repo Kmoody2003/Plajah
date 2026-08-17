@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { loginWithGoogle, loginWithTwitter, loginWithFacebook, loginWithMicrosoft, fetchRandomActiveUser, fetchLandingBgConfig } from '../services/backendService';
-import { ArrowRight, Sparkles, LogIn, X as XIcon, Facebook, Minimize2, Mail, GraduationCap, User as UserIcon } from 'lucide-react';
+import { ArrowRight, Sparkles, LogIn, X as XIcon, Facebook, Minimize2, Mail, GraduationCap, User as UserIcon, Rocket } from 'lucide-react';
 import { LandingBgAsset, LandingBgConfig, UserProfile } from '../types';
 import ThreeDImage from './ThreeDImage';
 import EarthGlobe from './EarthGlobe';
@@ -229,22 +229,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
           <div className="h-px w-24 bg-gradient-to-r from-transparent via-small-orange to-transparent" />
         </motion.div>
 
-        <motion.div
-          initial={{ y: 30, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 1, delay: 0.3, ease: "easeOut" }}
-          className="space-y-8 group"
-        >
-          <p className="text-xl lg:text-2xl font-light group-hover:font-bold transition-all duration-500 text-white/80 leading-relaxed tracking-tight max-w-3xl mx-auto">
-            Stream music, movies, and books — then connect directly with the creators who made them. Plajah is the <span className="text-small-orange">social network and streaming platform</span> built to do right by every creator, no matter how or what they create.
-          </p>
-          <p className="text-lg lg:text-xl font-light group-hover:font-black transition-all duration-500 text-white/60 leading-relaxed tracking-tight max-w-3xl mx-auto">
-            The simplest, most transparent way to share your work, grow a real audience, and earn from what you love — on a platform with a <span className="text-white">purpose bigger than the bottom line</span>.
-          </p>
-          <p className="text-sm lg:text-base font-light group-hover:font-black transition-all duration-500 text-white/40 tracking-widest uppercase">
-            Explore what inspires you. Upload what defines you.
-          </p>
-        </motion.div>
+        {/* Landing-page value copy removed per product direction. */}
 
         {/* Primary CTA — create an account with email */}
         <motion.div
@@ -360,21 +345,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
         {authMode && <AuthExperience initialMode={authMode} onClose={() => setAuthMode(null)} />}
       </AnimatePresence>
 
-      {/* Footer Info */}
-      <div className="absolute bottom-12 left-0 right-0 z-10 flex justify-center gap-12 text-[10px] font-black uppercase tracking-[0.4em] text-white/20">
-        <div className="flex items-center gap-2">
-          <Sparkles size={12} className="text-small-orange" />
-          <span>Music</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Sparkles size={12} className="text-small-orange" />
-          <span>Film</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Sparkles size={12} className="text-small-orange" />
-          <span>Art</span>
-        </div>
-      </div>
     </div>
   );
 };

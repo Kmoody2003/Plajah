@@ -1991,26 +1991,50 @@ service cloud.firestore {
         get(/databases/$(database)/documents/organizations/$(orgId)).data.creatorId == request.auth.uid
       );
     }
+    function productionStaffOf(prodId) {
+      let p = get(/databases/$(database)/documents/productions/$(prodId)).data;
+      return isAuthenticated() && (
+        p.ownerUid == request.auth.uid ||
+        (p.authority is map
+          && request.auth.uid in p.authority
+          && p.authority[request.auth.uid].permissions is list
+          && 'MANAGE_HIRING' in p.authority[request.auth.uid].permissions)
+      );
+    }
     // Job/volunteer postings — public can read OPEN ones; only org admins write.
     match /jobPostings/{postingId} {
-      allow read: if (resource.data.status == 'OPEN') || orgAdminOf(resource.data.orgId) || isAdmin();
-      allow create: if orgAdminOf(request.resource.data.orgId);
-      allow update, delete: if orgAdminOf(resource.data.orgId) || isAdmin();
+      allow read: if (resource.data.status == 'OPEN') || orgAdminOf(resource.data.orgId) ||
+                     (resource.data.productionId is string && productionStaffOf(resource.data.productionId)) || isAdmin();
+      allow create: if orgAdminOf(request.resource.data.orgId) ||
+                       (request.resource.data.productionId is string && productionStaffOf(request.resource.data.productionId));
+      allow update, delete: if orgAdminOf(resource.data.orgId) ||
+                               (resource.data.productionId is string && productionStaffOf(resource.data.productionId)) || isAdmin();
     }
     // Applications — PII-sensitive. Anyone signed in may apply to an OPEN posting (creating their
     // own application at stage APPLIED); org admins manage; an applicant may read/withdraw only theirs.
     match /applications/{appId} {
       allow read: if orgAdminOf(resource.data.orgId) ||
+                     (resource.data.productionId is string && productionStaffOf(resource.data.productionId)) ||
                      (isAuthenticated() && resource.data.applicantUid == request.auth.uid) || isAdmin();
       allow create: if isAuthenticated() &&
                        request.resource.data.stage == 'APPLIED' &&
                        get(/databases/$(database)/documents/jobPostings/$(request.resource.data.jobId)).data.status == 'OPEN';
       allow update: if orgAdminOf(resource.data.orgId) ||
+                       (resource.data.productionId is string && productionStaffOf(resource.data.productionId)) ||
                        // the applicant may only withdraw their own application
                        (isAuthenticated() && resource.data.applicantUid == request.auth.uid &&
                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stage', 'updatedAt']) &&
                         request.resource.data.stage == 'WITHDRAWN');
-      allow delete: if orgAdminOf(resource.data.orgId) || isAdmin();
+      allow delete: if orgAdminOf(resource.data.orgId) ||
+                       (resource.data.productionId is string && productionStaffOf(resource.data.productionId)) || isAdmin();
+    }
+    match /productionInvites/{token} {
+      allow read: if isAuthenticated();
+      allow create: if request.resource.data.productionId is string && productionStaffOf(request.resource.data.productionId);
+      allow update, delete: if productionStaffOf(resource.data.productionId) ||
+        (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uses', 'active']) &&
+         request.resource.data.uses == resource.data.uses + 1 && resource.data.active == true &&
+         resource.data.expiresAt > request.time.toMillis() && resource.data.uses < resource.data.maxUses);
     }
 
     // Multi-site program-feed registry (Part 3, Phase 5): campuses publish live
@@ -2794,16 +2818,94 @@ service cloud.firestore {
           (parentProd().memberUids is list && request.auth.uid in parentProd().memberUids)
         );
       }
+      function hasProdPermission(permission) {
+        let p = parentProd();
+        return isAuthenticated() && (
+          p.ownerUid == request.auth.uid ||
+          (p.authority is map
+            && request.auth.uid in p.authority
+            && p.authority[request.auth.uid].permissions is list
+            && permission in p.authority[request.auth.uid].permissions)
+        );
+      }
 
       allow read: if isProdMember();
       allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
-      allow update: if isProdOwner() || isAdmin();
+      allow update: if isProdOwner() ||
+                       (hasProdPermission('MANAGE_HIRING') &&
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids', 'updatedAt'])) ||
+                       (isAuthenticated() &&
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids', 'updatedAt']) &&
+                        request.auth.uid in request.resource.data.memberUids &&
+                        getAfter(/databases/$(database)/documents/productions/$(prodId)/members/$(request.auth.uid)).data.uid == request.auth.uid) ||
+                       isAdmin();
       allow delete: if isProdOwner() || isAdmin();
 
       // Roster, scenes, call sheets, tasks, craft menu — owner-managed, member-readable.
-      match /{sub}/{docId} {
+      match /members/{docId} {
         allow read: if isParentMember() || isAdmin();
-        allow create, update, delete: if isParentOwner() || isAdmin();
+        allow create: if hasProdPermission('MANAGE_ROSTER') || hasProdPermission('MANAGE_HIRING') ||
+          (isAuthenticated() && docId == request.auth.uid && request.resource.data.uid == request.auth.uid &&
+           request.resource.data.inviteToken is string &&
+           get(/databases/$(database)/documents/productionInvites/$(request.resource.data.inviteToken)).data.productionId == prodId &&
+           get(/databases/$(database)/documents/productionInvites/$(request.resource.data.inviteToken)).data.active == true &&
+           get(/databases/$(database)/documents/productionInvites/$(request.resource.data.inviteToken)).data.expiresAt > request.time.toMillis()) || isAdmin();
+        allow update, delete: if hasProdPermission('MANAGE_ROSTER') || isAdmin();
+      }
+      match /scenes/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create, update, delete: if hasProdPermission('EDIT_SCRIPT_BREAKDOWN') || isAdmin();
+      }
+      // Approved script snapshots are immutable. Revisions create a new draft.
+      match /scriptDrafts/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create: if hasProdPermission('EDIT_SCRIPT_BREAKDOWN') || isAdmin();
+        allow update, delete: if false;
+      }
+      // Append-only audit trail for cross-tool workflow transitions.
+      match /workflowEvents/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create: if isParentOwner() || hasProdPermission('EDIT_SCRIPT_BREAKDOWN') ||
+          hasProdPermission('MANAGE_ROSTER') || hasProdPermission('MANAGE_HIRING') || isAdmin();
+        allow update, delete: if false;
+      }
+      match /budgetLines/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create, update, delete: if hasProdPermission('MANAGE_BUDGET') || isAdmin();
+      }
+      match /locations/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create, update, delete: if hasProdPermission('MANAGE_LOCATIONS') || isAdmin();
+      }
+      match /festivals/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create, update, delete: if hasProdPermission('MANAGE_POST') || isAdmin();
+      }
+      // Phone, address, tax and emergency data live separately from the public roster.
+      match /memberPrivate/{memberUid} {
+        allow read: if isAuthenticated() && (
+          request.auth.uid == memberUid || hasProdPermission('VIEW_SENSITIVE_CONTACTS') || isAdmin()
+        );
+        allow create, update: if isAuthenticated() && (
+          request.auth.uid == memberUid || hasProdPermission('MANAGE_ROSTER') || isAdmin()
+        );
+        allow delete: if hasProdPermission('MANAGE_ROSTER') || isAdmin();
+      }
+      match /callsheets/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create, update, delete: if hasProdPermission('MANAGE_CALL_SHEETS') || isAdmin();
+      }
+      match /tasks/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create, update, delete: if hasProdPermission('MANAGE_TASKS') || isAdmin();
+      }
+      match /craftMenu/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create, update, delete: if hasProdPermission('MANAGE_CRAFT') || isAdmin();
+      }
+      match /dprs/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create, update, delete: if hasProdPermission('MANAGE_REPORTS') || isAdmin();
       }
 
       // Craft orders — any crew member may place & cancel their own request;
@@ -2812,7 +2914,7 @@ service cloud.firestore {
         allow read: if isParentMember() || isAdmin();
         allow create: if isParentMember()
                       && request.resource.data.requestedByUid == request.auth.uid;
-        allow update, delete: if isParentOwner()
+        allow update, delete: if hasProdPermission('MANAGE_CRAFT')
                       || (isParentMember() && resource.data.requestedByUid == request.auth.uid)
                       || isAdmin();
       }

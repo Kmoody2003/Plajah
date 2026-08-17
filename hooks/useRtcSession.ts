@@ -69,6 +69,7 @@ export interface UseRtcSession {
   refreshDevices: () => void;
   /** Hot-swap camera / mic to a specific device mid-call (no peer drop). */
   switchVideoDevice: (deviceId: string) => void;
+  cameraStreamForDevice: (deviceId: string) => Promise<MediaStream>;
   switchAudioDevice: (deviceId: string) => void;
   /** Use desktop/system audio as the audio source (returns success). */
   useDesktopAudio: () => Promise<boolean>;
@@ -184,6 +185,10 @@ export function useRtcSession(
       setActiveDevices(sessionRef.current?.getActiveDevices() || {});
     });
   }, []);
+  const cameraStreamForDevice = useCallback(async (deviceId: string) => {
+    if (!sessionRef.current) throw new Error('Camera session is not ready.');
+    return sessionRef.current.cameraStreamForDevice(deviceId);
+  }, []);
   const switchAudioDevice = useCallback((deviceId: string) => {
     sessionRef.current?.switchAudioDevice(deviceId).catch(() => {}).finally(() => {
       setActiveDevices(sessionRef.current?.getActiveDevices() || {});
@@ -258,7 +263,7 @@ export function useRtcSession(
   return {
     localStream, remoteStreams, remotePeers, participants, peerStates, error,
     audioEnabled, videoEnabled, sharingScreen,
-    toggleAudio, toggleVideo, setAudio, setVideo, switchCamera, cycleCamera, nextCameraStream, publishExternalVideo, publishExternalAudio, toggleScreenShare, leave,
+    toggleAudio, toggleVideo, setAudio, setVideo, switchCamera, cycleCamera, nextCameraStream, cameraStreamForDevice, publishExternalVideo, publishExternalAudio, toggleScreenShare, leave,
     isRecording, startRecording, stopRecording, sendData,
     devices, activeDevices, refreshDevices, switchVideoDevice, switchAudioDevice,
     useDesktopAudio, screenStream,

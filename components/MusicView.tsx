@@ -334,10 +334,11 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [signInAction, setSignInAction] = useState<string | null>(null);
 
-  const [bgIndex, setBgIndex] = useState(0);
   const [pulseIdx, setPulseIdx] = useState(0);
   const [sponsoredIdx, setSponsoredIdx] = useState(0);
   const [upcomingAlbums, setUpcomingAlbums] = useState<Album[]>([]);
+  const [heroAlbumIndex, setHeroAlbumIndex] = useState(0);
+  const [heroParallax, setHeroParallax] = useState({ x: 0, y: 0 });
 
   const bgAlbums = useMemo(() =>
     [...albums]
@@ -347,6 +348,23 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     [albums]
   );
 
+  const goToHeroAlbum = (direction: 'prev' | 'next') => {
+    if (!bgAlbums.length) return;
+    setHeroAlbumIndex(prev =>
+      direction === 'next'
+        ? (prev + 1) % bgAlbums.length
+        : (prev - 1 + bgAlbums.length) % bgAlbums.length
+    );
+  };
+
+  useEffect(() => {
+    if (bgAlbums.length < 2) return;
+    const id = setInterval(() => {
+      setHeroAlbumIndex((prev) => (prev + 1) % bgAlbums.length);
+    }, 20000);
+    return () => clearInterval(id);
+  }, [bgAlbums.length]);
+
   // Badge the "Sync Requests" button with the count of filmmakers awaiting a reply.
   useEffect(() => {
     const uid = userProfile?.uid;
@@ -355,18 +373,6 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
       .then(rs => setPendingSyncReqs(rs.filter(r => r.status === 'PENDING').length))
       .catch(() => {});
   }, [userProfile?.uid]);
-
-  useEffect(() => {
-    if (bgAlbums.length < 2) return;
-    const id = setInterval(() => {
-      setBgIndex(prev => {
-        let next = Math.floor(Math.random() * bgAlbums.length);
-        if (next === prev) next = (prev + 1) % bgAlbums.length;
-        return next;
-      });
-    }, 6000);
-    return () => clearInterval(id);
-  }, [bgAlbums.length]);
 
   useEffect(() => {
     if (upcomingAlbums.length < 2) return;
@@ -1389,25 +1395,9 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
   return (
     <div className={`flex-1 bg-transparent text-white overflow-y-auto custom-scrollbar pb-40 relative${choraNextOn ? (choraNext.isNight ? ' chora-next chora-night' : ' chora-next') : ''}`}>
-      {bgAlbums.length > 0 && (
-        <div className="fixed top-0 left-0 w-screen h-[80vh] pointer-events-none" style={{ zIndex: 0, WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)', maskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)' }}>
-          <AnimatePresence mode="sync">
-            <motion.img
-              key={bgAlbums[bgIndex]?.id}
-              src={thumb(bgAlbums[bgIndex]?.coverImage, THUMB.large)}
-              initial={{ opacity: 0, scale: 1.06 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 1.8, ease: 'easeInOut' }}
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-          </AnimatePresence>
-          <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.45) 40%, rgba(0,0,0,0.7) 70%)' }} />
-        </div>
-      )}
       <div className="flex flex-col h-full relative z-[1]">
         <div className="flex-1 min-w-0">
-          <div className="px-4 sm:px-6 lg:px-12 pt-8 mb-6 relative z-10" style={{ opacity: choraNextOn ? 1 : 0.82 }}>
+          <div className="px-4 sm:px-6 lg:px-12 pt-8 mb-2 relative z-10" style={{ opacity: choraNextOn ? 1 : 0.82 }}>
             {choraNextOn ? (
               <ChoraNextMasthead
                 albums={albums}
@@ -1433,6 +1423,95 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
             )}
             {!isTvUi && <WcAnthemBanner onOpenPlaylist={() => { setActiveTab('PLAYLISTS'); }} />}
           </div>
+
+          {bgAlbums.length > 0 && (
+            <div className="px-4 sm:px-6 lg:px-12 pb-5">
+              <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-black/20 shadow-[0_24px_60px_rgba(0,0,0,0.38)]">
+                <div className="relative h-[280px] sm:h-[340px] lg:h-[420px]">
+                  <AnimatePresence mode="wait">
+                    <motion.button
+                      key={bgAlbums[heroAlbumIndex].id}
+                      type="button"
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 1.02 }}
+                      transition={{ duration: 1.2, ease: 'easeInOut' }}
+                      onClick={() => onSelectAlbum(bgAlbums[heroAlbumIndex])}
+                      onMouseMove={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const x = ((e.clientX - rect.left) / rect.width - 0.5) * 18;
+                        const y = ((e.clientY - rect.top) / rect.height - 0.5) * 18;
+                        setHeroParallax({ x, y });
+                      }}
+                      onMouseLeave={() => setHeroParallax({ x: 0, y: 0 })}
+                      className="absolute inset-0 w-full h-full overflow-hidden group"
+                    >
+                      <motion.div
+                        animate={{ x: heroParallax.x, y: heroParallax.y, scale: 1.08 }}
+                        transition={{ type: 'spring', stiffness: 110, damping: 18 }}
+                        className="absolute inset-0"
+                      >
+                        <img
+                          src={thumb(bgAlbums[heroAlbumIndex].coverImage, THUMB.large) || undefined}
+                          alt={bgAlbums[heroAlbumIndex].title}
+                          onError={onThumbError(bgAlbums[heroAlbumIndex].coverImage)}
+                          className="w-full h-full object-cover"
+                          style={{ filter: 'brightness(0.72) saturate(1.05)' }}
+                        />
+                      </motion.div>
+                      <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0.46) 52%, rgba(0,0,0,0.84) 100%)' }} />
+                      <div className="relative z-10 flex h-full flex-col justify-between p-5 sm:p-7 lg:p-9">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-small-orange animate-pulse" />
+                          <span className="text-[7px] font-black uppercase tracking-[0.45em] text-small-orange">Featured</span>
+                        </div>
+
+                        <div className="max-w-[32rem]">
+                          <p className="text-[8px] font-black uppercase tracking-[0.38em] text-white/65 mb-2">Next in Chora</p>
+                          <h3 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-none tracking-tight drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)]">
+                            {bgAlbums[heroAlbumIndex].title}
+                          </h3>
+                          <p className="mt-2 text-[9px] sm:text-[11px] font-black uppercase tracking-[0.28em] text-white/60 truncate">
+                            {bgAlbums[heroAlbumIndex].artist}
+                          </p>
+                        </div>
+                      </div>
+                    </motion.button>
+                  </AnimatePresence>
+
+                  <button
+                    type="button"
+                    aria-label="Previous album"
+                    onClick={(e) => { e.stopPropagation(); goToHeroAlbum('prev'); }}
+                    className="absolute left-3 top-1/2 z-20 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/30 text-white/80 backdrop-blur-md transition hover:bg-black/45 hover:text-white"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Next album"
+                    onClick={(e) => { e.stopPropagation(); goToHeroAlbum('next'); }}
+                    className="absolute right-3 top-1/2 z-20 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/30 text-white/80 backdrop-blur-md transition hover:bg-black/45 hover:text-white"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-center gap-2 py-3">
+                  {bgAlbums.map((album, index) => (
+                    <button
+                      key={album.id}
+                      type="button"
+                      aria-label={`Show ${album.title}`}
+                      onClick={() => setHeroAlbumIndex(index)}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${index === heroAlbumIndex ? 'w-10 bg-small-orange' : 'w-2 bg-white/35 hover:bg-white/60'}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           <nav className={`px-4 lg:px-12 mb-6 lg:mb-12 sticky top-0 backdrop-blur-2xl bg-black/40 border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.5)] z-40 py-3 ${s.nav} transition-all duration-500`}>
             {/* Tabs + actions share one flex row: the Chip Rail takes flex-1/min-w-0
                 and scrolls inside its own lane, the action buttons keep their own
@@ -1546,25 +1625,25 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               {/* Chora Conservatory — music museum + history */}
               <button
                 onClick={() => setShowConservatory(true)}
-                className="shrink-0 relative w-64 h-36 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
-                style={{ border: '1px solid rgba(224,164,88,0.4)' }}
+                className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
+                style={{ border: '1px solid rgba(224,164,88,0.25)' }}
               >
                 <img
                   src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Johann_Sebastian_Bach.jpg/480px-Johann_Sebastian_Bach.jpg"
                   alt="Conservatory"
                   className="absolute inset-0 w-full h-full object-cover object-top scale-110 group-hover:scale-125 transition-transform duration-500"
-                  style={{ filter: 'brightness(0.45) saturate(1.3) sepia(0.25)' }}
+                  style={{ filter: 'brightness(0.45) saturate(0.9) sepia(0.2)' }}
                 />
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(224,164,88,0.35) 0%, transparent 45%, rgba(0,0,0,0.85) 100%)' }} />
-                <div className="relative h-full flex flex-col justify-between p-4">
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(224,164,88,0.28) 0%, transparent 48%, rgba(0,0,0,0.82) 100%)' }} />
+                <div className="relative h-full flex flex-col justify-between p-5">
                   <div className="flex items-center gap-1.5">
                     <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#E0A458' }} />
                     <span className="text-[7px] font-black uppercase tracking-[0.35em]" style={{ color: '#E0A458' }}>The Museum</span>
                   </div>
                   <div>
                     <p className="text-[8px] font-black uppercase tracking-widest mb-0.5" style={{ color: 'rgba(224,164,88,0.85)' }}>Bach to Coltrane to Aretha</p>
-                    <h3 className="text-base font-black text-white leading-tight">The Conservatory</h3>
-                    <p className="text-[9px] text-white/50 mt-0.5">Masters &amp; a history of music →</p>
+                    <h3 className="text-lg font-black text-white leading-tight">The Conservatory</h3>
+                    <p className="text-[9px] text-white/55 mt-1">Masters &amp; a history of music →</p>
                   </div>
                 </div>
               </button>
@@ -1573,22 +1652,22 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   one is where music was made, this is where yours gets made. */}
               <button
                 onClick={() => onNavigate?.('MELOS')}
-                className="shrink-0 relative w-64 h-36 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
-                style={{ border: '1px solid rgba(212,0,85,0.4)' }}
+                className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
+                style={{ border: '1px solid rgba(212,0,85,0.25)' }}
               >
                 <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #6B0099 0%, #D40055 100%)' }} />
-                <div className="absolute inset-0 opacity-40 group-hover:opacity-60 transition-opacity duration-500"
-                  style={{ background: 'radial-gradient(circle at 80% 15%, rgba(255,140,0,0.55) 0%, transparent 55%)' }} />
+                <div className="absolute inset-0 opacity-35 group-hover:opacity-50 transition-opacity duration-500"
+                  style={{ background: 'radial-gradient(circle at 80% 15%, rgba(255,140,0,0.45) 0%, transparent 55%)' }} />
                 <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, transparent 35%, rgba(0,0,0,0.75) 100%)' }} />
-                <div className="relative h-full flex flex-col justify-between p-4">
+                <div className="relative h-full flex flex-col justify-between p-5">
                   <div className="flex items-center gap-1.5">
                     <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#FF8C00' }} />
                     <span className="text-[7px] font-black uppercase tracking-[0.35em]" style={{ color: '#FFB86B' }}>The Studio</span>
                   </div>
                   <div>
                     <p className="text-[8px] font-black uppercase tracking-widest mb-0.5" style={{ color: 'rgba(255,255,255,0.75)' }}>Write · Sequence · Produce</p>
-                    <h3 className="text-base font-black text-white leading-tight">Melos</h3>
-                    <p className="text-[9px] text-white/60 mt-0.5">Where your record gets made →</p>
+                    <h3 className="text-lg font-black text-white leading-tight">Melos</h3>
+                    <p className="text-[9px] text-white/60 mt-1">Where your record gets made →</p>
                   </div>
                 </div>
               </button>
@@ -1596,25 +1675,25 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               {/* History Moments */}
               <button
                 onClick={() => onNavigate?.('CHORA_HISTORY')}
-                className="shrink-0 relative w-64 h-36 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
-                style={{ border: '1px solid rgba(167,139,250,0.35)' }}
+                className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
+                style={{ border: '1px solid rgba(167,139,250,0.25)' }}
               >
                 <img
                   src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Johann_Sebastian_Bach.jpg/480px-Johann_Sebastian_Bach.jpg"
                   alt="History"
                   className="absolute inset-0 w-full h-full object-cover object-top scale-110 group-hover:scale-125 transition-transform duration-500"
-                  style={{ filter: 'brightness(0.5) saturate(1.4)' }}
+                  style={{ filter: 'brightness(0.45) saturate(0.8)' }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-900/70 via-transparent to-black/80" />
-                <div className="relative h-full flex flex-col justify-between p-4">
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-950/45 via-slate-900/10 to-black/80" />
+                <div className="relative h-full flex flex-col justify-between p-5">
                   <div className="flex items-center gap-1.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-small-orange animate-pulse" />
                     <span className="text-[7px] font-black uppercase tracking-[0.35em] text-small-orange">Platform Pulse</span>
                   </div>
                   <div>
-                    <p className="text-[8px] font-black uppercase tracking-widest text-purple-300/80 mb-0.5">Today in Music History</p>
-                    <h3 className="text-base font-black text-white leading-tight">History Moments</h3>
-                    <p className="text-[9px] text-white/50 mt-0.5">Legends, composers &amp; icons →</p>
+                    <p className="text-[8px] font-black uppercase tracking-widest text-violet-200/80 mb-0.5">Today in Music History</p>
+                    <h3 className="text-lg font-black text-white leading-tight">History Moments</h3>
+                    <p className="text-[9px] text-white/55 mt-1">Legends, composers &amp; icons →</p>
                   </div>
                 </div>
               </button>
@@ -1622,26 +1701,26 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               {/* Music Theory Studio */}
               <button
                 onClick={() => onNavigate?.('MUSIC_THEORY')}
-                className="shrink-0 relative w-64 h-36 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
-                style={{ border: '1px solid rgba(99,102,241,0.35)' }}
+                className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
+                style={{ border: '1px solid rgba(99,102,241,0.25)' }}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/90 via-blue-900/60 to-violet-900/80" />
-                <svg className="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 256 144">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/80 via-blue-900/60 to-violet-900/70" />
+                <svg className="absolute inset-0 w-full h-full opacity-15" viewBox="0 0 256 144">
                   {[35, 50, 65, 80, 95].map(y => <line key={y} x1="0" y1={y} x2="256" y2={y} stroke="white" strokeWidth="1" />)}
-                  <text x="10" y="110" fontSize="80" fill="white" fontFamily="serif" opacity="0.4">𝄞</text>
+                  <text x="10" y="110" fontSize="80" fill="white" fontFamily="serif" opacity="0.35">𝄞</text>
                   {[[80,65],[115,50],[150,65],[185,50],[220,65]].map(([x, cy], i) => (
-                    <ellipse key={i} cx={x} cy={cy} rx="7" ry="5" fill="white" opacity="0.6" transform={`rotate(-15,${x},${cy})`} />
+                    <ellipse key={i} cx={x} cy={cy} rx="7" ry="5" fill="white" opacity="0.5" transform={`rotate(-15,${x},${cy})`} />
                   ))}
                 </svg>
-                <div className="relative h-full flex flex-col justify-between p-4">
+                <div className="relative h-full flex flex-col justify-between p-5">
                   <div className="flex items-center gap-1.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                    <span className="text-[7px] font-black uppercase tracking-[0.35em] text-cyan-400">Learn</span>
+                    <span className="text-[7px] font-black uppercase tracking-[0.35em] text-cyan-300">Learn</span>
                   </div>
                   <div>
-                    <p className="text-[8px] font-black uppercase tracking-widest text-blue-300/80 mb-0.5">Novice · Intermediate · Maestro</p>
-                    <h3 className="text-base font-black text-white leading-tight">Music Theory Studio</h3>
-                    <p className="text-[9px] text-white/50 mt-0.5">Ear training, scales &amp; harmony →</p>
+                    <p className="text-[8px] font-black uppercase tracking-widest text-cyan-200/75 mb-0.5">Novice · Intermediate · Maestro</p>
+                    <h3 className="text-lg font-black text-white leading-tight">Music Theory Studio</h3>
+                    <p className="text-[9px] text-white/55 mt-1">Ear training, scales &amp; harmony →</p>
                   </div>
                 </div>
               </button>
