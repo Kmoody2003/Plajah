@@ -29,7 +29,11 @@ const retryLazy = <T extends React.ComponentType<any>>(
   return lazy(async () => {
     for (let i = 0; i < retriesLeft; i++) {
       try {
-        return await componentImport();
+        const loaded = await componentImport();
+        if (!loaded || typeof loaded.default === 'undefined') {
+          throw new Error('Lazy module loaded without a default export');
+        }
+        return loaded;
       } catch (error: any) {
         console.warn(`Retry lazy load failed (${i + 1}/${retriesLeft}). Error:`, error);
         if (i === retriesLeft - 1) {

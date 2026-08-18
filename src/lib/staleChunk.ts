@@ -17,7 +17,8 @@ export function isChunkLoadError(err: unknown): boolean {
     // default export, so React.lazy throws "Cannot read properties of undefined (reading 'default')".
     // Treat it as a stale-shell error so we bust caches + reload instead of soft-resetting into
     // the same dead chunk forever. Loop-guarded, so a genuine bug still surfaces after one try.
-    || /cannot read propert(?:y|ies) of undefined \(reading ['"]default['"]\)/i.test(String(m));
+    || /cannot read propert(?:y|ies) of undefined \(reading ['"]default['"]\)/i.test(String(m))
+    || /lazy module loaded without a default export/i.test(String(m));
 }
 
 let recovering = false;
@@ -54,6 +55,11 @@ export async function recoverFromStaleChunk(force = false): Promise<boolean> {
     }
   } catch { /* best effort — reload regardless */ }
 
-  window.location.reload();
+  // A normal reload can reuse the browser's already-instantiated, broken ES module
+  // graph even after Cache Storage is cleared. Change the document URL so the
+  // browser must request a fresh index and construct a new module graph.
+  const next = new URL(window.location.href);
+  next.searchParams.set('_plajah_refresh', String(Date.now()));
+  window.location.replace(next.toString());
   return true;
 }
