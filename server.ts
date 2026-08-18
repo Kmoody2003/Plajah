@@ -1715,7 +1715,7 @@ async function startServer() {
   // larger bodies (the AI proxy sends system prompt + scene context, well over 10kb)
   // so they can parse with their own limit instead of being 413'd here first.
   const tightJson = express.json({ limit: '10kb' });
-  const LARGE_BODY_ROUTES = new Set(['/api/ai/anthropic', '/api/ai/gemini']);
+  const LARGE_BODY_ROUTES = new Set(['/api/ai/anthropic', '/api/ai/gemini', '/api/ai/pokee']);
   app.use((req, res, next) => {
     if (LARGE_BODY_ROUTES.has(req.path)) return next();
     return tightJson(req, res, next);
@@ -1726,6 +1726,7 @@ async function startServer() {
   const authLimiter  = rateLimit({ windowMs: 15 * 60 * 1000, max: 10,  standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
   const apiLimiter   = rateLimit({ windowMs:      60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
   const proxyLimiter = rateLimit({ windowMs:      60 * 1000, max: 60,  standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
+  const pokeeLimiter = rateLimit({ windowMs: 5 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Pokee reasoning limit reached. Try again in a few minutes.' } });
 
   app.use('/api/stripe/create-checkout-session', authLimiter);
   app.use('/api/stripe/create-portal-session',   authLimiter);
@@ -3330,7 +3331,7 @@ async function startServer() {
   // OpenAI-compatible, so the body is a standard chat-completions payload and the
   // response is passed through untouched — any OpenAI client can point at this.
   // Logged-in + rate-limited, key stays server-side.
-  app.post('/api/ai/pokee', apiLimiter, authMiddleware, express.json({ limit: '25mb' }), async (req: any, res) => {
+  app.post('/api/ai/pokee', pokeeLimiter, authMiddleware, express.json({ limit: '25mb' }), async (req: any, res) => {
     const key = process.env.POKEE_API_KEY;
     if (!key) return res.status(503).json({ error: 'POKEE_API_KEY not configured' });
     const { model, max_tokens, messages, temperature, tools, tool_choice, response_format } = req.body as {

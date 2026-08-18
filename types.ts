@@ -3101,6 +3101,16 @@ export interface ChatMessage {
   };
   seenBy?: string[]; // Array of UIDs who have seen this message
   pageTag?: string; // Page the sender was visiting when they posted
+  /** Stable pointer to a canonical production record rendered live in Chat. */
+  productionEntity?: {
+    productionId: string;
+    entityType: 'TASK' | 'SCENE' | 'BREAKDOWN' | 'CALL_SHEET' | 'SCHEDULE' | 'DECISION' | 'ALERT' | 'MEMBER' | 'LOCATION';
+    entityId: string;
+    /** Optional workflow/version scope so a new revision requires a new acknowledgement. */
+    actionId?: string;
+  };
+  threadRootId?: string;
+  mentionUids?: string[];
 }
 
 export interface ChatRoom {
@@ -3139,6 +3149,22 @@ export interface ChatRoom {
   protected?: boolean;
   /** Auto-delete window in days for a protected thread, or null/undefined to keep. */
   retentionDays?: number | null;
+  // ─── Production workspace ─────────────────────────────────────────────────
+  /** Marks a normal group room as a governed Film/Business production channel. */
+  workspaceType?: 'PRODUCTION';
+  productionId?: string;
+  productionTitle?: string;
+  productionChannelKey?: string;
+  productionChannelKind?: 'ANNOUNCEMENTS' | 'GENERAL' | 'SCHEDULE' | 'SAFETY' | 'HELP' | 'DEPARTMENT' | 'SHOOT_DAY';
+  productionDepartment?: string;
+  productionDayNumber?: number;
+  channelDescription?: string;
+  radioChannel?: number;
+  /** Nibbles is deliberately unavailable in governed production rooms. */
+  nibblesEnabled?: boolean;
+  /** Announcements can be read by all crew while posting stays with production leadership. */
+  postingPolicy?: 'ALL_MEMBERS' | 'PRODUCTION_LEADS';
+  productionLeadUids?: string[];
 }
 
 /**

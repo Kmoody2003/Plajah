@@ -213,6 +213,116 @@ The existing tabs should migrate into these stages rather than remain a 16-item 
 
 ## Phased delivery plan
 
+### Implementation status — Phase 1 completed (August 17, 2026)
+
+The Phase 1 vertical slice is implemented:
+
+- multiple productions are available through an explicit workspace selector;
+- productions start empty, and sample data is an owner-triggered template;
+- Script Studio greenlights an immutable `ScriptDraft` into a selected production;
+- stable scene identity survives draft revisions while schedule, status, pages, notes, and location decisions are preserved;
+- call sheets use live scene projections, so edits reach Call Sheets, Daily Briefs, and DPR generation without re-keying;
+- budget, locations, festivals, membership, and scenes use shared production subcollections;
+- prior browser-only film data has an explicit production import adapter;
+- hiring and link/QR enrollment create role-bound memberships keyed by Plajah user ID;
+- Firestore rules cover drafts, workflow events, operational scopes, and private member data;
+- focused graph tests cover identity, extraction, and revision reconciliation.
+
+Phase 2 must extend these records rather than create parallel scene, crew, or schedule stores.
+
+### Production Brain — whole-production context (implemented August 17, 2026)
+
+Film Production Hub now includes a Pokee-Isaac reasoning surface that rebuilds its context from the live production graph for every analysis. It can answer free-form production questions or run risk, priority, continuity, and shoot-day passes across the approved script, scene breakdown, call sheets, staffing, tasks, locations, craft, distribution, workflow history, hiring, budget, and daily reports.
+
+The corpus is authority-filtered before it is sent: budget, reports, hiring records, and sensitive crew contact data are included only when the asking user's production permissions allow them. Responses separate evidence, risks, missing information, and role-owned next actions; they cannot directly mutate production records.
+
+### Implementation status — Phase 2 completed (August 17, 2026)
+
+The first Breakdown vertical slice is implemented as a shared Film Tools workspace:
+
+- canonical breakdown elements aggregate stable scene occurrences instead of duplicating the same prop, cast member, or requirement per scene;
+- the approved-draft reader lets permitted users select exact screenplay text and preserves its source element, trimmed quote, and character offsets on the stable scene occurrence;
+- standard categories route work to an owning production department, with custom categories available;
+- department heads can approve, assign, and advance only their own department's elements; production-wide script authority remains separate;
+- Pokee can propose grounded elements from the approved draft, but every suggestion stays outside production truth until a permitted person approves it;
+- approved elements can become department-owned tasks without re-keying;
+- element, scene, and Cast DOOD views plus filtered CSV and print/PDF output are available;
+- element detail views support independently editable scene quantities, evidence, notes, and removal while preserving at least one grounded occurrence;
+- governed media and document attachments support production references up to 25 MB, with uploader-scoped storage and department-authorized record changes;
+- department-scoped report packets provide readiness, blockers, ownership, vendor, cost, evidence, attachment counts, CSV, and print/PDF output;
+- the Production Brain corpus now includes the live breakdown inventory and approval state;
+- append-only workflow events record AI suggestion passes, human approvals, occurrence changes, and attachment changes.
+
+Phase 2 exit achieved: an AD can greenlight a script, complete a production-ready breakdown, delegate department preparation without crossing authority boundaries, and share accurate department packets without re-keying the script.
+
+### Implementation status — Phase 3 completed (August 17, 2026)
+
+The production schedule is now a versioned approval workflow rather than a number stored independently on each scene:
+
+- stable scene records become draggable strips inside named schedule versions;
+- alternate schedules clone arrangements without mutating the approved version, and prior approvals are superseded rather than overwritten;
+- shoot days carry dates, unit, general call, page totals, estimated duration, banners, and explicit company moves;
+- shoot days can link production tasks as dependencies, keeping prep ownership visible on the board;
+- cast/crew availability, location availability, and scene restrictions can be entered as hard or soft constraints;
+- the conflict engine explains cast, location, daylight, workload, blocked-breakdown, and unmarked-company-move problems before approval;
+- only a conflict-clear saved draft can become production truth, and approval projects the selected day assignment back onto the stable scenes;
+- call sheets are generated from the approved schedule with its plan/version/day identity attached;
+- reusable call-sheet templates preserve safety, parking, basecamp, hospital, meal, and relative timing defaults while allowing the production call to move;
+- publication creates a personalized recipient packet per active crew or called cast member, including individual call, relevant scenes, sides/department-brief flags, and recipient-specific deltas on republish;
+- delivered, viewed, confirmed, problem, and superseded states live in independent recipient documents, eliminating the shared confirmation-map race;
+- a recipient can view or confirm only their own linked packet, while call-sheet managers see the complete delivery dashboard;
+- schedule plans, constraints, delivery state, and approval history are included in the authority-filtered Production Brain corpus.
+
+Phase 3 exit achieved: approved schedule → schedule-linked call sheet → personalized packet → independent, traceable acknowledgement works without re-keying. Email and SMS transport adapters can be added later without changing the packet or receipt model.
+
+### Implementation status — Production Chat foundation completed (August 17, 2026)
+
+Plajah Chat now treats a production as a governed communication workspace while preserving the platform's existing consumer messaging behavior:
+
+- every production starts with Announcements, General, Schedule & Calls, Safety, and Crew Help;
+- the workspace adds department rooms from the active roster, infers Stunts/SFX, Locations, and Transportation needs from the scene plan, and adds shoot-day rooms from linked call sheets;
+- deterministic room IDs make repeated provisioning idempotent, while roster and call-sheet changes safely resync the structure;
+- department rooms include production leadership plus the relevant department rather than exposing every operational room to the whole company;
+- Plajah Chat keeps DMs, audio/video calling, rich messages, voice/video notes, reactions, search, and collaboration boards;
+- production rooms add group PTT using the film department radio plan, with a recent-transmission reel;
+- each person gets a private production note and a context card containing their position, department, personal call, department focus, and radio channel;
+- Announcements are read-only for ordinary crew and writable by production leadership;
+- Nibbles is explicitly disabled in production rooms and production-context DMs begin with it off;
+- central Chat groups production rooms under Sets, while Artist Manager › Film exposes the complete production workspace;
+- Production Brain receives recent messages only from production channels the asking user can already read; private notes and DMs are always excluded.
+
+Communication foundation exit achieved: roster/schedule changes produce the right governed rooms, crew can message/call/PTT without leaving the production, and private or leadership-only boundaries remain enforceable at the data layer.
+
+### Implementation status — Production Chat live workflow layer completed (August 17, 2026)
+
+- Chat messages can carry stable references to canonical tasks, scenes, breakdown elements, call sheets, schedules, decisions, and alerts rather than flattened screenshots or copied text.
+- Native Plajah cards subscribe to the original record, render its current operational state and linked image/document assets, and refresh automatically when an authorized author changes it.
+- Authority-aware actions let the right role advance a task, update scene or department readiness, record a decision outcome, or resolve an alert without giving that person control of unrelated production data.
+- Crew can acknowledge a live object or request clarification; each response is an independent user-owned record so one recipient cannot overwrite another.
+- Schedule and call-sheet cards use the same acknowledgement path, providing a reusable change-confirmation workflow inside Chat.
+- Production conversations support focused threads and `@name` mentions with mention-specific notifications and an in-chat “Mentioned you” marker.
+- Decision, alert, and acknowledgement records are included in the authority-filtered Production Brain corpus, while private notes and DMs remain excluded.
+- Firestore validates live references against the room's production and preserves immutable author/recipient ownership at the data layer.
+
+Live workflow exit achieved: production data remains interactive and current inside Chat, edits return to the canonical source, and communication does not bypass production authority.
+
+### Implementation status — Production Action Engine completed (August 18, 2026)
+
+- Approving a schedule now calculates affected scenes, departments, crew, downstream systems, and review risks before authority commits the change.
+- Approved schedules create a durable, retryable governed action and automatically route the canonical schedule card to Announcements and Schedule & Calls.
+- Publishing or revising a call sheet calculates the called population and operational gaps, then routes the live call-sheet card to Schedule & Calls and its shoot-day room.
+- Each governed revision has its own action ID, acknowledgement scope, deadline, delivery state, and authority requirement; an acknowledgement from an older revision cannot satisfy a newer one.
+- Failed channel delivery returns the action to `READY` instead of losing the workflow, allowing an authorized person to retry it from the Operations Inbox.
+- Production Chat now includes **My work**, a personal role-filtered queue for required acknowledgements, call-sheet confirmations, assigned tasks, and changes awaiting authorized publication.
+- The governed change feed shows downstream consequences, risks, delivery status, acknowledgement completion, overdue state, and role-gated escalation controls.
+- Confirming a call-sheet packet from the inbox updates both the recipient delivery and its governed-action acknowledgement.
+- Pokee's authority-filtered corpus now includes production actions, their impact analysis, delivery state, deadlines, risks, and acknowledgements.
+- Firestore rules preserve the action's production, original actor, required permission, and canonical entity while allowing only the appropriate authority to publish or escalate it.
+
+Action Engine exit achieved: an approved production change becomes durable work, reaches the right operational channels as live data, requests a fresh response from the right people, and remains visible until responsibility is closed.
+
+The interactive showcase production is intentionally deferred until the remaining production-suite implementation is wrapped. It should be created as a separate final demonstration pass so every completed workflow can be seeded and exercised end to end without contaminating real-user production creation.
+
 ### Phase 0 — Architecture and safety (2 weeks)
 
 - Write an ADR for the Production Graph and stable ID rules.
@@ -343,3 +453,24 @@ Use vertical slices, not isolated frontend tabs:
 - Do not build separate “StudioBinder mode” and “Scriptation mode.” The value is one connected workflow.
 - Do not prioritize cosmetic parity before multi-project support, shared identity, permissions, revisions, and reliable distribution.
 
+## Governed production change connectors — implemented
+
+The production Action Engine now connects the suite's operational mutation paths to Production Chat and the Operations Inbox:
+
+- task assignments publish a live task card to the responsible department and assignee;
+- scene status and schedule-sensitive scene edits route to Script, Direction, or Schedule & Calls with acknowledgements when the downstream day can change;
+- location and permit changes route to Locations and, when material, Schedule & Calls;
+- breakdown blockers route to the owning department plus Safety or Crew Help, while department heads remain confined to their assigned department;
+- hiring and invite enrollment create live roster join records without granting authority beyond the assigned role;
+- every enrolled production member can issue a Safety alert, while urgent alerts require crew acknowledgement;
+- Member and Location are first-class live chat entity cards, so original-author updates render everywhere without screenshots or copies.
+
+Firestore rules mirror these boundaries. Production-wide permissions remain role-owned; the only narrow exceptions are self-enrollment announcements, member-authored Safety alerts, and department-scoped blockers.
+
+## Universal project showcase — implemented
+
+`Afterlight · Plajah Production Showcase` is a versioned, read-only production template installed for each signed-in account when the Film Production suite is opened. It appears in the normal production switcher with a Demo label, but its production records and chat composer are locked.
+
+The showcase includes a connected roster, role authority, four-scene short-film plan, three locations, approved three-day schedule, published call sheets, personalized deliveries, department breakdown with active blockers, budget, tasks, craft service, festival strategy, a finalized DPR, staffing opening, decision, safety alert, Operations Inbox changes, generated production channels, and native live-data chat cards.
+
+“Copy project” creates a separate editable production owned by the user. All production-scoped IDs are rewritten so schedules, call sheets, breakdown occurrences, actions, and deliveries point to the new production while preserving the demonstration data and workflow shape.

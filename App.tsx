@@ -3115,6 +3115,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onCreate={() => setShowCreator(true)}
                 onOpenAccountSwitcher={() => setShowAccountSwitcher(true)}
                 onExitNew={() => shellNext.setEnabled(false)}
+                onVisitUser={handleVisitUser}
+                onSelectItem={handleSelectItem}
+                onSelectArticle={(article) => { setSelectedArticle(article); setView('ARTICLE_VIEW'); }}
+                onSelectGame={handleSelectGame}
+                onSelectLiveFeed={setActiveLiveFeed}
               />
             ) : (
             <ChoraNavBar
@@ -3160,6 +3165,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onOpenAccountSwitcher={() => setShowAccountSwitcher(true)}
                 onSignOut={() => { try { logout(); } catch { /* ignore */ } }}
                 onExitNew={() => shellNext.setEnabled(false)}
+                onVisitUser={handleVisitUser}
+                onSelectItem={handleSelectItem}
+                onSelectArticle={(article) => { setSelectedArticle(article); setView('ARTICLE_VIEW'); }}
+                onSelectGame={handleSelectGame}
+                onSelectLiveFeed={setActiveLiveFeed}
                 slim={navLayout.isSlim || navLayout.isSplit}
               />
             ) : (
@@ -3188,7 +3198,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onSelectArticle={(article) => { setSelectedArticle(article); setView('ARTICLE_VIEW'); }}
                 onSelectGame={handleSelectGame}
                 onSelectView={(v) => setView(v as any)}
-                onSelectLiveFeed={setActiveLiveFeed}
+                 onSelectLiveFeed={setActiveLiveFeed}
+                 onOpenFullSearch={(query) => { setSearchQuery(query); setView('SEARCH'); }}
               />
 
               {/* ── Sidebar Mode Toggle ── */}
@@ -4195,7 +4206,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                           onSelectArticle={(article) => { setSelectedArticle(article); setView('ARTICLE_VIEW'); setIsBottomSectionExpanded(false); }}
                           onSelectGame={(game) => { handleSelectGame(game); setIsBottomSectionExpanded(false); }}
                           onSelectView={(v) => { setView(v as any); setIsBottomSectionExpanded(false); }}
-                          onSelectLiveFeed={(feed) => { setActiveLiveFeed(feed); setIsBottomSectionExpanded(false); }}
+                           onSelectLiveFeed={(feed) => { setActiveLiveFeed(feed); setIsBottomSectionExpanded(false); }}
+                           onOpenFullSearch={(query) => { setSearchQuery(query); setView('SEARCH'); setIsBottomSectionExpanded(false); }}
                           onFocusChange={setDrawerSearchFocused}
                         />
                       </div>

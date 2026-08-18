@@ -6,10 +6,11 @@ import {
 import {
   fetchAllPublicAlbums, fetchAllVideos, fetchGames, fetchAllPublicWorlds,
   fetchGlobalApps, fetchGlobalPhotos, listenToGlobalArticles, fetchAllLiveFeeds,
-  searchUsers, fetchDiscussionPosts,
+  searchUsers, fetchDiscussionPosts, listenToGlobalPosts,
 } from '../services/backendService';
 import { semanticSearch, AzureSearchResult } from '../services/microsoftAIService';
-import { Album, Video, Article, UserProfile } from '../types';
+import { Album, Video, Article, UserProfile, Post } from '../types';
+import { diversifyPublicSearchResults, maxPublicSearchScore, normalizePublicSearchQuery } from '../services/platformSearchService';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -17,7 +18,7 @@ type ResultType =
   | 'USER' | 'MUSIC' | 'PODCAST' | 'BOOK'
   | 'VIDEO' | 'MOVIE' | 'TV' | 'ARTICLE'
   | 'GAME' | 'WORLD' | 'LIVE' | 'DISCUSSION'
-  | 'PHOTO' | 'APP';
+  | 'PHOTO' | 'APP' | 'POST';
 
 interface SearchResult {
   id: string;
@@ -38,6 +39,7 @@ interface SidebarSearchProps {
   onSelectGame: (game: any) => void;
   onSelectView: (view: string) => void;
   onSelectLiveFeed: (feed: any) => void;
+  onOpenFullSearch?: (query: string) => void;
   onFocusChange?: (isFocused: boolean) => void;
 }
 
@@ -56,29 +58,17 @@ const TYPE_CONFIG: Record<ResultType, { label: string; color: string; Icon: Reac
   WORLD:      { label: 'World',      color: 'text-teal-400',    Icon: Globe },
   LIVE:       { label: 'Live',       color: 'text-red-400',     Icon: Zap },
   DISCUSSION: { label: 'Post',       color: 'text-violet-400',  Icon: MessageCircle },
+  POST:       { label: 'Post',       color: 'text-violet-400',  Icon: MessageCircle },
   PHOTO:      { label: 'Photo',      color: 'text-indigo-400',  Icon: Camera },
   APP:        { label: 'App',        color: 'text-orange-400',  Icon: AppWindow },
 };
 
 const TYPE_ORDER: Record<ResultType, number> = {
   USER: 0, MUSIC: 1, PODCAST: 2, MOVIE: 3, TV: 4, VIDEO: 5,
-  ARTICLE: 6, GAME: 7, LIVE: 8, WORLD: 9, BOOK: 10, DISCUSSION: 11, APP: 12, PHOTO: 13,
+  ARTICLE: 6, POST: 7, GAME: 8, LIVE: 9, WORLD: 10, BOOK: 11, DISCUSSION: 12, APP: 13, PHOTO: 14,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function score(field: string = '', q: string): number {
-  const f = field.toLowerCase();
-  if (!f || !q) return 0;
-  if (f === q) return 3;
-  if (f.startsWith(q)) return 2;
-  if (f.includes(q)) return 1;
-  return 0;
-}
-
-function maxScore(fields: (string | undefined)[], q: string): number {
-  return Math.max(0, ...fields.map(f => score(f, q)));
-}
 
 function albumType(album: Album): ResultType {
   const sub = ((album as any).subType || '').toUpperCase();
@@ -100,6 +90,7 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
   onSelectGame,
   onSelectView,
   onSelectLiveFeed,
+  onOpenFullSearch,
   onFocusChange,
 }) => {
   const [query, setQuery] = useState('');
@@ -120,14 +111,17 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
   const [photos, setPhotos] = useState<any[]>([]);
   const [liveFeeds, setLiveFeeds] = useState<any[]>([]);
   const [discussions, setDiscussions] = useState<any[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
 
   // Debounced user results
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [userSearching, setUserSearching] = useState(false);
   const userTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const userRequest = useRef(0);
   // Azure semantic search results
   const [azureResults, setAzureResults] = useState<AzureSearchResult[]>([]);
   const azureTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const azureRequest = useRef(0);
 
   // Load all content catalogs once on mount
   useEffect(() => {
@@ -149,6 +143,7 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
 
     const unsubArticles = listenToGlobalArticles(data => setArticles(data));
     const unsubFeeds = fetchAllLiveFeeds(data => setLiveFeeds(data));
+    const unsubPosts = listenToGlobalPosts(data => setPosts(data.filter(post => post.isPublic !== false && !post.isToday)));
 
     fetchDiscussionPosts(undefined, 'hot')
       .then(data => setDiscussions((data || []).slice(0, 60)))
@@ -157,17 +152,20 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
     return () => {
       if (typeof unsubArticles === 'function') unsubArticles();
       if (typeof unsubFeeds === 'function') unsubFeeds();
+      if (typeof unsubPosts === 'function') unsubPosts();
     };
   }, []);
 
   // Debounced user search
   useEffect(() => {
     if (userTimer.current) clearTimeout(userTimer.current);
-    if (query.trim().length < 2) { setUsers([]); return; }
+    const requestId = ++userRequest.current;
+    if (query.trim().length < 2) { setUsers([]); setUserSearching(false); return; }
     setUserSearching(true);
     userTimer.current = setTimeout(async () => {
-      const res = await searchUsers(query).catch(() => []);
-      setUsers(res);
+      const res = await searchUsers(query.trim()).catch(() => []);
+      if (requestId !== userRequest.current) return;
+      setUsers(res.filter(user => !(user as any).isChild && user.accountType !== 'CHILD'));
       setUserSearching(false);
     }, 280);
     return () => { if (userTimer.current) clearTimeout(userTimer.current); };
@@ -176,27 +174,28 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
   // Debounced Azure semantic search
   useEffect(() => {
     if (azureTimer.current) clearTimeout(azureTimer.current);
+    const requestId = ++azureRequest.current;
     const q = query.trim();
     if (q.length < 2) { setAzureResults([]); return; }
     azureTimer.current = setTimeout(async () => {
       try {
         const res = await semanticSearch(q).catch(() => []);
-        setAzureResults(res || []);
-      } catch (e) { setAzureResults([]); }
+        if (requestId === azureRequest.current) setAzureResults(res || []);
+      } catch (e) { if (requestId === azureRequest.current) setAzureResults([]); }
     }, 320);
     return () => { if (azureTimer.current) clearTimeout(azureTimer.current); };
   }, [query]);
 
   // Build ranked results from all catalogs
   const results = useMemo((): SearchResult[] => {
-    const q = query.trim().toLowerCase();
+    const q = normalizePublicSearchQuery(query);
     if (q.length < 2) return [];
 
     const all: SearchResult[] = [];
 
     // Users
     users.forEach(u => {
-      const s = maxScore([u.displayName, (u as any).bio, (u as any).genre], q);
+      const s = maxPublicSearchScore([u.displayName, (u as any).bio, (u as any).genre], q);
       if (s > 0) all.push({
         id: u.uid, title: u.displayName || 'Unknown',
         subtitle: (u as any).isArtist ? 'Artist' : 'User',
@@ -206,7 +205,7 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
 
     // Albums
     albums.forEach(a => {
-      const s = maxScore([a.title, (a as any).artist, a.genre, a.description,
+      const s = maxPublicSearchScore([a.title, (a as any).artist, a.genre, a.description,
         ...((a as any).tags || [])], q);
       if (s > 0) all.push({
         id: a.id, title: a.title,
@@ -214,13 +213,17 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
         thumbnail: (a as any).coverImage || (a as any).coverUrl,
         type: albumType(a), raw: a, _score: s,
       });
+      (a.tracks || []).forEach(track => {
+        const trackScore = maxPublicSearchScore([track.title, (track as any).artist, a.title, a.genre], q);
+        if (trackScore > 0) all.push({ id: `${a.id}:${track.id}`, title: track.title, subtitle: `${(track as any).artist || (a as any).artist || 'Music'} · ${a.title}`, thumbnail: (a as any).coverImage || (a as any).coverUrl, type: 'MUSIC', raw: a, _score: trackScore + 0.15 });
+      });
     });
 
     // Videos
     videos.forEach(v => {
       const cat = ((v as any).category || '').toUpperCase();
       const vType: ResultType = cat === 'MOVIE' ? 'MOVIE' : cat === 'TV_EPISODE' ? 'TV' : 'VIDEO';
-      const s = maxScore([v.title, (v as any).artist, v.genre, v.description,
+      const s = maxPublicSearchScore([v.title, (v as any).artist, v.genre, v.description,
         ...((v as any).tags || [])], q);
       if (s > 0) all.push({
         id: v.id, title: v.title,
@@ -231,7 +234,7 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
 
     // Articles
     articles.forEach(a => {
-      const s = maxScore([a.title, a.subtitle, a.authorName, a.category,
+      const s = maxPublicSearchScore([a.title, a.subtitle, a.authorName, a.category,
         ...(a.tags || [])], q);
       if (s > 0) all.push({
         id: a.id, title: a.title, subtitle: a.authorName,
@@ -241,7 +244,7 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
 
     // Games
     games.forEach(g => {
-      const s = maxScore([g.title, g.description, ...(g.tags || [])], q);
+      const s = maxPublicSearchScore([g.title, g.description, ...(g.tags || [])], q);
       if (s > 0) all.push({
         id: g.id, title: g.title, subtitle: 'Game',
         thumbnail: g.thumbnailUrl, type: 'GAME', raw: g, _score: s,
@@ -250,7 +253,7 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
 
     // Worlds
     worlds.forEach(w => {
-      const s = maxScore([w.name, w.description], q);
+      const s = maxPublicSearchScore([w.name, w.description], q);
       if (s > 0) all.push({
         id: w.id, title: w.name, subtitle: w.worldType,
         thumbnail: w.coverImage, type: 'WORLD', raw: w, _score: s,
@@ -259,7 +262,7 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
 
     // Apps
     apps.forEach(a => {
-      const s = maxScore([a.title, a.description, a.category], q);
+      const s = maxPublicSearchScore([a.title, a.description, a.category], q);
       if (s > 0) all.push({
         id: a.id, title: a.title, subtitle: a.category,
         thumbnail: a.thumbnailUrl, type: 'APP', raw: a, _score: s,
@@ -268,7 +271,7 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
 
     // Photos
     photos.forEach(p => {
-      const s = maxScore([p.title, p.description, ...(p.tags || [])], q);
+      const s = maxPublicSearchScore([p.title, p.description, ...(p.tags || [])], q);
       if (s > 0) all.push({
         id: p.id, title: p.title || 'Photo', subtitle: 'Photo',
         thumbnail: p.url, type: 'PHOTO', raw: p, _score: s,
@@ -298,7 +301,7 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
 
     // Live Feeds
     liveFeeds.forEach(f => {
-      const s = maxScore([f.title, f.genre, f.subject, ...(f.tags || [])], q);
+      const s = maxPublicSearchScore([f.title, f.genre, f.subject, ...(f.tags || [])], q);
       if (s > 0) all.push({
         id: f.id, title: f.title,
         subtitle: f.status === 'LIVE' ? 'Live Now' : 'Stream',
@@ -308,22 +311,29 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
 
     // Discussion Posts
     discussions.forEach(d => {
-      const s = maxScore([d.title, d.body, d.displayName], q);
+      const s = maxPublicSearchScore([d.title, d.body, d.displayName], q);
       if (s > 0) all.push({
         id: d.id, title: d.title || 'Post', subtitle: 'Discussion',
         type: 'DISCUSSION', raw: d, _score: s,
       });
     });
 
+    // Public social posts — searchable by body, author, tags, and embedded creation titles.
+    posts.forEach(post => {
+      const mediaTitles = (post.media || []).map(media => media.title || media.linkPreview?.title || '');
+      const s = maxPublicSearchScore([post.text, post.authorName, ...(post.tags || []), ...mediaTitles], q);
+      if (s > 0) all.push({
+        id: post.id,
+        title: post.text.trim().slice(0, 90) || mediaTitles.find(Boolean) || 'Public post',
+        subtitle: post.authorName,
+        thumbnail: post.contentLabels?.length ? undefined : post.media?.find(media => media.thumbnail || media.type === 'PHOTO')?.thumbnail || post.media?.find(media => media.type === 'PHOTO')?.url,
+        type: 'POST', raw: post, _score: s,
+      });
+    });
+
     // Sort by score desc, then type priority
-    return all
-      .sort((a, b) =>
-        b._score !== a._score
-          ? b._score - a._score
-          : (TYPE_ORDER[a.type] ?? 99) - (TYPE_ORDER[b.type] ?? 99)
-      )
-      .slice(0, 16);
-  }, [query, users, albums, videos, articles, games, worlds, apps, photos, liveFeeds, discussions]);
+    return diversifyPublicSearchResults(all, TYPE_ORDER, 20, 4);
+  }, [query, users, albums, videos, articles, games, worlds, apps, photos, liveFeeds, discussions, posts, azureResults]);
 
   const handleClick = (result: SearchResult) => {
     switch (result.type) {
@@ -333,6 +343,7 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
       case 'LIVE':       onSelectLiveFeed(result.raw); break;
       case 'WORLD':      onSelectView('WORLDS'); break;
       case 'DISCUSSION': onSelectView('DISCUSSION'); break;
+      case 'POST':       onSelectView('FEED'); break;
       case 'PHOTO':      onSelectView('GLOBAL_PHOTOS'); break;
       case 'APP':        onSelectView('APPS'); break;
       default:           onSelectItem(result.raw); break;
@@ -345,15 +356,19 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
   const q = query.trim();
   const showDropdown = focused && q.length >= 2;
   const isEmpty = results.length === 0 && !userSearching;
+  const openFullSearch = () => {
+    if (onOpenFullSearch) onOpenFullSearch(q);
+    else onSelectView('SEARCH');
+    setQuery(''); setFocusedWithCallback(false);
+  };
 
-  // ── Collapsed: just a search icon
   if (isCollapsed) {
     return (
       <div className={`mb-2 flex justify-center shrink-0 ${theme === 'BIG_SCREEN' ? 'group-hover/sidebar:hidden' : ''}`}>
         <button
-          onClick={() => onSelectView('SEARCH')}
+          onClick={openFullSearch}
           className="w-12 h-10 rounded-xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center hover:bg-white/10 transition-colors"
-          title="Search"
+          title="Search all public Plajah content"
         >
           <Search size={16} className="text-white/40" />
         </button>
@@ -368,7 +383,7 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
         <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
         <input
           type="text"
-          placeholder="Search music, videos, articles..."
+          placeholder="Search Plajah — people, music, creations, posts…"
           value={query}
           onChange={e => setQuery(e.target.value)}
           onFocus={() => setFocusedWithCallback(true)}
@@ -402,7 +417,7 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
               </button>
               <button
                 onMouseDown={e => e.preventDefault()}
-                onClick={() => { onSelectView('SEARCH'); setFocusedWithCallback(false); }}
+                onClick={openFullSearch}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-wider text-white/50 hover:bg-white/10 transition-colors"
               >
                 <Search size={10} />
@@ -466,7 +481,7 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
               <div className="px-4 py-2 border-t border-white/[0.04] flex items-center justify-between">
                 <button
                   onMouseDown={e => e.preventDefault()}
-                  onClick={() => { onSelectView('SEARCH'); setQuery(''); setFocusedWithCallback(false); }}
+                  onClick={openFullSearch}
                   className="text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-white/50 transition-colors"
                 >
                   Full search →

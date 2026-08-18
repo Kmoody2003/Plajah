@@ -14,6 +14,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, Plus, Bell, Command, RotateCcw, X } from 'lucide-react';
 import { NAV_SECTIONS, NavDest, NavSection } from './CommandSplitNav';
+import UniversalCommandResults from './UniversalCommandResults';
 
 type ViewId = string;
 
@@ -33,11 +34,17 @@ export interface CommandSplitBarProps {
   onOpenNotifications?: () => void;
   onOpenAccountSwitcher?: () => void;
   onExitNew?: () => void; // back to classic bar
+  onVisitUser?: (uid: string) => void;
+  onSelectItem?: (item: any) => void;
+  onSelectArticle?: (article: any) => void;
+  onSelectGame?: (game: any) => void;
+  onSelectLiveFeed?: (feed: any) => void;
 }
 
 const CommandSplitBar: React.FC<CommandSplitBarProps> = ({
   view, onNavigate, hasUser, displayName, avatarUrl, accountSlot,
   notificationCount = 0, onCreate, onOpenNotifications, onOpenAccountSwitcher, onExitNew,
+  onVisitUser, onSelectItem, onSelectArticle, onSelectGame, onSelectLiveFeed,
 }) => {
   const [openCat, setOpenCat] = useState<number>(() => Math.max(0, sectionIndexOf(view)));
   const [launcher, setLauncher] = useState(false);
@@ -174,9 +181,10 @@ const CommandSplitBar: React.FC<CommandSplitBarProps> = ({
                   </div>
                 </>
               )}
+              {query && <UniversalCommandResults query={query} onNavigate={onNavigate} onClose={() => setLauncher(false)} onVisitUser={onVisitUser} onSelectItem={onSelectItem} onSelectArticle={onSelectArticle} onSelectGame={onSelectGame} onSelectLiveFeed={onSelectLiveFeed} />}
               {(query ? [{ key: results.length + ' result' + (results.length === 1 ? '' : 's'), icon: Search, items: results }] as NavSection[] : NAV_SECTIONS).map((s, si) => (
                 <div key={si}>
-                  <div className="text-[.6rem] font-black uppercase tracking-[0.2em] text-white/40 mt-5 mb-2.5 flex items-center gap-1.5">{React.createElement(s.icon, { size: 12 })} {s.key}</div>
+                  <div className="text-[.6rem] font-black uppercase tracking-[0.2em] text-white/40 mt-5 mb-2.5 flex items-center gap-1.5">{React.createElement(s.icon, { size: 12 })} {query ? `Pages & tools · ${s.key}` : s.key}</div>
                   <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(92px,1fr))' }}>
                     {(query ? results : visibleSection(s)).map(d => { const A = d.icon; return (
                       <button key={d.id} onClick={() => go(d.id)}

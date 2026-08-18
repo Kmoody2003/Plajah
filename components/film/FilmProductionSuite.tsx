@@ -6,13 +6,13 @@
  * private Reello broadcast to offsite producers.
  */
 
-import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard, FileText, Users, ClipboardList, Utensils, Plus, X, Sparkles,
   Radio, CheckCircle2, Clock, MapPin, Sun, Sunset, AlertTriangle, Hospital,
   Coffee, Send, Copy, Zap, ChevronRight, CalendarDays, ShieldAlert, Wand2,
-  CircleDot, CheckCheck, UserCheck, Soup, Circle, Bell, Camera as CameraIcon, Printer, FolderPlus,
+  CircleDot, CheckCheck, UserCheck, Soup, Circle, Bell, Camera as CameraIcon, Printer, FolderPlus, BrainCircuit, Save,
 } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { LiveStudio } from '../MobileLiveStreamer';
@@ -27,8 +27,14 @@ import {
   type ProductionBudgetLine, type ProductionLocation, type ProductionFestival,
 } from '../../services/filmProductionService';
 import { listWritingProjects, fetchScriptScenes, type WritingProject } from '../../services/loreaProjectsService';
-import { Button, Surface, Input, Eyebrow } from '../ui';
+import { Button, Surface, Input, Textarea, Chip, Actions, Eyebrow } from '../ui';
 import { hasLegacyFilmData, importLegacyFilmData } from '../../services/legacyFilmMigration';
+import { askProductionBrain, type ProductionBrainAnswer, type ProductionBrainMode } from '../../services/productionIntelligenceService';
+import * as Schedule from '../../services/productionScheduleService';
+import type { CallSheetTemplate, RecipientDelivery } from '../../services/productionScheduleService';
+import { canManageProductionChat, provisionProductionChat } from '../../services/productionChatService';
+import { putTaskWithAction } from '../../services/productionActionService';
+import { copyFilmShowcaseProduction, ensureFilmShowcaseProduction } from '../../services/productionShowcaseTemplate';
 
 // ─── Shared live production context ──────────────────────────────────────────
 
@@ -37,6 +43,7 @@ interface Ctx {
   productions: Production[];
   selectProduction: (id: string) => void;
   createProduction: (title: string) => Promise<void>;
+  copyShowcase: () => Promise<void>;
   applySample: () => Promise<void>;
   members: ProductionMember[];
   scenes: ProductionScene[];
@@ -44,6 +51,8 @@ interface Ctx {
   locations: ProductionLocation[];
   festivals: ProductionFestival[];
   callSheets: CallSheet[];
+  deliveries: RecipientDelivery[];
+  callSheetTemplates: CallSheetTemplate[];
   tasks: ProdTask[];
   menu: CraftItem[];
   orders: CraftOrder[];
@@ -53,6 +62,7 @@ interface Ctx {
   setActiveSheetId: (id: string) => void;
   me: ProductionMember | null;
   isOwner: boolean;
+  readOnly: boolean;
   can: (permission: ProductionPermission) => boolean;
   loading: boolean;
   goTab: (t: string) => void;
@@ -75,12 +85,15 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
   const [locations, setLocations] = useState<ProductionLocation[]>([]);
   const [festivals, setFestivals] = useState<ProductionFestival[]>([]);
   const [callSheets, setCallSheets] = useState<CallSheet[]>([]);
+  const [deliveries, setDeliveries] = useState<RecipientDelivery[]>([]);
+  const [callSheetTemplates, setCallSheetTemplates] = useState<CallSheetTemplate[]>([]);
   const [tasks, setTasks] = useState<ProdTask[]>([]);
   const [menu, setMenu] = useState<CraftItem[]>([]);
   const [orders, setOrders] = useState<CraftOrder[]>([]);
   const [dprs, setDprs] = useState<DailyProductionReport[]>([]);
   const [activeSheetId, setActiveSheetId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const chatStructureSignature = useRef('');
 
   const selectionKey = `plajah_active_production_${uid}`;
 
@@ -89,11 +102,13 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
     let alive = true;
     (async () => {
       if (!uid) { setLoading(false); return; }
-      const rows = await FP.fetchMyProductions(uid);
+      const showcase = await ensureFilmShowcaseProduction(uid, currentUser?.displayName || undefined).catch(() => null);
+      const owned = await FP.fetchMyProductions(uid);
+      const rows = [...owned.filter(row => row.id !== showcase?.id), ...(showcase ? [showcase] : [])];
       if (!alive) return;
       setProductions(rows);
       const saved = localStorage.getItem(selectionKey);
-      setSelectedId(rows.some(row => row.id === saved) ? saved : (rows.find(row => row.status !== 'ARCHIVED') || rows[0])?.id || null);
+      setSelectedId(rows.some(row => row.id === saved) ? saved : (rows.find(row => !row.isShowcase && row.status !== 'ARCHIVED') || showcase || rows[0])?.id || null);
       setLoading(false);
     })();
     return () => { alive = false; };
@@ -109,13 +124,15 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
 
   useEffect(() => {
     if (!selectedId) {
-      setMembers([]); setScenes([]); setCallSheets([]); setTasks([]); setMenu([]); setOrders([]); setDprs([]);
+      setMembers([]); setScenes([]); setCallSheets([]); setDeliveries([]); setCallSheetTemplates([]); setTasks([]); setMenu([]); setOrders([]); setDprs([]);
       setBudgetLines([]); setLocations([]); setFestivals([]);
       return;
     }
     const unsubs = [
       FP.subMembers(selectedId, setMembers), FP.subScenes(selectedId, setScenes),
       FP.subCallSheets(selectedId, setCallSheets), FP.subTasks(selectedId, setTasks),
+      Schedule.subscribeRecipientDeliveries(selectedId, setDeliveries),
+      Schedule.subscribeCallSheetTemplates(selectedId, setCallSheetTemplates),
       FP.subCraftMenu(selectedId, setMenu), FP.subCraftOrders(selectedId, setOrders),
       FP.subDprs(selectedId, setDprs), FP.subBudgetLines(selectedId, setBudgetLines),
       FP.subLocations(selectedId, setLocations), FP.subFestivals(selectedId, setFestivals),
@@ -124,7 +141,12 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
   }, [selectedId]);
 
   // Default active sheet = published sheet dated today, else nearest upcoming, else lowest day.
-  const sorted = useMemo(() => [...callSheets].sort((a, b) => a.shootDay - b.shootDay), [callSheets]);
+  const liveCallSheets = useMemo(() => callSheets.map(sheet => {
+    const confirmations: Record<string, number> = {};
+    deliveries.filter(row => row.callSheetId === sheet.id && row.callSheetVersion === sheet.version && row.status === 'CONFIRMED').forEach(row => { confirmations[row.memberId] = row.confirmedAt || row.updatedAt; if (row.memberUid) confirmations[row.memberUid] = row.confirmedAt || row.updatedAt; });
+    return FP.projectCallSheetScenes({ ...sheet, confirmations }, scenes);
+  }), [callSheets, scenes, deliveries]);
+  const sorted = useMemo(() => [...liveCallSheets].sort((a, b) => a.shootDay - b.shootDay), [liveCallSheets]);
   useEffect(() => {
     if (activeSheetId && callSheets.some(c => c.id === activeSheetId)) return;
     if (sorted.length) {
@@ -134,10 +156,25 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
     }
   }, [sorted, activeSheetId, callSheets]);
 
-  const activeSheet = callSheets.find(c => c.id === activeSheetId) || null;
+  const activeSheet = liveCallSheets.find(c => c.id === activeSheetId) || null;
   const me = members.find(m => m.uid && m.uid === uid) || null;
-  const isOwner = !!prod && prod.ownerUid === uid;
-  const can = useCallback((permission: ProductionPermission) => FP.hasProductionPermission(prod, uid, permission), [prod, uid]);
+  const readOnly = !!prod?.isShowcase;
+  const isOwner = !!prod && !readOnly && prod.ownerUid === uid;
+  const can = useCallback((permission: ProductionPermission) => !prod?.isShowcase && FP.hasProductionPermission(prod, uid, permission), [prod, uid]);
+  useEffect(() => {
+    if (!prod || prod.isShowcase || !uid || !canManageProductionChat(prod, uid)) return;
+    const signature = JSON.stringify({
+      productionId: prod.id,
+      members: members.map(member => [member.uid, member.dept, member.status]),
+      calls: callSheets.map(sheet => [sheet.id, sheet.shootDay, sheet.status, sheet.version, sheet.date]),
+    });
+    if (signature === chatStructureSignature.current) return;
+    chatStructureSignature.current = signature;
+    provisionProductionChat(prod, members, scenes, callSheets, uid).catch(error => {
+      chatStructureSignature.current = '';
+      console.warn('[production-chat] automatic structure sync failed', error);
+    });
+  }, [prod, uid, members, scenes, callSheets]);
   const selectProduction = useCallback((id: string) => setSelectedId(id), []);
   const createProduction = useCallback(async (title: string) => {
     const created = await FP.createProduction(uid, title);
@@ -149,11 +186,15 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
     await FP.applySampleProduction(prod.id, uid);
     setProd({ ...prod, sampleAppliedAt: Date.now() });
   }, [prod, uid]);
+  const copyShowcase = useCallback(async () => {
+    const created = await copyFilmShowcaseProduction(uid, currentUser?.displayName || undefined);
+    setProductions(rows => [created, ...rows]); setSelectedId(created.id);
+  }, [uid, currentUser?.displayName]);
 
   const value: Ctx = {
-    prod, productions, selectProduction, createProduction, applySample,
-    members, scenes, budgetLines, locations, festivals, callSheets, tasks, menu, orders, dprs,
-    activeSheet, activeSheetId, setActiveSheetId, me, isOwner, can, loading, goTab: onGoTab,
+    prod, productions, selectProduction, createProduction, copyShowcase, applySample,
+    members, scenes, budgetLines, locations, festivals, callSheets: liveCallSheets, deliveries, callSheetTemplates, tasks, menu, orders, dprs,
+    activeSheet, activeSheetId, setActiveSheetId, me, isOwner, readOnly, can, loading, goTab: onGoTab,
   };
   return (
     <ProdCtx.Provider value={value}>
@@ -164,7 +205,7 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
 };
 
 const ProductionWorkspaceBar: React.FC = () => {
-  const { prod, productions, selectProduction, createProduction, applySample, isOwner } = useProd();
+  const { prod, productions, selectProduction, createProduction, copyShowcase, applySample, isOwner, readOnly } = useProd();
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState(false);
@@ -180,12 +221,13 @@ const ProductionWorkspaceBar: React.FC = () => {
     try { await importLegacyFilmData(prod.id); setLegacyAvailable(false); } finally { setBusy(false); }
   };
   return (
+    <>
     <Surface level={2} shape="sheet" className="mb-5 flex flex-wrap items-center gap-3" aria-label="Production workspace">
       <div className="min-w-0 flex-1">
         <Eyebrow>Production workspace</Eyebrow>
         {productions.length > 0 && (
           <select className="pj-input mt-2" value={prod?.id || ''} onChange={event => selectProduction(event.target.value)} aria-label="Active production">
-            {productions.map(row => <option key={row.id} value={row.id}>{row.title}{row.status === 'ARCHIVED' ? ' · Archived' : ''}</option>)}
+            {productions.map(row => <option key={row.id} value={row.id}>{row.title}{row.isShowcase ? ' · Demo' : row.status === 'ARCHIVED' ? ' · Archived' : ''}</option>)}
           </select>
         )}
       </div>
@@ -199,10 +241,13 @@ const ProductionWorkspaceBar: React.FC = () => {
         <div className="flex flex-wrap gap-2">
           {prod && isOwner && legacyAvailable && <Button variant="outline" size="sm" loading={busy} onClick={importLegacy}>Import old film data</Button>}
           {prod && isOwner && !prod.sampleAppliedAt && <Button variant="outline" size="sm" onClick={applySample}>Use sample data</Button>}
+          {readOnly && <Button variant="accent" size="sm" icon={<Copy />} loading={busy} onClick={async () => { setBusy(true); try { await copyShowcase(); } finally { setBusy(false); } }}>Copy project</Button>}
           <Button variant={prod ? 'secondary' : 'primary'} size="sm" icon={<FolderPlus />} onClick={() => setCreating(true)}>New production</Button>
         </div>
       )}
     </Surface>
+    {readOnly && <Surface level={2} brand className="mb-5 flex flex-wrap items-center justify-between gap-3"><div><Eyebrow>Plajah project template</Eyebrow><p className="type-title-md mt-1">Explore every workflow in a safe read-only production.</p><p className="type-body-sm mt-1 text-white/55">Copy Afterlight whenever you want an editable production with the same connected data.</p></div><Button variant="primary" icon={<Copy />} loading={busy} onClick={async () => { setBusy(true); try { await copyShowcase(); } finally { setBusy(false); } }}>Copy and build from it</Button></Surface>}
+    </>
   );
 };
 
@@ -343,10 +388,106 @@ export const ProductionHubTab: React.FC = () => {
       {/* Task dashboard */}
       <TaskBoard />
 
+      <ProductionBrainPanel />
+
       {broadcasting && (
         <ProducerBroadcast prodId={prod?.id || ''} onClose={() => setBroadcasting(false)} />
       )}
     </motion.div>
+  );
+};
+
+const ProductionBrainPanel: React.FC = () => {
+  const { prod } = useProd();
+  const [mode, setMode] = useState<ProductionBrainMode>('ASK');
+  const [question, setQuestion] = useState('What should this production focus on next, and which role owns each decision?');
+  const [result, setResult] = useState<ProductionBrainAnswer | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const modes: Array<{ id: ProductionBrainMode; label: string }> = [
+    { id: 'ASK', label: 'Ask' }, { id: 'RISK_SCAN', label: 'Risk scan' },
+    { id: 'NEXT_ACTIONS', label: 'Next actions' }, { id: 'CONTINUITY', label: 'Continuity' },
+    { id: 'DAY_PLAN', label: 'Shoot-day plan' },
+  ];
+  const run = async () => {
+    if (!prod || (mode === 'ASK' && !question.trim())) return;
+    setBusy(true); setError('');
+    try { setResult(await askProductionBrain(prod.id, question.trim(), mode)); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Production Brain could not complete the analysis.'); }
+    finally { setBusy(false); }
+  };
+  return (
+    <Surface level={2} shape="hero" brand className="space-y-5">
+      <div className="flex items-start gap-3">
+        <div className="pj-icon-container"><BrainCircuit size={20} /></div>
+        <div className="min-w-0 flex-1">
+          <Eyebrow>Pokee · whole-production reasoning</Eyebrow>
+          <h3 className="type-title-md mt-1">Production Brain</h3>
+          <p className="type-body-sm mt-1 text-white/55">Reasons across the approved script, scenes, schedule, call sheets, staffing, tasks, locations, reports, hiring, budget, and workflow history—limited by your production authority.</p>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2" aria-label="Analysis mode">
+        {modes.map(item => <Chip key={item.id} interactive selected={mode === item.id} onClick={() => setMode(item.id)}>{item.label}</Chip>)}
+      </div>
+      {(mode === 'ASK' || mode === 'DAY_PLAN') && (
+        <Textarea label={mode === 'ASK' ? 'Ask about this production' : 'Optional shoot-day focus'} rows={3} value={question} onChange={event => setQuestion(event.target.value)} placeholder="What could stop Day 3 from making its schedule?" />
+      )}
+      <Actions>
+        <Button variant="primary" icon={<BrainCircuit />} loading={busy} disabled={!prod || (mode === 'ASK' && !question.trim())} onClick={run}>Reason over production</Button>
+      </Actions>
+      {error && <p className="type-body-sm" style={{ color: 'var(--pj-danger)' }} role="alert">{error}</p>}
+      {result && (
+        <div className="space-y-5" aria-live="polite">
+          <Surface level={1}>
+            <Eyebrow>Assessment</Eyebrow>
+            <p className="type-body-md mt-2 whitespace-pre-wrap">{result.answer}</p>
+          </Surface>
+          {result.risks.length > 0 && (
+            <div>
+              <Eyebrow>Risks</Eyebrow>
+              <div className="grid gap-2 mt-2">
+                {result.risks.map((risk, index) => (
+                  <Surface key={`${risk.title}-${index}`} level={1} className="flex items-start gap-3">
+                    <AlertTriangle size={16} className={risk.severity === 'high' ? 'text-red-400' : risk.severity === 'medium' ? 'text-amber-400' : 'text-white/40'} />
+                    <div><p className="type-label-lg">{risk.title}</p><p className="type-body-sm mt-1 text-white/55">{risk.detail}</p></div>
+                  </Surface>
+                ))}
+              </div>
+            </div>
+          )}
+          {result.nextActions.length > 0 && (
+            <div>
+              <Eyebrow>Role-owned next actions</Eyebrow>
+              <div className="grid gap-2 mt-2">
+                {result.nextActions.map((item, index) => (
+                  <Surface key={`${item.action}-${index}`} level={1}>
+                    <Chip brand>{item.ownerRole}</Chip>
+                    <p className="type-label-lg mt-2">{item.action}</p>
+                    <p className="type-body-sm mt-1 text-white/55">{item.reason}</p>
+                  </Surface>
+                ))}
+              </div>
+            </div>
+          )}
+          {result.evidence.length > 0 && (
+            <details>
+              <summary className="type-label-lg cursor-pointer">Evidence used ({result.evidence.length})</summary>
+              <div className="space-y-2 mt-2">{result.evidence.map((item, index) => <p key={`${item.source}-${index}`} className="type-body-sm text-white/55"><strong className="text-white/75">{item.source}:</strong> {item.detail}</p>)}</div>
+            </details>
+          )}
+          {(result.missingInformation.length > 0 || result.redactions.length > 0) && (
+            <details>
+              <summary className="type-label-lg cursor-pointer">Context limits</summary>
+              <ul className="type-body-sm mt-2 space-y-1 text-white/50">
+                {result.missingInformation.map(item => <li key={item}>Missing: {item}</li>)}
+                {result.redactions.map(item => <li key={item}>{item}</li>)}
+              </ul>
+            </details>
+          )}
+          <p className="type-body-sm text-white/35">Pokee used {result.inputTokens.toLocaleString()} input and {result.outputTokens.toLocaleString()} output tokens · ${result.costUsd.toFixed(4)} · {(result.elapsedMs / 1000).toFixed(1)}s</p>
+        </div>
+      )}
+    </Surface>
   );
 };
 
@@ -365,22 +506,23 @@ const MiniStat: React.FC<{ icon: React.ReactNode; label: string; value: number |
 const PRIORITY_COLOR: Record<string, string> = { URGENT: 'text-red-400 bg-red-500/15', HIGH: 'text-orange-400 bg-orange-500/15', MED: 'text-yellow-400 bg-yellow-500/10', LOW: 'text-white/40 bg-white/5' };
 
 const TaskBoard: React.FC = () => {
-  const { prod, tasks, members } = useProd();
+  const { prod, tasks, members, me, can } = useProd();
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ title: '', dept: 'PRODUCTION' as DeptKey, priority: 'MED' as ProdTask['priority'], assigneeMemberId: '' });
-  const save = () => {
+  const save = async () => {
     if (!prod || !form.title.trim()) return;
     const assignee = members.find(m => m.id === form.assigneeMemberId);
     const t: ProdTask = { id: FP.uid8(), title: form.title.trim(), dept: form.dept, priority: form.priority, status: 'TODO', assigneeMemberId: form.assigneeMemberId || undefined, assigneeName: assignee?.name, createdAt: Date.now() };
-    FP.putTask(prod.id, t); setForm({ title: '', dept: 'PRODUCTION', priority: 'MED', assigneeMemberId: '' }); setAdding(false);
+    await putTaskWithAction(prod.id, t, FP.currentUid() || '', me?.name || prod.title);
+    setForm({ title: '', dept: 'PRODUCTION', priority: 'MED', assigneeMemberId: '' }); setAdding(false);
   };
   const cols: { key: ProdTask['status']; label: string }[] = [{ key: 'TODO', label: 'To Do' }, { key: 'DOING', label: 'In Progress' }, { key: 'DONE', label: 'Done' }];
-  const cycle = (t: ProdTask) => { const next = t.status === 'TODO' ? 'DOING' : t.status === 'DOING' ? 'DONE' : 'TODO'; FP.patchTask(prod!.id, t.id, { status: next }); };
+  const cycle = (t: ProdTask) => { if (!can('MANAGE_TASKS')) return; const next = t.status === 'TODO' ? 'DOING' : t.status === 'DOING' ? 'DONE' : 'TODO'; FP.patchTask(prod!.id, t.id, { status: next }); };
   return (
     <div className={`${card} p-5`}>
       <div className="flex items-center justify-between mb-4">
         <p className="text-[10px] font-black uppercase tracking-[0.35em] text-white/40">Production Task Board</p>
-        <button onClick={() => setAdding(a => !a)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-400 text-[10px] font-black uppercase tracking-widest hover:bg-violet-500/25"><Plus size={11} /> Task</button>
+        {can('MANAGE_TASKS') && <button onClick={() => setAdding(a => !a)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-400 text-[10px] font-black uppercase tracking-widest hover:bg-violet-500/25"><Plus size={11} /> Task</button>}
       </div>
       {adding && (
         <div className="mb-4 p-4 bg-white/[0.03] border border-violet-500/20 rounded-xl space-y-2">
@@ -461,21 +603,32 @@ export const CallSheetsTab: React.FC = () => {
 };
 
 const CallSheetEditor: React.FC<{ cs: CallSheet; editable: boolean }> = ({ cs, editable }) => {
-  const { prod } = useProd();
+  const { prod, members, deliveries, callSheetTemplates } = useProd();
   const [draft, setDraft] = useState<CallSheet>(cs);
-  useEffect(() => setDraft(cs), [cs.id]);
+  const [publishMessage, setPublishMessage] = useState('');
+  const [templateName, setTemplateName] = useState('');
+  useEffect(() => setDraft(cs), [cs.id, cs.version, cs.updatedAt]);
   const dirty = JSON.stringify(draft) !== JSON.stringify(cs);
   const set = (patch: Partial<CallSheet>) => setDraft(d => ({ ...d, ...patch }));
   const saveDraft = () => prod && FP.putCallSheet(prod.id, { ...draft, updatedAt: Date.now() });
-  const publish = () => {
+  const publish = async () => {
     if (!prod) return;
     const saved = { ...draft, updatedAt: Date.now() };
-    FP.putCallSheet(prod.id, saved);
-    FP.publishCallSheet(prod.id, saved, cs.status === 'PUBLISHED' ? 'Revised & re-published' : 'Published to crew');
+    const delta = cs.status === 'PUBLISHED' ? 'Revised call sheet: review updated schedule, calls, and notes.' : 'Initial call sheet published.';
+    try {
+      const count = await Schedule.publishCallSheetPackets(prod.id, saved, members, FP.currentUid() || '', delta);
+      setPublishMessage(`Published personalized packets to ${count} recipients.`);
+    } catch (error) { setPublishMessage(error instanceof Error ? error.message : 'Could not publish packets.'); }
   };
-  const confirmedCount = Object.keys(draft.confirmations || {}).length;
-  const expected = draft.deptCalls.length + draft.castRows.length;
+  const currentDeliveries = deliveries.filter(row => row.callSheetId === draft.id && row.callSheetVersion === draft.version);
+  const confirmedCount = currentDeliveries.filter(row => row.status === 'CONFIRMED').length;
+  const expected = currentDeliveries.length || draft.deptCalls.length + draft.castRows.length;
   const fieldRow = 'flex items-center gap-2 text-[11px]';
+  const saveTemplate = async () => {
+    if (!prod || !templateName.trim()) return;
+    await Schedule.putCallSheetTemplate(prod.id, Schedule.callSheetTemplateFromSheet(prod.id, draft, FP.currentUid() || '', templateName));
+    setPublishMessage(`${templateName.trim()} template saved.`); setTemplateName('');
+  };
 
   return (
     <div className="space-y-4">
@@ -484,6 +637,7 @@ const CallSheetEditor: React.FC<{ cs: CallSheet; editable: boolean }> = ({ cs, e
         <div>
           <p className="text-sm font-black text-white">Day {draft.dayOf} of {draft.totalDays} {draft.status === 'PUBLISHED' ? <span className="text-emerald-400 text-[9px]">● PUBLISHED v{draft.version}</span> : <span className="text-white/30 text-[9px]">DRAFT</span>}</p>
           <p className="text-[10px] text-white/40">{confirmedCount}/{expected} confirmed{draft.publishedAt ? ` · sent ${new Date(draft.publishedAt).toLocaleString()}` : ''}</p>
+          {publishMessage && <p className="type-body-sm mt-1 text-white/55" role="status">{publishMessage}</p>}
         </div>
         {editable && (
           <div className="flex items-center gap-2">
@@ -492,6 +646,10 @@ const CallSheetEditor: React.FC<{ cs: CallSheet; editable: boolean }> = ({ cs, e
           </div>
         )}
       </div>
+
+      {editable && <Surface level={1} className="flex flex-wrap items-end gap-3"><label className="type-label-lg">Apply template<select className="pj-input mt-2" defaultValue="" onChange={event => { const template = callSheetTemplates.find(row => row.id === event.target.value); if (template) setDraft(current => Schedule.applyCallSheetTemplate(current, template)); event.currentTarget.value = ''; }}><option value="">Choose saved defaults…</option>{callSheetTemplates.map(template => <option key={template.id} value={template.id}>{template.name}</option>)}</select></label><Input label="New template name" placeholder="e.g. Main unit stage day" value={templateName} onChange={event => setTemplateName(event.target.value)} /><Button variant="secondary" icon={<Save />} disabled={!templateName.trim()} onClick={saveTemplate}>Save current as template</Button></Surface>}
+
+      {currentDeliveries.length > 0 && <Surface level={1} className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-3"><div><Eyebrow>Recipient delivery</Eyebrow><p className="type-title-sm mt-1">Version {draft.version} acknowledgement</p></div><div className="flex flex-wrap gap-2">{(['DELIVERED','VIEWED','CONFIRMED','PROBLEM'] as const).map(status => <Chip key={status} brand={status === 'PROBLEM'}>{status} · {currentDeliveries.filter(row => row.status === status).length}</Chip>)}</div></div><div className="grid gap-2 md:grid-cols-2">{currentDeliveries.map(row => <div key={row.id} className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.025] p-3"><div className="min-w-0"><p className="truncate type-label-lg">{row.memberName} · {row.role}</p><p className="type-body-sm text-white/35">Call {fmtCall(row.packet.yourCall)}{row.deltaSummary ? ` · ${row.deltaSummary}` : ''}</p>{row.problemNote && <p className="type-body-sm mt-1 text-red-300">Problem: {row.problemNote}</p>}</div><Chip brand={row.status === 'PROBLEM'}>{row.status}</Chip></div>)}</div></Surface>}
 
       {/* Header block */}
       <div className={`${card} p-5 grid grid-cols-2 md:grid-cols-4 gap-4`}>
@@ -700,7 +858,13 @@ export const RosterTab: React.FC = () => {
 export const DailyBriefTab: React.FC = () => {
   const { members, me, activeSheet, prod } = useProd();
   const [viewAs, setViewAs] = useState<string>('');
+  const [problemOpen, setProblemOpen] = useState(false);
+  const [problemNote, setProblemNote] = useState('');
   const member = members.find(m => m.id === viewAs) || me || members[0] || null;
+  const isOwnBrief = !!me && !!member && me.id === member.id;
+  useEffect(() => {
+    if (prod && activeSheet?.status === 'PUBLISHED' && member && isOwnBrief) Schedule.markRecipientDeliveryViewed(prod.id, activeSheet.id, activeSheet.version, member).catch(() => undefined);
+  }, [prod?.id, activeSheet?.id, activeSheet?.version, activeSheet?.status, member?.id, isOwnBrief]);
 
   if (!activeSheet) {
     return <div className={`${card} p-10 text-center`}><Bell size={26} className="text-white/20 mx-auto mb-3" /><p className="text-sm font-black text-white/50">No brief yet</p><p className="text-xs text-white/30 mt-1">Publish a call sheet and each crew member's personalized brief appears here.</p></div>;
@@ -708,7 +872,12 @@ export const DailyBriefTab: React.FC = () => {
   if (!member) return <div className="text-white/40 text-sm">Add crew to the roster to generate briefs.</div>;
 
   const brief = buildDailyBrief(activeSheet, member);
-  const confirm = () => prod && FP.confirmCallSheet(prod.id, activeSheet, member.uid || member.id);
+  const confirm = () => prod && isOwnBrief && Schedule.acknowledgeRecipientDelivery(prod.id, activeSheet.id, activeSheet.version, member);
+  const reportProblem = async () => {
+    if (!prod || !isOwnBrief || !problemNote.trim()) return;
+    await Schedule.acknowledgeRecipientDelivery(prod.id, activeSheet.id, activeSheet.version, member, problemNote.trim());
+    setProblemOpen(false); setProblemNote('');
+  };
   const locationStr = brief.location + (brief.locationAddress ? ` · ${brief.locationAddress}` : '');
   const weatherStr = brief.weather
     ? [
@@ -785,9 +954,11 @@ export const DailyBriefTab: React.FC = () => {
             {(brief.safetyNotes || brief.nearestHospital) && <InfoRow icon={<ShieldAlert size={14} className="text-orange-400" />} label="Safety" value={brief.safetyNotes || brief.nearestHospital || ''} />}
           </div>
           {/* Confirm */}
-          <button onClick={confirm} disabled={brief.confirmed} className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${brief.confirmed ? 'bg-emerald-500/20 text-emerald-400 cursor-default' : 'bg-emerald-500 text-white hover:bg-emerald-400'}`}>
-            {brief.confirmed ? <span className="flex items-center justify-center gap-2"><CheckCheck size={14} /> Confirmed — see you on set</span> : 'Confirm receipt & call time'}
+          <button onClick={confirm} disabled={brief.confirmed || !isOwnBrief} className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${brief.confirmed ? 'bg-emerald-500/20 text-emerald-400 cursor-default' : !isOwnBrief ? 'bg-white/5 text-white/30 cursor-default' : 'bg-emerald-500 text-white hover:bg-emerald-400'}`}>
+            {brief.confirmed ? <span className="flex items-center justify-center gap-2"><CheckCheck size={14} /> Confirmed — see you on set</span> : isOwnBrief ? 'Confirm receipt & call time' : 'Preview only — recipient confirms their own packet'}
           </button>
+          {isOwnBrief && !brief.confirmed && <Button variant="danger-quiet" fullWidth onClick={() => setProblemOpen(current => !current)}>I have a call-time or availability problem</Button>}
+          {problemOpen && isOwnBrief && <Surface level={1} className="space-y-3"><Textarea label="Tell production what conflicts" value={problemNote} maxLength={500} onChange={event => setProblemNote(event.target.value)} /><Actions><Button variant="ghost" onClick={() => setProblemOpen(false)}>Cancel</Button><Button variant="danger" disabled={!problemNote.trim()} onClick={reportProblem}>Send problem to production</Button></Actions></Surface>}
         </div>
       </div>
     </motion.div>

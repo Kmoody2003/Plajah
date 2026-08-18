@@ -23,6 +23,36 @@ service cloud.firestore {
       );
     }
 
+    function productionById(prodId) {
+      return get(/databases/$(database)/documents/productions/$(prodId)).data;
+    }
+
+    function isProductionMemberById(prodId) {
+      return isAuthenticated() && exists(/databases/$(database)/documents/productions/$(prodId)) &&
+        productionById(prodId).get('isShowcase', false) != true && (
+        productionById(prodId).ownerUid == request.auth.uid ||
+        (productionById(prodId).memberUids is list && request.auth.uid in productionById(prodId).memberUids)
+      );
+    }
+
+    function canManageProductionChatById(prodId) {
+      let p = productionById(prodId);
+      return isAuthenticated() && exists(/databases/$(database)/documents/productions/$(prodId)) &&
+        p.get('isShowcase', false) != true && (
+        p.ownerUid == request.auth.uid ||
+        (p.authority is map && request.auth.uid in p.authority &&
+         p.authority[request.auth.uid].permissions is list &&
+         (('MANAGE_ROSTER' in p.authority[request.auth.uid].permissions) || ('MANAGE_SCHEDULE' in p.authority[request.auth.uid].permissions)))
+      );
+    }
+
+    function canPostProductionChat(room) {
+      return room.get('workspaceType', '') == 'PRODUCTION' &&
+        room.get('productionId', '') is string &&
+        isProductionMemberById(room.productionId) &&
+        (room.get('postingPolicy', 'ALL_MEMBERS') == 'ALL_MEMBERS' || canManageProductionChatById(room.productionId));
+    }
+
     function hasRequiredFields(fields) {
       return request.resource.data.keys().hasAll(fields);
     }
@@ -605,11 +635,20 @@ service cloud.firestore {
              data.senderId == request.auth.uid &&
              data.senderName is string && data.senderName.size() < 100 &&
              data.timestamp is number &&
-             data.type in ['TEXT', 'MEDIA', 'VOICE'] &&
+             data.type in ['TEXT', 'MEDIA', 'VOICE', 'SYSTEM', 'ACTION', 'IMAGE', 'VIDEO_NOTE'] &&
              (!('text' in data) || (data.text is string && data.text.size() < 5000)) &&
              (!('mediaId' in data) || data.mediaId is string) &&
              (!('voiceUrl' in data) || data.voiceUrl is string) &&
-             (!('seenBy' in data) || (data.seenBy is list && data.seenBy.size() <= 1000));
+             (!('seenBy' in data) || (data.seenBy is list && data.seenBy.size() <= 1000)) &&
+             (!('threadRootId' in data) || (data.threadRootId is string && data.threadRootId.size() > 0 && data.threadRootId.size() < 200)) &&
+             (!('mentionUids' in data) || (data.mentionUids is list && data.mentionUids.size() <= 100)) &&
+             (!('productionEntity' in data) || (
+               data.productionEntity is map &&
+               data.productionEntity.productionId is string && data.productionEntity.productionId.size() > 0 &&
+               data.productionEntity.entityId is string && data.productionEntity.entityId.size() > 0 &&
+               (!('actionId' in data.productionEntity) || data.productionEntity.actionId is string) &&
+               data.productionEntity.entityType in ['TASK', 'SCENE', 'BREAKDOWN', 'CALL_SHEET', 'SCHEDULE', 'DECISION', 'ALERT', 'MEMBER', 'LOCATION']
+             ));
     }
 
     function isValidThemePreset(data) {
@@ -1374,12 +1413,23 @@ service cloud.firestore {
       );
       // Education DM policy: a student-involving PRIVATE 1:1 must pass dmPairAllowed.
       allow create: if isAuthenticated() && isValidChatRoom(request.resource.data) && (
-        request.resource.data.type != 'PRIVATE' ||
-        request.resource.data.participants.size() != 2 ||
-        dmPairAllowed(request.resource.data.participants)
+        (request.resource.data.get('workspaceType', '') == 'PRODUCTION' &&
+         request.resource.data.get('productionId', '') is string &&
+         request.resource.data.get('nibblesEnabled', true) == false &&
+         canManageProductionChatById(request.resource.data.productionId)) ||
+        (request.resource.data.get('workspaceType', '') != 'PRODUCTION' && (
+          request.resource.data.type != 'PRIVATE' ||
+          request.resource.data.participants.size() != 2 ||
+          dmPairAllowed(request.resource.data.participants)
+        ))
       );
       allow update: if isAuthenticated() && (
-        (request.auth.uid in resource.data.participants && isValidChatRoom(request.resource.data)) ||
+        (resource.data.get('workspaceType', '') == 'PRODUCTION' &&
+         request.resource.data.get('workspaceType', '') == 'PRODUCTION' &&
+         request.resource.data.get('productionId', '') == resource.data.get('productionId', '') &&
+         request.resource.data.get('nibblesEnabled', true) == false &&
+         canManageProductionChatById(resource.data.productionId) && isValidChatRoom(request.resource.data)) ||
+        (resource.data.get('workspaceType', '') != 'PRODUCTION' && request.auth.uid in resource.data.participants && isValidChatRoom(request.resource.data)) ||
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['typingUsers', 'updatedAt', 'lastMessage'])) ||
         isAdmin()
       );
@@ -1396,7 +1446,15 @@ service cloud.firestore {
           )) ||
           isAdmin()
         );
-        allow create: if isAuthenticated() && isValidChatMessage(request.resource.data);
+        allow create: if isAuthenticated() && isValidChatMessage(request.resource.data) &&
+          request.resource.data.senderId == request.auth.uid && (
+            get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.get('workspaceType', '') != 'PRODUCTION' ||
+            canPostProductionChat(get(/databases/$(database)/documents/chat_rooms/$(roomId)).data)
+          ) && (
+            !('productionEntity' in request.resource.data) ||
+            (get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.get('workspaceType', '') == 'PRODUCTION' &&
+             request.resource.data.productionEntity.productionId == get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.productionId)
+          );
         allow update: if isAuthenticated() && (
           // Seen receipts (any reader).
           (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy']) &&
@@ -1993,7 +2051,7 @@ service cloud.firestore {
     }
     function productionStaffOf(prodId) {
       let p = get(/databases/$(database)/documents/productions/$(prodId)).data;
-      return isAuthenticated() && (
+      return isAuthenticated() && p.get('isShowcase', false) != true && (
         p.ownerUid == request.auth.uid ||
         (p.authority is map
           && request.auth.uid in p.authority
@@ -2798,7 +2856,7 @@ service cloud.firestore {
     // ===============================================================
     match /productions/{prodId} {
       function isProdOwner() {
-        return isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+        return isAuthenticated() && resource.data.get('isShowcase', false) != true && resource.data.ownerUid == request.auth.uid;
       }
       function isProdMember() {
         return isAuthenticated() && (
@@ -2810,7 +2868,7 @@ service cloud.firestore {
         return get(/databases/$(database)/documents/productions/$(prodId)).data;
       }
       function isParentOwner() {
-        return isAuthenticated() && parentProd().ownerUid == request.auth.uid;
+        return isAuthenticated() && parentProd().get('isShowcase', false) != true && parentProd().ownerUid == request.auth.uid;
       }
       function isParentMember() {
         return isAuthenticated() && (
@@ -2818,9 +2876,12 @@ service cloud.firestore {
           (parentProd().memberUids is list && request.auth.uid in parentProd().memberUids)
         );
       }
+      function isParentWritableMember() {
+        return isParentMember() && parentProd().get('isShowcase', false) != true;
+      }
       function hasProdPermission(permission) {
         let p = parentProd();
-        return isAuthenticated() && (
+        return isAuthenticated() && p.get('isShowcase', false) != true && (
           p.ownerUid == request.auth.uid ||
           (p.authority is map
             && request.auth.uid in p.authority
@@ -2828,12 +2889,28 @@ service cloud.firestore {
             && permission in p.authority[request.auth.uid].permissions)
         );
       }
+      function canManageBreakdownDepartment(department) {
+        let p = parentProd();
+        return isAuthenticated() && p.get('isShowcase', false) != true && (
+          p.ownerUid == request.auth.uid ||
+          (p.authority is map && request.auth.uid in p.authority &&
+            p.authority[request.auth.uid].department == department &&
+            p.authority[request.auth.uid].permissions is list &&
+            'MANAGE_DEPARTMENT_BREAKDOWN' in p.authority[request.auth.uid].permissions)
+        );
+      }
 
       allow read: if isProdMember();
       allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
       allow update: if isProdOwner() ||
+                       (hasProdPermission('EDIT_SCRIPT_BREAKDOWN') &&
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedScriptId', 'currentDraftId', 'updatedAt'])) ||
                        (hasProdPermission('MANAGE_HIRING') &&
                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids', 'updatedAt'])) ||
+                       (hasProdPermission('MANAGE_SCHEDULE') &&
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approvedScheduleId', 'approvedScheduleVersion', 'totalDays', 'updatedAt'])) ||
+                       ((hasProdPermission('MANAGE_ROSTER') || hasProdPermission('MANAGE_SCHEDULE')) &&
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['chatProvisionedAt', 'chatChannelKeys', 'updatedAt'])) ||
                        (isAuthenticated() &&
                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids', 'updatedAt']) &&
                         request.auth.uid in request.resource.data.memberUids &&
@@ -2856,6 +2933,26 @@ service cloud.firestore {
         allow read: if isParentMember() || isAdmin();
         allow create, update, delete: if hasProdPermission('EDIT_SCRIPT_BREAKDOWN') || isAdmin();
       }
+      match /breakdownElements/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create: if request.resource.data.id == docId &&
+          request.resource.data.productionId == prodId &&
+          request.resource.data.department is string &&
+          request.resource.data.occurrences is list &&
+          (!('attachments' in request.resource.data) || request.resource.data.attachments is list) &&
+          request.resource.data.status in ['SUGGESTED', 'APPROVED', 'ASSIGNED', 'READY', 'BLOCKED', 'OMITTED'] &&
+          (hasProdPermission('EDIT_SCRIPT_BREAKDOWN') ||
+           canManageBreakdownDepartment(request.resource.data.department) || isAdmin());
+        allow update: if request.resource.data.id == resource.data.id &&
+          request.resource.data.productionId == resource.data.productionId &&
+          (!('attachments' in request.resource.data) || request.resource.data.attachments is list) &&
+          request.resource.data.status in ['SUGGESTED', 'APPROVED', 'ASSIGNED', 'READY', 'BLOCKED', 'OMITTED'] &&
+          (hasProdPermission('EDIT_SCRIPT_BREAKDOWN') ||
+           (canManageBreakdownDepartment(resource.data.department) &&
+            request.resource.data.department == resource.data.department) || isAdmin());
+        allow delete: if hasProdPermission('EDIT_SCRIPT_BREAKDOWN') ||
+          canManageBreakdownDepartment(resource.data.department) || isAdmin();
+      }
       // Approved script snapshots are immutable. Revisions create a new draft.
       match /scriptDrafts/{docId} {
         allow read: if isParentMember() || isAdmin();
@@ -2866,11 +2963,13 @@ service cloud.firestore {
       match /workflowEvents/{docId} {
         allow read: if isParentMember() || isAdmin();
         allow create: if isParentOwner() || hasProdPermission('EDIT_SCRIPT_BREAKDOWN') ||
+          hasProdPermission('MANAGE_DEPARTMENT_BREAKDOWN') ||
+          hasProdPermission('MANAGE_SCHEDULE') || hasProdPermission('MANAGE_CALL_SHEETS') ||
           hasProdPermission('MANAGE_ROSTER') || hasProdPermission('MANAGE_HIRING') || isAdmin();
         allow update, delete: if false;
       }
       match /budgetLines/{docId} {
-        allow read: if isParentMember() || isAdmin();
+        allow read: if hasProdPermission('MANAGE_BUDGET') || (isParentMember() && parentProd().get('isShowcase', false) == true) || isAdmin();
         allow create, update, delete: if hasProdPermission('MANAGE_BUDGET') || isAdmin();
       }
       match /locations/{docId} {
@@ -2895,16 +2994,138 @@ service cloud.firestore {
         allow read: if isParentMember() || isAdmin();
         allow create, update, delete: if hasProdPermission('MANAGE_CALL_SHEETS') || isAdmin();
       }
+      match /schedulePlans/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create: if (hasProdPermission('MANAGE_SCHEDULE') &&
+          request.resource.data.id == docId && request.resource.data.productionId == prodId) || isAdmin();
+        allow update, delete: if hasProdPermission('MANAGE_SCHEDULE') || isAdmin();
+      }
+      match /scheduleConstraints/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create: if (hasProdPermission('MANAGE_SCHEDULE') &&
+          request.resource.data.id == docId && request.resource.data.productionId == prodId) || isAdmin();
+        allow update, delete: if hasProdPermission('MANAGE_SCHEDULE') || isAdmin();
+      }
+      match /recipientDeliveries/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create: if (hasProdPermission('MANAGE_CALL_SHEETS') &&
+          request.resource.data.id == docId && request.resource.data.productionId == prodId) || isAdmin();
+        allow update: if hasProdPermission('MANAGE_CALL_SHEETS') ||
+          (isParentWritableMember() && resource.data.memberUid == request.auth.uid &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'viewedAt', 'confirmedAt', 'problemNote', 'updatedAt'])) || isAdmin();
+        allow delete: if hasProdPermission('MANAGE_CALL_SHEETS') || isAdmin();
+      }
+      match /callSheetTemplates/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create: if (hasProdPermission('MANAGE_CALL_SHEETS') &&
+          request.resource.data.id == docId && request.resource.data.productionId == prodId) || isAdmin();
+        allow update, delete: if hasProdPermission('MANAGE_CALL_SHEETS') || isAdmin();
+      }
+      match /memberNotes/{memberUid} {
+        allow read: if isAuthenticated() && request.auth.uid == memberUid;
+        allow create, update: if isParentWritableMember() && request.auth.uid == memberUid &&
+          request.resource.data.uid == request.auth.uid && request.resource.data.productionId == prodId;
+        allow delete: if isParentWritableMember() && request.auth.uid == memberUid;
+      }
+      match /radioTransmissions/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create: if isParentWritableMember() && request.resource.data.id == docId &&
+          request.resource.data.productionId == prodId && request.resource.data.fromUid == request.auth.uid;
+        allow delete: if (isParentWritableMember() && resource.data.fromUid == request.auth.uid) ||
+          hasProdPermission('MANAGE_ROSTER') || isAdmin();
+        allow update: if false;
+      }
       match /tasks/{docId} {
         allow read: if isParentMember() || isAdmin();
         allow create, update, delete: if hasProdPermission('MANAGE_TASKS') || isAdmin();
+      }
+      match /decisions/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create: if isParentWritableMember() && request.resource.data.id == docId &&
+          request.resource.data.productionId == prodId && request.resource.data.authorUid == request.auth.uid &&
+          request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() < 300 &&
+          request.resource.data.status in ['OPEN', 'DECIDED'];
+        allow update: if request.resource.data.id == resource.data.id &&
+          request.resource.data.productionId == resource.data.productionId &&
+          request.resource.data.authorUid == resource.data.authorUid &&
+          ((isParentWritableMember() && resource.data.authorUid == request.auth.uid) ||
+           hasProdPermission('MANAGE_SCHEDULE') || isAdmin());
+        allow delete: if (isParentWritableMember() && resource.data.authorUid == request.auth.uid) ||
+          hasProdPermission('MANAGE_SCHEDULE') || isAdmin();
+      }
+      match /alerts/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create: if isParentWritableMember() && request.resource.data.id == docId &&
+          request.resource.data.productionId == prodId && request.resource.data.authorUid == request.auth.uid &&
+          request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() < 300 &&
+          request.resource.data.severity in ['INFO', 'IMPORTANT', 'URGENT'] && request.resource.data.status in ['ACTIVE', 'RESOLVED'];
+        allow update: if request.resource.data.id == resource.data.id &&
+          request.resource.data.productionId == resource.data.productionId &&
+          request.resource.data.authorUid == resource.data.authorUid &&
+          ((isParentWritableMember() && resource.data.authorUid == request.auth.uid) ||
+           hasProdPermission('MANAGE_ROSTER') || isAdmin());
+        allow delete: if (isParentWritableMember() && resource.data.authorUid == request.auth.uid) ||
+          hasProdPermission('MANAGE_ROSTER') || isAdmin();
+      }
+      match /artifactAcknowledgements/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create: if isParentWritableMember() && request.resource.data.id == docId &&
+          request.resource.data.productionId == prodId && request.resource.data.uid == request.auth.uid &&
+          (!('actionId' in request.resource.data) || request.resource.data.actionId is string) &&
+          request.resource.data.entityType in ['TASK', 'SCENE', 'BREAKDOWN', 'CALL_SHEET', 'SCHEDULE', 'DECISION', 'ALERT', 'MEMBER', 'LOCATION'] &&
+          request.resource.data.state in ['ACKNOWLEDGED', 'NEEDS_CLARIFICATION'];
+        allow update: if isParentWritableMember() && resource.data.uid == request.auth.uid &&
+          request.resource.data.id == resource.data.id && request.resource.data.uid == resource.data.uid &&
+          request.resource.data.productionId == resource.data.productionId &&
+          request.resource.data.entityType == resource.data.entityType && request.resource.data.entityId == resource.data.entityId &&
+          request.resource.data.get('actionId', '') == resource.data.get('actionId', '') &&
+          request.resource.data.state in ['ACKNOWLEDGED', 'NEEDS_CLARIFICATION'];
+        allow delete: if (isParentWritableMember() && resource.data.uid == request.auth.uid) ||
+          hasProdPermission('MANAGE_ROSTER') || isAdmin();
+      }
+      match /productionActions/{docId} {
+        allow read: if isParentMember() || isAdmin();
+        allow create: if request.resource.data.id == docId && request.resource.data.productionId == prodId &&
+          request.resource.data.actorUid == request.auth.uid && request.resource.data.requiredPermission is string &&
+          request.resource.data.status == 'READY' && request.resource.data.entity is map &&
+          request.resource.data.routeChannelKeys is list && request.resource.data.targetUids is list &&
+          request.resource.data.requiredAcknowledgementUids is list &&
+          (hasProdPermission(request.resource.data.requiredPermission) ||
+           (isParentWritableMember() && request.resource.data.trigger == 'SAFETY_ALERT' &&
+            request.resource.data.routeChannelKeys == ['safety']) ||
+           (isParentWritableMember() && request.resource.data.trigger == 'MEMBER_JOINED' &&
+            request.resource.data.entity.entityType == 'MEMBER' && request.resource.data.entity.entityId == request.auth.uid &&
+            request.resource.data.routeChannelKeys == ['general']) ||
+           (request.resource.data.trigger == 'BREAKDOWN_BLOCKED' && request.resource.data.department is string &&
+            request.resource.data.departmentChannel is string && request.resource.data.departmentChannel.matches('dept-.*') &&
+            request.resource.data.routeChannelKeys.hasOnly([request.resource.data.departmentChannel, 'safety', 'crew-help']) &&
+            canManageBreakdownDepartment(request.resource.data.department)) || isAdmin());
+        allow update: if request.resource.data.id == resource.data.id &&
+          request.resource.data.productionId == resource.data.productionId &&
+          request.resource.data.actorUid == resource.data.actorUid &&
+          request.resource.data.requiredPermission == resource.data.requiredPermission &&
+          request.resource.data.entity == resource.data.entity &&
+          request.resource.data.trigger == resource.data.trigger &&
+          request.resource.data.routeChannelKeys == resource.data.routeChannelKeys &&
+          request.resource.data.targetUids == resource.data.targetUids &&
+          request.resource.data.requiredAcknowledgementUids == resource.data.requiredAcknowledgementUids &&
+          request.resource.data.get('department', '') == resource.data.get('department', '') &&
+          request.resource.data.get('departmentChannel', '') == resource.data.get('departmentChannel', '') &&
+          request.resource.data.status in ['READY', 'PUBLISHING', 'PUBLISHED', 'ESCALATED', 'CANCELLED'] &&
+          (hasProdPermission(resource.data.requiredPermission) || hasProdPermission('MANAGE_ROSTER') ||
+           (isParentWritableMember() && resource.data.actorUid == request.auth.uid && resource.data.trigger == 'SAFETY_ALERT') ||
+           (isParentWritableMember() && resource.data.actorUid == request.auth.uid && resource.data.trigger == 'MEMBER_JOINED' &&
+            resource.data.entity.entityType == 'MEMBER' && resource.data.entity.entityId == request.auth.uid) ||
+           (resource.data.actorUid == request.auth.uid && resource.data.trigger == 'BREAKDOWN_BLOCKED' && resource.data.department is string &&
+            canManageBreakdownDepartment(resource.data.department)) || isAdmin());
+        allow delete: if isParentOwner() || isAdmin();
       }
       match /craftMenu/{docId} {
         allow read: if isParentMember() || isAdmin();
         allow create, update, delete: if hasProdPermission('MANAGE_CRAFT') || isAdmin();
       }
       match /dprs/{docId} {
-        allow read: if isParentMember() || isAdmin();
+        allow read: if hasProdPermission('MANAGE_REPORTS') || (isParentMember() && parentProd().get('isShowcase', false) == true) || isAdmin();
         allow create, update, delete: if hasProdPermission('MANAGE_REPORTS') || isAdmin();
       }
 
@@ -2912,10 +3133,10 @@ service cloud.firestore {
       // the owner (or on-set concierge) advances order status for everyone.
       match /craftOrders/{orderId} {
         allow read: if isParentMember() || isAdmin();
-        allow create: if isParentMember()
+        allow create: if isParentWritableMember()
                       && request.resource.data.requestedByUid == request.auth.uid;
         allow update, delete: if hasProdPermission('MANAGE_CRAFT')
-                      || (isParentMember() && resource.data.requestedByUid == request.auth.uid)
+                      || (isParentWritableMember() && resource.data.requestedByUid == request.auth.uid)
                       || isAdmin();
       }
     }

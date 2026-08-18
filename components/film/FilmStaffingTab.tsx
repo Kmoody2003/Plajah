@@ -53,7 +53,7 @@ export const FilmStaffingTab: React.FC = () => {
 
   const makeInvite = async () => {
     if (!prod) return; setBusy(true); setMessage('');
-    try { const created = await createProductionInvite(prod, invite); const url = productionInviteUrl(created.token); setInviteUrl(url); setInviteQr(await QRCode.toDataURL(url, { width: 260, margin: 1 })); }
+    try { const created = await createProductionInvite(prod, { ...invite, department: invite.dept }); const url = productionInviteUrl(created.token); setInviteUrl(url); setInviteQr(await QRCode.toDataURL(url, { width: 260, margin: 1 })); }
     catch (e) { setMessage((e as Error).message); } finally { setBusy(false); }
   };
 

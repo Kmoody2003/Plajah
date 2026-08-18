@@ -2659,7 +2659,9 @@ export const searchUsers = async (searchTerm: string): Promise<UserProfile[]> =>
     const snapshot = await getDocs(collection(db, path));
     const users = snapshot.docs.map(d => d.data() as UserProfile);
     if (!searchTerm) return users;
-    return users.filter(u => u.displayName.toLowerCase().includes(searchTerm.toLowerCase()));
+    const needle = searchTerm.trim().toLowerCase();
+    return users.filter(u => [u.displayName, (u as any).username, (u as any).handle, (u as any).artistName, (u as any).genre, (u as any).bio]
+      .some(value => String(value || '').toLowerCase().includes(needle)));
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
@@ -6696,13 +6698,14 @@ export const sendMessage = async (roomId: string, message: Omit<ChatMessage, 'id
 
       others.forEach((pId: string) => {
         const isGuardianCopy = ccGuardians.includes(pId);
+        const isMention = message.mentionUids?.includes(pId) === true;
         createNotification({
           userId: pId,
           senderId: auth.currentUser?.uid || '',
           senderName: isProtected ? '' : (auth.currentUser?.displayName || 'Anonymous'),
           senderPhoto: isProtected ? '' : (auth.currentUser?.photoURL || ''),
           type: 'MESSAGE',
-          title: isProtected ? 'Plajah' : (isGuardianCopy ? 'Copied on your child\'s message' : 'New Message'),
+          title: isProtected ? 'Plajah' : (isGuardianCopy ? 'Copied on your child\'s message' : isMention ? `Mentioned in ${roomData.name || 'chat'}` : 'New Message'),
           message: isProtected
             ? 'New protected message'
             : `${auth.currentUser?.displayName}: ${(message.text ?? '').substring(0, 50)}${(message.text ?? '').length > 50 ? '...' : ''}`,

@@ -26,6 +26,9 @@ service firebase.storage {
              request.resource.contentType.matches('audio/.*') ||
              request.resource.contentType.matches('video/.*') ||
              request.resource.contentType.matches('application/pdf') ||
+             request.resource.contentType.matches('application/msword') ||
+             request.resource.contentType.matches('application/vnd.ms-.*') ||
+             request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.*') ||
              request.resource.contentType.matches('application/epub.*') ||
              request.resource.contentType.matches('application/octet-stream') ||
              request.resource.contentType.matches('text/.*');
@@ -118,6 +121,15 @@ service firebase.storage {
     // Short audio PTT clips, evicted by the rolling 5-buffer. Audio only, ≤10 MB.
     match /walkie/{pairId}/{fileName} {
       allow read: if true;
+      allow write: if isAuth()
+                   && request.resource.contentType.matches('audio/.*')
+                   && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // Governed production-radio PTT clips. Firestore controls who can discover
+    // the transmission URL; uploads remain authenticated, audio-only and small.
+    match /productionRadio/{productionId}/{channelKey}/{fileName} {
+      allow read: if isAuth();
       allow write: if isAuth()
                    && request.resource.contentType.matches('audio/.*')
                    && request.resource.size < 10 * 1024 * 1024;

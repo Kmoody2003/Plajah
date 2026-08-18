@@ -15,14 +15,18 @@ import {
   Copy, Eye, Package, Zap, ArrowRight, Shield, Search, Filter,
   Mic, Layers, Ticket, Radio, Sparkles, Disc3,
   Camera, Film, Clapperboard, Scissors, BookOpen, PenLine, Newspaper, Award, Target, BookMarked,
-  LayoutDashboard, ClipboardList, Utensils, UserCheck,
+  LayoutDashboard, ClipboardList, Utensils, UserCheck, MessageSquare,
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import {
   FilmProductionProvider, ProductionHubTab, CallSheetsTab, RosterTab, DailyBriefTab, CraftServicesTab, ReportsTab, useProd,
 } from './film/FilmProductionSuite';
 import * as FilmProduction from '../services/filmProductionService';
+import { patchSceneWithAction, putLocationWithAction } from '../services/productionActionService';
 import { FilmStaffingTab } from './film/FilmStaffingTab';
+import { FilmBreakdownTab } from './film/FilmBreakdownTab';
+import { FilmScheduleTab as ProductionScheduleTab } from './film/FilmScheduleTab';
+import ProductionChatWorkspace from './film/ProductionChatWorkspace';
 import { listWritingProjects, type WritingProject, type WritingChapter } from '../services/loreaProjectsService';
 import { MusicReleasesTab } from './music/MusicReleasesTab';
 import {
@@ -1667,7 +1671,7 @@ const FilmOverviewTab: React.FC = () => {
 // ─── Film Tab: Script & Breakdown ──────────────────────────────────────────
 
 const FilmScriptTab: React.FC = () => {
-  const { prod, scenes } = useProd();
+  const { prod, scenes, me } = useProd();
   const [filter, setFilter] = useState<string>('ALL');
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ sceneNum: '', setting: 'INT' as FilmScene['setting'], location: '', timeOfDay: 'DAY' as FilmScene['timeOfDay'], synopsis: '', characters: '', pages: '1.0', shootDay: '1', notes: '' });
@@ -1684,7 +1688,7 @@ const FilmScriptTab: React.FC = () => {
     setForm({ sceneNum: '', setting: 'INT', location: '', timeOfDay: 'DAY', synopsis: '', characters: '', pages: '1.0', shootDay: '1', notes: '' });
   };
   const toggle = (id: string, status: FilmScene['status']) => {
-    if (prod) FilmProduction.patchScene(prod.id, id, { status });
+    if (prod) patchSceneWithAction(prod.id, id, { status }, FilmProduction.currentUid() || '', me?.name || prod.title);
   };
   const filtered = filter === 'ALL' ? scenes : scenes.filter(s => s.status === filter);
   const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-violet-500/50';
@@ -1929,12 +1933,12 @@ const FilmCrewTab: React.FC = () => {
 // ─── Film Tab: Locations ────────────────────────────────────────────────────
 
 const FilmLocationsTab: React.FC = () => {
-  const { prod, locations: locs } = useProd();
+  const { prod, locations: locs, me } = useProd();
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: '', type: 'INT' as FilmLocation['type'], address: '', city: '', contactName: '', contactPhone: '', permitStatus: 'SCOUTED' as FilmLocation['permitStatus'], rentalFee: '', notes: '' });
-  const save = () => {
+  const save = async () => {
     const n: FilmLocation = { id: uuid(), ...form, rentalFee: parseFloat(form.rentalFee) || 0, createdAt: Date.now() };
-    if (prod) FilmProduction.putLocation(prod.id, n);
+    if (prod) await putLocationWithAction(prod.id, n, FilmProduction.currentUid() || '', me?.name || prod.title);
     setAdding(false);
     setForm({ name: '', type: 'INT', address: '', city: '', contactName: '', contactPhone: '', permitStatus: 'SCOUTED', rentalFee: '', notes: '' });
   };
@@ -2661,8 +2665,8 @@ const WriterPressTab: React.FC = () => (
 
 type PMTab =
   | 'overview' | 'releases' | 'productions' | 'import' | 'payroll' | 'contracts' | 'invoices' | 'tasks' | 'vendors' | 'venues' | 'events' | 'boards' | 'promote'
-  | 'film_overview' | 'film_script' | 'film_budget' | 'film_crew' | 'film_locations' | 'film_schedule' | 'film_distro'
-  | 'film_hub' | 'film_callsheets' | 'film_staffing' | 'film_roster' | 'film_brief' | 'film_craft' | 'film_reports'
+  | 'film_overview' | 'film_script' | 'film_breakdown' | 'film_budget' | 'film_crew' | 'film_locations' | 'film_schedule' | 'film_distro'
+  | 'film_hub' | 'film_chat' | 'film_callsheets' | 'film_staffing' | 'film_roster' | 'film_brief' | 'film_craft' | 'film_reports'
   | 'writer_overview' | 'writer_projects' | 'writer_manuscripts' | 'writer_research' | 'writer_submissions' | 'writer_events' | 'writer_press';
 
 type Discipline = 'music' | 'film' | 'writer';
@@ -2696,6 +2700,7 @@ const DISCIPLINES: { id: Discipline; label: string; emoji: string; color: string
 const FILM_TABS: { id: PMTab; label: string; icon: React.ReactNode; color: string }[] = [
   { id: 'film_overview',   label: 'Overview',     icon: <BarChart2 size={13} />,    color: '#a855f7' },
   { id: 'film_hub',        label: 'On Set',       icon: <LayoutDashboard size={13} />, color: '#a855f7' },
+  { id: 'film_chat',       label: 'Chat',         icon: <MessageSquare size={13} />, color: '#FF8C00' },
   { id: 'film_callsheets', label: 'Call Sheets',  icon: <FileText size={13} />,     color: '#a855f7' },
   { id: 'film_staffing',   label: 'Staffing',     icon: <Briefcase size={13} />,    color: '#6366f1' },
   { id: 'film_brief',      label: 'My Brief',     icon: <UserCheck size={13} />,    color: '#f59e0b' },
@@ -2703,6 +2708,7 @@ const FILM_TABS: { id: PMTab; label: string; icon: React.ReactNode; color: strin
   { id: 'film_craft',      label: 'Craft',        icon: <Utensils size={13} />,     color: '#14b8a6' },
   { id: 'film_reports',    label: 'Reports',      icon: <ClipboardList size={13} />, color: '#a855f7' },
   { id: 'film_script',     label: 'Script',       icon: <Clapperboard size={13} />, color: '#a855f7' },
+  { id: 'film_breakdown',  label: 'Breakdown',    icon: <Layers size={13} />,       color: '#f97316' },
   { id: 'film_budget',     label: 'Budget',       icon: <DollarSign size={13} />,   color: '#10b981' },
   { id: 'film_crew',       label: 'Crew',         icon: <Users size={13} />,        color: '#a855f7' },
   { id: 'film_schedule',   label: 'Schedule',     icon: <Calendar size={13} />,     color: '#3b82f6' },
@@ -2761,6 +2767,7 @@ export const ArtistProjectManager: React.FC<Props> = ({ currentUser }) => {
       case 'venues':              return <VenuesTab />;
       case 'film_overview':       return <FilmOverviewTab />;
       case 'film_hub':            return <ProductionHubTab />;
+      case 'film_chat':           return <ProductionChatWorkspace />;
       case 'film_callsheets':     return <CallSheetsTab />;
       case 'film_staffing':       return <FilmStaffingTab />;
       case 'film_brief':          return <DailyBriefTab />;
@@ -2768,10 +2775,11 @@ export const ArtistProjectManager: React.FC<Props> = ({ currentUser }) => {
       case 'film_craft':          return <CraftServicesTab />;
       case 'film_reports':        return <ReportsTab />;
       case 'film_script':         return <FilmScriptTab />;
+      case 'film_breakdown':      return <FilmBreakdownTab />;
       case 'film_budget':         return <FilmBudgetTab />;
       case 'film_crew':           return <FilmCrewTab />;
       case 'film_locations':      return <FilmLocationsTab />;
-      case 'film_schedule':       return <FilmScheduleTab />;
+      case 'film_schedule':       return <ProductionScheduleTab />;
       case 'film_distro':         return <FilmDistroTab />;
       case 'writer_overview':     return <WriterOverviewTab />;
       case 'writer_projects':     return <WriterProjectsTab currentUser={currentUser} />;

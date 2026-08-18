@@ -5,7 +5,7 @@ import {
   Check, CheckCheck, User, Download, StopCircle, Reply, Pin,
   Forward, Search, Globe, Smile, Hash, Copy, Trash2, Star,
   Bold, Italic, Link, AtSign, BarChart2, AlertCircle, Volume2,
-  Flame, Timer, Camera, Radio, Heart, Palette, Gift, EyeOff, ShieldCheck,
+  Flame, Timer, Camera, Radio, Heart, Palette, Gift, EyeOff, ShieldCheck, ClipboardList, Database, MessagesSquare,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatMessage, ChatRoom, UserProfile, CollabProject, Album } from '../types';
@@ -22,6 +22,12 @@ import { Shield } from 'lucide-react';
 import GifStickerPicker from './GifStickerPicker';
 import VoiceRecorder from './VoiceRecorder';
 import WalkieTalkie from './WalkieTalkie';
+import ProductionPTT from './film/ProductionPTT';
+import ProductionChatContextPanel from './film/ProductionChatContextPanel';
+import ProductionEntityCard from './film/ProductionEntityCard';
+import ProductionArtifactPicker from './film/ProductionArtifactPicker';
+import ChatThreadPanel from './ChatThreadPanel';
+import type { ProductionEntityRef } from '../services/productionChatArtifacts';
 import CouplesDiaryView from './CouplesDiaryView';
 import GameMagic8Ball from './GameMagic8Ball';
 import NibblesTutorial from './NibblesTutorial';
@@ -98,6 +104,7 @@ interface ChatWindowProps {
   onOpenCollab: (projectId: string) => void;
   onStartVideo?: () => void;
   onStartAudio?: () => void;
+  readOnly?: boolean;
 }
 
 const QUICK_REACTIONS = ['❤️', '😂', '😮', '😢', '🔥', '👏', '💯', '🎯'];
@@ -192,7 +199,7 @@ const ReactionBadge: React.FC<{
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 const ChatWindow: React.FC<ChatWindowProps> = ({
-  room, profiles: externalProfiles = {}, currentUserProfile, onBack, onOpenCollab, onStartVideo, onStartAudio,
+  room, profiles: externalProfiles = {}, currentUserProfile, onBack, onOpenCollab, onStartVideo, onStartAudio, readOnly = false,
 }) => {
   const [messages, setMessages] = useState<ExtendedMessage[]>([]);
   const [decryptedMessages, setDecryptedMsgs] = useState<ExtendedMessage[]>([]);
@@ -224,6 +231,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [showMembersPanel, setShowMembersPanel] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showWalkie, setShowWalkie] = useState(false);
+  const [showProductionPicker, setShowProductionPicker] = useState(false);
+  const [threadRoot, setThreadRoot] = useState<ExtendedMessage | null>(null);
 
   // Burn-after-read (self-destructing) toggle
   const [burnMode, setBurnMode]             = useState(false);
@@ -390,6 +399,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         text: encrypted,
         type: 'TEXT',
       };
+      const lower = text.toLowerCase();
+      msgData.mentionUids = Object.entries(profiles).filter(([, profile]) => {
+        const name = (profile.displayName || '').toLowerCase();
+        return name && (lower.includes(`@${name}`) || lower.includes(`@${name.split(' ')[0]}`));
+      }).map(([mentionedUid]) => mentionedUid);
       if (savedReply) {
         msgData.replyToId = savedReply.id;
         msgData.replyToText = savedReply.text?.slice(0, 80);
@@ -759,16 +773,27 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     setShowMediaSelector(false);
   };
 
+  const handleSendProductionEntity = async (choice: { reference: ProductionEntityRef; title: string; detail: string }) => {
+    await sendMessage(room.id, {
+      senderId: auth.currentUser?.uid || '', senderName: auth.currentUser?.displayName || 'Crew', senderPhoto: auth.currentUser?.photoURL || '',
+      text: await encryptText(`Shared live production data: ${choice.title}`, room.id), type: 'ACTION', productionEntity: choice.reference,
+    });
+    setShowProductionPicker(false);
+  };
+
   const uid = auth.currentUser?.uid;
   const typingUsers = room.typingUsers?.filter(id => id !== uid) || [];
   const roomName = room.type === 'PRIVATE'
     ? (profiles[room.participants.find(id => id !== uid) ?? '']?.displayName || 'Direct Message')
     : (room.name || (room.type === 'PUBLIC_LIVE' ? 'Live Channel' : 'Group Chat'));
   const walkiePeerUid = room.type === 'PRIVATE' ? room.participants.find(id => id !== uid) : undefined;
+  const isProductionRoom = room.workspaceType === 'PRODUCTION' && !!room.productionId && !!room.productionChannelKey;
+  const canPostToRoom = !isProductionRoom || room.postingPolicy !== 'PRODUCTION_LEADS' || !!uid && (room.productionLeadUids || []).includes(uid);
+  const [showProductionContext, setShowProductionContext] = useState(false);
 
   const displayedMessages = searchMode && searchQuery
     ? decryptedMessages.filter(m => m.text?.toLowerCase().includes(searchQuery.toLowerCase()))
-    : decryptedMessages;
+    : decryptedMessages.filter(message => !message.threadRootId);
 
   return (
     <div className="relative flex flex-col h-full overflow-hidden bg-black/10">
@@ -837,7 +862,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   </span>
                 ) : (
                   <span className="text-[9px] font-bold text-white/25">
-                    {room.type === 'PRIVATE' ? 'Direct Message' : `${room.participants.length} members`}
+                    {isProductionRoom ? `${room.productionTitle} · ${room.participants.length} crew` : room.type === 'PRIVATE' ? 'Direct Message' : `${room.participants.length} members`}
                   </span>
                 )}
                 {pinnedMessages.length > 0 && (
@@ -884,6 +909,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               <Radio size={17} />
             </button>
           )}
+          {isProductionRoom && uid && (
+            <button onClick={() => setShowWalkie(p => !p)} title={`Production PTT channel ${room.radioChannel || 1}`} className={`hidden sm:flex p-2 rounded-xl transition-all ${showWalkie ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
+              <Radio size={17} />
+            </button>
+          )}
+          {isProductionRoom && uid && (
+            <button onClick={() => setShowProductionContext(p => !p)} title="Production context and my notes" className={`hidden sm:flex p-2 rounded-xl transition-all ${showProductionContext ? 'bg-brand-purple/20 text-brand-lilac' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
+              <ClipboardList size={17} />
+            </button>
+          )}
           <button
             onClick={() => setShowCollabMenu(p => !p)}
             className={`hidden sm:flex p-2 rounded-xl transition-all ${showCollabMenu ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}
@@ -905,6 +940,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   {[
                     // Walkie + Collab live in the header on tablet+, but are hidden on phone — surface them here.
                     ...(walkiePeerUid && uid ? [{ icon: Radio, label: 'Two-Way', action: () => setShowWalkie(p => !p), phoneOnly: true }] : []),
+                    ...(isProductionRoom && uid ? [{ icon: Radio, label: `Production PTT · CH ${room.radioChannel || 1}`, action: () => setShowWalkie(p => !p), phoneOnly: true }, { icon: ClipboardList, label: 'My production context', action: () => setShowProductionContext(p => !p), phoneOnly: true }] : []),
                     { icon: Layers, label: 'Collab Boards', action: () => setShowCollabMenu(p => !p), phoneOnly: true },
                     { icon: Pin, label: `${showPinnedPanel ? 'Hide' : 'Show'} Pinned`, action: () => setShowPinnedPanel(p => !p), phoneOnly: false },
                     { icon: Shield, label: protectedThread ? 'Protected ✓' : 'Protect thread', action: () => { void toggleProtected(); setShowMoreMenu(false); }, phoneOnly: false },
@@ -1059,6 +1095,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           <WalkieTalkie selfUid={uid} peerUid={walkiePeerUid} peerName={roomName} onClose={() => setShowWalkie(false)} />
         </div>
       )}
+      {showWalkie && isProductionRoom && uid && (
+        <div className="fixed right-4 top-20 z-[60]">
+          <ProductionPTT productionId={room.productionId!} channelKey={room.productionChannelKey!} channelName={roomName} radioChannel={room.radioChannel || 1} selfUid={uid} selfName={auth.currentUser?.displayName || 'Crew'} onClose={() => setShowWalkie(false)} />
+        </div>
+      )}
+      {showProductionContext && isProductionRoom && uid && <ProductionChatContextPanel room={room} uid={uid} onClose={() => setShowProductionContext(false)} />}
 
       {/* ── SEARCH BAR ──────────────────────────────────────────────── */}
       <AnimatePresence>
@@ -1185,6 +1227,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           const showName = !isMe && room.type !== 'PRIVATE';
           const senderProfile = profiles[msg.senderId];
           const hasReactions = msg.reactions && Object.values(msg.reactions).some(uids => uids.length > 0);
+          const threadReplies = decryptedMessages.filter(reply => reply.threadRootId === msg.id);
 
           if (msg.type === 'SYSTEM') {
             return (
@@ -1209,8 +1252,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               </div>
 
               {/* Bubble */}
-              <div className={`max-w-[72%] sm:max-w-[62%] flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
+              <div className={`${msg.productionEntity ? 'max-w-[92%] sm:max-w-[82%]' : 'max-w-[72%] sm:max-w-[62%]'} flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
                 {showName && <span className="text-[8px] font-black uppercase tracking-widest text-white/30 px-1">{senderProfile?.displayName || msg.senderName}</span>}
+                {uid && msg.mentionUids?.includes(uid) && <span className="type-label-sm text-brand-orange px-1">Mentioned you</span>}
 
                 {/* Reply-to preview */}
                 {msg.replyToId && (
@@ -1222,18 +1266,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
                 {/* Main bubble */}
                 <div
-                  className={`px-4 py-3 rounded-2xl relative cursor-pointer select-text ${
-                    isMe
+                  className={`${msg.productionEntity ? 'p-0 bg-transparent' : 'px-4 py-3'} rounded-2xl relative cursor-pointer select-text ${
+                    msg.productionEntity ? '' : isMe
                       ? 'bg-small-orange text-white rounded-br-sm'
                       : 'bg-white/[0.08] backdrop-blur-md text-white rounded-bl-sm border border-white/[0.06]'
                   } ${msg.isPinned ? 'ring-1 ring-amber-400/30' : ''}`}
                   style={isIntimate ? { backgroundColor: isMe ? intimateTheme.ownBubble : intimateTheme.otherBubble } : undefined}
                   onContextMenu={e => {
+                    if (readOnly) return;
                     e.preventDefault();
                     setContextMenuMsg(msg);
                     setContextMenuPos({ x: e.clientX, y: e.clientY });
                   }}
-                  onDoubleClick={() => setReplyTo(msg)}
+                  onDoubleClick={() => { if (!readOnly) setReplyTo(msg); }}
                 >
                   {msg.isPinned && <Pin size={9} className="absolute top-1.5 right-1.5 text-amber-400 opacity-60" />}
                   {(msg.burnAfterSeen || msg.burnAfter) && (
@@ -1243,7 +1288,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     </div>
                   )}
 
-                  {msg.type === 'VIDEO_NOTE' && msg.videoNoteUrl ? (
+                  {msg.productionEntity && uid ? (
+                    <ProductionEntityCard reference={msg.productionEntity} uid={uid} readOnly={readOnly} />
+                  ) : msg.type === 'VIDEO_NOTE' && msg.videoNoteUrl ? (
                     <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-white/20 relative">
                       <video src={msg.videoNoteUrl} className="w-full h-full object-cover" controls playsInline loop />
                     </div>
@@ -1309,6 +1356,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   )}
                 </div>
 
+                {!readOnly && (threadReplies.length > 0 || room.workspaceType === 'PRODUCTION') && (
+                  <button onClick={() => setThreadRoot(msg)} className="flex items-center gap-1 px-2 type-label-sm text-[var(--text-secondary)] hover:text-brand-orange"><MessagesSquare size={11} /> {threadReplies.length ? `${threadReplies.length} thread ${threadReplies.length === 1 ? 'reply' : 'replies'}` : 'Start thread'}</button>
+                )}
+
                 {/* Reactions */}
                 {hasReactions && (
                   <div className="flex flex-wrap gap-1 px-1">
@@ -1319,22 +1370,22 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                           emoji={emoji}
                           count={uids.length}
                           hasReacted={uids.includes(uid || '')}
-                          onClick={() => handleReact(msg.id, emoji)}
+                          onClick={() => { if (!readOnly) handleReact(msg.id, emoji); }}
                         />
                       ) : null
                     )}
-                    <button
+                    {!readOnly && <button
                       onClick={() => setShowEmojiPicker(showEmojiPicker === msg.id ? null : msg.id)}
                       className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
                     >
                       <Plus size={9} className="text-white/30" />
-                    </button>
+                    </button>}
                   </div>
                 )}
 
                 {/* Emoji picker for this message */}
                 <AnimatePresence>
-                  {showEmojiPicker === msg.id && (
+                  {!readOnly && showEmojiPicker === msg.id && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -1387,6 +1438,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           >
             {[
               { icon: Reply, label: 'Reply', action: () => { setReplyTo(contextMenuMsg); setContextMenuMsg(null); inputRef.current?.focus(); } },
+              { icon: MessagesSquare, label: 'Reply in thread', action: () => { setThreadRoot(contextMenuMsg); setContextMenuMsg(null); } },
               { icon: Smile, label: 'React', action: () => { setShowEmojiPicker(contextMenuMsg.id); setContextMenuMsg(null); } },
               { icon: Copy, label: 'Copy', action: () => handleCopyText(contextMenuMsg.text) },
               { icon: Pin, label: contextMenuMsg.isPinned ? 'Unpin' : 'Pin', action: () => handlePinMessage(contextMenuMsg.id, !!contextMenuMsg.isPinned) },
@@ -1443,6 +1495,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* ── INPUT AREA ──────────────────────────────────────────────── */}
       <div className="shrink-0 bg-black/25 backdrop-blur-xl border-t border-white/[0.05]">
+        {readOnly ? (
+          <div className="px-4 py-4 flex items-center gap-3"><ShieldCheck size={18} className="text-brand-orange shrink-0" /><div><p className="type-label-lg">Showcase channel</p><p className="type-body-sm text-[var(--text-secondary)]">This production is read-only. Copy the project to message, acknowledge, call, and run the workflow yourself.</p></div></div>
+        ) : !canPostToRoom ? (
+          <div className="px-4 py-4 flex items-center gap-3"><ShieldCheck size={18} className="text-brand-orange shrink-0" /><div><p className="type-label-lg">Production announcements are read-only</p><p className="type-body-sm text-[var(--text-secondary)]">Producer and AD leadership publish the authoritative update here. Reply in General or Schedule & Calls.</p></div></div>
+        ) : <>
         {/* Reply preview */}
         <AnimatePresence>
           {replyTo && (
@@ -1494,6 +1551,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               </>
             )}
           </AnimatePresence>
+          {showProductionPicker && isProductionRoom && uid && <ProductionArtifactPicker productionId={room.productionId!} uid={uid} userName={auth.currentUser?.displayName || 'Crew'} onSelect={handleSendProductionEntity} onClose={() => setShowProductionPicker(false)} />}
           {/* Intimate emote bar — tap to send a romantic emote */}
           {isIntimate && !showVoiceRecorder && (
             <div className="flex items-center gap-1 mb-2 overflow-x-auto no-scrollbar">
@@ -1544,6 +1602,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   className="p-2 text-white/35 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all shrink-0">
                   <Music size={19} />
                 </button>
+                {isProductionRoom && <button type="button" onClick={() => setShowProductionPicker(value => !value)} title="Share live production data" className={`p-2 rounded-xl transition-all shrink-0 ${showProductionPicker ? 'text-brand-orange bg-white/10' : 'text-white/35 hover:text-brand-orange hover:bg-white/5'}`}><Database size={19} /></button>}
                 <button type="button" onClick={() => imageInputRef.current?.click()} disabled={uploadingImage} title="Photo"
                   className="p-2 text-white/35 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all disabled:opacity-30 shrink-0">
                   {uploadingImage
@@ -1576,7 +1635,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             </form>
           )}
         </div>
+        </>}
       </div>
+
+      {threadRoot && <ChatThreadPanel room={room} root={threadRoot} replies={decryptedMessages.filter(message => message.threadRootId === threadRoot.id)} profiles={profiles} canPost={canPostToRoom} onClose={() => setThreadRoot(null)} />}
 
       {/* ── VIDEO NOTE MODAL ────────────────────────────────────────── */}
       <AnimatePresence>

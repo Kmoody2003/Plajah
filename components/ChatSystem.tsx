@@ -4,7 +4,7 @@ import {
   Globe, Phone, Video, Edit3, Mail, Mic, Radio, Star,
   Hash, Lock, Bell, Archive, UserPlus, X, Check, ChevronRight,
   Sparkles, User, AtSign, Shield, MoreHorizontal, Heart,
-  Copy, Share2, QrCode, BookUser, UserCheck, Trash2, LogOut,
+  Copy, Share2, QrCode, BookUser, UserCheck, Trash2, LogOut, Clapperboard,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatRoom, UserProfile } from '../types';
@@ -25,7 +25,7 @@ import CollaboBoard from './CollaboBoard';
 import PostmanSystem from './PostmanSystem';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type SidebarTab = 'ALL' | 'DIRECT' | 'GROUPS' | 'CHANNELS' | 'SONGS' | 'POSTMAN';
+type SidebarTab = 'ALL' | 'DIRECT' | 'GROUPS' | 'PRODUCTIONS' | 'CHANNELS' | 'SONGS' | 'POSTMAN';
 type MainView = 'CHAT_LIST' | 'NEW_MESSAGE' | 'INVITE_FRIENDS' | 'FIND_CONTACTS';
 const EMOJI_STATUS = ['😊', '🎵', '🎨', '💤', '🔥', '👻', '🌙', '⚡', '🎯', '🌊', '🎤', '🏆'];
 
@@ -693,7 +693,8 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
     if (searchTerm && !name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     if (sidebarTab === 'ALL') return true;
     if (sidebarTab === 'DIRECT') return room.type === 'PRIVATE';
-    if (sidebarTab === 'GROUPS') return room.type === 'GROUP' || room.type === 'CLASSROOM';
+    if (sidebarTab === 'GROUPS') return (room.type === 'GROUP' || room.type === 'CLASSROOM') && room.workspaceType !== 'PRODUCTION';
+    if (sidebarTab === 'PRODUCTIONS') return room.workspaceType === 'PRODUCTION';
     if (sidebarTab === 'CHANNELS') return room.type === 'PUBLIC_LIVE' && !room.id.startsWith('live_chat_');
     if (sidebarTab === 'SONGS') return room.id.startsWith('live_chat_');
     return false;
@@ -802,6 +803,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
     { id: 'ALL',      label: 'All',     icon: MessageSquare },
     { id: 'DIRECT',   label: 'DMs',     icon: User },
     { id: 'GROUPS',   label: 'Groups',  icon: Users },
+    { id: 'PRODUCTIONS', label: 'Sets', icon: Clapperboard },
     { id: 'SONGS',    label: 'Songs',   icon: Hash },
     { id: 'CHANNELS', label: 'Live',    icon: Radio },
     { id: 'POSTMAN',  label: 'Mail',    icon: Mail },

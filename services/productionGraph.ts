@@ -16,14 +16,17 @@ export interface ScriptDraft {
 
 export type WorkflowEventType =
   | 'PRODUCTION_CREATED' | 'SCRIPT_GREENLIT' | 'SCRIPT_REVISED'
-  | 'SCENE_UPDATED' | 'MEMBER_JOINED' | 'SAMPLE_APPLIED' | 'LEGACY_IMPORTED';
+  | 'SCENE_UPDATED' | 'BREAKDOWN_SUGGESTED' | 'BREAKDOWN_APPROVED' | 'BREAKDOWN_STATUS_CHANGED'
+  | 'BREAKDOWN_ATTACHMENT_ADDED' | 'BREAKDOWN_ATTACHMENT_REMOVED' | 'BREAKDOWN_OCCURRENCE_UPDATED'
+  | 'SCHEDULE_APPROVED' | 'CALLSHEETS_GENERATED' | 'CALLSHEET_PUBLISHED' | 'CALLSHEET_REPUBLISHED'
+  | 'MEMBER_JOINED' | 'SAMPLE_APPLIED' | 'LEGACY_IMPORTED';
 
 export interface WorkflowEvent {
   id: string;
   productionId: string;
   type: WorkflowEventType;
   actorUid: string;
-  entityType: 'production' | 'scriptDraft' | 'scene' | 'membership' | 'migration';
+  entityType: 'production' | 'scriptDraft' | 'scene' | 'breakdownElement' | 'schedulePlan' | 'callSheet' | 'membership' | 'migration';
   entityId: string;
   summary: string;
   data?: Record<string, unknown>;

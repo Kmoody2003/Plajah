@@ -78,7 +78,7 @@ export type ProductionPermission =
   | 'MANAGE_ROSTER' | 'MANAGE_HIRING' | 'EDIT_SCRIPT_BREAKDOWN' | 'MANAGE_SCHEDULE'
   | 'MANAGE_CALL_SHEETS' | 'MANAGE_TASKS' | 'MANAGE_CRAFT'
   | 'MANAGE_REPORTS' | 'MANAGE_BUDGET' | 'MANAGE_LOCATIONS'
-  | 'MANAGE_POST' | 'VIEW_SENSITIVE_CONTACTS';
+  | 'MANAGE_POST' | 'VIEW_SENSITIVE_CONTACTS' | 'MANAGE_DEPARTMENT_BREAKDOWN';
 
 export type ProductionRoleKey =
   | 'EXECUTIVE_PRODUCER' | 'PRODUCER' | 'DIRECTOR' | 'FIRST_AD'
@@ -97,7 +97,7 @@ export const ALL_PRODUCTION_PERMISSIONS: ProductionPermission[] = [
   'MANAGE_ROSTER', 'MANAGE_HIRING', 'EDIT_SCRIPT_BREAKDOWN', 'MANAGE_SCHEDULE',
   'MANAGE_CALL_SHEETS', 'MANAGE_TASKS', 'MANAGE_CRAFT',
   'MANAGE_REPORTS', 'MANAGE_BUDGET', 'MANAGE_LOCATIONS',
-  'MANAGE_POST', 'VIEW_SENSITIVE_CONTACTS',
+  'MANAGE_POST', 'VIEW_SENSITIVE_CONTACTS', 'MANAGE_DEPARTMENT_BREAKDOWN',
 ];
 
 export const PRODUCTION_ROLE_TEMPLATES: Array<{
@@ -108,7 +108,7 @@ export const PRODUCTION_ROLE_TEMPLATES: Array<{
   { key: 'DIRECTOR', label: 'Director', description: 'Controls creative breakdown, schedule input, reports, and post handoff.', permissions: ['EDIT_SCRIPT_BREAKDOWN', 'MANAGE_SCHEDULE', 'MANAGE_TASKS', 'MANAGE_REPORTS', 'MANAGE_POST'] },
   { key: 'FIRST_AD', label: '1st Assistant Director', description: 'Controls crew staffing, breakdown, schedule, call sheets, tasks, and daily reports.', permissions: ['MANAGE_HIRING', 'EDIT_SCRIPT_BREAKDOWN', 'MANAGE_SCHEDULE', 'MANAGE_CALL_SHEETS', 'MANAGE_TASKS', 'MANAGE_REPORTS', 'VIEW_SENSITIVE_CONTACTS'] },
   { key: 'SCRIPT_SUPERVISOR', label: 'Script Supervisor', description: 'Maintains breakdown, continuity, sides, and production reports.', permissions: ['EDIT_SCRIPT_BREAKDOWN', 'MANAGE_REPORTS'] },
-  { key: 'DEPARTMENT_HEAD', label: 'Department Head', description: 'Runs department tasks and reports without changing production-wide authority.', permissions: ['MANAGE_TASKS', 'MANAGE_REPORTS'] },
+  { key: 'DEPARTMENT_HEAD', label: 'Department Head', description: 'Runs department breakdown, tasks, and reports without changing production-wide authority.', permissions: ['MANAGE_DEPARTMENT_BREAKDOWN', 'MANAGE_TASKS', 'MANAGE_REPORTS'] },
   { key: 'CREW', label: 'Crew', description: 'Receives briefs and completes assigned work.', permissions: [] },
   { key: 'CAST', label: 'Cast', description: 'Receives personal calls, sides, and approved production information.', permissions: [] },
   { key: 'VIEWER', label: 'Viewer / Offsite Producer', description: 'Read-only production access.', permissions: [] },
@@ -191,7 +191,14 @@ export interface CallSheetCastRow {
   pickup?: string; makeup?: string; wardrobe?: string; onSet?: string; status?: string; note?: string;
 }
 export interface CallSheetSceneRow {
-  sceneNum: string; intExt: string; dayNight: string; set: string; synopsis: string; pages: number; characters: string[];
+  sceneId?: string; sceneNum: string; intExt: string; dayNight: string; set: string; synopsis: string; pages: number; characters: string[];
+}
+
+/** A user's enrollment/employment relationship to one production. */
+export interface ProductionMembership extends ProductionMember {
+  productionId?: string;
+  joinedVia?: 'OWNER' | 'INVITE' | 'HIRING' | 'MANUAL';
+  joinedAt?: number;
 }
 export interface MealBlock { label: string; time: string; note?: string; }
 export interface Weather { summary: string; high?: number; low?: number; precip?: number; sunrise?: string; sunset?: string; }
@@ -227,6 +234,9 @@ export interface CallSheet {
   publishedAt?: number;
   changeLog?: { at: number; summary: string }[];
   confirmations?: Record<string, number>;   // memberId → confirmedAt ms
+  schedulePlanId?: string;
+  scheduleVersion?: number;
+  scheduleDayId?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -289,9 +299,19 @@ export interface Production {
   lng?: number;
   linkedScriptId?: string;
   currentDraftId?: string;
+  approvedScheduleId?: string;
+  approvedScheduleVersion?: number;
   status?: 'ACTIVE' | 'ARCHIVED';
   sampleAppliedAt?: number;
   legacyImportedAt?: number;
+  chatProvisionedAt?: number;
+  chatChannelKeys?: string[];
+  isShowcase?: boolean;
+  templateKey?: string;
+  templateVersion?: number;
+  copiedFromTemplateKey?: string;
+  copiedAt?: number;
+  showcaseSeeding?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -428,7 +448,7 @@ export function generateCallSheet(
     deptCalls,
     castRows,
     sceneRows: dayScenes.map(s => ({
-      sceneNum: s.sceneNum, intExt: s.intExt, dayNight: s.dayNight, set: s.set,
+      sceneId: s.id, sceneNum: s.sceneNum, intExt: s.intExt, dayNight: s.dayNight, set: s.set,
       synopsis: s.synopsis, pages: s.pages, characters: s.characters,
     })),
     meals: [
@@ -443,6 +463,23 @@ export function generateCallSheet(
     confirmations: {},
     createdAt: now,
     updatedAt: now,
+  };
+}
+
+/** Live view projection: a scene edit is visible everywhere without rewriting the call-sheet document. */
+export function projectCallSheetScenes(callSheet: CallSheet, scenes: ProductionScene[]): CallSheet {
+  const byId = new Map(scenes.map(scene => [scene.id, scene]));
+  const byNumber = new Map(scenes.map(scene => [scene.sceneNum, scene]));
+  return {
+    ...callSheet,
+    sceneRows: callSheet.sceneRows.map(row => {
+      const scene = (row.sceneId && byId.get(row.sceneId)) || byNumber.get(row.sceneNum);
+      return scene ? {
+        sceneId: scene.id, sceneNum: scene.sceneNum, intExt: scene.intExt,
+        dayNight: scene.dayNight, set: scene.set, synopsis: scene.synopsis,
+        pages: scene.pages, characters: scene.characters,
+      } : row;
+    }),
   };
 }
 
@@ -814,25 +851,6 @@ export const subCallSheets = (p: string, cb: (r: CallSheet[]) => void) => subscr
 export const putCallSheet = (p: string, c: CallSheet) => put(p, 'callsheets', c);
 export const patchCallSheet = (p: string, id: string, x: Partial<CallSheet>) => patch(p, 'callsheets', id, x);
 export const removeCallSheet = (p: string, id: string) => remove(p, 'callsheets', id);
-
-export async function publishCallSheet(prodId: string, cs: CallSheet, changeSummary?: string) {
-  const bumped = cs.status === 'PUBLISHED';
-  const log = [...(cs.changeLog || [])];
-  if (changeSummary) log.push({ at: Date.now(), summary: changeSummary });
-  await patchCallSheet(prodId, cs.id, {
-    status: 'PUBLISHED',
-    version: bumped ? cs.version + 1 : cs.version,
-    publishedAt: Date.now(),
-    changeLog: log,
-    // A republish invalidates prior confirmations — everyone must re-confirm the delta.
-    ...(bumped ? { confirmations: {} } : {}),
-  });
-}
-
-export async function confirmCallSheet(prodId: string, cs: CallSheet, memberKey: string) {
-  const confirmations = { ...(cs.confirmations || {}), [memberKey]: Date.now() };
-  await patchCallSheet(prodId, cs.id, { confirmations });
-}
 
 // Tasks
 export const subTasks = (p: string, cb: (r: ProdTask[]) => void) => subscribe<ProdTask>(p, 'tasks', cb);

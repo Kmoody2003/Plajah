@@ -4,8 +4,8 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import type { Application, ApplicationStage, JobPosting } from '../types';
-import type { DeptKey, Production, ProductionMember, ProductionRoleKey } from './filmProductionService';
-import { uid8 } from './filmProductionService';
+import type { DeptKey, Production, ProductionMembership, ProductionRoleKey } from './filmProductionService';
+import { announceProductionMemberJoined } from './productionActionService';
 
 export interface ProductionOpeningInput {
   title: string;
@@ -43,6 +43,14 @@ export async function createProductionOpening(prod: Production, input: Productio
 }
 
 export async function fetchProductionOpenings(prodId: string): Promise<JobPosting[]> {
+  if (prodId.startsWith('showcase_film_v')) return [{
+    id: 'showcase_opening_sfx', orgId: `production:${prodId}`, productionId: prodId,
+    productionTitle: 'Afterlight · Plajah Production Showcase', productionDepartment: 'STUNTS_SFX', productionRoleKey: 'CREW',
+    postingType: 'JOB', title: 'Special Effects Supervisor', roleKey: 'CREW',
+    description: 'Own the controlled underpass water effect, recovery plan, and wet-weather electrical coordination.',
+    location: 'Detroit, MI', compRange: '$650/day · 3 days', employmentType: 'GIG', status: 'OPEN',
+    createdBy: 'plajah-showcase', createdAt: Date.now() - 86400000, updatedAt: Date.now() - 86400000,
+  }];
   const snap = await getDocs(query(collection(db, 'jobPostings'), where('productionId', '==', prodId)));
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as JobPosting)).sort((a, b) => b.createdAt - a.createdAt);
 }
@@ -74,11 +82,12 @@ export async function hireProductionApplicant(prod: Production, posting: JobPost
   const requested = (posting.productionRoleKey || 'CREW') as ProductionRoleKey;
   const safeRole: ProductionRoleKey = requested === 'CAST' ? 'CAST' : requested === 'VIEWER' ? 'VIEWER' : 'CREW';
   const dept = (posting.productionDepartment || (safeRole === 'CAST' ? 'CAST' : 'OTHER')) as DeptKey;
-  const member: ProductionMember = {
-    id: uid8(), uid: app.applicantUid, name: app.applicantName,
+  const member: ProductionMembership = {
+    id: app.applicantUid, uid: app.applicantUid, name: app.applicantName,
     role: posting.title, roleKey: safeRole, dept,
     email: app.applicantEmail, isCast: safeRole === 'CAST',
-    status: 'ACTIVE', createdAt: Date.now(),
+    status: 'ACTIVE', createdAt: Date.now(), productionId: prod.id,
+    joinedVia: 'HIRING', joinedAt: Date.now(),
   };
   await runTransaction(db, async tx => {
     const prodRef = doc(db, 'productions', prod.id);
@@ -92,4 +101,6 @@ export async function hireProductionApplicant(prod: Production, posting: JobPost
     tx.set(doc(db, 'productions', prod.id, 'members', member.id), JSON.parse(JSON.stringify(member)));
     tx.update(doc(db, 'applications', app.id), { stage: 'HIRED', updatedAt: Date.now() });
   });
+  announceProductionMemberJoined(prod.id, member, actor.uid, actor.displayName || 'Production staffing', 'HIRING')
+    .catch(error => console.warn('[production-actions] hired member announcement queued', error));
 }
