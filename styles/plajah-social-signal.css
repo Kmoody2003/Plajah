@@ -23,6 +23,105 @@
   isolation: isolate;
 }
 
+.pj-signal-section-label {
+  margin-bottom: var(--pj-space-2);
+  color: var(--on-surface-variant);
+  font: 800 .66rem/1 var(--font-label);
+  letter-spacing: .22em;
+  text-transform: uppercase;
+}
+
+/* The approved mockup uses compact, catchable horizontal cards—not hero tiles. */
+.pj-signal-today > .flex > * {
+  width: 150px !important;
+  height: 126px !important;
+  border-radius: var(--pj-radius-md) !important;
+}
+
+.pj-signal-today > .flex > :first-child {
+  width: 178px !important;
+}
+
+.pj-signal-today > .flex > :first-child [class*="text-5xl"] {
+  font-size: 2rem !important;
+}
+
+.pj-signal-today > .flex > :first-child [class*="text-xl"] {
+  font-size: .9rem !important;
+}
+
+.pj-signal-today > .flex > * p[class*="line-clamp"] { display: none; }
+.pj-signal-stories { padding-inline: var(--pj-space-2); }
+
+.pj-signal-live-strip button,
+.pj-signal-podcast-strip button {
+  min-height: 58px;
+  border-radius: var(--pj-radius-md) !important;
+  background: var(--glass-1) !important;
+}
+
+.pj-signal-live-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: var(--pj-radius-full);
+  background: var(--pj-magenta);
+  color: #fff;
+  font: 800 .7rem/1 var(--font-label);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  box-shadow: var(--pj-glow-brand);
+}
+
+.pj-signal-composer {
+  margin: var(--pj-space-3);
+  padding: var(--pj-space-3);
+  border: 1px solid var(--m3-border-strong);
+  border-radius: var(--pj-radius-lg);
+  background: linear-gradient(155deg, color-mix(in srgb, var(--glass-3) 84%, transparent), color-mix(in srgb, var(--glass-1) 76%, transparent));
+  box-shadow: var(--pj-elev-3);
+}
+
+.pj-signal-scrubber {
+  padding: 9px 12px;
+  border: 1px dashed var(--m3-border-strong);
+  border-radius: var(--pj-radius-sm);
+  background: color-mix(in srgb, var(--glass-1) 75%, transparent);
+}
+
+.pj-signal-scrubber-label,
+.pj-signal-now {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--on-surface-variant);
+  font: 800 .68rem/1 var(--font-label);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.pj-signal-scrubber-track {
+  height: 5px;
+  border-radius: var(--pj-radius-full);
+  background: color-mix(in srgb, var(--glass-4) 85%, transparent);
+}
+
+.pj-signal-scrubber-fill {
+  background: var(--pj-grad-warm);
+}
+
+.pj-signal-scrubber-thumb {
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--bg-color);
+  border-radius: 50%;
+  background: var(--pj-orange);
+  box-shadow: var(--pj-glow-orange);
+}
+
 .plajah-social-signal .pj-signal-canvas::before {
   content: '';
   position: absolute;
@@ -70,6 +169,8 @@
     border-inline: 0;
     border-radius: var(--pj-radius-xl) var(--pj-radius-xl) 0 0;
   }
+  .pj-signal-composer { margin-inline: var(--pj-space-2); }
+  .pj-signal-today > .flex > * { width: 138px !important; }
   .pj-signal-post { border-radius: 0 !important; border-inline: 0 !important; }
 }
 

@@ -2167,7 +2167,12 @@ const toggleFavoriteTeam = async (team: string) => {
                  activeTab === 'PULSE' ? 'Platform Pulse' : 'Signal'}
               </PageHeader>
             </div>
-            <div className="hidden sm:flex items-center gap-2 shrink-0 mt-1">
+              <div className="hidden sm:flex items-center gap-2 shrink-0 mt-1">
+               {activeTab === 'GLOBAL' && currentUser && (
+                 <button onClick={() => setShowGoLive(true)} className="pj-signal-live-action tap" type="button">
+                   <Radio size={13} /> Go Live
+                 </button>
+               )}
                <span className="w-1.5 h-1.5 rounded-full bg-small-orange animate-pulse" />
                <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Live</span>
             </div>
@@ -2860,7 +2865,8 @@ const toggleFavoriteTeam = async (team: string) => {
             const ss = String(clockTime.getSeconds()).padStart(2, '0');
             const dateStr = clockTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
             return (
-              <div className="shrink-0 px-4 pt-4 pb-3 border-b border-white/5">
+              <div className="pj-signal-today shrink-0 px-4 pt-4 pb-3 border-b border-white/5">
+                <div className="pj-signal-section-label">Today on Plajah</div>
                 <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
 
                   {/* ── Gorgeous Clock ── */}
@@ -3005,22 +3011,9 @@ const toggleFavoriteTeam = async (team: string) => {
             );
           })()}
 
-          {/* ── Go Live button ── */}
-          {currentUser && (
-            <div className="shrink-0 px-4 pt-3 flex justify-end">
-              <button
-                onClick={() => setShowGoLive(true)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(239,68,68,0.35)]"
-              >
-                <Radio size={13} className="animate-pulse" />
-                Go Live
-              </button>
-            </div>
-          )}
-
           {/* ── Stories Bar ── */}
           {currentUser && (
-            <div className="shrink-0 border-b border-white/5">
+            <div className="pj-signal-stories shrink-0 border-b border-white/5">
               <StoriesBar
                 currentUserId={currentUser.uid}
                 currentUserName={currentUser.displayName || 'Me'}
@@ -3033,7 +3026,7 @@ const toggleFavoriteTeam = async (team: string) => {
 
           {/* ── Active Live Talks & Streams strip ── */}
           {globalActiveTalks.length > 0 && (
-            <div className="shrink-0 px-4 py-3 border-b border-white/5">
+            <div className="pj-signal-live-strip shrink-0 px-4 py-3 border-b border-white/5">
               <div className="flex items-center gap-2 mb-2.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                 <span className="text-[8px] font-black uppercase tracking-[0.3em] text-red-400">Live Now</span>
@@ -3065,7 +3058,7 @@ const toggleFavoriteTeam = async (team: string) => {
 
           {/* ── Subscribed Podcast Episodes strip ── */}
           {subscribedPodcasts.length > 0 && (
-            <div className="shrink-0 px-4 py-3 border-b border-white/5">
+            <div className="pj-signal-podcast-strip shrink-0 px-4 py-3 border-b border-white/5">
               <div className="flex items-center gap-2 mb-2.5">
                 <Mic size={10} className="text-purple-400" />
                 <span className="text-[8px] font-black uppercase tracking-[0.3em] text-purple-400">Your Podcasts</span>
@@ -3091,18 +3084,21 @@ const toggleFavoriteTeam = async (team: string) => {
           {/* ── Composer + Timeline (pinned, does not scroll) ── */}
           <div className="shrink-0">
             {/* Frosted glass panel */}
-            <div className="backdrop-blur-3xl bg-black/40 border-b border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.6)] pt-3 pb-3">
+            <div className="pj-signal-composer backdrop-blur-3xl pt-3 pb-3">
+
+          {currentUser && (
+            <div className="px-3 pb-2">
+              <IdentitySwitcher selfName={currentUser.displayName} selfPhoto={currentUser.photoURL} />
+            </div>
+          )}
 
           {/* ── Horizontal 24hr Timeline Scrubber ── */}
-          {displayedPosts.length > 0 && (
-            <div className="mb-4 px-2 select-none">
+          <div className="pj-signal-scrubber mb-3 mx-3 select-none">
               <div className="flex items-center gap-3">
-                <span className="text-[8px] font-black uppercase tracking-widest text-white/30 shrink-0">
-                  {getTimelineLabel(0)}
-                </span>
+                <span className="pj-signal-scrubber-label shrink-0"><Clock size={11} /> 24h Timeline</span>
                 <div
                   ref={timelineTrackRef}
-                  className="flex-1 h-1.5 bg-white/8 rounded-full relative cursor-pointer"
+                  className="pj-signal-scrubber-track flex-1 relative cursor-pointer"
                   onPointerDown={(e) => {
                     e.currentTarget.setPointerCapture(e.pointerId);
                     setIsTimelineDragging(true);
@@ -3117,18 +3113,18 @@ const toggleFavoriteTeam = async (team: string) => {
                     <div
                       key={pct}
                       style={{ left: `${pct}%` }}
-                      className="absolute top-1/2 -translate-y-1/2 w-px h-3 bg-white/15 pointer-events-none"
+                      className="absolute top-1/2 -translate-y-1/2 w-px h-2 bg-white/25 pointer-events-none"
                     />
                   ))}
                   {/* Active fill */}
                   <div
-                    className="absolute top-0 left-0 bottom-0 bg-gradient-to-r from-small-orange/60 to-small-orange/20 rounded-full transition-none"
+                    className="pj-signal-scrubber-fill absolute top-0 left-0 bottom-0 rounded-full transition-none"
                     style={{ width: `${timelineValue}%` }}
                   />
                   {/* Thumb */}
                   <motion.div
                     style={{ left: `${timelineValue}%` }}
-                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-small-orange rounded-full shadow-lg shadow-small-orange/50 ring-2 ring-black cursor-grab active:cursor-grabbing flex items-center justify-center"
+                    className="pj-signal-scrubber-thumb absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing flex items-center justify-center"
                     animate={{ scale: isTimelineDragging ? 1.3 : 1 }}
                     transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   >
@@ -3144,12 +3140,9 @@ const toggleFavoriteTeam = async (team: string) => {
                     </div>
                   )}
                 </div>
-                <span className="text-[8px] font-black uppercase tracking-widest text-white/20 shrink-0">
-                  {getTimelineLabel(100)}
-                </span>
+                <span className="pj-signal-now shrink-0">Now</span>
               </div>
             </div>
-          )}
 
           {/* ── Sign-in CTA (unauthenticated) ── */}
           {!currentUser && (
