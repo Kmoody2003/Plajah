@@ -12,8 +12,9 @@ import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, 
 import type { LiveFeed, UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { SCIENCE_STREAMS } from './scienceStreams';
 import { fetchFastChannelSchedule, fetchFastChannelVideos, type FastChannelListing } from '../services/backendService';
-import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, backfillScheduleDurations, FM_FILL_THRESHOLD_SEC } from '../services/fastChannelTimeline';
+import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, backfillScheduleDurations, backfillScheduleDurationsByUrl, unresolvedDurationUrls, FM_FILL_THRESHOLD_SEC } from '../services/fastChannelTimeline';
 import { exactDurationSec } from '../services/mediaTimebase';
+import { probeDurations } from '../services/mediaProbe';
 import { now as clockNow } from '../services/platformClock';
 import AdBreakBumper from './tv/AdBreakBumper';
 import ComingUpNextBumper, { type UpNextItem } from './tv/ComingUpNextBumper';
@@ -398,6 +399,14 @@ const LiveTvPlus: React.FC<{
         const fixed = sched ? backfillScheduleDurations(sched, durMap) : null;
         schedCache.current.set(owner, fixed);
         build(fixed);
+        if (fixed) {
+          const unknown = unresolvedDurationUrls(fixed);
+          if (unknown.length) healUnknownDurations(fixed).then(healed => {
+            if (cancelled) return;
+            schedCache.current.set(owner, healed);
+            build(healed);
+          }).catch(() => {});
+        }
       }).catch(() => build(null));
     }
     const t = setInterval(() => build(schedCache.current.get(owner) ?? null), 30000); // advance "Now"
@@ -609,6 +618,14 @@ const LiveTvPlus: React.FC<{
         const fixed = s ? backfillScheduleDurations(s, durMap) : null;
         schedCache.current.set(owner, fixed);
         start(fixed);
+        if (fixed) {
+          const unknown = unresolvedDurationUrls(fixed);
+          if (unknown.length) healUnknownDurations(fixed).then(healed => {
+            if (cancelled || fastOwnerRef.current !== owner) return;
+            schedCache.current.set(owner, healed);
+            start(healed);
+          }).catch(() => {});
+        }
       }).catch(() => start(null));
     }
     return () => { cancelled = true; clearFastTimer(); };
@@ -788,3 +805,17 @@ const LiveTvPlus: React.FC<{
 };
 
 export default LiveTvPlus;
+// The guide and player load the same schedule in parallel. Share one bounded probe job so Mux
+// manifests are not fetched twice — especially important on Android/TV hardware.
+const durationProbeJobs = new Map<string, Promise<Map<string, number>>>();
+const healUnknownDurations = async (schedule: FastChannelSchedule): Promise<FastChannelSchedule> => {
+  const urls = unresolvedDurationUrls(schedule).slice(0, 120);
+  if (!urls.length) return schedule;
+  const key = [...urls].sort().join('|');
+  let job = durationProbeJobs.get(key);
+  if (!job) {
+    job = probeDurations(urls, 4, 9000);
+    durationProbeJobs.set(key, job);
+  }
+  return backfillScheduleDurationsByUrl(schedule, await job);
+};

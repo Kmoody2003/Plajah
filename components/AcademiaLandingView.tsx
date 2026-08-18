@@ -8,9 +8,11 @@
 
 import React, { useState } from 'react';
 import {
-  Library, FlaskConical, ArrowRight, Sparkles, Plus, Compass, Rocket,
+  Library, FlaskConical, ArrowRight, Sparkles, Plus, Compass, Rocket, GraduationCap,
 } from 'lucide-react';
 import AcademiaModules from './AcademiaModules';
+import AcademiaDemosView, { type DemoRole } from './academia/AcademiaDemosView';
+import { Button, Eyebrow } from './ui';
 
 // A grand old library for the cover (Unsplash — already used elsewhere in the app, CSP-allowed).
 const COVER = 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=1600&auto=format&fit=crop';
@@ -20,8 +22,11 @@ const AcademiaLandingView: React.FC<{
   onNavigate: (view: string) => void;
   onEnterCourses: () => void;
   profile?: any;
-}> = ({ onNavigate, onEnterCourses }) => {
+  onOpenTour: (role?: DemoRole) => void;
+}> = ({ onNavigate, onEnterCourses, profile, onOpenTour }) => {
   const [coverSrc, setCoverSrc] = useState(COVER);
+  const [tab, setTab] = useState<'OVERVIEW' | 'LEARN' | 'DEMOS'>('OVERVIEW');
+  const isEducationAccount = ['TEACHER', 'PARENT', 'STUDENT', 'CHILD'].includes(profile?.accountType) || !!profile?.isSchoolAdmin;
 
   return (
     <div className="min-h-full bg-[#0a0a0f] text-white">
@@ -45,20 +50,49 @@ const AcademiaLandingView: React.FC<{
             structured modules, or learn a new skill from a creator who's done it.
           </p>
           <div className="flex flex-wrap gap-3 mt-6">
-            <button onClick={() => onNavigate('PLAJAH_LABS')} className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white text-black text-[12px] font-black uppercase tracking-widest hover:scale-[1.02] transition-transform">
-              <FlaskConical size={16} /> Explore the Labs
-            </button>
-            <button onClick={onEnterCourses} className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white/10 border border-white/20 text-white text-[12px] font-black uppercase tracking-widest hover:bg-white/15 transition-colors">
-              <Compass size={16} /> Browse courses
-            </button>
-            <button onClick={() => onNavigate('PRAXIS')} className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-violet-500/20 border border-violet-400/30 text-violet-100 text-[12px] font-black uppercase tracking-widest hover:bg-violet-500/30 transition-colors">
-              <Rocket size={16} /> Start a business
-            </button>
+            <Button variant="primary" size="lg" icon={<Compass />} onClick={() => setTab('LEARN')}>Start learning</Button>
+            <Button variant="secondary" size="lg" icon={<Sparkles />} onClick={() => setTab('DEMOS')}>Explore demos</Button>
+            {isEducationAccount && (
+              <Button variant="accent" size="lg" icon={<GraduationCap />} onClick={() => onNavigate('ACADEMIA_HOME')}>Open my Academia</Button>
+            )}
           </div>
         </div>
       </div>
 
+      <div className="sticky top-0 z-30 border-y border-white/10 bg-black/75 backdrop-blur-xl">
+        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center gap-2 overflow-x-auto no-scrollbar" role="tablist" aria-label="Academia sections">
+          {([
+            ['OVERVIEW', 'Overview'],
+            ['LEARN', 'Learn'],
+            ['DEMOS', 'Demos'],
+          ] as const).map(([id, label]) => (
+            <Button
+              key={id}
+              size="sm"
+              variant={tab === id ? 'accent' : 'ghost'}
+              role="tab"
+              aria-selected={tab === id}
+              onClick={() => setTab(id)}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {tab === 'DEMOS' ? (
+        <div className="max-w-5xl mx-auto px-2 sm:px-6 py-10">
+          <AcademiaDemosView onOpenTour={onOpenTour} onNavigate={onNavigate} />
+        </div>
+      ) : (
       <div className="max-w-5xl mx-auto px-6 py-12 space-y-14">
+        {tab === 'OVERVIEW' && (
+          <section className="text-center max-w-3xl mx-auto">
+            <Eyebrow>One learning world</Eyebrow>
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white mt-2">Learn it. Practice it. Build something real.</h2>
+            <p className="text-white/55 mt-4 leading-relaxed">Academia connects structured courses, classrooms, cultural archives, hands-on labs and entrepreneurship without splitting your learning across disconnected services.</p>
+          </section>
+        )}
         {/* ── Plajah Labs ────────────────────────────────────────────────── */}
         <section>
           <button onClick={() => onNavigate('PLAJAH_LABS')}
@@ -105,6 +139,7 @@ const AcademiaLandingView: React.FC<{
           </div>
         </section>
       </div>
+      )}
     </div>
   );
 };

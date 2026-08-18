@@ -89,7 +89,7 @@ import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, 
 import { accountFlagUpdate } from './accountCapabilities';
 // Creator Passport provenance (blueprint 1C.5) — attribution record, not crypto proof.
 import { buildProvenance, stampVideo } from './creatorPassport';
-import { extractTimeInfoFromFile, extractTimeInfoFromUrl } from './mediaTimebase';
+import { exactDurationSec, extractTimeInfoFromFile, extractTimeInfoFromUrl } from './mediaTimebase';
 import { viewerTimeZone } from './platformClock';
 // Education-chat safety (Phase C): student DM policy backstop on the write path.
 import { canDM, isStudentAccount, classroomRoomId, classroomParticipants } from './educationChat';
@@ -8167,7 +8167,8 @@ export const addReplayToFastChannel = async (uid: string, video: Partial<Video>)
   try {
     // Real length only when known (>0); else the 30-min default. NOT `Math.max(1,…) || 1800`, which
     // silently stored 1 second for unknown durations and broke the whole schedule's timing.
-    const durationSeconds = Math.round(Number((video as any).duration) || 0) > 0 ? Math.round(Number((video as any).duration)) : 1800;
+    const measuredDuration = Math.round(exactDurationSec(video as any));
+    const durationSeconds = measuredDuration > 0 ? measuredDuration : 1800;
     const slot: FastChannelSlot = {
       id: `v_${video.id}`,
       type: 'VIDEO',
@@ -8225,7 +8226,8 @@ const appendFastSlot = async (uid: string, slot: FastChannelSlot): Promise<void>
 export const addVideoToFastChannel = async (uid: string, video: Partial<Video>): Promise<void> => {
   if (!uid || !video?.id) return;
   try {
-    const durationSeconds = Math.round(Number((video as any).duration) || 0) > 0 ? Math.round(Number((video as any).duration)) : 1800;
+    const measuredDuration = Math.round(exactDurationSec(video as any));
+    const durationSeconds = measuredDuration > 0 ? measuredDuration : 1800;
     const isReplay = !!(video as any).isLiveRecording;
     await appendFastSlot(uid, {
       id: `v_${video.id}_${Date.now()}`, type: 'VIDEO', order: 0,

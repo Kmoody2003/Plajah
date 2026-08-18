@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense, useCallback, useRef } from 'react';
-import { Album, AppView, ThemeType, Game, IPWorld } from './types';
+import { Album, AppView, ThemeType, Game, IPWorld, LiveFeed } from './types';
 import Logo from './components/Logo';
 import { motion, AnimatePresence } from 'motion/react';
 import { recoverFromStaleChunk } from './src/lib/staleChunk';
@@ -500,6 +500,7 @@ import { useSpatial } from './contexts/SpatialContext';
 import ArchiveItemCard from './components/ArchiveItemCard';
 import GlobalArchiveHero, { ArchiveRails } from './components/GlobalArchiveHero';
 import ArchiveTabRow, { type ArchiveTabId } from './components/ArchiveTabRow';
+import LiveHubShowcase from './components/dashboard/LiveHubShowcase';
 
 import SpatialUIRoot from './components/SpatialUIRoot';
 import SidebarSearch from './components/SidebarSearch';
@@ -4329,7 +4330,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'ACADEMIA_DEMOS' && (
               <Suspense fallback={null}>
                 <AcademiaDemosView
-                  onBack={() => setView('ACADEMIA_HOME')}
+                  onBack={() => setView(isEducationAccount(userProfile) || (userProfile as any)?.accountType === 'PARENT' ? 'ACADEMIA_HOME' : 'ACADEMIA_LANDING')}
                   onOpenTour={(role) => { setDemoRole(role); setView('ACADEMIA_TOUR'); }}
                   onNavigate={(v) => setView(v as AppView)}
                 />
@@ -4721,7 +4722,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     </div>
                   )}
                   <header className="mb-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
-                    <div>
+                    <div className="min-w-0 flex-1">
+                      <div className="grid gap-6 xl:grid-cols-[minmax(0,672px)_minmax(360px,1fr)] xl:items-start">
+                        <div>
                       {/* Intro copy — centered in its own frosted panel for symmetry (was loose,
                           left-ragged text that read as sloppy). */}
                       <div className="mx-auto lg:mx-0 max-w-2xl mb-6 rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-md px-6 py-5 sm:px-8 sm:py-6 text-center space-y-3 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.6)]">
@@ -4765,6 +4768,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                           </div>
                         </div>
                       )}
+                        </div>
+                        <LiveHubShowcase
+                          feeds={dashLiveFeeds as LiveFeed[]}
+                          onOpenHub={() => setView('LIVE_HUB')}
+                          onWatch={(feed) => window.dispatchEvent(new CustomEvent('OPEN_LIVE_FEED', { detail: { feed } }))}
+                        />
+                      </div>
 
                       {/* Sentinel for the floating dock, then the upgraded tab row
                           (honest doors ↗ · service colors · live count). Same 12 tabs,
@@ -5330,13 +5340,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 ? <ClassroomsView onBack={() => setView('DASHBOARD')} user={user} onNavigate={(v) => setView(v as any)} />
                 : (
                   <Suspense fallback={null}>
-                    <AcademiaLandingView profile={userProfile} onNavigate={(v) => setView(v as AppView)} onEnterCourses={() => setView('ACADEMIA_COURSES')} />
+                    <AcademiaLandingView profile={userProfile} onNavigate={(v) => setView(v as AppView)} onEnterCourses={() => setView('ACADEMIA_COURSES')} onOpenTour={(role) => { setDemoRole(role); setView('ACADEMIA_TOUR'); }} />
                   </Suspense>
                 )
             )}
             {view === 'ACADEMIA_LANDING' && (
               <Suspense fallback={null}>
-                <AcademiaLandingView profile={userProfile} onNavigate={(v) => setView(v as AppView)} onEnterCourses={() => setView('ACADEMIA_COURSES')} />
+                <AcademiaLandingView profile={userProfile} onNavigate={(v) => setView(v as AppView)} onEnterCourses={() => setView('ACADEMIA_COURSES')} onOpenTour={(role) => { setDemoRole(role); setView('ACADEMIA_TOUR'); }} />
               </Suspense>
             )}
             {view === 'ACADEMIA_COURSES' && <ClassroomsView onBack={() => setView('CLASSROOMS')} user={user} onNavigate={(v) => setView(v as any)} />}

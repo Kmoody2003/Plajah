@@ -208,6 +208,37 @@ export function backfillScheduleDurations(sched: FastChannelSchedule, durMap: Ma
   return { ...sched, slots: fix(sched.slots), ...(wk ? { weeklySlots: wk as any } : {}) };
 }
 
+/** Repair placeholder programme lengths from URL→seconds probe results. This is the viewer-side
+ * fallback for older Mux assets whose video document never received duration metadata. */
+export function backfillScheduleDurationsByUrl(sched: FastChannelSchedule, durMap: Map<string, number>): FastChannelSchedule {
+  const fix = (slots?: FastChannelSlot[]) => (slots || []).map(s => {
+    if ((s.type === 'VIDEO' || s.type === 'PUBLIC_DOMAIN') && s.videoUrl) {
+      const stored = Math.round(Number(s.videoDurationSeconds) || 0);
+      const real = Math.round(durMap.get(s.videoUrl) || 0);
+      const isPlaceholder = stored <= 1 || stored === DEFAULT_VIDEO_SEC;
+      if (isPlaceholder && real > 1 && real !== stored) return { ...s, videoDurationSeconds: real };
+    }
+    return s;
+  });
+  const wk = sched.weeklySlots
+    ? Object.fromEntries(Object.entries(sched.weeklySlots).map(([k, v]) => [k, fix(v as FastChannelSlot[])]))
+    : undefined;
+  return { ...sched, slots: fix(sched.slots), ...(wk ? { weeklySlots: wk as any } : {}) };
+}
+
+/** Unique media URLs whose stored length is still the known unknown-duration placeholder. */
+export function unresolvedDurationUrls(sched: FastChannelSchedule): string[] {
+  const urls = new Set<string>();
+  const scan = (slots?: FastChannelSlot[]) => (slots || []).forEach(s => {
+    if ((s.type !== 'VIDEO' && s.type !== 'PUBLIC_DOMAIN') || !s.videoUrl) return;
+    const stored = Math.round(Number(s.videoDurationSeconds) || 0);
+    if (stored <= 1 || stored === DEFAULT_VIDEO_SEC) urls.add(s.videoUrl);
+  });
+  scan(sched.slots);
+  Object.values(sched.weeklySlots || {}).forEach(scan as any);
+  return [...urls];
+}
+
 export type SlotMediaKind = 'MEDIA' | 'AD' | 'LIVE' | 'FM';
 export interface SlotMedia {
   kind: SlotMediaKind;
