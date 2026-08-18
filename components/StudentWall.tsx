@@ -321,6 +321,8 @@ export interface StudentWallRowProps {
   tags?: readonly string[];
   onVisitUser?: (uid: string) => void;
   className?: string;
+  /** Keep the approved discovery surface visible while published work is still loading/empty. */
+  showEmpty?: boolean;
 }
 
 /**
@@ -331,6 +333,7 @@ export const StudentWallRow: React.FC<StudentWallRowProps> = ({
   tags = SCHOOL_WALL_TAGS,
   onVisitUser,
   className = '',
+  showEmpty = false,
 }) => {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [active, setActive] = useState<Post | null>(null);
@@ -342,17 +345,17 @@ export const StudentWallRow: React.FC<StudentWallRowProps> = ({
   const total = useMemo(() => Object.values(counts).reduce((a, b) => a + b, 0), [counts]);
 
   return (
-    <div className={total === 0 ? 'hidden' : `w-full min-w-0 rounded-3xl border border-white/[0.06] bg-white/[0.015] p-4 ${className}`}>
+    <div className={total === 0 && !showEmpty ? 'hidden' : `w-full min-w-0 rounded-3xl border border-white/[0.06] bg-white/[0.015] p-4 ${className}`}>
       <div className="flex items-center justify-between gap-3 mb-3">
         <div className="min-w-0">
           <p className="text-[8px] font-black uppercase tracking-[0.4em] text-white/25 flex items-center gap-1.5">
             <GraduationCap size={10} />
             From the Schools
           </p>
-          <h3 className="text-[14px] font-black text-white leading-tight mt-1">Student Walls</h3>
+          <h3 className="text-[14px] font-black text-white leading-tight mt-1">Student Wall · Published Work</h3>
         </div>
         <span className="flex-shrink-0 text-[9px] font-black uppercase tracking-widest text-small-orange px-2.5 py-1 rounded-full bg-small-orange/10 border border-small-orange/20">
-          {total} published
+          {total > 0 ? `${total} published` : 'Awaiting work'}
         </span>
       </div>
 
@@ -361,6 +364,9 @@ export const StudentWallRow: React.FC<StudentWallRowProps> = ({
           <WallRowStrip key={t} tag={t} onOpen={setActive} onVisitUser={onVisitUser} onCount={handleCount} />
         ))}
       </div>
+      {showEmpty && total === 0 && (
+        <p className="pt-3 text-[10px] font-bold text-white/30">Published Film, Photo, Art, and Chora school work will appear here.</p>
+      )}
 
       <AnimatePresence>
         {active && <WallDetail post={active} onClose={() => setActive(null)} onVisitUser={onVisitUser} />}

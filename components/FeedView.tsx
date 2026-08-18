@@ -3025,8 +3025,7 @@ const toggleFavoriteTeam = async (team: string) => {
           )}
 
           {/* ── Active Live Talks & Streams strip ── */}
-          {globalActiveTalks.length > 0 && (
-            <div className="pj-signal-live-strip shrink-0 px-4 py-3 border-b border-white/5">
+          <div className="pj-signal-live-strip shrink-0 px-4 py-3 border-b border-white/5">
               <div className="flex items-center gap-2 mb-2.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                 <span className="text-[8px] font-black uppercase tracking-[0.3em] text-red-400">Live Now</span>
@@ -3052,13 +3051,16 @@ const toggleFavoriteTeam = async (team: string) => {
                     </div>
                   </button>
                 ))}
+                {globalActiveTalks.length === 0 && (
+                  <button type="button" onClick={() => { setJoinTalkId(null); setShowStartTalk(true); }} className="pj-signal-empty-card tap">
+                    <Radio size={14} /> No rooms live yet · Start one
+                  </button>
+                )}
               </div>
             </div>
-          )}
 
           {/* ── Subscribed Podcast Episodes strip ── */}
-          {subscribedPodcasts.length > 0 && (
-            <div className="pj-signal-podcast-strip shrink-0 px-4 py-3 border-b border-white/5">
+          <div className="pj-signal-podcast-strip shrink-0 px-4 py-3 border-b border-white/5">
               <div className="flex items-center gap-2 mb-2.5">
                 <Mic size={10} className="text-purple-400" />
                 <span className="text-[8px] font-black uppercase tracking-[0.3em] text-purple-400">Your Podcasts</span>
@@ -3077,9 +3079,13 @@ const toggleFavoriteTeam = async (team: string) => {
                     </div>
                   </button>
                 ))}
+                {subscribedPodcasts.length === 0 && (
+                  <div className="pj-signal-empty-card">
+                    <Mic size={14} /> Subscribe to podcasts to build this shelf
+                  </div>
+                )}
               </div>
             </div>
-          )}
 
           {/* ── Composer + Timeline (pinned, does not scroll) ── */}
           <div className="shrink-0">
@@ -3274,7 +3280,7 @@ const toggleFavoriteTeam = async (team: string) => {
           {/* Student walls — published assignment work from the Film / Photo / Art /
               Chora schools. Self-hiding: renders nothing until a wall has work. */}
           <div className="px-4 pt-1">
-            <StudentWallRow onVisitUser={onVisitUser} />
+            <StudentWallRow onVisitUser={onVisitUser} showEmpty />
           </div>
 
           {/* Timeline header */}
@@ -3314,19 +3320,35 @@ const toggleFavoriteTeam = async (team: string) => {
                 </p>
               </motion.div>
             ) : (
-              displayedPosts.map((post, idx) => (
-                <motion.div
-                  key={post.id}
-                  data-post-index={idx}
-                  layout
-                  initial={{ opacity: 0, y: -12, scale: 0.99 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.97 }}
-                  transition={{ type: 'spring', stiffness: 340, damping: 32 }}
-                >
-                  <PostCard post={post} onVisitUser={onVisitUser} presentation="signal" />
-                </motion.div>
-              ))
+              displayedPosts.flatMap((post, idx) => {
+                const nodes: React.ReactNode[] = [
+                  <motion.div
+                    key={post.id}
+                    data-post-index={idx}
+                    layout
+                    initial={{ opacity: 0, y: -12, scale: 0.99 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.97 }}
+                    transition={{ type: 'spring', stiffness: 340, damping: 32 }}
+                  >
+                    <PostCard post={post} onVisitUser={onVisitUser} presentation="signal" />
+                  </motion.div>,
+                ];
+                if ((idx + 1) % 5 === 0) {
+                  nodes.push(
+                    <motion.div key={`signal-history-${idx}`} layout className="pj-signal-history-pulse">
+                      <HistoryMomentPulseCard
+                        uid={currentUser?.uid}
+                        category="MIX"
+                        size="feed"
+                        startOffset={Math.floor(idx / 5)}
+                        onNavigate={(target) => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target } }))}
+                      />
+                    </motion.div>,
+                  );
+                }
+                return nodes;
+              })
             )}
           </AnimatePresence>
           </div>{/* end post feed */}
