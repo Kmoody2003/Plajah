@@ -357,36 +357,34 @@
 .chora-night .cn-count { color: var(--pj-cyan); }
 
 /* ── Gatefold album view · Orrery stage ───────────────────────────────────
-   Tracks orbit the album art. Wrapped nodes: the orbit container spins, each
-   node sits at a fixed angle, and the inner <i> counter-rotates (offset by
-   --a, the node's own angle) so the track numbers stay upright. */
+   Every track is its own planet. Motion drives each angular orbit independently;
+   spring-driven radial distance lets selection feel pulled inward by gravity. */
 .pv-orr {
   position: relative;
   width: min(340px, 100%);
   aspect-ratio: 1 / 1;
   margin-inline: auto;
 }
-.pv-orr-ring {
+.pv-orr-track-ring {
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  border: 1px dashed rgba(0, 218, 243, 0.25);
+  border: 1px solid rgba(0, 218, 243, 0.075);
   border-radius: 50%;
   pointer-events: none;
 }
-.pv-orr-ring.r1 { width: 180px; height: 180px; }
-.pv-orr-ring.r2 { width: 274px; height: 274px; }
-.pv-orr-orbit {
+.pv-orr-track-ring.is-active {
+  border-color: rgba(255, 140, 0, 0.2);
+  box-shadow: inset 0 0 18px rgba(212, 0, 85, 0.06);
+}
+.pv-orr-planet {
   position: absolute;
   left: 50%;
   top: 50%;
   width: 0;
   height: 0;
-  animation: pvOrrSpin 60s linear infinite;
 }
-.pv-orr-orbit.o2 { animation-duration: 96s; animation-direction: reverse; }
-@keyframes pvOrrSpin { to { transform: rotate(360deg); } }
 .pv-orr-node {
   position: absolute;
   width: 34px;
@@ -400,8 +398,7 @@
   border: 1px solid var(--pj-border-strong);
   cursor: pointer;
   padding: 0;
-  transition: transform 1.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.6s ease, background 0.6s ease;
-  will-change: transform;
+  transition: box-shadow 0.6s ease, background 0.6s ease;
 }
 .pv-orr-node:hover,
 .pv-orr-node:focus-visible {
@@ -428,13 +425,7 @@
   font-size: 10px;
   font-weight: 700;
   color: #fff;
-  animation: pvOrrCounter1 60s linear infinite;
 }
-.pv-orr-orbit.o2 .pv-orr-node i { animation: pvOrrCounter2 96s linear infinite; }
-/* Counter-rotations: o1 spins +360 so its numbers spin −360 (from −a to −a−360);
-   o2 spins −360 so its numbers spin +360. */
-@keyframes pvOrrCounter1 { from { transform: rotate(var(--a, 0deg)); } to { transform: rotate(calc(var(--a, 0deg) - 360deg)); } }
-@keyframes pvOrrCounter2 { from { transform: rotate(var(--a, 0deg)); } to { transform: rotate(calc(var(--a, 0deg) + 360deg)); } }
 .pv-orr-sun {
   position: absolute;
   left: 50%;
@@ -468,5 +459,5 @@
   .chora-next .cn-pane { transition: none; }
   .chora-next .cn-comet { animation: none !important; transform: translate3d(var(--comet-rest-x, 10vw), 0, 0); }
   .chora-next .cn-comet::before, .chora-next .cn-comet::after { animation: none !important; }
-  .pv-orr-orbit, .pv-orr-node, .pv-orr-node i { animation: none !important; transition: none !important; }
+  .pv-orr-planet, .pv-orr-node, .pv-orr-node i { animation: none !important; transition: none !important; }
 }
