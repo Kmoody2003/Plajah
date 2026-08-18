@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, TrendingUp, Music, Video, Newspaper, Zap, Clock, MessageSquare, Heart, UserPlus, Plus, Bell, Trophy, ChevronRight, Shield } from 'lucide-react';
+import { MapPin, TrendingUp, Music, Video, Newspaper, Zap, Clock, MessageSquare, Heart, UserPlus, Plus, Bell, Trophy, ChevronRight, Shield, CalendarDays, ListChecks, Brain, Sparkles, BriefcaseBusiness } from 'lucide-react';
 import HistoryMomentPulseCard from './HistoryMomentPulseCard';
 import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
 import { db, auth } from '../services/backendService';
 import { FeedItem, Album, AppNotification } from '../types';
 import { formatDistanceToNow } from 'date-fns';
+import { assemblePlatformPulseBrief, type PlatformPulseBrief, type PulseBriefKind } from '../services/platformPulseBrief';
 
 interface WeatherData {
   temp: number;    // Celsius (open-meteo default); Fahrenheit is derived for display
@@ -97,9 +98,11 @@ interface ProfileSmartCardProps {
   onPersistWeather?: (d: { weatherLat: number; weatherLon: number; weatherCity: string }) => void;
   /** Own profile only: toggle whether the city label is shown to visitors. */
   onToggleShowCity?: (show: boolean) => void;
+  /** Opens Ora's full productivity and wellbeing room from the daily brief. */
+  onOpenOra?: () => void;
 }
 
-type Section = 'following' | 'discover' | 'coming_soon' | 'history' | 'wywg' | 'athlete';
+type Section = 'today' | 'following' | 'discover' | 'coming_soon' | 'history' | 'wywg' | 'athlete';
 
 const LAST_VISIT_KEY = 'plajah_last_visit';
 
@@ -122,12 +125,15 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
   ownerWeather,
   onPersistWeather,
   onToggleShowCity,
+  onOpenOra,
 }) => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
   const [showCityPref, setShowCityPref] = useState<boolean>(!!ownerWeather?.showCity);
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
-  const [section, setSection] = useState<Section>(profileAccountType === 'ATHLETE' ? 'athlete' : 'coming_soon');
+  const [section, setSection] = useState<Section>(profileAccountType === 'ATHLETE' ? 'athlete' : 'today');
+  const [dailyBrief, setDailyBrief] = useState<PlatformPulseBrief | null>(null);
+  const [briefLoading, setBriefLoading] = useState(false);
   const [missedNotifs, setMissedNotifs] = useState<AppNotification[]>([]);
   const [missedPosts, setMissedPosts] = useState<FeedItem[]>([]);
   const [lastVisit, setLastVisit] = useState<number>(0);
@@ -137,6 +143,16 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
   const isOwnProfile = !profileUid || profileUid === auth.currentUser?.uid;
   const [ownerPosts, setOwnerPosts] = useState<FeedItem[]>([]);
   const [ownerChallenges, setOwnerChallenges] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!isOwnProfile) { setDailyBrief(null); return; }
+    let alive = true;
+    setBriefLoading(true);
+    assemblePlatformPulseBrief(profileAccountType)
+      .then((brief) => { if (alive) setDailyBrief(brief); })
+      .finally(() => { if (alive) setBriefLoading(false); });
+    return () => { alive = false; };
+  }, [isOwnProfile, profileAccountType]);
 
   useEffect(() => { setShowCityPref(!!ownerWeather?.showCity); }, [ownerWeather?.showCity]);
 
@@ -263,13 +279,14 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
   // Auto-select the most relevant default tab
   useEffect(() => {
     const count = isOwnProfile ? (missedNotifs.length + missedPosts.length) : (ownerPosts.length + ownerChallenges.length);
-    if (count > 0) setSection('wywg');
+    if (isOwnProfile) setSection('today');
+    else if (count > 0) setSection('wywg');
     else if (upcomingAlbums.length > 0) setSection('coming_soon');
     else setSection('following');
   }, [upcomingAlbums.length, isOwnProfile, missedNotifs.length, missedPosts.length, ownerPosts.length, ownerChallenges.length]);
 
-  if (weatherLoading && feedItems.length === 0 && upcomingAlbums.length === 0) return null;
-  if (!weather && feedItems.length === 0 && upcomingAlbums.length === 0) return null;
+  if (weatherLoading && feedItems.length === 0 && upcomingAlbums.length === 0 && (!isOwnProfile || briefLoading)) return null;
+  if (!isOwnProfile && !weather && feedItems.length === 0 && upcomingAlbums.length === 0) return null;
 
   const ws = weather ? getWeatherStyle(weather.code, weather.isDay) : getWeatherStyle(1, 1);
 
@@ -284,6 +301,7 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
   const wywgCount = isOwnProfile ? (missedNotifs.length + missedPosts.length) : (ownerPosts.length + ownerChallenges.length);
 
   const tabs: { id: Section; label: string; count?: number }[] = [
+    ...(isOwnProfile ? [{ id: 'today' as Section, label: 'Today', count: dailyBrief?.items.filter(i => i.urgent).length || undefined }] : []),
     ...(profileAccountType === 'ATHLETE' ? [{ id: 'athlete' as Section, label: '🏆 Athlete' }] : []),
     ...(wywgCount > 0 ? [{ id: 'wywg' as Section, label: isOwnProfile ? 'Missed' : 'Activity', count: wywgCount }] : []),
     ...(relevantUpcoming.length > 0 ? [{ id: 'coming_soon' as Section, label: 'Coming Soon', count: relevantUpcoming.length }] : []),
@@ -387,6 +405,39 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
           </div>
 
           <AnimatePresence mode="wait">
+            {section === 'today' && isOwnProfile && (
+              <motion.div key="today" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="space-y-3">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-lg font-black text-white tracking-tight">{dailyBrief?.greeting || 'Your day'}</p>
+                    <p className="text-[10px] text-white/45 mt-0.5">{dailyBrief?.summary || (briefLoading ? 'Building your brief…' : 'Your day is open right now.')}</p>
+                  </div>
+                  {onOpenOra && (
+                    <button onClick={onOpenOra} className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-violet-500/15 border border-violet-400/25 text-violet-200 text-[8px] font-black uppercase tracking-widest hover:bg-violet-500/25 transition-all">
+                      <Sparkles size={11} /> Open Ora
+                    </button>
+                  )}
+                </div>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {(dailyBrief?.items || []).slice(0, 8).map((item) => {
+                    const icons: Record<PulseBriefKind, React.ReactNode> = {
+                      SCHEDULE: <CalendarDays size={13} />, ASSIGNMENT: <ListChecks size={13} />, TASK: <ListChecks size={13} />,
+                      PROJECT: <BriefcaseBusiness size={13} />, WELLNESS: <Heart size={13} />, INSIGHT: <Brain size={13} />,
+                    };
+                    const tint = item.kind === 'WELLNESS' ? 'text-pink-300 bg-pink-500/10 border-pink-400/20' : item.urgent ? 'text-orange-300 bg-orange-500/10 border-orange-400/20' : 'text-cyan-200 bg-cyan-500/10 border-cyan-400/15';
+                    return <div key={item.id} className={`flex gap-3 rounded-xl border p-3 ${tint}`}>
+                      <div className="mt-0.5 shrink-0">{icons[item.kind]}</div>
+                      <div className="min-w-0">
+                        <p className="text-[7px] font-black uppercase tracking-[0.2em] opacity-70 truncate">{item.eyebrow}</p>
+                        <p className="text-[10px] font-black text-white/85 truncate mt-0.5">{item.title}</p>
+                        <p className="text-[8px] text-white/40 truncate mt-0.5">{item.at ? new Date(item.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : item.detail}</p>
+                      </div>
+                    </div>;
+                  })}
+                </div>
+                {!briefLoading && dailyBrief?.items.length === 0 && <div className="py-7 text-center text-white/30 text-[9px] font-black uppercase tracking-widest">Nothing pressing. Make room for what matters.</div>}
+              </motion.div>
+            )}
 
             {/* ── Athlete Pulse ── */}
             {section === 'athlete' && athleteProfile && (
@@ -661,7 +712,7 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
               </motion.div>
             )}
 
-            {section !== 'coming_soon' && section !== 'history' && section !== 'wywg' && (
+            {section !== 'today' && section !== 'coming_soon' && section !== 'history' && section !== 'wywg' && (
               <motion.div
                 key={section}
                 initial={{ opacity: 0, y: 6 }}
