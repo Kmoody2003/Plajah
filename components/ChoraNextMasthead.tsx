@@ -13,6 +13,7 @@
  * errorReports with the 5-minute session trace attached).
  */
 import React, { useMemo, useRef } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { Sparkles, MessageSquare, Undo2, Sun, Moon, Clock } from 'lucide-react';
 import type { Album } from '../types';
 import type { ChoraNextMode } from '../hooks/useChoraNext';
@@ -54,6 +55,7 @@ const ChoraNextMasthead: React.FC<ChoraNextMastheadProps> = ({
   albums, upcomingAlbums, isNight, mode, onCycleMode, onExit, onFeedback, onSelectAlbum,
 }) => {
   const intentRef = useRef<number | null>(null);
+  const reduceMotion = useReducedMotion();
 
   const { issueNo, weekCount, panes, discs } = useMemo(() => {
     const now = Date.now();
@@ -117,7 +119,7 @@ const ChoraNextMasthead: React.FC<ChoraNextMastheadProps> = ({
 
       {isNight ? (
         <div className="cn-sky">
-          <span className="cn-cap">Tonight's sky · brightness = plays this week · hover to unmute</span>
+          <span className="cn-cap">Tonight's sky · size + pace = plays this week · hover to catch &amp; unmute</span>
           {discs.map((a, i) => {
             const s = SKY_SPOTS[i];
             // Popular releases get a slightly brisker pass, but the deliberately narrow range
@@ -125,9 +127,16 @@ const ChoraNextMasthead: React.FC<ChoraNextMastheadProps> = ({
             const popularity = (a.playCount || 0) / maxSkyPlays;
             const duration = 36 - popularity * 9;
             return (
-              <div
+              <motion.div
                 key={a.id}
                 className="cn-comet"
+                initial={reduceMotion ? false : { x: 0, y: 0 }}
+                animate={reduceMotion
+                  ? { x: `var(--comet-rest-x)`, y: 0 }
+                  : { x: [0, 'calc(100vw + 240px)'], y: [0, s.sway, 0] }}
+                transition={reduceMotion
+                  ? { duration: 0 }
+                  : { duration, repeat: Infinity, ease: 'linear', delay: -(i * 5.7 + 2) }}
                 style={{
                   top: `${s.top}%`, width: s.size, height: s.size,
                   ['--comet-duration' as any]: `${duration}s`,
@@ -147,7 +156,7 @@ const ChoraNextMasthead: React.FC<ChoraNextMastheadProps> = ({
                 >
                   <span className="cn-lbl">{a.title}{(a.playCount || 0) > 0 && <i>{fmtPlays(a.playCount!)}</i>}</span>
                 </button>
-              </div>
+              </motion.div>
             );
           })}
           {discs.length === 0 && (

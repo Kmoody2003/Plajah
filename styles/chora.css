@@ -245,11 +245,10 @@
   position: absolute;
   left: -110px;
   z-index: 1;
-  animation: cnCometPass var(--comet-duration, 32s) linear var(--comet-delay, 0s) infinite;
   will-change: transform;
 }
 .chora-next .cn-comet:hover,
-.chora-next .cn-comet:focus-within { animation-play-state: paused; z-index: 4; }
+.chora-next .cn-comet:focus-within { z-index: 4; }
 .chora-next .cn-comet::before {
   content: "";
   position: absolute;
@@ -280,11 +279,6 @@
     radial-gradient(circle at 79% 38%, rgba(0,218,243,.9) 0 1.5px, transparent 2.5px);
   animation: cnCometParticles 3.4s ease-in-out infinite;
   opacity: .72;
-}
-@keyframes cnCometPass {
-  0% { transform: translate3d(0, 0, 0); }
-  48% { transform: translate3d(calc(50vw + 90px), var(--comet-sway, 0px), 0); }
-  100% { transform: translate3d(calc(100vw + 220px), 0, 0); }
 }
 @keyframes cnCometFire {
   from { transform: scaleX(.86) scaleY(.82); opacity: .58; filter: blur(8px) hue-rotate(-8deg); }
@@ -457,7 +451,6 @@
   .chora-next .cn-disc { animation: none; }
   .chora-next .cn-eq i { animation: none !important; height: 60%; }
   .chora-next .cn-pane { transition: none; }
-  .chora-next .cn-comet { animation: none !important; transform: translate3d(var(--comet-rest-x, 10vw), 0, 0); }
   .chora-next .cn-comet::before, .chora-next .cn-comet::after { animation: none !important; }
   .pv-orr-planet, .pv-orr-node, .pv-orr-node i { animation: none !important; transition: none !important; }
 }
