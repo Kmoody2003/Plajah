@@ -33,6 +33,7 @@ import { isActiveToday, formatTodayCountdown, todayProgress } from '../services/
 interface PostCardProps {
   post: Post;
   onVisitUser?: (uid: string) => void;
+  presentation?: 'default' | 'signal';
 }
 
 // Mentions, scripture references and plain text — see src/lib/richText.tsx.
@@ -110,7 +111,7 @@ const PostLinkBanner: React.FC<{ url: string }> = ({ url }) => {
   );
 };
 
-const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
+const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser, presentation = 'default' }) => {
   const [isLiked, setIsLiked] = useState(() => !!(auth.currentUser && post.likedBy?.includes(auth.currentUser.uid)));
   const [likes, setLikes] = useState(post.likesCount);
   const [isEditing, setIsEditing] = useState(false);
@@ -521,7 +522,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
   return (
     <>
     {/* Edge-to-edge on phones (fills the device width, tighter), rounded card on desktop. */}
-    <div className="relative group/card rounded-none sm:rounded-2xl border-y sm:border border-white/[0.06] transition-all duration-200 sm:hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(0,0,0,0.35),_0_-4px_10px_rgba(0,0,0,0.18)] hover:border-white/[0.1] hover:z-10 will-change-transform">
+    <div className={`${presentation === 'signal' ? 'pj-signal-post' : ''} relative group/card rounded-none sm:rounded-2xl border-y sm:border border-white/[0.06] transition-all duration-200 sm:hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(0,0,0,0.35),_0_-4px_10px_rgba(0,0,0,0.18)] hover:border-white/[0.1] hover:z-10 will-change-transform`}>
       <div className="flex gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-none sm:rounded-2xl hover:bg-white/[0.025] transition-colors">
         {/* Avatar col */}
         <div className="relative flex-shrink-0 group/profile">

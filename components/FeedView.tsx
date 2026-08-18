@@ -47,6 +47,7 @@ import Portal from './Portal';
 import { TODAY_TTL_MS, withoutExpiredTodays } from '../services/todayPosts';
 import { StudentWallRow } from './StudentWall';
 import RichText from '../src/lib/richText';
+import '../styles/plajah-social-signal.css';
 const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
 const LiveTalkView = lazy(() => import('./LiveTalkView'));
 
@@ -2141,7 +2142,7 @@ const toggleFavoriteTeam = async (team: string) => {
         flex-1 container gave the dark layer and the blur a hard rectangular edge wherever the
         container ended, which read as a rendering mistake. Full-bleed has no seam. */}
     <div aria-hidden className="fixed inset-0 z-0 pointer-events-none bg-black/40 backdrop-blur-2xl" />
-    <div className={`relative z-10 flex-1 ${activeTab === 'GLOBAL' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto custom-scrollbar'}`}>
+    <div className={`plajah-social-signal relative z-10 flex-1 ${activeTab === 'GLOBAL' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto custom-scrollbar'}`}>
       <div className={`${activeTab === 'GLOBAL' ? 'flex flex-col flex-1 overflow-hidden' : ''} p-3 sm:p-4 md:p-8 max-w-full mx-auto w-full`}>
         {/* HEADER */}
         <header className={`${activeTab === 'GLOBAL' ? 'mb-3 shrink-0' : 'mb-8'} space-y-5`}>
@@ -2848,7 +2849,7 @@ const toggleFavoriteTeam = async (team: string) => {
         </div>
       ) : activeTab === 'GLOBAL' ? (
         /* ── Plajah Social Canvas ───────────────────────────── */
-        <div className="w-full min-w-0 max-w-full md:max-w-3xl lg:max-w-5xl xl:max-w-[1400px] 2xl:max-w-[1700px] mx-auto flex flex-col flex-1 overflow-hidden">
+        <div className={`pj-signal-canvas relative w-full min-w-0 ${feedPanelMode === 'DUAL' ? 'max-w-[1200px]' : 'max-w-[760px]'} mx-auto flex flex-col flex-1 overflow-hidden`}>
 
           {/* ── Today on Plajah — Clock · Featured Releases · History Cards ── */}
           {(() => {
@@ -3249,7 +3250,7 @@ const toggleFavoriteTeam = async (team: string) => {
               <div className="overflow-y-auto overflow-x-hidden pr-2 scrollbar-hide space-y-4 min-w-0 [&_iframe]:max-w-full [&_img]:max-w-full [&_video]:max-w-full">
                 <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-3">Posts</p>
                 {displayedPosts.map((post) => (
-                  <PostCard key={post.id} post={post} onVisitUser={onVisitUser} />
+                  <PostCard key={post.id} post={post} onVisitUser={onVisitUser} presentation="signal" />
                 ))}
               </div>
               <div className="overflow-y-auto pr-2 scrollbar-hide">
@@ -3330,7 +3331,7 @@ const toggleFavoriteTeam = async (team: string) => {
                   exit={{ opacity: 0, scale: 0.97 }}
                   transition={{ type: 'spring', stiffness: 340, damping: 32 }}
                 >
-                  <PostCard post={post} onVisitUser={onVisitUser} />
+                  <PostCard post={post} onVisitUser={onVisitUser} presentation="signal" />
                 </motion.div>
               ))
             )}

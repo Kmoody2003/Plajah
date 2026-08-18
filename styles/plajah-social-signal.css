@@ -1,0 +1,78 @@
+/* Approved Aug 16 "Signal Column" treatment for the real Plajah Social feed.
+   Uses platform tokens so all themes retain their intended personality. */
+.plajah-social-signal {
+  background:
+    radial-gradient(70rem 38rem at 82% -10%, color-mix(in srgb, var(--pj-purple) 20%, transparent), transparent 62%),
+    radial-gradient(52rem 34rem at 0% 36%, color-mix(in srgb, var(--pj-cyan) 7%, transparent), transparent 58%);
+}
+
+.plajah-social-signal > div > header {
+  border: 1px solid var(--m3-border);
+  border-radius: var(--pj-radius-xl);
+  padding: var(--pj-space-4);
+  background: color-mix(in srgb, var(--glass-3) 82%, transparent);
+  box-shadow: var(--pj-elev-3);
+  backdrop-filter: blur(18px) saturate(150%);
+}
+
+.plajah-social-signal .pj-signal-canvas {
+  border: 1px solid var(--m3-border);
+  border-radius: var(--pj-radius-2xl) var(--pj-radius-2xl) 0 0;
+  background: color-mix(in srgb, var(--card-bg) 82%, transparent);
+  box-shadow: var(--pj-elev-4);
+  isolation: isolate;
+}
+
+.plajah-social-signal .pj-signal-canvas::before {
+  content: '';
+  position: absolute;
+  inset: 0 14% auto;
+  height: 1px;
+  background: var(--pj-grad-warm);
+  opacity: .72;
+  pointer-events: none;
+}
+
+.pj-signal-post {
+  overflow: hidden;
+  border-color: var(--m3-border-strong) !important;
+  border-radius: var(--pj-radius-lg) !important;
+  background: linear-gradient(155deg, color-mix(in srgb, var(--glass-3) 80%, transparent), color-mix(in srgb, var(--glass-1) 70%, transparent));
+  box-shadow: var(--pj-elev-2);
+  transform: translateZ(0);
+}
+
+.pj-signal-post:hover {
+  border-color: color-mix(in srgb, var(--pj-magenta) 38%, var(--m3-border-strong)) !important;
+  box-shadow: var(--pj-elev-3), 0 12px 34px color-mix(in srgb, var(--pj-purple) 16%, transparent) !important;
+}
+
+.pj-signal-post > div {
+  padding: var(--pj-space-4) !important;
+}
+
+.pj-signal-post img,
+.pj-signal-post video {
+  border-radius: var(--pj-radius-md);
+}
+
+.pj-signal-post [class*="rounded-2xl"] {
+  border-color: var(--m3-border);
+}
+
+@media (max-width: 639px) {
+  .plajah-social-signal > div { padding-inline: 0; }
+  .plajah-social-signal > div > header {
+    margin-inline: var(--pj-space-3);
+    border-radius: var(--pj-radius-lg);
+  }
+  .plajah-social-signal .pj-signal-canvas {
+    border-inline: 0;
+    border-radius: var(--pj-radius-xl) var(--pj-radius-xl) 0 0;
+  }
+  .pj-signal-post { border-radius: 0 !important; border-inline: 0 !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pj-signal-post { transition: none !important; transform: none !important; }
+}
