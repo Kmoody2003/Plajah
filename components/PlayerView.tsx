@@ -4017,10 +4017,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         </div>
 
         {/* Gatefold: bottom margin lifts the footer clear of the fixed chip dock */}
-        <footer className={`mt-auto pt-16 flex justify-between items-center text-[10px] font-black uppercase tracking-[0.4em] text-white/10${gatefoldOn ? ' mb-12' : ''}`}>
-           {/* Only true claims here — the old "System v3.0 / End-to-End Encryption"
-               decorative labels were fiction and are gone for every skin. */}
-           <div className="flex gap-16"><span>Plajah Chora</span><span>Provide · Protect · Prosper</span></div>
+        <footer className={`mt-auto pt-16 flex justify-end items-center text-[10px] font-black uppercase tracking-[0.4em] text-white/10${gatefoldOn ? ' mb-12' : ''}`}>
            <div className="flex gap-6 items-center">
              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#6B0099] to-[#FF8C00] flex items-center justify-center shadow-lg">
                <Logo size={16} />
