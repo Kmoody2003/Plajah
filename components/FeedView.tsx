@@ -2154,7 +2154,9 @@ const toggleFavoriteTeam = async (team: string) => {
                 >
                   <ArrowLeft size={18} />
                 </button>
-                <span className="text-[9px] font-black uppercase tracking-[0.45em] text-white/30">The Signal</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.45em] text-white/30">
+                  {activeTab === 'GLOBAL' ? 'Your people · your culture · right now' : 'The Signal'}
+                </span>
               </div>
               <PageHeader>
                 {activeTab === 'SOCIAL' ? 'Interstellar' :
@@ -2171,9 +2173,9 @@ const toggleFavoriteTeam = async (team: string) => {
           </div>
 
           <nav className="flex gap-1.5 px-0.5 overflow-x-auto no-scrollbar pb-1">
-            {[
-              { id: 'SOCIAL',   label: 'Interstellar', icon: Globe },
+            {[ 
               { id: 'GLOBAL',   label: 'Plajah Social', icon: Cloud },
+              { id: 'SOCIAL',   label: 'Interstellar', icon: Globe },
               { id: 'NEWS',     label: 'Broadcast',     icon: Newspaper },
               { id: 'LIVETALK', label: 'Live Talk',     icon: Mic },
               { id: 'NOW',      label: 'Right Now',     icon: Zap,    isNew: true },
@@ -2182,6 +2184,7 @@ const toggleFavoriteTeam = async (team: string) => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as FeedTab)}
+                aria-current={activeTab === tab.id ? 'page' : undefined}
                 className={`relative flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${
                   activeTab === tab.id
                     ? 'bg-white text-black shadow-lg'
