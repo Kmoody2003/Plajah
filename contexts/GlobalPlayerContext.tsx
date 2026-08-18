@@ -290,6 +290,10 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // first, so it's respected.
   const intendedPlayingRef = useRef(false);
   const resumeRecoveryRef = useRef<{ tries: number; timer: any }>({ tries: 0, timer: null });
+  // Invalidates asynchronous fallback work from an older play request. Without this guard, a
+  // slow decode/error recovery could finish after a newer request and start a second source,
+  // producing the progressively louder, recursive-sounding overlap listeners reported.
+  const playbackRequestRef = useRef(0);
 
   useEffect(() => {
     audioRef.current = audioElement;
@@ -683,6 +687,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, []);
 
   const playTrack = React.useCallback(async (track: Track, album: Album | null, source: 'LIBRARY' | 'RADIO' | 'VIDEO', startAt?: number, forceReload?: boolean) => {
+    const playbackRequest = ++playbackRequestRef.current;
     let audio = audioRef.current;
     const isNewTrack = forceReload || stateRef.current.currentTrack?.id !== track.id || stateRef.current.audioSource === 'VIDEO';
 
@@ -861,6 +866,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
        * <audio> element can't handle (24/32-bit WAV, AIFF, ALAC, etc.)
        */
       const tryDecodeFallback = async (url: string) => {
+        if (playbackRequest !== playbackRequestRef.current) return;
         const ctx = audioContextRef.current;
         if (!ctx) return;
         // Prefer an already-resolved offline blob so decode-fallback formats play offline too.
@@ -872,6 +878,13 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         try {
           const destination = analyserRef.current ?? ctx.destination;
           const player = await createDecodeAudioPlayer(url, ctx, destination);
+          if (playbackRequest !== playbackRequestRef.current) {
+            try { player.stop(); } catch { /* stale request never becomes audible */ }
+            return;
+          }
+          if (decodedPlayerRef.current && decodedPlayerRef.current !== player) {
+            try { decodedPlayerRef.current.stop(); } catch { /* */ }
+          }
           decodedPlayerRef.current = player;
           usingDecodeFallbackRef.current = true;
           player.onEnded(() => {
@@ -884,6 +897,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
               setTimeout(() => nextRef.current?.(), 0);
             }
           });
+          if (playbackRequest !== playbackRequestRef.current) return;
           await player.play(0);
           setIsPlaying(true);
           console.info(`[Plajah Audio] Decode fallback playing "${track.title}" (${player.duration.toFixed(1)}s)`);
@@ -901,6 +915,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
           if (playPromise !== undefined) {
             playPromise.catch(async (e) => {
               if (e.name === 'AbortError' || e.message?.includes('interrupted')) return;
+              if (playbackRequest !== playbackRequestRef.current) return;
               console.error('[Plajah Audio] Native play failed:', e.name, e.message, 'URL:', track.url);
 
               // Run diagnostics to explain the failure
@@ -923,6 +938,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
               const newAud = new Audio();
               newAud.volume = audio.volume;
               newAud.src = track.url || '';
+              if (playbackRequest !== playbackRequestRef.current) return;
+              try { audio.pause(); audio.removeAttribute('src'); } catch { /* */ }
+              audioRef.current = newAud;
               setAudioElement(newAud);
               newAud.play().catch(pErr => {
                 if (pErr.name === 'AbortError' || pErr.message?.includes('interrupted')) return;

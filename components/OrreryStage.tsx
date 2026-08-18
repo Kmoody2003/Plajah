@@ -14,25 +14,34 @@ interface OrreryStageProps {
   album: Album;
   tracks: Track[];
   activeIndex: number;
+  isPlaying?: boolean;
   onPlayTrack: (t: Track, i: number) => void;
 }
 
-const INNER_MAX = 5;
-const OUTER_MAX = 7;
+const MAX_VISIBLE = 12;
+const ACTIVE_RADIUS = 77;
+const RADIUS_STEP = 12;
+const MAX_RADIUS = 145;
 
-const OrreryStage: React.FC<OrreryStageProps> = ({ album, tracks, activeIndex, onPlayTrack }) => {
-  const inner = tracks.slice(0, INNER_MAX);
-  const outer = tracks.slice(INNER_MAX, INNER_MAX + OUTER_MAX);
-  const hidden = tracks.length - inner.length - outer.length;
+const OrreryStage: React.FC<OrreryStageProps> = ({ album, tracks, activeIndex, isPlaying = false, onPlayTrack }) => {
+  // Keep the playing track in view on long albums while retaining a readable twelve-node stage.
+  const windowStart = Math.max(0, Math.min(Math.max(0, tracks.length - MAX_VISIBLE), activeIndex - Math.floor(MAX_VISIBLE / 2)));
+  const visible = tracks.slice(windowStart, windowStart + MAX_VISIBLE);
+  const hidden = tracks.length - visible.length;
 
-  const renderNode = (t: Track, absoluteIndex: number, idxInRing: number, ringCount: number, radius: number) => {
-    const angle = (360 / ringCount) * idxInRing;
+  const renderNode = (t: Track, absoluteIndex: number) => {
+    // Album order is expressed as depth: the current song moves nearest the artwork; its
+    // neighbours are next closest; completed and distant upcoming songs progressively recede.
+    const distanceFromPlaying = Math.abs(absoluteIndex - activeIndex);
+    const radius = Math.min(MAX_RADIUS, ACTIVE_RADIUS + distanceFromPlaying * RADIUS_STEP);
+    const angle = (360 / Math.max(visible.length, 1)) * (absoluteIndex - windowStart) - 90;
+    const active = absoluteIndex === activeIndex;
     return (
       <button
         key={t.id}
         type="button"
-        className={`pv-orr-node${absoluteIndex === activeIndex ? ' is-active' : ''}`}
-        style={{ transform: `rotate(${angle}deg) translateX(${radius}px)` }}
+        className={`pv-orr-node${active ? ' is-active' : ''}${active && isPlaying ? ' is-playing' : ''}`}
+        style={{ transform: `rotate(${angle}deg) translateX(${radius}px)`, ['--track-radius' as any]: `${radius}px` }}
         onClick={() => onPlayTrack(t, absoluteIndex)}
         title={t.title || `Track ${absoluteIndex + 1}`}
         aria-label={`Play ${t.title || `track ${absoluteIndex + 1}`}`}
@@ -46,14 +55,7 @@ const OrreryStage: React.FC<OrreryStageProps> = ({ album, tracks, activeIndex, o
     <div className="pv-orr" role="group" aria-label="Orrery — tracks orbiting the album">
       <div className="pv-orr-ring r1" aria-hidden="true" />
       <div className="pv-orr-ring r2" aria-hidden="true" />
-      <div className="pv-orr-orbit o1">
-        {inner.map((t, k) => renderNode(t, k, k, inner.length, 90))}
-      </div>
-      {outer.length > 0 && (
-        <div className="pv-orr-orbit o2">
-          {outer.map((t, k) => renderNode(t, INNER_MAX + k, k, outer.length, 137))}
-        </div>
-      )}
+      <div className="pv-orr-orbit o1">{visible.map((t, index) => renderNode(t, windowStart + index))}</div>
       <div className="pv-orr-sun" style={{ backgroundImage: `url(${album.coverThumb || album.coverImage})` }} aria-hidden="true" />
       {hidden > 0 && <span className="pv-orr-more">+{hidden} more in the registry</span>}
     </div>

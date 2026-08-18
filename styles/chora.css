@@ -18,12 +18,16 @@
   user-select: none;
 }
 .chora-next .cn-mast h1 .cn-grad {
-  background: var(--pj-grad-ember);
+  display: inline-block;
+  background-image: var(--pj-grad-ember);
   -webkit-background-clip: text;
   background-clip: text;
+  -webkit-text-fill-color: transparent;
   color: transparent;
 }
-.chora-night .cn-mast h1 .cn-grad { background: var(--pj-grad-spatial); }
+/* Use background-image here—not the `background` shorthand. The shorthand resets
+   background-clip to border-box, which rendered a blue rectangle and transparent text. */
+.chora-night .cn-mast h1 .cn-grad { background-image: var(--pj-grad-spatial); }
 
 .chora-next .cn-issue {
   margin-top: 8px;
@@ -237,8 +241,65 @@
   color: var(--pj-lilac);
   opacity: 0.75;
 }
-.chora-next .cn-disc {
+.chora-next .cn-comet {
   position: absolute;
+  left: -110px;
+  z-index: 1;
+  animation: cnCometPass var(--comet-duration, 32s) linear var(--comet-delay, 0s) infinite;
+  will-change: transform;
+}
+.chora-next .cn-comet:hover,
+.chora-next .cn-comet:focus-within { animation-play-state: paused; z-index: 4; }
+.chora-next .cn-comet::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: 58%;
+  top: 27%;
+  width: clamp(72px, 8vw, 132px);
+  height: 46%;
+  border-radius: 100% 0 0 100%;
+  transform-origin: right center;
+  background: linear-gradient(90deg, transparent 0%, rgba(107,0,153,.2) 22%, rgba(212,0,85,.48) 50%, rgba(255,140,0,.62) 72%, rgba(0,218,243,.78) 100%);
+  filter: blur(7px);
+  opacity: .82;
+  animation: cnCometFire 4.8s ease-in-out infinite alternate;
+}
+.chora-next .cn-comet::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: 72%;
+  top: 12%;
+  width: clamp(82px, 10vw, 150px);
+  height: 76%;
+  background-image:
+    radial-gradient(circle at 12% 58%, rgba(107,0,153,.8) 0 1px, transparent 2px),
+    radial-gradient(circle at 35% 24%, rgba(212,0,85,.9) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 57% 72%, rgba(255,140,0,.9) 0 1px, transparent 2px),
+    radial-gradient(circle at 79% 38%, rgba(0,218,243,.9) 0 1.5px, transparent 2.5px);
+  animation: cnCometParticles 3.4s ease-in-out infinite;
+  opacity: .72;
+}
+@keyframes cnCometPass {
+  0% { transform: translate3d(0, 0, 0); }
+  48% { transform: translate3d(calc(50vw + 90px), var(--comet-sway, 0px), 0); }
+  100% { transform: translate3d(calc(100vw + 220px), 0, 0); }
+}
+@keyframes cnCometFire {
+  from { transform: scaleX(.86) scaleY(.82); opacity: .58; filter: blur(8px) hue-rotate(-8deg); }
+  to { transform: scaleX(1.08) scaleY(1.04); opacity: .9; filter: blur(5px) hue-rotate(12deg); }
+}
+@keyframes cnCometParticles {
+  0% { transform: translate3d(12px, 0, 0) scale(.9); opacity: .4; }
+  55% { opacity: .82; }
+  100% { transform: translate3d(-18px, 5px, 0) scale(1.08); opacity: .15; }
+}
+.chora-next .cn-disc {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   cursor: pointer;
   padding: 0;
@@ -247,7 +308,6 @@
   background-position: center;
   box-shadow: var(--pj-glow-cyan, 0 0 20px rgba(0, 218, 243, 0.4));
   transition: transform 0.35s var(--pj-ease-standard, cubic-bezier(0.2, 0, 0, 1)), box-shadow 0.35s;
-  animation: cnDrift 8s ease-in-out infinite alternate;
 }
 .chora-next .cn-disc:hover,
 .chora-next .cn-disc:focus-visible {
@@ -255,7 +315,6 @@
   box-shadow: var(--pj-glow-orange, 0 6px 22px rgba(255, 140, 0, 0.3));
   z-index: 4;
 }
-@keyframes cnDrift { from { translate: 0 -5px; } to { translate: 0 6px; } }
 .chora-next .cn-disc .cn-lbl {
   position: absolute;
   left: 50%;
@@ -300,8 +359,7 @@
 /* ── Gatefold album view · Orrery stage ───────────────────────────────────
    Tracks orbit the album art. Wrapped nodes: the orbit container spins, each
    node sits at a fixed angle, and the inner <i> counter-rotates (offset by
-   --a, the node's own angle) so the track numbers stay upright. Hovering the
-   stage pauses both orbits so nodes are easy to hit. */
+   --a, the node's own angle) so the track numbers stay upright. */
 .pv-orr {
   position: relative;
   width: min(340px, 100%);
@@ -328,8 +386,6 @@
   animation: pvOrrSpin 60s linear infinite;
 }
 .pv-orr-orbit.o2 { animation-duration: 96s; animation-direction: reverse; }
-.pv-orr:hover .pv-orr-orbit,
-.pv-orr:hover .pv-orr-node i { animation-play-state: paused; }
 @keyframes pvOrrSpin { to { transform: rotate(360deg); } }
 .pv-orr-node {
   position: absolute;
@@ -344,7 +400,8 @@
   border: 1px solid var(--pj-border-strong);
   cursor: pointer;
   padding: 0;
-  transition: box-shadow 0.25s, background 0.25s;
+  transition: transform 1.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.6s ease, background 0.6s ease;
+  will-change: transform;
 }
 .pv-orr-node:hover,
 .pv-orr-node:focus-visible {
@@ -352,9 +409,18 @@
   box-shadow: var(--pj-glow-cyan, 0 0 20px rgba(0, 218, 243, 0.4));
 }
 .pv-orr-node.is-active {
-  background-image: var(--pj-grad-ember);
+  background-image: linear-gradient(120deg, #d40055, #ff8c00, #6b0099, #00daf3, #d40055);
+  background-size: 320% 320%;
   border-color: transparent;
   box-shadow: var(--pj-glow-orange, 0 6px 22px rgba(255, 140, 0, 0.3));
+}
+.pv-orr-node.is-playing {
+  animation: pvOrrPlajahGlow 8s ease-in-out infinite;
+}
+@keyframes pvOrrPlajahGlow {
+  0%, 100% { background-position: 0% 50%; box-shadow: 0 0 12px rgba(212, 0, 85, 0.55), 0 0 28px rgba(212, 0, 85, 0.28); }
+  33% { background-position: 50% 50%; box-shadow: 0 0 14px rgba(255, 140, 0, 0.62), 0 0 32px rgba(107, 0, 153, 0.3); }
+  66% { background-position: 100% 50%; box-shadow: 0 0 14px rgba(0, 218, 243, 0.58), 0 0 32px rgba(0, 218, 243, 0.28); }
 }
 .pv-orr-node i {
   font-style: normal;
@@ -400,5 +466,7 @@
   .chora-next .cn-disc { animation: none; }
   .chora-next .cn-eq i { animation: none !important; height: 60%; }
   .chora-next .cn-pane { transition: none; }
-  .pv-orr-orbit, .pv-orr-node i { animation: none !important; }
+  .chora-next .cn-comet { animation: none !important; transform: translate3d(var(--comet-rest-x, 10vw), 0, 0); }
+  .chora-next .cn-comet::before, .chora-next .cn-comet::after { animation: none !important; }
+  .pv-orr-orbit, .pv-orr-node, .pv-orr-node i { animation: none !important; transition: none !important; }
 }

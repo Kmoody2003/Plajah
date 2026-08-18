@@ -38,14 +38,14 @@ const previewUrl = (a: Album): string | null => {
 
 const artUrl = (a: Album): string => a.promoKit?.keyArtUrl || a.coverThumb || a.coverImage || '';
 
-/** Deterministic sky positions for up to 6 discs (percent coords + px sizes by rank). */
+/** Deterministic flight lanes for up to 6 releases. Size remains popularity-ranked. */
 const SKY_SPOTS = [
-  { left: 14, top: 30, size: 76 },
-  { left: 38, top: 16, size: 60 },
-  { left: 57, top: 46, size: 54 },
-  { left: 75, top: 20, size: 46 },
-  { left: 87, top: 56, size: 40 },
-  { left: 27, top: 62, size: 36 },
+  { top: 35, size: 76, sway: -14 },
+  { top: 18, size: 60, sway: 12 },
+  { top: 58, size: 54, sway: -10 },
+  { top: 27, size: 46, sway: 15 },
+  { top: 67, size: 40, sway: -12 },
+  { top: 48, size: 36, sway: 9 },
 ];
 
 const fmtPlays = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n));
@@ -87,6 +87,7 @@ const ChoraNextMasthead: React.FC<ChoraNextMastheadProps> = ({
 
   const modeIcon = mode === 'auto' ? <Clock size={11} /> : mode === 'day' ? <Sun size={11} /> : <Moon size={11} />;
   const modeLabel = mode === 'auto' ? (isNight ? 'Auto · Night' : 'Auto · Day') : mode === 'day' ? 'Day' : 'Night';
+  const maxSkyPlays = Math.max(1, ...discs.map(a => a.playCount || 0));
 
   return (
     <div className="cn-mast">
@@ -119,24 +120,34 @@ const ChoraNextMasthead: React.FC<ChoraNextMastheadProps> = ({
           <span className="cn-cap">Tonight's sky · brightness = plays this week · hover to unmute</span>
           {discs.map((a, i) => {
             const s = SKY_SPOTS[i];
+            // Popular releases get a slightly brisker pass, but the deliberately narrow range
+            // keeps every comet slow enough to notice, read, and catch.
+            const popularity = (a.playCount || 0) / maxSkyPlays;
+            const duration = 36 - popularity * 9;
             return (
-              <button
+              <div
                 key={a.id}
-                type="button"
-                className="cn-disc"
+                className="cn-comet"
                 style={{
-                  left: `${s.left}%`, top: `${s.top}%`, width: s.size, height: s.size,
-                  backgroundImage: `url(${artUrl(a)})`, animationDelay: `${(i * 0.7) % 2.4}s`,
-                }}
-                onMouseEnter={() => enter(a)}
-                onMouseLeave={leave}
-                onFocus={() => enter(a)}
-                onBlur={leave}
-                onClick={() => { leave(); onSelectAlbum(a); }}
-                aria-label={`${a.title} by ${a.artist}`}
+                  top: `${s.top}%`, width: s.size, height: s.size,
+                  ['--comet-duration' as any]: `${duration}s`,
+                  ['--comet-delay' as any]: `${-(i * 5.7 + 2)}s`,
+                  ['--comet-sway' as any]: `${s.sway}px`,
+                  ['--comet-rest-x' as any]: `${12 + i * 15}vw`,
+                } as React.CSSProperties}
               >
-                <span className="cn-lbl">{a.title}{(a.playCount || 0) > 0 && <i>{fmtPlays(a.playCount!)}</i>}</span>
-              </button>
+                <button
+                  type="button"
+                  className="cn-disc"
+                  style={{ backgroundImage: `url(${artUrl(a)})` }}
+                  onMouseEnter={() => enter(a)} onMouseLeave={leave}
+                  onFocus={() => enter(a)} onBlur={leave}
+                  onClick={() => { leave(); onSelectAlbum(a); }}
+                  aria-label={`${a.title} by ${a.artist}`}
+                >
+                  <span className="cn-lbl">{a.title}{(a.playCount || 0) > 0 && <i>{fmtPlays(a.playCount!)}</i>}</span>
+                </button>
+              </div>
             );
           })}
           {discs.length === 0 && (

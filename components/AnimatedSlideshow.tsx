@@ -11,6 +11,10 @@ interface AnimatedSlideshowProps {
   isPlaying: boolean;
   themeColor: string;
   artistNotes?: string[];
+  /** Offset lets two simultaneous slideshows stay deliberately out of phase. */
+  startIndex?: number;
+  /** Sharp, restrained motion for an embedded artwork panel (never blur). */
+  presentation?: 'ambient' | 'panel';
 }
 
 /**
@@ -21,8 +25,8 @@ interface AnimatedSlideshowProps {
  * `scale`, by contrast, is composited on the GPU with no repaint, so the Ken Burns move is cheap
  * and stays. The `tv` branch therefore keeps the crossfade + slow zoom but drops every blur/blend.
  */
-const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying, themeColor, artistNotes = [] }) => {
-  const [index, setIndex] = useState(0);
+const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying, themeColor, artistNotes = [], startIndex = 0, presentation = 'ambient' }) => {
+  const [index, setIndex] = useState(() => images.length ? startIndex % images.length : 0);
   const [noteIndex, setNoteIndex] = useState(0);
   useGlobalPlayerState();
   const [pulse] = useState(1);
@@ -35,6 +39,10 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
     }, 8000); // 8 seconds per slide for more "editorial" feel
     return () => clearInterval(interval);
   }, [images.length]);
+
+  useEffect(() => {
+    setIndex(images.length ? startIndex % images.length : 0);
+  }, [images.length, startIndex]);
 
   useEffect(() => {
     if (!artistNotes.length) return;
@@ -57,7 +65,13 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
   if (!images.length) return null;
 
   // TV: opacity-only crossfade, no blur. Desktop: the original blur-in reveal.
-  const slideMotion = tv
+  const slideMotion = presentation === 'panel'
+    ? {
+        initial: { opacity: 0, scale: 1.015, x: '1.2%' },
+        animate: { opacity: 1, scale: 1.09, x: '-1.2%', transition: { opacity: { duration: 1.4, ease: 'easeOut' }, scale: { duration: 10, ease: 'linear' }, x: { duration: 10, ease: 'linear' } } },
+        exit: { opacity: 0, transition: { duration: 1.2, ease: 'easeInOut' } },
+      }
+    : tv
     ? {
         initial: { opacity: 0 },
         animate: { opacity: 1, transition: { opacity: { duration: 1.2, ease: 'easeOut' } } },
@@ -78,7 +92,7 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
           Desktop keeps the blur-in reveal (mode wait). */}
       <AnimatePresence mode={tv ? 'sync' : 'wait'}>
         <motion.div key={index} {...(slideMotion as any)} className="absolute inset-0 w-full h-full">
-          {tv ? (
+          {tv || presentation === 'panel' ? (
             // Full-bleed (object-COVER) so a non-16:9 photo fills the screen — but anchored to the
             // TOP (object-top), so an over-tall image spills off the BOTTOM only and never clips a
             // subject's head. Ken Burns kept; tv-kenburns is pinned to its own GPU layer so the
@@ -86,7 +100,7 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
             <img
               src={heroImage(images[index]) || undefined}
               alt={`Slide ${index}`}
-              className="w-full h-full object-cover object-top tv-kenburns"
+              className={`w-full h-full object-cover object-top ${tv && presentation !== 'panel' ? 'tv-kenburns' : ''}`}
               loading="eager"
               decoding="async"
             />
@@ -134,7 +148,7 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
           {/* Vignette. The themed mix-blend wash is desktop-only — blend modes force off-screen
               compositing every frame, which the TV cannot spare. */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-          {!tv && (
+          {!tv && presentation !== 'panel' && (
             <div className="absolute inset-0 opacity-20 mix-blend-overlay pointer-events-none transition-colors duration-[2000ms]" style={{ backgroundColor: themeColor }} />
           )}
         </motion.div>
@@ -142,7 +156,7 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
 
       {/* A single ambient glow — desktop only. One more infinite animation is not worth a dropped
           frame on the TV. */}
-      {!tv && (
+      {!tv && presentation !== 'panel' && (
         <div className="absolute inset-0 pointer-events-none border border-white/5 rounded-inherit overflow-hidden">
           <motion.div
             animate={{ opacity: isPlaying ? [0.1, 0.3, 0.1] : 0.1, scale: 1 }}
