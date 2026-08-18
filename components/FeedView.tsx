@@ -2173,7 +2173,7 @@ const toggleFavoriteTeam = async (team: string) => {
           </div>
 
           <nav className="flex gap-1.5 px-0.5 overflow-x-auto no-scrollbar pb-1">
-            {[ 
+            {[
               { id: 'GLOBAL',   label: 'Plajah Social', icon: Cloud },
               { id: 'SOCIAL',   label: 'Interstellar', icon: Globe },
               { id: 'NEWS',     label: 'Broadcast',     icon: Newspaper },
