@@ -25,6 +25,7 @@ import type {
 } from '../../types';
 import {
   deleteTelaDoc, listTelaDocs, loadTelaDoc, newTelaId, saveTelaDoc, telaStorageMode,
+  publishTelaVersion,
 } from '../../services/telaStore';
 import { auth } from '../../services/backendService';
 import { extractDocument, isSupportedImport, escapeHtml, SUPPORTED_IMPORT_ACCEPT } from '../../services/documentImport';
@@ -33,21 +34,15 @@ import TelaWriter, { makeBlock, newBlockId } from './TelaWriter';
 import TelaGrid, { cellKey, type TelaBaseLite, type TelaFormulaContext } from './TelaGrid';
 import TelaBase from './TelaBase';
 import TelaForm from './TelaForm';
-import TelaVector, { TelaVectorObjectProps, type VectorTool } from './TelaVector';
+import TelaVector, { TelaVectorObjectProps, objBounds, type VectorTool } from './TelaVector';
 import TelaImage, { TelaImageLayerControls, ImageLayerRow, makeImageLayer } from './TelaImage';
+import { PRESETS, applyTelaOp, type TelaOp } from './telaOps';
+import { renderDevice as renderTelaDevice, type RenderDeviceCtx } from './renderDevice';
+import TelaFlyingMenu, { resolveFlyingTarget, type FlyingRef } from './TelaFlyingMenu';
 
 // ── Presets ───────────────────────────────────────────────────────────────────
-// CSS px at 96dpi, so 816px prints as exactly 8.5in via @page.
-
-const PRESETS: Record<TelaFramePreset, { w: number; h: number; label: string; page?: string }> = {
-  LETTER:            { w: 816,  h: 1056, label: 'Letter 8.5×11″', page: '8.5in 11in' },
-  A4:                { w: 794,  h: 1123, label: 'A4 210×297mm',   page: '210mm 297mm' },
-  BOOKLET:           { w: 528,  h: 816,  label: 'Booklet 5.5×8.5″', page: '5.5in 8.5in' },
-  SIGNAGE_1080x1920: { w: 1080, h: 1920, label: 'Signage 1080×1920' },
-  PHONE:             { w: 390,  h: 844,  label: 'Phone 390×844' },
-  SQUARE:            { w: 1080, h: 1080, label: 'Square 1080' },
-  FREE:              { w: 760,  h: 440,  label: 'Free' },
-};
+// PRESETS + the op reducer (applyTelaOp/TelaOp) now live in ./telaOps so the
+// reference-embed and the flying menu share one code path with the canvas.
 
 const PAPER_PRESETS: TelaFramePreset[] = ['LETTER', 'A4', 'BOOKLET'];
 const SCREEN_PRESETS: TelaFramePreset[] = ['SIGNAGE_1080x1920', 'PHONE', 'SQUARE'];
@@ -64,209 +59,6 @@ const STUDIO_VEC_TOOLS: { id: VectorTool; icon: React.ReactNode; label: string }
   { id: 'pen', icon: <PenTool size={17} />, label: 'Pen / polyline' },
   { id: 'text', icon: <Type size={17} />, label: 'Text' },
 ];
-
-// ── Ops — every mutation flows through here (CRDT-friendly shape) ─────────────
-
-type TelaOp =
-  | { type: 'SET_TITLE'; title: string }
-  | { type: 'ADD_FRAME'; frame: TelaFrame; devices: TelaDevice[] }
-  | { type: 'MOVE_FRAME'; frameId: string; x: number; y: number }
-  | { type: 'SET_FRAME_PRESET'; frameId: string; preset: TelaFramePreset }
-  | { type: 'DELETE_FRAME'; frameId: string }
-  | { type: 'SET_WRITER_BLOCKS'; deviceId: string; blocks: TelaBlock[] }
-  | { type: 'SET_GRID_CELL'; deviceId: string; key: string; value: string }
-  // ── Base (database) ops ────────────────────────────────────────────────────
-  | { type: 'ADD_BASE_FIELD'; deviceId: string; field: TelaField }
-  | { type: 'UPDATE_BASE_FIELD'; deviceId: string; fieldId: string; patch: Partial<TelaField> }
-  | { type: 'DELETE_BASE_FIELD'; deviceId: string; fieldId: string }
-  | { type: 'ADD_BASE_ROW'; deviceId: string; row: TelaRow }
-  | { type: 'SET_BASE_CELL'; deviceId: string; rowId: string; fieldId: string; value: string }
-  | { type: 'DELETE_BASE_ROW'; deviceId: string; rowId: string }
-  /** Re-sync a binding's derived rows — replaces only rows tagged with it,
-   *  leaving every manual (user-entered) row untouched. */
-  | { type: 'REPLACE_DERIVED_ROWS'; deviceId: string; bindingId: string; rows: TelaRow[] }
-  // ── Form ops ────────────────────────────────────────────────────────────────
-  | { type: 'SET_FORM_BASE'; deviceId: string; baseDeviceId: string }
-  // ── Vector (SVG design) ops ─────────────────────────────────────────────────
-  | { type: 'ADD_VECTOR_OBJECT'; deviceId: string; object: TelaVectorObject }
-  | { type: 'UPDATE_VECTOR_OBJECT'; deviceId: string; objectId: string; patch: Partial<TelaVectorObject> }
-  | { type: 'DELETE_VECTOR_OBJECT'; deviceId: string; objectId: string }
-  | { type: 'REORDER_VECTOR_OBJECT'; deviceId: string; objectId: string; toIndex: number }
-  // ── Image (raster) ops ──────────────────────────────────────────────────────
-  | { type: 'ADD_IMAGE_LAYER'; deviceId: string; layer: TelaImageLayer }
-  | { type: 'UPDATE_IMAGE_LAYER'; deviceId: string; layerId: string; patch: Partial<TelaImageLayer> }
-  | { type: 'DELETE_IMAGE_LAYER'; deviceId: string; layerId: string }
-  | { type: 'REORDER_IMAGE_LAYER'; deviceId: string; layerId: string; toIndex: number }
-  // ── Binding graph ops ───────────────────────────────────────────────────────
-  | { type: 'ADD_BINDING'; binding: TelaBinding }
-  | { type: 'REMOVE_BINDING'; bindingId: string };
-
-/** Move the id-matched item to `toIndex` (id-stable reorder for arrays). */
-function reorderById<T extends { id: string }>(list: T[], id: string, toIndex: number): T[] {
-  const from = list.findIndex(x => x.id === id);
-  if (from < 0) return list;
-  const next = [...list];
-  const [item] = next.splice(from, 1);
-  next.splice(Math.max(0, Math.min(list.length - 1, toIndex)), 0, item);
-  return next;
-}
-
-export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
-  const now = Date.now();
-  switch (op.type) {
-    case 'SET_TITLE':
-      return { ...doc, title: op.title, updatedAt: now };
-    case 'ADD_FRAME': {
-      const devices = { ...doc.devices };
-      for (const d of op.devices) devices[d.id] = d;
-      return { ...doc, frames: [...doc.frames, op.frame], devices, updatedAt: now };
-    }
-    case 'MOVE_FRAME':
-      return { ...doc, frames: doc.frames.map(f => f.id === op.frameId ? { ...f, x: op.x, y: op.y } : f), updatedAt: now };
-    case 'SET_FRAME_PRESET': {
-      const p = PRESETS[op.preset];
-      return { ...doc, frames: doc.frames.map(f => f.id === op.frameId ? { ...f, preset: op.preset, w: p.w, h: p.h } : f), updatedAt: now };
-    }
-    case 'DELETE_FRAME': {
-      const frame = doc.frames.find(f => f.id === op.frameId);
-      const devices = { ...doc.devices };
-      for (const id of frame?.deviceIds || []) delete devices[id];
-      return { ...doc, frames: doc.frames.filter(f => f.id !== op.frameId), devices, updatedAt: now };
-    }
-    case 'SET_WRITER_BLOCKS': {
-      const d = doc.devices[op.deviceId];
-      if (!d || d.type !== 'WRITER') return doc;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, blocks: op.blocks } }, updatedAt: now };
-    }
-    case 'SET_GRID_CELL': {
-      const d = doc.devices[op.deviceId];
-      if (!d || d.type !== 'GRID') return doc;
-      const cells = { ...d.cells };
-      if (op.value === '') delete cells[op.key]; else cells[op.key] = op.value;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, cells } }, updatedAt: now };
-    }
-
-    // ── Base ────────────────────────────────────────────────────────────────
-    case 'ADD_BASE_FIELD': {
-      const d = doc.devices[op.deviceId];
-      if (!d || d.type !== 'BASE') return doc;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, fields: [...d.fields, op.field] } }, updatedAt: now };
-    }
-    case 'UPDATE_BASE_FIELD': {
-      const d = doc.devices[op.deviceId];
-      if (!d || d.type !== 'BASE') return doc;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, fields: d.fields.map(f => f.id === op.fieldId ? { ...f, ...op.patch } : f) } }, updatedAt: now };
-    }
-    case 'DELETE_BASE_FIELD': {
-      const d = doc.devices[op.deviceId];
-      if (!d || d.type !== 'BASE') return doc;
-      const rows = d.rows.map(r => {
-        if (!(op.fieldId in r.values)) return r;
-        const values = { ...r.values }; delete values[op.fieldId];
-        return { ...r, values };
-      });
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, fields: d.fields.filter(f => f.id !== op.fieldId), rows } }, updatedAt: now };
-    }
-    case 'ADD_BASE_ROW': {
-      const d = doc.devices[op.deviceId];
-      if (!d || d.type !== 'BASE') return doc;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, rows: [...d.rows, op.row] } }, updatedAt: now };
-    }
-    case 'SET_BASE_CELL': {
-      const d = doc.devices[op.deviceId];
-      if (!d || d.type !== 'BASE') return doc;
-      const rows = d.rows.map(r => {
-        if (r.id !== op.rowId) return r;
-        const values = { ...r.values };
-        if (op.value === '') delete values[op.fieldId]; else values[op.fieldId] = op.value;
-        return { ...r, values };
-      });
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, rows } }, updatedAt: now };
-    }
-    case 'DELETE_BASE_ROW': {
-      const d = doc.devices[op.deviceId];
-      if (!d || d.type !== 'BASE') return doc;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, rows: d.rows.filter(r => r.id !== op.rowId) } }, updatedAt: now };
-    }
-    case 'REPLACE_DERIVED_ROWS': {
-      const d = doc.devices[op.deviceId];
-      if (!d || d.type !== 'BASE') return doc;
-      // Manual rows (and rows from OTHER bindings) stay exactly as they are.
-      const kept = d.rows.filter(r => r.derivedFromBindingId !== op.bindingId);
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, rows: [...kept, ...op.rows] } }, updatedAt: now };
-    }
-
-    // ── Form ────────────────────────────────────────────────────────────────
-    case 'SET_FORM_BASE': {
-      const d = doc.devices[op.deviceId];
-      if (!d || d.type !== 'FORM') return doc;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, baseDeviceId: op.baseDeviceId } }, updatedAt: now };
-    }
-
-    // ── Vector ────────────────────────────────────────────────────────────────
-    case 'ADD_VECTOR_OBJECT': {
-      const d = doc.devices[op.deviceId];
-      if (!d || d.type !== 'VECTOR') return doc;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, objects: [...d.objects, op.object] } }, updatedAt: now };
-    }
-    case 'UPDATE_VECTOR_OBJECT': {
-      const d = doc.devices[op.deviceId];
-      if (!d || d.type !== 'VECTOR') return doc;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, objects: d.objects.map(o => o.id === op.objectId ? { ...o, ...op.patch } : o) } }, updatedAt: now };
-    }
-    case 'DELETE_VECTOR_OBJECT': {
-      const d = doc.devices[op.deviceId];
-      if (!d || d.type !== 'VECTOR') return doc;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, objects: d.objects.filter(o => o.id !== op.objectId) } }, updatedAt: now };
-    }
-    case 'REORDER_VECTOR_OBJECT': {
-      const d = doc.devices[op.deviceId];
-      if (!d || d.type !== 'VECTOR') return doc;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, objects: reorderById(d.objects, op.objectId, op.toIndex) } }, updatedAt: now };
-    }
-
-    // ── Image ─────────────────────────────────────────────────────────────────
-    case 'ADD_IMAGE_LAYER': {
-      const d = doc.devices[op.deviceId];
-      if (!d || d.type !== 'IMAGE') return doc;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, layers: [...d.layers, op.layer] } }, updatedAt: now };
-    }
-    case 'UPDATE_IMAGE_LAYER': {
-      const d = doc.devices[op.deviceId];
-      if (!d || d.type !== 'IMAGE') return doc;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, layers: d.layers.map(l => l.id === op.layerId ? { ...l, ...op.patch } : l) } }, updatedAt: now };
-    }
-    case 'DELETE_IMAGE_LAYER': {
-      const d = doc.devices[op.deviceId];
-      if (!d || d.type !== 'IMAGE') return doc;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, layers: d.layers.filter(l => l.id !== op.layerId) } }, updatedAt: now };
-    }
-    case 'REORDER_IMAGE_LAYER': {
-      const d = doc.devices[op.deviceId];
-      if (!d || d.type !== 'IMAGE') return doc;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, layers: reorderById(d.layers, op.layerId, op.toIndex) } }, updatedAt: now };
-    }
-
-    // ── Binding graph ─────────────────────────────────────────────────────────
-    case 'ADD_BINDING':
-      return { ...doc, bindings: [...(doc.bindings ?? []), op.binding], updatedAt: now };
-    case 'REMOVE_BINDING': {
-      const bindings = (doc.bindings ?? []).filter(b => b.id !== op.bindingId);
-      // Drop any rows this binding derived, so removing a link cleans up after itself.
-      const devices = { ...doc.devices };
-      for (const id in devices) {
-        const dv = devices[id];
-        if (dv.type === 'BASE' && dv.rows.some(r => r.derivedFromBindingId === op.bindingId)) {
-          devices[id] = { ...dv, rows: dv.rows.filter(r => r.derivedFromBindingId !== op.bindingId) };
-        }
-      }
-      return { ...doc, bindings, devices, updatedAt: now };
-    }
-
-    default:
-      return doc;
-  }
-}
 
 // ── Derivation — Writer items → Base rows (the 'items' binding) ───────────────
 
@@ -444,6 +236,10 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
   const [studioSel, setStudioSel] = useState<string | null>(null); // object OR layer id
   const [studioImgBusy, setStudioImgBusy] = useState(false);
   const [studioUrl, setStudioUrl] = useState('');
+  // Author-in-place flying menu (raised from a ✎ badge — the same menu the
+  // reference-embed uses). Ref-based so edits resolve live against the doc.
+  const [flying, setFlying] = useState<{ ref: FlyingRef; anchor: { x: number; y: number } } | null>(null);
+  const [publishing, setPublishing] = useState(false);
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -1000,87 +796,51 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
     ? (PRESETS[printFrame.preset].page || `${printFrame.w}px ${printFrame.h}px`)
     : '8.5in 11in';
 
-  // ── Device rendering ───────────────────────────────────────────────────────
+  // ── Device rendering — ONE shared code path (also used by TelaEmbed) ─────────
 
-  const renderDevice = (device: TelaDevice, readOnly = false) => {
-    if (device.type === 'WRITER') {
-      return (
-        <TelaWriter
-          key={device.id}
-          device={device}
-          readOnly={readOnly}
-          onChangeBlocks={blocks => dispatchOp({ type: 'SET_WRITER_BLOCKS', deviceId: device.id, blocks })}
-        />
-      );
-    }
-    if (device.type === 'BASE') {
-      return (
-        <TelaBase
-          key={device.id}
-          device={device}
-          readOnly={readOnly}
-          onAddField={field => dispatchOp({ type: 'ADD_BASE_FIELD', deviceId: device.id, field })}
-          onUpdateField={(fieldId, patch) => dispatchOp({ type: 'UPDATE_BASE_FIELD', deviceId: device.id, fieldId, patch })}
-          onDeleteField={fieldId => dispatchOp({ type: 'DELETE_BASE_FIELD', deviceId: device.id, fieldId })}
-          onAddRow={row => dispatchOp({ type: 'ADD_BASE_ROW', deviceId: device.id, row })}
-          onSetCell={(rowId, fieldId, value) => dispatchOp({ type: 'SET_BASE_CELL', deviceId: device.id, rowId, fieldId, value })}
-          onDeleteRow={rowId => dispatchOp({ type: 'DELETE_BASE_ROW', deviceId: device.id, rowId })}
-        />
-      );
-    }
-    if (device.type === 'FORM') {
-      const base = device.baseDeviceId ? doc?.devices[device.baseDeviceId] : null;
-      return (
-        <TelaForm
-          key={device.id}
-          device={device}
-          base={base?.type === 'BASE' ? base : null}
-          bases={baseList}
-          readOnly={readOnly}
-          onSetBase={baseDeviceId => dispatchOp({ type: 'SET_FORM_BASE', deviceId: device.id, baseDeviceId })}
-          onSubmit={values => { if (device.baseDeviceId) dispatchOp({ type: 'ADD_BASE_ROW', deviceId: device.baseDeviceId, row: { id: uid('row'), values } }); }}
-        />
-      );
-    }
-    if (device.type === 'VECTOR') {
-      return (
-        <TelaVector
-          key={device.id}
-          device={device}
-          readOnly={readOnly}
-          chrome={!readOnly}
-          writerTexts={writerTexts}
-          writers={writerList}
-          onAddObject={object => dispatchOp({ type: 'ADD_VECTOR_OBJECT', deviceId: device.id, object })}
-          onUpdateObject={(objectId, patch) => dispatchOp({ type: 'UPDATE_VECTOR_OBJECT', deviceId: device.id, objectId, patch })}
-          onDeleteObject={objectId => dispatchOp({ type: 'DELETE_VECTOR_OBJECT', deviceId: device.id, objectId })}
-          onReorder={(objectId, toIndex) => dispatchOp({ type: 'REORDER_VECTOR_OBJECT', deviceId: device.id, objectId, toIndex })}
-        />
-      );
-    }
-    if (device.type === 'IMAGE') {
-      return (
-        <TelaImage
-          key={device.id}
-          device={device}
-          readOnly={readOnly}
-          chrome={!readOnly}
-          onAddLayer={layer => dispatchOp({ type: 'ADD_IMAGE_LAYER', deviceId: device.id, layer })}
-          onUpdateLayer={(layerId, patch) => dispatchOp({ type: 'UPDATE_IMAGE_LAYER', deviceId: device.id, layerId, patch })}
-          onDeleteLayer={layerId => dispatchOp({ type: 'DELETE_IMAGE_LAYER', deviceId: device.id, layerId })}
-          onReorder={(layerId, toIndex) => dispatchOp({ type: 'REORDER_IMAGE_LAYER', deviceId: device.id, layerId, toIndex })}
-        />
-      );
-    }
-    return (
-      <TelaGrid
-        key={device.id}
-        device={device}
-        readOnly={readOnly}
-        formulaContext={formulaContext}
-        onSetCell={(key, value) => dispatchOp({ type: 'SET_GRID_CELL', deviceId: device.id, key, value })}
-      />
-    );
+  const renderCtx = useMemo<RenderDeviceCtx>(() => ({
+    devices: doc?.devices || {},
+    dispatchOp,
+    writerTexts,
+    writers: writerList,
+    bases: baseList,
+    formulaContext,
+    uid,
+  }), [doc?.devices, dispatchOp, writerTexts, writerList, baseList, formulaContext]);
+
+  const renderDevice = (device: TelaDevice, readOnly = false) => renderTelaDevice(device, renderCtx, readOnly);
+
+  // ── Author-in-place flying menu (canvas ↔ same menu as the embed) ────────────
+
+  const openFlying = (ref: FlyingRef, e: { clientX: number; clientY: number }) =>
+    setFlying({ ref, anchor: { x: e.clientX, y: e.clientY } });
+
+  /** Pick a representative object for a whole frame — so the frame-chrome ✎
+   *  badge can raise the right per-type tools even in Page/Board posture. */
+  const frameFlyingRef = (frame: TelaFrame): FlyingRef | null => {
+    const dev = doc?.devices[frame.deviceIds[0]];
+    if (!dev) return null;
+    if (dev.type === 'VECTOR') { const o = dev.objects.find(x => x.kind === 'TEXT') || dev.objects[0]; return o ? { kind: o.kind === 'TEXT' ? 'vector-text' : 'vector-shape', deviceId: dev.id, objectId: o.id } : null; }
+    if (dev.type === 'IMAGE') { const l = [...dev.layers].reverse().find(x => x.visible) || dev.layers[dev.layers.length - 1]; return l ? { kind: 'image-layer', deviceId: dev.id, layerId: l.id } : null; }
+    if (dev.type === 'WRITER') { const b = dev.blocks.find(x => blockPlainText(x)) || dev.blocks[0]; return b ? { kind: 'writer-block', deviceId: dev.id, blockId: b.id } : null; }
+    if (dev.type === 'GRID') return { kind: 'grid-cell', deviceId: dev.id, cellKey: 'A1' };
+    if (dev.type === 'BASE') { const r = dev.rows[0], f = dev.fields[0]; return r && f ? { kind: 'base-row', deviceId: dev.id, rowId: r.id, fieldId: f.id } : null; }
+    return null;
+  };
+
+  const flyingTarget = useMemo(() => (flying && doc ? resolveFlyingTarget(doc, flying.ref) : null), [flying, doc]);
+
+  const flyingUnlock = () => dispatchOp({ type: 'SET_LOCKED', locked: false });
+  const flyingLock = async () => {
+    const cur = docRef.current;
+    if (!cur) return;
+    setPublishing(true);
+    try {
+      const { doc: stamped } = await publishTelaVersion(cur);
+      setDoc(stamped);
+      setSaveState('saved');
+      setFlying(null);
+    } finally { setPublishing(false); }
   };
 
   // ── Chrome bits ────────────────────────────────────────────────────────────
@@ -1212,6 +972,15 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
 
         <button className={topBtn} onClick={exportPdf} title="Print the active frame at exact page size — save as PDF in the print dialog">
           <FileDown size={15} /> Export PDF
+        </button>
+
+        {/* Reference-embed demo — reference-not-export + lock→propagate, live */}
+        <button
+          className={topBtn}
+          title="See this doc embedded three ways — live-editable, follow-latest, and pinned"
+          onClick={() => { const cur = docRef.current; if (cur) void saveTelaDoc(cur); window.dispatchEvent(new CustomEvent('plajah:openTelaEmbedDemo', { detail: { docId: cur?.id } })); }}
+        >
+          <Link2 size={15} /> Embed demo
         </button>
 
         {/* Save state */}
@@ -1418,7 +1187,16 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
                     })}
                     {vec!.objects.find(o => o.id === studioSel) && (
                       <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                        <div className={`${panelLbl} mb-2`}>{vec!.objects.find(o => o.id === studioSel)!.kind}</div>
+                        <div className="flex items-center mb-2">
+                          <div className={panelLbl}>{vec!.objects.find(o => o.id === studioSel)!.kind}</div>
+                          <button
+                            title="Author in place — flying menu"
+                            onClick={e => { const o = vec!.objects.find(x => x.id === studioSel)!; openFlying({ kind: o.kind === 'TEXT' ? 'vector-text' : 'vector-shape', deviceId: focus.id, objectId: o.id }, e); }}
+                            className="ml-auto grid place-items-center w-6 h-6 rounded-[7px] text-white/45 hover:text-[var(--pj-cyan,#00DAF3)] hover:bg-white/[0.06]"
+                          >
+                            <PenLine size={13} />
+                          </button>
+                        </div>
                         <TelaVectorObjectProps
                           object={vec!.objects.find(o => o.id === studioSel)!}
                           writers={writerList}
@@ -1447,6 +1225,16 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
                     ))}
                     {img.layers.find(l => l.id === studioSel) && (
                       <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                        <div className="flex items-center mb-2">
+                          <div className={panelLbl}>Layer</div>
+                          <button
+                            title="Author in place — flying menu"
+                            onClick={e => openFlying({ kind: 'image-layer', deviceId: focus.id, layerId: studioSel! }, e)}
+                            className="ml-auto grid place-items-center w-6 h-6 rounded-[7px] text-white/45 hover:text-[var(--pj-cyan,#00DAF3)] hover:bg-white/[0.06]"
+                          >
+                            <PenLine size={13} />
+                          </button>
+                        </div>
                         {img.layers.find(l => l.id === studioSel)!.sessionOnly && <div className="text-[.62rem] font-semibold mb-2" style={{ color: 'var(--pj-warning,#F59E0B)' }}>Session-only — sign in to keep this image.</div>}
                         <TelaImageLayerControls
                           layer={img.layers.find(l => l.id === studioSel)!}
@@ -1573,6 +1361,16 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
                         <Link2 size={10} /> Send items
                       </button>
                     )}
+                    {/* Author-in-place ✎ — raises the flying menu (additive to
+                        select/drag; never interferes). */}
+                    <button
+                      title="Edit in place — flying menu"
+                      onPointerDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); const ref = frameFlyingRef(frame); if (ref) openFlying(ref, e); }}
+                      className="ml-auto grid place-items-center w-5 h-5 rounded text-white/35 hover:text-[var(--pj-cyan,#00DAF3)]"
+                    >
+                      <PenLine size={12} />
+                    </button>
                     <button
                       title="Delete frame"
                       onPointerDown={e => e.stopPropagation()}
@@ -1580,7 +1378,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
                         dispatchOp({ type: 'DELETE_FRAME', frameId: frame.id });
                         if (activeFrameId === frame.id) setActiveFrameId(null);
                       }}
-                      className="ml-auto grid place-items-center w-5 h-5 rounded text-white/35 hover:text-[var(--pj-danger,#EF4444)]"
+                      className="grid place-items-center w-5 h-5 rounded text-white/35 hover:text-[var(--pj-danger,#EF4444)]"
                     >
                       <Trash2 size={12} />
                     </button>
@@ -1724,6 +1522,22 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
           document.body,
         );
       })()}
+
+      {/* ── Author-in-place flying menu ─────────────────────────────────────── */}
+      {flying && flyingTarget && (
+        <TelaFlyingMenu
+          anchor={flying.anchor}
+          target={flyingTarget}
+          locked={!!doc.locked}
+          canEdit={true /* TODO: rights via contentLicense/orgPermissions — author owns the canvas here */}
+          publishing={publishing}
+          writers={writerList}
+          onDispatch={dispatchOp}
+          onUnlock={flyingUnlock}
+          onLock={flyingLock}
+          onClose={() => setFlying(null)}
+        />
+      )}
     </div>
   );
 };

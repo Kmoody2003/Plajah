@@ -168,6 +168,9 @@ const GalleryView = retryLazy(() => import('./components/gallery/GalleryView'));
 const GalleryEditor = retryLazy(() => import('./components/gallery/GalleryEditor'));
 // Tela — the unified document canvas (P0: canvas + Writer + Grid devices)
 const TelaView = retryLazy(() => import('./components/tela/TelaView'));
+const CreatorHub = retryLazy(() => import('./components/CreatorHub'));
+// Tela reference-embed demo (P2b — live/follow-latest/pinned, lock→propagate)
+const TelaEmbedDemo = retryLazy(() => import('./components/tela/TelaEmbedDemo'));
 const EventPhotoPoolView = retryLazy(() => import('./components/EventPhotoPoolView'));
 import LandingPage from './components/LandingPage';
 import { isEducationAccount } from './services/intimateGating';
@@ -681,6 +684,13 @@ const App: React.FC = () => {
     const h = () => setView('TELA');
     window.addEventListener('plajah:openTela', h as EventListener);
     return () => window.removeEventListener('plajah:openTela', h as EventListener);
+  }, [setView]);
+
+  // Open the Tela reference-embed demo (P2b) from anywhere.
+  useEffect(() => {
+    const h = () => setView('TELA_EMBED_DEMO');
+    window.addEventListener('plajah:openTelaEmbedDemo', h as EventListener);
+    return () => window.removeEventListener('plajah:openTelaEmbedDemo', h as EventListener);
   }, [setView]);
 
   // Open a specific match's fan room from anywhere (live match cards dispatch this).
@@ -5340,7 +5350,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </ErrorBoundary>
               </div>
             )}
-            {view === 'CREATOR' && user && <UserDashboard user={user} initialTab={dashboardInitialTab} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} onOpenScriptStudio={(fmt) => { setSelectedScriptId(undefined); setView('SCRIPT_STUDIO'); }} />}
+            {view === 'CREATOR' && shellNext.enabled && (
+              <CreatorHub
+                user={user}
+                userProfile={userProfile}
+                onNavigate={(v) => setView(v as AppView)}
+                onOpenDashboard={() => { if (user) setView('CREATOR_DASHBOARD'); else loginWithGoogle(); }}
+                onCreate={() => { if (user) setShowCreator(true); else loginWithGoogle(); }}
+                onGoLive={() => setView('LIVE_HUB')}
+              />
+            )}
+            {view === 'CREATOR' && !shellNext.enabled && user && <UserDashboard user={user} initialTab={dashboardInitialTab} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} onOpenScriptStudio={(fmt) => { setSelectedScriptId(undefined); setView('SCRIPT_STUDIO'); }} />}
+            {view === 'CREATOR_DASHBOARD' && user && <UserDashboard user={user} initialTab={dashboardInitialTab} onBack={() => setView('CREATOR')} onOpenTVStudio={() => setView('TV_STUDIO')} onOpenScriptStudio={(fmt) => { setSelectedScriptId(undefined); setView('SCRIPT_STUDIO'); }} />}
             {(view === 'SEARCH' || view === 'PEOPLE') && <SearchView onBack={() => setView('DASHBOARD')} onVisitUser={handleVisitUser} currentUser={user} initialQuery={searchQuery} initialFilter={view === 'PEOPLE' ? 'PEOPLE' : undefined} />}
             {view === 'FEED' && (
               <FeedView
@@ -5464,6 +5485,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'TELA' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Opening Tela…</div>}>
                 <TelaView onBack={() => setView('CREATOR')} />
+              </Suspense>
+            )}
+            {view === 'TELA_EMBED_DEMO' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Opening embed demo…</div>}>
+                <TelaEmbedDemo onBack={() => setView('TELA')} />
               </Suspense>
             )}
             {view === 'EVENT_PHOTO_POOL' && selectedPoolId && (
