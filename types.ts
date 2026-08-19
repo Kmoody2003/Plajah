@@ -5720,8 +5720,105 @@ export interface TelaFormDevice {
   title?: string;
 }
 
+// ── Vector device — SVG objects, resolution-independent (P2) ─────────────────
+// Rendered as SVG so every object (and TEXT via <text>) stays razor-sharp at any
+// zoom — this satisfies the sharp-text mandate for DOM/SVG postures. The WGSL /
+// Slug analytic-curve text engine (spec §04) is a LATER dedicated push; SVG text
+// delivers sharp-at-zoom today.
+
+export type TelaVectorObjectKind = 'RECT' | 'ELLIPSE' | 'LINE' | 'PATH' | 'TEXT';
+
+/** One vector object. Box kinds use x/y/w/h; LINE/PATH use `points` (flat pairs). */
+export interface TelaVectorObject {
+  id: string;
+  kind: TelaVectorObjectKind;
+  /** Bounding box in artboard px (RECT / ELLIPSE / TEXT origin box). */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** LINE = [x1,y1,x2,y2]; PATH = flat polyline [x0,y0,x1,y1,…] in artboard px. */
+  points?: number[];
+  fill: string;        // css color or 'none'
+  stroke: string;      // css color or 'none'
+  strokeWidth: number;
+  rotation: number;    // degrees, about the object's own centre
+  opacity: number;     // 0..1
+  // ── TEXT-only ──
+  text?: string;
+  fontSize?: number;
+  fontFamily?: string;
+  fontWeight?: number;
+  /**
+   * When set, a TEXT object renders the plain text of that Writer device live
+   * (the binding-graph "text" edge). The object's own `text` is kept as a
+   * fallback / caption and is never destroyed by the binding.
+   */
+  boundWriterDeviceId?: string;
+}
+
+/** Vector design surface — an artboard of SVG objects (z-order = array order). */
+export interface TelaVectorDevice {
+  id: string;
+  type: 'VECTOR';
+  name?: string;
+  /** Artboard size in px; objects are positioned within. */
+  width: number;
+  height: number;
+  /** Index 0 = back of the stack, last = front. */
+  objects: TelaVectorObject[];
+}
+
+// ── Image device — stacked raster layers + non-destructive adjustments (P2) ──
+// Adjustments apply via CSS `filter` and blend via CSS `mix-blend-mode` — honest
+// for P2; a GPU/canvas bake is a later push.
+
+export type TelaBlendMode =
+  | 'normal' | 'multiply' | 'screen' | 'overlay' | 'darken' | 'lighten'
+  | 'color-dodge' | 'color-burn' | 'hard-light' | 'soft-light'
+  | 'difference' | 'exclusion' | 'hue' | 'saturation' | 'color' | 'luminosity';
+
+/** Non-destructive per-layer adjustments (neutral = the defaults below). */
+export interface TelaImageAdjust {
+  brightness: number; // 1 = neutral
+  contrast: number;   // 1 = neutral
+  saturate: number;   // 1 = neutral
+  exposure: number;   // 0 = neutral (stops-ish, folded into brightness)
+  blur: number;       // px, 0 = none
+}
+
+export interface TelaImageLayer {
+  id: string;
+  name?: string;
+  /** Firebase Storage download URL, a remote URL, or a guest object: URL. */
+  src: string;
+  /** Present when uploaded to Storage (users/{uid}/tela/…) — lets us clean up. */
+  storagePath?: string;
+  /** Guest object: URLs don't survive a reload — flagged so the UI can say so. */
+  sessionOnly?: boolean;
+  x: number;
+  y: number;
+  scale: number;      // 1 = natural
+  opacity: number;    // 0..1
+  blend: TelaBlendMode;
+  visible: boolean;
+  adjust: TelaImageAdjust;
+}
+
+/** Raster design surface — a stack of image layers (z-order = array order). */
+export interface TelaImageDevice {
+  id: string;
+  type: 'IMAGE';
+  name?: string;
+  width: number;
+  height: number;
+  /** Index 0 = bottom of the stack, last = top. */
+  layers: TelaImageLayer[];
+}
+
 export type TelaDevice =
-  | TelaWriterDevice | TelaGridDevice | TelaBaseDevice | TelaFormDevice;
+  | TelaWriterDevice | TelaGridDevice | TelaBaseDevice | TelaFormDevice
+  | TelaVectorDevice | TelaImageDevice;
 
 // ── The binding graph — typed, directional links between devices (P1) ─────────
 // A binding is `source device · selector → target device · role`. Edits flow

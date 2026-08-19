@@ -14,22 +14,27 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  ChevronDown, ChevronLeft, Database, FileDown, FilePlus2, FileUp, Folder, FormInput,
-  Grid3X3, LayoutPanelTop, Link2, Minus, Monitor, PenLine, Plus, Trash2, Type, X,
+  ChevronDown, ChevronLeft, Circle, Database, FileDown, FilePlus2, FileUp, Folder, FormInput,
+  Grid3X3, Image as ImageIcon, ImagePlus, LayoutPanelTop, Link as LinkIcon, Link2, Loader2,
+  Minus, Monitor, MousePointer2, PenLine, PenTool, Plus, Shapes, Square, Trash2, Type, X,
 } from 'lucide-react';
 import type {
   TelaBaseDevice, TelaBinding, TelaBlock, TelaDevice, TelaDoc, TelaDocMeta, TelaField,
-  TelaFormDevice, TelaFrame, TelaFramePreset, TelaGridDevice, TelaRow, TelaWriterDevice,
+  TelaFormDevice, TelaFrame, TelaFramePreset, TelaGridDevice, TelaImageDevice, TelaImageLayer,
+  TelaRow, TelaVectorDevice, TelaVectorObject, TelaWriterDevice,
 } from '../../types';
 import {
   deleteTelaDoc, listTelaDocs, loadTelaDoc, newTelaId, saveTelaDoc, telaStorageMode,
 } from '../../services/telaStore';
 import { auth } from '../../services/backendService';
 import { extractDocument, isSupportedImport, escapeHtml, SUPPORTED_IMPORT_ACCEPT } from '../../services/documentImport';
+import { uploadTelaImage } from '../../services/telaAssets';
 import TelaWriter, { makeBlock, newBlockId } from './TelaWriter';
 import TelaGrid, { cellKey, type TelaBaseLite, type TelaFormulaContext } from './TelaGrid';
 import TelaBase from './TelaBase';
 import TelaForm from './TelaForm';
+import TelaVector, { TelaVectorObjectProps, type VectorTool } from './TelaVector';
+import TelaImage, { TelaImageLayerControls, ImageLayerRow, makeImageLayer } from './TelaImage';
 
 // ── Presets ───────────────────────────────────────────────────────────────────
 // CSS px at 96dpi, so 816px prints as exactly 8.5in via @page.
@@ -49,6 +54,16 @@ const SCREEN_PRESETS: TelaFramePreset[] = ['SIGNAGE_1080x1920', 'PHONE', 'SQUARE
 const CHROME_H = 30;
 
 const uid = (p: string) => `${p}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+// Studio left-rail vector tools (mirrors TelaVector's own palette).
+const STUDIO_VEC_TOOLS: { id: VectorTool; icon: React.ReactNode; label: string }[] = [
+  { id: 'select', icon: <MousePointer2 size={17} />, label: 'Select' },
+  { id: 'rect', icon: <Square size={17} />, label: 'Rectangle' },
+  { id: 'ellipse', icon: <Circle size={17} />, label: 'Ellipse' },
+  { id: 'line', icon: <Minus size={17} />, label: 'Line' },
+  { id: 'pen', icon: <PenTool size={17} />, label: 'Pen / polyline' },
+  { id: 'text', icon: <Type size={17} />, label: 'Text' },
+];
 
 // ── Ops — every mutation flows through here (CRDT-friendly shape) ─────────────
 
@@ -72,9 +87,29 @@ type TelaOp =
   | { type: 'REPLACE_DERIVED_ROWS'; deviceId: string; bindingId: string; rows: TelaRow[] }
   // ── Form ops ────────────────────────────────────────────────────────────────
   | { type: 'SET_FORM_BASE'; deviceId: string; baseDeviceId: string }
+  // ── Vector (SVG design) ops ─────────────────────────────────────────────────
+  | { type: 'ADD_VECTOR_OBJECT'; deviceId: string; object: TelaVectorObject }
+  | { type: 'UPDATE_VECTOR_OBJECT'; deviceId: string; objectId: string; patch: Partial<TelaVectorObject> }
+  | { type: 'DELETE_VECTOR_OBJECT'; deviceId: string; objectId: string }
+  | { type: 'REORDER_VECTOR_OBJECT'; deviceId: string; objectId: string; toIndex: number }
+  // ── Image (raster) ops ──────────────────────────────────────────────────────
+  | { type: 'ADD_IMAGE_LAYER'; deviceId: string; layer: TelaImageLayer }
+  | { type: 'UPDATE_IMAGE_LAYER'; deviceId: string; layerId: string; patch: Partial<TelaImageLayer> }
+  | { type: 'DELETE_IMAGE_LAYER'; deviceId: string; layerId: string }
+  | { type: 'REORDER_IMAGE_LAYER'; deviceId: string; layerId: string; toIndex: number }
   // ── Binding graph ops ───────────────────────────────────────────────────────
   | { type: 'ADD_BINDING'; binding: TelaBinding }
   | { type: 'REMOVE_BINDING'; bindingId: string };
+
+/** Move the id-matched item to `toIndex` (id-stable reorder for arrays). */
+function reorderById<T extends { id: string }>(list: T[], id: string, toIndex: number): T[] {
+  const from = list.findIndex(x => x.id === id);
+  if (from < 0) return list;
+  const next = [...list];
+  const [item] = next.splice(from, 1);
+  next.splice(Math.max(0, Math.min(list.length - 1, toIndex)), 0, item);
+  return next;
+}
 
 export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
   const now = Date.now();
@@ -166,6 +201,50 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
       const d = doc.devices[op.deviceId];
       if (!d || d.type !== 'FORM') return doc;
       return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, baseDeviceId: op.baseDeviceId } }, updatedAt: now };
+    }
+
+    // ── Vector ────────────────────────────────────────────────────────────────
+    case 'ADD_VECTOR_OBJECT': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'VECTOR') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, objects: [...d.objects, op.object] } }, updatedAt: now };
+    }
+    case 'UPDATE_VECTOR_OBJECT': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'VECTOR') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, objects: d.objects.map(o => o.id === op.objectId ? { ...o, ...op.patch } : o) } }, updatedAt: now };
+    }
+    case 'DELETE_VECTOR_OBJECT': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'VECTOR') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, objects: d.objects.filter(o => o.id !== op.objectId) } }, updatedAt: now };
+    }
+    case 'REORDER_VECTOR_OBJECT': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'VECTOR') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, objects: reorderById(d.objects, op.objectId, op.toIndex) } }, updatedAt: now };
+    }
+
+    // ── Image ─────────────────────────────────────────────────────────────────
+    case 'ADD_IMAGE_LAYER': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'IMAGE') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, layers: [...d.layers, op.layer] } }, updatedAt: now };
+    }
+    case 'UPDATE_IMAGE_LAYER': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'IMAGE') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, layers: d.layers.map(l => l.id === op.layerId ? { ...l, ...op.patch } : l) } }, updatedAt: now };
+    }
+    case 'DELETE_IMAGE_LAYER': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'IMAGE') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, layers: d.layers.filter(l => l.id !== op.layerId) } }, updatedAt: now };
+    }
+    case 'REORDER_IMAGE_LAYER': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'IMAGE') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, layers: reorderById(d.layers, op.layerId, op.toIndex) } }, updatedAt: now };
     }
 
     // ── Binding graph ─────────────────────────────────────────────────────────
@@ -359,9 +438,16 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
   const [bindTarget, setBindTarget] = useState<string>('new'); // 'new' | base device id
   const [bindText, setBindText] = useState<string>('');
   const [bindNumber, setBindNumber] = useState<string>('');
+  // Studio posture — tool + selection lifted so the canvas and the Layers panel
+  // stay in sync (select on canvas ↔ select in panel).
+  const [studioTool, setStudioTool] = useState<VectorTool>('select');
+  const [studioSel, setStudioSel] = useState<string | null>(null); // object OR layer id
+  const [studioImgBusy, setStudioImgBusy] = useState(false);
+  const [studioUrl, setStudioUrl] = useState('');
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const studioFileRef = useRef<HTMLInputElement>(null);
   const docRef = useRef<TelaDoc | null>(null);
   docRef.current = doc;
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -528,6 +614,41 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
     [doc],
   );
 
+  /** Live plain text of every Writer, for TEXT objects bound to one. */
+  const writerTexts = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const id in (doc?.devices || {})) {
+      const d = doc!.devices[id];
+      if (d.type === 'WRITER') m[id] = d.blocks.map(blockPlainText).filter(Boolean).join('\n');
+    }
+    return m;
+  }, [doc?.devices]);
+
+  /** Writers available to bind a Vector TEXT object to (id + friendly name). */
+  const writerList = useMemo(
+    () => (doc?.frames || []).flatMap(f => f.deviceIds.map(id => {
+      const d = doc?.devices[id];
+      return d?.type === 'WRITER' ? { id: d.id, name: f.label || 'Writer' } : null;
+    })).filter((x): x is { id: string; name: string } => !!x),
+    [doc],
+  );
+
+  /** Studio focus — the Vector/Image device the Studio posture operates on:
+   *  the active frame's design device, else the first design frame in the doc. */
+  const studioFocus = useMemo(() => {
+    if (!doc) return null;
+    const isDesign = (d?: TelaDevice) => d?.type === 'VECTOR' || d?.type === 'IMAGE';
+    const frame = (activeFrameId && doc.frames.find(f => f.id === activeFrameId)?.deviceIds.some(id => isDesign(doc.devices[id])))
+      ? doc.frames.find(f => f.id === activeFrameId)!
+      : doc.frames.find(f => f.deviceIds.some(id => isDesign(doc.devices[id]))) || null;
+    const device = frame ? (frame.deviceIds.map(id => doc.devices[id]).find(isDesign) || null) : null;
+    return device ? { frame: frame!, device } : null;
+  }, [doc, activeFrameId]);
+
+  // Reset the Studio selection/tool whenever the focused design device changes.
+  const studioDevId = studioFocus?.device.id || null;
+  useEffect(() => { setStudioSel(null); setStudioTool('select'); }, [studioDevId]);
+
   /** Cross-device formula resolution — grids/bases by name/label/id (live). */
   const formulaContext = useMemo<TelaFormulaContext>(() => {
     const grids = new Map<string, Record<string, string>>();
@@ -590,6 +711,16 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
         while ((m = xg.exec(raw))) addRef(m[1], f);
         const bg = /\b(?:COUNT|SUM|AVG|AVERAGE|MIN|MAX)\(\s*([A-Za-z_][A-Za-z0-9_ ]*?)(?:\.[A-Za-z0-9_ ]+)?\s*\)/gi;
         while ((m = bg.exec(raw))) addRef(m[1], f);
+      }
+    }
+    // Vector TEXT objects bound to a Writer → a live 'text' edge (writer → vector).
+    for (const f of doc.frames) for (const id of f.deviceIds) {
+      const dev = doc.devices[id];
+      if (!dev || dev.type !== 'VECTOR') continue;
+      for (const o of dev.objects) {
+        if (o.kind !== 'TEXT' || !o.boundWriterDeviceId) continue;
+        const src = deviceFrame.get(o.boundWriterDeviceId);
+        if (src && src.id !== f.id) edges.push({ from: src, to: f, label: 'text' });
       }
     }
     return edges;
@@ -722,6 +853,37 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
     const bases = (docRef.current?.frames || []).flatMap(f => f.deviceIds).map(id => docRef.current?.devices[id]).filter((d): d is TelaBaseDevice => d?.type === 'BASE');
     const form: TelaFormDevice = { id: uid('dev'), type: 'FORM', baseDeviceId: bases[0]?.id, title: 'Form' };
     addFrame('BOARD', 'FREE', form, 'Form', { size: { w: 460, h: 560 } });
+  };
+  // Vector artboard — an A4 poster by default so Export prints it sharp (SVG).
+  const addVectorArtboard = () => {
+    const n = (docRef.current?.frames.filter(f => f.deviceIds.some(id => docRef.current?.devices[id]?.type === 'VECTOR')).length || 0) + 1;
+    const p = PRESETS.A4;
+    const dev: TelaVectorDevice = { id: uid('dev'), type: 'VECTOR', name: `Artboard ${n}`, width: p.w, height: p.h, objects: [] };
+    addFrame('PAPER', 'A4', dev, dev.name!);
+    setPosture('STUDIO');
+  };
+  // Image canvas — a raster surface hosting stacked layers.
+  const addImageCanvas = () => {
+    const n = (docRef.current?.frames.filter(f => f.deviceIds.some(id => docRef.current?.devices[id]?.type === 'IMAGE')).length || 0) + 1;
+    const dev: TelaImageDevice = { id: uid('dev'), type: 'IMAGE', name: `Image ${n}`, width: 1000, height: 750, layers: [] };
+    addFrame('BOARD', 'FREE', dev, dev.name!, { size: { w: 1000, h: 750 } });
+    setPosture('STUDIO');
+  };
+
+  // Studio image adds — dispatched here so the Studio's own rail/panel can add
+  // layers while the device renders chrome-less (Studio hosts the controls).
+  const studioAddImageFile = async (deviceId: string, file: File) => {
+    setStudioImgBusy(true);
+    try {
+      const r = await uploadTelaImage(file);
+      dispatchOp({ type: 'ADD_IMAGE_LAYER', deviceId, layer: makeImageLayer(r.src, file.name.replace(/\.[^.]+$/, ''), { storagePath: r.storagePath, sessionOnly: r.sessionOnly }) });
+    } catch (e) { console.error('[Tela Studio] image upload failed', e); }
+    finally { setStudioImgBusy(false); }
+  };
+  const studioAddImageUrl = (deviceId: string) => {
+    const u = studioUrl.trim();
+    if (u) dispatchOp({ type: 'ADD_IMAGE_LAYER', deviceId, layer: makeImageLayer(u, 'Image') });
+    setStudioUrl('');
   };
 
   // Frame dragging by its chrome.
@@ -880,6 +1042,36 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
         />
       );
     }
+    if (device.type === 'VECTOR') {
+      return (
+        <TelaVector
+          key={device.id}
+          device={device}
+          readOnly={readOnly}
+          chrome={!readOnly}
+          writerTexts={writerTexts}
+          writers={writerList}
+          onAddObject={object => dispatchOp({ type: 'ADD_VECTOR_OBJECT', deviceId: device.id, object })}
+          onUpdateObject={(objectId, patch) => dispatchOp({ type: 'UPDATE_VECTOR_OBJECT', deviceId: device.id, objectId, patch })}
+          onDeleteObject={objectId => dispatchOp({ type: 'DELETE_VECTOR_OBJECT', deviceId: device.id, objectId })}
+          onReorder={(objectId, toIndex) => dispatchOp({ type: 'REORDER_VECTOR_OBJECT', deviceId: device.id, objectId, toIndex })}
+        />
+      );
+    }
+    if (device.type === 'IMAGE') {
+      return (
+        <TelaImage
+          key={device.id}
+          device={device}
+          readOnly={readOnly}
+          chrome={!readOnly}
+          onAddLayer={layer => dispatchOp({ type: 'ADD_IMAGE_LAYER', deviceId: device.id, layer })}
+          onUpdateLayer={(layerId, patch) => dispatchOp({ type: 'UPDATE_IMAGE_LAYER', deviceId: device.id, layerId, patch })}
+          onDeleteLayer={layerId => dispatchOp({ type: 'DELETE_IMAGE_LAYER', deviceId: device.id, layerId })}
+          onReorder={(layerId, toIndex) => dispatchOp({ type: 'REORDER_IMAGE_LAYER', deviceId: device.id, layerId, toIndex })}
+        />
+      );
+    }
     return (
       <TelaGrid
         key={device.id}
@@ -971,6 +1163,8 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
               <button className={menuItem} onClick={addGridSheet}><Grid3X3 size={15} className="text-[var(--pj-cyan,#00DAF3)]" /> Grid sheet</button>
               <button className={menuItem} onClick={addBaseTable}><Database size={15} className="text-[var(--pj-success,#06D6A0)]" /> Base table<span className="ml-auto text-[.62rem] text-white/40">Database</span></button>
               <button className={menuItem} onClick={addFormFrame}><FormInput size={15} className="text-[var(--pj-magenta,#D40055)]" /> Form<span className="ml-auto text-[.62rem] text-white/40">→ Base</span></button>
+              <button className={menuItem} onClick={addVectorArtboard}><Shapes size={15} className="text-[var(--pj-lilac,#D0BCFF)]" /> Vector<span className="ml-auto text-[.62rem] text-white/40">Studio</span></button>
+              <button className={menuItem} onClick={addImageCanvas}><ImageIcon size={15} className="text-[var(--pj-cyan,#00DAF3)]" /> Image<span className="ml-auto text-[.62rem] text-white/40">Layers</span></button>
               <button className={menuItem} onClick={addScreenFrame}><Monitor size={15} className="text-[var(--pj-orange,#FF8C00)]" /> Screen frame<span className="ml-auto text-[.62rem] text-white/40">1080×1920</span></button>
             </div>
           )}
@@ -1092,23 +1286,181 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
       )}
 
       {/* ── Surface ─────────────────────────────────────────────────────────── */}
-      {posture === 'STUDIO' ? (
-        <div className="flex-1 grid place-items-center">
-          <div
-            className="text-center px-10 py-12 rounded-[var(--pj-radius-xl,28px)] border"
-            style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.035)', maxWidth: 420 }}
-          >
-            <span className="inline-grid place-items-center w-12 h-12 rounded-[14px] mb-4 text-white" style={{ background: 'var(--pj-grad-spatial, linear-gradient(135deg,#6B0099,#00DAF3))' }}>
-              <PenLine size={20} />
-            </span>
-            <h2 className="font-display italic text-white text-[1.3rem] mb-2">Studio — coming in P2</h2>
-            <p className="text-[.82rem] text-white/50 leading-relaxed">
-              Vector, Image, and Layout devices — layers, masks, adjustments, and
-              text flow — arrive with the Studio posture. Page and Board are live now.
-            </p>
+      {posture === 'STUDIO' ? (() => {
+        // No Vector/Image in focus → gentle hint (Studio tools don't fake text-device tools).
+        if (!studioFocus) {
+          const hasWriterFocus = !!activeFrame;
+          return (
+            <div className="flex-1 grid place-items-center" style={{ background: '#141318' }}>
+              <div className="text-center px-10 py-12 rounded-[var(--pj-radius-xl,28px)] border" style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.035)', maxWidth: 440 }}>
+                <span className="inline-grid place-items-center w-12 h-12 rounded-[14px] mb-4 text-white" style={{ background: 'var(--pj-grad-spatial, linear-gradient(135deg,#6B0099,#00DAF3))' }}>
+                  <PenLine size={20} />
+                </span>
+                <h2 className="font-display italic text-white text-[1.3rem] mb-2">The Studio</h2>
+                <p className="text-[.82rem] text-white/55 leading-relaxed mb-5">
+                  {hasWriterFocus
+                    ? 'Studio tools apply to Vector & Image devices. Add one to design here — your Writer, Grid, Base and Form stay editable in Page and Board.'
+                    : 'Add a Vector artboard or an Image canvas to start designing — layers, shapes, adjustments, and text bound live to your Writer.'}
+                </p>
+                <div className="flex items-center justify-center gap-2">
+                  <button className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-[10px] text-[.78rem] font-bold text-white" style={{ background: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))' }} onClick={addVectorArtboard}><Shapes size={15} /> Vector</button>
+                  <button className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-[10px] text-[.78rem] font-bold text-white" style={{ background: 'var(--pj-grad-spatial, linear-gradient(135deg,#6B0099,#00DAF3))' }} onClick={addImageCanvas}><ImageIcon size={15} /> Image</button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        const focus = studioFocus.device;
+        const isVec = focus.type === 'VECTOR';
+        const vec = isVec ? (focus as TelaVectorDevice) : null;
+        const img = !isVec ? (focus as TelaImageDevice) : null;
+        const railBtn = (active: boolean): React.CSSProperties => ({
+          display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: 10, border: 'none', cursor: 'pointer',
+          color: active ? '#fff' : 'rgba(255,255,255,0.5)',
+          background: active ? 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))' : 'transparent',
+        });
+        const panelLbl = 'text-[.6rem] font-extrabold uppercase tracking-[.14em] text-white/40';
+
+        return (
+          <div className="flex-1 flex min-h-0">
+            {/* Left tool rail */}
+            <div className="shrink-0 flex flex-col items-center gap-1 py-3" style={{ width: 54, borderRight: '1px solid rgba(255,255,255,0.08)', background: '#0b0a10' }}>
+              {isVec
+                ? STUDIO_VEC_TOOLS.map(t => (
+                    <button key={t.id} title={t.label} style={railBtn(studioTool === t.id)} onClick={() => setStudioTool(t.id)}>{t.icon}</button>
+                  ))
+                : (
+                  <>
+                    <button title="Select / move" style={railBtn(true)} onClick={() => {}}><MousePointer2 size={17} /></button>
+                    <button title="Upload image layer" style={railBtn(false)} disabled={studioImgBusy} onClick={() => studioFileRef.current?.click()}>{studioImgBusy ? <Loader2 size={17} className="animate-spin" /> : <ImagePlus size={17} />}</button>
+                  </>
+                )}
+            </div>
+
+            {/* Center stage — rulers + artboard */}
+            <div className="flex-1 relative overflow-auto" style={{ background: '#141318' }}>
+              {/* Studio top-strip */}
+              <div className="sticky top-0 z-10 flex items-center gap-2 px-4 h-9" style={{ background: 'rgba(11,10,16,0.9)', borderBottom: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(6px)' }}>
+                <span className="text-[.72rem] font-bold text-white/80">{focus.name || (isVec ? 'Artboard' : 'Image')}</span>
+                <span className="text-[.64rem] font-semibold text-white/35">{isVec ? 'Vector' : 'Image'} · {focus.width}×{focus.height}</span>
+                <span className="ml-auto text-[.62rem] text-white/30">{isVec ? `${vec!.objects.length} objects` : `${img!.layers.length} layers`}</span>
+              </div>
+              {/* Rulers */}
+              <div style={{ position: 'sticky', top: 36, left: 0, height: 14, marginLeft: 14, background: '#0b0a10', borderBottom: '1px solid rgba(255,255,255,0.08)', backgroundImage: 'repeating-linear-gradient(90deg,rgba(255,255,255,0.08) 0 1px,transparent 1px 40px)', zIndex: 5 }} />
+              <div style={{ position: 'absolute', top: 50, left: 0, bottom: 0, width: 14, background: '#0b0a10', borderRight: '1px solid rgba(255,255,255,0.08)', backgroundImage: 'repeating-linear-gradient(0deg,rgba(255,255,255,0.08) 0 1px,transparent 1px 40px)', zIndex: 5 }} />
+              {/* Artboard */}
+              <div style={{ minHeight: 'calc(100% - 50px)', display: 'grid', placeItems: 'center', padding: '40px 40px 60px 54px' }}>
+                <div style={{ borderRadius: 3, overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08)' }}>
+                  {isVec ? (
+                    <TelaVector
+                      device={vec!} chrome={false}
+                      tool={studioTool} onToolChange={setStudioTool}
+                      selectedId={studioSel} onSelect={setStudioSel}
+                      writerTexts={writerTexts} writers={writerList}
+                      onAddObject={object => dispatchOp({ type: 'ADD_VECTOR_OBJECT', deviceId: focus.id, object })}
+                      onUpdateObject={(objectId, patch) => dispatchOp({ type: 'UPDATE_VECTOR_OBJECT', deviceId: focus.id, objectId, patch })}
+                      onDeleteObject={objectId => dispatchOp({ type: 'DELETE_VECTOR_OBJECT', deviceId: focus.id, objectId })}
+                      onReorder={(objectId, toIndex) => dispatchOp({ type: 'REORDER_VECTOR_OBJECT', deviceId: focus.id, objectId, toIndex })}
+                    />
+                  ) : (
+                    <TelaImage
+                      device={img!} chrome={false}
+                      selectedId={studioSel} onSelect={setStudioSel}
+                      onAddLayer={layer => dispatchOp({ type: 'ADD_IMAGE_LAYER', deviceId: focus.id, layer })}
+                      onUpdateLayer={(layerId, patch) => dispatchOp({ type: 'UPDATE_IMAGE_LAYER', deviceId: focus.id, layerId, patch })}
+                      onDeleteLayer={layerId => dispatchOp({ type: 'DELETE_IMAGE_LAYER', deviceId: focus.id, layerId })}
+                      onReorder={(layerId, toIndex) => dispatchOp({ type: 'REORDER_IMAGE_LAYER', deviceId: focus.id, layerId, toIndex })}
+                    />
+                  )}
+                </div>
+              </div>
+              <input ref={studioFileRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f && img) void studioAddImageFile(img.id, f); e.target.value = ''; }} />
+            </div>
+
+            {/* Right — Layers panel */}
+            <div className="shrink-0 flex flex-col min-h-0" style={{ width: 248, borderLeft: '1px solid rgba(255,255,255,0.08)', background: '#0e0d14' }}>
+              <div className="flex items-center gap-2 px-3.5 h-9 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                <span className={panelLbl}>Layers</span>
+              </div>
+
+              {/* Image: add-layer row */}
+              {img && (
+                <div className="px-3 py-2.5 flex flex-col gap-2 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <button onClick={() => studioFileRef.current?.click()} disabled={studioImgBusy} className="flex items-center justify-center gap-1.5 h-8 rounded-[9px] text-[.74rem] font-bold text-white" style={{ background: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))' }}>
+                    {studioImgBusy ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />} {studioImgBusy ? 'Uploading…' : 'Add image'}
+                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <input value={studioUrl} onChange={e => setStudioUrl(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') studioAddImageUrl(img.id); }} placeholder="…or paste image URL" className="flex-1 min-w-0 h-8 px-2.5 rounded-[9px] text-[.72rem] text-white/85 outline-none" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.14)' }} />
+                    <button onClick={() => studioAddImageUrl(img.id)} className="grid place-items-center w-8 h-8 rounded-[9px] text-white/70" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.14)' }}><LinkIcon size={14} /></button>
+                  </div>
+                </div>
+              )}
+
+              {/* The list + selected props */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar px-2.5 py-2.5">
+                {isVec && (
+                  <>
+                    {vec!.objects.length === 0 && <div className="px-1 py-2 text-[.72rem] text-white/35">Empty artboard — pick a tool and draw.</div>}
+                    {vec!.objects.map((o, idx) => ({ o, idx })).reverse().map(({ o, idx }) => {
+                      const sel = studioSel === o.id;
+                      const bound = o.kind === 'TEXT' && o.boundWriterDeviceId;
+                      const sw = o.fill !== 'none' ? o.fill : (o.stroke !== 'none' ? o.stroke : '#888');
+                      return (
+                        <div key={o.id} onClick={() => setStudioSel(o.id)} className="flex items-center gap-2 px-2 py-1.5 mb-0.5 rounded-[8px] cursor-pointer" style={{ background: sel ? 'rgba(255,255,255,0.09)' : 'transparent', border: sel ? '1px solid rgba(255,255,255,0.14)' : '1px solid transparent' }}>
+                          <span className="w-4 h-4 rounded-[4px] shrink-0" style={{ background: sw, border: '1px solid rgba(255,255,255,0.2)' }} />
+                          <span className="flex-1 min-w-0 text-[.74rem] text-white/85 truncate">{o.kind === 'TEXT' ? (o.text || 'Text') : o.kind[0] + o.kind.slice(1).toLowerCase()}</span>
+                          {bound && <Link2 size={11} className="shrink-0 text-[var(--pj-cyan,#00DAF3)]" />}
+                          <button title="Bring forward" onClick={e => { e.stopPropagation(); dispatchOp({ type: 'REORDER_VECTOR_OBJECT', deviceId: focus.id, objectId: o.id, toIndex: idx + 1 }); }} className="grid place-items-center w-4 h-5 text-white/45 hover:text-white"><Plus size={11} /></button>
+                          <button title="Delete" onClick={e => { e.stopPropagation(); dispatchOp({ type: 'DELETE_VECTOR_OBJECT', deviceId: focus.id, objectId: o.id }); if (studioSel === o.id) setStudioSel(null); }} className="grid place-items-center w-4 h-5 text-white/35 hover:text-[var(--pj-danger,#EF4444)]"><Trash2 size={11} /></button>
+                        </div>
+                      );
+                    })}
+                    {vec!.objects.find(o => o.id === studioSel) && (
+                      <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                        <div className={`${panelLbl} mb-2`}>{vec!.objects.find(o => o.id === studioSel)!.kind}</div>
+                        <TelaVectorObjectProps
+                          object={vec!.objects.find(o => o.id === studioSel)!}
+                          writers={writerList}
+                          onUpdate={patch => dispatchOp({ type: 'UPDATE_VECTOR_OBJECT', deviceId: focus.id, objectId: studioSel!, patch })}
+                          onDelete={() => { dispatchOp({ type: 'DELETE_VECTOR_OBJECT', deviceId: focus.id, objectId: studioSel! }); setStudioSel(null); }}
+                          onForward={() => { const i = vec!.objects.findIndex(o => o.id === studioSel); dispatchOp({ type: 'REORDER_VECTOR_OBJECT', deviceId: focus.id, objectId: studioSel!, toIndex: i + 1 }); }}
+                          onBack={() => { const i = vec!.objects.findIndex(o => o.id === studioSel); dispatchOp({ type: 'REORDER_VECTOR_OBJECT', deviceId: focus.id, objectId: studioSel!, toIndex: i - 1 }); }}
+                          compact
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+                {img && (
+                  <>
+                    {img.layers.length === 0 && <div className="px-1 py-2 text-[.72rem] text-white/35">No layers — add an image above.</div>}
+                    {[...img.layers].map((l, idx) => ({ l, idx })).reverse().map(({ l, idx }) => (
+                      <ImageLayerRow
+                        key={l.id} layer={l} selected={studioSel === l.id}
+                        onSelect={() => setStudioSel(l.id)}
+                        onToggle={() => dispatchOp({ type: 'UPDATE_IMAGE_LAYER', deviceId: focus.id, layerId: l.id, patch: { visible: !l.visible } })}
+                        onForward={() => dispatchOp({ type: 'REORDER_IMAGE_LAYER', deviceId: focus.id, layerId: l.id, toIndex: idx + 1 })}
+                        onBack={() => dispatchOp({ type: 'REORDER_IMAGE_LAYER', deviceId: focus.id, layerId: l.id, toIndex: idx - 1 })}
+                        onDelete={() => { dispatchOp({ type: 'DELETE_IMAGE_LAYER', deviceId: focus.id, layerId: l.id }); if (studioSel === l.id) setStudioSel(null); }}
+                      />
+                    ))}
+                    {img.layers.find(l => l.id === studioSel) && (
+                      <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                        {img.layers.find(l => l.id === studioSel)!.sessionOnly && <div className="text-[.62rem] font-semibold mb-2" style={{ color: 'var(--pj-warning,#F59E0B)' }}>Session-only — sign in to keep this image.</div>}
+                        <TelaImageLayerControls
+                          layer={img.layers.find(l => l.id === studioSel)!}
+                          onUpdate={patch => dispatchOp({ type: 'UPDATE_IMAGE_LAYER', deviceId: focus.id, layerId: studioSel!, patch })}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      ) : (
+        );
+      })() : (
         <div
           ref={viewportRef}
           className="flex-1 relative overflow-hidden"
