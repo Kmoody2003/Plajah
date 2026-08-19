@@ -11,20 +11,27 @@
  * Nothing is gated behind auth *inside the hub*: guests see every tool and the
  * cards navigate; only the greeting changes for signed-out visitors.
  */
-import React from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   Music2, Sparkles, LayoutPanelTop, Film, Clapperboard, MonitorPlay, Cctv,
   TrendingUp, Mail, AppWindow, Repeat, Briefcase, ShoppingBag, MapPin, BookOpen,
-  Plus, Radio, LayoutDashboard, ArrowRight, ArrowUpRight, Wand2, Video, PenLine,
+  Plus, Radio, ArrowRight, ArrowUpRight, Wand2, Video, PenLine,
+  FolderOpen, Globe, ScrollText, LogIn,
 } from 'lucide-react';
-import type { UserProfile } from '../types';
+import type { UserProfile, Album, IPWorld } from '../types';
+import { fetchUserAlbums, fetchUserWorlds } from '../services/backendService';
+import { listWritingProjects } from '../services/loreaProjectsService';
+import { listMyManifests, listTelaDocs } from '../services/telaStore';
+// fabulaProjects is JS (no types) — listProjectsCloud() reads the signed-in user's films.
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore — untyped JS module
+import { listProjectsCloud } from '../services/fabulaProjects';
 
 export interface CreatorHubProps {
   user: any | null;
   userProfile: UserProfile | null;
   onNavigate: (view: string) => void;   // pass a view id; parent routes it
-  onOpenDashboard?: () => void;          // opens the existing UserDashboard
   onCreate?: () => void;                 // global create action
   onGoLive?: () => void;                 // start live
 }
@@ -131,8 +138,140 @@ const CLUSTERS: Cluster[] = [
 /* Quick-create chips — honest actions only, no fabricated data. */
 interface QuickChip { label: string; icon: Lucide; run: () => void; }
 
+/* ── "Your Projects" — the real work the user has across the creative stack.
+   Every source below is a genuine per-user loader discovered in the codebase;
+   nothing is fabricated. One failing source never blanks the section. ───────── */
+type ProjectKind = 'MUSIC' | 'BOOK' | 'TELA' | 'FILM' | 'SCRIPT' | 'WORLD';
+
+interface ProjectItem {
+  kind: ProjectKind;
+  id: string;
+  title: string;
+  cover?: string;
+  updatedAt?: number;
+  subtitle?: string;
+}
+
+interface KindMeta { label: string; icon: Lucide; hue: string; grad: string; }
+const KIND_META: Record<ProjectKind, KindMeta> = {
+  MUSIC:  { label: 'Music',  icon: Music2,         hue: '#D40055', grad: 'linear-gradient(135deg,#D40055,#6B0099)' },
+  FILM:   { label: 'Film',   icon: Film,           hue: '#00DAF3', grad: 'linear-gradient(135deg,#00DAF3,#0066FF)' },
+  SCRIPT: { label: 'Script', icon: ScrollText,     hue: '#FF8C00', grad: 'linear-gradient(135deg,#FF8C00,#D40055)' },
+  BOOK:   { label: 'Book',   icon: BookOpen,       hue: '#8B5CF6', grad: 'linear-gradient(135deg,#8B5CF6,#6B0099)' },
+  TELA:   { label: 'Doc',    icon: LayoutPanelTop, hue: '#14B8A6', grad: 'linear-gradient(135deg,#14B8A6,#00DAF3)' },
+  WORLD:  { label: 'World',  icon: Globe,          hue: '#6366F1', grad: 'linear-gradient(135deg,#6366F1,#8B5CF6)' },
+};
+/** Which tool each project kind opens in. Item-level deep-links aren't in the
+ *  onNavigate contract, so each card lands in the tool that lists that project
+ *  kind (Tela uses its canonical self-contained CustomEvent). */
+function openProject(item: ProjectItem, onNavigate: (v: string) => void): void {
+  switch (item.kind) {
+    case 'MUSIC':  onNavigate('ARTIST_MANAGER'); break;
+    case 'BOOK':   onNavigate('BOOKS'); break;
+    case 'SCRIPT': onNavigate('BOOKS'); break;
+    case 'FILM':   onNavigate('FABULA'); break;
+    case 'WORLD':  onNavigate('WORLDS'); break;
+    case 'TELA':
+      try { window.dispatchEvent(new CustomEvent('plajah:openTela', { detail: { docId: item.id } })); }
+      catch { onNavigate('TELA'); }
+      break;
+  }
+}
+
+function relTime(ts?: number): string | undefined {
+  if (!ts) return undefined;
+  const diff = Date.now() - ts;
+  if (diff < 0) return 'just now';
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  const w = Math.floor(d / 7);
+  if (w < 5) return `${w}w ago`;
+  const mo = Math.floor(d / 30);
+  if (mo < 12) return `${mo}mo ago`;
+  return `${Math.floor(d / 365)}y ago`;
+}
+
+/** Load every real project source in parallel; guard each so one failure never
+ *  blanks the section. Returns a flat, recency-sorted list. */
+async function loadAllProjects(uid: string): Promise<ProjectItem[]> {
+  const results = await Promise.allSettled([
+    // Music — the user's Chora/Melos releases (albums owned by uid, non-book).
+    fetchUserAlbums(uid).then((albums: Album[]) =>
+      (albums || [])
+        .filter((a) => (a as any).type !== 'BOOK')
+        .map((a): ProjectItem => ({
+          kind: 'MUSIC',
+          id: a.id,
+          title: a.title || 'Untitled release',
+          cover: a.coverThumb || a.coverImage || undefined,
+          updatedAt: (a as any).createdAt || (a as any).timestamp || 0,
+          subtitle: Array.isArray(a.tracks) && a.tracks.length ? `${a.tracks.length} tracks` : (a.artist || 'Release'),
+        }))),
+    // Books + Screenplays — the user's real Lorea writing work.
+    listWritingProjects(uid).then(({ projects }) =>
+      (projects || []).map((p): ProjectItem => ({
+        kind: p.kind === 'SCRIPT' ? 'SCRIPT' : 'BOOK',
+        id: p.id,
+        title: p.title || (p.kind === 'SCRIPT' ? 'Untitled script' : 'Untitled book'),
+        cover: p.coverImageUrl || undefined,
+        updatedAt: p.updatedAt || p.createdAt || 0,
+        subtitle: p.kind === 'SCRIPT'
+          ? `${p.chapterCount || 0} scenes`
+          : `${p.chapterCount || 0} chapters`,
+      }))),
+    // Films — the user's Fabula productions (cloud index).
+    Promise.resolve(listProjectsCloud()).then((rows: any[]) =>
+      (rows || []).map((r): ProjectItem => ({
+        kind: 'FILM',
+        id: r.id,
+        title: r.title || 'Untitled film',
+        updatedAt: r.updated || 0,
+        subtitle: r.sceneCount ? `${r.sceneCount} scenes` : 'Production',
+      }))),
+    // Tela docs — cloud manifests + any local-only bundles, deduped by id.
+    Promise.all([
+      listMyManifests().catch(() => []),
+      listTelaDocs().catch(() => []),
+    ]).then(([cloud, local]) => {
+      const byId = new Map<string, ProjectItem>();
+      for (const m of [...cloud, ...local]) {
+        if (!m?.id || byId.has(m.id)) continue;
+        byId.set(m.id, {
+          kind: 'TELA',
+          id: m.id,
+          title: m.title || 'Untitled canvas',
+          updatedAt: m.updatedAt || 0,
+          subtitle: 'Document',
+        });
+      }
+      return [...byId.values()];
+    }),
+    // Worlds — the user's IP universes.
+    fetchUserWorlds(uid).then((worlds: IPWorld[]) =>
+      (worlds || []).map((w): ProjectItem => ({
+        kind: 'WORLD',
+        id: w.id,
+        title: w.name || 'Untitled world',
+        cover: w.coverImage || undefined,
+        updatedAt: w.publishedAt || (w as any).createdAt || (w as any).timestamp || 0,
+        subtitle: w.worldType === 'NON_FICTION' ? 'Non-fiction world' : 'Fiction world',
+      }))),
+  ]);
+
+  const items: ProjectItem[] = [];
+  for (const r of results) {
+    if (r.status === 'fulfilled' && Array.isArray(r.value)) items.push(...r.value);
+  }
+  return items.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
+
 export default function CreatorHub({
-  user, userProfile, onNavigate, onOpenDashboard, onCreate, onGoLive,
+  user, userProfile, onNavigate, onCreate, onGoLive,
 }: CreatorHubProps) {
   const isGuest = !user;
   const firstName = (userProfile?.displayName || '').trim().split(/\s+/)[0] || '';
@@ -143,6 +282,39 @@ export default function CreatorHub({
     { label: 'Go Live', icon: Radio, run: () => (onGoLive ? onGoLive() : onNavigate('LIVE_HUB')) },
     { label: 'New Post', icon: Plus, run: () => (onCreate ? onCreate() : onNavigate('FEED')) },
   ];
+
+  /* ── Projects state ── */
+  const projectsRef = useRef<HTMLDivElement | null>(null);
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState<boolean>(!isGuest);
+  const [kindFilter, setKindFilter] = useState<ProjectKind | 'ALL'>('ALL');
+
+  useEffect(() => {
+    const uid = user?.uid;
+    if (!uid) { setProjects([]); setLoadingProjects(false); return; }
+    let alive = true;
+    setLoadingProjects(true);
+    loadAllProjects(uid)
+      .then((items) => { if (alive) setProjects(items); })
+      .catch(() => { if (alive) setProjects([]); })
+      .finally(() => { if (alive) setLoadingProjects(false); });
+    return () => { alive = false; };
+  }, [user?.uid]);
+
+  const kindsPresent = useMemo(() => {
+    const set = new Set<ProjectKind>();
+    projects.forEach((p) => set.add(p.kind));
+    return (['MUSIC', 'FILM', 'BOOK', 'SCRIPT', 'TELA', 'WORLD'] as ProjectKind[]).filter((k) => set.has(k));
+  }, [projects]);
+
+  const visibleProjects = useMemo(
+    () => (kindFilter === 'ALL' ? projects : projects.filter((p) => p.kind === kindFilter)),
+    [projects, kindFilter],
+  );
+
+  const scrollToProjects = () => {
+    projectsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const ease = [0.2, 0, 0, 1] as const;
 
@@ -257,11 +429,11 @@ export default function CreatorHub({
 
             <button
               type="button"
-              onClick={() => (onOpenDashboard ? onOpenDashboard() : onNavigate('DASHBOARD'))}
+              onClick={scrollToProjects}
               className="group inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-white/[0.06] px-7 py-3.5 text-sm font-bold uppercase tracking-wide text-white/90 backdrop-blur-md transition-colors duration-200 hover:bg-white/[0.12]"
             >
-              <LayoutDashboard size={18} />
-              {isGuest ? 'Sign in' : 'Open Dashboard'}
+              <FolderOpen size={18} />
+              My Projects
             </button>
           </motion.div>
 
@@ -291,6 +463,189 @@ export default function CreatorHub({
             })}
           </motion.div>
         </div>
+      </section>
+
+      {/* ══ YOUR PROJECTS ══════════════════════════════════════════════════ */}
+      <section
+        ref={projectsRef}
+        className="relative mx-auto w-full max-w-[1400px] scroll-mt-6 px-5 pt-4 sm:px-8"
+      >
+        {/* Section header */}
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <span aria-hidden className="h-6 w-1.5 rounded-full" style={{ background: 'var(--pj-grad-brand)' }} />
+              <h2 className="font-display text-2xl font-black italic uppercase tracking-tight text-white sm:text-3xl">
+                Your Projects
+              </h2>
+            </div>
+            <p className="mt-2 max-w-xl pl-[18px] text-sm text-white/50">
+              {isGuest
+                ? 'Everything you make on Plajah — music, films, docs, books & worlds — lives here.'
+                : 'Everything you\'re building across Plajah, gathered in one place. Pick up where you left off.'}
+            </p>
+          </div>
+
+          {/* Filter segment — only when there are multiple kinds to filter */}
+          {!isGuest && !loadingProjects && kindsPresent.length > 1 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <FilterPill active={kindFilter === 'ALL'} onClick={() => setKindFilter('ALL')} label={`All ${projects.length}`} />
+              {kindsPresent.map((k) => (
+                <FilterPill
+                  key={k}
+                  active={kindFilter === k}
+                  onClick={() => setKindFilter(k)}
+                  label={KIND_META[k].label}
+                  hue={KIND_META[k].hue}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Body — guest / loading / empty / grid */}
+        {isGuest ? (
+          <div className="flex flex-col items-center justify-center rounded-[2rem] border border-white/10 bg-white/[0.03] px-8 py-14 text-center">
+            <span
+              className="mb-5 grid h-14 w-14 place-items-center rounded-2xl text-white"
+              style={{ background: 'var(--pj-grad-brand)', boxShadow: 'var(--pj-glow-brand)' }}
+            >
+              <FolderOpen size={26} />
+            </span>
+            <h3 className="font-display text-xl font-black italic tracking-tight text-white sm:text-2xl">
+              Sign in to see your projects
+            </h3>
+            <p className="mt-2 max-w-md text-sm leading-relaxed text-white/55">
+              Your music, films, documents, books and worlds all live here once you&apos;re signed in.
+              Explore every tool below in the meantime — no account needed.
+            </p>
+            <button
+              type="button"
+              onClick={() => (onCreate ? onCreate() : onNavigate('LANDING'))}
+              className="mt-6 inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-black uppercase tracking-wide text-white transition-transform duration-200 hover:-translate-y-0.5"
+              style={{ background: 'var(--pj-grad-brand)', boxShadow: 'var(--pj-glow-brand)' }}
+            >
+              <LogIn size={16} />
+              Sign in
+            </button>
+          </div>
+        ) : loadingProjects ? (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div
+                key={i}
+                className="animate-pulse overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.03]"
+              >
+                <div className="aspect-[4/3] w-full bg-white/[0.05]" />
+                <div className="space-y-2 p-4">
+                  <div className="h-3.5 w-3/4 rounded-full bg-white/[0.06]" />
+                  <div className="h-2.5 w-1/2 rounded-full bg-white/[0.04]" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : projects.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-[2rem] border border-white/10 bg-white/[0.03] px-8 py-14 text-center">
+            <span
+              className="mb-5 grid h-14 w-14 place-items-center rounded-2xl text-white"
+              style={{ background: 'var(--pj-grad-spatial)', boxShadow: '0 8px 26px rgba(0,218,243,0.25)' }}
+            >
+              <Sparkles size={26} />
+            </span>
+            <h3 className="font-display text-xl font-black italic tracking-tight text-white sm:text-2xl">
+              Start something{firstName ? `, ${firstName}` : ''} —
+            </h3>
+            <p className="mt-2 max-w-md text-sm leading-relaxed text-white/55">
+              You don&apos;t have any projects yet. Spin one up and it&apos;ll show up right here, across every tool you use.
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
+              {quickChips.map((c) => {
+                const Icon = c.icon;
+                return (
+                  <button
+                    key={c.label}
+                    type="button"
+                    onClick={c.run}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.14] bg-white/[0.05] px-4 py-2.5 text-[0.78rem] font-bold text-white/85 transition-colors duration-200 hover:border-white/25 hover:bg-white/[0.1] hover:text-white"
+                  >
+                    <Icon size={14} />
+                    {c.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {visibleProjects.map((item, i) => {
+              const meta = KIND_META[item.kind];
+              const Icon = meta.icon;
+              const when = relTime(item.updatedAt);
+              return (
+                <motion.button
+                  key={`${item.kind}:${item.id}`}
+                  type="button"
+                  onClick={() => openProject(item, onNavigate)}
+                  initial={{ opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-40px' }}
+                  transition={{ duration: 0.4, ease, delay: Math.min(i, 8) * 0.03 }}
+                  aria-label={`Open ${item.title} in ${meta.label}`}
+                  className="group relative flex flex-col overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.03] text-left transition-all duration-300 hover:-translate-y-1.5 hover:border-white/20 hover:bg-white/[0.055] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pj-orange)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0D]"
+                >
+                  {/* Cover / gradient fallback */}
+                  <div className="relative aspect-[4/3] w-full overflow-hidden">
+                    {item.cover ? (
+                      <img
+                        src={item.cover}
+                        alt=""
+                        loading="lazy"
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.06]"
+                      />
+                    ) : (
+                      <div className="relative h-full w-full" style={{ background: meta.grad }}>
+                        <span className="absolute inset-0 grid place-items-center text-white/85">
+                          <Icon size={34} />
+                        </span>
+                      </div>
+                    )}
+                    {/* darken for legibility on image covers */}
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2"
+                      style={{ background: 'linear-gradient(to top, rgba(10,10,13,0.55), transparent)' }}
+                    />
+                    {/* kind badge */}
+                    <span
+                      className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[0.56rem] font-black uppercase tracking-[0.12em] text-white backdrop-blur-md"
+                      style={{ background: 'rgba(10,10,13,0.55)', boxShadow: `inset 0 0 0 1px ${meta.hue}66` }}
+                    >
+                      <Icon size={10} style={{ color: meta.hue }} />
+                      {meta.label}
+                    </span>
+                    <span className="pointer-events-none absolute bottom-2.5 right-2.5 grid h-8 w-8 translate-y-1 place-items-center rounded-full bg-white/10 text-white opacity-0 backdrop-blur-md transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+                      <ArrowUpRight size={15} />
+                    </span>
+                  </div>
+                  {/* Meta */}
+                  <div className="flex flex-1 flex-col p-3.5">
+                    <h3 className="line-clamp-2 font-display text-[0.95rem] font-bold leading-tight tracking-tight text-white">
+                      {item.title}
+                    </h3>
+                    <div className="mt-1.5 flex items-center gap-1.5 text-[0.7rem] text-white/45">
+                      {item.subtitle && <span className="truncate">{item.subtitle}</span>}
+                      {item.subtitle && when && <span aria-hidden className="text-white/25">·</span>}
+                      {when && <span className="shrink-0">{when}</span>}
+                    </div>
+                  </div>
+                </motion.button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* divider into the tool clusters */}
+        <div className="mt-14 h-px w-full bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
       </section>
 
       {/* ══ CLUSTERS ═══════════════════════════════════════════════════════ */}
@@ -409,6 +764,24 @@ export default function CreatorHub({
         </div>
       </div>
     </div>
+  );
+}
+
+/** A pill in the Your-Projects kind filter. */
+function FilterPill({ active, onClick, label, hue }: { active: boolean; onClick: () => void; label: string; hue?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full border px-3.5 py-1.5 text-[0.7rem] font-bold uppercase tracking-wide transition-colors duration-200 ${
+        active
+          ? 'border-transparent text-black'
+          : 'border-white/[0.14] bg-white/[0.05] text-white/70 hover:border-white/25 hover:text-white'
+      }`}
+      style={active ? { background: hue || 'var(--pj-orange)' } : undefined}
+    >
+      {label}
+    </button>
   );
 }
 

@@ -71,7 +71,7 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'STORE_HUB', label: 'Plajah Store', icon: ShoppingBag },
   ]},
   { key: 'Creator Tools', icon: Palette, items: [
-    { id: 'CREATOR', label: 'Creator Hub', icon: Clapperboard },
+    { id: 'CREATOR_HUB', label: 'Creator Hub', icon: Clapperboard },
     { id: 'ARTIST_MANAGER', label: 'Artist Manager', icon: Music2, requiresUser: true },
     { id: 'PLAJAH_STUDIO', label: 'Creator Tool Bag', icon: Sparkles, requiresUser: true },
     { id: 'PLAJAH_BUSINESS', label: 'Plajah Business', icon: Briefcase, requiresUser: true },

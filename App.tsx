@@ -5350,18 +5350,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </ErrorBoundary>
               </div>
             )}
-            {view === 'CREATOR' && shellNext.enabled && (
+            {view === 'CREATOR' && user && <UserDashboard user={user} initialTab={dashboardInitialTab} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} onOpenScriptStudio={(fmt) => { setSelectedScriptId(undefined); setView('SCRIPT_STUDIO'); }} />}
+            {view === 'CREATOR_HUB' && (
               <CreatorHub
                 user={user}
                 userProfile={userProfile}
                 onNavigate={(v) => setView(v as AppView)}
-                onOpenDashboard={() => { if (user) setView('CREATOR_DASHBOARD'); else loginWithGoogle(); }}
                 onCreate={() => { if (user) setShowCreator(true); else loginWithGoogle(); }}
                 onGoLive={() => setView('LIVE_HUB')}
               />
             )}
-            {view === 'CREATOR' && !shellNext.enabled && user && <UserDashboard user={user} initialTab={dashboardInitialTab} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} onOpenScriptStudio={(fmt) => { setSelectedScriptId(undefined); setView('SCRIPT_STUDIO'); }} />}
-            {view === 'CREATOR_DASHBOARD' && user && <UserDashboard user={user} initialTab={dashboardInitialTab} onBack={() => setView('CREATOR')} onOpenTVStudio={() => setView('TV_STUDIO')} onOpenScriptStudio={(fmt) => { setSelectedScriptId(undefined); setView('SCRIPT_STUDIO'); }} />}
             {(view === 'SEARCH' || view === 'PEOPLE') && <SearchView onBack={() => setView('DASHBOARD')} onVisitUser={handleVisitUser} currentUser={user} initialQuery={searchQuery} initialFilter={view === 'PEOPLE' ? 'PEOPLE' : undefined} />}
             {view === 'FEED' && (
               <FeedView
