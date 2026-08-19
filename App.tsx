@@ -1,5 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense, useCallback, useRef } from 'react';
-import { Album, AppView, ThemeType, Game, IPWorld, LiveFeed } from './types';
+import { Album, AppView, ThemeType, Game, IPWorld, LiveFeed, PhotoGallery, Photo } from './types';
+import { fetchGallery } from './services/galleryService';
 import Logo from './components/Logo';
 import { motion, AnimatePresence } from 'motion/react';
 import { recoverFromStaleChunk } from './src/lib/staleChunk';
@@ -163,6 +164,7 @@ const BookTab = retryLazy(() => import('./components/BookTab'));
 const BookReader = retryLazy(() => import('./components/BookReader'));
 const UserDashboard = retryLazy(() => import('./components/UserDashboard'));
 const GlobalPhotosView = retryLazy(() => import('./components/GlobalPhotosView'));
+const GalleryView = retryLazy(() => import('./components/gallery/GalleryView'));
 const EventPhotoPoolView = retryLazy(() => import('./components/EventPhotoPoolView'));
 import LandingPage from './components/LandingPage';
 import { isEducationAccount } from './services/intimateGating';
@@ -554,7 +556,8 @@ const App: React.FC = () => {
   // NOT be bounced to LANDING — the deep-link handler owns the initial view.
   const hasDeepLink = (() => {
     const sp = new URLSearchParams(window.location.search);
-    if (['id', 'type', 'org', 'elevate', 'debate', 'club', 'livestream', 'stream', 'room', 'callin', 'listen', 'invite', 'pitch', 'view'].some(k => sp.get(k))) return true;
+    if (['id', 'type', 'org', 'elevate', 'debate', 'club', 'livestream', 'stream', 'room', 'callin', 'listen', 'invite', 'pitch', 'view', 'g'].some(k => sp.get(k))) return true;
+    if (/^#g\//.test(window.location.hash)) return true;
     // /link (TV sign-in approval) must not bounce a signed-out visitor to LANDING — they may
     // need to sign in on the phone first and then approve, and losing the ?c= code mid-flow
     // means walking back to the television for a new one.
@@ -598,6 +601,10 @@ const App: React.FC = () => {
   const [followSessionId, setFollowSessionId] = useState<string | null>(null);
   // Vespers briefing being read (?recap=<id>, a push tap, or Ambo's "Service filed").
   const [vespersRecapId, setVespersRecapId] = useState<string | null>(null);
+  // Plajah Gallery — the shareable photo experience currently open, plus its resolved photos
+  // (photos are optional; GalleryView will resolve them from photoIds when absent).
+  const [activeGallery, setActiveGallery] = useState<PhotoGallery | null>(null);
+  const [activeGalleryPhotos, setActiveGalleryPhotos] = useState<Photo[] | undefined>(undefined);
 
   const setView = useCallback((newView: AppView | ((prev: AppView) => AppView), path?: string) => {
     setViewInternal((prev) => {
@@ -614,6 +621,37 @@ const App: React.FC = () => {
       }
       return nextView;
     });
+  }, []);
+
+  // Open a Plajah Gallery (the shareable photo experience) from anywhere. The Photos
+  // surfaces (PhotoManager / GlobalPhotosView) build an ephemeral gallery with
+  // galleryFromAlbum and dispatch this so the experience is testable before a full
+  // creation editor exists. detail: { gallery: PhotoGallery, photos?: Photo[] }.
+  const openGallery = useCallback((gallery: PhotoGallery, photos?: Photo[]) => {
+    setActiveGallery(gallery);
+    setActiveGalleryPhotos(photos);
+    setView('GALLERY');
+  }, [setView]);
+
+  useEffect(() => {
+    const h = (e: Event) => {
+      const d = (e as CustomEvent)?.detail || {};
+      if (d.gallery) openGallery(d.gallery as PhotoGallery, d.photos as Photo[] | undefined);
+    };
+    window.addEventListener('plajah:openGallery', h as EventListener);
+    return () => window.removeEventListener('plajah:openGallery', h as EventListener);
+  }, [openGallery]);
+
+  // Deep link: ?g=<id> or #g/<id> → fetch the gallery and open it on load.
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const hashMatch = window.location.hash.match(/^#g\/([^/?&]+)/);
+    const gid = sp.get('g') || (hashMatch ? hashMatch[1] : null);
+    if (!gid) return;
+    let alive = true;
+    fetchGallery(gid).then(g => { if (alive && g) openGallery(g); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Open a specific match's fan room from anywhere (live match cards dispatch this).
@@ -5367,6 +5405,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
             {view === 'ACADEMIA_COURSES' && <ClassroomsView onBack={() => setView('CLASSROOMS')} user={user} onNavigate={(v) => setView(v as any)} />}
             {view === 'GLOBAL_PHOTOS' && <GlobalPhotosView onVisitUser={handleVisitUser} initialMode="WATERFALL" onOpenArtMuseum={() => setView('ART_GALLERY')} />}
+            {view === 'GALLERY' && activeGallery && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading gallery…</div>}>
+                <GalleryView
+                  gallery={activeGallery}
+                  photos={activeGalleryPhotos}
+                  onBack={() => setView('GLOBAL_PHOTOS')}
+                  onVisitUser={handleVisitUser}
+                  currentUser={user}
+                  avatarVrmUrl={userProfile?.avatar?.type === 'VRM' ? userProfile.avatar.modelUrl : undefined}
+                />
+              </Suspense>
+            )}
             {view === 'ART_GALLERY' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading…</div>}>
                 <ArtGalleryView onBack={() => setView('GLOBAL_PHOTOS')} currentUser={user} />

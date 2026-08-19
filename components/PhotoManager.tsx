@@ -24,10 +24,12 @@ import {
   SlidersHorizontal,
   Sparkles,
   Wand2,
-  QrCode
+  QrCode,
+  Aperture
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { uploadPhoto, createPhotoAlbum, auth, db } from '../services/backendService';
+import { galleryFromAlbum } from '../services/galleryService';
 import { doc, updateDoc } from 'firebase/firestore';
 import PhotoEditPanel from './PhotoEditPanel';
 import { PHOTO_IMPORT_SOURCES, PHOTOGRAPHER_PRO_FEATURES } from '../services/photoEditingService';
@@ -87,6 +89,18 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
     }
   };
 
+  // Build an ephemeral, shareable Plajah Gallery from a set of photos (no persistence
+  // needed — the viewing experience is testable before a full creation editor exists)
+  // and hand it to App.tsx via a window event.
+  const openAsGallery = (title: string, photos: Photo[], curatorName?: string) => {
+    if (!photos.length) return;
+    const gallery = galleryFromAlbum(
+      { id: `preview_${Date.now()}`, title, ownerId: profile.uid, photoIds: photos.map(p => p.id), curatorName },
+      photos
+    );
+    window.dispatchEvent(new CustomEvent('plajah:openGallery', { detail: { gallery, photos } }));
+  };
+
   const handleCreateAlbum = async () => {
     if (!newAlbumTitle) return;
     try {
@@ -127,7 +141,16 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
         </div>
 
         <div className="flex items-center gap-3">
-          <button 
+          <button
+            onClick={() => openAsGallery(`${profile.displayName || 'My'} Gallery`, profile.photos || [], profile.displayName)}
+            disabled={!(profile.photos && profile.photos.length)}
+            className="flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-30"
+            title="Open your photos as a shareable gallery experience"
+          >
+            <Aperture size={14} />
+            View as Gallery
+          </button>
+          <button
             onClick={() => setActiveTab('IMPORT')}
             className="flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
           >
@@ -279,7 +302,16 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
                     )}
                   </div>
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-sm gap-4">
-                    <button className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-black hover:scale-110 transition-all">
+                    <button
+                      onClick={() => {
+                        const albumPhotos = (album.photoIds || [])
+                          .map(pid => profile.photos?.find(p => p.id === pid))
+                          .filter(Boolean) as Photo[];
+                        openAsGallery(album.title, albumPhotos.length ? albumPhotos : (profile.photos || []), profile.displayName);
+                      }}
+                      title="View as gallery"
+                      className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-black hover:scale-110 transition-all"
+                    >
                       <Play size={28} fill="black" />
                     </button>
                     <button className="w-14 h-14 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all">

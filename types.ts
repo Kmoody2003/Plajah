@@ -227,6 +227,10 @@ export interface Photo {
   tags?: string[];
   worldId?: string;     // Set when uploaded from the Worlds editor
   addedToLibrary?: boolean; // Whether it also appears in the user's personal library
+  /** Optional ≤30s voice note from the photographer. Plays as proximity/spatial audio
+   *  in the Walk-in gallery and via the ▶ button in a piece's full view. The 30s cap is
+   *  enforced at creation time; consumers just play whatever URL is present. */
+  audioNoteUrl?: string;
 }
 
 export interface PhotoAlbum {
@@ -238,6 +242,58 @@ export interface PhotoAlbum {
   isPublic: boolean;
   timestamp: number;
   order?: string[]; // For slideshow arrangement
+}
+
+/**
+ * A shareable, self-contained photo EXPERIENCE (like sharing a Chora album).
+ * Base fields mirror PhotoAlbum so an album can be promoted to a gallery for free
+ * (see galleryService.galleryFromAlbum). All the presentation fields are optional so
+ * older/album-derived records keep working.
+ */
+export interface PhotoGallery {
+  id: string;
+  ownerId: string;
+  title: string;
+  description?: string;
+  photoIds: string[];
+  /** Legacy public flag — kept working alongside the richer `visibility`. */
+  isPublic: boolean;
+  timestamp: number;
+  /** Slideshow / hang order for the photos. */
+  order?: string[];
+
+  // ── presentation ─────────────────────────────────────────────
+  /** Default view the gallery opens in. */
+  viewType?: 'MODERN' | 'WALK' | 'PORTFOLIO';
+  /** Cover art for the album-like share header. */
+  coverImage?: string;
+  /** Display name of the curator (denormalised for share cards). */
+  curatorName?: string;
+  /** Short one-line kicker under the title. */
+  tagline?: string;
+  /** Richer visibility model; `isPublic` stays in sync for legacy reads. */
+  visibility?: 'PUBLIC' | 'UNLISTED' | 'PRIVATE';
+
+  // ── optional soundtrack (Chora) ──────────────────────────────
+  soundtrackAlbumId?: string;
+  soundtrackTrackId?: string;
+
+  // ── 3D pieces for the Walk-in museum ─────────────────────────
+  models3d?: { url: string; title?: string }[];
+
+  /** Denormalised like count. */
+  likesCount?: number;
+}
+
+/** A comment left on a gallery (photo_galleries/{id}/comments). */
+export interface GalleryComment {
+  id: string;
+  galleryId: string;
+  authorId: string;
+  authorName?: string;
+  authorPhoto?: string;
+  text: string;
+  timestamp: number;
 }
 
 export interface EventPhotoPool {
@@ -2712,7 +2768,9 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   // Plajah Studio — Hootsuite/Buffer-class publishing & scheduling suite
   | 'PLAJAH_STUDIO'
   // FABULA — story-aware video editor (Productions / Slate / Edit)
-  | 'FABULA';
+  | 'FABULA'
+  // Plajah Gallery — shareable, self-contained photo experience (album-like, 3 view types)
+  | 'GALLERY';
 
 // ── Script Writing Studio ─────────────────────────────────────────────────────
 
