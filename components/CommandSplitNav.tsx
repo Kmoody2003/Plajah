@@ -57,6 +57,7 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'BOOKS', label: 'Lorea', icon: BookOpen },
     { id: 'CLASSROOMS', label: 'Plajah Academia', icon: GraduationCap },
     { id: 'PLAJAH_LABS', label: 'Plajah Labs', icon: FlaskConical },
+    { id: 'TELA', label: 'Tela', icon: LayoutPanelTop },
   ]},
   { key: 'Community', icon: UsersRound, items: [
     { id: 'CLUBS', label: 'Clubs', icon: Users },
@@ -92,6 +93,7 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'TERRA', label: 'Terra', icon: MapPin, requiresUser: true },
     { id: 'AD_PACKAGES', label: 'Promote', icon: TrendingUp, requiresUser: true },
     { id: 'CHAT', label: 'Chat', icon: MessageSquare },
+    { id: 'TELA', label: 'Tela', icon: LayoutPanelTop },
   ]},
   { key: 'Platform', icon: Factory, items: [
     { id: 'HELP_CENTER', label: 'Help Center', icon: HelpCircle },
