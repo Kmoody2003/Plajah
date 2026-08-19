@@ -17,7 +17,7 @@ import {
   TrendingUp, Radio, Clock, Sparkles, Globe, Music2, Camera, Image as ImageIcon,
   Film, Tv, Monitor, Settings2, ChevronRight, MoreVertical, Mic2, Gamepad2,
   BookOpen, List, Layers, Lock, Smartphone, ChevronUp, ChevronDown, Volume2, VolumeX, ListPlus, Flame,
-  Scissors
+  Scissors, Home
 } from 'lucide-react';
 import { AddToPlaylistModal, VideoPlaylistSection, VideoPlaylistDetailView } from './VideoPlaylistKit';
 import { SubscriptionsSection, LikedVideosSection, HistorySection } from './VideoLibraryKit';
@@ -45,6 +45,7 @@ import { SoundChip, SoundRailSheet, UseThisSoundButton } from './reello/SoundsRa
 // Live → Short (blueprint 1C.3) — "clip this" on a live or just-ended stream.
 import { LiveClipStudio, ClipThisButton, MyClipsSection } from './reello/LiveClipStudio';
 import ChipRail from './ui/ChipRail';
+import { useShellNext } from '../hooks/useShellNext';
 
 interface VideoTabProps {
   profile: UserProfile | null;
@@ -467,6 +468,7 @@ const LiveFeedCard: React.FC<{ feed: LiveFeed; onSelect: () => void }> = ({ feed
 const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mode = 'VIDEOS', currentUser, onVisitUser, initialPlaylistId, onPlaylistOpened, onSetQueue, profileScoped = false }) => {
   const { playVideo } = useGlobalPlayerState();
   const { uploadFile } = useUpload();
+  const { enabled: shellNext } = useShellNext();
 
   // Playlist UI state
   const [saveVideo, setSaveVideo] = useState<Video | null>(null);
@@ -1050,137 +1052,10 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const isMusicVideoMode = newVideo.genre === 'Music Video';
 
   // â"€â"€ Render â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-  return (
-    <div className="flex-1 min-h-0">
-      {/* â"€â"€ Top Bar â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
-      <div className={`sticky top-0 z-40 glass-nav border-b border-white/5 px-4 sm:px-6 lg:px-12 py-4 ${profileScoped ? 'hidden' : ''}`}>
-        <div className="max-w-7xl mx-auto flex items-center gap-4">
-          <h1 className="text-xl font-display font-black uppercase tracking-widest shrink-0 hidden lg:block"
-            style={{ background: 'linear-gradient(115deg,#a855f7 0%,#D40055 55%,#FF8C00 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
-            {mode === 'MOVIES_TV' ? 'Plajah Taleo' : 'Plajah Reello'}
-          </h1>
 
-          {/* Search */}
-          <div className="flex-1 relative max-w-xl">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={16} />
-            <input
-              type="text"
-              placeholder="Search videos..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 focus:border-white/30 rounded-xl py-2.5 pl-10 pr-10 text-xs font-black uppercase tracking-widest text-white placeholder:text-white/20 outline-none transition-all"
-            />
-            {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white"><X size={14} /></button>}
-          </div>
-
-          {/* Actions — always visible; require auth when clicked */}
-          <div className="flex items-center gap-2 shrink-0 ml-auto">
-            <button
-              onClick={() => { if (!auth.currentUser) { setSignInAction('go live'); return; } setShowGoLiveModal(true); }}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all font-black text-[9px] uppercase tracking-widest ${isLiveStreamActive ? 'bg-green-600 text-white' : 'bg-red-600/80 text-white hover:bg-red-600'}`}
-            >
-              <Radio size={14} /> {isLiveStreamActive ? 'Live' : 'Go Live'}
-            </button>
-            {isOwner && (
-              <button onClick={() => setShowYoutubeImport(true)} className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all font-black text-[9px] uppercase tracking-widest">
-                <Plus size={14} /> Import
-              </button>
-            )}
-            <button
-              onClick={() => { if (!canUpload()) return; if (!auth.currentUser) { setSignInAction('upload videos'); return; } setShowUpload(true); }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white text-black rounded-xl hover:bg-small-orange hover:text-white transition-all font-black text-[9px] uppercase tracking-widest shadow-lg"
-            >
-              <Upload size={14} /> Upload
-            </button>
-          </div>
-        </div>
-
-        {/* Category chips — bold, brand-gradient active state that stands out */}
-        <div className="max-w-7xl mx-auto mt-3.5 flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-1">
-          {CATEGORIES.map(cat => {
-            const active = activeCategory === cat.id;
-            return (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-black text-[10px] uppercase tracking-[0.14em] whitespace-nowrap shrink-0 transition-all border ${active ? 'text-white border-transparent scale-105 shadow-[0_6px_22px_rgba(212,0,85,0.4)]' : 'bg-white/[0.04] border-white/8 text-white/45 hover:text-white hover:border-white/20 hover:bg-white/[0.08]'}`}
-                style={active ? { background: 'linear-gradient(115deg,#6B0099 0%,#D40055 58%,#FF8C00 100%)' } : undefined}
-              >
-                <cat.icon size={12} /> {cat.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Plajah+ Banner */}
-      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 pt-4 pb-2 ${profileScoped ? 'hidden' : ''}`}>
-        <PlajahPlusBanner variant="COMPACT" />
-      </div>
-
-      <div className="flex max-w-7xl mx-auto">
-        {/* Sidebar nav (desktop) — hidden when scoped to a single creator's profile */}
-        <div className={`${profileScoped ? 'hidden' : 'hidden lg:flex'} flex-col gap-1 w-44 shrink-0 sticky top-32 h-fit pt-8 px-6`}>
-          {[
-            { id: 'discover', label: 'Discover', icon: Sparkles },
-            { id: 'trending', label: 'Trending', icon: Flame },
-            { id: 'subscriptions', label: 'Subscriptions', icon: Users },
-            { id: 'shorts', label: 'Shorts', icon: Smartphone },
-            { id: 'uploads', label: 'My Videos', icon: Film },
-            { id: 'live', label: 'Live', icon: Radio },
-            { id: 'playlists', label: 'Playlists', icon: List },
-            { id: 'liked', label: 'Liked', icon: Heart },
-            { id: 'watchlater', label: 'Watch Later', icon: Clock },
-            { id: 'history', label: 'History', icon: Clock },
-            { id: 'social', label: 'From Social', icon: Share2 },
-            { id: 'channel', label: 'My Channel', icon: Layers },
-          ].map(item => (
-            <button
-              key={item.id}
-              onClick={() => setActiveView(item.id as any)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all font-black text-[9px] uppercase tracking-widest ${activeView === item.id ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white hover:bg-white/5'}`}
-            >
-              <item.icon size={14} className={activeView === item.id ? 'text-small-orange' : ''} /> {item.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Main */}
-        <div className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 lg:pl-0 space-y-2">
-
-          {/* Channel header — a creator's Reello channel banner (profile Videos tab) */}
-          {profileScoped && profile && (
-            <ReelloChannelHeader
-              profile={profile}
-              isOwner={isOwner}
-              videoCount={userVideos.length}
-              bannerUrl={(() => {
-                const v: any = userVideos[0];
-                if (v) return v.muxPlaybackId ? `https://image.mux.com/${v.muxPlaybackId}/thumbnail.png?width=1280&height=480&time=5` : (v.thumbnailUrl || v.coverImage);
-                return profile.backgroundSlideshow?.items?.find(i => i.type === 'PHOTO')?.url;
-              })()}
-              isFollowing={followedIds.has(profile.uid)}
-              onToggleFollow={() => handleToggleFollow(profile)}
-              onUpload={() => { if (!auth.currentUser) { setSignInAction('upload videos'); return; } setShowUpload(true); }}
-              onGoLive={() => { if (!auth.currentUser) { setSignInAction('go live'); return; } setShowGoLiveModal(true); }}
-              onShare={() => { try { navigator.share?.({ title: `${profile.displayName} on Plajah Reello`, url: `${location.origin}/?type=user&id=${profile.uid}` }); } catch { /* */ } }}
-            />
-          )}
-
-          {/* Mobile view tabs — platform Chip Rail treatment (components/ui/ChipRail);
-              desktop keeps its sidebar. */}
-          <div className={`lg:hidden mb-6 ${profileScoped ? 'hidden' : ''}`}>
-            <ChipRail
-              items={(['discover', 'trending', 'subscriptions', 'shorts', 'uploads', 'live', 'playlists', 'liked', 'watchlater', 'history', 'social', 'channel'] as const).map(v => ({
-                id: v,
-                label: v === 'channel' ? 'My Channel' : v === 'uploads' ? 'My Videos' : v === 'social' ? 'From Social' : v === 'watchlater' ? 'Watch Later' : v.charAt(0).toUpperCase() + v.slice(1),
-              }))}
-              activeId={activeView}
-              onSelect={(id) => setActiveView(id as any)}
-            />
-          </div>
-
-          {/* â"€â"€ DISCOVER â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
+  // ── Shared content + modals, reused by BOTH the classic and Mode-First shells ──
+  const mainContent = (
+    <>
           {activeView === 'discover' && (
             <div className="space-y-2">
               {/* Owner upload CTA banner */}
@@ -1778,10 +1653,11 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
           {/* â"€â"€ MY CHANNEL â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
           {activeView === 'channel' && renderMyChannel()}
-        </div>
-      </div>
+    </>
+  );
 
-      {/* â"€â"€ Upload Wizard â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
+  const modals = (
+    <>
       <AnimatePresence>
         {showUpload && (
           <div className="fixed inset-0 bg-black/85 backdrop-blur-2xl z-[200] flex items-center justify-center p-4 lg:p-8">
@@ -2386,6 +2262,330 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         onClipped={() => setClipsRefresh(n => n + 1)}
         onPublished={() => setClipsRefresh(n => n + 1)}
       />
+    </>
+  );
+
+  // ── MODE-FIRST shell (flag-ON: Watch · Shorts · Live reshape the whole surface) ──
+  //    Reuses every existing sub-view via {mainContent}; the primary mode switch and
+  //    the slim rail just drive `activeView`. Classic path (below) is untouched.
+  if (shellNext && !profileScoped) {
+    const WATCH_VIEWS = ['discover', 'shorts', 'live'];
+    const LIBRARY_VIEWS = ['liked', 'watchlater', 'history', 'playlists', 'social'];
+    const modeOf = activeView === 'shorts' ? 'shorts' : activeView === 'live' ? 'live' : 'discover';
+    const homeActive = WATCH_VIEWS.includes(activeView);
+    const libActive = LIBRARY_VIEWS.includes(activeView);
+    const modes = [
+      { id: 'discover', label: 'Watch', icon: Play },
+      { id: 'shorts', label: 'Shorts', icon: Smartphone },
+      { id: 'live', label: 'Live', icon: Radio },
+    ];
+    const rail = [
+      { id: 'home', label: 'Home', icon: Home, onClick: () => setActiveView('discover'), active: homeActive },
+      { id: 'subs', label: 'Subs', icon: Users, onClick: () => setActiveView('subscriptions'), active: activeView === 'subscriptions' },
+      { id: 'library', label: 'Library', icon: List, onClick: () => setActiveView(LIBRARY_VIEWS.includes(activeView) ? (activeView as any) : 'liked'), active: libActive },
+      { id: 'you', label: 'You', icon: Layers, onClick: () => setActiveView('channel'), active: activeView === 'channel' },
+    ];
+    const libTabs = [
+      { id: 'liked', label: 'Liked', icon: Heart },
+      { id: 'watchlater', label: 'Watch Later', icon: Clock },
+      { id: 'history', label: 'History', icon: Clock },
+      { id: 'playlists', label: 'Playlists', icon: List },
+      { id: 'social', label: 'From Social', icon: Share2 },
+    ];
+    const genreChips = CATEGORIES.filter(c => c.id !== 'Live');
+
+    return (
+      <div className="flex-1 min-h-0 flex flex-col">
+        {/* ── Top bar: wordmark · mode switch · actions ── */}
+        <div className="sticky top-0 z-40 glass-nav border-b border-white/5 px-4 sm:px-6 lg:px-8 py-3">
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-display font-black uppercase tracking-widest shrink-0 hidden sm:block"
+              style={{ background: 'linear-gradient(115deg,#a855f7 0%,#D40055 55%,#FF8C00 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
+              {mode === 'MOVIES_TV' ? 'Plajah Taleo' : 'Plajah Reello'}
+            </h1>
+            {/* Primary mode switch — the main navigation, top center */}
+            <div className="flex-1 flex justify-center">
+              <div className="inline-flex items-center gap-1 p-1 rounded-full bg-white/[0.04] border border-white/10">
+                {modes.map(m => {
+                  const on = modeOf === m.id && homeActive;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => setActiveView(m.id as any)}
+                      className={`flex items-center gap-2 px-4 sm:px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-[0.14em] transition-all ${on ? 'text-white shadow-[0_6px_22px_rgba(212,0,85,0.4)]' : 'text-white/45 hover:text-white'}`}
+                      style={on ? { background: 'linear-gradient(115deg,#6B0099 0%,#D40055 58%,#FF8C00 100%)' } : undefined}
+                    >
+                      <m.icon size={13} /> {m.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {/* Actions — reuse the classic handlers */}
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => { if (!auth.currentUser) { setSignInAction('go live'); return; } setShowGoLiveModal(true); }}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all font-black text-[9px] uppercase tracking-widest ${isLiveStreamActive ? 'bg-green-600 text-white' : 'bg-red-600/80 text-white hover:bg-red-600'}`}
+              >
+                <Radio size={14} /> <span className="hidden md:inline">{isLiveStreamActive ? 'Live' : 'Go Live'}</span>
+              </button>
+              {isOwner && (
+                <button onClick={() => setShowYoutubeImport(true)} className="hidden sm:flex items-center gap-2 px-3.5 py-2 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all font-black text-[9px] uppercase tracking-widest">
+                  <Plus size={14} /> <span className="hidden md:inline">Import</span>
+                </button>
+              )}
+              <button
+                onClick={() => { if (!canUpload()) return; if (!auth.currentUser) { setSignInAction('upload videos'); return; } setShowUpload(true); }}
+                className="flex items-center gap-2 px-3.5 py-2 bg-white text-black rounded-xl hover:bg-small-orange hover:text-white transition-all font-black text-[9px] uppercase tracking-widest shadow-lg"
+              >
+                <Upload size={14} /> <span className="hidden md:inline">Upload</span>
+              </button>
+            </div>
+          </div>
+          {/* Search */}
+          <div className="mt-2.5 relative max-w-xl mx-auto">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={16} />
+            <input
+              type="text"
+              placeholder="Search videos..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 focus:border-white/30 rounded-xl py-2 pl-10 pr-10 text-xs font-black uppercase tracking-widest text-white placeholder:text-white/20 outline-none transition-all"
+            />
+            {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white"><X size={14} /></button>}
+          </div>
+          {/* Genre filter chips — Watch mode only (Live is a mode, not a chip) */}
+          {activeView === 'discover' && (
+            <div className="mt-3 flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-1">
+              {genreChips.map(cat => {
+                const on = activeCategory === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setActiveCategory(cat.id)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full font-black text-[10px] uppercase tracking-[0.14em] whitespace-nowrap shrink-0 transition-all border ${on ? 'text-white border-transparent scale-105 shadow-[0_6px_22px_rgba(212,0,85,0.4)]' : 'bg-white/[0.04] border-white/8 text-white/45 hover:text-white hover:border-white/20 hover:bg-white/[0.08]'}`}
+                    style={on ? { background: 'linear-gradient(115deg,#6B0099 0%,#D40055 58%,#FF8C00 100%)' } : undefined}
+                  >
+                    <cat.icon size={12} /> {cat.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── Body: slim icon rail + content ── */}
+        <div className="flex flex-1 min-h-0 max-w-[1600px] w-full mx-auto">
+          {/* Slim left icon rail (desktop) — Home · Subs · Library · You */}
+          <div className="hidden lg:flex flex-col items-center gap-1.5 w-16 shrink-0 sticky top-[120px] h-fit pt-6 px-1">
+            {rail.map(item => (
+              <button
+                key={item.id}
+                onClick={item.onClick}
+                className={`w-14 flex flex-col items-center gap-1.5 py-2.5 rounded-2xl transition-all ${item.active ? 'bg-white/10 text-white' : 'text-white/35 hover:text-white hover:bg-white/5'}`}
+              >
+                <item.icon size={20} className={item.active ? 'text-small-orange' : ''} />
+                <span className="text-[7px] font-black uppercase tracking-widest">{item.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Content region */}
+          <div className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pb-28 lg:pb-8 space-y-2">
+            {activeView === 'discover' && <div className="mb-4"><PlajahPlusBanner variant="COMPACT" /></div>}
+
+            {/* Library sub-tabs — Liked · Watch Later · History · Playlists · From Social, one place */}
+            {libActive && (
+              <div className="mb-6 flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                {libTabs.map(t => {
+                  const on = activeView === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setActiveView(t.id as any)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-full font-black text-[9px] uppercase tracking-widest whitespace-nowrap shrink-0 transition-all border ${on ? 'bg-white/10 border-white/20 text-white' : 'bg-white/[0.03] border-white/8 text-white/40 hover:text-white'}`}
+                    >
+                      <t.icon size={12} className={on ? 'text-small-orange' : ''} /> {t.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Live mode — promote Live Now to a Twitch-style wall above the Live Studio */}
+            {activeView === 'live' && liveFeeds.length > 0 && (
+              <section className="mb-8">
+                <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2.5 mb-5">
+                  <Radio className="text-red-500" size={16} /> Live Now
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {liveFeeds.map(feed => (
+                    <LiveFeedCard key={feed.id} feed={feed} onSelect={() => setActiveLiveStream({ streamId: (feed as any).muxStreamId || feed.id, title: feed.title, ownerName: feed.ownerName })} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {mainContent}
+          </div>
+        </div>
+
+        {/* ── Mobile bottom nav — rail destinations; the mode switch stays up top ── */}
+        <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 glass-nav border-t border-white/5 flex items-stretch justify-around px-2 py-1.5">
+          {rail.map(item => (
+            <button
+              key={item.id}
+              onClick={item.onClick}
+              className={`flex-1 flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all ${item.active ? 'text-white' : 'text-white/35'}`}
+            >
+              <item.icon size={20} className={item.active ? 'text-small-orange' : ''} />
+              <span className="text-[7px] font-black uppercase tracking-widest">{item.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {modals}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 min-h-0">
+      {/* â"€â"€ Top Bar â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
+      <div className={`sticky top-0 z-40 glass-nav border-b border-white/5 px-4 sm:px-6 lg:px-12 py-4 ${profileScoped ? 'hidden' : ''}`}>
+        <div className="max-w-7xl mx-auto flex items-center gap-4">
+          <h1 className="text-xl font-display font-black uppercase tracking-widest shrink-0 hidden lg:block"
+            style={{ background: 'linear-gradient(115deg,#a855f7 0%,#D40055 55%,#FF8C00 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
+            {mode === 'MOVIES_TV' ? 'Plajah Taleo' : 'Plajah Reello'}
+          </h1>
+
+          {/* Search */}
+          <div className="flex-1 relative max-w-xl">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={16} />
+            <input
+              type="text"
+              placeholder="Search videos..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 focus:border-white/30 rounded-xl py-2.5 pl-10 pr-10 text-xs font-black uppercase tracking-widest text-white placeholder:text-white/20 outline-none transition-all"
+            />
+            {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white"><X size={14} /></button>}
+          </div>
+
+          {/* Actions — always visible; require auth when clicked */}
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
+            <button
+              onClick={() => { if (!auth.currentUser) { setSignInAction('go live'); return; } setShowGoLiveModal(true); }}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all font-black text-[9px] uppercase tracking-widest ${isLiveStreamActive ? 'bg-green-600 text-white' : 'bg-red-600/80 text-white hover:bg-red-600'}`}
+            >
+              <Radio size={14} /> {isLiveStreamActive ? 'Live' : 'Go Live'}
+            </button>
+            {isOwner && (
+              <button onClick={() => setShowYoutubeImport(true)} className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all font-black text-[9px] uppercase tracking-widest">
+                <Plus size={14} /> Import
+              </button>
+            )}
+            <button
+              onClick={() => { if (!canUpload()) return; if (!auth.currentUser) { setSignInAction('upload videos'); return; } setShowUpload(true); }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white text-black rounded-xl hover:bg-small-orange hover:text-white transition-all font-black text-[9px] uppercase tracking-widest shadow-lg"
+            >
+              <Upload size={14} /> Upload
+            </button>
+          </div>
+        </div>
+
+        {/* Category chips — bold, brand-gradient active state that stands out */}
+        <div className="max-w-7xl mx-auto mt-3.5 flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-1">
+          {CATEGORIES.map(cat => {
+            const active = activeCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategory(cat.id)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-black text-[10px] uppercase tracking-[0.14em] whitespace-nowrap shrink-0 transition-all border ${active ? 'text-white border-transparent scale-105 shadow-[0_6px_22px_rgba(212,0,85,0.4)]' : 'bg-white/[0.04] border-white/8 text-white/45 hover:text-white hover:border-white/20 hover:bg-white/[0.08]'}`}
+                style={active ? { background: 'linear-gradient(115deg,#6B0099 0%,#D40055 58%,#FF8C00 100%)' } : undefined}
+              >
+                <cat.icon size={12} /> {cat.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Plajah+ Banner */}
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 pt-4 pb-2 ${profileScoped ? 'hidden' : ''}`}>
+        <PlajahPlusBanner variant="COMPACT" />
+      </div>
+
+      <div className="flex max-w-7xl mx-auto">
+        {/* Sidebar nav (desktop) — hidden when scoped to a single creator's profile */}
+        <div className={`${profileScoped ? 'hidden' : 'hidden lg:flex'} flex-col gap-1 w-44 shrink-0 sticky top-32 h-fit pt-8 px-6`}>
+          {[
+            { id: 'discover', label: 'Discover', icon: Sparkles },
+            { id: 'trending', label: 'Trending', icon: Flame },
+            { id: 'subscriptions', label: 'Subscriptions', icon: Users },
+            { id: 'shorts', label: 'Shorts', icon: Smartphone },
+            { id: 'uploads', label: 'My Videos', icon: Film },
+            { id: 'live', label: 'Live', icon: Radio },
+            { id: 'playlists', label: 'Playlists', icon: List },
+            { id: 'liked', label: 'Liked', icon: Heart },
+            { id: 'watchlater', label: 'Watch Later', icon: Clock },
+            { id: 'history', label: 'History', icon: Clock },
+            { id: 'social', label: 'From Social', icon: Share2 },
+            { id: 'channel', label: 'My Channel', icon: Layers },
+          ].map(item => (
+            <button
+              key={item.id}
+              onClick={() => setActiveView(item.id as any)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all font-black text-[9px] uppercase tracking-widest ${activeView === item.id ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white hover:bg-white/5'}`}
+            >
+              <item.icon size={14} className={activeView === item.id ? 'text-small-orange' : ''} /> {item.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Main */}
+        <div className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 lg:pl-0 space-y-2">
+
+          {/* Channel header — a creator's Reello channel banner (profile Videos tab) */}
+          {profileScoped && profile && (
+            <ReelloChannelHeader
+              profile={profile}
+              isOwner={isOwner}
+              videoCount={userVideos.length}
+              bannerUrl={(() => {
+                const v: any = userVideos[0];
+                if (v) return v.muxPlaybackId ? `https://image.mux.com/${v.muxPlaybackId}/thumbnail.png?width=1280&height=480&time=5` : (v.thumbnailUrl || v.coverImage);
+                return profile.backgroundSlideshow?.items?.find(i => i.type === 'PHOTO')?.url;
+              })()}
+              isFollowing={followedIds.has(profile.uid)}
+              onToggleFollow={() => handleToggleFollow(profile)}
+              onUpload={() => { if (!auth.currentUser) { setSignInAction('upload videos'); return; } setShowUpload(true); }}
+              onGoLive={() => { if (!auth.currentUser) { setSignInAction('go live'); return; } setShowGoLiveModal(true); }}
+              onShare={() => { try { navigator.share?.({ title: `${profile.displayName} on Plajah Reello`, url: `${location.origin}/?type=user&id=${profile.uid}` }); } catch { /* */ } }}
+            />
+          )}
+
+          {/* Mobile view tabs — platform Chip Rail treatment (components/ui/ChipRail);
+              desktop keeps its sidebar. */}
+          <div className={`lg:hidden mb-6 ${profileScoped ? 'hidden' : ''}`}>
+            <ChipRail
+              items={(['discover', 'trending', 'subscriptions', 'shorts', 'uploads', 'live', 'playlists', 'liked', 'watchlater', 'history', 'social', 'channel'] as const).map(v => ({
+                id: v,
+                label: v === 'channel' ? 'My Channel' : v === 'uploads' ? 'My Videos' : v === 'social' ? 'From Social' : v === 'watchlater' ? 'Watch Later' : v.charAt(0).toUpperCase() + v.slice(1),
+              }))}
+              activeId={activeView}
+              onSelect={(id) => setActiveView(id as any)}
+            />
+          </div>
+
+          {/* â"€â"€ DISCOVER â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
+          {mainContent}
+        </div>
+      </div>
+
+      {/* â"€â"€ Upload Wizard â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
+      {modals}
     </div>
   );
 };

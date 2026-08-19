@@ -23,6 +23,8 @@ import { buildShareUrl, shareOrigin } from '../services/deepLinkService';
 import ChatWindow from './ChatWindow';
 import CollaboBoard from './CollaboBoard';
 import PostmanSystem from './PostmanSystem';
+import ChatSpaces from './chat/ChatSpaces';
+import { useShellNext } from '../hooks/useShellNext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type SidebarTab = 'ALL' | 'DIRECT' | 'GROUPS' | 'PRODUCTIONS' | 'CHANNELS' | 'SONGS' | 'POSTMAN';
@@ -588,6 +590,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
   const [activeRoom, setActiveRoom]         = useState<ChatRoom | null>(null);
   const [activeCollabId, setActiveCollabId] = useState<string | null>(null);
   const { placeCall } = useCall();
+  const { enabled: shellNext } = useShellNext();
   // Land on DMs first — a user's direct conversations are what they open chat for,
   // not the firehose of every group/channel.
   const [sidebarTab, setSidebarTab]         = useState<SidebarTab>('DIRECT');
@@ -810,6 +813,31 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
   ];
 
   // ── Render ───────────────────────────────────────────────────────────────────
+  // New "Workspaces & Servers" shell (beta): gated internally so the classic chat
+  // below is byte-for-byte preserved when the flag is off. Reuses the same live
+  // room list, profiles, ChatWindow and intimate handlers — only the shell changes.
+  if (shellNext) {
+    return (
+      <ChatSpaces
+        rooms={rooms}
+        profiles={profiles}
+        activeRoom={activeRoom}
+        setActiveRoom={setActiveRoom}
+        currentUserProfile={currentUserProfile}
+        intimateRooms={intimateRooms}
+        onBack={onBack}
+        onStartDM={handleStartDM}
+        onToggleIntimate={toggleIntimate}
+        onDeleteRoom={handleDeleteRoom}
+        onRenameRoom={handleRenameRoom}
+        enrollForRoomId={enrollForRoomId}
+        setEnrollForRoomId={setEnrollForRoomId}
+        me={me}
+        enableIntimate={enableIntimate}
+      />
+    );
+  }
+
   return (
     <div
       className="h-full flex overflow-hidden relative pb-20 md:pb-0"
