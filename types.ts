@@ -281,6 +281,12 @@ export interface PhotoGallery {
   // ── 3D pieces for the Walk-in museum ─────────────────────────
   models3d?: { url: string; title?: string }[];
 
+  /** Per-photo ≤30s voice notes, keyed by photoId → storage URL. Stored on the GALLERY
+   *  (not the global Photo) so curators can annotate a gallery without mutating the shared
+   *  photo record. GalleryView merges these onto each photo as `audioNoteUrl` at view time,
+   *  feeding the Walk-in museum's proximity/spatial audio. */
+  audioNotes?: Record<string, string>;
+
   /** Denormalised like count. */
   likesCount?: number;
 }
@@ -2770,7 +2776,9 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   // FABULA — story-aware video editor (Productions / Slate / Edit)
   | 'FABULA'
   // Plajah Gallery — shareable, self-contained photo experience (album-like, 3 view types)
-  | 'GALLERY';
+  | 'GALLERY'
+  // Plajah Gallery — the creation / edit editor (Phase 2)
+  | 'GALLERY_EDIT';
 
 // ── Script Writing Studio ─────────────────────────────────────────────────────
 

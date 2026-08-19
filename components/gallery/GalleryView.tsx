@@ -263,11 +263,17 @@ const GalleryView: React.FC<GalleryViewProps> = ({ gallery, photos: photosProp, 
 };
 
 function orderPhotos(list: Photo[], gallery: PhotoGallery): Photo[] {
+  // Merge the gallery's own ≤30s voice notes onto each photo as `audioNoteUrl` WITHOUT
+  // mutating the shared Photo record — the Walk-in museum's proximity audio reads this.
+  const notes = gallery.audioNotes;
+  const withNotes = notes
+    ? list.map(p => (notes[p.id] ? { ...p, audioNoteUrl: notes[p.id] } : p))
+    : list;
   const order = gallery.order?.length ? gallery.order : gallery.photoIds;
-  if (!order?.length) return list;
-  const byId = new Map(list.map(p => [p.id, p]));
+  if (!order?.length) return withNotes;
+  const byId = new Map(withNotes.map(p => [p.id, p]));
   const ordered = order.map(id => byId.get(id)).filter(Boolean) as Photo[];
-  const extras = list.filter(p => !order.includes(p.id));
+  const extras = withNotes.filter(p => !order.includes(p.id));
   return [...ordered, ...extras];
 }
 

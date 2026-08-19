@@ -22,7 +22,9 @@ import {
   arrayUnion,
   arrayRemove,
 } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth } from './backendService';
+import { storage } from './firebase';
 import { PhotoAlbum, PhotoGallery, GalleryComment, Photo } from '../types';
 
 const COL = 'photo_galleries';
@@ -57,6 +59,7 @@ export const createGallery = async (data: Partial<PhotoGallery>): Promise<PhotoG
     soundtrackAlbumId: data.soundtrackAlbumId,
     soundtrackTrackId: data.soundtrackTrackId,
     models3d: data.models3d,
+    audioNotes: data.audioNotes,
     likesCount: 0,
   }) as PhotoGallery;
   try {
@@ -182,6 +185,56 @@ export const toggleGalleryLike = async (galleryId: string, like: boolean): Promi
     });
   } catch (e) {
     console.error('[galleryService] toggleGalleryLike failed', e);
+  }
+};
+
+// ── media uploads (gallery-scoped audio notes + 3D models) ─────────────────────
+// Both write under users/{uid}/** where the existing Storage rules already let the
+// owner write, mirroring uploadFabulaAsset in backendService. Paths are stable per
+// (gallery, photo) / (gallery, file) so re-records overwrite rather than orphan.
+
+const safeName = (s: string) => (s || 'file').toLowerCase().replace(/[^a-z0-9._-]/g, '_').slice(-64);
+
+/**
+ * Upload a per-photo voice note (a MediaRecorder blob, ≤30s — the cap is enforced in the
+ * recorder UI). Returns the download URL to store in `PhotoGallery.audioNotes[photoId]`.
+ * A stable path means re-recording the same photo's note overwrites the old object.
+ */
+export const uploadGalleryAudioNote = async (
+  uid: string,
+  galleryId: string,
+  photoId: string,
+  blob: Blob,
+): Promise<string | null> => {
+  if (!uid || !galleryId || !photoId) return null;
+  try {
+    const path = `users/${uid}/galleryAudio/${galleryId}/${photoId}.webm`;
+    const sRef = ref(storage, path);
+    await uploadBytes(sRef, blob, { contentType: blob.type || 'audio/webm' });
+    return await getDownloadURL(sRef);
+  } catch (e) {
+    console.error('[galleryService] uploadGalleryAudioNote failed', e);
+    return null;
+  }
+};
+
+/**
+ * Upload a GLTF/GLB model for the Walk-in museum plinths. Returns the download URL to
+ * append to `PhotoGallery.models3d[]`. Path is timestamped so multiple models coexist.
+ */
+export const uploadGalleryModel = async (
+  uid: string,
+  file: File,
+): Promise<string | null> => {
+  if (!uid || !file) return null;
+  try {
+    const path = `users/${uid}/galleryModels/${Date.now()}_${safeName(file.name)}`;
+    const sRef = ref(storage, path);
+    await uploadBytes(sRef, file, { contentType: file.type || 'model/gltf-binary' });
+    return await getDownloadURL(sRef);
+  } catch (e) {
+    console.error('[galleryService] uploadGalleryModel failed', e);
+    return null;
   }
 };
 

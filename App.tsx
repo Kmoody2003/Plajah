@@ -165,6 +165,7 @@ const BookReader = retryLazy(() => import('./components/BookReader'));
 const UserDashboard = retryLazy(() => import('./components/UserDashboard'));
 const GlobalPhotosView = retryLazy(() => import('./components/GlobalPhotosView'));
 const GalleryView = retryLazy(() => import('./components/gallery/GalleryView'));
+const GalleryEditor = retryLazy(() => import('./components/gallery/GalleryEditor'));
 const EventPhotoPoolView = retryLazy(() => import('./components/EventPhotoPoolView'));
 import LandingPage from './components/LandingPage';
 import { isEducationAccount } from './services/intimateGating';
@@ -605,6 +606,8 @@ const App: React.FC = () => {
   // (photos are optional; GalleryView will resolve them from photoIds when absent).
   const [activeGallery, setActiveGallery] = useState<PhotoGallery | null>(null);
   const [activeGalleryPhotos, setActiveGalleryPhotos] = useState<Photo[] | undefined>(undefined);
+  // Plajah Gallery editor (Phase 2) — the gallery being created/edited. `undefined` id ⇒ new.
+  const [editingGalleryId, setEditingGalleryId] = useState<string | undefined>(undefined);
 
   const setView = useCallback((newView: AppView | ((prev: AppView) => AppView), path?: string) => {
     setViewInternal((prev) => {
@@ -641,6 +644,22 @@ const App: React.FC = () => {
     window.addEventListener('plajah:openGallery', h as EventListener);
     return () => window.removeEventListener('plajah:openGallery', h as EventListener);
   }, [openGallery]);
+
+  // Open the Gallery editor (create when no id, edit when a galleryId is supplied). The
+  // Photos surface (PhotoManager) dispatches this; mirrors the openGallery pattern above.
+  const openGalleryEditor = useCallback((gid?: string) => {
+    setEditingGalleryId(gid);
+    setView('GALLERY_EDIT');
+  }, [setView]);
+
+  useEffect(() => {
+    const h = (e: Event) => {
+      const d = (e as CustomEvent)?.detail || {};
+      openGalleryEditor(d.galleryId as string | undefined);
+    };
+    window.addEventListener('plajah:openGalleryEditor', h as EventListener);
+    return () => window.removeEventListener('plajah:openGalleryEditor', h as EventListener);
+  }, [openGalleryEditor]);
 
   // Deep link: ?g=<id> or #g/<id> → fetch the gallery and open it on load.
   useEffect(() => {
@@ -5414,6 +5433,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onVisitUser={handleVisitUser}
                   currentUser={user}
                   avatarVrmUrl={userProfile?.avatar?.type === 'VRM' ? userProfile.avatar.modelUrl : undefined}
+                />
+              </Suspense>
+            )}
+            {view === 'GALLERY_EDIT' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading editor…</div>}>
+                <GalleryEditor
+                  galleryId={editingGalleryId}
+                  curatorNameDefault={userProfile?.displayName}
+                  onCancel={() => setView('CREATOR')}
+                  onDone={(gallery) => openGallery(gallery)}
                 />
               </Suspense>
             )}
