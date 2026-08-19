@@ -38,7 +38,7 @@ const PrompterScreen = React.lazy(() => import('./components/teleprompter/Prompt
 // lands straight on the review UI and never flashes the marketing/login screen.
 const HqReviewPublic = React.lazy(() => import('./components/HqReviewPublic'));
 const reviewMatch = window.location.pathname.match(/^\/review\/([A-Za-z0-9_-]+)\/?$/);
-const reviewToken = search.get('t') || '';
+const reviewToken = new URLSearchParams(window.location.search).get('t') || '';
 
 // ── Force the whole app onto the discrete GPU (NVIDIA), not the integrated one ──
 // A browser binds a page to ONE GPU, decided by the power-preference of its WebGL
