@@ -12,7 +12,7 @@ interface ReviewComment {
   body: string; timeStartSeconds?: number; resolved?: boolean; createdAt: number;
 }
 interface ReviewContext {
-  asset: { id: string; title: string; kind: string; status: string; versionCount: number };
+  asset: { id: string; title: string; kind: string; status: string; versionCount: number; scanStatus?: string };
   currentVersion: { id: string; version: number; name: string; mimeType: string; sizeBytes: number; createdAt: number } | null;
   versions: { id: string; version: number; name: string; mimeType: string; createdAt: number }[];
   comments: ReviewComment[];
@@ -117,18 +117,32 @@ const HqReviewPublic: React.FC<{ shareId: string; token: string }> = ({ shareId,
           <h1 className="font-black text-2xl truncate">{asset.title}</h1>
           {ctx.label && <div className="text-xs opacity-50 mt-0.5">{ctx.label}</div>}
         </div>
-        {flags.allowDownload && <a href={downloadUrl} className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-[11px] font-bold"
+        {flags.allowDownload && (!asset.scanStatus || asset.scanStatus === 'CLEAN') && <a href={downloadUrl} className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-[11px] font-bold"
           style={{ background: 'var(--pj-glass-2)', border: '1px solid var(--pj-border)' }}><Download size={14} /> Download</a>}
       </header>
 
       <div className="grid lg:grid-cols-[1fr_360px] gap-5 items-start">
-        {/* Preview */}
-        <div className="rounded-2xl overflow-hidden grid place-items-center min-h-[240px]" style={{ background: '#000', border: '1px solid var(--pj-border)' }}>
-          {mediaKind === 'image' && <img src={downloadUrl} alt={asset.title} className="max-w-full max-h-[70vh] object-contain" />}
-          {mediaKind === 'video' && <video ref={media as any} src={downloadUrl} controls playsInline className="w-full max-h-[70vh]" />}
-          {mediaKind === 'audio' && <div className="w-full p-8"><audio ref={media as any} src={downloadUrl} controls className="w-full" /></div>}
-          {mediaKind === 'pdf' && <iframe src={downloadUrl} title={asset.title} className="w-full h-[70vh]" style={{ background: '#fff' }} />}
-          {mediaKind === 'file' && <a href={downloadUrl} className="p-8 text-sm underline opacity-80">Open file</a>}
+        {/* Preview — hidden entirely while the asset is not CLEAN (also gated server-side) */}
+        <div className="rounded-2xl overflow-hidden grid place-items-center min-h-[240px] text-center px-6" style={{ background: '#000', border: '1px solid var(--pj-border)' }}>
+          {asset.scanStatus && asset.scanStatus !== 'CLEAN' ? (
+            <div className="max-w-sm py-10">
+              <ShieldCheck size={34} className="mx-auto mb-3 opacity-50" />
+              <div className="text-sm font-black">
+                {asset.scanStatus === 'QUARANTINED' ? 'This file is unavailable' : 'Still being scanned'}
+              </div>
+              <p className="text-xs opacity-60 mt-1">
+                {asset.scanStatus === 'QUARANTINED'
+                  ? 'A security scan flagged this file, so it can’t be shown here.'
+                  : 'This file is being checked for safety. Refresh in a moment to review it.'}
+              </p>
+            </div>
+          ) : <>
+            {mediaKind === 'image' && <img src={downloadUrl} alt={asset.title} className="max-w-full max-h-[70vh] object-contain" />}
+            {mediaKind === 'video' && <video ref={media as any} src={downloadUrl} controls playsInline className="w-full max-h-[70vh]" />}
+            {mediaKind === 'audio' && <div className="w-full p-8"><audio ref={media as any} src={downloadUrl} controls className="w-full" /></div>}
+            {mediaKind === 'pdf' && <iframe src={downloadUrl} title={asset.title} className="w-full h-[70vh]" style={{ background: '#fff' }} />}
+            {mediaKind === 'file' && <a href={downloadUrl} className="p-8 text-sm underline opacity-80">Open file</a>}
+          </>}
         </div>
 
         {/* Side panel: identity + decision + comments */}

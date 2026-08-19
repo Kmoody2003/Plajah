@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Check, Clock, Copy, Download, History, Link2, Loader2, MessageSquare, RefreshCw, Repeat, Send, ShieldCheck, Trash2, Upload, X } from 'lucide-react';
+import { Check, Clock, Copy, Download, History, Link2, Loader2, MessageSquare, RefreshCw, Repeat, Send, ShieldAlert, ShieldCheck, Trash2, Upload, X } from 'lucide-react';
 import type { HqActivityEvent, HqAssetVersion, HqComment, HqReviewRequest } from '../types';
 import type { OrgAsset } from '../services/orgAssets';
 import {
@@ -57,6 +57,12 @@ const HqReviewPanel: React.FC<{
   const media = useRef<HTMLVideoElement | HTMLAudioElement>(null);
   const versionInput = useRef<HTMLInputElement>(null);
 
+  // Quarantine gate: no preview/download/convert while PENDING or QUARANTINED. A missing
+  // scanStatus is a legacy (pre-scan) asset, treated as clean.
+  const quarantined = asset.scanStatus === 'QUARANTINED';
+  const scanning = asset.scanStatus === 'PENDING';
+  const scanBlocked = quarantined || scanning;
+
   const reload = async () => {
     const [v, c, r, a] = await Promise.all([
       listHqVersions(asset.id).catch(() => []), listHqComments(asset.id).catch(() => []),
@@ -67,6 +73,7 @@ const HqReviewPanel: React.FC<{
   useEffect(() => { reload(); }, [asset.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (scanBlocked) { setMediaUrl(''); return; } // gated server-side too; don't even fetch
     let objectUrl = '';
     (async () => {
       try {
@@ -78,7 +85,7 @@ const HqReviewPanel: React.FC<{
       } catch { /* preview is optional; download still works */ }
     })();
     return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [asset.id, asset.currentVersionId]);
+  }, [asset.id, asset.currentVersionId, scanBlocked]);
 
   async function run(task: () => Promise<void>) {
     setBusy(true); setError('');
@@ -113,6 +120,7 @@ const HqReviewPanel: React.FC<{
   }
 
   async function download() {
+    if (scanBlocked) { setError(quarantined ? (asset.scanReason || 'This file was quarantined by a security scan.') : 'This file is still being scanned. Try again in a moment.'); return; }
     setBusy(true);
     try {
       const token = await auth.currentUser?.getIdToken();
@@ -194,10 +202,12 @@ const HqReviewPanel: React.FC<{
     <div className="w-full max-w-3xl h-full bg-[#0b0b10] border-l border-white/10 overflow-y-auto" onClick={e => e.stopPropagation()}>
       <div className="sticky top-0 z-10 bg-[#0b0b10]/95 backdrop-blur px-5 py-4 border-b border-white/10">
         <div className="flex items-start gap-3">
-          <div className="min-w-0 flex-1"><div className="text-[10px] uppercase tracking-widest text-white/35">{asset.status || 'DRAFT'} · v{asset.versionCount || 1}</div>
+          <div className="min-w-0 flex-1"><div className="text-[10px] uppercase tracking-widest text-white/35 flex items-center gap-1.5">{asset.status || 'DRAFT'} · v{asset.versionCount || 1}
+            {scanning && <span className="inline-flex items-center gap-1 text-amber-300"><Loader2 size={10} className="animate-spin"/> Scanning</span>}
+            {quarantined && <span className="inline-flex items-center gap-1 text-red-300"><ShieldAlert size={10}/> Quarantined</span>}</div>
             <h2 className="font-black text-xl truncate">{asset.name}</h2></div>
-          <button onClick={download} className="p-2 rounded-full bg-white/5" title="Download original"><Download size={16}/></button>
-          {convKind && <button onClick={() => setShowConvert(s => !s)} className={`p-2 rounded-full ${showConvert ? 'bg-[#34e0d0]/20 text-[#34e0d0]' : 'bg-white/5'}`} title="Convert with Crossover"><Repeat size={16}/></button>}
+          <button onClick={download} disabled={scanBlocked} className="p-2 rounded-full bg-white/5 disabled:opacity-30" title={scanBlocked ? 'Unavailable until the security scan clears' : 'Download original'}><Download size={16}/></button>
+          {convKind && !scanBlocked && <button onClick={() => setShowConvert(s => !s)} className={`p-2 rounded-full ${showConvert ? 'bg-[#34e0d0]/20 text-[#34e0d0]' : 'bg-white/5'}`} title="Convert with Crossover"><Repeat size={16}/></button>}
           {proEnabled && <button onClick={() => setShowShare(s => !s)} className={`p-2 rounded-full ${showShare ? 'bg-[#34e0d0]/20 text-[#34e0d0]' : 'bg-white/5'}`} title="Share a review link"><Link2 size={16}/></button>}
           {canEdit && <button onClick={trash} className="p-2 rounded-full bg-white/5 text-red-300" title="Move to Trash"><Trash2 size={16}/></button>}
           <button onClick={onClose} className="p-2"><X size={18}/></button>
@@ -235,11 +245,23 @@ const HqReviewPanel: React.FC<{
       </div>}
 
       <div className="p-5">
-        <div className="aspect-video bg-black rounded-2xl overflow-hidden grid place-items-center mb-5">
-          {mediaUrl && asset.kind === 'image' && <img src={mediaUrl} className="max-w-full max-h-full object-contain" alt=""/>}
-          {mediaUrl && asset.kind === 'video' && <video ref={media as any} src={mediaUrl} controls className="w-full h-full"/>}
-          {mediaUrl && asset.kind === 'audio' && <audio ref={media as any} src={mediaUrl} controls className="w-4/5"/>}
-          {!mediaUrl && <Loader2 className="animate-spin text-white/20"/>}
+        <div className="aspect-video bg-black rounded-2xl overflow-hidden grid place-items-center mb-5 text-center px-6">
+          {scanBlocked ? (
+            <div className="max-w-sm">
+              {quarantined
+                ? <><ShieldAlert className="mx-auto mb-3 text-red-400" size={34}/>
+                    <div className="text-sm font-black text-red-300">File quarantined</div>
+                    <p className="text-xs text-white/50 mt-1">{asset.scanReason || 'A security scan flagged this file, so preview and download are disabled.'}</p></>
+                : <><Loader2 className="mx-auto mb-3 animate-spin text-amber-300" size={30}/>
+                    <div className="text-sm font-black text-amber-200">Scanning for safety…</div>
+                    <p className="text-xs text-white/50 mt-1">Preview and download unlock once this file is verified clean.</p></>}
+            </div>
+          ) : <>
+            {mediaUrl && asset.kind === 'image' && <img src={mediaUrl} className="max-w-full max-h-full object-contain" alt=""/>}
+            {mediaUrl && asset.kind === 'video' && <video ref={media as any} src={mediaUrl} controls className="w-full h-full"/>}
+            {mediaUrl && asset.kind === 'audio' && <audio ref={media as any} src={mediaUrl} controls className="w-4/5"/>}
+            {!mediaUrl && <Loader2 className="animate-spin text-white/20"/>}
+          </>}
         </div>
 
         {convKind && showConvert && (

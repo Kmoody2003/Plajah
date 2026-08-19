@@ -9,6 +9,7 @@ import type {
   HqReviewRequest, HqShareLink,
 } from '../types';
 import type { OrgAsset, OwnerScope } from './orgAssets';
+import { requestHqScan } from './orgAssets';
 
 const now = () => Date.now();
 const clean = <T extends Record<string, any>>(value: T): T => Object.fromEntries(
@@ -52,9 +53,12 @@ export async function addHqVersion(asset: OrgAsset, file: File, changeNote?: str
     name: file.name, mimeType: file.type || 'application/octet-stream', sizeBytes: file.size,
     uploadedByUid: a.uid, uploadedByName: a.name, createdAt: now(), changeNote });
   await setDoc(versionRef, version);
+  // A replacement version is fresh bytes — re-quarantine to PENDING and rescan so a
+  // clean-then-swap-in-malware path can't slip past the gate.
   await updateDoc(doc(db, 'orgAssets', asset.id), { currentVersionId: version.id, versionCount: number,
-    status: 'DRAFT', sizeBytes: file.size, mimeType: version.mimeType, name: file.name });
+    status: 'DRAFT', sizeBytes: file.size, mimeType: version.mimeType, name: file.name, scanStatus: 'PENDING', scanReason: '' });
   await recordHqActivity(asset, 'NEW_VERSION', { version: number, name: file.name });
+  requestHqScan(asset.id).catch(() => { /* best-effort; asset stays PENDING until rescanned */ });
   return version;
 }
 

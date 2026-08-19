@@ -2229,6 +2229,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Durable security audit (Wave 3): retention purges + quota rejections. Written ONLY
+    // by the server (Admin creds, which bypass rules) and it must outlive the assets it
+    // records, so clients get no access at all.
+    match /hqAuditLog/{entryId} {
+      allow read, write: if false;
+    }
+
     // ── Music sync-license grants — created only by the Stripe webhook (Admin SDK) ──
     // The buyer and the rights owner can READ their grants; clients never write.
     match /syncLicenseGrants/{grantId} {

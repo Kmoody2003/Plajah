@@ -557,6 +557,33 @@ const queryFirebase = async (collectionId: string, filters: Array<{ field: strin
   } catch { return []; }
 };
 
+// Like queryFirebase, but (a) returns each doc's id alongside its decoded fields —
+// required to DELETE the doc — and (b) supports inequality operators for the
+// retention sweep. Numeric filter values are serialized as doubleValue to match how
+// the Firestore JS SDK writes client-set timestamps (retentionDeleteAt / expiresAt);
+// integer/double compare numerically in Firestore, but this avoids any type mismatch.
+const fsQueryDocs = async (
+  collectionId: string,
+  filters: Array<{ field: string; op: string; value: any }>,
+  limitN = 200,
+): Promise<Array<{ id: string; data: Record<string, any> }>> => {
+  const projectId = 'gen-lang-client-0665118474';
+  const dbId = 'plajah-prod';
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents:runQuery`;
+  const toVal = (v: any) => typeof v === 'number' ? { doubleValue: v } : typeof v === 'boolean' ? { booleanValue: v } : { stringValue: String(v) };
+  const fieldFilters = filters.map(f => ({ fieldFilter: { field: { fieldPath: f.field }, op: f.op, value: toVal(f.value) } }));
+  const where = fieldFilters.length === 1 ? fieldFilters[0] : { compositeFilter: { op: 'AND', filters: fieldFilters } };
+  const body = { structuredQuery: { from: [{ collectionId }], where, limit: limitN } };
+  try {
+    const res = await fetch(url, { method: 'POST', headers: { ...(await firestoreAuthHeaders()), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (Array.isArray(data) ? data : [])
+      .filter((r: any) => r.document)
+      .map((r: any) => ({ id: String(r.document.name).split('/').pop()!, data: decodeFirestoreFields(r.document.fields) }));
+  } catch { return []; }
+};
+
 // The public-facing host. Firebase Hosting proxies to Cloud Run with the internal
 // run.app Host header, so prefer X-Forwarded-Host (the real plajah.com) and never leak
 // the run.app domain into og:url / twitter:player (a domain mismatch breaks previews).
@@ -2147,9 +2174,151 @@ async function startServer() {
     Readable.fromWeb(upstream.body as any).pipe(res);
   }
 
+  // ── Content HQ malware / MIME quarantine gate (Wave 3 trust hardening) ─────────
+  // Honest scope: the MIME verification (real magic bytes, NOT the client-declared
+  // type), the type + size allowlist, and the EICAR / executable-signature heuristic
+  // below are REAL and enforced. Deep antivirus (ClamAV / VirusTotal) is NOT wired yet
+  // — runMalwareScan() is the single, clearly-marked seam where it plugs in (see TODO).
+  const HQ_MAX_BYTES = 25 * 1024 * 1024 * 1024;            // mirrors storage.rules' 25 GB cap
+  const HQ_SCAN_HEAD_BYTES = 64 * 1024;                    // window read for sniffing + heuristics
+  // The standard EICAR anti-malware test string — the industry probe proving the gate is live.
+  const EICAR_SIGNATURE = Buffer.from('X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*');
+
+  // Sniff a real content-type from leading magic bytes. Returns null for anything we
+  // don't positively recognise (the caller then falls back to the stored content-type).
+  function sniffHqMime(b: Buffer): string | null {
+    if (!b || b.length < 4) return null;
+    const ascii = (n: number) => b.slice(0, n).toString('latin1');
+    if (ascii(4) === '%PDF') return 'application/pdf';
+    if (b[0] === 0x89 && ascii(4).slice(1) === 'PNG') return 'image/png';
+    if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
+    if (ascii(4) === 'GIF8') return 'image/gif';
+    if (ascii(4) === 'RIFF') {
+      const tag = b.slice(8, 12).toString('latin1');
+      if (tag === 'WEBP') return 'image/webp';
+      if (tag === 'WAVE') return 'audio/wav';
+      if (tag === 'AVI ') return 'video/x-msvideo';
+    }
+    if (ascii(4) === 'OggS') return 'audio/ogg';
+    if (ascii(3) === 'ID3' || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0)) return 'audio/mpeg';
+    if (b.length >= 12 && b.slice(4, 8).toString('latin1') === 'ftyp') return 'video/mp4';
+    if (b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) return 'video/webm';
+    if (ascii(4) === 'PK\x03\x04') return 'application/zip';   // docx/xlsx/pptx/epub containers
+    if (ascii(5) === '{\\rtf') return 'application/rtf';
+    if (b[0] === 0xd0 && b[1] === 0xcf && b[2] === 0x11 && b[3] === 0xe0) return 'application/msword'; // OLE2 (.doc/.xls/.ppt)
+    return null;
+  }
+
+  // Hard-block signatures: executables and shell scripts never belong in a media/doc DAM.
+  function dangerousHqSignature(b: Buffer): string | null {
+    if (!b || b.length < 4) return null;
+    if (b[0] === 0x4d && b[1] === 0x5a) return 'a Windows executable (MZ/PE)';
+    if (b[0] === 0x7f && b[1] === 0x45 && b[2] === 0x4c && b[3] === 0x46) return 'a Linux executable (ELF)';
+    if ((b[0] === 0xfe && b[1] === 0xed && b[2] === 0xfa) || (b[0] === 0xca && b[1] === 0xfe && b[2] === 0xba && b[3] === 0xbe)) return 'a Mach-O / Java executable';
+    if (b[0] === 0x23 && b[1] === 0x21) return 'a shell script (#!)';
+    return null;
+  }
+
+  function isHqMimeAllowed(mime: string): boolean {
+    const m = String(mime || '').toLowerCase();
+    if (/^(image|audio|video|text)\//.test(m)) return true;
+    if (/^application\/(pdf|zip|rtf|msword|epub\+zip|x-msaccess|octet-stream)$/.test(m)) return true;
+    if (/^application\/(vnd\.openxmlformats-officedocument|vnd\.ms-|vnd\.oasis\.opendocument)/.test(m)) return true;
+    return false;
+  }
+
+  /**
+   * The pluggable malware / content-safety scan. REAL today: size ceiling, magic-byte
+   * MIME sniff, type allowlist, and an EICAR + executable-signature heuristic. This is
+   * the ONE integration seam for deep AV — swap the heuristic for a ClamAV clamd
+   * INSTREAM scan or a VirusTotal hash lookup and every caller inherits it.
+   * Returns { clean, reason?, detectedMime? }.
+   */
+  function runMalwareScan(input: { declaredMime: string; storedContentType?: string; sniffedMime: string | null; sizeBytes: number; head: Buffer }): { clean: boolean; reason?: string; detectedMime?: string } {
+    const detectedMime = input.sniffedMime || undefined;
+    // 1) Size ceiling (defense in depth alongside storage.rules).
+    if (input.sizeBytes > HQ_MAX_BYTES) return { clean: false, reason: `File exceeds the ${Math.round(HQ_MAX_BYTES / 1024 ** 3)} GB limit.`, detectedMime };
+    // 2) Executable / script magic bytes — blocked regardless of declared type (this is
+    //    what catches an .exe renamed to .jpg: the bytes betray it even though the client
+    //    declared image/jpeg).
+    const danger = dangerousHqSignature(input.head);
+    if (danger) return { clean: false, reason: `Blocked: the file looks like ${danger}. Executable/script content is not allowed in Content HQ.`, detectedMime };
+    // 3) EICAR anti-malware test signature — the standard "is the scanner live?" probe.
+    if (input.head.includes(EICAR_SIGNATURE)) return { clean: false, reason: 'Blocked: a malware signature was detected (EICAR anti-malware test file).', detectedMime };
+    // 4) Type allowlist. Trust the SNIFFED type; when nothing sniffs (many valid
+    //    containers have no fixed leading magic) fall back to the stored content-type.
+    const effective = input.sniffedMime || input.storedContentType || input.declaredMime || 'application/octet-stream';
+    if (!isHqMimeAllowed(effective)) return { clean: false, reason: `Blocked: "${effective}" is not an allowed Content HQ file type.`, detectedMime };
+    // TODO(scanner): stream the full object to a ClamAV daemon (clamd INSTREAM) or submit
+    // its SHA-256 to VirusTotal here, and return { clean:false } on a positive verdict.
+    return { clean: true, detectedMime };
+  }
+
+  // Fetch an object's stored metadata (content-type/size) + head bytes for scanning.
+  async function fetchHqObjectHead(objectPath: string): Promise<{ ok: boolean; contentType?: string; size?: number; head: Buffer }> {
+    const token = await getGoogleAccessToken();
+    if (!token) return { ok: false, head: Buffer.alloc(0) };
+    const base = `https://storage.googleapis.com/storage/v1/b/${STORAGE_BUCKET}/o/${encodeURIComponent(objectPath)}`;
+    let contentType: string | undefined; let size: number | undefined;
+    try {
+      const metaRes = await fetch(base, { headers: { Authorization: `Bearer ${token}` } });
+      if (metaRes.ok) { const m: any = await metaRes.json(); contentType = m.contentType; size = Number(m.size || 0); }
+    } catch { /* metadata optional */ }
+    let head = Buffer.alloc(0); let ok = false;
+    try {
+      const mediaRes = await fetch(`${base}?alt=media`, { headers: { Authorization: `Bearer ${token}`, Range: `bytes=0-${HQ_SCAN_HEAD_BYTES - 1}` } });
+      if (mediaRes.ok || mediaRes.status === 206) { head = Buffer.from(await mediaRes.arrayBuffer()); ok = true; }
+    } catch { /* leave head empty */ }
+    return { ok, contentType, size, head };
+  }
+
+  // Is an asset barred from streaming? PENDING or QUARANTINED are gated; a MISSING
+  // scanStatus is a legacy (pre-Wave-3) asset, grandfathered as CLEAN.
+  function hqScanBlocked(asset: any): boolean {
+    return asset?.scanStatus === 'PENDING' || asset?.scanStatus === 'QUARANTINED';
+  }
+  function hqScanMessage(asset: any): string {
+    if (asset?.scanStatus === 'QUARANTINED') return asset.scanReason || 'This file was quarantined by a security scan and cannot be opened.';
+    return 'This file is still being scanned for safety. Please try again in a moment.';
+  }
+
+  // Verify the real MIME + enforce the allowlist/size/malware heuristic, then flip
+  // scanStatus. Auth: any caller who may WRITE the scope (reuses canWriteHqScope).
+  app.post('/api/hq/scan/:assetId', apiLimiter, authMiddleware, async (req: any, res: any) => {
+    const assetId = String(req.params.assetId);
+    const asset = await firestoreRead('orgAssets', assetId);
+    if (!asset) return res.status(404).json({ error: 'Asset not found' });
+    if (!await canWriteHqScope(req.uid, String(asset.scopeKind), String(asset.scopeId))) return res.status(403).json({ error: 'Forbidden' });
+    const source = asset.currentVersionId ? await firestoreRead('hqAssetVersions', String(asset.currentVersionId)) || asset : asset;
+    const objectPath = source.storagePath || asset.storagePath;
+    if (!objectPath) return res.status(404).json({ error: 'No stored object to scan' });
+
+    const obj = await fetchHqObjectHead(String(objectPath));
+    if (!obj.ok) {
+      // Could not read the object — do NOT mark clean; leave it PENDING to be rescanned.
+      return res.status(503).json({ error: 'Could not read the stored object to scan.', scanStatus: 'PENDING' });
+    }
+    const sniffed = sniffHqMime(obj.head);
+    const verdict = runMalwareScan({
+      declaredMime: String(asset.mimeType || ''), storedContentType: obj.contentType,
+      sniffedMime: sniffed, sizeBytes: Number(obj.size || asset.sizeBytes || 0), head: obj.head,
+    });
+    const scanStatus = verdict.clean ? 'CLEAN' : 'QUARANTINED';
+    await firestoreWrite('orgAssets', assetId, { scanStatus, scannedAt: Date.now(), scanReason: verdict.reason || '' });
+    // Durable server-side security audit (asset-scoped, append-only hqActivity).
+    await firestoreCreate('hqActivity', {
+      assetId, scopeKind: asset.scopeKind, scopeId: asset.scopeId,
+      actorUid: '', actorName: 'Plajah security', actorKind: 'SYSTEM',
+      action: verdict.clean ? 'SCANNED' : 'QUARANTINED', createdAt: Date.now(),
+    });
+    return res.json({ scanStatus, ...(verdict.reason ? { scanReason: verdict.reason } : {}), detectedMime: verdict.detectedMime || null });
+  });
+
   app.get('/api/hq/assets/:assetId/download', apiLimiter, authMiddleware, async (req: any, res: any) => {
     const asset = await firestoreRead('orgAssets', String(req.params.assetId));
     if (!await canAccessHqAsset(req.uid, asset)) return res.status(403).json({ error: 'Forbidden' });
+    // Quarantine gate: never stream bytes for a PENDING/QUARANTINED asset.
+    if (hqScanBlocked(asset)) return res.status(409).json({ error: hqScanMessage(asset), code: `SCAN_${asset.scanStatus}` });
     let source: any = asset;
     if (req.query.version) {
       const version = await firestoreRead('hqAssetVersions', String(req.query.version));
@@ -2159,6 +2328,12 @@ async function startServer() {
       source = await firestoreRead('hqAssetVersions', String(asset.currentVersionId)) || asset;
     }
     if (!source?.storagePath) return res.status(404).json({ error: 'Asset not found' });
+    // Lightweight server-side download audit. Only on the initial (non-Range) request so
+    // video seeking's many Range requests don't flood the trail. Best-effort, non-blocking.
+    if (!req.headers.range) {
+      firestoreCreate('hqActivity', { assetId: String(req.params.assetId), scopeKind: asset.scopeKind, scopeId: asset.scopeId,
+        actorUid: req.uid, actorName: '', action: 'DOWNLOADED', createdAt: Date.now() }).catch(() => {});
+    }
     return streamHqObject(req, res, source.storagePath, source.name || asset?.name, source.mimeType || asset?.mimeType);
   });
 
@@ -2178,6 +2353,9 @@ async function startServer() {
     const usedBytes = assets.reduce((sum: number, a: any) => sum + (a.deletedAt ? 0 : Number(a.sizeBytes || 0)), 0);
     const capBytes = await resolveHqCapBytes(scopeKind, scopeId, uid);
     if (capBytes > 0 && usedBytes + incomingBytes > capBytes) {
+      // Durable server-side audit of the rejection (no asset exists yet → hqAuditLog).
+      firestoreCreate('hqAuditLog', { kind: 'QUOTA_REJECTED', scopeKind, scopeId, actorUid: uid,
+        usedBytes, capBytes, incomingBytes, createdAt: Date.now() }).catch(() => {});
       return res.status(413).json({ error: 'Content HQ storage cap exceeded', code: 'OVER_CAP', usedBytes, capBytes, incomingBytes });
     }
     return res.json({ ok: true, usedBytes, capBytes });
@@ -2213,6 +2391,8 @@ async function startServer() {
       return res.status(403).json({ error: 'Share unavailable' });
     }
     const { share, asset } = valid;
+    // Quarantine gate: a guest link must never stream a non-CLEAN asset.
+    if (hqScanBlocked(asset)) return res.status(409).json({ error: hqScanMessage(asset), code: `SCAN_${asset.scanStatus}` });
     if (!asset?.storagePath) return res.status(404).json({ error: 'Asset not found' });
     const source = asset.currentVersionId ? await firestoreRead('hqAssetVersions', String(asset.currentVersionId)) || asset : asset;
     return streamHqObject(req, res, source.storagePath, source.name || asset.name, source.mimeType || asset.mimeType);
@@ -2236,8 +2416,13 @@ async function startServer() {
     const decisions = (await queryFirebase('hqGuestDecisions', [{ field: 'shareId', value: share.id }], 25))
       .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
     res.setHeader('Cache-Control', 'private, no-store');
+    // Quarantine state is surfaced (not the media) so the reviewer page can show a
+    // "still being scanned / unavailable" state instead of a broken preview. Legacy
+    // assets with no scanStatus are treated as CLEAN.
+    const scanStatus = asset.scanStatus || 'CLEAN';
     return res.json({
-      asset: { id: asset.id, title: asset.name, kind: asset.kind, status: asset.status || 'DRAFT', versionCount: asset.versionCount || versions.length || 1 },
+      asset: { id: asset.id, title: asset.name, kind: asset.kind, status: asset.status || 'DRAFT',
+        versionCount: asset.versionCount || versions.length || 1, scanStatus },
       currentVersion, versions, comments,
       flags: { allowComments: !!share.allowComments, allowApproval: !!share.allowApproval,
         allowDownload: !!share.allowDownload, requireEmail: !!share.requireEmail },
@@ -2312,6 +2497,76 @@ async function startServer() {
     })));
     return res.json({ ok: true, decision, status: decision === 'APPROVED' ? 'APPROVED' : 'CHANGES_REQUESTED' });
   });
+
+  // ── Content HQ retention cleanup worker (Wave 3) ───────────────────────────
+  // Permanently purges soft-deleted assets whose 30-day retention window has elapsed:
+  // every Storage object under protected-hq/ (the asset + all its versions) AND every
+  // associated Firestore doc (asset, versions, comments, reviews, activity, guest
+  // decisions, share links). Also expires dead share links past their expiresAt.
+  // Idempotent (deleting an already-gone object/doc is a no-op) and capped per run
+  // (?limit=N, default 25, max 100) so a single invocation stays bounded.
+  //
+  // Auth: an admin/cron secret, reusing the same pattern as /api/cron/publish-due-posts —
+  //   POST /api/hq/retention/sweep?key=<ADMIN_SEED_KEY|CRON_SECRET>
+  //   (or header  x-cron-key: <secret>)
+  // NO scheduler is wired here. This repo deploys to Cloud Run; point Cloud Scheduler
+  // (e.g. daily) at this URL with the secret to run it. Each purge is written to the
+  // durable hqAuditLog collection (which SURVIVES the asset, whose own hqActivity is
+  // deleted in the same sweep).
+  app.post('/api/hq/retention/sweep', express.json(), async (req: any, res: any) => {
+    const key = req.query.key || req.headers['x-cron-key'];
+    if (key !== process.env.ADMIN_SEED_KEY && key !== process.env.CRON_SECRET) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const now = Date.now();
+    const cap = Math.max(1, Math.min(Number(req.query.limit) || 25, 100));
+    const summary = { sweptAssets: 0, purgedObjects: 0, purgedDocs: 0, expiredShares: 0, assetIds: [] as string[] };
+    const CHILD_COLLECTIONS = ['hqAssetVersions', 'hqComments', 'hqReviewRequests', 'hqActivity', 'hqGuestDecisions', 'hqShareLinks'];
+    try {
+      // 1) Assets whose retention window elapsed. The deletedAt post-filter guards against
+      //    any restored asset (retentionDeleteAt cleared to null) slipping through.
+      const expired = (await fsQueryDocs('orgAssets', [{ field: 'retentionDeleteAt', op: 'LESS_THAN_OR_EQUAL', value: now }], cap))
+        .filter(a => a.data.deletedAt);
+      for (const { id, data } of expired) {
+        // Storage objects: the asset original + every version's object.
+        const versions = await fsQueryDocs('hqAssetVersions', [{ field: 'assetId', op: 'EQUAL', value: id }], 500);
+        const objectPaths = new Set<string>();
+        if (data.storagePath) objectPaths.add(String(data.storagePath));
+        for (const v of versions) if (v.data.storagePath) objectPaths.add(String(v.data.storagePath));
+        for (const p of objectPaths) { if (await deleteHqStorageObject(p)) summary.purgedObjects++; }
+        // Firestore docs across every associated collection.
+        for (const coll of CHILD_COLLECTIONS) {
+          const docs = await fsQueryDocs(coll, [{ field: 'assetId', op: 'EQUAL', value: id }], 500);
+          for (const d of docs) { if (await fsDelete(`${coll}/${d.id}`)) summary.purgedDocs++; }
+        }
+        if (await fsDelete(`orgAssets/${id}`)) summary.purgedDocs++;
+        summary.sweptAssets++; summary.assetIds.push(id);
+        // Durable audit that outlives the asset (its hqActivity was just deleted).
+        await firestoreCreate('hqAuditLog', { kind: 'RETENTION_PURGE', assetId: id,
+          scopeKind: String(data.scopeKind || ''), scopeId: String(data.scopeId || ''), name: String(data.name || ''),
+          objectCount: objectPaths.size, createdAt: now });
+      }
+      // 2) Dead share links past their expiry, independent of any asset purge.
+      const deadShares = await fsQueryDocs('hqShareLinks', [{ field: 'expiresAt', op: 'LESS_THAN_OR_EQUAL', value: now }], cap);
+      for (const s of deadShares) { if (await fsDelete(`hqShareLinks/${s.id}`)) summary.expiredShares++; }
+      return res.json({ ok: true, ...summary });
+    } catch (err: any) {
+      console.error('[Content HQ] retention sweep failed:', err?.message || err);
+      return res.status(500).json({ error: err?.message || 'sweep failed' });
+    }
+  });
+
+  // Permanently delete one Storage object under the project bucket (idempotent — a
+  // 404 counts as success). Server-side only; guests/clients never reach protected-hq.
+  async function deleteHqStorageObject(objectPath: string): Promise<boolean> {
+    const token = await getGoogleAccessToken();
+    if (!token) return false;
+    const url = `https://storage.googleapis.com/storage/v1/b/${STORAGE_BUCKET}/o/${encodeURIComponent(objectPath)}`;
+    try {
+      const r = await fetch(url, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      return r.ok || r.status === 404;
+    } catch { return false; }
+  }
 
   // ── Terra: the Open Listing Record feed (public, mirrorable) ───────────────
   // OLR is a RESO-Data-Dictionary-aligned projection of listing data, published

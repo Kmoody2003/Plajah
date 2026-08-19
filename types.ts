@@ -3199,10 +3199,12 @@ export interface HqActivityEvent {
   scopeId: string;
   actorUid: string;
   actorName?: string;
-  actorKind?: 'MEMBER' | 'GUEST';
+  actorKind?: 'MEMBER' | 'GUEST' | 'SYSTEM';
   action: 'UPLOADED' | 'NEW_VERSION' | 'COMMENTED' | 'COMMENT_RESOLVED' | 'REVIEW_REQUESTED' |
     'APPROVED' | 'CHANGES_REQUESTED' | 'DELIVERED' | 'MOVED' | 'TRASHED' | 'RESTORED' |
-    'DOWNLOADED' | 'SHARED' | 'RIGHTS_UPDATED' | 'PUBLISHED';
+    'DOWNLOADED' | 'SHARED' | 'RIGHTS_UPDATED' | 'PUBLISHED' |
+    // Wave 3 trust hardening: server-side security events.
+    'SCANNED' | 'QUARANTINED' | 'PURGED' | 'QUOTA_REJECTED';
   meta?: Record<string, string | number | boolean | null>;
   createdAt: number;
 }

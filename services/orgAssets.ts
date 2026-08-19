@@ -34,6 +34,14 @@ export interface OrgAsset {
   folder?: string;
   tags?: string[];
   status?: import('../types').HqAssetStatus;
+  // ── Wave 3 trust hardening: malware / MIME quarantine state machine ──────────
+  // New uploads start 'PENDING' and are gated (no preview/download) until the
+  // server-side scan endpoint verifies the real MIME + type/size allowlist and
+  // sets 'CLEAN' or 'QUARANTINED'. Legacy assets predating this field are treated
+  // as CLEAN (grandfathered) by the server gate.
+  scanStatus?: 'PENDING' | 'CLEAN' | 'QUARANTINED';
+  scanReason?: string;
+  scannedAt?: number;
   currentVersionId?: string;
   versionCount?: number;
   deletedAt?: number;
@@ -144,6 +152,8 @@ export async function addHqAsset(
     sizeBytes: file.size,
     ...(folder ? { folder } : {}),
     status: 'DRAFT',
+    // Quarantined until the server-side scan clears it (see requestHqScan below).
+    scanStatus: 'PENDING',
     versionCount: 1,
     uploadedAt: Date.now(),
   };
@@ -154,7 +164,30 @@ export async function addHqAsset(
     id: versionRef.id, assetId: id, version: 1, storagePath, name: file.name,
     mimeType, sizeBytes: file.size, uploadedByUid: uid, createdAt: Date.now(),
   });
+  // Trigger the server-side MIME/allowlist/malware scan right after registration.
+  // Best-effort and awaited so the returned asset reflects the verdict for instant
+  // UX; a scan-endpoint outage leaves the asset PENDING (still gated) to be rescanned.
+  const scan = await requestHqScan(id).catch(() => null);
+  if (scan?.scanStatus) { asset.scanStatus = scan.scanStatus; if (scan.scanReason) asset.scanReason = scan.scanReason; }
   return asset;
+}
+
+/**
+ * Ask the server to scan an asset's stored object: it verifies the REAL MIME
+ * (magic bytes, not the client-declared type) against a type + size allowlist and
+ * a malware heuristic, then flips scanStatus to CLEAN or QUARANTINED server-side.
+ * Returns the verdict, or null when the endpoint is unreachable (asset stays PENDING).
+ */
+export async function requestHqScan(assetId: string): Promise<{ scanStatus: 'PENDING' | 'CLEAN' | 'QUARANTINED'; scanReason?: string } | null> {
+  try {
+    const token = await auth.currentUser?.getIdToken();
+    const res = await fetch(`/api/hq/scan/${encodeURIComponent(assetId)}`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
 }
 
 /** Move an asset to a different folder (or clear it). */

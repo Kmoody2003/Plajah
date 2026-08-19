@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FolderOpen, FileText, Image as ImageIcon, Film, Music, File as FileIcon, Upload,
-  Trash2, RotateCcw, Search, Loader2, HardDrive, Library, ArrowLeft, Lock,
+  Trash2, RotateCcw, Search, Loader2, HardDrive, Library, ArrowLeft, Lock, ShieldAlert,
 } from 'lucide-react';
 import ContentAssetManager from './ContentAssetManager';
 import { Album } from '../types';
@@ -278,7 +278,13 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {shown.map((a) => (
               <button key={a.id} onClick={() => setDetail(a)}
-                className="text-left p-4 rounded-2xl bg-white/[0.03] border border-white/8 hover:bg-white/[0.06] transition-colors">
+                className="relative text-left p-4 rounded-2xl bg-white/[0.03] border border-white/8 hover:bg-white/[0.06] transition-colors">
+                {a.scanStatus === 'QUARANTINED' && (
+                  <span className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/15 text-red-300 text-[9px] font-black uppercase tracking-wider"><ShieldAlert className="w-3 h-3" /> Blocked</span>
+                )}
+                {a.scanStatus === 'PENDING' && (
+                  <span className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-200 text-[9px] font-black uppercase tracking-wider"><Loader2 className="w-3 h-3 animate-spin" /> Scanning</span>
+                )}
                 <div className="w-10 h-10 rounded-xl grid place-items-center mb-3" style={{ background: `${TEAL}18`, color: TEAL }}>
                   {assetIcon(a.kind)}
                 </div>
