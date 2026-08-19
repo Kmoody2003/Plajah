@@ -2333,6 +2333,11 @@ export interface Organization {
   statementOfFaith?: string;
   givingUrl?: string;         // external giving link (fallback to native Stripe giving)
 
+  // ── Org chat workspace (services/orgChatService) ───────────────────────────
+  /** Set when the org's chat channels were last provisioned (mirrors productions). */
+  chatProvisionedAt?: number;
+  chatChannelKeys?: string[];
+
   createdAt: number;
   updatedAt: number;
 }
@@ -3215,9 +3220,11 @@ export interface ChatRoom {
   protected?: boolean;
   /** Auto-delete window in days for a protected thread, or null/undefined to keep. */
   retentionDays?: number | null;
-  // ─── Production workspace ─────────────────────────────────────────────────
-  /** Marks a normal group room as a governed Film/Business production channel. */
-  workspaceType?: 'PRODUCTION';
+  // ─── Governed workspaces (Production / Organization) ──────────────────────
+  /** Marks a normal group room as a governed workspace channel: a Film/Business
+   *  production channel, or a native org workspace channel (business pages,
+   *  churches, labels — the Organization backbone). */
+  workspaceType?: 'PRODUCTION' | 'ORGANIZATION';
   productionId?: string;
   productionTitle?: string;
   productionChannelKey?: string;
@@ -3228,9 +3235,18 @@ export interface ChatRoom {
   radioChannel?: number;
   /** Nibbles is deliberately unavailable in governed production rooms. */
   nibblesEnabled?: boolean;
-  /** Announcements can be read by all crew while posting stays with production leadership. */
+  /** Announcements can be read by all crew while posting stays with production leadership.
+   *  Org channels reuse the SAME two fields (leads = org owner/admins) so ChatWindow's
+   *  existing enforcement applies unchanged. */
   postingPolicy?: 'ALL_MEMBERS' | 'PRODUCTION_LEADS';
   productionLeadUids?: string[];
+  // ─── Organization workspace (workspaceType 'ORGANIZATION') ────────────────
+  /** The organizations/{id} this channel belongs to. */
+  orgId?: string;
+  /** Denormalized org name for rail/space rendering without an org fetch. */
+  orgName?: string;
+  orgChannelKey?: string;
+  orgChannelKind?: 'ANNOUNCEMENTS' | 'GENERAL' | 'TEAM';
 }
 
 /**

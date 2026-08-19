@@ -788,7 +788,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     : (room.name || (room.type === 'PUBLIC_LIVE' ? 'Live Channel' : 'Group Chat'));
   const walkiePeerUid = room.type === 'PRIVATE' ? room.participants.find(id => id !== uid) : undefined;
   const isProductionRoom = room.workspaceType === 'PRODUCTION' && !!room.productionId && !!room.productionChannelKey;
-  const canPostToRoom = !isProductionRoom || room.postingPolicy !== 'PRODUCTION_LEADS' || !!uid && (room.productionLeadUids || []).includes(uid);
+  // Org workspace channels (workspaceType 'ORGANIZATION') reuse the same governance
+  // fields, so #announcements posting stays with org leads with no new plumbing.
+  const isOrgRoom = room.workspaceType === 'ORGANIZATION' && !!room.orgId;
+  const canPostToRoom = (!isProductionRoom && !isOrgRoom) || room.postingPolicy !== 'PRODUCTION_LEADS' || !!uid && (room.productionLeadUids || []).includes(uid);
   const [showProductionContext, setShowProductionContext] = useState(false);
 
   const displayedMessages = searchMode && searchQuery
@@ -1356,7 +1359,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   )}
                 </div>
 
-                {!readOnly && (threadReplies.length > 0 || room.workspaceType === 'PRODUCTION') && (
+                {!readOnly && (threadReplies.length > 0 || !!room.workspaceType) && (
                   <button onClick={() => setThreadRoot(msg)} className="flex items-center gap-1 px-2 type-label-sm text-[var(--text-secondary)] hover:text-brand-orange"><MessagesSquare size={11} /> {threadReplies.length ? `${threadReplies.length} thread ${threadReplies.length === 1 ? 'reply' : 'replies'}` : 'Start thread'}</button>
                 )}
 

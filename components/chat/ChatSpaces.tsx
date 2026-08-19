@@ -1,33 +1,28 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  MessageSquare, Search, Hash, Users, Radio, Mail, Plus, ChevronLeft,
+  MessageSquare, Search, Hash, Users, Radio, Mail, ChevronLeft,
   Heart, X, User, GraduationCap, Clapperboard, Sparkles, ClipboardList,
-  MoreHorizontal, Trash2, Edit3, Music, Pin,
+  MoreHorizontal, Trash2, Edit3, Music, Pin, Building2, Mic,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import type { ChatRoom, UserProfile } from '../../types';
+import type { ChatRoom, Organization, OrgMembership, UserProfile } from '../../types';
 import { auth, searchUserProfiles } from '../../services/backendService';
 import { useCall } from '../../contexts/CallContext';
 import type { IntimateProfile } from '../../services/intimateGating';
+import { fetchOrgMembers, fetchUserOrganizations } from '../../services/organizationService';
+import { canManageOrgChat, provisionOrgChat } from '../../services/orgChatService';
+import { createRoom, openRoom } from '../../services/roomService';
 import ChatWindow from '../ChatWindow';
 import PostmanSystem from '../PostmanSystem';
 import IntimateEnrollmentModal from '../IntimateEnrollmentModal';
 import ProductionChatContextPanel from '../film/ProductionChatContextPanel';
 
-// ─── Bridged / connected sources ────────────────────────────────────────────
-// No real bridge exists yet: these are top-level Space entries that open a
-// "Connect {source}" coming-soon panel. We NEVER fake messages for them.
-type SourceKey = 'slack' | 'teams' | 'discord' | 'telegram' | 'whatsapp';
-const SOURCES: { key: SourceKey; label: string; glyph: string; badge: string; color: string; bg: string }[] = [
-  { key: 'slack',    label: 'Slack',    glyph: '#', badge: 'S', color: '#fff',    bg: '#4A154B' },
-  { key: 'teams',    label: 'Teams',    glyph: 'T', badge: 'T', color: '#fff',    bg: '#4B53BC' },
-  { key: 'discord',  label: 'Discord',  glyph: '🎮', badge: 'D', color: '#fff',   bg: '#5865F2' },
-  { key: 'telegram', label: 'Telegram', glyph: '✈', badge: 'T', color: '#fff',    bg: '#28A8E9' },
-  { key: 'whatsapp', label: 'WhatsApp', glyph: '💬', badge: 'W', color: '#04240f', bg: '#25D366' },
-];
-
-// A Space is either a built-in destination, one production, or a bridged source.
-type SpaceId = 'home' | 'live' | 'classrooms' | 'mail' | `prod:${string}` | `src:${SourceKey}`;
+// A Space is a built-in destination, one film production, or one organization the
+// user belongs to (business pages / churches / labels — the Organization backbone).
+// Plajah chat natively carries the behaviors orgs expect from Slack/Discord/Teams
+// (channels, governed announcements, threads, reactions, pins, calls, PTT, voice
+// rooms) — there is no external bridging.
+type SpaceId = 'home' | 'live' | 'classrooms' | 'mail' | `prod:${string}` | `org:${string}`;
 
 interface ChatSpacesProps {
   rooms: ChatRoom[];
@@ -267,6 +262,19 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
   const [showNewDm, setShowNewDm] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
 
+  // ── Native org workspaces (the Organization backbone) ─────────────────────
+  const [orgs, setOrgs] = useState<Organization[]>([]);
+  const [orgMembers, setOrgMembers] = useState<Record<string, OrgMembership[]>>({});
+  const [provisioningOrg, setProvisioningOrg] = useState<string | null>(null);
+  const [voiceRoomBusy, setVoiceRoomBusy] = useState(false);
+
+  useEffect(() => {
+    if (!uid) return;
+    let alive = true;
+    fetchUserOrganizations(uid).then(list => { if (alive) setOrgs(list); }).catch(() => {});
+    return () => { alive = false; };
+  }, [uid]);
+
   // ── Derive the Space model from the shared room list ──────────────────────
   const productions = useMemo(() => {
     const map = new Map<string, { id: string; title: string; rooms: ChatRoom[] }>();
@@ -278,45 +286,112 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
     return [...map.values()].sort((a, b) => a.title.localeCompare(b.title));
   }, [rooms]);
 
+  // Org channels arrive through the same participants-scoped room listener.
+  const orgRoomsById = useMemo(() => {
+    const map = new Map<string, ChatRoom[]>();
+    rooms.filter(r => r.workspaceType === 'ORGANIZATION' && r.orgId).forEach(r => {
+      const list = map.get(r.orgId!) || [];
+      list.push(r);
+      map.set(r.orgId!, list);
+    });
+    map.forEach(list => list.sort((a, b) => (a.orgChannelKey || '').localeCompare(b.orgChannelKey || '')));
+    return map;
+  }, [rooms]);
+
+  // Spaces render for every org the user belongs to — even before channels exist —
+  // plus any org whose channels arrived while the org list is still loading.
+  const orgSpaces = useMemo(() => {
+    const byId = new Map<string, { id: string; name: string; logoUrl?: string; org?: Organization; rooms: ChatRoom[] }>();
+    orgs.forEach(o => byId.set(o.id, { id: o.id, name: o.name, logoUrl: o.logoUrl, org: o, rooms: orgRoomsById.get(o.id) || [] }));
+    orgRoomsById.forEach((list, orgId) => {
+      if (!byId.has(orgId)) byId.set(orgId, { id: orgId, name: list[0]?.orgName || 'Organization', rooms: list });
+    });
+    return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [orgs, orgRoomsById]);
+
   const homeDMs = useMemo(() => rooms.filter(r => r.type === 'PRIVATE'), [rooms]);
-  const homeGroups = useMemo(() => rooms.filter(r => r.type === 'GROUP' && r.workspaceType !== 'PRODUCTION'), [rooms]);
+  const homeGroups = useMemo(() => rooms.filter(r => r.type === 'GROUP' && !r.workspaceType), [rooms]);
   const liveChannels = useMemo(() => rooms.filter(r => r.type === 'PUBLIC_LIVE' && !r.id.startsWith('live_chat_')), [rooms]);
   const songRooms = useMemo(() => rooms.filter(r => r.id.startsWith('live_chat_')), [rooms]);
   const classrooms = useMemo(() => rooms.filter(r => r.type === 'CLASSROOM'), [rooms]);
 
   const activeProduction = space.startsWith('prod:') ? productions.find(p => p.id === space.slice(5)) : undefined;
-  const activeSource = space.startsWith('src:') ? SOURCES.find(s => `src:${s.key}` === space) : undefined;
+  const activeOrg = space.startsWith('org:') ? orgSpaces.find(o => `org:${o.id}` === space) : undefined;
+
+  // Load the active org's roster lazily (right rail + provisioning + role labels).
+  useEffect(() => {
+    if (!activeOrg || orgMembers[activeOrg.id]) return;
+    let alive = true;
+    fetchOrgMembers(activeOrg.id).then(list => { if (alive) setOrgMembers(prev => ({ ...prev, [activeOrg.id]: list })); }).catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeOrg?.id]);
 
   // Rooms that belong to the currently selected space (for auto-selection).
   const spaceRooms = useMemo<ChatRoom[]>(() => {
     if (activeProduction) return activeProduction.rooms;
+    if (activeOrg) return activeOrg.rooms;
     if (space === 'live') return [...liveChannels, ...songRooms];
     if (space === 'classrooms') return classrooms;
     if (space === 'home') return [...homeDMs, ...homeGroups];
     return [];
-  }, [space, activeProduction, liveChannels, songRooms, classrooms, homeDMs, homeGroups]);
+  }, [space, activeProduction, activeOrg, liveChannels, songRooms, classrooms, homeDMs, homeGroups]);
 
-  // For production spaces, auto-open a channel (mirrors ProductionChatWorkspace).
+  // For production/org spaces, auto-open a channel (mirrors ProductionChatWorkspace).
   useEffect(() => {
-    if (!activeProduction) return;
-    const inSpace = activeRoom && activeProduction.rooms.some(r => r.id === activeRoom.id);
+    const workspaceRooms = activeProduction?.rooms || activeOrg?.rooms;
+    if (!workspaceRooms || workspaceRooms.length === 0) return;
+    const inSpace = activeRoom && workspaceRooms.some(r => r.id === activeRoom.id);
     if (!inSpace) {
-      const first = activeProduction.rooms.find(r => r.productionChannelKey === 'general')
-        || activeProduction.rooms.find(r => r.productionChannelKind === 'ANNOUNCEMENTS')
-        || activeProduction.rooms[0] || null;
+      const first = workspaceRooms.find(r => (r.productionChannelKey || r.orgChannelKey) === 'general')
+        || workspaceRooms.find(r => (r.productionChannelKind || r.orgChannelKind) === 'ANNOUNCEMENTS')
+        || workspaceRooms[0] || null;
       setActiveRoom(first);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [space]);
+  }, [space, activeOrg?.rooms.length]);
 
   const selectSpace = (s: SpaceId) => {
     setSpace(s);
     setShowBrief(false);
-    // Non-conversation destinations clear the thread; message spaces keep/adjust it.
-    if (s === 'mail' || s.startsWith('src:')) return;
+  };
+
+  // ── Org actions: lazy channel provisioning + native voice rooms ───────────
+  const activeOrgMembers = activeOrg ? orgMembers[activeOrg.id] || [] : [];
+  const canSetUpOrgChannels = !!(activeOrg?.org && uid && canManageOrgChat(activeOrg.org, activeOrgMembers, uid));
+
+  const handleProvisionOrg = async () => {
+    if (!activeOrg?.org || !uid || provisioningOrg) return;
+    setProvisioningOrg(activeOrg.id);
+    try {
+      const members = orgMembers[activeOrg.id] || await fetchOrgMembers(activeOrg.id);
+      await provisionOrgChat(activeOrg.org, members, uid);
+    } catch (e) { console.warn('[chat] org provisioning failed:', (e as Error).message); }
+    setProvisioningOrg(null);
+  };
+
+  /** Start (and open) a native audio-stage room tagged to this space — the
+   *  Discord-voice / Stages equivalent, on the canonical roomService primitive. */
+  const handleStartVoiceRoom = async (contextId: string, title: string) => {
+    const user = auth.currentUser;
+    if (!user || voiceRoomBusy) return;
+    setVoiceRoomBusy(true);
+    try {
+      const room = await createRoom({
+        title: `${title} · Voice`,
+        durationMins: 45,
+        user: { uid: user.uid, displayName: currentUserProfile?.displayName || user.displayName, photoURL: currentUserProfile?.photoURL || user.photoURL },
+        kind: 'TOPIC',
+        capabilities: { audioStage: true },
+        context: { contentId: contextId, emoji: '🎙' },
+      });
+      openRoom(room.id);
+    } catch (e) { console.warn('[chat] voice room failed:', (e as Error).message); }
+    setVoiceRoomBusy(false);
   };
 
   const isProductionThread = !!activeRoom?.productionId && !!activeProduction;
+  const isOrgThread = activeRoom?.workspaceType === 'ORGANIZATION' && !!activeOrg;
   const currentRoomIsIntimate = activeRoom ? !!activeRoom.isIntimate : false;
 
   // ── Production channel grouping (mirrors ProductionChatWorkspace) ──────────
@@ -329,6 +404,16 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
     };
   }, [activeProduction]);
 
+  // ── Org channel grouping: Announcements / Channels / Teams (+ Direct below) ─
+  const orgGroups = useMemo(() => {
+    const src = activeOrg?.rooms || [];
+    return {
+      ANNOUNCEMENTS: src.filter(r => r.orgChannelKind === 'ANNOUNCEMENTS'),
+      CHANNELS: src.filter(r => r.orgChannelKind === 'GENERAL' || !r.orgChannelKind),
+      TEAMS: src.filter(r => r.orgChannelKind === 'TEAM'),
+    };
+  }, [activeOrg]);
+
   const memberProfiles = useMemo(() => {
     if (!activeRoom) return [] as UserProfile[];
     return activeRoom.participants.map(id => profiles[id]).filter(Boolean).slice(0, 20) as UserProfile[];
@@ -339,22 +424,79 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
     if (space === 'mail') {
       return <div className="p-3"><PostmanSystem /></div>;
     }
-    if (activeSource) {
+    if (activeOrg) {
+      const memberCount = activeOrgMembers.filter(m => m.status === 'ACTIVE').length || activeOrg.org?.memberCount || 0;
       return (
-        <div className="p-4 space-y-2">
-          <GroupLabel>Bridged workspace</GroupLabel>
-          <div className="px-2 text-[11px] text-white/40 leading-relaxed">
-            Bring your {activeSource.label} channels and DMs into Plajah. Nothing is connected yet.
+        <div className="flex-1 overflow-y-auto custom-scrollbar px-2 pb-4">
+          <div className="px-4 pt-3 pb-1 text-[9px] font-black uppercase tracking-widest text-white/25">
+            {memberCount > 0 ? `${memberCount} member${memberCount === 1 ? '' : 's'}` : 'Organization'}
           </div>
+          <div className="px-2 pt-1 pb-2">
+            <button
+              onClick={() => handleStartVoiceRoom(activeOrg.id, activeOrg.name)}
+              disabled={voiceRoomBusy}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.05] hover:bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/70 disabled:opacity-40"
+            >
+              <Mic size={13} className="text-small-orange" /> {voiceRoomBusy ? 'Starting…' : 'Voice room'}
+            </button>
+          </div>
+          {activeOrg.rooms.length === 0 ? (
+            <div className="px-2 pt-2">
+              {canSetUpOrgChannels ? (
+                <button
+                  onClick={handleProvisionOrg}
+                  disabled={provisioningOrg === activeOrg.id}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-small-orange/15 border border-small-orange/25 text-small-orange text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
+                >
+                  <Hash size={13} /> {provisioningOrg === activeOrg.id ? 'Setting up…' : 'Set up channels'}
+                </button>
+              ) : (
+                <EmptyHint icon={<Building2 size={24} />} text="No channels yet — ask an org admin to set them up" />
+              )}
+            </div>
+          ) : (
+            <>
+              {Object.entries(orgGroups).map(([label, list]) => list.length > 0 && (
+                <section key={label}>
+                  <GroupLabel>{label}</GroupLabel>
+                  <div className="space-y-0.5">
+                    {list.map(r => (
+                      <ChannelRow key={r.id} room={r} profiles={profiles} active={activeRoom?.id === r.id} compact
+                        glyph={<Hash size={14} />} onSelect={() => setActiveRoom(r)} />
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </>
+          )}
+          {homeDMs.length > 0 && (
+            <section>
+              <GroupLabel>Direct</GroupLabel>
+              <div className="space-y-0.5">
+                {homeDMs.map(r => (
+                  <ChannelRow key={r.id} room={r} profiles={profiles} active={activeRoom?.id === r.id} compact
+                    intimate={intimateRooms.has(r.id)} onSelect={() => setActiveRoom(r)}
+                    onToggleIntimate={() => onToggleIntimate(r.id)} onDelete={() => onDeleteRoom(r.id)} />
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       );
     }
     if (activeProduction) {
       return (
         <div className="flex-1 overflow-y-auto custom-scrollbar px-2 pb-4">
-          <div className="px-2 pt-3 pb-2">
+          <div className="px-2 pt-3 pb-2 space-y-1.5">
             <button onClick={() => setShowBrief(true)} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.05] hover:bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/70">
               <ClipboardList size={13} className="text-small-orange" /> Sets · Ops brief
+            </button>
+            <button
+              onClick={() => handleStartVoiceRoom(activeProduction.id, activeProduction.title)}
+              disabled={voiceRoomBusy}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.05] hover:bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/70 disabled:opacity-40"
+            >
+              <Mic size={13} className="text-small-orange" /> {voiceRoomBusy ? 'Starting…' : 'Voice room'}
             </button>
           </div>
           {Object.entries(prodGroups).map(([label, list]) => list.length > 0 && (
@@ -430,9 +572,8 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
     );
   };
 
-  // ── Main pane: connect panel / mail / thread / empty ──────────────────────
+  // ── Main pane: mail / thread / empty ──────────────────────────────────────
   const renderMain = () => {
-    if (activeSource) return <ConnectSourcePanel source={activeSource} />;
     if (space === 'mail') {
       return (
         <div className="hidden md:flex flex-1 flex-col items-center justify-center p-12 text-center">
@@ -485,11 +626,12 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
     : space === 'classrooms' ? 'Classrooms'
     : space === 'mail' ? 'Mail'
     : activeProduction ? activeProduction.title
-    : activeSource ? activeSource.label
+    : activeOrg ? activeOrg.name
     : 'Spaces';
 
-  // Show right rail only for a production thread (members + brief).
-  const showRightRail = isProductionThread && !!activeRoom;
+  // Right rail for governed workspace threads: production (members + brief) or
+  // org (roster with org roles).
+  const showRightRail = (isProductionThread || isOrgThread) && !!activeRoom;
 
   return (
     <div className="h-full flex overflow-hidden relative pb-20 md:pb-0" style={currentRoomIsIntimate ? { background: 'linear-gradient(160deg,#1a0008 0%,#2d0010 50%,#0d0005 100%)' } : {}}>
@@ -515,21 +657,21 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
             <Clapperboard size={18} className="text-white/80" />
           </SpaceButton>
         ))}
+        {orgSpaces.map(o => (
+          <SpaceButton key={o.id} active={space === `org:${o.id}`} title={`${o.name} (Organization)`} onClick={() => selectSpace(`org:${o.id}`)}
+            badge={{ text: 'ORG', color: '#fff', bg: 'linear-gradient(135deg,#0E4429,#1F7A4D 55%,#39D353)' }}>
+            {o.logoUrl
+              ? <img src={o.logoUrl} alt="" className="w-full h-full object-cover rounded-2xl" loading="lazy" />
+              : <Building2 size={18} className="text-white/80" />}
+          </SpaceButton>
+        ))}
         <SpaceButton active={space === 'live'} title="Live & Song rooms" onClick={() => selectSpace('live')}><Radio size={18} className="text-red-400" /></SpaceButton>
         {classrooms.length > 0 && <SpaceButton active={space === 'classrooms'} title="Classrooms" onClick={() => selectSpace('classrooms')}><GraduationCap size={18} className="text-blue-400" /></SpaceButton>}
         <SpaceButton active={space === 'mail'} title="Postman / Mail" onClick={() => selectSpace('mail')}><Mail size={18} className="text-white/80" /></SpaceButton>
-        <div className="w-6 h-px bg-white/10" />
-        {SOURCES.map(s => (
-          <SpaceButton key={s.key} active={space === `src:${s.key}`} title={`${s.label} · connect`} onClick={() => selectSpace(`src:${s.key}`)}
-            badge={{ text: s.badge, color: s.color, bg: s.bg }}>
-            <span className="text-white/70" style={{ fontSize: 15 }}>{s.glyph}</span>
-          </SpaceButton>
-        ))}
-        <SpaceButton active={false} title="Connect a source" onClick={() => selectSpace('src:slack')}><Plus size={18} className="text-small-orange" /></SpaceButton>
       </div>
 
       {/* ── CHANNEL COLUMN ── */}
-      <div className={`w-full md:w-72 shrink-0 border-r border-white/[0.06] bg-black/20 backdrop-blur-xl flex flex-col z-10 ${activeRoom || activeSource || space === 'mail' ? 'hidden md:flex' : 'flex'}`}>
+      <div className={`w-full md:w-72 shrink-0 border-r border-white/[0.06] bg-black/20 backdrop-blur-xl flex flex-col z-10 ${activeRoom || space === 'mail' ? 'hidden md:flex' : 'flex'}`}>
         <div className="px-4 pt-4 pb-3 border-b border-white/[0.05] flex items-center justify-between">
           <h2 className="text-sm font-black uppercase tracking-widest text-white truncate">{spaceTitle}</h2>
           {space === 'home' && (
@@ -539,37 +681,64 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
         {renderChannelColumn()}
       </div>
 
-      {/* ── MAIN (thread / connect / mail) ── */}
-      <div className={`${activeRoom || activeSource || space === 'mail' ? 'flex' : 'hidden md:flex'} flex-1 flex-col min-w-0 relative z-10`}>
+      {/* ── MAIN (thread / mail) ── */}
+      <div className={`${activeRoom || space === 'mail' ? 'flex' : 'hidden md:flex'} flex-1 flex-col min-w-0 relative z-10`}>
         {renderMain()}
       </div>
 
-      {/* ── RIGHT RAIL (production only) ── */}
+      {/* ── RIGHT RAIL (production: brief + members · org: roster with roles) ── */}
       {showRightRail && (
         <div className="hidden lg:flex w-60 shrink-0 border-l border-white/[0.06] bg-black/20 backdrop-blur-xl flex-col overflow-y-auto custom-scrollbar z-10">
-          <div className="p-4 border-b border-white/[0.06]">
-            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30 mb-2">Daily brief</p>
-            <button onClick={() => setShowBrief(true)} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-small-orange/15 border border-small-orange/25 text-small-orange text-[10px] font-black uppercase tracking-widest">
-              <ClipboardList size={13} /> Open ops brief
-            </button>
-          </div>
-          <div className="p-4 border-b border-white/[0.06]">
-            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30 mb-3">Members · {activeRoom?.participants.length ?? 0}</p>
-            <div className="space-y-2">
-              {memberProfiles.map(p => (
-                <div key={p.uid} className="flex items-center gap-2 text-[11px] text-white/60">
-                  <img src={p.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="w-6 h-6 rounded-lg object-cover border border-white/10" alt="" loading="lazy" />
-                  <span className="truncate">{p.displayName}</span>
-                </div>
-              ))}
-              {(activeRoom?.participants.length ?? 0) > memberProfiles.length && (
-                <p className="text-[10px] text-white/25">+{(activeRoom!.participants.length) - memberProfiles.length} more</p>
-              )}
+          {isProductionThread && (
+            <div className="p-4 border-b border-white/[0.06]">
+              <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30 mb-2">Daily brief</p>
+              <button onClick={() => setShowBrief(true)} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-small-orange/15 border border-small-orange/25 text-small-orange text-[10px] font-black uppercase tracking-widest">
+                <ClipboardList size={13} /> Open ops brief
+              </button>
             </div>
-          </div>
+          )}
+          {isOrgThread ? (
+            <div className="p-4 border-b border-white/[0.06]">
+              <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30 mb-3">
+                Members · {activeOrgMembers.filter(m => m.status === 'ACTIVE').length || (activeRoom?.participants.length ?? 0)}
+              </p>
+              <div className="space-y-2">
+                {activeOrgMembers.filter(m => m.status === 'ACTIVE').slice(0, 24).map(m => (
+                  <div key={m.id} className="flex items-center gap-2 text-[11px] text-white/60 min-w-0">
+                    <img src={m.photoUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${m.userId}`} className="w-6 h-6 rounded-lg object-cover border border-white/10 shrink-0" alt="" loading="lazy" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate leading-tight">{m.displayName}</p>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-white/25 truncate">{m.title || m.role}</p>
+                    </div>
+                  </div>
+                ))}
+                {activeOrgMembers.filter(m => m.status === 'ACTIVE').length === 0 && memberProfiles.map(p => (
+                  <div key={p.uid} className="flex items-center gap-2 text-[11px] text-white/60">
+                    <img src={p.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="w-6 h-6 rounded-lg object-cover border border-white/10" alt="" loading="lazy" />
+                    <span className="truncate">{p.displayName}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 border-b border-white/[0.06]">
+              <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30 mb-3">Members · {activeRoom?.participants.length ?? 0}</p>
+              <div className="space-y-2">
+                {memberProfiles.map(p => (
+                  <div key={p.uid} className="flex items-center gap-2 text-[11px] text-white/60">
+                    <img src={p.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="w-6 h-6 rounded-lg object-cover border border-white/10" alt="" loading="lazy" />
+                    <span className="truncate">{p.displayName}</span>
+                  </div>
+                ))}
+                {(activeRoom?.participants.length ?? 0) > memberProfiles.length && (
+                  <p className="text-[10px] text-white/25">+{(activeRoom!.participants.length) - memberProfiles.length} more</p>
+                )}
+              </div>
+            </div>
+          )}
           <div className="p-4">
             <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30 mb-2 flex items-center gap-1.5"><Pin size={10} /> Channel</p>
-            <p className="text-[11px] text-white/50 leading-relaxed">{activeRoom?.channelDescription || 'Production channel'}</p>
+            <p className="text-[11px] text-white/50 leading-relaxed">{activeRoom?.channelDescription || (isOrgThread ? 'Organization channel' : 'Production channel')}</p>
           </div>
         </div>
       )}
@@ -598,22 +767,6 @@ const EmptyHint: React.FC<{ icon: React.ReactNode; text: string }> = ({ icon, te
   <div className="py-12 text-center space-y-3">
     <div className="mx-auto text-white/10 w-fit">{icon}</div>
     <p className="text-[9px] font-black uppercase tracking-widest text-white/20">{text}</p>
-  </div>
-);
-
-const ConnectSourcePanel: React.FC<{ source: typeof SOURCES[number] }> = ({ source }) => (
-  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-    <div className="w-20 h-20 rounded-3xl grid place-items-center mb-6 text-3xl border border-white/10" style={{ background: source.bg, color: source.color }}>
-      {source.glyph}
-    </div>
-    <h2 className="text-2xl font-black uppercase tracking-tighter mb-2">Connect {source.label}</h2>
-    <p className="text-[12px] text-white/40 max-w-sm leading-relaxed mb-6">
-      Bridge your {source.label} channels and DMs into Plajah so every conversation lives in one place.
-      This source isn't connected yet — bridging is coming soon.
-    </p>
-    <button disabled className="px-6 py-3 rounded-full bg-white/5 border border-white/10 text-white/40 text-[10px] font-black uppercase tracking-widest cursor-not-allowed">
-      Connect {source.label} · Coming soon
-    </button>
   </div>
 );
 
