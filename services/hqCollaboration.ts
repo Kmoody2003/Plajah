@@ -144,7 +144,7 @@ export async function updateHqRights(asset: OrgAsset, rights: OrgAsset['rights']
   await recordHqActivity(asset, 'RIGHTS_UPDATED');
 }
 
-export async function createHqShareLink(asset: OrgAsset, options?: Partial<Pick<HqShareLink, 'allowComments' | 'allowDownload' | 'requireEmail' | 'expiresAt' | 'label'>>): Promise<{ share: HqShareLink; token: string }> {
+export async function createHqShareLink(asset: OrgAsset, options?: Partial<Pick<HqShareLink, 'allowComments' | 'allowApproval' | 'allowDownload' | 'requireEmail' | 'expiresAt' | 'label'>>): Promise<{ share: HqShareLink; token: string }> {
   const a = await actor();
   const raw = crypto.getRandomValues(new Uint8Array(24));
   const token = Array.from(raw, b => b.toString(16).padStart(2, '0')).join('');
@@ -153,11 +153,24 @@ export async function createHqShareLink(asset: OrgAsset, options?: Partial<Pick<
   const out = doc(collection(db, 'hqShareLinks'));
   const share: HqShareLink = clean({ id: out.id, assetId: asset.id, scopeKind: asset.scopeKind, scopeId: asset.scopeId,
     tokenHash, createdByUid: a.uid, allowComments: options?.allowComments ?? true,
+    allowApproval: options?.allowApproval ?? true,
     allowDownload: options?.allowDownload ?? false, requireEmail: options?.requireEmail ?? false,
     expiresAt: options?.expiresAt, label: options?.label, createdAt: now() });
   await setDoc(out, share);
   await recordHqActivity(asset, 'SHARED', { shareId: out.id });
   return { share, token };
+}
+
+/** Owner-only: revoke a share/review link. Every guest endpoint re-checks `revokedAt` server-side. */
+export async function revokeHqShareLink(asset: OrgAsset, shareId: string): Promise<void> {
+  await updateDoc(doc(db, 'hqShareLinks', shareId), { revokedAt: now() });
+  await recordHqActivity(asset, 'SHARED', { shareId, revoked: true });
+}
+
+/** List a scope's share links so the owner can copy or revoke them. */
+export async function listHqShareLinks(assetId: string): Promise<HqShareLink[]> {
+  const snap = await getDocs(query(collection(db, 'hqShareLinks'), where('assetId', '==', assetId), orderBy('createdAt', 'desc'), limit(25)));
+  return snap.docs.map(d => d.data() as HqShareLink);
 }
 
 export async function fetchHqAsset(assetId: string): Promise<OrgAsset | null> {

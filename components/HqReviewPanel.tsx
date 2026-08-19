@@ -4,7 +4,7 @@ import type { HqActivityEvent, HqAssetVersion, HqComment, HqReviewRequest } from
 import type { OrgAsset } from '../services/orgAssets';
 import {
   addHqComment, addHqVersion, createHqShareLink, decideHqReview, listHqActivity, listHqComments,
-  listHqReviews, listHqVersions, requestHqReview, resolveHqComment, setHqAssetStatus, trashHqAsset, updateHqRights,
+  listHqReviews, listHqVersions, requestHqReview, resolveHqComment, revokeHqShareLink, setHqAssetStatus, trashHqAsset, updateHqRights,
 } from '../services/hqCollaboration';
 import { crossover } from '../services/crossover';
 import type { MediaKind, Recipe } from '../services/crossover';
@@ -50,6 +50,10 @@ const HqReviewPanel: React.FC<{
   const [mediaUrl, setMediaUrl] = useState('');
   const [shareUrl, setShareUrl] = useState('');
   const [error, setError] = useState('');
+  const [showShare, setShowShare] = useState(false);
+  const [shareOpts, setShareOpts] = useState({ allowComments: true, allowApproval: true, requireEmail: false, allowDownload: false });
+  const [reviewLink, setReviewLink] = useState<{ shareId: string; reviewUrl: string; downloadUrl: string } | null>(null);
+  const [copied, setCopied] = useState('');
   const media = useRef<HTMLVideoElement | HTMLAudioElement>(null);
   const versionInput = useRef<HTMLInputElement>(null);
 
@@ -119,13 +123,27 @@ const HqReviewPanel: React.FC<{
     } catch (e: any) { setError(e?.message || 'Download failed.'); } finally { setBusy(false); }
   }
 
-  async function share() {
+  async function createShare() {
     await run(async () => {
-      const { share: row, token } = await createHqShareLink(asset, { allowComments: false, allowDownload: true,
+      const { share: row, token } = await createHqShareLink(asset, { ...shareOpts,
         expiresAt: Date.now() + 14 * 24 * 60 * 60 * 1000 });
-      const url = `${location.origin}/api/hq/share/${row.id}/${token}/download`;
-      setShareUrl(url); await navigator.clipboard?.writeText(url);
+      const reviewUrl = `${location.origin}/review/${row.id}?t=${token}`;
+      const downloadUrl = `${location.origin}/api/hq/share/${row.id}/${token}/download`;
+      setReviewLink({ shareId: row.id, reviewUrl, downloadUrl });
+      try { await navigator.clipboard?.writeText(reviewUrl); setCopied('review'); } catch { /* clipboard optional */ }
     });
+  }
+
+  async function copyLink(which: 'review' | 'download') {
+    if (!reviewLink) return;
+    try { await navigator.clipboard?.writeText(which === 'review' ? reviewLink.reviewUrl : reviewLink.downloadUrl); setCopied(which); } catch { /* */ }
+  }
+
+  async function revokeShare() {
+    if (!reviewLink) return;
+    if (!confirm('Revoke this link? Anyone holding it immediately loses access.')) return;
+    await run(() => revokeHqShareLink(asset, reviewLink.shareId));
+    setReviewLink(null); setCopied(''); setShowShare(false);
   }
 
   async function trash() {
@@ -180,13 +198,41 @@ const HqReviewPanel: React.FC<{
             <h2 className="font-black text-xl truncate">{asset.name}</h2></div>
           <button onClick={download} className="p-2 rounded-full bg-white/5" title="Download original"><Download size={16}/></button>
           {convKind && <button onClick={() => setShowConvert(s => !s)} className={`p-2 rounded-full ${showConvert ? 'bg-[#34e0d0]/20 text-[#34e0d0]' : 'bg-white/5'}`} title="Convert with Crossover"><Repeat size={16}/></button>}
-          {proEnabled && <button onClick={share} className="p-2 rounded-full bg-white/5" title="Create a 14-day review link"><Copy size={16}/></button>}
+          {proEnabled && <button onClick={() => setShowShare(s => !s)} className={`p-2 rounded-full ${showShare ? 'bg-[#34e0d0]/20 text-[#34e0d0]' : 'bg-white/5'}`} title="Share a review link"><Link2 size={16}/></button>}
           {canEdit && <button onClick={trash} className="p-2 rounded-full bg-white/5 text-red-300" title="Move to Trash"><Trash2 size={16}/></button>}
           <button onClick={onClose} className="p-2"><X size={18}/></button>
         </div>
         {shareUrl && <div className="mt-2 text-[11px] text-emerald-300 truncate">Secure download link copied · expires in 14 days</div>}
         {error && <div className="mt-2 text-xs text-red-300">{error}</div>}
       </div>
+
+      {showShare && <div className="mx-5 mt-5 p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
+        <div className="flex items-center gap-2"><Link2 size={14} className="text-[#34e0d0]"/><p className="text-[10px] font-black uppercase tracking-widest text-white/70">External review link</p></div>
+        <p className="text-[11px] text-white/45 leading-relaxed">Anyone with the link can review this asset — no Plajah account. Expires in 14 days; revoke anytime.</p>
+        <div className="space-y-1.5">
+          {([['allowComments', 'Allow comments'], ['allowApproval', 'Allow approve / request changes'], ['requireEmail', 'Require reviewer email'], ['allowDownload', 'Allow download of the original']] as const).map(([key, label]) =>
+            <label key={key} className="flex items-center gap-2.5 text-xs text-white/70 cursor-pointer">
+              <input type="checkbox" checked={shareOpts[key]} onChange={e => setShareOpts(o => ({ ...o, [key]: e.target.checked }))} className="accent-[#34e0d0]"/>
+              {label}
+            </label>)}
+        </div>
+        <button onClick={createShare} disabled={busy} className="w-full py-2.5 rounded-xl bg-[#34e0d0] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 flex items-center justify-center gap-1.5">
+          {busy ? <Loader2 size={13} className="animate-spin"/> : <><Link2 size={13}/> Create review link</>}
+        </button>
+        {reviewLink && <div className="space-y-2 pt-1">
+          <div className="p-2.5 rounded-xl bg-black/40 border border-white/10">
+            <div className="text-[9px] uppercase tracking-widest text-white/35 mb-1">Review link</div>
+            <div className="flex items-center gap-2"><code className="flex-1 text-[10px] text-[#34e0d0] truncate">{reviewLink.reviewUrl}</code>
+              <button onClick={() => copyLink('review')} className="p-1.5 rounded-lg bg-white/5" title="Copy review link">{copied === 'review' ? <Check size={12} className="text-emerald-300"/> : <Copy size={12}/>}</button></div>
+          </div>
+          {shareOpts.allowDownload && <div className="p-2.5 rounded-xl bg-black/40 border border-white/10">
+            <div className="text-[9px] uppercase tracking-widest text-white/35 mb-1">Direct download link</div>
+            <div className="flex items-center gap-2"><code className="flex-1 text-[10px] text-white/60 truncate">{reviewLink.downloadUrl}</code>
+              <button onClick={() => copyLink('download')} className="p-1.5 rounded-lg bg-white/5" title="Copy download link">{copied === 'download' ? <Check size={12} className="text-emerald-300"/> : <Copy size={12}/>}</button></div>
+          </div>}
+          <button onClick={revokeShare} className="text-[10px] font-black uppercase tracking-widest text-red-300">Revoke link</button>
+        </div>}
+      </div>}
 
       <div className="p-5">
         <div className="aspect-video bg-black rounded-2xl overflow-hidden grid place-items-center mb-5">

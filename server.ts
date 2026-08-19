@@ -2183,18 +2183,134 @@ async function startServer() {
     return res.json({ ok: true, usedBytes, capBytes });
   });
 
+  // ── Account-free share/review link (Content HQ Wave 2) ─────────────────────
+  // A share link is a bearer capability: `shareId` names the row, the raw `token`
+  // (only its SHA-256 lives in Firestore) authenticates. Every guest action below
+  // re-validates the link server-side — exists, not revoked, not expired, token
+  // matches (timing-safe) — before touching anything. Guests never learn the
+  // protected storage path; bytes flow only through the tokenized stream. Writes
+  // use the server's Firestore creds so firestore.rules stay fully locked to guests.
+  async function loadValidShare(shareId: string, token: string): Promise<{ share: any; asset: any } | null> {
+    const share = await firestoreRead('hqShareLinks', String(shareId || ''));
+    if (!share || share.revokedAt || (share.expiresAt && share.expiresAt < Date.now())) return null;
+    const hash = nodeCrypto.createHash('sha256').update(String(token || '')).digest('hex');
+    const a = Buffer.from(hash); const b = Buffer.from(String(share.tokenHash || ''));
+    if (a.length !== b.length || !nodeCrypto.timingSafeEqual(a, b)) return null;
+    const asset = await firestoreRead('orgAssets', String(share.assetId));
+    if (!asset || asset.deletedAt) return null;
+    return { share, asset };
+  }
+
+  const clip = (v: any, max: number) => String(v ?? '').trim().slice(0, max);
+  const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+
   app.get('/api/hq/share/:shareId/:token/download', apiLimiter, async (req: any, res: any) => {
-    const share = await firestoreRead('hqShareLinks', String(req.params.shareId));
-    if (!share || share.revokedAt || (share.expiresAt && share.expiresAt < Date.now()) || !share.allowDownload) {
+    const valid = await loadValidShare(String(req.params.shareId), String(req.params.token));
+    // Viewing the asset is the whole point of a review link, so bytes are served for any
+    // enabled link (download / comment / approval). allowDownload only drives the UI's
+    // "Download" affordance — a browser can already save any <video>/<img> source it renders.
+    if (!valid || !(valid.share.allowDownload || valid.share.allowComments || valid.share.allowApproval)) {
       return res.status(403).json({ error: 'Share unavailable' });
     }
-    const hash = nodeCrypto.createHash('sha256').update(String(req.params.token)).digest('hex');
-    const a = Buffer.from(hash); const b = Buffer.from(String(share.tokenHash || ''));
-    if (a.length !== b.length || !nodeCrypto.timingSafeEqual(a, b)) return res.status(403).json({ error: 'Invalid share' });
-    const asset = await firestoreRead('orgAssets', String(share.assetId));
+    const { share, asset } = valid;
     if (!asset?.storagePath) return res.status(404).json({ error: 'Asset not found' });
     const source = asset.currentVersionId ? await firestoreRead('hqAssetVersions', String(asset.currentVersionId)) || asset : asset;
     return streamHqObject(req, res, source.storagePath, source.name || asset.name, source.mimeType || asset.mimeType);
+  });
+
+  // Review context for the account-free reviewer page (no protected path leaked).
+  app.get('/api/hq/share/:shareId/:token', apiLimiter, async (req: any, res: any) => {
+    const valid = await loadValidShare(String(req.params.shareId), String(req.params.token));
+    if (!valid) return res.status(403).json({ error: 'This review link is no longer available.' });
+    const { share, asset } = valid;
+    const versions = (await queryFirebase('hqAssetVersions', [{ field: 'assetId', value: asset.id }], 100))
+      .sort((a: any, b: any) => (b.version || 0) - (a.version || 0))
+      .map((v: any) => ({ id: v.id, version: v.version, name: v.name, mimeType: v.mimeType, sizeBytes: v.sizeBytes, createdAt: v.createdAt }));
+    const currentVersion = versions.find((v: any) => v.id === asset.currentVersionId) || versions[0] || null;
+    const comments = (await queryFirebase('hqComments', [{ field: 'assetId', value: asset.id }], 500))
+      .filter((c: any) => c.visibility !== 'INTERNAL')
+      .sort((a: any, b: any) => (a.createdAt || 0) - (b.createdAt || 0))
+      // Strip uids and guest emails — other reviewers see only names + timecoded feedback.
+      .map((c: any) => ({ id: c.id, authorName: c.authorName || 'Reviewer', authorKind: c.authorKind || 'MEMBER',
+        body: c.body, timeStartSeconds: c.timeStartSeconds, resolved: !!c.resolved, createdAt: c.createdAt }));
+    const decisions = (await queryFirebase('hqGuestDecisions', [{ field: 'shareId', value: share.id }], 25))
+      .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.json({
+      asset: { id: asset.id, title: asset.name, kind: asset.kind, status: asset.status || 'DRAFT', versionCount: asset.versionCount || versions.length || 1 },
+      currentVersion, versions, comments,
+      flags: { allowComments: !!share.allowComments, allowApproval: !!share.allowApproval,
+        allowDownload: !!share.allowDownload, requireEmail: !!share.requireEmail },
+      label: share.label || '',
+      decision: decisions[0] ? { decision: decisions[0].decision, note: decisions[0].note, guestName: decisions[0].guestName, createdAt: decisions[0].createdAt } : null,
+    });
+  });
+
+  // Guest comment — gated on allowComments; written with the server's creds as authorKind:'GUEST'.
+  app.post('/api/hq/share/:shareId/:token/comment', apiLimiter, express.json({ limit: '16kb' }), async (req: any, res: any) => {
+    const valid = await loadValidShare(String(req.params.shareId), String(req.params.token));
+    if (!valid) return res.status(403).json({ error: 'This review link is no longer available.' });
+    const { share, asset } = valid;
+    if (!share.allowComments) return res.status(403).json({ error: 'Comments are turned off for this link.' });
+    const body = clip(req.body?.body, 4000);
+    const guestName = clip(req.body?.guestName, 120);
+    const guestEmail = clip(req.body?.guestEmail, 200);
+    if (!body) return res.status(400).json({ error: 'Write a comment first.' });
+    if (!guestName) return res.status(400).json({ error: 'Add your name so the team knows who left this.' });
+    if (share.requireEmail && !isEmail(guestEmail)) return res.status(400).json({ error: 'A valid email is required to comment on this link.' });
+    const timecodeMs = Number(req.body?.timecodeMs);
+    const comment = {
+      assetId: asset.id, versionId: String(asset.currentVersionId || ''),
+      authorUid: '', authorName: guestName, authorKind: 'GUEST',
+      ...(guestEmail ? { guestEmail } : {}),
+      // firestoreCreate serializes JS numbers as integerValue, so store whole seconds (a
+      // fractional value would be rejected by the Firestore REST API and the write would fail).
+      body, ...(Number.isFinite(timecodeMs) && timecodeMs >= 0 ? { timeStartSeconds: Math.round(timecodeMs / 1000) } : {}),
+      visibility: 'EVERYONE', resolved: false, createdAt: Date.now(),
+    };
+    const id = await firestoreCreate('hqComments', comment);
+    await firestoreCreate('hqActivity', { assetId: asset.id, scopeKind: asset.scopeKind, scopeId: asset.scopeId,
+      actorUid: '', actorName: guestName, actorKind: 'GUEST', action: 'COMMENTED', createdAt: Date.now() });
+    return res.json({ ok: true, comment: { id, authorName: guestName, authorKind: 'GUEST', body,
+      timeStartSeconds: comment.timeStartSeconds, resolved: false, createdAt: comment.createdAt } });
+  });
+
+  // Guest decision — gated on allowApproval; records an HqGuestDecision, moves the asset
+  // status, and notifies the link's creator + asset owner (same deep link authed reviews use).
+  app.post('/api/hq/share/:shareId/:token/decision', apiLimiter, express.json({ limit: '16kb' }), async (req: any, res: any) => {
+    const valid = await loadValidShare(String(req.params.shareId), String(req.params.token));
+    if (!valid) return res.status(403).json({ error: 'This review link is no longer available.' });
+    const { share, asset } = valid;
+    if (!share.allowApproval) return res.status(403).json({ error: 'Approvals are turned off for this link.' });
+    const decision = String(req.body?.decision || '');
+    if (decision !== 'APPROVED' && decision !== 'CHANGES_REQUESTED') return res.status(400).json({ error: 'Choose Approve or Request changes.' });
+    const guestName = clip(req.body?.guestName, 120);
+    const guestEmail = clip(req.body?.guestEmail, 200);
+    const note = clip(req.body?.note, 2000);
+    if (!guestName) return res.status(400).json({ error: 'Add your name to record this decision.' });
+    if (share.requireEmail && !isEmail(guestEmail)) return res.status(400).json({ error: 'A valid email is required to decide on this link.' });
+    const rec = { shareId: share.id, assetId: asset.id, versionId: String(asset.currentVersionId || ''),
+      decision, ...(note ? { note } : {}), guestName, ...(guestEmail ? { guestEmail } : {}), createdAt: Date.now() };
+    await firestoreCreate('hqGuestDecisions', rec);
+    await firestoreWrite('orgAssets', asset.id, decision === 'APPROVED'
+      ? { status: 'APPROVED', approvedAt: Date.now() } : { status: 'CHANGES_REQUESTED' });
+    await firestoreCreate('hqActivity', { assetId: asset.id, scopeKind: asset.scopeKind, scopeId: asset.scopeId,
+      actorUid: '', actorName: guestName, actorKind: 'GUEST', action: decision, createdAt: Date.now() });
+    // Notify the person who created the link and (for orgs) the org owner.
+    const recipients = new Set<string>();
+    if (share.createdByUid) recipients.add(String(share.createdByUid));
+    if (asset.scopeKind === 'user' && asset.scopeId) recipients.add(String(asset.scopeId));
+    if (asset.scopeKind === 'org') {
+      const org = await firestoreRead('organizations', String(asset.scopeId));
+      if (org?.creatorId) recipients.add(String(org.creatorId));
+    }
+    const verb = decision === 'APPROVED' ? 'approved' : 'requested changes on';
+    await Promise.all([...recipients].map(userId => firestoreCreate('notifications', {
+      userId, senderId: '', senderName: guestName, type: 'CONTENT', title: decision === 'APPROVED' ? 'Asset approved' : 'Changes requested',
+      message: `${guestName} ${verb} ${asset.name}.`, targetId: asset.id, link: `content-hq:${asset.id}`,
+      isRead: false, timestamp: Date.now(),
+    })));
+    return res.json({ ok: true, decision, status: decision === 'APPROVED' ? 'APPROVED' : 'CHANGES_REQUESTED' });
   });
 
   // ── Terra: the Open Listing Record feed (public, mirrorable) ───────────────

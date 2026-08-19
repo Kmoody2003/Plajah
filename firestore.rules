@@ -2217,8 +2217,16 @@ service cloud.firestore {
       allow create: if canAccessHqAsset(request.resource.data.assetId) &&
         request.resource.data.createdByUid == request.auth.uid;
       allow update: if canAccessHqAsset(resource.data.assetId) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revokedAt', 'expiresAt', 'allowComments', 'allowDownload']);
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revokedAt', 'expiresAt', 'allowComments', 'allowApproval', 'allowDownload', 'requireEmail']);
       allow delete: if false;
+    }
+
+    // Account-free reviewer decisions. Written ONLY by the server (Admin creds) through the
+    // tokenized share endpoints — guests never authenticate — so client writes stay closed.
+    // The asset's owning scope can read them to see who approved / requested changes.
+    match /hqGuestDecisions/{decisionId} {
+      allow read: if canAccessHqAsset(resource.data.assetId);
+      allow write: if false;
     }
 
     // ── Music sync-license grants — created only by the Stripe webhook (Admin SDK) ──

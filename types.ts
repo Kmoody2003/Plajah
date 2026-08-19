@@ -3144,9 +3144,11 @@ export interface HqComment {
   id: string;
   assetId: string;
   versionId: string;
-  authorUid: string;
+  authorUid: string;            // '' for account-free guest reviewers
   authorName: string;
   authorPhoto?: string;
+  authorKind?: 'MEMBER' | 'GUEST';
+  guestEmail?: string;          // only set for GUEST comments when the link requires it
   body: string;
   timeStartSeconds?: number;
   timeEndSeconds?: number;
@@ -3158,6 +3160,21 @@ export interface HqComment {
   createdAt: number;
   resolvedAt?: number;
   resolvedByUid?: string;
+}
+
+// A decision left by an account-free reviewer through a share/review link. Distinct
+// from HqReviewRequest (which keys decisions by a member uid) — a guest is identified
+// by name (+ email when the link requires it) and tied to the share link, not an account.
+export interface HqGuestDecision {
+  id: string;
+  shareId: string;
+  assetId: string;
+  versionId?: string;
+  decision: 'APPROVED' | 'CHANGES_REQUESTED';
+  note?: string;
+  guestName: string;
+  guestEmail?: string;
+  createdAt: number;
 }
 
 export interface HqReviewRequest {
@@ -3182,6 +3199,7 @@ export interface HqActivityEvent {
   scopeId: string;
   actorUid: string;
   actorName?: string;
+  actorKind?: 'MEMBER' | 'GUEST';
   action: 'UPLOADED' | 'NEW_VERSION' | 'COMMENTED' | 'COMMENT_RESOLVED' | 'REVIEW_REQUESTED' |
     'APPROVED' | 'CHANGES_REQUESTED' | 'DELIVERED' | 'MOVED' | 'TRASHED' | 'RESTORED' |
     'DOWNLOADED' | 'SHARED' | 'RIGHTS_UPDATED' | 'PUBLISHED';
@@ -3198,8 +3216,10 @@ export interface HqShareLink {
   createdByUid: string;
   label?: string;
   allowComments: boolean;
+  allowApproval: boolean;       // account-free reviewer may Approve / Request changes
   allowDownload: boolean;
   requireEmail: boolean;
+  passwordHash?: string;        // Pro: optional passphrase gate (DEFERRED — stored, not yet enforced)
   expiresAt?: number;
   revokedAt?: number;
   createdAt: number;

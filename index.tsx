@@ -33,6 +33,12 @@ const ProgramOutView = React.lazy(() => import('./components/plajahPixels/compon
 // Its OWN minimal entry (like ProgramOut): render only the scrolling Prompter,
 // which syncs to the operator over a same-origin BroadcastChannel.
 const PrompterScreen = React.lazy(() => import('./components/teleprompter/PrompterScreen'));
+// Content HQ account-free reviewer page. Opened at /review/:shareId?t=<token>. It gets its
+// OWN minimal entry — BEFORE <App/> and its auth gate — so a logged-out external reviewer
+// lands straight on the review UI and never flashes the marketing/login screen.
+const HqReviewPublic = React.lazy(() => import('./components/HqReviewPublic'));
+const reviewMatch = window.location.pathname.match(/^\/review\/([A-Za-z0-9_-]+)\/?$/);
+const reviewToken = search.get('t') || '';
 
 // ── Force the whole app onto the discrete GPU (NVIDIA), not the integrated one ──
 // A browser binds a page to ONE GPU, decided by the power-preference of its WebGL
@@ -287,6 +293,17 @@ if (isProgramOut) {
       <ErrorBoundary>
         <React.Suspense fallback={<div style={{ width: '100vw', height: '100vh', background: '#000' }} />}>
           <ProgramOutView />
+        </React.Suspense>
+      </ErrorBoundary>
+    </React.StrictMode>
+  );
+} else if (reviewMatch && reviewToken) {
+  // Account-free external reviewer — standalone, no platform shell, no auth gate.
+  root.render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <React.Suspense fallback={<div style={{ width: '100vw', height: '100vh', background: '#0b0b10' }} />}>
+          <HqReviewPublic shareId={reviewMatch[1]} token={reviewToken} />
         </React.Suspense>
       </ErrorBoundary>
     </React.StrictMode>
