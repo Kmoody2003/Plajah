@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'motion/react';
 import {
-  FolderOpen, FileText, Image as ImageIcon, Film, Music, File as FileIcon, Upload, Download,
-  Trash2, Repeat, X, Search, Loader2, HardDrive, Library, ArrowLeft, Plus, Lock,
+  FolderOpen, FileText, Image as ImageIcon, Film, Music, File as FileIcon, Upload,
+  Trash2, RotateCcw, Search, Loader2, HardDrive, Library, ArrowLeft, Lock,
 } from 'lucide-react';
 import ContentAssetManager from './ContentAssetManager';
 import { Album } from '../types';
@@ -10,8 +9,7 @@ import {
   listHqAssets, addHqAsset, deleteHqAsset, humanFileSize,
   type OrgAsset, type OwnerScope,
 } from '../services/orgAssets';
-import { crossover } from '../services/crossover';
-import type { MediaKind, Recipe } from '../services/crossover';
+import { restoreHqAsset } from '../services/hqCollaboration';
 import HqReviewPanel from './HqReviewPanel';
 import { fetchMySubscription } from '../services/subscriptionService';
 import { resolveContentHqEntitlements } from '../services/contentHqEntitlements';
@@ -35,6 +33,16 @@ interface Props {
 
 const ORANGE = '#FF8C00';
 const TEAL = '#34e0d0';
+
+// Deep-link bridge: a `content-hq:<assetId>` notification (see hqCollaboration.requestHqReview)
+// navigates to the right Content HQ surface, then calls openHqAsset() to focus that asset's
+// review panel. The module-level latch covers the race where the target tab mounts *after*
+// the event fires; the CustomEvent covers the case where it is already mounted.
+let pendingHqAssetId: string | null = null;
+export function openHqAsset(assetId: string): void {
+  pendingHqAssetId = assetId;
+  window.dispatchEvent(new CustomEvent('plajah:openHqAsset', { detail: { assetId } }));
+}
 
 function assetIcon(kind: OrgAsset['kind'], cls = 'w-5 h-5') {
   if (kind === 'image') return <ImageIcon className={cls} />;
@@ -90,6 +98,9 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
   const [folder, setFolder] = useState<string>('ALL');
   const [uploading, setUploading] = useState<{ name: string; pct: number }[]>([]);
   const [detail, setDetail] = useState<OrgAsset | null>(null);
+  const [showTrash, setShowTrash] = useState(false);
+  const [trashed, setTrashed] = useState<OrgAsset[]>([]);
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const [proEnabled, setProEnabled] = useState(scope.kind === 'org');
   const [entitlements, setEntitlements] = useState<ContentHqEntitlements>(() =>
     resolveContentHqEntitlements(scope.kind === 'org' ? { organization: { id: scope.id } as any } : {}));
@@ -101,7 +112,23 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
     try { setAssets(await listHqAssets(scope)); } catch { /* rules / offline */ }
     setLoading(false);
   };
+  const loadTrash = async () => {
+    try { setTrashed((await listHqAssets(scope, true)).filter(a => a.deletedAt)); } catch { /* rules / offline */ }
+  };
   useEffect(() => { load(); }, [scope.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Deep-link: focus a specific asset's review panel once it is loaded into this scope.
+  useEffect(() => {
+    const onOpen = (e: Event) => setPendingId((e as CustomEvent).detail?.assetId || null);
+    window.addEventListener('plajah:openHqAsset', onOpen);
+    if (pendingHqAssetId) { setPendingId(pendingHqAssetId); pendingHqAssetId = null; }
+    return () => window.removeEventListener('plajah:openHqAsset', onOpen);
+  }, []);
+  useEffect(() => {
+    if (!pendingId) return;
+    const found = assets.find(a => a.id === pendingId);
+    if (found) { setShowTrash(false); setDetail(found); setPendingId(null); }
+  }, [pendingId, assets]);
   useEffect(() => {
     if (scope.kind === 'org') {
       const next = resolveContentHqEntitlements({ organization: { id: scope.id } as any });
@@ -143,6 +170,10 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
           setUploading((prev) => prev.map((u) => (u.name === f.name ? { ...u, pct } : u))));
       } catch (e: any) {
         setUploading((prev) => prev.map((u) => (u.name === f.name ? { ...u, pct: -1 } : u)));
+        if (String(e?.message || '').startsWith('STORAGE_CAP_EXCEEDED')) {
+          const cap = String(e.message).split(':')[1] || `${entitlements.storageLimitGb} GB`;
+          setNotice(`Upload rejected — your Content HQ storage allowance (${cap}) is full.`);
+        }
       }
     }
     setUploading([]);
@@ -174,6 +205,12 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
             <Upload className="w-4 h-4" /> Upload
           </button>
         )}
+        <button onClick={() => { const next = !showTrash; setShowTrash(next); if (next) loadTrash(); }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-colors ${
+            showTrash ? 'bg-white/15 text-white' : 'bg-white/5 text-white/50 hover:text-white'
+          }`}>
+          <Trash2 className="w-4 h-4" /> Trash
+        </button>
         <input ref={fileInput} type="file" multiple className="hidden"
           onChange={(e) => { onFiles(e.target.files); e.currentTarget.value = ''; }} />
       </div>
@@ -198,9 +235,40 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
         </div>
       )}
 
-      {/* grid */}
+      {/* grid / trash */}
       <div className="flex-1 min-h-0 overflow-y-auto">
-        {loading ? (
+        {showTrash ? (
+          trashed.length === 0 ? (
+            <div className="grid place-items-center h-48 text-center text-white/30 text-sm px-8">Trash is empty. Deleted files are recoverable here for 30 days.</div>
+          ) : (
+            <div className="space-y-2">
+              {trashed.map((a) => {
+                const days = a.retentionDeleteAt ? Math.max(0, Math.ceil((a.retentionDeleteAt - Date.now()) / 86400000)) : 30;
+                return (
+                  <div key={a.id} className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/8">
+                    <div className="w-9 h-9 rounded-xl grid place-items-center shrink-0" style={{ background: `${TEAL}12`, color: `${TEAL}99` }}>{assetIcon(a.kind)}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-semibold truncate">{a.name}</div>
+                      <div className="text-[11px] text-red-300/70 mt-0.5">Deletes in {days} day{days === 1 ? '' : 's'} · {humanFileSize(a.sizeBytes)}</div>
+                    </div>
+                    {canEdit && (
+                      <div className="flex gap-1.5 shrink-0">
+                        <button onClick={async () => { await restoreHqAsset(a); await loadTrash(); await load(); }}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 text-white/70 hover:text-white text-[10px] font-black uppercase tracking-widest">
+                          <RotateCcw className="w-3.5 h-3.5" /> Restore
+                        </button>
+                        <button onClick={async () => { if (confirm('Permanently delete this file? This cannot be undone.')) { await deleteHqAsset(a); await loadTrash(); } }}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 text-red-300 hover:text-red-200 text-[10px] font-black uppercase tracking-widest">
+                          <Trash2 className="w-3.5 h-3.5" /> Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : loading ? (
           <div className="grid place-items-center h-40 text-white/40"><Loader2 className="w-6 h-6 animate-spin" /></div>
         ) : shown.length === 0 ? (
           <div className="grid place-items-center h-48 text-center text-white/30 text-sm px-8">
@@ -225,97 +293,8 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
 
       {detail && (
         <HqReviewPanel asset={detail} canEdit={canEdit} proEnabled={proEnabled}
-          onClose={() => setDetail(null)} onChanged={load} />
+          onClose={() => setDetail(null)} onChanged={() => { load(); loadTrash(); }} />
       )}
-    </div>
-  );
-};
-
-// ── File detail: download / convert / delete ───────────────────────────────
-const CX_TARGETS: Partial<Record<MediaKind, { id: string; label: string; recipe: Recipe }[]>> = {
-  image: [
-    { id: 'webp', label: 'WebP (browser)', recipe: { containerId: 'webp', imageFormatId: 'webp', hwAccel: 'auto', qualityMode: 'crf' } },
-    { id: 'png', label: 'PNG (browser)', recipe: { containerId: 'png', imageFormatId: 'png', hwAccel: 'auto', qualityMode: 'crf' } },
-    { id: 'jpg', label: 'JPEG (browser)', recipe: { containerId: 'jpg', imageFormatId: 'jpg', hwAccel: 'auto', qualityMode: 'crf' } },
-  ],
-  audio: [
-    { id: 'wav', label: 'WAV 16-bit (browser)', recipe: { containerId: 'wav', audioCodecId: 'pcm_s16le', hwAccel: 'auto', qualityMode: 'lossless', fixTimestamps: true } },
-    { id: 'mp3', label: 'MP3 320k (cloud)', recipe: { containerId: 'mp3', audioCodecId: 'mp3', hwAccel: 'auto', qualityMode: 'bitrate', audioBitrate: '320k', fixTimestamps: true } },
-  ],
-  video: [
-    { id: 'mp4', label: 'MP4 / H.264 (cloud)', recipe: { containerId: 'mp4', videoCodecId: 'h264', audioCodecId: 'aac', hwAccel: 'auto', qualityMode: 'crf', crf: 20, audioBitrate: '256k', fixTimestamps: true } },
-    { id: 'prores', label: 'MOV / ProRes (cloud)', recipe: { containerId: 'mov', videoCodecId: 'prores', audioCodecId: 'pcm_s16le', hwAccel: 'none', qualityMode: 'lossless', fixTimestamps: true } },
-  ],
-};
-
-const AssetDetail: React.FC<{ asset: OrgAsset; canEdit: boolean; onClose: () => void; onDeleted: () => void }> = ({ asset, canEdit, onClose, onDeleted }) => {
-  const convKind: MediaKind | null = asset.kind === 'image' ? 'image' : asset.kind === 'audio' ? 'audio' : asset.kind === 'video' ? 'video' : null;
-  const targets = convKind ? CX_TARGETS[convKind] || [] : [];
-  const [targetId, setTargetId] = useState(targets[0]?.id || '');
-  const [busy, setBusy] = useState(false);
-  const [pct, setPct] = useState(0);
-  const [outUrl, setOutUrl] = useState<{ url: string; name: string } | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-
-  async function convert() {
-    const t = targets.find((x) => x.id === targetId);
-    if (!t || !convKind) return;
-    setBusy(true); setErr(null); setOutUrl(null); setPct(0);
-    try {
-      const blob = await (await fetch(asset.url)).blob();
-      const file = new File([blob], asset.name, { type: blob.type || asset.mimeType });
-      const r = await crossover.convert({ id: asset.id, name: asset.name, kind: convKind, sizeBytes: blob.size, file }, t.recipe, (p) => setPct(p.progress));
-      setOutUrl({ url: r.outputUrl, name: r.outputName });
-    } catch (e: any) {
-      setErr(e?.message === 'LIMIT_REACHED' ? 'Free conversion limit reached — upgrade to Plajah+.' : (e?.message || String(e)));
-    } finally { setBusy(false); }
-  }
-
-  return (
-    <div className="fixed inset-0 z-[130] flex items-center justify-end bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <motion.div initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }}
-        className="w-full max-w-md h-full bg-[#0c0c11] border-l border-white/10 overflow-y-auto p-6 space-y-5" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-black uppercase tracking-widest text-white/40">{asset.kind} · {humanFileSize(asset.sizeBytes)}</span>
-          <button onClick={onClose} className="text-white/40 hover:text-white"><X className="w-4.5 h-4.5" /></button>
-        </div>
-        <div className="aspect-video rounded-2xl overflow-hidden bg-white/5 grid place-items-center">
-          {asset.kind === 'image'
-            ? <img src={asset.url} alt="" className="w-full h-full object-contain" />
-            : <div className="text-white/20">{assetIcon(asset.kind, 'w-12 h-12')}</div>}
-        </div>
-        <h2 className="text-xl font-black break-words">{asset.name}</h2>
-
-        <div className="flex gap-2">
-          <a href={asset.url} download={asset.name} target="_blank" rel="noreferrer"
-            className="flex-1 py-3 rounded-full bg-white/10 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
-            <Download className="w-4 h-4" /> Download
-          </a>
-          {canEdit && (
-            <button onClick={async () => { if (confirm('Delete this file?')) { await deleteHqAsset(asset); onDeleted(); } }}
-              className="px-4 py-3 rounded-full bg-white/10 text-[#ff6b6b] text-[10px] font-black uppercase tracking-widest flex items-center justify-center">
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-
-        {convKind && (
-          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/8 space-y-3">
-            <div className="flex items-center gap-2"><Repeat className="w-3.5 h-3.5 text-[#34e0d0]" /><p className="text-[10px] font-black uppercase tracking-widest text-white/70">Convert with Crossover</p></div>
-            <div className="flex gap-2">
-              <select value={targetId} onChange={(e) => setTargetId(e.target.value)} className="flex-1 px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-xs text-white outline-none [&>option]:bg-neutral-900">
-                {targets.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-              </select>
-              <button onClick={convert} disabled={busy} className="px-4 py-2 rounded-xl bg-[#FF8C00] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 flex items-center gap-1.5">
-                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Convert'}
-              </button>
-            </div>
-            {busy && <div className="h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#34e0d0]" style={{ width: `${pct * 100}%` }} /></div>}
-            {outUrl && <a href={outUrl.url} download={outUrl.name} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#3ddc84]"><Download className="w-3.5 h-3.5" /> {outUrl.name}</a>}
-            {err && <p className="text-[9px] text-[#ff6b6b] leading-relaxed">{err}</p>}
-          </div>
-        )}
-      </motion.div>
     </div>
   );
 };

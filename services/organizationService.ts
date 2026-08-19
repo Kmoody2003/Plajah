@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
 import { db, auth } from './firebase';
+import { permissionsForMember } from './orgPermissions';
 import type { ChurchPrayer, UserProfile } from '../types';
 import type { Organization, OrgMembership, OrgRole, OrgType, Ministry, ServiceTime, GivingFund } from '../types';
 
@@ -124,6 +125,30 @@ export async function fetchOrgMembers(orgId: string): Promise<OrgMembership[]> {
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as OrgMembership));
 }
 
+/**
+ * Recompute the org's denormalized `staffUids` — the ACTIVE members whose effective permissions
+ * include MANAGE_CONTENT (staff/moderators/admins + explicit overrides). Firestore rules read this
+ * array to grant Content HQ access to staff (membership docs have random ids, so rules cannot query
+ * them). Always derived fresh from the membership source of truth, so it can never drift; only an
+ * owner/admin can write the org doc, so a member cannot self-elevate. Best-effort — a failure just
+ * defers staff access until the next successful staff mutation.
+ */
+export async function recomputeOrgStaffUids(orgId: string): Promise<void> {
+  try {
+    const members = await fetchOrgMembers(orgId);
+    const staffUids = Array.from(new Set(
+      members.filter(m => m.status === 'ACTIVE' && permissionsForMember(m).has('MANAGE_CONTENT')).map(m => m.userId),
+    ));
+    await updateDoc(doc(db, 'organizations', orgId), { staffUids, updatedAt: Date.now() });
+  } catch { /* non-fatal: HQ access falls back to owners/admins until the next staff change */ }
+}
+
+/** Resolve the parent org id for a membership doc (staff functions that only carry a membershipId). */
+async function orgIdOfMembership(membershipId: string): Promise<string | undefined> {
+  try { return (await getDoc(doc(db, 'orgMemberships', membershipId))).data()?.orgId as string | undefined; }
+  catch { return undefined; }
+}
+
 /** Join (or request to join) an organization. */
 export async function joinOrganization(orgId: string, opts?: { role?: OrgRole; title?: string; status?: OrgMembership['status'] }): Promise<OrgMembership | null> {
   if (!auth.currentUser) return null;
@@ -147,6 +172,8 @@ export async function joinOrganization(orgId: string, opts?: { role?: OrgRole; t
 /** Add / promote a staff member (owner/admin action). */
 export async function setOrgMemberRole(membershipId: string, role: OrgRole, title?: string): Promise<void> {
   await updateDoc(doc(db, 'orgMemberships', membershipId), stripUndefined({ role, title }));
+  const orgId = await orgIdOfMembership(membershipId);
+  if (orgId) await recomputeOrgStaffUids(orgId);
 }
 
 /** Owner/admin adds another user to the org's staff. */
@@ -159,11 +186,14 @@ export async function addOrgMember(orgId: string, member: { userId: string; disp
     joinedAt: Date.now(),
   };
   await setDoc(ref, stripUndefined(m));
+  await recomputeOrgStaffUids(orgId);
   return m;
 }
 
 export async function removeOrgMember(membershipId: string): Promise<void> {
+  const orgId = await orgIdOfMembership(membershipId);
   await deleteDoc(doc(db, 'orgMemberships', membershipId));
+  if (orgId) await recomputeOrgStaffUids(orgId);
 }
 
 /** Grant/revoke edit rights by putting a member's uid in (or out of) org.admins. */
@@ -228,6 +258,7 @@ export async function createManagedEmployee(
     acceptedAt: now,
   };
   await setDoc(memberRef, stripUndefined(membership));
+  await recomputeOrgStaffUids(orgId);
   return { employee, membership };
 }
 
@@ -260,6 +291,8 @@ export async function applyToOrg(
 /** Owner/admin accepts a PENDING applicant → ACTIVE (optionally setting their final role). */
 export async function acceptOrgMember(membershipId: string, role?: OrgRole): Promise<void> {
   await updateDoc(doc(db, 'orgMemberships', membershipId), stripUndefined({ status: 'ACTIVE', acceptedAt: Date.now(), role }));
+  const orgId = await orgIdOfMembership(membershipId);
+  if (orgId) await recomputeOrgStaffUids(orgId);
 }
 
 /** Owner/admin declines a PENDING applicant (removes the request). */

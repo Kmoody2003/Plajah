@@ -66,7 +66,10 @@ service cloud.firestore {
         (data.scopeKind == 'user' && data.scopeId == request.auth.uid) ||
         (data.scopeKind == 'org' && exists(/databases/$(database)/documents/organizations/$(data.scopeId)) && (
           request.auth.uid in get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.admins ||
-          get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.creatorId == request.auth.uid
+          get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.creatorId == request.auth.uid ||
+          // Staff/moderators holding MANAGE_CONTENT (denormalized on the org by
+          // organizationService.recomputeOrgStaffUids). Only owners/admins can write that array.
+          request.auth.uid in get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.get('staffUids', [])
         )) || isAdmin()
       );
     }
@@ -2156,7 +2159,9 @@ service cloud.firestore {
           (data.scopeKind == 'user' && data.scopeId == request.auth.uid) ||
           (data.scopeKind == 'org' && (
             request.auth.uid in get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.admins ||
-            get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.creatorId == request.auth.uid
+            get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.creatorId == request.auth.uid ||
+            // Staff/moderators with MANAGE_CONTENT (denormalized staffUids; owner/admin-writable only).
+            request.auth.uid in get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.get('staffUids', [])
           )) ||
           isAdmin()
         );

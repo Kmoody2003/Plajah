@@ -14,6 +14,7 @@
     "sports:agent": "tsx scripts/localSportsAgent.ts",
     "sports:archive": "tsx scripts/localArchiveAgent.ts",
     "test:cora": "npx tsx --test tests/coraAnalysis.test.ts",
+    "test:hq": "npx tsx --test tests/contentHqEntitlements.test.ts",
     "test:scripture": "npx tsx --test tests/scriptureRef.test.ts tests/amboService.test.ts tests/kairosService.test.ts tests/vespersService.test.ts tests/serviceNotes.test.ts tests/showModel.test.ts tests/serviceRunner.test.ts",
     "test:ambo": "npx tsx --test tests/amboService.test.ts tests/showModel.test.ts tests/serviceRunner.test.ts",
     "test:kairos": "npx tsx --test tests/kairosService.test.ts",

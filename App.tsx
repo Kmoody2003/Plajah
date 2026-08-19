@@ -908,7 +908,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   // Smart Guide
   const [smartGuideEnabled, setSmartGuideEnabled] = useState(false);
   const [hasSeenSmartGuide, setHasSeenSmartGuide] = useState(false);
-  const [orgHubInitial, setOrgHubInitial] = useState<{ orgId: string; give?: boolean } | null>(null);
+  const [orgHubInitial, setOrgHubInitial] = useState<{ orgId: string; give?: boolean; contentHq?: boolean } | null>(null);
   const [relloInitialVideoId, setRelloInitialVideoId] = useState<string | undefined>(undefined);
   const [videoPlaylistInitialId, setVideoPlaylistInitialId] = useState<string | undefined>(undefined);
   const [clubInitialId, setClubInitialId] = useState<string | undefined>(undefined);
@@ -2348,6 +2348,30 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const link = notif.link as string | undefined;
     const targetId = notif.targetId as string | undefined;
     if (!link) return;
+
+    // Content HQ review-request deep link (`content-hq:<assetId>`, see hqCollaboration.requestHqReview).
+    // Resolve the asset's scope, open the right Content HQ surface, then focus its review panel.
+    if (link.startsWith('content-hq:')) {
+      const assetId = link.slice('content-hq:'.length);
+      if (!assetId) return;
+      try {
+        const [{ fetchHqAsset }, { openHqAsset }] = await Promise.all([
+          import('./services/hqCollaboration'),
+          import('./components/ContentHQ'),
+        ]);
+        const asset = await fetchHqAsset(assetId).catch(() => null);
+        if (asset?.scopeKind === 'org') {
+          setOrgHubInitial({ orgId: asset.scopeId, contentHq: true });
+          setView('ORG_HUB');
+        } else {
+          setDashboardInitialTab('ASSETS');
+          setView('CREATOR');
+        }
+        // Give the target surface a beat to mount its HqFilesTab before focusing the asset.
+        setTimeout(() => openHqAsset(assetId), 700);
+      } catch { /* asset unreachable — leave the user where they are */ }
+      return;
+    }
 
     // Helper: after navigating, fire OPEN_COMMENTS so the player/article scrolls to comments
     const openComments = (id: string) => {
@@ -4476,7 +4500,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'ORG_HUB' && user && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <OrgHub user={user} onBack={() => { setOrgHubInitial(null); setView('CREATOR'); }} initialOrgId={orgHubInitial?.orgId} initialGive={orgHubInitial?.give} onVisitUser={(uid) => { setViewedUserId(uid); setView('USER_PROFILE'); }} />
+                <OrgHub user={user} onBack={() => { setOrgHubInitial(null); setView('CREATOR'); }} initialOrgId={orgHubInitial?.orgId} initialGive={orgHubInitial?.give} initialContentHq={orgHubInitial?.contentHq} onVisitUser={(uid) => { setViewedUserId(uid); setView('USER_PROFILE'); }} />
               </Suspense>
             )}
 

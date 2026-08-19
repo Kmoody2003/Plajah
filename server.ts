@@ -2092,6 +2092,43 @@ async function startServer() {
     return memberships.some((m: any) => m.status === 'ACTIVE');
   }
 
+  // ── Content HQ storage-cap enforcement (server-authoritative) ──────────────
+  // The per-tier GB cap is checked client-side for UX; this is the authoritative gate.
+  // Only a caller who may WRITE the scope can upload, so quota is charged to the right owner.
+  async function canWriteHqScope(uid: string, scopeKind: string, scopeId: string): Promise<boolean> {
+    if (scopeKind === 'user') return scopeId === uid;
+    if (scopeKind !== 'org') return false;
+    const org = await firestoreRead('organizations', scopeId);
+    if (!org) return false;
+    if (org.creatorId === uid || (org.admins || []).includes(uid)) return true;
+    if ((org.staffUids || []).includes(uid)) return true;
+    // Fall back to a membership lookup for MANAGE_CONTENT holders not yet denormalized onto the org.
+    const memberships = await queryFirebase('orgMemberships', [
+      { field: 'orgId', value: scopeId }, { field: 'userId', value: uid },
+    ], 5);
+    if (!memberships.length) return false;
+    const { permissionsForMember } = await import('./services/orgPermissions.js');
+    return memberships.some((m: any) => m.status === 'ACTIVE' && permissionsForMember(m).has('MANAGE_CONTENT'));
+  }
+
+  /** The scope's storage cap in bytes, resolved from the SAME entitlement logic the client uses. */
+  async function resolveHqCapBytes(scopeKind: string, scopeId: string, uid: string): Promise<number> {
+    const { resolveContentHqEntitlements } = await import('./services/contentHqEntitlements.js');
+    if (scopeKind === 'org') {
+      const org = await firestoreRead('organizations', scopeId);
+      const ent = resolveContentHqEntitlements({ organization: { id: scopeId, orgType: org?.orgType, isBusinessPage: org?.isBusinessPage } as any });
+      return ent.storageLimitGb * 1024 ** 3;
+    }
+    const subs = await queryFirebase('plajahPlusSubscriptions', [{ field: 'subscriberId', value: uid }], 10);
+    const activeSub = subs.find((s: any) => ['active', 'trialing', 'past_due'].includes(String(s.status)));
+    const profile = await firestoreRead('users', uid);
+    const ent = resolveContentHqEntitlements({
+      subscription: activeSub ? { status: activeSub.status, storageLimitGb: Number(activeSub.storageLimitGb || 0) } as any : null,
+      profile: profile ? { storageLimit: Number(profile.storageLimit || 0), tier: profile.tier } as any : null,
+    });
+    return ent.storageLimitGb * 1024 ** 3;
+  }
+
   async function streamHqObject(req: any, res: any, objectPath: string, filename: string, mimeType: string) {
     const token = await getGoogleAccessToken();
     if (!token) return res.status(503).json({ error: 'Protected storage unavailable' });
@@ -2123,6 +2160,27 @@ async function startServer() {
     }
     if (!source?.storagePath) return res.status(404).json({ error: 'Asset not found' });
     return streamHqObject(req, res, source.storagePath, source.name || asset?.name, source.mimeType || asset?.mimeType);
+  });
+
+  // Server-authoritative storage-cap check the client MUST pass before an HQ upload. Computes the
+  // scope's used bytes + the entitlement's tier cap and rejects over-cap uploads (413).
+  app.post('/api/hq/quota-check', apiLimiter, authMiddleware, express.json(), async (req: any, res: any) => {
+    const uid: string = req.uid;
+    const scopeKind = String(req.body?.scopeKind || '');
+    const scopeId = String(req.body?.scopeId || '');
+    const incomingBytes = Math.max(0, Number(req.body?.incomingBytes || 0));
+    if ((scopeKind !== 'user' && scopeKind !== 'org') || !scopeId) {
+      return res.status(400).json({ error: 'scopeKind (user|org) and scopeId are required' });
+    }
+    if (!await canWriteHqScope(uid, scopeKind, scopeId)) return res.status(403).json({ error: 'Forbidden' });
+
+    const assets = await queryFirebase('orgAssets', [{ field: 'scopeId', value: scopeId }], 2000);
+    const usedBytes = assets.reduce((sum: number, a: any) => sum + (a.deletedAt ? 0 : Number(a.sizeBytes || 0)), 0);
+    const capBytes = await resolveHqCapBytes(scopeKind, scopeId, uid);
+    if (capBytes > 0 && usedBytes + incomingBytes > capBytes) {
+      return res.status(413).json({ error: 'Content HQ storage cap exceeded', code: 'OVER_CAP', usedBytes, capBytes, incomingBytes });
+    }
+    return res.json({ ok: true, usedBytes, capBytes });
   });
 
   app.get('/api/hq/share/:shareId/:token/download', apiLimiter, async (req: any, res: any) => {

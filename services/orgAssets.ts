@@ -77,6 +77,29 @@ function contentTypeFor(file: File): string {
   } as Record<string, string>)[ext] || 'application/octet-stream';
 }
 
+/**
+ * Server-authoritative storage-cap check before an upload spends bandwidth. The client also
+ * checks the cap for instant UX (ContentHQ.onFiles); this is the gate the server enforces.
+ * Throws STORAGE_CAP_EXCEEDED when over cap; a server/network error is non-fatal (fail-open,
+ * so an outage never blocks all uploads — the client-side UX check still applies).
+ */
+async function assertUnderHqCap(scope: OwnerScope, incomingBytes: number): Promise<void> {
+  let res: Response;
+  try {
+    const token = await auth.currentUser?.getIdToken();
+    res = await fetch('/api/hq/quota-check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ scopeKind: scope.kind, scopeId: scope.id, incomingBytes }),
+    });
+  } catch { return; /* network/offline — do not block; client UX check already ran */ }
+  if (res.status === 413) {
+    const d = await res.json().catch(() => ({} as any));
+    const gb = d?.capBytes ? Math.round(d.capBytes / 1024 ** 3) : 0;
+    throw new Error(`STORAGE_CAP_EXCEEDED${gb ? `:${gb}GB` : ''}`);
+  }
+}
+
 /** All Content HQ assets for a scope (client-sorted newest-first to avoid a composite index). */
 export async function listHqAssets(scope: OwnerScope, includeTrash = false): Promise<OrgAsset[]> {
   const snap = await getDocs(query(collection(db, COLLECTION), where('scopeId', '==', scope.id)));
@@ -92,6 +115,7 @@ export async function addHqAsset(
   onProgress?: (pct: number) => void,
 ): Promise<OrgAsset> {
   const uid = await ensureAuthUid();
+  await assertUnderHqCap(scope, file.size);
   const id = doc(collection(db, COLLECTION)).id;
   const safe = file.name.replace(/[^\w.\-]+/g, '_');
   const storagePath = `protected-hq/${scope.kind}/${scope.id}/${id}/${safe}`;

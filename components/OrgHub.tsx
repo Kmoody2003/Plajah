@@ -25,6 +25,7 @@ import HiringBoard from './business/HiringBoard';
 import ApplyModal from './business/ApplyModal';
 import CareersView from './business/CareersView';
 import { fetchOrgPostings } from '../services/hiringService';
+import { orgCan } from '../services/orgPermissions';
 import type { JobPosting } from '../types';
 import ChurchGive from './ChurchGive';
 import SermonStudio from './SermonStudio';
@@ -50,9 +51,9 @@ const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
 const card = 'bg-white/[0.03] border border-white/10 rounded-[2rem]';
 const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:border-small-orange/50 transition-all placeholder:text-white/25';
 
-interface OrgHubProps { user: any; onBack: () => void; initialOrgId?: string; initialGive?: boolean; onVisitUser?: (uid: string) => void }
+interface OrgHubProps { user: any; onBack: () => void; initialOrgId?: string; initialGive?: boolean; initialContentHq?: boolean; onVisitUser?: (uid: string) => void }
 
-const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive, onVisitUser }) => {
+const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive, initialContentHq, onVisitUser }) => {
   const [mode, setMode] = useState<'list' | 'create' | 'view'>(initialOrgId ? 'view' : 'list');
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,7 +105,7 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive
         ? <ChurchDemoView onBack={back} onCreate={create} onVisitUser={onVisitUser} />
         : <BusinessDemoView onBack={back} onCreate={create} />;
     }
-    return <OrgProfile org={active} isOwner={active.creatorId === user?.uid || !!active.admins?.includes(user?.uid)} initialGive={initialGive} onBack={() => { setActive(null); setMode('list'); }} />;
+    return <OrgProfile org={active} isOwner={active.creatorId === user?.uid || !!active.admins?.includes(user?.uid)} initialGive={initialGive} initialContentHq={initialContentHq} onBack={() => { setActive(null); setMode('list'); }} />;
   }
 
   // ── List ────────────────────────────────────────────────────────────────
@@ -258,7 +259,7 @@ const ImagePick: React.FC<{ label: string; file: File | null; onPick: (f: File) 
 );
 
 // ── Public / owner org profile ──────────────────────────────────────────────
-const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => void; initialGive?: boolean }> = ({ org: initialOrg, isOwner, onBack, initialGive }) => {
+const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => void; initialGive?: boolean; initialContentHq?: boolean }> = ({ org: initialOrg, isOwner, onBack, initialGive, initialContentHq }) => {
   const [org, setOrg] = useState<Organization>(initialOrg);
   const [staff, setStaff] = useState<OrgMembership[]>([]);
   const [managing, setManaging] = useState(false);
@@ -266,7 +267,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   const [studio, setStudio] = useState(false);
   const [master, setMaster] = useState(false);
   const [showConsole, setShowConsole] = useState(false);
-  const [contentHq, setContentHq] = useState(false);
+  const [contentHq, setContentHq] = useState(!!initialContentHq);
   const [showEmployees, setShowEmployees] = useState(false);
   const [showHiring, setShowHiring] = useState(false);
   const [openings, setOpenings] = useState<JobPosting[]>([]);
@@ -279,6 +280,16 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   useEffect(() => {
     if (org.orgType === 'CHURCH') fetchChurchDonations(org.id).then(d => setFundGiven(sumDonationsByFund(d))).catch(() => {});
   }, [org.id, org.orgType]);
+
+  // Content HQ access (Wave 1 — open to org staff). Owners/admins and any member holding
+  // MANAGE_CONTENT (STAFF, MODERATOR, or an explicit override) get full manage/write; any other
+  // ACTIVE member gets read-only. Non-members see nothing.
+  const myMembership = staff.find(m => m.userId === auth.currentUser?.uid) ||
+    (isOwner && auth.currentUser
+      ? { id: '', orgId: org.id, userId: auth.currentUser.uid, role: 'OWNER' as OrgRole, status: 'ACTIVE' as const, displayName: '', joinedAt: 0 }
+      : null);
+  const canManageHq = isOwner || orgCan(myMembership, org, 'MANAGE_CONTENT');
+  const canReadHq = canManageHq || myMembership?.status === 'ACTIVE';
 
   if (managing && isOwner) {
     return <OrgManage org={org} staff={staff} onClose={() => setManaging(false)} onSaved={setOrg} reloadStaff={reloadStaff} />;
@@ -295,8 +306,8 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   if (showConsole && isOwner) {
     return <ChurchConsole church={org} onClose={() => setShowConsole(false)} />;
   }
-  if (contentHq && isOwner) {
-    return <ContentHQ scope={{ kind: 'org', id: org.id, ownerUid: org.creatorId, adminUids: org.admins, label: org.name }} canEdit={isOwner} mediaOwnerUid={org.creatorId} onClose={() => setContentHq(false)} />;
+  if (contentHq && canReadHq) {
+    return <ContentHQ scope={{ kind: 'org', id: org.id, ownerUid: org.creatorId, adminUids: org.admins, label: org.name }} canEdit={canManageHq} mediaOwnerUid={org.creatorId} onClose={() => setContentHq(false)} />;
   }
   if (showCareers) {
     return <CareersView org={org} onBack={() => setShowCareers(false)} />;
@@ -339,18 +350,25 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
           {org.location?.city && <span className="flex items-center gap-1.5"><MapPin size={13} /> {org.location.city}</span>}
         </div>
 
-        {/* Owner tools available to every org type */}
-        {isOwner && (
+        {/* Staff tools. Content HQ opens to any member who can read it (staff/moderators manage,
+            other active members read-only); Employees/Hiring stay owner/admin-only. */}
+        {(canReadHq || isOwner) && (
           <div className="mt-6 flex flex-wrap gap-2">
-            <button onClick={() => setContentHq(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
-              <HardDrive size={14} className="text-small-orange" /> Content HQ
-            </button>
-            <button onClick={() => setShowEmployees(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
-              <Users size={14} className="text-[#0070FF]" /> Employees
-            </button>
-            <button onClick={() => setShowHiring(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
-              <Briefcase size={14} className="text-[#0070FF]" /> {(org.orgType === 'CHURCH' || org.orgType === 'NONPROFIT' || org.orgType === 'CULTURAL') ? 'Volunteers' : 'Hiring'}
-            </button>
+            {canReadHq && (
+              <button onClick={() => setContentHq(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
+                <HardDrive size={14} className="text-small-orange" /> Content HQ{!canManageHq && <span className="text-white/30">· read-only</span>}
+              </button>
+            )}
+            {isOwner && (
+              <button onClick={() => setShowEmployees(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
+                <Users size={14} className="text-[#0070FF]" /> Employees
+              </button>
+            )}
+            {isOwner && (
+              <button onClick={() => setShowHiring(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
+                <Briefcase size={14} className="text-[#0070FF]" /> {(org.orgType === 'CHURCH' || org.orgType === 'NONPROFIT' || org.orgType === 'CULTURAL') ? 'Volunteers' : 'Hiring'}
+              </button>
+            )}
           </div>
         )}
 

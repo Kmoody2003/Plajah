@@ -2220,6 +2220,9 @@ export interface Organization {
   // Ownership & staff
   creatorId: string;
   admins: string[];
+  /** Denormalized set of ACTIVE members holding MANAGE_CONTENT (staff/moderators). Maintained by
+   *  organizationService.recomputeOrgStaffUids so Firestore rules can grant them Content HQ reads. */
+  staffUids?: string[];
 
   // Community (from Club)
   channels?: ClubChannel[];

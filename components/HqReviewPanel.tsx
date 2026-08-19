@@ -1,14 +1,34 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Check, Clock, Copy, Download, History, Link2, Loader2, MessageSquare, RefreshCw, Send, ShieldCheck, Upload, X } from 'lucide-react';
+import { Check, Clock, Copy, Download, History, Link2, Loader2, MessageSquare, RefreshCw, Repeat, Send, ShieldCheck, Trash2, Upload, X } from 'lucide-react';
 import type { HqActivityEvent, HqAssetVersion, HqComment, HqReviewRequest } from '../types';
 import type { OrgAsset } from '../services/orgAssets';
 import {
   addHqComment, addHqVersion, createHqShareLink, decideHqReview, listHqActivity, listHqComments,
-  listHqReviews, listHqVersions, requestHqReview, resolveHqComment, setHqAssetStatus, updateHqRights,
+  listHqReviews, listHqVersions, requestHqReview, resolveHqComment, setHqAssetStatus, trashHqAsset, updateHqRights,
 } from '../services/hqCollaboration';
+import { crossover } from '../services/crossover';
+import type { MediaKind, Recipe } from '../services/crossover';
 import { auth } from '../services/firebase';
 
 type Tab = 'COMMENTS' | 'VERSIONS' | 'APPROVAL' | 'RIGHTS' | 'ACTIVITY';
+
+// Crossover conversion presets, ported from the old ContentHQ AssetDetail. The source
+// now comes from the AUTHENTICATED download endpoint (protected storage), not a public URL.
+const CX_TARGETS: Partial<Record<MediaKind, { id: string; label: string; recipe: Recipe }[]>> = {
+  image: [
+    { id: 'webp', label: 'WebP (browser)', recipe: { containerId: 'webp', imageFormatId: 'webp', hwAccel: 'auto', qualityMode: 'crf' } },
+    { id: 'png', label: 'PNG (browser)', recipe: { containerId: 'png', imageFormatId: 'png', hwAccel: 'auto', qualityMode: 'crf' } },
+    { id: 'jpg', label: 'JPEG (browser)', recipe: { containerId: 'jpg', imageFormatId: 'jpg', hwAccel: 'auto', qualityMode: 'crf' } },
+  ],
+  audio: [
+    { id: 'wav', label: 'WAV 16-bit (browser)', recipe: { containerId: 'wav', audioCodecId: 'pcm_s16le', hwAccel: 'auto', qualityMode: 'lossless', fixTimestamps: true } },
+    { id: 'mp3', label: 'MP3 320k (cloud)', recipe: { containerId: 'mp3', audioCodecId: 'mp3', hwAccel: 'auto', qualityMode: 'bitrate', audioBitrate: '320k', fixTimestamps: true } },
+  ],
+  video: [
+    { id: 'mp4', label: 'MP4 / H.264 (cloud)', recipe: { containerId: 'mp4', videoCodecId: 'h264', audioCodecId: 'aac', hwAccel: 'auto', qualityMode: 'crf', crf: 20, audioBitrate: '256k', fixTimestamps: true } },
+    { id: 'prores', label: 'MOV / ProRes (cloud)', recipe: { containerId: 'mov', videoCodecId: 'prores', audioCodecId: 'pcm_s16le', hwAccel: 'none', qualityMode: 'lossless', fixTimestamps: true } },
+  ],
+};
 
 const HqReviewPanel: React.FC<{
   asset: OrgAsset;
@@ -108,6 +128,45 @@ const HqReviewPanel: React.FC<{
     });
   }
 
+  async function trash() {
+    if (!confirm('Move this file to Trash? It stays recoverable for 30 days, then is permanently deleted.')) return;
+    await run(() => trashHqAsset(asset));
+    onClose();
+  }
+
+  // ── Convert (Crossover) ─────────────────────────────────────────────────────
+  const convKind: MediaKind | null = asset.kind === 'image' ? 'image' : asset.kind === 'audio' ? 'audio' : asset.kind === 'video' ? 'video' : null;
+  const convTargets = convKind ? CX_TARGETS[convKind] || [] : [];
+  const [showConvert, setShowConvert] = useState(false);
+  const [convTargetId, setConvTargetId] = useState(convTargets[0]?.id || '');
+  const [converting, setConverting] = useState(false);
+  const [convPct, setConvPct] = useState(0);
+  const [convOut, setConvOut] = useState<{ url: string; name: string } | null>(null);
+  const [convErr, setConvErr] = useState('');
+
+  /** Load the current version as a File via the authenticated protected-storage endpoint. */
+  async function fetchAssetFile(): Promise<File> {
+    const token = await auth.currentUser?.getIdToken();
+    const res = await fetch(`/api/hq/assets/${encodeURIComponent(asset.id)}/download`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (!res.ok) throw new Error('Could not load this asset to convert.');
+    const blob = await res.blob();
+    return new File([blob], asset.name, { type: blob.type || asset.mimeType });
+  }
+
+  async function runConvert() {
+    const t = convTargets.find(x => x.id === convTargetId);
+    if (!t || !convKind) return;
+    setConverting(true); setConvErr(''); setConvOut(null); setConvPct(0);
+    try {
+      const file = await fetchAssetFile();
+      const r = await crossover.convert({ id: asset.id, name: asset.name, kind: convKind, sizeBytes: file.size, file },
+        t.recipe, p => setConvPct(p.progress));
+      setConvOut({ url: r.outputUrl, name: r.outputName });
+    } catch (e: any) {
+      setConvErr(e?.message === 'LIMIT_REACHED' ? 'Free conversion limit reached — upgrade to Plajah+.' : (e?.message || String(e)));
+    } finally { setConverting(false); }
+  }
+
   const tabs: [Tab, string, React.ComponentType<any>][] = [
     ['COMMENTS', 'Comments', MessageSquare], ['VERSIONS', 'Versions', History], ['APPROVAL', 'Approval', ShieldCheck],
     ['RIGHTS', 'Rights', Link2], ['ACTIVITY', 'Activity', Clock],
@@ -119,8 +178,10 @@ const HqReviewPanel: React.FC<{
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1"><div className="text-[10px] uppercase tracking-widest text-white/35">{asset.status || 'DRAFT'} · v{asset.versionCount || 1}</div>
             <h2 className="font-black text-xl truncate">{asset.name}</h2></div>
-          <button onClick={download} className="p-2 rounded-full bg-white/5"><Download size={16}/></button>
+          <button onClick={download} className="p-2 rounded-full bg-white/5" title="Download original"><Download size={16}/></button>
+          {convKind && <button onClick={() => setShowConvert(s => !s)} className={`p-2 rounded-full ${showConvert ? 'bg-[#34e0d0]/20 text-[#34e0d0]' : 'bg-white/5'}`} title="Convert with Crossover"><Repeat size={16}/></button>}
           {proEnabled && <button onClick={share} className="p-2 rounded-full bg-white/5" title="Create a 14-day review link"><Copy size={16}/></button>}
+          {canEdit && <button onClick={trash} className="p-2 rounded-full bg-white/5 text-red-300" title="Move to Trash"><Trash2 size={16}/></button>}
           <button onClick={onClose} className="p-2"><X size={18}/></button>
         </div>
         {shareUrl && <div className="mt-2 text-[11px] text-emerald-300 truncate">Secure download link copied · expires in 14 days</div>}
@@ -134,6 +195,23 @@ const HqReviewPanel: React.FC<{
           {mediaUrl && asset.kind === 'audio' && <audio ref={media as any} src={mediaUrl} controls className="w-4/5"/>}
           {!mediaUrl && <Loader2 className="animate-spin text-white/20"/>}
         </div>
+
+        {convKind && showConvert && (
+          <div className="mb-5 p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
+            <div className="flex items-center gap-2"><Repeat size={14} className="text-[#34e0d0]"/><p className="text-[10px] font-black uppercase tracking-widest text-white/70">Convert with Crossover</p></div>
+            <div className="flex gap-2">
+              <select value={convTargetId} onChange={e => setConvTargetId(e.target.value)} className="flex-1 px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-xs text-white outline-none [&>option]:bg-neutral-900">
+                {convTargets.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>
+              <button onClick={runConvert} disabled={converting} className="px-4 py-2 rounded-xl bg-[#FF8C00] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 flex items-center gap-1.5">
+                {converting ? <Loader2 size={13} className="animate-spin"/> : 'Convert'}
+              </button>
+            </div>
+            {converting && <div className="h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#34e0d0]" style={{ width: `${convPct * 100}%` }}/></div>}
+            {convOut && <a href={convOut.url} download={convOut.name} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#3ddc84]"><Download size={13}/> {convOut.name}</a>}
+            {convErr && <p className="text-[10px] text-red-300 leading-relaxed">{convErr}</p>}
+          </div>
+        )}
 
         <div className="flex gap-1 overflow-x-auto mb-5">
           {tabs.map(([id, label, Icon]) => <button key={id} onClick={() => setTab(id)} className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] font-black uppercase tracking-wider ${tab === id ? 'bg-white text-black' : 'bg-white/5 text-white/45'}`}><Icon size={12}/>{label}</button>)}
