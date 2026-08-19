@@ -14,12 +14,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  ChevronDown, ChevronLeft, FileDown, FilePlus2, FileUp, Folder, Grid3X3,
-  LayoutPanelTop, Minus, Monitor, PenLine, Plus, Trash2, Type,
+  ChevronDown, ChevronLeft, Database, FileDown, FilePlus2, FileUp, Folder, FormInput,
+  Grid3X3, LayoutPanelTop, Link2, Minus, Monitor, PenLine, Plus, Trash2, Type, X,
 } from 'lucide-react';
 import type {
-  TelaBlock, TelaDevice, TelaDoc, TelaDocMeta, TelaFrame, TelaFramePreset,
-  TelaGridDevice, TelaWriterDevice,
+  TelaBaseDevice, TelaBinding, TelaBlock, TelaDevice, TelaDoc, TelaDocMeta, TelaField,
+  TelaFormDevice, TelaFrame, TelaFramePreset, TelaGridDevice, TelaRow, TelaWriterDevice,
 } from '../../types';
 import {
   deleteTelaDoc, listTelaDocs, loadTelaDoc, newTelaId, saveTelaDoc, telaStorageMode,
@@ -27,7 +27,9 @@ import {
 import { auth } from '../../services/backendService';
 import { extractDocument, isSupportedImport, escapeHtml, SUPPORTED_IMPORT_ACCEPT } from '../../services/documentImport';
 import TelaWriter, { makeBlock, newBlockId } from './TelaWriter';
-import TelaGrid, { cellKey } from './TelaGrid';
+import TelaGrid, { cellKey, type TelaBaseLite, type TelaFormulaContext } from './TelaGrid';
+import TelaBase from './TelaBase';
+import TelaForm from './TelaForm';
 
 // ── Presets ───────────────────────────────────────────────────────────────────
 // CSS px at 96dpi, so 816px prints as exactly 8.5in via @page.
@@ -57,7 +59,22 @@ type TelaOp =
   | { type: 'SET_FRAME_PRESET'; frameId: string; preset: TelaFramePreset }
   | { type: 'DELETE_FRAME'; frameId: string }
   | { type: 'SET_WRITER_BLOCKS'; deviceId: string; blocks: TelaBlock[] }
-  | { type: 'SET_GRID_CELL'; deviceId: string; key: string; value: string };
+  | { type: 'SET_GRID_CELL'; deviceId: string; key: string; value: string }
+  // ── Base (database) ops ────────────────────────────────────────────────────
+  | { type: 'ADD_BASE_FIELD'; deviceId: string; field: TelaField }
+  | { type: 'UPDATE_BASE_FIELD'; deviceId: string; fieldId: string; patch: Partial<TelaField> }
+  | { type: 'DELETE_BASE_FIELD'; deviceId: string; fieldId: string }
+  | { type: 'ADD_BASE_ROW'; deviceId: string; row: TelaRow }
+  | { type: 'SET_BASE_CELL'; deviceId: string; rowId: string; fieldId: string; value: string }
+  | { type: 'DELETE_BASE_ROW'; deviceId: string; rowId: string }
+  /** Re-sync a binding's derived rows — replaces only rows tagged with it,
+   *  leaving every manual (user-entered) row untouched. */
+  | { type: 'REPLACE_DERIVED_ROWS'; deviceId: string; bindingId: string; rows: TelaRow[] }
+  // ── Form ops ────────────────────────────────────────────────────────────────
+  | { type: 'SET_FORM_BASE'; deviceId: string; baseDeviceId: string }
+  // ── Binding graph ops ───────────────────────────────────────────────────────
+  | { type: 'ADD_BINDING'; binding: TelaBinding }
+  | { type: 'REMOVE_BINDING'; bindingId: string };
 
 export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
   const now = Date.now();
@@ -93,9 +110,186 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
       if (op.value === '') delete cells[op.key]; else cells[op.key] = op.value;
       return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, cells } }, updatedAt: now };
     }
+
+    // ── Base ────────────────────────────────────────────────────────────────
+    case 'ADD_BASE_FIELD': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'BASE') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, fields: [...d.fields, op.field] } }, updatedAt: now };
+    }
+    case 'UPDATE_BASE_FIELD': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'BASE') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, fields: d.fields.map(f => f.id === op.fieldId ? { ...f, ...op.patch } : f) } }, updatedAt: now };
+    }
+    case 'DELETE_BASE_FIELD': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'BASE') return doc;
+      const rows = d.rows.map(r => {
+        if (!(op.fieldId in r.values)) return r;
+        const values = { ...r.values }; delete values[op.fieldId];
+        return { ...r, values };
+      });
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, fields: d.fields.filter(f => f.id !== op.fieldId), rows } }, updatedAt: now };
+    }
+    case 'ADD_BASE_ROW': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'BASE') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, rows: [...d.rows, op.row] } }, updatedAt: now };
+    }
+    case 'SET_BASE_CELL': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'BASE') return doc;
+      const rows = d.rows.map(r => {
+        if (r.id !== op.rowId) return r;
+        const values = { ...r.values };
+        if (op.value === '') delete values[op.fieldId]; else values[op.fieldId] = op.value;
+        return { ...r, values };
+      });
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, rows } }, updatedAt: now };
+    }
+    case 'DELETE_BASE_ROW': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'BASE') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, rows: d.rows.filter(r => r.id !== op.rowId) } }, updatedAt: now };
+    }
+    case 'REPLACE_DERIVED_ROWS': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'BASE') return doc;
+      // Manual rows (and rows from OTHER bindings) stay exactly as they are.
+      const kept = d.rows.filter(r => r.derivedFromBindingId !== op.bindingId);
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, rows: [...kept, ...op.rows] } }, updatedAt: now };
+    }
+
+    // ── Form ────────────────────────────────────────────────────────────────
+    case 'SET_FORM_BASE': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'FORM') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, baseDeviceId: op.baseDeviceId } }, updatedAt: now };
+    }
+
+    // ── Binding graph ─────────────────────────────────────────────────────────
+    case 'ADD_BINDING':
+      return { ...doc, bindings: [...(doc.bindings ?? []), op.binding], updatedAt: now };
+    case 'REMOVE_BINDING': {
+      const bindings = (doc.bindings ?? []).filter(b => b.id !== op.bindingId);
+      // Drop any rows this binding derived, so removing a link cleans up after itself.
+      const devices = { ...doc.devices };
+      for (const id in devices) {
+        const dv = devices[id];
+        if (dv.type === 'BASE' && dv.rows.some(r => r.derivedFromBindingId === op.bindingId)) {
+          devices[id] = { ...dv, rows: dv.rows.filter(r => r.derivedFromBindingId !== op.bindingId) };
+        }
+      }
+      return { ...doc, bindings, devices, updatedAt: now };
+    }
+
     default:
       return doc;
   }
+}
+
+// ── Derivation — Writer items → Base rows (the 'items' binding) ───────────────
+
+function blockPlainText(b: TelaBlock): string {
+  return b.text
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .trim();
+}
+
+// "Name — $12" / "Name - 12" / "Name – 1,250.00" → [ , name, number ]
+const ITEM_LINE_RE = /^(.*?)\s*[—–-]\s*\$?\s*([\d,]+(?:\.\d+)?)\s*$/;
+
+/**
+ * Re-derive the rows an 'items' binding produces from its source Writer.
+ * Ids are DETERMINISTIC (`${bindingId}__r${i}`) so an unchanged source yields
+ * byte-identical rows — the resync guard then short-circuits, no churn/loop.
+ */
+function deriveItemsRows(binding: TelaBinding, writer: TelaWriterDevice, base: TelaBaseDevice): TelaRow[] {
+  const textFid = binding.mapping?.text || base.fields.find(f => f.type === 'TEXT')?.id;
+  const numFid = binding.mapping?.number || base.fields.find(f => f.type === 'NUMBER')?.id;
+  const rows: TelaRow[] = [];
+  let idx = 0;
+  for (const b of writer.blocks) {
+    if (b.kind === 'h1' || b.kind === 'h2') continue; // headings aren't items
+    const t = blockPlainText(b);
+    if (!t) continue;
+    const values: Record<string, string> = {};
+    const m = numFid ? t.match(ITEM_LINE_RE) : null;
+    if (m) {
+      if (textFid) values[textFid] = m[1].trim();
+      values[numFid!] = m[2].replace(/,/g, '');
+    } else if (textFid) {
+      values[textFid] = t;
+    }
+    rows.push({ id: `${binding.id}__r${idx}`, values, derivedFromBindingId: binding.id });
+    idx++;
+  }
+  return rows;
+}
+
+// ── xlsx import — minimal OOXML reader via fflate (already a dependency) ───────
+
+function xlsxColIndex(letters: string): number {
+  let n = 0;
+  for (const ch of letters) n = n * 26 + (ch.charCodeAt(0) - 64);
+  return n - 1;
+}
+const unescapeXml = (s: string) =>
+  s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+
+/** Parse sheet1 + sharedStrings of an .xlsx into a Grid cell map (values only). */
+async function parseXlsx(buf: ArrayBuffer): Promise<{ cells: Record<string, string>; rows: number; cols: number }> {
+  const { unzipSync, strFromU8 } = await import('fflate');
+  const files = unzipSync(new Uint8Array(buf));
+  const dec = (p: string): string => (files[p] ? strFromU8(files[p]) : '');
+
+  // Shared strings — concatenate every <t> inside each <si> (handles rich runs).
+  const shared: string[] = [];
+  const ss = dec('xl/sharedStrings.xml');
+  if (ss) {
+    const siRe = /<si\b[^>]*>([\s\S]*?)<\/si>/g;
+    let m: RegExpExecArray | null;
+    while ((m = siRe.exec(ss))) {
+      let txt = '';
+      const tRe = /<t\b[^>]*>([\s\S]*?)<\/t>/g;
+      let tm: RegExpExecArray | null;
+      while ((tm = tRe.exec(m[1]))) txt += tm[1];
+      shared.push(unescapeXml(txt));
+    }
+  }
+
+  // First worksheet.
+  let sheetPath = 'xl/worksheets/sheet1.xml';
+  if (!files[sheetPath]) {
+    const k = Object.keys(files).find(p => /^xl\/worksheets\/sheet\d+\.xml$/i.test(p));
+    if (k) sheetPath = k;
+  }
+  const sheet = dec(sheetPath);
+  const cells: Record<string, string> = {};
+  let maxCol = 0, maxRow = 0;
+  const cRe = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+  let cm: RegExpExecArray | null;
+  while ((cm = cRe.exec(sheet))) {
+    const attrs = cm[1] || '';
+    const inner = cm[2] || '';
+    const ref = (attrs.match(/r="([A-Z]+[0-9]+)"/) || [])[1];
+    if (!ref) continue;
+    const t = (attrs.match(/t="([^"]+)"/) || [])[1];
+    const vm = inner.match(/<v\b[^>]*>([\s\S]*?)<\/v>/);
+    let val = '';
+    if (t === 's') { const i = vm ? parseInt(vm[1], 10) : -1; val = shared[i] ?? ''; }
+    else if (t === 'inlineStr') { const im = inner.match(/<t\b[^>]*>([\s\S]*?)<\/t>/); val = im ? unescapeXml(im[1]) : ''; }
+    else if (t === 'str') { val = vm ? unescapeXml(vm[1]) : ''; }
+    else { val = vm ? vm[1] : ''; }
+    if (val !== '') cells[ref] = val;
+    const rm = ref.match(/^([A-Z]+)([0-9]+)$/);
+    if (rm) { maxCol = Math.max(maxCol, xlsxColIndex(rm[1])); maxRow = Math.max(maxRow, parseInt(rm[2], 10)); }
+  }
+  return { cells, rows: Math.max(8, maxRow + 2), cols: Math.max(6, maxCol + 2) };
 }
 
 // ── Doc factory ───────────────────────────────────────────────────────────────
@@ -110,7 +304,7 @@ function makeNewDoc(ownerId: string): TelaDoc {
   const now = Date.now();
   return {
     id: newTelaId(), ownerId, title: 'Untitled canvas',
-    frames: [frame], devices: { [writer.id]: writer },
+    frames: [frame], devices: { [writer.id]: writer }, bindings: [],
     createdAt: now, updatedAt: now,
   };
 }
@@ -160,6 +354,11 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
   const [printFrameId, setPrintFrameId] = useState<string | null>(null);
   const [importBusy, setImportBusy] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  // "Send items to Base" panel — opened from a Writer frame.
+  const [bindPanel, setBindPanel] = useState<{ writerId: string } | null>(null);
+  const [bindTarget, setBindTarget] = useState<string>('new'); // 'new' | base device id
+  const [bindText, setBindText] = useState<string>('');
+  const [bindNumber, setBindNumber] = useState<string>('');
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -312,6 +511,160 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
     if (cur) void saveTelaDoc(cur);
   }, []);
 
+  // ── The binding graph ──────────────────────────────────────────────────────
+
+  /** deviceId → the frame that hosts it (for chips + Board wires). */
+  const deviceFrame = useMemo(() => {
+    const map = new Map<string, TelaFrame>();
+    for (const f of doc?.frames || []) for (const id of f.deviceIds) map.set(id, f);
+    return map;
+  }, [doc?.frames]);
+
+  const baseList = useMemo(
+    () => (doc?.frames || []).flatMap(f => f.deviceIds.map(id => {
+      const d = doc?.devices[id];
+      return d?.type === 'BASE' ? { id: d.id, name: d.name || f.label || 'Base' } : null;
+    })).filter((x): x is { id: string; name: string } => !!x),
+    [doc],
+  );
+
+  /** Cross-device formula resolution — grids/bases by name/label/id (live). */
+  const formulaContext = useMemo<TelaFormulaContext>(() => {
+    const grids = new Map<string, Record<string, string>>();
+    const bases = new Map<string, TelaBaseLite>();
+    for (const f of doc?.frames || []) for (const id of f.deviceIds) {
+      const dev = doc?.devices[id];
+      if (!dev) continue;
+      const label = (f.label || '').toLowerCase().trim();
+      if (dev.type === 'GRID') { if (label) grids.set(label, dev.cells); grids.set(id.toLowerCase(), dev.cells); }
+      if (dev.type === 'BASE') {
+        const lite: TelaBaseLite = { fields: dev.fields, rows: dev.rows };
+        if (dev.name) bases.set(dev.name.toLowerCase().trim(), lite);
+        if (label) bases.set(label, lite);
+        bases.set(id.toLowerCase(), lite);
+      }
+    }
+    return {
+      resolveGrid: n => grids.get(n.toLowerCase()) ?? null,
+      resolveBase: n => bases.get(n.toLowerCase()) ?? null,
+    };
+  }, [doc]);
+
+  /** Board wires: 'items' bindings + 'ref' edges derived from Grid formulas. */
+  const boardEdges = useMemo(() => {
+    const edges: { from: TelaFrame; to: TelaFrame; label: string }[] = [];
+    if (!doc) return edges;
+    for (const b of doc.bindings || []) {
+      const from = deviceFrame.get(b.sourceDeviceId);
+      const to = deviceFrame.get(b.targetDeviceId);
+      if (from && to && from.id !== to.id) edges.push({ from, to, label: b.kind === 'items' ? 'items' : 'ref' });
+    }
+    // Grid formula references → 'ref' edges (source device → referencing grid).
+    const nameToFrame = new Map<string, TelaFrame>();
+    for (const f of doc.frames) for (const id of f.deviceIds) {
+      const dev = doc.devices[id]; if (!dev) continue;
+      const label = (f.label || '').toLowerCase().trim();
+      if (dev.type === 'GRID' || dev.type === 'BASE') {
+        if (label) nameToFrame.set(label, f);
+        nameToFrame.set(id.toLowerCase(), f);
+        if (dev.type === 'BASE' && dev.name) nameToFrame.set(dev.name.toLowerCase().trim(), f);
+      }
+    }
+    const seen = new Set<string>();
+    const addRef = (name: string, host: TelaFrame) => {
+      const src = nameToFrame.get(name.toLowerCase().trim());
+      if (!src || src.id === host.id) return;
+      const k = src.id + '>' + host.id;
+      if (seen.has(k)) return;
+      seen.add(k);
+      edges.push({ from: src, to: host, label: 'ref' });
+    };
+    for (const f of doc.frames) for (const id of f.deviceIds) {
+      const dev = doc.devices[id];
+      if (!dev || dev.type !== 'GRID') continue;
+      for (const key in dev.cells) {
+        const raw = dev.cells[key];
+        if (!raw || !raw.trim().startsWith('=')) continue;
+        let m: RegExpExecArray | null;
+        const xg = /([A-Za-z_][A-Za-z0-9_ ]*)!([A-Z]+[0-9]+)/gi;
+        while ((m = xg.exec(raw))) addRef(m[1], f);
+        const bg = /\b(?:COUNT|SUM|AVG|AVERAGE|MIN|MAX)\(\s*([A-Za-z_][A-Za-z0-9_ ]*?)(?:\.[A-Za-z0-9_ ]+)?\s*\)/gi;
+        while ((m = bg.exec(raw))) addRef(m[1], f);
+      }
+    }
+    return edges;
+  }, [doc, deviceFrame]);
+
+  // Live re-sync: whenever the doc changes, re-derive each 'items' binding's
+  // rows from its source Writer and replace them ONLY if they actually changed.
+  // Deterministic row ids make an unchanged source a no-op, so no loop.
+  useEffect(() => {
+    if (!doc) return;
+    for (const b of doc.bindings || []) {
+      if (b.kind !== 'items') continue;
+      const src = doc.devices[b.sourceDeviceId];
+      const tgt = doc.devices[b.targetDeviceId];
+      if (!src || src.type !== 'WRITER' || !tgt || tgt.type !== 'BASE') continue;
+      const derived = deriveItemsRows(b, src, tgt);
+      const current = tgt.rows.filter(r => r.derivedFromBindingId === b.id);
+      if (JSON.stringify(current) !== JSON.stringify(derived)) {
+        dispatchOp({ type: 'REPLACE_DERIVED_ROWS', deviceId: tgt.id, bindingId: b.id, rows: derived });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc]);
+
+  const openBindPanel = (writerId: string) => {
+    setBindPanel({ writerId });
+    setBindTarget('new');
+    setBindText('');
+    setBindNumber('');
+  };
+
+  const onBindTargetChange = (val: string) => {
+    setBindTarget(val);
+    if (val !== 'new') {
+      const base = doc?.devices[val];
+      if (base?.type === 'BASE') {
+        setBindText(base.fields.find(f => f.type === 'TEXT')?.id || '');
+        setBindNumber(base.fields.find(f => f.type === 'NUMBER')?.id || '');
+      }
+    }
+  };
+
+  const confirmBinding = () => {
+    if (!bindPanel || !doc) return;
+    const writer = doc.devices[bindPanel.writerId];
+    if (!writer || writer.type !== 'WRITER') { setBindPanel(null); return; }
+    let targetBaseId: string;
+    let mapping: TelaBinding['mapping'];
+    if (bindTarget === 'new') {
+      const base = makeBaseDevice();
+      // A tidy Name + Price base for menu-style "Name — $12" lines.
+      base.fields = [
+        { id: uid('fld'), name: 'Name', type: 'TEXT' },
+        { id: uid('fld'), name: 'Price', type: 'NUMBER' },
+      ];
+      const n = (doc.frames.filter(f => f.deviceIds.some(id => doc.devices[id]?.type === 'BASE')).length) + 1;
+      base.name = `Items ${n}`;
+      const wf = deviceFrame.get(writer.id);
+      const pos = wf ? { x: wf.x + wf.w + 96, y: wf.y } : nextFramePos();
+      addFrame('BOARD', 'FREE', base, base.name, { size: { w: 560, h: 440 }, pos });
+      targetBaseId = base.id;
+      mapping = { text: base.fields[0].id, number: base.fields[1].id };
+    } else {
+      targetBaseId = bindTarget;
+      mapping = { text: bindText || undefined, number: bindNumber || undefined };
+    }
+    const binding: TelaBinding = {
+      id: uid('bind'), kind: 'items',
+      sourceDeviceId: writer.id, sourceSelector: 'items',
+      targetDeviceId: targetBaseId, targetRole: 'rows', mapping,
+    };
+    dispatchOp({ type: 'ADD_BINDING', binding });
+    setBindPanel(null);
+  };
+
   // ── Frame management ───────────────────────────────────────────────────────
 
   const nextFramePos = (): { x: number; y: number } => {
@@ -320,10 +673,16 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
     return { x: Math.max(...frames.map(f => f.x + f.w)) + 96, y: Math.min(...frames.map(f => f.y)) };
   };
 
-  const addFrame = (kind: TelaFrame['kind'], preset: TelaFramePreset, device: TelaDevice, label: string) => {
+  const addFrame = (
+    kind: TelaFrame['kind'], preset: TelaFramePreset, device: TelaDevice, label: string,
+    opts?: { size?: { w: number; h: number }; pos?: { x: number; y: number } },
+  ) => {
     const p = PRESETS[preset];
-    const pos = nextFramePos();
-    const frame: TelaFrame = { id: uid('frame'), kind, preset, x: pos.x, y: pos.y, w: p.w, h: p.h, deviceIds: [device.id], label };
+    const pos = opts?.pos || nextFramePos();
+    const frame: TelaFrame = {
+      id: uid('frame'), kind, preset, x: pos.x, y: pos.y,
+      w: opts?.size?.w ?? p.w, h: opts?.size?.h ?? p.h, deviceIds: [device.id], label,
+    };
     dispatchOp({ type: 'ADD_FRAME', frame, devices: [device] });
     setActiveFrameId(frame.id);
     setDeviceMenuOpen(false);
@@ -342,6 +701,27 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
   };
   const addScreenFrame = () => {
     addFrame('SCREEN', 'SIGNAGE_1080x1920', { id: uid('dev'), type: 'WRITER', blocks: [makeBlock('h1', 'Signage')] }, 'Screen');
+  };
+
+  const makeBaseDevice = (): TelaBaseDevice => ({
+    id: uid('dev'), type: 'BASE',
+    fields: [
+      { id: uid('fld'), name: 'Name', type: 'TEXT' },
+      { id: uid('fld'), name: 'Amount', type: 'NUMBER' },
+      { id: uid('fld'), name: 'Done', type: 'CHECKBOX' },
+    ],
+    rows: [],
+  });
+  const addBaseTable = () => {
+    const n = (docRef.current?.frames.filter(f => f.deviceIds.some(id => docRef.current?.devices[id]?.type === 'BASE')).length || 0) + 1;
+    const base = makeBaseDevice();
+    base.name = `Base ${n}`;
+    addFrame('BOARD', 'FREE', base, base.name, { size: { w: 720, h: 440 } });
+  };
+  const addFormFrame = () => {
+    const bases = (docRef.current?.frames || []).flatMap(f => f.deviceIds).map(id => docRef.current?.devices[id]).filter((d): d is TelaBaseDevice => d?.type === 'BASE');
+    const form: TelaFormDevice = { id: uid('dev'), type: 'FORM', baseDeviceId: bases[0]?.id, title: 'Form' };
+    addFrame('BOARD', 'FREE', form, 'Form', { size: { w: 460, h: 560 } });
   };
 
   // Frame dragging by its chrome.
@@ -408,9 +788,14 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
         rows.forEach((r, ri) => r.forEach((v, ci) => { if (v !== '') cells[cellKey(ci, ri)] = v; }));
         const grid: TelaGridDevice = { id: uid('dev'), type: 'GRID', rows: Math.max(8, rows.length + 2), cols: cols + 1, cells };
         addFrame('BOARD', 'FREE', grid, file.name.replace(/\.[^.]+$/, ''));
-      } else if (ext === 'xlsx' || ext === 'xls') {
-        // Honest P0: no sheet parser shipped, and we don't add dependencies for it.
-        throw new Error('.xlsx lands in P1 — for now export it as CSV and import that.');
+      } else if (ext === 'xlsx') {
+        // P1: minimal OOXML reader over fflate (sheet1 + sharedStrings → Grid).
+        const { cells, rows, cols } = await parseXlsx(await file.arrayBuffer());
+        const grid: TelaGridDevice = { id: uid('dev'), type: 'GRID', rows, cols, cells };
+        addFrame('BOARD', 'FREE', grid, file.name.replace(/\.[^.]+$/, ''));
+      } else if (ext === 'xls') {
+        // Legacy binary .xls is a different (non-zip) format — not covered.
+        throw new Error('Legacy .xls isn’t supported — re-save as .xlsx or .csv and import that.');
       } else if (isSupportedImport(file.name)) {
         const extracted = await extractDocument(file);
         const blocks: TelaBlock[] = extracted.paragraphs.map(p => {
@@ -466,11 +851,41 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
         />
       );
     }
+    if (device.type === 'BASE') {
+      return (
+        <TelaBase
+          key={device.id}
+          device={device}
+          readOnly={readOnly}
+          onAddField={field => dispatchOp({ type: 'ADD_BASE_FIELD', deviceId: device.id, field })}
+          onUpdateField={(fieldId, patch) => dispatchOp({ type: 'UPDATE_BASE_FIELD', deviceId: device.id, fieldId, patch })}
+          onDeleteField={fieldId => dispatchOp({ type: 'DELETE_BASE_FIELD', deviceId: device.id, fieldId })}
+          onAddRow={row => dispatchOp({ type: 'ADD_BASE_ROW', deviceId: device.id, row })}
+          onSetCell={(rowId, fieldId, value) => dispatchOp({ type: 'SET_BASE_CELL', deviceId: device.id, rowId, fieldId, value })}
+          onDeleteRow={rowId => dispatchOp({ type: 'DELETE_BASE_ROW', deviceId: device.id, rowId })}
+        />
+      );
+    }
+    if (device.type === 'FORM') {
+      const base = device.baseDeviceId ? doc?.devices[device.baseDeviceId] : null;
+      return (
+        <TelaForm
+          key={device.id}
+          device={device}
+          base={base?.type === 'BASE' ? base : null}
+          bases={baseList}
+          readOnly={readOnly}
+          onSetBase={baseDeviceId => dispatchOp({ type: 'SET_FORM_BASE', deviceId: device.id, baseDeviceId })}
+          onSubmit={values => { if (device.baseDeviceId) dispatchOp({ type: 'ADD_BASE_ROW', deviceId: device.baseDeviceId, row: { id: uid('row'), values } }); }}
+        />
+      );
+    }
     return (
       <TelaGrid
         key={device.id}
         device={device}
         readOnly={readOnly}
+        formulaContext={formulaContext}
         onSetCell={(key, value) => dispatchOp({ type: 'SET_GRID_CELL', deviceId: device.id, key, value })}
       />
     );
@@ -554,6 +969,8 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
             <div style={menuStyle} onMouseLeave={() => setDeviceMenuOpen(false)}>
               <button className={menuItem} onClick={addWriterPage}><Type size={15} className="text-[var(--pj-lilac,#D0BCFF)]" /> Writer page<span className="ml-auto text-[.62rem] text-white/40">Letter</span></button>
               <button className={menuItem} onClick={addGridSheet}><Grid3X3 size={15} className="text-[var(--pj-cyan,#00DAF3)]" /> Grid sheet</button>
+              <button className={menuItem} onClick={addBaseTable}><Database size={15} className="text-[var(--pj-success,#06D6A0)]" /> Base table<span className="ml-auto text-[.62rem] text-white/40">Database</span></button>
+              <button className={menuItem} onClick={addFormFrame}><FormInput size={15} className="text-[var(--pj-magenta,#D40055)]" /> Form<span className="ml-auto text-[.62rem] text-white/40">→ Base</span></button>
               <button className={menuItem} onClick={addScreenFrame}><Monitor size={15} className="text-[var(--pj-orange,#FF8C00)]" /> Screen frame<span className="ml-auto text-[.62rem] text-white/40">1080×1920</span></button>
             </div>
           )}
@@ -588,13 +1005,13 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
         <div className="flex-1" />
 
         {/* Import — honest about coverage */}
-        <button className={topBtn} onClick={() => fileRef.current?.click()} disabled={importBusy} title="Import docx · pdf · md · txt · fountain · csv (xlsx in P1)">
+        <button className={topBtn} onClick={() => fileRef.current?.click()} disabled={importBusy} title="Import docx · pdf · md · txt · fountain · csv · xlsx">
           <FileUp size={15} /> {importBusy ? 'Importing…' : 'Import'}
         </button>
         <input
           ref={fileRef}
           type="file"
-          accept={`${SUPPORTED_IMPORT_ACCEPT},.csv`}
+          accept={`${SUPPORTED_IMPORT_ACCEPT},.csv,.xlsx`}
           className="hidden"
           onChange={e => { const f = e.target.files?.[0]; if (f) void handleImportFile(f); e.target.value = ''; }}
         />
@@ -713,9 +1130,38 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
               transformOrigin: '0 0',
             }}
           >
+            {/* Board wires — the binding graph, drawn between bound frames. */}
+            {posture === 'BOARD' && boardEdges.length > 0 && (
+              <svg style={{ position: 'absolute', left: 0, top: 0, overflow: 'visible', pointerEvents: 'none' }} width={1} height={1}>
+                {boardEdges.map((e, i) => {
+                  const sx = e.from.x + e.from.w / 2, sy = e.from.y + e.from.h / 2;
+                  const tx = e.to.x + e.to.w / 2, ty = e.to.y + e.to.h / 2;
+                  const dx = Math.abs(tx - sx) * 0.4 + 40;
+                  const mx = (sx + tx) / 2, my = (sy + ty) / 2;
+                  return (
+                    <g key={i}>
+                      <path
+                        d={`M${sx},${sy} C${sx + dx},${sy} ${tx - dx},${ty} ${tx},${ty}`}
+                        fill="none" stroke="rgba(0,218,243,0.55)" strokeWidth={1.6}
+                        strokeLinecap="round" vectorEffect="non-scaling-stroke"
+                      />
+                      <circle cx={tx} cy={ty} r={3.4} fill="#00DAF3" vectorEffect="non-scaling-stroke" />
+                      <g transform={`translate(${mx},${my}) scale(${1 / cam.z})`}>
+                        <rect x={-24} y={-9} width={48} height={18} rx={9} fill="rgba(6,12,18,0.92)" stroke="rgba(0,218,243,0.5)" />
+                        <text x={0} y={3.5} textAnchor="middle" fontSize={10} fontWeight={700} fill="#8fe9f6" fontFamily="system-ui, sans-serif">{e.label}</text>
+                      </g>
+                    </g>
+                  );
+                })}
+              </svg>
+            )}
+
             {doc.frames.map(frame => {
               const active = frame.id === activeFrameId;
               const isPaper = frame.kind === 'PAPER';
+              const hasWriter = frame.deviceIds.some(id => doc.devices[id]?.type === 'WRITER');
+              const frameBindings = (doc.bindings || []).filter(b =>
+                frame.deviceIds.includes(b.sourceDeviceId) || frame.deviceIds.includes(b.targetDeviceId));
               return (
                 <div
                   key={frame.id}
@@ -741,6 +1187,40 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
                     />
                     <span className="truncate">{frame.label || frame.kind}</span>
                     <span className="opacity-50 font-normal">{PRESETS[frame.preset].label}</span>
+
+                    {/* Binding chips — the link shown on both ends. */}
+                    {frameBindings.map(b => (
+                      <span
+                        key={b.id}
+                        onPointerDown={e => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 h-5 pl-1.5 pr-1 rounded-full shrink-0"
+                        style={{ background: 'rgba(0,218,243,0.14)', border: '1px solid rgba(0,218,243,0.4)', color: '#8fe9f6', fontSize: 9.5, fontWeight: 700, letterSpacing: '.02em' }}
+                        title={`Binding: ${b.kind}`}
+                      >
+                        <Link2 size={10} /> {b.kind}
+                        <button
+                          title="Remove binding"
+                          onPointerDown={e => e.stopPropagation()}
+                          onClick={() => dispatchOp({ type: 'REMOVE_BINDING', bindingId: b.id })}
+                          className="grid place-items-center w-3.5 h-3.5 rounded-full hover:bg-white/20"
+                        >
+                          <X size={9} />
+                        </button>
+                      </span>
+                    ))}
+
+                    {/* Writer → Base "send items" trigger. */}
+                    {hasWriter && (
+                      <button
+                        title="Send items to Base…"
+                        onPointerDown={e => e.stopPropagation()}
+                        onClick={() => openBindPanel(frame.deviceIds.find(id => doc.devices[id]?.type === 'WRITER')!)}
+                        className="grid place-items-center h-5 px-1.5 rounded-full shrink-0 text-[9.5px] font-bold gap-1"
+                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.6)' }}
+                      >
+                        <Link2 size={10} /> Send items
+                      </button>
+                    )}
                     <button
                       title="Delete frame"
                       onPointerDown={e => e.stopPropagation()}
@@ -823,6 +1303,75 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack }) => {
         </div>,
         document.body,
       )}
+
+      {/* ── "Send items to Base" — the items binding builder ─────────────────── */}
+      {bindPanel && (() => {
+        const targetBase = bindTarget !== 'new' ? doc.devices[bindTarget] : null;
+        const tb = targetBase?.type === 'BASE' ? targetBase : null;
+        const textFields = tb ? tb.fields.filter(f => f.type === 'TEXT') : [];
+        const numFields = tb ? tb.fields.filter(f => f.type === 'NUMBER') : [];
+        const selCls = 'w-full h-9 px-2.5 rounded-[9px] text-[.8rem] bg-white/[0.05] border border-white/[0.14] text-white/85 outline-none';
+        return createPortal(
+          <div
+            className="fixed inset-0 z-[200] flex items-center justify-center p-6"
+            style={{ background: 'rgba(6,4,10,0.6)', backdropFilter: 'blur(4px)' }}
+            onClick={() => setBindPanel(null)}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{ width: 420, maxWidth: '100%', background: 'linear-gradient(160deg,#1A1424,#120D1C)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 18, boxShadow: '0 24px 60px rgba(0,0,0,0.6)', padding: 20 }}
+            >
+              <div className="flex items-center gap-2.5 mb-1">
+                <span className="grid place-items-center w-8 h-8 rounded-[10px] text-white" style={{ background: 'var(--pj-grad-spatial, linear-gradient(135deg,#6B0099,#00DAF3))' }}>
+                  <Link2 size={16} />
+                </span>
+                <span className="font-display italic text-white text-[1.1rem]">Send items to Base</span>
+              </div>
+              <p className="text-[.76rem] text-white/50 mb-4 leading-relaxed">
+                Each list/paragraph line becomes a Base row, live. Lines like
+                <span className="text-white/75"> “Espresso — $3.50”</span> split into name + number.
+              </p>
+
+              <label className="block text-[.66rem] font-bold uppercase tracking-wide text-white/45 mb-1.5">Target Base</label>
+              <select className={selCls} value={bindTarget} onChange={e => onBindTargetChange(e.target.value)}>
+                <option value="new">＋ Create a new Base (Name · Price)</option>
+                {baseList.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+
+              {tb && (
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[.66rem] font-bold uppercase tracking-wide text-white/45 mb-1.5">Name →</label>
+                    <select className={selCls} value={bindText} onChange={e => setBindText(e.target.value)}>
+                      <option value="">— none —</option>
+                      {textFields.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[.66rem] font-bold uppercase tracking-wide text-white/45 mb-1.5">Number →</label>
+                    <select className={selCls} value={bindNumber} onChange={e => setBindNumber(e.target.value)}>
+                      <option value="">— none —</option>
+                      {numFields.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 mt-6">
+                <button className="h-9 px-4 rounded-[10px] text-[.8rem] font-semibold text-white/70 hover:text-white bg-white/[0.05] border border-white/[0.12]" onClick={() => setBindPanel(null)}>Cancel</button>
+                <button
+                  className="h-9 px-4 rounded-[10px] text-[.8rem] font-bold text-white"
+                  style={{ background: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))', boxShadow: 'var(--pj-glow-brand, 0 6px 22px rgba(212,0,85,.34))' }}
+                  onClick={confirmBinding}
+                >
+                  Link items
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        );
+      })()}
     </div>
   );
 };

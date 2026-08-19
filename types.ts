@@ -5678,7 +5678,71 @@ export interface TelaGridDevice {
   cells: Record<string, string>;
 }
 
-export type TelaDevice = TelaWriterDevice | TelaGridDevice;
+// ── Base (database) device — typed fields + rows (P1) ────────────────────────
+
+export type TelaFieldType = 'TEXT' | 'NUMBER' | 'SELECT' | 'CHECKBOX' | 'DATE';
+
+/** One typed column in a Base. */
+export interface TelaField {
+  id: string;
+  name: string;
+  type: TelaFieldType;
+  /** SELECT choices (ignored by other types). */
+  options?: string[];
+}
+
+/** One Base record: field id → cell value (all stringly-typed; CHECKBOX = '1'|''). */
+export interface TelaRow {
+  id: string;
+  values: Record<string, string>;
+  /**
+   * When present, this row was produced by a binding and is re-synced (replaced)
+   * whenever the source changes. Manual rows never carry this tag, so they are
+   * never touched by derivation.
+   */
+  derivedFromBindingId?: string;
+}
+
+/** Database device — the system of record other devices bind to. P1 view = table. */
+export interface TelaBaseDevice {
+  id: string;
+  type: 'BASE';
+  name?: string;
+  fields: TelaField[];
+  rows: TelaRow[];
+}
+
+/** Input surface writing into a Base (in the same doc, by device id). */
+export interface TelaFormDevice {
+  id: string;
+  type: 'FORM';
+  baseDeviceId?: string;
+  title?: string;
+}
+
+export type TelaDevice =
+  | TelaWriterDevice | TelaGridDevice | TelaBaseDevice | TelaFormDevice;
+
+// ── The binding graph — typed, directional links between devices (P1) ─────────
+// A binding is `source device · selector → target device · role`. Edits flow
+// downstream live; targets restyle, never restate. Two concrete kinds ship in
+// P1: 'items' (Writer list/paragraph lines → Base rows) and 'ref' (Grid formula
+// reaching another device, e.g. =Sheet2!A1 / =SUM(Orders.price)).
+
+export type TelaBindingKind = 'items' | 'ref';
+
+export interface TelaBinding {
+  id: string;
+  kind: TelaBindingKind;
+  sourceDeviceId: string;
+  /** What part of the source feeds the binding (e.g. 'items' = list/para lines). */
+  sourceSelector: string;
+  targetDeviceId: string;
+  /** The role the data plays in the target (e.g. 'rows'). */
+  targetRole: string;
+  /** items→base field mapping: which Base field receives the text / the number. */
+  mapping?: { text?: string; number?: string };
+}
 
 /** One Tela file = one canvas. Content bundle stored in OPFS; manifest synced. */
 export interface TelaDoc {
@@ -5689,6 +5753,8 @@ export interface TelaDoc {
   frames: TelaFrame[];
   /** Device store, referenced from frames by id. */
   devices: Record<string, TelaDevice>;
+  /** The binding graph (P1). Optional for back-compat with P0 bundles. */
+  bindings?: TelaBinding[];
   createdAt: number;
   updatedAt: number;
 }

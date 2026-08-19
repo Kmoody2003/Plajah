@@ -32,12 +32,33 @@ export const cellKey = (col: number, row: number) => `${colLetter(col)}${row + 1
 
 const REF_RE = /\b([A-Z]+)([0-9]+)\b/g;
 const RANGE_FN_RE = /\b(SUM|AVG|AVERAGE|MIN|MAX|COUNT)\(\s*([A-Z]+[0-9]+)\s*:\s*([A-Z]+[0-9]+)\s*\)/gi;
+// Cross-device (P1): `GridName!A1` and `COUNT(BaseName)` / `SUM(BaseName.field)`.
+const XGRID_RE = /([A-Za-z_][A-Za-z0-9_ ]*)!([A-Z]+[0-9]+)/g;
+const BASEAGG_RE = /\b(COUNT|SUM|AVG|AVERAGE|MIN|MAX)\(\s*([A-Za-z_][A-Za-z0-9_ ]*?)(?:\.([A-Za-z_][A-Za-z0-9_ ]*?))?\s*\)/gi;
 
-function numericValue(cells: Record<string, string>, key: string, seen: Set<string>): number {
+const MAX_DEPTH = 12;
+
+/** A Base seen through the formula engine (COUNT/SUM aggregates). */
+export interface TelaBaseLite {
+  fields: { id: string; name: string; type: string }[];
+  rows: { values: Record<string, string> }[];
+}
+
+/** Cross-device resolution — how a Grid reaches outside its own cells (P1). */
+export interface TelaFormulaContext {
+  /** Cells of another grid, looked up by case-insensitive name/label or id. */
+  resolveGrid?: (name: string) => Record<string, string> | null;
+  /** Another Base by name/label/id, for COUNT/SUM aggregates. */
+  resolveBase?: (name: string) => TelaBaseLite | null;
+  /** Recursion guard across devices. */
+  depth?: number;
+}
+
+function numericValue(cells: Record<string, string>, key: string, seen: Set<string>, ctx?: TelaFormulaContext): number {
   const raw = (cells[key] ?? '').trim();
   if (!raw) return 0;
   if (raw.startsWith('=')) {
-    const v = evaluateFormula(raw, cells, seen, key);
+    const v = evaluateFormula(raw, cells, seen, key, ctx);
     const n = typeof v === 'number' ? v : parseFloat(String(v));
     return Number.isFinite(n) ? n : NaN;
   }
@@ -45,7 +66,7 @@ function numericValue(cells: Record<string, string>, key: string, seen: Set<stri
   return Number.isFinite(n) ? n : NaN;
 }
 
-function rangeValues(cells: Record<string, string>, a: string, b: string, seen: Set<string>): number[] {
+function rangeValues(cells: Record<string, string>, a: string, b: string, seen: Set<string>, ctx?: TelaFormulaContext): number[] {
   const ma = a.match(/^([A-Z]+)([0-9]+)$/);
   const mb = b.match(/^([A-Z]+)([0-9]+)$/);
   if (!ma || !mb) return [];
@@ -54,33 +75,78 @@ function rangeValues(cells: Record<string, string>, a: string, b: string, seen: 
   const out: number[] = [];
   for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++) {
     for (let c = Math.min(c1, c2); c <= Math.max(c1, c2); c++) {
-      const n = numericValue(cells, cellKey(c, r), seen);
+      const n = numericValue(cells, cellKey(c, r), seen, ctx);
       if (Number.isFinite(n)) out.push(n);
     }
   }
   return out;
 }
 
+/** COUNT(Base) / COUNT(Base.field) / SUM|MIN|MAX|AVG(Base.field). */
+function baseAggregate(base: TelaBaseLite, fn: string, field?: string): number {
+  const f = field ? base.fields.find(x => x.name.toUpperCase() === field.toUpperCase()) : null;
+  if (fn === 'COUNT') {
+    if (!field) return base.rows.length;
+    if (!f) return 0;
+    return base.rows.filter(r => (r.values[f.id] ?? '').trim() !== '').length;
+  }
+  // Numeric aggregate — named field, else the first NUMBER field.
+  const fid = f?.id ?? base.fields.find(x => x.type === 'NUMBER')?.id;
+  const nums: number[] = [];
+  if (fid) for (const r of base.rows) {
+    const n = parseFloat(r.values[fid]);
+    if (Number.isFinite(n)) nums.push(n);
+  }
+  if (fn === 'SUM') return nums.reduce((s, v) => s + v, 0);
+  if (fn === 'MIN') return nums.length ? Math.min(...nums) : 0;
+  if (fn === 'MAX') return nums.length ? Math.max(...nums) : 0;
+  return nums.length ? nums.reduce((s, v) => s + v, 0) / nums.length : 0; // AVG
+}
+
 /**
- * Evaluate a `=...` formula against the cell map. `seen` guards cycles
- * (A1 = B1, B1 = A1 → #REF!). Returns a number, or an error token string.
+ * Evaluate a `=...` formula against the cell map. `seen` guards intra-grid
+ * cycles (A1 = B1, B1 = A1 → #REF!); `ctx.depth` bounds cross-device recursion.
+ * Returns a number, or an error token string.
  */
 export function evaluateFormula(
   raw: string,
   cells: Record<string, string>,
   seen: Set<string> = new Set(),
   selfKey?: string,
+  ctx?: TelaFormulaContext,
 ): number | string {
+  if ((ctx?.depth ?? 0) > MAX_DEPTH) return '#REF!';
   if (selfKey) {
     if (seen.has(selfKey)) return '#REF!';
     seen.add(selfKey);
   }
   let expr = raw.slice(1).toUpperCase();
-
-  // Range functions first, so their refs don't get single-substituted.
   let bad = false;
+
+  // 1) Cross-grid references: GridName!A1 → the referenced cell's value.
+  if (ctx?.resolveGrid) {
+    expr = expr.replace(XGRID_RE, (m, name: string, cell: string) => {
+      const cs = ctx.resolveGrid!(String(name).trim());
+      if (!cs) return m; // unknown grid → leave token (will surface as #ERR)
+      const n = numericValue(cs, cell, new Set(), { ...ctx, depth: (ctx.depth ?? 0) + 1 });
+      if (!Number.isFinite(n)) { bad = true; return '0'; }
+      return `(${n})`;
+    });
+  }
+
+  // 2) Base aggregates: COUNT(Base) / SUM(Base.field). Falls through when the
+  //    name isn't a Base (so local SUM(A1:B3) range handling still applies).
+  if (ctx?.resolveBase) {
+    expr = expr.replace(BASEAGG_RE, (m, fn: string, name: string, field?: string) => {
+      const base = ctx.resolveBase!(String(name).trim());
+      if (!base) return m;
+      return String(baseAggregate(base, String(fn).toUpperCase(), field ? String(field).trim() : undefined));
+    });
+  }
+
+  // 3) Local range functions, so their refs don't get single-substituted.
   expr = expr.replace(RANGE_FN_RE, (_m, fn: string, a: string, b: string) => {
-    const vals = rangeValues(cells, a, b, new Set(seen));
+    const vals = rangeValues(cells, a, b, new Set(seen), ctx);
     const f = fn.toUpperCase();
     if (f === 'SUM') return String(vals.reduce((s, v) => s + v, 0));
     if (f === 'MIN') return String(vals.length ? Math.min(...vals) : 0);
@@ -90,9 +156,9 @@ export function evaluateFormula(
     return String(vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0);
   });
 
-  // Single-cell references.
+  // 4) Single-cell references.
   expr = expr.replace(REF_RE, (_m, letters: string, digits: string) => {
-    const n = numericValue(cells, `${letters}${digits}`, new Set(seen));
+    const n = numericValue(cells, `${letters}${digits}`, new Set(seen), ctx);
     if (!Number.isFinite(n)) { bad = true; return '0'; }
     return `(${n})`;
   });
@@ -110,10 +176,10 @@ export function evaluateFormula(
 }
 
 /** What a cell shows at rest: its literal, or its formula's computed value. */
-export function displayValue(cells: Record<string, string>, key: string): string {
+export function displayValue(cells: Record<string, string>, key: string, ctx?: TelaFormulaContext): string {
   const raw = cells[key] ?? '';
   if (!raw.trim().startsWith('=')) return raw;
-  const v = evaluateFormula(raw.trim(), cells, new Set(), key);
+  const v = evaluateFormula(raw.trim(), cells, new Set(), key, ctx);
   return String(v);
 }
 
@@ -124,13 +190,15 @@ interface TelaGridProps {
   /** Ops-shaped: one cell write at a time (key is the stable cell id). */
   onSetCell: (key: string, value: string) => void;
   readOnly?: boolean;
+  /** Cross-device resolution so `=Sheet2!A1` / `=SUM(Base.field)` recompute live. */
+  formulaContext?: TelaFormulaContext;
 }
 
 const CELL_W = 88;
 const CELL_H = 26;
 const HDR_W = 36;
 
-const TelaGrid: React.FC<TelaGridProps> = ({ device, onSetCell, readOnly }) => {
+const TelaGrid: React.FC<TelaGridProps> = ({ device, onSetCell, readOnly, formulaContext }) => {
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
@@ -205,7 +273,7 @@ const TelaGrid: React.FC<TelaGridProps> = ({ device, onSetCell, readOnly }) => {
                 const isEd = editing === key;
                 const isSel = selected === key;
                 const raw = device.cells[key] ?? '';
-                const shown = isEd ? '' : displayValue(device.cells, key);
+                const shown = isEd ? '' : displayValue(device.cells, key, formulaContext);
                 const numeric = !isEd && shown !== '' && Number.isFinite(parseFloat(shown)) && /^[-0-9.]/.test(shown.trim());
                 return (
                   <td
