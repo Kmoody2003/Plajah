@@ -18,7 +18,7 @@ import {
   Newspaper, BookOpen, Cross, FlaskConical, Radio, AppWindow, Repeat, Gamepad2, Users, UsersRound,
   Heart, Landmark, Shield, ShoppingBag, GraduationCap, Camera, MessageSquare, MessageCircle,
   Mail, Rss, Sparkles, Clapperboard, MonitorPlay, Cctv, Search, HelpCircle, Monitor, Factory, Building2,
-  Briefcase, MapPin, TrendingUp, Tv, Ticket, Home,
+  Briefcase, MapPin, TrendingUp, Tv, Ticket, Home, LayoutPanelTop,
   Compass, Palette, Trophy, Bell, Plus, ChevronLeft,
   ChevronRight, LogOut, Command, RotateCcw, X,
 } from 'lucide-react';
@@ -77,6 +77,7 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'TERRA', label: 'Terra', icon: MapPin, requiresUser: true },
     { id: 'AD_PACKAGES', label: 'Promote', icon: TrendingUp, requiresUser: true },
     { id: 'LIVE_HUB', label: 'Live Hub', icon: Sparkles },
+    { id: 'TELA', label: 'Tela', icon: LayoutPanelTop },
     { id: 'FABULA', label: 'Fabula', icon: Film },
     { id: 'TV_STUDIO', label: 'TV Studio', icon: Clapperboard },
     { id: 'AMBO', label: 'Ambo Presenter', icon: MonitorPlay },

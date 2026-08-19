@@ -2783,7 +2783,9 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   // Plajah Gallery — shareable, self-contained photo experience (album-like, 3 view types)
   | 'GALLERY'
   // Plajah Gallery — the creation / edit editor (Phase 2)
-  | 'GALLERY_EDIT';
+  | 'GALLERY_EDIT'
+  // Tela — the unified document canvas (P0: canvas + Writer + Grid devices)
+  | 'TELA';
 
 // ── Script Writing Studio ─────────────────────────────────────────────────────
 
@@ -5620,4 +5622,82 @@ export interface ProtectedThreadConfig {
   protected: boolean;
   /** Auto-delete window in days, or null to keep until manually removed. */
   retentionDays: number | null;
+}
+
+// ── Tela — the unified document canvas (P0) ──────────────────────────────────
+// CRDT-friendly by construction: every frame / device / block / cell has a
+// stable id, ordering lives in arrays of ids, and all mutations are ops-shaped
+// (see components/tela/TelaView.tsx applyTelaOp) so multiplayer later is not a
+// rewrite. Content lives OPFS-first (services/telaStore.ts); Firestore holds a
+// small per-doc manifest for listing/sync only.
+
+export type TelaFrameKind = 'PAPER' | 'SCREEN' | 'BOARD';
+
+export type TelaFramePreset =
+  | 'LETTER' | 'A4' | 'BOOKLET'            // paper
+  | 'SIGNAGE_1080x1920' | 'PHONE' | 'SQUARE' // screens
+  | 'FREE';                                 // freeform boards
+
+/** A bounded region on the canvas — what you print, present, publish. */
+export interface TelaFrame {
+  id: string;
+  kind: TelaFrameKind;
+  preset: TelaFramePreset;
+  /** Canvas-space position + natural size in CSS px (96dpi ⇒ 816px = 8.5in). */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Ordered devices hosted by this frame (ids into TelaDoc.devices). */
+  deviceIds: string[];
+  /** Optional user label shown in the frame chrome. */
+  label?: string;
+}
+
+export type TelaBlockKind = 'h1' | 'h2' | 'p' | 'li';
+
+/** One Writer block. `text` is inline HTML (only strong/em/br/code survive). */
+export interface TelaBlock {
+  id: string;
+  kind: TelaBlockKind;
+  text: string;
+}
+
+export interface TelaWriterDevice {
+  id: string;
+  type: 'WRITER';
+  blocks: TelaBlock[];
+}
+
+/** Cells keyed by A1-style refs; raw strings ('=A1+B2' formulas included). */
+export interface TelaGridDevice {
+  id: string;
+  type: 'GRID';
+  rows: number;
+  cols: number;
+  cells: Record<string, string>;
+}
+
+export type TelaDevice = TelaWriterDevice | TelaGridDevice;
+
+/** One Tela file = one canvas. Content bundle stored in OPFS; manifest synced. */
+export interface TelaDoc {
+  id: string;
+  ownerId: string;
+  title: string;
+  /** Ordered — index 0 is the frame Page posture opens on. */
+  frames: TelaFrame[];
+  /** Device store, referenced from frames by id. */
+  devices: Record<string, TelaDevice>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** The lightweight listing/sync record (the only part Firestore sees in P0). */
+export interface TelaDocMeta {
+  id: string;
+  ownerId: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
 }

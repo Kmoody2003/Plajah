@@ -166,6 +166,8 @@ const UserDashboard = retryLazy(() => import('./components/UserDashboard'));
 const GlobalPhotosView = retryLazy(() => import('./components/GlobalPhotosView'));
 const GalleryView = retryLazy(() => import('./components/gallery/GalleryView'));
 const GalleryEditor = retryLazy(() => import('./components/gallery/GalleryEditor'));
+// Tela — the unified document canvas (P0: canvas + Writer + Grid devices)
+const TelaView = retryLazy(() => import('./components/tela/TelaView'));
 const EventPhotoPoolView = retryLazy(() => import('./components/EventPhotoPoolView'));
 import LandingPage from './components/LandingPage';
 import { isEducationAccount } from './services/intimateGating';
@@ -672,6 +674,14 @@ const App: React.FC = () => {
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Open Tela (the unified document canvas) from anywhere; mirrors the
+  // openGallery CustomEvent pattern above.
+  useEffect(() => {
+    const h = () => setView('TELA');
+    window.addEventListener('plajah:openTela', h as EventListener);
+    return () => window.removeEventListener('plajah:openTela', h as EventListener);
+  }, [setView]);
 
   // Open a specific match's fan room from anywhere (live match cards dispatch this).
   useEffect(() => {
@@ -5449,6 +5459,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'ART_GALLERY' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading…</div>}>
                 <ArtGalleryView onBack={() => setView('GLOBAL_PHOTOS')} currentUser={user} />
+              </Suspense>
+            )}
+            {view === 'TELA' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Opening Tela…</div>}>
+                <TelaView onBack={() => setView('CREATOR')} />
               </Suspense>
             )}
             {view === 'EVENT_PHOTO_POOL' && selectedPoolId && (
