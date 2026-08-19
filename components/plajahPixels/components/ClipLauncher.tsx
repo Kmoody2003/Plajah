@@ -632,7 +632,7 @@ interface SourceBrowserProps {
   onAssignToLayer:   (layerIdx: number, colIdx: number, clip: LauncherClip) => void;
   layers:            LauncherLayer[];
   config:            VisualizationConfig;
-  shaderLibrary?:    { name: string; src: string; category: string }[];
+  shaderLibrary?:    { name: string; src: string; category: string; kind?: string }[];
   onApplyShader?:    (src: string) => void;
   /** Called when user clicks a source item — locks preview in the right panel */
   onPreviewSource?:  (clip: LauncherClip | null) => void;
@@ -836,7 +836,9 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
                   >
                     <div className="text-[6px] uppercase tracking-widest" style={{ color: `${color}88` }}>{shader.category}</div>
                     <div className="text-[9px] font-black uppercase leading-tight" style={{ color: '#ffffffcc' }}>{shader.name}</div>
-                    <div className="text-[7px] font-black uppercase mt-0.5" style={{ color }}>GLSL ↓ DRAG</div>
+                    <div className="text-[7px] font-black uppercase mt-0.5" style={{ color }}>
+                      {shader.kind === 'isf' ? 'ISF ↓ DRAG' : shader.kind === 'procedural' ? 'PROC ↓ DRAG' : 'GLSL ↓ DRAG'}
+                    </div>
                   </div>
                 );
               })

@@ -6,6 +6,7 @@
 
 import type { GrooveDoc } from './grooveDoc';
 import { buildGraph } from './engine/graph';
+import { MasteringChain, type MasteringState } from './fx/mastering';
 import { VoiceBank } from './engine/voices';
 import { StepScheduler, seededRng } from './engine/scheduler';
 import { startAudioClipSource } from './engine/clips';
@@ -52,6 +53,15 @@ export async function renderGroove(
 
   const graph = buildGraph(offline, 16);
   graph.applyDoc(doc);
+  // The Pressing renders too — the bounce must sound like the room did (quality gate #1 again).
+  // MasteringChain is context-agnostic native nodes, so the identical device rebuilds offline.
+  const masteringState = doc.mixer.master.mastering as unknown as MasteringState | undefined;
+  if (masteringState?.on) {
+    const chain = new MasteringChain(offline);
+    chain.setState(masteringState);
+    graph.setMasterChain(chain.input, chain.output);
+    graph.setGlueOn(!!masteringState.glue);
+  }
   const voices = new VoiceBank(graph);
   for (const [key, buf] of buffers) voices.setBuffer(key, buf);
 

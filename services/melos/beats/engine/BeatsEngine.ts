@@ -4,6 +4,7 @@
 // resumed on every gesture + visibilitychange (recipe: services/fabula/audioGraph.ts:40-104).
 
 import clockUrl from './clockProcessor.worklet.js?url';
+import loudnessUrl from './loudnessProcessor.worklet.js?url';
 import type { ArrangeTrack, GrooveDoc, PadConfig, TimelineClip } from '../grooveDoc';
 import { newGrooveDoc } from '../grooveDoc';
 import { buildGraph, type BeatsGraph } from './graph';
@@ -16,6 +17,19 @@ import { arpStep, defaultArpPatch, type ArpPatch } from '../../arp';
 import type { KeraProgram } from '../../instruments/kera/zones';
 import { deserializeKeraProgram, type SerializedKeraProgram } from '../../instruments/kera/persist';
 import { SpectraEQ, defaultSpectra, type SpectraState } from '../fx/spectraEq';
+import { MasteringChain, defaultMastering, type MasteringState } from '../fx/mastering';
+import { FxChainHost, type FxInstance } from '../fx/devices';
+
+/** BS.1770 snapshot from the loudness worklet. LUFS fields are -Infinity until signal flows. */
+export interface LoudnessSnapshot {
+  m: number;     // momentary (400 ms) LUFS
+  s: number;     // short-term (3 s) LUFS
+  i: number;     // integrated (gated) LUFS
+  lra: number;   // loudness range, LU
+  tp: number;    // true peak, dBTP (max-hold; reset on play)
+  corr: number;  // stereo correlation -1..1
+  xy?: number[]; // goniometer feed: interleaved L,R pairs, ~64:1 decimated
+}
 
 export interface EngineDiagnostics {
   sampleRate: number;
@@ -100,6 +114,19 @@ export class BeatsEngine {
     this.clock = clock;
 
     this.graph = buildGraph(ctx, 16);
+
+    // Loudness meter (BS.1770) tapped off the very end of the master chain — it measures what
+    // actually leaves the app, limiter and all. Same keep-alive sink trick as the clock.
+    try {
+      await ctx.audioWorklet.addModule(loudnessUrl);
+      const loud = new AudioWorkletNode(ctx, 'beats-loudness', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 2 });
+      this.graph.master.makeup.connect(loud);
+      loud.connect(sink);
+      loud.port.onmessage = (e) => { this.loudnessSnap = e.data as LoudnessSnapshot; };
+      this.loudnessNode = loud;
+    } catch (e) {
+      console.warn('[beats] loudness meter unavailable', e);
+    }
     this.voices = new VoiceBank(this.graph);
     this.scheduler = new StepScheduler({
       doc: () => this.doc,
@@ -120,7 +147,7 @@ export class BeatsEngine {
     this.doc = doc;
     this.secPerBeat = 60 / (doc.bpm || 120);
     this.graph?.applyDoc(doc);
-    if (this.ctx) { this.syncInstruments(); this.syncMasterEq(); }
+    if (this.ctx) { this.syncInstruments(); this.syncMasterEq(); this.syncMastering(); }
   }
 
   /**
@@ -296,6 +323,134 @@ export class BeatsEngine {
     else if (this.masterEq) this.masterEq.setState({ on: false, mode: (saved?.mode ?? 5) as 5 | 30, bands: saved?.bands ?? [] });
   }
 
+  // ── The Pressing (mastering chain) ──────────────────────────────────────────
+  private mastering: MasteringChain | null = null;
+  private loudnessNode: AudioWorkletNode | null = null;
+  private loudnessSnap: LoudnessSnapshot | null = null;
+
+  /** The live mastering insert, created + patched in on first use, seeded from the saved doc. */
+  masteringDevice(): MasteringChain | null {
+    if (!this.ctx || !this.graph) return null;
+    if (!this.mastering) {
+      this.mastering = new MasteringChain(this.ctx);
+      this.graph.setMasterChain(this.mastering.input, this.mastering.output);
+      const saved = this.doc.mixer.master.mastering as unknown as MasteringState | undefined;
+      const state = saved && typeof saved.on === 'boolean' ? saved : defaultMastering();
+      this.mastering.setState(state);
+      this.graph.setGlueOn(!!state.glue && state.on);
+    }
+    return this.mastering;
+  }
+
+  /** Push mastering state to the live device (the Project view persists it to the doc separately). */
+  updateMastering(state: MasteringState): void {
+    this.masteringDevice()?.setState(state);
+    this.graph?.setGlueOn(!!state.glue && state.on);
+  }
+
+  /** Apply saved mastering on doc load. Only instantiates the chain when the doc actually uses it. */
+  private syncMastering(): void {
+    const saved = this.doc.mixer.master.mastering as unknown as MasteringState | undefined;
+    if (saved?.on) this.updateMastering(saved);
+    else if (this.mastering) this.updateMastering(saved ?? defaultMastering());
+  }
+
+  // ── The unified FX Suite (master rack) ──────────────────────────────────────
+  private masterSuite: FxChainHost | null = null;
+
+  /** The live Suite host, created + inserted on first use. */
+  masterSuiteDevice(): FxChainHost | null {
+    if (!this.ctx || !this.graph) return null;
+    if (!this.masterSuite) {
+      this.masterSuite = new FxChainHost(this.ctx);
+      this.graph.setMasterSuite(this.masterSuite.input, this.masterSuite.output);
+    }
+    return this.masterSuite;
+  }
+
+  /** Push the Suite's device list to the live rack. */
+  updateMasterSuite(instances: FxInstance[]): void {
+    this.masterSuiteDevice()?.setChain(instances);
+  }
+
+  /** Live gain reduction of a Suite compressor, for the rack meter. */
+  suiteReduction(id: string): number { return this.masterSuite?.reductionOf(id) ?? 0; }
+
+  /** Latest BS.1770 snapshot from the meter worklet, or null before audio has flowed. */
+  loudness(): LoudnessSnapshot | null { return this.loudnessSnap; }
+
+  /** Clear integrated/LRA/true-peak history — a fresh measurement per performance. */
+  resetLoudness(): void {
+    this.loudnessNode?.port.postMessage({ cmd: 'reset' });
+  }
+
+  // ── Audition — play an album track through the live pressing ────────────────
+  private auditionState: { src: AudioBufferSourceNode; gain: GainNode; fx: FxChainHost | null; prior: MasteringState; id: string; startedAt: number } | null = null;
+
+  /**
+   * Play a decoded buffer straight into the master bus, optionally under a per-track pressing
+   * override (the album pressing is restored when it ends or is stopped). This is how the
+   * Project view's proof sheet lets you HEAR each track through its own decade.
+   */
+  async playAudition(id: string, buffer: AudioBuffer, pressing: MasteringState | null, trackFx?: FxInstance[]): Promise<void> {
+    await this.init();
+    if (!this.ctx || !this.graph) return;
+    this.stopAudition();
+    const prior = ((this.doc.mixer.master.mastering as unknown as MasteringState | undefined) ?? defaultMastering());
+    if (pressing) this.updateMastering(pressing);
+    const src = this.ctx.createBufferSource();
+    src.buffer = buffer;
+    const gain = this.ctx.createGain();
+    // Per-track insert FX run BEFORE the master input, so signal is trackFX → pressing → Suite.
+    let fx: FxChainHost | null = null;
+    if (trackFx && trackFx.some((f) => f.on)) {
+      fx = new FxChainHost(this.ctx);
+      fx.setChain(trackFx);
+      src.connect(gain); gain.connect(fx.input); fx.output.connect(this.graph.master.input);
+    } else {
+      src.connect(gain); gain.connect(this.graph.master.input);
+    }
+    src.onended = () => {
+      if (this.auditionState?.src !== src) return;
+      this.auditionState = null;
+      if (pressing) this.updateMastering(prior);
+      try { src.disconnect(); gain.disconnect(); fx?.dispose(); } catch { /* */ }
+    };
+    src.start();
+    this.auditionState = { src, gain, fx, prior, id, startedAt: this.ctx.currentTime };
+    this.resetLoudness(); // the meters should measure THIS track
+  }
+
+  /** Rebuild the auditioning track's FX chain live (editing a device while it plays). */
+  setAuditionFx(instances: FxInstance[]): void {
+    this.auditionState?.fx?.setChain(instances);
+  }
+
+  /** The live per-track FX device for an instance — so its scope can read real audio. */
+  auditionFxNode(instanceId: string) { return this.auditionState?.fx?.nodeOf(instanceId); }
+  /** Live gain reduction of a per-track insert device. */
+  auditionFxReduction(instanceId: string): number { return this.auditionState?.fx?.reductionOf(instanceId) ?? 0; }
+  /** The live Suite device for an instance — for the master rack scopes. */
+  suiteNode(instanceId: string) { return this.masterSuite?.nodeOf(instanceId); }
+
+  stopAudition(): void {
+    const a = this.auditionState;
+    if (!a) return;
+    this.auditionState = null;
+    try { a.src.onended = null; a.src.stop(); a.src.disconnect(); a.gain.disconnect(); a.fx?.dispose(); } catch { /* */ }
+    this.updateMastering(a.prior);
+  }
+
+  /** The album track currently auditioning, or null. The UI polls this via the bridge. */
+  auditionId(): string | null { return this.auditionState?.id ?? null; }
+
+  /** Seconds elapsed in the current audition — the Project view's strip playhead. */
+  auditionPosSec(): number {
+    const a = this.auditionState;
+    if (!a || !this.ctx) return 0;
+    return Math.max(0, this.ctx.currentTime - a.startedAt);
+  }
+
   /** The track your keyboard plays. Exactly one, or none. */
   armedTrack(): ATrack | null {
     return this.doc.arrangement.find((t) => t.kind === 'instrument' && t.armed) ?? null;
@@ -417,6 +572,7 @@ export class BeatsEngine {
    */
   panic(): void {
     this.stop();
+    this.stopAudition();
     this.voices?.stopAll(this.ctx?.currentTime);
     for (const inst of this.instruments.values()) inst.allNotesOff(true);
     this.heldKeys.clear();
@@ -473,6 +629,7 @@ export class BeatsEngine {
 
   play(mode: PlayMode, opts: { patternId?: string; fromBeats?: number } = {}): void {
     if (!this.ctx || !this.scheduler || !this.clock) return;
+    this.stopAudition(); // the transport and an album audition never fight over the bus
     this.resume();
     const from = opts.fromBeats ?? 0;
     this.mode = mode;
@@ -483,6 +640,7 @@ export class BeatsEngine {
     this.running = true;
     this.jitterWindow.length = 0;
     this.lastTickAudio = 0;
+    this.resetLoudness(); // integrated/LRA/TP measure THIS pass, not everything since page load
     this.currentPatternId = opts.patternId;
     this.scheduler.start(mode, from, opts.patternId);
     this.clock.port.postMessage({ cmd: 'start' });
@@ -539,6 +697,10 @@ export class BeatsEngine {
     this.instruments.clear();
     this.liveNotes.clear();
     try { this.clock?.disconnect(); } catch { /* */ }
+    try { this.loudnessNode?.disconnect(); } catch { /* */ }
+    this.loudnessNode = null; this.loudnessSnap = null;
+    this.mastering?.dispose(); this.mastering = null;
+    this.masterSuite?.dispose(); this.masterSuite = null;
     this.graph?.dispose();
     this.voices?.clearBuffers();
     try { this.ctx?.close(); } catch { /* */ }

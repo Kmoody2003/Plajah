@@ -6,6 +6,17 @@ import { buildShareUrl, shareText } from '../services/deepLinkService';
 import { generateAlbumMetadata, generateTrackLyrics } from '../services/geminiService';
 import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, fetchUserCharacters, uploadFile as storageUpload, uploadVideo } from '../services/backendService';
 import { enqueueTranscode } from '../services/choraStreamService';
+// Lyric sync lives in ONE place (services/lyricSync.ts) so the Melos Project view and this
+// Caption Sync card can never drift apart.
+import {
+  lyricLinesFor as sharedLyricLinesFor,
+  transcriptionToText,
+  reconcileTimedLyricText as sharedReconcile,
+  timedLyricDrift as sharedDrift,
+  applyLyricsToTimings as sharedApplyLyrics,
+  nudgeLyricTime as sharedNudge,
+  setLyricTime as sharedSetTime,
+} from '../services/lyricSync';
 import { captureVideoFrame } from '../src/lib/videoUtils';
 import { probeVideo } from '../src/lib/videoQc';
 import {
@@ -505,15 +516,11 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
    * out of manual syncing entirely (the editor read `track.lyrics`, found nothing, and refused
    * to open), which is why hand-timing appeared to "default" instead of loading the transcript.
    */
-  const lyricLinesFor = useCallback((track: Partial<Track>): string[] => {
-    const typed = (track.lyrics || '').split('\n').map(l => l.trim()).filter(Boolean);
-    if (typed.length) return typed;
-    return (track.timeCodedLyrics || []).map(l => (l.text || '').trim()).filter(Boolean);
-  }, []);
+  const lyricLinesFor = useCallback((track: Partial<Track>): string[] => sharedLyricLinesFor(track), []);
 
   /** Pull the transcribed text into the editable lyrics field so it can be corrected by hand. */
   const importTranscription = useCallback((track: Track) => {
-    const text = (track.timeCodedLyrics || []).map(l => (l.text || '').trim()).filter(Boolean).join('\n');
+    const text = transcriptionToText(track);
     if (text) updateTrack(track.id, { lyrics: text });
   }, [updateTrack]);
 
@@ -531,50 +538,27 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
    * UI as needing a re-sync, rather than silently mangled.
    */
   const reconcileTimedLyricText = useCallback((track: Partial<Track>, lyrics: string): { timeCodedLyrics: NonNullable<Track['timeCodedLyrics']> } | null => {
-    const timed = track.timeCodedLyrics;
-    if (!timed || timed.length === 0) return null;
-    const lines = lyrics.split('\n').map(l => l.trim()).filter(Boolean);
-    if (lines.length !== timed.length) return null;
-    const changed = lines.reduce((n, line, i) => n + (line !== (timed[i].text || '').trim() ? 1 : 0), 0);
-    if (changed === 0) return null;
-    if (changed > Math.max(1, Math.floor(lines.length / 2))) return null; // a rewrite, not a fix
-    return { timeCodedLyrics: timed.map((l, i) => ({ ...l, text: lines[i] })) };
+    const next = sharedReconcile(track, lyrics);
+    return next ? { timeCodedLyrics: next } : null;
   }, []);
 
   /** Whether the lyrics box and the synced captions have drifted apart, and how badly. */
-  const timedLyricDrift = useCallback((track: Partial<Track>): 'none' | 'text' | 'count' => {
-    const timed = track.timeCodedLyrics;
-    if (!timed || timed.length === 0) return 'none';
-    const lines = (track.lyrics || '').split('\n').map(l => l.trim()).filter(Boolean);
-    if (lines.length === 0) return 'none';           // nothing typed yet — not a divergence
-    if (lines.length !== timed.length) return 'count';
-    return lines.some((l, i) => l !== (timed[i].text || '').trim()) ? 'text' : 'none';
-  }, []);
+  const timedLyricDrift = useCallback((track: Partial<Track>): 'none' | 'text' | 'count' => sharedDrift(track), []);
 
   /** Force the typed words onto the existing timings by line order (user-confirmed). */
   const applyLyricsToTimings = useCallback((track: Track) => {
-    const timed = track.timeCodedLyrics;
-    if (!timed || timed.length === 0) return;
-    const lines = (track.lyrics || '').split('\n').map(l => l.trim()).filter(Boolean);
-    if (lines.length !== timed.length) return;
-    updateTrack(track.id, { timeCodedLyrics: timed.map((l, i) => ({ ...l, text: lines[i] })) });
+    const next = sharedApplyLyrics(track);
+    if (next) updateTrack(track.id, { timeCodedLyrics: next });
   }, [updateTrack]);
 
   /** Nudge one line's timestamp by delta seconds, keeping the list ordered and non-negative. */
   const nudgeLyricTime = useCallback((track: Track, index: number, delta: number) => {
-    const list = [...(track.timeCodedLyrics || [])];
-    if (!list[index]) return;
-    const next = Math.max(0, Math.round((list[index].time + delta) * 100) / 100);
-    list[index] = { ...list[index], time: next };
-    updateTrack(track.id, { timeCodedLyrics: list });
+    updateTrack(track.id, { timeCodedLyrics: sharedNudge(track.timeCodedLyrics || [], index, delta) });
   }, [updateTrack]);
 
   /** Set one line's timestamp outright (typed input, mm:ss or seconds). */
   const setLyricTime = useCallback((track: Track, index: number, seconds: number) => {
-    const list = [...(track.timeCodedLyrics || [])];
-    if (!list[index] || !isFinite(seconds)) return;
-    list[index] = { ...list[index], time: Math.max(0, Math.round(seconds * 100) / 100) };
-    updateTrack(track.id, { timeCodedLyrics: list });
+    updateTrack(track.id, { timeCodedLyrics: sharedSetTime(track.timeCodedLyrics || [], index, seconds) });
   }, [updateTrack]);
 
   /**

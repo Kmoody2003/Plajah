@@ -2,11 +2,25 @@
 // Shadertoy-compatible uniforms. Click a chip to load into editor, Apply to run live.
 
 import React, { useState, useMemo } from 'react';
-import { Play, Power, Code2, AlertTriangle, Search } from 'lucide-react';
+import { Play, Power, Code2, AlertTriangle, Search, Upload } from 'lucide-react';
+import { ISF_CATALOG, importISF, type CatalogEntry } from '../engine/isfCatalog';
+import { PROCEDURAL_PRESETS } from '../engine/presets/proceduralPresets';
 
 // ─── Shader library ────────────────────────────────────────────────────────────
+// Three sources merge into one searchable/filterable library (see ALL_SHADERS below):
+//   'raw'        — hand-written Shadertoy-style GLSL (the original SHADERS array).
+//   'procedural' — original SDF / vector-field style GLSL (engine/presets/proceduralPresets.ts).
+//   'isf'        — ISF (Interactive Shader Format, the VDMX/Resolume standard) shaders,
+//                  translated by engine/core/isfLoader.ts. Ships with a small original
+//                  starter pack (engine/presets/isfPresets.ts) plus whatever the user
+//                  imports at runtime via "Import ISF" below.
 
-interface ShaderEntry { name: string; cat: string; src: string; }
+interface ShaderEntry {
+  name: string; cat: string; src: string;
+  kind?: 'raw' | 'procedural' | 'isf';
+  license?: string;
+  credit?: string;
+}
 
 const SHADERS: ShaderEntry[] = [
   // ── Audio-Reactive ────────────────────────────────────────────────────────────
@@ -585,6 +599,14 @@ void mainImage(out vec4 o, in vec2 C){
   },
 ];
 
+// ─── Merged library (raw + procedural + ISF) ───────────────────────────────────
+
+const BASE_SHADERS: ShaderEntry[] = [
+  ...SHADERS.map(s => ({ ...s, kind: 'raw' as const })),
+  ...PROCEDURAL_PRESETS.map(p => ({ name: p.name, cat: p.cat, src: p.src, kind: 'procedural' as const })),
+  ...ISF_CATALOG.map(e => ({ name: e.name, cat: e.cat, src: e.src, kind: 'isf' as const, license: e.license, credit: e.credit })),
+];
+
 // ─── Category config ───────────────────────────────────────────────────────────
 
 const CATS: { id: string; label: string; color: string }[] = [
@@ -594,15 +616,23 @@ const CATS: { id: string; label: string; color: string }[] = [
   { id: 'abstract',   label: 'Abstract',        color: '#10b981' },
 ];
 
+const KINDS: { id: 'raw' | 'procedural' | 'isf'; label: string; color: string }[] = [
+  { id: 'raw',        label: 'Raw GLSL',   color: '#22d3ee' },
+  { id: 'procedural', label: 'Procedural/Vector', color: '#eab308' },
+  { id: 'isf',        label: 'ISF',        color: '#f472b6' },
+];
+
 /** Exported shader library for use in ClipLauncher's SHADERS source tab. */
-export const SHADER_LIBRARY: { name: string; src: string; category: string }[] =
-  SHADERS.map(s => ({
+export const SHADER_LIBRARY: { name: string; src: string; category: string; kind?: string; license?: string; credit?: string }[] =
+  BASE_SHADERS.map(s => ({
     name:     s.name,
     src:      s.src,
     category: s.cat === 'audio'     ? 'Audio-Reactive'
              : s.cat === 'gen'      ? 'Generative'
              : s.cat === 'cinematic'? 'Cinematic'
+             : s.cat === 'generative' ? 'Generative'
              : 'Abstract',
+    kind: s.kind, license: s.license, credit: s.credit,
   }));
 
 // ─── Component ─────────────────────────────────────────────────────────────────
@@ -617,21 +647,82 @@ interface Props {
 const ShaderPanel: React.FC<Props> = ({ active, error, onApply, onOff }) => {
   const [src, setSrc]         = useState(SHADERS[0].src);
   const [search, setSearch]   = useState('');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'raw' | 'procedural' | 'isf'>('all');
+  const [imported, setImported] = useState<ShaderEntry[]>([]);
+  const [showImport, setShowImport] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importLicense, setImportLicense] = useState('');
+  const [importError, setImportError] = useState<string | null>(null);
+
+  const library = useMemo(() => [...BASE_SHADERS, ...imported], [imported]);
+  const selectedMeta = useMemo(() => library.find(s => s.src === src), [library, src]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return SHADERS.filter(s => !q || s.name.toLowerCase().includes(q) || s.cat.includes(q));
-  }, [search]);
+    return library.filter(s =>
+      (typeFilter === 'all' || (s.kind ?? 'raw') === typeFilter) &&
+      (!q || s.name.toLowerCase().includes(q) || s.cat.includes(q)));
+  }, [library, search, typeFilter]);
+
+  const handleImportISF = () => {
+    if (!importText.trim()) return;
+    const nameMatch = importText.match(/"DESCRIPTION"\s*:\s*"([^"]{0,40})/);
+    const name = `Imported · ${nameMatch?.[1] || `ISF ${imported.length + 1}`}`;
+    const result = importISF(importText, name, importLicense.trim());
+    if ('error' in result) { setImportError(result.error); return; }
+    const entry: ShaderEntry = { name: result.name, cat: result.cat, src: result.src, kind: 'isf', license: result.license, credit: result.credit };
+    setImported(list => [...list, entry]);
+    setSrc(entry.src);
+    setImportText(''); setImportLicense(''); setImportError(null); setShowImport(false);
+  };
 
   return (
     <div className="w-[380px] max-w-[95vw] flex flex-col bg-black/85 backdrop-blur-2xl border border-white/10 border-t-0 rounded-b-2xl shadow-2xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10">
         <Code2 className="w-3.5 h-3.5 text-cyan-300" />
-        <span className="text-[9px] font-black uppercase tracking-widest text-white/60 flex-1">Custom GLSL · Shadertoy-style</span>
+        <span className="text-[9px] font-black uppercase tracking-widest text-white/60 flex-1">Visualizer Library · GLSL / ISF</span>
+        <button
+          onClick={() => setShowImport(v => !v)}
+          className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest text-pink-300/80 hover:text-pink-200 border border-pink-400/30 hover:border-pink-400/60 transition-all"
+          title="Import an ISF shader (e.g. from an MIT-licensed ISF library)"
+        >
+          <Upload className="w-2.5 h-2.5" /> Import ISF
+        </button>
       </div>
 
-      {/* Search */}
+      {/* Import ISF */}
+      {showImport && (
+        <div className="flex flex-col gap-1.5 px-3 py-2 border-b border-pink-400/20 bg-pink-500/5">
+          <textarea
+            value={importText}
+            onChange={e => setImportText(e.target.value)}
+            spellCheck={false}
+            placeholder={'Paste full ISF source, starting with /*{ "DESCRIPTION": ... }*/ ...'}
+            className="w-full h-20 bg-black/40 border border-white/10 rounded px-2 py-1.5 text-[9px] font-mono text-pink-100/90 outline-none resize-none scrollbar-none"
+          />
+          <div className="flex items-center gap-1.5">
+            <input
+              value={importLicense}
+              onChange={e => setImportLicense(e.target.value)}
+              placeholder="License (e.g. MIT, CC-BY, personal-use-only)…"
+              className="flex-1 bg-black/40 border border-white/10 rounded px-2 py-1 text-[8px] text-white/70 placeholder-white/25 outline-none"
+            />
+            <button
+              onClick={handleImportISF}
+              className="px-2 py-1 rounded bg-pink-600/40 hover:bg-pink-600/60 border border-pink-400/40 text-[8px] font-black uppercase tracking-widest text-white transition-all"
+            >
+              Add
+            </button>
+          </div>
+          {importError && <p className="text-[7px] font-mono text-red-300 leading-snug">{importError}</p>}
+          <p className="text-[7px] text-white/25 leading-snug">
+            ISF is the shader format VDMX/Resolume use — single-pass shaders only; ones needing an external image input aren't supported here. Tag the license yourself so the gallery badge stays accurate.
+          </p>
+        </div>
+      )}
+
+      {/* Search + type filter */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-white/08">
         <Search className="w-3 h-3 text-white/25" />
         <input
@@ -644,8 +735,35 @@ const ShaderPanel: React.FC<Props> = ({ active, error, onApply, onOff }) => {
           <button onClick={() => setSearch('')} className="text-[8px] text-white/30 hover:text-white">✕</button>
         )}
       </div>
+      <div className="flex items-center gap-1 px-3 py-1.5 border-b border-white/08">
+        <button
+          onClick={() => setTypeFilter('all')}
+          className="px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest border transition-all"
+          style={{
+            background: typeFilter === 'all' ? 'rgba(255,255,255,0.15)' : 'transparent',
+            borderColor: typeFilter === 'all' ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.1)',
+            color: typeFilter === 'all' ? '#fff' : 'rgba(255,255,255,0.4)',
+          }}
+        >
+          All types
+        </button>
+        {KINDS.map(k => (
+          <button
+            key={k.id}
+            onClick={() => setTypeFilter(k.id)}
+            className="px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest border transition-all"
+            style={{
+              background: typeFilter === k.id ? k.color + '30' : 'transparent',
+              borderColor: typeFilter === k.id ? k.color + 'aa' : 'rgba(255,255,255,0.1)',
+              color: typeFilter === k.id ? '#fff' : 'rgba(255,255,255,0.4)',
+            }}
+          >
+            {k.label}
+          </button>
+        ))}
+      </div>
 
-      {/* Shader library — categorized */}
+      {/* Shader library — categorized by style */}
       <div className="max-h-52 overflow-y-auto px-2 py-2 space-y-3 scrollbar-none">
         {CATS.map(cat => {
           const items = filtered.filter(s => s.cat === cat.id);
@@ -657,24 +775,34 @@ const ShaderPanel: React.FC<Props> = ({ active, error, onApply, onOff }) => {
                 {cat.label}
               </p>
               <div className="flex flex-wrap gap-1">
-                {items.map(shader => (
-                  <button
-                    key={shader.name}
-                    onClick={() => setSrc(shader.src)}
-                    className="px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-wide transition-all border"
-                    style={{
-                      background: src === shader.src ? cat.color + '30' : 'rgba(255,255,255,0.04)',
-                      borderColor: src === shader.src ? cat.color + 'aa' : 'rgba(255,255,255,0.1)',
-                      color: src === shader.src ? '#fff' : 'rgba(255,255,255,0.55)',
-                    }}
-                  >
-                    {shader.name}
-                  </button>
-                ))}
+                {items.map(shader => {
+                  const kindInfo = KINDS.find(k => k.id === (shader.kind ?? 'raw'));
+                  return (
+                    <button
+                      key={shader.name}
+                      onClick={() => setSrc(shader.src)}
+                      className="px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-wide transition-all border flex items-center gap-1"
+                      style={{
+                        background: src === shader.src ? cat.color + '30' : 'rgba(255,255,255,0.04)',
+                        borderColor: src === shader.src ? cat.color + 'aa' : 'rgba(255,255,255,0.1)',
+                        color: src === shader.src ? '#fff' : 'rgba(255,255,255,0.55)',
+                      }}
+                      title={shader.license ? `${shader.name} · ${shader.license}${shader.credit ? ` · ${shader.credit}` : ''}` : shader.name}
+                    >
+                      {shader.kind && shader.kind !== 'raw' && (
+                        <span style={{ color: kindInfo?.color }}>●</span>
+                      )}
+                      {shader.name}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           );
         })}
+        {filtered.length === 0 && (
+          <p className="text-[8px] text-white/25 text-center py-4">No shaders match — try a different search or type filter.</p>
+        )}
       </div>
 
       {/* Editor */}
@@ -685,6 +813,11 @@ const ShaderPanel: React.FC<Props> = ({ active, error, onApply, onOff }) => {
         className="w-full h-44 bg-black/50 border-t border-white/08 px-3 py-2 text-[10px] font-mono text-cyan-100/90 outline-none resize-none leading-relaxed scrollbar-none"
         placeholder="void mainImage(out vec4 o, in vec2 fragCoord){ ... }"
       />
+      {selectedMeta?.license && (
+        <p className="px-3 py-1 text-[7px] text-white/30 border-t border-white/08 truncate">
+          {selectedMeta.license}{selectedMeta.credit ? ` · ${selectedMeta.credit}` : ''}
+        </p>
+      )}
 
       {/* Error */}
       {error && (

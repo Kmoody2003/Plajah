@@ -28,6 +28,7 @@ import { MachineView } from './machine/MachineView';
 import { GlassView } from './glass/GlassView';
 import { TimelineView } from './timeline/TimelineView';
 import { MixerView } from './mixer/MixerView';
+import { ProjectView } from './project/ProjectView';
 import { BeatsMobileShell } from './mobile/BeatsMobileShell';
 import { useViewport } from '../../../hooks/useViewport';
 import { InstrumentPicker } from './instrument/InstrumentPicker';
@@ -60,7 +61,7 @@ interface BeatsRoomProps {
   takeTargetName?: string;
 }
 
-const AVAILABLE_VIEWS: BeatsViewId[] = ['machine', 'glass', 'timeline', 'mixer'];
+const AVAILABLE_VIEWS: BeatsViewId[] = ['machine', 'glass', 'timeline', 'mixer', 'project'];
 
 const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, embedded, melosSamples, onRenderTake, takeTargetName }) => {
   const { doc, saveState, grooves, mutate, replace, saveNow, openGroove, newGroove, removeGroove } =
@@ -648,6 +649,15 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           selectedPad={selectedPad}
           onSelectPad={setSelectedPad}
           onMutate={mutate}
+        />
+      )}
+
+      {view === 'project' && (
+        <ProjectView
+          doc={doc}
+          snap={snap}
+          onMutate={mutate}
+          productionId={production?.prodId || payload?.productionId}
         />
       )}
 

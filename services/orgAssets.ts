@@ -1,5 +1,5 @@
 import { collection, doc, setDoc, deleteDoc, getDocs, query, where } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
+import { ref, uploadBytesResumable, deleteObject } from 'firebase/storage';
 import { db, auth, storage } from './firebase';
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -9,8 +9,8 @@ import { db, auth, storage } from './firebase';
 // for an ORG (scopeKind 'org', scopeId = organization id) or a single ACCOUNT
 // (scopeKind 'user', scopeId = uid). Access control lives on the Firestore
 // `orgAssets` docs (rules gate reads/writes to the scope's admins/owner); the
-// Storage object itself carries an unguessable download token, same model as
-// albums/videos. Distinct from the cross-service media library (published
+// Storage originals are private and are streamed through the authorized server
+// endpoint. Distinct from the cross-service media library (published
 // albums/videos) that ContentAssetManager already surfaces.
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -33,6 +33,16 @@ export interface OrgAsset {
   sizeBytes: number;
   folder?: string;
   tags?: string[];
+  status?: import('../types').HqAssetStatus;
+  currentVersionId?: string;
+  versionCount?: number;
+  deletedAt?: number;
+  deletedByUid?: string;
+  retentionDeleteAt?: number;
+  rights?: { owner?: string; license?: string; expiresAt?: number; territory?: string; credits?: string };
+  brandKit?: boolean;
+  approvedAt?: number;
+  approvedByUid?: string;
   uploadedAt: number;
 }
 
@@ -68,9 +78,9 @@ function contentTypeFor(file: File): string {
 }
 
 /** All Content HQ assets for a scope (client-sorted newest-first to avoid a composite index). */
-export async function listHqAssets(scope: OwnerScope): Promise<OrgAsset[]> {
+export async function listHqAssets(scope: OwnerScope, includeTrash = false): Promise<OrgAsset[]> {
   const snap = await getDocs(query(collection(db, COLLECTION), where('scopeId', '==', scope.id)));
-  const rows = snap.docs.map((d) => d.data() as OrgAsset);
+  const rows = snap.docs.map((d) => d.data() as OrgAsset).filter(a => includeTrash || !a.deletedAt);
   return rows.sort((a, b) => (b.uploadedAt || 0) - (a.uploadedAt || 0));
 }
 
@@ -84,16 +94,16 @@ export async function addHqAsset(
   const uid = await ensureAuthUid();
   const id = doc(collection(db, COLLECTION)).id;
   const safe = file.name.replace(/[^\w.\-]+/g, '_');
-  const storagePath = `uploads/hq/${scope.id}/${id}_${safe}`;
+  const storagePath = `protected-hq/${scope.kind}/${scope.id}/${id}/${safe}`;
   const storageRef = ref(storage, storagePath);
   const mimeType = contentTypeFor(file);
 
-  const url = await new Promise<string>((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     const task = uploadBytesResumable(storageRef, file, { contentType: mimeType });
     task.on('state_changed',
       (s) => onProgress?.((s.bytesTransferred / s.totalBytes) * 100),
       (err) => reject(err),
-      async () => resolve(await getDownloadURL(task.snapshot.ref)),
+      () => resolve(),
     );
   });
 
@@ -105,13 +115,21 @@ export async function addHqAsset(
     name: file.name,
     kind: kindFromMime(mimeType, file.name),
     mimeType,
-    url,
+    url: `/api/hq/assets/${encodeURIComponent(id)}/download`,
     storagePath,
     sizeBytes: file.size,
     ...(folder ? { folder } : {}),
+    status: 'DRAFT',
+    versionCount: 1,
     uploadedAt: Date.now(),
   };
+  const versionRef = doc(collection(db, 'hqAssetVersions'));
+  asset.currentVersionId = versionRef.id;
   await setDoc(doc(db, COLLECTION, id), asset);
+  await setDoc(versionRef, {
+    id: versionRef.id, assetId: id, version: 1, storagePath, name: file.name,
+    mimeType, sizeBytes: file.size, uploadedByUid: uid, createdAt: Date.now(),
+  });
   return asset;
 }
 

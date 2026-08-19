@@ -978,6 +978,16 @@ async function firestoreRead(collection: string, id: string): Promise<Record<str
       else if (v.integerValue !== undefined) out[k] = Number(v.integerValue);
       else if (v.doubleValue !== undefined) out[k] = Number(v.doubleValue);
       else if (v.booleanValue !== undefined) out[k] = v.booleanValue;
+      else if (v.nullValue !== undefined) out[k] = null;
+      else if (v.arrayValue !== undefined) out[k] = (v.arrayValue.values || []).map((item: any) =>
+        item.stringValue ?? (item.integerValue !== undefined ? Number(item.integerValue) : item.booleanValue));
+      else if (v.mapValue !== undefined) {
+        const map: Record<string, any> = {};
+        for (const [mk, mv] of Object.entries(v.mapValue.fields || {}) as [string, any][]) {
+          map[mk] = mv.stringValue ?? (mv.integerValue !== undefined ? Number(mv.integerValue) : mv.booleanValue);
+        }
+        out[k] = map;
+      }
     }
     return out;
   } catch { return null; }
@@ -2067,6 +2077,68 @@ async function startServer() {
     }
   });
 
+  // ── Content HQ protected delivery ─────────────────────────────────────────────────
+  // Originals are not public Storage objects. The server checks the account/org scope and
+  // streams from GCS with Range support so large video can seek without buffering 25 GB.
+  async function canAccessHqAsset(uid: string, asset: any): Promise<boolean> {
+    if (!asset) return false;
+    if (asset.scopeKind === 'user') return asset.scopeId === uid;
+    if (asset.scopeKind !== 'org') return false;
+    const org = await firestoreRead('organizations', String(asset.scopeId));
+    if (org && (org.creatorId === uid || (org.admins || []).includes(uid))) return true;
+    const memberships = await queryFirebase('orgMemberships', [
+      { field: 'orgId', value: String(asset.scopeId) }, { field: 'userId', value: uid },
+    ], 5);
+    return memberships.some((m: any) => m.status === 'ACTIVE');
+  }
+
+  async function streamHqObject(req: any, res: any, objectPath: string, filename: string, mimeType: string) {
+    const token = await getGoogleAccessToken();
+    if (!token) return res.status(503).json({ error: 'Protected storage unavailable' });
+    const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+    if (req.headers.range) headers.Range = String(req.headers.range);
+    const url = `https://storage.googleapis.com/storage/v1/b/${STORAGE_BUCKET}/o/${encodeURIComponent(objectPath)}?alt=media`;
+    const upstream = await fetch(url, { headers });
+    if (!upstream.ok || !upstream.body) return res.status(upstream.status).json({ error: 'Asset unavailable' });
+    res.status(upstream.status);
+    for (const h of ['content-length', 'content-range', 'accept-ranges', 'etag']) {
+      const value = upstream.headers.get(h); if (value) res.setHeader(h, value);
+    }
+    res.setHeader('Content-Type', upstream.headers.get('content-type') || mimeType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(filename || 'asset')}`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    Readable.fromWeb(upstream.body as any).pipe(res);
+  }
+
+  app.get('/api/hq/assets/:assetId/download', apiLimiter, authMiddleware, async (req: any, res: any) => {
+    const asset = await firestoreRead('orgAssets', String(req.params.assetId));
+    if (!await canAccessHqAsset(req.uid, asset)) return res.status(403).json({ error: 'Forbidden' });
+    let source: any = asset;
+    if (req.query.version) {
+      const version = await firestoreRead('hqAssetVersions', String(req.query.version));
+      if (!version || version.assetId !== req.params.assetId) return res.status(404).json({ error: 'Version not found' });
+      source = version;
+    } else if (asset?.currentVersionId) {
+      source = await firestoreRead('hqAssetVersions', String(asset.currentVersionId)) || asset;
+    }
+    if (!source?.storagePath) return res.status(404).json({ error: 'Asset not found' });
+    return streamHqObject(req, res, source.storagePath, source.name || asset?.name, source.mimeType || asset?.mimeType);
+  });
+
+  app.get('/api/hq/share/:shareId/:token/download', apiLimiter, async (req: any, res: any) => {
+    const share = await firestoreRead('hqShareLinks', String(req.params.shareId));
+    if (!share || share.revokedAt || (share.expiresAt && share.expiresAt < Date.now()) || !share.allowDownload) {
+      return res.status(403).json({ error: 'Share unavailable' });
+    }
+    const hash = nodeCrypto.createHash('sha256').update(String(req.params.token)).digest('hex');
+    const a = Buffer.from(hash); const b = Buffer.from(String(share.tokenHash || ''));
+    if (a.length !== b.length || !nodeCrypto.timingSafeEqual(a, b)) return res.status(403).json({ error: 'Invalid share' });
+    const asset = await firestoreRead('orgAssets', String(share.assetId));
+    if (!asset?.storagePath) return res.status(404).json({ error: 'Asset not found' });
+    const source = asset.currentVersionId ? await firestoreRead('hqAssetVersions', String(asset.currentVersionId)) || asset : asset;
+    return streamHqObject(req, res, source.storagePath, source.name || asset.name, source.mimeType || asset.mimeType);
+  });
+
   // ── Terra: the Open Listing Record feed (public, mirrorable) ───────────────
   // OLR is a RESO-Data-Dictionary-aligned projection of listing data, published
   // openly so anyone can mirror it. This is Terra's OUTBOUND distribution story:
@@ -2198,6 +2270,65 @@ async function startServer() {
       _ytCache.set(q, { t: Date.now(), id });
       res.json({ videoId: id });
     } catch (e: any) { res.status(500).json({ videoId: null, error: e.message }); }
+  });
+
+  // Stock quotes for the Signal ticker (followed stocks). Keyless by default
+  // (Yahoo Finance chart endpoint, no CORS/keys server-side); falls back to
+  // Finnhub when FINNHUB_API_KEY / STOCK_API_KEY is set (more reliable path).
+  // Never throws — returns [] on any failure. Short in-memory cache (~45s) so
+  // the ticker's polling doesn't hammer the upstream source.
+  const _stockCache = new Map<string, { t: number; v: { symbol: string; price: number; changePct: number; currency: string } | null }>();
+  const STOCK_TTL = 45_000;
+  const stockKey = process.env.FINNHUB_API_KEY || process.env.STOCK_API_KEY || '';
+  const fetchOneStock = async (symbol: string): Promise<{ symbol: string; price: number; changePct: number; currency: string } | null> => {
+    const hit = _stockCache.get(symbol);
+    if (hit && Date.now() - hit.t < STOCK_TTL) return hit.v;
+    let out: { symbol: string; price: number; changePct: number; currency: string } | null = null;
+    try {
+      if (stockKey) {
+        // Finnhub: c = current price, dp = percent change, pc = previous close.
+        const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${stockKey}`);
+        if (r.ok) {
+          const d: any = await r.json();
+          const price = Number(d?.c);
+          if (price > 0) {
+            const changePct = typeof d?.dp === 'number' ? d.dp
+              : (Number(d?.pc) > 0 ? ((price - Number(d.pc)) / Number(d.pc)) * 100 : 0);
+            out = { symbol, price, changePct, currency: 'USD' };
+          }
+        }
+      }
+      if (!out) {
+        // Keyless Yahoo Finance chart endpoint — works from Node without a key.
+        const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1d`,
+          { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        if (r.ok) {
+          const d: any = await r.json();
+          const meta = d?.chart?.result?.[0]?.meta;
+          const price = Number(meta?.regularMarketPrice);
+          const prev = Number(meta?.chartPreviousClose ?? meta?.previousClose);
+          if (price > 0) {
+            const changePct = prev > 0 ? ((price - prev) / prev) * 100 : 0;
+            out = { symbol, price, changePct, currency: meta?.currency || 'USD' };
+          }
+        }
+      }
+    } catch { /* leave out as null */ }
+    _stockCache.set(symbol, { t: Date.now(), v: out });
+    return out;
+  };
+  app.get('/api/markets/stocks', apiLimiter, async (req: any, res) => {
+    try {
+      const symbols = String(req.query.symbols || '')
+        .split(',')
+        .map(s => s.trim().toUpperCase())
+        .filter(Boolean)
+        .slice(0, 20);
+      if (symbols.length === 0) return res.json([]);
+      const results = await Promise.all(symbols.map(fetchOneStock));
+      res.set('Cache-Control', 'public, max-age=45');
+      res.json(results.filter(Boolean));
+    } catch { res.json([]); }
   });
 
   app.get('/api/events/creator/:uid', authMiddleware, async (req: any, res) => {

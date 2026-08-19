@@ -39,6 +39,10 @@ export interface BeatsGraph {
     analyser: AnalyserNode;
     eqIn: AudioNode | null;   // Spectra EQ insert (pre-fader), or null = no insert
     eqOut: AudioNode | null;
+    chainIn: AudioNode | null;  // mastering chain insert (post-EQ, pre-glue), or null
+    chainOut: AudioNode | null;
+    suiteIn: AudioNode | null;  // unified FX "Suite" insert (post-pressing, pre-glue), or null
+    suiteOut: AudioNode | null;
   };
   applyDoc(doc: GrooveDoc): void;         // idempotent — push mixer/pad params into the nodes
   padDestination(padIdx: number): AudioNode;
@@ -46,6 +50,14 @@ export interface BeatsGraph {
   /** Insert a device (Spectra EQ) on the mix bus, pre-fader. Passing the same nodes is idempotent. */
   setMasterEq(input: AudioNode, output: AudioNode): void;
   clearMasterEq(): void;
+  /** Insert the mastering chain after the EQ, before glue/fader/limiter. Idempotent like setMasterEq. */
+  setMasterChain(input: AudioNode, output: AudioNode): void;
+  clearMasterChain(): void;
+  /** Insert the unified FX Suite after the pressing, before glue/fader/limiter. */
+  setMasterSuite(input: AudioNode, output: AudioNode): void;
+  clearMasterSuite(): void;
+  /** Toggle the glue compressor in/out of the master path (the mastering state owns this). */
+  setGlueOn(on: boolean): void;
   meters(): { groups: number[]; master: number };
   limiterReduction(): number;
   dispose(): void;
@@ -78,13 +90,20 @@ export function buildGraph(ctx: BaseAudioContext, padCount = 16): BeatsGraph {
   input.connect(fader); fader.connect(limiter); limiter.connect(makeup);
   makeup.connect(analyser); analyser.connect(ctx.destination);
 
-  const master = { input, glue, glueOn: false, fader, limiter, limiterOn: true, makeup, analyser, eqIn: null as AudioNode | null, eqOut: null as AudioNode | null };
+  const master = {
+    input, glue, glueOn: false, fader, limiter, limiterOn: true, makeup, analyser,
+    eqIn: null as AudioNode | null, eqOut: null as AudioNode | null,
+    chainIn: null as AudioNode | null, chainOut: null as AudioNode | null,
+    suiteIn: null as AudioNode | null, suiteOut: null as AudioNode | null,
+  };
 
   const repatchMaster = () => {
-    try { input.disconnect(); glue.disconnect(); fader.disconnect(); limiter.disconnect(); master.eqOut?.disconnect(); } catch { /* */ }
-    // input → [Spectra EQ] → glue? → fader → limiter? → makeup
+    try { input.disconnect(); glue.disconnect(); fader.disconnect(); limiter.disconnect(); master.eqOut?.disconnect(); master.chainOut?.disconnect(); master.suiteOut?.disconnect(); } catch { /* */ }
+    // input → [Spectra EQ] → [mastering chain] → [FX Suite] → glue? → fader → limiter? → makeup
     let node: AudioNode = input;
-    if (master.eqIn && master.eqOut) { input.connect(master.eqIn); node = master.eqOut; }
+    if (master.eqIn && master.eqOut) { node.connect(master.eqIn); node = master.eqOut; }
+    if (master.chainIn && master.chainOut) { node.connect(master.chainIn); node = master.chainOut; }
+    if (master.suiteIn && master.suiteOut) { node.connect(master.suiteIn); node = master.suiteOut; }
     if (master.glueOn) { node.connect(glue); glue.connect(fader); } else { node.connect(fader); }
     if (master.limiterOn) { fader.connect(limiter); limiter.connect(makeup); } else { fader.connect(makeup); }
   };
@@ -187,6 +206,32 @@ export function buildGraph(ctx: BaseAudioContext, padCount = 16): BeatsGraph {
       if (!master.eqIn && !master.eqOut) return;
       try { master.eqOut?.disconnect(); } catch { /* */ }
       master.eqIn = null; master.eqOut = null;
+      repatchMaster();
+    },
+
+    setMasterChain(chainInput: AudioNode, chainOutput: AudioNode) {
+      master.chainIn = chainInput; master.chainOut = chainOutput;
+      repatchMaster();
+    },
+    clearMasterChain() {
+      if (!master.chainIn && !master.chainOut) return;
+      try { master.chainOut?.disconnect(); } catch { /* */ }
+      master.chainIn = null; master.chainOut = null;
+      repatchMaster();
+    },
+    setMasterSuite(suiteInput: AudioNode, suiteOutput: AudioNode) {
+      master.suiteIn = suiteInput; master.suiteOut = suiteOutput;
+      repatchMaster();
+    },
+    clearMasterSuite() {
+      if (!master.suiteIn && !master.suiteOut) return;
+      try { master.suiteOut?.disconnect(); } catch { /* */ }
+      master.suiteIn = null; master.suiteOut = null;
+      repatchMaster();
+    },
+    setGlueOn(on: boolean) {
+      if (master.glueOn === on) return;
+      master.glueOn = on;
       repatchMaster();
     },
 

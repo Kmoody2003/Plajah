@@ -7,12 +7,13 @@ import type { GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { PLAYHEAD } from '../theme';
 
-export type BeatsViewId = 'machine' | 'glass' | 'timeline' | 'mixer';
+export type BeatsViewId = 'machine' | 'glass' | 'timeline' | 'mixer' | 'project';
 const VIEWS: { id: BeatsViewId; label: string }[] = [
   { id: 'machine', label: 'Machine' },
   { id: 'glass', label: 'Glass' },
   { id: 'timeline', label: 'Timeline' },
   { id: 'mixer', label: 'Mixer' },
+  { id: 'project', label: 'Project' },
 ];
 
 interface TransportBarProps {

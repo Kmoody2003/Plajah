@@ -12,6 +12,10 @@ import {
 } from '../services/orgAssets';
 import { crossover } from '../services/crossover';
 import type { MediaKind, Recipe } from '../services/crossover';
+import HqReviewPanel from './HqReviewPanel';
+import { fetchMySubscription } from '../services/subscriptionService';
+import { resolveContentHqEntitlements } from '../services/contentHqEntitlements';
+import type { ContentHqEntitlements } from '../services/contentHqEntitlements';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Content HQ — an admin surface for an org OR a single account: a private
@@ -86,6 +90,10 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
   const [folder, setFolder] = useState<string>('ALL');
   const [uploading, setUploading] = useState<{ name: string; pct: number }[]>([]);
   const [detail, setDetail] = useState<OrgAsset | null>(null);
+  const [proEnabled, setProEnabled] = useState(scope.kind === 'org');
+  const [entitlements, setEntitlements] = useState<ContentHqEntitlements>(() =>
+    resolveContentHqEntitlements(scope.kind === 'org' ? { organization: { id: scope.id } as any } : {}));
+  const [notice, setNotice] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -94,6 +102,16 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
     setLoading(false);
   };
   useEffect(() => { load(); }, [scope.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (scope.kind === 'org') {
+      const next = resolveContentHqEntitlements({ organization: { id: scope.id } as any });
+      setEntitlements(next); setProEnabled(true); return;
+    }
+    fetchMySubscription().then(subscription => {
+      const next = resolveContentHqEntitlements({ subscription });
+      setEntitlements(next); setProEnabled(next.collaboration);
+    }).catch(() => setProEnabled(false));
+  }, [scope.kind, scope.id]);
 
   const folders = useMemo(() => {
     const set = new Set<string>();
@@ -109,6 +127,14 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
   async function onFiles(list: FileList | null) {
     if (!list || !canEdit) return;
     const files = Array.from(list);
+    const used = assets.reduce((sum, a) => sum + (a.deletedAt ? 0 : Number(a.sizeBytes || 0)), 0);
+    const incoming = files.reduce((sum, f) => sum + f.size, 0);
+    const cap = entitlements.storageLimitGb * 1024 ** 3;
+    if (cap > 0 && used + incoming > cap) {
+      setNotice(`These files exceed your ${entitlements.storageLimitGb} GB Content HQ storage allowance.`);
+      return;
+    }
+    setNotice('');
     const targetFolder = folder === 'ALL' ? undefined : folder;
     setUploading(files.map((f) => ({ name: f.name, pct: 0 })));
     for (const f of files) {
@@ -151,6 +177,11 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
         <input ref={fileInput} type="file" multiple className="hidden"
           onChange={(e) => { onFiles(e.target.files); e.currentTarget.value = ''; }} />
       </div>
+      <div className="flex items-center justify-between text-[10px] text-white/35 mb-3 px-1">
+        <span>Unlimited projects · {entitlements.plan === 'FREE' ? 'Basic' : 'Pro collaboration'}</span>
+        <span>{humanFileSize(assets.reduce((n, a) => n + Number(a.sizeBytes || 0), 0))} / {entitlements.storageLimitGb} GB</span>
+      </div>
+      {notice && <div className="mb-3 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200">{notice}</div>}
 
       {/* upload progress */}
       {uploading.length > 0 && (
@@ -193,8 +224,8 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
       </div>
 
       {detail && (
-        <AssetDetail asset={detail} canEdit={canEdit} onClose={() => setDetail(null)}
-          onDeleted={() => { setDetail(null); load(); }} />
+        <HqReviewPanel asset={detail} canEdit={canEdit} proEnabled={proEnabled}
+          onClose={() => setDetail(null)} onChanged={load} />
       )}
     </div>
   );

@@ -61,6 +61,21 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly(fields);
     }
 
+    function canAccessHqScope(data) {
+      return isAuthenticated() && (
+        (data.scopeKind == 'user' && data.scopeId == request.auth.uid) ||
+        (data.scopeKind == 'org' && exists(/databases/$(database)/documents/organizations/$(data.scopeId)) && (
+          request.auth.uid in get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.admins ||
+          get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.creatorId == request.auth.uid
+        )) || isAdmin()
+      );
+    }
+
+    function canAccessHqAsset(assetId) {
+      return exists(/databases/$(database)/documents/orgAssets/$(assetId)) &&
+        canAccessHqScope(get(/databases/$(database)/documents/orgAssets/$(assetId)).data);
+    }
+
     match /sports_ingestion_runs/{docId} {
       allow read, write: if isAdmin();
     }
@@ -2150,6 +2165,55 @@ service cloud.firestore {
       allow create: if cxScopeOk(request.resource.data) && request.resource.data.uploadedByUid == request.auth.uid;
       allow update: if cxScopeOk(resource.data) && cxScopeOk(request.resource.data);
       allow delete: if cxScopeOk(resource.data);
+    }
+
+    // Immutable revision records. Replacing a file creates a new version; it never
+    // overwrites the version a reviewer approved.
+    match /hqAssetVersions/{versionId} {
+      allow read: if canAccessHqAsset(resource.data.assetId);
+      allow create: if canAccessHqAsset(request.resource.data.assetId) &&
+        request.resource.data.uploadedByUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /hqComments/{commentId} {
+      allow read: if canAccessHqAsset(resource.data.assetId);
+      allow create: if canAccessHqAsset(request.resource.data.assetId) &&
+        request.resource.data.authorUid == request.auth.uid &&
+        request.resource.data.body is string && request.resource.data.body.size() > 0 &&
+        request.resource.data.body.size() <= 4000;
+      allow update: if canAccessHqAsset(resource.data.assetId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['resolved', 'resolvedAt', 'resolvedByUid']);
+      allow delete: if false;
+    }
+
+    match /hqReviewRequests/{reviewId} {
+      allow read: if canAccessHqAsset(resource.data.assetId) ||
+        (isAuthenticated() && request.auth.uid in resource.data.reviewerUids);
+      allow create: if canAccessHqAsset(request.resource.data.assetId) &&
+        request.resource.data.requestedByUid == request.auth.uid;
+      allow update: if canAccessHqAsset(resource.data.assetId) ||
+        (isAuthenticated() && request.auth.uid in resource.data.reviewerUids &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['decisions', 'status', 'completedAt']));
+      allow delete: if false;
+    }
+
+    // Append-only asset audit. This is separate from the general org audit so an
+    // asset can carry its complete evidence trail when delivered or exported.
+    match /hqActivity/{eventId} {
+      allow read: if canAccessHqAsset(resource.data.assetId);
+      allow create: if canAccessHqAsset(request.resource.data.assetId) &&
+        request.resource.data.actorUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /hqShareLinks/{shareId} {
+      allow read: if canAccessHqAsset(resource.data.assetId);
+      allow create: if canAccessHqAsset(request.resource.data.assetId) &&
+        request.resource.data.createdByUid == request.auth.uid;
+      allow update: if canAccessHqAsset(resource.data.assetId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revokedAt', 'expiresAt', 'allowComments', 'allowDownload']);
+      allow delete: if false;
     }
 
     // ── Music sync-license grants — created only by the Stripe webhook (Admin SDK) ──

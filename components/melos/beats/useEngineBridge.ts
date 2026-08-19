@@ -2,7 +2,7 @@
 // touches React; this loop polls playhead/meters/diagnostics at display rate for the UI.
 
 import { useEffect, useState } from 'react';
-import { BeatsEngine, type EngineDiagnostics } from '../../../services/melos/beats/engine/BeatsEngine';
+import { BeatsEngine, type EngineDiagnostics, type LoudnessSnapshot } from '../../../services/melos/beats/engine/BeatsEngine';
 
 export interface EngineSnapshot {
   beats: number;
@@ -10,6 +10,8 @@ export interface EngineSnapshot {
   suspended: boolean;
   meters: { groups: number[]; master: number };
   limiterReduction: number;
+  loudness: LoudnessSnapshot | null; // BS.1770 M/S/I + LRA + dBTP + correlation, ~10 Hz
+  auditionId: string | null;         // album track playing through the pressing, or null
   diag: EngineDiagnostics | null;
   frame: number; // increments each rAF — lets pad lights re-style from engine.lastHit
 }
@@ -17,7 +19,7 @@ export interface EngineSnapshot {
 export function useEngineBridge(): EngineSnapshot {
   const [snap, setSnap] = useState<EngineSnapshot>({
     beats: 0, running: false, suspended: true,
-    meters: { groups: [0, 0, 0, 0], master: 0 }, limiterReduction: 0, diag: null, frame: 0,
+    meters: { groups: [0, 0, 0, 0], master: 0 }, limiterReduction: 0, loudness: null, auditionId: null, diag: null, frame: 0,
   });
 
   useEffect(() => {
@@ -33,6 +35,8 @@ export function useEngineBridge(): EngineSnapshot {
         suspended: !ctx || ctx.state !== 'running',
         meters: e.meters(),
         limiterReduction: e.limiterReduction(),
+        loudness: e.loudness(),
+        auditionId: e.auditionId(),
         diag: e.diagnostics(),
         frame,
       });

@@ -51,3 +51,9 @@ dist-tizen/
 acquisitions/holdings/
 acquisitions/motion/
 acquisitions/work/
+
+# Generated preview/scratch + release bundles (not source)
+artifacts/
+release-production-*.files
+release-production-*.patch
+release-production-*.stat

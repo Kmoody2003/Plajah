@@ -3113,6 +3113,95 @@ export interface ChatMessage {
   mentionUids?: string[];
 }
 
+// ─── CONTENT HQ / CREATIVE REVIEW ──────────────────────────────────────────
+// One deliberately small workflow shared by creators, classrooms, clients and orgs.
+export type HqScopeKind = 'user' | 'org';
+export type HqAssetStatus = 'DRAFT' | 'IN_REVIEW' | 'CHANGES_REQUESTED' | 'APPROVED' | 'DELIVERED' | 'ARCHIVED';
+export type HqReviewDecision = 'PENDING' | 'APPROVED' | 'CHANGES_REQUESTED';
+export type HqWorkspaceRole = 'OWNER' | 'MANAGER' | 'CONTRIBUTOR' | 'REVIEWER';
+
+export interface HqAssetVersion {
+  id: string;
+  assetId: string;
+  version: number;
+  storagePath: string;
+  url?: string;                 // legacy/token URL; protected assets use the download endpoint
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedByUid: string;
+  uploadedByName?: string;
+  createdAt: number;
+  changeNote?: string;
+  transcript?: string;
+  captionUrl?: string;
+}
+
+export interface HqComment {
+  id: string;
+  assetId: string;
+  versionId: string;
+  authorUid: string;
+  authorName: string;
+  authorPhoto?: string;
+  body: string;
+  timeStartSeconds?: number;
+  timeEndSeconds?: number;
+  page?: number;
+  x?: number;                   // normalized 0–1 annotation coordinate
+  y?: number;
+  visibility: 'EVERYONE' | 'INTERNAL';
+  resolved: boolean;
+  createdAt: number;
+  resolvedAt?: number;
+  resolvedByUid?: string;
+}
+
+export interface HqReviewRequest {
+  id: string;
+  assetId: string;
+  versionId: string;
+  requestedByUid: string;
+  reviewerUids: string[];
+  reviewerEmails?: string[];
+  decisions: Record<string, HqReviewDecision>;
+  deadlineAt?: number;
+  message?: string;
+  status: 'OPEN' | 'APPROVED' | 'CHANGES_REQUESTED' | 'CANCELED';
+  createdAt: number;
+  completedAt?: number;
+}
+
+export interface HqActivityEvent {
+  id: string;
+  assetId: string;
+  scopeKind: HqScopeKind;
+  scopeId: string;
+  actorUid: string;
+  actorName?: string;
+  action: 'UPLOADED' | 'NEW_VERSION' | 'COMMENTED' | 'COMMENT_RESOLVED' | 'REVIEW_REQUESTED' |
+    'APPROVED' | 'CHANGES_REQUESTED' | 'DELIVERED' | 'MOVED' | 'TRASHED' | 'RESTORED' |
+    'DOWNLOADED' | 'SHARED' | 'RIGHTS_UPDATED' | 'PUBLISHED';
+  meta?: Record<string, string | number | boolean | null>;
+  createdAt: number;
+}
+
+export interface HqShareLink {
+  id: string;
+  assetId: string;
+  scopeKind: HqScopeKind;
+  scopeId: string;
+  tokenHash: string;
+  createdByUid: string;
+  label?: string;
+  allowComments: boolean;
+  allowDownload: boolean;
+  requireEmail: boolean;
+  expiresAt?: number;
+  revokedAt?: number;
+  createdAt: number;
+}
+
 export interface ChatRoom {
   id: string;
   participants: string[]; // UIDs

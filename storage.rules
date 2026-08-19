@@ -144,6 +144,14 @@ service firebase.storage {
       allow write: if isAuth() && request.resource.size < 25 * 1024 * 1024 * 1024;
     }
 
+    // Content HQ originals and revisions. Discovery and authorization are enforced by
+    // Firestore plus the authenticated /api/hq/assets/:id/download endpoint. Unlike the
+    // legacy uploads tree these objects are never public-readable.
+    match /protected-hq/{scopeKind}/{scopeId}/{assetId}/{allPaths=**} {
+      allow read: if false;
+      allow write: if isAuth() && isAllowedContentType() && withinSizeLimit();
+    }
+
     // ── Private media locker (Chora music + Taleo movies/TV the user owns) ────
     // personal/<uid>/… — owner-only read+write. Kept private (the user may not
     // hold distribution rights); playback works via tokenized download URLs.

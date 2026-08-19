@@ -5701,7 +5701,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             aria-label="Open Aria"
             title="Ask Aria"
             onClick={() => setIsMuseOpen(true)}
-            className="fixed right-5 bottom-24 z-[260] flex items-center justify-center rounded-full border border-violet-400/40 bg-[#120b1f]/90 shadow-[0_20px_60px_rgba(99,102,241,0.45)] backdrop-blur-xl transition-all hover:scale-105 hover:border-violet-300 active:scale-95"
+            className="fixed right-5 bottom-[172px] z-[260] flex items-center justify-center rounded-full border border-violet-400/40 bg-[#120b1f]/90 shadow-[0_20px_60px_rgba(99,102,241,0.45)] backdrop-blur-xl transition-all hover:scale-105 hover:border-violet-300 active:scale-95"
             style={{ width: 58, height: 58 }}
           >
             <AriaMark size={26} petals={false} />
