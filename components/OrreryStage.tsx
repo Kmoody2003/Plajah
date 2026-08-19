@@ -53,9 +53,9 @@ const OrreryStage: React.FC<OrreryStageProps> = ({ album, tracks, activeIndex, i
         />
         <motion.div
           className="pv-orr-planet"
-          initial={{ rotate: angle }}
-          animate={{ rotate: reduceMotion ? angle : angle + 360 }}
-          transition={reduceMotion ? { duration: 0 } : { duration: orbitDuration, repeat: Infinity, ease: 'linear' }}
+          initial={false}
+          animate={{ rotate: reduceMotion ? angle : [angle, angle + 360] }}
+          transition={reduceMotion ? { duration: 0 } : { duration: orbitDuration, repeat: Infinity, ease: 'linear', repeatType: 'loop' }}
         >
           <motion.button
             type="button"
@@ -68,9 +68,9 @@ const OrreryStage: React.FC<OrreryStageProps> = ({ album, tracks, activeIndex, i
             aria-label={`Play ${t.title || `track ${absoluteIndex + 1}`}`}
           >
             <motion.i
-              initial={{ rotate: -angle }}
-              animate={{ rotate: reduceMotion ? -angle : -angle - 360 }}
-              transition={reduceMotion ? { duration: 0 } : { duration: orbitDuration, repeat: Infinity, ease: 'linear' }}
+              initial={false}
+              animate={{ rotate: reduceMotion ? -angle : [-angle, -angle - 360] }}
+              transition={reduceMotion ? { duration: 0 } : { duration: orbitDuration, repeat: Infinity, ease: 'linear', repeatType: 'loop' }}
             >
               {String(absoluteIndex + 1).padStart(2, '0')}
             </motion.i>

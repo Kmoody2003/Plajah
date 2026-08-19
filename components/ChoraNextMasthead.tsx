@@ -125,7 +125,9 @@ const ChoraNextMasthead: React.FC<ChoraNextMastheadProps> = ({
             // Popular releases get a slightly brisker pass, but the deliberately narrow range
             // keeps every comet slow enough to notice, read, and catch.
             const popularity = (a.playCount || 0) / maxSkyPlays;
-            const duration = 36 - popularity * 9;
+            // Moderate pace, clearly varied per disc: popularity gives a brisker pass,
+            // and a per-lane offset keeps even similar releases from pacing in lockstep.
+            const duration = 34 - popularity * 12 + (i % 3) * 4;
             return (
               <motion.div
                 key={a.id}
@@ -145,6 +147,7 @@ const ChoraNextMasthead: React.FC<ChoraNextMastheadProps> = ({
                   ['--comet-rest-x' as any]: `${12 + i * 15}vw`,
                 } as React.CSSProperties}
               >
+                <span className="cn-spark" aria-hidden="true" />
                 <button
                   type="button"
                   className="cn-disc"

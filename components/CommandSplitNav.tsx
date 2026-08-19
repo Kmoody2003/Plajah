@@ -15,9 +15,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   User, Settings as SettingsIcon, Music2, Globe, Video as VideoIcon, Film, Zap, Activity,
-  Newspaper, BookOpen, Cross, FlaskConical, Radio, AppWindow, Repeat, Gamepad2, Users,
+  Newspaper, BookOpen, Cross, FlaskConical, Radio, AppWindow, Repeat, Gamepad2, Users, UsersRound,
   Heart, Landmark, Shield, ShoppingBag, GraduationCap, Camera, MessageSquare, MessageCircle,
-  Mail, Rss, Sparkles, Clapperboard, MonitorPlay, Cctv, Search, HelpCircle, Monitor,
+  Mail, Rss, Sparkles, Clapperboard, MonitorPlay, Cctv, Search, HelpCircle, Monitor, Factory, Building2,
   Briefcase, MapPin, TrendingUp, Tv, Ticket, Home,
   Compass, Palette, Trophy, Bell, Plus, ChevronLeft,
   ChevronRight, LogOut, Command, RotateCcw, X,
@@ -38,14 +38,12 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'WORLDS', label: 'Worlds', icon: Globe },
     { id: 'SEARCH', label: 'Find People', icon: Search },
   ]},
-  { key: 'Entertainment', icon: Palette, items: [
+  { key: 'Entertainment', icon: Clapperboard, items: [
     { id: 'MUSIC', label: 'Chora', icon: Music2 },
     { id: 'VIDEOS', label: 'Reello', icon: VideoIcon },
     { id: 'MOVIES_TV', label: 'Taleo', icon: Film },
     { id: 'RADIO', label: 'Radio', icon: Radio },
     { id: 'GAMES', label: 'Games', icon: Gamepad2 },
-    { id: 'APPS', label: 'Apps', icon: AppWindow },
-    { id: 'CROSSOVER', label: 'Crossover', icon: Repeat },
     { id: 'GLOBAL_PHOTOS', label: 'Photos', icon: Camera },
     { id: 'LIVE_TV', label: 'Live TV', icon: Tv },
     { id: 'PPV_EVENTS', label: 'Live Events', icon: Ticket },
@@ -60,7 +58,7 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'CLASSROOMS', label: 'Plajah Academia', icon: GraduationCap },
     { id: 'PLAJAH_LABS', label: 'Plajah Labs', icon: FlaskConical },
   ]},
-  { key: 'Community', icon: Users, items: [
+  { key: 'Community', icon: UsersRound, items: [
     { id: 'CLUBS', label: 'Clubs', icon: Users },
     { id: 'CHAT', label: 'Chat', icon: MessageSquare },
     { id: 'DISCUSSION', label: 'Discussion', icon: MessageCircle },
@@ -71,11 +69,11 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'SANCTUARY_HUB', label: 'Sanctuary', icon: Shield },
     { id: 'STORE_HUB', label: 'Plajah Store', icon: ShoppingBag },
   ]},
-  { key: 'Creator Tools', icon: Clapperboard, items: [
+  { key: 'Creator Tools', icon: Palette, items: [
     { id: 'CREATOR', label: 'Creator Hub', icon: Clapperboard },
     { id: 'ARTIST_MANAGER', label: 'Artist Manager', icon: Music2, requiresUser: true },
     { id: 'PLAJAH_STUDIO', label: 'Creator Tool Bag', icon: Sparkles, requiresUser: true },
-    { id: 'BUSINESS_DASHBOARD', label: 'Plajah Business', icon: Briefcase, requiresUser: true },
+    { id: 'PLAJAH_BUSINESS', label: 'Plajah Business', icon: Briefcase, requiresUser: true },
     { id: 'TERRA', label: 'Terra', icon: MapPin, requiresUser: true },
     { id: 'AD_PACKAGES', label: 'Promote', icon: TrendingUp, requiresUser: true },
     { id: 'LIVE_HUB', label: 'Live Hub', icon: Sparkles },
@@ -84,8 +82,17 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'AMBO', label: 'Ambo Presenter', icon: MonitorPlay },
     { id: 'MEDIA_ROUTER', label: 'Router & Switcher', icon: Cctv },
     { id: 'POSTMAN', label: 'The Postman', icon: Mail },
+    { id: 'APPS', label: 'Apps', icon: AppWindow },
+    { id: 'CROSSOVER', label: 'Crossover', icon: Repeat },
   ]},
-  { key: 'Platform', icon: SettingsIcon, items: [
+  { key: 'Plajah Business', icon: Building2, items: [
+    { id: 'PLAJAH_BUSINESS', label: 'Plajah Business', icon: Briefcase, requiresUser: true },
+    { id: 'STORE_HUB', label: 'Plajah Store', icon: ShoppingBag },
+    { id: 'TERRA', label: 'Terra', icon: MapPin, requiresUser: true },
+    { id: 'AD_PACKAGES', label: 'Promote', icon: TrendingUp, requiresUser: true },
+    { id: 'CHAT', label: 'Chat', icon: MessageSquare },
+  ]},
+  { key: 'Platform', icon: Factory, items: [
     { id: 'HELP_CENTER', label: 'Help Center', icon: HelpCircle },
     { id: 'BROWSER', label: 'Partner Sites', icon: Monitor },
   ]},
@@ -147,8 +154,13 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
       if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); openLauncher(); }
       if (e.key === 'Escape') setLauncher(false);
     };
+    const onOpenCmd = () => openLauncher();
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('plajah:open-command', onOpenCmd);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('plajah:open-command', onOpenCmd);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

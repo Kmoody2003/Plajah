@@ -20,6 +20,12 @@ import type { Album, LiveFeed } from '../types';
 import { fetchClassicBooks, type ArchiveBook } from '../services/archiveContentService';
 import { searchArtifacts, type Artifact } from '../services/artifactsService';
 import { EDU_FACTOIDS, factoidAt, type EduFactoid } from '../data/eduFactoids';
+/* Signal ticker sources — all real, all degrade gracefully. */
+import { fetchNewsFromRSS } from '../services/rssService';
+import { getFollowedPodcasts } from '../services/podcastLibraryService';
+import { fetchPodcastFeed } from '../services/podcastRssReader';
+import { fetchStockQuotes } from '../services/stockQuoteService';
+import { auth, fetchUserProfile } from '../services/backendService';
 
 /* Shared hover-audio singleton lives in services/hoverPreview (one sample
    audible at a time, platform-wide — Chora Next uses the same instance). */
@@ -273,6 +279,271 @@ const PanoramaColumn: React.FC<{
   );
 };
 
+/* ── Signal ticker — always-on aggregated crawl ──────────────────────────────
+   Intermixes multiple REAL sources, each item individually clickable:
+     · Plajah activity (baseline, from props — always present): newest releases
+       + live-now channels.
+     · News headlines — services/rssService.fetchNewsFromRSS('GENERAL_WORLD').
+     · Markets — the user's FOLLOWED STOCKS (profile.favoriteStocks) with live
+       prices via the server proxy (services/stockQuoteService → /api/markets/
+       stocks). When there are no follows/quotes it falls back to the public
+       CoinGecko movers so the slot always shows live markets.
+     · New podcasts — the user's followed shows (podcastLibraryService) with
+       their newest episode pulled live via podcastRssReader.fetchPodcastFeed.
+   Every async source has its own try/catch and is omitted when it fails or is
+   empty; the props baseline guarantees the crawl is never blank. */
+
+type Seg = {
+  key: string;
+  text: string;
+  href?: string;           // external link → opens in a new tab
+  onClick?: () => void;    // in-app navigation
+  tone?: 'live' | 'news' | 'up' | 'down' | 'podcast' | 'release';
+};
+
+const toneClass = (t?: Seg['tone']): string => {
+  switch (t) {
+    case 'up':   return 'text-emerald-400 hover:text-emerald-300';
+    case 'down': return 'text-rose-400 hover:text-rose-300';
+    case 'live': return 'text-small-orange hover:text-white';
+    default:     return 'text-white/60 hover:text-white';
+  }
+};
+
+const SegLink: React.FC<{ seg: Seg }> = ({ seg }) => {
+  const cls = `inline transition-colors outline-none focus-visible:text-white focus-visible:underline ${toneClass(seg.tone)}`;
+  if (seg.href) return <a href={seg.href} target="_blank" rel="noopener noreferrer" className={cls}>{seg.text}</a>;
+  return <button type="button" onClick={seg.onClick} className={cls}>{seg.text}</button>;
+};
+
+/** Round-robin merge so the sources intermix instead of clumping by kind. */
+const interleave = (...lists: Seg[][]): Seg[] => {
+  const out: Seg[] = [];
+  const max = lists.reduce((m, l) => Math.max(m, l.length), 0);
+  for (let i = 0; i < max; i++) for (const l of lists) if (i < l.length) out.push(l[i]);
+  return out;
+};
+
+const SignalTicker: React.FC<{
+  albums: Album[];
+  liveCount: number;
+  liveFeeds: LiveFeed[];
+  reducedMotion: boolean;
+  onSelectItem: (album: Album) => void;
+  onNavigate: (view: string) => void;
+}> = ({ albums, liveCount, liveFeeds, reducedMotion, onSelectItem, onNavigate }) => {
+  const [news, setNews] = useState<Seg[]>([]);
+  const [markets, setMarkets] = useState<Seg[]>([]);
+  const [stocks, setStocks] = useState<Seg[]>([]);
+  const [pods, setPods] = useState<Seg[]>([]);
+  const [paused, setPaused] = useState(false);
+
+  // Baseline (synchronous, from props) — renders immediately, never empty.
+  const { liveSegs, releaseSegs } = useMemo(() => {
+    const liveSegs: Seg[] = liveFeeds.slice(0, 5).map((f, i) => ({
+      key: `live-${i}`,
+      text: `● LIVE — ${f.ownerName || f.title || 'On air now'}`,
+      onClick: () => onNavigate('LIVE_HUB'),
+      tone: 'live',
+    }));
+    if (liveSegs.length === 0 && liveCount > 0) {
+      liveSegs.push({ key: 'live-0', text: `● LIVE — ${liveCount} on air now`, onClick: () => onNavigate('LIVE_HUB'), tone: 'live' });
+    }
+    const releaseSegs: Seg[] = [...albums]
+      .filter(a => a.coverImage && !a.isDraft && a.title)
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+      .slice(0, 6)
+      .map(a => ({
+        key: `rel-${a.id}`,
+        text: `NEW — ${a.title}${a.artist && a.artist !== 'Unknown Artist' ? ` by ${a.artist}` : ''}`,
+        onClick: () => onSelectItem(a),
+        tone: 'release' as const,
+      }));
+    return { liveSegs, releaseSegs };
+  }, [albums, liveFeeds, liveCount, onNavigate, onSelectItem]);
+
+  // News — ~6 world headlines; link to the article, else into the news surface.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const items = await fetchNewsFromRSS('GENERAL_WORLD');
+        if (!alive || !Array.isArray(items) || items.length === 0) return;
+        setNews(items.slice(0, 6).map((n: any, i: number) => ({
+          key: `news-${n.id || i}`,
+          text: `NEWS — ${n.headline || n.title || ''}`.trim(),
+          href: n.url || undefined,
+          onClick: n.url ? undefined : () => onNavigate('NEWS'),
+          tone: 'news',
+        })).filter((s: Seg) => s.text.length > 7));
+      } catch { /* omit news on failure */ }
+    })();
+    return () => { alive = false; };
+  }, [onNavigate]);
+
+  // Markets — the same public CoinGecko movers the Finance tab renders.
+  useEffect(() => {
+    let alive = true;
+    const ctrl = new AbortController();
+    (async () => {
+      try {
+        const r = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=8&page=1&sparkline=false', { signal: ctrl.signal });
+        if (!r.ok) return;
+        const data = await r.json();
+        if (!alive || !Array.isArray(data) || data.length === 0) return;
+        setMarkets(data.slice(0, 6)
+          .filter((c: any) => typeof c.price_change_percentage_24h === 'number')
+          .map((c: any) => {
+            const chg = c.price_change_percentage_24h as number;
+            const up = chg >= 0;
+            return {
+              key: `mkt-${c.id}`,
+              text: `${(c.symbol || '').toUpperCase()} ${up ? '▲' : '▼'} ${Math.abs(chg).toFixed(2)}%`,
+              onClick: () => onNavigate('NEWS'),
+              tone: up ? 'up' as const : 'down' as const,
+            };
+          }));
+      } catch { /* omit markets on failure */ }
+    })();
+    return () => { alive = false; ctrl.abort(); };
+  }, [onNavigate]);
+
+  // Followed stocks — the user's favoriteStocks with LIVE prices via the server
+  // proxy (/api/markets/stocks → keyless Yahoo, or Finnhub w/ key). Empty when
+  // signed out, no follows, or the fetch fails; the crypto markets feed below
+  // then fills the same slot so the ticker always shows live markets.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const DEFAULTS = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN'];
+        let symbols: string[] = [];
+        const uid = auth.currentUser?.uid;
+        if (uid) {
+          const profile = await fetchUserProfile(uid).catch(() => null);
+          if (Array.isArray(profile?.favoriteStocks) && profile!.favoriteStocks!.length > 0) {
+            symbols = profile!.favoriteStocks!;
+          }
+        }
+        if (symbols.length === 0) symbols = DEFAULTS;
+        const quotes = await fetchStockQuotes(symbols);
+        if (!alive || quotes.length === 0) return;
+        setStocks(quotes.slice(0, 6).map(q => {
+          const up = q.changePct >= 0;
+          return {
+            key: `stk-${q.symbol}`,
+            text: `${q.symbol} ${up ? '▲' : '▼'} ${Math.abs(q.changePct).toFixed(2)}%`,
+            onClick: () => onNavigate('NEWS'),
+            tone: up ? 'up' as const : 'down' as const,
+          };
+        }));
+      } catch { /* omit stocks on failure — crypto markets fall back */ }
+    })();
+    return () => { alive = false; };
+  }, [onNavigate]);
+
+  // New podcasts — followed shows + their newest episode (live feed read).
+  useEffect(() => {
+    let alive = true;
+    const ctrl = new AbortController();
+    (async () => {
+      try {
+        const followed = getFollowedPodcasts();
+        if (followed.length === 0) return;
+        const segs: Seg[] = [];
+        // Pull the newest episode for the first few feeds; fall back to the show.
+        const heads = followed.slice(0, 4);
+        const feeds = await Promise.allSettled(
+          heads.map(p => p.feedUrl ? fetchPodcastFeed(p.feedUrl, ctrl.signal) : Promise.reject())
+        );
+        heads.forEach((p, i) => {
+          const r = feeds[i];
+          if (r.status === 'fulfilled' && r.value.episodes?.length) {
+            const ep = [...r.value.episodes].sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0))[0];
+            segs.push({
+              key: `pod-${p.id}`,
+              text: `PODCAST — ${ep.title || p.title}`,
+              href: ep.link || undefined,
+              onClick: ep.link ? undefined : () => onNavigate('MUSIC'),
+              tone: 'podcast',
+            });
+          } else {
+            segs.push({ key: `pod-${p.id}`, text: `PODCAST — ${p.title}`, onClick: () => onNavigate('MUSIC'), tone: 'podcast' });
+          }
+        });
+        if (alive && segs.length) setPods(segs);
+      } catch { /* omit podcasts on failure */ }
+    })();
+    return () => { alive = false; ctrl.abort(); };
+  }, [onNavigate]);
+
+  const segments = useMemo(() => {
+    // Followed stocks lead the markets slot; crypto is the graceful fallback so
+    // the ticker still shows live markets when there are no followed quotes.
+    const marketSegs = stocks.length > 0 ? stocks : markets;
+    const merged = interleave(liveSegs, releaseSegs, news, marketSegs, pods);
+    if (merged.length > 0) return merged;
+    // Guarantee the crawl is never blank even before any release exists.
+    return [{ key: 'welcome', text: 'The archive is open — explore every service', onClick: () => onNavigate('DASHBOARD'), tone: 'release' as const }];
+  }, [liveSegs, releaseSegs, news, markets, stocks, pods, onNavigate]);
+
+  const isLive = liveCount > 0;
+
+  const Divider = () => <span aria-hidden="true" className="mx-3 text-white/25 select-none">·</span>;
+
+  return (
+    <div className="flex items-stretch mb-3 rounded-xl overflow-hidden border border-white/10 bg-white/[0.03]">
+      <span
+        className="flex items-center gap-2 px-4 text-[9px] font-black uppercase tracking-[0.24em] shrink-0"
+        style={isLive
+          ? { background: 'var(--pj-grad-ember)', color: '#fff' }
+          : { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.7)' }}
+      >
+        <Radio size={11} className={isLive && !reducedMotion ? 'animate-pulse' : ''} />
+        {isLive ? 'On Air' : 'The Signal'}
+      </span>
+
+      {reducedMotion ? (
+        // Reduced motion: a static, wrapped & scrollable list — no auto-scroll.
+        <div className="flex-1 flex flex-wrap items-center gap-x-1 gap-y-1 py-2 px-3 font-mono text-[11px] max-h-16 overflow-y-auto no-scrollbar">
+          {segments.map((s, i) => (
+            <span key={s.key} className="inline-flex items-center">
+              {i > 0 && <Divider />}
+              <SegLink seg={s} />
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div
+          className="relative flex-1 overflow-hidden"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+        >
+          <div
+            className="signal-track py-2 font-mono text-[11px]"
+            style={{ animationPlayState: paused ? 'paused' : 'running' }}
+          >
+            {[0, 1].map(dup => (
+              <span key={dup} aria-hidden={dup === 1} className="inline-flex items-center whitespace-nowrap pr-3">
+                {segments.map(s => (
+                  <span key={`${dup}-${s.key}`} className="inline-flex items-center">
+                    <SegLink seg={s} />
+                    <Divider />
+                  </span>
+                ))}
+              </span>
+            ))}
+          </div>
+          <style>{`
+            @keyframes pjSignal { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+            .signal-track { display: inline-flex; white-space: nowrap; animation: pjSignal 56s linear infinite; }
+          `}</style>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ── the hero ────────────────────────────────────────────────────────────── */
 interface GlobalArchiveHeroProps {
   albums: Album[];
@@ -288,6 +559,13 @@ const GlobalArchiveHero: React.FC<GlobalArchiveHeroProps> = ({ albums, liveCount
   const reducedMotion = useMemo(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches, []);
   // Narrow screens keep all panes and scroll-snap horizontally instead of shrinking them.
   const colCount = 6;
+
+  // Live clock for the issue line — ticks every 30s (minute precision is enough).
+  const [clock, setClock] = useState(() => new Date());
+  useEffect(() => {
+    const t = window.setInterval(() => setClock(new Date()), 30_000);
+    return () => window.clearInterval(t);
+  }, []);
 
   // Lorea classics — the same Gutendex source the Books page uses (1h-cached in
   // archiveContentService), so the wall always has literature to cycle through
@@ -312,7 +590,7 @@ const GlobalArchiveHero: React.FC<GlobalArchiveHeroProps> = ({ albums, liveCount
     return () => { alive = false; };
   }, []);
 
-  const { decks, todayCount, weekCount, newest } = useMemo(() => {
+  const { decks, todayCount, weekCount } = useMemo(() => {
     const now = Date.now();
     // Newest releases PER SERVICE so the wall spans all of Plajah, not just
     // whichever service published most recently.
@@ -358,17 +636,12 @@ const GlobalArchiveHero: React.FC<GlobalArchiveHeroProps> = ({ albums, liveCount
       decks,
       todayCount: albums.filter(a => now - (a.createdAt || 0) < 86_400_000).length,
       weekCount: albums.filter(a => now - (a.createdAt || 0) < 7 * 86_400_000).length,
-      newest: albums.slice(0, 3),
     };
   }, [albums, classics, liveFeeds, museum, colCount]);
 
-  const issueNo = Math.floor((Date.now() - Date.UTC(2026, 0, 1)) / 86_400_000) + 1;
-  const issueDate = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+  const timeOfDay = clock.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  const issueDate = clock.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
   const freshLine = todayCount > 0 ? `${todayCount} new today` : weekCount > 0 ? `${weekCount} new this week` : `${albums.length} works preserved`;
-
-  const tickerText = liveCount > 0
-    ? [`${liveCount} live now`, freshLine, ...newest.map(a => `NEW — ${a.title} by ${a.artist}`)].join('  ·  ') + '  ·  '
-    : '';
 
   return (
     <div className="mb-10">
@@ -387,7 +660,7 @@ const GlobalArchiveHero: React.FC<GlobalArchiveHeroProps> = ({ albums, liveCount
           </h1>
           {/* Atrium issue line — real numbers, refreshed daily */}
           <p className="mt-3 text-[10px] font-black uppercase tracking-[0.28em] text-white/40 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span>Issue Nº {issueNo}</span><span aria-hidden="true">·</span>
+            <span>{timeOfDay}</span><span aria-hidden="true">·</span>
             <span>{issueDate}</span><span aria-hidden="true">·</span>
             <span className="text-small-orange">{freshLine}</span>
           </p>
@@ -405,23 +678,16 @@ const GlobalArchiveHero: React.FC<GlobalArchiveHeroProps> = ({ albums, liveCount
         )}
       </div>
 
-      {/* Signal ticker — only while the platform is actually live */}
-      {tickerText && (
-        <div className="flex items-stretch mb-3 rounded-xl overflow-hidden border border-white/10 bg-white/[0.03]">
-          <span className="flex items-center gap-2 px-4 text-[9px] font-black uppercase tracking-[0.24em] text-white shrink-0" style={{ background: 'var(--pj-grad-ember)' }}>
-            <Radio size={11} className={reducedMotion ? '' : 'animate-pulse'} /> On Air
-          </span>
-          <div className="relative flex-1 overflow-hidden">
-            <div className={`whitespace-nowrap py-2 font-mono text-[11px] text-white/60 ${reducedMotion ? '' : 'pj-ticker'}`}>
-              {tickerText}{tickerText}
-            </div>
-            <style>{`
-              @keyframes pjTick { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-              .pj-ticker { display: inline-block; animation: pjTick 38s linear infinite; }
-            `}</style>
-          </div>
-        </div>
-      )}
+      {/* Signal ticker — always on; aggregates live activity, releases, news,
+          markets & followed podcasts, each item individually clickable. */}
+      <SignalTicker
+        albums={albums}
+        liveCount={liveCount}
+        liveFeeds={liveFeeds}
+        reducedMotion={reducedMotion}
+        onSelectItem={onSelectItem}
+        onNavigate={onNavigate}
+      />
 
       {/* the panorama wall */}
       <div

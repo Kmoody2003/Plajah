@@ -2686,6 +2686,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     <motion.div key="fx" className="relative w-[min(460px,48vh)] max-w-full aspect-square rounded-[2rem] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.6)] border border-small-orange/25 bg-black" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.7 }}>
                       <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} />
                       {visualizerType === 'PAINT' && <div className="absolute inset-0"><PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} /></div>}
+                      {/* Reactor/engine + preset controls — kept in view so the FX stage is controllable while it's on */}
+                      <div className="absolute inset-x-0 top-0 z-20 p-3 flex items-center justify-center bg-gradient-to-b from-black/75 to-transparent overflow-x-auto no-scrollbar">
+                        {fxSelectorEl}
+                      </div>
                       <div className="absolute inset-x-0 bottom-0 p-5 bg-gradient-to-t from-black/80 to-transparent flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.22em] text-small-orange"><Activity size={12} /> FX Stage</div>
                     </motion.div>
                   ) : (

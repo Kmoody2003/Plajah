@@ -2159,15 +2159,30 @@ const toggleFavoriteTeam = async (team: string) => {
                   {activeTab === 'GLOBAL' ? 'Your people · your culture · right now' : 'The Signal'}
                 </span>
               </div>
-              <PageHeader>
-                {activeTab === 'SOCIAL' ? 'Interstellar' :
-                 activeTab === 'GLOBAL' ? 'Plajah Social' :
-                 activeTab === 'LIVETALK' ? 'Live Talk' :
-                 activeTab === 'NEWS' ? 'Broadcast' :
-                 activeTab === 'PULSE' ? 'Platform Pulse' : 'Signal'}
-              </PageHeader>
+              <h1 className="font-black italic tracking-tight leading-[0.95] text-[clamp(1.7rem,3vw,2.25rem)]">
+                {(() => {
+                  const t = activeTab === 'SOCIAL' ? 'Interstellar' :
+                    activeTab === 'GLOBAL' ? 'Plajah Social' :
+                    activeTab === 'LIVETALK' ? 'Live Talk' :
+                    activeTab === 'NEWS' ? 'Broadcast' :
+                    activeTab === 'PULSE' ? 'Platform Pulse' : 'Signal';
+                  const i = t.lastIndexOf(' ');
+                  return (
+                    <>
+                      {i >= 0 && <span className="text-white">{t.slice(0, i + 1)}</span>}
+                      <span className="pj-text-brand">{i >= 0 ? t.slice(i + 1) : t}</span>
+                    </>
+                  );
+                })()}
+              </h1>
             </div>
-              <div className="hidden sm:flex items-center gap-2 shrink-0 mt-1">
+              <div className="hidden sm:flex items-center gap-2.5 shrink-0 mt-1">
+               <button
+                 onClick={() => { try { window.dispatchEvent(new CustomEvent('plajah:open-command')); } catch {} }}
+                 className="flex items-center gap-2 h-9 px-3.5 rounded-full bg-white/5 border border-white/10 text-white/45 text-[11px] hover:text-white hover:bg-white/10 transition-all"
+               >
+                 <Search size={13} /> <span>Search the signal…</span>
+               </button>
                {activeTab === 'GLOBAL' && currentUser && (
                  <button onClick={() => setShowGoLive(true)} className="pj-signal-live-action tap" type="button">
                    <Radio size={13} /> Go Live
