@@ -18,6 +18,7 @@ import {
 import { LayerRenderer } from '../../services/ambo/layerRenderer';
 import { DEMO_LIBRARY, DEMO_PLAYLIST, slideText } from '../../services/ambo/servicePlanDemo';
 import AmboStageDisplay from './AmboStageDisplay';
+import AmboSlideEditor from './AmboSlideEditor';
 
 interface AmboProPresenterProps {
   onBack?: () => void;
@@ -57,8 +58,21 @@ const fmt = (s: number) => {
   return `${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
 };
 
+/** Replace a slide's primary text (its first TEXT layer) — the editor's save path. */
+function withText(slide: Slide, text: string): Slide {
+  let done = false;
+  const layers = slide.layers.map(ly => {
+    if (!done && ly.content.kind === 'TEXT') {
+      done = true;
+      return { ...ly, content: { ...ly.content, blocks: [{ text, role: 'body' as const }] } };
+    }
+    return ly;
+  });
+  return { ...slide, layers };
+}
+
 const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
-  const library = DEMO_LIBRARY;
+  const [library, setLibrary] = useState<Show[]>(DEMO_LIBRARY);
   const playlist = DEMO_PLAYLIST;
   // Open on the live item (the sermon) so the presenter reads as mid-service.
   const initial = playlist.find(p => p.live) ?? playlist[playlist.length - 1];
@@ -75,6 +89,7 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
   const [selected, setSelected] = useState(2); // preview cursor
   const [placement, setPlacement] = useState<'right' | 'top'>('right');
   const [stageOpen, setStageOpen] = useState(false);
+  const [editorIdx, setEditorIdx] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(1 * 3600 + 12 * 44);
 
   useEffect(() => {
@@ -94,6 +109,23 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
     setLiveSlideObj(s);
   };
   const takeSelected = () => { if (previewSlide) take(previewSlide); };
+
+  const openEditor = (i: number) => setEditorIdx(i);
+  const editorSlide = editorIdx != null ? slides[editorIdx] : null;
+  const boundRef = activeShow.kind === 'SCRIPTURE' ? 'Luke 15:11–24 · KJV' : null;
+
+  const saveSlideText = (text: string) => {
+    if (!editorSlide) return;
+    const id = editorSlide.id;
+    setLibrary(libs => libs.map(sh => (sh.id !== activeShow.id ? sh : {
+      ...sh, slides: sh.slides.map(sl => (sl.id !== id ? sl : withText(sl, text))),
+    })));
+    if (id === liveSlideId) {
+      const patched = withText(editorSlide, text);
+      setLive(prev => applySlide(prev, patched, Date.now()));
+      setLiveSlideObj(patched);
+    }
+  };
 
   const liveIdx = slides.findIndex(s => s.id === liveSlideId);
   const nextSlide = liveIdx >= 0 && liveIdx + 1 < slides.length ? slides[liveIdx + 1] : previewSlide;
@@ -217,7 +249,7 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
                 </button>
               ))}
             </span>
-            <button className="w-8 h-8 grid place-items-center rounded-lg border text-white/60" style={{ borderColor: line, background: glass }} title="Edit slide in Tela">
+            <button onClick={() => openEditor(selected)} className="w-8 h-8 grid place-items-center rounded-lg border text-white/60 hover:text-white" style={{ borderColor: line, background: glass }} title="Edit slide in Tela">
               <Pencil size={14} />
             </button>
           </div>
@@ -256,7 +288,7 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
                     )}
                     <button
                       onClick={() => setSelected(i)}
-                      onDoubleClick={() => take(s)}
+                      onDoubleClick={() => openEditor(i)}
                       className="relative rounded-[10px] overflow-hidden border-2 text-left transition-transform hover:-translate-y-0.5"
                       style={{ borderColor: isLive ? ORANGE : isSel ? CYAN : line, boxShadow: isLive ? '0 0 18px rgba(255,140,0,0.3)' : isSel ? '0 0 16px rgba(0,218,243,0.25)' : 'none' }}
                     >
@@ -336,6 +368,15 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
           elapsedSec={elapsed}
           live={!!liveSlideId}
           onClose={() => setStageOpen(false)}
+        />
+      )}
+
+      {editorSlide && (
+        <AmboSlideEditor
+          slide={editorSlide}
+          boundRef={boundRef}
+          onSave={saveSlideText}
+          onClose={() => setEditorIdx(null)}
         />
       )}
     </div>
