@@ -2657,6 +2657,60 @@ async function startServer() {
     }
   });
 
+  // ── Cron trigger for Terra ingestion ─────────────────────────────────────────
+  // Cloud Run scales to zero, so the worker's in-process 24h setInterval almost
+  // never fires (the container is recycled long before the timer elapses). The
+  // durable driver is an EXTERNAL scheduler (Cloud Scheduler) hitting this route
+  // once a day with the shared secret in TERRA_CRON_KEY. Kept separate from the
+  // admin-user route above because a scheduler carries no Firebase ID token.
+  // Single-flight in the worker means this can't overlap a warm/startup pass.
+  app.post('/api/terra/cron/ingest', express.json({ limit: '4kb' }), async (req: any, res) => {
+    const expected = process.env.TERRA_CRON_KEY || '';
+    const provided = String(req.get('x-terra-cron-key') || req.query.key || '');
+    const a = Buffer.from(provided);
+    const b = Buffer.from(expected);
+    if (!expected || a.length !== b.length || !nodeCrypto.timingSafeEqual(a, b)) {
+      return res.status(401).json({ error: 'invalid or missing cron key' });
+    }
+    try {
+      const scope = ['lite', 'standard', 'deep'].includes(req.body?.scope) ? req.body.scope : 'standard';
+      const { runTerraIngestionWorker } = await import('./services/terraIngestionWorker.js');
+      const summary = await runTerraIngestionWorker({ scope, reason: 'cron' });
+      res.json(summary);
+    } catch (err: any) {
+      console.error('[Terra Ingestion] Cron run failed:', err?.message || err);
+      res.status(500).json({ error: err?.message || 'Terra ingestion failed' });
+    }
+  });
+
+  // ── Terra ingestion status (public, read-only) ───────────────────────────────
+  // The visibility that was missing: is ingestion actually running, what did the
+  // last run save, and how far has the parcel cursor walked the city? Reads the
+  // stable pointers the worker maintains — no query, no index.
+  app.get('/api/terra/status', apiLimiter, async (_req, res) => {
+    try {
+      const { fsGet } = await import('./services/firebaseAdminRest.js');
+      const [latestDoc, cursorDoc]: any[] = await Promise.all([
+        fsGet('terraIngestionRuns/__latest__'),
+        fsGet('terraIngestionRuns/__cursor__detroit_parcels'),
+      ]);
+      const lastRun = latestDoc?.data ?? null;
+      const rawOffset = cursorDoc ? Number(cursorDoc.offset) : 0;
+      const offset = Number.isFinite(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
+      const TOTAL_PARCELS = 377863; // Detroit parcel_file_current, republished daily
+      res.json({
+        workerEnabled: process.env.TERRA_INGESTION_WORKER === 'true',
+        cronConfigured: !!process.env.TERRA_CRON_KEY,
+        lastRun,
+        parcelCursor: offset,
+        approxTotalParcels: TOTAL_PARCELS,
+        approxParcelProgressPct: Math.min(100, Math.round((offset / TOTAL_PARCELS) * 1000) / 10),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'status unavailable' });
+    }
+  });
+
   // Get event by ID (public)
   app.get('/api/events/list', async (req, res) => {
     try {
