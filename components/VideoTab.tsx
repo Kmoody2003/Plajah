@@ -539,6 +539,22 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
     return () => { alive = false; };
   }, [currentUser?.uid]);
 
+  // Shell "Go Live" entry — the Creator Hub / pillar Go Live launches the Reello
+  // broadcast directly (not the Live TV hub). Handles a warm mount (the event) and
+  // a cold mount (a flag set on window just before this view mounted).
+  useEffect(() => {
+    const launch = () => {
+      if (!auth.currentUser) { setSignInAction('go live'); return; }
+      setActiveView('live');
+      setShowGoLiveModal(true);
+    };
+    if ((window as any).__reelloGoLivePending) { (window as any).__reelloGoLivePending = false; launch(); }
+    const h = () => { (window as any).__reelloGoLivePending = false; launch(); };
+    window.addEventListener('plajah:reelloGoLive', h as EventListener);
+    return () => window.removeEventListener('plajah:reelloGoLive', h as EventListener);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Live → Short: the archives a creator can clip from. Only fetched when the Live
   // tab is actually open so we don't spend a read on every Reello visit.
   useEffect(() => {

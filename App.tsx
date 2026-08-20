@@ -3263,6 +3263,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   />
                 ) : undefined}
                 onCreate={() => setShowCreator(true)}
+                onGoLive={() => { if (!user) { loginWithGoogle(); return; } (window as any).__reelloGoLivePending = true; setView('VIDEOS'); window.dispatchEvent(new CustomEvent('plajah:reelloGoLive')); }}
                 onOpenAccountSwitcher={() => setShowAccountSwitcher(true)}
                 onSignOut={() => { try { logout(); } catch { /* ignore */ } }}
                 onExitNew={() => shellNext.setEnabled(false)}
@@ -5381,7 +5382,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 userProfile={userProfile}
                 onNavigate={(v) => setView(v as AppView)}
                 onCreate={() => { if (user) setShowCreator(true); else loginWithGoogle(); }}
-                onGoLive={() => setView('LIVE_HUB')}
+                onGoLive={() => { if (!user) { loginWithGoogle(); return; } (window as any).__reelloGoLivePending = true; setView('VIDEOS'); window.dispatchEvent(new CustomEvent('plajah:reelloGoLive')); }}
+                onNewPost={() => { if (!user) { loginWithGoogle(); return; } (window as any).__composePostPending = true; setView('FEED'); window.dispatchEvent(new CustomEvent('plajah:composePost')); }}
               />
             )}
             {(view === 'SEARCH' || view === 'PEOPLE') && <SearchView onBack={() => setView('DASHBOARD')} onVisitUser={handleVisitUser} currentUser={user} initialQuery={searchQuery} initialFilter={view === 'PEOPLE' ? 'PEOPLE' : undefined} />}

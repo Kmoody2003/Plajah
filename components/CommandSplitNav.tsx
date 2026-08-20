@@ -46,6 +46,7 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'GAMES', label: 'Games', icon: Gamepad2 },
     { id: 'GLOBAL_PHOTOS', label: 'Photos', icon: Camera },
     { id: 'LIVE_TV', label: 'Live TV', icon: Tv },
+    { id: 'LIVE_HUB', label: 'Live Hub', icon: Sparkles },
     { id: 'PPV_EVENTS', label: 'Live Events', icon: Ticket },
   ]},
   { key: 'Sports & News', icon: Trophy, items: [
@@ -77,7 +78,6 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'PLAJAH_BUSINESS', label: 'Plajah Business', icon: Briefcase, requiresUser: true },
     { id: 'TERRA', label: 'Terra', icon: MapPin, requiresUser: true },
     { id: 'AD_PACKAGES', label: 'Promote', icon: TrendingUp, requiresUser: true },
-    { id: 'LIVE_HUB', label: 'Live Hub', icon: Sparkles },
     { id: 'TELA', label: 'Tela', icon: LayoutPanelTop },
     { id: 'FABULA', label: 'Fabula', icon: Film },
     { id: 'TV_STUDIO', label: 'TV Studio', icon: Clapperboard },

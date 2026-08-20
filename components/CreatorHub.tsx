@@ -33,8 +33,9 @@ export interface CreatorHubProps {
   user: any | null;
   userProfile: UserProfile | null;
   onNavigate: (view: string) => void;   // pass a view id; parent routes it
-  onCreate?: () => void;                 // global create action
-  onGoLive?: () => void;                 // start live
+  onCreate?: () => void;                 // global create action (opens the content uploader)
+  onGoLive?: () => void;                 // start a live stream (Reello)
+  onNewPost?: () => void;                // open the post composer → posts to the user feed
 }
 
 type Lucide = React.ComponentType<{ size?: number; className?: string }>;
@@ -201,7 +202,6 @@ const STUDIOS: StudioDef[] = [
    CommandSplitNav's NAV_SECTIONS exactly. ─────────────────────────────────── */
 const MORE_TOOLS: { id: string; label: string; icon: Lucide }[] = [
   { id: 'ARTIST_MANAGER', label: 'Artist Manager',    icon: Music2 },
-  { id: 'LIVE_HUB',       label: 'Live Hub',          icon: Sparkles },
   { id: 'TV_STUDIO',      label: 'TV Studio',         icon: Clapperboard },
   { id: 'AMBO',           label: 'Ambo',              icon: MonitorPlay },
   { id: 'MEDIA_ROUTER',   label: 'Router & Switcher', icon: Cctv },
@@ -218,7 +218,7 @@ interface QuickChip { label: string; icon: Lucide; run: () => void; }
 const EASE = [0.2, 0, 0, 1] as const;
 
 export default function CreatorHub({
-  user, userProfile, onNavigate, onCreate, onGoLive,
+  user, userProfile, onNavigate, onCreate, onGoLive, onNewPost,
 }: CreatorHubProps) {
   const isGuest = !user;
   const firstName = (userProfile?.displayName || '').trim().split(/\s+/)[0] || '';
@@ -228,7 +228,7 @@ export default function CreatorHub({
     { label: 'New Doc', icon: PenLine, run: () => onNavigate('TELA') },
     { label: 'New Video', icon: Video, run: () => onNavigate('FABULA') },
     { label: 'Go Live', icon: Radio, run: () => (onGoLive ? onGoLive() : onNavigate('LIVE_HUB')) },
-    { label: 'New Post', icon: Plus, run: () => (onCreate ? onCreate() : onNavigate('FEED')) },
+    { label: 'New Post', icon: Plus, run: () => (onNewPost ? onNewPost() : onNavigate('FEED')) },
   ];
 
   /* ── Projects state ── */

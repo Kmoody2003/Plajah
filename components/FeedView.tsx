@@ -1377,6 +1377,9 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [composerAlbumEmbed, setComposerAlbumEmbed] = useState<Album | null>(null);
   const [globalComposerTheme, setGlobalComposerTheme] = useState<FeedItem['theme']>('STANDARD');
   const [activeTab, setActiveTab] = useState<FeedTab>('GLOBAL');
+  // Shell "New Post" entry — the Creator Hub / pillar New Post lands here and pops
+  // the composer open (bumping this key remounts the composer with autoExpand).
+  const [composeSignal, setComposeSignal] = useState(0);
   const { activeOrg } = useActiveIdentity();
   const [plajahFilter, setPlajahFilter] = useState<'ALL' | 'FOLLOWING' | 'LIKED'>('ALL');
   const [showNowOnboarding, setShowNowOnboarding] = useState(false);
@@ -1397,6 +1400,20 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [isTimelineDragging, setIsTimelineDragging] = useState(false);
   const timelineTrackRef = useRef<HTMLDivElement>(null);
   const feedScrollRef = useRef<HTMLDivElement>(null);
+  // Open the composer on the shell "New Post" entry — warm (event) or cold (a flag
+  // set on window just before the feed mounted). Switches to the composer's tab,
+  // remounts it expanded, and scrolls to the top.
+  useEffect(() => {
+    const open = () => {
+      setActiveTab('GLOBAL');
+      setComposeSignal(n => n + 1);
+      requestAnimationFrame(() => { try { feedScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); } catch { /* */ } });
+    };
+    if ((window as any).__composePostPending) { (window as any).__composePostPending = false; open(); }
+    const h = () => { (window as any).__composePostPending = false; open(); };
+    window.addEventListener('plajah:composePost', h as EventListener);
+    return () => window.removeEventListener('plajah:composePost', h as EventListener);
+  }, []);
   const [newPost, setNewPost] = useState('');
   const [selectedTheme, setSelectedTheme] = useState<FeedItem['theme']>('STANDARD');
   const [pages, setPages] = useState<FeedPage[]>([]);
@@ -2746,6 +2763,8 @@ const toggleFavoriteTeam = async (team: string) => {
           </button>
           <div className="mb-2"><IdentitySwitcher selfName={currentUser?.displayName} selfPhoto={currentUser?.photoURL} /></div>
           <UniversalPostComposer
+            key={`composer-${composeSignal}`}
+            autoExpand={composeSignal > 0}
             currentUser={currentUser}
             placeholder="What's happening in the studio? Design a gorgeous post..."
             avatarUrl={currentUser.photoURL || undefined}
