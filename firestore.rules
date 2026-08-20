@@ -896,6 +896,15 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // ── Plajah Pixels projects (components/plajahPixels/services/projectService) ──
+      // A saved visual project (layers/config — no PII). PUBLIC read so an artist can
+      // attach one to a Chora Mix as an "Author's Show" and every listener's Mix player
+      // can load and play it back. Only the owner may write.
+      match /plajahProjects/{projectId} {
+        allow read: if true;
+        allow write: if isOwner(userId);
+      }
+
       // ── Ora — personal productivity & wellbeing (services/oraService) ──────
       // The most sensitive data on the platform: mood, journals, goals.
       // Owner-only, with NO admin escape hatch — an admin has no legitimate

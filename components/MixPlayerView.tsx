@@ -167,6 +167,7 @@ const MixPlayerView: React.FC<MixPlayerViewProps> = ({ album, onBack, user, onOp
               isPlaying={playing}
               visualMode={meta.visualMode}
               pixelsProjectId={meta.pixelsProjectId}
+              ownerId={album.ownerId}
               onGeneratorChange={onGen}
             />
             <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(5,4,9,.72), transparent 42%)' }} />
