@@ -53,6 +53,7 @@ const retryLazy = <T extends React.ComponentType<any>>(
 const AlbumCreator = retryLazy(() => import('./components/AlbumCreator'));
 const EarthGlobe = retryLazy(() => import('./components/EarthGlobe')); // home hero globe
 const PlayerView = retryLazy(() => import('./components/PlayerView'));
+const MixPlayerView = retryLazy(() => import('./components/MixPlayerView')); // Chora Mixes player
 const SearchView = retryLazy(() => import('./components/SearchView'));
 const FeedView = retryLazy(() => import('./components/FeedView'));
 const LiveHubView = retryLazy(() => import('./components/LiveHubView'));
@@ -1462,6 +1463,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     } else if (isMovie || isTV) {
       setSelectedMovieItem(item);
       setView('MOVIE_UX');
+    } else if (item.subType === 'MIX' && item.tracks) {
+      // Chora Mixes — long-form DJ set gets its own dedicated player (waveform + Pixels auto-show).
+      setSelectedAlbum(item);
+      setSelectedVideo(null);
+      setSelectedGame(null);
+      setView('MIX_PLAYER');
     } else if (item.tracks) {
       // Show release countdown page for scheduled albums that haven't dropped yet,
       // unless the current user is the owner (they can always preview their own work).
@@ -5602,6 +5609,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 isPreview={view === 'PREVIEW'}
                 user={user}
                 partyId={partyIdForAlbum || undefined}
+              />
+            )}
+            {view === 'MIX_PLAYER' && selectedAlbum && (
+              <MixPlayerView
+                album={selectedAlbum}
+                onBack={handleBackToChora}
+                user={user}
+                onOpenMix={handleSelectItem}
               />
             )}
             {/* Taleo pre-roll ident — plays before the title; player mounts only once it clears. */}

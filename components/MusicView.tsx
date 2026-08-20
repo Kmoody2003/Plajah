@@ -259,10 +259,10 @@ const ChoraRadio = React.lazy(() => import('./RadioView'));
 /** Which Chora tabs this device shows. */
 const CHORA_TABS = (): readonly TabType[] =>
   getPlatformInfo().isTV
-    ? (['NEW', 'FOR_YOU', 'RADIO', 'MY_LIBRARY', 'ARTISTS', 'ALBUMS', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'PLAYLISTS'] as const)
-    : (['NEW', 'FOR_YOU', 'ARTISTS', 'ALBUMS', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'MY_LIBRARY', 'PLAYLISTS'] as const);
+    ? (['NEW', 'FOR_YOU', 'RADIO', 'MY_LIBRARY', 'ARTISTS', 'ALBUMS', 'MIXES', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'PLAYLISTS'] as const)
+    : (['NEW', 'FOR_YOU', 'ARTISTS', 'ALBUMS', 'MIXES', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'MY_LIBRARY', 'PLAYLISTS'] as const);
 
-type TabType = 'NEW' | 'FOR_YOU' | 'ARTISTS' | 'ALBUMS' | 'GENRES' | 'VAULT' | 'PODCASTS' | 'AUDIO_BOOKS' | 'MY_LIBRARY' | 'PLAYLISTS' | 'RADIO';
+type TabType = 'NEW' | 'FOR_YOU' | 'ARTISTS' | 'ALBUMS' | 'MIXES' | 'GENRES' | 'VAULT' | 'PODCASTS' | 'AUDIO_BOOKS' | 'MY_LIBRARY' | 'PLAYLISTS' | 'RADIO';
 
 interface MusicViewProps {
   onBack: () => void;
@@ -2653,6 +2653,45 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                           ))}
                         </AdaptiveGrid>
                       </div>
+                    )}
+                  </section>
+                )}
+
+                {activeTab === 'MIXES' && (
+                  <section className="animate-in fade-in duration-500 space-y-10">
+                    <div className="flex items-center justify-between">
+                      {tabWordmark('Mixes', true)}
+                    </div>
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em] -mt-6">Long-form DJ sets · waveform · reactive Pixels visuals</p>
+                    {albums.filter(a => a.subType === 'MIX').length === 0 ? (
+                      <div className="py-16 text-center">
+                        <p className="text-sm text-white/50">No mixes yet.</p>
+                        <p className="text-[11px] text-white/30 mt-2 uppercase tracking-widest">Post a mix from Reello, DJ Mode, or an upload — it lands here.</p>
+                      </div>
+                    ) : (
+                      <AdaptiveGrid phone={1} tablet={2} desktop={3} gap="1.5rem">
+                        {albums.filter(a => a.subType === 'MIX').map(mix => (
+                          <div key={mix.id} onClick={() => onSelectAlbum(mix)} className="group cursor-pointer">
+                            <div className="aspect-video rounded-3xl overflow-hidden mb-3 shadow-2xl border border-white/5 relative">
+                              <ThreeDImage src={thumb(mix.coverImage, THUMB.card)} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                              <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 55%)' }} />
+                              <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-widest text-white"
+                                style={{ background: 'linear-gradient(120deg,#6B0099,#D40055 55%,#FF8C00)' }}>
+                                <span className="w-1.5 h-1.5 rounded-sm bg-white/90" /> Mix
+                              </div>
+                              {mix.mixMeta?.durationSec ? (
+                                <div className="absolute top-2 right-2 px-2 py-1 rounded-full text-[8px] font-black text-white/80 bg-black/60 backdrop-blur-sm tabular-nums">
+                                  {Math.round(mix.mixMeta.durationSec / 60)} min
+                                </div>
+                              ) : null}
+                              <div className="absolute bottom-2 left-3 right-3">
+                                <h4 className="text-sm font-black uppercase tracking-tight truncate">{mix.title}</h4>
+                                <p className="text-[9px] font-bold text-white/50 uppercase tracking-widest truncate">{mix.artist}{mix.genre ? ` · ${mix.genre}` : ''}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </AdaptiveGrid>
                     )}
                   </section>
                 )}

@@ -578,7 +578,10 @@ export interface Album {
    *  Defaults to All Rights Reserved when unset. Gated behind CONTENT_LICENSING. */
   license?: string;
   type?: 'MUSIC' | 'VIDEO' | 'BOOK' | 'PHOTO' | 'GAME';
-  subType?: 'MOVIE' | 'TV_SERIES' | 'GRAPHIC_NOVEL' | 'PODCAST' | 'NOVEL' | 'PLAYLIST';
+  subType?: 'MOVIE' | 'TV_SERIES' | 'GRAPHIC_NOVEL' | 'PODCAST' | 'NOVEL' | 'PLAYLIST' | 'MIX';
+  /** Chora Mixes — a long-form DJ set built on the album framework (type:'MUSIC', subType:'MIX').
+   *  The mix master is tracks[0]; the tracklist/cue points are optional segment markers. */
+  mixMeta?: MixMeta;
   donationGoal?: number;
   donationCurrent?: number;
   socialLinks?: {
@@ -2790,7 +2793,9 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   // Tela — the unified document canvas (P0: canvas + Writer + Grid devices)
   | 'TELA'
   // Tela reference-embed demo (P2b — live/follow-latest/pinned side by side)
-  | 'TELA_EMBED_DEMO';
+  | 'TELA_EMBED_DEMO'
+  // Chora Mixes — the dedicated long-form DJ-set player (waveform + Pixels auto-show)
+  | 'MIX_PLAYER';
 
 // ── Script Writing Studio ─────────────────────────────────────────────────────
 
@@ -3477,6 +3482,36 @@ export interface PodcastMetadata {
   isExplicit?: boolean;
   showTitle: string;
   category?: string;
+}
+
+/** A single segment marker along a mix — the optional cue sheet / tracklist. */
+export interface MixCue {
+  id: string;
+  time: number;          // seconds from the start of the mix
+  title: string;
+  artist?: string;
+  label?: string;        // e.g. "Track ID", "Acapella"
+}
+
+/** Chora Mixes metadata — attached to an Album with type:'MUSIC', subType:'MIX'. */
+export interface MixMeta {
+  /** Visual show for playback.
+   *  AUTO = Pixels intelligent auto-show (ONE generator at a time, advanced on the music).
+   *  AUTHORED = a saved Plajah Pixels cloud project the artist attached. */
+  visualMode?: 'AUTO' | 'AUTHORED';
+  /** Cloud PlajahProject id when visualMode==='AUTHORED' (users/{uid}/plajahProjects/{id}). */
+  pixelsProjectId?: string;
+  /** Where the mix audio came from. */
+  source?: 'UPLOAD' | 'REELLO' | 'DJ_MODE';
+  /** Origin Reello video id when source==='REELLO' (mirrors Track.soundOfVideoId). */
+  sourceVideoId?: string;
+  /** Timestamped comments on/off for this mix (default true). */
+  allowComments?: boolean;
+  /** Optional cue sheet — segment markers along the mix. */
+  cueSheet?: MixCue[];
+  bpm?: number;
+  /** Denormalized play length in seconds (mixes are long; avoids decoding to show a runtime). */
+  durationSec?: number;
 }
 
 export interface ImportedRssEpisode {
