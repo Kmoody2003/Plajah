@@ -58,7 +58,11 @@ export async function saveCivicServer(records: TerraCivicRecord[], concurrency =
 }
 
 export async function recordRunServer(summary: TerraIngestionSummary): Promise<boolean> {
-  return fsSet(docPath(RUNS, summary.id), envelope(summary.id, summary));
+  const ok = await fsSet(docPath(RUNS, summary.id), envelope(summary.id, summary));
+  // Also keep a stable pointer to the most recent run so the status endpoint can
+  // read it with a single get — no orderBy, so no composite-index trap.
+  await fsSet(docPath(RUNS, '__latest__'), envelope('__latest__', summary));
+  return ok;
 }
 
 // ── Cursor (also SA — a client-SDK read would be denied on the server) ──────

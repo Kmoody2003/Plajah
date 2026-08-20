@@ -70,7 +70,19 @@ env:
       - RUNTIME
   # Interval in ms between scheduled passes. Detroit publishes daily, so 24h is
   # the sensible floor — polling faster gains nothing and costs reads.
+  # NOTE: this in-process timer is now only a fallback. On Cloud Run the container
+  # scales to zero, so a 24h setInterval rarely survives long enough to fire; the
+  # RELIABLE daily driver is Cloud Scheduler hitting POST /api/terra/cron/ingest.
   - variable: TERRA_INGESTION_INTERVAL_MS
     value: "86400000"
+    availability:
+      - RUNTIME
+  # Shared secret that authenticates the Cloud Scheduler cron call to
+  # POST /api/terra/cron/ingest (header `X-Terra-Cron-Key`). Stored in Secret
+  # Manager, never in plaintext. Create it once with:
+  #   firebase apphosting:secrets:set TERRA_CRON_KEY
+  # then grant the backend access when prompted. Rotate by re-running set.
+  - variable: TERRA_CRON_KEY
+    secret: TERRA_CRON_KEY
     availability:
       - RUNTIME
