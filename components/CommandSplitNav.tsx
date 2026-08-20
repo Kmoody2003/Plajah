@@ -18,7 +18,7 @@ import {
   Newspaper, BookOpen, Cross, FlaskConical, Radio, AppWindow, Repeat, Gamepad2, Users, UsersRound,
   Heart, Landmark, Shield, ShoppingBag, GraduationCap, Camera, MessageSquare, MessageCircle,
   Mail, Rss, Sparkles, Clapperboard, MonitorPlay, Cctv, Search, HelpCircle, Monitor, Factory, Building2,
-  Briefcase, MapPin, TrendingUp, Tv, Ticket, Home, LayoutPanelTop,
+  Briefcase, MapPin, TrendingUp, Tv, Ticket, Home, LayoutPanelTop, Megaphone,
   Compass, Palette, Trophy, Bell, Plus, ChevronLeft,
   ChevronRight, LogOut, Command, RotateCcw, X,
 } from 'lucide-react';
@@ -74,10 +74,9 @@ export const NAV_SECTIONS: NavSection[] = [
   { key: 'Creator Tools', icon: Palette, items: [
     { id: 'CREATOR_HUB', label: 'Creator Hub', icon: Clapperboard },
     { id: 'ARTIST_MANAGER', label: 'Artist Manager', icon: Music2, requiresUser: true },
-    { id: 'PLAJAH_STUDIO', label: 'Creator Tool Bag', icon: Sparkles, requiresUser: true },
+    { id: 'PLAJAH_STUDIO', label: 'Marketing', icon: Megaphone, requiresUser: true },
     { id: 'PLAJAH_BUSINESS', label: 'Plajah Business', icon: Briefcase, requiresUser: true },
     { id: 'TERRA', label: 'Terra', icon: MapPin, requiresUser: true },
-    { id: 'AD_PACKAGES', label: 'Promote', icon: TrendingUp, requiresUser: true },
     { id: 'TELA', label: 'Tela', icon: LayoutPanelTop },
     { id: 'FABULA', label: 'Fabula', icon: Film },
     { id: 'TV_STUDIO', label: 'TV Studio', icon: Clapperboard },
@@ -91,7 +90,6 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'PLAJAH_BUSINESS', label: 'Plajah Business', icon: Briefcase, requiresUser: true },
     { id: 'STORE_HUB', label: 'Plajah Store', icon: ShoppingBag },
     { id: 'TERRA', label: 'Terra', icon: MapPin, requiresUser: true },
-    { id: 'AD_PACKAGES', label: 'Promote', icon: TrendingUp, requiresUser: true },
     { id: 'CHAT', label: 'Chat', icon: MessageSquare },
     { id: 'TELA', label: 'Tela', icon: LayoutPanelTop },
   ]},

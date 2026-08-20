@@ -19,8 +19,10 @@ import {
   TrendingUp, Mail, AppWindow, Repeat, MapPin, BookOpen,
   Plus, Radio, ArrowRight, ArrowUpRight, Wand2, Video, PenLine,
   FolderOpen, Globe, ScrollText, LogIn, Upload, Layers, Clock,
+  Megaphone, LayoutDashboard,
 } from 'lucide-react';
 import type { UserProfile, Album, IPWorld } from '../types';
+import MarketingKit from './MarketingKit';
 import { fetchUserAlbums, fetchUserWorlds } from '../services/backendService';
 import { listWritingProjects } from '../services/loreaProjectsService';
 import { listMyManifests, listTelaDocs } from '../services/telaStore';
@@ -207,7 +209,6 @@ const MORE_TOOLS: { id: string; label: string; icon: Lucide }[] = [
   { id: 'MEDIA_ROUTER',   label: 'Router & Switcher', icon: Cctv },
   { id: 'POSTMAN',        label: 'The Postman',       icon: Mail },
   { id: 'TERRA',          label: 'Terra',             icon: MapPin },
-  { id: 'AD_PACKAGES',    label: 'Promote',           icon: TrendingUp },
   { id: 'APPS',           label: 'Apps',              icon: AppWindow },
   { id: 'CROSSOVER',      label: 'Crossover',         icon: Repeat },
 ];
@@ -223,6 +224,7 @@ export default function CreatorHub({
   const isGuest = !user;
   const firstName = (userProfile?.displayName || '').trim().split(/\s+/)[0] || '';
   const reduce = useReducedMotion();
+  const [hubTab, setHubTab] = useState<'OVERVIEW' | 'MARKETING'>('OVERVIEW');
 
   const quickChips: QuickChip[] = [
     { label: 'New Doc', icon: PenLine, run: () => onNavigate('TELA') },
@@ -284,6 +286,22 @@ export default function CreatorHub({
 
   return (
     <div className="min-h-full w-full overflow-x-hidden text-white" style={{ background: '#0A0A0D' }}>
+      {/* ══ 0 · HUB TABS — Overview | Marketing ═══════════════════════════ */}
+      <HubTabs tab={hubTab} setTab={setHubTab} />
+
+      {hubTab === 'MARKETING' ? (
+        !isGuest && user && userProfile ? (
+          <div className="mx-auto w-full max-w-[1400px]">
+            <MarketingKit
+              scope={{ kind: 'CREATOR', id: user.uid, name: userProfile.displayName }}
+              currentUser={userProfile}
+            />
+          </div>
+        ) : (
+          <MarketingGuestNudge onNavigate={onNavigate} onCreate={onCreate} />
+        )
+      ) : (
+      <>
       {/* ══ 1 · CINEMATIC HERO (Marquee) ══════════════════════════════════ */}
       <section className="relative overflow-hidden">
         {/* Brand-triad gradient field */}
@@ -631,6 +649,73 @@ export default function CreatorHub({
           </button>
         </div>
       </div>
+      </>
+      )}
+    </div>
+  );
+}
+
+/* ── Hub tabs — Overview | Marketing. A lightweight segmented control at the top
+   of the Creator Hub; Overview keeps the full landing, Marketing swaps in the
+   identity-scoped MarketingKit (Organic ⇄ Paid). ─────────────────────────────── */
+function HubTabs({ tab, setTab }: { tab: 'OVERVIEW' | 'MARKETING'; setTab: (t: 'OVERVIEW' | 'MARKETING') => void }) {
+  return (
+    <div className="relative z-10 mx-auto w-full max-w-[1400px] px-5 pt-5 sm:px-8">
+      <div className="inline-flex items-center gap-1 p-1 rounded-2xl border border-white/10 bg-white/[0.05] backdrop-blur-md">
+        {([
+          ['OVERVIEW', 'Overview', LayoutDashboard],
+          ['MARKETING', 'Marketing', Megaphone],
+        ] as const).map(([id, label, Icon]) => {
+          const on = tab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-[0.78rem] font-black uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pj-orange)] ${
+                on ? 'text-black' : 'text-white/55 hover:text-white/85'
+              }`}
+            >
+              {on && (
+                <motion.span
+                  layoutId="hub-tab-pill"
+                  className="absolute inset-0 rounded-xl bg-white"
+                  transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                />
+              )}
+              <span className="relative flex items-center gap-2"><Icon size={14} /> {label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── Guest nudge for the Marketing tab — mirrors RailNudge's sign-in affordance. ── */
+function MarketingGuestNudge({ onNavigate, onCreate }: { onNavigate: (v: string) => void; onCreate?: () => void }) {
+  return (
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col items-center justify-center px-6 py-24 text-center">
+      <span
+        className="mb-5 grid h-14 w-14 place-items-center rounded-2xl text-white"
+        style={{ background: 'var(--pj-grad-brand)', boxShadow: 'var(--pj-glow-brand)' }}
+      >
+        <Megaphone size={26} />
+      </span>
+      <p className="font-display text-2xl font-black italic uppercase tracking-tight text-white">Marketing lives here</p>
+      <p className="mt-2 max-w-md text-sm leading-relaxed text-white/55">
+        Compose &amp; schedule across every network, track your channels, and boost with ad packages —
+        all scoped to your creator identity. Sign in to get started.
+      </p>
+      <button
+        type="button"
+        onClick={() => (onCreate ? onCreate() : onNavigate('LANDING'))}
+        className="mt-6 inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-black uppercase tracking-wide text-white transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+        style={{ background: 'var(--pj-grad-brand)', boxShadow: 'var(--pj-glow-brand)' }}
+      >
+        <LogIn size={15} />
+        Sign in
+      </button>
     </div>
   );
 }

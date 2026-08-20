@@ -8,9 +8,10 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'motion/react';
 import {
   Building2, Plus, ArrowLeft, Check, Globe, MapPin, Users, Star, Loader2, Camera, Pencil,
-  Church, Clock, Gift, Trash2, Sparkles, MonitorPlay, Mail, HardDrive, Briefcase,
+  Church, Clock, Gift, Trash2, Sparkles, MonitorPlay, Mail, HardDrive, Briefcase, Megaphone,
 } from 'lucide-react';
-import type { Organization, OrgMembership, OrgType, OrgRole } from '../types';
+import type { Organization, OrgMembership, OrgType, OrgRole, UserProfile } from '../types';
+import MarketingKit from './MarketingKit';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
 import {
   createOrganization, fetchUserOrganizations, fetchOrgMembers, updateOrganization,
@@ -273,6 +274,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   const [openings, setOpenings] = useState<JobPosting[]>([]);
   const [applyFor, setApplyFor] = useState<JobPosting | null>(null);
   const [showCareers, setShowCareers] = useState(false);
+  const [marketing, setMarketing] = useState(false);
   const [fundGiven, setFundGiven] = useState<Record<string, number>>({});
   const reloadStaff = useCallback(() => { fetchOrgMembers(org.id).then(setStaff).catch(() => {}); }, [org.id]);
   useEffect(() => { reloadStaff(); }, [reloadStaff]);
@@ -311,6 +313,17 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   }
   if (showCareers) {
     return <CareersView org={org} onBack={() => setShowCareers(false)} />;
+  }
+  if (marketing && isOwner) {
+    return (
+      <div className="min-h-full">
+        <MarketingKit
+          scope={{ kind: 'ORG', id: org.id, name: org.name }}
+          currentUser={{ uid: auth.currentUser?.uid || user?.uid || '', displayName: org.name } as UserProfile}
+          onClose={() => setMarketing(false)}
+        />
+      </div>
+    );
   }
 
   return (
@@ -357,6 +370,11 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
             {canReadHq && (
               <button onClick={() => setContentHq(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
                 <HardDrive size={14} className="text-small-orange" /> Content HQ{!canManageHq && <span className="text-white/30">· read-only</span>}
+              </button>
+            )}
+            {isOwner && (
+              <button onClick={() => setMarketing(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
+                <Megaphone size={14} className="text-small-orange" /> Marketing
               </button>
             )}
             {isOwner && (

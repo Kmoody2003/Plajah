@@ -387,6 +387,7 @@ const ArtistProjectManager = retryLazy(() => import('./components/ArtistProjectM
 const MelosWorkspace = retryLazy(() => import('./components/melos/MelosWorkspace'));
 const CareerImportStudio = retryLazy(() => import('./components/CareerImportStudio'));
 const StudioView = retryLazy(() => import('./components/ManagerSuite/StudioView'));
+const MarketingKit = retryLazy(() => import('./components/MarketingKit'));
 const Fabula = retryLazy(() => import('./components/Fabula/Fabula'));
 const ArtistBoards = retryLazy(() => import('./components/ArtistBoards'));
 const EventProductionStudio = retryLazy(() => import('./components/EventProductionStudio'));
@@ -3463,7 +3464,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         TERRA: { label: 'Terra', icon: MapPin },
                         AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
                         ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
-                        PLAJAH_STUDIO: { label: 'Creator Tool Bag', icon: Sparkles },
+                        PLAJAH_STUDIO: { label: 'Marketing', icon: Megaphone },
                       };
                       const item = items[config.id as keyof typeof items];
                       if (!item) return null;
@@ -3603,7 +3604,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
                       BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, TERRA: { label: 'Terra', icon: MapPin }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
                       ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
-                      PLAJAH_STUDIO: { label: 'Creator Tool Bag', icon: Sparkles },
+                      PLAJAH_STUDIO: { label: 'Marketing', icon: Megaphone },
                       CREATOR: { label: 'Creator Hub', icon: Clapperboard },
                     };
                     // A television gets five destinations, in TV order. Everything else is
@@ -3698,7 +3699,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
                       BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, TERRA: { label: 'Terra', icon: MapPin }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
                       ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
-                      PLAJAH_STUDIO: { label: 'Creator Tool Bag', icon: Sparkles },
+                      PLAJAH_STUDIO: { label: 'Marketing', icon: Megaphone },
                       CREATOR: { label: 'Creator Hub', icon: Clapperboard },
                     };
                     const allNavIds = ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH', 'MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS', 'PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES', 'BOOKS', 'CLASSROOMS', 'PLAJAH_LABS', 'CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB', 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'MEDIA_ROUTER', 'POSTMAN', 'HELP_CENTER', 'BROWSER', 'CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : [])];
@@ -5133,7 +5134,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'PLAJAH_STUDIO' && user && userProfile && !tvBlocked && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <StudioView />
+                <MarketingKit scope={{ kind: 'CREATOR', id: user.uid, name: userProfile.displayName }} currentUser={userProfile} />
               </Suspense>
             )}
 
@@ -5499,7 +5500,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <GalleryView
                   gallery={activeGallery}
                   photos={activeGalleryPhotos}
-                  onBack={() => setView('GLOBAL_PHOTOS')}
+                  onBack={() => goBack('GLOBAL_PHOTOS')}
                   onVisitUser={handleVisitUser}
                   currentUser={user}
                   avatarVrmUrl={userProfile?.avatar?.type === 'VRM' ? userProfile.avatar.modelUrl : undefined}
@@ -5511,7 +5512,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <GalleryEditor
                   galleryId={editingGalleryId}
                   curatorNameDefault={userProfile?.displayName}
-                  onCancel={() => setView('CREATOR')}
+                  onCancel={() => goBack('GLOBAL_PHOTOS')}
                   onDone={(gallery) => openGallery(gallery)}
                 />
               </Suspense>

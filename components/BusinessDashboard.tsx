@@ -4,8 +4,9 @@ import {
   Store, ShoppingBag, Radio, Monitor, Users, Plus, X, Check, Edit3,
   Trash2, ChevronRight, Clock, Package, Star, Zap, Globe, Leaf,
   Settings, ToggleLeft, ToggleRight, Search, Filter, Mail, Phone,
-  BarChart3, Target, RefreshCw, Play, Pause, Image, MapPin, Building2, ShieldCheck
+  BarChart3, Target, RefreshCw, Play, Pause, Image, MapPin, Building2, ShieldCheck, Megaphone
 } from 'lucide-react';
+import MarketingKit from './MarketingKit';
 import { UserProfile, BusinessPage, BusinessOrder, DigitalSignageSlide, CrmContact, SeedRaiserCampaign, SeedRaiserReward } from '../types';
 import {
   fetchMyBusinessPages, saveBusinessPage, deleteBusinessPage,
@@ -30,7 +31,7 @@ import BusinessOrdersPanel from './BusinessOrdersPanel';
 import ArtistPromoDirectory from './ArtistPromoDirectory';
 import StaffHRManager from './StaffHRManager';
 
-type BizTab = 'OVERVIEW' | 'ORDERS' | 'INVENTORY' | 'TEAM' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'SETTINGS' | 'LISTINGS' | 'COMPLIANCE';
+type BizTab = 'OVERVIEW' | 'ORDERS' | 'INVENTORY' | 'TEAM' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'MARKETING' | 'SETTINGS' | 'LISTINGS' | 'COMPLIANCE';
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 
@@ -208,9 +209,15 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
   // Show only the tabs this vertical actually uses — a realtor has no inventory
   // or in-store radio. Ordered by the vertical so its priorities lead.
   const vertical = getVertical(activePage?.businessType);
-  const tabs = vertical.tabs
-    .map(id => ALL_TABS.find(t => t.id === (id as BizTab)))
-    .filter((t): t is typeof ALL_TABS[number] => Boolean(t));
+  const MARKETING_TAB = { id: 'MARKETING' as BizTab, label: 'Marketing', icon: Megaphone };
+  const tabs = [
+    ...vertical.tabs
+      .map(id => ALL_TABS.find(t => t.id === (id as BizTab)))
+      .filter((t): t is typeof ALL_TABS[number] => Boolean(t)),
+    // Marketing is offered for every vertical (identity-scoped Organic ⇄ Paid),
+    // so append it if the vertical config didn't already include it.
+    ...(vertical.tabs.includes('MARKETING' as any) ? [] : [MARKETING_TAB]),
+  ];
 
   if (loading) return (
     <div className="flex items-center gap-3 text-white/30 p-8">
@@ -739,6 +746,16 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
           )}
           {activeTab === 'RADIO' && (
             <NowPlayingPublisher businessUid={currentUser.uid} businessName={activePage?.businessName || currentUser.displayName || 'My Business'} />
+          )}
+
+          {/* ── MARKETING (identity-scoped Organic ⇄ Paid) ── */}
+          {activeTab === 'MARKETING' && activePage && (
+            <div className="rounded-3xl overflow-hidden border border-white/10">
+              <MarketingKit
+                scope={{ kind: 'BUSINESS', id: activePage.id, name: activePage.businessName }}
+                currentUser={currentUser}
+              />
+            </div>
           )}
 
           {/* ── SETTINGS ── */}
