@@ -1,7 +1,7 @@
 ﻿import { createPortal } from 'react-dom';
 import React, { useState, useEffect } from 'react';
 import { gridSrc } from '../services/imageDerivatives';
-import { Photo, UserProfile } from '../types';
+import { Photo, UserProfile, PhotoGallery } from '../types';
 import PageHeader from './PageHeader';
 import { 
   Heart, 
@@ -25,10 +25,18 @@ import {
   Compass,
   Bot,
   Users,
-  ChevronDown
+  ChevronDown,
+  Images,
+  Plus,
+  Eye,
+  Pencil,
+  Trash2,
+  Loader2,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { fetchGlobalPhotos, favoritePhoto, followUser, auth, fetchThemePresets, updateUserProfile, fetchUserProfile, fetchUserProfiles, fetchUserPhotos } from '../services/backendService';
+import { fetchUserGalleries, deleteGallery } from '../services/galleryService';
 import { useShellNext } from '../hooks/useShellNext';
 import { useSpatial } from '../contexts/SpatialContext';
 import SpatialImage from './SpatialImage';
@@ -71,6 +79,43 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
   const [followed, setFollowed] = useState<Set<string>>(new Set());
   const [moreOpen, setMoreOpen] = useState(false);
   const [query, setQuery] = useState('');
+
+  // ── Plajah Galleries (shareable gallery experiences) ─────────────────────────
+  // These reuse galleryService + the App-level `plajah:openGallery` /
+  // `plajah:openGalleryEditor` events (already wired in App.tsx). Mirrors the
+  // entry points that live on the profile Photos tab (PhotoManager), so a user on
+  // the main Photos page can find Create Gallery / My Galleries too.
+  const [showGalleries, setShowGalleries] = useState(false);
+  const [myGalleries, setMyGalleries] = useState<PhotoGallery[]>([]);
+  const [loadingGalleries, setLoadingGalleries] = useState(false);
+
+  /** Open the Gallery editor (create when no id) — guests are prompted to sign in. */
+  const openGalleryEditor = (galleryId?: string) => {
+    if (!auth.currentUser) { alert('Sign in to create and manage galleries.'); return; }
+    window.dispatchEvent(new CustomEvent('plajah:openGalleryEditor', {
+      detail: galleryId ? { galleryId } : {},
+    }));
+  };
+
+  /** Open a saved gallery's viewing experience via the App-level route. */
+  const openGallery = (gallery: PhotoGallery) => {
+    setShowGalleries(false);
+    window.dispatchEvent(new CustomEvent('plajah:openGallery', { detail: { gallery } }));
+  };
+
+  const openMyGalleries = async () => {
+    if (!auth.currentUser) { alert('Sign in to view and manage your galleries.'); return; }
+    setShowGalleries(true);
+    setLoadingGalleries(true);
+    const list = await fetchUserGalleries(auth.currentUser.uid);
+    setMyGalleries(list);
+    setLoadingGalleries(false);
+  };
+
+  const handleDeleteGallery = async (id: string) => {
+    await deleteGallery(id);
+    setMyGalleries(gs => gs.filter(g => g.id !== id));
+  };
 
   /** AI / generated detection — no dedicated flag exists yet, so infer from tags/text. */
   const AI_RE = /\b(ai|a\.i\.|synthetic|generated|generative|midjourney|dall.?e|stable.?diffusion|prompt(ed)?)\b/i;
@@ -434,6 +479,81 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
           renderMasonry(photos)
         )}
     </>
+  );
+
+  // ── My Galleries modal ──────────────────────────────────────────────────────
+  // Lists the signed-in user's saved galleries (fetchUserGalleries), each row
+  // opening (plajah:openGallery) / editing (plajah:openGalleryEditor) / deleting.
+  // Portaled so it opens above whichever shell (Wall or classic) is mounted.
+  const renderGalleriesModal = () => createPortal(
+    <AnimatePresence>
+      {showGalleries && (
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+          onClick={() => setShowGalleries(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.96, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, y: 10 }}
+            className="w-full max-w-lg max-h-[80vh] overflow-y-auto custom-scrollbar rounded-3xl p-6 border"
+            style={{ background: 'var(--pj-surface-1, #0A0810)', borderColor: 'var(--pj-border, rgba(255,255,255,0.1))' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-xl font-black italic">My Galleries</h3>
+              <button onClick={() => setShowGalleries(false)} className="p-2 rounded-full hover:bg-white/10"><X size={18} /></button>
+            </div>
+
+            {loadingGalleries ? (
+              <div className="flex items-center justify-center gap-2 py-12 text-white/40 text-sm">
+                <Loader2 size={16} className="animate-spin" /> Loading…
+              </div>
+            ) : myGalleries.length === 0 ? (
+              <div className="text-center py-10 text-white/40 text-sm">
+                No galleries yet.
+                <button
+                  onClick={() => { setShowGalleries(false); openGalleryEditor(); }}
+                  className="block mx-auto mt-4 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest text-white"
+                  style={{ backgroundImage: 'var(--pj-grad-warm, linear-gradient(135deg,#6B0099,#D40055,#FF8C00))' }}
+                >
+                  Create your first
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {myGalleries.map(g => (
+                  <div key={g.id} className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-2xl">
+                    <div
+                      className="w-14 h-14 rounded-xl bg-cover bg-center flex-none bg-white/5"
+                      style={g.coverImage ? { backgroundImage: `url(${g.coverImage})` } : undefined}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-sm truncate">{g.title}</div>
+                      <div className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
+                        {g.photoIds?.length || 0} photos • {(g.visibility || (g.isPublic ? 'PUBLIC' : 'PRIVATE')).toLowerCase()}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => openGallery(g)}
+                      className="p-2.5 rounded-full hover:bg-white/10 text-white/70" title="View"
+                    ><Eye size={15} /></button>
+                    <button
+                      onClick={() => { setShowGalleries(false); openGalleryEditor(g.id); }}
+                      className="p-2.5 rounded-full hover:bg-white/10 text-white/70" title="Edit"
+                    ><Pencil size={15} /></button>
+                    <button
+                      onClick={() => handleDeleteGallery(g.id)}
+                      className="p-2.5 rounded-full hover:bg-red-500/20 text-red-400" title="Delete"
+                    ><Trash2 size={15} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body,
   );
 
   // ── Shared overlays (modals + room + editor) ────────────────────────────────
@@ -883,8 +1003,22 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
               />
             </div>
             <button
-              onClick={() => { setMoreOpen(false); setMode('IMPORTS'); }}
+              onClick={openMyGalleries}
+              className="pj-btn pj-btn--sm pj-btn--secondary hidden md:inline-flex"
+              title="Open, edit or share your saved galleries"
+            >
+              <Images size={14} /> Galleries
+            </button>
+            <button
+              onClick={() => openGalleryEditor()}
               className="pj-btn pj-btn--sm pj-btn--primary"
+              title="Create a new shareable gallery experience"
+            >
+              <Plus size={14} /> <span className="hidden sm:inline">Create&nbsp;</span>Gallery
+            </button>
+            <button
+              onClick={() => { setMoreOpen(false); setMode('IMPORTS'); }}
+              className="pj-btn pj-btn--sm pj-btn--secondary"
               title="Bring photos into Plajah"
             >
               <Upload size={14} /> Upload
@@ -897,6 +1031,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
         </main>
 
         {renderOverlays()}
+        {renderGalleriesModal()}
       </div>
     );
   }
@@ -931,6 +1066,33 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                 ? 'Portfolio-grade presentation and editing workflows for photographers.'
                 : 'A continuous stream of photography, art, event media, and spatial captures from the community.'}
             </p>
+
+            {/* Gallery entry points — mirror the profile Photos tab so the main
+                Photos page can also create & manage shareable galleries. */}
+            <div className="flex flex-wrap items-center gap-3 mt-6">
+              <button
+                onClick={() => openGalleryEditor()}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
+                title="Create a new shareable gallery experience"
+              >
+                <Plus size={14} /> Create Gallery
+              </button>
+              <button
+                onClick={openMyGalleries}
+                className="flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+                title="Open, edit or share your saved galleries"
+              >
+                <Images size={14} /> My Galleries
+              </button>
+              <button
+                onClick={() => auth.currentUser ? openPhotographerRoom(auth.currentUser.uid) : alert('Sign in to open your portfolio room.')}
+                disabled={openingRoom}
+                className="flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-40"
+                title="Present your work full-bleed in the Portfolio Room"
+              >
+                <Frame size={14} /> {openingRoom ? 'Hanging…' : 'Portfolio Room'}
+              </button>
+            </div>
           </div>
 
           {/* Platform Chip Rail treatment (components/ui/ChipRail).
@@ -1353,6 +1515,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
           onApply={() => {}}
         />
       )}
+      {renderGalleriesModal()}
     </div>
   );
 };
