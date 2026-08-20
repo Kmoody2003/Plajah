@@ -13,12 +13,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, MonitorPlay, Plus, Pencil, BookOpen } from 'lucide-react';
 import {
-  applySlide, LAYER_ORDER, LAYER_LABEL, type LiveStack, type Show, type Slide,
+  applySlide, clearLayer, newId, LAYER_ORDER, LAYER_LABEL, type LiveStack, type Show, type Slide,
 } from '../../services/ambo/showModel';
 import { LayerRenderer } from '../../services/ambo/layerRenderer';
 import { DEMO_LIBRARY, DEMO_PLAYLIST, slideText } from '../../services/ambo/servicePlanDemo';
 import AmboStageDisplay from './AmboStageDisplay';
 import AmboSlideEditor from './AmboSlideEditor';
+import AmboScriptureDock, { type ScriptureCue } from './AmboScriptureDock';
 
 interface AmboProPresenterProps {
   onBack?: () => void;
@@ -89,6 +90,7 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
   const [selected, setSelected] = useState(2); // preview cursor
   const [placement, setPlacement] = useState<'right' | 'top'>('right');
   const [stageOpen, setStageOpen] = useState(false);
+  const [scriptureOpen, setScriptureOpen] = useState(false);
   const [editorIdx, setEditorIdx] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(1 * 3600 + 12 * 44);
 
@@ -108,6 +110,21 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
     setLiveSlideId(s.id);
     setLiveSlideObj(s);
   };
+
+  // Scripture fires to the scripture LAYER — composites OVER the live slide.
+  const fireScripture = (cue: ScriptureCue) => {
+    const scriptureSlide: Slide = {
+      id: newId('scr'),
+      label: cue.reference,
+      layers: [{
+        id: newId('ly'),
+        slot: 'scripture',
+        content: { kind: 'SCRIPTURE', refId: cue.refId, translation: cue.translation, lines: cue.lines, reference: cue.reference },
+      }],
+    };
+    setLive(prev => applySlide(prev, scriptureSlide, Date.now()));
+  };
+  const clearScripture = () => setLive(prev => clearLayer(prev, 'scripture'));
   const takeSelected = () => { if (previewSlide) take(previewSlide); };
 
   const openEditor = (i: number) => setEditorIdx(i);
@@ -178,7 +195,7 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
         <button onClick={() => setStageOpen(true)} className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-[13px] font-semibold border" style={{ borderColor: line2, background: glass }}>
           <MonitorPlay size={14} style={{ color: CYAN }} /> Stage
         </button>
-        <button className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-[13px] font-semibold border" style={{ borderColor: line2, background: glass }}>
+        <button onClick={() => setScriptureOpen(true)} className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-[13px] font-semibold border" style={{ borderColor: !!live.scripture ? 'rgba(227,197,126,0.5)' : line2, background: !!live.scripture ? 'rgba(227,197,126,0.12)' : glass }}>
           <BookOpen size={14} style={{ color: GOLD }} /> Scripture
         </button>
         <span className="inline-flex items-center gap-2 h-[26px] px-3 rounded-full text-[11.5px] font-bold text-white border" style={{ background: 'rgba(255,140,0,0.14)', borderColor: 'rgba(255,140,0,0.5)', boxShadow: '0 0 22px rgba(255,140,0,0.3)' }}>
@@ -377,6 +394,15 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
           boundRef={boundRef}
           onSave={saveSlideText}
           onClose={() => setEditorIdx(null)}
+        />
+      )}
+
+      {scriptureOpen && (
+        <AmboScriptureDock
+          scriptureLive={!!live.scripture}
+          onFire={fireScripture}
+          onClear={clearScripture}
+          onClose={() => setScriptureOpen(false)}
         />
       )}
     </div>
