@@ -24,10 +24,17 @@ import {
   SlidersHorizontal,
   Sparkles,
   Wand2,
-  QrCode
+  QrCode,
+  Aperture,
+  Pencil,
+  Eye,
+  Loader2,
+  Images
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { uploadPhoto, createPhotoAlbum, auth, db } from '../services/backendService';
+import { galleryFromAlbum, fetchUserGalleries, deleteGallery } from '../services/galleryService';
+import { PhotoGallery } from '../types';
 import { doc, updateDoc } from 'firebase/firestore';
 import PhotoEditPanel from './PhotoEditPanel';
 import { PHOTO_IMPORT_SOURCES, PHOTOGRAPHER_PRO_FEATURES } from '../services/photoEditingService';
@@ -48,6 +55,27 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // "My Galleries" manager — saved Plajah Galleries (not albums).
+  const [showGalleries, setShowGalleries] = useState(false);
+  const [myGalleries, setMyGalleries] = useState<PhotoGallery[]>([]);
+  const [loadingGalleries, setLoadingGalleries] = useState(false);
+
+  // Open the Gallery editor (create when no id) via the App-level route.
+  const openEditor = (galleryId?: string) =>
+    window.dispatchEvent(new CustomEvent('plajah:openGalleryEditor', { detail: { galleryId } }));
+
+  const openMyGalleries = async () => {
+    setShowGalleries(true);
+    setLoadingGalleries(true);
+    const list = profile.uid ? await fetchUserGalleries(profile.uid) : [];
+    setMyGalleries(list);
+    setLoadingGalleries(false);
+  };
+
+  const handleDeleteGallery = async (id: string) => {
+    await deleteGallery(id);
+    setMyGalleries(gs => gs.filter(g => g.id !== id));
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -85,6 +113,18 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
     } catch (error) {
       console.error("Privacy toggle failed:", error);
     }
+  };
+
+  // Build an ephemeral, shareable Plajah Gallery from a set of photos (no persistence
+  // needed — the viewing experience is testable before a full creation editor exists)
+  // and hand it to App.tsx via a window event.
+  const openAsGallery = (title: string, photos: Photo[], curatorName?: string) => {
+    if (!photos.length) return;
+    const gallery = galleryFromAlbum(
+      { id: `preview_${Date.now()}`, title, ownerId: profile.uid, photoIds: photos.map(p => p.id), curatorName },
+      photos
+    );
+    window.dispatchEvent(new CustomEvent('plajah:openGallery', { detail: { gallery, photos } }));
   };
 
   const handleCreateAlbum = async () => {
@@ -127,7 +167,32 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
         </div>
 
         <div className="flex items-center gap-3">
-          <button 
+          <button
+            onClick={() => openAsGallery(`${profile.displayName || 'My'} Gallery`, profile.photos || [], profile.displayName)}
+            disabled={!(profile.photos && profile.photos.length)}
+            className="flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-30"
+            title="Open your photos as a shareable gallery experience"
+          >
+            <Aperture size={14} />
+            View as Gallery
+          </button>
+          <button
+            onClick={openMyGalleries}
+            className="flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+            title="Manage your saved galleries"
+          >
+            <Images size={14} />
+            My Galleries
+          </button>
+          <button
+            onClick={() => openEditor()}
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
+            title="Create a new curated gallery"
+          >
+            <Plus size={14} />
+            Create Gallery
+          </button>
+          <button
             onClick={() => setActiveTab('IMPORT')}
             className="flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
           >
@@ -279,7 +344,16 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
                     )}
                   </div>
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-sm gap-4">
-                    <button className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-black hover:scale-110 transition-all">
+                    <button
+                      onClick={() => {
+                        const albumPhotos = (album.photoIds || [])
+                          .map(pid => profile.photos?.find(p => p.id === pid))
+                          .filter(Boolean) as Photo[];
+                        openAsGallery(album.title, albumPhotos.length ? albumPhotos : (profile.photos || []), profile.displayName);
+                      }}
+                      title="View as gallery"
+                      className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-black hover:scale-110 transition-all"
+                    >
                       <Play size={28} fill="black" />
                     </button>
                     <button className="w-14 h-14 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all">
@@ -504,6 +578,70 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
           onApply={() => {}}
         />
       )}
+
+      {/* My Galleries manager — list saved galleries, open / edit / delete */}
+      <AnimatePresence>
+        {showGalleries && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowGalleries(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.96, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, y: 10 }}
+              className="w-full max-w-lg max-h-[80vh] overflow-y-auto bg-[#0A0810] border border-white/10 rounded-3xl p-6"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-xl font-black italic">My Galleries</h3>
+                <button onClick={() => setShowGalleries(false)} className="p-2 rounded-full hover:bg-white/10"><X size={18} /></button>
+              </div>
+
+              {loadingGalleries ? (
+                <div className="flex items-center justify-center gap-2 py-12 text-white/40 text-sm">
+                  <Loader2 size={16} className="animate-spin" /> Loading…
+                </div>
+              ) : myGalleries.length === 0 ? (
+                <div className="text-center py-10 text-white/40 text-sm">
+                  No galleries yet.
+                  <button onClick={() => { setShowGalleries(false); openEditor(); }} className="block mx-auto mt-4 px-5 py-2.5 bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] rounded-full text-[10px] font-black uppercase tracking-widest">
+                    Create your first
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {myGalleries.map(g => (
+                    <div key={g.id} className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-2xl">
+                      <div
+                        className="w-14 h-14 rounded-xl bg-cover bg-center flex-none bg-white/5"
+                        style={g.coverImage ? { backgroundImage: `url(${g.coverImage})` } : undefined}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-sm truncate">{g.title}</div>
+                        <div className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
+                          {g.photoIds?.length || 0} photos • {(g.visibility || (g.isPublic ? 'PUBLIC' : 'PRIVATE')).toLowerCase()}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => { setShowGalleries(false); window.dispatchEvent(new CustomEvent('plajah:openGallery', { detail: { gallery: g } })); }}
+                        className="p-2.5 rounded-full hover:bg-white/10 text-white/70" title="View"
+                      ><Eye size={15} /></button>
+                      <button
+                        onClick={() => { setShowGalleries(false); openEditor(g.id); }}
+                        className="p-2.5 rounded-full hover:bg-white/10 text-white/70" title="Edit"
+                      ><Pencil size={15} /></button>
+                      <button
+                        onClick={() => handleDeleteGallery(g.id)}
+                        className="p-2.5 rounded-full hover:bg-red-500/20 text-red-400" title="Delete"
+                      ><Trash2 size={15} /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

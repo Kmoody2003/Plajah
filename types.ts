@@ -227,6 +227,10 @@ export interface Photo {
   tags?: string[];
   worldId?: string;     // Set when uploaded from the Worlds editor
   addedToLibrary?: boolean; // Whether it also appears in the user's personal library
+  /** Optional ≤30s voice note from the photographer. Plays as proximity/spatial audio
+   *  in the Walk-in gallery and via the ▶ button in a piece's full view. The 30s cap is
+   *  enforced at creation time; consumers just play whatever URL is present. */
+  audioNoteUrl?: string;
 }
 
 export interface PhotoAlbum {
@@ -238,6 +242,64 @@ export interface PhotoAlbum {
   isPublic: boolean;
   timestamp: number;
   order?: string[]; // For slideshow arrangement
+}
+
+/**
+ * A shareable, self-contained photo EXPERIENCE (like sharing a Chora album).
+ * Base fields mirror PhotoAlbum so an album can be promoted to a gallery for free
+ * (see galleryService.galleryFromAlbum). All the presentation fields are optional so
+ * older/album-derived records keep working.
+ */
+export interface PhotoGallery {
+  id: string;
+  ownerId: string;
+  title: string;
+  description?: string;
+  photoIds: string[];
+  /** Legacy public flag — kept working alongside the richer `visibility`. */
+  isPublic: boolean;
+  timestamp: number;
+  /** Slideshow / hang order for the photos. */
+  order?: string[];
+
+  // ── presentation ─────────────────────────────────────────────
+  /** Default view the gallery opens in. */
+  viewType?: 'MODERN' | 'WALK' | 'PORTFOLIO';
+  /** Cover art for the album-like share header. */
+  coverImage?: string;
+  /** Display name of the curator (denormalised for share cards). */
+  curatorName?: string;
+  /** Short one-line kicker under the title. */
+  tagline?: string;
+  /** Richer visibility model; `isPublic` stays in sync for legacy reads. */
+  visibility?: 'PUBLIC' | 'UNLISTED' | 'PRIVATE';
+
+  // ── optional soundtrack (Chora) ──────────────────────────────
+  soundtrackAlbumId?: string;
+  soundtrackTrackId?: string;
+
+  // ── 3D pieces for the Walk-in museum ─────────────────────────
+  models3d?: { url: string; title?: string }[];
+
+  /** Per-photo ≤30s voice notes, keyed by photoId → storage URL. Stored on the GALLERY
+   *  (not the global Photo) so curators can annotate a gallery without mutating the shared
+   *  photo record. GalleryView merges these onto each photo as `audioNoteUrl` at view time,
+   *  feeding the Walk-in museum's proximity/spatial audio. */
+  audioNotes?: Record<string, string>;
+
+  /** Denormalised like count. */
+  likesCount?: number;
+}
+
+/** A comment left on a gallery (photo_galleries/{id}/comments). */
+export interface GalleryComment {
+  id: string;
+  galleryId: string;
+  authorId: string;
+  authorName?: string;
+  authorPhoto?: string;
+  text: string;
+  timestamp: number;
 }
 
 export interface EventPhotoPool {
@@ -2274,6 +2336,11 @@ export interface Organization {
   statementOfFaith?: string;
   givingUrl?: string;         // external giving link (fallback to native Stripe giving)
 
+  // ── Org chat workspace (services/orgChatService) ───────────────────────────
+  /** Set when the org's chat channels were last provisioned (mirrors productions). */
+  chatProvisionedAt?: number;
+  chatChannelKeys?: string[];
+
   createdAt: number;
   updatedAt: number;
 }
@@ -2652,7 +2719,7 @@ export interface ParentalControls {
   updatedBy?: string;
 }
 
-export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'PRAXIS' | 'AD_PACKAGES' | 'RELLO' | 'PLAJAH_SPORTS' | 'CREATOR_PAYMENTS' | 'ARTIST_MANAGER' | 'MELOS' | 'CAREER_IMPORT' | 'ARTIST_BOARDS' | 'EVENT_PRODUCTION_STUDIO' | 'TICKET_DESIGNER' | 'PLAJAH_PIXELS' | 'BIBLE' | 'AMBO' | 'FOLLOW_ALONG' | 'VESPERS' | 'ATHLETE_SHOWCASE' | 'MATCH_FAN_ROOMS' | 'CLASS_POINTS' | 'ACADEMIA_TOUR' | 'ACADEMIA_HOME' | 'ACADEMIA_LANDING' | 'ACADEMIA_COURSES' | 'SCHOOL_PACKAGE' | 'LANGUAGE_QUEST' | 'EDU_SOCIAL' | 'KIDS_LIBRARY' | 'ROOM' | 'PODCAST_STUDIO' | 'LIVE_TRANSLATION' | 'PODCAST_CALLIN' | 'PODCAST_LISTEN' | 'ORG_HUB' | 'TELEPROMPTER' | 'SPATIAL_MIXER' | 'MELOS_BEATS' | 'MEDIA_CONVERTER' | 'COMIC_MUSEUM' | 'AUDIUS_ARTIST' | 'PLAJAH_ELEVATE' | 'PLATFORM_CHANGELOG' | 'MEDIA_ROUTER' | 'CROSSOVER' | 'SMART_DIRECTOR' | 'HISTORY_QUEST' | 'TV_SEARCH' | 'TERRA' | 'TERRA_MAP' | 'TERRA_PASSPORT' | 'TERRA_STUDIO' | 'TERRA_SCOUT' | 'TERRA_FILM' | 'TERRA_FEED' | 'TERRA_LISTINGS'
+export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'PRAXIS' | 'AD_PACKAGES' | 'RELLO' | 'PLAJAH_SPORTS' | 'CREATOR_PAYMENTS' | 'ARTIST_MANAGER' | 'MELOS' | 'CAREER_IMPORT' | 'ARTIST_BOARDS' | 'EVENT_PRODUCTION_STUDIO' | 'TICKET_DESIGNER' | 'PLAJAH_PIXELS' | 'BIBLE' | 'AMBO' | 'FOLLOW_ALONG' | 'VESPERS' | 'ATHLETE_SHOWCASE' | 'MATCH_FAN_ROOMS' | 'CLASS_POINTS' | 'ACADEMIA_TOUR' | 'ACADEMIA_HOME' | 'ACADEMIA_LANDING' | 'ACADEMIA_COURSES' | 'SCHOOL_PACKAGE' | 'LANGUAGE_QUEST' | 'EDU_SOCIAL' | 'KIDS_LIBRARY' | 'ROOM' | 'PODCAST_STUDIO' | 'LIVE_TRANSLATION' | 'PODCAST_CALLIN' | 'PODCAST_LISTEN' | 'ORG_HUB' | 'TELEPROMPTER' | 'SPATIAL_MIXER' | 'MELOS_BEATS' | 'MEDIA_CONVERTER' | 'COMIC_MUSEUM' | 'AUDIUS_ARTIST' | 'PLAJAH_ELEVATE' | 'PLATFORM_CHANGELOG' | 'MEDIA_ROUTER' | 'CROSSOVER' | 'SMART_DIRECTOR' | 'HISTORY_QUEST' | 'TV_SEARCH' | 'TERRA' | 'TERRA_MAP' | 'TERRA_PASSPORT' | 'TERRA_STUDIO' | 'TERRA_SCOUT' | 'TERRA_FILM' | 'TERRA_FEED' | 'TERRA_LISTINGS' | 'TELA' | 'TELA_EMBED_DEMO' | 'CREATOR_HUB'
   | 'EVENTS' | 'EVENT_DETAIL' | 'EVENT_CREATE' | 'EVENT_DASHBOARD' | 'MY_TICKETS' | 'EVENT_KIOSK'
   | 'EVENT_PRODUCTION' | 'EVENT_PRODUCTION_DETAIL' | 'ARTIST_SERVICES'
   // Internal pitch documents — not linked in nav. Access via ?view=pitch-music|pitch-film|pitch-writer
@@ -2715,7 +2782,15 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   // Plajah Studio — Hootsuite/Buffer-class publishing & scheduling suite
   | 'PLAJAH_STUDIO'
   // FABULA — story-aware video editor (Productions / Slate / Edit)
-  | 'FABULA';
+  | 'FABULA'
+  // Plajah Gallery — shareable, self-contained photo experience (album-like, 3 view types)
+  | 'GALLERY'
+  // Plajah Gallery — the creation / edit editor (Phase 2)
+  | 'GALLERY_EDIT'
+  // Tela — the unified document canvas (P0: canvas + Writer + Grid devices)
+  | 'TELA'
+  // Tela reference-embed demo (P2b — live/follow-latest/pinned side by side)
+  | 'TELA_EMBED_DEMO';
 
 // ── Script Writing Studio ─────────────────────────────────────────────────────
 
@@ -3263,9 +3338,11 @@ export interface ChatRoom {
   protected?: boolean;
   /** Auto-delete window in days for a protected thread, or null/undefined to keep. */
   retentionDays?: number | null;
-  // ─── Production workspace ─────────────────────────────────────────────────
-  /** Marks a normal group room as a governed Film/Business production channel. */
-  workspaceType?: 'PRODUCTION';
+  // ─── Governed workspaces (Production / Organization) ──────────────────────
+  /** Marks a normal group room as a governed workspace channel: a Film/Business
+   *  production channel, or a native org workspace channel (business pages,
+   *  churches, labels — the Organization backbone). */
+  workspaceType?: 'PRODUCTION' | 'ORGANIZATION';
   productionId?: string;
   productionTitle?: string;
   productionChannelKey?: string;
@@ -3276,9 +3353,18 @@ export interface ChatRoom {
   radioChannel?: number;
   /** Nibbles is deliberately unavailable in governed production rooms. */
   nibblesEnabled?: boolean;
-  /** Announcements can be read by all crew while posting stays with production leadership. */
+  /** Announcements can be read by all crew while posting stays with production leadership.
+   *  Org channels reuse the SAME two fields (leads = org owner/admins) so ChatWindow's
+   *  existing enforcement applies unchanged. */
   postingPolicy?: 'ALL_MEMBERS' | 'PRODUCTION_LEADS';
   productionLeadUids?: string[];
+  // ─── Organization workspace (workspaceType 'ORGANIZATION') ────────────────
+  /** The organizations/{id} this channel belongs to. */
+  orgId?: string;
+  /** Denormalized org name for rail/space rendering without an org fetch. */
+  orgName?: string;
+  orgChannelKey?: string;
+  orgChannelKind?: 'ANNOUNCEMENTS' | 'GENERAL' | 'TEAM';
 }
 
 /**
@@ -5652,4 +5738,285 @@ export interface ProtectedThreadConfig {
   protected: boolean;
   /** Auto-delete window in days, or null to keep until manually removed. */
   retentionDays: number | null;
+}
+
+// ── Tela — the unified document canvas (P0) ──────────────────────────────────
+// CRDT-friendly by construction: every frame / device / block / cell has a
+// stable id, ordering lives in arrays of ids, and all mutations are ops-shaped
+// (see components/tela/TelaView.tsx applyTelaOp) so multiplayer later is not a
+// rewrite. Content lives OPFS-first (services/telaStore.ts); Firestore holds a
+// small per-doc manifest for listing/sync only.
+
+export type TelaFrameKind = 'PAPER' | 'SCREEN' | 'BOARD';
+
+export type TelaFramePreset =
+  | 'LETTER' | 'A4' | 'BOOKLET'            // paper
+  | 'SIGNAGE_1080x1920' | 'PHONE' | 'SQUARE' // screens
+  | 'FREE';                                 // freeform boards
+
+/** A bounded region on the canvas — what you print, present, publish. */
+export interface TelaFrame {
+  id: string;
+  kind: TelaFrameKind;
+  preset: TelaFramePreset;
+  /** Canvas-space position + natural size in CSS px (96dpi ⇒ 816px = 8.5in). */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Ordered devices hosted by this frame (ids into TelaDoc.devices). */
+  deviceIds: string[];
+  /** Optional user label shown in the frame chrome. */
+  label?: string;
+}
+
+export type TelaBlockKind = 'h1' | 'h2' | 'p' | 'li';
+
+/** One Writer block. `text` is inline HTML (only strong/em/br/code survive). */
+export interface TelaBlock {
+  id: string;
+  kind: TelaBlockKind;
+  text: string;
+}
+
+export interface TelaWriterDevice {
+  id: string;
+  type: 'WRITER';
+  blocks: TelaBlock[];
+}
+
+/** Cells keyed by A1-style refs; raw strings ('=A1+B2' formulas included). */
+export interface TelaGridDevice {
+  id: string;
+  type: 'GRID';
+  rows: number;
+  cols: number;
+  cells: Record<string, string>;
+}
+
+// ── Base (database) device — typed fields + rows (P1) ────────────────────────
+
+export type TelaFieldType = 'TEXT' | 'NUMBER' | 'SELECT' | 'CHECKBOX' | 'DATE';
+
+/** One typed column in a Base. */
+export interface TelaField {
+  id: string;
+  name: string;
+  type: TelaFieldType;
+  /** SELECT choices (ignored by other types). */
+  options?: string[];
+}
+
+/** One Base record: field id → cell value (all stringly-typed; CHECKBOX = '1'|''). */
+export interface TelaRow {
+  id: string;
+  values: Record<string, string>;
+  /**
+   * When present, this row was produced by a binding and is re-synced (replaced)
+   * whenever the source changes. Manual rows never carry this tag, so they are
+   * never touched by derivation.
+   */
+  derivedFromBindingId?: string;
+}
+
+/** Database device — the system of record other devices bind to. P1 view = table. */
+export interface TelaBaseDevice {
+  id: string;
+  type: 'BASE';
+  name?: string;
+  fields: TelaField[];
+  rows: TelaRow[];
+}
+
+/** Input surface writing into a Base (in the same doc, by device id). */
+export interface TelaFormDevice {
+  id: string;
+  type: 'FORM';
+  baseDeviceId?: string;
+  title?: string;
+}
+
+// ── Vector device — SVG objects, resolution-independent (P2) ─────────────────
+// Rendered as SVG so every object (and TEXT via <text>) stays razor-sharp at any
+// zoom — this satisfies the sharp-text mandate for DOM/SVG postures. The WGSL /
+// Slug analytic-curve text engine (spec §04) is a LATER dedicated push; SVG text
+// delivers sharp-at-zoom today.
+
+export type TelaVectorObjectKind = 'RECT' | 'ELLIPSE' | 'LINE' | 'PATH' | 'TEXT';
+
+/** One vector object. Box kinds use x/y/w/h; LINE/PATH use `points` (flat pairs). */
+export interface TelaVectorObject {
+  id: string;
+  kind: TelaVectorObjectKind;
+  /** Bounding box in artboard px (RECT / ELLIPSE / TEXT origin box). */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** LINE = [x1,y1,x2,y2]; PATH = flat polyline [x0,y0,x1,y1,…] in artboard px. */
+  points?: number[];
+  fill: string;        // css color or 'none'
+  stroke: string;      // css color or 'none'
+  strokeWidth: number;
+  rotation: number;    // degrees, about the object's own centre
+  opacity: number;     // 0..1
+  // ── TEXT-only ──
+  text?: string;
+  fontSize?: number;
+  fontFamily?: string;
+  fontWeight?: number;
+  /**
+   * When set, a TEXT object renders the plain text of that Writer device live
+   * (the binding-graph "text" edge). The object's own `text` is kept as a
+   * fallback / caption and is never destroyed by the binding.
+   */
+  boundWriterDeviceId?: string;
+}
+
+/** Vector design surface — an artboard of SVG objects (z-order = array order). */
+export interface TelaVectorDevice {
+  id: string;
+  type: 'VECTOR';
+  name?: string;
+  /** Artboard size in px; objects are positioned within. */
+  width: number;
+  height: number;
+  /** Index 0 = back of the stack, last = front. */
+  objects: TelaVectorObject[];
+}
+
+// ── Image device — stacked raster layers + non-destructive adjustments (P2) ──
+// Adjustments apply via CSS `filter` and blend via CSS `mix-blend-mode` — honest
+// for P2; a GPU/canvas bake is a later push.
+
+export type TelaBlendMode =
+  | 'normal' | 'multiply' | 'screen' | 'overlay' | 'darken' | 'lighten'
+  | 'color-dodge' | 'color-burn' | 'hard-light' | 'soft-light'
+  | 'difference' | 'exclusion' | 'hue' | 'saturation' | 'color' | 'luminosity';
+
+/** Non-destructive per-layer adjustments (neutral = the defaults below). */
+export interface TelaImageAdjust {
+  brightness: number; // 1 = neutral
+  contrast: number;   // 1 = neutral
+  saturate: number;   // 1 = neutral
+  exposure: number;   // 0 = neutral (stops-ish, folded into brightness)
+  blur: number;       // px, 0 = none
+}
+
+export interface TelaImageLayer {
+  id: string;
+  name?: string;
+  /** Firebase Storage download URL, a remote URL, or a guest object: URL. */
+  src: string;
+  /** Present when uploaded to Storage (users/{uid}/tela/…) — lets us clean up. */
+  storagePath?: string;
+  /** Guest object: URLs don't survive a reload — flagged so the UI can say so. */
+  sessionOnly?: boolean;
+  x: number;
+  y: number;
+  scale: number;      // 1 = natural
+  opacity: number;    // 0..1
+  blend: TelaBlendMode;
+  visible: boolean;
+  adjust: TelaImageAdjust;
+}
+
+/** Raster design surface — a stack of image layers (z-order = array order). */
+export interface TelaImageDevice {
+  id: string;
+  type: 'IMAGE';
+  name?: string;
+  width: number;
+  height: number;
+  /** Index 0 = bottom of the stack, last = top. */
+  layers: TelaImageLayer[];
+}
+
+export type TelaDevice =
+  | TelaWriterDevice | TelaGridDevice | TelaBaseDevice | TelaFormDevice
+  | TelaVectorDevice | TelaImageDevice;
+
+// ── The binding graph — typed, directional links between devices (P1) ─────────
+// A binding is `source device · selector → target device · role`. Edits flow
+// downstream live; targets restyle, never restate. Two concrete kinds ship in
+// P1: 'items' (Writer list/paragraph lines → Base rows) and 'ref' (Grid formula
+// reaching another device, e.g. =Sheet2!A1 / =SUM(Orders.price)).
+
+export type TelaBindingKind = 'items' | 'ref';
+
+export interface TelaBinding {
+  id: string;
+  kind: TelaBindingKind;
+  sourceDeviceId: string;
+  /** What part of the source feeds the binding (e.g. 'items' = list/para lines). */
+  sourceSelector: string;
+  targetDeviceId: string;
+  /** The role the data plays in the target (e.g. 'rows'). */
+  targetRole: string;
+  /** items→base field mapping: which Base field receives the text / the number. */
+  mapping?: { text?: string; number?: string };
+}
+
+/** One Tela file = one canvas. Content bundle stored in OPFS; manifest synced. */
+export interface TelaDoc {
+  id: string;
+  ownerId: string;
+  title: string;
+  /** Ordered — index 0 is the frame Page posture opens on. */
+  frames: TelaFrame[];
+  /** Device store, referenced from frames by id. */
+  devices: Record<string, TelaDevice>;
+  /** The binding graph (P1). Optional for back-compat with P0 bundles. */
+  bindings?: TelaBinding[];
+  createdAt: number;
+  updatedAt: number;
+  // ── Versioning (P2b — the platform document layer) ───────────────────────
+  /**
+   * Published lock state. `true` after a Lock/Publish; an author must Unlock
+   * (rights-gated) before editing. Absent on P0/P1 bundles (treated as unlocked).
+   */
+  locked?: boolean;
+  /**
+   * The version id most recently published from this doc. `follow-latest`
+   * embeds resolve to this snapshot; the LIVE doc keeps mutating past it while
+   * unlocked. Absent until the first Lock.
+   */
+  currentVersionId?: string;
+}
+
+/** The lightweight listing/sync record (the only part Firestore sees in P0). */
+export interface TelaDocMeta {
+  id: string;
+  ownerId: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  /** Newest published version (P2b) — mirrors TelaDoc.currentVersionId. */
+  latestVersionId?: string;
+}
+
+// ── Versions — immutable published snapshots (P2b) ───────────────────────────
+// Lock = publish: the doc bundle is frozen under a new versionId. Embeds that
+// follow-latest jump to the newest version; sold/licensed copies PIN to the
+// versionId they were bought at and never mutate under the reader. Stored in
+// OPFS under /tela/versions/<docId>/<versionId>.json (localStorage fallback);
+// content stays on-device exactly like the live bundle.
+
+/** One immutable published snapshot of a doc. */
+export interface TelaVersion {
+  versionId: string;
+  docId: string;
+  createdAt: number;
+  /** The frozen doc bundle at publish time (JSON-serializable, deep-cloned). */
+  bundle: TelaDoc;
+  /** Optional human label ("v3", "Spring menu") — informational only. */
+  label?: string;
+}
+
+/** Lightweight version listing record (no bundle). */
+export interface TelaVersionMeta {
+  versionId: string;
+  docId: string;
+  createdAt: number;
+  label?: string;
 }
