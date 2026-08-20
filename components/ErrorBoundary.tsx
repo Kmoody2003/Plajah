@@ -14,12 +14,22 @@ interface State {
   culprit: string | null;
 }
 
+// Transient backend errors (quota/permission on a single listener) — a soft
+// React reset lets the listener retry and usually survives.
+const isRecoverableBackendError = (error: Error | null): boolean =>
+  !!error && /code=resource-exhausted|code=permission-denied/i.test(error.message || '');
+
 // Known firebase-js-sdk defect: after a quota/permission error on its Watch
 // stream, Firestore throws "INTERNAL ASSERTION FAILED: Unexpected state
-// (ID: ca9/b815)" from listener dispatch. It's backend noise, not an app
-// bug — recovering instead of crashing keeps reading/playback alive.
-const isRecoverableBackendError = (error: Error | null): boolean =>
-  !!error && /FIRESTORE.*INTERNAL ASSERTION|code=resource-exhausted|code=permission-denied/i.test(error.message || '');
+// (ID: ca9/b815)" from the persistent-listen dispatch. Unlike the transient
+// errors above, this corrupts the Firestore SDK singleton for the LIFE OF THE
+// PAGE: a soft React reset just re-mounts into the same corrupted SDK and
+// re-throws on the next snapshot — the flickering crash loop. The only real
+// recovery is a hard reload, which reinitializes Firestore from scratch.
+const isFirestoreInternalAssertion = (error: Error | null): boolean =>
+  !!error && /FIRESTORE.*INTERNAL ASSERTION FAILED/i.test(error.message || '');
+
+const FS_RELOAD_KEY = 'fs_assert_reload_at';
 
 /** Pull the first `at <Component>` frame out of a React component stack. */
 const firstFrame = (stack?: string | null): string | null => {
@@ -49,6 +59,24 @@ class ErrorBoundary extends React.Component<Props, State> {
     // SW/caches and hard-reload automatically so the user never has to see (or tap through) the
     // crash screen. Loop-guarded internally.
     if (isChunkLoadError(error) || culprit === 'Lazy') { recoverFromStaleChunk(); return; }
+    // Fatal Firestore SDK corruption → hard-reload ONCE to reinitialize the SDK.
+    // A soft reset here is what produces the flickering crash loop. Loop-guarded:
+    // if we already reloaded for this within 15s (a deterministic re-crash), stop
+    // and leave the crash screen up rather than reload-looping.
+    if (isFirestoreInternalAssertion(error)) {
+      try {
+        const now = Date.now();
+        const last = parseInt(sessionStorage.getItem(FS_RELOAD_KEY) || '0', 10);
+        if (!last || now - last > 15_000) {
+          sessionStorage.setItem(FS_RELOAD_KEY, String(now));
+          console.warn('[ErrorBoundary] Firestore internal assertion — hard reloading to reinitialize the SDK.');
+          window.location.reload();
+          return;
+        }
+        console.error('[ErrorBoundary] Firestore assertion recurred right after reload — leaving the crash screen up (no reload loop).');
+      } catch { /* sessionStorage unavailable → fall through to the static screen */ }
+      return; // never fall through to the soft auto-recovery (that is the flicker)
+    }
     if (isRecoverableBackendError(error)) {
       const now = Date.now();
       this.autoRecoveries = this.autoRecoveries.filter(t => now - t < 30_000);
@@ -85,6 +113,9 @@ class ErrorBoundary extends React.Component<Props, State> {
     // re-mount into the same dead chunk. force=true so a manual tap always fully recovers,
     // even inside the auto-recovery loop-guard window.
     if (isChunkLoadError(this.state.error) || this.state.culprit === 'Lazy') { recoverFromStaleChunk(true); return; }
+    // Firestore SDK corruption is only cleared by a real reload — a soft reset
+    // re-mounts into the same broken SDK. (User-initiated, so no loop-guard.)
+    if (isFirestoreInternalAssertion(this.state.error)) { try { window.location.reload(); } catch { /* */ } return; }
     this.setState({ hasError: false, error: null, culprit: null });
     if (this.props.onReset) { this.props.onReset(); return; }
     const lastErrorTime = sessionStorage.getItem('last_error_time');
