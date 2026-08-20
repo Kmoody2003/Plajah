@@ -822,9 +822,11 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                 </button>
               );
             })}
+          </nav>
 
-            {/* More overflow — everything else stays reachable */}
-            <div className="relative shrink-0">
+          {/* More overflow — sits OUTSIDE the horizontally-scrolling lens nav, whose
+              overflow-x-auto would otherwise clip this dropdown (so it opened invisibly). */}
+          <div className="relative shrink-0">
               <button
                 onClick={() => setMoreOpen(o => !o)}
                 aria-haspopup="menu"
@@ -865,7 +867,6 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                 </>
               )}
             </div>
-          </nav>
 
           {/* Search + Upload */}
           <div className="ml-auto flex items-center gap-2">
