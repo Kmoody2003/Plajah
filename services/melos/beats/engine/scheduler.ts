@@ -18,7 +18,7 @@ export interface SchedulerDeps {
   // rng is injectable so offline renders are deterministic (seeded) while live stays random —
   // the render-twice-byte-identical quality gate depends on this.
   rng(): number;
-  trigger(padIdx: number, vel127: number, when: number, gateSec?: number, semiOffset?: number): void;
+  trigger(padIdx: number, vel127: number, when: number, gateSec?: number, semiOffset?: number, pan?: number, stepFx?: number): void;
   startAudioClip(track: ArrangeTrack, clip: TimelineClip, when: number, offsetIntoClipSec: number): void;
   /** Instrument tracks: one MIDI note, at an absolute context time, for `durSec`. */
   startInstrumentNote(track: ArrangeTrack, note: NoteEvent, when: number, durSec: number): void;
@@ -132,7 +132,8 @@ export class StepScheduler {
       if (step.p !== undefined && step.p < 1 && d.rng() > step.p) continue;
       const when = this.eventTime(beat, localStep, doc, step.micro);
       const sustaining = (doc.kit[padIdx]?.env.sustain || 0) > 0.001;
-      d.trigger(padIdx, step.v, when, sustaining ? this.legatoGateSec(doc, pattern, padIdx, localStep) : undefined);
+      // Per-step pitch + pan (Glass graph editor) + Step-FX slot ride the trigger.
+      d.trigger(padIdx, step.v, when, sustaining ? this.legatoGateSec(doc, pattern, padIdx, localStep) : undefined, step.pitch ?? 0, step.pan, step.fx);
     }
     // Pitch-roll notes: explicit gate from the drawn length, per-note pitch offset.
     if (pattern.melo) {

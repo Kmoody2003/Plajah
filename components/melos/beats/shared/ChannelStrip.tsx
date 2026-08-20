@@ -6,6 +6,9 @@ import React, { useRef } from 'react';
 import { Knob } from './Knob';
 import { SURFACE_RAISED } from '../theme';
 
+/** A single aux-send control, rendered as a small knob in the vertical column beside the fader. */
+export interface SendKnob { label: string; color: string; value: number; onChange: (v: number) => void }
+
 export interface ChannelStripProps {
   label: string;
   color?: string;
@@ -19,6 +22,8 @@ export interface ChannelStripProps {
   dimmed?: boolean;          // preserved/inert channels (imported plugin tracks)
   compact?: boolean;         // Timeline dock density
   wide?: boolean;            // Master
+  /** Aux sends — a vertical column of knobs beside the fader, so any number of buses fits. */
+  sends?: SendKnob[];
   children?: React.ReactNode; // extra controls (limiter chip, GR readout)
   onGain?: (db: number) => void;
   onPan?: (p: number) => void;
@@ -27,6 +32,34 @@ export interface ChannelStripProps {
 }
 
 const dbFormat = (db: number) => (db <= -60 ? '-inf' : `${db >= 0 ? '+' : ''}${db.toFixed(1)}`);
+
+/** A tiny send knob for the strip's vertical send column. Drag up/down; label rides on top. */
+const SendMini: React.FC<{ send: SendKnob }> = ({ send }) => {
+  const drag = useRef<{ y: number; v: number } | null>(null);
+  const frac = Math.max(0, Math.min(1, send.value / 1.5)); // 0..1.5 send range
+  return (
+    <div className="flex flex-col items-center" title={`${send.label}: ${send.value < 0.001 ? 'off' : `${(20 * Math.log10(send.value)).toFixed(0)} dB`}`}>
+      <div
+        role="slider"
+        aria-label={`Send to ${send.label}`}
+        aria-valuenow={Math.round(send.value * 100) / 100}
+        tabIndex={0}
+        onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); drag.current = { y: e.clientY, v: send.value }; }}
+        onPointerMove={(e) => { const d = drag.current; if (!d) return; send.onChange(Math.max(0, Math.min(1.5, d.v + (d.y - e.clientY) * 0.012))); }}
+        onPointerUp={() => { drag.current = null; }}
+        onDoubleClick={() => send.onChange(0)}
+        className="w-[14px] h-[14px] rounded-full cursor-ns-resize focus:outline-none focus:ring-1 focus:ring-[#FF8C00]/60"
+        style={{
+          background: `conic-gradient(${send.color} ${Math.round(frac * 100)}%, rgba(255,255,255,0.12) 0)`,
+          WebkitMask: 'radial-gradient(circle, transparent 3.5px, #000 4px)',
+          mask: 'radial-gradient(circle, transparent 3.5px, #000 4px)',
+          touchAction: 'none',
+        }}
+      />
+      <span className="text-[6.5px] font-bold tracking-tight -mt-0.5" style={{ color: send.value > 0.001 ? send.color : 'rgba(255,255,255,0.3)' }}>{send.label}</span>
+    </div>
+  );
+};
 
 export const ChannelStrip: React.FC<ChannelStripProps> = (p) => {
   const drag = useRef<{ y: number; db: number } | null>(null);
@@ -77,6 +110,14 @@ export const ChannelStrip: React.FC<ChannelStripProps> = (p) => {
               style={{ height: `${Math.min(1, p.meter || 0) * 100}%`, background: (p.meter || 0) > 0.95 ? '#EF4444' : (p.meterColor || '#06D6A0') }}
             />
           </div>
+          {/* Aux sends — a vertical column beside the fader, so 2, 4, 8 buses all fit the same strip. */}
+          {p.sends && p.sends.length > 0 && (
+            <div className="flex flex-col gap-1 justify-start overflow-y-auto pl-0.5" style={{ maxHeight: faderH }}>
+              {p.sends.map((s, i) => (
+                <SendMini key={i} send={s} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 

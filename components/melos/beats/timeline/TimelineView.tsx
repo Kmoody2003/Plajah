@@ -13,6 +13,7 @@ import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine
 import { ingestSample, backupToLocker } from '../../../../services/melos/beats/sampleStore';
 import { MixerPanel } from '../shared/MixerPanel';
 import { PianoRoll } from './PianoRoll';
+import { TimelineEditPanel } from './TimelineEditPanel';
 import { InstrumentPanel } from '../instrument/InstrumentPanel';
 
 import { PLAYHEAD, SELECT, glassPanel } from '../theme';
@@ -20,6 +21,46 @@ import { PLAYHEAD, SELECT, glassPanel } from '../theme';
 const BEATS_PER_BAR = 4;
 const HEADER_W = 172;
 const LANE_H = 44;
+const PAD_LANE_H = 28;
+const STEPS_PER_BEAT = 4;
+
+// One MEKA pad's lane on the arrangement — the SAME channel the mixer and Glass drive, surfaced
+// here as a track. The lane is a canvas mirror of the pad's step row in the active pattern, tiled
+// across the song; clicking a step toggles it, so the drum grid is editable from the timeline too.
+const PadLane: React.FC<{
+  padIdx: number; color: string; steps: Record<number, { v: number } | undefined>;
+  patternLen: number; pxPerBeat: number; contentW: number; onToggle: (localStep: number) => void;
+}> = ({ color, steps, patternLen, pxPerBeat, contentW, onToggle }) => {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const stepW = pxPerBeat / STEPS_PER_BEAT;
+  const sig = Object.keys(steps).filter((k) => steps[Number(k)]?.v).join(',');
+  useEffect(() => {
+    const cv = ref.current; if (!cv) return; const g = cv.getContext('2d'); if (!g) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = contentW * dpr; cv.height = PAD_LANE_H * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, contentW, PAD_LANE_H);
+    const total = Math.ceil(contentW / stepW);
+    for (let gstep = 0; gstep < total; gstep++) {
+      const local = ((gstep % patternLen) + patternLen) % patternLen;
+      const s = steps[local];
+      if (!s?.v) continue;
+      const x = gstep * stepW;
+      const h = Math.max(4, (PAD_LANE_H - 8) * (s.v / 127));
+      g.fillStyle = color;
+      g.globalAlpha = 0.85;
+      g.fillRect(x + 0.5, (PAD_LANE_H - h) / 2, Math.max(2, stepW - 1.5), h);
+    }
+    g.globalAlpha = 1;
+  }, [sig, color, patternLen, stepW, contentW]);
+  return (
+    <canvas
+      ref={ref}
+      style={{ width: contentW, height: PAD_LANE_H, display: 'block', cursor: 'pointer' }}
+      onClick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); const gstep = Math.floor((e.clientX - r.left) / stepW); onToggle(((gstep % patternLen) + patternLen) % patternLen); }}
+      title="Click a step to toggle it — mirrors the MEKA grid"
+    />
+  );
+};
 
 interface TimelineViewProps {
   doc: GrooveDoc;
@@ -27,7 +68,7 @@ interface TimelineViewProps {
   beats: number;
   running: boolean;
   playMode: 'pattern' | 'song';
-  meters: { groups: number[]; master: number };
+  meters: { groups: number[]; master: number; sends: number[] };
   onMutate: (fn: (d: GrooveDoc) => void) => void;
   onPlayFrom: (fromBeats: number) => void;
   /** Room-owned: open a specific instrument's panel (so the add-picker can too). */
@@ -40,6 +81,9 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const [pxPerBeat, setPxPerBeat] = useState(14);
   const [selectedClip, setSelectedClip] = useState<string | null>(null);
   const [showMixer, setShowMixer] = useState(true);
+  const [showPads, setShowPads] = useState(true);
+  const [showEditor, setShowEditor] = useState(true);
+  const [editorH, setEditorH] = useState(240);
   const [openClip, setOpenClip] = useState<{ trackId: string; clipId: string } | null>(null);
   // Opening an instrument is owned by the room now (so the add-instrument picker can open one
   // from any view), and this view just asks. A local fallback keeps it working standalone.
@@ -164,6 +208,11 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
 
   const playheadX = p.running && p.playMode === 'song' ? p.beats * pxPerBeat : -1;
 
+  // The selected clip, resolved to {track,clip} for the docked detail editor below.
+  const selRef = selectedClip
+    ? (() => { for (const t of p.doc.arrangement) if (t.clips.some((c) => c.id === selectedClip)) return { trackId: t.id, clipId: selectedClip }; return null; })()
+    : null;
+
   // Draggable loop/cycle region on the ruler — move the body, drag either edge to resize; snaps
   // to the bar grid, and turns the loop on the moment you touch it.
   const loop = p.doc.loop ?? { on: false, startBeats: 0, endBeats: BEATS_PER_BAR * 4 };
@@ -230,6 +279,44 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
               {playheadX >= 0 && (
                 <div className="absolute top-0 bottom-0 w-[2px] z-20 pointer-events-none" style={{ left: HEADER_W + playheadX, background: PLAYHEAD, boxShadow: `0 0 12px ${PLAYHEAD}88` }} />
               )}
+              {/* MEKA pads — the SAME channels the mixer and Glass drive, surfaced as tracks so
+                  every view shares one track list. Lanes mirror (and edit) the step grid. */}
+              <div className="flex items-center gap-2 px-3 border-b border-white/[0.06] bg-[#0C0714] sticky left-0" style={{ height: 22, width: HEADER_W + contentW }}>
+                <button onClick={() => setShowPads((v) => !v)} className="flex items-center gap-1 text-[9px] uppercase tracking-[0.16em] text-white/45 hover:text-white font-semibold">
+                  {showPads ? <ChevronDown size={11} /> : <ChevronUp size={11} />} MEKA pads
+                </button>
+                <span className="text-[9px] text-white/20">{p.doc.kit.filter((k) => !k.empty).length} channels · click a step to edit the grid</span>
+              </div>
+              {showPads && p.doc.kit.map((pad, padIdx) => {
+                if (pad.empty) return null; // greyed placeholder pads aren't tracks
+                const mstyle = (on: boolean, c: string) => on ? { background: `${c}22`, borderColor: c, color: c } : { borderColor: 'rgba(255,255,255,0.16)', color: 'rgba(255,255,255,0.3)' };
+                return (
+                  <div key={pad.id} className="flex border-b border-white/[0.05]" style={{ height: PAD_LANE_H, opacity: pad.mute ? 0.5 : 1 }}>
+                    <div className="sticky left-0 z-10 flex items-center gap-1.5 px-3 bg-[#0C0714] border-r border-white/10" style={{ width: HEADER_W, minWidth: HEADER_W }}>
+                      <span className="w-[4px] h-4 rounded-[2px] flex-none" style={{ background: pad.color }} />
+                      <span className="flex-1 min-w-0 truncate text-[10.5px] text-white/70" title={pad.name}>{pad.name}</span>
+                      <span className="text-[7px] font-mono text-white/25 flex-none" title="Bus group">{'ABCD'[pad.group]}</span>
+                      <button onClick={() => p.onMutate((d) => { const x = d.kit[padIdx]; if (x) x.mute = !x.mute; })} className="w-[15px] h-[15px] rounded-[4px] border text-[7px] grid place-items-center flex-none" style={mstyle(!!pad.mute, '#fff')} aria-label={`Mute ${pad.name}`}>M</button>
+                    </div>
+                    <div className="relative flex-1" style={{ background: `repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0 1px, transparent 1px ${BEATS_PER_BAR * pxPerBeat}px)` }}>
+                      <PadLane
+                        padIdx={padIdx}
+                        color={pad.color}
+                        steps={(p.activePattern.steps[padIdx] ?? {}) as Record<number, { v: number } | undefined>}
+                        patternLen={Math.max(1, p.activePattern.length)}
+                        pxPerBeat={pxPerBeat}
+                        contentW={contentW}
+                        onToggle={(local) => p.onMutate((d) => {
+                          const pat = d.patterns.find((x) => x.id === p.activePattern.id); if (!pat) return;
+                          const r = pat.steps[padIdx] || (pat.steps[padIdx] = {});
+                          if (r[local]?.v) delete r[local]; else r[local] = { v: 100 };
+                        })}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+
               {p.doc.arrangement.filter((track) => !track.padOwned).map((track) => (
                 <div key={track.id} className="flex border-b border-white/[0.06]" style={{ height: LANE_H, opacity: track.foreign ? 0.65 : 1 }}>
                   <div className="sticky left-0 z-10 flex items-center gap-2 px-3 bg-[#0E0916] border-r border-white/10" style={{ width: HEADER_W, minWidth: HEADER_W }}>
@@ -425,12 +512,18 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
           </div>
         </div>
 
+        {/* Bitwig-style docked detail editor — devices / notes / audio for the selected clip. */}
+        {showEditor && <TimelineEditPanel doc={p.doc} selected={selRef} onMutate={p.onMutate} height={editorH} onResize={setEditorH} />}
+
         <div className="flex items-center gap-3 px-3 h-8 border-t border-white/10 flex-none text-[10px] text-white/35">
           <span>Snap: <b className="text-white/60">1 bar</b> (trim: 1 beat)</span>
           <label className="flex items-center gap-1.5">Zoom
             <input type="range" min={6} max={48} value={pxPerBeat} onChange={(e) => setPxPerBeat(Number(e.target.value))} className="w-28 accent-[#D0BCFF]" />
           </label>
           <span className="flex-1" />
+          <button onClick={() => setShowEditor((v) => !v)} className="flex items-center gap-1 text-white/45 hover:text-white">
+            {showEditor ? <ChevronDown size={11} /> : <ChevronUp size={11} />} Editor
+          </button>
           <button onClick={() => setShowMixer((v) => !v)} className="flex items-center gap-1 text-white/45 hover:text-white">
             {showMixer ? <ChevronDown size={11} /> : <ChevronUp size={11} />} Mixer
           </button>

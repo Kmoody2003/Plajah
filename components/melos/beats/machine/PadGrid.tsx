@@ -17,14 +17,21 @@ interface PadGridProps {
   onDropSample?: (padIdx: number, file: File) => void;
   /** Live Samples-room state, so a pad shows the CURRENT clearance, not the stamped one. */
   melosSamples?: MelosSampleRef[];
+  /** Which Group (bank of 16) to show — pad indices are bank*16 + cell. */
+  bank?: number;
+  /** Click an empty pad → add an instrument onto it. */
+  onAddToPad?: (padIdx: number) => void;
 }
 
 const HIT_GLOW_MS = 160;
 
-export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad, onDropSample, melosSamples }) => {
+export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad, onDropSample, melosSamples, bank = 0, onAddToPad }) => {
   const engine = BeatsEngine.get();
+  const base = bank * 16;
 
   const hit = useCallback((padIdx: number, e: React.PointerEvent) => {
+    const pad = doc.kit[padIdx];
+    if (pad?.empty) { onAddToPad?.(padIdx); onSelectPad(padIdx); return; } // empty pad → add an instrument
     const el = e.currentTarget as HTMLElement;
     const rect = el.getBoundingClientRect();
     const yRel = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
@@ -32,7 +39,7 @@ export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad,
     const vel = pressure ? Math.round(30 + pressure * 97) : Math.round(127 - yRel * 82);
     void engine.init().then(() => engine.trigger(padIdx, vel));
     onSelectPad(padIdx);
-  }, [engine, onSelectPad]);
+  }, [engine, onSelectPad, doc.kit, onAddToPad]);
 
   // Note-off: sustaining pads (env.sustain > 0) hold while pressed and release here.
   const lift = useCallback((padIdx: number) => { engine.release(padIdx); }, [engine]);
@@ -45,9 +52,10 @@ export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad,
         // Render top row first: pad index 0 is bottom-left.
         const rowFromTop = Math.floor(cell / 4);
         const col = cell % 4;
-        const padIdx = (3 - rowFromTop) * 4 + col;
+        const padIdx = base + (3 - rowFromTop) * 4 + col;
         const pad = doc.kit[padIdx];
         if (!pad) return <div key={cell} />;
+        const empty = !!pad.empty;
         const lit = now - engine.lastHit[padIdx] < HIT_GLOW_MS;
         const selected = padIdx === selectedPad;
         return (
@@ -67,20 +75,28 @@ export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad,
             className="relative rounded-xl border text-left transition-shadow duration-100"
             style={{
               aspectRatio: '1.25',
-              background: lit ? 'rgba(255,140,0,0.22)' : SURFACE_CELL,
-              borderColor: lit ? 'rgba(255,140,0,0.6)' : selected ? SELECT : 'rgba(255,255,255,0.09)',
-              boxShadow: lit ? `0 0 22px ${ARMED}59` : selected ? `0 0 0 1px ${SELECT}` : 'none',
+              background: empty ? 'rgba(255,255,255,0.015)' : lit ? 'rgba(255,140,0,0.22)' : SURFACE_CELL,
+              borderColor: empty ? (selected ? 'rgba(212,0,85,0.5)' : 'rgba(255,255,255,0.07)') : lit ? 'rgba(255,140,0,0.6)' : selected ? SELECT : 'rgba(255,255,255,0.09)',
+              borderStyle: empty ? 'dashed' : 'solid',
+              boxShadow: lit ? `0 0 22px ${ARMED}59` : selected && !empty ? `0 0 0 1px ${SELECT}` : 'none',
+              opacity: empty ? 0.5 : 1,
               touchAction: 'none',
             }}
-            aria-label={`Pad ${padIdx + 1}: ${pad.name}`}
+            aria-label={empty ? `Empty pad ${padIdx + 1} — add an instrument` : `Pad ${padIdx + 1}: ${pad.name}`}
           >
-            <span className="absolute top-1.5 right-2 text-[8px] font-mono text-white/25">{GROUP_NAMES[pad.group]}{pad.choke ? `·c${pad.choke}` : ''}</span>
-            <span
-              className="absolute bottom-1.5 left-2 right-2 text-[11px] truncate font-medium"
-              style={{ color: lit ? ARMED : selected ? '#fff' : 'rgba(255,255,255,0.55)' }}
-            >
-              {pad.name}
-            </span>
+            {empty ? (
+              <span className="absolute inset-0 grid place-items-center text-[16px] font-light text-white/25">+</span>
+            ) : (
+              <>
+                <span className="absolute top-1.5 right-2 text-[8px] font-mono text-white/25">{GROUP_NAMES[pad.group]}{pad.choke ? `·c${pad.choke}` : ''}</span>
+                <span
+                  className="absolute bottom-1.5 left-2 right-2 text-[11px] truncate font-medium"
+                  style={{ color: lit ? ARMED : selected ? '#fff' : 'rgba(255,255,255,0.55)' }}
+                >
+                  {pad.name}
+                </span>
+              </>
+            )}
             {pad.source === 'sample' && pad.sample && !engine.hasSampleBuffer(pad.sample.key) && (
               <span className="absolute top-1.5 left-2 text-[8px] text-[#F59E0B]">loading…</span>
             )}

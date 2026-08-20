@@ -151,7 +151,7 @@ export const BrowserRail: React.FC<BrowserRailProps> = ({ doc, selectedPad, onSe
                 {SYNTH_VOICES.map((v) => (
                   <button
                     key={v.id}
-                    onClick={() => onMutate((d) => { const p = d.kit[selectedPad]; if (p) { p.source = 'synth'; p.synthVoice = v.id; } })}
+                    onClick={() => onMutate((d) => { const p = d.kit[selectedPad]; if (p) { p.source = 'synth'; p.synthVoice = v.id; p.empty = false; } })}
                     className={`h-6 rounded-lg text-[10px] border ${pad.source === 'synth' && pad.synthVoice === v.id ? 'bg-white/15 border-white/25 text-white font-semibold' : 'border-white/10 text-white/40 hover:text-white'}`}
                   >{v.label}</button>
                 ))}

@@ -33,7 +33,7 @@ export interface BeatsMobileProps {
   suspended: boolean;
   frame: number;
   playMode: 'pattern' | 'song';
-  meters: { groups: number[]; master: number };
+  meters: { groups: number[]; master: number; sends: number[] };
   limiterReduction: number;
   recording: boolean;
   onMutate: (fn: (d: GrooveDoc) => void) => void;

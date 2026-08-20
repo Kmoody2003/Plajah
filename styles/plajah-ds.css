@@ -442,3 +442,88 @@ textarea.pj-input { height: auto; min-height: 96px; padding-block: var(--pj-spac
   .pj-actions { flex-direction: column-reverse; align-items: stretch; }
   .pj-actions > .pj-btn { width: 100%; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   COMMAND MENU  (right-click / context menu)
+   The one context-menu surface. React consumers use useContextMenu() from
+   components/ui; these classes are the geometry + skin. Menus portal to <body>,
+   so they sit above every panel and never inherit a clipping ancestor.
+   Spec: docs/PLAJAH_DESIGN_SYSTEM.md
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --pj-menu-bg:      rgba(12, 12, 22, 0.96);
+  --pj-menu-hl:      var(--pj-cyan-soft);
+  --pj-menu-hl-line: rgba(0, 218, 243, 0.38);
+}
+.theme-light,
+.theme-pastel {
+  --pj-menu-bg:      rgba(255, 255, 255, 0.97);
+  --pj-menu-hl:      var(--pj-cyan-soft);
+  --pj-menu-hl-line: rgba(0, 160, 190, 0.42);
+}
+
+/* Full-viewport, click-through layer that holds the (pointer-eventful) menus. */
+.pj-menu-layer { position: fixed; inset: 0; z-index: 1000; pointer-events: none; }
+
+.pj-menu {
+  position: fixed;
+  min-width: 210px;
+  max-width: 320px;
+  padding: var(--pj-space-1);
+  background: var(--pj-menu-bg);
+  -webkit-backdrop-filter: var(--blur-lg, blur(18px)) saturate(1.4);
+  backdrop-filter: var(--blur-lg, blur(18px)) saturate(1.4);
+  border: 1px solid var(--pj-border-strong);
+  border-radius: var(--pj-radius-sm);
+  box-shadow: var(--pj-elev-5);
+  color: var(--text-primary);
+  font-size: 13.5px;
+  line-height: 1.3;
+  pointer-events: auto;
+  user-select: none;
+  transform-origin: top left;
+  animation: pj-menu-pop 130ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+@keyframes pj-menu-pop {
+  from { opacity: 0; transform: scale(0.94) translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .pj-menu { animation: none; } }
+
+.pj-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--pj-space-3);
+  padding: 8px 10px;
+  border-radius: var(--pj-radius-xs);
+  cursor: pointer;
+  white-space: nowrap;
+  outline: none;
+}
+.pj-menu__ic  { width: 17px; flex: none; text-align: center; opacity: 0.9; display: inline-flex; justify-content: center; }
+.pj-menu__chk { width: 15px; flex: none; text-align: center; color: var(--pj-cyan); font-size: 13px; }
+.pj-menu__lbl { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
+.pj-menu__sc  { flex: none; font-size: 11px; letter-spacing: 0.02em; color: var(--on-surface-variant, rgba(255,255,255,0.55)); font-variant-numeric: tabular-nums; }
+.pj-menu__chev { flex: none; margin-left: 2px; font-size: 12px; color: var(--on-surface-variant, rgba(255,255,255,0.55)); }
+
+.pj-menu__item.is-active:not([aria-disabled="true"]) {
+  background: var(--pj-menu-hl);
+  box-shadow: inset 0 0 0 1px var(--pj-menu-hl-line);
+}
+.pj-menu__item[aria-disabled="true"] { opacity: 0.36; cursor: default; }
+
+.pj-menu__item.is-danger .pj-menu__ic,
+.pj-menu__item.is-danger .pj-menu__lbl { color: var(--pj-danger); }
+.pj-menu__item.is-danger.is-active:not([aria-disabled="true"]) {
+  background: var(--pj-danger-soft);
+  box-shadow: inset 0 0 0 1px var(--pj-danger-soft);
+}
+
+.pj-menu__sep { height: 1px; margin: 5px 8px; background: var(--pj-border); }
+.pj-menu__hdr {
+  display: flex; align-items: center; gap: var(--pj-space-2);
+  padding: 8px 10px 5px;
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--on-surface-variant, rgba(255,255,255,0.5));
+}
+.pj-menu__sw { width: 9px; height: 9px; border-radius: 3px; flex: none; }

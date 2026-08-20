@@ -2,7 +2,7 @@
 // Mixer — adds instruments through this, so "add an instrument" means the same thing everywhere
 // and a new instrument type is registered once rather than in four places.
 
-import { grooveUid, type ArrangeTrack, type InstrumentType } from './grooveDoc';
+import { grooveUid, firstEmptyPadIndex, addPadBank, type ArrangeTrack, type InstrumentType, type GrooveDoc } from './grooveDoc';
 import { newPatch, serializePatch } from '../instruments/onda/patch';
 
 export interface InstrumentDef {
@@ -70,6 +70,32 @@ export function addPadInstrument(
   track.name = presetName || `Pad ${padIdx + 1} · ${type === 'kera' ? 'KERA' : 'ONDA'}`;
   doc.arrangement.push(track);
   return track.id;
+}
+
+/**
+ * Maschine "Groups" fill rule: put a new instrument on the FIRST empty pad, creating a new bank of
+ * 16 when the current banks are full — so instruments fill pads consecutively and a full Group
+ * spawns the next. Returns the pad it landed on + the padOwned track id.
+ */
+export function addInstrumentToNextPad(
+  doc: GrooveDoc,
+  type: InstrumentType,
+  presetPatch?: ReturnType<typeof serializePatch>,
+  presetName?: string,
+): { padIdx: number; trackId: string } {
+  let padIdx = firstEmptyPadIndex(doc.kit);
+  if (padIdx < 0) padIdx = addPadBank(doc.kit); // every pad full → open a new Group, take its first pad
+  const trackId = addPadInstrument(doc, padIdx, type, presetPatch, presetName);
+  const pad = doc.kit[padIdx];
+  if (pad) {
+    pad.source = 'instrument';
+    pad.instrumentTrackId = trackId;
+    pad.empty = false;
+    pad.name = presetName || (type === 'kera' ? 'KERA' : 'ONDA');
+    pad.color = type === 'kera' ? '#00DAF3' : '#B84DFF';
+    if (pad.instrumentNote === undefined) pad.instrumentNote = 60;
+  }
+  return { padIdx, trackId };
 }
 
 /** Add an instrument track to the doc, disarming whatever was armed before. Returns its id. */

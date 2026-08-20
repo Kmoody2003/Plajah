@@ -19,7 +19,7 @@ import {
   TrendingUp, Mail, AppWindow, Repeat, MapPin, BookOpen,
   Plus, Radio, ArrowRight, ArrowUpRight, Wand2, Video, PenLine,
   FolderOpen, Globe, ScrollText, LogIn, Upload, Layers, Clock,
-  Megaphone, LayoutDashboard,
+  Megaphone, LayoutDashboard, Disc3, Grid3x3,
 } from 'lucide-react';
 import type { UserProfile, Album, IPWorld } from '../types';
 import MarketingKit from './MarketingKit';
@@ -204,6 +204,8 @@ const STUDIOS: StudioDef[] = [
    CommandSplitNav's NAV_SECTIONS exactly. ─────────────────────────────────── */
 const MORE_TOOLS: { id: string; label: string; icon: Lucide }[] = [
   { id: 'ARTIST_MANAGER', label: 'Artist Manager',    icon: Music2 },
+  { id: 'DJ_CONSOLE',     label: 'DJ Console',        icon: Disc3 },
+  { id: 'PLAJAH_PIXELS',  label: 'Plajah Pixels',     icon: Grid3x3 },
   { id: 'TV_STUDIO',      label: 'TV Studio',         icon: Clapperboard },
   { id: 'AMBO',           label: 'Ambo',              icon: MonitorPlay },
   { id: 'MEDIA_ROUTER',   label: 'Router & Switcher', icon: Cctv },

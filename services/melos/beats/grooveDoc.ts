@@ -32,6 +32,9 @@ export interface PadConfig {
   group: 0 | 1 | 2 | 3;         // bus A–D
   choke: number;                // 0 = none, 1–8 = choke group (open/closed hat pairs etc.)
   mute?: boolean;               // per-channel mute (FL rack style) — scheduler skips, live hits too
+  // A greyed placeholder in a Maschine "Group" (bank of 16) — no sound yet. The scheduler and live
+  // hits skip it; the pad grid shows it dimmed; adding an instrument fills the first empty pad.
+  empty?: boolean;
   gainDb: number;
   pan: number;                  // -1..1
   pitchSemis: number;           // -24..24, via playbackRate — no timestretch in P1
@@ -47,12 +50,36 @@ export interface PadConfig {
   // along so an uncleared sample is visible ON THE PAD — you find out before you build a
   // track on it, not at release time. Refreshed from the live Samples room on every render.
   melos?: { sampleId: string; title: string; clearance: string };
+  // Mixer channel: this pad's own insert chain + aux sends (Bitwig/Studio One parity — every
+  // channel, not just the buses). Loosely serialized like the other engine-agnostic fields.
+  inserts?: FxInstance[];
+  sends?: number[];  // level per send bus
+  // Step Effects (Glass): a small bounded set of per-pad "step FX" slots. A step references one
+  // by index (Step.fx); a slot is a device chain + optional send routing that the step's voice
+  // runs through. Bounded (not per-unique-step) so the graph stays cheap. The mixer's per-pad
+  // Step-FX switch (`stepFxOn`) master-bypasses them.
+  stepFx?: StepFxSlot[];
+  stepFxOn?: boolean;   // mixer master switch for this pad's step effects (default on)
+}
+
+/** One step-effect slot: a named device chain + a send-bus target, assignable to steps. */
+export interface StepFxSlot {
+  id: string;
+  name: string;
+  chain: FxInstance[];      // the inline effects the step's voice runs through
+  sendBus?: number;         // route this step to send bus index (in addition to dry), or undefined
+  sendLevel?: number;       // 0..1.5
 }
 
 export interface Step {
   v: number;      // velocity 1–127
   p?: number;     // probability 0..1 (default 1)
   micro?: number; // -0.5..0.5 of a step — humanization / imported-note residual
+  // FL-style per-step performance (Glass graph editor). All optional so old patterns stay valid.
+  pitch?: number; // -24..24 semitones, added to the pad's tuning for this hit only
+  pan?: number;   // -1..1 pan for this hit only (overrides the pad's pan)
+  /** Step Effects: index into the pad's stepFx slots (feature 2), or undefined = dry. */
+  fx?: number;
 }
 
 // A drawn note in the pitch roll: semitone offset from the pad's own tuning, velocity, and
@@ -140,14 +167,44 @@ export interface ArrangeTrack {
   padOwned?: boolean;
   padIndex?: number;
   foreign?: { trackXml: string }; // imported .dawproject track we render but don't fully model
+  // Mixer channel: this track's own insert chain + aux sends.
+  inserts?: FxInstance[];
+  sends?: number[];
+}
+
+import type { FxInstance } from './fx/devices';
+
+/** A console channel with a real insert chain + aux sends — the mixer's slot architecture. */
+export interface MixerChannel {
+  gainDb: number;
+  mute: boolean;
+  solo: boolean;
+  /** Insert FX chain (fx/devices.ts) — runs in the bus signal path. */
+  inserts?: FxInstance[];
+  /** Aux send level per send bus, index = send-bus index. */
+  sends?: number[];
+}
+
+/** A send/return bus (FX 1, FX 2) with its own insert chain — typically a reverb or delay. */
+export interface SendBusConfig {
+  name: string;
+  gainDb: number;       // return level
+  inserts?: FxInstance[];
 }
 
 export interface MixerState {
-  groups: { gainDb: number; mute: boolean; solo: boolean }[]; // length 4 (A–D)
+  groups: MixerChannel[]; // length 4 (A–D)
+  /** FX 1 / FX 2 return buses. Optional for back-compat; consumers default to two. */
+  sendBuses?: SendBusConfig[];
   // master.eq is a serialized SpectraState (EQ + dynamics on the mix bus); master.mastering is a
   // serialized MasteringState (the Pressing — era engine + width + drive, fx/mastering.ts). Both
   // loosely typed so grooveDoc stays engine-agnostic, like instrument.patch / instrument.kera.
   master: { gainDb: number; limiterOn: boolean; eq?: Record<string, unknown>; mastering?: Record<string, unknown> };
+}
+
+/** The default two send buses — created lazily so old docs upgrade cleanly. */
+export function defaultSendBuses(): SendBusConfig[] {
+  return [{ name: 'FX 1', gainDb: 0 }, { name: 'FX 2', gainDb: 0 }];
 }
 
 export interface GrooveDoc {
@@ -159,7 +216,7 @@ export interface GrooveDoc {
   // Song-mode loop/cycle region (beats). Optional for back-compat with docs saved before it
   // existed — consumers default it off. Pattern mode loops the pattern itself, independently.
   loop?: { on: boolean; startBeats: number; endBeats: number };
-  kit: PadConfig[]; // exactly 16; index = pad position, 0 = bottom-left (Maschine order)
+  kit: PadConfig[]; // a MULTIPLE of 16 (Maschine "Groups" — banks of 16); index 0 = bank 0's bottom-left
   patterns: Pattern[];
   arrangement: ArrangeTrack[];
   mixer: MixerState;
@@ -175,7 +232,15 @@ export interface GrooveDoc {
 // pitch, parameter locks, AHDSR, per-pad sends.
 
 export const PAD_COUNT = 16;
-export const GROUP_NAMES = ['A', 'B', 'C', 'D'] as const;
+export const PAD_BANK = 16;                       // pads per Maschine "Group"
+export const GROUP_NAMES = ['A', 'B', 'C', 'D'] as const;  // BUS groups A–D (distinct from pad banks)
+export const BANK_LETTERS = 'ABCDEFGHIJKLMNOP';   // pad-bank labels (Group A, B, …)
+
+/** How many banks of 16 the kit currently spans (min 1). */
+export function bankCount(kit: PadConfig[]): number { return Math.max(1, Math.ceil(kit.length / PAD_BANK)); }
+
+/** Index of the first empty (soundless) pad, or -1 if every pad is filled. */
+export function firstEmptyPadIndex(kit: PadConfig[]): number { return kit.findIndex((p) => p.empty); }
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -210,6 +275,28 @@ export function defaultPad(idx: number): PadConfig {
     filter: { type: 'off', cutoff: 8000, q: 0.8 },
     velCurve: 'linear',
   };
+}
+
+/** A greyed placeholder pad — no sound until an instrument fills it. `group` cycles the bus by
+ *  bank so a new Group lands on a fresh bus by default. */
+export function emptyPad(idx: number): PadConfig {
+  return {
+    id: uid(), name: 'Empty', color: '#2A2431',
+    source: 'synth', sample: null, synthVoice: 'sub',
+    group: (Math.floor(idx / PAD_BANK) % 4) as 0 | 1 | 2 | 3, choke: 0,
+    empty: true,
+    gainDb: 0, pan: 0, pitchSemis: 0, startSec: 0,
+    env: { attackMs: 0, holdMs: 0, decayMs: 400, sustain: 0, releaseMs: 80 },
+    filter: { type: 'off', cutoff: 8000, q: 0.8 },
+    velCurve: 'linear',
+  };
+}
+
+/** Append a fresh Group (bank of 16 empty pads) to the kit. Returns the new bank's first index. */
+export function addPadBank(kit: PadConfig[]): number {
+  const start = kit.length;
+  for (let i = 0; i < PAD_BANK; i++) kit.push(emptyPad(start + i));
+  return start;
 }
 
 export function defaultPattern(name = 'Pattern A'): Pattern {

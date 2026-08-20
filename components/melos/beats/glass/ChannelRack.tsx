@@ -38,6 +38,7 @@ export const ChannelRack: React.FC<ChannelRackProps> = ({ doc, pattern, selected
       <p className="text-[9px] uppercase tracking-[0.18em] text-white/30 font-semibold mb-2.5">Channel rack · {pattern.name}</p>
       <div className="flex flex-col gap-[3px] max-h-[46vh] overflow-y-auto pr-1">
         {doc.kit.map((pad, padIdx) => {
+          if (pad.empty) return null; // greyed placeholder — nothing to sequence
           const row = pattern.steps[padIdx] || {};
           const selected = padIdx === selectedPad;
           return (

@@ -2,14 +2,14 @@
 // Purple appears here ONLY in the wordmark (brand-chrome rule).
 
 import React, { useCallback, useRef, useState } from 'react';
-import { Play, Square, Activity, X, FileDown, FileUp, Download, UploadCloud, OctagonX, Repeat } from 'lucide-react';
+import { Play, Square, Activity, X, FileDown, FileUp, Download, UploadCloud, OctagonX, Repeat, SlidersHorizontal } from 'lucide-react';
 import type { GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { PLAYHEAD } from '../theme';
 
 export type BeatsViewId = 'machine' | 'glass' | 'timeline' | 'mixer' | 'project';
 const VIEWS: { id: BeatsViewId; label: string }[] = [
-  { id: 'machine', label: 'Machine' },
+  { id: 'machine', label: 'MEKA' },
   { id: 'glass', label: 'Glass' },
   { id: 'timeline', label: 'Timeline' },
   { id: 'mixer', label: 'Mixer' },
@@ -36,6 +36,8 @@ interface TransportBarProps {
   beats: number;
   onSetLoop: (loop: { on: boolean; startBeats: number; endBeats: number }) => void;
   onToggleDiagnostics: () => void;
+  onOpenMidi?: () => void;
+  midiConnected?: boolean;
   onOpenEq?: () => void;
   onOpenLibrary?: () => void;
   onExportDawproject?: () => void;
@@ -78,7 +80,7 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
       )}
       <span className="font-black text-[13px] tracking-[0.06em] select-none">
         <span className="bg-gradient-to-br from-[#B84DFF] to-[#D40055] bg-clip-text text-transparent">MELOS</span>
-        <span className="text-white/80">&nbsp;· BEATS</span>
+        <span className="text-white/80">&nbsp;· STUDIO</span>
       </span>
 
       <div className="flex gap-0.5 bg-white/[0.06] border border-white/10 rounded-[10px] p-0.5">
@@ -250,6 +252,13 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
       )}
       {p.onOpenEq && (
         <button onClick={p.onOpenEq} title="Spectra — mix-bus EQ + dynamics" className="h-8 px-2.5 rounded-lg text-[11px] border border-white/10 text-white/50 hover:text-white hover:bg-white/10 font-mono">EQ</button>
+      )}
+      {p.onOpenMidi && (
+        <button onClick={p.onOpenMidi} aria-label="MIDI controllers" title="MIDI controllers — devices and Learn mapping"
+          className="w-8 h-8 grid place-items-center rounded-lg border transition-colors relative border-white/10 text-white/40 hover:text-white">
+          <SlidersHorizontal size={14} />
+          {p.midiConnected && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full" style={{ background: '#06D6A0', boxShadow: '0 0 5px #06D6A0' }} />}
+        </button>
       )}
       <button onClick={p.onToggleDiagnostics} aria-label="Engine diagnostics" className={`w-8 h-8 grid place-items-center rounded-lg border transition-colors ${p.showDiagnostics ? 'border-[#00DAF3]/50 text-[#00DAF3] bg-[#00DAF3]/10' : 'border-white/10 text-white/40 hover:text-white'}`}>
         <Activity size={14} />

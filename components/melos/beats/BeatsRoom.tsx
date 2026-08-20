@@ -14,6 +14,7 @@ import { exportGrooveFile, importGrooveFile } from '../../../services/melos/beat
 import { sendGrooveToFabula } from '../../../services/melos/beats/sendToFabula';
 import { subscribeMidi, ensureMidi } from '../../../services/melos/midiInput';
 import { mapMidiEvent } from '../../../services/melos/midiMap';
+import { learnedAction } from '../../../services/melos/midiLearn';
 import { exportDawproject } from '../../../services/melos/beats/dawproject/exportDawproject';
 import { importDawproject } from '../../../services/melos/beats/dawproject/importDawproject';
 import { transcribeToPattern, addTranscribedPattern } from '../../../services/melos/beats/transcribeImport';
@@ -24,6 +25,8 @@ import { useBeatsHid } from './useBeatsHid';
 import { useInstrumentKeyboard } from './instrument/useInstrumentKeyboard';
 import { TransportBar, type BeatsViewId } from './shared/TransportBar';
 import { DiagnosticsReadout } from './shared/DiagnosticsReadout';
+import { MidiLearnPanel } from './shared/MidiLearnPanel';
+import { midiStatus } from '../../../services/melos/midiInput';
 import { MachineView } from './machine/MachineView';
 import { GlassView } from './glass/GlassView';
 import { TimelineView } from './timeline/TimelineView';
@@ -36,7 +39,7 @@ import { InstrumentPanel } from './instrument/InstrumentPanel';
 import { KeraPanel } from './instrument/KeraPanel';
 import { SpectraPanel } from './mixer/SpectraPanel';
 import { MuseLibrary } from './muse/MuseLibrary';
-import { addInstrument, addPadInstrument } from '../../../services/melos/beats/instrumentFactory';
+import { addPadInstrument, addInstrumentToNextPad } from '../../../services/melos/beats/instrumentFactory';
 import { SELECT, WASH_BG } from './theme';
 
 export interface BeatsLaunchPayload {
@@ -94,6 +97,10 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const [padPickerFor, setPadPickerFor] = useState<number | null>(null);
   const [showEq, setShowEq] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
+  const [showMidi, setShowMidi] = useState(false);
+  const [midiConnected, setMidiConnected] = useState(false);
+  // Poll the WebMIDI device list so the transport dot lights when a controller is present.
+  useEffect(() => { const t = setInterval(() => setMidiConnected(midiStatus().connected.length > 0), 2000); return () => clearInterval(t); }, []);
 
   // The armed instrument track owns the QWERTY keyboard (the pads stand down while it does),
   // and receives anything played or recorded.
@@ -162,7 +169,10 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     return subscribeMidi((e) => {
       const engine = BeatsEngine.get();
       const armed = engine.armedTrack();
-      const action = mapMidiEvent(e, !!armed);
+      // Learned user bindings win over the premap; 'captured' means learn mode ate this event.
+      const learned = learnedAction(e);
+      if (learned === 'captured') return;
+      const action = learned ?? mapMidiEvent(e, !!armed);
       if (!action) return;
       switch (action.kind) {
         case 'pad':
@@ -209,6 +219,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         case 'transport':
           if (action.action === 'play') handlePlay();
           else if (action.action === 'stop') handleStop();
+          else if (action.action === 'record') setRecording((v) => !v);
           break;
       }
     });
@@ -229,6 +240,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       p.source = 'sample';
       p.sample = result.ref;
       p.name = name.slice(0, 18);
+      p.empty = false; // a sample fills a placeholder pad
     });
     setSelectedPad(padIdx);
     engine.trigger(padIdx, 110); // audition — instant feedback that the load worked
@@ -344,6 +356,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         p.sample = ingested.ref;
         p.name = ref.title.slice(0, 18);
         p.melos = { sampleId: ref.id, title: ref.title, clearance: ref.clearance };
+        p.empty = false;
       });
       setSelectedPad(padIdx);
       engine.trigger(padIdx, 110);
@@ -420,10 +433,12 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           <InstrumentPicker
             onClose={() => setShowInstrumentPicker(false)}
             onPick={(type) => {
-              let newId = '';
-              mutate((d) => { newId = addInstrument(d, type); });
+              let newId = ''; let landedPad = 0;
+              mutate((d) => { const r = addInstrumentToNextPad(d, type); newId = r.trackId; landedPad = r.padIdx; });
+              setSelectedPad(landedPad);
               void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
               setShowInstrumentPicker(false);
+              setView('machine'); // MEKA — the pad it filled is right there
               if (newId) setTimeout(() => setOpenInstrumentId(newId), 60);
             }}
           />
@@ -438,7 +453,12 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
               mutate((d) => {
                 newId = addPadInstrument(d, padIdx, type);
                 const pad = d.kit[padIdx];
-                if (pad) { pad.source = 'instrument'; pad.instrumentTrackId = newId; if (pad.instrumentNote === undefined) pad.instrumentNote = 60; }
+                if (pad) {
+                  const wasEmpty = pad.empty;
+                  pad.source = 'instrument'; pad.instrumentTrackId = newId; pad.empty = false;
+                  if (pad.instrumentNote === undefined) pad.instrumentNote = 60;
+                  if (wasEmpty) { pad.name = type === 'kera' ? 'KERA' : 'ONDA'; pad.color = type === 'kera' ? '#00DAF3' : '#B84DFF'; }
+                }
               });
               void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
               setPadPickerFor(null);
@@ -484,6 +504,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         onSetLoop={(loop) => mutate((d) => { d.loop = loop; })}
         onSetPlayMode={setPlayMode}
         onToggleDiagnostics={() => setShowDiagnostics((v) => !v)}
+        onOpenMidi={() => setShowMidi(true)}
+        midiConnected={midiConnected}
         onOpenEq={() => { void BeatsEngine.get().init().then(() => setShowEq(true)); }}
         onOpenLibrary={() => setShowLibrary(true)}
         onExportDawproject={() => { void handleExportDawproject(); }}
@@ -671,6 +693,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           playMode={playMode}
           onSelectPad={setSelectedPad}
           onMutate={mutate}
+          onAddInstrument={() => setShowInstrumentPicker(true)}
         />
       )}
 
@@ -697,6 +720,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         <DiagnosticsReadout snap={snap} hidStatus={hid.status} onConnectHid={() => { void hid.connect(); }} />
       )}
 
+      {showMidi && <MidiLearnPanel onClose={() => setShowMidi(false)} />}
+
       {/* Add an instrument from ANY view — the button is always present, and the picker leads
           with the instrument choice rather than a preset list. */}
       <button
@@ -712,12 +737,14 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         <InstrumentPicker
           onClose={() => setShowInstrumentPicker(false)}
           onPick={(type) => {
-            let newId = '';
-            mutate((d) => { newId = addInstrument(d, type); });
+            let newId = ''; let landedPad = 0;
+            // Maschine Groups: fill the next empty pad, spawning a new Group when one fills.
+            mutate((d) => { const r = addInstrumentToNextPad(d, type); newId = r.trackId; landedPad = r.padIdx; });
+            setSelectedPad(landedPad);
             // Instantiate the worklet now so the first note (or arp step) has something to play.
             void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
-            // Jump to the arranger where instrument tracks live, and open the new one.
-            setView('timeline');
+            // MEKA is where the pads live — land on the pad it just filled.
+            setView('machine');
             if (newId) setTimeout(() => setOpenInstrumentId(newId), 60);
           }}
         />
@@ -738,7 +765,12 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
             mutate((d) => {
               newId = addPadInstrument(d, padIdx, type);
               const pad = d.kit[padIdx];
-              if (pad) { pad.source = 'instrument'; pad.instrumentTrackId = newId; if (pad.instrumentNote === undefined) pad.instrumentNote = 60; }
+              if (pad) {
+                const wasEmpty = pad.empty;
+                pad.source = 'instrument'; pad.instrumentTrackId = newId; pad.empty = false;
+                if (pad.instrumentNote === undefined) pad.instrumentNote = 60;
+                if (wasEmpty) { pad.name = type === 'kera' ? 'KERA' : 'ONDA'; pad.color = type === 'kera' ? '#00DAF3' : '#B84DFF'; }
+              }
             });
             void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
             if (newId) setTimeout(() => setOpenInstrumentId(newId), 60);

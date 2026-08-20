@@ -29,9 +29,11 @@ interface FxRackProps {
   nodeOf?: (id: string) => FxNode | undefined;
   title?: string;
   emptyHint?: string;
+  /** Chain devices left-to-right as cards (Bitwig device row) instead of a vertical stack. */
+  horizontal?: boolean;
 }
 
-export const FxRack: React.FC<FxRackProps> = ({ instances, onChange, accent = '#D0BCFF', reductionOf, nodeOf, title, emptyHint }) => {
+export const FxRack: React.FC<FxRackProps> = ({ instances, onChange, accent = '#D0BCFF', reductionOf, nodeOf, title, emptyHint, horizontal }) => {
   const [adding, setAdding] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -101,14 +103,19 @@ export const FxRack: React.FC<FxRackProps> = ({ instances, onChange, accent = '#
         </div>
       )}
 
-      <div className="flex flex-col gap-1.5">
+      <div className={horizontal ? 'flex flex-row gap-0 items-start overflow-x-auto pb-1' : 'flex flex-col gap-1.5'}>
         {instances.map((inst, i) => {
           const d = deviceByType(inst.type);
           if (!d) return null;
           const open = openId === inst.id;
           const gr = reductionOf ? reductionOf(inst.id) : 0; // de-ess reports GR too, not just dynamics
+          // In a horizontal chain, a wide card for the amp rack, standard otherwise; the signal
+          // flows left-to-right with an arrow between devices.
+          const cardW = horizontal ? (open ? (inst.type === 'amprig' ? 440 : 300) : 168) : undefined;
           return (
-            <div key={inst.id} className="rounded-[10px] border" style={{ borderColor: open ? `${d.color}66` : 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)' }}>
+            <React.Fragment key={inst.id}>
+            {horizontal && i > 0 && <span className="self-center px-1 text-white/25 flex-none" style={{ color: `${accent}88` }}>▶</span>}
+            <div className={`rounded-[10px] border ${horizontal ? 'flex-none' : ''}`} style={{ borderColor: open ? `${d.color}66` : 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', width: cardW }}>
               <div className="flex items-center gap-2 px-2 py-1.5">
                 <span className="w-1.5 h-1.5 rounded-full flex-none" style={{ background: inst.on ? d.color : 'rgba(255,255,255,0.2)' }} />
                 <button onClick={() => setOpenId(open ? null : inst.id)} className="flex-1 min-w-0 text-left">
@@ -173,6 +180,7 @@ export const FxRack: React.FC<FxRackProps> = ({ instances, onChange, accent = '#
                 </div>
               )}
             </div>
+            </React.Fragment>
           );
         })}
       </div>

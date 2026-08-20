@@ -6,6 +6,7 @@ import {
 import { Button, IconButton, type ButtonVariant, type ButtonSize } from './Button';
 import { Surface, Actions, Eyebrow } from './Surface';
 import { Input, Textarea, Chip } from './Field';
+import { useContextMenu, type MenuNode } from './ContextMenu';
 
 /**
  * Design-system gallery — every primitive, every variant, every size, in every theme.
@@ -80,6 +81,55 @@ const Row: React.FC<{ label?: string; children: React.ReactNode }> = ({ label, c
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--pj-space-3)', alignItems: 'center' }}>{children}</div>
   </div>
 );
+
+/** Live context-menu demo — the same engine every surface uses. Right-click the tile. */
+const ContextMenuDemo: React.FC = () => {
+  const [loop, setLoop] = useState(false);
+  const [blend, setBlend] = useState('Normal');
+  const [last, setLast] = useState('—');
+  const BLENDS = ['Normal', 'Add', 'Screen', 'Multiply'];
+
+  const menu = useContextMenu<void>(() => ([
+    { kind: 'header', label: 'Clip 3 · Neon Rain', swatch: 'var(--pj-cyan)' },
+    { id: 'launch', label: 'Launch clip', icon: <Play size={14} />, shortcut: '⏎', onSelect: () => setLast('launch') },
+    { id: 'reload', label: 'Reload', icon: <Radio size={14} />, shortcut: '⌘R', onSelect: () => setLast('reload') },
+    { id: 'blend', label: 'Blend mode', icon: <Star size={14} />, submenu: BLENDS.map((m) => ({
+      id: `bm-${m}`, label: m, checked: blend === m, onSelect: () => { setBlend(m); setLast(`blend → ${m}`); },
+    })) },
+    { id: 'loop', label: 'Loop', checked: loop, keepOpen: true, onSelect: () => { setLoop((v) => !v); setLast('toggle loop'); } },
+    { kind: 'separator' },
+    { id: 'copy', label: 'Copy to next', icon: <Share2 size={14} />, shortcut: '⌘D', onSelect: () => setLast('copy') },
+    { id: 'clear', label: 'Clear', icon: <Trash2 size={14} />, danger: true, shortcut: '⌫', onSelect: () => setLast('clear') },
+  ] as MenuNode<void>[]));
+
+  return (
+    <div style={{ display: 'flex', gap: 'var(--pj-space-5)', alignItems: 'center', flexWrap: 'wrap' }}>
+      <div
+        {...menu.bind()}
+        tabIndex={0}
+        style={{
+          position: 'relative', width: 148, height: 148, borderRadius: 'var(--pj-radius-md)',
+          background: 'linear-gradient(150deg, #0ea5e9, #6366f1)', cursor: 'context-menu',
+          display: 'flex', alignItems: 'flex-end', padding: 12, color: '#fff', userSelect: 'none',
+          fontFamily: 'var(--font-mono, monospace)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em',
+          boxShadow: menu.isOpen ? '0 0 0 2px var(--pj-cyan) inset' : undefined,
+        }}
+      >
+        <span style={{ fontWeight: 700, textShadow: '0 1px 4px rgba(0,0,0,.5)' }}>Neon Rain</span>
+        <button
+          onClick={(e) => menu.openFrom(e.currentTarget, undefined)}
+          aria-label="Clip menu"
+          style={{ position: 'absolute', top: 8, right: 8, width: 24, height: 24, borderRadius: 6, border: 'none', background: 'rgba(0,0,0,.4)', color: '#fff', cursor: 'pointer' }}
+        >⋯</button>
+      </div>
+      <div className="type-body-sm" style={{ color: 'var(--on-surface-variant)', display: 'grid', gap: 4 }}>
+        <span>Right-click the tile · long-press on touch · <code>⋯</code> for a click trigger</span>
+        <span>loop <b style={{ color: 'var(--text-primary)' }}>{loop ? 'on' : 'off'}</b> · blend <b style={{ color: 'var(--text-primary)' }}>{blend}</b> · last <b style={{ color: 'var(--pj-cyan)' }}>{last}</b></span>
+      </div>
+      {menu.node}
+    </div>
+  );
+};
 
 export const DesignSystemGallery: React.FC = () => {
   const [theme, setTheme] = useState<Theme>('dark');
@@ -347,6 +397,10 @@ export const DesignSystemGallery: React.FC = () => {
               <Eyebrow>Eyebrow — .pj-eyebrow</Eyebrow>
             </div>
           </div>
+        </Section>
+
+        <Section title="Command menu" note="One right-click / context-menu primitive — useContextMenu() from components/ui. Schema-driven: surfaces declare the items, the engine handles portal, edge-flip, keyboard nav (↑↓ · → submenu · ⏎ · esc), checkables, danger and touch long-press. Replaces the four hand-rolled copies in Pixels, DJ, TV Studio and Chat.">
+          <ContextMenuDemo />
         </Section>
 
         <footer style={{ borderTop: '1px solid var(--m3-border)', paddingTop: 'var(--pj-space-6)', color: 'var(--on-surface-variant)' }}>

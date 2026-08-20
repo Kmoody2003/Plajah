@@ -341,6 +341,8 @@ const TeleprompterApp = retryLazy(() => import('./components/teleprompter/Telepr
 const SpatialMixer = retryLazy(() => import('./components/spatialMixer/SpatialMixer'));
 const MediaConverter = retryLazy(() => import('./components/MediaConverter'));
 const MelosBeatsRoom = retryLazy(() => import('./components/melos/beats/BeatsRoom'));
+const DJConsoleView = retryLazy(() => import('./components/DJModeView'));
+const DjOutputWindow = retryLazy(() => import('./components/dj/DjOutputWindow'));
 const SmartDirectorView = retryLazy(() => import('./components/SmartDirectorView'));
 const ComicMangaMuseum = retryLazy(() => import('./components/ComicMangaMuseum'));
 const AudiusArtistPage = retryLazy(() => import('./components/AudiusArtistPage'));
@@ -1208,6 +1210,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const handleOpenMediaConverter = () => setView('MEDIA_CONVERTER' as AppView);
     window.addEventListener('OPEN_MEDIA_CONVERTER', handleOpenMediaConverter);
 
+    // DJ Console — the standalone DJ app (still launchable from any Album view).
+    const handleOpenDJConsole = () => setView('DJ_CONSOLE' as AppView);
+    window.addEventListener('OPEN_DJ_CONSOLE', handleOpenDJConsole);
+
     // Melos Beats — the Chora DAW room (pads + step sequencer + timeline, .dawproject in/out).
     // detail: { grooveId?, productionId?, sampleUrl?, sampleName? } — productionId is the
     // future Melos-shell hook; sampleUrl lets Chora send a sound straight to a pad.
@@ -1288,6 +1294,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
       window.removeEventListener('OPEN_SPATIAL_MIXER', handleOpenSpatialMixer);
       window.removeEventListener('OPEN_MEDIA_CONVERTER', handleOpenMediaConverter);
+      window.removeEventListener('OPEN_DJ_CONSOLE', handleOpenDJConsole);
       window.removeEventListener('OPEN_MELOS_BEATS', handleOpenMelosBeats);
       window.removeEventListener('OPEN_POSTMAN', handleOpenPostman);
       window.removeEventListener('OPEN_SMART_DIRECTOR', handleOpenSmartDirector);
@@ -2788,6 +2795,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                player. Short-circuits above everything else so a projector can
                never show the app by mistake. */
             <Suspense fallback={null}><AmboOutputWindow /></Suspense>
+          ) : typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('djOut') ? (
+            /* The DJ Console pop-out: Program Out mirror (?djOut=1) or the Pixels
+               controls (?djOut=controls). Output only — same reasoning as amboOut. */
+            <Suspense fallback={null}><DjOutputWindow /></Suspense>
           ) : typeof window !== 'undefined' && window.location.pathname.startsWith('/link') ? (
             <Suspense fallback={null}><TvLinkApproval /></Suspense>
           ) :/* A television never sees the marketing landing page. It gets the sign-in screen a TV
@@ -5475,6 +5486,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'MEDIA_CONVERTER' && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <MediaConverter onClose={() => setView('APPS')} />
+              </Suspense>
+            )}
+            {view === 'DJ_CONSOLE' && (
+              <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                {/* Standalone DJ app — no album; the user fills the crate from Chora / Locker / import.
+                    The Album-view launch (PlayerView isDJMode overlay) is untouched. */}
+                <DJConsoleView onClose={() => setView('APPS')} />
               </Suspense>
             )}
             {view === 'MELOS_BEATS' && (

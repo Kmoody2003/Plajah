@@ -8,7 +8,7 @@ import { GROUP_COLORS, PLAYHEAD } from '../theme';
 
 interface MixerPanelProps {
   doc: GrooveDoc;
-  meters: { groups: number[]; master: number };
+  meters: { groups: number[]; master: number; sends: number[] };
   onMutate: (fn: (d: GrooveDoc) => void) => void;
 }
 

@@ -20,7 +20,7 @@ import {
   Mail, Rss, Sparkles, Clapperboard, MonitorPlay, Cctv, Search, HelpCircle, Monitor, Factory, Building2,
   Briefcase, MapPin, TrendingUp, Tv, Ticket, Home, LayoutPanelTop, Megaphone,
   Compass, Palette, Trophy, Bell, Plus, ChevronLeft,
-  ChevronRight, LogOut, Command, RotateCcw, X,
+  ChevronRight, LogOut, Command, RotateCcw, X, Disc3, Grid3x3,
 } from 'lucide-react';
 import UniversalCommandResults from './UniversalCommandResults';
 
@@ -79,6 +79,8 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'TERRA', label: 'Terra', icon: MapPin, requiresUser: true },
     { id: 'TELA', label: 'Tela', icon: LayoutPanelTop },
     { id: 'FABULA', label: 'Fabula', icon: Film },
+    { id: 'DJ_CONSOLE', label: 'DJ Console', icon: Disc3 },
+    { id: 'PLAJAH_PIXELS', label: 'Plajah Pixels', icon: Grid3x3 },
     { id: 'TV_STUDIO', label: 'TV Studio', icon: Clapperboard },
     { id: 'AMBO', label: 'Ambo Presenter', icon: MonitorPlay },
     { id: 'MEDIA_ROUTER', label: 'Router & Switcher', icon: Cctv },

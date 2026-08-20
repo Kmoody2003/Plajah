@@ -8,7 +8,7 @@ export interface EngineSnapshot {
   beats: number;
   running: boolean;
   suspended: boolean;
-  meters: { groups: number[]; master: number };
+  meters: { groups: number[]; master: number; sends: number[] };
   limiterReduction: number;
   loudness: LoudnessSnapshot | null; // BS.1770 M/S/I + LRA + dBTP + correlation, ~10 Hz
   auditionId: string | null;         // album track playing through the pressing, or null
@@ -19,7 +19,7 @@ export interface EngineSnapshot {
 export function useEngineBridge(): EngineSnapshot {
   const [snap, setSnap] = useState<EngineSnapshot>({
     beats: 0, running: false, suspended: true,
-    meters: { groups: [0, 0, 0, 0], master: 0 }, limiterReduction: 0, loudness: null, auditionId: null, diag: null, frame: 0,
+    meters: { groups: [0, 0, 0, 0], master: 0, sends: [0, 0] }, limiterReduction: 0, loudness: null, auditionId: null, diag: null, frame: 0,
   });
 
   useEffect(() => {

@@ -7,6 +7,7 @@
 import type { GrooveDoc } from './grooveDoc';
 import { buildGraph } from './engine/graph';
 import { MasteringChain, type MasteringState } from './fx/mastering';
+import { FxChainHost } from './fx/devices';
 import { VoiceBank } from './engine/voices';
 import { StepScheduler, seededRng } from './engine/scheduler';
 import { startAudioClipSource } from './engine/clips';
@@ -62,6 +63,33 @@ export async function renderGroove(
     graph.setMasterChain(chain.input, chain.output);
     graph.setGlueOn(!!masteringState.glue);
   }
+  // The mixer's inserts + aux sends print too — FxChainHost is context-agnostic, so the bounce
+  // is the same board the live room heard (BeatsEngine.syncMixerFx, offline). Every channel:
+  doc.kit.forEach((pad, i) => {
+    const inserts = (pad.inserts ?? []).filter((f) => f.on);
+    if (inserts.length) { const h = new FxChainHost(offline); h.setChain(pad.inserts ?? []); graph.setPadInsert(i, h.input, h.output); }
+    const sends = pad.sends ?? [];
+    for (let s = 0; s < 2; s++) graph.setPadSend(i, s, sends[s] ?? 0);
+  });
+  for (const t of doc.arrangement) {
+    if (t.kind !== 'audio') continue;
+    graph.trackDestination(t); // ensure the strip exists before wiring its insert/sends
+    const inserts = (t.inserts ?? []).filter((f) => f.on);
+    if (inserts.length) { const h = new FxChainHost(offline); h.setChain(t.inserts ?? []); graph.setTrackInsert(t.id, h.input, h.output); }
+    const sends = t.sends ?? [];
+    for (let s = 0; s < 2; s++) graph.setTrackSend(t.id, s, sends[s] ?? 0);
+  }
+  doc.mixer.groups.forEach((ch, i) => {
+    const inserts = (ch.inserts ?? []).filter((f) => f.on);
+    if (inserts.length) { const h = new FxChainHost(offline); h.setChain(ch.inserts ?? []); graph.setGroupInsert(i, h.input, h.output); }
+    const sends = ch.sends ?? [];
+    for (let s = 0; s < 2; s++) graph.setGroupSend(i, s, sends[s] ?? 0);
+  });
+  (doc.mixer.sendBuses ?? []).forEach((b, s) => {
+    graph.setSendReturnGain(s, b.gainDb ?? 0);
+    const inserts = (b.inserts ?? []).filter((f) => f.on);
+    if (inserts.length) { const h = new FxChainHost(offline); h.setChain(b.inserts ?? []); graph.setSendInsert(s, h.input, h.output); }
+  });
   const voices = new VoiceBank(graph);
   for (const [key, buf] of buffers) voices.setBuffer(key, buf);
 
@@ -134,8 +162,9 @@ export async function renderGroove(
     toTime: (beats) => anchor + beats * spb,
     secPerBeat: () => spb,
     rng: seededRng(hashSeed(doc.id || 'groove')),
-    trigger: (padIdx, vel, when, gateSec, semiOffset) => {
+    trigger: (padIdx, vel, when, gateSec, semiOffset, pan) => {
       const pad = doc.kit[padIdx];
+      if (pad?.empty) return; // placeholder pad prints nothing
       if (pad?.source === 'instrument' && pad.instrumentTrackId) {
         // ONDA pad: pre-schedule at absolute frames, the same path clip notes use.
         if (keraPadTrackIds.has(pad.instrumentTrackId)) return; // KERA offline: see above
@@ -149,7 +178,8 @@ export async function renderGroove(
         inst.scheduleNoteOff(voiceId, offFrame);
         return;
       }
-      voices.trigger(doc, padIdx, vel, when, gateSec, semiOffset);
+      // Per-step pan prints in the bounce; Step-FX offline routing is a follow-up.
+      voices.trigger(doc, padIdx, vel, when, gateSec, semiOffset, pan);
     },
     startAudioClip: (track, clip, when, offset) =>
       void startAudioClipSource(offline, graph, (k) => voices.getBuffer(k), track, clip, when, offset, spb),

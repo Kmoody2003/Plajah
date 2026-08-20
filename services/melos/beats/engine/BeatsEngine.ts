@@ -141,7 +141,104 @@ export class BeatsEngine {
       loop: () => this.doc.loop ?? null,
     });
     this.graph.applyDoc(this.doc);
+    this.syncMixerFx();
   }
+
+  // ── Mixer insert + send FX (fx/devices.ts chains on EVERY channel) ──────────
+  private groupInserts: (FxChainHost | null)[] = [null, null, null, null];
+  private sendInserts: (FxChainHost | null)[] = [null, null];
+  private padInserts = new Map<number, FxChainHost>();
+  private trackInserts = new Map<string, FxChainHost>();
+
+  /** Reconcile every channel's insert chain, send level and return from the doc (source of truth). */
+  private syncMixerFx(): void {
+    if (!this.ctx || !this.graph) return;
+    const g = this.graph;
+    const mixer = this.doc.mixer;
+
+    // Per-pad inserts + sends (Bitwig/S1 parity: every channel).
+    this.doc.kit.forEach((pad, i) => {
+      const inserts = pad.inserts ?? [];
+      if (inserts.some((f) => f.on)) {
+        let host = this.padInserts.get(i);
+        if (!host) { host = new FxChainHost(this.ctx!); this.padInserts.set(i, host); g.setPadInsert(i, host.input, host.output); }
+        host.setChain(inserts);
+      } else if (this.padInserts.has(i)) {
+        g.clearPadInsert(i); this.padInserts.get(i)!.dispose(); this.padInserts.delete(i);
+      }
+      const sends = pad.sends ?? [];
+      for (let s = 0; s < 2; s++) g.setPadSend(i, s, sends[s] ?? 0);
+    });
+
+    // Per-track inserts + sends.
+    const liveTrackIds = new Set(this.doc.arrangement.filter((t) => t.kind === 'audio').map((t) => t.id));
+    for (const [id, host] of [...this.trackInserts]) {
+      if (!liveTrackIds.has(id)) { g.clearTrackInsert(id); host.dispose(); this.trackInserts.delete(id); }
+    }
+    for (const t of this.doc.arrangement) {
+      if (t.kind !== 'audio') continue;
+      const inserts = t.inserts ?? [];
+      if (inserts.some((f) => f.on)) {
+        let host = this.trackInserts.get(t.id);
+        if (!host) { host = new FxChainHost(this.ctx!); this.trackInserts.set(t.id, host); g.setTrackInsert(t.id, host.input, host.output); }
+        host.setChain(inserts);
+      } else if (this.trackInserts.has(t.id)) {
+        g.clearTrackInsert(t.id); this.trackInserts.get(t.id)!.dispose(); this.trackInserts.delete(t.id);
+      }
+      const sends = t.sends ?? [];
+      for (let s = 0; s < 2; s++) g.setTrackSend(t.id, s, sends[s] ?? 0);
+    }
+
+    this.syncStepFx();
+    // Group inserts + sends.
+    mixer.groups.forEach((ch, i) => {
+      const inserts = ch.inserts ?? [];
+      if (inserts.some((f) => f.on)) {
+        let host = this.groupInserts[i];
+        if (!host) { host = new FxChainHost(this.ctx!); this.groupInserts[i] = host; this.graph!.setGroupInsert(i, host.input, host.output); }
+        host.setChain(inserts);
+      } else if (this.groupInserts[i]) {
+        this.graph!.clearGroupInsert(i);
+        this.groupInserts[i]!.dispose();
+        this.groupInserts[i] = null;
+      }
+      const sends = ch.sends ?? [];
+      for (let s = 0; s < 2; s++) this.graph!.setGroupSend(i, s, sends[s] ?? 0);
+    });
+    // Send-bus returns + their inserts.
+    const buses = mixer.sendBuses ?? [];
+    for (let s = 0; s < 2; s++) {
+      this.graph!.setSendReturnGain(s, buses[s]?.gainDb ?? 0);
+      const inserts = buses[s]?.inserts ?? [];
+      if (inserts.some((f) => f.on)) {
+        let host = this.sendInserts[s];
+        if (!host) { host = new FxChainHost(this.ctx!); this.sendInserts[s] = host; this.graph!.setSendInsert(s, host.input, host.output); }
+        host.setChain(inserts);
+      } else if (this.sendInserts[s]) {
+        this.graph!.clearSendInsert(s);
+        this.sendInserts[s]!.dispose();
+        this.sendInserts[s] = null;
+      }
+    }
+  }
+
+  /** Live send-bus peak meters, for the mixer UI. */
+  sendMeters(): number[] { return this.graph?.sendMeters() ?? [0, 0]; }
+  padMeter(padIdx: number): number { return this.graph?.padMeter(padIdx) ?? 0; }
+  trackMeter(trackId: string): number { return this.graph?.trackMeter(trackId) ?? 0; }
+  /** A live insert device on a group bus (for its scope). */
+  groupInsertNode(groupIdx: number, id: string) { return this.groupInserts[groupIdx]?.nodeOf(id); }
+  groupInsertReduction(groupIdx: number, id: string): number { return this.groupInserts[groupIdx]?.reductionOf(id) ?? 0; }
+  /** A live insert device on a send bus. */
+  sendInsertNode(sendIdx: number, id: string) { return this.sendInserts[sendIdx]?.nodeOf(id); }
+  sendInsertReduction(sendIdx: number, id: string): number { return this.sendInserts[sendIdx]?.reductionOf(id) ?? 0; }
+  /** Live insert devices on pad / track channels. */
+  padInsertNode(padIdx: number, id: string) { return this.padInserts.get(padIdx)?.nodeOf(id); }
+  padInsertReduction(padIdx: number, id: string): number { return this.padInserts.get(padIdx)?.reductionOf(id) ?? 0; }
+  trackInsertNode(trackId: string, id: string) { return this.trackInserts.get(trackId)?.nodeOf(id); }
+  trackInsertReduction(trackId: string, id: string): number { return this.trackInserts.get(trackId)?.reductionOf(id) ?? 0; }
+  /** Live device on a pad's step-FX slot chain (for its scope). */
+  stepFxNode(padIdx: number, slotId: string, id: string) { return this.stepFxHosts.get(`${padIdx}:${slotId}`)?.nodeOf(id); }
 
   loadDoc(doc: GrooveDoc): void {
     this.doc = doc;
@@ -166,7 +263,7 @@ export class BeatsEngine {
       for (const inst of this.instruments.values()) inst.setTempo(bps);
     }
     this.graph?.applyDoc(this.doc);
-    if (this.ctx) this.syncInstruments();
+    if (this.ctx) { this.syncInstruments(); this.syncMixerFx(); }
   }
 
   setSampleBuffer(key: string, buf: AudioBuffer): void { this.voices?.setBuffer(key, buf); }
@@ -178,17 +275,86 @@ export class BeatsEngine {
    * MIDI handlers and pad pointerdown call this directly. A live hit on a sustaining pad
    * (env.sustain > 0) HOLDS until release(padIdx); sequenced notes pass gateSec instead.
    */
-  trigger(padIdx: number, vel127: number, when?: number, gateSec?: number, semiOffset?: number): void {
+  trigger(padIdx: number, vel127: number, when?: number, gateSec?: number, semiOffset?: number, pan?: number, stepFx?: number): void {
     if (!this.voices || !this.ctx) return;
     const pad = this.doc.kit[padIdx];
+    if (pad?.empty) return; // greyed placeholder pad — no sound
     // An instrument pad plays a full ONDA/KERA voice at its base note instead of a one-shot.
     if (pad?.source === 'instrument' && pad.instrumentTrackId) {
       this.triggerPadInstrument(pad, padIdx, vel127, when, gateSec, semiOffset ?? 0);
       this.lastHit[padIdx] = performance.now();
       return;
     }
-    this.voices.trigger(this.doc, padIdx, vel127, when, gateSec, semiOffset);
+    // Step Effects: route this hit through the referenced per-pad slot's chain (feature 2).
+    const dest = this.stepFxDestFor(padIdx, stepFx);
+    this.voices.trigger(this.doc, padIdx, vel127, when, gateSec, semiOffset, pan, dest);
     this.lastHit[padIdx] = performance.now();
+  }
+
+  // ── Step Effects (per-pad "step FX" slots — a bounded set of device chains) ──
+  private stepFxHosts = new Map<string, FxChainHost>(); // `${padIdx}:${slotId}` → host
+
+  /** The chain input a step should route to, or undefined for dry. Reconciled in syncStepFx. */
+  private stepFxDestFor(padIdx: number, slotIdx: number | undefined): AudioNode | undefined {
+    if (slotIdx === undefined) return undefined;
+    const pad = this.doc.kit[padIdx];
+    if (!pad || pad.stepFxOn === false) return undefined;
+    const slot = pad.stepFx?.[slotIdx];
+    if (!slot) return undefined;
+    return this.stepFxHosts.get(`${padIdx}:${slot.id}`)?.input;
+  }
+
+  /** Build/refresh each pad's step-FX slot chains and their routing. */
+  private syncStepFx(): void {
+    if (!this.ctx || !this.graph) return;
+    const want = new Set<string>();
+    this.doc.kit.forEach((pad, padIdx) => {
+      const isInstrument = pad.source === 'instrument' && !!pad.instrumentTrackId;
+      const instTrack = isInstrument ? this.doc.arrangement.find((t) => t.id === pad.instrumentTrackId && t.kind === 'instrument') : undefined;
+      // Where a slot's DRY output returns: an instrument pad routes back through its OWN track strip
+      // (a padOwned instrument never used the pad channel), a one-shot pad through the pad bus so
+      // its fader/mute still apply.
+      const dryDest: AudioNode = isInstrument && instTrack ? this.graph!.trackDestination(instTrack) : this.graph!.padDestination(padIdx);
+      (pad.stepFx ?? []).forEach((slot) => {
+        const key = `${padIdx}:${slot.id}`;
+        want.add(key);
+        let host = this.stepFxHosts.get(key);
+        if (!host) { host = new FxChainHost(this.ctx!); this.stepFxHosts.set(key, host); }
+        host.setChain(slot.chain ?? []);
+        // Rewire the chain output → dry dest (+ optional send) EACH sync, so a pad that became an
+        // instrument — or an instrument track that was created after the host — re-targets correctly.
+        try { host.output.disconnect(); } catch { /* */ }
+        host.output.connect(dryDest);
+        if (slot.sendBus !== undefined && this.graph!.sendBuses[slot.sendBus]) {
+          const send = this.ctx!.createGain();
+          send.gain.value = Math.max(0, Math.min(1.5, slot.sendLevel ?? 0.5));
+          host.output.connect(send);
+          send.connect(this.graph!.sendBuses[slot.sendBus].input);
+        }
+      });
+      // An instrument pad can't be per-step routed (it's one continuous voice engine), so its whole
+      // output runs through the active slot's chain — an insert gated by the pad's Step-FX switch.
+      if (isInstrument && instTrack) this.routeInstrumentStepFx(padIdx, pad, instTrack, dryDest);
+    });
+    // Drop slots that no longer exist.
+    for (const [key, host] of [...this.stepFxHosts]) {
+      if (!want.has(key)) { host.dispose(); this.stepFxHosts.delete(key); }
+    }
+  }
+
+  /** (Re)route an instrument pad's output through its active Step-FX slot, or back to dry. Called
+   *  from syncStepFx and again once the (async) instrument finishes creating. */
+  private routeInstrumentStepFx(padIdx: number, pad: PadConfig, instTrack: ATrack, dryDest: AudioNode): void {
+    const inst = this.instruments.get(instTrack.id);
+    if (!inst) return; // not created yet — ensureInstrument re-runs syncStepFx when it lands
+    const slot = pad.stepFx?.find((s) => (s.chain ?? []).some((d) => d.on));
+    const on = pad.stepFxOn !== false && !!slot;
+    try { inst.output.disconnect(); } catch { /* */ }
+    if (on && slot) {
+      const host = this.stepFxHosts.get(`${padIdx}:${slot.id}`);
+      if (host) { inst.output.connect(host.input); return; }
+    }
+    inst.output.connect(dryDest);
   }
 
   /**
@@ -283,6 +449,10 @@ export class BeatsEngine {
         if (prog) inst.loadKeraProgram(prog);
       }
       this.instruments.set(track.id, inst);
+      // If a Step-FX pad owns this instrument, route its output through the slot chain now that the
+      // node exists (at connect time above it didn't, so the first sync skipped it).
+      const ownerPad = this.doc.kit.findIndex((pp) => pp.instrumentTrackId === track.id);
+      if (ownerPad >= 0 && (this.doc.kit[ownerPad].stepFx?.length ?? 0) > 0) this.syncStepFx();
       return inst;
     } catch (e) {
       console.warn('[beats] instrument create failed', e);
@@ -668,7 +838,7 @@ export class BeatsEngine {
     return this.anchorBeats + (this.ctx.currentTime - this.anchorTime) / this.secPerBeat;
   }
 
-  meters() { return this.graph ? this.graph.meters() : { groups: [0, 0, 0, 0], master: 0 }; }
+  meters() { return this.graph ? this.graph.meters() : { groups: [0, 0, 0, 0], master: 0, sends: [0, 0] }; }
   limiterReduction() { return this.graph?.limiterReduction() ?? 0; }
 
   diagnostics(): EngineDiagnostics {
@@ -701,6 +871,11 @@ export class BeatsEngine {
     this.loudnessNode = null; this.loudnessSnap = null;
     this.mastering?.dispose(); this.mastering = null;
     this.masterSuite?.dispose(); this.masterSuite = null;
+    this.groupInserts.forEach((h) => h?.dispose()); this.groupInserts = [null, null, null, null];
+    this.sendInserts.forEach((h) => h?.dispose()); this.sendInserts = [null, null];
+    this.padInserts.forEach((h) => h.dispose()); this.padInserts.clear();
+    this.trackInserts.forEach((h) => h.dispose()); this.trackInserts.clear();
+    this.stepFxHosts.forEach((h) => h.dispose()); this.stepFxHosts.clear();
     this.graph?.dispose();
     this.voices?.clearBuffers();
     try { this.ctx?.close(); } catch { /* */ }

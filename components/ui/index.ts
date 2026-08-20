@@ -22,6 +22,9 @@ export { Input, Textarea, Chip } from './Field';
 export { default as ChipRail } from './ChipRail';
 export type { ChipRailItem } from './ChipRail';
 
+export { useContextMenu } from './ContextMenu';
+export type { MenuNode, MenuItemNode, MenuBuilder, ContextMenuApi } from './ContextMenu';
+
 export {
   TYPE,
   MOTION,

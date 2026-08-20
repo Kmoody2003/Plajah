@@ -15,7 +15,7 @@ import { zipSync, strToU8 } from 'fflate';
 import { db, auth } from '../../firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import type { SampleRef } from './grooveDoc';
-import { dbToGain } from './engine/graph';
+import { dbToGain, softClipCurve } from './engine/graph';
 import { hydrateSample } from './sampleStore';
 import { MasteringChain, type MasteringState } from './fx/mastering';
 import { FxChainHost, type FxInstance } from './fx/devices';
@@ -338,11 +338,11 @@ function buildMasterFx(ctx: BaseAudioContext, masterFx: FxInstance[] | undefined
   return host;
 }
 
-/** The album bus: the same brickwall the live room ends with (−1.0 dB / 20:1 / 1 ms / 50 ms). */
-function albumLimiter(ctx: BaseAudioContext): DynamicsCompressorNode {
-  const limiter = ctx.createDynamicsCompressor();
-  limiter.threshold.value = -1.0; limiter.knee.value = 0; limiter.ratio.value = 20;
-  limiter.attack.value = 0.001; limiter.release.value = 0.05;
+/** The album bus: the same soft-clip brickwall the live room ends with (−1 dBFS ceiling). */
+function albumLimiter(ctx: BaseAudioContext): WaveShaperNode {
+  const limiter = ctx.createWaveShaper();
+  limiter.oversample = '4x';
+  limiter.curve = softClipCurve(-1);
   limiter.connect(ctx.destination);
   return limiter;
 }

@@ -50,8 +50,11 @@ export class VoiceBank {
    * gateSec: note length for sequenced/drawn notes — the envelope releases at t+gate.
    *          Omitted on live pad hits: sustain>0 pads then HOLD until release(padIdx).
    * semiOffset: per-note pitch (piano-roll notes), added to the pad's own tuning.
+   * panOverride: per-step pan (Glass), replaces the pad strip's pan for this hit only via a
+   *              private StereoPanner in the voice — so overlapping hits don't fight one panner.
+   * destOverride: route this hit through a Step-FX chain input instead of the pad bus (feature 2).
    */
-  trigger(doc: GrooveDoc, padIdx: number, vel127: number, when?: number, gateSec?: number, semiOffset = 0): void {
+  trigger(doc: GrooveDoc, padIdx: number, vel127: number, when?: number, gateSec?: number, semiOffset = 0, panOverride?: number, destOverride?: AudioNode): void {
     const ctx = this.graph.ctx;
     const pad = doc.kit[padIdx];
     if (!pad || pad.mute) return;
@@ -62,7 +65,7 @@ export class VoiceBank {
     this.chokeGroup(pad.choke, t);
     this.reap(t);
 
-    const dest = this.graph.padDestination(padIdx);
+    const dest = destOverride ?? this.graph.padDestination(padIdx);
     const env = pad.env;
     const atk = Math.max(0.001, (env.attackMs || 0) / 1000);
     const hold = Math.max(0, (env.holdMs || 0) / 1000);
@@ -96,7 +99,15 @@ export class VoiceBank {
         audibleEnd = Math.max(tR, t + atk + hold + dec) + rel;
       }
     }
-    vGain.connect(dest);
+    // Per-step pan: a private panner between the voice and the pad bus, so a hard-left hit and a
+    // hard-right hit on the same pad don't clobber a shared StereoPanner.
+    if (panOverride !== undefined && Math.abs(panOverride) > 0.001) {
+      const panner = ctx.createStereoPanner();
+      panner.pan.setValueAtTime(Math.max(-1, Math.min(1, panOverride)), t);
+      vGain.connect(panner); panner.connect(dest);
+    } else {
+      vGain.connect(dest);
+    }
 
     const semis = (pad.pitchSemis || 0) + semiOffset;
 

@@ -5,12 +5,14 @@ import {
   X, Play, Pause, SkipBack, SkipForward, Repeat, ZapOff,
   Zap, Headphones, Radio, Music2, Upload, Folder, ChevronLeft,
   ChevronRight, RotateCcw, Activity, Volume2, Shuffle, List,
-  Disc, Mic2, Monitor, Usb, AlertCircle, CheckCircle, Lightbulb, Square
+  Disc, Mic2, Monitor, Usb, AlertCircle, CheckCircle, Lightbulb, Square,
+  Video, LayoutGrid
 } from 'lucide-react';
 import SmartLightingPanel from './SmartLightingPanel';
+import StreamStudio from './dj/StreamStudio';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { fetchPersonalTracks } from '../services/backendService';
-import { getCachedAnalysis, getOrComputeAnalysis } from '../services/djAnalysis';
+import { getCachedAnalysis, getOrComputeAnalysis, loadTrackTheory } from '../services/djAnalysis';
 import { mediaFetchUrl } from '../services/mediaFetchPolicy';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -37,11 +39,14 @@ interface DeckState {
   volume: number;
   pitch: number;       // semitones -6 to +6
   bpm: number;
+  key: string | null;  // Camelot key badge (e.g. '8A'), loaded from cached theory
   loopIn: number | null;
   loopOut: number | null;
   loopActive: boolean;
-  hotCues: (number | null)[];
-  samples: SamplePad[];
+  loopBeats: number | null;   // active beat-loop size (highlights the Loop-mode pad)
+  padMode: PadMode;           // which performance-pad layer is showing
+  hotCues: (number | null)[]; // 8 hot cues
+  samples: SamplePad[];       // 8 sample pads
   fx: { filter: number; delay: number; reverb: number };
   jogAngle: number;
   isScratch: boolean;
@@ -65,7 +70,9 @@ interface DeckAudioNodes {
 }
 
 interface Props {
-  album: Album;
+  /** Album context when launched from the player. Optional so DJ Console can open
+   *  as its own app with an empty crate the user fills from Chora / Locker / import. */
+  album?: Album;
   onClose: () => void;
   initialTrack?: Track | null;      // Currently playing track → auto-load Deck A
   initialTime?: number;             // Current playback position for Deck A
@@ -81,10 +88,37 @@ interface Props {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const SAMPLE_COLORS = ['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF'];
+// Plajah design-language deck identity. Four decks: A/C share the left channel,
+// B/D share the right channel (A/C and B/D swap via tabs — 2-channel, 4-deck).
+type DeckId = 'A' | 'B' | 'C' | 'D';
+const DECK_COLORS: Record<DeckId, string> = { A: '#00DAF3', B: '#D40055', C: '#8B5CF6', D: '#F59E0B' };
+// Performance-pad palette — eight distinct colours (hot cues + samples), none equal to a deck colour.
+const SAMPLE_COLORS = ['#FF5A5F', '#FFB020', '#FFD93D', '#6BCB77', '#2BE0A8', '#4D96FF', '#B980F0', '#FF6AD5'];
+// Beat-loop sizes offered in Loop pad mode (in beats).
+const BEAT_LOOPS = [0.125, 0.25, 0.5, 1, 2, 4, 8, 16];
+const beatLoopLabel = (b: number) => (b < 1 ? `1/${Math.round(1 / b)}` : String(b));
+type PadMode = 'cue' | 'loop' | 'sample';
 const DEFAULT_BPM = 128;
 const PITCH_RANGE = 6;
 const WAVEFORM_POINTS = 800;
+
+// ── Musical key → Camelot wheel (the readout working DJs harmonic-mix by) ───────
+const PITCH_CLASS: Record<string, number> = {
+  c: 0, 'c#': 1, db: 1, d: 2, 'd#': 3, eb: 3, e: 4, fb: 4, 'e#': 5, f: 5,
+  'f#': 6, gb: 6, g: 7, 'g#': 8, ab: 8, a: 9, 'a#': 10, bb: 10, b: 11, cb: 11,
+};
+const CAMELOT_MAJOR = ['8B','3B','10B','5B','12B','7B','2B','9B','4B','11B','6B','1B'];
+const CAMELOT_MINOR = ['5A','12A','7A','2A','9A','4A','11A','6A','1A','8A','3A','10A'];
+function toCamelot(key?: string, scale?: string): string | null {
+  if (!key) return null;
+  const raw = key.trim().toLowerCase();
+  const m = raw.match(/^([a-g](?:#|b)?)/);
+  if (!m) return null;
+  const pc = PITCH_CLASS[m[1]];
+  if (pc === undefined) return null;
+  const minor = /min|minor|\bm\b|aeolian/.test(`${raw} ${(scale || '').toLowerCase()}`);
+  return (minor ? CAMELOT_MINOR : CAMELOT_MAJOR)[pc] ?? null;
+}
 
 // ── DJ audio engine ────────────────────────────────────────────────────────────
 // DJ mode builds its decks on the GLOBAL player's shared AudioContext (passed in via
@@ -183,7 +217,7 @@ const EQKnob: React.FC<{
   value: number;   // -1 to +1
   onChange: (v: number) => void;
   color?: string;
-}> = ({ label, value, onChange, color = '#00D4AA' }) => {
+}> = ({ label, value, onChange, color = '#00DAF3' }) => {
   const startRef = useRef<{ y: number; v: number } | null>(null);
   const angle = value * 135; // -135° to +135°
 
@@ -311,7 +345,7 @@ const WaveformCanvas: React.FC<{
 };
 
 const JogWheel: React.FC<{
-  deckId: 'A' | 'B';
+  color: string;
   angle: number;
   isScratch: boolean;
   isPlaying: boolean;
@@ -320,11 +354,10 @@ const JogWheel: React.FC<{
   onScratchMove: (deltaDeg: number) => void;
   onScratchEnd: () => void;
   onToggleScratch: () => void;
-}> = ({ deckId, angle, isScratch, isPlaying, coverImage, onScratchStart, onScratchMove, onScratchEnd, onToggleScratch }) => {
+}> = ({ color, angle, isScratch, isPlaying, coverImage, onScratchStart, onScratchMove, onScratchEnd, onToggleScratch }) => {
   const jogRef = useRef<HTMLDivElement>(null);
   const lastAngleRef = useRef(0);
   const isDraggingRef = useRef(false);
-  const color = deckId === 'A' ? '#00D4AA' : '#FF6B6B';
 
   const getAngleFromEvent = (e: React.PointerEvent) => {
     if (!jogRef.current) return 0;
@@ -414,21 +447,28 @@ const JogWheel: React.FC<{
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime = 0, initialTrackIndex = 0, onPauseGlobal, getSharedAudioContext, onExitToGlobal }) => {
+  // Safe album context — DJ Console can run with no album (its own app).
+  const albumTitle = album?.title || 'Live Session';
+  const albumCover = album?.coverImage || '';
+  const albumTracks = album?.tracks ?? [];
   const audioCtxRef = useRef<AudioContext | null>(null);
   const isSharedCtxRef = useRef(false);   // true when audioCtxRef is the global player's shared context
   const masterGainRef = useRef<GainNode | null>(null);
   const nodesA = useRef<DeckAudioNodes | null>(null);
   const nodesB = useRef<DeckAudioNodes | null>(null);
+  const nodesC = useRef<DeckAudioNodes | null>(null);
+  const nodesD = useRef<DeckAudioNodes | null>(null);
   const rafRef = useRef<number>(0);
   const midiRef = useRef<MIDIAccess | null>(null);
 
-  const emptyDeck = (id: 'A' | 'B'): DeckState => ({
+  const emptyDeck = (id: DeckId): DeckState => ({
     track: null, buffer: null, peaks: null,
     isPlaying: false, isCued: false,
     currentTime: 0, duration: 0,
-    volume: 0.8, pitch: 0, bpm: DEFAULT_BPM,
+    volume: 0.8, pitch: 0, bpm: DEFAULT_BPM, key: null,
     loopIn: null, loopOut: null, loopActive: false,
-    hotCues: [null, null, null, null],
+    loopBeats: null, padMode: 'cue',
+    hotCues: [null, null, null, null, null, null, null, null],
     samples: SAMPLE_COLORS.map((color, i) => ({
       id: `${id}-sample-${i}`, title: '', url: null, buffer: null,
       sourceNode: null, gainNode: null, isPlaying: false, color,
@@ -439,16 +479,34 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
 
   const [deckA, setDeckA] = useState<DeckState>(() => emptyDeck('A'));
   const [deckB, setDeckB] = useState<DeckState>(() => emptyDeck('B'));
+  const [deckC, setDeckC] = useState<DeckState>(() => emptyDeck('C'));
+  const [deckD, setDeckD] = useState<DeckState>(() => emptyDeck('D'));
   const [crossfader, setCrossfader] = useState(0.5);
   const [eqA, setEqA] = useState({ low: 0, mid: 0, high: 0 });
   const [eqB, setEqB] = useState({ low: 0, mid: 0, high: 0 });
-  const [libraryTracks, setLibraryTracks] = useState<Track[]>(album.tracks);
+  const [eqC, setEqC] = useState({ low: 0, mid: 0, high: 0 });
+  const [eqD, setEqD] = useState({ low: 0, mid: 0, high: 0 });
+  // Which deck each mixer channel currently shows (A/C on the left, B/D on the right).
+  const [leftDeckId, setLeftDeckId] = useState<DeckId>('A');
+  const [rightDeckId, setRightDeckId] = useState<DeckId>('B');
+
+  // ── Per-deck accessor maps (4 decks) — read state / setter / nodes / eq by id ──
+  const DS: Record<DeckId, DeckState> = { A: deckA, B: deckB, C: deckC, D: deckD };
+  const SET: Record<DeckId, React.Dispatch<React.SetStateAction<DeckState>>> = { A: setDeckA, B: setDeckB, C: setDeckC, D: setDeckD };
+  const NODES: Record<DeckId, React.MutableRefObject<DeckAudioNodes | null>> = { A: nodesA, B: nodesB, C: nodesC, D: nodesD };
+  const EQ: Record<DeckId, { low: number; mid: number; high: number }> = { A: eqA, B: eqB, C: eqC, D: eqD };
+  const SETEQ: Record<DeckId, React.Dispatch<React.SetStateAction<{ low: number; mid: number; high: number }>>> = { A: setEqA, B: setEqB, C: setEqC, D: setEqD };
+  const [libraryTracks, setLibraryTracks] = useState<Track[]>(albumTracks);
   const [libSearch, setLibSearch] = useState('');
+  // Booth = the pro rack; Stream = the streamer switcher (webcam / mic / Pixels / program out).
+  const [workspace, setWorkspace] = useState<'booth' | 'stream'>('booth');
+  // Bumped once the shared audio engine is built, so StreamStudio receives the real ctx/master.
+  const [audioReady, setAudioReady] = useState(false);
   const [lockerLoaded, setLockerLoaded] = useState(false);
   const [loadingLocker, setLoadingLocker] = useState(false);
   const [midiStatus, setMidiStatus] = useState<'idle' | 'ok' | 'denied'>('idle');
   const [isLiveActive, setIsLiveActive] = useState(false);
-  const [loadingDeck, setLoadingDeck] = useState<'A' | 'B' | null>(null);
+  const [loadingDeck, setLoadingDeck] = useState<DeckId | null>(null);
   const [isLightingOpen, setIsLightingOpen] = useState(false);
   // ── Record the set → Post as a Chora Mix ──
   const [isRecording, setIsRecording] = useState(false);
@@ -521,24 +579,31 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
 
     nodesA.current = buildDeckNodes();
     nodesB.current = buildDeckNodes();
+    nodesC.current = buildDeckNodes();
+    nodesD.current = buildDeckNodes();
     updateCrossfader(crossfader);
+    setAudioReady(true);   // hand the real ctx/master to StreamStudio
 
     return ctx;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getSharedAudioContext]);
 
+  // Crossfader mixes the two VISIBLE decks (equal-power); the other two play at unity.
   const updateCrossfader = (value: number) => {
-    if (!nodesA.current || !nodesB.current) return;
     const angle = value * Math.PI / 2;
-    nodesA.current.xfadeGain.gain.value = Math.cos(angle);
-    nodesB.current.xfadeGain.gain.value = Math.sin(angle);
+    const l = NODES[leftDeckId].current, r = NODES[rightDeckId].current;
+    if (l) l.xfadeGain.gain.value = Math.cos(angle);
+    if (r) r.xfadeGain.gain.value = Math.sin(angle);
+    (['A', 'B', 'C', 'D'] as DeckId[]).forEach(id => {
+      if (id !== leftDeckId && id !== rightDeckId) { const n = NODES[id].current; if (n) n.xfadeGain.gain.value = 1; }
+    });
   };
 
   // ─── Track loading ──────────────────────────────────────────────────────────
 
   const loadTrack = useCallback(async (
     track: Track,
-    deckId: 'A' | 'B',
+    deckId: DeckId,
     opts?: { autoPlay?: boolean; startOffset?: number }
   ) => {
     const ctx = initAudio();
@@ -564,17 +629,24 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
       const bpm = cached?.bpm ?? estimateBPM(audioBuffer);
       if (!cached) void getOrComputeAnalysis(track);
       const offset = Math.max(0, Math.min(opts?.startOffset ?? 0, audioBuffer.duration - 0.1));
-      const setState = deckId === 'A' ? setDeckA : setDeckB;
+      const setState = SET[deckId];
       setState(prev => ({
         ...prev, track, buffer: audioBuffer, peaks,
-        bpm, duration: audioBuffer.duration,
+        bpm, duration: audioBuffer.duration, key: null,
         currentTime: offset, isPlaying: false, isCued: false,
         loopIn: null, loopOut: null, loopActive: false,
         hotCues: [null, null, null, null],
       }));
+      // Harmonic key badge — resolve from cached/derived theory (no extra decode).
+      if (track.id) {
+        loadTrackTheory(track.id).then(theory => {
+          const cam = toCamelot(theory?.key, theory?.scale);
+          if (cam) setState(prev => (prev.track?.id === track.id ? { ...prev, key: cam } : prev));
+        }).catch(() => {});
+      }
       // Auto-start directly using the decoded buffer (bypasses React state timing)
       if (opts?.autoPlay) {
-        const nodes = deckId === 'A' ? nodesA.current : nodesB.current;
+        const nodes = NODES[deckId].current;
         if (nodes) {
           if (nodes.sourceNode) { try { nodes.sourceNode.stop(); } catch {} nodes.sourceNode = null; }
           const src = ctx.createBufferSource();
@@ -598,10 +670,10 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
 
   // ─── Playback control ───────────────────────────────────────────────────────
 
-  const startSource = useCallback((deckId: 'A' | 'B', offset: number, rate = 1) => {
+  const startSource = useCallback((deckId: DeckId, offset: number, rate = 1) => {
     const ctx = audioCtxRef.current;
-    const nodes = deckId === 'A' ? nodesA.current : nodesB.current;
-    const state = deckId === 'A' ? deckA : deckB;
+    const nodes = NODES[deckId].current;
+    const state = DS[deckId];
     if (!ctx || !nodes || !state.buffer) return;
 
     if (nodes.sourceNode) {
@@ -629,13 +701,13 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
     source.onended = () => {
       if (nodes.sourceNode === source) nodes.sourceNode = null;
     };
-  }, [deckA, deckB]);
+  }, [deckA, deckB, deckC, deckD]);
 
-  const togglePlay = useCallback((deckId: 'A' | 'B') => {
+  const togglePlay = useCallback((deckId: DeckId) => {
     const ctx = audioCtxRef.current;
-    const nodes = deckId === 'A' ? nodesA.current : nodesB.current;
-    const state = deckId === 'A' ? deckA : deckB;
-    const setState = deckId === 'A' ? setDeckA : setDeckB;
+    const nodes = NODES[deckId].current;
+    const state = DS[deckId];
+    const setState = SET[deckId];
     if (!state.buffer) return;
     if (!ctx) { initAudio(); return; }
     if (ctx.state === 'suspended') ctx.resume();
@@ -657,13 +729,13 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
       startSource(deckId, offset);
       setState(prev => ({ ...prev, isPlaying: true }));
     }
-  }, [deckA, deckB, startSource, initAudio]);
+  }, [deckA, deckB, deckC, deckD, startSource, initAudio]);
 
-  const setCue = useCallback((deckId: 'A' | 'B') => {
+  const setCue = useCallback((deckId: DeckId) => {
     const ctx = audioCtxRef.current;
-    const nodes = deckId === 'A' ? nodesA.current : nodesB.current;
-    const state = deckId === 'A' ? deckA : deckB;
-    const setState = deckId === 'A' ? setDeckA : setDeckB;
+    const nodes = NODES[deckId].current;
+    const state = DS[deckId];
+    const setState = SET[deckId];
     if (!state.buffer) return;
 
     if (state.isPlaying) {
@@ -679,42 +751,43 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
       startSource(deckId, state.currentTime);
       setState(prev => ({ ...prev, isPlaying: true, isCued: true }));
     }
-  }, [deckA, deckB, startSource]);
+  }, [deckA, deckB, deckC, deckD, startSource]);
 
-  const seekTo = useCallback((deckId: 'A' | 'B', time: number) => {
+  const seekTo = useCallback((deckId: DeckId, time: number) => {
     const ctx = audioCtxRef.current;
-    const nodes = deckId === 'A' ? nodesA.current : nodesB.current;
-    const state = deckId === 'A' ? deckA : deckB;
-    const setState = deckId === 'A' ? setDeckA : setDeckB;
+    const nodes = NODES[deckId].current;
+    const state = DS[deckId];
+    const setState = SET[deckId];
     if (!state.buffer || !ctx) return;
 
     const clampedTime = Math.max(0, Math.min(time, state.buffer.duration));
     setState(prev => ({ ...prev, currentTime: clampedTime }));
 
     if (state.isPlaying) startSource(deckId, clampedTime, pitchToRate(state.pitch));
-  }, [deckA, deckB, startSource]);
+  }, [deckA, deckB, deckC, deckD, startSource]);
 
   // ─── Sync BPM ───────────────────────────────────────────────────────────────
 
-  const syncBPM = useCallback((targetId: 'A' | 'B') => {
-    const sourceId = targetId === 'A' ? 'B' : 'A';
-    const source = sourceId === 'A' ? deckA : deckB;
-    const setState = targetId === 'A' ? setDeckA : setDeckB;
-    const nodes = targetId === 'A' ? nodesA.current : nodesB.current;
+  const syncBPM = useCallback((targetId: DeckId) => {
+    // Sync to the OTHER visible deck (the one on the opposite channel).
+    const sourceId: DeckId = targetId === leftDeckId ? rightDeckId : leftDeckId;
+    const source = DS[sourceId];
+    const setState = SET[targetId];
+    const nodes = NODES[targetId].current;
     if (!source.bpm || !nodes?.sourceNode) return;
-    const targetState = targetId === 'A' ? deckA : deckB;
+    const targetState = DS[targetId];
     const ratio = source.bpm / (targetState.bpm || DEFAULT_BPM);
     if (nodes.sourceNode) nodes.sourceNode.playbackRate.value = ratio * pitchToRate(targetState.pitch);
     setState(prev => ({ ...prev, bpm: source.bpm }));
-  }, [deckA, deckB]);
+  }, [deckA, deckB, deckC, deckD, leftDeckId, rightDeckId]);
 
   // ─── Jog wheel ──────────────────────────────────────────────────────────────
 
-  const onJogMove = useCallback((deckId: 'A' | 'B', deltaDeg: number) => {
+  const onJogMove = useCallback((deckId: DeckId, deltaDeg: number) => {
     const ctx = audioCtxRef.current;
-    const nodes = deckId === 'A' ? nodesA.current : nodesB.current;
-    const state = deckId === 'A' ? deckA : deckB;
-    const setState = deckId === 'A' ? setDeckA : setDeckB;
+    const nodes = NODES[deckId].current;
+    const state = DS[deckId];
+    const setState = SET[deckId];
 
     // Update visual angle
     setState(prev => ({ ...prev, jogAngle: prev.jogAngle + deltaDeg * 2 }));
@@ -740,33 +813,56 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
         }, 80);
       }
     }
-  }, [deckA, deckB]);
+  }, [deckA, deckB, deckC, deckD]);
 
   // ─── Loop controls ──────────────────────────────────────────────────────────
 
-  const setLoopIn = (deckId: 'A' | 'B') => {
-    const state = deckId === 'A' ? deckA : deckB;
-    (deckId === 'A' ? setDeckA : setDeckB)(prev => ({ ...prev, loopIn: state.currentTime }));
+  const setLoopIn = (deckId: DeckId) => {
+    const state = DS[deckId];
+    (SET[deckId])(prev => ({ ...prev, loopIn: state.currentTime }));
   };
-  const setLoopOut = (deckId: 'A' | 'B') => {
-    const state = deckId === 'A' ? deckA : deckB;
-    (deckId === 'A' ? setDeckA : setDeckB)(prev => ({ ...prev, loopOut: state.currentTime }));
+  const setLoopOut = (deckId: DeckId) => {
+    const state = DS[deckId];
+    (SET[deckId])(prev => ({ ...prev, loopOut: state.currentTime }));
   };
-  const toggleLoop = (deckId: 'A' | 'B') => {
-    const state = deckId === 'A' ? deckA : deckB;
-    const nodes = deckId === 'A' ? nodesA.current : nodesB.current;
+  const toggleLoop = (deckId: DeckId) => {
+    const state = DS[deckId];
+    const nodes = NODES[deckId].current;
     if (!state.loopIn || !state.loopOut || !nodes?.sourceNode) return;
     nodes.sourceNode.loop = !state.loopActive;
     nodes.sourceNode.loopStart = state.loopIn;
     nodes.sourceNode.loopEnd = state.loopOut;
-    (deckId === 'A' ? setDeckA : setDeckB)(prev => ({ ...prev, loopActive: !prev.loopActive }));
+    (SET[deckId])(prev => ({ ...prev, loopActive: !prev.loopActive, loopBeats: prev.loopActive ? null : prev.loopBeats }));
+  };
+
+  // Beat-loop: snap a loop of N beats from the current position (Loop pad mode).
+  // Pressing the active size again releases the loop — the Traktor toggle behaviour.
+  const setBeatLoop = (deckId: DeckId, beats: number) => {
+    const state = DS[deckId];
+    const setState = SET[deckId];
+    const nodes = NODES[deckId].current;
+    if (!state.buffer) return;
+    if (state.loopActive && state.loopBeats === beats) {
+      if (nodes?.sourceNode) nodes.sourceNode.loop = false;
+      setState(prev => ({ ...prev, loopActive: false, loopBeats: null }));
+      return;
+    }
+    const len = (60 / (state.bpm || DEFAULT_BPM)) * beats;
+    const inAt = state.currentTime;
+    const outAt = Math.min(inAt + len, state.buffer.duration);
+    if (nodes?.sourceNode) {
+      nodes.sourceNode.loopStart = inAt;
+      nodes.sourceNode.loopEnd = outAt;
+      nodes.sourceNode.loop = true;
+    }
+    setState(prev => ({ ...prev, loopIn: inAt, loopOut: outAt, loopActive: true, loopBeats: beats }));
   };
 
   // ─── Hot cues ───────────────────────────────────────────────────────────────
 
-  const setHotCue = (deckId: 'A' | 'B', idx: number) => {
-    const state = deckId === 'A' ? deckA : deckB;
-    const setState = deckId === 'A' ? setDeckA : setDeckB;
+  const setHotCue = (deckId: DeckId, idx: number) => {
+    const state = DS[deckId];
+    const setState = SET[deckId];
     if (state.hotCues[idx] !== null) {
       seekTo(deckId, state.hotCues[idx]!);
     } else {
@@ -780,66 +876,50 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
 
   // ─── EQ update ──────────────────────────────────────────────────────────────
 
+  // EQ for all four decks.
   useEffect(() => {
-    if (!nodesA.current) return;
     const MAX_DB = 12;
-    nodesA.current.eqLow.gain.value  = eqA.low  * MAX_DB;
-    nodesA.current.eqMid.gain.value  = eqA.mid  * MAX_DB;
-    nodesA.current.eqHigh.gain.value = eqA.high * MAX_DB;
-  }, [eqA]);
+    (['A', 'B', 'C', 'D'] as DeckId[]).forEach(id => {
+      const n = NODES[id].current; if (!n) return;
+      const e = EQ[id];
+      n.eqLow.gain.value  = e.low  * MAX_DB;
+      n.eqMid.gain.value  = e.mid  * MAX_DB;
+      n.eqHigh.gain.value = e.high * MAX_DB;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eqA, eqB, eqC, eqD]);
+
+  // ─── Volume + FX sync (all four decks) ───────────────────────────────────────
 
   useEffect(() => {
-    if (!nodesB.current) return;
-    const MAX_DB = 12;
-    nodesB.current.eqLow.gain.value  = eqB.low  * MAX_DB;
-    nodesB.current.eqMid.gain.value  = eqB.mid  * MAX_DB;
-    nodesB.current.eqHigh.gain.value = eqB.high * MAX_DB;
-  }, [eqB]);
+    (['A', 'B', 'C', 'D'] as DeckId[]).forEach(id => {
+      const n = NODES[id].current; if (!n) return;
+      const d = DS[id];
+      n.gainNode.gain.value = d.volume;
+      // Filter sweep: 0=200Hz, 0.5=off, 1=8kHz → kill at extremes
+      const f = d.fx.filter;
+      if (Math.abs(f - 0.5) < 0.05) {
+        n.filterNode.frequency.value = 20000;
+      } else if (f < 0.5) {
+        n.filterNode.type = 'lowpass';
+        n.filterNode.frequency.value = 200 + f * 2 * 3800;
+      } else {
+        n.filterNode.type = 'highpass';
+        n.filterNode.frequency.value = (f - 0.5) * 2 * 8000;
+      }
+      n.delayWet.gain.value = d.fx.delay * 0.7;
+      n.reverbWet.gain.value = d.fx.reverb * 0.6;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deckA.volume, deckA.fx, deckB.volume, deckB.fx, deckC.volume, deckC.fx, deckD.volume, deckD.fx]);
 
-  // ─── Volume + FX sync ───────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!nodesA.current) return;
-    nodesA.current.gainNode.gain.value = deckA.volume;
-    // Filter sweep: 0=200Hz, 0.5=off, 1=8kHz → kill at extremes
-    const fA = deckA.fx.filter;
-    if (Math.abs(fA - 0.5) < 0.05) {
-      nodesA.current.filterNode.frequency.value = 20000;
-    } else if (fA < 0.5) {
-      nodesA.current.filterNode.type = 'lowpass';
-      nodesA.current.filterNode.frequency.value = 200 + fA * 2 * 3800;
-    } else {
-      nodesA.current.filterNode.type = 'highpass';
-      nodesA.current.filterNode.frequency.value = (fA - 0.5) * 2 * 8000;
-    }
-    nodesA.current.delayWet.gain.value = deckA.fx.delay * 0.7;
-    nodesA.current.reverbWet.gain.value = deckA.fx.reverb * 0.6;
-  }, [deckA.volume, deckA.fx]);
-
-  useEffect(() => {
-    if (!nodesB.current) return;
-    nodesB.current.gainNode.gain.value = deckB.volume;
-    const fB = deckB.fx.filter;
-    if (Math.abs(fB - 0.5) < 0.05) {
-      nodesB.current.filterNode.frequency.value = 20000;
-    } else if (fB < 0.5) {
-      nodesB.current.filterNode.type = 'lowpass';
-      nodesB.current.filterNode.frequency.value = 200 + fB * 2 * 3800;
-    } else {
-      nodesB.current.filterNode.type = 'highpass';
-      nodesB.current.filterNode.frequency.value = (fB - 0.5) * 2 * 8000;
-    }
-    nodesB.current.delayWet.gain.value = deckB.fx.delay * 0.7;
-    nodesB.current.reverbWet.gain.value = deckB.fx.reverb * 0.6;
-  }, [deckB.volume, deckB.fx]);
-
-  useEffect(() => { updateCrossfader(crossfader); }, [crossfader]);
+  useEffect(() => { updateCrossfader(crossfader); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [crossfader, leftDeckId, rightDeckId]);
 
   // ─── Pitch change ───────────────────────────────────────────────────────────
 
-  const changePitch = (deckId: 'A' | 'B', semitones: number) => {
-    const nodes = deckId === 'A' ? nodesA.current : nodesB.current;
-    const setState = deckId === 'A' ? setDeckA : setDeckB;
+  const changePitch = (deckId: DeckId, semitones: number) => {
+    const nodes = NODES[deckId].current;
+    const setState = SET[deckId];
     if (nodes?.sourceNode) nodes.sourceNode.playbackRate.value = pitchToRate(semitones);
     setState(prev => ({ ...prev, pitch: semitones }));
   };
@@ -868,10 +948,12 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
 
       updateDeckTime(nodesA.current, deckA, setDeckA);
       updateDeckTime(nodesB.current, deckB, setDeckB);
+      updateDeckTime(nodesC.current, deckC, setDeckC);
+      updateDeckTime(nodesD.current, deckD, setDeckD);
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [deckA.isPlaying, deckB.isPlaying]);
+  }, [deckA.isPlaying, deckB.isPlaying, deckC.isPlaying, deckD.isPlaying]);
 
   // ─── MIDI ───────────────────────────────────────────────────────────────────
 
@@ -915,11 +997,11 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
 
   // ─── Sample pad playback ─────────────────────────────────────────────────────
 
-  const loadSample = async (deckId: 'A' | 'B', padIdx: number, file: File) => {
+  const loadSample = async (deckId: DeckId, padIdx: number, file: File) => {
     const ctx = initAudio();
     const ab = await file.arrayBuffer();
     const buf = await ctx.decodeAudioData(ab);
-    const setState = deckId === 'A' ? setDeckA : setDeckB;
+    const setState = SET[deckId];
     setState(prev => {
       const samples = [...prev.samples];
       samples[padIdx] = { ...samples[padIdx], title: file.name.replace(/\.[^.]+$/, ''), buffer: buf, url: URL.createObjectURL(file) };
@@ -927,10 +1009,10 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
     });
   };
 
-  const triggerSample = (deckId: 'A' | 'B', padIdx: number) => {
+  const triggerSample = (deckId: DeckId, padIdx: number) => {
     const ctx = audioCtxRef.current || initAudio();
     if (ctx.state === 'suspended') ctx.resume();
-    const state = deckId === 'A' ? deckA : deckB;
+    const state = DS[deckId];
     const pad = state.samples[padIdx];
     if (!pad.buffer || !masterGainRef.current) return;
 
@@ -942,7 +1024,7 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
     source.connect(masterGainRef.current);
     source.start();
 
-    const setState = deckId === 'A' ? setDeckA : setDeckB;
+    const setState = SET[deckId];
     setState(prev => {
       const samples = [...prev.samples];
       samples[padIdx] = { ...samples[padIdx], sourceNode: source, isPlaying: true };
@@ -960,7 +1042,7 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
 
   // ─── Local file import ──────────────────────────────────────────────────────
 
-  const importLocalFile = async (file: File, deckId?: 'A' | 'B') => {
+  const importLocalFile = async (file: File, deckId?: DeckId) => {
     const track: Track = {
       id: `local-${Date.now()}`,
       title: file.name.replace(/\.[^.]+$/, ''),
@@ -990,11 +1072,13 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
       loadTrack(initialTrack, 'A', { autoPlay: true, startOffset: initialTime });
     }
 
-    // Load next track in album into Deck B
-    const nextIdx = ((initialTrackIndex ?? 0) + 1) % album.tracks.length;
-    const nextTrack = album.tracks[nextIdx];
-    if (nextTrack && nextTrack.id !== initialTrack?.id) {
-      loadTrack(nextTrack, 'B');
+    // Load next track in album into Deck B (only when launched with an album crate)
+    if (albumTracks.length > 0) {
+      const nextIdx = ((initialTrackIndex ?? 0) + 1) % albumTracks.length;
+      const nextTrack = albumTracks[nextIdx];
+      if (nextTrack && nextTrack.id !== initialTrack?.id) {
+        loadTrack(nextTrack, 'B');
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1009,6 +1093,8 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
       // leaving the shared graph (and the player's own nodes) untouched.
       try { nodesA.current?.sourceNode?.stop(); } catch { /* */ }
       try { nodesB.current?.sourceNode?.stop(); } catch { /* */ }
+      try { nodesC.current?.sourceNode?.stop(); } catch { /* */ }
+      try { nodesD.current?.sourceNode?.stop(); } catch { /* */ }
       // Stopping a live recorder fires its onstop → finalize → posts the captured set.
       try { if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop(); } catch { /* */ }
       try { masterGainRef.current?.disconnect(); } catch { /* */ }
@@ -1084,10 +1170,13 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
   // the song with the FX you had — and the Kill button resets it to dry.
   const handleClose = useCallback(() => {
     try {
-      const liveIsB = deckB.isPlaying && crossfader > 0.5;
-      const live = liveIsB ? deckB : deckA;
+      // The audible deck is whichever VISIBLE channel the crossfader favours.
+      const right = DS[rightDeckId], left = DS[leftDeckId];
+      const liveIsRight = right.isPlaying && crossfader > 0.5;
+      const live = liveIsRight ? right : left;
+      const liveId = liveIsRight ? rightDeckId : leftDeckId;
       if (onExitToGlobal && live.track) {
-        const nodes = liveIsB ? nodesB.current : nodesA.current;
+        const nodes = NODES[liveId].current;
         const ctx = audioCtxRef.current;
         let t = live.currentTime;
         if (ctx && nodes?.sourceNode) t = nodes.startOffset + (ctx.currentTime - nodes.startTime);
@@ -1095,48 +1184,88 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
       }
     } catch { /* fall through to a normal close */ }
     onClose();
-  }, [deckA, deckB, crossfader, onExitToGlobal, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deckA, deckB, deckC, deckD, leftDeckId, rightDeckId, crossfader, onExitToGlobal, onClose]);
 
   // ─── Deck panel render helper ────────────────────────────────────────────────
 
-  const renderDeck = (deckId: 'A' | 'B') => {
-    const deck  = deckId === 'A' ? deckA : deckB;
-    const setDeck = deckId === 'A' ? setDeckA : setDeckB;
-    const eq    = deckId === 'A' ? eqA : eqB;
-    const setEq = deckId === 'A' ? setEqA : setEqB;
-    const color = deckId === 'A' ? '#00D4AA' : '#FF6B6B';
-    const isRight = deckId === 'B';
+  const renderDeck = (deckId: DeckId) => {
+    const deck  = DS[deckId];
+    const setDeck = SET[deckId];
+    const eq    = EQ[deckId];
+    const setEq = SETEQ[deckId];
+    const color = DECK_COLORS[deckId];
+    // Which two decks share this channel, and how to switch which one shows.
+    const pair: DeckId[] = (deckId === 'A' || deckId === 'C') ? ['A', 'C'] : ['B', 'D'];
+    const setVisible = (deckId === 'A' || deckId === 'C') ? setLeftDeckId : setRightDeckId;
+    const hiddenId = pair.find(id => id !== deckId)!;
+    const hidden = DS[hiddenId];
 
     return (
-      <div className={`flex flex-col gap-3 flex-1 min-w-0 ${isRight ? 'flex-row-reverse flex-col' : ''}`}>
-        {/* Track info */}
-        <div className="h-12 px-3 bg-[#111] rounded-xl border border-white/5 flex items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-lg overflow-hidden shrink-0 cursor-pointer"
-            onClick={() => { /* open library */ }}
-          >
-            {deck.track?.albumCover || album.coverImage ? (
-              <img src={thumb(deck.track?.albumCover || album.coverImage, THUMB.micro) || undefined} alt="" loading="lazy" decoding="async" onError={onThumbError(deck.track?.albumCover || album.coverImage)} className="w-full h-full object-cover" />
+      <div className="flex flex-col gap-3 flex-1 min-w-0">
+        {/* Deck-swap tabs — A/C on the left channel, B/D on the right (4 decks, 2 channels) */}
+        <div className="flex items-center gap-1.5">
+          {pair.map(id => (
+            <button
+              key={id}
+              onClick={() => setVisible(id)}
+              className="w-7 h-7 rounded-lg text-[12px] font-black grid place-items-center transition-all shrink-0"
+              style={id === deckId
+                ? { background: DECK_COLORS[id], color: '#04070a' }
+                : { border: '1px solid rgba(255,255,255,0.14)', color: DS[id].isPlaying ? DECK_COLORS[id] : 'rgba(255,255,255,0.4)' }}
+              title={`Deck ${id}${DS[id].isPlaying ? ' — playing' : ''}`}
+            >
+              {id}
+            </button>
+          ))}
+          <span className="text-[10px] font-bold uppercase tracking-widest ml-1" style={{ color }}>Deck {deckId}</span>
+          {hidden.isPlaying && (
+            <span className="ml-auto flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-full" style={{ color: DECK_COLORS[hiddenId], background: DECK_COLORS[hiddenId] + '18' }}>
+              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: DECK_COLORS[hiddenId] }} />Deck {hiddenId} live
+            </span>
+          )}
+        </div>
+
+        {/* Track info + big parameter readouts (Traktor-style, readable in a dark room) */}
+        <div className="px-3 py-2.5 bg-[#0c0d12] rounded-xl border border-white/10 flex items-center gap-3">
+          <div className="w-11 h-11 rounded-lg overflow-hidden shrink-0" style={{ boxShadow: `inset 0 0 0 1px ${color}55` }}>
+            {deck.track?.albumCover || albumCover ? (
+              <img src={thumb(deck.track?.albumCover || albumCover, THUMB.small) || undefined} alt="" loading="lazy" decoding="async" onError={onThumbError(deck.track?.albumCover || albumCover)} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full bg-[#1A1A1A] flex items-center justify-center">
-                <Music2 size={12} className="text-white/20" />
+                <Music2 size={16} className="text-white/20" />
               </div>
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-widest text-white truncate">
-              {deck.track?.title || '— No Track Loaded —'}
+            <p className="text-[15px] font-bold text-white truncate leading-tight">
+              {deck.track?.title || 'No track loaded'}
             </p>
-            <p className="text-[7px] font-black uppercase tracking-widest" style={{ color: color + '99' }}>
-              {deck.track?.artist || 'Drag track from library'}
+            <p className="text-[11px] font-semibold truncate" style={{ color: color + 'cc' }}>
+              {deck.track?.artist || 'Drag from library, or load A/B'}
             </p>
           </div>
-          <div className="text-right shrink-0">
-            <p className="font-mono text-[10px] font-bold" style={{ color }}>
-              {formatTime(deck.currentTime)}
-            </p>
-            <p className="text-[7px] font-black text-white/20 font-mono">
-              -{formatTime(Math.max(0, deck.duration - deck.currentTime))}
+          {/* KEY (Camelot) */}
+          <div className="shrink-0 rounded-lg px-2.5 py-1.5 text-center min-w-[42px]" style={{ background: `${color}1a`, border: `1px solid ${color}44` }}>
+            <p className="text-[8px] font-bold uppercase tracking-widest text-white/35">Key</p>
+            <p className="font-mono text-[15px] font-black leading-none mt-0.5" style={{ color: deck.key ? color : 'rgba(255,255,255,0.25)' }}>{deck.key || '–'}</p>
+          </div>
+          {/* BPM */}
+          <div className="shrink-0 text-right min-w-[58px]">
+            <p className="text-[8px] font-bold uppercase tracking-widest text-white/35">BPM</p>
+            <p className="font-mono text-[22px] font-black leading-none tabular-nums" style={{ color }}>{deck.bpm.toFixed(1)}</p>
+          </div>
+          {/* TIME */}
+          <div className="shrink-0 text-right min-w-[62px]">
+            <p className="text-[8px] font-bold uppercase tracking-widest text-white/35">Time</p>
+            <p className="font-mono text-[17px] font-bold leading-none tabular-nums text-white">{formatTime(deck.currentTime).split('.')[0]}</p>
+            <p className="font-mono text-[10px] font-semibold text-white/30 tabular-nums">-{formatTime(Math.max(0, deck.duration - deck.currentTime)).split('.')[0]}</p>
+          </div>
+          {/* PITCH */}
+          <div className="shrink-0 text-right min-w-[46px]">
+            <p className="text-[8px] font-bold uppercase tracking-widest text-white/35">Tempo</p>
+            <p className="font-mono text-[15px] font-bold leading-none tabular-nums" style={{ color: Math.abs(deck.pitch) > 0.05 ? color : 'rgba(255,255,255,0.5)' }}>
+              {deck.pitch > 0 ? '+' : ''}{((deck.pitch / PITCH_RANGE) * 8).toFixed(1)}%
             </p>
           </div>
         </div>
@@ -1172,11 +1301,11 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
           </div>
 
           <JogWheel
-            deckId={deckId}
+            color={color}
             angle={deck.jogAngle}
             isScratch={deck.isScratch}
             isPlaying={deck.isPlaying}
-            coverImage={deck.track?.albumCover || album.coverImage}
+            coverImage={deck.track?.albumCover || albumCover}
             onScratchStart={() => {}}
             onScratchMove={d => onJogMove(deckId, d)}
             onScratchEnd={() => {}}
@@ -1223,100 +1352,130 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
           )}
         </div>
 
-        {/* Loop controls */}
-        <div className="flex gap-1 justify-center">
-          {[
-            { label: 'IN',   action: () => setLoopIn(deckId),   active: deck.loopIn !== null },
-            { label: 'OUT',  action: () => setLoopOut(deckId),  active: deck.loopOut !== null },
-            { label: 'LOOP', action: () => toggleLoop(deckId),  active: deck.loopActive },
-          ].map(({ label, action, active }) => (
+        {/* Performance pads — mode selector (Hot Cue / Loop / Sample) + 8-pad grid */}
+        <div className="flex gap-1">
+          {(['cue', 'loop', 'sample'] as PadMode[]).map(m => (
             <button
-              key={label}
-              onClick={action}
-              className="px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all"
-              style={{
-                borderColor: active ? color : 'rgba(255,255,255,0.1)',
-                color: active ? color : 'rgba(255,255,255,0.3)',
-                background: active ? `${color}15` : 'transparent',
-              }}
+              key={m}
+              onClick={() => setDeck(p => ({ ...p, padMode: m }))}
+              className="flex-1 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all border"
+              style={deck.padMode === m
+                ? { background: `${color}22`, color, borderColor: `${color}66` }
+                : { color: 'rgba(255,255,255,0.35)', borderColor: 'rgba(255,255,255,0.08)' }}
             >
-              {label}
+              {m === 'cue' ? 'Hot Cue' : m}
             </button>
           ))}
         </div>
 
-        {/* Hot cues */}
         <div className="grid grid-cols-4 gap-1">
-          {deck.hotCues.map((cue, i) => (
+          {/* Hot Cue mode — 8 cues (left-click set/jump, right-click clear) */}
+          {deck.padMode === 'cue' && deck.hotCues.map((cue, i) => (
             <button
               key={i}
               onClick={() => setHotCue(deckId, i)}
               onContextMenu={e => {
                 e.preventDefault();
-                const setState = deckId === 'A' ? setDeckA : setDeckB;
-                setState(prev => {
-                  const cues = [...prev.hotCues];
-                  cues[i] = null;
-                  return { ...prev, hotCues: cues };
+                (SET[deckId])(prev => {
+                  const cues = [...prev.hotCues]; cues[i] = null; return { ...prev, hotCues: cues };
                 });
               }}
-              className="py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all"
+              className="py-2 rounded-lg text-[9px] font-bold tabular-nums border transition-all"
               style={{
                 borderColor: cue !== null ? SAMPLE_COLORS[i] : 'rgba(255,255,255,0.08)',
-                color: cue !== null ? SAMPLE_COLORS[i] : 'rgba(255,255,255,0.25)',
-                background: cue !== null ? `${SAMPLE_COLORS[i]}15` : 'transparent',
+                color: cue !== null ? SAMPLE_COLORS[i] : 'rgba(255,255,255,0.3)',
+                background: cue !== null ? `${SAMPLE_COLORS[i]}18` : 'transparent',
               }}
             >
-              {cue !== null ? formatTime(cue).split('.')[0] : `CUE ${i + 1}`}
+              {cue !== null ? formatTime(cue).split('.')[0] : `${i + 1}`}
             </button>
           ))}
-        </div>
 
-        {/* FX row */}
-        <div className="grid grid-cols-3 gap-2 px-1">
-          {[
-            { label: 'FILTER', key: 'filter' as const },
-            { label: 'DELAY',  key: 'delay'  as const },
-            { label: 'REVERB', key: 'reverb' as const },
-          ].map(({ label, key }) => (
-            <div key={key} className="flex flex-col items-center gap-1">
-              <input
-                type="range" min={0} max={1} step={0.01}
-                value={deck.fx[key]}
-                onChange={e => setDeck(prev => ({ ...prev, fx: { ...prev.fx, [key]: parseFloat(e.target.value) } }))}
-                className="w-full accent-current"
-                style={{ accentColor: color }}
-              />
-              <span className="text-[7px] font-black uppercase tracking-widest text-white/25">{label}</span>
-            </div>
-          ))}
-        </div>
+          {/* Loop mode — 8 beat-loop sizes (press active size again to release) */}
+          {deck.padMode === 'loop' && BEAT_LOOPS.map(b => {
+            const active = deck.loopActive && deck.loopBeats === b;
+            return (
+              <button
+                key={b}
+                onClick={() => setBeatLoop(deckId, b)}
+                className="py-2 rounded-lg text-[10px] font-bold tabular-nums border transition-all flex flex-col items-center leading-none gap-0.5"
+                style={{
+                  borderColor: active ? color : 'rgba(255,255,255,0.08)',
+                  color: active ? color : 'rgba(255,255,255,0.45)',
+                  background: active ? `${color}22` : 'transparent',
+                  boxShadow: active ? `0 0 12px ${color}55` : 'none',
+                }}
+              >
+                {beatLoopLabel(b)}
+                <span className="text-[6px] font-bold uppercase tracking-widest text-white/25">{b >= 1 ? 'bars' : 'beat'}</span>
+              </button>
+            );
+          })}
 
-        {/* Sample pads */}
-        <div className="grid grid-cols-4 gap-1">
-          {deck.samples.map((pad, i) => (
+          {/* Sample mode — 8 sample pads (trigger + load) */}
+          {deck.padMode === 'sample' && deck.samples.map((pad, i) => (
             <div key={pad.id} className="flex flex-col gap-0.5">
               <button
                 onClick={() => triggerSample(deckId, i)}
-                className="py-2 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all border"
+                className="py-2 rounded-lg text-[8px] font-bold uppercase tracking-wider transition-all border w-full"
                 style={{
                   borderColor: pad.buffer ? pad.color : 'rgba(255,255,255,0.08)',
-                  background: pad.isPlaying ? `${pad.color}44` : pad.buffer ? `${pad.color}15` : 'transparent',
-                  color: pad.buffer ? pad.color : 'rgba(255,255,255,0.2)',
+                  background: pad.isPlaying ? `${pad.color}44` : pad.buffer ? `${pad.color}18` : 'transparent',
+                  color: pad.buffer ? pad.color : 'rgba(255,255,255,0.25)',
                   boxShadow: pad.isPlaying ? `0 0 12px ${pad.color}66` : 'none',
                 }}
               >
-                {pad.buffer ? (pad.title.length > 6 ? pad.title.substring(0, 6) + '…' : pad.title) : `SMP ${i + 1}`}
+                {pad.buffer ? (pad.title.length > 5 ? pad.title.substring(0, 5) + '…' : pad.title) : `${i + 1}`}
               </button>
               <label className="cursor-pointer">
                 <input type="file" accept="audio/*" className="hidden"
                   onChange={e => { const f = e.target.files?.[0]; if (f) loadSample(deckId, i, f); }} />
-                <div className="text-center text-[6px] font-black uppercase tracking-widest text-white/15 hover:text-white/40 transition-colors">
-                  ↑ load
-                </div>
+                <div className="text-center text-[6px] font-bold uppercase tracking-widest text-white/15 hover:text-white/40 transition-colors">↑ load</div>
               </label>
             </div>
           ))}
+        </div>
+
+        {/* Manual loop set + FX */}
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1">
+            {[
+              { label: 'IN',   action: () => setLoopIn(deckId),  active: deck.loopIn !== null },
+              { label: 'OUT',  action: () => setLoopOut(deckId), active: deck.loopOut !== null },
+              { label: 'LOOP', action: () => toggleLoop(deckId), active: deck.loopActive },
+            ].map(({ label, action, active }) => (
+              <button
+                key={label}
+                onClick={action}
+                className="px-2.5 py-1 rounded-md text-[8px] font-bold uppercase tracking-widest border transition-all"
+                style={{
+                  borderColor: active ? color : 'rgba(255,255,255,0.1)',
+                  color: active ? color : 'rgba(255,255,255,0.35)',
+                  background: active ? `${color}15` : 'transparent',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-3 gap-2 flex-1">
+            {[
+              { label: 'FILTER', key: 'filter' as const },
+              { label: 'DELAY',  key: 'delay'  as const },
+              { label: 'REVERB', key: 'reverb' as const },
+            ].map(({ label, key }) => (
+              <div key={key} className="flex flex-col items-center gap-0.5">
+                <input
+                  type="range" min={0} max={1} step={0.01}
+                  value={deck.fx[key]}
+                  onChange={e => setDeck(prev => ({ ...prev, fx: { ...prev.fx, [key]: parseFloat(e.target.value) } }))}
+                  className="w-full accent-current"
+                  style={{ accentColor: color }}
+                />
+                <span className="text-[7px] font-bold uppercase tracking-widest text-white/30">{label}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -1343,6 +1502,16 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
     !libSearch || t.title.toLowerCase().includes(libSearch.toLowerCase()) || t.artist.toLowerCase().includes(libSearch.toLowerCase())
   );
 
+  // ── Program feed for the Stream workspace ────────────────────────────────────
+  // Whichever visible deck is audible (by play-state + crossfader) is what streams.
+  const rightVisible = DS[rightDeckId], leftVisible = DS[leftDeckId];
+  const liveIsRight = rightVisible.isPlaying && crossfader > 0.5;
+  const liveDeck = liveIsRight ? rightVisible : leftVisible;
+  const programNowPlaying = liveDeck.track
+    ? { title: liveDeck.track.title, artist: liveDeck.track.artist, deck: (liveIsRight ? rightDeckId : leftDeckId) as 'A' | 'B' }
+    : null;
+  const programBpm = liveDeck.bpm || DEFAULT_BPM;
+
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
@@ -1351,21 +1520,41 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 40 }}
       transition={{ duration: 0.35, ease: 'easeOut' }}
-      className="fixed inset-0 z-[300] bg-black flex flex-col overflow-hidden"
-      style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+      className="fixed inset-0 z-[300] bg-[#060609] flex flex-col overflow-hidden"
+      style={{ fontFamily: "'Outfit', 'Space Grotesk', sans-serif" }}
     >
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 px-4 py-2 bg-[#0A0A0A] border-b border-white/5 shrink-0">
-        <div className="flex items-center gap-2">
-          <Disc size={16} className="text-[#00D4AA]" />
-          <span className="text-[11px] font-black uppercase tracking-[0.3em] text-white">DJ Mode</span>
-          <span className="text-[9px] font-black uppercase tracking-widest text-white/20">— {album.title}</span>
+        <div className="flex items-center gap-2.5">
+          <Disc size={17} className="text-[#00DAF3]" />
+          <span className="text-[12px] font-black uppercase tracking-[0.28em] text-white">DJ Console</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-white/25">— {albumTitle}</span>
+        </div>
+
+        {/* Workspace toggle — Booth (pro rack) ⟷ Stream (streamer switcher) */}
+        <div className="ml-3 flex items-center gap-1 p-0.5 rounded-full bg-white/[0.04] border border-white/10">
+          {([
+            { id: 'booth' as const, icon: LayoutGrid, label: 'Booth' },
+            { id: 'stream' as const, icon: Video, label: 'Stream' },
+          ]).map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => setWorkspace(id)}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                workspace === id
+                  ? (id === 'stream' ? 'bg-[#D40055] text-white' : 'bg-[#00DAF3] text-black')
+                  : 'text-white/40 hover:text-white/70'
+              }`}
+            >
+              <Icon size={12} /> {label}
+            </button>
+          ))}
         </div>
 
         <div className="ml-auto flex items-center gap-2">
           {/* MIDI status */}
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/8">
-            <Usb size={10} className={midiStatus === 'ok' ? 'text-[#00D4AA]' : 'text-white/20'} />
+            <Usb size={10} className={midiStatus === 'ok' ? 'text-[#00DAF3]' : 'text-white/20'} />
             <span className="text-[8px] font-black uppercase tracking-widest text-white/30">
               {midiStatus === 'ok' ? 'MIDI Connected' : midiStatus === 'denied' ? 'No MIDI' : 'MIDI…'}
             </span>
@@ -1420,39 +1609,50 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
         </div>
       </div>
 
-      {/* ── Decks ──────────────────────────────────────────────────────────── */}
+      {/* ── Stream workspace — the streamer switcher ───────────────────────── */}
+      {workspace === 'stream' && (
+        <div className="flex-1 min-h-0 overflow-hidden bg-[#060609]">
+          <StreamStudio
+            audioCtx={audioReady ? audioCtxRef.current : null}
+            masterGain={audioReady ? masterGainRef.current : null}
+            nowPlaying={programNowPlaying}
+            bpm={programBpm}
+            ensureAudio={initAudio}
+          />
+        </div>
+      )}
+
+      {/* ── Booth workspace — decks · mixer · library ──────────────────────── */}
+      {workspace === 'booth' && <>
+      {/* ── Decks (A/C on the left channel, B/D on the right) ──────────────── */}
       <div className="flex gap-0 flex-1 min-h-0 overflow-hidden">
-        {/* Deck A */}
+        {/* Left channel deck */}
         <div className="flex-1 min-w-0 overflow-y-auto no-scrollbar p-3 border-r border-white/5"
           onDragOver={e => e.preventDefault()}
           onDrop={e => {
             e.preventDefault();
             const tid = e.dataTransfer.getData('trackId');
             const track = libraryTracks.find(t => t.id === tid);
-            if (track) loadTrack(track, 'A');
+            if (track) loadTrack(track, leftDeckId);
             const file = e.dataTransfer.files?.[0];
-            if (file?.type.startsWith('audio/')) importLocalFile(file, 'A');
+            if (file?.type.startsWith('audio/')) importLocalFile(file, leftDeckId);
           }}
         >
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 rounded-full bg-[#00D4AA]" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-[#00D4AA]">Deck A</span>
-          </div>
-          {renderDeck('A')}
+          {renderDeck(leftDeckId)}
         </div>
 
         {/* Mixer */}
         <div className="w-32 shrink-0 bg-[#0A0A0A] border-x border-white/5 flex flex-col items-center gap-4 py-4 px-2">
           <span className="text-[7px] font-black uppercase tracking-widest text-white/20">Mixer</span>
 
-          {/* Volume A */}
+          {/* Left channel volume */}
           <div className="flex flex-col items-center gap-1">
-            <span className="text-[6px] font-black uppercase tracking-widest text-[#00D4AA]/50">Vol A</span>
-            <input type="range" min={0} max={1} step={0.01} value={deckA.volume}
-              onChange={e => setDeckA(p => ({ ...p, volume: parseFloat(e.target.value) }))}
-              className="h-24 cursor-pointer" style={{ writingMode: 'vertical-lr', direction: 'rtl', accentColor: '#00D4AA' }}
+            <span className="text-[6px] font-black uppercase tracking-widest" style={{ color: DECK_COLORS[leftDeckId] + '80' }}>Vol {leftDeckId}</span>
+            <input type="range" min={0} max={1} step={0.01} value={DS[leftDeckId].volume}
+              onChange={e => SET[leftDeckId](p => ({ ...p, volume: parseFloat(e.target.value) }))}
+              className="h-24 cursor-pointer" style={{ writingMode: 'vertical-lr', direction: 'rtl', accentColor: DECK_COLORS[leftDeckId] }}
             />
-            <span className="font-mono text-[7px] text-[#00D4AA]/50">{Math.round(deckA.volume * 100)}</span>
+            <span className="font-mono text-[7px]" style={{ color: DECK_COLORS[leftDeckId] + '80' }}>{Math.round(DS[leftDeckId].volume * 100)}</span>
           </div>
 
           {/* Crossfader */}
@@ -1463,39 +1663,35 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
               className="w-full cursor-pointer" style={{ accentColor: '#888' }}
             />
             <div className="flex justify-between w-full">
-              <span className="text-[6px] font-black text-[#00D4AA]/50">A</span>
-              <span className="text-[6px] font-black text-[#FF6B6B]/50">B</span>
+              <span className="text-[6px] font-black" style={{ color: DECK_COLORS[leftDeckId] + '80' }}>{leftDeckId}</span>
+              <span className="text-[6px] font-black" style={{ color: DECK_COLORS[rightDeckId] + '80' }}>{rightDeckId}</span>
             </div>
           </div>
 
-          {/* Volume B */}
+          {/* Right channel volume */}
           <div className="flex flex-col items-center gap-1">
-            <span className="text-[6px] font-black uppercase tracking-widest text-[#FF6B6B]/50">Vol B</span>
-            <input type="range" min={0} max={1} step={0.01} value={deckB.volume}
-              onChange={e => setDeckB(p => ({ ...p, volume: parseFloat(e.target.value) }))}
-              className="h-24 cursor-pointer" style={{ writingMode: 'vertical-lr', direction: 'rtl', accentColor: '#FF6B6B' }}
+            <span className="text-[6px] font-black uppercase tracking-widest" style={{ color: DECK_COLORS[rightDeckId] + '80' }}>Vol {rightDeckId}</span>
+            <input type="range" min={0} max={1} step={0.01} value={DS[rightDeckId].volume}
+              onChange={e => SET[rightDeckId](p => ({ ...p, volume: parseFloat(e.target.value) }))}
+              className="h-24 cursor-pointer" style={{ writingMode: 'vertical-lr', direction: 'rtl', accentColor: DECK_COLORS[rightDeckId] }}
             />
-            <span className="font-mono text-[7px] text-[#FF6B6B]/50">{Math.round(deckB.volume * 100)}</span>
+            <span className="font-mono text-[7px]" style={{ color: DECK_COLORS[rightDeckId] + '80' }}>{Math.round(DS[rightDeckId].volume * 100)}</span>
           </div>
         </div>
 
-        {/* Deck B */}
+        {/* Right channel deck */}
         <div className="flex-1 min-w-0 overflow-y-auto no-scrollbar p-3 border-l border-white/5"
           onDragOver={e => e.preventDefault()}
           onDrop={e => {
             e.preventDefault();
             const tid = e.dataTransfer.getData('trackId');
             const track = libraryTracks.find(t => t.id === tid);
-            if (track) loadTrack(track, 'B');
+            if (track) loadTrack(track, rightDeckId);
             const file = e.dataTransfer.files?.[0];
-            if (file?.type.startsWith('audio/')) importLocalFile(file, 'B');
+            if (file?.type.startsWith('audio/')) importLocalFile(file, rightDeckId);
           }}
         >
-          <div className="flex items-center gap-2 mb-2 justify-end">
-            <span className="text-[9px] font-black uppercase tracking-widest text-[#FF6B6B]">Deck B</span>
-            <div className="w-2 h-2 rounded-full bg-[#FF6B6B]" />
-          </div>
-          {renderDeck('B')}
+          {renderDeck(rightDeckId)}
         </div>
       </div>
 
@@ -1503,7 +1699,7 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
       <SmartLightingPanel
         isOpen={isLightingOpen}
         onClose={() => setIsLightingOpen(false)}
-        analyser={nodesA.current?.analyser ?? null}
+        analyser={NODES[leftDeckId].current?.analyser ?? null}
       />
 
       {/* ── Library ────────────────────────────────────────────────────────── */}
@@ -1548,15 +1744,18 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
                 <p className="text-[7px] font-black uppercase tracking-widest text-white/25 truncate">{track.artist}</p>
               </div>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => loadTrack(track, 'A')}
-                  className="px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-widest bg-[#00D4AA]/20 text-[#00D4AA] hover:bg-[#00D4AA]/30 transition-colors">A</button>
-                <button onClick={() => loadTrack(track, 'B')}
-                  className="px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-widest bg-[#FF6B6B]/20 text-[#FF6B6B] hover:bg-[#FF6B6B]/30 transition-colors">B</button>
+                <button onClick={() => loadTrack(track, leftDeckId)} title={`Load to Deck ${leftDeckId}`}
+                  className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest transition-colors"
+                  style={{ background: DECK_COLORS[leftDeckId] + '33', color: DECK_COLORS[leftDeckId] }}>{leftDeckId}</button>
+                <button onClick={() => loadTrack(track, rightDeckId)} title={`Load to Deck ${rightDeckId}`}
+                  className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest transition-colors"
+                  style={{ background: DECK_COLORS[rightDeckId] + '33', color: DECK_COLORS[rightDeckId] }}>{rightDeckId}</button>
               </div>
             </div>
           ))}
         </div>
       </div>
+      </>}
     </motion.div>
   );
 };
