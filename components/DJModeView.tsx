@@ -5,7 +5,7 @@ import {
   X, Play, Pause, SkipBack, SkipForward, Repeat, ZapOff,
   Zap, Headphones, Radio, Music2, Upload, Folder, ChevronLeft,
   ChevronRight, RotateCcw, Activity, Volume2, Shuffle, List,
-  Disc, Mic2, Monitor, Usb, AlertCircle, CheckCircle, Lightbulb
+  Disc, Mic2, Monitor, Usb, AlertCircle, CheckCircle, Lightbulb, Square
 } from 'lucide-react';
 import SmartLightingPanel from './SmartLightingPanel';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
@@ -450,6 +450,11 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
   const [isLiveActive, setIsLiveActive] = useState(false);
   const [loadingDeck, setLoadingDeck] = useState<'A' | 'B' | null>(null);
   const [isLightingOpen, setIsLightingOpen] = useState(false);
+  // ── Record the set → Post as a Chora Mix ──
+  const [isRecording, setIsRecording] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recChunksRef = useRef<Blob[]>([]);
+  const recDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
 
   // ─── Audio init ─────────────────────────────────────────────────────────────
 
@@ -1004,9 +1009,74 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
       // leaving the shared graph (and the player's own nodes) untouched.
       try { nodesA.current?.sourceNode?.stop(); } catch { /* */ }
       try { nodesB.current?.sourceNode?.stop(); } catch { /* */ }
+      // Stopping a live recorder fires its onstop → finalize → posts the captured set.
+      try { if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop(); } catch { /* */ }
       try { masterGainRef.current?.disconnect(); } catch { /* */ }
     };
   }, []);
+
+  // ─── Record the set → Post as a Chora Mix ─────────────────────────────────────
+  // Tap the master bus (decks + samples + EQ/FX + crossfade — everything audible) with a
+  // MediaStreamDestination + MediaRecorder. On stop, hand the capture to the publish wizard
+  // as a pre-seeded MIX (source DJ_MODE) via the OPEN_ALBUM_CREATOR bridge.
+  const pickRecMime = () => {
+    const cands = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
+    const MR: any = (window as any).MediaRecorder;
+    for (const m of cands) { try { if (MR?.isTypeSupported?.(m)) return m; } catch { /* */ } }
+    return '';
+  };
+  const startRecording = () => {
+    const ctx = audioCtxRef.current || initAudio();
+    const master = masterGainRef.current;
+    if (!ctx || !master || typeof (window as any).MediaRecorder === 'undefined') {
+      alert('Recording isn’t supported in this browser.'); return;
+    }
+    try {
+      const dest = ctx.createMediaStreamDestination();
+      master.connect(dest);
+      recDestRef.current = dest;
+      const mime = pickRecMime();
+      const rec = new MediaRecorder(dest.stream, mime ? { mimeType: mime } : undefined);
+      recChunksRef.current = [];
+      rec.ondataavailable = (e) => { if (e.data && e.data.size) recChunksRef.current.push(e.data); };
+      rec.onstop = () => finalizeRecording(rec.mimeType || mime || 'audio/webm');
+      rec.start(1000); // 1s timeslices → resilient to a mid-set tab hiccup
+      recorderRef.current = rec;
+      setIsRecording(true);
+    } catch (e) { console.error('[DJ] record start failed', e); alert('Could not start recording.'); }
+  };
+  const stopRecording = () => {
+    const rec = recorderRef.current;
+    if (rec && rec.state !== 'inactive') { try { rec.stop(); } catch { /* */ } }
+    setIsRecording(false);
+  };
+  const finalizeRecording = (mimeType: string) => {
+    try { if (recDestRef.current && masterGainRef.current) masterGainRef.current.disconnect(recDestRef.current); } catch { /* */ }
+    recDestRef.current = null;
+    const chunks = recChunksRef.current; recChunksRef.current = [];
+    recorderRef.current = null;
+    if (!chunks.length) { alert('Nothing was captured.'); return; }
+    const blob = new Blob(chunks, { type: mimeType });
+    const ext = mimeType.includes('mp4') ? 'm4a' : 'webm';
+    const stamp = Date.now();
+    const file = new File([blob], `dj-set-${stamp}.${ext}`, { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const trackId = `mixtrk_${stamp}_${Math.random().toString(36).slice(2, 7)}`;
+    const seed: Partial<Album> = {
+      id: `mix_${stamp}_${Math.random().toString(36).slice(2, 7)}`,
+      title: '',
+      artist: album?.artist || '',
+      type: 'MUSIC',
+      subType: 'MIX',
+      coverImage: album?.coverImage || '',
+      description: '',
+      tracks: [{ id: trackId, title: 'DJ Set', artist: album?.artist || '', file, url, mediaKind: 'AUDIO' } as Track],
+      mixMeta: { visualMode: 'AUTO', source: 'DJ_MODE', allowComments: true },
+      createdAt: stamp,
+    };
+    window.dispatchEvent(new CustomEvent('OPEN_ALBUM_CREATOR', { detail: { album: seed } }));
+  };
+  const toggleRecording = () => { isRecording ? stopRecording() : startRecording(); };
 
   // ─── Seamless exit — keep the music playing back in the album view ────────────
   // Hand the live deck (whichever is audible) back to the global player at its exact
@@ -1323,6 +1393,21 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
             }`}
           >
             <Radio size={10} /> {isLiveActive ? 'Live On Air' : 'Go Live'}
+          </button>
+
+          {/* Record the set → Post as a Chora Mix */}
+          <button
+            onClick={toggleRecording}
+            title={isRecording ? 'Stop recording and post your set as a Mix' : 'Record your set to post as a Chora Mix'}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all ${
+              isRecording
+                ? 'bg-red-500/20 border-red-500/50 text-red-400 animate-pulse'
+                : 'border-white/10 text-white/30 hover:border-white/20 hover:text-white/50'
+            }`}
+          >
+            {isRecording
+              ? <><Square size={9} className="fill-current" /> Stop &amp; Post</>
+              : <><Disc size={10} /> Record Mix</>}
           </button>
 
           <button
