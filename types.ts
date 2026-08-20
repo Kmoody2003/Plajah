@@ -4611,6 +4611,10 @@ export interface Sanctuary {
   about?: string;
   bannerUrl?: string;
   avatarUrl?: string;
+  coverUrl?: string;       // full-bleed Membership Home cover band (falls back to bannerUrl)
+  category?: string;       // genre / discipline shown in the identity subtitle line
+  location?: string;       // optional locale shown in the identity subtitle line
+  showMonthlyTotal?: boolean; // creator opts to expose the monthly membership total publicly
   accentColor?: string;    // creator accent (layered over the sanctuary skin)
   visibility: SanctuaryVisibility;
   accessModel: SanctuaryAccessModel;

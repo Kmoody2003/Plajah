@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Shield, Star, Crown, Zap, Check, Lock, Unlock, Users, MessageSquare,
   Play, Music, FileText, Video, Download, Heart, ChevronRight, Plus,
   Edit3, Trash2, X, Globe, Eye, EyeOff, Calendar, ChevronLeft,
-  Sparkles, Trophy, Gift, Radio, Presentation, Gem,
+  Sparkles, Trophy, Gift, Radio, Presentation, Gem, Settings2,
 } from 'lucide-react';
-import { auth } from '../services/backendService';
+import { auth, followUser, unfollowUser, isFollowing } from '../services/backendService';
 import {
   fetchCreatorTiers, listenToCreatorTiers, joinSanctuaryTier,
   cancelMembership, checkMembership, fetchMyMemberships,
@@ -21,11 +21,11 @@ import { SanctuaryTier, SanctuaryMembership, SanctuaryExclusiveContent, Sanctuar
 import { UserProfile } from '../types';
 import { generateSanctuaryDeck } from '../services/pitchDeckTemplates';
 import { SANCTUARY_THEME, SanctuaryBadge } from './sanctuary/SanctuaryIdentity';
-import SanctuaryFeed from './sanctuary/SanctuaryFeed';
-import SanctuaryChat from './sanctuary/SanctuaryChat';
 import SanctuaryCampaignBanner from './sanctuary/SanctuaryCampaignBanner';
-import SanctuaryGallery from './sanctuary/SanctuaryGallery';
-import SanctuaryEvents from './sanctuary/SanctuaryEvents';
+import SanctuaryCover from './sanctuary/SanctuaryCover';
+import SanctuaryTierCard from './sanctuary/SanctuaryTierCard';
+import SanctuaryInside from './sanctuary/SanctuaryInside';
+import SanctuaryVault from './sanctuary/SanctuaryVault';
 
 // ── Tier color palettes ────────────────────────────────────────────────────────
 const TIER_PRESETS = [
@@ -61,113 +61,7 @@ const CONTENT_TYPE_ICONS: Record<SanctuaryExclusiveContent['type'], React.FC<any
   LIVESTREAM: Radio,
 };
 
-// ── Tier Card ─────────────────────────────────────────────────────────────────
-const TierCard: React.FC<{
-  tier: SanctuaryTier;
-  membership: SanctuaryMembership | null;
-  onJoin: (tier: SanctuaryTier) => void;
-  onCancel: (membership: SanctuaryMembership) => void;
-  isLoading: boolean;
-}> = ({ tier, membership, onJoin, onCancel, isLoading }) => {
-  const isMember = !!membership;
-  const isAnnual = membership?.billingCycle === 'ANNUAL';
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="relative rounded-3xl border overflow-hidden"
-      style={{ borderColor: `${tier.color}30` }}
-    >
-      {/* Top accent bar */}
-      <div className="h-1.5 w-full" style={{ background: `linear-gradient(90deg, ${tier.color}, ${tier.color}88)` }} />
-
-      {/* Background glow */}
-      <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(ellipse at top, ${tier.color}12 0%, transparent 70%)` }} />
-
-      <div className="p-6 relative">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-5">
-          <div>
-            <div className="flex items-center gap-2.5 mb-1.5">
-              <span className="text-2xl">{tier.iconEmoji}</span>
-              <div>
-                <h3 className="text-lg font-black uppercase tracking-tighter">{tier.name}</h3>
-                <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">{tier.memberCount} members</p>
-              </div>
-            </div>
-            <p className="text-[11px] text-white/50 leading-relaxed">{tier.description}</p>
-          </div>
-          <div className="text-right shrink-0 ml-4">
-            <div className="text-3xl font-black" style={{ color: tier.color }}>${tier.price}</div>
-            <div className="text-[9px] font-bold text-white/25 uppercase tracking-widest">/month</div>
-            {tier.annualPrice && (
-              <div className="text-[8px] font-bold text-green-400 mt-0.5">${tier.annualPrice}/yr (save {Math.round((1 - tier.annualPrice / (tier.price * 12)) * 100)}%)</div>
-            )}
-          </div>
-        </div>
-
-        {/* Benefits */}
-        <div className="space-y-2 mb-6">
-          {tier.benefits.map((benefit, i) => (
-            <div key={i} className="flex items-start gap-2.5">
-              <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${tier.color}25` }}>
-                <Check size={9} style={{ color: tier.color }} />
-              </div>
-              <span className="text-[11px] text-white/70 leading-tight">{benefit}</span>
-            </div>
-          ))}
-          {tier.hasPrivateChat && (
-            <div className="flex items-start gap-2.5">
-              <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${tier.color}25` }}>
-                <MessageSquare size={9} style={{ color: tier.color }} />
-              </div>
-              <span className="text-[11px] text-white/70">Private member chat room</span>
-            </div>
-          )}
-          {tier.hasMemberBadge && (
-            <div className="flex items-start gap-2.5">
-              <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${tier.color}25` }}>
-                <Shield size={9} style={{ color: tier.color }} />
-              </div>
-              <span className="text-[11px] text-white/70">Exclusive member badge</span>
-            </div>
-          )}
-        </div>
-
-        {/* Action */}
-        {isMember ? (
-          <div className="space-y-2">
-            <div
-              className="w-full py-3 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest"
-              style={{ background: `${tier.color}20`, color: tier.color, border: `1px solid ${tier.color}40` }}
-            >
-              <Check size={14} />
-              Active Member
-            </div>
-            <button
-              onClick={() => onCancel(membership)}
-              className="w-full py-2 rounded-xl text-[9px] font-bold text-white/20 hover:text-red-400 transition-colors uppercase tracking-widest"
-            >
-              Cancel membership
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => onJoin(tier)}
-            disabled={isLoading}
-            className="w-full py-3.5 rounded-2xl text-white text-[10px] font-black uppercase tracking-widest transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-40"
-            style={{ background: `linear-gradient(135deg, ${tier.color}, ${tier.color}bb)` }}
-          >
-            Join for ${tier.price}/mo
-          </button>
-        )}
-      </div>
-    </motion.div>
-  );
-};
-
-// ── Exclusive Content Card ────────────────────────────────────────────────────
+// ── Exclusive Content Card (owner console preview) ─────────────────────────────
 const ContentCard: React.FC<{
   content: SanctuaryExclusiveContent;
   isUnlocked: boolean;
@@ -594,25 +488,22 @@ const SanctuaryView: React.FC<SanctuaryViewProps> = ({
   creatorId, creatorProfile, currentUserProfile, onBack, isOwnProfile, onCreatePitchDeck,
 }) => {
   const [tiers, setTiers] = useState<SanctuaryTier[]>([]);
+  const [tiersLoaded, setTiersLoaded] = useState(false);
   const [myMembership, setMyMembership] = useState<SanctuaryMembership | null>(null);
-  const [exclusiveContent, setExclusiveContent] = useState<SanctuaryExclusiveContent[]>([]);
   const [sanctuary, setSanctuary] = useState<Sanctuary | null>(null);
   const [purchasedIds, setPurchasedIds] = useState<Set<string>>(new Set());
   const [pledgeStats, setPledgeStats] = useState({ raised: 0, backers: 0 });
   const [isLoadingJoin, setIsLoadingJoin] = useState(false);
-  const [activeTab, setActiveTab] = useState<'TIERS' | 'FEED' | 'CONTENT' | 'GALLERY' | 'EVENTS' | 'LOUNGE'>('FEED');
+  // Membership Home has two fan tabs (Home | Vault); the owner also gets Manage.
+  const [view, setView] = useState<'HOME' | 'VAULT' | 'MANAGE'>('HOME');
   const [joinError, setJoinError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [following, setFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
+  const tiersRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const unsub = listenToCreatorTiers(creatorId, setTiers);
-    return unsub;
-  }, [creatorId]);
-
-  useEffect(() => {
-    const unsub = listenToExclusiveContent(creatorId, setContent => {
-      setExclusiveContent(setContent);
-    });
+    const unsub = listenToCreatorTiers(creatorId, t => { setTiers(t); setTiersLoaded(true); });
     return unsub;
   }, [creatorId]);
 
@@ -623,6 +514,26 @@ const SanctuaryView: React.FC<SanctuaryViewProps> = ({
       .then(ps => setPurchasedIds(new Set(ps.map(p => p.itemId))))
       .catch(() => {});
   }, [creatorId]);
+
+  // Follow state (reuses the platform follow graph — not membership).
+  useEffect(() => {
+    if (!auth.currentUser || isOwnProfile) return;
+    isFollowing(creatorId).then(setFollowing).catch(() => {});
+  }, [creatorId, isOwnProfile]);
+
+  const toggleFollow = async () => {
+    if (!auth.currentUser) { setJoinError('Sign in to follow'); return; }
+    setFollowBusy(true);
+    const next = !following;
+    setFollowing(next);
+    try {
+      await (next ? followUser(creatorId) : unfollowUser(creatorId));
+    } catch {
+      setFollowing(!next); // revert on failure
+    } finally {
+      setFollowBusy(false);
+    }
+  };
 
   // Sanctuary identity doc (name / banner / campaign). Auto-provision for the owner
   // so every account has a real, distinct Sanctuary the first time they open it.
@@ -694,200 +605,169 @@ const SanctuaryView: React.FC<SanctuaryViewProps> = ({
     setMyMembership(null);
   };
 
-  const isContentUnlocked = (content: SanctuaryExclusiveContent) =>
-    hasAccess(
-      { accessType: content.accessType, requiredTierIds: content.requiredTierIds, isPublicPreview: content.isPublicPreview },
-      content.id,
-      { isOwner: isOwnProfile, membership: myMembership, purchasedItemIds: purchasedIds },
-    );
-
-  const canChat = !!isOwnProfile || !!myMembership;
+  const onPurchased = (id: string) => setPurchasedIds(prev => new Set(prev).add(id));
 
   const memberCount = sanctuary?.memberCount || tiers.reduce((s, t) => s + t.memberCount, 0);
   const sanctuaryName = sanctuary?.name || `${creatorProfile?.displayName || 'Creator'} Sanctuary`;
+  // Monthly membership total, shown only if the creator opted to expose it.
+  const monthlyTotal = sanctuary?.showMonthlyTotal
+    ? tiers.reduce((s, t) => s + t.price * t.memberCount, 0)
+    : null;
+
+  // The "most popular" tier: the one with the most members, else the middle tier.
+  const featuredTierId = (() => {
+    if (tiers.length === 0) return null;
+    const top = [...tiers].sort((a, b) => b.memberCount - a.memberCount)[0];
+    if (top && top.memberCount > 0) return top.id;
+    return tiers[Math.floor((tiers.length - 1) / 2)].id;
+  })();
+
+  const scrollToTiers = () => {
+    setView('HOME');
+    requestAnimationFrame(() => tiersRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
+
+  const loading = !tiersLoaded;
 
   return (
     <div className="h-full overflow-y-auto scrollbar-hide" style={{ background: SANCTUARY_THEME.obsidian }}>
-      {/* Hero — obsidian + gold vault (deliberately unlike a Club) */}
-      <div className="relative">
-        <div className="h-48 md:h-60 relative overflow-hidden" style={{ background: SANCTUARY_THEME.heroGradient }}>
-          {sanctuary?.bannerUrl && (
-            <img src={sanctuary.bannerUrl} className="absolute inset-0 w-full h-full object-cover opacity-35" alt="" />
-          )}
-          <div className="absolute inset-0" style={{ background: SANCTUARY_THEME.goldSheen }} />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Gem size={72} style={{ color: 'rgba(201,165,92,0.10)' }} />
-          </div>
-          <div className="absolute top-4 left-6 flex items-center gap-3">
-            {onBack && (
-              <button onClick={onBack} className="flex items-center gap-1.5 text-white/50 hover:text-white transition-colors text-[11px] font-bold uppercase tracking-widest">
-                <ChevronLeft size={16} /> Back
-              </button>
-            )}
-          </div>
-          <div className="absolute top-4 right-6">
-            <SanctuaryBadge />
+      {loading ? (
+        // ── Loading skeleton ──────────────────────────────────────────────────
+        <div className="animate-pulse">
+          <div className="h-52 md:h-72" style={{ background: SANCTUARY_THEME.heroGradient }} />
+          <div className="px-5 md:px-8 -mt-16 relative">
+            <div className="w-28 h-28 rounded-3xl bg-white/5 border-2 border-white/10" />
+            <div className="h-8 w-64 rounded-lg bg-white/5 mt-4" />
+            <div className="h-4 w-40 rounded bg-white/5 mt-3" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+              {[0, 1, 2].map(i => <div key={i} className="h-64 rounded-3xl bg-white/[0.04] border border-white/[0.06]" />)}
+            </div>
           </div>
         </div>
+      ) : (
+        <>
+          {/* 1 · Cover + identity + primary CTAs */}
+          <SanctuaryCover
+            sanctuary={sanctuary} creatorProfile={creatorProfile} creatorId={creatorId}
+            sanctuaryName={sanctuaryName} memberCount={memberCount} tierCount={tiers.length}
+            monthlyTotal={monthlyTotal} isOwner={isOwnProfile} membership={myMembership}
+            following={following} followBusy={followBusy} onFollow={toggleFollow}
+            onJoinClick={scrollToTiers}
+            onManageMembership={() => myMembership && handleCancel(myMembership)}
+            onOwnerConsole={() => setView('MANAGE')}
+            onBack={onBack}
+          />
 
-        <div className="px-6 pb-6 pt-4">
-          <div className="flex items-end gap-4 -mt-12 mb-4">
-            <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0 shadow-xl" style={{ border: `3px solid ${SANCTUARY_THEME.gold}` }}>
-              <img src={sanctuary?.avatarUrl || creatorProfile?.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${creatorId}`}
-                className="w-full h-full object-cover" alt="" />
+          <div className="px-5 md:px-8 py-6 max-w-5xl mx-auto">
+            {joinError && <p className="text-red-400 text-[11px] mb-4">{joinError}</p>}
+            <AnimatePresence>
+              {showSuccess && (
+                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                  className="flex items-center gap-2 px-4 py-3 rounded-2xl text-[11px] font-bold mb-4"
+                  style={{ color: SANCTUARY_THEME.goldSoft, background: SANCTUARY_THEME.goldSheen, border: `1px solid ${SANCTUARY_THEME.line}` }}>
+                  <Check size={14} /> Welcome to the Sanctuary — your access is unlocked.
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Home | Vault (+ Manage while the owner is in the console) */}
+            <div className="flex items-center gap-1.5 p-1 rounded-2xl mb-8 w-fit" style={{ background: 'rgba(0,0,0,0.35)', border: `1px solid ${SANCTUARY_THEME.line}` }}>
+              {([
+                { id: 'HOME', label: 'Home', icon: Gem },
+                { id: 'VAULT', label: 'Vault', icon: Eye },
+                ...(isOwnProfile ? [{ id: 'MANAGE' as const, label: 'Manage', icon: Settings2 }] : []),
+              ] as const).map(({ id, label, icon: Icon }) => {
+                const active = view === id;
+                return (
+                  <button key={id} onClick={() => setView(id)}
+                    className="min-w-[92px] py-2 px-4 rounded-xl flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-widest transition-all"
+                    style={active ? { color: '#000', background: SANCTUARY_THEME.gold } : { color: 'rgba(255,255,255,0.45)' }}>
+                    <Icon size={12} /> {label}
+                  </button>
+                );
+              })}
             </div>
-            <div className="min-w-0">
-              <h1 className="text-2xl font-black tracking-tight truncate" style={{ color: SANCTUARY_THEME.goldSoft }}>{sanctuaryName}</h1>
-              <div className="flex items-center gap-3 mt-1">
-                <span className="flex items-center gap-1 text-[9px] font-bold text-white/35 uppercase tracking-widest"><Users size={9} /> {memberCount} members</span>
-                <span className="flex items-center gap-1 text-[9px] font-bold text-white/35 uppercase tracking-widest"><Crown size={9} /> {tiers.length} tier{tiers.length !== 1 ? 's' : ''}</span>
-                {sanctuary?.visibility === 'PRIVATE' && <span className="flex items-center gap-1 text-[9px] font-bold text-white/35 uppercase tracking-widest"><Lock size={9} /> Private</span>}
+
+            {view === 'HOME' && (
+              <div className="space-y-12">
+                {/* 2 · Campaign banner — only when a live campaign exists (owner sees launch CTA). */}
+                {displaySanctuary && (displaySanctuary.campaign?.isActive || isOwnProfile) && (
+                  <SanctuaryCampaignBanner sanctuary={displaySanctuary} isOwner={isOwnProfile} onContribute={contribute} onSave={saveSanctuary} />
+                )}
+
+                {/* 3 · Tiers */}
+                <section ref={tiersRef}>
+                  <div className="flex items-baseline justify-between mb-4">
+                    <h2 className="text-2xl md:text-3xl font-black italic tracking-tight" style={{ color: SANCTUARY_THEME.goldSoft }}>
+                      {myMembership ? 'Your membership' : 'Choose your tier'}
+                    </h2>
+                    {tiers.length > 0 && <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest">Cancel anytime</span>}
+                  </div>
+                  {tiers.length === 0 ? (
+                    // Empty state — no tiers yet.
+                    <div className="py-16 text-center rounded-3xl" style={{ background: SANCTUARY_THEME.panel, border: `1px dashed ${SANCTUARY_THEME.line}` }}>
+                      <Gem size={34} className="mx-auto mb-3" style={{ color: 'rgba(201,165,92,0.35)' }} />
+                      <p className="text-sm font-black tracking-tight mb-1" style={{ color: SANCTUARY_THEME.goldSoft }}>This Sanctuary is just getting started</p>
+                      <p className="text-[11px] text-white/40">{isOwnProfile ? 'Open the owner console to create your first tier.' : 'Follow to be first in when membership opens.'}</p>
+                      {isOwnProfile && (
+                        <button onClick={() => setView('MANAGE')} className="mt-4 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest text-black" style={{ background: SANCTUARY_THEME.gold }}>
+                          Set up tiers
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
+                      {tiers.map(tier => (
+                        <SanctuaryTierCard
+                          key={tier.id} tier={tier}
+                          membership={myMembership?.tierId === tier.id ? myMembership : null}
+                          featured={!myMembership && tier.id === featuredTierId}
+                          isLoading={isLoadingJoin}
+                          onJoin={handleJoin} onManage={handleCancel}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {/* 4 · Inside the Sanctuary — feed preview, lounge teaser, next event */}
+                <SanctuaryInside
+                  sanctuaryId={creatorId} isOwner={isOwnProfile} membership={myMembership}
+                  tiers={tiers} purchasedIds={purchasedIds} onPurchased={onPurchased}
+                  onJoinClick={scrollToTiers}
+                />
               </div>
-            </div>
-          </div>
-
-          {sanctuary?.tagline && <p className="text-[13px] text-white/55 leading-relaxed max-w-2xl mb-4">{sanctuary.tagline}</p>}
-
-          {myMembership && (
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-widest mb-4"
-              style={{ color: myMembership.tierColor, borderColor: `${myMembership.tierColor}40`, background: `${myMembership.tierColor}10` }}>
-              <Shield size={12} /> {myMembership.tierName} Member · Renews {new Date(myMembership.renewsAt).toLocaleDateString()}
-            </div>
-          )}
-
-          {joinError && <p className="text-red-400 text-[11px] mb-4">{joinError}</p>}
-          <AnimatePresence>
-            {showSuccess && (
-              <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                className="flex items-center gap-2 px-4 py-3 rounded-2xl text-[11px] font-bold mb-4"
-                style={{ color: SANCTUARY_THEME.goldSoft, background: SANCTUARY_THEME.goldSheen, border: `1px solid ${SANCTUARY_THEME.line}` }}>
-                <Check size={14} /> Welcome to the Sanctuary — your access is unlocked.
-              </motion.div>
             )}
-          </AnimatePresence>
 
-          {/* Crowdfunding campaign — shared across owner + members */}
-          {displaySanctuary && (displaySanctuary.campaign?.isActive || isOwnProfile) && (
-            <div className="mb-6">
-              <SanctuaryCampaignBanner sanctuary={displaySanctuary} isOwner={isOwnProfile} onContribute={contribute} onSave={saveSanctuary} />
-            </div>
-          )}
+            {/* 5 · Vault — gated content grid + media wall */}
+            {view === 'VAULT' && (
+              <SanctuaryVault
+                sanctuaryId={creatorId} isOwner={isOwnProfile} membership={myMembership}
+                purchasedIds={purchasedIds} onPurchased={onPurchased}
+              />
+            )}
 
-          {onCreatePitchDeck && isOwnProfile && (
-            <button
-              onClick={() => {
-                const profile = creatorProfile ?? { uid: creatorId, displayName: 'Creator', photoURL: '', email: '', followerCount: 0, followingCount: 0, storageLimit: 0, storageUsage: { total: 0, audio: 0, video: 0, photos: 0 } } as UserProfile;
-                onCreatePitchDeck(generateSanctuaryDeck(profile, tiers));
-              }}
-              className="flex items-center gap-2 px-4 py-2.5 mb-6 rounded-2xl text-xs font-bold transition-colors"
-              style={{ color: SANCTUARY_THEME.goldSoft, background: SANCTUARY_THEME.goldSheen, border: `1px solid ${SANCTUARY_THEME.line}` }}
-            >
-              <Presentation size={14} /> Create Pitch Deck
-            </button>
-          )}
-
-          {/* Tabs — feed, exclusives, join, lounge (+ manage for owner) */}
-          <div className="flex items-center gap-1.5 p-1 rounded-2xl mb-6 overflow-x-auto scrollbar-hide" style={{ background: 'rgba(0,0,0,0.35)', border: `1px solid ${SANCTUARY_THEME.line}` }}>
-            {([
-              { id: 'FEED', label: 'Feed', icon: Gem },
-              { id: 'CONTENT', label: 'Exclusives', icon: Sparkles },
-              { id: 'GALLERY', label: 'Vault', icon: Eye },
-              { id: 'EVENTS', label: 'Events', icon: Calendar },
-              { id: 'TIERS', label: isOwnProfile ? 'Manage' : 'Join', icon: Crown },
-              { id: 'LOUNGE', label: 'Lounge', icon: MessageSquare },
-            ] as const).map(({ id, label, icon: Icon }) => {
-              const active = activeTab === id;
-              return (
-                <button key={id} onClick={() => setActiveTab(id)}
-                  className="flex-1 min-w-[62px] py-2 rounded-xl flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-widest transition-all"
-                  style={active ? { color: '#000', background: SANCTUARY_THEME.gold } : { color: 'rgba(255,255,255,0.4)' }}>
-                  <Icon size={12} /> {label}
-                </button>
-              );
-            })}
-          </div>
-
-          {activeTab === 'FEED' && (
-            <SanctuaryFeed
-              sanctuaryId={creatorId} isOwner={isOwnProfile} membership={myMembership}
-              tiers={tiers} purchasedIds={purchasedIds}
-              onPurchased={id => setPurchasedIds(prev => new Set(prev).add(id))}
-            />
-          )}
-
-          {activeTab === 'TIERS' && (
-            isOwnProfile ? (
-              <CreatorSetupPanel creatorId={creatorId} />
-            ) : (
-              <div className="space-y-4">
-                {tiers.length === 0 ? (
-                  <div className="py-16 text-center">
-                    <Gem size={32} className="mx-auto mb-3" style={{ color: 'rgba(201,165,92,0.3)' }} />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-white/20">No membership tiers yet</p>
-                  </div>
-                ) : tiers.map(tier => (
-                  <TierCard key={tier.id} tier={tier} membership={myMembership?.tierId === tier.id ? myMembership : null}
-                    onJoin={handleJoin} onCancel={handleCancel} isLoading={isLoadingJoin} />
-                ))}
+            {/* Owner console (existing management entry — dedicated console is a later wave) */}
+            {view === 'MANAGE' && isOwnProfile && (
+              <div className="space-y-6">
+                {onCreatePitchDeck && (
+                  <button
+                    onClick={() => {
+                      const profile = creatorProfile ?? { uid: creatorId, displayName: 'Creator', photoURL: '', email: '', followerCount: 0, followingCount: 0, storageLimit: 0, storageUsage: { total: 0, audio: 0, video: 0, photos: 0 } } as UserProfile;
+                      onCreatePitchDeck(generateSanctuaryDeck(profile, tiers));
+                    }}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-colors"
+                    style={{ color: SANCTUARY_THEME.goldSoft, background: SANCTUARY_THEME.goldSheen, border: `1px solid ${SANCTUARY_THEME.line}` }}
+                  >
+                    <Presentation size={14} /> Create Pitch Deck
+                  </button>
+                )}
+                <CreatorSetupPanel creatorId={creatorId} />
               </div>
-            )
-          )}
-
-          {activeTab === 'CONTENT' && (
-            <div>
-              {!myMembership && !isOwnProfile && (
-                <div className="p-4 rounded-2xl flex items-start gap-3 mb-4" style={{ background: SANCTUARY_THEME.goldSheen, border: `1px solid ${SANCTUARY_THEME.line}` }}>
-                  <Lock size={16} className="shrink-0 mt-0.5" style={{ color: SANCTUARY_THEME.gold }} />
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: SANCTUARY_THEME.goldSoft }}>Exclusive vault</p>
-                    <p className="text-[9px] text-white/40">Join a tier — or buy a single item à la carte — to unlock.</p>
-                  </div>
-                </div>
-              )}
-              {exclusiveContent.length === 0 ? (
-                <div className="py-12 text-center">
-                  <Sparkles size={28} className="mx-auto mb-3" style={{ color: 'rgba(201,165,92,0.25)' }} />
-                  <p className="text-[9px] font-black uppercase tracking-widest text-white/20">No exclusive content yet</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-4">
-                  {exclusiveContent.map(content => (
-                    <ContentCard key={content.id} content={content} isUnlocked={isContentUnlocked(content)} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'GALLERY' && (
-            <SanctuaryGallery
-              sanctuaryId={creatorId} isOwner={isOwnProfile} membership={myMembership}
-              purchasedIds={purchasedIds}
-              onPurchased={id => setPurchasedIds(prev => new Set(prev).add(id))}
-            />
-          )}
-
-          {activeTab === 'EVENTS' && (
-            <SanctuaryEvents
-              sanctuaryId={creatorId} isOwner={isOwnProfile} membership={myMembership} purchasedIds={purchasedIds}
-            />
-          )}
-
-          {activeTab === 'LOUNGE' && (
-            <SanctuaryChat
-              sanctuaryId={creatorId} canChat={canChat}
-              lockReason={tiers.length ? 'Join a tier to enter the lounge' : 'Members-only lounge'}
-              channels={[
-                { id: undefined, label: 'Lounge', canAccess: canChat },
-                ...tiers.filter(t => t.hasPrivateChat).map(t => ({
-                  id: t.id, label: t.name,
-                  canAccess: !!isOwnProfile || myMembership?.tierId === t.id,
-                })),
-              ]}
-            />
-          )}
-        </div>
-      </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 };
