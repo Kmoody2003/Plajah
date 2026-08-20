@@ -929,6 +929,16 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             {/* Actions under the avatar — matched-width pills. Share + Stat Card use the Plajah
                 brand gradient; the profile's trading card is the share link preview. */}
             <div className="relative z-10 flex flex-col items-stretch gap-1.5 w-full max-w-[190px] mt-1">
+              {/* Creator Hub — quick entry to your own creator tools. Own profile only
+                  (matches the "Creator Hub" nav entry → view 'CREATOR'). */}
+              {isOwnProfile && onNavigate && (
+                <button
+                  onClick={() => onNavigate('CREATOR')}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#6B0099]/15 border border-[#6B0099]/40 text-[#D0BCFF] text-[9px] font-black uppercase tracking-widest hover:bg-[#6B0099]/25 transition-all"
+                >
+                  🎬 Creator Hub
+                </button>
+              )}
               {/* Teacher hotlink → the Academia teacher landing/dashboard we built. Own teacher
                   profile only (ACADEMIA_HOME is role-scoped to the viewer). */}
               {isOwnProfile && onNavigate && (profile.accountType === 'TEACHER' || (profile as any).isTeacher || (!!profile.teacherVerification && profile.teacherVerification !== 'UNVERIFIED')) && (
