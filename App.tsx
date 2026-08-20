@@ -614,6 +614,11 @@ const App: React.FC = () => {
   // Plajah Gallery editor (Phase 2) — the gallery being created/edited. `undefined` id ⇒ new.
   const [editingGalleryId, setEditingGalleryId] = useState<string | undefined>(undefined);
 
+  // How many in-app history entries we've pushed since load (init does a replaceState,
+  // not a push). Lets goBack() return to the ACTUAL previous screen via the browser
+  // history, and fall back to the Dashboard only when there's no in-app screen behind us.
+  const navDepthRef = useRef(0);
+
   const setView = useCallback((newView: AppView | ((prev: AppView) => AppView), path?: string) => {
     setViewInternal((prev) => {
       let nextView = typeof newView === 'function' ? newView(prev) : newView;
@@ -626,10 +631,19 @@ const App: React.FC = () => {
       if (!isViewAllowedOnTv(nextView) && !TV_BLOCKED_VIEWS[nextView]) nextView = getTvHome() as AppView;
       if (prev !== nextView || path) {
         window.history.pushState({ view: nextView }, '', path || window.location.pathname);
+        navDepthRef.current += 1;
       }
       return nextView;
     });
   }, []);
+
+  // Universal back: return to the previous screen via real browser history (so back
+  // never jumps to a hardcoded destination). Falls back to a sensible view only when
+  // there's nothing in-app behind us (e.g. a direct deep-link landing).
+  const goBack = useCallback((fallback: AppView = 'DASHBOARD') => {
+    if (navDepthRef.current > 0) window.history.back();
+    else setView(fallback);
+  }, [setView]);
 
   // Open a Plajah Gallery (the shareable photo experience) from anywhere. The Photos
   // surfaces (PhotoManager / GlobalPhotosView) build an ephemeral gallery with
@@ -749,6 +763,7 @@ const App: React.FC = () => {
     window.history.replaceState({ view: 'LANDING' }, '', window.location.pathname + window.location.search + window.location.hash);
 
     const handlePopState = (event: PopStateEvent) => {
+      navDepthRef.current = Math.max(0, navDepthRef.current - 1);
       if (event.state && event.state.view) {
         setViewInternal(event.state.view);
       }
@@ -5508,7 +5523,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
             {view === 'TELA' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Opening Tela…</div>}>
-                <TelaView onBack={() => setView('CREATOR')} />
+                <TelaView onBack={() => goBack('CREATOR_HUB')} />
               </Suspense>
             )}
             {view === 'TELA_EMBED_DEMO' && (
