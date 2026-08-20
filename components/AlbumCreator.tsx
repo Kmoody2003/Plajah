@@ -5,6 +5,7 @@ import { getPlatformInfo } from '../hooks/usePlatform';
 import { buildShareUrl, shareText } from '../services/deepLinkService';
 import { generateAlbumMetadata, generateTrackLyrics } from '../services/geminiService';
 import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, fetchUserCharacters, uploadFile as storageUpload, uploadVideo } from '../services/backendService';
+import { listCloudProjects } from './plajahPixels/services/projectService';
 import { enqueueTranscode } from '../services/choraStreamService';
 // Lyric sync lives in ONE place (services/lyricSync.ts) so the Melos Project view and this
 // Caption Sync card can never drift apart.
@@ -21,7 +22,7 @@ import { captureVideoFrame } from '../src/lib/videoUtils';
 import { probeVideo } from '../src/lib/videoQc';
 import {
   Upload, X, Image as ImageIcon, User, Sparkles, Globe, Video as VideoIcon, List, Plus, Trash2,
-  Camera, Film, Tv, Info, Check, Layers, Settings, Twitter, Instagram, Youtube, Music2,
+  Camera, Film, Tv, Info, Check, Layers, Settings, Twitter, Instagram, Youtube, Music2, Radio,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Minimize2, BookOpen, Gamepad2, Mic2, GripVertical,
   Eye, EyeOff, Loader2, Lock, Pencil, ExternalLink, Share2,
   RefreshCw, Play, Pause, Square, SkipBack, ShieldCheck, AlertTriangle, ShieldX, Heart, Megaphone,
@@ -62,7 +63,7 @@ const TYPE_OPTIONS: { id: AssetType; label: string; desc: string; icon: React.Re
   { id: 'GAME', label: 'Games', desc: 'Indie games & interactive media', icon: <Gamepad2 size={32} /> },
 ];
 
-const MUSIC_SUBTYPES = ['ALBUM', 'SINGLE', 'EP', 'PODCAST'] as const;
+const MUSIC_SUBTYPES = ['ALBUM', 'SINGLE', 'EP', 'MIX', 'PODCAST'] as const;
 const VIDEO_SUBTYPES = ['UGC', 'MOVIE', 'TV_SERIES', 'PODCAST'] as const;
 
 // Professional film/TV upload accept list. `video/*` alone hides pro masters
@@ -85,7 +86,12 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [title, setTitle] = useState(initialAlbum?.title || '');
   const [artist, setArtist] = useState(initialAlbum?.artist || '');
   const [type, setType] = useState<AssetType>(resolvedInitialType);
-  const [subType, setSubType] = useState<'UGC' | 'MOVIE' | 'TV_SERIES' | 'GRAPHIC_NOVEL' | 'PODCAST' | 'NOVEL' | 'PLAYLIST' | undefined>(initialAlbum?.subType);
+  const [subType, setSubType] = useState<'UGC' | 'MOVIE' | 'TV_SERIES' | 'GRAPHIC_NOVEL' | 'PODCAST' | 'NOVEL' | 'PLAYLIST' | 'MIX' | undefined>(initialAlbum?.subType);
+  // ── Chora Mixes (subType 'MIX') settings, surfaced in the Settings step ──
+  const [mixVisualMode, setMixVisualMode] = useState<'AUTO' | 'AUTHORED'>(initialAlbum?.mixMeta?.visualMode || 'AUTO');
+  const [mixPixelsProjectId, setMixPixelsProjectId] = useState<string>(initialAlbum?.mixMeta?.pixelsProjectId || '');
+  const [mixAllowComments, setMixAllowComments] = useState<boolean>(initialAlbum?.mixMeta?.allowComments !== false);
+  const [mixPixelsProjects, setMixPixelsProjects] = useState<{ id: string; projectName: string }[]>([]);
   // Film/TV distribution + release (folded in from the old Distribute-New-Film wizard).
   const [filmDist, setFilmDist] = useState<FilmDistribution>(initialAlbum?.filmDistribution || DEFAULT_FILM_DISTRIBUTION);
   const [alternateVersions, setAlternateVersions] = useState<FilmVersion[]>(initialAlbum?.alternateVersions || []);
@@ -299,6 +305,15 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     loadAvailable();
   }, [initialAlbum?.id]);
 
+  // Load the artist's saved Plajah Pixels projects for the Mix "Author's show" picker.
+  useEffect(() => {
+    if (subType !== 'MIX' || mixVisualMode !== 'AUTHORED' || !auth.currentUser) return;
+    if (mixPixelsProjects.length) return;
+    listCloudProjects(auth.currentUser.uid)
+      .then(list => setMixPixelsProjects((list || []).map(p => ({ id: p.id, projectName: p.projectName }))))
+      .catch(() => {});
+  }, [subType, mixVisualMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!auth.currentUser) return;
     fetchUserWorlds(auth.currentUser.uid)
@@ -316,6 +331,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
 
   // Label content steps/upload by the actual type, not always "Tracks".
   const contentNoun = subType === 'PODCAST' ? 'Episodes'
+    : subType === 'MIX' ? 'Mix'
     : type === 'VIDEO' ? 'Videos'
     : type === 'PHOTO' ? 'Photos'
     : type === 'BOOK' ? 'Chapters'
@@ -911,6 +927,13 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         artistWorldId: artistWorldId || undefined,
         type: type as Album['type'],
         subType: subType as Album['subType'], genre, price, isPaywalled,
+        mixMeta: subType === 'MIX' ? {
+          visualMode: mixVisualMode,
+          pixelsProjectId: mixVisualMode === 'AUTHORED' ? (mixPixelsProjectId || undefined) : undefined,
+          source: initialAlbum?.mixMeta?.source || 'UPLOAD',
+          allowComments: mixAllowComments,
+          durationSec: autoSyncedTracks[0]?.duration || undefined,
+        } : undefined,
         artistBio: artistBio || `Exploring the boundaries of creativity as ${artist}.`,
         linerNotes,
         artistImage: artistImage || coverImage,
@@ -1139,9 +1162,11 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               {st === 'ALBUM' && <Music2 size={22} />}
               {st === 'SINGLE' && <Music2 size={22} />}
               {st === 'EP' && <Music2 size={22} />}
+              {st === 'MIX' && <Radio size={22} />}
             </div>
-            <p className="text-sm font-black uppercase tracking-widest">{st === 'UGC' ? 'Reello Video' : st.replace('_', ' ')}</p>
+            <p className="text-sm font-black uppercase tracking-widest">{st === 'UGC' ? 'Reello Video' : st === 'MIX' ? 'DJ Mix' : st.replace('_', ' ')}</p>
             {st === 'UGC' && <p className="text-[9px] font-bold text-white/40 -mt-2">Your own video — posts to Reello</p>}
+            {st === 'MIX' && <p className="text-[9px] font-bold text-white/40 -mt-2">Long DJ set — waveform, comments &amp; Pixels visuals</p>}
           </button>
         ))}
       </div>
@@ -2491,6 +2516,56 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight uppercase mb-2">Settings & Publishing</h2>
         <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Configure pricing, visibility, and distribution</p>
       </div>
+
+      {/* ── Chora Mixes: visual show + comments ── */}
+      {subType === 'MIX' && (
+        <div className="p-5 bg-white/5 rounded-2xl border border-white/10 space-y-5">
+          <div className="flex items-center gap-3">
+            <Radio size={18} className="text-[#00DAF3] shrink-0" />
+            <div>
+              <h3 className="text-base font-black uppercase tracking-widest">Mix Visual</h3>
+              <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">The Plajah Pixels show that plays with your mix</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button type="button" onClick={() => setMixVisualMode('AUTO')}
+              className={`text-left p-5 rounded-2xl border transition-all ${mixVisualMode === 'AUTO' ? 'border-transparent shadow-2xl' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+              style={mixVisualMode === 'AUTO' ? { boxShadow: 'inset 0 0 0 2px #00DAF3', background: 'linear-gradient(180deg, rgba(0,218,243,0.08), rgba(255,255,255,0.03))' } : undefined}>
+              <p className="text-sm font-black uppercase tracking-widest mb-1">Intelligent Auto-Show</p>
+              <p className="text-[10px] font-bold text-white/50">Pixels listens and builds its own show — one generator at a time, advanced on the music. Zero setup.</p>
+            </button>
+            <button type="button" onClick={() => setMixVisualMode('AUTHORED')}
+              className={`text-left p-5 rounded-2xl border transition-all ${mixVisualMode === 'AUTHORED' ? 'border-transparent shadow-2xl' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+              style={mixVisualMode === 'AUTHORED' ? { boxShadow: 'inset 0 0 0 2px #FF8C00', background: 'linear-gradient(180deg, rgba(255,140,0,0.08), rgba(255,255,255,0.03))' } : undefined}>
+              <p className="text-sm font-black uppercase tracking-widest mb-1">Author's Show</p>
+              <p className="text-[10px] font-bold text-white/50">Attach one of your saved Plajah Pixels projects. Plays back for listeners — reactive, but not tamperable.</p>
+            </button>
+          </div>
+          {mixVisualMode === 'AUTHORED' && (
+            <div className="pt-1">
+              {mixPixelsProjects.length === 0 ? (
+                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">No saved Pixels projects found. Build and save one in Plajah Pixels, or use the Auto-Show.</p>
+              ) : (
+                <select value={mixPixelsProjectId} onChange={e => setMixPixelsProjectId(e.target.value)}
+                  className="w-full bg-black/40 border border-white/15 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF8C00]">
+                  <option value="">Choose a Pixels project…</option>
+                  {mixPixelsProjects.map(p => <option key={p.id} value={p.id}>{p.projectName}</option>)}
+                </select>
+              )}
+            </div>
+          )}
+          <div className="flex items-center justify-between p-4 bg-white/[0.03] rounded-2xl border border-white/5">
+            <div>
+              <h4 className="text-sm font-black uppercase tracking-widest">Timestamped Comments</h4>
+              <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Let listeners pin comments to moments on the wave</p>
+            </div>
+            <button type="button" onClick={() => setMixAllowComments(v => !v)}
+              className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${mixAllowComments ? 'bg-white text-black border-white shadow-xl' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}>
+              {mixAllowComments ? 'On' : 'Off'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Rights & Identifiers — opt-in professional layer. UPC/GRid/catalogue number the
           label already holds, plus the free permanent ID and fingerprint Plajah issues. */}
