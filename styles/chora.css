@@ -486,5 +486,7 @@
   .chora-next .cn-pane { transition: none; }
   .chora-next .cn-comet::before, .chora-next .cn-comet::after { animation: none !important; }
   .chora-next .cn-spark { animation: none !important; opacity: .35; }
-  .pv-orr-planet, .pv-orr-node, .pv-orr-node i { animation: none !important; transition: none !important; }
+  /* The orrery is intentional, wanted motion — slow the playing-node glow rather than freeze it
+     (the orbit itself is JS/Framer-driven inline transforms, unaffected by these rules). */
+  .pv-orr-node.is-playing { animation-duration: 16s !important; }
 }

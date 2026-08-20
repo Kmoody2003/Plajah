@@ -31,6 +31,12 @@ const OrreryStage: React.FC<OrreryStageProps> = ({ album, tracks, activeIndex, i
   const visible = tracks.slice(windowStart, windowStart + MAX_VISIBLE);
   const hidden = tracks.length - visible.length;
 
+  // The orrery's whole point is planets orbiting the album. Reduced-motion should NOT freeze
+  // it (that's the reported "desktop won't move" bug — the user's desktop has reduce-motion ON,
+  // mobile doesn't): per the DS lesson for ambient/intentional motion, SLOW it, don't stop it.
+  // The size/position springs still snap instantly under reduced motion (those are entrance, not orbit).
+  const orbitSlow = reduceMotion ? 2.4 : 1;
+
   const renderNode = (t: Track, absoluteIndex: number) => {
     // Album order is expressed as depth: the current song moves nearest the artwork; its
     // neighbours are next closest; completed and distant upcoming songs progressively recede.
@@ -42,7 +48,7 @@ const OrreryStage: React.FC<OrreryStageProps> = ({ album, tracks, activeIndex, i
     const angle = (360 / Math.max(visible.length, 1)) * (absoluteIndex - windowStart) - 90;
     // Kepler-inspired timing: inner planets complete a pass sooner; progressively distant
     // tracks remain clearly in motion but travel more slowly. The selected track is fastest.
-    const orbitDuration = active ? 18 : 25 + Math.pow(radius / ACTIVE_RADIUS, 1.5) * 9;
+    const orbitDuration = (active ? 18 : 25 + Math.pow(radius / ACTIVE_RADIUS, 1.5) * 9) * orbitSlow;
     return (
       <React.Fragment key={t.id}>
         <motion.div
@@ -54,8 +60,8 @@ const OrreryStage: React.FC<OrreryStageProps> = ({ album, tracks, activeIndex, i
         <motion.div
           className="pv-orr-planet"
           initial={false}
-          animate={{ rotate: reduceMotion ? angle : [angle, angle + 360] }}
-          transition={reduceMotion ? { duration: 0 } : { duration: orbitDuration, repeat: Infinity, ease: 'linear', repeatType: 'loop' }}
+          animate={{ rotate: [angle, angle + 360] }}
+          transition={{ duration: orbitDuration, repeat: Infinity, ease: 'linear', repeatType: 'loop' }}
         >
           <motion.button
             type="button"
@@ -69,8 +75,8 @@ const OrreryStage: React.FC<OrreryStageProps> = ({ album, tracks, activeIndex, i
           >
             <motion.i
               initial={false}
-              animate={{ rotate: reduceMotion ? -angle : [-angle, -angle - 360] }}
-              transition={reduceMotion ? { duration: 0 } : { duration: orbitDuration, repeat: Infinity, ease: 'linear', repeatType: 'loop' }}
+              animate={{ rotate: [-angle, -angle - 360] }}
+              transition={{ duration: orbitDuration, repeat: Infinity, ease: 'linear', repeatType: 'loop' }}
             >
               {String(absoluteIndex + 1).padStart(2, '0')}
             </motion.i>

@@ -653,6 +653,12 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const st = stateRef.current;
     if (st.audioSource !== 'LIBRARY' || !st.currentAlbum || !st.currentTrack) return;
     if (typeof navigator === 'undefined' || navigator.onLine === false) return;
+    // The current track is streaming via hls.js (MSE), which is still fetching segments right up to
+    // the end. A parallel multi-MB fetch of the next ORIGINAL competes with those segment requests
+    // and stalls the current song's tail — exactly the "drops out going into the next track" report.
+    // hls.js hands the next transcoded track off gaplessly on its own; for a not-yet-transcoded next
+    // track a brief cold-start gap is a lesser evil than starving the stream we're still playing.
+    if (hlsRef.current) return;
     const conn: any = (navigator as any).connection;
     if (conn && (conn.saveData || /(^|-)2g/.test(conn.effectiveType || ''))) return; // don't burn a metered/slow link
     const tracks = st.currentAlbum.tracks;
@@ -744,7 +750,10 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 if (audio.src !== streamPick.url) audio.src = streamPick.url;   // native HLS (Safari/iOS)
               } else if (Hls.isSupported()) {
                 audio.removeAttribute('src');
-                const hls = new Hls({ maxBufferLength: 30, enableWorker: true });
+                // Buffer generously so a brief congestion/roam blip is ridden out of the buffer
+                // instead of surfacing as a stall. backBufferLength keeps a little behind us for
+                // instant scrub-back without re-fetching.
+                const hls = new Hls({ maxBufferLength: 60, backBufferLength: 30, enableWorker: true });
                 // A "fatal" hls.js error is usually NOT terminal. A dropped segment request or a
                 // buffer-append hiccup — a lift, a Wi-Fi roam, a moment of congestion — arrives
                 // here as fatal, and tearing the player down on the first one is why music
@@ -763,11 +772,20 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
                     audio.play().catch(() => {});
                   } catch { /* */ }
                 };
+                // A successful segment means the connection is healthy again — clear the retry
+                // budget so INDEPENDENT blips spread across a long track don't accumulate into a
+                // bail-to-WAV. (Without this, six lifetime blips killed the stream on track 8.)
+                hls.on(Hls.Events.FRAG_BUFFERED, () => { netRetries = 0; mediaRetries = 0; });
                 hls.on(Hls.Events.ERROR, (_evt, data) => {
                   if (!data?.fatal) return;
-                  if (data.type === Hls.ErrorTypes.NETWORK_ERROR && netRetries < 3) {
+                  if (data.type === Hls.ErrorTypes.NETWORK_ERROR && netRetries < 6) {
                     netRetries++;
-                    try { hls.startLoad(); return; } catch { /* fall through to bail */ }
+                    // Back OFF before resuming (mirrors the live-stream path): a network that just
+                    // dropped a segment needs a beat, and hammering startLoad() in a tight loop
+                    // burns the retry budget in one blip and drops us to the WAV. hls.js stays
+                    // alive across this — the buffer keeps playing while we wait.
+                    setTimeout(() => { try { hls.startLoad(); } catch { /* */ } }, Math.min(4000, 500 * netRetries));
+                    return;
                   }
                   if (data.type === Hls.ErrorTypes.MEDIA_ERROR && mediaRetries < 2) {
                     mediaRetries++;
@@ -1312,8 +1330,11 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
           // memory-pressured TV). It must never fire while the tab is hidden — a throttled
           // background rAF makes `now` jump and can look like a stall, which would wrongly
           // advance/restart a track playing on the lock screen. And a natively-looping element
-          // (repeat-ONE) is never "stuck at the end", so exclude it too.
-          else if (now - stallRef.current.since > 3500 && dur && isFinite(dur) && dur - t < 8 && !audio.loop && !document.hidden) {
+          // (repeat-ONE) is never "stuck at the end", so exclude it too. Also EXCLUDE hls.js/MSE:
+          // a near-end HLS buffer underrun is normal and RECOVERABLE (hls.js owns that buffer), so
+          // treating it as "ended" here skips content and can double-advance if the real `ended`
+          // then fires when the last segment lands — jump the album forward by two tracks.
+          else if (now - stallRef.current.since > 3500 && dur && isFinite(dur) && dur - t < 8 && !audio.loop && !document.hidden && !hlsRef.current) {
             stallRef.current = { lastT: -1, since: 0 };
             onEndedRef.current();
             raf = requestAnimationFrame(tick);
