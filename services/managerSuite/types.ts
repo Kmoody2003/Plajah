@@ -26,9 +26,25 @@ export interface ScheduledPostTargetResult {
   error?: string;
 }
 
+/** Which managed identity a scheduled post belongs to. CREATOR = the signed-in
+ *  operator themselves; BUSINESS/ORG = a page/org the operator manages. */
+export type ScheduledPostOwnerKind = 'CREATOR' | 'BUSINESS' | 'ORG';
+
 export interface ScheduledPost {
   id: string;
+  /** The managed identity this post belongs to. For a personal (CREATOR) queue
+   *  this is the operator's uid; for a business/org queue it's that identity's id.
+   *  The Firestore document itself always lives under the OPERATING user's subtree
+   *  (users/{operatorUid}/scheduledPosts) — the only place per-user rules permit a
+   *  write — so ownerId is the logical partition key, not the storage path. */
   ownerId: string;
+  /** Kind of the owning identity (defaults to CREATOR when absent). */
+  ownerKind?: ScheduledPostOwnerKind;
+  /** When the Plajah-feed copy should be attributed to a business/org rather than
+   *  the operator, the identity id to post as (reuses createPost's authorOrgId).
+   *  Consumed client-side on immediate publish; the server cron publisher should
+   *  honor it too (server-side change tracked separately). */
+  authorOrgId?: string;
   text: string;
   /** Public media URLs (already uploaded to Plajah storage). */
   mediaUrls: string[];

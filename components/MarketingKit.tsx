@@ -117,11 +117,12 @@ export default function MarketingKit({ scope, currentUser, onClose }: MarketingK
       <div className="flex-1 min-h-0 flex flex-col">
         {mode === 'ORGANIC' ? (
           // StudioView is a self-contained full-height surface — render directly.
-          <StudioView />
+          // Scope threads the managed identity through the queue/calendar/analytics.
+          <StudioView scope={scope} />
         ) : (
           // AdPackageManager is a content block expecting outer padding — wrap it.
           <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-8">
-            <AdPackageManager currentUser={currentUser} />
+            <AdPackageManager currentUser={currentUser} scope={scope} />
           </div>
         )}
       </div>
@@ -129,16 +130,22 @@ export default function MarketingKit({ scope, currentUser, onClose }: MarketingK
   );
 }
 
-// ── Scoping note (deferred, Wave 2) ────────────────────────────────────────────
-// The two embedded tools currently key off the SIGNED-IN user, not `scope.id`:
-//   • StudioView reads the signed-in user's Fediverse accounts (FediverseContext)
-//     and their scheduled-post queue (scheduledPostsService) — both global to the
-//     auth'd user. Under BUSINESS/ORG scope it therefore shows the operator's own
-//     channels, not the identity's.
-//   • AdPackageManager computes a boost profile for `currentUser`, not for a
-//     specific business page / org id.
-// True per-identity channels + analytics require threading a `scope` prop through
-// StudioView → scheduledPostsService/FediverseContext and AdPackageManager →
-// adAlgorithmService. Left as a deliberate follow-up so the scheduler/ad tools are
-// reused unchanged here. The identity HEADER is accurate today; the data plane
-// scoping is the outstanding piece.
+// ── Scoping note (Wave 2 — threaded) ───────────────────────────────────────────
+// `scope` now flows into both embedded tools:
+//   • StudioView receives `scope` and, for BUSINESS/ORG, files the scheduled queue,
+//     calendar, and analytics under `scope.id` (scheduledPostsService ownerId
+//     partition) and attributes Plajah-feed posts to that identity (createPost
+//     authorOrgId — the existing "operate as org" path). CREATOR is byte-for-byte
+//     unchanged (ownerId defaults to the operator's uid; no authorOrgId).
+//   • AdPackageManager receives `scope` and computes the boost profile for
+//     `scope.id` (adAlgorithmService) when BUSINESS/ORG.
+//
+// Two things are DELIBERATELY not per-identity, by model constraint:
+//   1. Connected EXTERNAL channels (Bluesky/Mastodon/Threads). The fediverse
+//      credential store is keyed to the authed user only (/api/fediverse/accounts),
+//      so managed identities share the operator's linked accounts. StudioView shows
+//      an honest banner saying so under BUSINESS/ORG scope — no fake per-identity
+//      external accounts are invented.
+//   2. Payments. Ad-package purchases still run on the operator's connected
+//      payments (stripe token = auth.currentUser); attributing a purchase to an org
+//      is a server/webhook concern, unchanged here.

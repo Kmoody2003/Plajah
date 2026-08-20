@@ -9,7 +9,7 @@ import {
 import { onSnapshot } from '../safeSnapshot';
 import { v4 as uuidv4 } from 'uuid';
 import { db, auth } from '../firebase';
-import type { ScheduledPost, ScheduledPostStatus } from './types';
+import type { ScheduledPost, ScheduledPostStatus, ScheduledPostOwnerKind } from './types';
 
 function colRef(uid: string) {
   return collection(db, 'users', uid, 'scheduledPosts');
@@ -26,6 +26,14 @@ export interface NewScheduledPostInput {
   /** Epoch ms; omit for a draft. */
   scheduledAt?: number;
   timezone?: string;
+  /** Logical owner of this queue entry. Defaults to the signed-in operator's uid
+   *  (CREATOR behavior). Pass a business/org id to file the post under that
+   *  managed identity's queue. The document is still stored under the operator's
+   *  own subtree — ownerId is the partition key, not the storage path. */
+  ownerId?: string;
+  ownerKind?: ScheduledPostOwnerKind;
+  /** Attribute the Plajah-feed copy to a business/org (createPost authorOrgId). */
+  authorOrgId?: string;
 }
 
 export async function createScheduledPost(input: NewScheduledPostInput): Promise<ScheduledPost> {
@@ -41,7 +49,12 @@ export async function createScheduledPost(input: NewScheduledPostInput): Promise
   const now = Date.now();
   const post: ScheduledPost = {
     id: uuidv4(),
-    ownerId: uid,
+    // Logical owner: the managed identity (business/org) if supplied, else the
+    // operator themselves. The document still lives under colRef(uid) — the only
+    // subtree per-user rules let this signed-in operator write to.
+    ownerId: input.ownerId ?? uid,
+    ownerKind: input.ownerKind ?? 'CREATOR',
+    authorOrgId: input.authorOrgId,
     text: input.text.trim(),
     mediaUrls: input.mediaUrls ?? [],
     linkUri: input.linkUri,
@@ -81,12 +94,23 @@ export async function listScheduledPosts(uid?: string): Promise<ScheduledPost[]>
   return snap.docs.map(d => d.data() as ScheduledPost);
 }
 
-/** Live queue for the current user. */
-export function listenToQueue(callback: (posts: ScheduledPost[]) => void): () => void {
+/** Live queue for a managed identity.
+ *  The Firestore query is unchanged (operator's own subtree, ordered by createdAt —
+ *  the same single-field index as before), so CREATOR behavior is byte-for-byte.
+ *  When `ownerId` names a business/org, results are filtered client-side to that
+ *  identity's entries; omitting it (or passing the operator's uid) yields exactly
+ *  the personal queue. Filtering is done in memory to avoid a composite
+ *  (ownerId + createdAt) index. */
+export function listenToQueue(
+  callback: (posts: ScheduledPost[]) => void,
+  ownerId?: string,
+): () => void {
   const uid = auth.currentUser?.uid;
   if (!uid) { callback([]); return () => {}; }
+  const target = ownerId ?? uid;
   return onSnapshot(query(colRef(uid), orderBy('createdAt', 'desc')), snap => {
-    callback(snap.docs.map(d => d.data() as ScheduledPost));
+    const all = snap.docs.map(d => d.data() as ScheduledPost);
+    callback(all.filter(p => (p.ownerId ?? uid) === target));
   });
 }
 

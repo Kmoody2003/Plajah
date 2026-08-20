@@ -83,23 +83,41 @@ const BoostDisplay: React.FC<{ score: number; label: string; color: string; max?
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-interface AdPackageManagerProps {
-  currentUser: UserProfile;
+// Managed identity being promoted. Structurally compatible with MarketingKit's
+// MarketingScope. Omitted / CREATOR => promote the signed-in operator.
+export interface AdScope {
+  kind: 'CREATOR' | 'BUSINESS' | 'ORG';
+  id: string;
+  name?: string;
 }
 
-const AdPackageManager: React.FC<AdPackageManagerProps> = ({ currentUser }) => {
+interface AdPackageManagerProps {
+  currentUser: UserProfile;
+  scope?: AdScope;
+}
+
+const AdPackageManager: React.FC<AdPackageManagerProps> = ({ currentUser, scope }) => {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [boostProfile, setBoostProfile] = useState<any>(null);
   const [subTier, setSubTier] = useState<1 | 2 | 3 | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Which identity's boost profile to compute/display. A BUSINESS/ORG scope keys
+  // the profile on that identity's id; CREATOR (or no scope) uses the operator.
+  // NOTE: package PURCHASES still go through the operator's connected payments
+  // (handleBuyPackage/handleBuyOffPlatform use auth.currentUser's token) — the
+  // stripe/webhook attribution of a purchase to an org is a server concern and is
+  // not changed here.
+  const managed = !!scope && scope.kind !== 'CREATOR' && !!scope.id;
+  const boostTargetId = managed ? scope!.id : currentUser.uid;
+
   const loadData = async () => {
     setRefreshing(true);
     try {
       const [sub, profile] = await Promise.all([
         fetchMySubscription(),
-        recalculateBoostProfile(currentUser.uid, null),
+        recalculateBoostProfile(boostTargetId, null),
       ]);
       if (sub?.status === 'active') setSubTier(sub.tier);
       setBoostProfile(profile);
@@ -110,7 +128,7 @@ const AdPackageManager: React.FC<AdPackageManagerProps> = ({ currentUser }) => {
     }
   };
 
-  useEffect(() => { loadData(); }, [currentUser.uid]);
+  useEffect(() => { loadData(); }, [boostTargetId]);
 
   const handleBuyPackage = async (packageType: string) => {
     const user = auth.currentUser;

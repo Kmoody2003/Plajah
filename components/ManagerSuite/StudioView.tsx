@@ -61,6 +61,14 @@ const NET_ABBR: Record<string, string> = {
 
 type Tab = 'COMPOSE' | 'QUEUE' | 'CALENDAR' | 'ANALYTICS';
 
+// The managed identity this Studio instance is operating. Structurally compatible
+// with MarketingKit's MarketingScope. Omitted / CREATOR => the signed-in operator.
+export interface StudioScope {
+  kind: 'CREATOR' | 'BUSINESS' | 'ORG';
+  id: string;
+  name?: string;
+}
+
 const STATUS_STYLE: Record<ScheduledPost['status'], { label: string; cls: string }> = {
   DRAFT:      { label: 'Draft',      cls: 'bg-white/10 text-white/60' },
   SCHEDULED:  { label: 'Scheduled',  cls: 'bg-blue-500/20 text-blue-300' },
@@ -72,7 +80,7 @@ const STATUS_STYLE: Record<ScheduledPost['status'], { label: string; cls: string
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function StudioView() {
+export default function StudioView({ scope }: { scope?: StudioScope } = {}) {
   const { accounts, broadcast } = useFediverse();
   const [tab, setTab] = useState<Tab>('COMPOSE');
   const [entitlement, setEntitlement] = useState<ManagerSuiteEntitlement | null>(null);
@@ -80,9 +88,22 @@ export default function StudioView() {
   const [queue, setQueue] = useState<ScheduledPost[]>([]);
   const publishing = useRef<Set<string>>(new Set());
 
+  // ── Managed-identity scoping ──────────────────────────────────────────────
+  // A BUSINESS/ORG scope files the queue/calendar/analytics under that identity's
+  // id and attributes Plajah-feed posts to it (createPost authorOrgId). CREATOR
+  // (or no scope) keeps everything on the signed-in operator's uid — byte-for-byte
+  // the original behavior. Connected EXTERNAL channels stay account-level (see note
+  // below): the fediverse credential store is keyed to the authed user only.
+  const authUid = getAuth().currentUser?.uid;
+  const managed = !!scope && scope.kind !== 'CREATOR' && !!scope.id;
+  const ownerId = managed ? scope!.id : authUid;
+  const ownerKind: StudioScope['kind'] = scope?.kind ?? 'CREATOR';
+  const authorOrgId = managed ? scope!.id : undefined;
+  const authorName = managed ? scope!.name : undefined;
+
   useEffect(() => { activateAndGetEntitlement().then(setEntitlement).catch(() => {}); }, []);
   useEffect(() => { currentUserHasPlajahPlus().then(setHasPlus).catch(() => {}); }, []);
-  useEffect(() => listenToQueue(setQueue), []);
+  useEffect(() => listenToQueue(setQueue, ownerId), [ownerId]);
 
   const planCtx = { hasPlajahPlus: hasPlus };
   const plan = effectivePlan(entitlement, planCtx);
@@ -154,7 +175,14 @@ export default function StudioView() {
       }
       if (post.alsoPostToPlajah) {
         try {
-          await createPost({ text: post.text, media: post.mediaUrls.map(url => ({ type: 'PICTURE', url })) as any });
+          // Attribute to the managed business/org when scoped (reuses createPost's
+          // "operate as org" path: authorId stays the operator, authorOrgId marks it).
+          const orgId = post.authorOrgId ?? authorOrgId;
+          await createPost({
+            text: post.text,
+            media: post.mediaUrls.map(url => ({ type: 'PICTURE', url })) as any,
+            ...(orgId ? { authorOrgId: orgId, ...(authorName ? { authorName } : {}) } : {}),
+          } as any);
           results.push({ channelKind: 'plajah', ok: true });
         } catch (e: any) {
           results.push({ channelKind: 'plajah', ok: false, error: e?.message ?? 'Plajah post failed' });
@@ -173,7 +201,7 @@ export default function StudioView() {
     } finally {
       publishing.current.delete(post.id);
     }
-  }, [broadcast]);
+  }, [broadcast, authorOrgId, authorName]);
 
   useEffect(() => {
     const tick = () => dueScheduledPosts(queue).forEach(publishPost);
@@ -223,9 +251,28 @@ export default function StudioView() {
         </div>
       </div>
 
+      {/* Honest scoping note: the data plane is per-identity, but external channels
+          are not — the fediverse credential store is keyed to the authed user. */}
+      {managed && (
+        <div className="px-4 sm:px-6 lg:px-10 pt-3 shrink-0">
+          <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-[11px] text-white/50">
+            <LinkIcon size={13} className="text-white/40 shrink-0 mt-0.5" />
+            <span>
+              Compose, queue, calendar, and analytics here belong to{' '}
+              <span className="text-white/70 font-bold">{scope?.name ?? 'this identity'}</span>. Connected external
+              channels (Bluesky, Mastodon, Threads) are managed at your account level and shared across the identities you operate.
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 min-h-0 overflow-y-auto">
         {tab === 'COMPOSE' && (
-          <Composer platforms={platforms} channels={channels} limits={limits} usedSlots={usedSlots} onPublishNow={publishPost} />
+          <Composer
+            platforms={platforms} channels={channels} limits={limits} usedSlots={usedSlots}
+            onPublishNow={publishPost}
+            ownerId={ownerId} ownerKind={ownerKind} authorOrgId={authorOrgId}
+          />
         )}
         {tab === 'QUEUE' && (
           <QueuePanel queue={queue} channels={channels} onDelete={deleteScheduledPost} onPublishNow={publishPost} />
@@ -276,12 +323,16 @@ function PlatformBadge({ platform, size = 'sm' }: { platform: PlatformDef; size?
 
 interface ChannelItem { id: string; kind: FediverseProtocol | 'plajah'; label: string; handle: string; accountId?: string }
 
-function Composer({ platforms, channels, limits, usedSlots, onPublishNow }: {
+function Composer({ platforms, channels, limits, usedSlots, onPublishNow, ownerId, ownerKind, authorOrgId }: {
   platforms: PlatformDef[];
   channels: ChannelItem[];
   limits: ReturnType<typeof effectiveLimits>;
   usedSlots: number;
   onPublishNow: (p: ScheduledPost) => void;
+  /** Managed-identity descriptors threaded from StudioView (default = operator). */
+  ownerId?: string;
+  ownerKind?: StudioScope['kind'];
+  authorOrgId?: string;
 }) {
   const currentUser = getAuth().currentUser;
   const [selected, setSelected] = useState<Set<string>>(new Set(['plajah']));
@@ -334,6 +385,9 @@ function Composer({ platforms, channels, limits, usedSlots, onPublishNow }: {
       const post = await createScheduledPost({
         text: data.text, targetAccountIds, alsoPostToPlajah, scheduledAt,
         mediaUrls,
+        // File under the managed identity's queue + attribute the Plajah copy to it.
+        // Undefined for CREATOR, so the service defaults to the operator's uid.
+        ownerId, ownerKind, authorOrgId,
       });
 
       if (!when) { await onPublishNow(post); flash(true, 'Posted!'); }
