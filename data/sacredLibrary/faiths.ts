@@ -23,6 +23,8 @@ export interface FaithGallery {
   deviates?: boolean;
   /** Optional action label, e.g. "Open in the Sutra Reader". */
   cta?: string;
+  /** When true, this gallery opens the wing's reader (Lectio or the Sutra Reader). */
+  opensReader?: boolean;
 }
 
 export interface FaithDeviation {
@@ -42,6 +44,10 @@ export interface FaithWingData {
   /** Primary + secondary accent, layered over Plajah's dark ground. */
   accent: string;
   accent2: string;
+  /** Uppercase line above the poster title. */
+  posterEyebrow: string;
+  /** Which deep reader this wing opens from its Sacred Texts gallery. */
+  reader: 'bible' | 'sutra';
   facts: { label: string; value: string }[];
   deviations: FaithDeviation[];
   galleries: FaithGallery[];
@@ -80,7 +86,60 @@ export const CHRISTIANITY_META: FaithMeta = {
   blurb: 'The reference build. Everything in the Sacred Library today lives here — read and studied in Lectio.',
   accent: '#E3C57E',
   status: 'model',
-  wing: 'bible',
+  wing: 'data',
+};
+
+export const CHRISTIANITY: FaithWingData = {
+  id: 'christianity',
+  name: 'Christianity',
+  symbol: '✝',
+  tagline: '"In the beginning was the Word." A faith of covenant, cross, and resurrection.',
+  accent: '#E3C57E',
+  accent2: '#3E63B6',
+  posterEyebrow: 'The reference build',
+  reader: 'bible',
+  facts: [
+    { label: 'Origin', value: '1st c. Judea' },
+    { label: 'Scripture', value: 'The Bible, 66+ books' },
+    { label: 'Adherents', value: '~2.4 billion' },
+    { label: 'Symbol', value: 'The cross' },
+  ],
+  deviations: [],
+  galleries: [
+    {
+      no: '01', kicker: 'Sacred Texts', title: 'The Bible — read & studied in Lectio', icon: '📖',
+      blurb: 'The whole canon opens in Lectio, our Logos-class study Bible: reverse interlinear, commentaries, word studies, cross-references and your own notes. This is where the Sacred Library’s depth lives.',
+      items: ['Old & New Testament', 'Reverse interlinear', 'Commentaries', 'Word study', 'Reading plans'],
+      cta: 'Open in Lectio', opensReader: true,
+    },
+    { no: '02', kicker: 'The Story', title: 'Two thousand years', icon: '🕰',
+      blurb: 'From the early church through councils, schisms, and reform to the global church.',
+      items: ['Apostolic age', 'Nicaea 325', '1054 · 1517'] },
+    { no: '03', kicker: 'Key Figures', title: 'Witnesses', icon: '👤',
+      blurb: 'Jesus and the apostles, the church fathers, saints, and reformers.',
+      items: ['Paul', 'Augustine', 'Aquinas', 'Luther'] },
+    { no: '04', kicker: 'Beliefs', title: 'The creeds', icon: '✝',
+      blurb: 'Trinity, incarnation, atonement, resurrection — the convictions of the Nicene Creed.',
+      items: ['One God, three persons', 'Grace', 'Resurrection'] },
+    { no: '05', kicker: 'Practices', title: 'Worship & sacrament', icon: '🙏',
+      blurb: 'Prayer, baptism, communion, and the gathered liturgy of the church.',
+      items: ['Baptism', 'Eucharist', 'Prayer'] },
+    { no: '06', kicker: 'Branches', title: 'One faith, many families', icon: '🌿',
+      blurb: 'Catholic, Orthodox, and the Protestant traditions and their distinctives.',
+      items: ['Catholic', 'Orthodox', 'Protestant'] },
+    { no: '07', kicker: 'Places & Art', title: 'Cathedral & icon', icon: '⛪',
+      blurb: 'Basilicas and chapels, illuminated manuscripts, iconography and sacred music.',
+      items: ['Architecture', 'Icons', 'Hymnody'] },
+    { no: '08', kicker: 'Calendar', title: 'The liturgical year', icon: '📅',
+      blurb: 'Advent to Pentecost — the seasons that retell the story annually.',
+      items: ['Advent', 'Easter', 'Pentecost'] },
+    { no: '09', kicker: 'Ethics & Living', title: 'Love God & neighbour', icon: '⚖',
+      blurb: 'The Sermon on the Mount, the fruits of the Spirit, and works of mercy.',
+      items: ['Beatitudes', 'Ten Commandments'] },
+    { no: '10', kicker: 'Study Tools', title: 'Go deeper', icon: '🔎',
+      blurb: 'Greek & Hebrew, concordances, a glossary of terms — powered by Lectio.',
+      items: ['Koine Greek', 'Biblical Hebrew', 'Glossary'] },
+  ],
 };
 
 export const BUDDHISM: FaithWingData = {
@@ -90,6 +149,8 @@ export const BUDDHISM: FaithWingData = {
   tagline: '"All that we are is the result of what we have thought." A path of awakening — no creator, but a way out of suffering.',
   accent: '#E8912D',
   accent2: '#9A3B2C',
+  posterEyebrow: 'Modeled on Christianity · free to deviate',
+  reader: 'sutra',
   facts: [
     { label: 'Origin', value: '~5th c. BCE, India' },
     { label: 'Texts', value: 'Tripiṭaka + sutras' },
@@ -107,7 +168,7 @@ export const BUDDHISM: FaithWingData = {
       no: '01', kicker: 'Sacred Texts', title: 'The Tripiṭaka & sutras', icon: '📜',
       blurb: 'The same deep reader that powers Lectio, tuned for Buddhist canons: the Pāli "three baskets," Mahāyāna sutras, and Tibetan collections — with Pāli/Sanskrit glosses and parallel translations.',
       items: ['Pāli Canon', 'Dhammapada', 'Heart & Lotus Sutra', 'Pāli · Sanskrit gloss'],
-      cta: 'Open in the Sutra Reader',
+      cta: 'Open in the Sutra Reader', opensReader: true,
     },
     { no: '02', kicker: 'The Story', title: 'From the Bodhi tree', icon: '🕰',
       blurb: "Siddhartha's awakening, Ashoka's spread, and the journey across Asia and beyond.",
@@ -139,8 +200,10 @@ export const BUDDHISM: FaithWingData = {
   ],
 };
 
-/** Data-driven wings, keyed by id. Christianity is intentionally absent (it is BibleExperience). */
+/** Data-driven wings, keyed by id. Each wing's Sacred Texts gallery opens its reader
+ *  (Christianity → Lectio/BibleExperience, Buddhism → the Sutra Reader). */
 export const FAITH_WINGS: Record<string, FaithWingData> = {
+  christianity: CHRISTIANITY,
   buddhism: BUDDHISM,
 };
 

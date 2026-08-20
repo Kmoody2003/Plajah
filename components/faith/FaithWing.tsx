@@ -7,22 +7,26 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { ChevronLeft } from 'lucide-react';
 import type { FaithWingData } from '../../data/sacredLibrary/faiths';
+import { PLAJAH_BG, PLAJAH_HEADER } from '../../data/sacredLibrary/theme';
 
 interface FaithWingProps {
   faith: FaithWingData;
   onBack: () => void;
+  /** Opens this wing's deep reader (Lectio or the Sutra Reader). */
+  onOpenReader?: () => void;
 }
 
-const FaithWing: React.FC<FaithWingProps> = ({ faith, onBack }) => {
+const FaithWing: React.FC<FaithWingProps> = ({ faith, onBack, onOpenReader }) => {
   const acc = faith.accent;
   const acc2 = faith.accent2;
+  const isModel = faith.deviations.length === 0;
 
   return (
-    <div className="fixed inset-0 z-[120] overflow-y-auto" style={{ background: '#08070c' }}>
+    <div className="fixed inset-0 z-[120] overflow-y-auto" style={{ background: PLAJAH_BG }}>
       {/* header */}
       <header
         className="sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b backdrop-blur-xl"
-        style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(8,7,12,0.72)' }}
+        style={{ borderColor: 'rgba(255,255,255,0.08)', background: PLAJAH_HEADER }}
       >
         <button
           onClick={onBack}
@@ -34,7 +38,7 @@ const FaithWing: React.FC<FaithWingProps> = ({ faith, onBack }) => {
           <span className="text-xl" style={{ color: acc }}>{faith.symbol}</span>
           <span className="font-semibold tracking-tight" style={{ fontFamily: 'var(--font-serif, Georgia, serif)' }}>{faith.name}</span>
         </div>
-        <span className="ml-auto text-[11px] uppercase tracking-[0.16em] text-white/35">Modeled · free to deviate</span>
+        <span className="ml-auto text-[11px] uppercase tracking-[0.16em] text-white/35">{isModel ? 'The reference build' : 'Modeled · free to deviate'}</span>
       </header>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-24">
@@ -46,13 +50,13 @@ const FaithWing: React.FC<FaithWingProps> = ({ faith, onBack }) => {
           className="relative mt-6 rounded-[28px] overflow-hidden border grid md:grid-cols-[1.1fr_.9fr]"
           style={{
             borderColor: 'rgba(255,255,255,0.14)',
-            background: `linear-gradient(140deg, ${acc2}22, #0c0906 60%, ${acc2}18)`,
+            background: `linear-gradient(140deg, ${acc2}22, #0a0711 60%, ${acc2}18)`,
             boxShadow: '0 22px 52px rgba(0,0,0,0.6)',
           }}
         >
           <div className="relative z-10 p-7 sm:p-11 flex flex-col justify-center gap-3.5">
             <span className="text-[11px] font-bold uppercase tracking-[0.24em]" style={{ color: acc }}>
-              Modeled on Christianity · free to deviate
+              {faith.posterEyebrow}
             </span>
             <h1
               className="text-4xl sm:text-6xl font-bold leading-none tracking-tight"
@@ -78,7 +82,7 @@ const FaithWing: React.FC<FaithWingProps> = ({ faith, onBack }) => {
           {/* symbolic poster art */}
           <div
             className="relative min-h-[180px] grid place-items-center"
-            style={{ background: `radial-gradient(80% 80% at 55% 45%, ${acc}55, transparent 60%), radial-gradient(60% 60% at 50% 70%, ${acc2}55, transparent 60%), #160c07` }}
+            style={{ background: `radial-gradient(80% 80% at 55% 45%, ${acc}55, transparent 60%), radial-gradient(60% 60% at 50% 70%, ${acc2}55, transparent 60%), #0a0711` }}
           >
             <div className="text-[150px] leading-none select-none opacity-90" style={{ color: acc, textShadow: `0 0 60px ${acc}66`, fontFamily: 'Georgia, serif' }}>
               {faith.symbol}
@@ -115,8 +119,10 @@ const FaithWing: React.FC<FaithWingProps> = ({ faith, onBack }) => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-40px' }}
                 transition={{ duration: 0.4, delay: Math.min(i * 0.03, 0.2) }}
-                className="rounded-3xl border overflow-hidden"
-                style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.035)', gridColumn: feature ? 'span 2' : undefined }}
+                onClick={g.opensReader && onOpenReader ? onOpenReader : undefined}
+                role={g.opensReader && onOpenReader ? 'button' : undefined}
+                className="rounded-3xl border overflow-hidden transition-transform hover:-translate-y-0.5"
+                style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.035)', gridColumn: feature ? 'span 2' : undefined, cursor: g.opensReader && onOpenReader ? 'pointer' : 'default' }}
               >
                 <div className="h-1.5" style={{ background: acc }} />
                 <div className={feature ? 'p-4 flex gap-4 items-center' : 'p-4'}>
