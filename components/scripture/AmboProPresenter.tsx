@@ -17,6 +17,7 @@ import {
 } from '../../services/ambo/showModel';
 import { LayerRenderer } from '../../services/ambo/layerRenderer';
 import { DEMO_LIBRARY, DEMO_PLAYLIST, slideText } from '../../services/ambo/servicePlanDemo';
+import AmboStageDisplay from './AmboStageDisplay';
 
 interface AmboProPresenterProps {
   onBack?: () => void;
@@ -70,8 +71,10 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
 
   const [live, setLive] = useState<LiveStack>({});
   const [liveSlideId, setLiveSlideId] = useState<string | null>(null);
+  const [liveSlideObj, setLiveSlideObj] = useState<Slide | null>(null);
   const [selected, setSelected] = useState(2); // preview cursor
   const [placement, setPlacement] = useState<'right' | 'top'>('right');
+  const [stageOpen, setStageOpen] = useState(false);
   const [elapsed, setElapsed] = useState(1 * 3600 + 12 * 44);
 
   useEffect(() => {
@@ -88,6 +91,7 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
   const take = (s: Slide) => {
     setLive(prev => applySlide(prev, s, Date.now()));
     setLiveSlideId(s.id);
+    setLiveSlideObj(s);
   };
   const takeSelected = () => { if (previewSlide) take(previewSlide); };
 
@@ -139,6 +143,9 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
           <div className="text-[10.5px] text-white/45">Grace City Church · 10:00</div>
         </div>
         <div className="flex-1" />
+        <button onClick={() => setStageOpen(true)} className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-[13px] font-semibold border" style={{ borderColor: line2, background: glass }}>
+          <MonitorPlay size={14} style={{ color: CYAN }} /> Stage
+        </button>
         <button className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-[13px] font-semibold border" style={{ borderColor: line2, background: glass }}>
           <BookOpen size={14} style={{ color: GOLD }} /> Scripture
         </button>
@@ -321,6 +328,16 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
           </div>
         </aside>
       </div>
+
+      {stageOpen && (
+        <AmboStageDisplay
+          currentSlide={liveSlideObj}
+          nextSlide={nextSlide}
+          elapsedSec={elapsed}
+          live={!!liveSlideId}
+          onClose={() => setStageOpen(false)}
+        />
+      )}
     </div>
   );
 };
