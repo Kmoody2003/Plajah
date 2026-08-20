@@ -4,7 +4,7 @@ import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeaso
 import { getPlatformInfo } from '../hooks/usePlatform';
 import { buildShareUrl, shareText } from '../services/deepLinkService';
 import { generateAlbumMetadata, generateTrackLyrics } from '../services/geminiService';
-import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, fetchUserCharacters, uploadFile as storageUpload, uploadVideo } from '../services/backendService';
+import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, fetchUserCharacters, uploadFile as storageUpload, uploadVideo, fetchUserVideos } from '../services/backendService';
 import { listCloudProjects } from './plajahPixels/services/projectService';
 import { enqueueTranscode } from '../services/choraStreamService';
 // Lyric sync lives in ONE place (services/lyricSync.ts) so the Melos Project view and this
@@ -92,6 +92,13 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [mixPixelsProjectId, setMixPixelsProjectId] = useState<string>(initialAlbum?.mixMeta?.pixelsProjectId || '');
   const [mixAllowComments, setMixAllowComments] = useState<boolean>(initialAlbum?.mixMeta?.allowComments !== false);
   const [mixPixelsProjects, setMixPixelsProjects] = useState<{ id: string; projectName: string }[]>([]);
+  // Mix audio source: UPLOAD (default), REELLO (pull from one of the artist's videos), or
+  // DJ_MODE (seeded from a captured set). Reello picker state.
+  const [mixSourceKind, setMixSourceKind] = useState<'UPLOAD' | 'REELLO' | 'DJ_MODE'>(initialAlbum?.mixMeta?.source || 'UPLOAD');
+  const [mixSourceVideoId, setMixSourceVideoId] = useState<string>(initialAlbum?.mixMeta?.sourceVideoId || '');
+  const [mixReelloVideos, setMixReelloVideos] = useState<Video[]>([]);
+  const [mixReelloOpen, setMixReelloOpen] = useState(false);
+  const [mixReelloLoading, setMixReelloLoading] = useState(false);
   // Film/TV distribution + release (folded in from the old Distribute-New-Film wizard).
   const [filmDist, setFilmDist] = useState<FilmDistribution>(initialAlbum?.filmDistribution || DEFAULT_FILM_DISTRIBUTION);
   const [alternateVersions, setAlternateVersions] = useState<FilmVersion[]>(initialAlbum?.alternateVersions || []);
@@ -382,6 +389,31 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   };
 
   // ── File handlers ────────────────────────────────────────────────────────────
+  // ── Mix source: pull audio from one of the artist's Reello videos ──
+  const loadReelloVideos = async () => {
+    setMixReelloOpen(true);
+    if (!auth.currentUser || mixReelloVideos.length) return;
+    setMixReelloLoading(true);
+    try { const vids = await fetchUserVideos(auth.currentUser.uid); setMixReelloVideos(vids || []); }
+    catch (err) { console.error('Failed to load Reello videos:', err); }
+    finally { setMixReelloLoading(false); }
+  };
+  const pickReelloVideo = (v: Video) => {
+    if (!v.url) { alert('That video is streamed only — no downloadable audio yet. Pick one with a direct file, or upload instead.'); return; }
+    const anyV = v as any;
+    setTracks([{
+      id: `mixtrk_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      title: v.title || 'DJ Set',
+      artist: artist || (v as any).ownerName || '',
+      url: v.url,
+      mediaKind: 'AUDIO',
+      soundOfVideoId: v.id,
+      albumCover: anyV.thumbnailUrl || anyV.coverImage,
+    } as Track]);
+    setMixSourceKind('REELLO');
+    setMixSourceVideoId(v.id);
+  };
+
   const handleFolderSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -930,7 +962,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         mixMeta: subType === 'MIX' ? {
           visualMode: mixVisualMode,
           pixelsProjectId: mixVisualMode === 'AUTHORED' ? (mixPixelsProjectId || undefined) : undefined,
-          source: initialAlbum?.mixMeta?.source || 'UPLOAD',
+          source: mixSourceKind,
+          sourceVideoId: mixSourceKind === 'REELLO' ? (mixSourceVideoId || undefined) : undefined,
           allowComments: mixAllowComments,
           durationSec: autoSyncedTracks[0]?.duration || undefined,
         } : undefined,
@@ -1462,6 +1495,48 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       {/* Audio/General Upload Drop Zone (non-GAME) */}
       {type !== 'GAME' && (type !== 'VIDEO' || !['MOVIE', 'TV_SERIES'].includes(subType || '')) && contentTab === 'tracks' && (
         <div className="space-y-4">
+          {subType === 'MIX' && (
+            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black uppercase tracking-widest text-white">Mix Source</p>
+                  <p className="text-[11px] text-white/50 mt-0.5">Upload a file below, record in DJ Mode, or pull the audio from one of your Reello videos.</p>
+                </div>
+                <button type="button" onClick={loadReelloVideos} className="shrink-0 flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/15 text-white font-black text-[9px] uppercase tracking-widest rounded-full transition-all">
+                  <VideoIcon size={13} /> From Reello
+                </button>
+              </div>
+              {mixSourceKind === 'REELLO' && mixSourceVideoId && (
+                <p className="text-[10px] font-black text-[#00DAF3] uppercase tracking-widest">✓ Using audio from a Reello video · audio-only</p>
+              )}
+              {mixReelloOpen && (
+                <div className="pt-1">
+                  {mixReelloLoading ? (
+                    <p className="text-[11px] text-white/40 uppercase tracking-widest">Loading your Reello videos…</p>
+                  ) : mixReelloVideos.length === 0 ? (
+                    <p className="text-[11px] text-white/40 uppercase tracking-widest">No Reello videos found on your account.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-64 overflow-y-auto pr-1">
+                      {mixReelloVideos.map(v => {
+                        const anyV = v as any;
+                        const selected = mixSourceVideoId === v.id;
+                        const streamedOnly = !v.url;
+                        return (
+                          <button key={v.id} type="button" onClick={() => pickReelloVideo(v)} disabled={streamedOnly}
+                            className={`text-left rounded-xl overflow-hidden border transition-all ${selected ? 'border-[#00DAF3] shadow-lg' : 'border-white/10 hover:border-white/25'} ${streamedOnly ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                            <div className="aspect-video bg-white/5">
+                              {(anyV.thumbnailUrl || anyV.coverImage) && <img src={anyV.thumbnailUrl || anyV.coverImage} alt="" className="w-full h-full object-cover" />}
+                            </div>
+                            <p className="text-[10px] font-bold truncate px-2 py-1.5">{v.title || 'Untitled'}{streamedOnly ? ' · streamed' : ''}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           {subType === 'PODCAST' && (
             <div className="flex items-center justify-between gap-4 p-5 rounded-3xl bg-gradient-to-r from-small-orange/15 to-violet-500/10 border border-small-orange/20">
               <div>
