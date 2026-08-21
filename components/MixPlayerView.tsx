@@ -143,8 +143,7 @@ const MixPlayerView: React.FC<MixPlayerViewProps> = ({ album, onBack, user, onOp
   }
 
   const genLabel = gen
-    ? (gen.authored ? 'Pixels · Artist show'
-      : `Pixels · Auto-Show · ${String(gen.index + 1).padStart(2, '0')}/${gen.count} · ${gen.name}`)
+    ? (gen.authored ? 'Pixels · Artist show' : `Pixels · Auto-Show · ${gen.name}`)
     : 'Pixels · Auto-Show';
 
   const cover = album.coverThumb || album.coverImage;
