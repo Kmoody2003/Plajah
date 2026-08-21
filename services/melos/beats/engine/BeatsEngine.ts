@@ -133,7 +133,9 @@ export class BeatsEngine {
       toTime: (beats) => this.toTime(beats),
       secPerBeat: () => this.secPerBeat,
       rng: Math.random, // offline renders inject a seeded rng in render.ts instead
-      trigger: (padIdx, vel, when, gateSec, semiOffset) => this.trigger(padIdx, vel, when, gateSec, semiOffset),
+      // Forward pan + stepFx too — the scheduler passes step.pan/step.fx, and dropping them here
+      // is why per-step Step Effects (and per-step pan) applied on Audition but were dry on playback.
+      trigger: (padIdx, vel, when, gateSec, semiOffset, pan, stepFx) => this.trigger(padIdx, vel, when, gateSec, semiOffset, pan, stepFx),
       startAudioClip: (track, clip, when, offset) => this.startAudioClip(track, clip, when, offset),
       startInstrumentNote: (track, note, when, durSec) => this.startInstrumentNote(track, note, when, durSec),
       runArp: (track, stepIndex, beat) => this.runArp(track, stepIndex, beat),
