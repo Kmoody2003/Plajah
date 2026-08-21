@@ -45,7 +45,7 @@ import { AUDIO_ACCEPT } from '../services/audioFormatService';
 import AudioHealthPanel from './AudioHealthPanel';
 
 interface AlbumCreatorProps {
-  onCreated: (album: Album) => void;
+  onCreated: (album: Album, opts?: { keepOpen?: boolean }) => void;
   onCancel: () => void;
   onMinimize?: () => void;
   isMinimized?: boolean;
@@ -1002,13 +1002,18 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       // When editing an existing item, reflect the change in any open view IMMEDIATELY
       // (e.g. a renamed track in the album tracklist) instead of waiting for the background
       // publish to finish. Strip File handles so shared app state never holds blob refs.
+      // Autosave / "Save Now" must NOT close the editor. onCreated closes the creator in App,
+      // so tell it to keep the editor open for a keep-open save — otherwise a background save
+      // completing (common for a Reello-sourced mix with no pending file to defer autosave)
+      // yanks the modal shut and drops unsaved local state like the just-picked cover.
+      const keepOpen = keepOpenAfterSaveRef.current;
       if (initialAlbum) {
         const optimistic = {
           ...newAlbum,
           coverFile: undefined, artistFile: undefined, slideshowFiles: undefined,
           tracks: (newAlbum.tracks || []).map((t: any) => { const { file, ...rest } = t; return rest; }),
         } as Album;
-        onCreated(optimistic);
+        onCreated(optimistic, { keepOpen });
       }
       // Publish in the background so the creator can close and multiple uploads can run at once.
       enqueue({
@@ -1017,7 +1022,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         run: (onProgress) => publishToCloud(newAlbum, onProgress),
         onDone: (published) => {
           const finalAlbum: any = typeof published === 'string' ? newAlbum : published;
-          onCreated(finalAlbum);
+          onCreated(finalAlbum, { keepOpen });
           // Kick off transcode-to-streaming-ladder for music tracks (background; status-gated, so
           // playback keeps using the original until the AAC/HLS + FLAC renditions are ready).
           if (type === 'MUSIC' && Array.isArray(finalAlbum?.tracks)) {

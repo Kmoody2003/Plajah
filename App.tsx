@@ -5809,15 +5809,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           </SpatialUIRoot>
           {showCreator && (
             <AlbumCreator
-              onCreated={(alb) => {
+              onCreated={(alb, opts) => {
                 handleCreateAlbum(alb);
-                setShowCreator(false);
-                setIsCreatorMinimized(false);
-                setCreatorInitialType(undefined);
                 // If we were editing the film that's open in the detail page, refresh it.
                 if (editingAlbum && alb && (alb as any).id === editingAlbum.id) {
                   setSelectedMovieItem((prev: any) => (prev && prev.id === (alb as any).id ? { ...prev, ...alb } : prev));
                 }
+                // Autosave / Save Now (keepOpen) must NOT close the editor — closing mid-edit drops
+                // unsaved local state (e.g. a just-picked cover). Only a real publish closes it.
+                if (opts?.keepOpen) return;
+                setShowCreator(false);
+                setIsCreatorMinimized(false);
+                setCreatorInitialType(undefined);
                 setEditingAlbum(null);
               }}
               onCancel={() => {
