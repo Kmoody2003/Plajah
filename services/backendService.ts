@@ -3063,9 +3063,22 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
     const trackProgressBase = 20 + (i / album.tracks.length) * 60;
 
     if (track.file) {
+      // Real per-file upload progress. uploadFile already emits 0–100 for THIS file via
+      // uploadBytesResumable; fold it into this track's slice of the overall 20→80% band and
+      // surface an MB counter so a big mix master (hundreds of MB) shows live movement instead
+      // of a frozen bar. Throttled to whole-percent changes to avoid re-render spam.
+      const span = 60 / album.tracks.length;
+      const sizeMb = (track.file.size || 0) / (1024 * 1024);
       onProgress?.(`Transferring ${itemNoun} ${i + 1}/${album.tracks.length}`, Math.round(trackProgressBase));
       const gcsPath = `albums/${album.id}/tracks/${track.id}_${track.file.name}`;
-      const url = await uploadFile(gcsPath, track.file);
+      let lastPct = -1;
+      const url = await uploadFile(gcsPath, track.file, (p) => {
+        const overall = Math.round(trackProgressBase + (p / 100) * span);
+        if (overall === lastPct) return;
+        lastPct = overall;
+        const mb = sizeMb > 0 ? ` — ${(sizeMb * p / 100).toFixed(0)}/${sizeMb.toFixed(0)} MB` : '';
+        onProgress?.(`Uploading ${itemNoun} ${i + 1}/${album.tracks.length}${mb} (${Math.round(p)}%)`, overall);
+      });
       finalTracks.push({ ...track, url, file: undefined });
     } else {
       finalTracks.push(track);
