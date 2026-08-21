@@ -244,16 +244,25 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   // source and the browser shows the last built bundle. Unregister any leftover
   // SW, drop its caches, and reload once (loop-guarded) so dev always reflects
   // live source.
+  // Key the decision on whether THIS page is actually controlled by a SW (the stale-shadow
+  // condition) rather than a one-shot sessionStorage flag — a single leftover SW can survive one
+  // reload, and the old flag then blocked any further clearing, so dev stayed stale forever.
+  const controlled = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.getRegistrations().then(async (regs) => {
-    if (!regs.length) return;
     await Promise.all(regs.map((r) => r.unregister()));
     if ('caches' in window) {
       const keys = await caches.keys();
       await Promise.all(keys.map((k) => caches.delete(k)));
     }
-    if (!sessionStorage.getItem('__sw_dev_cleared')) {
-      sessionStorage.setItem('__sw_dev_cleared', '1');
-      location.reload();
+    // Reload only while a SW is still controlling this page (that's what shadows the dev server).
+    // After an unregister the next navigation is uncontrolled, so controller becomes null and this
+    // stops. Loop-guarded to a few attempts so a wedged unregister can never reload-loop.
+    if (controlled) {
+      const n = parseInt(sessionStorage.getItem('__sw_dev_reloads') || '0', 10);
+      if (n < 4) { sessionStorage.setItem('__sw_dev_reloads', String(n + 1)); location.reload(); }
+      else console.warn('[dev] A service worker keeps shadowing the dev server — unregister it manually in DevTools → Application → Service Workers.');
+    } else {
+      sessionStorage.removeItem('__sw_dev_reloads');
     }
   }).catch(() => { /* best effort */ });
 }
