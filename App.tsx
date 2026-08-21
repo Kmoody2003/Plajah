@@ -4780,13 +4780,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
 
-            {view === 'SANCTUARY' && viewedUserId === DEMO_SANCTUARY_ID && (
-              <SanctuaryDemoView
-                onBack={() => setView('SANCTUARY_HUB')}
-                onCreate={() => { setViewedUserId(null); setView('SANCTUARY'); }}
-              />
-            )}
-            {view === 'SANCTUARY' && viewedUserId !== DEMO_SANCTUARY_ID && (
+            {/* All sanctuary views — including the demo — render the redesigned SanctuaryView
+                (Home | Vault | Manage). The old SanctuaryDemoView (unchanged in the redesign wave)
+                is retired so the new Membership Home is what everyone actually sees. */}
+            {view === 'SANCTUARY' && (
               <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><div className="w-10 h-10 border-2 border-[--small-orange]/30 border-t-[--small-orange] rounded-full animate-spin" /></div>}>
                 <SanctuaryView
                   creatorId={viewedUserId || user?.uid || ''}
