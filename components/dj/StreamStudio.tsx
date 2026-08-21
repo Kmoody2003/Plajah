@@ -14,7 +14,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Video, VideoOff, Mic, MicOff, Headphones, Radio, Monitor,
-  ExternalLink, SlidersHorizontal, Plus, Waves, Music2, Signal,
+  ExternalLink, SlidersHorizontal, Plus, Music2, Signal,
 } from 'lucide-react';
 import {
   createDjBus, publishProgramStream, openDjOutputWindow, openDjControlsWindow,
@@ -442,9 +442,9 @@ const StreamStudio: React.FC<Props> = ({ audioCtx, masterGain, nowPlaying, bpm, 
 
   // ── render ────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 340px', gap: 12, padding: 12, height: '100%', minHeight: 0, overflow: 'auto' }}>
-      {/* LEFT — program + sources + note */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+    <div style={{ display: 'flex', gap: 12, padding: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+      {/* LEFT — program + sources */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: '1 1 420px', minWidth: 0 }}>
 
         {/* Hidden WebGL2 surface the Pixels engine renders into (drawn into the program as backdrop). */}
         <canvas ref={pixelsGlRef} width={PIX_W} height={PIX_H} style={{ display: 'none' }} />
@@ -486,14 +486,32 @@ const StreamStudio: React.FC<Props> = ({ audioCtx, masterGain, nowPlaying, bpm, 
               {!camOn && <div style={thumbHint}>{camError ?? 'Camera off'}</div>}
             </SourceTile>
 
-            {/* Pixels */}
+            {/* Pixels monitor — live generator/shader, selectable in place */}
             <SourceTile
-              label="Pixels" sub="reference" on accent={C.lilac}
+              label="Pixels" sub={visual.name} on accent={C.lilac}
               icon={<Monitor size={13} color={C.lilac} />}
-              action={<button onClick={openDjControlsWindow} title="Pop out Pixels controls" style={srcAction(false)}><SlidersHorizontal size={11} /></button>}
+              action={<span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                <button onClick={() => pickVisual((visualIdx - 1 + VISUALS.length) % VISUALS.length)} title="Previous visual" style={srcAction(false)}>‹</button>
+                <button onClick={() => pickVisual((visualIdx + 1) % VISUALS.length)} title="Next visual" style={srcAction(false)}>›</button>
+                <button onClick={openDjControlsWindow} title="Pop out Pixels controls" style={srcAction(false)}><SlidersHorizontal size={11} /></button>
+              </span>}
             >
               <canvas ref={pixThumbRef} width={320} height={180} style={{ width: '100%', height: '100%', display: 'block' }} />
             </SourceTile>
+            {/* Full generator/shader browser (compact) */}
+            <select
+              value={visualIdx}
+              onChange={e => pickVisual(Number(e.target.value))}
+              style={{ width: '100%', fontFamily: 'Outfit, sans-serif', fontSize: 11, fontWeight: 600, padding: '7px 9px', borderRadius: 8, border: `1px solid ${C.hair}`, background: C.panel, color: C.ink2, cursor: 'pointer', marginTop: -3 }}
+            >
+              {VISUAL_GROUPS.map(group => (
+                <optgroup key={group} label={group === 'Plajah' ? 'Plajah · signature' : group}>
+                  {VISUALS.map((v, i) => ({ v, i })).filter(({ v }) => v.cat === group || (group === 'Shaders' && v.cat.startsWith('Shaders'))).map(({ v, i }) => (
+                    <option key={v.id} value={i}>{v.name}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
 
             {/* Add source */}
             <button style={{ border: `1px dashed rgba(255,255,255,0.18)`, borderRadius: 9, padding: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, color: C.ink3, fontFamily: 'Outfit, sans-serif', fontSize: 11, fontWeight: 700, background: 'transparent', cursor: 'pointer' }}>
@@ -531,51 +549,10 @@ const StreamStudio: React.FC<Props> = ({ audioCtx, masterGain, nowPlaying, bpm, 
           </div>
         </div>
 
-        {/* Pixels generators + shaders — the real library, audio-reactive */}
-        <div style={{ ...card }}>
-          <div style={{ ...cardHead }}>
-            <span style={{ width: 26, height: 26, borderRadius: 8, background: 'rgba(107,0,153,0.25)', display: 'grid', placeItems: 'center' }}><Waves size={14} color={C.lilac} /></span>
-            <h5 style={cardTitle}>Plajah Pixels</h5>
-            <span style={{ fontSize: 11, color: C.ink2, marginLeft: 4 }}>· <b style={{ color: C.lilac }}>{visual.name}</b></span>
-            <span style={{ marginLeft: 'auto', ...pill(C.lilac) }}>{VISUALS.length} visuals</span>
-          </div>
-          <div style={{ maxHeight: 210, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 9, paddingRight: 4 }}>
-            {VISUAL_GROUPS.map(group => {
-              const items = VISUALS.map((v, i) => ({ v, i })).filter(({ v }) => v.cat === group || (group === 'Shaders' && v.cat.startsWith('Shaders')));
-              if (!items.length) return null;
-              return (
-                <div key={group}>
-                  <div style={{ ...eyebrow, marginBottom: 6 }}>{group === 'Plajah' ? 'Plajah · signature' : group}</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                    {items.map(({ v, i }) => {
-                      const active = i === visualIdx;
-                      return (
-                        <button key={v.id} onClick={() => pickVisual(i)} title={v.cat}
-                          style={{ fontFamily: 'Outfit, sans-serif', fontSize: 11, fontWeight: 700, padding: '6px 10px', borderRadius: 8, cursor: 'pointer',
-                            border: `1px solid ${active ? 'rgba(0,218,243,0.5)' : C.hair}`, color: active ? C.cyan : C.ink2,
-                            background: active ? 'rgba(0,218,243,0.1)' : 'rgba(255,255,255,0.03)' }}>
-                          {v.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-            <button onClick={() => pickVisual((visualIdx - 1 + VISUALS.length) % VISUALS.length)} style={{ ...winBtn(), flex: 1, justifyContent: 'center' }}>‹ Prev</button>
-            <button onClick={() => pickVisual((visualIdx + 1) % VISUALS.length)} style={{ ...winBtn(), flex: 1, justifyContent: 'center' }}>Next ›</button>
-            <button onClick={openDjControlsWindow} style={{ ...winBtn(C.lilac), flex: 1, justifyContent: 'center' }}><SlidersHorizontal size={12} /> Controls window</button>
-          </div>
-          <p style={{ margin: '9px 0 0', fontSize: 11, color: C.ink3, lineHeight: 1.5 }}>
-            Real Pixels generators &amp; shaders, reacting to the master bus. The selection drives the Program Out; <b style={{ color: C.ink2 }}>Pop out</b> sends it to a projector window.
-          </p>
-        </div>
       </div>
 
       {/* RIGHT — broadcast studio */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: '1 1 300px', minWidth: 280, maxWidth: 360 }}>
         {/* Broadcast */}
         <div style={{ ...card, background: `linear-gradient(160deg,rgba(107,0,153,0.22),rgba(212,0,85,0.10) 60%,${C.panel})`, borderColor: 'rgba(212,0,85,0.3)' }}>
           <div style={cardHead}>

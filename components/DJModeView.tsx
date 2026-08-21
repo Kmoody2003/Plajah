@@ -6,8 +6,9 @@ import {
   Zap, Headphones, Radio, Music2, Upload, Folder, ChevronLeft,
   ChevronRight, RotateCcw, Activity, Volume2, Shuffle, List,
   Disc, Mic2, Monitor, Usb, AlertCircle, CheckCircle, Lightbulb, Square,
-  Video, LayoutGrid
+  Video, LayoutGrid, Search, Boxes, Clock, Star, Trash2, MapPin
 } from 'lucide-react';
+import { useContextMenu, type MenuNode } from './ui/ContextMenu';
 import SmartLightingPanel from './SmartLightingPanel';
 import StreamStudio from './dj/StreamStudio';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
@@ -498,6 +499,8 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
   const SETEQ: Record<DeckId, React.Dispatch<React.SetStateAction<{ low: number; mid: number; high: number }>>> = { A: setEqA, B: setEqB, C: setEqC, D: setEqD };
   const [libraryTracks, setLibraryTracks] = useState<Track[]>(albumTracks);
   const [libSearch, setLibSearch] = useState('');
+  // Browser tree filter: which source/crate is selected.
+  const [librarySource, setLibrarySource] = useState<'all' | 'album' | 'locker' | 'imported' | 'audius' | 'bpm'>('all');
   // Booth = the pro rack; Stream = the streamer switcher (webcam / mic / Pixels / program out).
   const [workspace, setWorkspace] = useState<'booth' | 'stream'>('booth');
   // Bumped once the shared audio engine is built, so StreamStudio receives the real ctx/master.
@@ -1189,6 +1192,17 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
 
   // ─── Deck panel render helper ────────────────────────────────────────────────
 
+  // Hot-cue right-click / long-press menu — shared primitive (ctx = deck + pad).
+  const hotCueMenu = useContextMenu<{ deckId: DeckId; i: number }>(({ deckId, i }) => {
+    const cue = DS[deckId].hotCues[i];
+    return [
+      { kind: 'header', label: `Deck ${deckId} · Hot cue ${i + 1}` },
+      { id: 'set', label: cue !== null ? 'Move cue here' : 'Set cue', icon: <MapPin size={14} />, onSelect: () => setHotCue(deckId, i) },
+      { kind: 'separator' },
+      { id: 'clear', label: 'Clear cue', danger: true, disabled: cue === null, icon: <Trash2 size={14} />, onSelect: () => SET[deckId](prev => { const cues = [...prev.hotCues]; cues[i] = null; return { ...prev, hotCues: cues }; }) },
+    ] as MenuNode<{ deckId: DeckId; i: number }>[];
+  });
+
   const renderDeck = (deckId: DeckId) => {
     const deck  = DS[deckId];
     const setDeck = SET[deckId];
@@ -1369,17 +1383,12 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
         </div>
 
         <div className="grid grid-cols-4 gap-1">
-          {/* Hot Cue mode — 8 cues (left-click set/jump, right-click clear) */}
+          {/* Hot Cue mode — 8 cues (left-click set/jump, right-click for menu) */}
           {deck.padMode === 'cue' && deck.hotCues.map((cue, i) => (
             <button
               key={i}
               onClick={() => setHotCue(deckId, i)}
-              onContextMenu={e => {
-                e.preventDefault();
-                (SET[deckId])(prev => {
-                  const cues = [...prev.hotCues]; cues[i] = null; return { ...prev, hotCues: cues };
-                });
-              }}
+              {...hotCueMenu.bind({ deckId, i })}
               className="py-2 rounded-lg text-[9px] font-bold tabular-nums border transition-all"
               style={{
                 borderColor: cue !== null ? SAMPLE_COLORS[i] : 'rgba(255,255,255,0.08)',
@@ -1498,9 +1507,33 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
     } finally { setLoadingLocker(false); }
   }, [lockerLoaded, loadingLocker]);
 
-  const filtered = libraryTracks.filter(t =>
-    !libSearch || t.title.toLowerCase().includes(libSearch.toLowerCase()) || t.artist.toLowerCase().includes(libSearch.toLowerCase())
-  );
+  // ── Library browser: source tagging + tree/search filtering ──────────────────
+  const albumIdSet = new Set(albumTracks.map(t => t.id));
+  const sourceOf = (t: Track): 'album' | 'locker' | 'imported' | 'audius' =>
+    t.id.startsWith('local-') ? 'imported'
+    : (t.url || '').includes('audius') ? 'audius'
+    : albumIdSet.has(t.id) ? 'album' : 'locker';
+  const SOURCE_META: Record<string, { label: string; color: string }> = {
+    album: { label: 'Chora', color: '#D40055' },
+    locker: { label: 'Locker', color: '#00DAF3' },
+    imported: { label: 'Import', color: 'rgba(255,255,255,0.4)' },
+    audius: { label: 'Audius', color: '#D0BCFF' },
+  };
+  const bpmRef = DS[leftDeckId].bpm || DEFAULT_BPM;
+  const filtered = libraryTracks.filter(t => {
+    const q = libSearch.toLowerCase();
+    if (q && !(t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q))) return false;
+    if (librarySource === 'all') return true;
+    if (librarySource === 'bpm') { const b = getCachedAnalysis(t)?.bpm; return !!b && Math.abs(b - bpmRef) <= 3; }
+    return sourceOf(t) === librarySource;
+  });
+  const srcCounts = {
+    all: libraryTracks.length,
+    album: libraryTracks.filter(t => sourceOf(t) === 'album').length,
+    locker: libraryTracks.filter(t => sourceOf(t) === 'locker').length,
+    imported: libraryTracks.filter(t => sourceOf(t) === 'imported').length,
+    audius: libraryTracks.filter(t => sourceOf(t) === 'audius').length,
+  };
 
   // ── Program feed for the Stream workspace ────────────────────────────────────
   // Whichever visible deck is audible (by play-state + crossfader) is what streams.
@@ -1523,6 +1556,7 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
       className="fixed inset-0 z-[300] bg-[#060609] flex flex-col overflow-hidden"
       style={{ fontFamily: "'Outfit', 'Space Grotesk', sans-serif" }}
     >
+      {hotCueMenu.node}
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 px-4 py-2 bg-[#0A0A0A] border-b border-white/5 shrink-0">
         <div className="flex items-center gap-2.5">
@@ -1531,22 +1565,23 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
           <span className="text-[10px] font-bold uppercase tracking-widest text-white/25">— {albumTitle}</span>
         </div>
 
-        {/* Workspace toggle — Booth (pro rack) ⟷ Stream (streamer switcher) */}
-        <div className="ml-3 flex items-center gap-1 p-0.5 rounded-full bg-white/[0.04] border border-white/10">
+        {/* Workspace toggle — Booth (decks + library) ⟷ Stream (the 3 monitors + broadcast) */}
+        <div className="ml-3 flex items-center gap-1 p-1 rounded-xl bg-white/[0.05] border border-white/12">
           {([
-            { id: 'booth' as const, icon: LayoutGrid, label: 'Booth' },
-            { id: 'stream' as const, icon: Video, label: 'Stream' },
-          ]).map(({ id, icon: Icon, label }) => (
+            { id: 'booth' as const, icon: LayoutGrid, label: 'Booth', sub: 'Decks', on: '#00DAF3', dark: true },
+            { id: 'stream' as const, icon: Video, label: 'Stream', sub: 'Monitors', on: '#D40055', dark: false },
+          ]).map(({ id, icon: Icon, label, sub, on, dark }) => (
             <button
               key={id}
               onClick={() => setWorkspace(id)}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
-                workspace === id
-                  ? (id === 'stream' ? 'bg-[#D40055] text-white' : 'bg-[#00DAF3] text-black')
-                  : 'text-white/40 hover:text-white/70'
-              }`}
+              title={id === 'stream' ? 'Stream — Program/Monitor Out, Webcam, Pixels + broadcast' : 'Booth — decks, mixer & library'}
+              className={`relative flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${
+                workspace === id ? '' : 'text-white/45 hover:text-white/80'
+              } ${id === 'stream' && workspace !== 'stream' ? 'ring-1 ring-[#D40055]/50 animate-pulse' : ''}`}
+              style={workspace === id ? { background: on, color: dark ? '#04070a' : '#fff' } : undefined}
             >
-              <Icon size={12} /> {label}
+              <Icon size={14} /> {label}
+              <span className={`text-[8px] font-bold tracking-wider ${workspace === id ? (dark ? 'text-black/55' : 'text-white/70') : 'text-white/30'}`}>· {sub}</span>
             </button>
           ))}
         </div>
@@ -1613,9 +1648,20 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
              studio (program / sources / go-live) on the right, so a DJ can MIX while
              they stream instead of losing the decks when switching to Stream. ───── */}
       {workspace === 'stream' && (
-        <div className="flex flex-1 min-h-0 overflow-hidden bg-[#060609]">
-          {/* Decks + center mixer (same engine + controls as Booth) */}
-          <div className="flex-1 min-w-0 flex overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar bg-[#060609] flex flex-col">
+          {/* Front Row hero — the monitors (Program Out · Webcam · Pixels) + Mic + broadcast, full width on top */}
+          <div className="shrink-0 border-b border-white/10">
+            <StreamStudio
+              audioCtx={audioReady ? audioCtxRef.current : null}
+              masterGain={audioReady ? masterGainRef.current : null}
+              nowPlaying={programNowPlaying}
+              bpm={programBpm}
+              ensureAudio={initAudio}
+            />
+          </div>
+
+          {/* Decks + center mixer below — mix while you stream */}
+          <div className="flex shrink-0" style={{ minHeight: 470 }}>
             <div className="flex-1 min-w-0 overflow-y-auto no-scrollbar p-3 border-r border-white/5"
               onDragOver={e => e.preventDefault()}
               onDrop={e => {
@@ -1671,17 +1717,6 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
             >
               {renderDeck(rightDeckId)}
             </div>
-          </div>
-
-          {/* Broadcast studio — program out, sources, go-live, chat, pixels scenes */}
-          <div className="w-[380px] shrink-0 border-l border-white/10 overflow-y-auto no-scrollbar">
-            <StreamStudio
-              audioCtx={audioReady ? audioCtxRef.current : null}
-              masterGain={audioReady ? masterGainRef.current : null}
-              nowPlaying={programNowPlaying}
-              bpm={programBpm}
-              ensureAudio={initAudio}
-            />
           </div>
         </div>
       )}
@@ -1766,57 +1801,111 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
         analyser={NODES[leftDeckId].current?.analyser ?? null}
       />
 
-      {/* ── Library ────────────────────────────────────────────────────────── */}
-      <div className="h-40 shrink-0 bg-[#080808] border-t border-white/5 flex flex-col">
-        <div className="flex items-center gap-3 px-4 py-2 border-b border-white/5">
-          <List size={12} className="text-white/30" />
-          <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Library</span>
-          <input
-            value={libSearch}
-            onChange={e => setLibSearch(e.target.value)}
-            placeholder="Search tracks…"
-            className="flex-1 bg-transparent text-[9px] text-white/60 placeholder-white/20 outline-none font-black uppercase tracking-widest"
-          />
-          <button onClick={loadLocker} disabled={loadingLocker || lockerLoaded}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/8 text-[8px] font-black uppercase tracking-widest text-white/30 hover:text-white/60 transition-colors disabled:opacity-40"
-            title="Load your private music locker">
-            <Folder size={10} /> {lockerLoaded ? 'Locker Loaded' : loadingLocker ? 'Loading…' : 'My Locker'}
-          </button>
-          <label className="flex items-center gap-1.5 cursor-pointer px-3 py-1 rounded-full bg-white/[0.04] border border-white/8 text-[8px] font-black uppercase tracking-widest text-white/30 hover:text-white/60 transition-colors">
-            <Upload size={10} /> Import
-            <input type="file" accept="audio/*" className="hidden" multiple
-              onChange={e => Array.from(e.target.files || []).forEach(f => importLocalFile(f))}
-            />
-          </label>
-        </div>
-        <div className="flex-1 overflow-y-auto no-scrollbar">
-          {filtered.map(track => (
-            <div
-              key={track.id}
-              draggable
-              onDragStart={e => e.dataTransfer.setData('trackId', track.id)}
-              className="flex items-center gap-3 px-4 py-1.5 hover:bg-white/[0.03] cursor-grab active:cursor-grabbing border-b border-white/[0.03] group"
+      {/* ── Library — Chora-native browser: source tree + columns ──────────── */}
+      <div className="h-60 shrink-0 bg-[#080808] border-t border-white/10 grid" style={{ gridTemplateColumns: '186px 1fr' }}>
+        {/* Source tree */}
+        <div className="border-r border-white/10 overflow-y-auto no-scrollbar py-2.5 px-2 bg-[#0a0b10]">
+          {([
+            { group: 'Chora' },
+            { id: 'all', label: 'All Tracks', count: srcCounts.all, color: '#ffffff' },
+            { id: 'album', label: 'This Album', count: srcCounts.album, color: '#D40055' },
+            { id: 'locker', label: 'My Locker', count: lockerLoaded ? srcCounts.locker : undefined, color: '#00DAF3', locker: true },
+            { id: 'audius', label: 'Audius', count: srcCounts.audius, color: '#D0BCFF' },
+            { group: 'Smart' },
+            { id: 'bpm', label: `±3 BPM · Deck ${leftDeckId}`, color: '#06D6A0', icon: true },
+          ] as any[]).map((it, i) => it.group ? (
+            <div key={'g' + i} className="text-[9px] font-bold uppercase tracking-[0.14em] text-white/30 mt-3 mb-1.5 first:mt-0 px-1.5">{it.group}</div>
+          ) : (
+            <button
+              key={it.id}
+              onClick={() => { setLibrarySource(it.id); if (it.locker) loadLocker(); }}
+              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12px] transition-colors ${librarySource === it.id ? 'bg-white/[0.08] text-white font-semibold' : 'text-white/60 hover:bg-white/[0.04]'}`}
             >
-              <div className="w-6 h-6 rounded overflow-hidden shrink-0">
-                {track.albumCover
-                  ? <img src={thumb(track.albumCover, THUMB.micro) || undefined} alt="" loading="lazy" decoding="async" onError={onThumbError(track.albumCover)} className="w-full h-full object-cover" />
-                  : <div className="w-full h-full bg-[#1A1A1A] flex items-center justify-center"><Music2 size={8} className="text-white/20" /></div>
-                }
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[9px] font-black uppercase tracking-widest text-white/70 truncate group-hover:text-white transition-colors">{track.title}</p>
-                <p className="text-[7px] font-black uppercase tracking-widest text-white/25 truncate">{track.artist}</p>
-              </div>
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => loadTrack(track, leftDeckId)} title={`Load to Deck ${leftDeckId}`}
-                  className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest transition-colors"
-                  style={{ background: DECK_COLORS[leftDeckId] + '33', color: DECK_COLORS[leftDeckId] }}>{leftDeckId}</button>
-                <button onClick={() => loadTrack(track, rightDeckId)} title={`Load to Deck ${rightDeckId}`}
-                  className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest transition-colors"
-                  style={{ background: DECK_COLORS[rightDeckId] + '33', color: DECK_COLORS[rightDeckId] }}>{rightDeckId}</button>
-              </div>
-            </div>
+              {it.icon
+                ? <Clock size={13} style={{ color: it.color, opacity: 0.8 }} className="shrink-0" />
+                : <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: it.color }} />}
+              <span className="truncate">{it.label}</span>
+              {it.count !== undefined && <span className="ml-auto text-[10px] font-mono text-white/30">{it.count > 999 ? (it.count / 1000).toFixed(1) + 'k' : it.count}</span>}
+              {it.locker && loadingLocker && <span className="ml-auto text-[9px] text-white/30 animate-pulse">…</span>}
+            </button>
           ))}
+        </div>
+
+        {/* Main: search bar + columns table + footer */}
+        <div className="flex flex-col min-w-0">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10">
+            <div className="flex-1 flex items-center gap-2 bg-[#0c0d12] border border-white/10 rounded-lg px-3 py-1.5">
+              <Search size={13} className="text-white/30 shrink-0" />
+              <input value={libSearch} onChange={e => setLibSearch(e.target.value)} placeholder="Search title, artist, BPM…"
+                className="flex-1 bg-transparent text-[12px] text-white/80 placeholder-white/25 outline-none" />
+            </div>
+            <button onClick={loadLocker} disabled={loadingLocker || lockerLoaded}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/10 text-[11px] font-semibold text-white/60 hover:text-white transition-colors disabled:opacity-40">
+              <Folder size={12} /> {lockerLoaded ? 'Locker' : loadingLocker ? 'Loading…' : 'My Locker'}
+            </button>
+            <label className="flex items-center gap-1.5 cursor-pointer px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/10 text-[11px] font-semibold text-white/60 hover:text-white transition-colors">
+              <Upload size={12} /> Import
+              <input type="file" accept="audio/*" className="hidden" multiple
+                onChange={e => Array.from(e.target.files || []).forEach(f => importLocalFile(f))} />
+            </label>
+          </div>
+
+          <div className="flex-1 overflow-auto no-scrollbar">
+            <table className="w-full border-collapse text-[12px]">
+              <thead>
+                <tr className="sticky top-0 bg-[#0c0d12] z-10">
+                  {['', 'Title', 'Artist', 'BPM', 'Key', 'Time', 'Source', 'Load'].map((h, i) => (
+                    <th key={i} className="text-left font-bold uppercase tracking-[0.1em] text-[9px] text-white/35 px-3 py-2 border-b border-white/10 whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(track => {
+                  const an = getCachedAnalysis(track);
+                  const src = sourceOf(track); const meta = SOURCE_META[src];
+                  return (
+                    <tr key={track.id} draggable
+                      onDragStart={e => e.dataTransfer.setData('trackId', track.id)}
+                      className="group border-b border-white/[0.04] hover:bg-white/[0.04] cursor-grab active:cursor-grabbing">
+                      <td className="px-3 py-1.5">
+                        <div className="w-7 h-7 rounded overflow-hidden shrink-0">
+                          {track.albumCover
+                            ? <img src={thumb(track.albumCover, THUMB.micro) || undefined} alt="" loading="lazy" decoding="async" onError={onThumbError(track.albumCover)} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full bg-[#1A1A1A] flex items-center justify-center"><Music2 size={11} className="text-white/20" /></div>}
+                        </div>
+                      </td>
+                      <td className="px-3 py-1.5 text-white font-semibold max-w-[220px] truncate">{track.title}</td>
+                      <td className="px-3 py-1.5 text-white/55 max-w-[160px] truncate">{track.artist}</td>
+                      <td className="px-3 py-1.5 font-mono text-white/70 tabular-nums">{an?.bpm ? an.bpm.toFixed(1) : '—'}</td>
+                      <td className="px-3 py-1.5 font-mono font-bold" style={{ color: '#06D6A0' }}>—</td>
+                      <td className="px-3 py-1.5 font-mono text-white/50 tabular-nums">{an?.duration ? formatTime(an.duration).split('.')[0] : '—'}</td>
+                      <td className="px-3 py-1.5"><span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border" style={{ color: meta.color, borderColor: meta.color + '55' }}>{meta.label}</span></td>
+                      <td className="px-3 py-1.5">
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => loadTrack(track, leftDeckId)} title={`Load to Deck ${leftDeckId}`}
+                            className="w-6 h-6 rounded grid place-items-center text-[10px] font-black transition-colors"
+                            style={{ background: DECK_COLORS[leftDeckId], color: '#04070a' }}>{leftDeckId}</button>
+                          <button onClick={() => loadTrack(track, rightDeckId)} title={`Load to Deck ${rightDeckId}`}
+                            className="w-6 h-6 rounded grid place-items-center text-[10px] font-black text-white transition-colors"
+                            style={{ background: DECK_COLORS[rightDeckId] }}>{rightDeckId}</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filtered.length === 0 && (
+                  <tr><td colSpan={8} className="px-4 py-8 text-center text-[12px] text-white/30">No tracks — load your <button onClick={loadLocker} className="text-[#00DAF3] underline">Locker</button> or Import audio.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center gap-3 px-3 py-1.5 border-t border-white/10 text-[10px] font-semibold text-white/35">
+            <span>{filtered.length} of {libraryTracks.length} tracks</span>
+            <span>·</span>
+            <span className="flex items-center gap-1"><Boxes size={11} /> Beatgrid + key on analyze</span>
+            <span className="ml-auto flex items-center gap-1 text-[#FF8C00]"><Star size={11} /> Drag to a deck, or hover → {leftDeckId}/{rightDeckId}</span>
+          </div>
         </div>
       </div>
       </>}
