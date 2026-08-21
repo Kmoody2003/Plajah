@@ -1,6 +1,8 @@
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit, addDoc, increment, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
 import { db, auth } from './firebase';
+import { DEMO_SANCTUARY_ID } from '../data/demoShowcase';
+import { DEMO_SANCTUARY_TIERS, DEMO_SANCTUARY_CONTENT } from '../data/sanctuaryDemo';
 import type {
   SanctuaryTier, SanctuaryMembership, SanctuaryExclusiveContent,
   SanctuaryCreatorConfig, Sanctuary, SanctuaryPost, SanctuaryPurchase,
@@ -49,6 +51,8 @@ export const fetchCreatorTiers = async (creatorId: string): Promise<SanctuaryTie
 };
 
 export const listenToCreatorTiers = (creatorId: string, callback: (tiers: SanctuaryTier[]) => void) => {
+  // Always-on demo sanctuary: serve seeded tiers in-memory (no Firestore) so the redesign shows full.
+  if (creatorId === DEMO_SANCTUARY_ID) { callback(DEMO_SANCTUARY_TIERS); return () => {}; }
   const q = query(
     collection(db, 'sanctuaryTiers'),
     where('creatorId', '==', creatorId),
@@ -162,6 +166,7 @@ export const fetchCreatorExclusiveContent = async (creatorId: string): Promise<S
 };
 
 export const listenToExclusiveContent = (creatorId: string, callback: (items: SanctuaryExclusiveContent[]) => void) => {
+  if (creatorId === DEMO_SANCTUARY_ID) { callback(DEMO_SANCTUARY_CONTENT); return () => {}; }
   const q = query(
     collection(db, 'sanctuaryContent'),
     where('creatorId', '==', creatorId),
