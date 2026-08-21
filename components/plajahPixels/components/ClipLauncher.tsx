@@ -38,6 +38,7 @@ import {
 } from '../engine/automationMatrix';
 import { MidiEventData, rotatePalette } from '../services/midiService';
 import { LayerSource } from './LayerStack';
+import { useContextMenu, type MenuNode } from '../../ui/ContextMenu';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -266,19 +267,26 @@ const ClipCell: React.FC<CellProps> = ({
   clip, layerIdx, colIdx, active, flash, onActivate, onDrop, onAssign, onUpdateOpacity, onClear, onCopyToNext, onHover,
 }) => {
   const [dragOver, setDragOver] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const padNum  = layerIdx * 4 + colIdx;
   const accent  = clip?.color ?? '#444';
   const clipOpacity = clip?.opacity ?? 1;
 
-  // Close context menu on outside click
-  useEffect(() => {
-    if (!menuPos) return;
-    const close = () => setMenuPos(null);
-    window.addEventListener('click', close, { once: true });
-    return () => window.removeEventListener('click', close);
-  }, [menuPos]);
+  // Right-click / long-press menu — the shared design-system primitive.
+  const menu = useContextMenu<void>(() => {
+    const items: MenuNode<void>[] = [
+      { id: 'replace', label: 'Replace with file', icon: <Upload size={14} />, onSelect: () => fileRef.current?.click() },
+    ];
+    if (clip) {
+      items.unshift({ kind: 'header', label: clip.name ?? `Clip ${padNum + 1}` });
+      items.push(
+        { id: 'copy', label: 'Copy to next scene', icon: <Copy size={14} />, onSelect: () => onCopyToNext?.() },
+        { kind: 'separator' },
+        { id: 'clear', label: 'Clear cell', danger: true, icon: <Trash2 size={14} />, onSelect: () => onClear?.() },
+      );
+    }
+    return items;
+  });
 
   return (
     <div
@@ -301,7 +309,7 @@ const ClipCell: React.FC<CellProps> = ({
       onClick={clip ? onActivate : () => fileRef.current?.click()}
       onMouseEnter={() => { if (clip) onHover?.(clip); }}
       onMouseLeave={() => onHover?.(null)}
-      onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setMenuPos({ x: e.clientX, y: e.clientY }); }}
+      {...menu.bind()}
       onDragOver={e => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={e => {
@@ -312,37 +320,7 @@ const ClipCell: React.FC<CellProps> = ({
         if (f && (f.type.startsWith('video/') || f.type.startsWith('image/'))) onDrop(f);
       }}
     >
-      {/* Right-click context menu */}
-      {menuPos && (
-        <div
-          className="fixed z-[500] rounded-xl overflow-hidden border border-white/10 shadow-2xl"
-          style={{ top: menuPos.y, left: menuPos.x, background: 'rgba(6,6,18,0.97)', backdropFilter: 'blur(16px)', minWidth: 164 }}
-          onClick={e => e.stopPropagation()}
-        >
-          <button
-            onClick={() => { setMenuPos(null); fileRef.current?.click(); }}
-            className="w-full flex items-center gap-2 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-white/70 hover:text-white hover:bg-white/10 transition-all text-left"
-          >
-            <Upload className="w-3 h-3" /> Replace with file
-          </button>
-          {clip && (
-            <>
-              <button
-                onClick={() => { setMenuPos(null); onCopyToNext?.(); }}
-                className="w-full flex items-center gap-2 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-white/70 hover:text-white hover:bg-white/10 transition-all text-left border-t border-white/05"
-              >
-                <Copy className="w-3 h-3" /> Copy to next scene
-              </button>
-              <button
-                onClick={() => { setMenuPos(null); onClear?.(); }}
-                className="w-full flex items-center gap-2 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all text-left border-t border-white/05"
-              >
-                <Trash2 className="w-3 h-3" /> Clear cell
-              </button>
-            </>
-          )}
-        </div>
-      )}
+      {menu.node}
 
       {/* Left accent stripe */}
       <div className="absolute left-0 top-0 bottom-0 w-0.5"
@@ -916,7 +894,6 @@ const ClipLauncher: React.FC<Props> = ({
   const sceneLastBeatTimeRef = useRef(0); // last beat timestamp for debounce
   // The single column that is currently driving program output (null = nothing launched yet)
   const activeSceneColRef    = useRef<number | null>(null);
-  const [sceneMenu, setSceneMenu] = useState<{ x: number; y: number; col: number } | null>(null);
   const [previewSource, setPreviewSource] = useState<LauncherClip | null>(null);
   const [hoverSource,   setHoverSource]   = useState<LauncherClip | null>(null);
   const prevTabRef = useRef<typeof rightPanelTab | null>(null); // tab to restore after hover
@@ -1599,13 +1576,13 @@ const ClipLauncher: React.FC<Props> = ({
     onSetIdx: milkdrop.onSetIdx,
   }), [milkdrop]);
 
-  // Close scene context menu on outside click
-  useEffect(() => {
-    if (!sceneMenu) return;
-    const close = () => setSceneMenu(null);
-    window.addEventListener('click', close, { once: true });
-    return () => window.removeEventListener('click', close);
-  }, [sceneMenu]);
+  // Scene right-click menu — the shared design-system primitive (ctx = column).
+  const sceneMenu = useContextMenu<number>((col) => [
+    { kind: 'header', label: `Scene ${col + 1}` },
+    { id: 'launch', label: 'Launch scene', icon: <Play size={14} />, onSelect: (c) => launchScene(c) },
+    { kind: 'separator' },
+    { id: 'clear', label: 'Clear scene', danger: true, icon: <Trash2 size={14} />, onSelect: (c) => clearScene(c) },
+  ] as MenuNode<number>[]);
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
@@ -1645,29 +1622,7 @@ const ClipLauncher: React.FC<Props> = ({
       )}
 
       {/* Scene context menu */}
-      {sceneMenu && (
-        <div
-          className="fixed z-[500] rounded-xl overflow-hidden border border-white/10 shadow-2xl"
-          style={{ top: sceneMenu.y, left: sceneMenu.x, background: 'rgba(6,6,18,0.97)', backdropFilter: 'blur(16px)', minWidth: 180 }}
-          onClick={e => e.stopPropagation()}
-        >
-          <div className="px-3 py-1.5 border-b border-white/07">
-            <span className="text-[8px] font-black uppercase tracking-widest text-white/30">SCENE {sceneMenu.col + 1}</span>
-          </div>
-          <button
-            onClick={() => { launchScene(sceneMenu.col); setSceneMenu(null); }}
-            className="w-full flex items-center gap-2 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-white/70 hover:text-white hover:bg-white/10 transition-all text-left"
-          >
-            <Play className="w-3 h-3" /> Launch scene
-          </button>
-          <button
-            onClick={() => { clearScene(sceneMenu.col); setSceneMenu(null); }}
-            className="w-full flex items-center gap-2 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 transition-all text-left border-t border-white/05"
-          >
-            <Trash2 className="w-3 h-3" /> Clear scene
-          </button>
-        </div>
-      )}
+      {sceneMenu.node}
 
       {/* ── Main clip area ────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -1690,7 +1645,7 @@ const ClipLauncher: React.FC<Props> = ({
                   <button
                     key={absCol}
                     onClick={() => launchScene(absCol)}
-                    onContextMenu={e => { e.preventDefault(); setSceneMenu({ x: e.clientX, y: e.clientY, col: absCol }); }}
+                    {...sceneMenu.bind(absCol)}
                     className="flex-shrink-0 flex items-center justify-center text-[10px] font-black uppercase tracking-widest rounded transition-all"
                     style={{
                       width: CELL_W, height: 26,

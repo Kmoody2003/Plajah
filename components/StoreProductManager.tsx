@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useContextMenu } from './ui/ContextMenu';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Plus, Trash2, Edit2, Package, Tag, Globe, Sparkles, Layers, Truck, ImageIcon, X, Boxes,
@@ -124,6 +125,15 @@ const StoreProductManager: React.FC<{
   const addVariant = () => setVariants(v => [...v, { id: `v_${Math.random().toString(36).slice(2, 8)}`, name: '', stock: 0 }]);
   const setVariant = (i: number, patch: Partial<StoreProductVariant>) => setVariants(v => v.map((x, j) => j === i ? { ...x, ...patch } : x));
 
+  // Right-click / long-press a product — the shared design-system menu.
+  const productMenu = useContextMenu<StoreProduct>((p) => [
+    { kind: 'header', label: p.title || 'Untitled product' },
+    { id: 'edit', label: 'Edit', icon: <Edit2 size={14} />, onSelect: (pr) => openEdit(pr) },
+    { id: 'dup', label: 'Duplicate', onSelect: (pr) => { setEditing({ ...pr, id: '', title: `${pr.title} copy`, createdAt: 0, updatedAt: 0 }); setRich(richFromProduct(pr)); setVariants(pr.variants || []); setIsNew(true); } },
+    { kind: 'separator' },
+    { id: 'del', label: 'Delete', danger: true, icon: <Trash2 size={14} />, onSelect: (pr) => remove(pr) },
+  ]);
+
   return (
     <div className="space-y-8">
       {/* Store configuration */}
@@ -155,8 +165,9 @@ const StoreProductManager: React.FC<{
             <div className="py-12 text-center rounded-3xl border border-white/8 bg-white/[0.02]"><Boxes size={30} className="mx-auto text-white/12 mb-3" /><p className="text-[10px] font-black uppercase tracking-widest text-white/30">No products yet</p></div>
           ) : (
             <div className="space-y-3">
+              {productMenu.node}
               {products.map(p => (
-                <div key={p.id} className="bg-white/[0.02] border border-white/8 rounded-2xl p-4 flex items-center gap-4 group hover:bg-white/[0.04] transition-all">
+                <div key={p.id} className="bg-white/[0.02] border border-white/8 rounded-2xl p-4 flex items-center gap-4 group hover:bg-white/[0.04] transition-all" {...productMenu.bind(p)}>
                   <div className="w-20 h-20 rounded-xl overflow-hidden border border-white/10 bg-black shrink-0">
                     {p.images?.[0] ? <img src={p.images[0]} className="w-full h-full object-cover" referrerPolicy="no-referrer" alt="" /> : <div className="w-full h-full grid place-items-center"><ImageIcon size={22} className="text-white/15" /></div>}
                   </div>

@@ -7,6 +7,7 @@ import { Plus, Sparkles, AlignStartVertical, FolderOpen, FilePlus2, Trash2, Down
 import { auth } from '../../../services/firebase';
 import { BeatsEngine } from '../../../services/melos/beats/engine/BeatsEngine';
 import { defaultPattern, grooveUid, type GrooveDoc } from '../../../services/melos/beats/grooveDoc';
+import { useContextMenu, type MenuNode } from '../../ui/ContextMenu';
 import { autoFill, quantizePattern } from '../../../services/melos/beats/grooveTools';
 import { ingestSample, backupToLocker } from '../../../services/melos/beats/sampleStore';
 import { renderGroove, publishGroove, downloadBlob } from '../../../services/melos/beats/render';
@@ -395,6 +396,20 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     });
   }, [mutate]);
 
+  // Right-click / long-press a pattern chip — the shared design-system menu.
+  const patternMenu = useContextMenu<string>((id) => {
+    const p = doc.patterns.find((x) => x.id === id);
+    if (!p) return [];
+    return [
+      { kind: 'header', label: p.name },
+      { id: 'rename', label: 'Rename…', onSelect: () => { const name = window.prompt('Pattern name', p.name)?.trim(); if (name) mutate((d) => { const pt = d.patterns.find((x) => x.id === id); if (pt) pt.name = name; }); } },
+      { id: 'dup', label: 'Duplicate', onSelect: () => mutate((d) => { const src = d.patterns.find((x) => x.id === id); if (!src) return; const copy = JSON.parse(JSON.stringify(src)); copy.id = grooveUid() + grooveUid(); copy.name = `${src.name} copy`; d.patterns.push(copy); setActivePatternId(copy.id); }) },
+      { id: 'clear', label: 'Clear steps', onSelect: () => mutate((d) => { const pt = d.patterns.find((x) => x.id === id); if (pt) pt.steps = {}; }) },
+      { kind: 'separator' },
+      { id: 'del', label: 'Delete pattern', danger: true, disabled: doc.patterns.length <= 1, onSelect: () => mutate((d) => { const i = d.patterns.findIndex((x) => x.id === id); if (i < 0 || d.patterns.length <= 1) return; d.patterns.splice(i, 1); if (pattern?.id === id) setActivePatternId(d.patterns[Math.max(0, i - 1)].id); }) },
+    ] as MenuNode<string>[];
+  });
+
   // The phone morph — the SAME GrooveDoc, folded into focused full-screen MODES. Gated on the live
   // viewport so the desktop layout below is never touched. Modals (instrument picker, EQ, Muse,
   // grooves) still mount from the shared tail after the branch, so nothing phone-specific is lost.
@@ -617,10 +632,12 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         </div>
         <div className="w-px h-4 bg-white/10 mx-1" />
         <span className="text-[9px] uppercase tracking-[0.18em] text-white/25 font-semibold mr-1">Patterns</span>
+        {patternMenu.node}
         {doc.patterns.map((p) => (
           <button
             key={p.id}
             onClick={() => setActivePatternId(p.id)}
+            {...patternMenu.bind(p.id)}
             className="h-6 px-2.5 rounded-lg text-[11px] border transition-colors"
             style={p.id === pattern?.id
               ? { background: `${SELECT}26`, borderColor: `${SELECT}66`, color: '#fff', fontWeight: 600 }

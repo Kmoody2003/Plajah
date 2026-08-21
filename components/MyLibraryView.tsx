@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Track, UserProfile, Album, Playlist, FeedItem } from '../types';
+import { useContextMenu } from './ui/ContextMenu';
 import PodcastManager from './PodcastManager';
 import { 
   fetchUserLibraryTracks, 
@@ -557,8 +558,17 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
     return { albums, singles };
   })();
 
+  // Right-click / long-press a locker track — the shared design-system menu.
+  const lockerMenu = useContextMenu<{ track: Track; list: Track[] }>((c) => [
+    { kind: 'header', label: c.track.title || 'Untitled Track' },
+    { id: 'play', label: 'Play', icon: <Play size={14} />, onSelect: (x) => playTrackFromList(x.track, x.list, 'Personal Collection') },
+    { id: 'edit', label: 'Edit details', icon: <Settings size={14} />, onSelect: (x) => setEditingPodcastTrack(x.track) },
+    { kind: 'separator' },
+    { id: 'del', label: 'Remove from locker', danger: true, icon: <Trash2 size={14} />, onSelect: (x) => handleDeletePersonal(x.track.id) },
+  ]);
+
   const renderLockerRow = (track: Track, list: Track[]) => (
-    <div key={`pers-list-${track.id}`} className="group flex items-center gap-4 p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/[0.08] transition-all">
+    <div key={`pers-list-${track.id}`} className="group flex items-center gap-4 p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/[0.08] transition-all" {...lockerMenu.bind({ track, list })}>
       <div className="relative w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">
         {track.albumCover ? (
           <img src={track.albumCover || undefined} className="w-full h-full object-cover rounded-xl" alt={track.title} />
@@ -601,6 +611,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
 
   return (
     <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {lockerMenu.node}
       {/* Library Header & Search */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex items-center gap-4">

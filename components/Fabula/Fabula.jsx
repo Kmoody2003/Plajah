@@ -14,6 +14,7 @@ import { createCompositor, webgpuAvailable } from "../../services/fabula/gpuComp
 import { renderFabulaToBlob } from "../../services/fabulaRender";
 import { crossover } from "../../services/crossover";
 import SceneView from "../plajahPixels/components/SceneView";
+import { useContextMenu } from "../ui/ContextMenu";
 import { getMyMusicTracks, buildSubtitleClips, syncLicenseInfo } from "../../services/fabulaMusic";
 import { isFeatureEnabled } from "../../services/featureFlagService";
 import { getLicense } from "../../services/licensingService";
@@ -629,7 +630,6 @@ export default function Fabula() {
   const [snapOn, setSnapOn] = useState(true);
   const [trimMode, setTrimMode] = useState("normal"); // normal | ripple | roll | slip
   const [clipboard, setClipboard] = useState(null);
-  const [ctxMenu, setCtxMenu] = useState(null); // right-click clip menu: { x, y, clipId }
   const [audioEdit, setAudioEdit] = useState(null); // { clip, url, blob } → open AudioEditor
   const [stemBusy, setStemBusy] = useState(false);   // stem-split / separation in flight
   const [uploadPending, setUploadPending] = useState(0); // background resumable uploads still in flight
@@ -647,6 +647,41 @@ export default function Fabula() {
   const [markIn, setMarkIn] = useState(null);
   const [markOut, setMarkOut] = useState(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
+
+  /* Clip right-click menu — the shared design-system primitive (ctx = clip id). */
+  const clipMenu = useContextMenu((clipId) => {
+    const c = clips.find((x) => x.id === clipId);
+    if (!c) return [];
+    const items = [
+      { id: "copy", label: "Copy", icon: <Layers size={14} />, shortcut: "⌘C", onSelect: copySel },
+      { id: "cut", label: "Cut", icon: <Scissors size={14} />, shortcut: "⌘X", onSelect: cutSel },
+      { id: "paste", label: "Paste", icon: <Plus size={14} />, shortcut: "⌘V", disabled: !clipboard, onSelect: pasteClip },
+      { kind: "separator" },
+      { id: "trans", label: "Default transition", icon: <Wand2 size={14} />, onSelect: addCrossDissolve },
+      { id: "split", label: "Split at playhead", icon: <Scissors size={14} />, onSelect: bladeAtPlayhead },
+      { id: "dup", label: "Duplicate", icon: <Plus size={14} />, onSelect: duplicateSel },
+    ];
+    if (c.assetId && c.trackId?.startsWith("v") && !c.av) {
+      items.push({ id: "detach", label: "Split audio to track", icon: <Music size={14} />, shortcut: (selIds.length > 1 && selIds.includes(c.id)) ? `×${selIds.length}` : undefined, onSelect: () => detachAudio(c.id) });
+    }
+    items.push({ id: "transcribe", label: transcribing ? "Transcribing…" : "Transcribe clip", icon: <Captions size={14} />, disabled: transcribing || !c.assetId, onSelect: () => transcribeClip(c) });
+    if (c.assetId && (c.trackId?.startsWith("a") || c.kind === "media")) {
+      items.push(
+        { kind: "separator" },
+        { id: "ae", label: "Send to audio editor", icon: <SlidersHorizontal size={14} />, onSelect: () => openAudioEditor(c) },
+        { id: "stem-vm", label: stemBusy ? "Separating…" : "Isolate vocals + music", icon: <Mic2 size={14} />, disabled: stemBusy, shortcut: "instant", onSelect: () => splitClipStems(c, "vocals-music") },
+        { id: "stem-4", label: stemBusy ? "Separating…" : "Separate stems (Crossover)", icon: <Wand2 size={14} />, disabled: stemBusy, shortcut: "HQ", onSelect: () => splitClipStems(c, "4stem") },
+        { id: "stem-v", label: stemBusy ? "Detecting…" : "Split voices to tracks (Crossover)", icon: <Users size={14} />, disabled: stemBusy, shortcut: "HQ", onSelect: () => splitClipStems(c, "voices") },
+      );
+    }
+    items.push({ id: "toggle", label: c.disabled ? "Enable clip" : "Disable clip", icon: c.disabled ? <Unlock size={14} /> : <Lock size={14} />, onSelect: toggleDisable });
+    items.push(
+      { kind: "separator" },
+      { id: "del", label: "Delete (leave gap)", icon: <Trash2 size={14} />, danger: true, shortcut: "Del", onSelect: liftDelete },
+      { id: "ripple", label: "Ripple delete", icon: <Trash2 size={14} />, danger: true, onSelect: rippleDelete },
+    );
+    return items;
+  });
   const [shortcutPrefs, setShortcutPrefs] = useState(() => loadShortcutPrefs());
   const rateRef = useRef(1);
   const histRef = useRef({ past: [], future: [] });
@@ -2900,16 +2935,8 @@ export default function Fabula() {
     histRef.current.future = [];
     setClips(next); commitClips(next);
   };
-  // Dismiss the right-click clip menu on any outside click / scroll / Escape.
-  useEffect(() => {
-    if (!ctxMenu) return;
-    const close = () => setCtxMenu(null);
-    const onKey = (e) => { if (e.key === "Escape") setCtxMenu(null); };
-    window.addEventListener("mousedown", close);
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("keydown", onKey);
-    return () => { window.removeEventListener("mousedown", close); window.removeEventListener("scroll", close, true); window.removeEventListener("keydown", onKey); };
-  }, [ctxMenu]);
+  // (Clip right-click menu now uses the shared useContextMenu primitive, which owns
+  //  its own outside-click / scroll / Escape dismissal.)
   // Dismiss the menu-bar dropdown + pool right-click menu on any outside click / Escape.
   useEffect(() => {
     if (!menuOpen && !poolCtx) return;
@@ -4485,7 +4512,7 @@ export default function Fabula() {
                                   style={{ left: c.start * pxPerSec, width: Math.max(8, c.duration * pxPerSec), opacity: c.disabled ? 0.4 : 1, cursor: toolMode === "razor" ? "crosshair" : undefined }}
                                   onMouseDown={(e) => { if (toolMode === "razor") { e.stopPropagation(); razorAt(e, c.id); return; } onClipDown(e, c.id, "move"); }}
                                   onClick={(e) => { e.stopPropagation(); if (toolMode !== "razor") setSelClipId(c.id); }}
-                                  onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelClipId(c.id); setCtxMenu({ x: e.clientX, y: e.clientY, clipId: c.id }); }}
+                                  onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelClipId(c.id); clipMenu.openAt(e.clientX, e.clientY, c.id); }}
                                   onDoubleClick={(e) => { e.stopPropagation(); if (toolMode !== "razor") openNested(c); }}>
                                   {shot?.frameUrl && c.kind !== "voice" && <img className="clipframe" src={shot.frameUrl} alt="" />}
                                   <div className="cliplabel">
@@ -4526,45 +4553,7 @@ export default function Fabula() {
                           onClick={buildScriptFromTimeline} style={{ color: scriptBuilding ? "#FF8C00" : undefined }}>{scriptBuilding ? "📜 BUILDING…" : "📜 BUILD SCRIPT FROM TIMELINE"}</button>
                       </div>
                       {showShortcuts && <KeyboardShortcutsEditor onClose={() => setShowShortcuts(false)} onChange={setShortcutPrefs} />}
-                      {ctxMenu && (() => {
-                        const c = clips.find((x) => x.id === ctxMenu.clipId);
-                        const close = () => setCtxMenu(null);
-                        const run = (fn) => { close(); fn(); };
-                        const mi = (label, fn, opts = {}) => (
-                          <button disabled={opts.disabled} onClick={() => run(fn)}
-                            style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 12px", background: "none", border: "none", color: opts.danger ? "#ff8080" : "#e8e8ec", font: "600 12px system-ui", textAlign: "left", cursor: "pointer", opacity: opts.disabled ? 0.4 : 1 }}
-                            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,140,0,0.16)")}
-                            onMouseLeave={(e) => (e.currentTarget.style.background = "none")}>
-                            {opts.icon}<span style={{ flex: 1 }}>{label}</span>{opts.hint && <span style={{ opacity: 0.4, fontSize: 10 }}>{opts.hint}</span>}
-                          </button>
-                        );
-                        const div = <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "4px 0" }} />;
-                        return (
-                          <div style={{ position: "fixed", left: Math.min(ctxMenu.x, window.innerWidth - 220), top: Math.min(ctxMenu.y, window.innerHeight - 360), zIndex: 9999, width: 210, background: "rgba(20,16,25,0.97)", backdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, boxShadow: "0 12px 40px rgba(0,0,0,0.6)", padding: "5px 0" }}
-                            onMouseDown={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
-                            {mi("Copy", copySel, { icon: <Layers size={12} />, hint: "⌘C" })}
-                            {mi("Cut", cutSel, { icon: <Scissors size={12} />, hint: "⌘X" })}
-                            {mi("Paste", pasteClip, { icon: <Plus size={12} />, hint: "⌘V", disabled: !clipboard })}
-                            {div}
-                            {mi("Default transition", addCrossDissolve, { icon: <Wand2 size={12} /> })}
-                            {mi("Split at playhead", bladeAtPlayhead, { icon: <Scissors size={12} /> })}
-                            {mi("Duplicate", duplicateSel, { icon: <Plus size={12} /> })}
-                            {c?.assetId && c.trackId?.startsWith("v") && !c.av && mi("Split audio to track", () => detachAudio(c.id), { icon: <Music size={12} />, hint: (selIds.length > 1 && selIds.includes(c.id)) ? `×${selIds.length}` : undefined })}
-                            {mi(transcribing ? "Transcribing…" : "Transcribe clip", () => transcribeClip(c), { icon: <Captions size={12} />, disabled: transcribing || !c?.assetId })}
-                            {c?.assetId && (c.trackId?.startsWith("a") || c.kind === "media") && <>
-                              {div}
-                              {mi("Send to audio editor", () => openAudioEditor(c), { icon: <SlidersHorizontal size={12} /> })}
-                              {mi(stemBusy ? "Separating…" : "Isolate vocals + music", () => splitClipStems(c, "vocals-music"), { icon: <Mic2 size={12} />, disabled: stemBusy, hint: "instant" })}
-                              {mi(stemBusy ? "Separating…" : "Separate stems (Crossover)", () => splitClipStems(c, "4stem"), { icon: <Wand2 size={12} />, disabled: stemBusy, hint: "HQ" })}
-                              {mi(stemBusy ? "Detecting…" : "Split voices to tracks (Crossover)", () => splitClipStems(c, "voices"), { icon: <Users size={12} />, disabled: stemBusy, hint: "HQ" })}
-                            </>}
-                            {mi(c?.disabled ? "Enable clip" : "Disable clip", toggleDisable, { icon: c?.disabled ? <Unlock size={12} /> : <Lock size={12} /> })}
-                            {div}
-                            {mi("Delete (leave gap)", liftDelete, { icon: <Trash2 size={12} />, danger: true, hint: "Del" })}
-                            {mi("Ripple delete", rippleDelete, { icon: <Trash2 size={12} />, danger: true })}
-                          </div>
-                        );
-                      })()}
+                      {clipMenu.node}
                     </div>
                   </div>
                 </div>

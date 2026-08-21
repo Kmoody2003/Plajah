@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { gridSrc } from '../services/imageDerivatives';
 import { Photo, UserProfile, PhotoGallery } from '../types';
+import { useContextMenu, type MenuNode } from './ui/ContextMenu';
 import PageHeader from './PageHeader';
 import { 
   Heart, 
@@ -258,6 +259,20 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
   // Non-immersive output is identical to the classic Waterfall/Gallery grid, so
   // the flag-OFF path is unchanged. `immersive` tightens the grid (edge-to-edge
   // Wall) and `badge` stamps a per-tile kind chip (Synthetic / Hybrid).
+  // Right-click / long-press a photo tile — the shared design-system menu.
+  const photoMenu = useContextMenu<Photo>((photo) => {
+    const uid = auth.currentUser?.uid || '';
+    const faved = photo.favorites?.includes(uid);
+    const items: MenuNode<Photo>[] = [
+      { kind: 'header', label: photo.title || 'Untitled' },
+      { id: 'open', label: 'Open', onSelect: (p) => setSelectedPhoto(p) },
+      { id: 'fav', label: faved ? 'Remove favorite' : 'Favorite', onSelect: (p) => handleFavorite(p) },
+      { id: 'photog', label: 'View photographer', onSelect: (p) => openPhotographerRoom(p.ownerId, p) },
+    ];
+    if (photo.ownerId === uid) items.push({ kind: 'separator' }, { id: 'edit', label: 'Edit', onSelect: (p) => setEditingPhoto(p) });
+    return items;
+  });
+
   const renderMasonry = (list: Photo[], immersive = false, badge?: (p: Photo) => React.ReactNode) => (
     <>
       <div className={immersive
@@ -269,6 +284,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
             layoutId={photo.id}
             className={`relative break-inside-avoid overflow-hidden group cursor-pointer border border-white/5 shadow-2xl ${immersive ? 'rounded-xl mb-3' : 'rounded-3xl'}`}
             onClick={() => setSelectedPhoto(photo)}
+            {...photoMenu.bind(photo)}
           >
             {badge && badge(photo)}
             {photo.mediaType === 'VIDEO' ? (
@@ -916,6 +932,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
 
     return (
       <div className="flex-1 bg-transparent text-theme-content overflow-y-auto custom-scrollbar pb-40">
+        {photoMenu.node}
         {/* Slim top bar */}
         <header
           className="sticky top-0 z-30 flex items-center gap-3 px-4 lg:px-6 h-16 border-b backdrop-blur-xl"
@@ -1038,6 +1055,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
 
   return (
     <div className="flex-1 bg-transparent text-theme-content overflow-y-auto custom-scrollbar pb-40">
+      {photoMenu.node}
       {/* Header */}
       <header className="px-6 lg:px-12 pt-12 mb-12">
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">

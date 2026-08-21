@@ -49,6 +49,8 @@ interface DeckState {
   hotCues: (number | null)[]; // 8 hot cues
   samples: SamplePad[];       // 8 sample pads
   fx: { filter: number; delay: number; reverb: number };
+  // Per-effect engage/bypass — independent of the amount, so toggling on/off keeps the settings.
+  fxOn: { filter: boolean; delay: boolean; reverb: boolean };
   jogAngle: number;
   isScratch: boolean;
 }
@@ -482,6 +484,7 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
       sourceNode: null, gainNode: null, isPlaying: false, color,
     })),
     fx: { filter: 0.5, delay: 0, reverb: 0 },
+    fxOn: { filter: false, delay: false, reverb: false },
     jogAngle: 0, isScratch: true,
   });
 
@@ -923,9 +926,10 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
       const n = NODES[id].current; if (!n) return;
       const d = DS[id];
       n.gainNode.gain.value = d.volume;
-      // Filter sweep: 0=200Hz, 0.5=off, 1=8kHz → kill at extremes
+      // Filter sweep: 0=200Hz, 0.5=off, 1=8kHz → kill at extremes. Bypassed when the effect is OFF
+      // (freq wide open) but the knob value is preserved so re-engaging returns to it.
       const f = d.fx.filter;
-      if (Math.abs(f - 0.5) < 0.05) {
+      if (!d.fxOn.filter || Math.abs(f - 0.5) < 0.05) {
         n.filterNode.frequency.value = 20000;
       } else if (f < 0.5) {
         n.filterNode.type = 'lowpass';
@@ -934,11 +938,11 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
         n.filterNode.type = 'highpass';
         n.filterNode.frequency.value = (f - 0.5) * 2 * 8000;
       }
-      n.delayWet.gain.value = d.fx.delay * 0.7;
-      n.reverbWet.gain.value = d.fx.reverb * 0.6;
+      n.delayWet.gain.value = d.fxOn.delay ? d.fx.delay * 0.7 : 0;
+      n.reverbWet.gain.value = d.fxOn.reverb ? d.fx.reverb * 0.6 : 0;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deckA.volume, deckA.fx, deckB.volume, deckB.fx, deckC.volume, deckC.fx, deckD.volume, deckD.fx]);
+  }, [deckA.volume, deckA.fx, deckA.fxOn, deckB.volume, deckB.fx, deckB.fxOn, deckC.volume, deckC.fx, deckC.fxOn, deckD.volume, deckD.fx, deckD.fxOn]);
 
   useEffect(() => { updateCrossfader(crossfader); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [crossfader, leftDeckId, rightDeckId]);
 
@@ -1207,7 +1211,7 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
         const ctx = audioCtxRef.current;
         let t = live.currentTime;
         if (ctx && nodes?.sourceNode) t = nodes.startOffset + (ctx.currentTime - nodes.startTime);
-        onExitToGlobal(live.track, Math.max(0, t), { playing: live.isPlaying, filter: live.fx.filter });
+        onExitToGlobal(live.track, Math.max(0, t), { playing: live.isPlaying, filter: live.fxOn.filter ? live.fx.filter : 0.5 });
       }
     } catch { /* fall through to a normal close */ }
     onClose();
@@ -1504,21 +1508,36 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
           </div>
           <div className="grid grid-cols-3 gap-2 flex-1">
             {[
-              { label: 'FILTER', key: 'filter' as const },
-              { label: 'DELAY',  key: 'delay'  as const },
-              { label: 'REVERB', key: 'reverb' as const },
-            ].map(({ label, key }) => (
-              <div key={key} className="flex flex-col items-center gap-0.5">
-                <input
-                  type="range" min={0} max={1} step={0.01}
-                  value={deck.fx[key]}
-                  onChange={e => setDeck(prev => ({ ...prev, fx: { ...prev.fx, [key]: parseFloat(e.target.value) } }))}
-                  className="w-full accent-current"
-                  style={{ accentColor: color }}
-                />
-                <span className="text-[7px] font-bold uppercase tracking-widest text-white/30">{label}</span>
-              </div>
-            ))}
+              { label: 'FILTER', key: 'filter' as const, def: 0.5 },
+              { label: 'DELAY',  key: 'delay'  as const, def: 0 },
+              { label: 'REVERB', key: 'reverb' as const, def: 0 },
+            ].map(({ label, key, def }) => {
+              const on = deck.fxOn[key];
+              return (
+                <div key={key} className="flex flex-col items-center gap-1">
+                  <input
+                    type="range" min={0} max={1} step={0.01}
+                    value={deck.fx[key]}
+                    // Dragging the amount auto-engages the effect; double-click resets to default.
+                    onChange={e => setDeck(prev => ({ ...prev, fx: { ...prev.fx, [key]: parseFloat(e.target.value) }, fxOn: { ...prev.fxOn, [key]: true } }))}
+                    onDoubleClick={() => setDeck(prev => ({ ...prev, fx: { ...prev.fx, [key]: def }, fxOn: { ...prev.fxOn, [key]: false } }))}
+                    title="Drag to set · double-click to reset"
+                    className="w-full"
+                    style={{ accentColor: on ? color : 'rgba(255,255,255,0.22)' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setDeck(prev => ({ ...prev, fxOn: { ...prev.fxOn, [key]: !prev.fxOn[key] } }))}
+                    title={on ? 'On — click to bypass (keeps the setting)' : 'Off — click to engage at the current setting'}
+                    className="w-full text-[7px] font-black uppercase tracking-widest rounded px-1 py-0.5 transition-colors"
+                    style={on
+                      ? { background: color, color: '#04070a' }
+                      : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.35)', border: '1px solid rgba(255,255,255,0.10)' }}>
+                    {label}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

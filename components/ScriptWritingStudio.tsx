@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useContextMenu, type MenuNode } from './ui/ContextMenu';
 import {
   ChevronLeft, Download, Sparkles, Plus, Trash2, Film,
   Users, Globe, List, FileText, X, ChevronDown, ChevronUp,
@@ -883,9 +884,22 @@ export default function ScriptWritingStudio({
   }
 
   // ── Render: Left sidebar ──────────────────────────────────────────────────
+  // Right-click / long-press a scene row — the shared design-system menu.
+  const sceneMenu = useContextMenu<string>((id) => {
+    const scene = scenes.find((s) => s.id === id);
+    return [
+      { kind: 'header', label: scene ? `Scene ${scene.num} · ${scene.location || 'Untitled'}` : 'Scene' },
+      { id: 'go', label: 'Go to scene', onSelect: () => { setActiveId(id); setTimeout(() => textareaRefs.current.get(id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50); } },
+      { id: 'insert', label: 'Insert scene after', onSelect: () => insertAfter(id, 'SCENE_HEADING') },
+      { kind: 'separator' },
+      { id: 'del', label: 'Delete scene heading', danger: true, onSelect: () => deleteEl(id) },
+    ] as MenuNode<string>[];
+  });
+
   function renderSidebar() {
     return (
       <div className="w-56 flex-shrink-0 flex flex-col bg-[#111] border-r border-white/8 overflow-hidden">
+        {sceneMenu.node}
         {/* Tabs */}
         <div className="flex border-b border-white/8">
           {([
@@ -925,6 +939,7 @@ export default function ScriptWritingStudio({
                       setActiveId(scene.id);
                       setTimeout(() => textareaRefs.current.get(scene.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
                     }}
+                    {...sceneMenu.bind(scene.id)}
                     className={`w-full text-left px-2 py-1.5 rounded-lg transition-colors ${scene.id === activeScene?.id ? 'bg-orange-500/15 text-orange-300' : 'text-white/50 hover:bg-white/5 hover:text-white/70'}`}>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[8px] font-black text-white/25 w-4 shrink-0">{scene.num}</span>

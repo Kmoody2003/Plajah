@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, Plus, Music2, AudioWaveform, Piano, Circle } from 'lucide-react';
 import type { GrooveDoc, Pattern, TimelineClip } from '../../../../services/melos/beats/grooveDoc';
 import { grooveUid } from '../../../../services/melos/beats/grooveDoc';
+import { useContextMenu, type MenuNode } from '../../../ui/ContextMenu';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { ingestSample, backupToLocker } from '../../../../services/melos/beats/sampleStore';
 import { MixerPanel } from '../shared/MixerPanel';
@@ -113,6 +114,27 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [selectedClip, p.onMutate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Right-click a clip — the shared design-system menu. Clips are draggable, so we
+  // wire only onContextMenu (not the touch long-press bind, which would fight the drag).
+  const clipMenu = useContextMenu<{ trackId: string; clipId: string }>(({ trackId, clipId }) => {
+    const track = p.doc.arrangement.find((t) => t.id === trackId);
+    const clip = track?.clips.find((c) => c.id === clipId);
+    if (!track || !clip) return [];
+    const pat = clip.patternId ? p.doc.patterns.find((x) => x.id === clip.patternId) : undefined;
+    const items: MenuNode<{ trackId: string; clipId: string }>[] = [
+      { kind: 'header', label: pat?.name ?? clip.audio?.name ?? 'Clip' },
+    ];
+    if (track.kind === 'instrument' && !track.foreign) {
+      items.push({ id: 'open', label: 'Open in editor', onSelect: () => setOpenClip({ trackId, clipId }) });
+    }
+    items.push(
+      { id: 'dup', label: 'Duplicate', onSelect: () => p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === trackId); const c = t?.clips.find((x) => x.id === clipId); if (!t || !c) return; const copy = JSON.parse(JSON.stringify(c)); copy.id = grooveUid() + grooveUid(); copy.startBeats = c.startBeats + c.lengthBeats; t.clips.push(copy); setSelectedClip(copy.id); }) },
+      { kind: 'separator' },
+      { id: 'del', label: 'Delete', danger: true, onSelect: () => { p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === trackId); if (t) t.clips = t.clips.filter((c) => c.id !== clipId); }); if (selectedClip === clipId) setSelectedClip(null); } },
+    );
+    return items;
+  });
 
   const paintClip = useCallback((trackId: string, atBeats: number) => {
     p.onMutate((d) => {
@@ -239,6 +261,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col p-4 pt-3 gap-0">
+      {clipMenu.node}
       <div className={`${glassPanel} flex-1 min-h-0 overflow-hidden flex flex-col`}>
         <div className="flex-1 min-h-0 overflow-auto">
           <div style={{ width: HEADER_W + contentW, minWidth: '100%' }}>
@@ -396,6 +419,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                       return (
                         <div
                           key={clip.id}
+                          onContextMenu={clipMenu.bind({ trackId: track.id, clipId: clip.id }).onContextMenu}
                           onPointerDown={(e) => {
                             if (track.foreign) return;
                             e.stopPropagation();

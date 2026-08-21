@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ShoppingBag, Clock, Check, Truck, Loader2, RefreshCw, Bell } from 'lucide-react';
+import { useContextMenu } from './ui/ContextMenu';
 import { fetchBusinessStoreOrders, advanceStoreOrder, type StoreOrderRecord } from '../services/businessOpsService';
 import { notifyOrderReady } from '../services/businessMessagingService';
 
@@ -48,8 +49,19 @@ const BusinessOrdersPanel: React.FC<{ businessUid: string; businessName: string;
 
   const active = orders.filter(o => o.status !== 'PENDING_PAYMENT'); // paid orders the business acts on
 
+  // Right-click / long-press an order — the shared design-system menu.
+  const orderMenu = useContextMenu<StoreOrderRecord>((o) => {
+    const step = NEXT[o.status];
+    return [
+      { kind: 'header' as const, label: `${o.customerName || 'Customer'} · ${fmt(o.subtotalCents)}` },
+      { id: 'advance', label: step ? step.label : 'No next step', disabled: !step || !!busyId, onSelect: (ord: StoreOrderRecord) => advance(ord) },
+      { id: 'copy', label: 'Copy order ID', onSelect: (ord: StoreOrderRecord) => { try { navigator.clipboard.writeText(ord.id); } catch { /* clipboard blocked */ } } },
+    ];
+  });
+
   return (
     <div className="space-y-3">
+      {orderMenu.node}
       <div className="flex items-center justify-between">
         <p className="text-[10px] font-black uppercase tracking-widest text-white/50 flex items-center gap-1.5"><ShoppingBag size={13} className="text-small-orange" /> Store & kiosk orders</p>
         <button onClick={load} className="p-2 rounded-full bg-white/5 hover:bg-white/10"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} /></button>
@@ -64,7 +76,7 @@ const BusinessOrdersPanel: React.FC<{ businessUid: string; businessName: string;
           const step = NEXT[o.status];
           const count = o.items.reduce((s, i) => s + (i.qty || 0), 0);
           return (
-            <div key={o.id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <div key={o.id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4" {...orderMenu.bind(o)}>
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-black truncate">{o.customerName || 'Customer'} · {fmt(o.subtotalCents)}</p>

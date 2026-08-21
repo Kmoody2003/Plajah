@@ -5,6 +5,7 @@
 import React, { useCallback } from 'react';
 import type { GrooveDoc, Pattern } from '../../../../services/melos/beats/grooveDoc';
 import { PLAYHEAD, SELECT } from '../theme';
+import { useContextMenu, type MenuNode } from '../../../ui/ContextMenu';
 
 interface ChannelRackProps {
   doc: GrooveDoc;
@@ -33,8 +34,22 @@ export const ChannelRack: React.FC<ChannelRackProps> = ({ doc, pattern, selected
     });
   }, [onMutate, pattern.id]);
 
+  // Right-click / long-press a pad row — the shared design-system menu.
+  const rowMenu = useContextMenu<number>((padIdx) => {
+    const pad = doc.kit[padIdx];
+    if (!pad) return [];
+    return [
+      { kind: 'header', label: pad.name },
+      { id: 'select', label: 'Select pad', onSelect: () => onSelectPad(padIdx) },
+      { id: 'mute', label: 'Mute', checked: !!pad.mute, keepOpen: true, onSelect: () => onMutate((d) => { const p = d.kit[padIdx]; if (p) p.mute = !p.mute; }) },
+      { kind: 'separator' },
+      { id: 'clear', label: 'Clear steps', danger: true, onSelect: () => onMutate((d) => { const pat = d.patterns.find((p) => p.id === pattern.id); if (pat) pat.steps[padIdx] = {}; }) },
+    ] as MenuNode<number>[];
+  });
+
   return (
     <div className="bg-white/[0.055] border border-white/10 rounded-[18px] backdrop-blur-xl p-4">
+      {rowMenu.node}
       <p className="text-[9px] uppercase tracking-[0.18em] text-white/30 font-semibold mb-2.5">Channel rack · {pattern.name}</p>
       <div className="flex flex-col gap-[3px] max-h-[46vh] overflow-y-auto pr-1">
         {doc.kit.map((pad, padIdx) => {
@@ -42,7 +57,7 @@ export const ChannelRack: React.FC<ChannelRackProps> = ({ doc, pattern, selected
           const row = pattern.steps[padIdx] || {};
           const selected = padIdx === selectedPad;
           return (
-            <div key={pad.id} className="grid items-center gap-2" style={{ gridTemplateColumns: '18px 108px 1fr' }}>
+            <div key={pad.id} className="grid items-center gap-2" style={{ gridTemplateColumns: '18px 108px 1fr' }} {...rowMenu.bind(padIdx)}>
               <button
                 onClick={() => onMutate((d) => { const p = d.kit[padIdx]; if (p) p.mute = !p.mute; })}
                 aria-label={`${pad.mute ? 'Unmute' : 'Mute'} ${pad.name}`}

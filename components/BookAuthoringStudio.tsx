@@ -23,6 +23,7 @@ import {
   Sparkles, PenTool, MoreHorizontal, Loader2, ScanSearch, AlertTriangle, ShieldCheck,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { useContextMenu } from './ui/ContextMenu';
 import { StudioBook, StudioPage, StudioPanel, StudioPageType, Album } from '../types';
 import { setComicHandoff, peekComicHandoff } from '../services/comicHandoff';
 import { extractDocument, type ImportedParagraph } from '../services/documentImport';
@@ -550,15 +551,25 @@ function PageThumb({ page, active, index, onClick, onDelete, onMoveUp, onMoveDow
   onClick: () => void; onDelete: () => void; onMoveUp: () => void; onMoveDown: () => void;
   isFirst: boolean; isLast: boolean;
 }) {
+  // Right-click / long-press a page — the shared design-system menu (reuses the hover controls).
+  const menu = useContextMenu<void>(() => [
+    { kind: 'header', label: page.chapterTitle || `Page ${index + 1}` },
+    { id: 'up', label: 'Move up', icon: <ChevronUp size={14} />, disabled: isFirst, onSelect: onMoveUp },
+    { id: 'down', label: 'Move down', icon: <ChevronDown size={14} />, disabled: isLast, onSelect: onMoveDown },
+    { kind: 'separator' },
+    { id: 'del', label: 'Delete page', danger: true, icon: <Trash2 size={14} />, onSelect: onDelete },
+  ]);
   return (
     <motion.div
       layout
       onClick={onClick}
+      {...menu.bind()}
       className={`group relative cursor-pointer rounded-lg border transition-all overflow-hidden ${
         active ? 'border-orange-400/50 ring-1 ring-orange-400/20' : 'border-white/5 hover:border-white/15'
       }`}
       style={{ backgroundColor: page.bgColor ?? '#fff' }}
     >
+      {menu.node}
       <div className="w-full aspect-[3/4] relative overflow-hidden">
         {page.imageUrl && <img src={page.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover"/>}
         {(page.type === 'COMIC' || page.type === 'MANGA') && page.panels && (

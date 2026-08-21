@@ -7,6 +7,7 @@ import { fetchPublicBooks, syncPublicDomainAsset } from '../services/backendServ
 import { importComic } from '../services/comicImport';
 import { CLASSIC_BOOKS } from '../data/classicBooks';
 import { BookOpen, Search, Filter, Star, Clock, ChevronRight, Bookmark, Download, Loader2, Library as LibraryIcon, ShoppingCart, User as UserIcon, Globe } from 'lucide-react';
+import { useContextMenu } from './ui/ContextMenu';
 import PlajahPlusBanner from './PlajahPlusBanner';
 import { motion, AnimatePresence } from 'motion/react';
 import LazyImage from './LazyImage';
@@ -274,8 +275,16 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
     onSelectBook(transformedBook);
   };
 
+  // Right-click / long-press a book cover — the shared design-system menu.
+  const bookMenu = useContextMenu<ArchiveBook>((book) => [
+    { kind: 'header', label: book.title },
+    { id: 'read', label: 'Read', icon: <BookOpen size={14} />, onSelect: (b) => handleBookSelect(b) },
+    { id: 'cite', label: 'Copy citation', onSelect: (b) => { try { navigator.clipboard.writeText(`${b.title} — ${b.authors.join(', ')}`); } catch { /* clipboard blocked */ } } },
+  ]);
+
   return (
     <div className="flex-1 p-4 sm:p-6 lg:p-12 max-w-7xl mx-auto w-full pb-32 lg:pb-40">
+      {bookMenu.node}
       <header className="mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
         <div className="space-y-4">
           <div className="flex items-center gap-4">
@@ -405,6 +414,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
               transition={{ delay: idx * 0.05 }}
               key={book.id}
               onClick={() => handleBookSelect(book)}
+              {...bookMenu.bind(book)}
               className="group cursor-pointer"
             >
               <div className="relative aspect-[2/3] rounded-[2rem] overflow-hidden mb-6 shadow-2xl bg-white/5 ring-1 ring-white/10 group-hover:ring-small-orange/40 transition-all duration-500 group-hover:-translate-y-2">

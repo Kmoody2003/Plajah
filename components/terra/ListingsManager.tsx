@@ -15,6 +15,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useContextMenu, type MenuNode } from '../ui/ContextMenu';
 import {
   Plus, X, Home, CheckCircle2, AlertTriangle, Fingerprint, Trash2,
   ExternalLink, Rss, Loader2, MapPin,
@@ -200,6 +201,21 @@ export const ListingsManager: React.FC<{
     else setNotice({ tone: 'err', text: 'Could not remove that listing.' });
   };
 
+  // Right-click / long-press a listing — the shared design-system menu.
+  const listingMenu = useContextMenu<OpenListingRecord>((l) => {
+    const items: MenuNode<OpenListingRecord>[] = [
+      { kind: 'header', label: l.UnparsedAddress || 'Untitled listing' },
+    ];
+    if (onNavigate) items.push({ id: 'open', label: 'Open property passport', icon: <Home size={14} />, onSelect: (rec) => onNavigate('TERRA_PASSPORT', { terraTarget: { listingKey: rec.ListingKey } }) });
+    items.push(
+      { id: 'view', label: 'View public record', icon: <ExternalLink size={14} />, onSelect: (rec) => window.open(`/api/terra/olr/${encodeURIComponent(rec.ListingKey)}`, '_blank', 'noopener') },
+      { id: 'copy', label: 'Copy record link', onSelect: (rec) => { try { navigator.clipboard.writeText(`${location.origin}/api/terra/olr/${encodeURIComponent(rec.ListingKey)}`); } catch { /* clipboard blocked */ } } },
+      { kind: 'separator' },
+      { id: 'remove', label: 'Remove listing', danger: true, icon: <Trash2 size={14} />, onSelect: (rec) => { if (window.confirm(`Remove "${rec.UnparsedAddress || 'this listing'}" from the open feed?`)) remove(rec.ListingKey); } },
+    );
+    return items;
+  });
+
   if (!uid) {
     return (
       <div className="space-y-4">
@@ -344,8 +360,9 @@ export const ListingsManager: React.FC<{
         </div>
       ) : (
         <div className="space-y-2">
+          {listingMenu.node}
           {listings.map(l => (
-            <div key={l.ListingKey} className={`${card} p-4 hover:border-white/15 transition-all`}>
+            <div key={l.ListingKey} className={`${card} p-4 hover:border-white/15 transition-all`} {...listingMenu.bind(l)}>
               <div className="flex items-start gap-4">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
                      style={{ background: `${ACCENT}20`, color: ACCENT }}>

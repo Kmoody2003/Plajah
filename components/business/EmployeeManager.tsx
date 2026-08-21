@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { X, UserPlus, Check, Loader2, Trash2, ShieldCheck, Clock, IdCard } from 'lucide-react';
+import { useContextMenu, type MenuNode } from '../ui/ContextMenu';
 import {
   fetchOrgMembers, createManagedEmployee, acceptOrgMember, declineOrgMember,
   setOrgMemberRole, removeOrgMember,
@@ -79,6 +80,24 @@ const EmployeeManager: React.FC<{
   const pending = members.filter(m => m.status === 'PENDING');
   const field = 'bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:border-[#0070FF]/50 transition-all placeholder:text-white/25';
 
+  // Right-click / long-press a roster member — the shared design-system menu.
+  const memberMenu = useContextMenu<OrgMembership>((m) => {
+    const isOwnerRow = m.role === 'OWNER' || org.creatorId === m.userId;
+    const items: MenuNode<OrgMembership>[] = [
+      { kind: 'header', label: m.displayName },
+      { id: 'badge', label: 'View work badge', icon: <IdCard size={14} />, onSelect: (mem) => { setBadge(mem); setBadgeFlip(false); } },
+    ];
+    if (canManage && !isOwnerRow) {
+      items.push({
+        id: 'role', label: 'Change role', submenu: roleDefs.filter(r => r.key !== 'OWNER').map(r => ({
+          id: `role-${r.key}`, label: r.label, checked: (m.roleKey || m.role) === r.key, onSelect: (mem: OrgMembership) => changeRole(mem, r.key),
+        })),
+      });
+      items.push({ kind: 'separator' }, { id: 'remove', label: 'Remove from team', danger: true, icon: <Trash2 size={14} />, onSelect: (mem) => remove(mem) });
+    }
+    return items;
+  });
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
       className="fixed inset-0 z-[320] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
@@ -95,6 +114,7 @@ const EmployeeManager: React.FC<{
         </div>
 
         <div className="p-5 space-y-5">
+          {memberMenu.node}
           {!canManage && (
             <p className="text-[10px] font-bold text-amber-400/80 px-3 py-2 rounded-xl bg-amber-400/10 border border-amber-400/20">You can view the roster but need the Manage-Employees permission to make changes.</p>
           )}
@@ -143,7 +163,7 @@ const EmployeeManager: React.FC<{
             ) : active.map(m => {
               const isOwnerRow = m.role === 'OWNER' || org.creatorId === m.userId;
               return (
-                <div key={m.id} className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/8">
+                <div key={m.id} className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/8" {...memberMenu.bind(m)}>
                   {/* Rectangular work-badge avatar */}
                   <div className="w-10 h-12 rounded-lg overflow-hidden bg-white/10 shrink-0 border border-white/10">
                     {m.photoUrl ? <img src={m.photoUrl} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white/30"><IdCard size={16} /></div>}

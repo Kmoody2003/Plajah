@@ -19,6 +19,7 @@ import React, {
   useState, useEffect, useRef, useCallback, useMemo,
 } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useContextMenu, type MenuNode } from './ui/ContextMenu';
 import {
   ArrowLeft, Video, Monitor, Film, Palette, Radio, Circle, Square,
   Volume2, Mic, MicOff, Layers, Eye, EyeOff, Trash2, Download,
@@ -606,6 +607,21 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
     else engineRef.current?.triggerAudioCue(cue.id);
   }, [playingCues, handleAssignCue]);
 
+  // Audio-cue right-click / long-press menu — the shared design-system primitive.
+  const cueMenu = useContextMenu<AudioCueCell>((cue) => {
+    const playing = playingCues.has(cue.id);
+    const items: MenuNode<AudioCueCell>[] = [{ kind: 'header', label: `Audio cue${cue.label ? ` · ${cue.label}` : ''}` }];
+    if (cue.isLoaded) {
+      items.push(
+        { id: 'trigger', label: playing ? 'Stop cue' : 'Trigger cue', icon: playing ? <Square size={14} /> : <Play size={14} />, onSelect: (c) => handleTriggerCue(c) },
+        { id: 'assign', label: 'Replace audio…', icon: <Upload size={14} />, onSelect: (c) => handleAssignCue(c.id) },
+      );
+    } else {
+      items.push({ id: 'assign', label: 'Assign audio…', icon: <Upload size={14} />, onSelect: (c) => handleAssignCue(c.id) });
+    }
+    return items;
+  });
+
   // ── Graphics Presets ───────────────────────────────────────────────────────
   const handleFirePreset = useCallback((preset: GraphicPreset) => {
     const e = engineRef.current; if (!e) return;
@@ -680,6 +696,7 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden z-50 text-white select-none"
       style={{ background: '#0e0e0e', fontFamily: "'JetBrains Mono','Fira Code',monospace" }}>
+      {cueMenu.node}
 
       <style>{`@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');`}</style>
 
@@ -956,14 +973,14 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
 
               {/* ── Audio Cue row ── */}
               <div className="shrink-0">
-                <p className="text-[8px] opacity-25 uppercase tracking-widest font-bold mb-1 px-0.5">Audio Cues — click to trigger · right-click to assign</p>
+                <p className="text-[8px] opacity-25 uppercase tracking-widest font-bold mb-1 px-0.5">Audio Cues — click to trigger · right-click for options</p>
                 <div className="grid grid-cols-8 gap-1.5">
                   {audioCues.map(cue=>{
                     const isPlaying = playingCues.has(cue.id);
                     return (
                       <button key={cue.id}
                         onClick={()=>handleTriggerCue(cue)}
-                        onContextMenu={e=>{e.preventDefault();handleAssignCue(cue.id);}}
+                        {...cueMenu.bind(cue)}
                         className="flex flex-col items-center justify-center gap-1 rounded-lg p-1.5 transition-all active:scale-95 touch-manipulation"
                         style={{
                           height:48,

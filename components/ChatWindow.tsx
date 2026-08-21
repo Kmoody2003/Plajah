@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useContextMenu, type MenuNode } from './ui/ContextMenu';
 import {
   Send, Mic, Video, Phone, Plus, Image as ImageIcon, Sparkles,
   ChevronLeft, MoreVertical, X, Play, Pause, Layers, Music,
@@ -223,8 +224,21 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [showPinnedPanel, setShowPinnedPanel] = useState(false);
   const [searchMode, setSearchMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [contextMenuMsg, setContextMenuMsg] = useState<ExtendedMessage | null>(null);
-  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+  // Message right-click / long-press menu — the shared design-system primitive.
+  const msgMenu = useContextMenu<ExtendedMessage>((m) => {
+    const items: MenuNode<ExtendedMessage>[] = [
+      { id: 'reply', label: 'Reply', icon: <Reply size={14} />, onSelect: (mm) => { setReplyTo(mm); inputRef.current?.focus(); } },
+      { id: 'thread', label: 'Reply in thread', icon: <MessagesSquare size={14} />, onSelect: (mm) => setThreadRoot(mm) },
+      { id: 'react', label: 'React', icon: <Smile size={14} />, onSelect: (mm) => setShowEmojiPicker(mm.id) },
+      { id: 'copy', label: 'Copy', icon: <Copy size={14} />, onSelect: (mm) => handleCopyText(mm.text) },
+      { id: 'pin', label: m.isPinned ? 'Unpin' : 'Pin', icon: <Pin size={14} />, onSelect: (mm) => handlePinMessage(mm.id, !!mm.isPinned) },
+      { id: 'forward', label: 'Forward', icon: <Forward size={14} />, onSelect: (mm) => handleForwardMessage(mm) },
+    ];
+    if (m.senderId === uid) {
+      items.push({ kind: 'separator' }, { id: 'delete', label: 'Delete', danger: true, icon: <Trash2 size={14} />, onSelect: (mm) => handleDeleteMessage(mm.id) });
+    }
+    return items;
+  });
   const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null); // messageId
   const [showFediversePanel, setShowFediversePanel] = useState(false);
   const [fediverseText, setFediverseText] = useState('');
@@ -704,22 +718,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const handlePinMessage = async (msgId: string, currentPinned: boolean) => {
     const msgRef = doc(db, 'chatRooms', room.id, 'messages', msgId);
     await updateDoc(msgRef, { isPinned: !currentPinned });
-    setContextMenuMsg(null);
   };
 
   const handleDeleteMessage = async (msgId: string) => {
     if (!window.confirm('Delete this message?')) return;
     await deleteDoc(doc(db, 'chat_rooms', room.id, 'messages', msgId));
-    setContextMenuMsg(null);
   };
 
   const handleCopyText = (text?: string) => {
     if (text) navigator.clipboard.writeText(text);
-    setContextMenuMsg(null);
   };
 
   const handleForwardMessage = (msg: ExtendedMessage) => {
-    setContextMenuMsg(null);
     setInputText(`↪ ${msg.text || '[media]'}`);
     inputRef.current?.focus();
   };
@@ -1222,7 +1232,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* ── MESSAGES ────────────────────────────────────────────────── */}
       <div
         className="relative z-10 flex-1 overflow-y-auto px-4 py-4 space-y-2 scrollbar-hide"
-        onClick={() => { setContextMenuMsg(null); setShowEmojiPicker(null); setShowMoreMenu(false); }}
+        onClick={() => { setShowEmojiPicker(null); setShowMoreMenu(false); }}
       >
         {displayedMessages.map((msg, i) => {
           const isMe = msg.senderId === uid;
@@ -1275,12 +1285,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                       : 'bg-white/[0.08] backdrop-blur-md text-white rounded-bl-sm border border-white/[0.06]'
                   } ${msg.isPinned ? 'ring-1 ring-amber-400/30' : ''}`}
                   style={isIntimate ? { backgroundColor: isMe ? intimateTheme.ownBubble : intimateTheme.otherBubble } : undefined}
-                  onContextMenu={e => {
-                    if (readOnly) return;
-                    e.preventDefault();
-                    setContextMenuMsg(msg);
-                    setContextMenuPos({ x: e.clientX, y: e.clientY });
-                  }}
+                  {...(readOnly ? {} : msgMenu.bind(msg))}
                   onDoubleClick={() => { if (!readOnly) setReplyTo(msg); }}
                 >
                   {msg.isPinned && <Pin size={9} className="absolute top-1.5 right-1.5 text-amber-400 opacity-60" />}
@@ -1430,35 +1435,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* ── CONTEXT MENU ────────────────────────────────────────────── */}
       <AnimatePresence>
-        {contextMenuMsg && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed z-[200] bg-[#111] border border-white/10 rounded-2xl p-2 shadow-2xl min-w-[160px]"
-            style={{ top: contextMenuPos.y, left: Math.min(contextMenuPos.x, window.innerWidth - 200) }}
-            onClick={e => e.stopPropagation()}
-          >
-            {[
-              { icon: Reply, label: 'Reply', action: () => { setReplyTo(contextMenuMsg); setContextMenuMsg(null); inputRef.current?.focus(); } },
-              { icon: MessagesSquare, label: 'Reply in thread', action: () => { setThreadRoot(contextMenuMsg); setContextMenuMsg(null); } },
-              { icon: Smile, label: 'React', action: () => { setShowEmojiPicker(contextMenuMsg.id); setContextMenuMsg(null); } },
-              { icon: Copy, label: 'Copy', action: () => handleCopyText(contextMenuMsg.text) },
-              { icon: Pin, label: contextMenuMsg.isPinned ? 'Unpin' : 'Pin', action: () => handlePinMessage(contextMenuMsg.id, !!contextMenuMsg.isPinned) },
-              { icon: Forward, label: 'Forward', action: () => handleForwardMessage(contextMenuMsg) },
-              ...(contextMenuMsg.senderId === uid ? [{ icon: Trash2, label: 'Delete', action: () => handleDeleteMessage(contextMenuMsg.id) }] : []),
-            ].map(({ icon: Icon, label, action }) => (
-              <button
-                key={label}
-                onClick={action}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-all text-left ${label === 'Delete' ? 'text-red-400 hover:bg-red-500/10' : ''}`}
-              >
-                <Icon size={14} className={label === 'Delete' ? 'text-red-400' : 'text-white/40'} />
-                <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
-              </button>
-            ))}
-          </motion.div>
-        )}
+        {msgMenu.node}
       </AnimatePresence>
 
       {/* ── MEDIA SELECTOR ──────────────────────────────────────────── */}

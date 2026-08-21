@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react';
 import { Video, VideoPlaylist, UserProfile, MovieMetadata, Album, LiveFeed, Track, Character, Club } from '../types';
+import { useContextMenu, type MenuNode } from './ui/ContextMenu';
 import {
   fetchAllVideos, uploadVideo, fetchVideoPlaylists, fetchFollowedVideos,
   fetchVideosByInterests, fetchUserVideos, auth, fetchAllPublicAlbums,
@@ -125,6 +126,18 @@ const VideoCard: React.FC<{
     }
   };
 
+  // Right-click / long-press a video card — the shared design-system menu.
+  const menu = useContextMenu<void>(() => {
+    const items: MenuNode<void>[] = [
+      { kind: 'header', label: (video as any).title || 'Video' },
+      { id: 'play', label: 'Play', onSelect: () => onPlay() },
+    ];
+    if (onSave) items.push({ id: 'save', label: 'Save to playlist', onSelect: () => onSave() });
+    if (onShareToClub) items.push({ id: 'share', label: 'Share to club', onSelect: () => onShareToClub() });
+    if (onAssignWorld && isCardOwner) items.push({ kind: 'separator' }, { id: 'world', label: 'Assign to world', onSelect: () => onAssignWorld() });
+    return items;
+  });
+
   return (
     <motion.div
       whileHover={{ y: -4 }}
@@ -132,7 +145,9 @@ const VideoCard: React.FC<{
       onClick={onPlay}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      {...menu.bind()}
     >
+      {menu.node}
       {/* Thumbnail */}
       <div className={`relative overflow-hidden rounded-2xl bg-white/5 ring-1 ring-white/5 mb-3 ${
         size === 'wide' ? 'aspect-[16/7]' : 'aspect-video'
