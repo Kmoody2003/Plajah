@@ -13,7 +13,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Album, Track, Comment } from '../types';
 import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
 import { getOrComputeAnalysis, getCachedAnalysis } from '../services/djAnalysis';
-import { subscribeToComments, postComment, fetchAllPublicAlbums } from '../services/backendService';
+import { subscribeToComments, postComment, fetchAllPublicAlbums, createPost } from '../services/backendService';
+import { buildShareUrl } from '../services/deepLinkService';
 import ScrollingWaveform from './ScrollingWaveform';
 import MixPixelsStage, { type MixPixelsInfo } from './MixPixelsStage';
 import ShareButton from './ShareButton';
@@ -232,10 +233,18 @@ const MixPlayerView: React.FC<MixPlayerViewProps> = ({ album, onBack, user, onOp
                   title={album.title}
                   artist={album.artist}
                   text={`Check out the mix "${album.title}" by ${album.artist} on Plajah`}
-                  url={`${window.location.origin}/?type=album&id=${album.id}`}
-                  imageUrl={cover}
+                  url={buildShareUrl('album', album.id)}
+                  imageUrl={cover || album.coverImage}
                   label="Share"
                   iconSize={15}
+                  plajahLabel="Share to Plajah feed"
+                  onPostToPlajah={async () => {
+                    await createPost({
+                      text: `🎧 ${album.title} — ${album.artist} (mix)`,
+                      media: [{ type: 'AUDIO', url: track.url || '', id: track.id, title: album.title, thumbnail: cover || album.coverImage } as any],
+                      albumEmbed: album,
+                    } as any);
+                  }}
                   className="flex items-center gap-2 text-[12px] font-semibold text-white/70 hover:text-white px-3 py-2 rounded-full bg-white/5 border border-white/10"
                 />
               </div>
