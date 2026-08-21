@@ -136,6 +136,13 @@ export function primeDJAudio(): AudioContext {
   return sharedDJCtx;
 }
 
+// Decoded-audio cache — keyed by track id/url, MODULE-LEVEL so it survives DJ-mode
+// unmount/remount (the view is a fullscreen overlay that unmounts on exit). AudioBuffer is
+// context-independent, so a cached buffer replays fine on the shared context next time. This
+// is what stops a track re-fetching + re-decoding + re-extracting peaks on every re-entry.
+const djDecodeCache = new Map<string, { buffer: AudioBuffer; peaks: Float32Array }>();
+const djDecodeKey = (t: { id?: string; url?: string }) => t.id || t.url || '';
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function extractPeaks(buffer: AudioBuffer): Float32Array {
@@ -616,16 +623,27 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
       // Route through the shared media-fetch policy: Audius/CORS-open hosts fetch
       // directly (an Audius deck loads), everything else via /api/proxy. Falls back
       // to the raw URL if the policy target fails (e.g. proxy 500 on a redirect).
-      let response: Response;
-      try {
-        response = await fetch(mediaFetchUrl(track.url));
-        if (!response.ok) throw new Error(String(response.status));
-      } catch {
-        response = await fetch(track.url);
+      // Cache hit → skip the whole fetch + decode + peak-extract (the expensive re-entry cost).
+      const cacheKey = djDecodeKey(track);
+      let audioBuffer: AudioBuffer;
+      let peaks: Float32Array;
+      const hit = cacheKey ? djDecodeCache.get(cacheKey) : undefined;
+      if (hit) {
+        audioBuffer = hit.buffer;
+        peaks = hit.peaks;
+      } else {
+        let response: Response;
+        try {
+          response = await fetch(mediaFetchUrl(track.url));
+          if (!response.ok) throw new Error(String(response.status));
+        } catch {
+          response = await fetch(track.url);
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+        peaks = extractPeaks(audioBuffer);
+        if (cacheKey) djDecodeCache.set(cacheKey, { buffer: audioBuffer, peaks });
       }
-      const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer  = await ctx.decodeAudioData(arrayBuffer);
-      const peaks = extractPeaks(audioBuffer);
       // Prefer the precomputed BPM (proper beat detection, done at upload) over the cheap
       // in-deck estimate — instant and far more accurate. Warm it in the background if absent.
       const cached = getCachedAnalysis(track);
@@ -638,7 +656,7 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
         bpm, duration: audioBuffer.duration, key: null,
         currentTime: offset, isPlaying: false, isCued: false,
         loopIn: null, loopOut: null, loopActive: false,
-        hotCues: [null, null, null, null],
+        hotCues: Array(8).fill(null),   // 8 to match emptyDeck + the pad grid (was 4 → cues 5-8 broke)
       }));
       // Harmonic key badge — resolve from cached/derived theory (no extra decode).
       if (track.id) {
@@ -831,11 +849,17 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
   const toggleLoop = (deckId: DeckId) => {
     const state = DS[deckId];
     const nodes = NODES[deckId].current;
-    if (!state.loopIn || !state.loopOut || !nodes?.sourceNode) return;
-    nodes.sourceNode.loop = !state.loopActive;
-    nodes.sourceNode.loopStart = state.loopIn;
-    nodes.sourceNode.loopEnd = state.loopOut;
-    (SET[deckId])(prev => ({ ...prev, loopActive: !prev.loopActive, loopBeats: prev.loopActive ? null : prev.loopBeats }));
+    // Use `=== null`, not falsy — a legitimate loop point AT 0.0 was being rejected. Guard an
+    // inverted/zero-length loop too. Toggle even when paused: startSource re-applies loop props
+    // from state when the deck next plays, so the loop engages instead of silently no-opping.
+    if (state.loopIn === null || state.loopOut === null || state.loopOut <= state.loopIn) return;
+    const next = !state.loopActive;
+    if (nodes?.sourceNode) {
+      nodes.sourceNode.loop = next;
+      nodes.sourceNode.loopStart = state.loopIn;
+      nodes.sourceNode.loopEnd = state.loopOut;
+    }
+    (SET[deckId])(prev => ({ ...prev, loopActive: next, loopBeats: next ? prev.loopBeats : null }));
   };
 
   // Beat-loop: snap a loop of N beats from the current position (Loop pad mode).
@@ -1203,6 +1227,17 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
     ] as MenuNode<{ deckId: DeckId; i: number }>[];
   });
 
+  // Library row right-click / long-press → load the track onto any deck.
+  const swatch = (d: DeckId) => <span style={{ width: 11, height: 11, borderRadius: 3, background: DECK_COLORS[d] }} />;
+  const libLoadMenu = useContextMenu<Track>((track) => ([
+    { kind: 'header', label: track.title || 'Track' },
+    { id: 'ld-a', label: `Load to Deck ${leftDeckId}`, icon: swatch(leftDeckId), onSelect: () => loadTrack(track, leftDeckId) },
+    { id: 'ld-b', label: `Load to Deck ${rightDeckId}`, icon: swatch(rightDeckId), onSelect: () => loadTrack(track, rightDeckId) },
+    { kind: 'separator' },
+    { id: 'ld-c', label: 'Load to Deck C', icon: swatch('C'), onSelect: () => loadTrack(track, 'C') },
+    { id: 'ld-d', label: 'Load to Deck D', icon: swatch('D'), onSelect: () => loadTrack(track, 'D') },
+  ] as MenuNode<Track>[]));
+
   const renderDeck = (deckId: DeckId) => {
     const deck  = DS[deckId];
     const setDeck = SET[deckId];
@@ -1557,6 +1592,7 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
       style={{ fontFamily: "'Outfit', 'Space Grotesk', sans-serif" }}
     >
       {hotCueMenu.node}
+      {libLoadMenu.node}
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 px-4 py-2 bg-[#0A0A0A] border-b border-white/5 shrink-0">
         <div className="flex items-center gap-2.5">
@@ -1866,6 +1902,7 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
                   return (
                     <tr key={track.id} draggable
                       onDragStart={e => e.dataTransfer.setData('trackId', track.id)}
+                      {...libLoadMenu.bind(track)}
                       className="group border-b border-white/[0.04] hover:bg-white/[0.04] cursor-grab active:cursor-grabbing">
                       <td className="px-3 py-1.5">
                         <div className="w-7 h-7 rounded overflow-hidden shrink-0">
