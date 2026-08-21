@@ -1183,6 +1183,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     };
     window.addEventListener('OPEN_BIBLE', handleOpenBible);
 
+    // Browse entry: open the Sacred Library HUB (the faith picker), not straight to a wing.
+    // (OPEN_BIBLE stays the scripture deep-link into Lectio/Christianity.)
+    const handleOpenSacredLibrary = () => setView('SACRED_LIBRARY');
+    window.addEventListener('OPEN_SACRED_LIBRARY', handleOpenSacredLibrary);
+
     const handleOpenAmbo = () => setView('AMBO' as AppView);
     window.addEventListener('OPEN_AMBO', handleOpenAmbo);
 
@@ -1291,6 +1296,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_STORE', handleOpenStore);
       window.removeEventListener('OPEN_PLAJAH_PIXELS', handleOpenPixels);
       window.removeEventListener('OPEN_BIBLE', handleOpenBible);
+      window.removeEventListener('OPEN_SACRED_LIBRARY', handleOpenSacredLibrary);
       window.removeEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
       window.removeEventListener('OPEN_SPATIAL_MIXER', handleOpenSpatialMixer);
       window.removeEventListener('OPEN_MEDIA_CONVERTER', handleOpenMediaConverter);

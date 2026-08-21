@@ -302,9 +302,9 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
         >
           <span>📚</span> Kids Library
         </button>
-        {/* Sacred Library — the comprehensive Bible & Church-history experience */}
+        {/* Sacred Library — opens the faith-picker hub (browse all faiths), not straight to a wing */}
         <button
-          onClick={() => window.dispatchEvent(new CustomEvent('OPEN_BIBLE'))}
+          onClick={() => window.dispatchEvent(new CustomEvent('OPEN_SACRED_LIBRARY'))}
           className="flex items-center gap-2 px-5 py-2.5 text-black text-xs font-black uppercase tracking-widest rounded-full transition-all hover:opacity-90 shadow-lg"
           style={{ background: 'linear-gradient(135deg, #f3d27a, #d4af37)', boxShadow: '0 8px 24px rgba(212,175,55,0.25)' }}
         >
