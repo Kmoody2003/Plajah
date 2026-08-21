@@ -3411,7 +3411,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     { id: 'LIVE_HUB', order: 19, isVisible: true },
                     { id: 'FABULA', order: 19.05, isVisible: true },
                     { id: 'TV_STUDIO', order: 19.1, isVisible: true },
-                    { id: 'AMBO', order: 19.12, isVisible: true },
+                    { id: 'AMBO', order: 19.12, isVisible: false },
                     { id: 'AMBO_PRO', order: 19.13, isVisible: true },
                     { id: 'MEDIA_ROUTER', order: 19.15, isVisible: true },
                     { id: 'POSTMAN', order: 19.5, isVisible: true },
@@ -3476,7 +3476,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
                         FABULA: { label: 'Fabula', icon: Film },
                         TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Ambo Presenter', icon: MonitorPlay },
-                        AMBO_PRO: { label: 'Ambo (New)', icon: MonitorPlay },
+                        AMBO_PRO: { label: 'Ambo', icon: MonitorPlay },
                         MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv },
                         SEARCH: { label: 'Find People', icon: Search },
                         HELP_CENTER: { label: 'Help Center', icon: HelpCircle },
@@ -3623,7 +3623,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart }, CHAT: { label: 'Chat', icon: MessageSquare },
                       DISCUSSION: { label: 'Discussion', icon: MessageCircle }, POSTMAN: { label: 'The Postman', icon: Mail },
                       FEED: { label: 'Plajah Social', icon: Rss }, LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
-                      FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Ambo Presenter', icon: MonitorPlay }, AMBO_PRO: { label: 'Ambo (New)', icon: MonitorPlay }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
+                      FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Ambo Presenter', icon: MonitorPlay }, AMBO_PRO: { label: 'Ambo', icon: MonitorPlay }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
                       HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
                       BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, TERRA: { label: 'Terra', icon: MapPin }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
                       ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
@@ -3656,7 +3656,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       { id: 'sports', label: 'Sports & News', ids: ['PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES'] },
                       { id: 'education', label: 'Education', ids: ['BOOKS', 'CLASSROOMS', 'PLAJAH_LABS'] },
                       { id: 'community', label: 'Community', ids: ['CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'SACRED_LIBRARY', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB'] },
-                      { id: 'creator', label: 'Creator Tools', ids: ['CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : []), 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'AMBO', 'AMBO_PRO', 'MEDIA_ROUTER', 'POSTMAN'] },
+                      { id: 'creator', label: 'Creator Tools', ids: ['CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : []), 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'AMBO_PRO', 'MEDIA_ROUTER', 'POSTMAN'] },
                       { id: 'platform', label: 'Platform', ids: ['HELP_CENTER', 'BROWSER'] },
                     ];
                     return groups.map(group => {
@@ -3718,7 +3718,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart }, CHAT: { label: 'Chat', icon: MessageSquare },
                       DISCUSSION: { label: 'Discussion', icon: MessageCircle }, POSTMAN: { label: 'The Postman', icon: Mail },
                       FEED: { label: 'Plajah Social', icon: Rss }, LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
-                      FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Ambo Presenter', icon: MonitorPlay }, AMBO_PRO: { label: 'Ambo (New)', icon: MonitorPlay }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
+                      FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Ambo Presenter', icon: MonitorPlay }, AMBO_PRO: { label: 'Ambo', icon: MonitorPlay }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
                       HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
                       BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, TERRA: { label: 'Terra', icon: MapPin }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
                       ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
@@ -5507,8 +5507,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
             {view === 'BIBLE' && <BibleExperience onBack={() => setView('BOOKS')} initialRefId={bibleRefId} />}
             {view === 'SACRED_LIBRARY' && <SacredLibraryHub onBack={() => setView('DASHBOARD')} />}
-            {view === 'AMBO' && <AmboPresenter onBack={() => setView('APPS')} />}
-            {view === 'AMBO_PRO' && <AmboProPresenter onBack={() => setView('APPS')} />}
+            {/* Old "Ambo Presenter" retired — the AMBO view now redirects to the new presenter. */}
+            {(view === 'AMBO' || view === 'AMBO_PRO') && <AmboProPresenter onBack={() => setView('APPS')} />}
             {view === 'FOLLOW_ALONG' && <FollowAlongView sessionId={followSessionId} onBack={() => setView('APPS')} />}
             {view === 'VESPERS' && vespersRecapId && <VespersRecap recapId={vespersRecapId} onBack={() => setView('APPS')} />}
             {view === 'CLASSROOMS' && (
