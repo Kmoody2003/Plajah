@@ -1609,16 +1609,80 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
         </div>
       </div>
 
-      {/* ── Stream workspace — the streamer switcher ───────────────────────── */}
+      {/* ── Stream workspace — Front Row: decks + mixer on the left, the broadcast
+             studio (program / sources / go-live) on the right, so a DJ can MIX while
+             they stream instead of losing the decks when switching to Stream. ───── */}
       {workspace === 'stream' && (
-        <div className="flex-1 min-h-0 overflow-hidden bg-[#060609]">
-          <StreamStudio
-            audioCtx={audioReady ? audioCtxRef.current : null}
-            masterGain={audioReady ? masterGainRef.current : null}
-            nowPlaying={programNowPlaying}
-            bpm={programBpm}
-            ensureAudio={initAudio}
-          />
+        <div className="flex flex-1 min-h-0 overflow-hidden bg-[#060609]">
+          {/* Decks + center mixer (same engine + controls as Booth) */}
+          <div className="flex-1 min-w-0 flex overflow-hidden">
+            <div className="flex-1 min-w-0 overflow-y-auto no-scrollbar p-3 border-r border-white/5"
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => {
+                e.preventDefault();
+                const tid = e.dataTransfer.getData('trackId');
+                const track = libraryTracks.find(t => t.id === tid);
+                if (track) loadTrack(track, leftDeckId);
+                const file = e.dataTransfer.files?.[0];
+                if (file?.type.startsWith('audio/')) importLocalFile(file, leftDeckId);
+              }}
+            >
+              {renderDeck(leftDeckId)}
+            </div>
+
+            <div className="w-32 shrink-0 bg-[#0A0A0A] border-x border-white/5 flex flex-col items-center gap-4 py-4 px-2">
+              <span className="text-[7px] font-black uppercase tracking-widest text-white/20">Mixer</span>
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-[6px] font-black uppercase tracking-widest" style={{ color: DECK_COLORS[leftDeckId] + '80' }}>Vol {leftDeckId}</span>
+                <input type="range" min={0} max={1} step={0.01} value={DS[leftDeckId].volume}
+                  onChange={e => SET[leftDeckId](p => ({ ...p, volume: parseFloat(e.target.value) }))}
+                  className="h-24 cursor-pointer" style={{ writingMode: 'vertical-lr', direction: 'rtl', accentColor: DECK_COLORS[leftDeckId] }} />
+                <span className="font-mono text-[7px]" style={{ color: DECK_COLORS[leftDeckId] + '80' }}>{Math.round(DS[leftDeckId].volume * 100)}</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 w-full">
+                <span className="text-[6px] font-black uppercase tracking-widest text-white/20">XFADE</span>
+                <input type="range" min={0} max={1} step={0.01} value={crossfader}
+                  onChange={e => setCrossfader(parseFloat(e.target.value))}
+                  className="w-full cursor-pointer" style={{ accentColor: '#888' }} />
+                <div className="flex justify-between w-full">
+                  <span className="text-[6px] font-black" style={{ color: DECK_COLORS[leftDeckId] + '80' }}>{leftDeckId}</span>
+                  <span className="text-[6px] font-black" style={{ color: DECK_COLORS[rightDeckId] + '80' }}>{rightDeckId}</span>
+                </div>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-[6px] font-black uppercase tracking-widest" style={{ color: DECK_COLORS[rightDeckId] + '80' }}>Vol {rightDeckId}</span>
+                <input type="range" min={0} max={1} step={0.01} value={DS[rightDeckId].volume}
+                  onChange={e => SET[rightDeckId](p => ({ ...p, volume: parseFloat(e.target.value) }))}
+                  className="h-24 cursor-pointer" style={{ writingMode: 'vertical-lr', direction: 'rtl', accentColor: DECK_COLORS[rightDeckId] }} />
+                <span className="font-mono text-[7px]" style={{ color: DECK_COLORS[rightDeckId] + '80' }}>{Math.round(DS[rightDeckId].volume * 100)}</span>
+              </div>
+            </div>
+
+            <div className="flex-1 min-w-0 overflow-y-auto no-scrollbar p-3 border-l border-white/5"
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => {
+                e.preventDefault();
+                const tid = e.dataTransfer.getData('trackId');
+                const track = libraryTracks.find(t => t.id === tid);
+                if (track) loadTrack(track, rightDeckId);
+                const file = e.dataTransfer.files?.[0];
+                if (file?.type.startsWith('audio/')) importLocalFile(file, rightDeckId);
+              }}
+            >
+              {renderDeck(rightDeckId)}
+            </div>
+          </div>
+
+          {/* Broadcast studio — program out, sources, go-live, chat, pixels scenes */}
+          <div className="w-[380px] shrink-0 border-l border-white/10 overflow-y-auto no-scrollbar">
+            <StreamStudio
+              audioCtx={audioReady ? audioCtxRef.current : null}
+              masterGain={audioReady ? masterGainRef.current : null}
+              nowPlaying={programNowPlaying}
+              bpm={programBpm}
+              ensureAudio={initAudio}
+            />
+          </div>
         </div>
       )}
 
