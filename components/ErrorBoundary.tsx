@@ -69,8 +69,8 @@ class ErrorBoundary extends React.Component<Props, State> {
         const last = parseInt(sessionStorage.getItem(FS_RELOAD_KEY) || '0', 10);
         if (!last || now - last > 15_000) {
           sessionStorage.setItem(FS_RELOAD_KEY, String(now));
-          console.warn('[ErrorBoundary] Firestore internal assertion — hard reloading to reinitialize the SDK.');
-          window.location.reload();
+          console.warn('[ErrorBoundary] Firestore internal assertion — reloading to reinitialize the SDK (deferred while audio plays).');
+          this.reloadWhenAudioIdle();
           return;
         }
         console.error('[ErrorBoundary] Firestore assertion recurred right after reload — leaving the crash screen up (no reload loop).');
@@ -105,6 +105,24 @@ class ErrorBoundary extends React.Component<Props, State> {
   public componentDidUpdate(_p: Props, prev: State) {
     // Focus the recovery button as soon as the crash screen appears, so a D-pad OK acts on it.
     if (this.state.hasError && !prev.hasError) { try { this.btnRef.current?.focus(); } catch { /* */ } }
+  }
+
+  // Reload to reinitialize the corrupted Firestore SDK — but NEVER interrupt a song. If the
+  // persistent player is actively playing, defer the reload until playback stops (pause/ended),
+  // then reload. So a stray watch-stream assertion can't drop the audio mid-track.
+  private reloadWhenAudioIdle() {
+    try {
+      const audio = document.getElementById('__plajah_audio__') as HTMLAudioElement | null;
+      const playing = !!audio && !audio.paused && !audio.ended && (audio.currentTime || 0) > 0;
+      if (playing && audio) {
+        console.warn('[ErrorBoundary] Deferring reload until audio stops (keeping playback rock-solid).');
+        const go = () => { try { window.location.reload(); } catch { /* */ } };
+        audio.addEventListener('pause', go, { once: true });
+        audio.addEventListener('ended', go, { once: true });
+        return;
+      }
+    } catch { /* fall through to immediate reload */ }
+    try { window.location.reload(); } catch { /* */ }
   }
 
   private handleReset = () => {
