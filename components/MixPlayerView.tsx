@@ -16,6 +16,7 @@ import { getOrComputeAnalysis, getCachedAnalysis } from '../services/djAnalysis'
 import { subscribeToComments, postComment, fetchAllPublicAlbums } from '../services/backendService';
 import ScrollingWaveform from './ScrollingWaveform';
 import MixPixelsStage, { type MixPixelsInfo } from './MixPixelsStage';
+import ShareButton from './ShareButton';
 
 interface MixPlayerViewProps {
   album: Album;
@@ -39,7 +40,7 @@ const Icon: React.FC<{ path: string; size?: number; fill?: boolean }> = ({ path,
     strokeLinecap="round" strokeLinejoin="round"><path d={path} /></svg>
 );
 const PLAY = 'M8 5v14l11-7z', PAUSE = 'M6 5h4v14H6zM14 5h4v14h-4z';
-const BACK = 'M19 12H5M12 19l-7-7 7 7z', SHARE = 'M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13';
+const BACK = 'M19 12H5M12 19l-7-7 7 7z';
 
 const MixPlayerView: React.FC<MixPlayerViewProps> = ({ album, onBack, user, onOpenMix }) => {
   const gp = useGlobalPlayer();
@@ -228,9 +229,16 @@ const MixPlayerView: React.FC<MixPlayerViewProps> = ({ album, onBack, user, onOp
                 <Icon path={playing ? PAUSE : PLAY} size={22} fill={!playing} />
               </button>
               <div className="ml-auto flex items-center gap-2">
-                <button className="flex items-center gap-2 text-[12px] font-semibold text-white/70 hover:text-white px-3 py-2 rounded-full bg-white/5 border border-white/10">
-                  <Icon path={SHARE} size={15} /> Share
-                </button>
+                <ShareButton
+                  title={album.title}
+                  artist={album.artist}
+                  text={`Check out the mix "${album.title}" by ${album.artist} on Plajah`}
+                  url={`${window.location.origin}/?type=album&id=${album.id}`}
+                  imageUrl={cover}
+                  label="Share"
+                  iconSize={15}
+                  className="flex items-center gap-2 text-[12px] font-semibold text-white/70 hover:text-white px-3 py-2 rounded-full bg-white/5 border border-white/10"
+                />
               </div>
             </div>
           </div>
