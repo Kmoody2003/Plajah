@@ -11,6 +11,7 @@ import {
 import { useContextMenu, type MenuNode } from './ui/ContextMenu';
 import SmartLightingPanel from './SmartLightingPanel';
 import StreamStudio from './dj/StreamStudio';
+import DeckMeter from './dj/DeckMeter';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { fetchPersonalTracks } from '../services/backendService';
 import { getCachedAnalysis, getOrComputeAnalysis, loadTrackTheory } from '../services/djAnalysis';
@@ -1735,9 +1736,12 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
               <span className="text-[7px] font-black uppercase tracking-widest text-white/20">Mixer</span>
               <div className="flex flex-col items-center gap-1">
                 <span className="text-[6px] font-black uppercase tracking-widest" style={{ color: DECK_COLORS[leftDeckId] + '80' }}>Vol {leftDeckId}</span>
-                <input type="range" min={0} max={1} step={0.01} value={DS[leftDeckId].volume}
-                  onChange={e => SET[leftDeckId](p => ({ ...p, volume: parseFloat(e.target.value) }))}
-                  className="h-24 cursor-pointer" style={{ writingMode: 'vertical-lr', direction: 'rtl', accentColor: DECK_COLORS[leftDeckId] }} />
+                <div className="flex items-stretch gap-1 h-24">
+                  <input type="range" min={0} max={1} step={0.01} value={DS[leftDeckId].volume}
+                    onChange={e => SET[leftDeckId](p => ({ ...p, volume: parseFloat(e.target.value) }))}
+                    className="h-24 cursor-pointer" style={{ writingMode: 'vertical-lr', direction: 'rtl', accentColor: DECK_COLORS[leftDeckId] }} />
+                  <DeckMeter className="h-24" getAnalyser={() => NODES[leftDeckId].current?.analyser ?? null} color={DECK_COLORS[leftDeckId]} />
+                </div>
                 <span className="font-mono text-[7px]" style={{ color: DECK_COLORS[leftDeckId] + '80' }}>{Math.round(DS[leftDeckId].volume * 100)}</span>
               </div>
               <div className="flex flex-col items-center gap-1 w-full">
@@ -1752,9 +1756,12 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
               </div>
               <div className="flex flex-col items-center gap-1">
                 <span className="text-[6px] font-black uppercase tracking-widest" style={{ color: DECK_COLORS[rightDeckId] + '80' }}>Vol {rightDeckId}</span>
-                <input type="range" min={0} max={1} step={0.01} value={DS[rightDeckId].volume}
-                  onChange={e => SET[rightDeckId](p => ({ ...p, volume: parseFloat(e.target.value) }))}
-                  className="h-24 cursor-pointer" style={{ writingMode: 'vertical-lr', direction: 'rtl', accentColor: DECK_COLORS[rightDeckId] }} />
+                <div className="flex items-stretch gap-1 h-24">
+                  <input type="range" min={0} max={1} step={0.01} value={DS[rightDeckId].volume}
+                    onChange={e => SET[rightDeckId](p => ({ ...p, volume: parseFloat(e.target.value) }))}
+                    className="h-24 cursor-pointer" style={{ writingMode: 'vertical-lr', direction: 'rtl', accentColor: DECK_COLORS[rightDeckId] }} />
+                  <DeckMeter className="h-24" getAnalyser={() => NODES[rightDeckId].current?.analyser ?? null} color={DECK_COLORS[rightDeckId]} />
+                </div>
                 <span className="font-mono text-[7px]" style={{ color: DECK_COLORS[rightDeckId] + '80' }}>{Math.round(DS[rightDeckId].volume * 100)}</span>
               </div>
             </div>
