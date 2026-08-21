@@ -249,6 +249,10 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const hlsRef = useRef<Hls | null>(null); // active hls.js instance (transcoded HLS streams)
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  // Bumped when the analyser is first created so the context value re-publishes it — otherwise
+  // consumers (album FX Stage, Mix Pixels stage) keep the null captured at first render and their
+  // visualizers sit on "Loading…" until some unrelated state change happens to rebuild the memo.
+  const [analyserEpoch, setAnalyserEpoch] = useState(0);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   // DJ filter carried over into the streaming path (transparent by default). Lets DJ FX keep
   // running after you exit DJ mode, and the Kill button resets it to a dry/natural sound.
@@ -368,6 +372,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 2048;
         analyserRef.current = analyser;
+        setAnalyserEpoch(e => e + 1); // re-publish the now-live analyser to consumers
         // DJ carry-over filter — starts transparent (lowpass wide open), so it's inert until
         // DJ mode or setDjFilter drives it. Sits first in the bypass path.
         const djFilter = ctx.createBiquadFilter();
@@ -1838,7 +1843,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     isSpatialAudioEnabled, setSpatialAudioEnabled,
     spatialMode, setSpatialMode, dolbySupport, isAtmosActive,
     view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia, activateVideoSource,
-    isPlayerExpanded, setIsPlayerExpanded,
+    isPlayerExpanded, setIsPlayerExpanded, analyserEpoch,
   ]);
 
   const progressValue: GlobalPlayerProgressContextType = useMemo(() => ({

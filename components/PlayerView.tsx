@@ -664,6 +664,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   React.useEffect(() => {
     if (fxEngine === 'MILKDROP' && milkdropNames.length === 0) loadMilkdropNames().then(setMilkdropNames);
   }, [fxEngine, milkdropNames.length]);
+  // Pixels engines (Generators / MilkDrops / Shaders) need a live analyser; it's only created on
+  // first play. If the FX Stage is opened on a Pixels engine before anything has played, create the
+  // audio graph now so the visualizer isn't stuck on "Loading…" (it re-publishes via analyserEpoch).
+  React.useEffect(() => {
+    if (isVisualizerLayout && isPixelsEngine && !globalAnalyser) getAudioContext?.();
+  }, [isVisualizerLayout, isPixelsEngine, globalAnalyser, getAudioContext]);
   const selectFxEngine = React.useCallback((id: 'FLOW' | 'PAINT' | FxEngine) => {
     setFxEngine(id); setFxPresetIndex(0); setFxMenuOpen(false);
     if (id === 'FLOW' || id === 'PAINT') setVisualizerType(id);
@@ -1245,7 +1251,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             <div className="absolute inset-0 z-30 bg-black">
               <div className="absolute inset-0">
                 {isPixelsEngine ? (
-                  <FxStageVisualizers engine={fxEngine as FxEngine} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
+                  <FxStageVisualizers engine={fxEngine as FxEngine} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={true} />
                 ) : (
                   <>
                     <div className="absolute inset-0" style={{ opacity: fxEngine === 'PAINT' ? 0.35 : 1 }}>
@@ -2567,7 +2573,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                {isPixelsEngine ? (
                  /* Plajah Pixels engines — MilkDrops / Shaders / Generators (no-param reactors) */
                  <div className="absolute inset-0">
-                   <FxStageVisualizers engine={fxEngine as FxEngine} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
+                   <FxStageVisualizers engine={fxEngine as FxEngine} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={true} />
                  </div>
                ) : (
                  <>
@@ -4047,7 +4053,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             <div className="absolute inset-0 z-0">
               {isPixelsEngine ? (
                 <div className="absolute inset-0">
-                  <FxStageVisualizers engine={fxEngine as FxEngine} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
+                  <FxStageVisualizers engine={fxEngine as FxEngine} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={true} />
                 </div>
               ) : (
                 <>
