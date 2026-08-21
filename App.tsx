@@ -4772,7 +4772,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><div className="w-10 h-10 border-2 border-[--small-orange]/30 border-t-[--small-orange] rounded-full animate-spin" /></div>}>
                 <SanctuaryHubView
                   onBack={() => setView('DASHBOARD')}
-                  onVisitProfile={(uid) => { setViewedUserId(uid); setView('USER_PROFILE'); }}
+                  onVisitProfile={(uid) => { setViewedUserId(uid); setView('SANCTUARY'); }}
                   onOpenDemo={() => { setViewedUserId(DEMO_SANCTUARY_ID); setView('SANCTUARY'); }}
                   currentUserId={user?.uid}
                   currentUserProfile={userProfile ?? undefined}
