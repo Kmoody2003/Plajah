@@ -237,6 +237,7 @@ const EQKnob: React.FC<{
       <div
         className="w-10 h-10 rounded-full cursor-ns-resize relative"
         style={{ background: 'radial-gradient(circle at 35% 35%, #3A3A3A, #111)' }}
+        title="Drag to set · double-click to reset"
         onPointerDown={e => {
           e.currentTarget.setPointerCapture(e.pointerId);
           startRef.current = { y: e.clientY, v: value };
@@ -247,6 +248,7 @@ const EQKnob: React.FC<{
           onChange(Math.max(-1, Math.min(1, startRef.current.v + delta)));
         }}
         onPointerUp={() => { startRef.current = null; }}
+        onDoubleClick={() => onChange(0)}
       >
         {/* Knob indicator dot */}
         <div
@@ -1739,6 +1741,7 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
                 <div className="flex items-stretch gap-1 h-24">
                   <input type="range" min={0} max={1} step={0.01} value={DS[leftDeckId].volume}
                     onChange={e => SET[leftDeckId](p => ({ ...p, volume: parseFloat(e.target.value) }))}
+                    onDoubleClick={() => SET[leftDeckId](p => ({ ...p, volume: 0.8 }))} title="Double-click to reset"
                     className="h-24 cursor-pointer" style={{ writingMode: 'vertical-lr', direction: 'rtl', accentColor: DECK_COLORS[leftDeckId] }} />
                   <DeckMeter className="h-24" getAnalyser={() => NODES[leftDeckId].current?.analyser ?? null} color={DECK_COLORS[leftDeckId]} />
                 </div>
@@ -1748,6 +1751,7 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
                 <span className="text-[6px] font-black uppercase tracking-widest text-white/20">XFADE</span>
                 <input type="range" min={0} max={1} step={0.01} value={crossfader}
                   onChange={e => setCrossfader(parseFloat(e.target.value))}
+                  onDoubleClick={() => setCrossfader(0.5)} title="Double-click to center"
                   className="w-full cursor-pointer" style={{ accentColor: '#888' }} />
                 <div className="flex justify-between w-full">
                   <span className="text-[6px] font-black" style={{ color: DECK_COLORS[leftDeckId] + '80' }}>{leftDeckId}</span>
@@ -1759,6 +1763,7 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
                 <div className="flex items-stretch gap-1 h-24">
                   <input type="range" min={0} max={1} step={0.01} value={DS[rightDeckId].volume}
                     onChange={e => SET[rightDeckId](p => ({ ...p, volume: parseFloat(e.target.value) }))}
+                    onDoubleClick={() => SET[rightDeckId](p => ({ ...p, volume: 0.8 }))} title="Double-click to reset"
                     className="h-24 cursor-pointer" style={{ writingMode: 'vertical-lr', direction: 'rtl', accentColor: DECK_COLORS[rightDeckId] }} />
                   <DeckMeter className="h-24" getAnalyser={() => NODES[rightDeckId].current?.analyser ?? null} color={DECK_COLORS[rightDeckId]} />
                 </div>
