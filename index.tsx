@@ -289,31 +289,26 @@ const isPrompterWindow = search.get('role') === 'prompter';
 if (isProgramOut) {
   // External display / video-wall clone — composite only, no platform shell.
   root.render(
-    <React.StrictMode>
-      <ErrorBoundary>
+    <ErrorBoundary>
         <React.Suspense fallback={<div style={{ width: '100vw', height: '100vh', background: '#000' }} />}>
           <ProgramOutView />
         </React.Suspense>
       </ErrorBoundary>
-    </React.StrictMode>
   );
 } else if (reviewMatch && reviewToken) {
   // Account-free external reviewer — standalone, no platform shell, no auth gate.
   root.render(
-    <React.StrictMode>
-      <ErrorBoundary>
+    <ErrorBoundary>
         <React.Suspense fallback={<div style={{ width: '100vw', height: '100vh', background: '#0b0b10' }} />}>
           <HqReviewPublic shareId={reviewMatch[1]} token={reviewToken} />
         </React.Suspense>
       </ErrorBoundary>
-    </React.StrictMode>
   );
 } else if (isPrompterWindow) {
   // Teleprompter talent display — only the scrolling prompter; syncs to the
   // operator over BroadcastChannel. No platform shell (a clean confidence monitor).
   root.render(
-    <React.StrictMode>
-      <ErrorBoundary>
+    <ErrorBoundary>
         <React.Suspense fallback={<div style={{ width: '100vw', height: '100vh', background: '#000' }} />}>
           <PrompterScreen
             initialScriptTitle="Waiting for script…"
@@ -322,16 +317,20 @@ if (isProgramOut) {
           />
         </React.Suspense>
       </ErrorBoundary>
-    </React.StrictMode>
   );
 } else {
+  // NOT wrapped in <React.StrictMode> ON PURPOSE. StrictMode double-invokes effects in DEV, which
+  // double-subscribes then tears down every onSnapshot listener (~149 of them). That teardown race
+  // reliably trips Firestore's ca9/b815 INTERNAL ASSERTION, and the ErrorBoundary "recovers" by
+  // hard-reloading the page — which drops audio mid-song and fails profile loads. Production never
+  // double-mounts, so it was rock-solid there; removing StrictMode makes DEV behave like prod (this
+  // is a no-op in production builds anyway). Re-add only once the watch-stream assertion is gone
+  // (a firebase-js-sdk fix, or every listener routed through services/safeSnapshot).
   root.render(
-    <React.StrictMode>
-      <ErrorBoundary>
-        <GlobalPlayerProvider>
-          <App />
-        </GlobalPlayerProvider>
-      </ErrorBoundary>
-    </React.StrictMode>
+    <ErrorBoundary>
+      <GlobalPlayerProvider>
+        <App />
+      </GlobalPlayerProvider>
+    </ErrorBoundary>
   );
 }
