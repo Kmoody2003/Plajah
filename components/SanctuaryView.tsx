@@ -557,7 +557,11 @@ const SanctuaryView: React.FC<SanctuaryViewProps> = ({
   ), [creatorId]);
 
   const contribute = async (amount: number) => {
-    await backSanctuaryCampaign({ sanctuaryId: creatorId, creatorId, amount, campaignTitle: sanctuary?.campaign?.title });
+    await backSanctuaryCampaign({
+      sanctuaryId: creatorId, creatorId, amount,
+      campaignTitle: sanctuary?.campaign?.title,
+      kind: sanctuary?.campaign?.kind ?? 'PROJECT',
+    });
   };
   const saveSanctuary = async (patch: Partial<Sanctuary>) => {
     await createOrUpdateSanctuary({ ownerId: creatorId, ...patch });

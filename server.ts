@@ -1478,6 +1478,8 @@ async function startServer() {
               sanctuaryId: meta.sanctuaryId || '',
               backerId: meta.uid || '',
               amount: parseFloat(meta.amount || '0'),
+              kind: meta.kind || 'PROJECT',
+              platformFeeCents: parseInt(meta.platformFeeCents || '0'),
               stripePaymentIntentId: (session.payment_intent as string) || '',
               createdAt: now,
             });
@@ -1602,7 +1604,9 @@ async function startServer() {
             digital_sale: 'digital_sale',
             sanctuary_membership: 'sanctuary',
             sanctuary_unlock: 'sanctuary',
-            sanctuary_pledge: 'sanctuary',
+            // sanctuary_pledge is intentionally omitted: it is a Connect Direct
+            // destination charge (money already settled to the creator), so it must
+            // NOT re-enter the platform-collect 90/10 path or it would double-transfer.
             plajahplus: 'plajahplus',
             store_order: 'store_order',
             club_membership: 'club',
@@ -7292,31 +7296,65 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   });
 
   // ── Sanctuary: one-time campaign pledge (Kickstarter/GoFundMe) ────────────────
+  // IMMEDIATE-PAYOUT crowdfunding — NO escrow, NO all-or-nothing. The pledge is a
+  // Connect Direct destination charge: it settles straight to the creator's connected
+  // account at pledge time (Plajah never holds it). Platform fee (the application fee):
+  //   • DONATION (personal-cause gifts/tips) → 0% — a pure gift, GoFundMe-style.
+  //   • PROJECT  (back-a-project)            → 5%, waived to 0% if the creator is Plajah+.
   app.post('/api/stripe/sanctuary-pledge', authMiddleware, express.json(), async (req: any, res) => {
     try {
-      const { sanctuaryId, creatorId, amount, campaignTitle } = req.body;
+      const { sanctuaryId, creatorId, amount, campaignTitle, kind: rawKind } = req.body;
       if (!sanctuaryId || typeof amount !== 'number' || amount < 1) {
         return res.status(400).json({ error: 'sanctuaryId and amount (min $1) are required' });
       }
+      const kind: 'DONATION' | 'PROJECT' = rawKind === 'DONATION' ? 'DONATION' : 'PROJECT';
+      const creatorUid = creatorId || sanctuaryId;
+
+      // Money must go DIRECT to the creator — no platform-collect fallback. If they
+      // haven't onboarded to Stripe Connect, there's nowhere to send it.
+      const ownerUser = await firestoreRead('users', creatorUid);
+      const acct = ownerUser?.stripeConnectAccountId as string | undefined;
+      if (!acct) return res.status(400).json({ error: 'This creator has not set up payouts yet, so pledges can’t be sent to them.' });
       const stripe = getStripe();
+      try {
+        const acctInfo = await stripe.accounts.retrieve(acct);
+        if (!acctInfo.payouts_enabled) return res.status(400).json({ error: 'This creator can’t receive payouts yet.' });
+      } catch { return res.status(400).json({ error: 'Could not verify the creator’s payout account.' }); }
+
+      // Fee: 0% for donations; 5% for projects, waived if the creator holds Plajah+.
+      let feePct = 0;
+      if (kind === 'PROJECT') {
+        const subs = await queryFirebase('plajahPlusSubscriptions', [{ field: 'subscriberId', value: creatorUid }], 10);
+        const creatorHasPlus = subs.some((s: any) => ['active', 'trialing', 'past_due'].includes(String(s.status)));
+        feePct = creatorHasPlus ? 0 : 0.05;
+      }
+      const amountCents = Math.round(amount * 100);
+      const appFeeCents = Math.round(amountCents * feePct);
+
       const origin = req.headers.origin ?? process.env.VITE_APP_URL ?? '';
+      const productName = kind === 'DONATION'
+        ? `${campaignTitle || 'Fundraiser'} — Donation`
+        : `${campaignTitle || 'Project'} — Pledge`;
+      const meta = {
+        type: 'sanctuary_pledge', uid: req.uid, creatorUid,
+        sanctuaryId, amount: String(amount), kind, platformFeeCents: String(appFeeCents),
+      };
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
         payment_method_types: ['card'],
         line_items: [{
-          price_data: {
-            currency: 'usd',
-            product_data: { name: `${campaignTitle || 'Sanctuary campaign'} — Pledge` },
-            unit_amount: Math.round(amount * 100),
-          },
+          price_data: { currency: 'usd', product_data: { name: productName }, unit_amount: amountCents },
           quantity: 1,
         }],
+        // DIRECT to the creator; Plajah takes only the application fee (if any).
+        payment_intent_data: {
+          transfer_data: { destination: acct },
+          ...(appFeeCents > 0 ? { application_fee_amount: appFeeCents } : {}),
+          metadata: meta,
+        },
         success_url: `${origin}/?sanctuary_pledge=${sanctuaryId}&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin}/?sanctuary=${sanctuaryId}`,
-        metadata: {
-          type: 'sanctuary_pledge', uid: req.uid, creatorUid: creatorId || sanctuaryId,
-          sanctuaryId, amount: String(amount),
-        },
+        metadata: meta,
       });
       res.json({ url: session.url });
     } catch (err: any) {

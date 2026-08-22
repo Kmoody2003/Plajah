@@ -4624,15 +4624,23 @@ export type SanctuaryVisibility = 'PUBLIC' | 'PRIVATE'; // PRIVATE = hidden, inv
 export type SanctuaryAccessModel = 'FREE' | 'PAID' | 'MIXED'; // the sanctuary's overall posture
 export type SanctuaryOwnerType = 'USER' | 'ORG';
 
+// A Sanctuary crowdfunding campaign. IMMEDIATE-PAYOUT ONLY — a pledge is charged
+// at pledge time and settles straight to the creator's connected Stripe account
+// (Connect Direct; Plajah never holds the money). There is NO escrow / all-or-nothing:
+// the goal is aspirational (shown as a progress bar), never enforced or auto-refunded.
+//   • DONATION — personal-cause fundraiser, gifts & tips (GoFundMe-style, no reward)
+//   • PROJECT  — back-a-project / direct support (a promised reward = a pre-order)
+export type SanctuaryCampaignKind = 'DONATION' | 'PROJECT';
+
 export interface SanctuaryCampaign {
   isActive: boolean;
+  kind: SanctuaryCampaignKind;
   title: string;
   story?: string;
-  goalAmount: number;      // Kickstarter/GoFundMe target (USD)
+  goalAmount: number;      // aspirational target (USD) — shown, never enforced
   raisedAmount: number;
   backerCount: number;
-  deadline?: number;       // optional funding deadline (ms)
-  allOrNothing?: boolean;  // Kickstarter-style vs GoFundMe keep-what-you-raise
+  deadline?: number;       // optional shown deadline (ms) — does NOT gate payout
 }
 
 export interface Sanctuary {
@@ -4728,11 +4736,15 @@ export interface SanctuaryEvent {
 }
 
 // A one-time backing of a Sanctuary's crowdfunding campaign (Stripe-recorded).
+// Charged as a Connect Direct destination charge — the money already settled to the
+// creator; platformFeeCents is the application fee Plajah took (0 for DONATION / Plajah+).
 export interface SanctuaryPledge {
   id: string;
   sanctuaryId: string;
   backerId: string;
   amount: number;
+  kind?: SanctuaryCampaignKind;
+  platformFeeCents?: number;
   createdAt: number;
 }
 

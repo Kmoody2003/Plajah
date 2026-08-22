@@ -179,12 +179,12 @@ export const DEMO_SANCTUARY: Sanctuary = {
   welcomeMessage: 'Welcome backstage.',
   campaign: {
     isActive: true,
+    kind: 'PROJECT',
     title: 'Fund the debut album',
     story: 'Help press the vinyl, book the studio, and shoot the first music video. Every backer gets their name in the liner notes.',
     goalAmount: 20000,
     raisedAmount: 13400,
     backerCount: 412,
-    allOrNothing: false,
   },
   memberCount: 1867,
   contentCount: 24,

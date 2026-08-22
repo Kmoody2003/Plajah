@@ -282,6 +282,7 @@ export async function purchaseSanctuaryUnlock(opts: {
 
 export async function backSanctuaryCampaign(opts: {
   sanctuaryId: string; creatorId: string; amount: number; campaignTitle?: string;
+  kind?: 'DONATION' | 'PROJECT';   // immediate-payout: DONATION = gift/tip, PROJECT = back-a-project
 }): Promise<void> {
   await redirectToCheckout('/api/stripe/sanctuary-pledge', opts);
 }
