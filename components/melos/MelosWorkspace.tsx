@@ -25,7 +25,7 @@ import {
   subProductions, subSongs, subArrangements, subPins, subSamples, subSessions, subPeople,
   putSong, patchSong, removeSong, putArrangement, patchArrangement, removeArrangement,
   putPin, patchPin, removePin, updateProduction,
-  createProduction, seedDemoProduction, newSong, readiness,
+  createProduction, seedDemoProduction, buildDemoProduction, newSong, readiness,
 } from '../../services/melosService';
 
 import { auth } from '../../services/firebase';
@@ -199,19 +199,43 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
   const [sessions, setSessions] = useState<StudioSession[]>([]);
   const [people, setPeople] = useState<Collaborator[]>([]);
 
-  // Productions list
+  // A fully-populated, in-memory demo record ("Mercy, Michigan") — no Firestore, no
+  // uid required. Auto-loaded when there's nothing else, so a brand-new (or signed-out)
+  // artist opens Melos into a finished-feeling album to explore instead of a blank room.
+  const demoSeed = useMemo(() => buildDemoProduction(uid || 'demo_owner', currentUser?.displayName || 'You'), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const DEMO_ID = demoSeed.production.id;
+  const isDemo = prodId === DEMO_ID;
+
+  // Productions list — falls back to the demo when the artist has none yet.
   useEffect(() => {
-    if (!uid) { setLoading(false); return; }
-    const un = subProductions(uid, rows => {
-      setProductions(rows);
+    if (!uid) {
+      setProductions([demoSeed.production]);
+      setProdId(cur => cur || DEMO_ID);
       setLoading(false);
-      setProdId(cur => cur || rows[0]?.id || '');
+      return;
+    }
+    const un = subProductions(uid, rows => {
+      if (rows.length === 0) {
+        setProductions([demoSeed.production]);
+        setProdId(cur => cur || DEMO_ID);
+      } else {
+        setProductions(rows);
+        setProdId(cur => cur || rows[0]?.id || '');
+      }
+      setLoading(false);
     });
     return un;
-  }, [uid]);
+  }, [uid, demoSeed, DEMO_ID]);
 
   // Subcollections for the open production
   useEffect(() => {
+    if (prodId === DEMO_ID) {
+      // Feed every room straight from the in-memory seed; skip all live subscriptions.
+      setSongs(demoSeed.songs); setArrangements(demoSeed.arrangements);
+      setPins(demoSeed.pins); setSamples(demoSeed.samples);
+      setSessions(demoSeed.sessions); setPeople(demoSeed.people);
+      return;
+    }
     if (!prodId) {
       setSongs([]); setArrangements([]); setPins([]); setSamples([]); setSessions([]); setPeople([]);
       return;
@@ -225,7 +249,7 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
       subPeople(prodId, setPeople),
     ];
     return () => uns.forEach(u => { try { u(); } catch {} });
-  }, [prodId]);
+  }, [prodId, DEMO_ID, demoSeed]);
 
   const production = useMemo(
     () => productions.find(p => p.id === prodId) || null,
@@ -246,24 +270,27 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
   );
 
   // ── Mutators ──────────────────────────────────────────────────────────────
-  const saveSong = useCallback((s: MelosSong) => { if (prodId) putSong(prodId, s); }, [prodId]);
-  const editSong = useCallback((id: string, patch: Partial<MelosSong>) => { if (prodId) patchSong(prodId, id, patch); }, [prodId]);
-  const dropSong = useCallback((id: string) => { if (prodId) removeSong(prodId, id); }, [prodId]);
+  // The in-memory demo is read-only: writes are no-ops so exploring it never
+  // persists a phantom production to Firestore.
+  const canWrite = (id: string) => !!id && id !== DEMO_ID;
+  const saveSong = useCallback((s: MelosSong) => { if (canWrite(prodId)) putSong(prodId, s); }, [prodId, DEMO_ID]);
+  const editSong = useCallback((id: string, patch: Partial<MelosSong>) => { if (canWrite(prodId)) patchSong(prodId, id, patch); }, [prodId, DEMO_ID]);
+  const dropSong = useCallback((id: string) => { if (canWrite(prodId)) removeSong(prodId, id); }, [prodId, DEMO_ID]);
   const addSong = useCallback(() => {
-    if (!prodId) return;
+    if (!canWrite(prodId)) return;
     const s = newSong(songs.length, { title: 'Untitled' });
     putSong(prodId, s);
     setSelectedSongId(s.id);
     setRoom('pad');
-  }, [prodId, songs.length]);
+  }, [prodId, songs.length, DEMO_ID]);
 
-  const saveArrangement = useCallback((a: MelosArrangement) => { if (prodId) putArrangement(prodId, a); }, [prodId]);
-  const editArrangement = useCallback((id: string, patch: Partial<MelosArrangement>) => { if (prodId) patchArrangement(prodId, id, patch); }, [prodId]);
-  const dropArrangement = useCallback((id: string) => { if (prodId) removeArrangement(prodId, id); }, [prodId]);
+  const saveArrangement = useCallback((a: MelosArrangement) => { if (canWrite(prodId)) putArrangement(prodId, a); }, [prodId, DEMO_ID]);
+  const editArrangement = useCallback((id: string, patch: Partial<MelosArrangement>) => { if (canWrite(prodId)) patchArrangement(prodId, id, patch); }, [prodId, DEMO_ID]);
+  const dropArrangement = useCallback((id: string) => { if (canWrite(prodId)) removeArrangement(prodId, id); }, [prodId, DEMO_ID]);
 
-  const savePin = useCallback((p: InspirationPin) => { if (prodId) putPin(prodId, p); }, [prodId]);
-  const editPin = useCallback((id: string, patch: Partial<InspirationPin>) => { if (prodId) patchPin(prodId, id, patch); }, [prodId]);
-  const dropPin = useCallback((id: string) => { if (prodId) removePin(prodId, id); }, [prodId]);
+  const savePin = useCallback((p: InspirationPin) => { if (canWrite(prodId)) putPin(prodId, p); }, [prodId, DEMO_ID]);
+  const editPin = useCallback((id: string, patch: Partial<InspirationPin>) => { if (canWrite(prodId)) patchPin(prodId, id, patch); }, [prodId, DEMO_ID]);
+  const dropPin = useCallback((id: string) => { if (canWrite(prodId)) removePin(prodId, id); }, [prodId, DEMO_ID]);
 
   const ctx: MelosCtx = {
     prodId, production, songs, arrangements, pins, samples, sessions, people,
@@ -297,7 +324,7 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
   };
 
   const setSkin = (s: PadSkin) => {
-    if (prodId) updateProduction(prodId, { padSkin: s });
+    if (canWrite(prodId)) updateProduction(prodId, { padSkin: s });
     // Optimistic — the subscription confirms.
     setProductions(cur => cur.map(p => (p.id === prodId ? { ...p, padSkin: s } : p)));
   };
@@ -306,7 +333,9 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
   const statusMeta = PRODUCTION_STATUSES.find(s => s.key === production?.status);
 
   // ── Empty states ──────────────────────────────────────────────────────────
-  if (!uid) {
+  // Signed-out visitors still land in the populated demo (loaded above); only show
+  // the sign-in note if even that somehow failed to load.
+  if (!uid && !production && !loading) {
     return (
       <div className="melos melos-paper min-h-screen flex items-center justify-center p-8">
         <div className="text-center max-w-sm">

@@ -34,7 +34,11 @@ import * as Schedule from '../../services/productionScheduleService';
 import type { CallSheetTemplate, RecipientDelivery } from '../../services/productionScheduleService';
 import { canManageProductionChat, provisionProductionChat } from '../../services/productionChatService';
 import { putTaskWithAction } from '../../services/productionActionService';
-import { copyFilmShowcaseProduction, ensureFilmShowcaseProduction } from '../../services/productionShowcaseTemplate';
+import { copyFilmShowcaseProduction, ensureFilmShowcaseProduction, buildFilmShowcaseCorpus } from '../../services/productionShowcaseTemplate';
+
+// Identifiers for the always-available, in-memory demo production.
+const DEMO_FILM_ID = 'demo_film_local';
+const DEMO_FILM_OWNER = 'demo_owner';
 
 // ─── Shared live production context ──────────────────────────────────────────
 
@@ -95,37 +99,66 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
   const [loading, setLoading] = useState(true);
   const chatStructureSignature = useRef('');
 
+  // A fully-populated, read-only demo production built entirely in memory — no
+  // Firestore, no uid required. It is always listed so a brand-new (or signed-out)
+  // user lands on a real production graph to explore, the same way Music ships the
+  // Neon Cathedral demo and Writer seeds a demo book. Copying it makes a real one.
+  const demoCorpus = useMemo(() => buildFilmShowcaseCorpus(DEMO_FILM_ID, DEMO_FILM_OWNER, 'Plajah Producer', true), []);
+  const isDemo = selectedId === DEMO_FILM_ID;
+
   const selectionKey = `plajah_active_production_${uid}`;
 
-  // Membership drives the production list. Nothing is created or seeded implicitly.
+  // Membership drives the production list; the in-memory demo is always appended so
+  // there is something to open before anything real exists.
   useEffect(() => {
     let alive = true;
     (async () => {
-      if (!uid) { setLoading(false); return; }
+      const demoProd = demoCorpus.production;
+      if (!uid) {
+        if (!alive) return;
+        setProductions([demoProd]);
+        setSelectedId(demoProd.id);
+        setLoading(false);
+        return;
+      }
       const showcase = await ensureFilmShowcaseProduction(uid, currentUser?.displayName || undefined).catch(() => null);
       const owned = await FP.fetchMyProductions(uid);
-      const rows = [...owned.filter(row => row.id !== showcase?.id), ...(showcase ? [showcase] : [])];
+      const real = [...owned.filter(row => row.id !== showcase?.id), ...(showcase ? [showcase] : [])];
+      // The Firestore showcase already serves as the signed-in demo; only fall back to
+      // the in-memory demo when that failed, so a demo is guaranteed to be listed.
+      const rows = showcase ? real : [...real, demoProd];
       if (!alive) return;
       setProductions(rows);
       const saved = localStorage.getItem(selectionKey);
-      setSelectedId(rows.some(row => row.id === saved) ? saved : (rows.find(row => !row.isShowcase && row.status !== 'ARCHIVED') || showcase || rows[0])?.id || null);
+      setSelectedId(rows.some(row => row.id === saved) ? saved : (real.find(row => !row.isShowcase && row.status !== 'ARCHIVED') || showcase || demoProd)?.id || null);
       setLoading(false);
     })();
     return () => { alive = false; };
-  }, [uid, selectionKey]);
+  }, [uid, selectionKey, demoCorpus]);
 
   useEffect(() => {
     let alive = true;
     if (!selectedId) { setProd(null); return; }
+    if (selectedId === DEMO_FILM_ID) { setProd(demoCorpus.production); return; }
     localStorage.setItem(selectionKey, selectedId);
     FP.fetchProduction(selectedId).then(row => { if (alive) setProd(row); });
     return () => { alive = false; };
-  }, [selectedId, selectionKey]);
+  }, [selectedId, selectionKey, demoCorpus]);
 
   useEffect(() => {
     if (!selectedId) {
       setMembers([]); setScenes([]); setCallSheets([]); setDeliveries([]); setCallSheetTemplates([]); setTasks([]); setMenu([]); setOrders([]); setDprs([]);
       setBudgetLines([]); setLocations([]); setFestivals([]);
+      return;
+    }
+    if (selectedId === DEMO_FILM_ID) {
+      // Feed every tab straight from the in-memory corpus; skip all live subscriptions.
+      setMembers(demoCorpus.members); setScenes(demoCorpus.scenes);
+      setCallSheets(demoCorpus.callSheets); setDeliveries(demoCorpus.recipientDeliveries);
+      setCallSheetTemplates([]); setTasks(demoCorpus.tasks);
+      setMenu(demoCorpus.craftMenu); setOrders(demoCorpus.craftOrders);
+      setDprs(demoCorpus.dprs); setBudgetLines(demoCorpus.budgetLines);
+      setLocations(demoCorpus.locations); setFestivals(demoCorpus.festivals);
       return;
     }
     const unsubs = [
@@ -138,7 +171,7 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
       FP.subLocations(selectedId, setLocations), FP.subFestivals(selectedId, setFestivals),
     ];
     return () => unsubs.forEach(u => u());
-  }, [selectedId]);
+  }, [selectedId, demoCorpus]);
 
   // Default active sheet = published sheet dated today, else nearest upcoming, else lowest day.
   const liveCallSheets = useMemo(() => callSheets.map(sheet => {

@@ -31,7 +31,8 @@ import { listWritingProjects, type WritingProject, type WritingChapter } from '.
 import { MusicReleasesTab } from './music/MusicReleasesTab';
 import {
   fetchMyProductions, fetchSongs, IS_ON_RECORD,
-  PRODUCTION_STATUSES as MELOS_STATUSES, type MelosProduction,
+  PRODUCTION_STATUSES as MELOS_STATUSES, stateMeta, commitmentMeta,
+  type MelosProduction, type SongState, type Commitment, type ProductionStatus,
 } from '../services/melosService';
 
 // ─── Storage helpers ────────────────────────────────────────────────────────────
@@ -1332,10 +1333,193 @@ const CareerImportLaunchTab: React.FC = () => {
   );
 };
 
+// ─── Music demo production (self-contained, always explorable) ───────────────
+// Mirrors how Film ships the "Afterlight" showcase and Writer seeds a demo book:
+// a fully-populated, interactive record you can open and poke at before you've
+// made anything of your own. Read-only, no Firestore — always works, even signed out.
+
+interface DemoSong {
+  order: number; title: string; state: SongState; commitment: Commitment;
+  love: number; lengthSec: number; note?: string;
+  lyricPeek?: string; feel?: string; credits?: string;
+}
+
+const DEMO_MUSIC_PRODUCTION = {
+  id: 'demo-music-neon-cathedral',
+  title: 'Neon Cathedral',
+  workingTitle: 'the Detroit record',
+  artistName: 'Vela',
+  status: 'TRACKING' as ProductionStatus,
+  intent: 'The record I needed at 3AM on Woodward — gospel bones under machine skin. Ten songs, no filler. It should sound like the city looks after the rain: rusted and holy at the same time.',
+};
+
+const DEMO_MUSIC_SONGS: DemoSong[] = [
+  { order: 1, title: 'Cathedral of Neon',   state: 'FINISHED', commitment: 'VERIFIED',      love: 5, lengthSec: 224, note: 'The opener. Locked.', lyricPeek: 'Stained glass made of billboard light / I found my faith on a Tuesday night', feel: 'Slow build · 72 BPM · Bb minor', credits: 'Vela — vox, keys · M. Okafor — bass' },
+  { order: 2, title: 'Woodward at 3AM',      state: 'MIXING',   commitment: 'VERIFIED',      love: 5, lengthSec: 198, note: 'Third mix — almost there', feel: 'Head-nod · 88 BPM', credits: 'Vela — vox · D. Reyes — drums' },
+  { order: 3, title: 'Ghost in the Rustbelt', state: 'TRACKING', commitment: 'VERIFIED',     love: 4, lengthSec: 241, lyricPeek: 'They shuttered every plant but the ghosts still clock in', feel: 'Driving · 104 BPM' },
+  { order: 4, title: 'Copper & Gold',        state: 'TRACKING', commitment: 'WORKING_ON_IT', love: 3, lengthSec: 187, note: 'Second verse still fighting me' },
+  { order: 5, title: 'Sister Motor',         state: 'DEMO',     commitment: 'WORKING_ON_IT', love: 4, lengthSec: 205, feel: 'Uptempo · 120 BPM', note: 'Could be the single' },
+  { order: 6, title: 'Eastside Gospel',      state: 'MIXING',   commitment: 'VERIFIED',      love: 5, lengthSec: 262, lyricPeek: 'Choir robes and a broken hallelujah', credits: 'Vela — vox · Greater Grace choir' },
+  { order: 7, title: 'Paper Crown',          state: 'WRITING',  commitment: 'WORKING_ON_IT', love: 2, lengthSec: 176, note: 'Have the hook, need the bridge' },
+  { order: 8, title: 'Half-Light',           state: 'DEMO',     commitment: 'TENTATIVE',     love: 3, lengthSec: 214, note: 'On the bubble' },
+  { order: 9, title: 'The Long Way Home',    state: 'FINISHED', commitment: 'VERIFIED',      love: 5, lengthSec: 288, note: 'The closer. Do not touch.', feel: 'Ballad · 60 BPM' },
+  // Set aside — not this record
+  { order: 10, title: 'Static Prayer',       state: 'SPARK',    commitment: 'SHELVED',       love: 2, lengthSec: 0, note: 'Save for the next one' },
+  { order: 11, title: 'Overpass',            state: 'WRITING',  commitment: 'CUT',           love: 1, lengthSec: 0, note: 'Doesn\'t fit — cut' },
+];
+
+const DEMO_MUSIC_BOARD: { emoji: string; label: string; note: string }[] = [
+  { emoji: '🎚️', label: 'Tape saturation on the drum bus', note: 'That warm crunch from the reference track' },
+  { emoji: '🎹', label: 'Wurlitzer, not Rhodes', note: 'Grittier — matches the rust theme' },
+  { emoji: '🎤', label: 'Choir for Eastside Gospel', note: 'Booked Greater Grace — 6 voices' },
+  { emoji: '🌆', label: 'Cover: neon on wet asphalt', note: 'Shot list started in Boards' },
+];
+
+const fmtSongLen = (s: number) => s > 0 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : '—';
+
+const MusicDemoDetail: React.FC<{ onOpenMelos: () => void }> = ({ onOpenMelos }) => {
+  const [view, setView] = React.useState<'ORDER' | 'STATE'>('ORDER');
+  const [expanded, setExpanded] = React.useState<number | null>(null);
+  const [loved, setLoved] = React.useState<Record<number, boolean>>({});
+
+  const onRecord = DEMO_MUSIC_SONGS.filter(s => IS_ON_RECORD.includes(s.commitment));
+  const finished = onRecord.filter(s => s.state === 'FINISHED');
+  const setAside = DEMO_MUSIC_SONGS.filter(s => !IS_ON_RECORD.includes(s.commitment));
+  const runtime = onRecord.reduce((a, s) => a + s.lengthSec, 0);
+  const status = MELOS_STATUSES.find(x => x.key === DEMO_MUSIC_PRODUCTION.status);
+
+  const rows = view === 'ORDER'
+    ? [...DEMO_MUSIC_SONGS].sort((a, b) => a.order - b.order)
+    : [...DEMO_MUSIC_SONGS].sort((a, b) => stateMeta(b.state).order - stateMeta(a.state).order);
+
+  const SongRow: React.FC<{ s: DemoSong }> = ({ s }) => {
+    const sm = stateMeta(s.state); const cm = commitmentMeta(s.commitment);
+    const isOpen = expanded === s.order;
+    const isLoved = loved[s.order] ?? false;
+    const loveCount = s.love + (isLoved ? 1 : 0);
+    const dimmed = !IS_ON_RECORD.includes(s.commitment);
+    return (
+      <div className={`rounded-xl border transition-all ${isOpen ? 'border-white/15 bg-white/[0.05]' : 'border-white/[0.06] bg-white/[0.02] hover:border-white/12'} ${dimmed ? 'opacity-55' : ''}`}>
+        <div role="button" tabIndex={0} onClick={() => setExpanded(isOpen ? null : s.order)}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(isOpen ? null : s.order); } }}
+          className="w-full flex items-center gap-3 p-3 text-left cursor-pointer select-none">
+          <span className="w-5 text-[11px] font-black text-white/25 tabular-nums shrink-0">{view === 'ORDER' ? s.order : '·'}</span>
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: sm.color }} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-black text-white truncate">{s.title}</p>
+            <p className="text-[10px] text-white/35">{sm.label} · {fmtSongLen(s.lengthSec)}</p>
+          </div>
+          <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shrink-0 hidden sm:inline" style={{ background: `${cm.color}22`, color: cm.color }}>{cm.label}</span>
+          <button
+            onClick={e => { e.stopPropagation(); setLoved(p => ({ ...p, [s.order]: !isLoved })); }}
+            className="flex items-center gap-1 shrink-0 text-[10px] font-black transition-colors"
+            style={{ color: isLoved ? '#D40055' : 'rgba(255,255,255,0.3)' }}
+            aria-label="Love this track"
+          >
+            <Star size={12} fill={isLoved ? '#D40055' : 'none'} /> {loveCount}
+          </button>
+          <ChevronRight size={13} className={`text-white/20 shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+        </div>
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+              <div className="px-3 pb-3 pl-11 space-y-2">
+                {s.lyricPeek && <p className="text-[11px] text-white/55 italic leading-relaxed">"{s.lyricPeek}…"</p>}
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  {s.feel && <span className="text-[10px] text-white/40"><span className="text-white/25">Feel:</span> {s.feel}</span>}
+                  {s.credits && <span className="text-[10px] text-white/40"><span className="text-white/25">Credits:</span> {s.credits}</span>}
+                </div>
+                {s.note && <p className="text-[10px] text-white/30">📌 {s.note}</p>}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-transparent overflow-hidden">
+      {/* Header */}
+      <div className="p-5 border-b border-white/[0.06]">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-pink-500/15 text-pink-400">Demo</span>
+              {status && <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full" style={{ background: `${status.color}22`, color: status.color }}>{status.label}</span>}
+            </div>
+            <h4 className="text-lg font-black text-white mt-2">{DEMO_MUSIC_PRODUCTION.title}</h4>
+            <p className="text-[11px] text-white/35">by {DEMO_MUSIC_PRODUCTION.artistName} · {DEMO_MUSIC_PRODUCTION.workingTitle}</p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-2xl font-black text-white leading-none">{onRecord.length}</p>
+            <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mt-1">on the record</p>
+            <p className="text-[10px] text-white/30 mt-1">{finished.length} finished · {fmtSongLen(runtime)}</p>
+          </div>
+        </div>
+        <p className="text-[11px] text-white/45 italic leading-relaxed mt-3 max-w-2xl">"{DEMO_MUSIC_PRODUCTION.intent}"</p>
+      </div>
+
+      {/* Tracklist */}
+      <div className="p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">Tracklist</p>
+          <div className="flex gap-1 p-0.5 rounded-lg bg-white/5">
+            {(['ORDER', 'STATE'] as const).map(v => (
+              <button key={v} onClick={() => setView(v)}
+                className={`px-3 py-1 rounded-md text-[9px] font-black uppercase tracking-widest transition-all ${view === v ? 'bg-white/10 text-white' : 'text-white/35 hover:text-white/60'}`}>
+                {v === 'ORDER' ? 'Running order' : 'By state'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {view === 'STATE' ? (
+          <div className="space-y-1.5">{rows.map(s => <SongRow key={s.order} s={s} />)}</div>
+        ) : (
+          <div className="space-y-1.5">
+            {rows.filter(s => IS_ON_RECORD.includes(s.commitment)).map(s => <SongRow key={s.order} s={s} />)}
+            {setAside.length > 0 && (
+              <>
+                <p className="text-[9px] font-black uppercase tracking-widest text-white/20 pt-3 pb-1">Set aside — not this record</p>
+                {setAside.map(s => <SongRow key={s.order} s={s} />)}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Board */}
+      <div className="px-5 pb-5">
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mb-2">Caught my ear</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {DEMO_MUSIC_BOARD.map((b, i) => (
+            <div key={i} className="flex items-start gap-2.5 p-3 rounded-xl bg-white/[0.02] border border-white/[0.05]">
+              <span className="text-base shrink-0">{b.emoji}</span>
+              <div className="min-w-0"><p className="text-[11px] font-black text-white/80">{b.label}</p><p className="text-[10px] text-white/35 leading-tight mt-0.5">{b.note}</p></div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* CTA */}
+      <div className="px-5 py-4 border-t border-white/[0.06] bg-white/[0.02] flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-[10px] text-white/35">This is a sample record. Your own productions live in Melos.</p>
+        <button onClick={onOpenMelos}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:opacity-90"
+          style={{ background: 'linear-gradient(120deg,#6B0099,#D40055)', color: '#fff', border: 0 }}>
+          <Disc3 size={13} /> Start your own in Melos
+        </button>
+      </div>
+    </motion.div>
+  );
+};
+
 const MelosLaunchTab: React.FC<{ currentUser?: UserProfile | null }> = ({ currentUser }) => {
   const navigate = (target: string, extra: object = {}) =>
     window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target, ...extra } }));
 
+  const [showDemo, setShowDemo] = React.useState(false);
   const [productions, setProductions] = React.useState<MelosProduction[]>([]);
   const [counts, setCounts] = React.useState<Record<string, { songs: number; onRecord: number; finished: number }>>({});
   const [loading, setLoading] = React.useState(true);
@@ -1384,67 +1568,79 @@ const MelosLaunchTab: React.FC<{ currentUser?: UserProfile | null }> = ({ curren
 
       {loading ? (
         <p className="text-xs text-white/30 uppercase tracking-widest py-8">Loading…</p>
-      ) : productions.length === 0 ? (
-        <div className="p-6 rounded-2xl border border-white/10 bg-white/[0.03]">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-xl bg-pink-500/15 flex items-center justify-center shrink-0">
-              <PenLine size={16} className="text-pink-400" />
-            </div>
-            <div>
-              <p className="text-sm font-black text-white">No productions yet</p>
-              <p className="text-xs text-white/40 mt-1 max-w-md leading-relaxed">
-                Melos is where the record gets made — a writing pad that treats lyrics as blocks you
-                can rearrange, honest track states, running orders you can compare side by side, and
-                a board for everything that caught your ear.
-              </p>
-              <button
-                onClick={() => navigate('MELOS')}
-                className="mt-4 flex items-center gap-2 text-xs font-black text-pink-400 hover:text-pink-300 uppercase tracking-widest transition-colors"
-                style={{ background: 'none', border: 0, padding: 0 }}
-              >
-                Start a production <ArrowRight size={11} />
-              </button>
-            </div>
-          </div>
-        </div>
       ) : (
-        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
-          {productions.map(p => {
-            const c = counts[p.id];
-            const status = MELOS_STATUSES.find(x => x.key === p.status);
-            return (
-              <button
-                key={p.id}
-                onClick={() => navigate('MELOS', { productionId: p.id })}
-                className="text-left p-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06] transition-colors"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-black text-white truncate">{p.title}</p>
-                    {p.workingTitle && <p className="text-[11px] text-white/30 truncate">— {p.workingTitle}</p>}
+        <>
+          {productions.length === 0 && (
+            <p className="text-xs text-white/35 max-w-md leading-relaxed">
+              You haven't started a record yet. Open the sample production below to see how Melos
+              tracks it — lyrics as blocks, honest song states, a running order, and a board for
+              everything that caught your ear.
+            </p>
+          )}
+
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+            {productions.map(p => {
+              const c = counts[p.id];
+              const status = MELOS_STATUSES.find(x => x.key === p.status);
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => navigate('MELOS', { productionId: p.id })}
+                  className="text-left p-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06] transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-black text-white truncate">{p.title}</p>
+                      {p.workingTitle && <p className="text-[11px] text-white/30 truncate">— {p.workingTitle}</p>}
+                    </div>
+                    {status && (
+                      <span
+                        className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full shrink-0"
+                        style={{ background: `${status.color}22`, color: status.color }}
+                      >{status.label}</span>
+                    )}
                   </div>
-                  {status && (
-                    <span
-                      className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full shrink-0"
-                      style={{ background: `${status.color}22`, color: status.color }}
-                    >{status.label}</span>
+
+                  {c && (
+                    <p className="text-[11px] text-white/40 mt-3">
+                      {c.onRecord} on the record · {c.finished} finished
+                      {c.songs > c.onRecord && <span className="text-white/25"> · {c.songs - c.onRecord} set aside</span>}
+                    </p>
                   )}
+
+                  {p.albumId && (
+                    <p className="text-[10px] uppercase tracking-widest mt-2 text-emerald-400">Released</p>
+                  )}
+                </button>
+              );
+            })}
+
+            {/* Always-present demo production */}
+            <button
+              onClick={() => setShowDemo(v => !v)}
+              className={`text-left p-4 rounded-2xl border transition-colors ${showDemo ? 'border-pink-500/40 bg-pink-500/[0.06]' : 'border-dashed border-white/15 bg-white/[0.02] hover:bg-white/[0.05]'}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-white truncate">{DEMO_MUSIC_PRODUCTION.title}</p>
+                  <p className="text-[11px] text-white/30 truncate">— {DEMO_MUSIC_PRODUCTION.workingTitle}</p>
                 </div>
+                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full shrink-0 bg-pink-500/15 text-pink-400">Demo</span>
+              </div>
+              <p className="text-[11px] text-white/40 mt-3">
+                {DEMO_MUSIC_SONGS.filter(s => IS_ON_RECORD.includes(s.commitment)).length} on the record ·{' '}
+                {DEMO_MUSIC_SONGS.filter(s => s.state === 'FINISHED' && IS_ON_RECORD.includes(s.commitment)).length} finished
+              </p>
+              <p className="text-[10px] font-black uppercase tracking-widest mt-2 text-pink-400 flex items-center gap-1">
+                {showDemo ? 'Hide' : 'Explore'} <ArrowRight size={11} />
+              </p>
+            </button>
+          </div>
 
-                {c && (
-                  <p className="text-[11px] text-white/40 mt-3">
-                    {c.onRecord} on the record · {c.finished} finished
-                    {c.songs > c.onRecord && <span className="text-white/25"> · {c.songs - c.onRecord} set aside</span>}
-                  </p>
-                )}
-
-                {p.albumId && (
-                  <p className="text-[10px] uppercase tracking-widest mt-2 text-emerald-400">Released</p>
-                )}
-              </button>
-            );
-          })}
-        </div>
+          <AnimatePresence>
+            {showDemo && <MusicDemoDetail onOpenMelos={() => navigate('MELOS')} />}
+          </AnimatePresence>
+        </>
       )}
     </motion.div>
   );
