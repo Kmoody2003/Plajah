@@ -52,6 +52,8 @@ interface DeckState {
   fx: { filter: number; delay: number; reverb: number };
   // Per-effect engage/bypass — independent of the amount, so toggling on/off keeps the settings.
   fxOn: { filter: boolean; delay: boolean; reverb: boolean };
+  trim: number;   // channel gain/head-amp, -1..+1 → ±9 dB (0 = unity), distinct from the fader
+
   jogAngle: number;
   isScratch: boolean;
 }
@@ -488,6 +490,7 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
     })),
     fx: { filter: 0.5, delay: 0, reverb: 0 },
     fxOn: { filter: false, delay: false, reverb: false },
+    trim: 0,
     jogAngle: 0, isScratch: true,
   });
 
@@ -941,7 +944,8 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
     (['A', 'B', 'C', 'D'] as DeckId[]).forEach(id => {
       const n = NODES[id].current; if (!n) return;
       const d = DS[id];
-      n.gainNode.gain.value = d.volume;
+      // Channel volume × trim (a gain/head-amp distinct from the fader — ±9 dB, 0 = unity).
+      n.gainNode.gain.value = d.volume * Math.pow(10, (d.trim ?? 0) * 9 / 20);
       // Filter sweep: 0=200Hz, 0.5=off, 1=8kHz → kill at extremes. Bypassed when the effect is OFF
       // (freq wide open) but the knob value is preserved so re-engaging returns to it.
       const f = d.fx.filter;
@@ -954,11 +958,13 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
         n.filterNode.type = 'highpass';
         n.filterNode.frequency.value = (f - 0.5) * 2 * 8000;
       }
+      // Resonance rises toward the extremes for a filter with bite; neutral (Q=1) when bypassed.
+      n.filterNode.Q.value = d.fxOn.filter ? 1 + Math.abs(f - 0.5) * 12 : 1;
       n.delayWet.gain.value = d.fxOn.delay ? d.fx.delay * 0.7 : 0;
       n.reverbWet.gain.value = d.fxOn.reverb ? d.fx.reverb * 0.6 : 0;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deckA.volume, deckA.fx, deckA.fxOn, deckB.volume, deckB.fx, deckB.fxOn, deckC.volume, deckC.fx, deckC.fxOn, deckD.volume, deckD.fx, deckD.fxOn]);
+  }, [deckA.volume, deckA.fx, deckA.fxOn, deckA.trim, deckB.volume, deckB.fx, deckB.fxOn, deckB.trim, deckC.volume, deckC.fx, deckC.fxOn, deckC.trim, deckD.volume, deckD.fx, deckD.fxOn, deckD.trim]);
 
   useEffect(() => { updateCrossfader(crossfader); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [crossfader, leftDeckId, rightDeckId, xfCurve]);
 
@@ -1392,6 +1398,7 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
             >
               SYNC
             </button>
+            <EQKnob label="GAIN" value={deck.trim ?? 0} onChange={v => setDeck(p => ({ ...p, trim: v }))} color={color} />
             <EQKnob label="HI" value={eq.high} onChange={v => setEq(p => ({ ...p, high: v }))} color={color} />
             <EQKnob label="MID" value={eq.mid} onChange={v => setEq(p => ({ ...p, mid: v }))} color={color} />
             <EQKnob label="LOW" value={eq.low} onChange={v => setEq(p => ({ ...p, low: v }))} color={color} />
