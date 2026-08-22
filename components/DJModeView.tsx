@@ -925,9 +925,12 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
     (['A', 'B', 'C', 'D'] as DeckId[]).forEach(id => {
       const n = NODES[id].current; if (!n) return;
       const e = EQ[id];
-      n.eqLow.gain.value  = e.low  * MAX_DB;
-      n.eqMid.gain.value  = e.mid  * MAX_DB;
-      n.eqHigh.gain.value = e.high * MAX_DB;
+      // Boost up to +MAX_DB, but cut hard toward the bottom (~-40 dB at full down) so the last of
+      // the travel acts as an EQ KILL — how a DJ mixer's kills feel.
+      const eqDb = (v: number) => (v >= 0 ? v * MAX_DB : v * 40);
+      n.eqLow.gain.value  = eqDb(e.low);
+      n.eqMid.gain.value  = eqDb(e.mid);
+      n.eqHigh.gain.value = eqDb(e.high);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eqA, eqB, eqC, eqD]);
