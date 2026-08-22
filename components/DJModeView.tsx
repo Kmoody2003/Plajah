@@ -496,6 +496,8 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
   const [deckC, setDeckC] = useState<DeckState>(() => emptyDeck('C'));
   const [deckD, setDeckD] = useState<DeckState>(() => emptyDeck('D'));
   const [crossfader, setCrossfader] = useState(0.5);
+  // Crossfader curve: SMOOTH = equal-power blend (mixing), SHARP = fast additive cut (scratching).
+  const [xfCurve, setXfCurve] = useState<'smooth' | 'sharp'>('smooth');
   const [eqA, setEqA] = useState({ low: 0, mid: 0, high: 0 });
   const [eqB, setEqB] = useState({ low: 0, mid: 0, high: 0 });
   const [eqC, setEqC] = useState({ low: 0, mid: 0, high: 0 });
@@ -606,10 +608,18 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
 
   // Crossfader mixes the two VISIBLE decks (equal-power); the other two play at unity.
   const updateCrossfader = (value: number) => {
-    const angle = value * Math.PI / 2;
     const l = NODES[leftDeckId].current, r = NODES[rightDeckId].current;
-    if (l) l.xfadeGain.gain.value = Math.cos(angle);
-    if (r) r.xfadeGain.gain.value = Math.sin(angle);
+    let lg: number, rg: number;
+    if (xfCurve === 'sharp') {
+      // Fast additive cut — both decks stay full through the center, cutting only at the extremes.
+      lg = Math.min(1, 2 * (1 - value));
+      rg = Math.min(1, 2 * value);
+    } else {
+      const angle = value * Math.PI / 2;
+      lg = Math.cos(angle); rg = Math.sin(angle);
+    }
+    if (l) l.xfadeGain.gain.value = lg;
+    if (r) r.xfadeGain.gain.value = rg;
     (['A', 'B', 'C', 'D'] as DeckId[]).forEach(id => {
       if (id !== leftDeckId && id !== rightDeckId) { const n = NODES[id].current; if (n) n.xfadeGain.gain.value = 1; }
     });
@@ -947,7 +957,7 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deckA.volume, deckA.fx, deckA.fxOn, deckB.volume, deckB.fx, deckB.fxOn, deckC.volume, deckC.fx, deckC.fxOn, deckD.volume, deckD.fx, deckD.fxOn]);
 
-  useEffect(() => { updateCrossfader(crossfader); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [crossfader, leftDeckId, rightDeckId]);
+  useEffect(() => { updateCrossfader(crossfader); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [crossfader, leftDeckId, rightDeckId, xfCurve]);
 
   // ─── Pitch change ───────────────────────────────────────────────────────────
 
@@ -1757,6 +1767,11 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
                   <span className="text-[6px] font-black" style={{ color: DECK_COLORS[leftDeckId] + '80' }}>{leftDeckId}</span>
                   <span className="text-[6px] font-black" style={{ color: DECK_COLORS[rightDeckId] + '80' }}>{rightDeckId}</span>
                 </div>
+                <button type="button" onClick={() => setXfCurve(c => (c === 'smooth' ? 'sharp' : 'smooth'))}
+                  title="Crossfader curve — Smooth (blend) / Sharp (cut)"
+                  className="mt-0.5 text-[6px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border border-white/10 text-white/45 hover:text-white transition-colors">
+                  {xfCurve === 'smooth' ? 'Smooth' : 'Sharp'}
+                </button>
               </div>
               <div className="flex flex-col items-center gap-1">
                 <span className="text-[6px] font-black uppercase tracking-widest" style={{ color: DECK_COLORS[rightDeckId] + '80' }}>Vol {rightDeckId}</span>
