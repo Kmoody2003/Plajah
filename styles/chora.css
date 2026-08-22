@@ -411,6 +411,13 @@
   top: 50%;
   width: 0;
   height: 0;
+  /* Orbit is a CSS animation — driven by document.timeline, immune to React re-renders (see
+     OrreryStage.tsx). Start angle + period come in as custom properties per planet. */
+  animation: pvOrrOrbit var(--pv-orr-dur, 24s) linear infinite;
+}
+@keyframes pvOrrOrbit {
+  from { transform: rotate(var(--pv-orr-a, 0deg)); }
+  to   { transform: rotate(calc(var(--pv-orr-a, 0deg) + 360deg)); }
 }
 .pv-orr-node {
   position: absolute;
@@ -452,6 +459,13 @@
   font-size: 10px;
   font-weight: 700;
   color: #fff;
+  /* Counter-rotate on the SAME period so the track number stays upright as its planet orbits. */
+  display: inline-block;
+  animation: pvOrrOrbitLabel var(--pv-orr-dur, 24s) linear infinite;
+}
+@keyframes pvOrrOrbitLabel {
+  from { transform: rotate(calc(-1 * var(--pv-orr-a, 0deg))); }
+  to   { transform: rotate(calc(-1 * var(--pv-orr-a, 0deg) - 360deg)); }
 }
 .pv-orr-sun {
   position: absolute;
@@ -486,7 +500,10 @@
   .chora-next .cn-pane { transition: none; }
   .chora-next .cn-comet::before, .chora-next .cn-comet::after { animation: none !important; }
   .chora-next .cn-spark { animation: none !important; opacity: .35; }
-  /* The orrery is intentional, wanted motion — slow the playing-node glow rather than freeze it
-     (the orbit itself is JS/Framer-driven inline transforms, unaffected by these rules). */
+  /* The orrery is intentional, wanted motion — SLOW it, don't stop it. The orbit + its counter-
+     rotating labels are CSS animations (period = --pv-orr-dur); stretch them ×2.4. The playing-
+     node glow slows to a gentle 16s. */
+  .pv-orr-planet,
+  .pv-orr-node i { animation-duration: calc(var(--pv-orr-dur, 24s) * 2.4); }
   .pv-orr-node.is-playing { animation-duration: 16s !important; }
 }

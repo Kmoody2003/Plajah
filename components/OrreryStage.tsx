@@ -31,12 +31,14 @@ const OrreryStage: React.FC<OrreryStageProps> = ({ album, tracks, activeIndex, i
   const visible = tracks.slice(windowStart, windowStart + MAX_VISIBLE);
   const hidden = tracks.length - visible.length;
 
-  // The orrery's whole point is planets orbiting the album. Reduced-motion should NOT freeze
-  // it (that's the reported "desktop won't move" bug — the user's desktop has reduce-motion ON,
-  // mobile doesn't): per the DS lesson for ambient/intentional motion, SLOW it, don't stop it.
-  // The size/position springs still snap instantly under reduced motion (those are entrance, not orbit).
-  const orbitSlow = reduceMotion ? 2.4 : 1;
-
+  // The orbit is a CSS animation (styles/chora.css → @keyframes pvOrrOrbit), NOT a Framer keyframe
+  // animation. That was the "orrery stopped moving" regression: PlayerView re-renders on every
+  // currentTime tick (~4x/s), and Framer restarts an inline `animate={{ rotate: [a, a+360] }}`
+  // keyframe animation on each commit — pinning every planet at its start angle so it looks frozen.
+  // A CSS animation is driven by document.timeline and is untouched by React re-renders, so it never
+  // freezes. Reduced-motion SLOWS it (×2.4, handled in CSS) rather than stopping it — the DS lesson
+  // for intentional/ambient motion. The size/position springs below are entrance transitions that
+  // settle on a stable target, so they're safe to leave on Framer.
   const renderNode = (t: Track, absoluteIndex: number) => {
     // Album order is expressed as depth: the current song moves nearest the artwork; its
     // neighbours are next closest; completed and distant upcoming songs progressively recede.
@@ -48,7 +50,10 @@ const OrreryStage: React.FC<OrreryStageProps> = ({ album, tracks, activeIndex, i
     const angle = (360 / Math.max(visible.length, 1)) * (absoluteIndex - windowStart) - 90;
     // Kepler-inspired timing: inner planets complete a pass sooner; progressively distant
     // tracks remain clearly in motion but travel more slowly. The selected track is fastest.
-    const orbitDuration = (active ? 18 : 25 + Math.pow(radius / ACTIVE_RADIUS, 1.5) * 9) * orbitSlow;
+    // These feed the CSS orbit via custom properties (start angle + period); the label counter-
+    // rotates on the same period so the number stays upright. Reduced-motion slowdown is in CSS.
+    const orbitDuration = active ? 18 : 25 + Math.pow(radius / ACTIVE_RADIUS, 1.5) * 9;
+    const orbitStyle = { '--pv-orr-a': `${angle}deg`, '--pv-orr-dur': `${orbitDuration}s` } as React.CSSProperties;
     return (
       <React.Fragment key={t.id}>
         <motion.div
@@ -57,12 +62,7 @@ const OrreryStage: React.FC<OrreryStageProps> = ({ album, tracks, activeIndex, i
           transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 48, damping: 17, mass: 0.9 }}
           aria-hidden="true"
         />
-        <motion.div
-          className="pv-orr-planet"
-          initial={false}
-          animate={{ rotate: [angle, angle + 360] }}
-          transition={{ duration: orbitDuration, repeat: Infinity, ease: 'linear', repeatType: 'loop' }}
-        >
+        <div className="pv-orr-planet" style={orbitStyle}>
           <motion.button
             type="button"
             className={`pv-orr-node${active ? ' is-active' : ''}${active && isPlaying ? ' is-playing' : ''}`}
@@ -73,15 +73,9 @@ const OrreryStage: React.FC<OrreryStageProps> = ({ album, tracks, activeIndex, i
             title={t.title || `Track ${absoluteIndex + 1}`}
             aria-label={`Play ${t.title || `track ${absoluteIndex + 1}`}`}
           >
-            <motion.i
-              initial={false}
-              animate={{ rotate: [-angle, -angle - 360] }}
-              transition={{ duration: orbitDuration, repeat: Infinity, ease: 'linear', repeatType: 'loop' }}
-            >
-              {String(absoluteIndex + 1).padStart(2, '0')}
-            </motion.i>
+            <i>{String(absoluteIndex + 1).padStart(2, '0')}</i>
           </motion.button>
-        </motion.div>
+        </div>
       </React.Fragment>
     );
   };

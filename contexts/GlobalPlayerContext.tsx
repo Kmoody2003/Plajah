@@ -58,6 +58,10 @@ interface GlobalPlayerContextType {
   scratchBy: (deltaSeconds: number) => void;
   endScratch: () => void;
   analyser: AnalyserNode | null;
+  /** Mobile-only: open a passive captureStream tap so the analyser is actually fed (visualizers
+   *  react) without rerouting the element and losing background playback. No-op on desktop and
+   *  best-effort where captureStream is unsupported. Call it when you need reactivity (e.g. a Mix). */
+  ensureAnalyserTap: () => void;
   /** The shared, always-unlocked AudioContext. DJ mode + FX build their nodes on THIS
    *  (never a separate context) so audio can't get stuck suspended. Ensures + resumes it. */
   getAudioContext: () => AudioContext | null;
@@ -254,6 +258,10 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // visualizers sit on "Loading…" until some unrelated state change happens to rebuild the memo.
   const [analyserEpoch, setAnalyserEpoch] = useState(0);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  // Mobile-only PASSIVE analyser tap (captureStream → MediaStreamSource → analyser). Kept
+  // separate from sourceRef because it does NOT reroute the element's output, so it can coexist
+  // with native background playback. See ensureAnalyserTap.
+  const tapSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   // DJ filter carried over into the streaming path (transparent by default). Lets DJ FX keep
   // running after you exit DJ mode, and the Kill button resets it to a dry/natural sound.
   const djFilterRef = useRef<BiquadFilterNode | null>(null);
@@ -493,6 +501,39 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
     }
   }, []);
+
+  // Feed the analyser on MOBILE without breaking background playback. connectAudioSource() is a
+  // no-op on mobile — routing the element through a MediaElementSource makes the OS suspend the
+  // audio in the background — so the analyser is otherwise fed silence and every visualizer (the
+  // Mix Pixels stage, the album FX Stage) sits frozen. This is a PASSIVE tap: captureStream()
+  // mirrors the element's live output into a MediaStreamSource → analyser, WITHOUT connecting to
+  // destination, so the element keeps playing to the system output natively (background-safe).
+  // Best-effort and idempotent: unsupported (older iOS) or CORS-tainted media simply yields no tap
+  // and the visuals degrade to their previous non-reactive state — never a regression, never audio
+  // loss. Consumers should call this when they actually need reactivity (e.g. opening a Mix).
+  const ensureAnalyserTap = useCallback(() => {
+    const isMobile = /iPad|iPhone|iPod|Android/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (!isMobile) return;                       // desktop is already fed via connectAudioSource
+    if (sourceRef.current || tapSourceRef.current) return; // already routed/tapped
+    initAudioContext();
+    const ctx = audioContextRef.current;
+    const analyser = analyserRef.current;
+    const audio = audioRef.current;
+    if (!ctx || !analyser || !audio) return;
+    const capture: (() => MediaStream) | undefined =
+      (audio as any).captureStream || (audio as any).mozCaptureStream;
+    if (!capture) return;                        // captureStream unsupported → leave as-is
+    try {
+      const stream = capture.call(audio) as MediaStream;
+      if (!stream || stream.getAudioTracks().length === 0) return; // no audio track (e.g. tainted)
+      const src = ctx.createMediaStreamSource(stream);
+      src.connect(analyser);                     // tap → analyser ONLY; never → destination
+      tapSourceRef.current = src;
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    } catch (e) {
+      console.warn('[Plajah Audio] analyser tap unavailable:', e);
+    }
+  }, [initAudioContext]);
 
   // Global click listener to resume AudioContext (critical for mobile browsers)
   useEffect(() => {
@@ -1826,7 +1867,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
     isShuffle, setIsShuffle, nextTrackId, autoRadio, setAutoRadio, upNext,
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev, beginScratch, scratchBy, endScratch,
-    analyser: analyserRef.current, getAudioContext, setDjFilter, resetAudioFx, isFxActive, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
+    analyser: analyserRef.current, ensureAnalyserTap, getAudioContext, setDjFilter, resetAudioFx, isFxActive, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme, isBigScreen: theme === 'BIG_SCREEN',
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, transportForced, setTransportForced, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,
@@ -1837,7 +1878,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
     isShuffle, setIsShuffle, nextTrackId, autoRadio, setAutoRadio, upNext,
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev, beginScratch, scratchBy, endScratch,
-    getAudioContext, setDjFilter, resetAudioFx, isFxActive, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
+    ensureAnalyserTap, getAudioContext, setDjFilter, resetAudioFx, isFxActive, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme,
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, transportForced, setTransportForced, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,

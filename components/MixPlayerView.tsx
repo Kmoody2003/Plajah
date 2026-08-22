@@ -61,6 +61,14 @@ const MixPlayerView: React.FC<MixPlayerViewProps> = ({ album, onBack, user, onOp
     return () => { cancelled = true; };
   }, [track?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // On mobile the shared analyser is fed silence (Web Audio is bypassed there to protect
+  // background playback), so the Pixels stage would sit frozen. Open the passive captureStream
+  // tap once the mix is actually playing (a user gesture has happened, the element has an audio
+  // track) so the visuals react. No-op on desktop; best-effort where captureStream is unsupported.
+  useEffect(() => {
+    if (playing) gp.ensureAnalyserTap();
+  }, [playing]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── generator badge ──
   const [gen, setGen] = useState<MixPixelsInfo | null>(null);
   const onGen = useCallback((info: MixPixelsInfo) => setGen(info), []);
