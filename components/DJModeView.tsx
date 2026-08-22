@@ -534,6 +534,9 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recChunksRef = useRef<Blob[]>([]);
   const recDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  // Object URLs minted for imported tracks / sample pads — revoked on unmount so they don't leak.
+  const objectUrlsRef = useRef<string[]>([]);
+  const mkObjectUrl = (blob: Blob) => { const u = URL.createObjectURL(blob); objectUrlsRef.current.push(u); return u; };
 
   // ─── Audio init ─────────────────────────────────────────────────────────────
 
@@ -1055,9 +1058,10 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
     const ab = await file.arrayBuffer();
     const buf = await ctx.decodeAudioData(ab);
     const setState = SET[deckId];
+    const sUrl = mkObjectUrl(file);
     setState(prev => {
       const samples = [...prev.samples];
-      samples[padIdx] = { ...samples[padIdx], title: file.name.replace(/\.[^.]+$/, ''), buffer: buf, url: URL.createObjectURL(file) };
+      samples[padIdx] = { ...samples[padIdx], title: file.name.replace(/\.[^.]+$/, ''), buffer: buf, url: sUrl };
       return { ...prev, samples };
     });
   };
@@ -1100,7 +1104,7 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
       id: `local-${Date.now()}`,
       title: file.name.replace(/\.[^.]+$/, ''),
       artist: 'Local File',
-      url: URL.createObjectURL(file),
+      url: mkObjectUrl(file),
     };
     if (deckId) {
       loadTrack(track, deckId);
@@ -1151,6 +1155,9 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
       // Stopping a live recorder fires its onstop → finalize → posts the captured set.
       try { if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop(); } catch { /* */ }
       try { masterGainRef.current?.disconnect(); } catch { /* */ }
+      // Revoke object URLs minted this session (imported tracks / sample pads) — no blob leak.
+      for (const u of objectUrlsRef.current) { try { URL.revokeObjectURL(u); } catch { /* */ } }
+      objectUrlsRef.current = [];
     };
   }, []);
 
