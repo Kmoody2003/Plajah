@@ -39,6 +39,11 @@ const P = {
   M_ENABLE: 1000, M_PARTIALS: 1001, M_INHARM: 1002, M_SPREAD: 1003,
   M_DECAY: 1004, M_DECAY_TILT: 1005, M_MATERIAL: 1006, M_POSITION: 1007, M_KEYTRACK: 1008,
   X_TYPE: 1100, X_PRESSURE: 1101, X_GRAIN: 1102, X_TONE: 1103, X_VEL_TILT: 1104,
+  M_SWELL: 1012, M_MORPH: 1013, M_MORPH_TIME: 1014, M_MODE: 1015,
+  M_FORMANT: 1016, M_FORMANT_SHIFT: 1017, M_BLOOM: 1018,
+  M_SPOTLIGHT: 1019, M_SPOTLIGHT_POS: 1020, M_SPOTLIGHT_WIDTH: 1021,
+  M_VIBRATO: 1022, M_VIBRATO_RATE: 1023,
+  X_PULSE: 1105, X_PULSE_RATE: 1106,
   V_SIZE: 1200, V_DECAY: 1201, V_DIFFUSION: 1202, V_SHIMMER: 1203,
   V_SHIMMER_IVL: 1204, V_BLUR: 1205, V_FREEZE: 1206, V_MIX: 1207,
 
@@ -96,7 +101,7 @@ function magAt(sig, freq, sr) {
 
 test('ABI version matches the host contract', async () => {
   const { x } = await boot();
-  assert.equal(x.pa_abi_version(), 8);
+  assert.equal(x.pa_abi_version(), 9);
 });
 
 /** Stage a mono sample into the upload buffer and load it into a slot. Returns the frame count. */
@@ -827,4 +832,203 @@ test('BAJO defaults leave every other instrument bit-identical', async () => {
   for (let i = 0; i < a.length; i++) maxDiff = Math.max(maxDiff, Math.abs(a[i] - b[i]));
   assert.equal(maxDiff, 0, 'renders are deterministic');
   assert.ok(rmsOf(a) > 0.05, 'and the plain ONDA voice still sounds');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CANTUS — the overtone spotlight and the waver.
+//
+// These are the monastic register's whole foundation, so they get measured rather than trusted.
+// The property that matters is not "one partial is louder" — it is that the emphasis stays on
+// the same HARMONIC NUMBER as the pitch moves. A filter cannot do that, and getting it wrong
+// would leave the effect sounding like a resonant sweep instead of a second voice.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** A sustained, near-harmonic voice — the bank CANTUS sings with. */
+function cantusPatch({ x, eng }, over = {}) {
+  const set = (id, v) => x.pa_set_param(eng, id, v);
+  set(P.M_ENABLE, 1);
+  set(P.M_PARTIALS, 1.0);       // 64, so there are high harmonics to isolate
+  set(P.M_INHARM, 0.0);         // exactly harmonic: overtone singing needs a real series
+  set(P.M_SPREAD, 0.0);
+  // Every other modulator OFF. Anima, Beat and Bloom all move partial amplitudes over time,
+  // and a three-second DFT reads amplitude modulation as energy leaving the carrier — with the
+  // defaults running they knocked an order of magnitude off the measurement and made a working
+  // spotlight look broken. They have their own tests; this one is about the spotlight.
+  set(P.M_ANIMA, 0.0);
+  set(P.M_BEAT, 0.0);
+  set(P.M_BLOOM, 0.0);
+  set(P.M_SWELL, 0.0);
+  set(P.M_MORPH, 0.5);          // static
+  set(P.M_DECAY, 0.55);
+  set(P.M_DECAY_TILT, 0.45);
+  set(P.M_MATERIAL, 5);         // Air — the fastest roll-off, i.e. the hardest case
+  set(P.M_POSITION, 0.5);
+  set(P.M_KEYTRACK, 0.3);
+  set(P.M_MODE, 1);             // Sustained
+  set(P.M_FORMANT, 0.0);        // off, so only the spotlight is under test
+  set(P.M_SPOTLIGHT, 0);
+  set(P.M_SPOTLIGHT_POS, 0.22);
+  set(P.M_SPOTLIGHT_WIDTH, 0.05);
+  set(P.M_VIBRATO, 0);
+  set(P.X_TYPE, 0);
+  set(P.X_PRESSURE, 0.55);
+  set(P.V_MIX, 0.0);            // dry: reverb would smear the harmonic being measured
+  set(P.MASTER_GAIN, 0.6);
+  for (const [k, v] of Object.entries(over)) set(P[k], v);
+}
+
+/**
+ * Magnitude of each harmonic of `f0`, searching a small neighbourhood around each.
+ *
+ * The naive DFT in `magAt` is razor-sharp: over a three-second window its resolution is about
+ * a third of a hertz, so measuring harmonic 17 at exactly 17*f0 misses the real partial by a
+ * couple of bins and reads near-zero. Partials are never exactly harmonic — inharmonicity,
+ * spread and vibrato all move them — so the measurement has to look for the peak rather than
+ * assume where it is. Measuring the fundamental this way and the upper partials the naive way
+ * is what made the spotlight appear not to work.
+ */
+function harmonicProfile(sig, f0, count, sr) {
+  const out = [];
+  for (let h = 1; h <= count; h++) {
+    const centre = f0 * h;
+    let best = 0;
+    for (let c = -3; c <= 3; c++) {
+      best = Math.max(best, magAt(sig, centre * (1 + c * 0.0015), sr));
+    }
+    out.push(best);
+  }
+  return out;
+}
+
+const NOTE_C3 = 48, F_C3 = 130.813;
+const NOTE_G3 = 55, F_G3 = 195.998;
+
+test('CANTUS: the spotlight lifts one harmonic to near the fundamental', async () => {
+  const plainCtx = await boot();
+  cantusPatch(plainCtx, { M_SPOTLIGHT: 0 });
+  plainCtx.x.pa_note_on(plainCtx.eng, NOTE_C3, 1.0, 1, 0);
+  renderMono(plainCtx, SR * 2);
+  const plain = harmonicProfile(renderMono(plainCtx, SR * 3), F_C3, 20, SR);
+
+  const spotCtx = await boot();
+  cantusPatch(spotCtx, { M_SPOTLIGHT: 0.95 });
+  spotCtx.x.pa_note_on(spotCtx.eng, NOTE_C3, 1.0, 1, 0);
+  renderMono(spotCtx, SR * 2);
+  const spot = harmonicProfile(renderMono(spotCtx, SR * 3), F_C3, 20, SR);
+
+  // Position 0.22 over 64 partials targets index 3 + 0.22*58 ≈ 15.8, i.e. harmonic ~17.
+  const targetIdx = spot.indexOf(Math.max(...spot.slice(6)));
+  assert.ok(targetIdx >= 8, `the emphasis must land high in the series (harmonic ${targetIdx + 1})`);
+
+  const lifted = spot[targetIdx];
+  const natural = plain[targetIdx];
+  assert.ok(
+    lifted > natural * 20,
+    `the spotlight must transform that harmonic (${natural.toExponential(2)} -> ${lifted.toExponential(2)})`,
+  );
+  // The whole effect depends on reaching roughly the drone's own loudness. A fixed multiplier
+  // cannot get there: amplitude rolls off as k^-exponent, so at Air's 1.8 the target sits three
+  // orders of magnitude down and a 3x boost leaves the control apparently dead.
+  assert.ok(
+    lifted > spot[0] * 0.35,
+    `and reach the fundamental's register (${lifted.toExponential(2)} vs ${spot[0].toExponential(2)})`,
+  );
+});
+
+test('CANTUS: the emphasis stays on the same HARMONIC as the pitch moves', async () => {
+  // This is the entire reason it is done by partial index rather than by frequency. A filter
+  // emphasises a band; the harmonic it was isolating slides straight out of that band the
+  // moment the singer changes note, and the effect collapses into a resonant sweep.
+  const peakHarmonic = async (note, f0) => {
+    const ctx = await boot();
+    cantusPatch(ctx, { M_SPOTLIGHT: 0.95 });
+    ctx.x.pa_note_on(ctx.eng, note, 1.0, 1, 0);
+    renderMono(ctx, SR * 2);
+    const prof = harmonicProfile(renderMono(ctx, SR * 3), f0, 24, SR);
+    // Ignore the first six: the fundamental region is dominated by the drone itself.
+    const tail = prof.slice(6);
+    return tail.indexOf(Math.max(...tail)) + 7;
+  };
+
+  const atC3 = await peakHarmonic(NOTE_C3, F_C3);
+  const atG3 = await peakHarmonic(NOTE_G3, F_G3);
+  assert.equal(atC3, atG3, `the spotlight must lock to a harmonic number (C3 -> ${atC3}, G3 -> ${atG3})`);
+});
+
+test('CANTUS: spotlight position selects which harmonic', async () => {
+  const peakFor = async (pos) => {
+    const ctx = await boot();
+    cantusPatch(ctx, { M_SPOTLIGHT: 0.95, M_SPOTLIGHT_POS: pos });
+    ctx.x.pa_note_on(ctx.eng, NOTE_C3, 1.0, 1, 0);
+    renderMono(ctx, SR * 2);
+    const prof = harmonicProfile(renderMono(ctx, SR * 3), F_C3, 30, SR).slice(6);
+    return prof.indexOf(Math.max(...prof)) + 7;
+  };
+  const low = await peakFor(0.10);
+  const high = await peakFor(0.40);
+  assert.ok(high > low, `moving the control must move the harmonic (${low} -> ${high})`);
+});
+
+test('CANTUS: a narrow spotlight isolates, a wide one does not', async () => {
+  const ratioFor = async (width) => {
+    const ctx = await boot();
+    cantusPatch(ctx, { M_SPOTLIGHT: 0.95, M_SPOTLIGHT_WIDTH: width });
+    ctx.x.pa_note_on(ctx.eng, NOTE_C3, 1.0, 1, 0);
+    renderMono(ctx, SR * 2);
+    const prof = harmonicProfile(renderMono(ctx, SR * 3), F_C3, 30, SR);
+    const tail = prof.slice(6);
+    const idx = tail.indexOf(Math.max(...tail)) + 6;
+    const neighbours = (prof[idx - 1] + prof[idx + 1]) / 2;
+    return prof[idx] / Math.max(neighbours, 1e-12);
+  };
+  const narrow = await ratioFor(0.03);
+  const wide = await ratioFor(0.9);
+  assert.ok(narrow > wide * 2, `narrow must isolate far more sharply (${narrow.toFixed(1)} vs ${wide.toFixed(1)})`);
+});
+
+test('CANTUS: the waver actually moves the pitch, and eases in', async () => {
+  // Vibrato smears energy away from a fixed analysis bin. If the pitch were static the
+  // measurement would be unchanged.
+  const fixedBin = async (depth) => {
+    const ctx = await boot();
+    cantusPatch(ctx, { M_VIBRATO: depth, M_VIBRATO_RATE: 0.4 });
+    ctx.x.pa_note_on(ctx.eng, NOTE_C3, 1.0, 1, 0);
+    renderMono(ctx, SR * 2);
+    return magAt(renderMono(ctx, SR * 3), F_C3, SR);
+  };
+  const still = await fixedBin(0);
+  const wavering = await fixedBin(0.6);
+  assert.ok(
+    wavering < still * 0.75,
+    `the waver must move the pitch (fixed-bin energy ${still.toExponential(2)} -> ${wavering.toExponential(2)})`,
+  );
+
+  // And it arrives rather than starting at full depth — vibrato from the first instant is
+  // mechanical; a singer eases into it.
+  const ctx = await boot();
+  cantusPatch(ctx, { M_VIBRATO: 0.8, M_VIBRATO_RATE: 0.4 });
+  ctx.x.pa_note_on(ctx.eng, NOTE_C3, 1.0, 1, 0);
+  const firstHalfSecond = magAt(renderMono(ctx, SR * 0.5), F_C3, SR);
+  renderMono(ctx, SR * 2);
+  const later = magAt(renderMono(ctx, SR * 1), F_C3, SR);
+  assert.ok(later < firstHalfSecond, 'the waver should be shallower at the very start than later');
+});
+
+test('CANTUS: a sung bank sustains where a struck one decays', async () => {
+  const tailRatio = async (mode) => {
+    const ctx = await boot();
+    // X_TYPE 2 (strike) for the struck case. Comparing bank modes while BOTH are bowed proves
+    // nothing: a bow sustains either way, and the resonator path actually grows under one.
+    cantusPatch(ctx, { M_MODE: mode, X_TYPE: mode === 0 ? 2 : 0 });
+    ctx.x.pa_note_on(ctx.eng, NOTE_C3, 1.0, 1, 0);
+    renderMono(ctx, SR * 1);
+    const mid = renderMono(ctx, SR * 2);
+    const late = renderMono(ctx, SR * 2);
+    const rms = (s) => Math.sqrt(s.reduce((a, v) => a + v * v, 0) / s.length);
+    return rms(late) / Math.max(rms(mid), 1e-9);
+  };
+  const sung = await tailRatio(1);
+  const struck = await tailRatio(0);
+  assert.ok(sung > 0.7, `a driven bank must hold its level (${sung.toFixed(2)})`);
+  assert.ok(sung > struck * 1.3, `and hold it better than a struck one (${sung.toFixed(2)} vs ${struck.toFixed(2)})`);
 });

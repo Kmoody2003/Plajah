@@ -10,7 +10,10 @@
 import { Instrument, SpatialLayout } from '../../melos/beats/engine/InstrumentHost';
 import { StillnessDriverSampler } from '../../../components/plajahPixels/engine/stillnessDrivers';
 import { createSession, drawEphemeralSeed, type ArrivalMood, type Session, type SessionState } from './emotionalEngine';
-import { bloomNoteFor, turnGesture, velaParamsFor, velaSessionSetup } from './velaMapping';
+import { turnGesture, velaParamsFor, velaSessionSetup } from './velaMapping';
+import { createPlayer, presetForPhase, type Player } from './velaPlayer';
+import { VELA_PRESETS } from '../../melos/instruments/vela/presets';
+import { presetsFor } from '../../melos/instruments/vela/suite';
 
 export interface RunnerOptions {
   ctx: AudioContext;
@@ -43,8 +46,12 @@ export class StillnessSession {
   private startedAt = 0;
   private raf: number | null = null;
   private running = false;
-  private nextBloom = 0;
+  /** The performance. Built up front so it can be baked ahead of a live edge. */
+  private player: Player | null = null;
+  private nextEvent = 0;
   private turnFired = false;
+  /** Patch currently loaded, so the runner only re-sends when the phase actually moves it. */
+  private currentPreset = '';
   private lastParamAt = -1;
   private onFrame?: RunnerOptions['onFrame'];
   private onEnded?: RunnerOptions['onEnded'];
@@ -93,6 +100,11 @@ export class StillnessSession {
     inst.setParams(velaSessionSetup(state.depth));
     inst.setParams(velaParamsFor(state));
 
+    // The performance. Built here rather than in the constructor because it needs the same
+    // stateAt the runner will use, and building it twice would be two different performances.
+    this.player = createPlayer(this.seed, this.session.durationSec, (t) => this.session.at(t));
+    this.applyPreset(state, inst);
+
     this.inst = inst;
     this.running = true;
     this.turnFired = offsetSec >= this.session.turnAt;
@@ -100,8 +112,9 @@ export class StillnessSession {
     // whenever you tune in, and the state is a pure function of elapsed time, so there is
     // nothing to catch up.
     this.startedAt = this.ctx.currentTime - offsetSec;
-    this.nextBloom = this.session.blooms().findIndex((e) => e.t > offsetSec);
-    if (this.nextBloom < 0) this.nextBloom = this.session.blooms().length;
+    const evs = this.player.events();
+    this.nextEvent = evs.findIndex((e) => e.at > offsetSec);
+    if (this.nextEvent < 0) this.nextEvent = evs.length;
     this.tick();
   }
 
@@ -116,14 +129,22 @@ export class StillnessSession {
       this.inst.setParams(velaParamsFor(state));
     }
 
-    // Blooms, scheduled a little ahead so message latency never shows up as timing.
-    const events = this.session.blooms();
-    while (this.nextBloom < events.length && events[this.nextBloom].t <= t + LOOKAHEAD_SEC) {
-      const e = events[this.nextBloom];
-      const at = this.session.at(e.t);
-      const n = bloomNoteFor({ ...at, bloomPan: e.pan }, this.nextBloom, this.session.seed);
-      this.voice(n.note, n.velocity, n.pan, n.durationSec, e.t - t);
-      this.nextBloom++;
+    // The patch follows the arc. Changing the instrument under the harmony is most of what
+    // makes a generated session feel arranged rather than generated.
+    this.applyPreset(state, this.inst);
+
+    // Voicings, scheduled a little ahead so message latency never shows up as timing.
+    const events = this.player?.events() ?? [];
+    while (this.nextEvent < events.length && events[this.nextEvent].at <= t + LOOKAHEAD_SEC) {
+      const e = events[this.nextEvent];
+      // A chord, not a single note: every pitch in the voicing sounds together, spread across
+      // the field so the harmony has width rather than arriving from one point.
+      const spread = e.voicing.notes.length > 1 ? 1 / (e.voicing.notes.length - 1) : 0;
+      e.voicing.notes.forEach((note, i) => {
+        const pan = Math.max(-1, Math.min(1, e.voicing.pan + (i * spread - 0.5) * 0.7));
+        this.voice(note, e.voicing.velocity, pan, e.voicing.holdSec, e.at - t);
+      });
+      this.nextEvent++;
     }
 
     // The Turn: one gesture, and the only real transient in the session.
@@ -142,6 +163,29 @@ export class StillnessSession {
     }
     this.raf = requestAnimationFrame(this.tick);
   };
+
+  /**
+   * Load the patch the current phase calls for.
+   *
+   * Sends only on a change. The Turn is the one moment that switches to a struck body, and it
+   * is also the only patch change in the session the listener is meant to notice.
+   */
+  private applyPreset(state: SessionState, inst: Instrument | null): void {
+    if (!inst) return;
+    const { presetId } = presetForPhase(state);
+    if (presetId === this.currentPreset) return;
+    this.currentPreset = presetId;
+    const preset =
+      VELA_PRESETS.find((p) => p.id === presetId) ??
+      (['cantus', 'ison', 'pneuma'] as const)
+        .flatMap((k) => presetsFor(k))
+        .find((p) => p.id === presetId);
+    if (!preset) return;
+    inst.setParams(Object.entries(preset.params).map(([id, v]) => [Number(id), v] as [number, number]));
+    // Re-apply the session's own continuous parameters on top, so a preset change never
+    // overwrites where the arc currently is.
+    inst.setParams(velaParamsFor(state));
+  }
 
   /** Voice one note, `delaySec` from now, releasing after `durationSec`. */
   private voice(note: number, velocity: number, pan: number, durationSec: number, delaySec: number): void {

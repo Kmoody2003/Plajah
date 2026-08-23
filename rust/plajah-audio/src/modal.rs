@@ -102,6 +102,29 @@ fn formant_gain(freq: f32, shift: f32, amount: f32) -> f32 {
     1.0 - amount + amount * shaped
 }
 
+/// Narrow emphasis on ONE partial, movable across the series.
+///
+/// This is overtone singing. A Tuvan or Mongolian throat singer is not producing a second note
+/// — they are holding a drone and reshaping the mouth so that a single harmonic of that drone
+/// is amplified far above its neighbours, and the ear then hears it as a separate whistling
+/// voice floating over the fundamental. Byzantine and Tibetan chant use the same physics more
+/// gently.
+///
+/// A filter cannot do this convincingly, because a filter emphasises a FREQUENCY BAND and the
+/// partial it is meant to isolate drifts out of that band as soon as the singer changes note.
+/// Emphasising by partial INDEX is what keeps the whistle locked to the harmonic series while
+/// the pitch moves — and in an additive bank it is another amplitude weighting, so it is free.
+#[inline]
+fn spotlight_shape(index: usize, count: usize, pos: f32, width: f32) -> f32 {
+    // Position runs over the useful part of the series. Below the fourth partial there is
+    // nothing to isolate that the fundamental does not already dominate.
+    let target = 3.0 + pos.clamp(0.0, 1.0) * (count.max(6) as f32 - 6.0);
+    let d = (index as f32 - target) / (0.6 + width * 5.0);
+    // Quartic: a flatter top and steeper skirts than a bell curve, which is what makes it read
+    // as one isolated harmonic rather than as a broad brightness.
+    1.0 / (1.0 + d * d * d * d)
+}
+
 /// Damping presets. Each supplies a decay tilt bias, an amplitude roll-off exponent and an
 /// inharmonicity scale, so one control moves several partial parameters together the way a
 /// real change of material does.
@@ -273,6 +296,15 @@ pub struct ModalSpec {
     /// and choirs brighten as they are held; a bank whose partials all arrive together sounds
     /// like an organ stop.
     pub bloom: f32,
+    /// 0..1 overtone emphasis depth.
+    pub spotlight: f32,
+    /// 0..1 which partial is emphasised.
+    pub spotlight_pos: f32,
+    /// 0..1 how many neighbours come with it. Narrow is a whistle, wide is a vowel.
+    pub spotlight_width: f32,
+    /// Pitch vibrato depth in semitones, applied to the whole bank.
+    pub vibrato: f32,
+    pub vibrato_rate: f32,
 }
 
 pub struct ModalBank {
@@ -315,6 +347,7 @@ pub struct ModalBank {
     sr: f32,
     note_samples: usize,
     retune_ctl: usize,
+    vib_phase: f32,
 }
 
 impl ModalBank {
@@ -356,10 +389,13 @@ impl ModalBank {
                 material: Material::Bronze, anima: 0.0, beat: 0.0, beat_rate: 1.0,
                 position: 0.28, keytrack: 0.4, morph: 0.0, morph_time: 8.0,
                 mode: BankMode::Struck, formant: 0.0, formant_shift: 0.5, bloom: 0.4,
+                spotlight: 0.0, spotlight_pos: 0.4, spotlight_width: 0.25,
+                vibrato: 0.0, vibrato_rate: 5.0,
             },
             sr: 48000.0,
             note_samples: 0,
             retune_ctl: 0,
+            vib_phase: 0.0,
         }
     }
 
@@ -406,6 +442,23 @@ impl ModalBank {
         // The morph moves the three parameters that change what the body IS, rather than how
         // loud it is: how far the partials are stretched, how the decay leans, and where it is
         // being excited. Together those take a bowl to a gong and back.
+        // Vibrato rides the retune, which is why it is here rather than in the voice: the bank
+        // is already being re-derived every ~10 ms, so moving the fundamental costs nothing
+        // extra. It also means vibrato and morph interact the way they would on a real
+        // instrument, rather than being two independent effects stacked on one another.
+        let vib = if base.vibrato > 0.0005 {
+            // Fades in over the first second and a half. Vibrato from the very first instant
+            // sounds mechanical; a singer arrives at it.
+            let age = self.note_samples as f32 / sr;
+            let onset = (age / 1.5).min(1.0);
+            (2.0f32).powf(
+                base.vibrato * onset
+                    * (core::f32::consts::TAU * self.vib_phase).sin()
+                    / 12.0,
+            )
+        } else {
+            1.0
+        };
         let m = base.morph * progress;
         let sp = ModalSpec {
             inharm: (base.inharm + m * 0.42).clamp(0.0, 1.0),
@@ -429,6 +482,10 @@ impl ModalBank {
         self.anima = s.anima.clamp(0.0, 1.0);
         self.beat = s.beat.clamp(0.0, 1.0);
 
+        // The fundamental's natural amplitude, so the spotlight has something to aim at.
+        let node0 = (core::f32::consts::PI * s.position.clamp(0.01, 0.99)).sin().abs();
+        let amp0 = (0.35 + 0.65 * node0) * (0.55 + 0.45 * (self.jitter[0] * 0.5 + 0.5));
+
         for k in 0..count {
             let kn = k as f32 + 1.0;
 
@@ -436,7 +493,7 @@ impl ModalBank {
             // which is exactly what the Inharmonicity control is.
             let ratio = kn * (1.0 + b * kn * kn * 0.01).sqrt();
             let detune = 1.0 + self.jitter[k] * s.spread * 0.04;
-            let freq = s.f0 * ratio * detune;
+            let freq = s.f0 * vib * ratio * detune;
 
             // Amplitude: roll off with partial index, plus the excitation-point null. A partial
             // whose node falls exactly where the body was struck cannot be excited at all —
@@ -464,6 +521,23 @@ impl ModalBank {
             // Formants shape the amplitudes in BOTH modes — a struck body with a throat is
             // exactly as useful as a sung one.
             let amp = amp * formant_gain(freq, s.formant_shift, s.formant);
+
+            // The spotlight lifts its partial toward the FUNDAMENTAL'S level rather than
+            // multiplying by a fixed factor.
+            //
+            // A fixed multiplier cannot work: amplitude rolls off as k^-exponent, and at Air's
+            // 1.8 the twenty-ninth partial sits at 0.003 of the fundamental — a 3x boost leaves
+            // it three hundred times too quiet to hear, so the control appeared to do nothing.
+            // A throat singer's vocal tract resonance brings the chosen harmonic up to roughly
+            // the loudness of the drone itself, which is exactly why the ear splits it off into
+            // a second voice.
+            let amp = if s.spotlight > 0.001 {
+                let shape = spotlight_shape(k, count, s.spotlight_pos, s.spotlight_width);
+                let lifted = amp * (1.0 - shape) + shape * amp0 * 1.15;
+                amp * (1.0 - s.spotlight) + lifted * s.spotlight
+            } else {
+                amp
+            };
 
             self.res[k].tune(freq, decay, amp, sr);
 
@@ -566,7 +640,13 @@ impl ModalBank {
     pub fn process(&mut self, x: f32) -> f32 {
         // Age the note and re-derive the body as it goes.
         self.note_samples += 1;
-        if self.spec.morph.abs() > 0.001 {
+        if self.spec.vibrato > 0.0005 {
+            self.vib_phase += self.spec.vibrato_rate / self.sr;
+            if self.vib_phase >= 1.0 {
+                self.vib_phase -= 1.0;
+            }
+        }
+        if self.spec.morph.abs() > 0.001 || self.spec.vibrato > 0.0005 {
             self.retune_ctl += 1;
             if self.retune_ctl >= RETUNE {
                 self.retune_ctl = 0;
