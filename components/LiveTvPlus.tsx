@@ -20,6 +20,7 @@ import AdBreakBumper from './tv/AdBreakBumper';
 import ComingUpNextBumper, { type UpNextItem } from './tv/ComingUpNextBumper';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import { isShellFocused, setShellFocus } from '../hooks/useTvShellFocus';
+import { PLAJAH_CHANNELS, UNNUMBERED, guideSortKey, plajahNumber } from '../services/fast/channelNumbers';
 
 export interface TvChannel {
   id: string;
@@ -38,6 +39,7 @@ export interface TvChannel {
   isLive?: boolean;      // true = a live stream is on air right now (vs. scheduled programming)
   feed?: any;            // original LiveFeed for the webrtc viewer handoff
   startOffset?: number;  // FAST: seconds to seek into the current programme (terrestrial mid-join)
+  plajahId?: string;     // first-party channel in the reserved band — no owner account behind it
 }
 
 const BRAND = '#FF8C00';
@@ -343,19 +345,40 @@ const LiveTvPlus: React.FC<{
       });
     });
 
-    // Assign major numbers: honor bound numbers; give the rest the smallest free positive integer.
+    // Numbers are HONOURED, never invented.
+    //
+    // This used to hand every unbound account "the smallest free positive integer", computed
+    // over whoever happened to be on air. That is a row index, not an address: it moved every
+    // time another account went live or went dark. An account with no claimed number now shows
+    // as unnumbered until one is allocated and persisted (claimChannelNumber), because a
+    // missing number is honest and a moving one is not.
     const list = [...owners.values()];
-    const used = new Set<number>(list.filter(o => o.bound != null).map(o => o.bound!));
-    let free = 1;
-    const nextFree = () => { while (used.has(free)) free++; used.add(free); return free; };
-    list.sort((a, b) => (a.bound ?? 1e9) - (b.bound ?? 1e9) || a.name.localeCompare(b.name));
+    list.sort((a, b) => (a.bound ?? Number.MAX_SAFE_INTEGER) - (b.bound ?? Number.MAX_SAFE_INTEGER) || a.name.localeCompare(b.name));
     const out: TvChannel[] = [];
     list.forEach(o => {
-      const major = o.bound ?? nextFree();
       o.subs.forEach((s, j) => {
         // Single-source account → plain "N"; multi-source → "N.1", "N.2".
-        const number = o.subs.length > 1 ? `${major}.${j + 1}` : `${major}`;
+        const number = o.bound == null
+          ? UNNUMBERED
+          : o.subs.length > 1 ? `${o.bound}.${j + 1}` : `${o.bound}`;
         out.push({ ...s, number, name: o.subs.length > 1 ? `${o.name} · ${s.badge === 'FAST' ? 'FAST' : s.name}` : o.name });
+      });
+    });
+
+    // Plajah's own channels, in the reserved band. Always sub-numbered, so the day a second one
+    // arrives the first keeps its address.
+    PLAJAH_CHANNELS.forEach(pc => {
+      out.push({
+        id: `plajah_${pc.id}`,
+        number: plajahNumber(pc),
+        name: pc.name,
+        sub: pc.tagline,
+        accent: BRAND,
+        badge: 'FAST',
+        kind: 'fast',
+        playUrl: '',
+        now: pc.onAir ? pc.tagline : 'Not yet on air',
+        plajahId: pc.id,
       });
     });
 
@@ -367,6 +390,9 @@ const LiveTvPlus: React.FC<{
         kind: s.isEmbeddable ? 'embed' : 'external', playUrl: s.embedUrl, directUrl: s.directUrl, now: s.title,
       });
     });
+    // One sort at the end, by the number itself, so the guide reads in channel order and
+    // unnumbered entries collect at the bottom instead of pushing everyone else around.
+    out.sort((a, b) => guideSortKey(a.number) - guideSortKey(b.number));
     return out;
   }, [feeds, fastChannels]);
 

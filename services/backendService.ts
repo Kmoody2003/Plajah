@@ -85,6 +85,7 @@ export const saveBibleNote = async (uid: string, ref: string, text: string): Pro
     else await deleteDoc(doc(db, 'bibleNotes', id)).catch(() => {});
   } catch (e) { console.warn('[backendService] saveBibleNote failed:', (e as Error)?.message); }
 };
+import { nextUserMajor } from './fast/channelNumbers';
 import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannel, ChannelSource, ChannelSourceSet, SavedFeed, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest, PodcastRssSettings, ImportedRssEpisode, AccountType, NotifyLevel } from '../types';
 import { accountFlagUpdate } from './accountCapabilities';
 // Creator Passport provenance (blueprint 1C.5) — attribution record, not crypto proof.
@@ -8027,6 +8028,62 @@ export const fetchFastChannelMeta = async (uid: string): Promise<FastChannel | n
   }
 };
 
+/**
+ * Claim a permanent guide number for an account.
+ *
+ * The number is an address, so it has to be allocated once and then never move. A single
+ * registry document holds every number that has ever been handed out; the transaction reads it,
+ * takes the lowest free non-reserved major, and writes both the registry entry and the channel
+ * doc together. Two accounts claiming at the same instant serialise on the registry, which is
+ * the whole reason this is a transaction and not a query over existing channels — a query would
+ * let both see the same gap and both take it.
+ *
+ * Idempotent: an account that already has a number gets it back untouched.
+ */
+export const claimChannelNumber = async (uid: string): Promise<number | null> => {
+  const registryRef = doc(db, 'fast_channel_numbers', 'registry');
+  const channelRef = doc(db, 'fast_channels', uid);
+  try {
+    return await runTransaction(db, async (tx) => {
+      const [regSnap, chSnap] = await Promise.all([tx.get(registryRef), tx.get(channelRef)]);
+
+      // Already numbered — including from a previous claim that raced this one.
+      const existing = chSnap.exists() ? (chSnap.data() as FastChannel).number : undefined;
+      if (typeof existing === 'number') return existing;
+
+      // byOwner is the source of truth. It keeps retired numbers claimed, so a channel that goes
+      // dark for a year does not come back to find someone else at its address.
+      const byOwner: Record<string, number> = regSnap.exists() ? (regSnap.data() as any).byOwner || {} : {};
+      const mine = byOwner[uid];
+      if (typeof mine === 'number') {
+        tx.set(channelRef, { number: mine, updatedAt: Date.now() }, { merge: true });
+        return mine;
+      }
+
+      const next = nextUserMajor(Object.values(byOwner));
+      tx.set(registryRef, { byOwner: { ...byOwner, [uid]: next }, updatedAt: Date.now() }, { merge: true });
+      tx.set(channelRef, { number: next, updatedAt: Date.now() }, { merge: true });
+      return next;
+    });
+  } catch (e) {
+    // A channel with no number shows as unnumbered rather than borrowing a neighbour's — see
+    // UNNUMBERED in services/fast/channelNumbers.ts.
+    handleFirestoreError(e, OperationType.WRITE, 'fast_channel_numbers/registry');
+    return null;
+  }
+};
+
+/** Every number handed out, for the guide to honour while its owner is off air. */
+export const fetchChannelNumberRegistry = async (): Promise<Record<string, number>> => {
+  try {
+    const snap = await getDoc(doc(db, 'fast_channel_numbers', 'registry'));
+    return snap.exists() ? ((snap.data() as any).byOwner as Record<string, number>) || {} : {};
+  } catch (e) {
+    handleFirestoreError(e, OperationType.GET, 'fast_channel_numbers/registry');
+    return {};
+  }
+};
+
 export const saveFastChannelMeta = async (channel: Partial<FastChannel> & { ownerId: string }): Promise<void> => {
   try {
     const now = Date.now();
@@ -8046,6 +8103,10 @@ export const saveFastChannelMeta = async (channel: Partial<FastChannel> & { owne
       updatedAt: now,
     };
     await setDoc(doc(db, 'fast_channels', channel.ownerId), removeUndefined(merged) as any);
+    // Claim an address the first time a channel is saved. Doing it here rather than at first
+    // VIEW matters: a number allocated when someone tunes in would depend on who else had tuned
+    // in first, which is the behaviour this replaces.
+    if (typeof merged.number !== 'number') await claimChannelNumber(channel.ownerId);
   } catch (e) {
     handleFirestoreError(e, OperationType.WRITE, `fast_channels/${channel.ownerId}`);
     throw e;

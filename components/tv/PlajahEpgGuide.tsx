@@ -6,6 +6,7 @@ import { activeDaySlots, dayAnchoredPosition, linearPositionMidnight, slotDurati
 import { exactDurationSec } from '../../services/mediaTimebase';
 import { now as clockNow } from '../../services/platformClock';
 import { SCIENCE_STREAMS } from '../scienceStreams';
+import { PLAJAH_CHANNELS, UNNUMBERED, guideSortKey, plajahNumber } from '../../services/fast/channelNumbers';
 
 /**
  * PlajahEpgGuide — a full traditional cable-TV programme guide, in the Plajah aesthetic. Channels run
@@ -34,6 +35,8 @@ interface GuideChannel {
   feed?: any;
   sciDesc?: string;
   sciSource?: string;
+  /** First-party channel in the reserved band — no owner account behind it. */
+  plajahId?: string;
 }
 interface Program { title: string; startMs: number; endMs: number; isNow: boolean; videoId?: string; thumbnail?: string; kind: string; }
 
@@ -60,16 +63,24 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune }) => {
   const channels = useMemo<GuideChannel[]>(() => {
     const out: GuideChannel[] = [];
     fastChannels.forEach(fc => out.push({
-      id: `fast_${fc.ownerId}`, number: fc.number != null ? String(fc.number) : '—', name: fc.name || 'Channel',
+      id: `fast_${fc.ownerId}`, number: fc.number != null ? String(fc.number) : UNNUMBERED, name: fc.name || 'Channel',
       logo: fc.logoUrl, accent: ORANGE, kind: 'fast', ownerId: fc.ownerId,
     }));
     (feeds || []).filter(f => (f as any).status !== 'ENDED' && (f as any).status !== 'OFFLINE').forEach(f => {
       out.push({ id: `live_${f.id}`, number: (f as any).channelNumber != null ? String((f as any).channelNumber) : '•', name: (f as any).ownerName || f.title || 'Live', logo: (f as any).ownerPhoto, accent: MAGENTA, kind: 'live', feed: f });
     });
+    // Plajah's own channels, in the reserved band. They carry no owner account, so they are
+    // added here rather than coming out of `fastChannels`.
+    PLAJAH_CHANNELS.forEach(pc => out.push({
+      id: `plajah_${pc.id}`, number: plajahNumber(pc), name: pc.name,
+      logo: undefined, accent: ORANGE, kind: 'fast', plajahId: pc.id,
+    }));
     SCIENCE_STREAMS.filter(s => s.isLive).slice(0, 8).forEach((s, i) => out.push({
       id: `sci_${s.id}`, number: `90${i + 1}`, name: s.title, logo: undefined, accent: s.accent || PURPLE, kind: 'science', sciDesc: s.description, sciSource: s.source, feed: { id: s.id, title: s.title, url: s.embedUrl, ownerName: s.source },
     }));
-    return out.sort((a, b) => (parseFloat(a.number) || 9999) - (parseFloat(b.number) || 9999) || a.name.localeCompare(b.name));
+    // guideSortKey rather than parseFloat: "1.10" must sort after "1.2", and parseFloat reads
+    // those as 1.1 and 1.2 and puts them the wrong way round.
+    return out.sort((a, b) => guideSortKey(a.number) - guideSortKey(b.number) || a.name.localeCompare(b.name));
   }, [fastChannels, feeds]);
 
   // ── Per-channel programme rows (FAST schedules fetched + cached lazily) ──────
