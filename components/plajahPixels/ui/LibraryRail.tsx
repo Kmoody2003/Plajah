@@ -93,8 +93,26 @@ const Tile: React.FC<{ name: string; sub?: string; selected?: boolean; onClick: 
  * A generator or milkdrop preset has no self-contained render at this size (it needs the whole
  * visualiser), so it shows its name on a swatch; picking it makes the main canvas its preview.
  */
+let sharedSilentAnalyser: AnalyserNode | null = null;
+function silentAnalyser(): AnalyserNode | null {
+  if (sharedSilentAnalyser) return sharedSilentAnalyser;
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new Ctx();
+    const a = ctx.createAnalyser();
+    a.fftSize = 2048;
+    // Not connected to anything and never started — it exists only so ShaderLayer has a node to
+    // read. getByteFrequencyData returns zeros, and the work animates on iTime.
+    sharedSilentAnalyser = a;
+    return a;
+  } catch { return null; }
+}
+
 const Preview: React.FC<{ work: ShaderLibraryEntry | null; label: string | null; analyser?: AnalyserNode | null }> =
 ({ work, label, analyser }) => {
+  // Prefer live audio when it is running; otherwise fall back to the silent analyser so the
+  // preview still MOVES rather than freezing on a still.
+  const driver = analyser ?? silentAnalyser();
   const [still, setStill] = useState<string | null>(() => (work ? peekShaderThumb(work.name) : null));
   useEffect(() => {
     setStill(work ? peekShaderThumb(work.name) : null);
@@ -107,8 +125,8 @@ const Preview: React.FC<{ work: ShaderLibraryEntry | null; label: string | null;
   return (
     <div className="px-3 pt-3 pb-2">
       <div className="relative aspect-video rounded-card overflow-hidden bg-black/60 border border-white/10">
-        {work && analyser
-          ? <ShaderLayer analyser={analyser} source={work.src} startTimeMs={0} />
+        {work && driver
+          ? <ShaderLayer analyser={driver} source={work.src} startTimeMs={0} />
           : work && still
             ? <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${still})` }} />
             : (
