@@ -6,14 +6,16 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Plus, Sparkles, AlignStartVertical, FolderOpen, FilePlus2, Trash2, Download } from 'lucide-react';
 import { auth } from '../../../services/firebase';
 import { BeatsEngine } from '../../../services/melos/beats/engine/BeatsEngine';
-import { defaultPattern, grooveUid, type GrooveDoc, type InstrumentType } from '../../../services/melos/beats/grooveDoc';
+import { defaultPattern, grooveUid, type GrooveDoc, type InstrumentType, type ArrangeTrack } from '../../../services/melos/beats/grooveDoc';
 import { useContextMenu, type MenuNode } from '../../ui/ContextMenu';
 import { autoFill, quantizePattern } from '../../../services/melos/beats/grooveTools';
 import { ingestSample, backupToLocker } from '../../../services/melos/beats/sampleStore';
 import { renderGroove, publishGroove, downloadBlob } from '../../../services/melos/beats/render';
 import { exportGrooveFile, importGrooveFile } from '../../../services/melos/beats/grooveFile';
 import { sendGrooveToFabula } from '../../../services/melos/beats/sendToFabula';
-import { subscribeMidi, ensureMidi } from '../../../services/melos/midiInput';
+import {
+  subscribeMidi, ensureMidi, noteMidiRouted, midiSendNoteOn, midiSendNoteOff,
+} from '../../../services/melos/midiInput';
 import { mapMidiEvent } from '../../../services/melos/midiMap';
 import { learnedAction } from '../../../services/melos/midiLearn';
 import { exportDawproject } from '../../../services/melos/beats/dawproject/exportDawproject';
@@ -168,6 +170,26 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   // Pixels sees). mapMidiEvent turns each event into ONE Melos action given the device and
   // whether an instrument is armed, so a Maschine's pads play drums, its knobs turn the synth's
   // macros, and — when an instrument track is armed — its pads become a playable keyboard.
+  /**
+   * Arm the first instrument track so an incoming note has somewhere to go.
+   *
+   * Returns the track synchronously as well as marking it armed, because the note that triggered
+   * this has to sound NOW — waiting for the mutation to land and a render to follow would drop
+   * the first note of every session.
+   */
+  const autoArm = useCallback((): ArrangeTrack | null => {
+    let picked: ArrangeTrack | null = null;
+    // `mutate` runs its callback synchronously against the live doc, so the track is in hand
+    // before this returns — the note that triggered it still sounds on the same event.
+    mutate((d) => {
+      const first = d.arrangement.find((t) => t.kind === 'instrument');
+      if (!first) return;
+      for (const t of d.arrangement) t.armed = t.id === first.id;
+      picked = first;
+    });
+    return picked;
+  }, [mutate]);
+
   useEffect(() => {
     ensureMidi(); // request access now so the device readout populates before you play
     return subscribeMidi((e) => {
@@ -178,6 +200,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       if (learned === 'captured') return;
       const action = learned ?? mapMidiEvent(e, !!armed);
       if (!action) return;
+      noteMidiRouted(e.note);
       switch (action.kind) {
         case 'pad':
           void engine.init().then(() => engine.trigger(action.pad, action.velocity));
@@ -186,12 +209,24 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         case 'padOff':
           engine.release(action.pad);
           break;
-        case 'note':
-          if (armed) void engine.ensureInstrument(armed).then(() => engine.instrumentNoteOn(armed, action.note, action.velocity));
+        case 'note': {
+          // Auto-route. `mapMidiEvent` deliberately returns a note for a generic keyboard so it is
+          // "never dead" — and this used to drop it on the floor whenever no track happened to be
+          // armed, which is a device that connects, lights up, and makes no sound. Arm the first
+          // instrument track instead; if a project genuinely has none, the meter says "receiving,
+          // not routed" rather than leaving you guessing.
+          const target = armed ?? autoArm();
+          if (!target) break;
+          void engine.ensureInstrument(target).then(() => engine.instrumentNoteOn(target, action.note, action.velocity));
+          midiSendNoteOn(action.note, action.velocity);
           break;
-        case 'noteOff':
-          if (armed) engine.instrumentNoteOff(armed, action.note);
+        }
+        case 'noteOff': {
+          const target = armed ?? engine.armedTrack();
+          if (target) engine.instrumentNoteOff(target, action.note);
+          midiSendNoteOff(action.note);
           break;
+        }
         case 'macro':
           // The eight knobs drive the armed instrument's macros, else the selected pad's first
           // eight parameters (so a Maschine is useful whether you're on drums or a synth).
@@ -227,7 +262,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           break;
       }
     });
-  }, [mutate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mutate, autoArm]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadSampleFile = useCallback(async (padIdx: number, file: File) => {
     const engine = BeatsEngine.get();

@@ -7,7 +7,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { X, Radio, Trash2 } from 'lucide-react';
-import { midiStatus, ensureMidi } from '../../../../services/melos/midiInput';
+import {
+  midiStatus, ensureMidi, midiOutputs, midiOutEnabled, setMidiOut, midiSendAllOff,
+} from '../../../../services/melos/midiInput';
+import { MidiActivityLight } from './MidiActivityLight';
 import { deviceLabel, deviceCapabilities } from '../../../../services/melos/midiMap';
 import { beginLearn, cancelLearn, isLearning, getBindings, clearBinding, clearAllBindings, subscribeLearn, type LearnTarget } from '../../../../services/melos/midiLearn';
 
@@ -18,6 +21,7 @@ export const MidiLearnPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =
   useEffect(() => { ensureMidi(); const un = subscribeLearn(() => force((n) => n + 1)); const t = setInterval(() => force((n) => n + 1), 1500); return () => { un(); clearInterval(t); cancelLearn(); }; }, []);
 
   const midi = midiStatus();
+  const outs = midiOutputs();
   const learning = isLearning();
   const bindings = getBindings();
   const bindingFor = (t: LearnTarget) => bindings.find((b) => sameTarget(b.target, t));
@@ -68,7 +72,11 @@ export const MidiLearnPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =
         <div className="p-5 space-y-5">
           {/* devices */}
           <section>
-            <p className="text-[9px] uppercase tracking-[0.18em] text-white/30 font-semibold mb-2">Connected</p>
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-[9px] uppercase tracking-[0.18em] text-white/30 font-semibold">Connected</p>
+              <span className="flex-1" />
+              <MidiActivityLight connected={midi.connected.length > 0} showLabel />
+            </div>
             {!midi.supported && <p className="text-[11px] text-[#F59E0B]">This browser doesn't expose WebMIDI. Use Chrome or Edge on desktop.</p>}
             {midi.supported && midi.connected.length === 0 && <p className="text-[11px] text-white/40">No devices detected. Plug in a controller — it appears here automatically.</p>}
             <div className="space-y-1.5">
@@ -76,12 +84,54 @@ export const MidiLearnPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =
                 <div key={i} className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
                   <div className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#06D6A0', boxShadow: '0 0 5px #06D6A0' }} />
-                    <span className="text-[12px] font-semibold" style={{ color: d.type === 'generic' ? '#fff' : '#06D6A0' }}>{deviceLabel(d.type)}</span>
+                    {/* Show what it actually IS. A keyboard reading "MIDI controller" tells you
+                        nothing about whether the thing you plugged in is the thing being seen. */}
+                    <span className="text-[12px] font-semibold" style={{ color: d.type === 'generic' ? '#fff' : '#06D6A0' }}>
+                      {d.name || deviceLabel(d.type)}
+                    </span>
+                    {d.type !== 'generic' && (
+                      <span className="text-[9px] uppercase tracking-[0.1em] text-[#06D6A0]/70">{deviceLabel(d.type)}</span>
+                    )}
                   </div>
                   <p className="text-[10px] text-white/35 leading-snug mt-0.5">{deviceCapabilities(d.type)}</p>
                 </div>
               ))}
             </div>
+          </section>
+
+          {/* out */}
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[9px] uppercase tracking-[0.18em] text-white/30 font-semibold">Output</p>
+              <button
+                onClick={() => { setMidiOut(!midiOutEnabled()); force((n) => n + 1); }}
+                className="h-6 px-2 rounded-lg text-[10px] font-bold border transition-colors"
+                style={midiOutEnabled()
+                  ? { borderColor: `${CYAN}66`, color: CYAN, background: `${CYAN}14` }
+                  : { borderColor: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.45)' }}
+              >
+                {midiOutEnabled() ? 'Sending' : 'Off'}
+              </button>
+            </div>
+            {outs.length === 0
+              ? <p className="text-[11px] text-white/40">No outputs. Connect a synth or a virtual port and Melos plays it too.</p>
+              : (
+                <div className="space-y-1.5">
+                  {outs.map((name, i) => (
+                    <div key={i} className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: midiOutEnabled() ? CYAN : 'rgba(255,255,255,0.2)' }} />
+                      <span className="text-[12px] text-white/85 flex-1 truncate">{name}</span>
+                    </div>
+                  ))}
+                  <p className="text-[10px] text-white/35">
+                    Every output receives what the armed instrument plays. Turn this off if a device
+                    echoes back and doubles your notes.
+                  </p>
+                  <button onClick={() => midiSendAllOff()} className="text-[10px] text-white/35 hover:text-white underline">
+                    Send all-notes-off
+                  </button>
+                </div>
+              )}
           </section>
 
           {/* learn */}

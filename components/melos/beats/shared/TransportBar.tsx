@@ -6,6 +6,7 @@ import { Play, Square, Activity, X, FileDown, FileUp, Download, UploadCloud, Oct
 import type { GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { PLAYHEAD } from '../theme';
+import { MidiActivityLight } from './MidiActivityLight';
 
 export type BeatsViewId = 'machine' | 'glass' | 'timeline' | 'mixer' | 'project';
 const VIEWS: { id: BeatsViewId; label: string }[] = [
@@ -257,7 +258,11 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
         <button onClick={p.onOpenMidi} aria-label="MIDI controllers" title="MIDI controllers — devices and Learn mapping"
           className="w-8 h-8 grid place-items-center rounded-lg border transition-colors relative border-white/10 text-white/40 hover:text-white">
           <SlidersHorizontal size={14} />
-          {p.midiConnected && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full" style={{ background: '#06D6A0', boxShadow: '0 0 5px #06D6A0' }} />}
+          {/* The static dot said "a device exists". This one says what it is DOING — and goes
+              amber when notes are arriving that nothing is listening to. */}
+          <span className="absolute top-1 right-1">
+            <MidiActivityLight connected={!!p.midiConnected} />
+          </span>
         </button>
       )}
       <button onClick={p.onToggleDiagnostics} aria-label="Engine diagnostics" className={`w-8 h-8 grid place-items-center rounded-lg border transition-colors ${p.showDiagnostics ? 'border-[#00DAF3]/50 text-[#00DAF3] bg-[#00DAF3]/10' : 'border-white/10 text-white/40 hover:text-white'}`}>
