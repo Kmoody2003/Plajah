@@ -1,3 +1,11 @@
+// The meditation suite's Play surface — VELA, CANTUS, ISON and PNEUMA.
+//
+// One panel for four instruments, because they share an engine and a patch shape and it would
+// be dishonest to pretend otherwise by forking the file. What differs is identity: the name, the
+// accent, the preset bank, and what the four macros are CALLED — "Air" on a flute and "Air" on
+// a drone are the same engine target and completely different musical ideas, so each instrument
+// names them for what they do in its own world.
+//
 // VELA — the Play surface.
 //
 // Four macros and a preset name. Nothing else.
@@ -17,12 +25,13 @@ import {
   VELA_MACRO_HINTS, VELA_MACRO_LABELS, VELA_MACRO_ORDER, type VelaPatch,
 } from '../../../../services/melos/instruments/vela/patch';
 import { VELA_PRESETS } from '../../../../services/melos/instruments/vela/presets';
+import { SUITE, presetsFor, type SuiteInstrument } from '../../../../services/melos/instruments/vela/suite';
 import type { VelaMacro } from '../../../../services/melos/instruments/vela/presets';
 import { M } from '../../../../services/melos/instruments/vela/params';
 import { Knob } from '../shared/Knob';
 import { PartialDisplay } from './PartialDisplay';
 import { VelaEditor } from './VelaEditor';
-import { ARMED, PLAYHEAD, SELECT, SURFACE, SURFACE_RAISED } from '../theme';
+import { ARMED, PLAYHEAD, SURFACE, SURFACE_RAISED } from '../theme';
 
 interface Props {
   doc: GrooveDoc;
@@ -43,6 +52,11 @@ const MACRO_COLORS: Record<VelaMacro, string> = {
 export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
+
+  const kind = (track.instrument?.type ?? 'vela') as SuiteInstrument;
+  const identity = SUITE[kind] ?? SUITE.vela;
+  // VELA's own bank is the general one; the others each bring their own.
+  const bank = kind === 'vela' ? VELA_PRESETS : presetsFor(kind);
 
   // Deliberately not memoised, for the same reason as ONDA's panel: the doc mutates in place, so
   // a memo keyed on the patch object would never invalidate and every control would freeze.
@@ -67,7 +81,7 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
   }, [onMutate, pushParams, track.id]);
 
   const choosePreset = useCallback((presetId: string) => {
-    const preset = VELA_PRESETS.find((p) => p.id === presetId);
+    const preset = bank.find((p) => p.id === presetId);
     if (!preset) return;
     onMutate((d) => {
       const t = d.arrangement.find((x) => x.id === track.id);
@@ -81,7 +95,7 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
       pushParams(next);
     });
     setGalleryOpen(false);
-  }, [onMutate, pushParams, track.id]);
+  }, [bank, onMutate, pushParams, track.id]);
 
   if (!patch) {
     return (
@@ -95,7 +109,9 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
     <div className="flex flex-col h-full min-h-0" style={{ background: SURFACE }}>
       {/* Header */}
       <div className="flex items-center gap-3 px-4 h-12 flex-none border-b border-white/10" style={{ background: SURFACE_RAISED }}>
-        <span className="font-black text-[11px] tracking-[0.16em]" style={{ color: '#D0BCFF' }}>VELA</span>
+        <span className="font-black text-[11px] tracking-[0.16em]" style={{ color: identity.accent }}>
+          {identity.name}
+        </span>
         <span className="text-white/25">·</span>
         <button
           onClick={() => setGalleryOpen((v) => !v)}
@@ -133,7 +149,7 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
           {VELA_MACRO_ORDER.map((macro) => (
             <div key={macro} className="flex flex-col items-center gap-1.5" title={VELA_MACRO_HINTS[macro]}>
               <Knob
-                label={VELA_MACRO_LABELS[macro]}
+                label={identity.macroLabels[macro] ?? VELA_MACRO_LABELS[macro]}
                 value={patch.macros[macro]}
                 min={0}
                 max={1}
@@ -147,17 +163,21 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
           ))}
         </div>
 
-        {patch.description && (
+        {patch.description ? (
           <p className="text-[11px] leading-relaxed text-white/40">{patch.description}</p>
+        ) : (
+          <p className="text-[11px] leading-relaxed text-white/40">{identity.purpose}</p>
         )}
 
         {/* Preset gallery, inline rather than modal — choosing a body is a listening decision,
             and covering the partial display while you make it is the wrong trade. */}
         {galleryOpen && (
           <div className="flex flex-col gap-1.5">
-            <span className="text-[9.5px] uppercase tracking-[0.16em] text-white/35">Bodies</span>
+            <span className="text-[9.5px] uppercase tracking-[0.16em] text-white/35">
+              {kind === 'vela' ? 'Bodies' : kind === 'cantus' ? 'Voices' : kind === 'ison' ? 'Drones' : 'Airs'}
+            </span>
             <div className="grid grid-cols-2 gap-2">
-              {VELA_PRESETS.map((preset) => {
+              {bank.map((preset) => {
                 const active = preset.id === patch.presetId;
                 return (
                   <button
@@ -165,8 +185,8 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
                     onClick={() => choosePreset(preset.id)}
                     className="text-left rounded-xl border p-2.5 transition-colors"
                     style={{
-                      borderColor: active ? SELECT : 'rgba(255,255,255,0.10)',
-                      background: active ? 'rgba(212,0,85,0.08)' : 'rgba(255,255,255,0.02)',
+                      borderColor: active ? identity.accent : 'rgba(255,255,255,0.10)',
+                      background: active ? `${identity.accent}18` : 'rgba(255,255,255,0.02)',
                     }}
                   >
                     <div className="text-[12px] font-semibold text-white">{preset.name}</div>
@@ -180,7 +200,15 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
 
         <div className="flex items-center gap-2 text-[10px] text-white/30">
           <Piano size={12} />
-          <span>Arm this track and play — a bowed body sustains for as long as you hold it.</span>
+          <span>
+            {kind === 'ison'
+              ? 'Arm this track and hold a chord — a drone does not arrive or leave, it is simply already there.'
+              : kind === 'cantus'
+              ? 'Arm this track and hold a low note, then sweep Overtone — one harmonic lifts until you hear a second voice.'
+              : kind === 'pneuma'
+              ? 'Arm this track and play — the breath carries this one, not the body.'
+              : 'Arm this track and play — a bowed body sustains for as long as you hold it.'}
+          </span>
         </div>
       </div>
 

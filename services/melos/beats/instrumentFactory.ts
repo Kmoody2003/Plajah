@@ -5,6 +5,12 @@
 import { grooveUid, firstEmptyPadIndex, addPadBank, type ArrangeTrack, type InstrumentType, type GrooveDoc } from './grooveDoc';
 import { newPatch, serializePatch } from '../instruments/onda/patch';
 import { newVelaPatch, serializeVelaPatch } from '../instruments/vela/patch';
+import { SUITE, SUITE_ORDER, presetsFor } from '../instruments/vela/suite';
+
+/** True for any member of the meditation suite — they share a patch shape and an editor. */
+export function isSuite(type: InstrumentType): type is 'vela' | 'cantus' | 'ison' | 'pneuma' {
+  return type === 'vela' || type === 'cantus' || type === 'ison' || type === 'pneuma';
+}
 
 export interface InstrumentDef {
   type: InstrumentType | 'kera';
@@ -21,7 +27,15 @@ export interface InstrumentDef {
 export const INSTRUMENTS: InstrumentDef[] = [
   { type: 'onda', name: 'ONDA', blurb: 'Wavetable synth. Basses, leads, pads — anything you can shape.', color: '#B84DFF', ready: true },
   { type: 'kera', name: 'KERA', blurb: 'Sampler. Play SoundFonts, SFZ and your own recordings across the keys.', color: '#00DAF3', ready: true },
-  { type: 'vela', name: 'VELA', blurb: 'Modal resonator. Bowls, gongs, bowed glass — notes that ring for as long as you let them.', color: '#D0BCFF', ready: true },
+  // The meditation suite. Four entries because they are four instruments, even though they
+  // share an engine — what makes an instrument an instrument is what you reach for it FOR.
+  ...SUITE_ORDER.map((id) => ({
+    type: id as InstrumentType,
+    name: SUITE[id].name,
+    blurb: SUITE[id].blurb,
+    color: SUITE[id].accent,
+    ready: true,
+  })),
   { type: 'onda', name: 'FONDO', blurb: 'Bass synth. Focused, deep, sub-first. (Coming soon)', color: '#D40055', ready: false },
 ];
 
@@ -32,13 +46,15 @@ export const INSTRUMENTS: InstrumentDef[] = [
  */
 export function makeInstrumentTrack(type: InstrumentType, count: number, presetPatch?: ReturnType<typeof serializePatch>, presetName?: string): ArrangeTrack {
   const label = presetName || (
-    type === 'kera' ? `KERA ${count + 1}` : type === 'vela' ? `VELA ${count + 1}` : `ONDA ${count + 1}`
+    type === 'kera' ? `KERA ${count + 1}`
+      : isSuite(type) ? `${SUITE[type].name} ${count + 1}`
+      : `ONDA ${count + 1}`
   );
   return {
     id: grooveUid(),
     kind: 'instrument',
     name: label,
-    color: type === 'kera' ? '#00DAF3' : type === 'vela' ? '#D0BCFF' : '#B84DFF',
+    color: type === 'kera' ? '#00DAF3' : isSuite(type) ? SUITE[type].accent : '#B84DFF',
     mute: false, solo: false, gainDb: 0, pan: 0,
     clips: [],
     instrument: {
@@ -47,8 +63,8 @@ export function makeInstrumentTrack(type: InstrumentType, count: number, presetP
       // shared filter/envelope defaults sane and the serialize path uniform. VELA has its own
       // patch shape — the two instruments share the engine and the id space but not a single
       // patch field beyond the envelope.
-      patch: presetPatch || (type === 'vela'
-        ? (serializeVelaPatch(newVelaPatch()) as ReturnType<typeof serializePatch>)
+      patch: presetPatch || (isSuite(type)
+        ? (serializeVelaPatch(newVelaPatch(presetsFor(type)[0])) as ReturnType<typeof serializePatch>)
         : serializePatch(newPatch(label))),
       presetName,
     },

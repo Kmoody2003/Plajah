@@ -39,6 +39,7 @@ import { InstrumentPicker } from './instrument/InstrumentPicker';
 import { InstrumentPanel } from './instrument/InstrumentPanel';
 import { KeraPanel } from './instrument/KeraPanel';
 import { VelaPanel } from './instrument/VelaPanel';
+import { isSuite } from '../../../services/melos/beats/instrumentFactory';
 import { SpectraPanel } from './mixer/SpectraPanel';
 import { MuseLibrary } from './muse/MuseLibrary';
 import { addPadInstrument, addInstrumentToNextPad } from '../../../services/melos/beats/instrumentFactory';
@@ -487,7 +488,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           if (!t) return null;
           const close = () => setOpenInstrumentId(null);
           if (t.instrument?.type === 'kera') return <KeraPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
-          if (t.instrument?.type === 'vela') return <VelaPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
+          if (isSuite(t.instrument?.type as InstrumentType)) return <VelaPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           return <InstrumentPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
         })()}
         {showEq && <SpectraPanel doc={doc} onMutate={mutate} onClose={() => setShowEq(false)} />}
@@ -802,7 +803,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         if (!t) return null;
         const close = () => setOpenInstrumentId(null);
         if (t.instrument?.type === 'kera') return <KeraPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
-        if (t.instrument?.type === 'vela') return <VelaPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
+        if (isSuite(t.instrument?.type as InstrumentType)) return <VelaPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
         return <InstrumentPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
       })()}
     </div>
