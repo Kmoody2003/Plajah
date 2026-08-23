@@ -6,8 +6,7 @@ import {
     Video, Image, Trash2, X, Plus, Wand2, RefreshCw, Layers2, Captions, Radio,
     Save, FolderOpen, CheckCircle, Grid3x3, Piano, Gauge, Activity, Box,
     Monitor, Maximize2, EyeOff, Eye, Circle, Tv, ArrowRight,
-    Download, Send, Loader2, SkipBack, SkipForward, Film,
-} from 'lucide-react';
+    Download, Send, Loader2, SkipBack, SkipForward, Film, LayoutGrid,} from 'lucide-react';
 import { uploadVideo, createVideoPlaylist, postToFeed, auth } from '../../services/backendService';
 import AudioVisualizer from './components/AudioVisualizer';
 import StudioStage from './components/StudioStage';
@@ -29,7 +28,7 @@ import { MidiController, MidiStatusHud } from './components/MidiController';
 import Controls from './components/Controls';
 import DraggablePanel from './components/DraggablePanel';
 import {
-    DepthProvider, InspectorProvider, Inspector, ModeBar, SettingsShell,
+    AtDepth, DepthProvider, InspectorProvider, Inspector, ModeBar, SettingsShell,
     surfacesForMode, type PixMode,
 } from './ui/shell';
 import ThemeGenerator from './components/ThemeGenerator';
@@ -1882,14 +1881,21 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                 </button>
                 <div className="w-px h-5 bg-white/10 mx-0.5" />
                 {/* Studio: clip-launcher grid toggle (Resolume-style cells) */}
-                <button onClick={() => setShowClipGrid(v => !v)} title="Toggle clip grid (launch scenes, palettes, captured looks)"
-                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showClipGrid ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : 'bg-black/40 border-white/10 hover:bg-[#FF8C00]/20'}`}>
-                    <Grid3x3 className="w-4 h-4 text-white/80" />
-                </button>
-                {/* Studio: custom GLSL shader editor toggle */}
-                <button onClick={() => setShowShaderPanel(v => !v)} title="Custom GLSL shader (Shadertoy-style)"
+                <AtDepth min="studio">{/* the deck — DEPTHS names this rung's surfaces */}
+                    <button onClick={() => setShowClipGrid(v => !v)} title="Toggle clip grid (launch scenes, palettes, captured looks)"
+                        className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showClipGrid ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : 'bg-black/40 border-white/10 hover:bg-[#FF8C00]/20'}`}>
+                        <Grid3x3 className="w-4 h-4 text-white/80" />
+                    </button>
+                </AtDepth>
+                {/* The Library. Named for what it opens ON — ninety-five works you pick from —
+                    rather than for the GLSL editor folded away at the bottom of it. The panel's
+                    own comment says "GLSL is Rung 3, it opens closed so the library is what you
+                    meet first"; the button contradicted that and was the reason the Library was
+                    reported missing. A Cpu icon said the same wrong thing, so it is a grid now. */}
+                <button onClick={() => setShowShaderPanel(v => !v)} title="Library — 95 signature works, and your own GLSL"
+                    aria-label="Library"
                     className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showShaderPanel || shaderSrc ? 'bg-cyan-600/40 border-cyan-500/50' : 'bg-black/40 border-white/10 hover:bg-cyan-600/30'}`}>
-                    <Cpu className="w-4 h-4 text-white/80" />
+                    <LayoutGrid className="w-4 h-4 text-white/80" />
                 </button>
                 {/* Studio: 3D mode (React Three Fiber) */}
                 <button onClick={() => setShowThreePanel(v => !v)} title="3D visualizers (water, reflections, orbiting camera)"
@@ -1897,15 +1903,19 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                     <Box className="w-4 h-4 text-white/80" />
                 </button>
                 {/* Studio: Synthesia-style MIDI falling-notes scene */}
-                <button onClick={() => setMidiNotes(v => { const n = !v; if (n) { setShaderSrc(null); setMilkdrop(false); setThree3d(null); } return n; })} title="MIDI notes (Synthesia-style falling notes)"
-                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${midiNotes ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : 'bg-black/40 border-white/10 hover:bg-[#FF8C00]/20'}`}>
-                    <Piano className="w-4 h-4 text-white/80" />
-                </button>
+                <AtDepth min="full">{/* MIDI — DEPTHS names this rung's surfaces */}
+                    <button onClick={() => setMidiNotes(v => { const n = !v; if (n) { setShaderSrc(null); setMilkdrop(false); setThree3d(null); } return n; })} title="MIDI notes (Synthesia-style falling notes)"
+                        className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${midiNotes ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : 'bg-black/40 border-white/10 hover:bg-[#FF8C00]/20'}`}>
+                        <Piano className="w-4 h-4 text-white/80" />
+                    </button>
+                </AtDepth>
                 {/* Studio: overlay layers (Lottie + HTML/URL) */}
-                <button onClick={() => setShowLayersPanel(v => !v)} title="Overlay layers (Lottie / HTML)"
-                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showLayersPanel || overlay.lottieOn || overlay.htmlOn ? 'bg-pink-600/40 border-pink-500/50' : 'bg-black/40 border-white/10 hover:bg-pink-600/30'}`}>
-                    <Layers2 className="w-4 h-4 text-white/80" />
-                </button>
+                <AtDepth min="studio">{/* layers — DEPTHS names this rung's surfaces */}
+                    <button onClick={() => setShowLayersPanel(v => !v)} title="Overlay layers (Lottie / HTML)"
+                        className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showLayersPanel || overlay.lottieOn || overlay.htmlOn ? 'bg-pink-600/40 border-pink-500/50' : 'bg-black/40 border-white/10 hover:bg-pink-600/30'}`}>
+                        <Layers2 className="w-4 h-4 text-white/80" />
+                    </button>
+                </AtDepth>
                 {/* Studio: GPU generators (Pixels Core) — native GLSL for supported modes */}
                 <button onClick={() => setConfig(p => ({ ...p, gpuGenerators: !p.gpuGenerators }))}
                     title={`GPU generators: ${config.gpuGenerators ? 'ON — supported modes render natively on the GPU' : 'OFF (Canvas2D)'} · experimental`}
@@ -1943,10 +1953,12 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                     <Layers className="w-4 h-4 text-white/80" />
                 </button>
                 {/* Studio: matte panel toggle */}
-                <button onClick={() => setShowMatte(v => !v)} title="Toggle media / matte layer"
-                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showMatte ? 'bg-pink-600/40 border-pink-500/50' : 'bg-black/40 border-white/10 hover:bg-pink-600/30'}`}>
-                    <Video className="w-4 h-4 text-white/80" />
-                </button>
+                <AtDepth min="full">{/* matte — DEPTHS names this rung's surfaces */}
+                    <button onClick={() => setShowMatte(v => !v)} title="Toggle media / matte layer"
+                        className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showMatte ? 'bg-pink-600/40 border-pink-500/50' : 'bg-black/40 border-white/10 hover:bg-pink-600/30'}`}>
+                        <Video className="w-4 h-4 text-white/80" />
+                    </button>
+                </AtDepth>
 
                 {/* Save Project */}
                 <button
