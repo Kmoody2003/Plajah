@@ -16,9 +16,24 @@
 //   iParam2  uCalm    0..1 inverse arousal. Chroma, detail density, contrast.
 //   iParam3  uBloom   an impulse decaying over ~4 s. Light arrives where a sound arrived.
 //
-// NOT audio-reactive. iBass/iMid/iTreble are deliberately untouched: a drone has no transients,
-// so analysis returns noise and the visuals would wander independently of the music. Both
-// engines read the same state instead, which is also what keeps an offline render deterministic.
+// THE SOUND, SUBTLY
+//
+// Structure comes from the four uniforms above and nothing else. That is deliberate: a drone has
+// no transients, so an FFT-driven layout would wander independently of the music, and an offline
+// render would not match a live one.
+//
+// But the sound is allowed to BREATHE into the picture. iBass/iMid/iTreble ride heavily smoothed
+// (the players set smoothingTimeConstant to 0.92, roughly a one-second window), and they modulate
+// only intensity and chroma — never position, never scale, never anything that would move if the
+// analysis jittered. Read them through `voice()`, which floors and softens them further, so a
+// shader cannot accidentally make them structural.
+//
+//   iBass    the drone under everything — ISON. Ground luminance.
+//   iMid     the sung body — CANTUS. Chroma and warmth.
+//   iTreble  breath and air — PNEUMA. Filament brightness, sparkle.
+//
+// The test for whether a use is legitimate: if the audio froze, would the picture stop MOVING, or
+// only stop shimmering? Only the second is allowed.
 //
 // THE RULES THESE OBEY
 //
@@ -83,16 +98,45 @@ vec2 warp(vec2 p, float t, float amt){
  *  already slow rather than only the single instant of the Turn. */
 float pace(float depth){ float h = 1.0-depth; return 0.05 + h*h*0.25; }
 
-/** The gates, applied once at the end of every shader. */
+/**
+ * The gates, applied once at the end of every shader.
+ *
+ * The desaturation here used to be a blanket pull toward grey of up to 0.85, which is why every
+ * field read as colourless — at rest, with calm high and depth low, it was already throwing away
+ * nearly half the chroma before anything else happened.
+ *
+ * The rule it was reaching for is real but was stated too broadly. What is stimulating is
+ * SATURATED WARMTH — reds and oranges at high value. Cool chroma at low value is the opposite;
+ * it is what a dim room at dusk looks like. So the pull is now hue-aware: warm hues lose chroma
+ * as calm and depth rise, cool hues keep nearly all of theirs. Deep is now blue and violet rather
+ * than grey, which is both more restful and considerably better to look at.
+ */
 vec3 safe(vec3 c, float calm, float depth){
-  // Chroma falls with calm and with depth — deeper is closer to monochrome.
   float g = dot(c, vec3(0.299,0.587,0.114));
-  c = mix(c, vec3(g), clamp(calm*0.45 + depth*0.35, 0.0, 0.85));
+  // How warm is this pixel? 1 at pure red/orange, 0 at cyan/blue.
+  float warmth = clamp((c.r - c.b)*1.6 + 0.15, 0.0, 1.0);
+  // Warm content is pulled hard; cool content is barely touched.
+  float pull = (0.10 + calm*0.10 + depth*0.14) + warmth*(0.30 + depth*0.34);
+  c = mix(c, vec3(g), clamp(pull, 0.0, 0.80));
   // Saturated red is the worst case for photosensitivity and reads as alarm regardless.
   float over = max(0.0, c.r - max(c.g, c.b) - 0.18);
   c.r -= over*0.8;
   // Never fully black: a black frame reads as the stream having died.
   return clamp(c, vec3(0.035), vec3(1.0));
+}
+
+/**
+ * An audio band, made safe to use.
+ *
+ * Floors it so a silent passage does not black the field out, compresses the top so a loud one
+ * cannot spike, and biases toward 1 — the audio should lift the picture a little, not gate it.
+ * Everything a shader does with sound goes through here, which is what keeps the influence
+ * subtle by construction rather than by each shader remembering to be careful.
+ */
+float voice(float band, float amount){
+  float v = clamp(band, 0.0, 1.0);
+  v = sqrt(v);                       // compress: the top of the range is where drones live
+  return 1.0 + amount*(v - 0.45);
 }
 
 /** A bloom arriving where a sound arrived. Soft, and gone in about four seconds. */
@@ -137,12 +181,23 @@ void mainImage(out vec4 o, in vec2 C){
     acc += veil * (0.34 - fi*0.07);
   }
 
-  vec3 cool = vec3(0.42, 0.62, 0.86);
-  vec3 warm = vec3(0.74, 0.60, 0.92);
-  vec3 col = mix(cool, warm, fbm(uv*0.8 + t*0.05)) * acc;
+  // Three colours rather than two, so the curtain has a gradient through it instead of a blend
+  // between two neighbours. Teal at the feet, through a cold blue, to violet at the tips — the
+  // real thing's own progression, and none of it warm enough to be activating.
+  vec3 foot = vec3(0.10, 0.52, 0.50);
+  vec3 mid  = vec3(0.24, 0.44, 0.86);
+  vec3 tip  = vec3(0.62, 0.40, 0.95);
+  float h = clamp(fbm(uv*0.8 + t*0.05)*1.3 - uv.y*0.35 + 0.35, 0.0, 1.0);
+  vec3 col = (h < 0.5 ? mix(foot, mid, h*2.0) : mix(mid, tip, (h-0.5)*2.0)) * acc;
+
+  // CANTUS lifts the violet in the tips; PNEUMA puts air in the very top of the curtain.
+  col *= voice(iMid, 0.22);
+  col += tip * acc*acc * 0.35 * (voice(iTreble, 0.5) - 0.78);
 
   col += vec3(0.80,0.74,1.0) * bloomAt(uv, vec2(-0.35, 0.10), bloom, depth) * 0.5;
-  col += vec3(0.05,0.06,0.10);
+  // The ground glow sits on the drone. It is the only place ISON is visible, and it moves by
+  // maybe a tenth of a stop — enough to feel, not enough to watch.
+  col += vec3(0.045,0.055,0.105) * voice(iBass, 0.35);
   o = vec4(safe(col, calm, depth), 1.0);
 }`),
   },
@@ -171,8 +226,17 @@ void mainImage(out vec4 o, in vec2 C){
   // Squared, so the bright filaments stay narrow while the ground stays dark and calm.
   ridge *= ridge;
 
-  vec3 water = mix(vec3(0.16,0.30,0.40), vec3(0.55,0.78,0.86), ridge);
-  vec3 col = water * (0.16 + ridge*0.72);
+  // Deep green-teal in the troughs rising to a pale aqua on the filaments, with a slow wander
+  // toward indigo across the frame so the whole field is never one colour at once.
+  float tide = fbm(uv*0.55 + vec2(t*0.03, -t*0.02));
+  vec3 deepC = mix(vec3(0.05,0.20,0.26), vec3(0.10,0.14,0.34), tide);
+  vec3 lit   = mix(vec3(0.52,0.86,0.88), vec3(0.62,0.74,0.98), tide);
+  vec3 col = mix(deepC, lit, ridge) * (0.20 + ridge*0.78);
+
+  // Air on the filaments only — the ridges brighten with PNEUMA while the ground stays put,
+  // which reads as the light on the water moving rather than the water.
+  col += lit * ridge*ridge * 0.30 * (voice(iTreble, 0.6) - 0.73);
+  col *= voice(iBass, 0.16);
 
   col += vec3(0.70,0.86,0.92) * bloomAt(uv, vec2(0.30,-0.12), bloom, depth) * 0.45;
   o = vec4(safe(col, calm, depth), 1.0);
@@ -206,8 +270,22 @@ void mainImage(out vec4 o, in vec2 C){
   acc /= 12.0;
 
   float halo = exp(-length(uv-src)*(1.6 + depth*0.8));
-  vec3 col = vec3(0.62,0.60,0.78) * (acc*1.5) + vec3(0.90,0.86,1.0)*halo*0.30;
+
+  // Light through a medium picks up colour on the way, and the far end of a shaft is always
+  // cooler than its source — Rayleigh, roughly, and the reason a sunbeam in dust goes gold at
+  // the window and blue in the room. The shaft is graded along its own length by how much
+  // density it has come through.
+  vec3 nearC = vec3(0.86, 0.78, 0.62);
+  vec3 farC  = vec3(0.36, 0.44, 0.82);
+  float travel = clamp(length(uv - src)*0.85, 0.0, 1.0);
+  vec3 shaft = mix(nearC, farC, travel);
+
+  vec3 col = shaft * (acc*1.55) + vec3(0.96,0.90,0.98)*halo*0.32;
   col *= (0.55 + breath*0.35);
+  // CANTUS warms the near end of the shaft. It is the only warm thing in the set, and safe()
+  // pulls it back as depth rises — so the beam cools as the session goes down, on its own.
+  col += nearC * halo * 0.16 * (voice(iMid, 0.55) - 0.75);
+  col *= voice(iBass, 0.14);
 
   col += vec3(0.86,0.82,1.0) * bloomAt(uv, vec2(-0.28,0.05), bloom, depth) * 0.6;
   o = vec4(safe(col, calm, depth), 1.0);
@@ -232,14 +310,23 @@ void mainImage(out vec4 o, in vec2 C){
   float h = uv.y + (breath-0.5)*0.05 + fbm(vec2(uv.x*0.7, t*0.12))*0.10 - 0.05;
   float sky = smoothstep(-0.55, 0.75, h);
 
-  vec3 low  = vec3(0.10,0.10,0.16);
-  vec3 mid  = vec3(0.30,0.28,0.44);
-  vec3 high = vec3(0.16,0.20,0.32);
+  // The stillest field can afford the most colour, because nothing in it moves. This is the
+  // twenty minutes after sunset: deep indigo below, a band of rose and amber at the line, cold
+  // blue climbing above it. All of it low-value, none of it saturated enough to be a light.
+  vec3 low  = vec3(0.06,0.07,0.15);
+  vec3 mid  = vec3(0.34,0.24,0.38);
+  vec3 high = vec3(0.10,0.17,0.34);
   vec3 col = mix(low, mid, smoothstep(0.0,0.55,sky));
   col = mix(col, high, smoothstep(0.55,1.0,sky));
 
-  // A single band of light at the horizon, breathing.
-  col += vec3(0.42,0.40,0.55) * exp(-abs(h)*(7.0 - breath*2.0)) * 0.34;
+  // A single band of light at the horizon, breathing. Amber into rose, and the only place in
+  // the set where warmth is allowed to sit — one narrow line, far from the eye's centre.
+  float band = exp(-abs(h)*(7.0 - breath*2.0));
+  vec3 ember = mix(vec3(0.72,0.44,0.34), vec3(0.62,0.40,0.60), 0.35 + 0.35*sin(t*0.4));
+  col += ember * band * 0.38 * voice(iMid, 0.20);
+
+  // The drone under the whole sky. A tenth of a stop on the ground, nothing else.
+  col *= voice(iBass, 0.18);
 
   col += vec3(0.70,0.68,0.86) * bloomAt(uv, vec2(0.0,-0.05), bloom, depth) * 0.35;
   o = vec4(safe(col, calm, depth), 1.0);
@@ -259,6 +346,7 @@ void mainImage(out vec4 o, in vec2 C){
 
   float t = iTime * pace(depth);
   float acc = 0.0;
+  vec3 tint = vec3(0.0);
 
   // Accumulation and dispersal, never orbiting. Each mote drifts on its own irrational rate, so
   // the field never returns to a configuration it has already been in.
@@ -273,11 +361,24 @@ void mainImage(out vec4 o, in vec2 C){
     float size = 0.020 + hash11(fi*7.9)*0.035 + breath*0.010;
     // Motes fade in and out independently — nothing here has a shared period.
     float life = 0.45 + 0.55*sin(t*sp*1.6 + fi*2.3);
-    acc += smoothstep(size, 0.0, r) * max(0.0, life) * 0.42;
+    float m = smoothstep(size, 0.0, r) * max(0.0, life) * 0.42;
+    acc += m;
+    // Each mote carries its own hue, drawn from its index rather than its position, so the
+    // field is a scatter of colours instead of one colour at different brightnesses.
+    tint += m * mix(vec3(0.42,0.72,0.92), vec3(0.86,0.62,0.94), hash11(fi*11.3));
   }
 
-  vec3 ground = mix(vec3(0.07,0.07,0.11), vec3(0.13,0.12,0.20), fbm(uv*0.9 + t*0.04));
-  vec3 col = ground + vec3(0.78,0.76,0.94)*acc;
+  // A ground that is not one colour: teal in some corners, violet in others, wandering slowly
+  // enough that you would have to watch for a minute to catch it changing.
+  float wash = fbm(uv*0.9 + t*0.04);
+  float wash2 = fbm(uv*0.6 - t*0.03 + 21.0);
+  vec3 ground = mix(vec3(0.05,0.10,0.14), vec3(0.13,0.09,0.20), wash);
+  ground = mix(ground, vec3(0.07,0.13,0.19), wash2*0.5);
+
+  // Air moves the motes' brightness, not their positions — the field shimmers, it does not
+  // dance. PNEUMA is the breath instrument, so this is the one place it should be visible.
+  vec3 col = ground + tint * voice(iTreble, 0.45);
+  col *= voice(iBass, 0.12);
 
   col += vec3(0.84,0.80,1.0) * bloomAt(uv, vec2(0.22,0.18), bloom, depth) * 0.5;
   o = vec4(safe(col, calm, depth), 1.0);

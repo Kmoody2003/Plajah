@@ -198,12 +198,14 @@ export const StillnessDeep: React.FC<Props> = ({ onClose, onWrite }) => {
     await ctx.resume();
     ctxRef.current = ctx;
 
-    // The shader needs an AnalyserNode because that is ShaderLayer's contract, but nothing here
-    // reads it: iBass/iMid/iTreble stay untouched. A drone has no transients, so analysis
-    // returns noise — both engines subscribe to the emotional state instead, which is also what
-    // keeps an offline render deterministic.
+    // The analyser drives nothing structural. Layout comes from the emotional state, which is
+    // what keeps picture and sound locked and an offline render deterministic; the bands only
+    // let the ensemble shimmer into the field. Heavily smoothed, for the same reason.
     const an = ctx.createAnalyser();
     an.fftSize = 2048;
+    // A one-second window, roughly. The bands only shimmer the field — never lay it out — and at
+    // the default 0.8 even a drone's spectrum jitters visibly on something this slow.
+    an.smoothingTimeConstant = 0.92;
     an.connect(ctx.destination);
     setAnalyser(an);
 

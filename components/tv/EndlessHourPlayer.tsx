@@ -85,6 +85,10 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
         // render identical to a live one.
         const an = ctx.createAnalyser();
         an.fftSize = 2048;
+        // A one-second window, roughly. The shaders use these bands only to shimmer — never for
+        // layout — and at the default 0.8 even a drone's spectrum jitters enough to be visible
+        // as flicker on a field this slow. See `voice()` in stillnessShaders.
+        an.smoothingTimeConstant = 0.92;
         an.connect(master);
         setAnalyser(an);
 
