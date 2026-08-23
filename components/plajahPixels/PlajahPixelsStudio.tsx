@@ -22,13 +22,16 @@ import ShaderPanel, { SHADER_LIBRARY } from './components/ShaderPanel';
 import MidiNotesScene from './components/MidiNotesScene';
 import ThreeScene, { Three3DConfig, Three3DVariant, Three3DCamera } from './components/ThreeScene';
 import { LottieLayer, HtmlLayer, FpsMeter, LayersPanel, OverlayState } from './components/ExtraLayers';
-import TimelineStrip from './components/TimelineStrip';
 import MatteLayer, { MatteSettings } from './components/MatteLayer';
 import MattePanel from './components/MattePanel';
 import { MatteEngine } from './engine/matting/matteEngine';
 import { MidiController, MidiStatusHud } from './components/MidiController';
 import Controls from './components/Controls';
 import DraggablePanel from './components/DraggablePanel';
+import {
+    DepthProvider, InspectorProvider, Inspector, ModeBar, SettingsShell,
+    surfacesForMode, type PixMode,
+} from './ui/shell';
 import ThemeGenerator from './components/ThemeGenerator';
 import GlobalLighting from './components/GlobalLighting';
 import SegmentationLayer from './components/SegmentationLayer';
@@ -171,7 +174,15 @@ export interface PlajahPixelsPlatformBridge {
     onClose: () => void;
 }
 
-const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) => {
+/* Four of the tab ids disagree with the label the user actually sees:
+   colors is Palette, ambient is FX, text is Chat, ai is Clips. The inspector
+   header has to match the tab, so it maps id -> visible label, not id -> id. */
+const TAB_TITLES: Record<string, string> = {
+    core: 'Core', colors: 'Palette', ambient: 'FX', stage: 'Stage',
+    text: 'Chat', ai: 'Clips', midi: 'MIDI', tracks: 'Tracks',
+};
+
+const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void }> = ({ platform, onExit }) => {
     // Program-out popup mode: render only visualizer, no UI
     const isProgramOut = typeof window !== 'undefined'
         && new URLSearchParams(window.location.search).get('programOut') === '1';
@@ -215,9 +226,23 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
     // ─── Studio engine UI ───
     const [showRail, setShowRail] = useState(true);
-    const [showTimeline, setShowTimeline] = useState(true);
+    /* ── Shell (Proposal 2) ──────────────────────────────────────────────
+       Pixels had no top-level mode: it had independent booleans that could
+       be in any of eight combinations, most of which nobody wants. These
+       three named jobs drive those booleans, so only the sensible
+       combinations are reachable from the bar. */
+    const [pixMode, setPixMode] = useState<PixMode>('perform');
+    const [inspectorOpen, setInspectorOpen] = useState(true);
+    const [dockEl, setDockEl] = useState<HTMLDivElement | null>(null);
     const [showMatte, setShowMatte] = useState(false);
     const [showClipGrid, setShowClipGrid] = useState(true);
+    /* One job, one set of surfaces. The booleans stay the source of truth so
+       nothing else in the studio has to change; the mode just picks them. */
+    useEffect(() => {
+        const { deck, render } = surfacesForMode(pixMode);
+        setShowClipGrid(deck);
+        setShowRenderPanel(render);
+    }, [pixMode]);
     // The real composite: the full ordered layer stack emitted by the ClipLauncher.
     const [liveLayers, setLiveLayers] = useState<LauncherLayer[]>([]);
     const liveLayersRef = useRef<LauncherLayer[]>([]);
@@ -250,6 +275,9 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     // ── Output: record · fullscreen/dismiss · program-out window ────────────────
     const rootRef = useRef<HTMLDivElement>(null);
     const [uiHidden, setUiHidden] = useState(false);
+    /* The settings tabs dock into the Inspector whenever it is open; the
+       sliding drawer is the fallback for when it is not. */
+    const settingsDocked = inspectorOpen && !uiHidden;
 
     // ── 3D Depth / Parallax camera ────────────────────────────────────────────
     const depthMouseRef  = useRef({ x: 0, y: 0 });
@@ -1331,8 +1359,25 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     );
 
     return (
+        <DepthProvider>
+        <InspectorProvider docking={inspectorOpen && !uiHidden} el={dockEl}>
         <div className="flex flex-col overflow-hidden bg-black" style={{ height: '100dvh' }}>
-        <div ref={rootRef} id="plajah-pixels-root" className="relative flex-1 min-h-0 flex flex-col overflow-hidden bg-black text-white font-sans">
+
+        {/* ─── The spine: what you came to do, promoted above everything ─── */}
+        {!uiHidden && (
+            <ModeBar
+                mode={pixMode}
+                onMode={setPixMode}
+                lookName={config.name}
+                lookMode={config.mode}
+                onExit={onExit}
+                inspectorOpen={inspectorOpen}
+                onToggleInspector={() => setInspectorOpen(v => !v)}
+            />
+        )}
+
+        <div className="flex-1 min-h-0 flex overflow-hidden">
+        <div ref={rootRef} id="plajah-pixels-root" className="relative flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden bg-black text-white font-sans">
             {/* ─── Platform-slaved chrome: exit, title, tracklist toggle — sits below icon row ─── */}
             {platform && !uiHidden && (
                 <div className="absolute top-[68px] left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full px-2 py-1.5 shadow-xl">
@@ -1507,283 +1552,9 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                             </div>
                                         </div>
 
-                                        {/* ── Settings tabs (compact) ─────────────────────── */}
-                                        <div className="shrink-0 flex overflow-x-auto" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', scrollbarWidth: 'none' }}>
-                                            {(['core','colors','ambient','stage','text','ai','midi'] as const).map(t => (
-                                                <button
-                                                    key={t}
-                                                    onClick={() => setActiveTab(t)}
-                                                    className="flex-shrink-0 px-2 py-1.5 text-[8px] font-black uppercase tracking-wider transition-all border-b-2"
-                                                    style={{
-                                                        borderBottomColor: activeTab === t ? '#FF8C00' : 'transparent',
-                                                        color: activeTab === t ? '#FF8C00' : 'rgba(255,255,255,0.35)',
-                                                        background: 'transparent',
-                                                    }}
-                                                >
-                                                    {t === 'ai' ? 'Clips' : t}
-                                                </button>
-                                            ))}
-                                        </div>
-
-                                        {/* ── Settings content (scrollable) ───────────────── */}
-                                        <div className="flex-1 overflow-y-auto p-3 space-y-4" style={{ scrollbarWidth: 'thin' }}>
-
-                                            {/* CORE */}
-                                            {activeTab === 'core' && (
-                                                <div className="space-y-3">
-                                                    <div>
-                                                        <label className="text-[9px] text-white/40 block mb-1 uppercase tracking-widest">Mode</label>
-                                                        <select value={config.mode} onChange={e => setConfig(p => ({ ...p, mode: e.target.value as any }))}
-                                                            className="w-full bg-black/60 border border-white/10 rounded p-1.5 text-white text-[10px] outline-none">
-                                                            {Object.values(VisualizerMode).map(m => <option key={m} value={m} className="bg-zinc-900">{m}</option>)}
-                                                        </select>
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Sensitivity</span><span className="text-[#FF8C00] font-mono">{config.sensitivity}x</span></div>
-                                                        <input type="range" min="0.1" max="3.0" step="0.1" value={config.sensitivity} onChange={e => setConfig(p => ({ ...p, sensitivity: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Speed</span><span className="text-[#FF8C00] font-mono">{config.speed}x</span></div>
-                                                        <input type="range" min="0.1" max="3.0" step="0.1" value={config.speed} onChange={e => setConfig(p => ({ ...p, speed: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Smoothing</span><span className="text-[#FF8C00] font-mono">{config.smoothingTimeConstant}</span></div>
-                                                        <input type="range" min="0" max="0.95" step="0.05" value={config.smoothingTimeConstant} onChange={e => setConfig(p => ({ ...p, smoothingTimeConstant: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Glow</span><span className="text-[#FF8C00] font-mono">{config.glowIntensity}</span></div>
-                                                        <input type="range" min="0" max="40" step="1" value={config.glowIntensity} onChange={e => setConfig(p => ({ ...p, glowIntensity: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>Blur</span>
-                                                        <input type="checkbox" checked={config.enableBlur} onChange={e => setConfig(p => ({ ...p, enableBlur: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
-                                                    </div>
-                                                    {config.enableBlur && (
-                                                        <div>
-                                                            <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Blur strength</span><span className="text-[#FF8C00] font-mono">{config.blurStrength}</span></div>
-                                                            <input type="range" min="0.1" max="2.0" step="0.1" value={config.blurStrength} onChange={e => setConfig(p => ({ ...p, blurStrength: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                        </div>
-                                                    )}
-                                                    <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>FPS Target</span></div>
-                                                        <div className="flex gap-1">
-                                                            {[30, 60].map(fps => (
-                                                                <button key={fps} onClick={() => setConfig(p => ({ ...p, targetFrameRate: fps as 30|60 }))}
-                                                                    className="flex-1 py-1 rounded text-[9px] font-mono transition-all"
-                                                                    style={{ background: config.targetFrameRate === fps ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.06)', border: `1px solid ${config.targetFrameRate === fps ? '#8b5cf6' : 'rgba(255,255,255,0.1)'}`, color: config.targetFrameRate === fps ? '#c084fc' : 'rgba(255,255,255,0.5)' }}>
-                                                                    {fps}fps
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* COLORS */}
-                                            {activeTab === 'colors' && (
-                                                <div className="space-y-3">
-                                                    <p className="text-[9px] text-white/40 uppercase tracking-widest">Palette</p>
-                                                    <ColorPaletteEditor colors={config.colorPalette} onChange={colors => setConfig(p => ({ ...p, colorPalette: colors }))} />
-                                                </div>
-                                            )}
-
-                                            {/* AMBIENT / FX */}
-                                            {activeTab === 'ambient' && (
-                                                <div className="space-y-3">
-                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>Blur</span>
-                                                        <input type="checkbox" checked={config.enableBlur} onChange={e => setConfig(p => ({ ...p, enableBlur: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Particles</span><span className="text-[#FF8C00] font-mono">{config.particleCount}</span></div>
-                                                        <input type="range" min="10" max="300" step="10" value={config.particleCount} onChange={e => setConfig(p => ({ ...p, particleCount: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Particle life</span><span className="text-[#FF8C00] font-mono">{config.particleLifespan}s</span></div>
-                                                        <input type="range" min="0.5" max="5.0" step="0.1" value={config.particleLifespan} onChange={e => setConfig(p => ({ ...p, particleLifespan: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>Blend Overlay</span>
-                                                        <input type="checkbox" checked={config.enableLayer2} onChange={e => setConfig(p => ({ ...p, enableLayer2: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
-                                                    </div>
-                                                    {config.enableLayer2 && (
-                                                        <div>
-                                                            <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Overlay opacity</span><span className="text-[#FF8C00] font-mono">{config.layer2Opacity}</span></div>
-                                                            <input type="range" min="0" max="1" step="0.05" value={config.layer2Opacity} onChange={e => setConfig(p => ({ ...p, layer2Opacity: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            {/* STAGE */}
-                                            {activeTab === 'stage' && (
-                                                <div className="space-y-3">
-                                                    {/* Global color grade — GPU post-FX over the whole stage */}
-                                                    <div className="rounded-lg p-2 space-y-1.5" style={{ background: 'rgba(255,140,0,0.06)', border: '1px solid rgba(255,140,0,0.18)' }}>
-                                                        <div className="flex items-center justify-between">
-                                                            <span className="text-[9px] font-black uppercase tracking-widest text-[#FF8C00]">Color Grade</span>
-                                                            <button onClick={() => setConfig(p => ({ ...p, gradeBrightness: 1, gradeContrast: 1, gradeSaturation: 1, gradeGamma: 1 }))}
-                                                                className="text-[8px] uppercase font-black text-white/30 hover:text-white/70 transition-colors">Reset</button>
-                                                        </div>
-                                                        {([
-                                                            ['Brightness', 'gradeBrightness', 0, 2],
-                                                            ['Contrast', 'gradeContrast', 0, 2],
-                                                            ['Saturation', 'gradeSaturation', 0, 2],
-                                                            ['Gamma', 'gradeGamma', 0.2, 2.2],
-                                                        ] as [string, 'gradeBrightness'|'gradeContrast'|'gradeSaturation'|'gradeGamma', number, number][]).map(([label, key, min, max]) => (
-                                                            <div key={key}>
-                                                                <div className="flex justify-between text-[9px] text-white/40 mb-0.5"><span>{label}</span><span className="text-[#FF8C00] font-mono">{(config[key] ?? 1).toFixed(2)}</span></div>
-                                                                <input type="range" min={min} max={max} step="0.01" value={config[key] ?? 1} onChange={e => setConfig(p => ({ ...p, [key]: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#FF8C00', height: 3 }} />
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>Mirror slicing</span>
-                                                        <input type="checkbox" checked={config.enableSlicing} onChange={e => setConfig(p => ({ ...p, enableSlicing: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
-                                                    </div>
-                                                    {config.enableSlicing && (
-                                                        <>
-                                                            <div>
-                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Slices</span><span className="text-[#FF8C00] font-mono">{config.sliceCount}</span></div>
-                                                                <input type="range" min="2" max="24" step="1" value={config.sliceCount} onChange={e => setConfig(p => ({ ...p, sliceCount: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                            </div>
-                                                            <div>
-                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Rotation</span><span className="text-[#FF8C00] font-mono">{config.sliceRotation}°</span></div>
-                                                                <input type="range" min="0" max="360" step="5" value={config.sliceRotation} onChange={e => setConfig(p => ({ ...p, sliceRotation: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                            </div>
-                                                            <div>
-                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Push</span><span className="text-[#FF8C00] font-mono">{((config.slicePush ?? 0) * 100).toFixed(0)}%</span></div>
-                                                                <input type="range" min="0" max="1" step="0.01" value={config.slicePush ?? 0} onChange={e => setConfig(p => ({ ...p, slicePush: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                            </div>
-                                                            {(config.slicePush ?? 0) > 0 && (
-                                                                <div className="flex gap-3">
-                                                                    <label className="flex items-center gap-1 text-[9px] text-white/40 cursor-pointer">
-                                                                        <input type="checkbox" checked={config.slicePushMusicDriven ?? false} onChange={e => setConfig(p => ({ ...p, slicePushMusicDriven: e.target.checked }))} className="accent-purple-500" />
-                                                                        Bass drive
-                                                                    </label>
-                                                                    <label className="flex items-center gap-1 text-[9px] text-white/40 cursor-pointer">
-                                                                        <input type="checkbox" checked={config.slicePushOscDriven ?? false} onChange={e => setConfig(p => ({ ...p, slicePushOscDriven: e.target.checked }))} className="accent-purple-500" />
-                                                                        LFO drive
-                                                                    </label>
-                                                                </div>
-                                                            )}
-                                                            {/* Rotation beat pattern */}
-                                                            <div>
-                                                                <div className="text-[8px] text-white/30 uppercase tracking-widest mb-1">Rotation snap</div>
-                                                                <div className="flex gap-1">
-                                                                    {(['off', '2', '4', '8', 'random'] as const).map(p => (
-                                                                        <button
-                                                                            key={p}
-                                                                            onClick={() => setConfig(prev => ({ ...prev, sliceRotationBeatPattern: p === 'off' ? undefined : p }))}
-                                                                            className="flex-1 py-0.5 rounded text-[7px] font-black uppercase transition-all"
-                                                                            style={{
-                                                                                background: (config.sliceRotationBeatPattern ?? 'off') === p ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.04)',
-                                                                                border: (config.sliceRotationBeatPattern ?? 'off') === p ? '1px solid rgba(139,92,246,0.7)' : '1px solid rgba(255,255,255,0.08)',
-                                                                                color: (config.sliceRotationBeatPattern ?? 'off') === p ? '#c084fc' : 'rgba(255,255,255,0.25)',
-                                                                            }}
-                                                                        >{p}</button>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        </>
-                                                    )}
-                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>Stage Lights</span>
-                                                        <input type="checkbox" checked={config.enableBeams} onChange={e => setConfig(p => ({ ...p, enableBeams: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>3D Depth</span>
-                                                        <input type="checkbox" checked={config.enable3dDepth ?? false} onChange={e => setConfig(p => ({ ...p, enable3dDepth: e.target.checked }))} className="accent-cyan-500 cursor-pointer" />
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>Bass shake</span>
-                                                        <input type="checkbox" checked={config.enableBassShake} onChange={e => setConfig(p => ({ ...p, enableBassShake: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
-                                                    </div>
-                                                    {config.enableBassShake && (
-                                                        <div>
-                                                            <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Shake intensity</span><span className="text-[#FF8C00] font-mono">{config.bassShakeIntensity}</span></div>
-                                                            <input type="range" min="0.1" max="3.0" step="0.1" value={config.bassShakeIntensity} onChange={e => setConfig(p => ({ ...p, bassShakeIntensity: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                        </div>
-                                                    )}
-                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>Lighting</span>
-                                                        <input type="checkbox" checked={config.enableLighting} onChange={e => setConfig(p => ({ ...p, enableLighting: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* TEXT */}
-                                            {activeTab === 'text' && (
-                                                <div className="space-y-3">
-                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>Text overlay</span>
-                                                        <input type="checkbox" checked={config.enableText} onChange={e => setConfig(p => ({ ...p, enableText: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
-                                                    </div>
-                                                    {config.enableText && (
-                                                        <>
-                                                            <input type="text" value={config.textContent} onChange={e => setConfig(p => ({ ...p, textContent: e.target.value }))} placeholder="Display text…" className="w-full bg-black/50 border border-white/10 rounded p-1.5 text-white text-[10px] outline-none" />
-                                                            <div>
-                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Size</span><span className="text-[#FF8C00] font-mono">{config.textSize}px</span></div>
-                                                                <input type="range" min="40" max="240" step="4" value={config.textSize} onChange={e => setConfig(p => ({ ...p, textSize: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                            </div>
-                                                            <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                                <span>Captions</span>
-                                                                <input type="checkbox" checked={config.enableCaptions} onChange={e => setConfig(p => ({ ...p, enableCaptions: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
-                                                            </div>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            {/* AI */}
-                                            {activeTab === 'ai' && (
-                                                <div className="space-y-3">
-                                                    <p className="text-[9px] text-white/40 uppercase tracking-widest">AI & Project</p>
-                                                    <div className="flex gap-2">
-                                                        <button onClick={handleSaveProject} disabled={isSaving}
-                                                            className="flex-1 py-1.5 rounded text-[9px] font-bold transition-all"
-                                                            style={{ background: saveSuccess ? 'rgba(16,185,129,0.3)' : 'rgba(139,92,246,0.3)', border: `1px solid ${saveSuccess ? '#10b981' : '#8b5cf6'}`, color: saveSuccess ? '#6ee7b7' : '#c084fc' }}>
-                                                            {saveSuccess ? '✓ Saved' : isSaving ? '…' : 'Save Project'}
-                                                        </button>
-                                                        <label className="flex-1 cursor-pointer">
-                                                            <input type="file" accept=".plajah" onChange={handleLoadProject} className="hidden" />
-                                                            <div className="w-full py-1.5 rounded text-[9px] font-bold text-center transition-all" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}>Load</div>
-                                                        </label>
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <p className="text-[9px] text-white/40 uppercase tracking-widest">BG Layer 1</p>
-                                                        <label className="block cursor-pointer">
-                                                            <input type="file" accept="image/*,video/mp4" onChange={e => handleBgUpload(e, 1)} className="hidden" />
-                                                            <div className="py-1.5 rounded text-[9px] font-bold text-center transition-all" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}>+ Add BG file</div>
-                                                        </label>
-                                                        {bgMedia1.length > 0 && (
-                                                            <button onClick={() => setBgMedia1([])} className="w-full py-1 rounded text-[9px] text-red-400 transition-all" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>Clear ({bgMedia1.length})</button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* MIDI */}
-                                            {activeTab === 'midi' && (
-                                                <MidiController
-                                                    config={config}
-                                                    setConfig={setConfig}
-                                                    audioContextRef={audioContextRef}
-                                                    analyserRef={analyserRef}
-                                                    audioElRef={audioElRef}
-                                                    sourceRef={sourceRef}
-                                                />
-                                            )}
-
-                                            {/* Open full settings link */}
-                                            <button
-                                                onClick={() => setIsSettingsOpen(v => !v)}
-                                                className="w-full py-2 mt-1 rounded text-[9px] font-black uppercase tracking-widest transition-all"
-                                                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.3)' }}
-                                            >
-                                                {isSettingsOpen ? '✕ Close' : '⚙ Full Settings'}
-                                            </button>
-                                        </div>
+                                        {/* The settings tabs used to be duplicated here, compacted. They live
+                                            in the Inspector now — one place, one copy. What stays in the deck
+                                            is what is genuinely deck-local: program output and transport. */}
                                     </div>
                                 }
                             />
@@ -2045,17 +1816,10 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             />
 
             {/* Floating Top Header */}
-            <div id="title-header" className={`absolute top-6 left-6 z-20 flex items-center space-x-3 pointer-events-none ${uiHidden ? 'hidden' : ''}`}>
-                <div className="w-10 h-10 bg-[#FF8C00]/25 backdrop-blur-xl border border-[#FF8C00]/40 rounded-full flex items-center justify-center animate-spin-slow">
-                    <Music className="w-5 h-5 text-[#FF8C00]" />
-                </div>
-                <div>
-                    <h1 className="text-lg font-semibold tracking-wider font-sans uppercase bg-gradient-to-r from-[#FF8C00] via-fuchsia-500 to-purple-500 bg-clip-text text-transparent">
-                        Plajah Pixels
-                    </h1>
-                    <p className="text-[10px] text-white/40 font-mono tracking-widest">{config.name} — Mode: {config.mode}</p>
-                </div>
-            </div>
+            {/* The floating title header lived here. It was a second wordmark
+                over the canvas, and it collided with the icon row as soon as the
+                Inspector narrowed the stage — both were pinned to top-6. The name
+                and mode it carried are on the ModeBar now. */}
 
             {/* Save / Load Project Buttons (top-right, beside settings toggle) */}
             <div className={`absolute top-6 right-20 z-30 flex items-center gap-2 ${uiHidden ? 'hidden' : ''}`}>
@@ -2167,11 +1931,6 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 <button onClick={() => setShowRail(v => !v)} title="Toggle scene rail"
                     className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showRail ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : 'bg-black/40 border-white/10 hover:bg-[#FF8C00]/20'}`}>
                     <Layers className="w-4 h-4 text-white/80" />
-                </button>
-                {/* Studio: timeline toggle */}
-                <button onClick={() => setShowTimeline(v => !v)} title="Toggle natural-language timeline"
-                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showTimeline ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : 'bg-black/40 border-white/10 hover:bg-[#FF8C00]/20'}`}>
-                    <Radio className="w-4 h-4 text-white/80" />
                 </button>
                 {/* Studio: matte panel toggle */}
                 <button onClick={() => setShowMatte(v => !v)} title="Toggle media / matte layer"
@@ -2351,7 +2110,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 {showRenderPanel && (
                     <TimelineMode layers={liveLayers} config={config} analyser={analyserRef.current}
                         sessionAudioUrl={audioBlobUrlRef.current} sessionAudioName={audioFileName}
-                        onClose={() => setShowRenderPanel(false)} />
+                        onClose={() => { setShowRenderPanel(false); setPixMode(m => m === 'render' ? 'compose' : m); }} />
                 )}
                 {showSaveModal && recordedBlob && (
                     <motion.div
@@ -2477,69 +2236,64 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             {/* Sliding Tabbed Configuration Drawer (Glassmorphism) */}
             <AnimatePresence>
                 {isSettingsOpen && !uiHidden && (
-                    <motion.div 
-                        id="settings-drawer"
-                        initial={{ x: "100%", opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        exit={{ x: "100%", opacity: 0 }}
-                        transition={{ type: "spring", damping: 25, stiffness: 180 }}
-                        className="absolute top-0 right-0 h-full w-96 bg-black/75 backdrop-blur-3xl border-l border-white/10 z-20 flex flex-col shadow-2xl overflow-hidden text-sm"
-                    >
-                        {/* Drawer Header */}
+                    <SettingsShell docked={settingsDocked} el={dockEl}>
+                        {/* Drawer header — the Inspector supplies its own when docked. */}
+                        {!settingsDocked && (
                         <div className="p-5 border-b border-white/10 flex justify-between items-center bg-black/20">
                             <div>
                                 <h2 className="font-semibold text-white tracking-wide">Audio-Reactive Controls</h2>
                                 <p className="text-xs text-white/40">Fine-tune visual parameters & layers</p>
                             </div>
                         </div>
+                        )}
 
                         {/* Drawer Navigation Tabs */}
-                        <div className="flex bg-white/5 border-b border-white/10 overflow-x-auto text-[11px] font-mono scrollbar-none">
+                        <div className="flex flex-wrap bg-white/5 border-b border-white/10 text-[11px] font-mono">
                             <button
                                 onClick={() => setActiveTab('core')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'core' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-2 py-2.5 flex-1 min-w-[68px] flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'core' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Cpu className="w-3.5 h-3.5" />
                                 <span>Core</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('colors')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'colors' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-2 py-2.5 flex-1 min-w-[68px] flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'colors' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Sparkles className="w-3.5 h-3.5" />
                                 <span>Palette</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('ambient')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'ambient' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-2 py-2.5 flex-1 min-w-[68px] flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'ambient' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Layers className="w-3.5 h-3.5" />
                                 <span>FX</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('stage')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'stage' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-2 py-2.5 flex-1 min-w-[68px] flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'stage' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Layers2 className="w-3.5 h-3.5" />
                                 <span>Stage</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('text')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'text' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-2 py-2.5 flex-1 min-w-[68px] flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'text' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Type className="w-3.5 h-3.5" />
                                 <span>Chat</span>
                             </button>
                              <button
                                 onClick={() => setActiveTab('ai')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'ai' ? 'border-[#FF8C00] text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-2 py-2.5 flex-1 min-w-[68px] flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'ai' ? 'border-[#FF8C00] text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Grid3x3 className="w-3.5 h-3.5" />
                                 <span>Clips</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('midi')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'midi' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-2 py-2.5 flex-1 min-w-[68px] flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'midi' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Radio className="w-3.5 h-3.5" />
                                 <span>MIDI</span>
@@ -2548,7 +2302,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                             {platform && platform.tracklist.length > 0 && (
                                 <button
                                     onClick={() => setActiveTab('tracks')}
-                                    className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'tracks' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                    className={`px-2 py-2.5 flex-1 min-w-[68px] flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'tracks' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                                 >
                                     <Music className="w-3.5 h-3.5" />
                                     <span>Tracks</span>
@@ -4030,14 +3784,40 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                 </div>
                             )}
                         </div>
-                    </motion.div>
+                    </SettingsShell>
                 )}
             </AnimatePresence>
             {/* ── End output area */}
             </div>
         </div>
+
+        {/* ─── One rail, about whatever is selected. The six floating panels
+             dock in here through DraggablePanel; none of them moved. ─── */}
+        {inspectorOpen && !uiHidden && (
+            <Inspector
+                kind={showShaderPanel ? 'Shader layer' : isSettingsOpen ? 'Controls' : 'Output'}
+                title={
+                    showShaderPanel ? 'Library'
+                        : isSettingsOpen ? (TAB_TITLES[activeTab] || 'Controls')
+                        : (config.name || 'Program')
+                }
+                subtitle={
+                    showShaderPanel
+                        ? 'Pick a work, then Apply. Double-click a card to apply it straight away.'
+                        : isSettingsOpen ? undefined
+                        : 'Open a panel and it docks here instead of covering the canvas.'
+                }
+                onClose={() => setInspectorOpen(false)}
+                dockRef={setDockEl}
+            />
+        )}
+        {/* ── End canvas + inspector row */}
+        </div>
+
         {/* ── End outer flex wrapper */}
         </div>
+        </InspectorProvider>
+        </DepthProvider>
     );
 };
 
