@@ -69,7 +69,10 @@ const base = (): Record<number, number> => ({
   [osc(0, O.COARSE)]: semi(0),
   [osc(1, O.ENABLE)]: 0,
   [osc(1, O.MODE)]: 1,
+  [osc(1, O.ANALOG_SHAPE)]: 0, // saw
   [osc(1, O.LEVEL)]: 0,
+  [osc(1, O.COARSE)]: semi(0),
+  [osc(1, O.FINE)]: 0.5,
   [P.SUB_LEVEL]: 0.5,
   [P.SUB_SHAPE]: 3, // sine
   [P.SUB_OCTAVE]: 0,

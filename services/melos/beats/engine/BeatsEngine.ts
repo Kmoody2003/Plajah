@@ -44,6 +44,10 @@ export interface EngineDiagnostics {
 
 interface LiveClipSource { src: AudioBufferSourceNode; gain: GainNode; }
 
+/** Members of the meditation suite share VELA's patch shape and loading path. */
+const isSuiteType = (t?: string): boolean =>
+  t === 'vela' || t === 'cantus' || t === 'ison' || t === 'pneuma';
+
 export class BeatsEngine {
   private static _inst: BeatsEngine | null = null;
   static get(): BeatsEngine {
@@ -642,11 +646,7 @@ export class BeatsEngine {
     return Math.max(0, this.ctx.currentTime - a.startedAt);
   }
 
-  /** Members of the meditation suite share VELA's patch shape and loading path. */
-const isSuiteType = (t?: string): boolean =>
-  t === 'vela' || t === 'cantus' || t === 'ison' || t === 'pneuma';
-
-/** The track your keyboard plays. Exactly one, or none. */
+  /** The track your keyboard plays. Exactly one, or none. */
   armedTrack(): ATrack | null {
     return this.doc.arrangement.find((t) => t.kind === 'instrument' && t.armed) ?? null;
   }

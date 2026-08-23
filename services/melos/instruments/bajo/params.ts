@@ -243,6 +243,62 @@ for (let st = 0; st < SC_STAGES; st++) {
   BAJO_PARAM_META[scorch(st, SC.MIX)] = meta(scorch(st, SC.MIX), 'Mix', undefined, pct);
 }
 
+// ── the shared ONDA controls BAJO's editor surfaces ──────────────────────────
+//
+// BAJO's editor draws only what it can name, so without these the Engine section rendered
+// nothing and the Filter section showed the Throat alone. These are ONDA's ids with BAJO's
+// labels and BAJO's units — the same knob, described for someone building a bass.
+
+/** 0..1 -> 20 Hz .. 20 kHz, matching `cutoff_hz` in params.rs. */
+const cutoffHz = (v: number) => {
+  const f = 20 * Math.pow(1000, Math.max(0, Math.min(1, v)));
+  return f >= 1000 ? `${(f / 1000).toFixed(2)} kHz` : `${Math.round(f)} Hz`;
+};
+/** 0..1 -> 1 ms .. 12 s, matching `env_time` in params.rs. */
+const envTime = (v: number) => {
+  const t = 0.001 + 12 * v * v * v;
+  return t >= 1 ? `${t.toFixed(2)} s` : `${Math.round(t * 1000)} ms`;
+};
+const semis = (v: number) => `${(v - 0.5) * 48 >= 0 ? '+' : ''}${Math.round((v - 0.5) * 48)} st`;
+const cents = (v: number) => `${(v - 0.5) * 200 >= 0 ? '+' : ''}${Math.round((v - 0.5) * 200)} c`;
+
+export const VOICE_MODES = ['Poly', 'Mono', 'Legato'] as const;
+export const SUB_OCTAVES = ['-1 oct', '-2 oct'] as const;
+
+const sharedMeta: BajoParamMeta[] = [
+  meta(osc(0, O.LEVEL), 'Osc A', 'The main oscillator.', pct),
+  meta(osc(0, O.ANALOG_SHAPE), 'Shape', undefined, pick(ANALOG_SHAPES), ANALOG_SHAPES),
+  meta(osc(0, O.COARSE), 'Coarse', undefined, semis),
+  meta(osc(0, O.FINE), 'Fine', undefined, cents),
+  meta(osc(1, O.LEVEL), 'Osc B', 'A second oscillator — detune it a hair against A for a reese.', pct),
+  meta(osc(1, O.ANALOG_SHAPE), 'Shape B', undefined, pick(ANALOG_SHAPES), ANALOG_SHAPES),
+  meta(osc(1, O.COARSE), 'Coarse B', undefined, semis),
+  meta(osc(1, O.FINE), 'Fine B', 'The detune that makes a reese beat.', cents),
+  meta(P.UNISON_COUNT, 'Voices', undefined, (v) => `${Math.round(1 + v * 15)}`),
+  meta(P.UNISON_DETUNE, 'Detune', undefined, pct),
+  meta(P.UNISON_WIDTH, 'Width', undefined, pct),
+  meta(P.SUB_LEVEL, 'Sub', 'The octave below. On most bass patches this IS the bass.', pct),
+  meta(P.SUB_OCTAVE, 'Sub oct', undefined, pick(SUB_OCTAVES), SUB_OCTAVES),
+  meta(P.SUB_SHAPE, 'Sub shape', undefined, pick(ANALOG_SHAPES), ANALOG_SHAPES),
+  meta(P.NOISE_LEVEL, 'Noise', undefined, pct),
+  meta(P.GLIDE, 'Glide', 'Time to slide between notes. The 808 control.', (v) => `${Math.round(v * 2000)} ms`),
+  meta(P.VOICE_MODE, 'Voice', 'Bass is monophonic more often than not.', pick(VOICE_MODES), VOICE_MODES),
+  meta(flt(0, F.CUTOFF), 'Cutoff', undefined, cutoffHz),
+  meta(flt(0, F.RES), 'Reso', undefined, pct),
+  meta(flt(0, F.ENV_AMT), 'Env amt', 'How hard Env 2 opens the filter.', bipolar),
+  meta(flt(0, F.DRIVE), 'Filter drive', undefined, pct),
+  meta(flt(0, F.KEYTRACK), 'Key trk', 'Keeps the tone even as you play up the neck.', pct),
+  meta(env(0, E.ATTACK), 'Attack', undefined, envTime),
+  meta(env(0, E.DECAY), 'Decay', 'On an 808 this is the whole sound.', envTime),
+  meta(env(0, E.SUSTAIN), 'Sustain', undefined, pct),
+  meta(env(0, E.RELEASE), 'Release', undefined, envTime),
+  meta(env(1, E.ATTACK), 'F.Attack', undefined, envTime),
+  meta(env(1, E.DECAY), 'F.Decay', undefined, envTime),
+  meta(env(1, E.SUSTAIN), 'F.Sustain', undefined, pct),
+  meta(env(1, E.RELEASE), 'F.Release', undefined, envTime),
+];
+for (const m of sharedMeta) BAJO_PARAM_META[m.id] = m;
+
 export const bajoParamLabel = (id: number): string => BAJO_PARAM_META[id]?.label ?? `P${id}`;
 export const formatBajoParam = (id: number, v: number): string =>
   BAJO_PARAM_META[id]?.format?.(v) ?? v.toFixed(2);

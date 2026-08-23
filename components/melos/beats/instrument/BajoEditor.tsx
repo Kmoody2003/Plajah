@@ -156,7 +156,10 @@ export const BajoEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
                   <Knob
                     key={id}
                     label={meta.label}
-                    value={val(id, meta.toggle ? 0 : 0.5)}
+                    // A stepped or toggled control that a preset never set must read as the
+                    // engine's default, which is 0 — falling back to the middle of the range
+                    // made the editor say "Square" while the engine played "Saw".
+                    value={val(id, meta.toggle || meta.options ? 0 : 0.5)}
                     min={0}
                     // Stepped controls are stored as raw indices, matching the Rust enums, so
                     // their range is the option count rather than 0..1.

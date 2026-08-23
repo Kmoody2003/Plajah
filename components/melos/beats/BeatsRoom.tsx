@@ -6,7 +6,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Plus, Sparkles, AlignStartVertical, FolderOpen, FilePlus2, Trash2, Download } from 'lucide-react';
 import { auth } from '../../../services/firebase';
 import { BeatsEngine } from '../../../services/melos/beats/engine/BeatsEngine';
-import { defaultPattern, grooveUid, type GrooveDoc } from '../../../services/melos/beats/grooveDoc';
+import { defaultPattern, grooveUid, type GrooveDoc, type InstrumentType } from '../../../services/melos/beats/grooveDoc';
 import { useContextMenu, type MenuNode } from '../../ui/ContextMenu';
 import { autoFill, quantizePattern } from '../../../services/melos/beats/grooveTools';
 import { ingestSample, backupToLocker } from '../../../services/melos/beats/sampleStore';

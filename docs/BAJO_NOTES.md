@@ -14,9 +14,9 @@ generators and uploading them, not new DSP. Until then every BAJO preset uses th
 oscillators. It is the single biggest gap between the prototype's sound and the shipped one,
 and it is why the Reese and Growl presets are approximations.
 
-**2. Only 26 of the prototype's 36 presets crossed over.** Missing: Screech Metal, Big Room Saw,
-Organ Bass, Phonk Drift, Jump Up Wob, Dune Drone, Gravity Well, and the second-tier EDM/House
-entries. Most of them were built on the wavetable families, so they follow item 1.
+**2. 29 of the prototype's 36 presets crossed over.** Missing: Screech Metal, Big Room Saw,
+Organ Bass, Phonk Drift, Jump Up Wob, Dune Drone, Gravity Well. Most were built on the wavetable
+families, so they follow item 1.
 
 **3. Scorch stage 3 is not wobble-modulated.** Only stages 1 and 2 take the drive modulation
 (`bajo.rs`, `if st < 2`). Arbitrary; it was a CPU hedge. Worth revisiting once the rack has been
@@ -49,10 +49,15 @@ Beats layer already has `arp.ts` and `ArpPanel`. **This has not been tested agai
 It should just work, since BAJO is a normal instrument as far as note handling goes, but confirm
 before claiming it.
 
-**9. The editor draws BAJO's parameters only.** `BAJO_EDITOR_GROUPS` includes ONDA's shared ids
-(oscillators, filter, envelopes) in the Engine and Filter sections, but the editor skips any id
-without BAJO metadata, so those shared controls currently render as nothing. Either add metadata
-for them or reuse ONDA's editor sections. Right now the Engine section is close to empty.
+**9. ~~The editor draws BAJO's parameters only.~~** Fixed 2026-08-23. Metadata was added for the
+shared ONDA ids, and an Envelopes section too — a bass instrument with no reachable decay is not a
+bass instrument. Engine went 0 → 17 controls, Filter 3 → 8, plus 8 envelope controls.
+
+One caveat left behind: `BajoEditor`'s `val(id, fallback)` shows 0.5 for any continuous parameter a
+preset never set, which is not necessarily the engine's default for that id. Stepped and toggled
+controls now fall back to 0, which IS the engine's default (that mismatch had the editor showing
+"Square" while the engine played "Saw"). The continuous case needs a real defaults map exported
+from `params.rs`'s `defaults()` to be exactly right.
 
 ## Not yet verified
 
@@ -64,8 +69,24 @@ has bounced a BAJO track and compared.
 delay line, per voice or per block as applicable — never profiled with real polyphony. The
 presets default to mono with glide, which hides it.
 
-**12. The panel has not been opened in a browser.** The DSP is tested headlessly and the
-TypeScript compiles; the React surfaces have not been clicked. Do this first.
+**12. ~~The panel has not been opened in a browser.~~** Done 2026-08-23. Mounted against the dev
+server and driven through the DOM: the panel renders, the rate lane shows the preset's real
+pattern and edits, lane presets apply, the wobble toggle writes param 1440, the editor opens with
+all eight sections, and painting a gate cell updates the grid. All 29 presets deserialise and
+produce finite engine params.
+
+Not covered: no screenshot (the Browser pane would not composite in that session, so the evidence
+is DOM-level, not visual), and the panel has still not been reached through the real Melos UI —
+only mounted in isolation. Audio was never heard; `BeatsEngine` was not running, so `setParam`
+calls were no-ops against a null instrument.
+
+## Fixed along the way
+
+`BeatsEngine.ts` had a top-level `const isSuiteType` pasted inside the class body — invalid JS,
+which broke the whole module and therefore `BeatsRoom`, every instrument panel and the entire
+Melos Beats room in the browser. It typechecked as TS1248 and was committed. Hoisted to module
+scope 2026-08-23. It arrived with the meditation-suite commits, not with BAJO, but it was blocking
+everything downstream.
 
 ## Repo notes
 

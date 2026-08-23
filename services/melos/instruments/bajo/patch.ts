@@ -163,7 +163,7 @@ export function bajoEngineParams(patch: BajoPatch): Array<[number, number]> {
 
 /** The ids the editor surfaces, grouped for its section cards. */
 export const BAJO_EDITOR_GROUPS: Array<{
-  key: 'engine' | 'string' | 'filter' | 'wobble' | 'gate' | 'scorch' | 'space';
+  key: 'engine' | 'string' | 'filter' | 'env' | 'wobble' | 'gate' | 'scorch' | 'space';
   title: string;
   blurb: string;
   color: string;
@@ -176,9 +176,9 @@ export const BAJO_EDITOR_GROUPS: Array<{
     color: '#FF4B1C',
     ids: [
       osc(0, O.LEVEL), osc(0, O.ANALOG_SHAPE), osc(0, O.COARSE), osc(0, O.FINE),
-      osc(1, O.LEVEL), osc(1, O.ANALOG_SHAPE), osc(1, O.COARSE),
+      osc(1, O.LEVEL), osc(1, O.ANALOG_SHAPE), osc(1, O.COARSE), osc(1, O.FINE),
       P.UNISON_COUNT, P.UNISON_DETUNE, P.UNISON_WIDTH,
-      P.SUB_LEVEL, P.SUB_OCTAVE, P.NOISE_LEVEL, P.GLIDE, P.VOICE_MODE,
+      P.SUB_LEVEL, P.SUB_OCTAVE, P.SUB_SHAPE, P.NOISE_LEVEL, P.GLIDE, P.VOICE_MODE,
     ],
   },
   {
@@ -196,6 +196,16 @@ export const BAJO_EDITOR_GROUPS: Array<{
     ids: [
       flt(0, F.CUTOFF), flt(0, F.RES), flt(0, F.ENV_AMT), flt(0, F.DRIVE), flt(0, F.KEYTRACK),
       T.AMOUNT, T.VOWEL, T.Q,
+    ],
+  },
+  {
+    key: 'env',
+    title: 'Envelopes',
+    blurb: 'Amp, and the one that opens the filter',
+    color: '#9A93A6',
+    ids: [
+      env(0, E.ATTACK), env(0, E.DECAY), env(0, E.SUSTAIN), env(0, E.RELEASE),
+      env(1, E.ATTACK), env(1, E.DECAY), env(1, E.SUSTAIN), env(1, E.RELEASE),
     ],
   },
   {
