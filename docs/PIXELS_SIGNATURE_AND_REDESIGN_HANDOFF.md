@@ -1,7 +1,12 @@
 # Plajah Pixels — Signature Works + Redesign: Handoff Notes
 
-**Status 2026-08-22.** Branch `feat/vela-stillness`. **Nothing is committed.**
+**Status 2026-08-23.** Branch `feat/vela-stillness`. **All Pixels work is committed.**
 Written so another person or model can pick this up cold.
+
+Note the branch is shared with an unrelated parallel workstream (the Vela/Bajo Melos
+instruments, which is what it is actually named for). Stage Pixels paths explicitly when
+committing; never `git add -A`. The typecheck baseline drifts for the same reason —
+diff against a captured baseline rather than trusting the absolute count.
 
 ---
 
@@ -67,25 +72,14 @@ C:\Users\Kenne\AppData\Local\Temp\claude\C--Users-Kenne\354f427c-9ef0-4ec3-b70b-
 
 All verification is Puppeteer + SwiftShader against the dev server on :3000.
 
-### Repo — uncommitted, on `feat/vela-stillness`
+### Repo — committed on `feat/vela-stillness`
 
-```
- M components/plajahPixels/PlajahPixelsStudio.tsx
- M components/plajahPixels/components/DraggablePanel.tsx
- M components/plajahPixels/components/ShaderPanel.tsx
- M styles/plajah-ds.css
-?? components/plajahPixels/engine/presets/signatureShaders.ts
-?? components/plajahPixels/ui/            (index.tsx, shaderThumbs.ts, shell.tsx)
-?? docs/PIXELS_SIGNATURE_AND_REDESIGN_HANDOFF.md   (this file)
- M components/plajahPixels/components/TimelineMode.tsx   (close button got a name)
- M components/PlajahPixelsView.tsx                       (exit moved to the ModeBar)
-```
-
-**The working tree also contains unrelated uncommitted work** — the Vela/Bajo Melos
-instruments (`rust/plajah-audio/`, `services/melos/instruments/`, `package.json`,
-`tests/velaSuite.test.ts`), which is what this branch is actually named for. **None of it
-is part of the Pixels work.** Stage the Pixels paths explicitly when committing; do not
-`git add -A`.
+| Commit | What |
+|---|---|
+| `d1320a2` | Sixty signature works, and a way to hear a voice |
+| `5ecbcf7` | The library learns to show its work |
+| `3af2cab` | One place for the controls, one word for the job |
+| + this round | the off-screen Library fix, thumbnail persistence, the slider sweep, Hypergate |
 
 ### Published artifacts
 
@@ -394,13 +388,62 @@ box in the top strip, **zero clashes**, `#title-header` gone.
 **additive optional** prop: `{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void }`.
 Existing callers are unaffected.
 
+### The Library you could not see
+
+Reported as "the thumbnail preview and a lot of the UI upgrades is missing — it looks
+partially done, like a mixture". Three separate causes, only one of which was cosmetic:
+
+1. **The Library panel opened off-screen.** The floating panels are `position: fixed` and
+   were handed `window.innerWidth - 372`, but an ancestor establishes a containing block,
+   so `fixed` resolves against *that* box. In the app the box starts 600px in and is
+   1216px wide, so the panel landed at 600 + 1444 = **2044 in an 1816px window** — 228px
+   past the edge. Open the Library, see nothing new.
+   **This is the same fault that made the first thumbnail pass render 0/95.** Back then
+   only the symptom was treated (the IntersectionObserver was removed), not the position
+   that caused it. `offsetParent` is null for fixed elements and cannot locate the
+   containing block, so `DraggablePanel` now *measures* it — the gap between the position
+   asked for and the position landed is exactly the container's offset — and clamps into
+   the visible window on mount, on resize, and while dragging. A saved layout outlives the
+   layout that produced it, so the mount clamp matters as much as the drag clamp.
+2. **The stills died on every reload.** 95 shaders is 95 GLSL compiles, about 25 seconds,
+   and the cache was a `Map`. They now persist to IndexedDB keyed by shader id *and* a
+   hash of its source, so editing a shader re-renders it rather than showing yesterday's
+   picture. IndexedDB, not localStorage: ~931KB of JPEG data URLs is a fifth of the
+   localStorage budget, stored as UTF-16.
+3. **The controls were genuinely half-migrated.** A token-styled rail around hand-rolled
+   furniture. **48 of the module's 49 range inputs now use `.pj-range`** (a new
+   `--dense` rung, `--pj-ctl-h-xs`, for the packed rail). The one left raw is a
+   *transparent overlay* input sitting on a custom-drawn track — giving it a thumb would
+   paint a second control over the first.
+
+Migrate element-aware, not by string replace: `flex-1 cursor-pointer` also appears on
+`<label>`s, and a blind replace put a slider skin on three of them.
+
+### Pixels opens on a signature work
+
+The sixty were first in the library but nothing was applied at boot, so opening Pixels
+showed the old Stage visualiser — they were not "the defaults everyone sees" until the app
+actually opened on one. `shaderSrc` now initialises to `DEFAULT_SHADER_SRC` and
+`shaderStart` to `performance.now()` (iTime is `(now - shaderStart)/1000`, so the clock has
+to start with the studio or the work begins mid-animation).
+
+`OPENING_WORK` is looked up **by name** — `Hypergate` — not by index. This is the face of
+the app; reordering a shelf must not be able to change it silently.
+
+The spine used to name the colour preset, which was a lie with a shader over the top. It
+now resolves the active work from the source itself (`SHADER_LIBRARY.find(s => s.src ===
+shaderSrc)`), so no caller had to start passing a name around. Verified: the bar reads
+**HYPERGATE · I** at boot and the canvas paints (71% of sampled pixels lit, mean luma 106).
+
 ### What remains (not blocking, but honest)
 
-- **`PlajahPixelsStudio.tsx` has not been broken apart.** It is 3,815 lines. Splitting it
-  is a pure refactor with real regression risk and no user-visible benefit, so it was not
-  bundled into a UX pass.
-- The **~396 hex literals elsewhere in the module remain unmigrated**. Only the Library,
-  the shell and the Inspector use tokens. Migrate opportunistically, not en masse.
+- **`PlajahPixelsStudio.tsx` has not been broken apart.** Splitting it is a pure refactor
+  with real regression risk and no user-visible benefit, so it was not bundled into a UX
+  pass.
+- **Hex literals elsewhere in the module remain unmigrated.** Sliders are done; the
+  buttons, chips and badges are not. Migrate opportunistically, not en masse.
+- **Proposal 3** is still unbuilt and still unblocked — see section 5. Build it as an
+  additive *producer* of `SceneTimeline`, never a replacement.
 
 ---
 

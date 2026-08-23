@@ -668,8 +668,17 @@ export const SHADER_LIBRARY: { name: string; src: string; category: string; kind
     series: s.series, setTitle: s.setTitle, line: s.line,
   }));
 
-/** The work Pixels opens on. The first of the house set. */
-export const DEFAULT_SHADER_SRC = SIGNATURE_ENTRIES[0].src;
+/**
+ * The work Pixels opens on.
+ *
+ * Looked up by NAME, not by index. This is the face of the app; reordering a
+ * shelf should not be able to change it silently. The positional fallback only
+ * matters if the named work is ever removed.
+ */
+export const OPENING_WORK =
+  SIGNATURE_ENTRIES.find(e => e.name === 'Hypergate') ?? SIGNATURE_ENTRIES[0];
+
+export const DEFAULT_SHADER_SRC = OPENING_WORK.src;
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 

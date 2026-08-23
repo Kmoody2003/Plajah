@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
     Play, Pause, Upload, Volume2, VolumeX, Disc, Square,
@@ -18,7 +18,7 @@ import type { LauncherLayer } from './components/ClipLauncher';
 import ButterchurnLayer from './components/ButterchurnLayer';
 import ShaderLayer from './components/ShaderLayer';
 import PostProcessLayer from './components/PostProcessLayer';
-import ShaderPanel, { SHADER_LIBRARY } from './components/ShaderPanel';
+import ShaderPanel, { SHADER_LIBRARY, DEFAULT_SHADER_SRC } from './components/ShaderPanel';
 import MidiNotesScene from './components/MidiNotesScene';
 import ThreeScene, { Three3DConfig, Three3DVariant, Three3DCamera } from './components/ThreeScene';
 import { LottieLayer, HtmlLayer, FpsMeter, LayersPanel, OverlayState } from './components/ExtraLayers';
@@ -259,8 +259,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
     const [milkdropBlendMode, setMilkdropBlendMode] = useState<string>('screen');
     const [milkdropLayerOpacity, setMilkdropLayerOpacity] = useState<number>(0.8);
     // Custom GLSL (Shadertoy-style) layer — active source, editor visibility, errors.
-    const [shaderSrc, setShaderSrc] = useState<string | null>(null);
-    const [shaderStart, setShaderStart] = useState(0);
+    /* Pixels opens on a signature work rather than a bare Stage. iTime is
+       (now - shaderStart)/1000, so the clock has to start when the studio does
+       or the opening work begins mid-animation. */
+    const [shaderSrc, setShaderSrc] = useState<string | null>(DEFAULT_SHADER_SRC);
+    const [shaderStart, setShaderStart] = useState(() => performance.now());
     const [shaderError, setShaderError] = useState<string | null>(null);
     const [showShaderPanel, setShowShaderPanel] = useState(false);
     // Per-layer shaders from clip launcher (layerIdx → shader state)
@@ -791,6 +794,13 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
             setLayerMod(prev => ({ ...prev, [layerIdx]: { ...prev[layerIdx], ...mod } }));
         }
     }, []);
+
+    /* What the spine should call the thing on screen. Resolved from the source
+       itself, so applyShaderLook and every other caller keep their signatures. */
+    const activeShader = useMemo(
+        () => (shaderSrc ? SHADER_LIBRARY.find(s => s.src === shaderSrc) : undefined),
+        [shaderSrc],
+    );
 
     const applyShaderLook = useCallback((src: string) => {
         if (editTarget === 'preview') {
@@ -1368,8 +1378,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
             <ModeBar
                 mode={pixMode}
                 onMode={setPixMode}
-                lookName={config.name}
-                lookMode={config.mode}
+                lookName={activeShader?.name ?? config.name}
+                lookMode={activeShader?.series ?? config.mode}
                 onExit={onExit}
                 inspectorOpen={inspectorOpen}
                 onToggleInspector={() => setInspectorOpen(v => !v)}
@@ -1534,8 +1544,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                 type="range" min="0" max={audioState.duration || 1} step="0.1"
                                                 value={audioState.currentTime}
                                                 onChange={e => effSeek(Number(e.target.value))}
-                                                className="w-full cursor-pointer"
-                                                style={{ accentColor: '#8b5cf6', height: 3 }}
+                                                className="pj-range pj-range--dense w-full"
+                                                
                                             />
                                             {/* Volume */}
                                             <div className="flex items-center gap-2">
@@ -1546,8 +1556,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                     type="range" min="0" max="1" step="0.01"
                                                     value={audioState.volume}
                                                     onChange={e => effVolumeChange(Number(e.target.value))}
-                                                    className="flex-1 cursor-pointer"
-                                                    style={{ accentColor: '#8b5cf6', height: 3 }}
+                                                    className="pj-range pj-range--dense flex-1"
+                                                    
                                                 />
                                             </div>
                                         </div>
@@ -2355,7 +2365,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                             step="0.05"
                                             value={config.smoothingTimeConstant}
                                             onChange={e => setConfig(prev => ({ ...prev, smoothingTimeConstant: parseFloat(e.target.value) }))}
-                                            className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                            className="pj-range pj-range--dense w-full"
                                         />
                                     </div>
 
@@ -2386,7 +2396,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                             step="0.1"
                                             value={config.sensitivity}
                                             onChange={e => setConfig(prev => ({ ...prev, sensitivity: parseFloat(e.target.value) }))}
-                                            className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                            className="pj-range pj-range--dense w-full"
                                         />
                                     </div>
 
@@ -2419,7 +2429,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                             step="0.1"
                                             value={config.speed}
                                             onChange={e => setConfig(prev => ({ ...prev, speed: parseFloat(e.target.value) }))}
-                                            className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                            className="pj-range pj-range--dense w-full"
                                         />
                                     </div>
                                 </div>
@@ -2463,7 +2473,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                     step="0.1"
                                                     value={config.blurStrength}
                                                     onChange={e => setConfig(prev => ({ ...prev, blurStrength: parseFloat(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             </div>
                                         )}
@@ -2484,7 +2494,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                 step="10"
                                                 value={config.particleCount}
                                                 onChange={e => setConfig(prev => ({ ...prev, particleCount: parseInt(e.target.value) }))}
-                                                className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                className="pj-range pj-range--dense w-full"
                                             />
                                         </div>
 
@@ -2500,7 +2510,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                 step="0.1"
                                                 value={config.particleLifespan}
                                                 onChange={e => setConfig(prev => ({ ...prev, particleLifespan: parseFloat(e.target.value) }))}
-                                                className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                className="pj-range pj-range--dense w-full"
                                             />
                                         </div>
                                     </div>
@@ -2530,7 +2540,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                     step="0.1"
                                                     value={config.lyricsDriveStrength || 1.0}
                                                     onChange={e => setConfig(prev => ({ ...prev, lyricsDriveStrength: parseFloat(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             </div>
                                         )}
@@ -2556,7 +2566,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                     type="range" min="1" max="30" step="1"
                                                     value={config.chromaAmount || 10}
                                                     onChange={e => setConfig(prev => ({ ...prev, chromaAmount: parseInt(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg accent-purple-500 cursor-pointer"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             )}
                                         </div>
@@ -2577,7 +2587,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                     type="range" min="0.1" max="1.0" step="0.05"
                                                     value={config.vhsIntensity || 0.4}
                                                     onChange={e => setConfig(prev => ({ ...prev, vhsIntensity: parseFloat(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg accent-purple-500 cursor-pointer"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             )}
                                         </div>
@@ -2598,7 +2608,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                     type="range" min="0.1" max="1.0" step="0.05"
                                                     value={config.glitchIntensity || 0.5}
                                                     onChange={e => setConfig(prev => ({ ...prev, glitchIntensity: parseFloat(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg accent-purple-500 cursor-pointer"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             )}
                                         </div>
@@ -2619,7 +2629,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                     type="range" min="0.1" max="1.5" step="0.05"
                                                     value={config.zoomBlurIntensity || 0.5}
                                                     onChange={e => setConfig(prev => ({ ...prev, zoomBlurIntensity: parseFloat(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg accent-purple-500 cursor-pointer"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             )}
                                         </div>
@@ -2640,7 +2650,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                     type="range" min="0.1" max="1.0" step="0.05"
                                                     value={config.noiseIntensity || 0.3}
                                                     onChange={e => setConfig(prev => ({ ...prev, noiseIntensity: parseFloat(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg accent-purple-500 cursor-pointer"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             )}
                                         </div>
@@ -2661,7 +2671,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                     type="range" min="0.1" max="1.5" step="0.05"
                                                     value={config.waveWarpIntensity || 0.5}
                                                     onChange={e => setConfig(prev => ({ ...prev, waveWarpIntensity: parseFloat(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg accent-purple-500 cursor-pointer"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             )}
                                         </div>
@@ -2682,7 +2692,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                     type="range" min="0.1" max="1.5" step="0.05"
                                                     value={config.neonContourIntensity || 0.5}
                                                     onChange={e => setConfig(prev => ({ ...prev, neonContourIntensity: parseFloat(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg accent-purple-500 cursor-pointer"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             )}
                                         </div>
@@ -2763,7 +2773,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                         step="0.05"
                                                         value={config.layer2Opacity}
                                                         onChange={e => setConfig(prev => ({ ...prev, layer2Opacity: parseFloat(e.target.value) }))}
-                                                        className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                        className="pj-range pj-range--dense w-full"
                                                     />
                                                 </div>
                                                 <div>
@@ -2820,7 +2830,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                                         step="0.1"
                                                                         value={config.l2OscillatorFreq !== undefined ? config.l2OscillatorFreq : 1.0}
                                                                         onChange={e => setConfig(prev => ({ ...prev, l2OscillatorFreq: parseFloat(e.target.value) }))}
-                                                                        className="w-full bg-white/10 h-1 rounded accent-purple-500"
+                                                                        className="pj-range pj-range--dense w-full"
                                                                     />
                                                                 </div>
                                                                 <div>
@@ -2835,7 +2845,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                                         step="0.1"
                                                                         value={config.l2OscillatorMusicMod !== undefined ? config.l2OscillatorMusicMod : 0.0}
                                                                         onChange={e => setConfig(prev => ({ ...prev, l2OscillatorMusicMod: parseFloat(e.target.value) }))}
-                                                                        className="w-full bg-white/10 h-1 rounded accent-purple-500"
+                                                                        className="pj-range pj-range--dense w-full"
                                                                     />
                                                                 </div>
                                                             </div>
@@ -2879,7 +2889,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                                     step="0.05"
                                                                     value={config.l2MusicDriveStrength !== undefined ? config.l2MusicDriveStrength : 0.5}
                                                                     onChange={e => setConfig(prev => ({ ...prev, l2MusicDriveStrength: parseFloat(e.target.value) }))}
-                                                                    className="w-full bg-white/10 h-1 rounded accent-purple-500"
+                                                                    className="pj-range pj-range--dense w-full"
                                                                 />
                                                             </div>
                                                         </div>
@@ -2926,7 +2936,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                                         step="0.05"
                                                                         value={config.l2CompDriveThreshold !== undefined ? config.l2CompDriveThreshold : 0.5}
                                                                         onChange={e => setConfig(prev => ({ ...prev, l2CompDriveThreshold: parseFloat(e.target.value) }))}
-                                                                        className="w-full bg-white/10 h-1 rounded accent-purple-500"
+                                                                        className="pj-range pj-range--dense w-full"
                                                                     />
                                                                 </div>
                                                             </div>
@@ -2989,7 +2999,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                             step="1"
                                                             value={config.backgroundRotationInterval || 4}
                                                             onChange={e => setConfig(prev => ({ ...prev, backgroundRotationInterval: parseInt(e.target.value) }))}
-                                                            className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                            className="pj-range pj-range--dense w-full"
                                                         />
                                                     </div>
                                                 ) : (
@@ -3044,7 +3054,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                         step="1"
                                                         value={config.sliceCount}
                                                         onChange={e => setConfig(prev => ({ ...prev, sliceCount: parseInt(e.target.value) }))}
-                                                        className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                        className="pj-range pj-range--dense w-full"
                                                     />
                                                 </div>
                                                 <div>
@@ -3059,7 +3069,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                         step="5"
                                                         value={config.sliceRotation}
                                                         onChange={e => setConfig(prev => ({ ...prev, sliceRotation: parseInt(e.target.value) }))}
-                                                        className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                        className="pj-range pj-range--dense w-full"
                                                     />
                                                 </div>
                                                 <div>
@@ -3071,7 +3081,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                         type="range" min="0" max="1" step="0.01"
                                                         value={config.slicePush ?? 0}
                                                         onChange={e => setConfig(prev => ({ ...prev, slicePush: parseFloat(e.target.value) }))}
-                                                        className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                        className="pj-range pj-range--dense w-full"
                                                     />
                                                     <div className="flex gap-4 mt-2">
                                                         <label className="flex items-center gap-1.5 text-xs text-white/50 cursor-pointer">
@@ -3111,7 +3121,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                             <input type="range" min="5" max="180" step="5"
                                                                 value={config.sliceRotationRange ?? 45}
                                                                 onChange={e => setConfig(prev => ({ ...prev, sliceRotationRange: parseInt(e.target.value) }))}
-                                                                className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                                className="pj-range pj-range--dense w-full"
                                                             />
                                                         </div>
                                                     )}
@@ -3164,7 +3174,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                     <input type="range" min="0" max="2" step="0.05"
                                                         value={config.lightingIntensity}
                                                         onChange={e => setConfig(prev => ({ ...prev, lightingIntensity: parseFloat(e.target.value) }))}
-                                                        className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                        className="pj-range pj-range--dense w-full"
                                                     />
                                                 </div>
 
@@ -3209,7 +3219,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                     <input type="range" min="0" max="1" step="0.05"
                                                         value={config.depthParallaxIntensity ?? 0.4}
                                                         onChange={e => setConfig(prev => ({ ...prev, depthParallaxIntensity: parseFloat(e.target.value) }))}
-                                                        className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                                                        className="pj-range pj-range--dense pj-range--signal w-full"
                                                     />
                                                 </div>
 
@@ -3233,7 +3243,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                         <input type="range" min="0.1" max="3" step="0.1"
                                                             value={config.cameraFlySpeed ?? 1.0}
                                                             onChange={e => setConfig(prev => ({ ...prev, cameraFlySpeed: parseFloat(e.target.value) }))}
-                                                            className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                                                            className="pj-range pj-range--dense pj-range--signal w-full"
                                                         />
                                                     </div>
                                                 )}
@@ -3285,7 +3295,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                     step="0.1"
                                                     value={config.bassShakeIntensity}
                                                     onChange={e => setConfig(prev => ({ ...prev, bassShakeIntensity: parseFloat(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             </div>
                                         )}
@@ -3324,7 +3334,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                             type="range" min="40" max="240" step="4"
                                                             value={config.textSize}
                                                             onChange={e => setConfig(prev => ({ ...prev, textSize: parseInt(e.target.value) }))}
-                                                            className="flex-1 h-1 accent-purple-500 cursor-pointer"
+                                                            className="pj-range pj-range--dense flex-1"
                                                         />
                                                         <span className="text-[10px] font-mono text-[#FF8C00] w-10 text-right">{config.textSize}px</span>
                                                     </div>
@@ -3427,7 +3437,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                                     type="range" min="0" max="360" step="15"
                                                                     value={config.textGradientAngle ?? 0}
                                                                     onChange={e => setConfig(prev => ({ ...prev, textGradientAngle: parseInt(e.target.value) }))}
-                                                                    className="flex-1 h-1 accent-purple-500 cursor-pointer"
+                                                                    className="pj-range pj-range--dense flex-1"
                                                                 />
                                                                 <span className="text-[10px] font-mono text-[#FF8C00] w-8 text-right">{config.textGradientAngle ?? 0}°</span>
                                                             </div>
@@ -3486,7 +3496,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                                 <input type="range" min="0.1" max="3" step="0.1"
                                                                     value={config.textReactorIntensity ?? 1}
                                                                     onChange={e => setConfig(prev => ({ ...prev, textReactorIntensity: parseFloat(e.target.value) }))}
-                                                                    className="flex-1 h-1 accent-purple-500 cursor-pointer" />
+                                                                    className="pj-range pj-range--dense flex-1" />
                                                                 <span className="text-[10px] font-mono text-[#FF8C00] w-6 text-right">{(config.textReactorIntensity ?? 1).toFixed(1)}×</span>
                                                             </div>
                                                         )}
@@ -3514,7 +3524,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                             <input type="range" min="0.1" max="3" step="0.1"
                                                                 value={config.textPhysicsIntensity ?? 1}
                                                                 onChange={e => setConfig(prev => ({ ...prev, textPhysicsIntensity: parseFloat(e.target.value) }))}
-                                                                className="flex-1 h-1 accent-cyan-500 cursor-pointer" />
+                                                                className="pj-range pj-range--dense pj-range--signal flex-1" />
                                                             <span className="text-[10px] font-mono text-cyan-400 w-6 text-right">{(config.textPhysicsIntensity ?? 1).toFixed(1)}×</span>
                                                         </div>
                                                     )}
@@ -3530,7 +3540,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                         <input type="range" min="0.1" max="3" step="0.1"
                                                             value={config.textShatterIntensity}
                                                             onChange={e => setConfig(prev => ({ ...prev, textShatterIntensity: parseFloat(e.target.value) }))}
-                                                            className="w-20 h-1 accent-purple-500 cursor-pointer" />
+                                                            className="pj-range pj-range--dense w-20" />
                                                     )}
                                                 </div>
                                             </div>
