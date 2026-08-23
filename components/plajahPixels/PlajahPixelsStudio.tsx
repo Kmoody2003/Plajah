@@ -233,11 +233,13 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
        be in any of eight combinations, most of which nobody wants. These
        three named jobs drive those booleans, so only the sensible
        combinations are reachable from the bar. */
-    const [pixMode, setPixMode] = useState<PixMode>('perform');
+    // Compose is the default: one look, no deck, load a song and it reacts. Perform — the clip
+    // launcher — is the step up for someone playing a set, not the thing a newcomer meets first.
+    const [pixMode, setPixMode] = useState<PixMode>('compose');
     const [inspectorOpen, setInspectorOpen] = useState(true);
     const [dockEl, setDockEl] = useState<HTMLDivElement | null>(null);
     const [showMatte, setShowMatte] = useState(false);
-    const [showClipGrid, setShowClipGrid] = useState(true);
+    const [showClipGrid, setShowClipGrid] = useState(false); // compose default — the effect below keeps it in sync with the mode
     /* One job, one set of surfaces. The booleans stay the source of truth so
        nothing else in the studio has to change; the mode just picks them. */
     useEffect(() => {

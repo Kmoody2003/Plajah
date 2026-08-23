@@ -116,13 +116,15 @@ export interface WorkCardProps {
   meta?: string;
   bands?: string[];
   selected?: boolean;
+  /** Picked but not yet committed to program — a softer ring than `selected`. */
+  picked?: boolean;
   live?: Record<string, number>;
   onClick?: () => void;
   onDoubleClick?: () => void;
 }
 
 export const WorkCard: React.FC<WorkCardProps> = ({
-  name, cacheKey, src, meta, bands, selected, live, onClick, onDoubleClick,
+  name, cacheKey, src, meta, bands, selected, picked, live, onClick, onDoubleClick,
 }) => {
   const [thumb, setThumb] = useState<string | null>(() => peekShaderThumb(cacheKey));
 
@@ -143,11 +145,13 @@ export const WorkCard: React.FC<WorkCardProps> = ({
       type="button"
       onClick={onClick}
       onDoubleClick={onDoubleClick}
-      title={meta ? `${name} — ${meta}` : name}
+      title={`${meta ? `${name} — ${meta}` : name} · double-click to send to program`}
       className={[
         'group text-left rounded-card overflow-hidden transition-colors',
         'bg-white/[0.03] border',
-        selected ? 'border-[var(--pj-orange)] shadow-[0_0_0_1px_var(--pj-orange)]' : 'border-white/10 hover:border-white/25',
+        selected ? 'border-[var(--pj-orange)] shadow-[0_0_0_1px_var(--pj-orange)]'
+          : picked ? 'border-[var(--pj-lilac)] shadow-[0_0_0_1px_var(--pj-lilac)]'
+          : 'border-white/10 hover:border-white/25',
       ].join(' ')}
     >
       <span

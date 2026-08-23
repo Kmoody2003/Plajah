@@ -69,10 +69,12 @@ interface Props {
 }
 
 /** A plain tile for sources that have no GLSL still to render — generators and milkdrop. */
-const Tile: React.FC<{ name: string; sub?: string; selected?: boolean; onClick: () => void; hue: number }> =
-({ name, sub, selected, onClick, hue }) => (
+const Tile: React.FC<{ name: string; sub?: string; selected?: boolean; onClick: () => void; onDoubleClick?: () => void; hue: number }> =
+({ name, sub, selected, onClick, onDoubleClick, hue }) => (
   <button
     onClick={onClick}
+    onDoubleClick={onDoubleClick}
+    title="Click to preview · double-click to send to program"
     className="text-left rounded-card overflow-hidden border transition-colors"
     style={{
       borderColor: selected ? 'var(--pj-orange)' : 'rgba(255,255,255,0.08)',
@@ -142,6 +144,10 @@ export const LibraryRail: React.FC<Props> = ({
   // selection so the window is never empty once something is on the canvas.
   const [hoverSrc, setHoverSrc] = useState<string | null>(null);
   const [hoverLabel, setHoverLabel] = useState<string | null>(null);
+  // A single click PICKS — it locks the preview and highlights the card without changing what is
+  // on program. A double click COMMITS: the work lights up on the program output. So you can audition
+  // in the preview and only send it live when you mean to.
+  const [pickedSrc, setPickedSrc] = useState<string | null>(null);
 
   // Width is the user's, and it sticks. The preview and the shelves both flow from it, so widening
   // the rail widens the preview — which is the point of making it resizable rather than fixed.
@@ -240,10 +246,12 @@ export const LibraryRail: React.FC<Props> = ({
       style={{ width }}
       aria-label="Library"
     >
-      {/* The preview window — plays what you point at. */}
+      {/* The preview window — plays what you point at, then what you picked, then what is live. */}
       <Preview
-        work={hoverSrc ? (SHADER_LIBRARY.find(w => w.src === hoverSrc) ?? null)
-              : selectedSrc ? (SHADER_LIBRARY.find(w => w.src === selectedSrc) ?? null) : null}
+        work={(() => {
+          const src = hoverSrc ?? pickedSrc ?? selectedSrc;
+          return src ? (SHADER_LIBRARY.find(w => w.src === src) ?? null) : null;
+        })()}
         label={hoverLabel}
         analyser={analyser}
       />
@@ -310,7 +318,9 @@ export const LibraryRail: React.FC<Props> = ({
                       meta={w.kind === 'signature' ? w.setTitle : (w.license || w.category)}
                       bands={w.reacts?.map(r => r[0])}
                       selected={selectedSrc === w.src}
-                      onClick={() => onSelect({ kind: 'shader', src: w.src })}
+                      picked={pickedSrc === w.src && selectedSrc !== w.src}
+                      onClick={() => setPickedSrc(w.src)}
+                      onDoubleClick={() => { setPickedSrc(w.src); onSelect({ kind: 'shader', src: w.src }); }}
                     />
                   </div>
                 ))}
@@ -330,7 +340,8 @@ export const LibraryRail: React.FC<Props> = ({
                   name={g.name} sub={g.cat}
                   hue={(i * 47) % 360}
                   selected={!selectedSrc && selectedMode === g.mode}
-                  onClick={() => onSelect({ kind: 'generator', mode: g.mode })}
+                  onClick={() => { setPickedSrc(null); setHoverLabel(g.name); }}
+                  onDoubleClick={() => onSelect({ kind: 'generator', mode: g.mode })}
                 />
               </div>
             ))}
@@ -347,7 +358,8 @@ export const LibraryRail: React.FC<Props> = ({
                 <Tile
                   name={m.name} hue={(m.i * 31) % 360}
                   selected={!!milkdropOn && milkdropIndex === m.i}
-                  onClick={() => onSelect({ kind: 'milkdrop', index: m.i, name: m.name })}
+                  onClick={() => { setPickedSrc(null); setHoverLabel(m.name); }}
+                  onDoubleClick={() => onSelect({ kind: 'milkdrop', index: m.i, name: m.name })}
                 />
               </div>
             ))}

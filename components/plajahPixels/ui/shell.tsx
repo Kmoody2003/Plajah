@@ -91,8 +91,11 @@ export const AtDepth: React.FC<{ min: Depth; children: React.ReactNode }> = ({ m
 export type PixMode = 'compose' | 'perform' | 'render';
 
 export const MODES: { id: PixMode; label: string; glyph: string; blurb: string }[] = [
-  { id: 'compose', label: 'Compose', glyph: '◱', blurb: 'Build one look and get it right.' },
-  { id: 'perform', label: 'Perform', glyph: '▦', blurb: 'Play the deck against live audio.' },
+  // Compose is the default and the simple one: one scene, two source layers and the FX you lay on
+  // top, reacting to the song. Perform adds the clip launcher for playing a set live. Render lays
+  // it on a timeline to export.
+  { id: 'compose', label: 'Compose', glyph: '◱', blurb: 'One scene. Load a song and it reacts.' },
+  { id: 'perform', label: 'Perform', glyph: '▦', blurb: 'The clip launcher, for playing live.' },
   { id: 'render',  label: 'Render',  glyph: '⏱', blurb: 'Lay it on a timeline and export.' },
 ];
 
