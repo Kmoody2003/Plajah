@@ -564,9 +564,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-color)] text-white flex flex-col lg:flex-row overflow-hidden">
-      {/* Admin Sidebar */}
-      <aside className="w-full lg:w-80 border-r border-white/5 flex flex-col p-8 bg-black/40 backdrop-blur-3xl z-50">
+    <div className="h-screen bg-[var(--bg-color)] text-white flex flex-col lg:flex-row overflow-hidden">
+      {/* Admin Sidebar.
+          `min-h-0` matters: a flex child will not shrink below its content without it, so
+          without it the nav below cannot scroll no matter what overflow it is given. */}
+      <aside className="w-full lg:w-80 shrink-0 border-r border-white/5 flex flex-col min-h-0 p-8 bg-black/40 backdrop-blur-3xl z-50">
         <div className="flex items-center gap-4 mb-12">
           <div className="w-12 h-12 rounded-2xl bg-red-600 flex items-center justify-center shadow-[0_0_30px_rgba(220,38,38,0.3)]">
             <Shield size={24} className="text-white" />
@@ -577,7 +579,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
           </div>
         </div>
 
-        <nav className="flex-1 space-y-2">
+        {/* Twenty-four tabs do not fit on a laptop. Without this the list was simply clipped —
+            no scrollbar, no indication anything was below — and every tab past about the
+            eleventh was unreachable rather than merely hidden. */}
+        <nav className="flex-1 min-h-0 overflow-y-auto space-y-2 -mr-3 pr-3">
           {[
             { id: 'ANALYTICS', label: 'Analytics', icon: BarChart3 },
             { id: 'SITE_HEALTH', label: 'Site Health', icon: Activity },
@@ -621,7 +626,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
 
         <button 
           onClick={onBack}
-          className="mt-auto flex items-center gap-4 px-6 py-4 text-white/20 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest group"
+          className="shrink-0 mt-4 pt-4 border-t border-white/5 flex items-center gap-4 px-6 py-4 text-white/20 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest group"
         >
           <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> 
           Exit System Admin
