@@ -19,6 +19,7 @@ import ShaderLayer from './components/ShaderLayer';
 import PostProcessLayer from './components/PostProcessLayer';
 import ShaderPanel, { SHADER_LIBRARY, DEFAULT_SHADER_SRC } from './components/ShaderPanel';
 import LibraryRail, { type LibrarySource } from './ui/LibraryRail';
+import { getSilentAnalyser } from './engine/silentAnalyser';
 import ShaderInspector from './ui/ShaderInspector';
 import MidiNotesScene from './components/MidiNotesScene';
 import ThreeScene, { Three3DConfig, Three3DVariant, Three3DCamera } from './components/ThreeScene';
@@ -1379,15 +1380,20 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
     // OffscreenCanvas worker). HtmlLayer (an iframe) can't become a texture, so it
     // always stays DOM on top; Lottie likewise stays DOM for its screen blend.
     const unify = !!config.unifyOverlays;
+    // A chosen look must render to program the moment it is picked — a shader animates on iTime, not
+    // on audio. The layers dereference their analyser, so before audio starts they get the silent
+    // one (zeros for the bands, motion from iTime). This is why picking a shader with nothing playing
+    // used to show nothing: the whole block was gated on a live analyser that did not exist yet.
+    const vizAnalyser = analyserRef.current ?? getSilentAnalyser();
     const vizOverlay = (
         <>
             {three3d ? (
-                <ThreeScene analyser={analyserRef.current} config={three3d} albumUrl={platform?.mediaImages?.[0]} palette={config.colorPalette} />
-            ) : analyserRef.current && (
+                <ThreeScene analyser={vizAnalyser} config={three3d} albumUrl={platform?.mediaImages?.[0]} palette={config.colorPalette} />
+            ) : vizAnalyser && (
                 <>
-                    {shaderSrc && <ShaderLayer analyser={analyserRef.current} source={shaderSrc} startTimeMs={shaderStart} params={shaderParams} onError={setShaderError} />}
+                    {shaderSrc && <ShaderLayer analyser={vizAnalyser} source={shaderSrc} startTimeMs={shaderStart} params={shaderParams} onError={setShaderError} />}
                     {midiNotes && <MidiNotesScene palette={config.colorPalette} />}
-                    {milkdrop && <ButterchurnLayer analyser={analyserRef.current} presetIndex={milkdropIdx} blendMode={milkdropBlendMode} layerOpacity={milkdropLayerOpacity} onMeta={setMilkdropMeta} onThumbnail={(name, url) => setMilkdropThumbnails(prev => ({ ...prev, [name]: url }))} />}
+                    {milkdrop && <ButterchurnLayer analyser={vizAnalyser} presetIndex={milkdropIdx} blendMode={milkdropBlendMode} layerOpacity={milkdropLayerOpacity} onMeta={setMilkdropMeta} onThumbnail={(name, url) => setMilkdropThumbnails(prev => ({ ...prev, [name]: url }))} />}
                 </>
             )}
             <MatteLayer id="matte-layer" analyser={analyserRef.current} engine={matteEngineRef.current!} settings={matteSettings} />

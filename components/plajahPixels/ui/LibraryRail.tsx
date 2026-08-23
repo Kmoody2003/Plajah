@@ -13,11 +13,12 @@
 // media bin, not next to the browsable sets. Text and 3D likewise remain their own surfaces for
 // now — the win is collapsing the three duplicated PRESET browsers into one.
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { Shelf, WorkCard, Chip } from './index';
 import ShaderLayer from '../components/ShaderLayer';
 import { getShaderThumb, peekShaderThumb } from './shaderThumbs';
+import { getSilentAnalyser } from '../engine/silentAnalyser';
 import { SHADER_LIBRARY, type ShaderLibraryEntry } from '../components/ShaderPanel';
 import { SCENE_CATALOG } from '../engine/sceneCatalog';
 import type { VisualizerMode } from '../types';
@@ -29,6 +30,10 @@ export type LibrarySource =
   | { kind: 'milkdrop'; index: number; name: string };
 
 type Section = 'shaders' | 'generators' | 'milkdrop';
+
+/** The rail earns its keep as a browser at ~170px and stops being a rail past ~460px. */
+const LIB_MIN = 170;
+const LIB_MAX = 460;
 
 const SECTIONS: { id: Section; label: string }[] = [
   { id: 'shaders', label: 'Shaders' },
@@ -93,26 +98,11 @@ const Tile: React.FC<{ name: string; sub?: string; selected?: boolean; onClick: 
  * A generator or milkdrop preset has no self-contained render at this size (it needs the whole
  * visualiser), so it shows its name on a swatch; picking it makes the main canvas its preview.
  */
-let sharedSilentAnalyser: AnalyserNode | null = null;
-function silentAnalyser(): AnalyserNode | null {
-  if (sharedSilentAnalyser) return sharedSilentAnalyser;
-  try {
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new Ctx();
-    const a = ctx.createAnalyser();
-    a.fftSize = 2048;
-    // Not connected to anything and never started — it exists only so ShaderLayer has a node to
-    // read. getByteFrequencyData returns zeros, and the work animates on iTime.
-    sharedSilentAnalyser = a;
-    return a;
-  } catch { return null; }
-}
-
 const Preview: React.FC<{ work: ShaderLibraryEntry | null; label: string | null; analyser?: AnalyserNode | null }> =
 ({ work, label, analyser }) => {
   // Prefer live audio when it is running; otherwise fall back to the silent analyser so the
   // preview still MOVES rather than freezing on a still.
-  const driver = analyser ?? silentAnalyser();
+  const driver = analyser ?? getSilentAnalyser();
   const [still, setStill] = useState<string | null>(() => (work ? peekShaderThumb(work.name) : null));
   useEffect(() => {
     setStill(work ? peekShaderThumb(work.name) : null);
@@ -152,6 +142,36 @@ export const LibraryRail: React.FC<Props> = ({
   // selection so the window is never empty once something is on the canvas.
   const [hoverSrc, setHoverSrc] = useState<string | null>(null);
   const [hoverLabel, setHoverLabel] = useState<string | null>(null);
+
+  // Width is the user's, and it sticks. The preview and the shelves both flow from it, so widening
+  // the rail widens the preview — which is the point of making it resizable rather than fixed.
+  const [width, setWidth] = useState<number>(() => {
+    const saved = Number(typeof localStorage !== 'undefined' && localStorage.getItem('plajah-pixels-lib-w'));
+    return saved >= LIB_MIN && saved <= LIB_MAX ? saved : 210;
+  });
+  const dragging = useRef(false);
+  useEffect(() => {
+    const move = (e: PointerEvent) => {
+      if (!dragging.current) return;
+      // The rail is pinned to the left, so its width is simply the pointer's x.
+      const w = Math.max(LIB_MIN, Math.min(LIB_MAX, e.clientX));
+      setWidth(w);
+    };
+    const up = () => {
+      if (!dragging.current) return;
+      dragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      try { localStorage.setItem('plajah-pixels-lib-w', String(Math.round(widthRef.current))); } catch { /* private mode */ }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+  }, []);
+  // The handler closes over the first width; a ref keeps the persisted value current without
+  // re-binding the listeners every drag frame.
+  const widthRef = useRef(width);
+  widthRef.current = width;
   const [section, setSection] = useState<Section>('shaders');
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState<(typeof KINDS)[number]['id']>('all');
@@ -216,7 +236,8 @@ export const LibraryRail: React.FC<Props> = ({
 
   return (
     <aside
-      className="w-[210px] shrink-0 h-full flex flex-col bg-black/70 backdrop-blur-2xl border-r border-white/10"
+      className="relative shrink-0 h-full flex flex-col bg-black/70 backdrop-blur-2xl border-r border-white/10"
+      style={{ width }}
       aria-label="Library"
     >
       {/* The preview window — plays what you point at. */}
@@ -344,6 +365,27 @@ export const LibraryRail: React.FC<Props> = ({
           <span className="text-white/20">{SHADER_LIBRARY.length} works</span>
         </button>
       )}
+      {/* Resize handle — a hairline that widens on hover, sitting on the right edge. Doubles as a
+          keyboard target so the rail is resizable without a pointer. */}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize library"
+        tabIndex={0}
+        onPointerDown={(e) => {
+          e.preventDefault();
+          dragging.current = true;
+          document.body.style.cursor = 'col-resize';
+          document.body.style.userSelect = 'none';
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowLeft') { const w = Math.max(LIB_MIN, width - 16); setWidth(w); try { localStorage.setItem('plajah-pixels-lib-w', String(w)); } catch { /* */ } }
+          if (e.key === 'ArrowRight') { const w = Math.min(LIB_MAX, width + 16); setWidth(w); try { localStorage.setItem('plajah-pixels-lib-w', String(w)); } catch { /* */ } }
+        }}
+        className="absolute top-0 right-0 h-full w-1.5 translate-x-1/2 cursor-col-resize z-10 group"
+      >
+        <span className="block h-full w-px mx-auto bg-white/10 group-hover:bg-[var(--pj-orange)] group-focus:bg-[var(--pj-orange)] transition-colors" />
+      </div>
     </aside>
   );
 };
