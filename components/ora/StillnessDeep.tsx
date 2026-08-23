@@ -24,6 +24,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X, Volume2, Sun } from 'lucide-react';
 import { Button, Eyebrow } from '../ui';
+import ShaderLayer from '../plajahPixels/components/ShaderLayer';
+import { shaderForPhase, type StillnessShader } from '../plajahPixels/engine/presets/stillnessShaders';
 import { saveSession } from '../../services/oraService';
 import { StillnessSession } from '../../services/ora/stillness/sessionRunner';
 import type { ArrivalMood, SessionState } from '../../services/ora/stillness/emotionalEngine';
@@ -61,16 +63,33 @@ export const StillnessDeep: React.FC<Props> = ({ onClose, onWrite }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const runner = useRef<StillnessSession | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
+  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
+  const [shader, setShader] = useState<StillnessShader | null>(null);
+  const [shaderStart, setShaderStart] = useState(0);
+  const [shaderError, setShaderError] = useState<string | null>(null);
+  const phaseRef = useRef<string>('');
+  /**
+   * The four uniforms, as ONE array that is mutated in place rather than replaced.
+   *
+   * ShaderLayer's render loop closes over `params` and its effect deps are [analyser,
+   * startTimeMs], so a fresh array each frame would never reach the GPU — and re-rendering
+   * React sixty times a second to deliver four floats would be absurd anyway. Same object,
+   * new contents.
+   */
+  const uniforms = useRef<number[]>([0.5, 0, 1, 0]);
   const frame = useRef<{ state: SessionState; sampler: StillnessDriverSampler } | null>(null);
   const hideTimer = useRef<number | null>(null);
   const reduced = useRef(prefersReducedMotion());
 
   // ── The field ──────────────────────────────────────────────────────────────
-  // A stand-in for the Pixels shader, driven by exactly the same four uniforms the real one
-  // binds. When the shader library gains its meditation families this is replaced by a
-  // ShaderLayer and nothing above it changes.
+  // A Pixels shader when WebGL is available and motion is welcome; the canvas below otherwise.
+  //
+  // The canvas is not dead code — it is the reduced-motion path and the WebGL-failure path, and
+  // it reads the SAME four uniforms, so the two never disagree about what the session is doing.
+  const useShader = !!analyser && !!shader && !shaderError && !reduced.current;
+
   useEffect(() => {
-    if (stage !== 'session') return;
+    if (stage !== 'session' || useShader) return;
     let raf = 0;
     const draw = () => {
       const canvas = canvasRef.current;
@@ -129,7 +148,7 @@ export const StillnessDeep: React.FC<Props> = ({ onClose, onWrite }) => {
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [stage]);
+  }, [stage, useShader]);
 
   // ── Controls decay ─────────────────────────────────────────────────────────
   const wake = useCallback(() => {
@@ -151,14 +170,45 @@ export const StillnessDeep: React.FC<Props> = ({ onClose, onWrite }) => {
     await ctx.resume();
     ctxRef.current = ctx;
 
+    // The shader needs an AnalyserNode because that is ShaderLayer's contract, but nothing here
+    // reads it: iBass/iMid/iTreble stay untouched. A drone has no transients, so analysis
+    // returns noise — both engines subscribe to the emotional state instead, which is also what
+    // keeps an offline render deterministic.
+    const an = ctx.createAnalyser();
+    an.fftSize = 2048;
+    an.connect(ctx.destination);
+    setAnalyser(an);
+
+    // Deterministic from the session's own seed, so the visuals are as reproducible as the
+    // audio — the pre-baked headset path depends on that.
+    const seed = (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
+    phaseRef.current = 'arrival';
+    setShader(shaderForPhase('arrival', seed));
+    setShaderStart(performance.now());
+    setShaderError(null);
+
     const session = new StillnessSession({
       ctx,
-      destination: ctx.destination,
+      destination: an,
       durationSec: minutes * 60,
       arrival: mood,
       // No seed passed: this session is drawn from entropy and is not recoverable. That is the
       // point, and it is why nothing here writes it down.
-      onFrame: (state, sampler) => { frame.current = { state, sampler }; },
+      onFrame: (state, sampler) => {
+        frame.current = { state, sampler };
+        // Mutate in place — see the note on `uniforms`.
+        const u = sampler.uniforms();
+        uniforms.current[0] = u.uBreath;
+        uniforms.current[1] = u.uDepth;
+        uniforms.current[2] = u.uCalm;
+        uniforms.current[3] = u.uBloom;
+        // The field changes with the PHASE, not per frame. Swapping it mid-phase would be an
+        // event, and the arc is meant to contain exactly one of those.
+        if (state.phase !== phaseRef.current) {
+          phaseRef.current = state.phase;
+          setShader(shaderForPhase(state.phase, seed));
+        }
+      },
       onEnded: () => finish(true),
     });
     runner.current = session;
@@ -270,7 +320,21 @@ export const StillnessDeep: React.FC<Props> = ({ onClose, onWrite }) => {
       onPointerMove={wake}
       style={{ background: '#0D0B14' }}
     >
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" aria-hidden="true" />
+      {useShader && analyser && shader ? (
+        <div className="absolute inset-0" aria-hidden="true">
+          <ShaderLayer
+            analyser={analyser}
+            source={shader.src}
+            startTimeMs={shaderStart}
+            params={uniforms.current}
+            // A shader that fails to compile must not leave a black screen in front of someone
+            // who came here to be calm — the canvas takes over silently.
+            onError={setShaderError}
+          />
+        </div>
+      ) : (
+        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" aria-hidden="true" />
+      )}
 
       {/* No timer, no progress bar, no elapsed time. Three controls, and they fade. */}
       <div

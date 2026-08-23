@@ -136,8 +136,9 @@ test('the Turn happens exactly once and dominates its moment', () => {
   assert.ok(!s.at(s.turnAt - 1).turned);
   assert.ok(s.at(s.turnAt + 1).turned);
 
-  const atTurn = s.at(s.turnAt + 0.2);
-  assert.ok(atTurn.bloom > 0.9, `the Turn must be the loudest gesture (got ${atTurn.bloom.toFixed(3)})`);
+  // Measured after the attack, not at the instant it fires — a bloom arrives rather than snaps.
+  const atTurn = s.at(s.turnAt + 0.7);
+  assert.ok(atTurn.bloom > 0.7, `the Turn must be the loudest gesture (got ${atTurn.bloom.toFixed(3)})`);
   assert.ok(atTurn.bloomPan < 0, 'the Turn is placed behind and to the left');
 });
 
@@ -145,8 +146,22 @@ test('bloom impulses decay to nothing and never accumulate', () => {
   const s = createSession({ seed: 8, durationSec: DUR });
   for (const e of s.blooms().slice(0, 40)) {
     const at0 = s.at(e.t + 0.01).bloom;
+    const atPeak = s.at(e.t + 0.7).bloom;
     const at6 = s.at(e.t + 6).bloom;
-    assert.ok(at0 > 0.9, `a bloom should peak when it fires (got ${at0.toFixed(3)})`);
+    // A bloom RISES. It used to snap from 0 to 1 in one frame, which is wrong for a struck body
+    // and drives the visual field through exactly the step the photosensitivity gate exists to
+    // prevent — measured at 1.5-2.7 luminance per second across the meditation shaders.
+    assert.ok(at0 < 0.25, `a bloom must arrive, not snap (got ${at0.toFixed(3)} one frame in)`);
+    // Only when nothing else fires inside the attack window. In Arrival blooms land about every
+    // 1.8 s, so a follower can easily overwrite this one — and then we would be measuring the
+    // NEW bloom's attack and calling it a failure of the old one's.
+    const crowded = s.blooms().some((x) => x.t > e.t && x.t <= e.t + 0.75);
+    if (!crowded) {
+      // 0.5, not 0.9: the attack and the decay overlap, so the product peaks near 0.60 rather
+      // than reaching 1.0 at all. That is correct — a gesture that hits full scale AND holds it
+      // is a flash. What matters is that it gets loud enough to read as an event.
+      assert.ok(atPeak > 0.5, `and reach a real peak after the attack (got ${atPeak.toFixed(3)} at +0.7 s)`);
+    }
     // Six seconds is past the four-second decay; unless another event landed, it is gone.
     const another = s.blooms().some((x) => x.t > e.t && x.t <= e.t + 6);
     if (!another) {

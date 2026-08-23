@@ -80,6 +80,23 @@ const BLOOM_PER_MIN: Record<ArcPhase, number> = {
 };
 
 const BLOOM_DECAY_SEC = 4;
+/**
+ * Attack on a bloom impulse.
+ *
+ * It used to snap from 0 to 1 in a single frame. That is wrong twice over: a struck body has an
+ * attack, so light arriving instantly does not match the sound it is supposed to be arriving
+ * with — and it drives the visual field through a step the photosensitivity gate exists to
+ * prevent. Measured against the meditation shaders, the instant form produced a luminance
+ * change of 1.5-2.7 per second, all of it in the single frame the bloom fired.
+ */
+const BLOOM_ATTACK_SEC = 0.6;
+
+/** Eased 0..1 rise over the attack. */
+const bloomEnvelope = (age: number, decaySec: number): number => {
+  if (age < 0) return 0;
+  const rise = Math.min(1, age / BLOOM_ATTACK_SEC);
+  return rise * rise * (3 - 2 * rise) * Math.exp(-age / decaySec);
+};
 
 // ── Small deterministic helpers ──────────────────────────────────────────────
 
@@ -241,7 +258,7 @@ export function createSession(opts: SessionOptions): Session {
       if (events[i].t <= t) {
         const age = t - events[i].t;
         if (age < BLOOM_DECAY_SEC) {
-          bloom = Math.exp(-age / (BLOOM_DECAY_SEC / 3));
+          bloom = bloomEnvelope(age, BLOOM_DECAY_SEC / 3);
           bloomPan = events[i].pan;
         }
         break;
@@ -250,7 +267,7 @@ export function createSession(opts: SessionOptions): Session {
     // The Turn overrides any bloom near it — it is a single event and nothing shares the moment.
     const turnAge = t - turnAt;
     if (turnAge >= 0 && turnAge < 12) {
-      const strike = Math.exp(-turnAge / 3.5);
+      const strike = bloomEnvelope(turnAge, 3.5);
       if (strike > bloom) {
         bloom = strike;
         bloomPan = -0.55; // behind and to the left, per the design

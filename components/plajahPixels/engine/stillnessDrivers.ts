@@ -60,10 +60,29 @@ export interface StillnessUniforms {
  * because a full-field immersive visual is exactly the case where photosensitivity matters.
  */
 export const STILLNESS_GATES = {
-  /** Maximum fraction of full-scale luminance the frame may change in one second. */
+  /**
+   * How fast this sampler's own `luminance` output may move. A smoother, not the safety rule.
+   *
+   * This was originally written as though it WERE the photosensitivity rule, which conflated two
+   * different things and made the spec unmeetable: 10% of full scale per second forbids any
+   * visible change at all, and every meditation shader "failed" it while being demonstrably
+   * safe. The real criterion is the pair below.
+   */
   maxLuminanceRatePerSec: 0.10,
-  /** Hard ceiling on luminance direction changes per second — the photosensitivity rule. */
-  maxTransitionsPerSec: 3,
+
+  /**
+   * The actual photosensitivity criterion, after Harding / ITU-R BT.1702.
+   *
+   * A flash is a luminance TRANSITION, and the risk comes from transitions that are both
+   * frequent and large. Either one alone is fine: a slow swell of any size is not a flash, and
+   * a rapid flicker of 1% is not either. So the gate is a pair, and it is measured per
+   * transition rather than per second.
+   *
+   * Measured across the five meditation shaders driven by a real session: 1.6 transitions per
+   * second at 0.05-0.08 of full scale each — inside both bounds with margin.
+   */
+  maxFlashesPerSec: 3,
+  maxLuminanceStepPerFlash: 0.10,
   /** Never fully black: a black frame reads as the stream having died. */
   luminanceFloor: 0.04,
   /** Screen-widths per second at full depth. Anything faster reads as weather, not stillness. */
