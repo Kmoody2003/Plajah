@@ -20,6 +20,7 @@
 // arranged. See ensembleFor() at the bottom.
 
 import { M, MASTER_GAIN, V, X } from './params';
+import { VELA_PRESETS } from './presets';
 import type { VelaMacro, VelaPreset } from './presets';
 
 export type SuiteInstrument = 'vela' | 'cantus' | 'ison' | 'pneuma';
@@ -292,6 +293,22 @@ export const PNEUMA_PRESETS: VelaPreset[] = [
   },
 ];
 
+/**
+ * Find a preset by id across every bank in the suite.
+ *
+ * The ensemble refers to presets by id alone — a layer says "play cantus-overtone", not "play
+ * entry 2 of the CANTUS bank" — so the lookup has to span all four rather than requiring the
+ * caller to already know which instrument owns it.
+ */
+export function findSuitePreset(id: string): { instrument: SuiteInstrument; preset: VelaPreset } | null {
+  for (const inst of SUITE_ORDER) {
+    const bank = inst === 'vela' ? VELA_PRESETS : presetsFor(inst);
+    const preset = bank.find((p) => p.id === id);
+    if (preset) return { instrument: inst, preset };
+  }
+  return null;
+}
+
 export function presetsFor(instrument: SuiteInstrument): VelaPreset[] {
   switch (instrument) {
     case 'cantus': return CANTUS_PRESETS;
@@ -329,18 +346,21 @@ export function ensembleFor(phase: string, depth: number, arousal: number): Ense
     {
       instrument: 'ison',
       presetId: depth > 0.6 ? 'ison-cavern' : 'ison-shruti',
-      // Always there. Thins in the middle so the other layers have room, rather than ducking.
-      level: 0.55 - depth * 0.18,
+      // Always there, and always UNDER. Everything else is heard against the drone, so it has
+      // to sit below whichever voice is carrying — at its first tuning it ran 0.44 against
+      // voices at 0.31 through the whole middle of the session, which is the drone competing
+      // rather than supporting. It thins with depth rather than ducking.
+      level: 0.40 - depth * 0.14,
     },
     {
       instrument: 'cantus',
       presetId: arousal > 0.55 ? 'cantus-plainsong' : 'cantus-overtone',
-      level: fade(0.35, 0.45) * 0.7,
+      level: fade(0.35, 0.5) * 0.85,
     },
     {
       instrument: 'pneuma',
       presetId: depth > 0.7 ? 'pneuma-hall' : 'pneuma-ney',
-      level: fade(0.85, 0.5) * 0.6,
+      level: fade(0.85, 0.55) * 0.8,
     },
   ];
 

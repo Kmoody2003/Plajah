@@ -154,3 +154,38 @@ test('ensemble layers crossfade rather than switch', () => {
   // event; these three are not.
   assert.ok(maxJump < 0.12, `layers must fade, not switch (largest 5 s jump ${maxJump.toFixed(3)})`);
 });
+
+test('there is always a voice layer to carry the harmony', () => {
+  // The runner sends each chord to whichever voice layer is most present, and skips the event
+  // entirely if there is none. So a moment where both CANTUS and PNEUMA have faded below the
+  // cull threshold would silently drop the harmony — no error, just a session that stops
+  // playing chords. The curves happen to overlap today; this fails the moment someone retunes
+  // one of them without checking the other.
+  const session = createSession({ seed: 404, durationSec: 20 * 60, arrival: 3 });
+  for (let t = 0; t <= 20 * 60; t += 3) {
+    const s = session.at(t);
+    const layers = ensembleFor(s.phase, s.depth, s.arousal);
+    const voices = layers.filter((l) => l.instrument !== 'ison' && l.instrument !== 'vela');
+    assert.ok(
+      voices.length > 0,
+      `no voice layer at t=${t} (phase ${s.phase}, depth ${s.depth.toFixed(2)}) — chords would be dropped`,
+    );
+  }
+});
+
+test('the drone is never the loudest thing in the ensemble at depth', () => {
+  // Everything else is heard AGAINST the drone, so it must not compete. It is allowed to lead
+  // early, while the voices are still arriving.
+  const session = createSession({ seed: 55, durationSec: 20 * 60 });
+  for (let t = 20 * 60 * 0.3; t <= 20 * 60 * 0.7; t += 5) {
+    const s = session.at(t);
+    const layers = ensembleFor(s.phase, s.depth, s.arousal);
+    const drone = layers.find((l) => l.instrument === 'ison');
+    const loudestOther = Math.max(...layers.filter((l) => l.instrument !== 'ison').map((l) => l.level), 0);
+    assert.ok(drone, 'the drone must be present');
+    assert.ok(
+      drone!.level <= loudestOther + 0.12,
+      `the drone dominates at t=${t.toFixed(0)} (${drone!.level.toFixed(2)} vs ${loudestOther.toFixed(2)})`,
+    );
+  }
+});
