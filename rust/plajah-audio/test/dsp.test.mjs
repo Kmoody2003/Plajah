@@ -598,3 +598,45 @@ test('VELA: params above the old 1024 ceiling actually store', async () => {
     `id 1207 must reach the engine — a fully wet tail cannot match a dry one (dry=${dry.toExponential(2)}, wet=${wetRms.toExponential(2)})`,
   );
 });
+
+test('VELA: every exciter reaches a usable level, not just a relative one', async () => {
+  // The gap that let a real bug ship: the sustain test below compares bowed against struck and
+  // passes on the RATIO, so an exciter that is 300x too quiet still satisfies it. Continuous
+  // excitation was being scaled by (1-r) when broadband drive needs sqrt(1-r) — at a ten-second
+  // decay that is 275x of over-attenuation, and the bow was inaudible while the identical body
+  // struck was loud. Absolute level is the thing to assert.
+  const LEVELS = [
+    { name: 'bow', type: 0 },
+    { name: 'blow', type: 1 },
+    { name: 'strike', type: 2 },
+    { name: 'rub', type: 3 },
+  ];
+
+  for (const { name, type } of LEVELS) {
+    const ctx = await boot();
+    velaPatch(ctx, { X_TYPE: type, X_PRESSURE: 0.8, M_DECAY: 0.62 });
+    ctx.x.pa_note_on(ctx.eng, 60, 1.0, 1, 0);
+    const held = rms(renderMono(ctx, SR * 2.0));
+    assert.ok(
+      held > 0.01,
+      `${name} must be audible while held (rms=${held.toExponential(2)}, needs > 1e-2)`,
+    );
+    assert.ok(held < 1.0, `${name} must not be at the rails (rms=${held.toFixed(3)})`);
+  }
+});
+
+test('VELA: a bowed level holds across the decay range', async () => {
+  // Decay should change how long a body rings, not how loud it is. Some rise with decay is
+  // correct — a resonant body really is louder under a sustained bow — but it has to stay
+  // within a musical range rather than spanning a factor of hundreds.
+  const levels = [];
+  for (const decay of [0.2, 0.45, 0.7, 0.95]) {
+    const ctx = await boot();
+    velaPatch(ctx, { X_TYPE: 0, X_PRESSURE: 0.8, M_DECAY: decay });
+    ctx.x.pa_note_on(ctx.eng, 60, 1.0, 1, 0);
+    levels.push(rms(renderMono(ctx, SR * 2.0)));
+  }
+  for (const l of levels) assert.ok(l > 0.01, `every decay setting must be audible (got ${l.toExponential(2)})`);
+  const spread = Math.max(...levels) / Math.min(...levels);
+  assert.ok(spread < 12, `bowed level must not swing wildly with decay (spread ${spread.toFixed(1)}x)`);
+});

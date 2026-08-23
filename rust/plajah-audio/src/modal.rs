@@ -236,14 +236,21 @@ impl ModalBank {
 
     /// Scale factor for CONTINUOUS excitation.
     ///
-    /// A strike is a one-shot and needs no compensation — impulse normalisation already gives
-    /// it a consistent level. A bow feeds the bank forever, and a high-Q resonator integrates
-    /// that input by roughly 1/(1-r), which at a twenty-second decay is a factor of 140,000.
-    /// Scaling sustained drive by the bank's own bandwidth cancels exactly that, so Decay
-    /// changes how long a bowed note rings rather than how loud it is.
+    /// A strike is a one-shot and needs no compensation — impulse normalisation already gives it
+    /// a consistent level. A bow feeds the bank forever, so it does need one.
+    ///
+    /// The compensation is `sqrt(1-r)`, NOT `(1-r)`. A resonator driven by a pure tone at its
+    /// own frequency integrates by 1/(1-r), but an exciter is broadband — only the fraction of
+    /// its energy inside each partial's bandwidth is amplified, and for broadband input the
+    /// output scales with 1/sqrt(1-r). Using the linear form over-attenuates by a factor of
+    /// 1/sqrt(1-r), which at a ten-second decay is roughly 275x: audible as the bow producing
+    /// almost nothing while a strike on the identical body is loud.
+    ///
+    /// What is left is a gentle rise in level with decay time — a resonant body really is
+    /// louder under a sustained bow than a damped one, so that part is correct and wanted.
     #[inline]
     pub fn sustain_scale(&self) -> f32 {
-        (self.mean_bw * 40.0).clamp(0.0005, 1.0)
+        (self.mean_bw.sqrt() * 36.0).clamp(0.002, 1.0)
     }
 
     /// Drive the bank with one sample of excitation and return the summed output.
