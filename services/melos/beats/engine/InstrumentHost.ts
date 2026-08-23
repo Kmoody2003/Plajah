@@ -18,7 +18,7 @@ function secToNorm(sec: number): number {
 /** 5 adds VELA: the modal body, the exciter and the Veil (param block 1000+), the Tide LFO
  *  shape and the slow LFO range. Bumping this is what stops a stale committed .wasm from
  *  loading against a host that expects the new parameters. */
-export const DSP_ABI_VERSION = 5;
+export const DSP_ABI_VERSION = 6;
 
 /** Output layouts — must mirror `spatial::Layout` in the Rust crate. */
 export enum SpatialLayout {

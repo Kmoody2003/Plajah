@@ -592,6 +592,9 @@ pub(crate) fn modal_spec_for(note: f32, p: &Params) -> ModalSpec {
         // Stored 0..1, used -1..+1, so the centre of the knob means "whatever the material does".
         decay_tilt: p.get(MODAL_BASE + M_DECAY_TILT) * 2.0 - 1.0,
         material: Material::from_index(p.get(MODAL_BASE + M_MATERIAL) as u32),
+        anima: p.get(MODAL_BASE + M_ANIMA).clamp(0.0, 1.0),
+        beat: p.get(MODAL_BASE + M_BEAT).clamp(0.0, 1.0),
+        beat_rate: beat_rate_hz(p.get(MODAL_BASE + M_BEAT_RATE)),
         position: p.get(MODAL_BASE + M_POSITION).clamp(0.0, 1.0),
         keytrack: p.get(MODAL_BASE + M_KEYTRACK).clamp(0.0, 1.0),
     }
@@ -605,6 +608,8 @@ pub(crate) fn exciter_spec(p: &Params, velocity: f32) -> ExciterSpec {
         grain: p.get(EXC_BASE + X_GRAIN).clamp(0.0, 1.0),
         tone: p.get(EXC_BASE + X_TONE).clamp(0.0, 1.0),
         vel_tilt: p.get(EXC_BASE + X_VEL_TILT).clamp(0.0, 1.0),
+        pulse: p.get(EXC_BASE + X_PULSE).clamp(0.0, 1.0),
+        pulse_rate: pulse_rate_hz(p.get(EXC_BASE + X_PULSE_RATE)),
         velocity: velocity.clamp(0.0, 1.0),
     }
 }

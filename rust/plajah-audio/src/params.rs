@@ -119,6 +119,12 @@ pub const M_DECAY_TILT: u32 = 5; // 0..1 → -1..+1; negative rings the highs lo
 pub const M_MATERIAL: u32 = 6; // 0 bronze, 1 glass, 2 iron, 3 wood, 4 skin, 5 air
 pub const M_POSITION: u32 = 7;
 pub const M_KEYTRACK: u32 = 8;
+/// Independent slow amplitude drift per partial. The difference between a bank and an organ.
+pub const M_ANIMA: u32 = 9;
+/// Beating depth — the singing-bowl "wah".
+pub const M_BEAT: u32 = 10;
+/// Beat rate at the fundamental, 0..1 → 0.15..9 Hz.
+pub const M_BEAT_RATE: u32 = 11;
 
 /// Exciter — bow, blow, strike, rub.
 pub const EXC_BASE: u32 = 1100;
@@ -127,6 +133,10 @@ pub const X_PRESSURE: u32 = 1;
 pub const X_GRAIN: u32 = 2;
 pub const X_TONE: u32 = 3;
 pub const X_VEL_TILT: u32 = 4;
+/// Slow swell of exciter pressure — the instrument breathing rather than blowing steadily.
+pub const X_PULSE: u32 = 5;
+/// Pulse rate, 0..1 → 0.03..1.2 Hz.
+pub const X_PULSE_RATE: u32 = 6;
 
 /// The Veil. Engine-level: one instance after the voice sum, not one per voice.
 pub const VEIL_BASE: u32 = 1200;
@@ -232,12 +242,17 @@ impl Params {
         self.set(MODAL_BASE + M_MATERIAL, 0.0);
         self.set(MODAL_BASE + M_POSITION, 0.28);
         self.set(MODAL_BASE + M_KEYTRACK, 0.4);
+        self.set(MODAL_BASE + M_ANIMA, 0.3);
+        self.set(MODAL_BASE + M_BEAT, 0.25);
+        self.set(MODAL_BASE + M_BEAT_RATE, 0.22);
 
         self.set(EXC_BASE + X_TYPE, 0.0); // bow
         self.set(EXC_BASE + X_PRESSURE, 0.5);
         self.set(EXC_BASE + X_GRAIN, 0.35);
         self.set(EXC_BASE + X_TONE, 0.4);
         self.set(EXC_BASE + X_VEL_TILT, 0.6);
+        self.set(EXC_BASE + X_PULSE, 0.25);
+        self.set(EXC_BASE + X_PULSE_RATE, 0.2);
 
         self.set(VEIL_BASE + V_SIZE, 0.5);
         self.set(VEIL_BASE + V_DECAY, 0.45);
@@ -258,6 +273,21 @@ impl Params {
 pub fn modal_decay_s(norm: f32) -> f32 {
     let n = norm.clamp(0.0, 1.0);
     0.2 + 44.8 * n * n * n
+}
+
+/// Beat rate: 0..1 → 0.15 Hz … 9 Hz. A real bowl beats somewhere between one cycle every few
+/// seconds and a fast shimmer; the low end is where the hair-raising slow "wah" lives.
+#[inline]
+pub fn beat_rate_hz(norm: f32) -> f32 {
+    let n = norm.clamp(0.0, 1.0);
+    0.15 * (60.0f32).powf(n)
+}
+
+/// Exciter pulse rate: 0..1 → 0.03 Hz … 1.2 Hz. The slow end is roughly a breath.
+#[inline]
+pub fn pulse_rate_hz(norm: f32) -> f32 {
+    let n = norm.clamp(0.0, 1.0);
+    0.03 * (40.0f32).powf(n)
 }
 
 /// Slow LFO range: 0..1 → 300 s … 20 s per cycle (0.0033 Hz … 0.05 Hz).

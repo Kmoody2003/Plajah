@@ -10,6 +10,11 @@
 // and Veil blocks vanished with no error anywhere. It is 1408 now — if you add a block past
 // 1407, raise it in the same commit.
 
+/** Shared with ONDA — id 0 is the instrument's output trim, and VELA presets use it to sit at
+ *  a consistent level. Bodies differ enormously in how much energy they hold, so a per-preset
+ *  trim is the honest place to balance them rather than squeezing the DSP's normalisation. */
+export const MASTER_GAIN = 0;
+
 /** Modal body — the resonator bank. This is the sound; everything else serves it. */
 export const M = {
   ENABLE: 1000,
@@ -21,6 +26,15 @@ export const M = {
   MATERIAL: 1006,
   POSITION: 1007,
   KEYTRACK: 1008,
+  /// Independent slow amplitude drift per partial. The difference between a bank and an organ:
+  /// a real body's partials swell and fade against one another because the object is never
+  /// perfectly still.
+  ANIMA: 1009,
+  /// Beating depth. Real singing bowls have partials a few Hz apart, and the slow amplitude
+  /// "wah" that produces is the most recognisable thing about them.
+  BEAT: 1010,
+  /// Beat rate at the fundamental. Higher partials beat proportionally faster.
+  BEAT_RATE: 1011,
 } as const;
 
 /** Exciter — what puts energy into the bank. */
@@ -30,6 +44,9 @@ export const X = {
   GRAIN: 1102,
   TONE: 1103,
   VEL_TILT: 1104,
+  /// Slow swell of pressure — the player leaning into a bowl and easing off.
+  PULSE: 1105,
+  PULSE_RATE: 1106,
 } as const;
 
 /** The Veil — one diffusion field after the voice sum, not one per voice. */
@@ -114,12 +131,23 @@ export const VELA_PARAM_META: Record<number, VelaParamMeta> = {
   [M.MATERIAL]: { id: M.MATERIAL, label: 'Material', group: 'body', format: asIndex(MATERIALS), options: MATERIALS },
   [M.POSITION]: { id: M.POSITION, label: 'Position', group: 'body', format: pct },
   [M.KEYTRACK]: { id: M.KEYTRACK, label: 'Key track', group: 'body', format: pct },
+  [M.ANIMA]: { id: M.ANIMA, label: 'Anima', group: 'body', format: pct },
+  [M.BEAT]: { id: M.BEAT, label: 'Beat', group: 'body', format: pct },
+  [M.BEAT_RATE]: {
+    id: M.BEAT_RATE, label: 'Beat rate', group: 'body',
+    format: (v) => `${(0.15 * Math.pow(60, Math.max(0, Math.min(1, v)))).toFixed(2)} Hz`,
+  },
 
   [X.TYPE]: { id: X.TYPE, label: 'Exciter', group: 'breath', format: asIndex(EXCITERS), options: EXCITERS },
   [X.PRESSURE]: { id: X.PRESSURE, label: 'Pressure', group: 'breath', format: pct },
   [X.GRAIN]: { id: X.GRAIN, label: 'Grain', group: 'breath', format: pct },
   [X.TONE]: { id: X.TONE, label: 'Tone', group: 'breath', format: pct },
   [X.VEL_TILT]: { id: X.VEL_TILT, label: 'Vel → tone', group: 'breath', format: pct },
+  [X.PULSE]: { id: X.PULSE, label: 'Pulse', group: 'breath', format: pct },
+  [X.PULSE_RATE]: {
+    id: X.PULSE_RATE, label: 'Pulse rate', group: 'breath',
+    format: (v) => `${(0.03 * Math.pow(40, Math.max(0, Math.min(1, v)))).toFixed(2)} Hz`,
+  },
 
   [V.SIZE]: { id: V.SIZE, label: 'Size', group: 'veil', format: pct },
   [V.DECAY]: { id: V.DECAY, label: 'Decay', group: 'veil', format: (v) => `${(0.5 + v * v * 59.5).toFixed(1)} s` },

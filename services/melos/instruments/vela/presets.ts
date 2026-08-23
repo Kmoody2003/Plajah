@@ -6,8 +6,18 @@
 //
 // The four macros — Air, Body, Shimmer, Drift — are the whole of the Play panel, and they are
 // also the exact surface the meditation host drives. That is why there are four and not six.
+//
+// Every preset carries Anima, Beat and Pulse settings of its own, and a MASTER_GAIN trim.
+//
+// The life settings are not decoration. A modal bank with none of them is an organ: correct
+// partials, correct decay, and completely dead. Anima drifts each partial independently, Beat
+// is the singing-bowl "wah" that comes from two partials a few Hz apart, and Pulse is the
+// player leaning into the body and easing off. Bodies also differ enormously in how much energy
+// they hold, so the trim is where they are balanced against one another — squeezing the DSP's
+// normalisation to do it instead just removes headroom, and headroom is where the movement
+// lives.
 
-import { M, V, X } from './params';
+import { M, MASTER_GAIN, V, X } from './params';
 
 export type VelaMacro = 'air' | 'body' | 'shimmer' | 'drift';
 
@@ -36,6 +46,9 @@ export const VELA_PRESETS: VelaPreset[] = [
       [M.DECAY]: 0.62, [M.DECAY_TILT]: 0.42, [M.MATERIAL]: 0, [M.POSITION]: 0.26, [M.KEYTRACK]: 0.45,
       [X.TYPE]: 3, [X.PRESSURE]: 0.55, [X.GRAIN]: 0.42, [X.TONE]: 0.34, [X.VEL_TILT]: 0.6,
       [V.MIX]: 0.42, [V.SIZE]: 0.55, [V.DECAY]: 0.5, [V.DIFFUSION]: 0.66, [V.SHIMMER]: 0.08,
+      [M.ANIMA]: 0.45, [M.BEAT]: 0.55, [M.BEAT_RATE]: 0.15,
+      [X.PULSE]: 0.35, [X.PULSE_RATE]: 0.12,
+      [MASTER_GAIN]: 0.95,
     },
     macros: { air: 0.55, body: 0.35, shimmer: 0.2, drift: 0.22 },
   },
@@ -50,6 +63,9 @@ export const VELA_PRESETS: VelaPreset[] = [
       [M.DECAY]: 0.5, [M.DECAY_TILT]: 0.3, [M.MATERIAL]: 1, [M.POSITION]: 0.14, [M.KEYTRACK]: 0.6,
       [X.TYPE]: 2, [X.PRESSURE]: 0.8, [X.GRAIN]: 0.3, [X.TONE]: 0.72, [X.VEL_TILT]: 0.75,
       [V.MIX]: 0.5, [V.SIZE]: 0.45, [V.DECAY]: 0.55, [V.DIFFUSION]: 0.7, [V.SHIMMER]: 0.22,
+      [M.ANIMA]: 0.3, [M.BEAT]: 0.35, [M.BEAT_RATE]: 0.45,
+      [X.PULSE]: 0.15, [X.PULSE_RATE]: 0.3,
+      [MASTER_GAIN]: 1.0,
     },
     macros: { air: 0.4, body: 0.28, shimmer: 0.38, drift: 0.14 },
   },
@@ -64,6 +80,9 @@ export const VELA_PRESETS: VelaPreset[] = [
       [M.DECAY]: 0.78, [M.DECAY_TILT]: 0.36, [M.MATERIAL]: 0, [M.POSITION]: 0.5, [M.KEYTRACK]: 0.2,
       [X.TYPE]: 2, [X.PRESSURE]: 0.9, [X.GRAIN]: 0.6, [X.TONE]: 0.4, [X.VEL_TILT]: 0.8,
       [V.MIX]: 0.55, [V.SIZE]: 0.75, [V.DECAY]: 0.68, [V.DIFFUSION]: 0.8, [V.SHIMMER]: 0.1,
+      [M.ANIMA]: 0.6, [M.BEAT]: 0.4, [M.BEAT_RATE]: 0.08,
+      [X.PULSE]: 0.3, [X.PULSE_RATE]: 0.08,
+      [MASTER_GAIN]: 0.62,
     },
     macros: { air: 0.7, body: 0.62, shimmer: 0.18, drift: 0.4 },
   },
@@ -78,6 +97,9 @@ export const VELA_PRESETS: VelaPreset[] = [
       [M.DECAY]: 0.3, [M.DECAY_TILT]: 0.58, [M.MATERIAL]: 5, [M.POSITION]: 0.4, [M.KEYTRACK]: 0.5,
       [X.TYPE]: 1, [X.PRESSURE]: 0.62, [X.GRAIN]: 0.85, [X.TONE]: 0.55, [X.VEL_TILT]: 0.4,
       [V.MIX]: 0.48, [V.SIZE]: 0.6, [V.DECAY]: 0.45, [V.DIFFUSION]: 0.75, [V.SHIMMER]: 0.05,
+      [M.ANIMA]: 0.55, [M.BEAT]: 0.15, [M.BEAT_RATE]: 0.3,
+      [X.PULSE]: 0.6, [X.PULSE_RATE]: 0.18,
+      [MASTER_GAIN]: 0.8,
     },
     macros: { air: 0.78, body: 0.16, shimmer: 0.12, drift: 0.3 },
   },
@@ -93,6 +115,9 @@ export const VELA_PRESETS: VelaPreset[] = [
       [X.TYPE]: 0, [X.PRESSURE]: 0.6, [X.GRAIN]: 0.3, [X.TONE]: 0.42, [X.VEL_TILT]: 0.5,
       [V.MIX]: 0.9, [V.SIZE]: 0.85, [V.DECAY]: 0.82, [V.DIFFUSION]: 0.85,
       [V.SHIMMER]: 0.5, [V.SHIMMER_IVL]: 0,
+      [M.ANIMA]: 0.4, [M.BEAT]: 0.3, [M.BEAT_RATE]: 0.18,
+      [X.PULSE]: 0.4, [X.PULSE_RATE]: 0.1,
+      [MASTER_GAIN]: 0.65,
     },
     macros: { air: 0.6, body: 0.4, shimmer: 0.72, drift: 0.35 },
   },
@@ -107,6 +132,9 @@ export const VELA_PRESETS: VelaPreset[] = [
       [M.DECAY]: 0.7, [M.DECAY_TILT]: 0.3, [M.MATERIAL]: 2, [M.POSITION]: 0.62, [M.KEYTRACK]: 0.1,
       [X.TYPE]: 3, [X.PRESSURE]: 0.48, [X.GRAIN]: 0.7, [X.TONE]: 0.5, [X.VEL_TILT]: 0.55,
       [V.MIX]: 0.62, [V.SIZE]: 0.7, [V.DECAY]: 0.72, [V.DIFFUSION]: 0.78, [V.SHIMMER]: 0.16, [V.BLUR]: 0.22,
+      [M.ANIMA]: 0.7, [M.BEAT]: 0.5, [M.BEAT_RATE]: 0.05,
+      [X.PULSE]: 0.35, [X.PULSE_RATE]: 0.06,
+      [MASTER_GAIN]: 0.35,
     },
     macros: { air: 0.48, body: 0.82, shimmer: 0.24, drift: 0.55 },
   },
@@ -122,6 +150,9 @@ export const VELA_PRESETS: VelaPreset[] = [
       [X.TYPE]: 0, [X.PRESSURE]: 0.55, [X.GRAIN]: 0.25, [X.TONE]: 0.6, [X.VEL_TILT]: 0.45,
       [V.MIX]: 0.82, [V.SIZE]: 0.68, [V.DECAY]: 0.75, [V.DIFFUSION]: 0.88,
       [V.SHIMMER]: 1.0, [V.SHIMMER_IVL]: 1,
+      [M.ANIMA]: 0.55, [M.BEAT]: 0.25, [M.BEAT_RATE]: 0.35,
+      [X.PULSE]: 0.45, [X.PULSE_RATE]: 0.15,
+      [MASTER_GAIN]: 0.42,
     },
     macros: { air: 0.52, body: 0.3, shimmer: 0.95, drift: 0.42 },
   },
@@ -136,6 +167,9 @@ export const VELA_PRESETS: VelaPreset[] = [
       [M.DECAY]: 0.66, [M.DECAY_TILT]: 0.9, [M.MATERIAL]: 4, [M.POSITION]: 0.46, [M.KEYTRACK]: 0.3,
       [X.TYPE]: 2, [X.PRESSURE]: 0.85, [X.GRAIN]: 0.4, [X.TONE]: 0.12, [X.VEL_TILT]: 0.5,
       [V.MIX]: 0.38, [V.SIZE]: 0.8, [V.DECAY]: 0.6, [V.DIFFUSION]: 0.6, [V.SHIMMER]: 0.0,
+      [M.ANIMA]: 0.35, [M.BEAT]: 0.3, [M.BEAT_RATE]: 0.1,
+      [X.PULSE]: 0.25, [X.PULSE_RATE]: 0.09,
+      [MASTER_GAIN]: 0.75,
     },
     macros: { air: 0.6, body: 0.7, shimmer: 0.02, drift: 0.18 },
   },

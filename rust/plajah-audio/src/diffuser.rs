@@ -42,11 +42,25 @@ struct Line {
     write: usize,
     /// One-pole damping inside the feedback loop — what stops a long decay turning into noise.
     damp: f32,
+    /// DC blocker state. A feedback loop with allpass stages and no DC path to ground
+    /// accumulates offset, and at a long decay that offset dominates: a C4 note was measuring
+    /// 70% of its energy below 100 Hz, which is rumble, not a body.
+    dc_x1: f32,
+    dc_y1: f32,
 }
 
 impl Line {
     fn new(max_len: usize) -> Self {
-        Self { buf: vec![0.0; max_len.max(2)], write: 0, damp: 0.0 }
+        Self { buf: vec![0.0; max_len.max(2)], write: 0, damp: 0.0, dc_x1: 0.0, dc_y1: 0.0 }
+    }
+
+    /// One-pole DC blocker, ~5 Hz corner. Transparent to everything musical.
+    #[inline]
+    fn block_dc(&mut self, x: f32) -> f32 {
+        let y = x - self.dc_x1 + 0.9995 * self.dc_y1;
+        self.dc_x1 = x;
+        self.dc_y1 = y;
+        y
     }
 
     #[inline]
@@ -73,6 +87,8 @@ impl Line {
             *v = 0.0;
         }
         self.damp = 0.0;
+        self.dc_x1 = 0.0;
+        self.dc_y1 = 0.0;
     }
 }
 
@@ -160,6 +176,11 @@ pub struct Diffuser {
     decay_z: f32,
     mix_z: f32,
     shimmer_z: f32,
+    /// Slow per-line delay modulation. A fixed-length FDN is a static room, and a static room
+    /// is exactly what makes a big reverb sound synthetic — a real space is never still. This
+    /// is also the only movement a heavily shimmered patch has, since its tail never gets
+    /// quiet enough for amplitude pulsing to read.
+    mod_phase: [f32; LINES],
 }
 
 impl Diffuser {
@@ -189,6 +210,8 @@ impl Diffuser {
             decay_z: 0.4,
             mix_z: 0.0,
             shimmer_z: 0.0,
+            // Quarter-cycle apart, so the lines swell in sequence rather than together.
+            mod_phase: [0.0, 0.25, 0.5, 0.75],
         }
     }
 
@@ -231,22 +254,45 @@ impl Diffuser {
         // input is muted at the same moment.
         let rt60 = 0.5 + self.decay_z * self.decay_z * 59.5;
         let mean_delay = (LINE_MS.iter().sum::<f32>() / LINES as f32) * 0.001 * size;
-        let mut fb = if s.freeze { 1.0 } else { 10f32.powf(-3.0 * mean_delay / rt60) };
-        fb = fb.clamp(0.0, 1.0);
+        // 0.985 rather than 1.0 for the normal path: at a 60 s RT60 the computed value rounds
+        // to unity, and a unity loop with a swept delay length is how a reverb turns into an
+        // oscillator. Freeze is allowed closer, because its input is muted in the same breath.
+        let mut fb = if s.freeze { 0.999 } else { 10f32.powf(-3.0 * mean_delay / rt60) };
+        fb = fb.clamp(0.0, if s.freeze { 0.999 } else { 0.985 });
 
         // Damping rises with blur and falls with diffusion, which is what keeps a very long
         // decay from turning into white noise.
         let damp = (0.12 + s.blur * 0.45).clamp(0.0, 0.92);
         let ap_g = (0.5 + s.diffusion * 0.25).clamp(0.0, 0.78);
         let ratio = shimmer_ratio(s.shimmer_ivl);
-        // Shimmer feedback is held below unity by construction. Above it, an octave-up feedback
-        // path climbs to Nyquist and never comes back.
-        let shim = self.shimmer_z.clamp(0.0, 1.0) * 0.62;
+        // Shimmer is a CROSSFADE against the direct feedback, not an addition to it.
+        //
+        // Adding it made the loop gain fb*(1 + shim): at a long decay fb is ~0.99 and shim ran
+        // to 0.62, so the loop ran at 1.6 and the field climbed until the output clipper caught
+        // it. That is the "off the hinges" behaviour, and it also flattened every preset,
+        // because a runaway reverb sounds the same regardless of what fed it.
+        //
+        // Crossfaded, the loop gain is exactly fb whatever shimmer is doing.
+        // Capped below 1 so some direct feedback always survives. At full crossfade the tail is
+        // pure pitch-shifted wash, which fills every gap and flattens the dynamics — Aurora
+        // measured 1.2 dB of movement against 9-13 dB everywhere else.
+        let shim = self.shimmer_z.clamp(0.0, 1.0) * 0.70;
         let in_gain = if s.freeze { 0.0 } else { 1.0 };
 
+        // Rates chosen mutually incommensurate — 0.11 to 0.23 Hz, slow enough to read as the
+        // room breathing rather than as chorus. Depth is a few tenths of a percent; any more
+        // and a sustained note audibly detunes.
+        const MOD_HZ: [f32; LINES] = [0.11, 0.147, 0.181, 0.233];
+        let block_sec = frames as f32 / self.sr;
         let mut delays = [0.0f32; LINES];
         for i in 0..LINES {
-            delays[i] = LINE_MS[i] * 0.001 * self.sr * size;
+            self.mod_phase[i] += MOD_HZ[i] * block_sec;
+            if self.mod_phase[i] >= 1.0 {
+                self.mod_phase[i] -= 1.0;
+            }
+            let wobble = 1.0
+                + 0.003 * (core::f32::consts::TAU * self.mod_phase[i]).sin() * (0.4 + s.diffusion * 0.6);
+            delays[i] = LINE_MS[i] * 0.001 * self.sr * size * wobble;
         }
         let mut ap_delays = [0.0f32; AP_STAGES];
         for i in 0..AP_STAGES {
@@ -292,10 +338,18 @@ impl Diffuser {
             let shifted = if shim > 0.0001 { self.shifter.process(sum, ratio) } else { 0.0 };
 
             for i in 0..LINES {
-                let mut v = x + (m[i] + shifted * shim) * fb;
+                let recirc = m[i] * (1.0 - shim) + shifted * shim;
+                let mut v = x + recirc * fb;
                 // Damping lowpass inside the loop.
                 self.lines[i].damp += (v - self.lines[i].damp) * (1.0 - damp);
                 v = self.lines[i].damp;
+                v = self.lines[i].block_dc(v);
+                // Soft ceiling inside the loop, transparent below it. Belt and braces: the
+                // crossfade above bounds the gain analytically, but a swept Size changes the
+                // read position mid-flight and a bounded loop is cheaper than a bug report.
+                if v.abs() > 1.5 {
+                    v = crate::filter::tanh_fast(v);
+                }
                 if !v.is_finite() {
                     v = 0.0;
                 }
@@ -309,7 +363,9 @@ impl Diffuser {
                 for i in 0..LINES {
                     acc += y[i] * self.spread[i][c];
                 }
-                wet[c] = acc * 0.5;
+                // Normalised by line count so the wet level does not depend on how many lines
+                // happen to be feeding a channel.
+                wet[c] = acc * (1.0 / (LINES as f32).sqrt());
             }
 
             let mix = self.mix_z.clamp(0.0, 1.0);

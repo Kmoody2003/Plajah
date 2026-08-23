@@ -150,11 +150,17 @@ export function velaDriftSetup(): Array<[number, number]> {
 export const VELA_EDITOR_GROUPS: Array<{ key: 'body' | 'breath' | 'veil'; title: string; color: string; ids: number[] }> = [
   {
     key: 'body', title: 'Body', color: '#D0BCFF',
-    ids: [M.PARTIALS, M.INHARM, M.DECAY, M.DECAY_TILT, M.SPREAD, M.POSITION, M.MATERIAL, M.KEYTRACK],
+    ids: [
+      M.PARTIALS, M.INHARM, M.DECAY, M.DECAY_TILT, M.SPREAD, M.POSITION, M.MATERIAL, M.KEYTRACK,
+      // The life controls. Anima and Beat are what stop a bank sounding like an organ, so they
+      // sit with the body rather than in a separate "modulation" section — they are not
+      // modulation of the sound, they are part of what the sound is.
+      M.ANIMA, M.BEAT, M.BEAT_RATE,
+    ],
   },
   {
     key: 'breath', title: 'Breath', color: '#FF8C00',
-    ids: [X.TYPE, X.PRESSURE, X.GRAIN, X.TONE, X.VEL_TILT],
+    ids: [X.TYPE, X.PRESSURE, X.GRAIN, X.TONE, X.VEL_TILT, X.PULSE, X.PULSE_RATE],
   },
   {
     key: 'veil', title: 'Veil', color: '#00DAF3',

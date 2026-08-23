@@ -47,6 +47,11 @@ pub struct ExciterSpec {
     /// 0..1. How much velocity moves tone rather than level. Playing a real body harder changes
     /// its colour; only a sampler changes just the volume.
     pub vel_tilt: f32,
+    /// 0..1. Slow swell of pressure. A player leans into a bowl and eases off; a machine does
+    /// not, and the difference is most of why a static drone sounds synthetic.
+    pub pulse: f32,
+    /// Pulse rate in Hz. At the low end this is roughly a breath.
+    pub pulse_rate: f32,
     pub velocity: f32,
 }
 
@@ -63,6 +68,8 @@ pub struct Exciter {
     slip: f32,
     /// Smoothed pressure, so a macro sweep never steps.
     pressure_z: f32,
+    /// Phase of the slow pressure swell.
+    pulse_phase: f32,
 }
 
 impl Default for Exciter {
@@ -76,6 +83,7 @@ impl Default for Exciter {
             impulse_len: 1.0,
             slip: 0.0,
             pressure_z: 0.0,
+            pulse_phase: 0.0,
         }
     }
 }
@@ -92,6 +100,8 @@ impl Exciter {
         self.hp = 0.0;
         self.slip = self.rng.next_f32();
         self.pressure_z = 0.0;
+        // Random start phase so two notes never swell in lockstep.
+        self.pulse_phase = self.rng.next_f32();
         // A harder strike is a *shorter*, brighter contact, not just a louder one — 1 ms at full
         // velocity out to about 9 ms at the softest.
         let ms = 9.0 - 8.0 * spec.velocity.clamp(0.0, 1.0);
@@ -116,7 +126,16 @@ impl Exciter {
         let tone = (spec.tone + (spec.velocity - 0.5) * vt * 0.6).clamp(0.0, 1.0);
         let level = 1.0 - vt * 0.35 * (1.0 - spec.velocity);
 
-        let target = if gate { spec.pressure } else { 0.0 };
+        // The breath. A unipolar dip, so the pulse eases off and returns rather than pumping
+        // above the set pressure — leaning into a bowl, not tremolo.
+        self.pulse_phase += spec.pulse_rate / sr;
+        if self.pulse_phase >= 1.0 {
+            self.pulse_phase -= 1.0;
+        }
+        let swell = 1.0 - spec.pulse * 0.5
+            + spec.pulse * 0.5 * (core::f32::consts::TAU * self.pulse_phase).sin();
+
+        let target = if gate { spec.pressure * swell } else { 0.0 };
         // ~8 ms smoothing: fast enough to feel immediate, slow enough that a macro sweep across
         // Air never zippers.
         let k = (1.0 - (-1.0 / (0.008 * sr)).exp()).clamp(0.0, 1.0);
@@ -143,15 +162,24 @@ impl Exciter {
                 (n * (0.35 + 0.65 * spec.grain)) * self.pressure_z
             }
             ExciterType::Bow => {
-                // Stick-slip: a sawtooth grip cycle in the low audio range, roughened by noise.
-                // Bow speed rises with pressure, which is what a player actually does.
-                let rate = (24.0 + 90.0 * self.pressure_z) / sr;
+                // Grip as an amplitude RIPPLE on noise, never an additive tone.
+                //
+                // This was a sawtooth at 24–114 Hz summed straight into the bank, and a
+                // sawtooth in the bass is not an exciter, it is a bass drone: bowed presets
+                // measured 72% of their energy below 100 Hz and all sounded like the same
+                // buzz, because they were all mostly hearing that oscillator rather than the
+                // body it was supposed to be exciting.
+                //
+                // Real bowing is Helmholtz motion at the *resonator's* frequency, which a
+                // modal bank produces by itself when fed broadband energy. So the exciter's
+                // job is friction texture, not pitch.
+                let rate = (18.0 + 60.0 * self.pressure_z) / sr;
                 self.slip += rate;
                 if self.slip >= 1.0 {
                     self.slip -= 1.0;
                 }
-                let grip = self.slip * 2.0 - 1.0;
-                (grip * (1.0 - spec.grain * 0.7) + n * spec.grain) * self.pressure_z
+                let grip = 0.55 + 0.45 * (core::f32::consts::TAU * self.slip).sin();
+                (n * (0.4 + 0.6 * spec.grain)) * grip * self.pressure_z * 1.8
             }
             ExciterType::Rub => {
                 // The crystal-bowl gesture: the same grip cycle, an order of magnitude slower,
@@ -162,7 +190,11 @@ impl Exciter {
                     self.slip -= 1.0;
                 }
                 let swell = 0.5 - 0.5 * (core::f32::consts::TAU * self.slip).cos();
-                (n * (0.25 + 0.75 * spec.grain)) * swell * self.pressure_z
+                // 2.6x: the swell window averages well under half, and the noise-only content
+                // has no periodic component to concentrate energy the way Bow's grip cycle
+                // does. Without it Rub landed at a quarter the level of every other exciter —
+                // Himalayan Bronze, the reference voice, was the quietest preset in the set.
+                (n * (0.25 + 0.75 * spec.grain)) * swell * self.pressure_z * 1.5
             }
         };
 

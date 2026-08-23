@@ -29,8 +29,10 @@ use spatial::{IamfRole, Layout, Position};
 /// v2 adds absolute-frame scheduling (`pa_schedule_note_*`), which is what makes offline
 /// rendering of instrument tracks possible. v3 adds sample playback (KERA). v5 adds VELA — the
 /// modal body, the exciter and the Veil (param block 1000+), plus the Tide LFO shape and the
-/// slow LFO range.
-pub const ABI_VERSION: u32 = 5;
+/// slow LFO range. v6 adds VELA's life controls — per-partial Anima drift, singing-bowl Beat,
+/// and the exciter's breath Pulse. Additive ids, but a stale .wasm would ignore them silently,
+/// which is exactly what this guard exists to prevent.
+pub const ABI_VERSION: u32 = 6;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn pa_abi_version() -> u32 {

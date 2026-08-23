@@ -18,6 +18,14 @@ use crate::osc::Rng;
 
 pub const MAX_PARTIALS: usize = 64;
 
+/// Per-partial modulation runs at control rate. 32 samples is ~1.5 kHz at 48k — far above
+/// anything moving here, and it costs 64 sines per block instead of 64 per sample.
+const AM_CTL: usize = 32;
+
+/// Golden ratio, used to space the drift rates. Irrational spacing means no two partials share
+/// a period and the combination never repeats — which is the whole point of Anima.
+const PHI: f32 = 1.618_034;
+
 /// The partial-count control is stepped, because the count sets the per-voice cost and a
 /// continuous knob would let someone slide into a dropout without knowing why.
 pub const PARTIAL_STEPS: [usize; 5] = [16, 24, 32, 48, 64];
@@ -82,6 +90,9 @@ struct Resonator {
     a1: f32,
     a2: f32,
     g: f32,
+    /// sin(w) at tuning time. `g = amp * sin(w)`, so this is how the bank recovers `amp` when
+    /// computing its output normalisation.
+    sin_w: f32,
 }
 
 impl Resonator {
@@ -93,6 +104,7 @@ impl Resonator {
             self.g = 0.0;
             self.a1 = 0.0;
             self.a2 = 0.0;
+            self.sin_w = 1.0;
             return;
         }
         // T60: amplitude falls 60 dB (a factor of 1000, ln = 6.9078) over `decay_s`.
@@ -104,7 +116,8 @@ impl Resonator {
         // g·rⁿ·sin(ωn)/sin(ω), so `g = amp·sin(ω)` makes a strike peak at `amp` regardless of
         // decay time. Normalising for steady-state unity instead (the `(1-r)` form) collapses
         // to silence the moment the decay gets long: at T60 = 20 s, `1-r` is about 7e-6.
-        self.g = amp * w.sin().max(0.02);
+        self.sin_w = w.sin().max(0.02);
+        self.g = amp * self.sin_w;
     }
 
     #[inline]
@@ -153,6 +166,18 @@ pub struct ModalSpec {
     /// -1..1 after mapping. Negative: highs ring longest. Positive: highs die first.
     pub decay_tilt: f32,
     pub material: Material,
+    /// 0..1. Independent slow amplitude drift per partial, 0.02–0.3 Hz, irrationally spaced.
+    ///
+    /// This is what separates a resonator bank from an organ. A real body's partials swell and
+    /// fade against one another because the object is never perfectly still; without it the
+    /// bank is technically correct and emotionally dead.
+    pub anima: f32,
+    /// 0..1. Beating depth. Real singing bowls have partials a few Hz apart, and the slow
+    /// amplitude "wah" that produces is the single most recognisable thing about them.
+    pub beat: f32,
+    /// Beat rate in Hz at the fundamental. Higher partials beat proportionally faster, which is
+    /// what the physical detuning of a real bowl actually does.
+    pub beat_rate: f32,
     /// 0..1 excitation point along the body. Nulls partials whose node lands there.
     pub position: f32,
     /// 0..1. How much decay shortens as you play up the keyboard. Real bodies do this.
@@ -164,8 +189,20 @@ pub struct ModalBank {
     count: usize,
     /// Mean bandwidth across the active partials, cached at `prepare`.
     mean_bw: f32,
+    /// Output normalisation from the ACTUAL partial amplitudes, cached at `prepare`.
+    norm: f32,
     /// Frozen per note so the same voice re-struck sounds like the same object.
     jitter: [f32; MAX_PARTIALS],
+
+    // ── Life. Evaluated at control rate, applied to each partial's output. ──
+    am_phase: [f32; MAX_PARTIALS],
+    am_inc: [f32; MAX_PARTIALS],
+    beat_phase: [f32; MAX_PARTIALS],
+    beat_inc: [f32; MAX_PARTIALS],
+    gain: [f32; MAX_PARTIALS],
+    anima: f32,
+    beat: f32,
+    ctl: usize,
 }
 
 impl ModalBank {
@@ -175,7 +212,26 @@ impl ModalBank {
         for j in jitter.iter_mut() {
             *j = rng.bipolar();
         }
-        Self { res: [Resonator::default(); MAX_PARTIALS], count: 0, mean_bw: 1.0, jitter }
+        let mut am_phase = [0.0f32; MAX_PARTIALS];
+        for (k, p) in am_phase.iter_mut().enumerate() {
+            // Start every partial somewhere different, or they all swell together on note one.
+            *p = ((k as f32) * PHI).fract();
+        }
+        Self {
+            res: [Resonator::default(); MAX_PARTIALS],
+            count: 0,
+            mean_bw: 1.0,
+            norm: 1.0,
+            jitter,
+            am_phase,
+            am_inc: [0.0; MAX_PARTIALS],
+            beat_phase: [0.0; MAX_PARTIALS],
+            beat_inc: [0.0; MAX_PARTIALS],
+            gain: [1.0; MAX_PARTIALS],
+            anima: 0.0,
+            beat: 0.0,
+            ctl: 0,
+        }
     }
 
     pub fn reset(&mut self) {
@@ -199,6 +255,8 @@ impl ModalBank {
 
         let b = s.inharm * inharm_scale;
         let tilt = (s.decay_tilt + tilt_bias).clamp(-1.2, 1.8);
+        self.anima = s.anima.clamp(0.0, 1.0);
+        self.beat = s.beat.clamp(0.0, 1.0);
 
         for k in 0..count {
             let kn = k as f32 + 1.0;
@@ -217,7 +275,20 @@ impl ModalBank {
             let amp = roll * (0.35 + 0.65 * node) * (0.55 + 0.45 * (self.jitter[k] * 0.5 + 0.5));
 
             // Decay per partial. Negative tilt is the bronze/iron behaviour.
-            let decay = (base_decay * kn.powf(-tilt)).clamp(0.02, 60.0);
+            // Bounded RELATIVE to the fundamental, not just absolutely. A negative tilt
+            // raises kn^-tilt, and at 64 partials that reaches ~146x — so a 10 s body grew a
+            // 60 s shimmer of high partials that never died. The voice then never freed, notes
+            // piled toward the polyphony limit, and every preset collapsed into one wash.
+            // Four times the fundamental is a long ring; past that it is a stuck note.
+            let ceiling = (base_decay * 4.0).min(28.0);
+            let decay = (base_decay * kn.powf(-tilt)).clamp(0.02, ceiling);
+
+            // Drift rate: 0.02–0.3 Hz, spaced by the golden ratio so no two partials share a
+            // period. Beat rate rises with partial index, matching how a real body's higher
+            // modes are detuned further apart in absolute terms.
+            let drift_hz = 0.02 + 0.28 * ((kn * PHI).fract());
+            self.am_inc[k] = drift_hz / sr;
+            self.beat_inc[k] = (s.beat_rate * (1.0 + k as f32 * 0.11)).min(24.0) / sr;
 
             self.res[k].tune(freq, decay, amp, sr);
         }
@@ -228,10 +299,31 @@ impl ModalBank {
         }
 
         let mut bw = 0.0;
+        let mut amp_sq = 0.0;
         for k in 0..count {
             bw += self.res[k].bandwidth();
+            let a = self.res[k].g / self.res[k].sin_w.max(0.02);
+            amp_sq += a * a;
         }
         self.mean_bw = (bw / count.max(1) as f32).max(1.0e-9);
+        // Normalise by the amplitudes actually present, not by the partial count.
+        //
+        // A flat 1/sqrt(count) assumed every partial contributes equally, and they do not: a
+        // glass body rolls off slowly so 64 partials really are 64 contributors, while a skin
+        // body's upper 48 are almost silent. The result was that raising Partials made a patch
+        // quieter — Vitreous, at 64, landed a full 17 dB under Ferrous on the same note.
+        // 0.45, not 1.4. The first pass at amplitude normalisation put every preset between
+        // 0.8 and 1.0 peak, permanently into the output soft-clip — which does not just sound
+        // squashed, it ERASES the movement the bank works to produce: Ferrous measured 0.9 dB
+        // of pulsing while clipped against 9.5 dB when it had headroom. Loud is not the same
+        // as alive, and for this instrument headroom IS the expression.
+        // Clamped, because normalising by surviving amplitude has a failure mode of its own:
+        // a heavily stretched bank pushes most of its partials past Nyquist where they are
+        // silenced, so `amp_sq` collapses and the few survivors get boosted enormously. Ferrous
+        // (58% inharmonic on iron) came out 7x louder than Himalayan and clipped continuously.
+        // The ceiling says a sparse body may be lifted, but not turned into the loudest thing
+        // in the instrument.
+        self.norm = (0.45 / amp_sq.sqrt().max(0.05)).clamp(0.08, 0.18);
     }
 
     /// Scale factor for CONTINUOUS excitation.
@@ -253,16 +345,46 @@ impl ModalBank {
         (self.mean_bw.sqrt() * 36.0).clamp(0.002, 1.0)
     }
 
+    /// Recompute the per-partial amplitude envelopes. Control rate — see AM_CTL.
+    fn update_gains(&mut self) {
+        let step = AM_CTL as f32;
+        for k in 0..self.count {
+            self.am_phase[k] += self.am_inc[k] * step;
+            if self.am_phase[k] >= 1.0 {
+                self.am_phase[k] -= 1.0;
+            }
+            self.beat_phase[k] += self.beat_inc[k] * step;
+            if self.beat_phase[k] >= 1.0 {
+                self.beat_phase[k] -= 1.0;
+            }
+            let drift = (core::f32::consts::TAU * self.am_phase[k]).sin();
+            let wah = (core::f32::consts::TAU * self.beat_phase[k]).sin();
+            // Both are unipolar dips rather than bipolar swings: a partial should fade and
+            // return, never invert. Peak gain stays 1 so Anima cannot make the voice louder.
+            self.gain[k] = (1.0 - self.anima * 0.5 + self.anima * 0.5 * drift)
+                * (1.0 - self.beat * 0.45 + self.beat * 0.45 * wah);
+        }
+    }
+
     /// Drive the bank with one sample of excitation and return the summed output.
     #[inline]
     pub fn process(&mut self, x: f32) -> f32 {
+        if self.ctl == 0 {
+            self.update_gains();
+        }
+        self.ctl += 1;
+        if self.ctl >= AM_CTL {
+            self.ctl = 0;
+        }
         let mut sum = 0.0;
         for k in 0..self.count {
-            sum += self.res[k].process(x);
+            // The gain rides the resonator's OUTPUT, so it modulates the ring itself rather
+            // than the excitation — the partials breathe while the note is sounding.
+            sum += self.res[k].process(x) * self.gain[k];
         }
         // Normalise loosely by partial count so switching 16 → 64 changes the timbre rather
         // than the level.
-        sum * (1.0 / (self.count as f32).sqrt().max(1.0))
+        sum * self.norm
     }
 
     /// True once the bank has rung out. Checked against a floor well below audibility, because
@@ -271,7 +393,10 @@ impl ModalBank {
         let mut e = 0.0;
         for k in 0..self.count {
             e += self.res[k].energy();
-            if e > 1.0e-4 {
+            // 1e-3, not 1e-4. Below this the bank sits ~60 dB under a struck note and is
+            // inaudible under the master gain; holding voices open through that last silent
+            // decade is what let polyphony fill up.
+            if e > 1.0e-3 {
                 return false;
             }
         }
