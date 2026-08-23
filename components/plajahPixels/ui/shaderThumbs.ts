@@ -39,6 +39,68 @@ let tex: WebGLTexture | null = null;
 let ready = false;
 
 const cache = new Map<string, string>();          // key -> dataURL
+
+/* ── Persistence ────────────────────────────────────────────────────────────
+   Compiling ninety-five shaders costs about twenty-five seconds. Doing it once
+   is the price of the wall; doing it on every reload is a bug. */
+
+const DB_NAME = 'plajah-pixels-thumbs';
+const STORE = 'stills';
+type Rec = { url: string; h: number };
+
+/** djb2 over the shader source — edit a shader and its still is re-rendered. */
+function srcHash(src: string): number {
+  let h = 5381;
+  for (let i = 0; i < src.length; i++) h = ((h * 33) ^ src.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+let dbPromise: Promise<IDBDatabase | null> | null = null;
+function openDb(): Promise<IDBDatabase | null> {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise(resolve => {
+    try {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE);
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch { resolve(null); }   // private mode, disabled storage — render live
+  });
+  return dbPromise;
+}
+
+let persisted: Map<string, Rec> | null = null;
+let loadingPersisted: Promise<void> | null = null;
+
+function ensurePersisted(): Promise<void> {
+  if (loadingPersisted) return loadingPersisted;
+  loadingPersisted = new Promise<void>(resolve => {
+    persisted = new Map();
+    openDb().then(db => {
+      if (!db) { resolve(); return; }
+      try {
+        const req = db.transaction(STORE, 'readonly').objectStore(STORE).openCursor();
+        req.onsuccess = () => {
+          const c = req.result;
+          if (!c) { resolve(); return; }
+          persisted!.set(String(c.key), c.value as Rec);
+          c.continue();
+        };
+        req.onerror = () => resolve();
+      } catch { resolve(); }
+    });
+  });
+  return loadingPersisted;
+}
+
+function persist(key: string, rec: Rec): void {
+  openDb().then(db => {
+    if (!db) return;
+    try { db.transaction(STORE, 'readwrite').objectStore(STORE).put(rec, key); } catch { /* quota */ }
+  });
+}
 const failed = new Set<string>();
 const queue: { key: string; src: string; done: (url: string | null) => void }[] = [];
 let pumping = false;
@@ -158,10 +220,26 @@ export function getShaderThumb(key: string, src: string): Promise<string | null>
   const hit = cache.get(key);
   if (hit) return Promise.resolve(hit);
   if (failed.has(key)) return Promise.resolve(null);
-  if (!init()) return Promise.resolve(null);
-  return new Promise(resolve => {
-    queue.push({ key, src, done: resolve });
-    pump();
+
+  return ensurePersisted().then(() => {
+    const again = cache.get(key);
+    if (again) return again;
+
+    const h = srcHash(src);
+    const rec = persisted?.get(key);
+    if (rec && rec.h === h) {          // rendered on an earlier visit
+      cache.set(key, rec.url);
+      return rec.url;
+    }
+
+    if (!init()) return null;
+    return new Promise<string | null>(resolve => {
+      queue.push({
+        key, src,
+        done: url => { if (url) persist(key, { url, h }); resolve(url); },
+      });
+      pump();
+    });
   });
 }
 

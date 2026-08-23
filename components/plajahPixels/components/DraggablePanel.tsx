@@ -11,7 +11,7 @@
 // window over the canvas on a second monitor. Position + pin state persist
 // per-id, as before.
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Pin, PinOff, GripHorizontal, ChevronDown } from 'lucide-react';
 import { useDock } from '../ui/shell';
@@ -51,7 +51,52 @@ export const DraggablePanel: React.FC<DraggablePanelProps> = ({
   const posRef = useRef(pos);
   posRef.current = pos;
   const [collapsed, setCollapsed] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const dock = useDock();
+
+  /**
+   * Where this panel may sit, in its own coordinate space.
+   *
+   * These panels are `fixed`, but an ancestor establishes a containing block,
+   * so `left: 0` is not the left of the window — it is the left of that box.
+   * `offsetParent` is null for fixed elements and cannot tell us where the box
+   * is, so measure it: the difference between the position we asked for and the
+   * position we got is exactly the container's offset.
+   */
+  const limits = useCallback(() => {
+    const el = rootRef.current;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    const offX = r.left - posRef.current.x;
+    const offY = r.top - posRef.current.y;
+    const w = el.offsetWidth || 320;
+    return {
+      minX: -offX,
+      maxX: window.innerWidth - offX - w,
+      minY: -offY,
+      // Keep the drag handle reachable rather than the whole panel on screen —
+      // a tall panel would otherwise be pinned to the top edge.
+      maxY: window.innerHeight - offY - 40,
+    };
+  }, []);
+
+  /* A saved position outlives the layout that produced it, so clamp on mount
+     as well as on resize — otherwise one bad drag hides a panel permanently. */
+  useLayoutEffect(() => {
+    if (dock.docking && dock.el) return;
+    const clamp = () => {
+      const L = limits();
+      if (!L) return;
+      setPos(p => {
+        const x = Math.max(L.minX, Math.min(L.maxX, p.x));
+        const y = Math.max(L.minY, Math.min(L.maxY, p.y));
+        return x === p.x && y === p.y ? p : { x, y };
+      });
+    };
+    clamp();
+    window.addEventListener('resize', clamp);
+    return () => window.removeEventListener('resize', clamp);
+  }, [limits, dock.docking, dock.el]);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     if (pinned) return;
@@ -59,8 +104,13 @@ export const DraggablePanel: React.FC<DraggablePanelProps> = ({
     dragRef.current = { ox: e.clientX - posRef.current.x, oy: e.clientY - posRef.current.y };
     const move = (ev: PointerEvent) => {
       if (!dragRef.current) return;
-      const x = Math.max(0, Math.min(window.innerWidth - 48, ev.clientX - dragRef.current.ox));
-      const y = Math.max(0, Math.min(window.innerHeight - 32, ev.clientY - dragRef.current.oy));
+      const L = limits();
+      let x = ev.clientX - dragRef.current.ox;
+      let y = ev.clientY - dragRef.current.oy;
+      if (L) {
+        x = Math.max(L.minX, Math.min(L.maxX, x));
+        y = Math.max(L.minY, Math.min(L.maxY, y));
+      }
       setPos({ x, y });
     };
     const up = () => {
@@ -71,7 +121,7 @@ export const DraggablePanel: React.FC<DraggablePanelProps> = ({
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
-  }, [id, pinned]);
+  }, [id, pinned, limits]);
 
   const togglePin = useCallback(() => {
     setPinned(p => { const np = !p; saveEntry(id, posRef.current.x, posRef.current.y, np); return np; });
@@ -112,7 +162,7 @@ export const DraggablePanel: React.FC<DraggablePanelProps> = ({
 
   /* ── Floating: the original behaviour, kept for a second screen ── */
   return (
-    <div className={`fixed ${className}`} style={{ left: pos.x, top: pos.y, zIndex }}>
+    <div ref={rootRef} className={`fixed ${className}`} style={{ left: pos.x, top: pos.y, zIndex }}>
       {/* Drag handle */}
       <div
         onPointerDown={onPointerDown}
