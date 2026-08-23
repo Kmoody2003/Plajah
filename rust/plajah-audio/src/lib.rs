@@ -39,10 +39,11 @@ use spatial::{IamfRole, Layout, Position};
 /// Ghost Gate with its reverb spill, the three Scorch stages, Space, the mono fold and the
 /// Karplus-Strong string. Additive ids, but a stale .wasm would ignore them silently,
 /// which is exactly what this guard exists to prevent.
-/// v9 adds CANTUS's overtone spotlight (emphasis on a single partial INDEX, which is what
+/// v10 adds the Voice material (a glottal source rather than a body) and period doubling —
+/// the kargyraa buzz. v9 adds CANTUS's overtone spotlight (emphasis on a single partial INDEX, which is what
 /// throat singing physically is) and pitch vibrato. Additive ids, but a .wasm built before them
 /// reports 9 and silently ignores the new params — which is the exact failure this guard is for.
-pub const ABI_VERSION: u32 = 9;
+pub const ABI_VERSION: u32 = 10;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn pa_abi_version() -> u32 {

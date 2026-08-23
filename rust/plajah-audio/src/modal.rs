@@ -136,6 +136,15 @@ pub enum Material {
     Wood,
     Skin,
     Air,
+    /// A glottal source rather than an object.
+    ///
+    /// The voice is the one "material" here that is not a body at all — it is a pulse train
+    /// from the vocal folds, and its spectrum falls far more slowly than anything solid. Air,
+    /// which CANTUS was using, rolls off at k^-1.8: by the seventeenth harmonic there is
+    /// essentially nothing left, so emphasising that harmonic SYNTHESISES a partial instead of
+    /// bringing one forward. That is audibly a sine laid on top of a drone rather than one
+    /// voice, and it is why the overtone effect did not land.
+    Voice,
 }
 
 impl Material {
@@ -146,6 +155,7 @@ impl Material {
             3 => Material::Wood,
             4 => Material::Skin,
             5 => Material::Air,
+            6 => Material::Voice,
             _ => Material::Bronze,
         }
     }
@@ -164,6 +174,9 @@ impl Material {
             Material::Wood => (0.55, 1.30, 0.70),
             Material::Skin => (0.85, 1.55, 0.45),
             Material::Air => (0.15, 1.80, 0.12),
+            // 0.75 is roughly a glottal source after lip radiation: harmonics 10-30 still carry
+            // real energy, which is the whole precondition for overtone singing.
+            Material::Voice => (0.30, 0.75, 0.06),
         }
     }
 }
@@ -305,6 +318,15 @@ pub struct ModalSpec {
     /// Pitch vibrato depth in semitones, applied to the whole bank.
     pub vibrato: f32,
     pub vibrato_rate: f32,
+    /// 0..1 period doubling.
+    ///
+    /// Kargyraa — the deep, rasping Tuvan style — comes from the ventricular folds vibrating at
+    /// half the rate of the vocal folds. The result is a spectrum containing every half-integer
+    /// multiple of the fundamental as well as the integers. The pitch does not drop, because
+    /// the integer harmonics are still the strongest; what changes is that the tone acquires a
+    /// buzz no amount of filtering can imitate, because the extra partials are simply not there
+    /// in a normal harmonic series.
+    pub subharm: f32,
 }
 
 pub struct ModalBank {
@@ -390,7 +412,7 @@ impl ModalBank {
                 position: 0.28, keytrack: 0.4, morph: 0.0, morph_time: 8.0,
                 mode: BankMode::Struck, formant: 0.0, formant_shift: 0.5, bloom: 0.4,
                 spotlight: 0.0, spotlight_pos: 0.4, spotlight_width: 0.25,
-                vibrato: 0.0, vibrato_rate: 5.0,
+                vibrato: 0.0, vibrato_rate: 5.0, subharm: 0.0,
             },
             sr: 48000.0,
             note_samples: 0,
@@ -486,6 +508,12 @@ impl ModalBank {
         let node0 = (core::f32::consts::PI * s.position.clamp(0.01, 0.99)).sin().abs();
         let amp0 = (0.35 + 0.65 * node0) * (0.55 + 0.45 * (self.jitter[0] * 0.5 + 0.5));
 
+        // Period doubling builds the whole series on f0/2, so the integer harmonics of f0 are
+        // still present and still strongest — the pitch is unchanged — and the half-integers
+        // arrive between them as the buzz.
+        let doubled = s.subharm > 0.001;
+        let div = if doubled { 2.0 } else { 1.0 };
+
         for k in 0..count {
             let kn = k as f32 + 1.0;
 
@@ -493,14 +521,29 @@ impl ModalBank {
             // which is exactly what the Inharmonicity control is.
             let ratio = kn * (1.0 + b * kn * kn * 0.01).sqrt();
             let detune = 1.0 + self.jitter[k] * s.spread * 0.04;
-            let freq = s.f0 * vib * ratio * detune;
+            let freq = s.f0 * vib * ratio * detune / div;
 
             // Amplitude: roll off with partial index, plus the excitation-point null. A partial
             // whose node falls exactly where the body was struck cannot be excited at all —
             // this is what makes the same bowl hit in two places sound like two instruments.
-            let node = (core::f32::consts::PI * kn * s.position.clamp(0.01, 0.99)).sin().abs();
-            let roll = kn.powf(-amp_exp);
-            let amp = roll * (0.35 + 0.65 * node) * (0.55 + 0.45 * (self.jitter[k] * 0.5 + 0.5));
+            // Keyed to the harmonic number, like the roll-off. On the doubled series the
+            // fundamental sits at an EVEN index, and at position 0.5 that put it exactly on a
+            // node — sin(2*pi*0.5) = 0 — so switching the buzz on silently nulled the note's
+            // own fundamental. The null belongs to where the body is excited, which is a fact
+            // about the harmonic, not about which slot it occupies in the array.
+            // Harmonic number relative to f0, NOT the index in the series. With period doubling
+            // the series is built on f0/2, so the fundamental sits at index 2 — keying anything
+            // to the index puts it in the wrong place entirely.
+            let harm = kn / div;
+            let node = (core::f32::consts::PI * harm * s.position.clamp(0.01, 0.99)).sin().abs();
+            let roll = harm.max(0.8).powf(-amp_exp);
+            let mut amp = roll * (0.35 + 0.65 * node) * (0.55 + 0.45 * (self.jitter[k] * 0.5 + 0.5));
+            // With the series on f0/2, ODD kn lands on a half-integer of f0 — those are the
+            // partials period doubling adds, so they come in with the control rather than
+            // being there all along.
+            if doubled && (k % 2 == 0) {
+                amp *= s.subharm;
+            }
 
             // Decay per partial. Negative tilt is the bronze/iron behaviour.
             // Bounded RELATIVE to the fundamental, not just absolutely. A negative tilt
@@ -561,6 +604,13 @@ impl ModalBank {
         let mut amp_sq = 0.0;
         for k in 0..count {
             bw += self.res[k].bandwidth();
+            // Half-integer partials are excluded from the normalisation reference. They are an
+            // ADDITION to the timbre, not part of what sets the note's level — counting them
+            // makes `norm` fall as the buzz comes in, so reaching for the control quietly turns
+            // the note down instead of roughening it.
+            if doubled && k % 2 == 0 {
+                continue;
+            }
             let a = self.res[k].g / self.res[k].sin_w.max(0.02);
             amp_sq += a * a;
         }

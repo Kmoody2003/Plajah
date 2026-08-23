@@ -61,6 +61,11 @@ export const M = {
   /// Pitch vibrato. The slow end is a monastic waver rather than a trained wobble.
   VIBRATO: 1022,
   VIBRATO_RATE: 1023,
+  /// Period doubling — the kargyraa buzz. Adds every half-integer multiple of the fundamental,
+  /// which is what the ventricular folds do when they vibrate at half the rate of the vocal
+  /// folds. The pitch does not move; the tone acquires a rasp no filter can imitate, because
+  /// the extra partials simply are not present in a normal harmonic series.
+  SUBHARM: 1024,
 } as const;
 
 /** Exciter — what puts energy into the bank. */
@@ -94,7 +99,7 @@ export const lfoRange = (index: number): number => 800 + index * 10 + L_RANGE;
 /** New Motion shape index — a seeded random walk that never repeats. */
 export const LFO_SHAPE_TIDE = 6;
 
-export const MATERIALS = ['Bronze', 'Glass', 'Iron', 'Wood', 'Skin', 'Air'] as const;
+export const MATERIALS = ['Bronze', 'Glass', 'Iron', 'Wood', 'Skin', 'Air', 'Voice'] as const;
 export const EXCITERS = ['Bow', 'Blow', 'Strike', 'Rub'] as const;
 export const SHIMMER_INTERVALS = ['+12', '+19', '+24', '−12'] as const;
 export const PARTIAL_STEPS = [16, 24, 32, 48, 64] as const;
@@ -203,6 +208,10 @@ export const VELA_PARAM_META: Record<number, VelaParamMeta> = {
   [M.VIBRATO_RATE]: {
     id: M.VIBRATO_RATE, label: 'Waver rate', group: 'body',
     format: (v) => `${(0.5 * Math.pow(18, v)).toFixed(2)} Hz`,
+  },
+  [M.SUBHARM]: {
+    id: M.SUBHARM, label: 'Buzz', group: 'body',
+    format: (v) => (v < 0.02 ? 'off' : `${Math.round(v * 100)}% · kargyraa`),
   },
   [M.BEAT_RATE]: {
     id: M.BEAT_RATE, label: 'Beat rate', group: 'body',

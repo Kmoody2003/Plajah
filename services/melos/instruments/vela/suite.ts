@@ -107,6 +107,8 @@ const overtone = (amount: number, pos: number, width: number) => ({
   [M.SPOTLIGHT]: amount, [M.SPOTLIGHT_POS]: pos, [M.SPOTLIGHT_WIDTH]: width,
 });
 const waver = (depth: number, rate: number) => ({ [M.VIBRATO]: depth, [M.VIBRATO_RATE]: rate });
+/** Period doubling — the kargyraa rasp. */
+const buzz = (amount: number) => ({ [M.SUBHARM]: amount });
 const veil = (
   mix: number, size: number, decay: number, diffusion: number,
   shimmer = 0, interval = 0, blur = 0,
@@ -128,7 +130,7 @@ export const CANTUS_PRESETS: VelaPreset[] = [
     description:
       'A line of voices on one note. The waver is deliberately narrow and slow — a monastic pitch drift rather than a trained vibrato, which is most of what separates chant from choral singing.',
     params: {
-      ...body(0.5, 0.004, 0.3, 0.5, 0.5, 5, 0.5, 0.4),
+      ...body(0.5, 0.004, 0.3, 0.5, 0.5, 6, 0.5, 0.25),
       ...sung(0.82, 0.6, 0.4), ...overtone(0, 0.4, 0.25), ...waver(0.16, 0.22),
       ...breath(0, 0.5, 0.3, 0.34, 0.3), ...life(0.5, 0.3, 0.7, 0.35, 0.12),
       ...evolve(0.4, 0.54, 0.3), ...veil(0.66, 0.86, 0.72, 0.85, 0.12), ...trim(0.42),
@@ -139,14 +141,27 @@ export const CANTUS_PRESETS: VelaPreset[] = [
     id: 'cantus-overtone', name: 'Overtone', family: 'voices',
     blurb: 'throat singing · harmonic 13',
     description:
-      'The demonstration piece. Hold one low note and sweep Overtone position — a single harmonic lifts to the loudness of the drone and the ear hears a second, whistling voice above it.',
+      'The demonstration piece — and it only works LOW. Play C2 or below: at C4 the fundamental is already 260 Hz and there are barely any harmonics left in the range where the ear picks out an isolated overtone. Hold one low note and sweep the Overtone partial.',
     params: {
-      ...body(1.0, 0.002, 0.06, 0.55, 0.45, 5, 0.5, 0.3),
-      ...sung(0.5, 0.35, 0.2), ...overtone(0.95, 0.22, 0.05), ...waver(0.08, 0.3),
-      ...breath(0, 0.55, 0.25, 0.4, 0.3), ...life(0.3, 0.12, 0.5, 0.3, 0.1),
+      ...body(1.0, 0.0, 0.03, 0.55, 0.45, 6, 0.42, 0.15),
+      ...sung(0.34, 0.3, 0.1), ...overtone(0.95, 0.22, 0.05), ...waver(0.08, 0.3),
+      ...buzz(0.0), ...breath(0, 0.55, 0.25, 0.4, 0.3), ...life(0.3, 0.12, 0.5, 0.3, 0.1),
       ...evolve(0.2, 0.66, 0.35), ...veil(0.4, 0.7, 0.6, 0.8, 0.06), ...trim(0.4),
     },
     macros: macros(0.55, 0.15, 0.8, 0.3),
+  },
+  {
+    id: 'cantus-kargyraa', name: 'Kargyraa', family: 'voices',
+    blurb: 'throat singing · buzz · play C2',
+    description:
+      'The deep rasping Tuvan style. The buzz is period doubling — the ventricular folds vibrating at half the rate of the vocal folds, which fills the spectrum with half-integer partials that no filter can imitate because they are simply not there in a normal harmonic series. Play it as low as the keyboard goes.',
+    params: {
+      ...body(1.0, 0.0, 0.04, 0.58, 0.42, 6, 0.38, 0.1),
+      ...sung(0.62, 0.26, 0.15), ...overtone(0.7, 0.3, 0.08), ...waver(0.1, 0.24),
+      ...buzz(0.72), ...breath(0, 0.6, 0.3, 0.36, 0.3), ...life(0.35, 0.18, 0.4, 0.35, 0.1),
+      ...evolve(0.18, 0.6, 0.3), ...veil(0.44, 0.72, 0.62, 0.8, 0.08), ...trim(0.4),
+    },
+    macros: macros(0.55, 0.2, 0.6, 0.3),
   },
   {
     id: 'cantus-byzantine', name: 'Byzantine', family: 'voices',
@@ -154,7 +169,7 @@ export const CANTUS_PRESETS: VelaPreset[] = [
     description:
       'Tighter and more nasal than the Western choir — fewer partials, a narrower throat, and a formant sitting low. Made to sit ON a drone rather than to fill space by itself.',
     params: {
-      ...body(0.25, 0.008, 0.18, 0.48, 0.55, 5, 0.42, 0.45),
+      ...body(0.5, 0.006, 0.14, 0.48, 0.55, 6, 0.42, 0.3),
       ...sung(0.92, 0.34, 0.35), ...overtone(0.35, 0.3, 0.14), ...waver(0.24, 0.3),
       ...breath(0, 0.52, 0.34, 0.36, 0.35), ...life(0.45, 0.35, 0.8, 0.4, 0.14),
       ...evolve(0.3, 0.6, 0.28), ...veil(0.56, 0.74, 0.62, 0.8, 0.08), ...trim(0.44),
@@ -167,7 +182,7 @@ export const CANTUS_PRESETS: VelaPreset[] = [
     description:
       'Many voices, far away, in something with a very long tail. The vowel moves across the note, so a held chord slowly changes what it is saying.',
     params: {
-      ...body(0.75, 0.006, 0.34, 0.55, 0.5, 5, 0.5, 0.4),
+      ...body(0.75, 0.006, 0.34, 0.55, 0.5, 6, 0.5, 0.35),
       ...sung(0.7, 0.2, 0.6), ...overtone(0.18, 0.5, 0.3), ...waver(0.12, 0.2),
       ...breath(1, 0.5, 0.45, 0.32, 0.3), ...life(0.65, 0.25, 0.55, 0.45, 0.06),
       ...evolve(0.62, 0.82, 0.6), ...veil(0.78, 0.92, 0.84, 0.9, 0.28, 1, 0.2), ...trim(0.4),

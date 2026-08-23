@@ -718,6 +718,7 @@ pub(crate) fn modal_spec_for(note: f32, p: &Params) -> ModalSpec {
         spotlight_width: p.get(MODAL_BASE + M_SPOTLIGHT_WIDTH).clamp(0.0, 1.0),
         vibrato: p.get(MODAL_BASE + M_VIBRATO).clamp(0.0, 1.0) * 1.2,
         vibrato_rate: vibrato_rate_hz(p.get(MODAL_BASE + M_VIBRATO_RATE)),
+        subharm: p.get(MODAL_BASE + M_SUBHARM).clamp(0.0, 1.0),
     }
 }
 

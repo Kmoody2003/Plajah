@@ -116,7 +116,7 @@ pub const M_INHARM: u32 = 2; // partial-ratio stretch — the character control
 pub const M_SPREAD: u32 = 3;
 pub const M_DECAY: u32 = 4; // 0..1 → 0.2s..45s
 pub const M_DECAY_TILT: u32 = 5; // 0..1 → -1..+1; negative rings the highs longest
-pub const M_MATERIAL: u32 = 6; // 0 bronze, 1 glass, 2 iron, 3 wood, 4 skin, 5 air
+pub const M_MATERIAL: u32 = 6; // 0 bronze, 1 glass, 2 iron, 3 wood, 4 skin, 5 air, 6 voice
 pub const M_POSITION: u32 = 7;
 pub const M_KEYTRACK: u32 = 8;
 /// Independent slow amplitude drift per partial. The difference between a bank and an organ.
@@ -151,6 +151,8 @@ pub const M_SPOTLIGHT_WIDTH: u32 = 21;
 pub const M_VIBRATO: u32 = 22;
 /// Vibrato rate, 0..1 → 0.5..9 Hz.
 pub const M_VIBRATO_RATE: u32 = 23;
+/// Period doubling — the kargyraa buzz. Adds every half-integer multiple of the fundamental.
+pub const M_SUBHARM: u32 = 24;
 
 /// Exciter — bow, blow, strike, rub.
 pub const EXC_BASE: u32 = 1100;
@@ -410,6 +412,7 @@ impl Params {
         self.set(MODAL_BASE + M_SPOTLIGHT_WIDTH, 0.25);
         self.set(MODAL_BASE + M_VIBRATO, 0.0);
         self.set(MODAL_BASE + M_VIBRATO_RATE, 0.45);
+        self.set(MODAL_BASE + M_SUBHARM, 0.0);
 
         self.set(EXC_BASE + X_TYPE, 0.0); // bow
         self.set(EXC_BASE + X_PRESSURE, 0.5);

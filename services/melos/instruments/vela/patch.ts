@@ -156,7 +156,7 @@ export const VELA_EDITOR_GROUPS: Array<{ key: 'body' | 'breath' | 'veil'; title:
       // sit with the body rather than in a separate "modulation" section — they are not
       // modulation of the sound, they are part of what the sound is.
       M.MODE, M.FORMANT, M.FORMANT_SHIFT, M.BLOOM,
-      M.SPOTLIGHT, M.SPOTLIGHT_POS, M.SPOTLIGHT_WIDTH, M.VIBRATO, M.VIBRATO_RATE,
+      M.SPOTLIGHT, M.SPOTLIGHT_POS, M.SPOTLIGHT_WIDTH, M.VIBRATO, M.VIBRATO_RATE, M.SUBHARM,
       M.ANIMA, M.BEAT, M.BEAT_RATE, M.SWELL, M.MORPH, M.MORPH_TIME,
     ],
   },

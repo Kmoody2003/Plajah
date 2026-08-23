@@ -42,7 +42,7 @@ const P = {
   M_SWELL: 1012, M_MORPH: 1013, M_MORPH_TIME: 1014, M_MODE: 1015,
   M_FORMANT: 1016, M_FORMANT_SHIFT: 1017, M_BLOOM: 1018,
   M_SPOTLIGHT: 1019, M_SPOTLIGHT_POS: 1020, M_SPOTLIGHT_WIDTH: 1021,
-  M_VIBRATO: 1022, M_VIBRATO_RATE: 1023,
+  M_VIBRATO: 1022, M_VIBRATO_RATE: 1023, M_SUBHARM: 1024,
   X_PULSE: 1105, X_PULSE_RATE: 1106,
   V_SIZE: 1200, V_DECAY: 1201, V_DIFFUSION: 1202, V_SHIMMER: 1203,
   V_SHIMMER_IVL: 1204, V_BLUR: 1205, V_FREEZE: 1206, V_MIX: 1207,
@@ -101,7 +101,7 @@ function magAt(sig, freq, sr) {
 
 test('ABI version matches the host contract', async () => {
   const { x } = await boot();
-  assert.equal(x.pa_abi_version(), 9);
+  assert.equal(x.pa_abi_version(), 10);
 });
 
 /** Stage a mono sample into the upload buffer and load it into a slot. Returns the frame count. */
@@ -1031,4 +1031,67 @@ test('CANTUS: a sung bank sustains where a struck one decays', async () => {
   const struck = await tailRatio(0);
   assert.ok(sung > 0.7, `a driven bank must hold its level (${sung.toFixed(2)})`);
   assert.ok(sung > struck * 1.3, `and hold it better than a struck one (${sung.toFixed(2)} vs ${struck.toFixed(2)})`);
+});
+
+test('CANTUS: the Voice source leaves energy where the spotlight works', async () => {
+  // The whole reason the overtone effect did not land at first. A body's spectrum rolls off far
+  // too fast to have anything left at the seventeenth harmonic, so emphasising it SYNTHESISES a
+  // partial — audibly a sine laid over a drone rather than one voice. A glottal source does not
+  // roll off like a body.
+  const at17 = async (material) => {
+    const ctx = await boot();
+    cantusPatch(ctx, { M_MATERIAL: material, M_SPOTLIGHT: 0 });
+    ctx.x.pa_note_on(ctx.eng, 36, 1.0, 1, 0); // C2 — where overtone singing actually lives
+    renderMono(ctx, SR * 2);
+    const prof = harmonicProfile(renderMono(ctx, SR * 3), 65.406, 20, SR);
+    return prof[16] / prof[0];
+  };
+  const air = await at17(5);
+  const voice = await at17(6);
+  assert.ok(voice > air * 5, `Voice must carry real upper harmonics (${air.toFixed(5)} -> ${voice.toFixed(5)})`);
+  assert.ok(voice > 0.008, `and enough of them to emphasise (${voice.toFixed(5)})`);
+});
+
+test('CANTUS: on a Voice source the spotlight emphasises rather than invents', async () => {
+  const prof = async (spot) => {
+    const ctx = await boot();
+    cantusPatch(ctx, { M_MATERIAL: 6, M_SPOTLIGHT: spot });
+    ctx.x.pa_note_on(ctx.eng, 36, 1.0, 1, 0);
+    renderMono(ctx, SR * 2);
+    return harmonicProfile(renderMono(ctx, SR * 3), 65.406, 30, SR);
+  };
+  const plain = await prof(0);
+  const spot = await prof(0.9);
+  const tail = spot.slice(6);
+  const idx = tail.indexOf(Math.max(...tail)) + 6;
+
+  assert.ok(spot[idx] > plain[idx] * 2, 'the spotlight must still do something');
+  // The boost needed is the measure of honesty here: a large multiplier means the partial was
+  // not there and is being manufactured.
+  const boost = spot[idx] / Math.max(plain[idx], 1e-12);
+  assert.ok(boost < 40, `it should emphasise, not manufacture (boost ${boost.toFixed(1)}x)`);
+});
+
+test('CANTUS: period doubling adds partials without moving pitch or level', async () => {
+  const measure = async (subharm) => {
+    const ctx = await boot();
+    cantusPatch(ctx, { M_MATERIAL: 6, M_SUBHARM: subharm });
+    ctx.x.pa_note_on(ctx.eng, 36, 1.0, 1, 0);
+    renderMono(ctx, SR * 2);
+    const sig = renderMono(ctx, SR * 3);
+    const f0 = 65.406;
+    const half = [0.5, 1.5, 2.5, 3.5, 4.5].reduce((a, h) => a + magAt(sig, f0 * h, SR), 0);
+    const whole = [1, 2, 3, 4, 5].reduce((a, h) => a + magAt(sig, f0 * h, SR), 0);
+    return { half, whole, fundamental: magAt(sig, f0, SR) };
+  };
+  const clean = await measure(0);
+  const buzz = await measure(0.8);
+
+  assert.ok(buzz.half / buzz.whole > clean.half / clean.whole * 20,
+    `the buzz must add half-integer partials (${(clean.half / clean.whole).toFixed(4)} -> ${(buzz.half / buzz.whole).toFixed(3)})`);
+  // And it must NOT be a volume control. Keying the roll-off and the excitation null to the
+  // series index rather than the harmonic number put the fundamental on a node and dropped the
+  // note 7 dB the moment the control was touched.
+  const drop = buzz.fundamental / Math.max(clean.fundamental, 1e-12);
+  assert.ok(drop > 0.7 && drop < 1.5, `the fundamental must hold (${drop.toFixed(2)}x)`);
 });
