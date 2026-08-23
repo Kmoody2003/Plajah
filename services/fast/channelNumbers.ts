@@ -5,15 +5,30 @@
 // is not a channel number, it is a row index — it moved whenever another account went live, and
 // K-Moody sliding to 6 is exactly that behaviour, not a bug in one channel.
 //
-// A channel number is an ADDRESS. Someone learns it, types it, tells a friend. Three rules follow:
+// A channel number is an ADDRESS. Someone learns it, types it, tells a friend. So:
 //
-//   1. It belongs to the account, not to the lineup. It is claimed once, persisted, and honoured
-//      forever after — including while the account is off air, so nothing else takes the slot.
-//   2. It is never derived from POSITION IN THE LINEUP. An account that has not claimed one yet
-//      still gets a number — allocated from when the channel was CREATED, which never changes,
-//      rather than from who happens to be on air, which changes constantly. So existing channels
-//      keep the numbers they have and simply stop drifting.
-//   3. Reserved ranges are reserved even when empty.
+//   1. It is GIVEN, once, when the channel is created — never derived at read time from whoever
+//      else happens to be around. There is no provisional number: a channel either has one or is
+//      waiting to be given one.
+//   2. It belongs to the account and is honoured while the account is off air, so nothing else
+//      takes the slot.
+//   3. It is never recycled. See below.
+//   4. Reserved ranges are reserved even when empty.
+//
+// WHY A RETIRED NUMBER IS NEVER REISSUED
+//
+// Integers do not run out. The only scarce thing is a LOW number, and that is status rather than
+// capacity — so recycling buys nothing and costs the one thing an address cannot afford: people
+// tune to channel 12 because they memorised it, and giving 12 to a stranger because its owner
+// left is worse than a gap in the guide. Real lineups are full of gaps and nobody notices.
+//
+// Auctioning them is worse again. Vanity toll-free numbers and dropped domains both grew
+// secondary markets, and both produced warehousing, squatting, and a policing burden on whoever
+// ran the registry. The desire underneath "auction" — I want a good number — is served instead
+// by letting anyone claim an UNUSED one, which is additive and does not require a channel to die.
+//
+// So deletion tombstones the number against the account that held it. If that account ever comes
+// back, it gets its own number back.
 //
 // THE BANDS
 //
@@ -84,11 +99,25 @@ export function nextPlajahSub(): number {
 }
 
 /**
- * The lowest major an account may be given.
+ * The registry, as the allocator sees it.
  *
- * `used` is every number already CLAIMED — read from storage, not from who is currently on air.
- * Allocating against the live lineup is what let two accounts end up sharing a number and what
- * let an idle account's number get handed to someone else.
+ * `retired` is not an optimisation or a courtesy — it is the reason the allocator is correct.
+ * Without it a deleted account's number returns to the pool and the next channel created inherits
+ * an address that other people still have written down.
+ */
+export interface NumberRegistry {
+  /** Live assignments, by account. */
+  byOwner: Record<string, number>;
+  /** Numbers whose owner is gone. Keyed by number; the value records who held it, so an account
+   *  that returns is given its own number back rather than a new one. */
+  retired?: Record<string, { ownerId: string; at: number }>;
+}
+
+/**
+ * The lowest major that may be GIVEN out.
+ *
+ * `used` must include retired numbers as well as live ones. Passing only live assignments is the
+ * bug this signature exists to make obvious.
  */
 export function nextUserMajor(used: Iterable<number>): number {
   const taken = new Set<number>(used);
@@ -97,71 +126,56 @@ export function nextUserMajor(used: Iterable<number>): number {
   return n;
 }
 
+/** Every number the registry has ever handed out — live and retired. */
+export function allTakenNumbers(reg: NumberRegistry): number[] {
+  const live = Object.values(reg.byOwner ?? {});
+  const dead = Object.keys(reg.retired ?? {}).map(Number).filter(Number.isFinite);
+  return [...live, ...dead];
+}
+
+/**
+ * The number an account should be given, or one it is owed.
+ *
+ * An account returning after deletion is matched against the tombstones first. Someone who comes
+ * back to find a different address has, from their side, lost their channel.
+ */
+export function numberFor(reg: NumberRegistry, ownerId: string): number {
+  const live = reg.byOwner?.[ownerId];
+  if (typeof live === 'number') return live;
+  for (const [n, t] of Object.entries(reg.retired ?? {})) {
+    if (t.ownerId === ownerId) return Number(n);
+  }
+  return nextUserMajor(allTakenNumbers(reg));
+}
+
+/**
+ * Whether a specific number can be handed to a specific account on request.
+ *
+ * This is the "claim a good one" path, and it is the reason retirement has to be checked here
+ * too: a free-looking gap in the guide is usually a retired number, not an unused one.
+ */
+export function canClaim(reg: NumberRegistry, n: number, ownerId: string): boolean {
+  if (!isAllocatableMajor(n)) return false;
+  if (Object.values(reg.byOwner ?? {}).includes(n)) return false;
+  const tomb = reg.retired?.[String(n)];
+  // Your own retired number is yours to take back; someone else's is not available at any price.
+  return !tomb || tomb.ownerId === ownerId;
+}
+
 /** Whether an account is allowed to bind this major. */
 export function isAllocatableMajor(n: number): boolean {
   return Number.isInteger(n) && n >= 1 && n < SCIENCE_BAND_START && !RESERVED_MAJORS.has(n);
 }
 
 /**
- * How a channel with no number at all appears.
+ * How a channel that has not been given a number yet appears.
  *
- * Reached only when a channel has neither a claim nor a creation date — rare, and better shown
- * as blank than as a number that will be different tomorrow.
+ * There is deliberately no provisional number to fall back on. A number computed at read time is
+ * a number that changes, and one that changes is worse than none — it teaches people an address
+ * that will not work next week. A channel shows this only in the gap between being created and
+ * being assigned, which is one write.
  */
 export const UNNUMBERED = '—';
-
-export interface NumberCandidate {
-  /** Stable identity — the owner account, or the first-party channel id. */
-  key: string;
-  /** A claimed, persisted number. Always wins. */
-  claimed?: number;
-  /** When the channel was created. Immutable, which is the entire point. */
-  createdAt?: number;
-}
-
-/**
- * Numbers for a whole lineup.
- *
- * The ordering property that matters: this depends only on claims and creation dates, never on
- * who is currently on air or in what order they loaded. Two viewers looking at the same set of
- * channels at different moments see the same numbers, and an account going live or dark moves
- * nobody.
- *
- * Claims are honoured first and reserved out, so a provisional number can never collide with
- * one somebody already owns. The rest are handed out oldest-first — which is what keeps the
- * numbers that existing channels already have, instead of resetting the guide.
- *
- * One thing this deliberately does NOT promise: an unclaimed number survives a channel being
- * DELETED from the set — the ones after it move up. Small consecutive integers cannot be both
- * gapless and deletion-stable without a registry that remembers what was handed out, which is
- * precisely what `claimChannelNumber` persists. Provisional numbers are stable against the thing
- * that was actually going wrong (someone else switching on); claims make them permanent.
- */
-export function assignMajors(candidates: readonly NumberCandidate[]): Map<string, number> {
-  const out = new Map<string, number>();
-  const taken = new Set<number>();
-
-  for (const c of candidates) {
-    if (typeof c.claimed === 'number' && isAllocatableMajor(c.claimed)) {
-      out.set(c.key, c.claimed);
-      taken.add(c.claimed);
-    }
-  }
-
-  // Oldest first, with the key as a tiebreak so the order is total — two channels created in the
-  // same millisecond must still resolve the same way on every device.
-  const unclaimed = candidates
-    .filter((c) => !out.has(c.key) && typeof c.createdAt === 'number')
-    .sort((a, b) => (a.createdAt! - b.createdAt!) || a.key.localeCompare(b.key));
-
-  let n = 1;
-  for (const c of unclaimed) {
-    while (taken.has(n) || RESERVED_MAJORS.has(n)) n++;
-    taken.add(n);
-    out.set(c.key, n);
-  }
-  return out;
-}
 
 /**
  * Sort key for the guide.

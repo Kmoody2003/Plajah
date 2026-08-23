@@ -2,7 +2,9 @@
 //
 // The bug these replace: the lineup gave every unbound account "the smallest free positive
 // integer" over whoever happened to be on air, so a channel's number changed when a DIFFERENT
-// account went live. Most of what follows is therefore about what must NOT move.
+// account went live. The fix is not a better formula — it is that numbers are GIVEN once and
+// looked up thereafter. So most of what follows is about what must NOT move, and about the one
+// rule that makes that possible: a retired number is never reissued.
 //
 //   npx tsx --test tests/channelNumbers.test.ts
 
@@ -11,47 +13,33 @@ import assert from 'node:assert/strict';
 
 import {
   PLAJAH_BAND, PLAJAH_CHANNELS, RESERVED_MAJORS, SCIENCE_BAND_START, UNNUMBERED,
-  assignMajors, findPlajahChannel, guideSortKey, isAllocatableMajor, nextPlajahSub, nextUserMajor,
-  plajahNumber,
+  allTakenNumbers, canClaim, findPlajahChannel, guideSortKey, isAllocatableMajor, nextPlajahSub,
+  nextUserMajor, numberFor, plajahNumber, type NumberRegistry,
 } from '../services/fast/channelNumbers';
 
-/** A lineup, oldest first. `alice` is the oldest account, `dave` the newest. */
-const LINEUP = [
-  { key: 'alice', createdAt: 1_000 },
-  { key: 'bob', createdAt: 2_000 },
-  { key: 'carol', createdAt: 3_000 },
-  { key: 'dave', createdAt: 4_000 },
-];
+const reg = (
+  byOwner: Record<string, number>,
+  retired: Record<string, { ownerId: string; at: number }> = {},
+): NumberRegistry => ({ byOwner, retired });
 
-// ── Allocation ───────────────────────────────────────────────────────────────
+// ── Giving a number ──────────────────────────────────────────────────────────
+
+test('the first account gets 1', () => {
+  assert.equal(numberFor(reg({}), 'alice'), 1);
+});
+
+test('an account already holding a number is given the same one back', () => {
+  // assignChannelNumber runs on every channel save. It must be idempotent, or a routine edit to
+  // a channel's name would move its address.
+  assert.equal(numberFor(reg({ alice: 4 }), 'alice'), 4);
+});
 
 test('an account never lands in a reserved band', () => {
-  // Seven accounts already hold 1-7, so the naive answer is 8 — which is Plajah's.
-  const used = [1, 2, 3, 4, 5, 6, 7];
-  const next = nextUserMajor(used);
-  assert.equal(next, 9);
-  assert.ok(!RESERVED_MAJORS.has(next));
-});
-
-test('allocation fills gaps rather than always appending', () => {
-  // A retired number is still claimed, so this only fills gaps that were never handed out.
-  assert.equal(nextUserMajor([1, 2, 4]), 3);
-  assert.equal(nextUserMajor([]), 1);
-});
-
-test('allocation is a pure function of what is CLAIMED', () => {
-  // The old bug in one line: the same account got a different number depending on who else was
-  // in the list. Here the input is the claim registry, so the same claims always give the same
-  // answer regardless of order.
-  const claims = [5, 1, 9, 3];
-  assert.equal(nextUserMajor(claims), nextUserMajor([...claims].reverse()));
-});
-
-test('a number stays claimed while its owner is off air', () => {
-  // The registry is passed whole, including accounts with nothing on right now. If off-air
-  // accounts were filtered out before this call, their numbers would be handed to someone else.
-  const everyoneEverNumbered = [1, 2, 3];
-  assert.equal(nextUserMajor(everyoneEverNumbered), 4);
+  // Seven accounts hold 1-7, so the naive answer is 8 — which is Plajah's.
+  const r = reg({ a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7 });
+  const n = numberFor(r, 'newcomer');
+  assert.equal(n, 9);
+  assert.ok(!RESERVED_MAJORS.has(n));
 });
 
 test('reserved and out-of-band majors are not allocatable', () => {
@@ -60,6 +48,80 @@ test('reserved and out-of-band majors are not allocatable', () => {
   assert.equal(isAllocatableMajor(0), false);
   assert.equal(isAllocatableMajor(2.5), false);
   assert.equal(isAllocatableMajor(7), true);
+});
+
+test('allocation is a pure function of the registry, not of arrival order', () => {
+  // Firestore returns documents in whatever order it likes and two devices will not agree on it.
+  const a = numberFor(reg({ x: 5, y: 1, z: 9 }), 'new');
+  const b = numberFor(reg({ z: 9, y: 1, x: 5 }), 'new');
+  assert.equal(a, b);
+  assert.equal(a, 2);
+});
+
+test('a number stays held while its owner is off air', () => {
+  // The registry is read whole, including accounts with nothing on right now. Filtering to live
+  // channels before allocating is the original bug.
+  assert.equal(numberFor(reg({ a: 1, b: 2, c: 3 }), 'new'), 4);
+});
+
+// ── Retirement: the rule that makes the rest work ────────────────────────────
+
+test('a retired number is never given to anyone else', () => {
+  // bob deleted his account holding 2. The next account must skip it — someone still has "2"
+  // written down, and inheriting it is worse for them than a gap in the guide.
+  const r = reg({ alice: 1 }, { '2': { ownerId: 'bob', at: 1 } });
+  assert.equal(numberFor(r, 'carol'), 3);
+});
+
+test('an account that comes back gets its OWN number back', () => {
+  // The tombstone records who held it, so returning is a restoration rather than a reallocation.
+  // Someone who comes back to a different address has, from their side, lost their channel.
+  const r = reg({ alice: 1 }, { '2': { ownerId: 'bob', at: 1 } });
+  assert.equal(numberFor(r, 'bob'), 2);
+});
+
+test('retired numbers count as taken when the allocator looks for a gap', () => {
+  const r = reg({ a: 1, c: 3 }, { '2': { ownerId: 'b', at: 1 } });
+  assert.deepEqual(allTakenNumbers(r).sort((x, y) => x - y), [1, 2, 3]);
+  assert.equal(numberFor(r, 'new'), 4);
+});
+
+test('deleting an account does not move anyone else', () => {
+  // The property the whole design exists for. bob's departure retires 2; alice and carol are
+  // untouched, because nothing about their numbers was ever derived from bob.
+  const before = reg({ alice: 1, bob: 2, carol: 3 });
+  const after = reg({ alice: 1, carol: 3 }, { '2': { ownerId: 'bob', at: 1 } });
+  assert.equal(numberFor(after, 'alice'), numberFor(before, 'alice'));
+  assert.equal(numberFor(after, 'carol'), numberFor(before, 'carol'));
+});
+
+test('a new account after a deletion does not inherit the gap', () => {
+  const after = reg({ alice: 1, carol: 3 }, { '2': { ownerId: 'bob', at: 1 } });
+  assert.equal(numberFor(after, 'dave'), 4, 'dave took a departed creator’s address');
+});
+
+// ── Claiming a specific number ───────────────────────────────────────────────
+
+test('an unused number can be claimed', () => {
+  assert.equal(canClaim(reg({ alice: 1 }), 7, 'bob'), true);
+});
+
+test('a number somebody holds cannot be claimed', () => {
+  assert.equal(canClaim(reg({ alice: 5 }), 5, 'bob'), false);
+});
+
+test('a retired number cannot be claimed by anyone else, at any price', () => {
+  // This is the alternative to an auction, and it only works if a gap in the guide is not
+  // treated as an opening. Vanity numbers and dropped domains both became markets precisely
+  // because dead addresses went back into circulation.
+  const r = reg({ alice: 1 }, { '12': { ownerId: 'gone', at: 1 } });
+  assert.equal(canClaim(r, 12, 'bob'), false);
+  assert.equal(canClaim(r, 12, 'gone'), true, 'its own former owner may take it back');
+});
+
+test('reserved bands cannot be claimed', () => {
+  assert.equal(canClaim(reg({}), PLAJAH_BAND, 'bob'), false);
+  assert.equal(canClaim(reg({}), SCIENCE_BAND_START, 'bob'), false);
 });
 
 // ── The Plajah band ──────────────────────────────────────────────────────────
@@ -71,9 +133,8 @@ test('The Endless Hour is 8.1', () => {
 });
 
 test('a first-party channel is never a bare major', () => {
-  // This is the whole reason for sub-numbering a band that currently holds one channel: a bare
-  // "8" would have to become "8.1" the day a second arrived, renumbering an address people
-  // already have.
+  // The whole reason for sub-numbering a band that holds one channel: a bare "8" would have to
+  // become "8.1" the day a second arrived, renumbering an address people already have.
   for (const c of PLAJAH_CHANNELS) {
     assert.match(plajahNumber(c), /^8\.\d+$/, `${c.id} was ${plajahNumber(c)}`);
   }
@@ -84,10 +145,18 @@ test('first-party subs are unique', () => {
   assert.equal(new Set(subs).size, subs.length);
 });
 
-test('a new first-party channel takes max + 1, so retired numbers stay retired', () => {
+test('a new first-party channel takes max + 1, so retired subs stay retired', () => {
   assert.equal(nextPlajahSub(), Math.max(...PLAJAH_CHANNELS.map((c) => c.sub)) + 1);
   // Specifically NOT length + 1, which would reissue the number of a removed channel.
   assert.ok(nextPlajahSub() > PLAJAH_CHANNELS.length - 1);
+});
+
+test('the copy stays out of the loss register', () => {
+  // Deliberate: an early draft leaned on "once it is gone it is gone", which reads as activating
+  // rather than settling — the wrong nervous system response for this channel in particular.
+  for (const c of PLAJAH_CHANNELS) {
+    assert.doesNotMatch(c.tagline, /\bgone\b|never again|\blost\b/i, `${c.id}: ${c.tagline}`);
+  }
 });
 
 // ── The guide ────────────────────────────────────────────────────────────────
@@ -103,106 +172,37 @@ test('numbers sort numerically, not as strings', () => {
   assert.ok(guideSortKey('2') < guideSortKey('10'));
 });
 
-test('unnumbered channels fall to the end and do not displace anyone', () => {
+test('gaps in the lineup are fine', () => {
+  // A lineup full of holes is what a real channel guide looks like, and is the visible cost of
+  // never reissuing an address. It sorts correctly, which is all it has to do.
+  const sorted = ['14', '1', '9', '2'].sort((a, b) => guideSortKey(a) - guideSortKey(b));
+  assert.deepEqual(sorted, ['1', '2', '9', '14']);
+});
+
+test('a channel awaiting its number falls to the end and displaces nobody', () => {
   const sorted = ['9', UNNUMBERED, '1'].sort((a, b) => guideSortKey(a) - guideSortKey(b));
   assert.deepEqual(sorted, ['1', '9', UNNUMBERED]);
 });
 
-test('an unnumbered channel shows no number rather than a provisional one', () => {
-  // A number that will be different tomorrow teaches people the wrong address, so there is
-  // deliberately no way to render a placeholder that looks like a channel number.
+test('there is no placeholder that looks like a channel number', () => {
+  // A plausible-looking number that changes next week teaches the wrong address, so the waiting
+  // state is deliberately not a number at all.
   assert.equal(UNNUMBERED, '—');
   assert.ok(!/\d/.test(UNNUMBERED));
 });
 
-// ── The bug this replaces ────────────────────────────────────────────────────
+// ── The low-level allocator ──────────────────────────────────────────────────
 
-test('a number does not change when a DIFFERENT account goes live', () => {
-  // The reported bug, stated as a test.
-  //
-  // The candidate set is every account with a channel, not every account currently broadcasting
-  // — going live or dark adds or removes a SUB-channel, never the owner. Previously numbers came
-  // from position in the on-air list, so K-Moody's number changed when somebody else switched on.
-  // Here the input is identical either way, so the numbers are too.
-  const offAir = assignMajors(LINEUP);
-  const bobNowLive = assignMajors(LINEUP);   // bob broadcasting adds bob.1, not a new owner
-  for (const c of LINEUP) assert.equal(bobNowLive.get(c.key), offAir.get(c.key), `${c.key} moved`);
+test('nextUserMajor fills gaps that were never handed out', () => {
+  assert.equal(nextUserMajor([1, 2, 4]), 3);
+  assert.equal(nextUserMajor([]), 1);
 });
 
-test('an account LEAVING still shifts the ones after it — which is what claiming is for', () => {
-  // The honest limit of a provisional number. Small consecutive integers cannot be both gapless
-  // and stable under deletion without a registry that remembers what was handed out; that is
-  // exactly what claimChannelNumber persists, and once carol has claimed 3 she keeps 3 whatever
-  // happens to bob.
-  const everyone = assignMajors(LINEUP);
-  const bobDeleted = assignMajors(LINEUP.filter((c) => c.key !== 'bob'));
-  assert.equal(everyone.get('carol'), 3);
-  assert.equal(bobDeleted.get('carol'), 2, 'documents the drift a claim removes');
-
-  const carolClaimed = assignMajors(
-    LINEUP.filter((c) => c.key !== 'bob').map((c) => (c.key === 'carol' ? { ...c, claimed: 3 } : c)),
-  );
-  assert.equal(carolClaimed.get('carol'), 3, 'a claim holds the address through a deletion');
-});
-
-test('a new account appears at the end and displaces nobody', () => {
-  const before = assignMajors(LINEUP);
-  const after = assignMajors([...LINEUP, { key: 'erin', createdAt: 9_000 }]);
-  for (const c of LINEUP) assert.equal(after.get(c.key), before.get(c.key), `${c.key} moved`);
-  assert.equal(after.get('erin'), 5);
-});
-
-test('load order does not affect the answer', () => {
-  // Firestore returns documents in whatever order it likes, and two devices will not agree on
-  // it. The allocation has to be a function of the data, not of arrival.
-  const forwards = assignMajors(LINEUP);
-  const backwards = assignMajors([...LINEUP].reverse());
-  for (const c of LINEUP) assert.equal(backwards.get(c.key), forwards.get(c.key));
-});
-
-test('accounts created in the same millisecond still resolve identically everywhere', () => {
-  const tied = [{ key: 'zoe', createdAt: 500 }, { key: 'adam', createdAt: 500 }];
-  const a = assignMajors(tied);
-  const b = assignMajors([...tied].reverse());
-  assert.equal(a.get('adam'), b.get('adam'));
-  assert.equal(a.get('zoe'), b.get('zoe'));
-  assert.notEqual(a.get('adam'), a.get('zoe'));
-});
-
-// ── Existing numbers survive ─────────────────────────────────────────────────
-
-test('a claimed number always wins over allocation', () => {
-  const m = assignMajors([{ key: 'alice', createdAt: 1_000, claimed: 42 }, ...LINEUP.slice(1)]);
-  assert.equal(m.get('alice'), 42);
-});
-
-test('allocation never lands on a number somebody already claimed', () => {
-  // bob holds 1, so alice — older — must take 2 rather than colliding.
-  const m = assignMajors([
-    { key: 'alice', createdAt: 1_000 },
-    { key: 'bob', createdAt: 2_000, claimed: 1 },
-  ]);
-  assert.equal(m.get('bob'), 1);
-  assert.equal(m.get('alice'), 2);
-});
-
-test('everyone in a lineup gets a number, not a dash', () => {
-  // The point of the createdAt fallback: existing channels keep having numbers. Only a channel
-  // with neither a claim nor a creation date falls through to UNNUMBERED.
-  const m = assignMajors(LINEUP);
-  assert.equal(m.size, LINEUP.length);
-  for (const c of LINEUP) assert.ok(typeof m.get(c.key) === 'number');
-});
-
-test('a channel with no claim and no date gets no number', () => {
-  const m = assignMajors([{ key: 'ghost' }, ...LINEUP]);
-  assert.equal(m.has('ghost'), false);
-});
-
-test('allocation skips the Plajah band', () => {
-  // Eight accounts: the eighth must be 9, because 8 belongs to Plajah.
-  const many = Array.from({ length: 8 }, (_, i) => ({ key: `u${i}`, createdAt: i * 100 }));
-  const m = assignMajors(many);
-  assert.deepEqual([...m.values()], [1, 2, 3, 4, 5, 6, 7, 9]);
-  assert.ok(![...m.values()].includes(PLAJAH_BAND));
+test('nextUserMajor must be given retired numbers too', () => {
+  // The signature takes every number the registry has ever issued. Passing only live assignments
+  // is the mistake that reissues a departed creator's address, so this is the shape of the
+  // contract rather than an incidental detail.
+  const r = reg({ a: 1 }, { '2': { ownerId: 'b', at: 1 } });
+  assert.equal(nextUserMajor(allTakenNumbers(r)), 3);
+  assert.equal(nextUserMajor(Object.values(r.byOwner)), 2, 'what going wrong looks like');
 });

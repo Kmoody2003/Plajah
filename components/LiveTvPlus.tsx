@@ -11,7 +11,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, ChevronDown, LayoutGrid, Maximize2, Minimize2 } from 'lucide-react';
 import type { LiveFeed, UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { SCIENCE_STREAMS } from './scienceStreams';
-import { fetchFastChannelSchedule, fetchFastChannelVideos, type FastChannelListing } from '../services/backendService';
+import { fetchChannelNumberRegistry, fetchFastChannelSchedule, fetchFastChannelVideos, type FastChannelListing } from '../services/backendService';
 import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, backfillScheduleDurations, backfillScheduleDurationsByUrl, unresolvedDurationUrls, FM_FILL_THRESHOLD_SEC } from '../services/fastChannelTimeline';
 import { exactDurationSec } from '../services/mediaTimebase';
 import { probeDurations } from '../services/mediaProbe';
@@ -21,7 +21,7 @@ import ComingUpNextBumper, { type UpNextItem } from './tv/ComingUpNextBumper';
 import EndlessHourPlayer from './tv/EndlessHourPlayer';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import { isShellFocused, setShellFocus } from '../hooks/useTvShellFocus';
-import { PLAJAH_CHANNELS, UNNUMBERED, assignMajors, guideSortKey, plajahNumber } from '../services/fast/channelNumbers';
+import { PLAJAH_CHANNELS, UNNUMBERED, guideSortKey, plajahNumber, type NumberRegistry } from '../services/fast/channelNumbers';
 
 export interface TvChannel {
   id: string;
@@ -300,22 +300,28 @@ const LiveTvPlus: React.FC<{
   const settleRef = useRef<any>(null);
   const guideRef = useRef<HTMLDivElement>(null);
 
+  // Every number in one document. Numbers are GIVEN, not derived, so the guide's job is to look
+  // them up rather than to work them out — which is what makes a channel's number the same on
+  // every device regardless of who is on air or what order anything loaded.
+  const [registry, setRegistry] = useState<NumberRegistry | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void fetchChannelNumberRegistry().then(r => { if (alive) setRegistry(r); });
+    return () => { alive = false; };
+  }, []);
+
   // Build the lineup by USER ACCOUNT: each account is a channel (a bound "major" number) and its
   // individual live feeds + FAST channel are SUB-CHANNELS (42.1, 42.2, …) like an over-the-air
   // station's virtual sub-channels. So a creator running two live streams shows as N.1 and N.2 —
   // nothing disappears — and their FAST channel is another sub. Then curated Science channels.
   const channels: TvChannel[] = useMemo(() => {
     type Sub = Omit<TvChannel, 'number'>;
-    interface Owner { ownerId: string; name: string; bound?: number; createdAt?: number; subs: Sub[]; }
+    interface Owner { ownerId: string; name: string; bound?: number; subs: Sub[]; }
     const owners = new Map<string, Owner>();
     const ensure = (ownerId: string, name: string): Owner => {
       let o = owners.get(ownerId);
       if (!o) { o = { ownerId, name, subs: [] }; owners.set(ownerId, o); }
       return o;
-    };
-    /** Earliest known creation time wins — an account's age is the age of its oldest source. */
-    const seen = (o: Owner, at?: number) => {
-      if (typeof at === 'number' && (o.createdAt == null || at < o.createdAt)) o.createdAt = at;
     };
 
     // Live feeds → channels ONLY for OFF-PLATFORM sources (external URLs not from Plajah). A Reello /
@@ -332,7 +338,6 @@ const LiveTvPlus: React.FC<{
         const ownerId = ((f as any).ownerId as string) || f.id;
         const o = ensure(ownerId, f.ownerName || f.title);
         if (typeof (f as any).channelNumber === 'number') o.bound = (f as any).channelNumber; // account's bound guide number
-        seen(o, (f as any).createdAt ?? (f as any).startedAt);
         o.subs.push({
           id: `live_${f.id}`, name: f.title, sub: 'Live', accent: BRAND, badge: 'LIVE',
           kind: isHlsUrl(url) ? 'hls' : isEmbeddableUrl(url) ? 'embed' : 'webrtc',
@@ -345,25 +350,26 @@ const LiveTvPlus: React.FC<{
       const o = ensure(fc.ownerId, fc.name || 'Channel');
       if (fc.name) o.name = fc.name;                 // custom channel name wins for the account
       if (typeof fc.number === 'number') o.bound = fc.number;
-      seen(o, fc.createdAt);
       o.subs.push({
         id: `fast_${fc.ownerId}`, name: fc.name || `${o.name} (FAST)`, sub: 'FAST Channel', accent: '#36c5f0', badge: 'FAST',
         kind: 'fast', playUrl: '', now: 'Scheduled programming', ownerId: fc.ownerId, scheduleOwner: fc.ownerId,
       });
     });
 
-    // Numbers come from claims and creation dates — NEVER from position in the lineup.
+    // Numbers are LOOKED UP, never worked out.
     //
     // This used to hand every unbound account "the smallest free positive integer" computed over
     // whoever happened to be on air, so a channel's number moved when a DIFFERENT account went
-    // live. Allocating oldest-first instead keeps every existing channel on the number it
-    // already has, and makes that number stop drifting: creation time does not change when
-    // somebody else goes on or off air.
+    // live. Now the registry is the only source: a channel either has a number it was given, or
+    // it is waiting to be given one and shows none. There is deliberately no fallback that
+    // computes something plausible, because a plausible number that changes next week is worse
+    // than no number at all.
     const list = [...owners.values()];
-    const majors = assignMajors(list.map(o => ({ key: o.ownerId, claimed: o.bound, createdAt: o.createdAt })));
     const out: TvChannel[] = [];
     list.forEach(o => {
-      const major = majors.get(o.ownerId);
+      // The channel doc's own number is the mirror; the registry is the source. They agree
+      // except in the moment between a backfill writing one and the other.
+      const major = registry?.byOwner?.[o.ownerId] ?? o.bound;
       o.subs.forEach((s, j) => {
         // Single-source account → plain "N"; multi-source → "N.1", "N.2".
         const number = major == null
@@ -402,7 +408,7 @@ const LiveTvPlus: React.FC<{
     // unnumbered entries collect at the bottom instead of pushing everyone else around.
     out.sort((a, b) => guideSortKey(a.number) - guideSortKey(b.number));
     return out;
-  }, [feeds, fastChannels]);
+  }, [feeds, fastChannels, registry]);
 
   // Per-program EPG for the selected channel (fetched once per owner, cached, refreshed each 30s).
   const [epg, setEpg] = useState<EpgProgram[]>([]);

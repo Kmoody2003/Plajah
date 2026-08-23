@@ -85,7 +85,7 @@ export const saveBibleNote = async (uid: string, ref: string, text: string): Pro
     else await deleteDoc(doc(db, 'bibleNotes', id)).catch(() => {});
   } catch (e) { console.warn('[backendService] saveBibleNote failed:', (e as Error)?.message); }
 };
-import { nextUserMajor } from './fast/channelNumbers';
+import { allTakenNumbers, canClaim, isAllocatableMajor, numberFor, type NumberRegistry } from './fast/channelNumbers';
 import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannel, ChannelSource, ChannelSourceSet, SavedFeed, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest, PodcastRssSettings, ImportedRssEpisode, AccountType, NotifyLevel } from '../types';
 import { accountFlagUpdate } from './accountCapabilities';
 // Creator Passport provenance (blueprint 1C.5) — attribution record, not crypto proof.
@@ -7933,8 +7933,21 @@ export const fetchFastChannelVideos = async (uid: string): Promise<Video[]> => {
   }
 };
 
+/**
+ * Switch an account's FAST channel on or off in the guide.
+ *
+ * Switching OFF retires the number. That reads as harsh until you follow it through: the
+ * tombstone records the owner, so switching back on returns the SAME number rather than a new
+ * one, and in the meantime nobody else can be given an address this account's audience already
+ * knows. Retirement is how a number is held, not how it is lost.
+ *
+ * NOTE: account deletion has no flow yet. When one is built it must call retireChannelNumber —
+ * without it, a deleted creator's channel number returns to circulation.
+ */
 export const updateFastChannelEnabled = async (uid: string, enabled: boolean) => {
   await updateUserProfile(uid, { fastChannelEnabled: enabled } as any);
+  if (enabled) await assignChannelNumber(uid).catch(() => null);
+  else await retireChannelNumber(uid).catch(() => undefined);
 };
 
 // ── FAST CHANNEL SCHEDULE ─────────────────────────────────────────────────────
@@ -8028,60 +8041,186 @@ export const fetchFastChannelMeta = async (uid: string): Promise<FastChannel | n
   }
 };
 
+const NUMBER_REGISTRY = () => doc(db, 'fast_channel_numbers', 'registry');
+
+const emptyRegistry = (): NumberRegistry => ({ byOwner: {}, retired: {} });
+
 /**
- * Claim a permanent guide number for an account.
+ * Give an account its guide number.
  *
- * The number is an address, so it has to be allocated once and then never move. A single
- * registry document holds every number that has ever been handed out; the transaction reads it,
- * takes the lowest free non-reserved major, and writes both the registry entry and the channel
- * doc together. Two accounts claiming at the same instant serialise on the registry, which is
- * the whole reason this is a transaction and not a query over existing channels — a query would
- * let both see the same gap and both take it.
+ * The number is an address, so it is handed out ONCE, at creation, and honoured from then on. A
+ * single registry document holds every number ever given, live and retired; the transaction reads
+ * it, takes the lowest number that has never been handed out, and writes the registry entry and
+ * the channel doc together.
  *
- * Idempotent: an account that already has a number gets it back untouched.
+ * It has to be a transaction over a registry rather than a query over existing channels. A query
+ * lets two simultaneous claimants see the same gap and both take it — and, worse, cannot see the
+ * numbers of accounts that have been deleted, which are exactly the ones that must not be reused.
+ *
+ * Idempotent, and an account returning after deletion is given its own number back.
  */
-export const claimChannelNumber = async (uid: string): Promise<number | null> => {
-  const registryRef = doc(db, 'fast_channel_numbers', 'registry');
+export const assignChannelNumber = async (uid: string): Promise<number | null> => {
   const channelRef = doc(db, 'fast_channels', uid);
   try {
     return await runTransaction(db, async (tx) => {
-      const [regSnap, chSnap] = await Promise.all([tx.get(registryRef), tx.get(channelRef)]);
+      const [regSnap, chSnap] = await Promise.all([tx.get(NUMBER_REGISTRY()), tx.get(channelRef)]);
 
-      // Already numbered — including from a previous claim that raced this one.
       const existing = chSnap.exists() ? (chSnap.data() as FastChannel).number : undefined;
       if (typeof existing === 'number') return existing;
 
-      // byOwner is the source of truth. It keeps retired numbers claimed, so a channel that goes
-      // dark for a year does not come back to find someone else at its address.
-      const byOwner: Record<string, number> = regSnap.exists() ? (regSnap.data() as any).byOwner || {} : {};
-      const mine = byOwner[uid];
-      if (typeof mine === 'number') {
-        tx.set(channelRef, { number: mine, updatedAt: Date.now() }, { merge: true });
-        return mine;
-      }
+      const reg: NumberRegistry = regSnap.exists()
+        ? { byOwner: (regSnap.data() as any).byOwner || {}, retired: (regSnap.data() as any).retired || {} }
+        : emptyRegistry();
 
-      const next = nextUserMajor(Object.values(byOwner));
-      tx.set(registryRef, { byOwner: { ...byOwner, [uid]: next }, updatedAt: Date.now() }, { merge: true });
-      tx.set(channelRef, { number: next, updatedAt: Date.now() }, { merge: true });
-      return next;
+      const n = numberFor(reg, uid);
+      const retired = { ...(reg.retired || {}) };
+      // Coming back from the dead: the tombstone becomes a live assignment again.
+      delete retired[String(n)];
+
+      tx.set(NUMBER_REGISTRY(), {
+        byOwner: { ...reg.byOwner, [uid]: n },
+        retired,
+        updatedAt: Date.now(),
+      }, { merge: true });
+      tx.set(channelRef, { number: n, updatedAt: Date.now() }, { merge: true });
+      return n;
     });
   } catch (e) {
-    // A channel with no number shows as unnumbered rather than borrowing a neighbour's — see
-    // UNNUMBERED in services/fast/channelNumbers.ts.
+    // A channel with no number shows as unnumbered rather than borrowing a neighbour's.
     handleFirestoreError(e, OperationType.WRITE, 'fast_channel_numbers/registry');
     return null;
   }
 };
 
-/** Every number handed out, for the guide to honour while its owner is off air. */
-export const fetchChannelNumberRegistry = async (): Promise<Record<string, number>> => {
+/**
+ * Give an account a SPECIFIC number it asked for.
+ *
+ * This is the answer to "I want a good number" — additive, and it does not require anyone else's
+ * channel to be deleted first. A retired number belonging to someone else is refused at any
+ * price: a gap in the guide is usually a tombstone, not an opening.
+ */
+export const requestChannelNumber = async (uid: string, wanted: number): Promise<
+  { ok: true; number: number } | { ok: false; reason: 'taken' | 'reserved' | 'error' }
+> => {
+  if (!isAllocatableMajor(wanted)) return { ok: false, reason: 'reserved' };
+  const channelRef = doc(db, 'fast_channels', uid);
   try {
-    const snap = await getDoc(doc(db, 'fast_channel_numbers', 'registry'));
-    return snap.exists() ? ((snap.data() as any).byOwner as Record<string, number>) || {} : {};
+    return await runTransaction(db, async (tx) => {
+      const regSnap = await tx.get(NUMBER_REGISTRY());
+      const reg: NumberRegistry = regSnap.exists()
+        ? { byOwner: (regSnap.data() as any).byOwner || {}, retired: (regSnap.data() as any).retired || {} }
+        : emptyRegistry();
+
+      if (!canClaim(reg, wanted, uid)) return { ok: false as const, reason: 'taken' as const };
+
+      const byOwner = { ...reg.byOwner };
+      const retired = { ...(reg.retired || {}) };
+      // The number being given up is retired, not freed. Trading up must not put an address
+      // somebody memorised back into circulation.
+      const previous = byOwner[uid];
+      if (typeof previous === 'number' && previous !== wanted) {
+        retired[String(previous)] = { ownerId: uid, at: Date.now() };
+      }
+      byOwner[uid] = wanted;
+      delete retired[String(wanted)];
+
+      tx.set(NUMBER_REGISTRY(), { byOwner, retired, updatedAt: Date.now() }, { merge: true });
+      tx.set(channelRef, { number: wanted, updatedAt: Date.now() }, { merge: true });
+      return { ok: true as const, number: wanted };
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, 'fast_channel_numbers/registry');
+    return { ok: false, reason: 'error' };
+  }
+};
+
+/**
+ * Retire an account's number.
+ *
+ * Called when a channel or account goes away. It is a TOMBSTONE, not a release: the number leaves
+ * circulation permanently and is recorded against the account that held it, so nobody inherits an
+ * address other people still have written down, and so the same account returning gets its own
+ * number back.
+ */
+export const retireChannelNumber = async (uid: string): Promise<void> => {
+  try {
+    await runTransaction(db, async (tx) => {
+      const regSnap = await tx.get(NUMBER_REGISTRY());
+      if (!regSnap.exists()) return;
+      const byOwner: Record<string, number> = (regSnap.data() as any).byOwner || {};
+      const n = byOwner[uid];
+      if (typeof n !== 'number') return;
+      const retired = { ...((regSnap.data() as any).retired || {}) };
+      retired[String(n)] = { ownerId: uid, at: Date.now() };
+      const nextOwners = { ...byOwner };
+      delete nextOwners[uid];
+      tx.set(NUMBER_REGISTRY(), { byOwner: nextOwners, retired, updatedAt: Date.now() }, { merge: true });
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, 'fast_channel_numbers/registry');
+  }
+};
+
+/** The whole registry. One document, so the guide costs one read to number every channel. */
+export const fetchChannelNumberRegistry = async (): Promise<NumberRegistry> => {
+  try {
+    const snap = await getDoc(NUMBER_REGISTRY());
+    if (!snap.exists()) return emptyRegistry();
+    const d = snap.data() as any;
+    return { byOwner: d.byOwner || {}, retired: d.retired || {} };
   } catch (e) {
     handleFirestoreError(e, OperationType.GET, 'fast_channel_numbers/registry');
-    return {};
+    return emptyRegistry();
   }
+};
+
+/**
+ * Give a number to every channel that does not have one.
+ *
+ * The one-time migration for channels that existed before numbers were assigned. Ordered by
+ * creation date so the oldest channels get the lowest numbers — which keeps the numbers people
+ * are already used to instead of reshuffling the guide on the day this runs.
+ *
+ * Idempotent: a second run assigns nothing.
+ */
+export const backfillChannelNumbers = async (): Promise<{ assigned: number; total: number }> => {
+  const listings = await fetchAllFastChannels(1000);
+  const reg = await fetchChannelNumberRegistry();
+  const taken = new Set<number>(allTakenNumbers(reg));
+
+  const pending = listings
+    .filter((l) => typeof reg.byOwner[l.ownerId] !== 'number')
+    .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0) || a.ownerId.localeCompare(b.ownerId));
+
+  const byOwner = { ...reg.byOwner };
+  const retired = { ...(reg.retired || {}) };
+  let n = 1;
+  let assigned = 0;
+
+  for (const l of pending) {
+    // An account that once held a number keeps it, even if its channel was recreated since.
+    const owed = numberFor({ byOwner: {}, retired }, l.ownerId);
+    let take: number;
+    if (retired[String(owed)]?.ownerId === l.ownerId && !taken.has(owed)) {
+      take = owed;
+    } else {
+      while (taken.has(n) || !isAllocatableMajor(n)) n++;
+      take = n;
+    }
+    taken.add(take);
+    byOwner[l.ownerId] = take;
+    delete retired[String(take)];
+    assigned++;
+  }
+
+  if (assigned) {
+    await setDoc(NUMBER_REGISTRY(), { byOwner, retired, updatedAt: Date.now() }, { merge: true });
+    // Mirror onto each channel doc so a single-channel read still carries its own number.
+    await Promise.all(pending.map((l) =>
+      setDoc(doc(db, 'fast_channels', l.ownerId), { number: byOwner[l.ownerId], updatedAt: Date.now() }, { merge: true })
+        .catch(() => { /* the registry is the source of truth; a failed mirror self-heals */ })));
+  }
+  return { assigned, total: listings.length };
 };
 
 export const saveFastChannelMeta = async (channel: Partial<FastChannel> & { ownerId: string }): Promise<void> => {
@@ -8106,7 +8245,7 @@ export const saveFastChannelMeta = async (channel: Partial<FastChannel> & { owne
     // Claim an address the first time a channel is saved. Doing it here rather than at first
     // VIEW matters: a number allocated when someone tunes in would depend on who else had tuned
     // in first, which is the behaviour this replaces.
-    if (typeof merged.number !== 'number') await claimChannelNumber(channel.ownerId);
+    if (typeof merged.number !== 'number') await assignChannelNumber(channel.ownerId);
   } catch (e) {
     handleFirestoreError(e, OperationType.WRITE, `fast_channels/${channel.ownerId}`);
     throw e;
