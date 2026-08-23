@@ -437,7 +437,18 @@ export class BeatsEngine {
       if (track.position) inst.setSpatial({ position: track.position });
       // Load the track's saved patch. Imported lazily so the ONDA preset bank and its wavetable
       // generators aren't pulled into the engine chunk for users who never open an instrument.
-      if (track.instrument?.patch) {
+      if (track.instrument?.type === 'vela' && track.instrument.patch) {
+        // VELA carries its own patch shape. Its macros expand to several engine parameters
+        // each, so the expansion happens on this side rather than being sent as macro values —
+        // the engine has no idea what "Air" means and should not have to.
+        const { deserializeVelaPatch, velaEngineParams, velaDriftSetup } =
+          await import('../../instruments/vela/patch');
+        const patch = deserializeVelaPatch(track.instrument.patch);
+        if (patch) {
+          inst.setParams(velaDriftSetup());
+          inst.setParams(velaEngineParams(patch));
+        }
+      } else if (track.instrument?.patch) {
         const [{ deserializePatch, applyPatch }] = await Promise.all([
           import('../../instruments/onda/patch'),
         ]);
@@ -632,6 +643,12 @@ export class BeatsEngine {
   async reloadPatch(track: ATrack): Promise<void> {
     const inst = this.instruments.get(track.id);
     if (!inst || !track.instrument?.patch) return;
+    if (track.instrument.type === 'vela') {
+      const { deserializeVelaPatch, velaEngineParams } = await import('../../instruments/vela/patch');
+      const patch = deserializeVelaPatch(track.instrument.patch);
+      if (patch) inst.setParams(velaEngineParams(patch));
+      return;
+    }
     const { deserializePatch, applyPatch } = await import('../../instruments/onda/patch');
     const patch = deserializePatch(track.instrument.patch);
     if (patch) applyPatch(inst, patch);

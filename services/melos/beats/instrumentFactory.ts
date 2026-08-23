@@ -4,6 +4,7 @@
 
 import { grooveUid, firstEmptyPadIndex, addPadBank, type ArrangeTrack, type InstrumentType, type GrooveDoc } from './grooveDoc';
 import { newPatch, serializePatch } from '../instruments/onda/patch';
+import { newVelaPatch, serializeVelaPatch } from '../instruments/vela/patch';
 
 export interface InstrumentDef {
   type: InstrumentType | 'kera';
@@ -20,6 +21,7 @@ export interface InstrumentDef {
 export const INSTRUMENTS: InstrumentDef[] = [
   { type: 'onda', name: 'ONDA', blurb: 'Wavetable synth. Basses, leads, pads — anything you can shape.', color: '#B84DFF', ready: true },
   { type: 'kera', name: 'KERA', blurb: 'Sampler. Play SoundFonts, SFZ and your own recordings across the keys.', color: '#00DAF3', ready: true },
+  { type: 'vela', name: 'VELA', blurb: 'Modal resonator. Bowls, gongs, bowed glass — notes that ring for as long as you let them.', color: '#D0BCFF', ready: true },
   { type: 'onda', name: 'FONDO', blurb: 'Bass synth. Focused, deep, sub-first. (Coming soon)', color: '#D40055', ready: false },
 ];
 
@@ -29,19 +31,25 @@ export const INSTRUMENTS: InstrumentDef[] = [
  * creation. Armed immediately because you want to play what you just added.
  */
 export function makeInstrumentTrack(type: InstrumentType, count: number, presetPatch?: ReturnType<typeof serializePatch>, presetName?: string): ArrangeTrack {
-  const label = presetName || (type === 'kera' ? `KERA ${count + 1}` : `ONDA ${count + 1}`);
+  const label = presetName || (
+    type === 'kera' ? `KERA ${count + 1}` : type === 'vela' ? `VELA ${count + 1}` : `ONDA ${count + 1}`
+  );
   return {
     id: grooveUid(),
     kind: 'instrument',
     name: label,
-    color: type === 'kera' ? '#00DAF3' : '#D0BCFF',
+    color: type === 'kera' ? '#00DAF3' : type === 'vela' ? '#D0BCFF' : '#B84DFF',
     mute: false, solo: false, gainDb: 0, pan: 0,
     clips: [],
     instrument: {
       type,
       // KERA ignores the patch (it plays a loaded program), but a valid ONDA patch keeps the
-      // shared filter/envelope defaults sane and the serialize path uniform.
-      patch: presetPatch || serializePatch(newPatch(label)),
+      // shared filter/envelope defaults sane and the serialize path uniform. VELA has its own
+      // patch shape — the two instruments share the engine and the id space but not a single
+      // patch field beyond the envelope.
+      patch: presetPatch || (type === 'vela'
+        ? (serializeVelaPatch(newVelaPatch()) as ReturnType<typeof serializePatch>)
+        : serializePatch(newPatch(label))),
       presetName,
     },
     armed: true,

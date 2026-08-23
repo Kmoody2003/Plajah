@@ -131,7 +131,7 @@ export interface TimelineClip {
             durationSec: number; stretch?: number /* simple linear rate only */ };
 }
 
-export type InstrumentType = 'onda' | 'kera';
+export type InstrumentType = 'onda' | 'kera' | 'vela';
 
 export interface TrackInstrument {
   type: InstrumentType;
