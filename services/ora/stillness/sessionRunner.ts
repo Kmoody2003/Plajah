@@ -27,6 +27,7 @@ import { turnGesture, velaParamsFor, velaSessionSetup } from './velaMapping';
 import { createPlayer, type Player } from './velaPlayer';
 import { velaDriftSetup } from '../../melos/instruments/vela/patch';
 import { ensembleFor, findSuitePreset, type SuiteInstrument } from '../../melos/instruments/vela/suite';
+import { HEADSET_GAIN, spatialPlacement } from './xrSession';
 
 export interface RunnerOptions {
   ctx: AudioContext;
@@ -41,6 +42,14 @@ export interface RunnerOptions {
   seed?: number;
   onFrame?: (state: SessionState, sampler: StillnessDriverSampler) => void;
   onEnded?: () => void;
+  /**
+   * Place voices for a head-tracked listener rather than for a pair of speakers.
+   *
+   * On a screen, a metre in front is simply where "there" is. In a headset it is wrong twice:
+   * it sits inside the vergence-comfort minimum, and it puts the sound in the one place a
+   * session should not come from — in front of you, addressing you.
+   */
+  spatial?: 'screen' | 'headset';
 }
 
 /** How far ahead notes are scheduled. Two seconds is well past any postMessage jitter. */
@@ -96,10 +105,22 @@ export class StillnessSession {
    */
   private readonly seed: number;
   readonly isEphemeral: boolean;
+  private readonly headset: boolean;
+  private trim: GainNode | null = null;
 
   constructor(opts: RunnerOptions) {
     this.ctx = opts.ctx;
-    this.destination = opts.destination;
+    this.headset = opts.spatial === 'headset';
+    if (this.headset) {
+      // One node, so the mix survives the move out to headset distance. See HEADSET_GAIN.
+      const trim = opts.ctx.createGain();
+      trim.gain.value = HEADSET_GAIN;
+      trim.connect(opts.destination);
+      this.destination = trim;
+      this.trim = trim;
+    } else {
+      this.destination = opts.destination;
+    }
     this.onFrame = opts.onFrame;
     this.onEnded = opts.onEnded;
     this.isEphemeral = opts.seed === undefined;
@@ -302,7 +323,11 @@ export class StillnessSession {
     layer: Layer, note: number, velocity: number, pan: number, durationSec: number, delaySec: number,
   ): void {
     const when = this.ctx.currentTime + Math.max(0, delaySec);
-    layer.inst.setSpatial({ position: [pan, 0.2, -1] });
+    layer.inst.setSpatial({
+      position: this.headset
+        ? spatialPlacement(pan, this.sampler.uniforms().uDepth)
+        : [pan, 0.2, -1],
+    });
     const voiceId = layer.inst.noteOn(note, velocity, when, this.ctx.currentTime, this.ctx.sampleRate);
     // Note-off does not silence a modal voice — it lifts the exciter, and the body rings on. So
     // the duration here is how long energy is fed in, not how long the note lasts.
@@ -335,9 +360,10 @@ export class StillnessSession {
         // Let the tails finish before tearing the nodes down.
         layer.gain.gain.setTargetAtTime(0, this.ctx.currentTime, 1.5);
         const l = layer;
-        window.setTimeout(() => { l.inst.dispose(); l.gain.disconnect(); }, 6000);
+        window.setTimeout(() => { l.inst.dispose(); l.gain.disconnect(); this.trim?.disconnect(); }, 6000);
       }
     }
+    if (hard) this.trim?.disconnect();
     this.layers.clear();
   }
 

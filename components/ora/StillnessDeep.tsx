@@ -22,7 +22,7 @@
 // Blueprint: docs/PLAJAH_WELLBEING_SUITE_BLUEPRINT.md
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { X, Volume2, Sun } from 'lucide-react';
+import { X, Volume2, Sun, Glasses } from 'lucide-react';
 import { Button, Eyebrow } from '../ui';
 import ShaderLayer from '../plajahPixels/components/ShaderLayer';
 import { shaderForPhase, type StillnessShader } from '../plajahPixels/engine/presets/stillnessShaders';
@@ -30,6 +30,7 @@ import { saveSession } from '../../services/oraService';
 import { StillnessSession } from '../../services/ora/stillness/sessionRunner';
 import type { ArrivalMood, SessionState } from '../../services/ora/stillness/emotionalEngine';
 import type { StillnessDriverSampler } from '../../components/plajahPixels/engine/stillnessDrivers';
+import { startXrSession, xrAvailability, type XrMode } from '../../services/ora/stillness/xrSession';
 
 type Stage = 'entry' | 'session' | 'ending';
 
@@ -59,6 +60,10 @@ export const StillnessDeep: React.FC<Props> = ({ onClose, onWrite }) => {
   const [minutes, setMinutes] = useState<number>(10);
   const [controlsShown, setControlsShown] = useState(true);
   const [practised, setPractised] = useState(0);
+  /** null until the capability check returns; `false` on a phone, which is most of the time. */
+  const [xr, setXr] = useState<{ vr: boolean; ar: boolean } | null>(null);
+  const [xrMode, setXrMode] = useState<XrMode | null>(null);
+  const xrHandle = useRef<{ end: () => void; setShader: (src: string) => void } | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const runner = useRef<StillnessSession | null>(null);
@@ -163,8 +168,31 @@ export const StillnessDeep: React.FC<Props> = ({ onClose, onWrite }) => {
     return () => { if (hideTimer.current) window.clearTimeout(hideTimer.current); };
   }, [stage, wake]);
 
+  // Asked once, on the entry screen. A headset button that appears mid-session would be an
+  // event, and the arc is meant to contain exactly one of those.
+  useEffect(() => {
+    let alive = true;
+    void xrAvailability().then((a) => { if (alive) setXr({ vr: a.vr, ar: a.ar }); });
+    return () => { alive = false; };
+  }, []);
+
   // ── Lifecycle ──────────────────────────────────────────────────────────────
-  const begin = useCallback(async () => {
+  const finish = useCallback((completed: boolean) => {
+    xrHandle.current?.end();
+    xrHandle.current = null;
+    const session = runner.current;
+    const seconds = session ? Math.round(session.elapsed) : 0;
+    setPractised(seconds);
+    session?.dispose(!completed);
+    runner.current = null;
+    // Log what was practised, never what was planned — there is no failure state here, so a
+    // session ended early is still a session.
+    if (seconds >= 5) void saveSession({ kind: 'STILL', seconds, completed });
+    setStage('ending');
+    window.setTimeout(() => { void ctxRef.current?.close(); ctxRef.current = null; }, 5000);
+  }, []);
+
+  const begin = useCallback(async (mode: XrMode | null = null) => {
     const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ctx = new AC();
     await ctx.resume();
@@ -192,6 +220,8 @@ export const StillnessDeep: React.FC<Props> = ({ onClose, onWrite }) => {
       destination: an,
       durationSec: minutes * 60,
       arrival: mood,
+      // In a headset the ensemble is placed around the listener rather than in front of them.
+      spatial: mode ? 'headset' : 'screen',
       // No seed passed: this session is drawn from entropy and is not recoverable. That is the
       // point, and it is why nothing here writes it down.
       onFrame: (state, sampler) => {
@@ -206,30 +236,49 @@ export const StillnessDeep: React.FC<Props> = ({ onClose, onWrite }) => {
         // event, and the arc is meant to contain exactly one of those.
         if (state.phase !== phaseRef.current) {
           phaseRef.current = state.phase;
-          setShader(shaderForPhase(state.phase, seed));
+          const next = shaderForPhase(state.phase, seed);
+          setShader(next);
+          // The headset compiles its own copy — same source, different host.
+          xrHandle.current?.setShader(next.src);
         }
       },
       onEnded: () => finish(true),
     });
     runner.current = session;
     setStage('session');
+
+    if (mode) {
+      try {
+        // requestSession must be reached from the same gesture that opened the AudioContext,
+        // which is why this sits inside begin() rather than behind its own button handler.
+        xrHandle.current = await startXrSession({
+          mode,
+          shaderSource: shaderForPhase('arrival', seed).src,
+          uniforms: uniforms.current,
+          // Taking the headset off ends the session. Leaving it running behind a removed
+          // headset is a meditation nobody is in.
+          onEnd: () => { xrHandle.current = null; setXrMode(null); if (runner.current) finish(false); },
+          onError: setShaderError,
+        });
+        setXrMode(mode);
+      } catch (e) {
+        // Falling back to the flat screen is the right failure: the session is already running,
+        // and the sound is the part that matters.
+        xrHandle.current = null;
+        setXrMode(null);
+        setShaderError(String((e as Error)?.message ?? e));
+      }
+    }
+
     await session.start();
-  }, [minutes, mood]);
+  }, [minutes, mood, finish]);
 
-  const finish = useCallback((completed: boolean) => {
-    const session = runner.current;
-    const seconds = session ? Math.round(session.elapsed) : 0;
-    setPractised(seconds);
-    session?.dispose(!completed);
-    runner.current = null;
-    // Log what was practised, never what was planned — there is no failure state here, so a
-    // session ended early is still a session.
-    if (seconds >= 5) void saveSession({ kind: 'STILL', seconds, completed });
-    setStage('ending');
-    window.setTimeout(() => { void ctxRef.current?.close(); ctxRef.current = null; }, 5000);
+
+  useEffect(() => () => {
+    xrHandle.current?.end();
+    runner.current?.dispose(true);
+    void ctxRef.current?.close();
   }, []);
-
-  useEffect(() => () => { runner.current?.dispose(true); void ctxRef.current?.close(); }, []);
 
   // ── Entry ──────────────────────────────────────────────────────────────────
   if (stage === 'entry') {
@@ -283,7 +332,32 @@ export const StillnessDeep: React.FC<Props> = ({ onClose, onWrite }) => {
           ))}
         </div>
 
-        <Button onClick={begin}>Begin</Button>
+        <Button onClick={() => void begin(null)}>Begin</Button>
+
+        {/* Only where a headset is actually attached. Passthrough leads, because full
+            immersion is a large ask for a first session and an isolating one for anyone
+            already anxious — laying the light and sound over your own room is the smaller
+            commitment, and it is the better default. */}
+        {xr && (xr.ar || xr.vr) && (
+          <div className="flex items-center gap-2 -mt-2">
+            {xr.ar && (
+              <button
+                onClick={() => void begin('immersive-ar')}
+                className="h-8 px-3.5 rounded-full text-[12px] flex items-center gap-1.5 border border-white/14 text-white/45 hover:text-white/80 hover:border-white/30 transition-colors"
+              >
+                <Glasses size={13} /> In your room
+              </button>
+            )}
+            {xr.vr && (
+              <button
+                onClick={() => void begin('immersive-vr')}
+                className="h-8 px-3.5 rounded-full text-[12px] flex items-center gap-1.5 border border-white/14 text-white/45 hover:text-white/80 hover:border-white/30 transition-colors"
+              >
+                <Glasses size={13} /> Fully around you
+              </button>
+            )}
+          </div>
+        )}
 
         <p className="text-[11px] text-white/25 max-w-[34ch] leading-relaxed">
           Nothing is recorded. The sound is made as you listen and is not kept.
@@ -320,7 +394,14 @@ export const StillnessDeep: React.FC<Props> = ({ onClose, onWrite }) => {
       onPointerMove={wake}
       style={{ background: '#0D0B14' }}
     >
-      {useShader && analyser && shader ? (
+      {/* While the headset holds the session, the flat screen is a mirror nobody is looking
+          at — and rendering the field twice on a mobile GPU is the one thing that will cost
+          frames where frames matter most. */}
+      {xrMode ? (
+        <div className="absolute inset-0 grid place-items-center" style={{ background: '#0D0B14' }}>
+          <p className="text-[12px] text-white/25 tracking-wide">Playing in the headset</p>
+        </div>
+      ) : useShader && analyser && shader ? (
         <div className="absolute inset-0" aria-hidden="true">
           <ShaderLayer
             analyser={analyser}
