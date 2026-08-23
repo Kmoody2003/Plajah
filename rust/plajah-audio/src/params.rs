@@ -142,6 +142,15 @@ pub const M_FORMANT: u32 = 16;
 pub const M_FORMANT_SHIFT: u32 = 17;
 /// Sustained mode: how much later high partials fade in. Strings brighten as they are held.
 pub const M_BLOOM: u32 = 18;
+/// Overtone emphasis — narrow gain on one partial, movable across the series. This is what
+/// throat singing actually is, and it is the whole monastic register in one control.
+pub const M_SPOTLIGHT: u32 = 19;
+pub const M_SPOTLIGHT_POS: u32 = 20;
+pub const M_SPOTLIGHT_WIDTH: u32 = 21;
+/// Pitch vibrato depth, 0..1 → 0..1.2 semitones.
+pub const M_VIBRATO: u32 = 22;
+/// Vibrato rate, 0..1 → 0.5..9 Hz.
+pub const M_VIBRATO_RATE: u32 = 23;
 
 /// Exciter — bow, blow, strike, rub.
 pub const EXC_BASE: u32 = 1100;
@@ -166,9 +175,136 @@ pub const V_BLUR: u32 = 5;
 pub const V_FREEZE: u32 = 6;
 pub const V_MIX: u32 = 7;
 
-/// 1408 rather than 1024: the VELA blocks run to 1207, and `Params::set` silently drops any id
-/// past the end of the array — a whole instrument that fails without an error.
-pub const MAX_PARAM_ID: usize = 1408;
+// ── BAJO (instrument 04): the low-end engine ────────────────────────────────
+// Block 1400 upward, leaving VELA (1000..1207) room to grow. Every BAJO section is a no-op at
+// its default so ONDA, KERA and VELA patches are bit-identical with these ids present.
+//
+// Two of these blocks are arrays rather than scalars — the wobble rate lane and the gate grid.
+// They serialise as fixed-length integer runs, which keeps a patch a flat object (and keeps it
+// clear of the Firestore rule that an undefined field write throws).
+
+/// The string engine — Karplus-Strong, per voice. The acoustic half of the instrument;
+/// no oscillator is involved.
+pub const STR_BASE: u32 = 1400;
+pub const S_LEVEL: u32 = 0;
+pub const S_DAMP: u32 = 1;
+pub const S_TONE: u32 = 2;
+/// Exciter brightness: finger pluck through to plectrum.
+pub const S_PICK: u32 = 3;
+/// Replaces the burst with continuous excitation — pluck becomes arco.
+pub const S_BOW: u32 = 4;
+/// Body resonance depth: solid-body electric through to hollow upright.
+pub const S_BODY: u32 = 5;
+
+/// Throat — vowel formant bank over the voice sum. Engine level: one throat, not one per voice.
+pub const THR_BASE: u32 = 1420;
+pub const T_AMOUNT: u32 = 0;
+pub const T_VOWEL: u32 = 1; // 0..1 sweeps A E I O U
+pub const T_Q: u32 = 2;
+
+/// Wobble — the per-step rate lane LFO, exposed to the mod matrix as `ModSource::Wobble`.
+/// This is the section that makes BAJO a bass synth rather than a synth playing bass.
+pub const WOB_BASE: u32 = 1440;
+pub const W_ENABLE: u32 = 0;
+pub const W_SHAPE: u32 = 1;
+pub const W_SKEW: u32 = 2;
+pub const W_SMOOTH: u32 = 3;
+pub const W_PHASE: u32 = 4;
+pub const W_FREE: u32 = 5; // 1 = ignore the lane, run at W_RATE
+pub const W_RATE: u32 = 6; // free-run rate, 0..1 → 0.05..40 Hz
+/// 16 lane slots, one per 16th note, each holding a division index into `WOB_DIVS`.
+/// 1448..1463.
+pub const W_LANE: u32 = 8;
+pub const W_LANE_LEN: usize = 16;
+/// Two destination slots with independent depths. Running two at once is what turns a wobble
+/// into a morph: cutoff plus vowel is a talking growl, pitch plus drive is a screech.
+/// Destination indices: 0 cutoff, 1 pitch, 2 vowel, 3 amp, 4 morph, 5 drive, 6 reso, 7 pan.
+/// The voice owns 0/1/4/6; the engine rack owns 2/3/5/7.
+pub const W_DEST1: u32 = 24;
+pub const W_DEPTH1: u32 = 25;
+pub const W_DEST2: u32 = 26;
+pub const W_DEPTH2: u32 = 27;
+pub const WOB_DEST_CUTOFF: u32 = 0;
+pub const WOB_DEST_PITCH: u32 = 1;
+pub const WOB_DEST_VOWEL: u32 = 2;
+pub const WOB_DEST_AMP: u32 = 3;
+pub const WOB_DEST_MORPH: u32 = 4;
+pub const WOB_DEST_DRIVE: u32 = 5;
+pub const WOB_DEST_RESO: u32 = 6;
+pub const WOB_DEST_PAN: u32 = 7;
+
+/// Rate lane divisions, in beats per LFO cycle. Index 6 (1/8) is the default lane fill.
+pub const WOB_DIVS: [f32; 13] = [
+    4.0, 2.0, 4.0 / 3.0, 1.0, 1.5, 2.0 / 3.0, 0.5, 0.75, 1.0 / 3.0, 0.25, 1.0 / 6.0, 0.125, 0.0625,
+];
+/// Ping-pong delay divisions, in beats.
+pub const DELAY_DIVS: [f32; 8] = [2.0, 1.0, 1.5, 2.0 / 3.0, 0.5, 0.75, 1.0 / 3.0, 0.25];
+/// Ghost Gate cell lengths, in beats: 1/8, 1/16, 1/32.
+pub const GATE_DIVS: [f32; 3] = [0.5, 0.25, 0.125];
+
+/// Ghost Gate — a 4-band step gate whose closed steps spill into the reverb instead of muting.
+pub const GATE_BASE: u32 = 1480;
+pub const G_ENABLE: u32 = 0;
+pub const G_DEPTH: u32 = 1;
+pub const G_SLEW: u32 = 2;
+pub const G_SPILL: u32 = 3;
+pub const G_SWING: u32 = 4;
+pub const G_RATE: u32 = 5; // 0 = 1/8, 1 = 1/16, 2 = 1/32
+pub const G_SPLIT: u32 = 6; // crossover shift, 0..1 → 0.5x..2x
+/// 4 bands x 16 steps, band-major: `GATE_BASE + G_GRID + band*16 + step` → 1488..1551.
+pub const G_GRID: u32 = 8;
+pub const G_BANDS: usize = 4;
+pub const G_STEPS: usize = 16;
+
+/// Scorch — 3 serial distortion stages, sub-safe.
+pub const SC_BASE: u32 = 1560;
+pub const SC_STRIDE: u32 = 8;
+pub const SC_ALG: u32 = 0;
+pub const SC_DRIVE: u32 = 1;
+pub const SC_BIAS: u32 = 2;
+pub const SC_TONE: u32 = 3;
+pub const SC_MIX: u32 = 4;
+pub const SC_STAGES: usize = 3;
+/// Engine-wide Scorch controls, past the three stage blocks (1560/1568/1576).
+pub const SC_INPUT: u32 = 1590;
+pub const SC_FOCUS: u32 = 1591; // matched pre-cut / post-boost tilt at 260 Hz
+pub const SC_SAFE: u32 = 1592; // split the low band out before the stages, re-add it clean
+pub const SC_SUB: u32 = 1593; // the frequency that split happens at
+pub const SC_OUTPUT: u32 = 1594;
+
+#[inline]
+pub fn scorch_param(stage: usize, p: u32) -> u32 {
+    SC_BASE + stage as u32 * SC_STRIDE + p
+}
+
+/// Space — dimension, tempo-synced ping-pong delay, tape echo. Reverb is VELA's Veil, reused
+/// rather than reimplemented: it already sits at engine level and already travels with the patch.
+pub const SPC_BASE: u32 = 1600;
+pub const SP_CH_ON: u32 = 0;
+pub const SP_CH_RATE: u32 = 1;
+pub const SP_CH_DEPTH: u32 = 2;
+pub const SP_CH_MIX: u32 = 3;
+pub const SP_DL_ON: u32 = 8;
+pub const SP_DL_DIV: u32 = 9; // index into DELAY_DIVS
+pub const SP_DL_FB: u32 = 10;
+pub const SP_DL_TONE: u32 = 11;
+pub const SP_DL_PING: u32 = 12;
+pub const SP_DL_MIX: u32 = 13;
+pub const SP_EC_ON: u32 = 16;
+pub const SP_EC_TIME: u32 = 17; // 0..1 → 40..900 ms, free-running by design
+pub const SP_EC_FB: u32 = 18;
+pub const SP_EC_WOW: u32 = 19;
+pub const SP_EC_DRIVE: u32 = 20;
+pub const SP_EC_DEGRADE: u32 = 21;
+pub const SP_EC_MIX: u32 = 22;
+
+/// Master fold — mono below a frequency. A bass instrument that images its sub is a bass
+/// instrument that disappears on a club system.
+pub const P_MONO_BELOW: u32 = 1650; // 0..1 → 20..320 Hz, 0 = off
+
+/// 1664 rather than 1024: VELA runs to 1207 and BAJO to 1650, and `Params::set` silently drops
+/// any id past the end of the array — a whole instrument that fails without an error.
+pub const MAX_PARAM_ID: usize = 1664;
 
 /// Flat store. A plain array keeps `set_param` and the mod matrix's destination lookup O(1)
 /// with no hashing on the audio thread.
@@ -269,6 +405,11 @@ impl Params {
         self.set(MODAL_BASE + M_FORMANT, 0.0);
         self.set(MODAL_BASE + M_FORMANT_SHIFT, 0.5);
         self.set(MODAL_BASE + M_BLOOM, 0.4);
+        self.set(MODAL_BASE + M_SPOTLIGHT, 0.0);
+        self.set(MODAL_BASE + M_SPOTLIGHT_POS, 0.4);
+        self.set(MODAL_BASE + M_SPOTLIGHT_WIDTH, 0.25);
+        self.set(MODAL_BASE + M_VIBRATO, 0.0);
+        self.set(MODAL_BASE + M_VIBRATO_RATE, 0.45);
 
         self.set(EXC_BASE + X_TYPE, 0.0); // bow
         self.set(EXC_BASE + X_PRESSURE, 0.5);
@@ -286,6 +427,83 @@ impl Params {
         self.set(VEIL_BASE + V_BLUR, 0.0);
         self.set(VEIL_BASE + V_FREEZE, 0.0);
         self.set(VEIL_BASE + V_MIX, 0.0);
+
+        // ── BAJO ─────────────────────────────────────────────────────────────
+        // Every section defaults to a bypass so an ONDA/KERA/VELA patch that never mentions
+        // these ids renders exactly as it did before they existed. The array defaults still
+        // hold musical values, so switching a section on gives a sound rather than silence.
+        self.set(STR_BASE + S_LEVEL, 0.0);
+        self.set(STR_BASE + S_DAMP, 0.35);
+        self.set(STR_BASE + S_TONE, 0.5);
+        self.set(STR_BASE + S_PICK, 0.35);
+        self.set(STR_BASE + S_BOW, 0.0);
+        self.set(STR_BASE + S_BODY, 0.5);
+
+        self.set(THR_BASE + T_AMOUNT, 0.0);
+        self.set(THR_BASE + T_VOWEL, 0.2);
+        self.set(THR_BASE + T_Q, 0.35);
+
+        self.set(WOB_BASE + W_ENABLE, 0.0);
+        self.set(WOB_BASE + W_SHAPE, 0.0);
+        self.set(WOB_BASE + W_SKEW, 0.5);
+        self.set(WOB_BASE + W_SMOOTH, 0.1);
+        self.set(WOB_BASE + W_PHASE, 0.0);
+        self.set(WOB_BASE + W_FREE, 0.0);
+        self.set(WOB_BASE + W_RATE, 0.35);
+        self.set(WOB_BASE + W_DEST1, WOB_DEST_CUTOFF as f32);
+        self.set(WOB_BASE + W_DEPTH1, 0.0);
+        self.set(WOB_BASE + W_DEST2, WOB_DEST_DRIVE as f32);
+        self.set(WOB_BASE + W_DEPTH2, 0.0);
+        for i in 0..W_LANE_LEN {
+            // 6 = 1/8 in WOB_DIVS — a plain eighth-note wobble before you draw anything.
+            self.set(WOB_BASE + W_LANE + i as u32, 6.0);
+        }
+
+        self.set(GATE_BASE + G_ENABLE, 0.0);
+        self.set(GATE_BASE + G_DEPTH, 1.0);
+        self.set(GATE_BASE + G_SLEW, 0.12);
+        self.set(GATE_BASE + G_SPILL, 0.4);
+        self.set(GATE_BASE + G_SWING, 0.0);
+        self.set(GATE_BASE + G_RATE, 1.0);
+        self.set(GATE_BASE + G_SPLIT, 0.5);
+        for b in 0..G_BANDS {
+            for st in 0..G_STEPS {
+                self.set(GATE_BASE + G_GRID + (b * G_STEPS + st) as u32, 1.0);
+            }
+        }
+
+        for st in 0..SC_STAGES {
+            self.set(scorch_param(st, SC_ALG), 0.0);
+            self.set(scorch_param(st, SC_DRIVE), 0.0);
+            self.set(scorch_param(st, SC_BIAS), 0.5);
+            self.set(scorch_param(st, SC_TONE), 0.5);
+            self.set(scorch_param(st, SC_MIX), 1.0);
+        }
+        self.set(SC_INPUT, 0.5);
+        self.set(SC_FOCUS, 0.5);
+        self.set(SC_SAFE, 1.0);
+        self.set(SC_SUB, 0.3);
+        self.set(SC_OUTPUT, 0.5);
+
+        self.set(SPC_BASE + SP_CH_ON, 0.0);
+        self.set(SPC_BASE + SP_CH_RATE, 0.3);
+        self.set(SPC_BASE + SP_CH_DEPTH, 0.4);
+        self.set(SPC_BASE + SP_CH_MIX, 0.3);
+        self.set(SPC_BASE + SP_DL_ON, 0.0);
+        self.set(SPC_BASE + SP_DL_DIV, 4.0);
+        self.set(SPC_BASE + SP_DL_FB, 0.35);
+        self.set(SPC_BASE + SP_DL_TONE, 0.6);
+        self.set(SPC_BASE + SP_DL_PING, 1.0);
+        self.set(SPC_BASE + SP_DL_MIX, 0.22);
+        self.set(SPC_BASE + SP_EC_ON, 0.0);
+        self.set(SPC_BASE + SP_EC_TIME, 0.26);
+        self.set(SPC_BASE + SP_EC_FB, 0.4);
+        self.set(SPC_BASE + SP_EC_WOW, 0.25);
+        self.set(SPC_BASE + SP_EC_DRIVE, 0.4);
+        self.set(SPC_BASE + SP_EC_DEGRADE, 0.2);
+        self.set(SPC_BASE + SP_EC_MIX, 0.2);
+
+        self.set(P_MONO_BELOW, 0.0);
     }
 }
 
@@ -312,6 +530,13 @@ pub fn swell_time_s(norm: f32) -> f32 {
 pub fn morph_time_s(norm: f32) -> f32 {
     let n = norm.clamp(0.0, 1.0);
     1.0 + 89.0 * n * n
+}
+
+/// Vibrato rate: 0..1 → 0.5 Hz … 9 Hz. The slow end is a monastic waver rather than an
+/// operatic vibrato — closer to the pitch drift of a held chant than to a trained wobble.
+#[inline]
+pub fn vibrato_rate_hz(norm: f32) -> f32 {
+    0.5 * (18.0f32).powf(norm.clamp(0.0, 1.0))
 }
 
 /// Beat rate: 0..1 → 0.15 Hz … 9 Hz. A real bowl beats somewhere between one cycle every few

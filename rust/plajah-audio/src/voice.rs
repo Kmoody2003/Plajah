@@ -12,6 +12,8 @@ use crate::modal::{partial_count, BankMode, Material, ModalBank, ModalSpec};
 use crate::modmatrix::{ModMatrix, ModValues};
 use crate::osc::{unison_detune_curve, AnalogShape, Noise, Phasor, Rng};
 use crate::params::*;
+use crate::bajo::{wob_eval, WobbleFrame};
+use crate::string::StringVoice;
 use crate::sample::{SampleBank, SampleVoice};
 use crate::shaper::{ShapeMode, Shaper};
 use crate::spatial::{pan_gains, Layout, Position, MAX_CHANNELS};
@@ -85,6 +87,12 @@ pub struct Voice {
     sample: SampleVoice,
     /// Extra detune in cents from the zone, folded into the sample's resampling ratio.
     sample_detune: f32,
+    /// BAJO's string engine. Allocated once at engine construction (see `init_sr`) so nothing
+    /// ever allocates on the audio thread.
+    string: StringVoice,
+    /// Per-voice wobble smoothing state. Every voice follows the same phase from the engine, so
+    /// they agree; only the one-pole is local.
+    wob_smooth: f32,
 }
 
 impl Voice {
@@ -95,6 +103,8 @@ impl Voice {
             *d = rng.bipolar();
         }
         Self {
+            string: StringVoice::new(48000.0, seed ^ 0x5F35_63AD),
+            wob_smooth: 0.0,
             active: false,
             note: 60.0,
             velocity: 0.8,
@@ -136,6 +146,12 @@ impl Voice {
 
     /// Assign a sample to this voice — call right after `note_on` for a KERA voice. `start_frame`
     /// lets the host honour a zone's play-start offset; `detune_cents` folds in the zone tuning.
+    /// Size the string's delay line for the real sample rate. Called once at engine
+    /// construction — never on the audio thread.
+    pub fn init_sr(&mut self, sr: f32, seed: u32) {
+        self.string = StringVoice::new(sr, seed ^ 0x5F35_63AD);
+    }
+
     pub fn set_sample(&mut self, slot: i32, start_frame: f64, detune_cents: f32) {
         self.sample.start(slot, start_frame);
         self.sample_detune = detune_cents;
@@ -148,6 +164,12 @@ impl Voice {
         self.velocity = vel.clamp(0.0, 1.0);
         self.voice_id = id;
         self.start_delay = delay;
+        // Strike the string. Only when the section is actually in use — an ONDA patch must not
+        // pay for a delay line it never reads.
+        if p.get(STR_BASE + S_LEVEL) > 0.0001 {
+            self.string.pluck(p.get(STR_BASE + S_PICK), self.velocity);
+        }
+        self.wob_smooth = 0.0;
         self.expr = Expression::default();
         self.glide_note = glide_from.unwrap_or(note);
         self.sample.clear(); // synth mode by default; a KERA note-on calls set_sample after
@@ -221,6 +243,7 @@ impl Voice {
         for e in self.envs.iter_mut() {
             e.hard_reset();
         }
+        self.string.reset();
     }
 
     #[inline]
@@ -323,6 +346,7 @@ impl Voice {
         sr: f32,
         layout: Layout,
         base_pos: Position,
+        wf: &WobbleFrame,
     ) {
         if !self.active {
             return;
@@ -365,7 +389,24 @@ impl Voice {
             } else {
                 self.glide_note = self.note;
             }
-            let bent = self.glide_note + self.expr.pitch_bend * bend_range;
+            // ── BAJO wobble ──────────────────────────────────────────────────────
+            // The engine hands over the phase; every voice evaluates the same function at the
+            // same phase, so the wobble that moves this filter is provably the wobble that moves
+            // the vowel downstream. Evaluated at control rate (3 kHz at 48 k), not block rate —
+            // a 1/32 wobble at block rate is audibly stepped on a resonant filter.
+            let wob = if wf.on {
+                let raw = wob_eval(wf.phase + wf.inc * frame as f32, wf.shape, wf.skew);
+                self.wob_smooth += (raw - self.wob_smooth) * wf.smooth;
+                if wf.smooth >= 1.0 { raw } else { self.wob_smooth }
+            } else {
+                0.0
+            };
+            let wob_cut = wob * wf.depth_for(WOB_DEST_CUTOFF);
+            let wob_pitch = wob * wf.depth_for(WOB_DEST_PITCH);
+            let wob_morph = wob * wf.depth_for(WOB_DEST_MORPH);
+            let wob_reso = wob * wf.depth_for(WOB_DEST_RESO);
+
+            let bent = self.glide_note + self.expr.pitch_bend * bend_range + wob_pitch * 12.0;
 
             // Filters
             let mut cut = [0.0f32; 2];
@@ -383,8 +424,11 @@ impl Voice {
                 let target = cutoff_hz((base + m + kt + envamt).clamp(0.0, 1.0));
                 // One-pole smoothing: a stepped cutoff is the classic digital-synth zipper.
                 self.cutoff_smooth[f] += (target - self.cutoff_smooth[f]) * 0.35;
-                cut[f] = self.cutoff_smooth[f];
-                res[f] = (p.get(flt_param(f, F_RES)) + matrix.amount_for(flt_param(f, F_RES), &mv)).clamp(0.0, 1.0);
+                // Four octaves of wobble, applied after the smoother and in the log domain so
+                // the sweep is musical rather than linear in hertz.
+                cut[f] = (self.cutoff_smooth[f] * (2.0f32).powf(wob_cut * 4.0)).clamp(20.0, 20000.0);
+                res[f] = (p.get(flt_param(f, F_RES)) + matrix.amount_for(flt_param(f, F_RES), &mv)
+                    + wob_reso * 0.5).clamp(0.0, 1.0);
                 drv[f] = p.get(flt_param(f, F_DRIVE));
                 is_ladder[f] = p.get(flt_param(f, F_TYPE)) < 0.5;
                 svf_mode[f] = SvfMode::from_index(p.get(flt_param(f, F_MODE)) as u32);
@@ -414,7 +458,8 @@ impl Voice {
                 let semis = bent + coarse + fine + drift
                     + matrix.amount_for(osc_param(o, O_COARSE), &mv) * 24.0;
                 o_inc[o] = midi_to_hz(semis) / sr;
-                o_morph[o] = (p.get(osc_param(o, O_MORPH)) + matrix.amount_for(osc_param(o, O_MORPH), &mv)).clamp(0.0, 1.0);
+                o_morph[o] = (p.get(osc_param(o, O_MORPH)) + matrix.amount_for(osc_param(o, O_MORPH), &mv)
+                    + wob_morph * 0.5).clamp(0.0, 1.0);
                 o_wavetable[o] = p.get(osc_param(o, O_MODE)) < 0.5;
                 o_shape[o] = AnalogShape::from_index(p.get(osc_param(o, O_ANALOG_SHAPE)) as u32);
                 o_pw[o] = (p.get(osc_param(o, O_PULSE_WIDTH)) + matrix.amount_for(osc_param(o, O_PULSE_WIDTH), &mv)).clamp(0.02, 0.98);
@@ -429,6 +474,16 @@ impl Voice {
             let sub_shape = AnalogShape::from_index(p.get(P_SUB_SHAPE) as u32);
             let noise_lvl = p.get(P_NOISE_LEVEL);
             let noise_pink = p.get(P_NOISE_COLOR) > 0.5;
+
+            // BAJO's string engine. Its frequency follows `bent`, so glide and bend retune the
+            // delay line rather than pitching a sample.
+            let str_lvl = p.get(STR_BASE + S_LEVEL);
+            let str_hz = midi_to_hz(bent);
+            let str_damp = p.get(STR_BASE + S_DAMP);
+            let str_tone = p.get(STR_BASE + S_TONE);
+            let str_bow = p.get(STR_BASE + S_BOW);
+            let str_body = p.get(STR_BASE + S_BODY);
+            let str_pick = p.get(STR_BASE + S_PICK);
 
             let amp_target = mv.env[0]
                 * (0.25 + 0.75 * self.velocity)
@@ -586,6 +641,14 @@ impl Voice {
                         ch_acc[c] += v * g[c];
                     }
                 }
+                if str_lvl > 0.0001 {
+                    let v = self.string.process(str_hz, str_damp, str_tone, str_bow, str_body, str_pick, sr) * str_lvl;
+                    // Centred, for the same reason the sub is: a plucked bass belongs in the middle.
+                    let g = &uni_gains[uni_count / 2];
+                    for c in 0..nch {
+                        ch_acc[c] += v * g[c];
+                    }
+                }
 
                 // Filters run per channel, each with its own state, so resonance images correctly
                 // instead of collapsing to the centre.
@@ -650,6 +713,11 @@ pub(crate) fn modal_spec_for(note: f32, p: &Params) -> ModalSpec {
         formant: p.get(MODAL_BASE + M_FORMANT).clamp(0.0, 1.0),
         formant_shift: p.get(MODAL_BASE + M_FORMANT_SHIFT).clamp(0.0, 1.0),
         bloom: p.get(MODAL_BASE + M_BLOOM).clamp(0.0, 1.0),
+        spotlight: p.get(MODAL_BASE + M_SPOTLIGHT).clamp(0.0, 1.0),
+        spotlight_pos: p.get(MODAL_BASE + M_SPOTLIGHT_POS).clamp(0.0, 1.0),
+        spotlight_width: p.get(MODAL_BASE + M_SPOTLIGHT_WIDTH).clamp(0.0, 1.0),
+        vibrato: p.get(MODAL_BASE + M_VIBRATO).clamp(0.0, 1.0) * 1.2,
+        vibrato_rate: vibrato_rate_hz(p.get(MODAL_BASE + M_VIBRATO_RATE)),
     }
 }
 

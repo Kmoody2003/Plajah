@@ -1,6 +1,7 @@
 //! The instrument engine: voice allocation, parameter store, global modulation, output stage.
 
 use crate::diffuser::{Diffuser, VeilSpec};
+use crate::bajo::BajoRack;
 use crate::lfo::Lfo;
 use crate::modmatrix::{ModMatrix, ModSource, ModValues, Route};
 use crate::osc::Rng;
@@ -55,6 +56,11 @@ pub struct Engine {
     /// per-voice. Allocated here at construction, never on the audio thread.
     veil: Diffuser,
 
+    /// BAJO's rack: Throat → Scorch → Ghost Gate → Space, plus the wobble clock. Same argument
+    /// as the Veil — it belongs to the patch, not the channel strip, so it renders offline
+    /// identically. Bypassed entirely unless a BAJO section is switched on.
+    bajo: BajoRack,
+
     events: Vec<ScheduledEvent>,
     events_dirty: bool,
     frame_counter: u64,
@@ -70,9 +76,14 @@ pub struct Engine {
 
 impl Engine {
     pub fn new(sample_rate: f32) -> Self {
+        let sr_real = if sample_rate > 1000.0 { sample_rate } else { 48000.0 };
         let mut voices = Vec::with_capacity(MAX_VOICES);
         for i in 0..MAX_VOICES {
-            voices.push(Voice::new(0x9E3779B9u32.wrapping_mul(i as u32 + 1)));
+            let seed = 0x9E3779B9u32.wrapping_mul(i as u32 + 1);
+            let mut v = Voice::new(seed);
+            // Size BAJO's string delay line for the real rate here, where allocating is legal.
+            v.init_sr(sr_real, seed);
+            voices.push(v);
         }
         let mut tables = Vec::with_capacity(MAX_TABLES);
         for _ in 0..MAX_TABLES {
@@ -83,6 +94,7 @@ impl Engine {
             params: Params::new(),
             matrix: ModMatrix::default(),
             veil: Diffuser::new(if sample_rate > 1000.0 { sample_rate } else { 48000.0 }),
+            bajo: BajoRack::new(if sample_rate > 1000.0 { sample_rate } else { 48000.0 }),
             voices,
             lfos: [Lfo::default(); NUM_LFO],
             tables,
@@ -394,14 +406,30 @@ impl Engine {
         globals.pitch_bend = self.global_bend;
         globals.macros = self.macros;
 
+        // Transport position at the first sample of this block, in beats. The wobble rate lane
+        // and the Ghost Gate both read it, which is what makes them land on the grid instead of
+        // drifting against it.
+        let beats = (self.frame_counter as f64 / self.sr as f64) * self.beats_per_sec as f64;
+        let bps = self.beats_per_sec;
+
+        // Resolve the wobble BEFORE the voices render, so every voice follows the same phase.
+        let wf = self.bajo.wobble_frame(&self.params, beats, frames, bps);
+
         // Split the borrow: voices render into scratch while reading shared state immutably.
-        // `veil` comes out in the same destructure because the Veil also needs `scratch` and a
-        // second `let Engine { .. } = self` would be a double mutable borrow.
-        let Engine { voices, scratch, params, matrix, tables, samples, sr, layout, position, veil, .. } = self;
+        // `veil` and `bajo` come out in the same destructure because both also need `scratch`
+        // and a second `let Engine { .. } = self` would be a double mutable borrow.
+        let Engine { voices, scratch, params, matrix, tables, samples, sr, layout, position, veil, bajo, .. } = self;
         for v in voices.iter_mut() {
             if v.active {
-                v.render(scratch, frames, params, matrix, &globals, tables, samples, *sr, *layout, *position);
+                v.render(scratch, frames, params, matrix, &globals, tables, samples, *sr, *layout, *position, &wf);
             }
+        }
+
+        // BAJO's rack, before the Veil — the Ghost Gate's spill has to exist before the reverb
+        // that receives it runs.
+        let bajo_on = BajoRack::active(params);
+        if bajo_on {
+            bajo.process(scratch, frames, nch, params, &wf, beats, bps);
         }
 
         // The Veil runs here: after every voice has summed, before the output stage. Being
@@ -420,7 +448,8 @@ impl Engine {
                 freeze: veil_freeze,
                 mix: veil_mix,
             };
-            veil.process(scratch, frames, nch, &spec);
+            let send = if bajo_on { bajo.spill_buffer() } else { None };
+            veil.process(scratch, frames, nch, &spec, send);
         }
 
         // Soft clip on the way out: a synth stacking 32 voices × 16 unison will hit the rails,

@@ -5,6 +5,7 @@
 import { grooveUid, firstEmptyPadIndex, addPadBank, type ArrangeTrack, type InstrumentType, type GrooveDoc } from './grooveDoc';
 import { newPatch, serializePatch } from '../instruments/onda/patch';
 import { newVelaPatch, serializeVelaPatch } from '../instruments/vela/patch';
+import { newBajoPatch, serializeBajoPatch } from '../instruments/bajo/patch';
 import { SUITE, SUITE_ORDER, presetsFor } from '../instruments/vela/suite';
 
 /** True for any member of the meditation suite — they share a patch shape and an editor. */
@@ -36,7 +37,7 @@ export const INSTRUMENTS: InstrumentDef[] = [
     color: SUITE[id].accent,
     ready: true,
   })),
-  { type: 'onda', name: 'FONDO', blurb: 'Bass synth. Focused, deep, sub-first. (Coming soon)', color: '#D40055', ready: false },
+  { type: 'bajo', name: 'BAJO', blurb: 'Bass engine. Per-step wobble, four-band gate, and a plucked upright at the other end.', color: '#FF4B1C', ready: true },
 ];
 
 /**
@@ -47,6 +48,7 @@ export const INSTRUMENTS: InstrumentDef[] = [
 export function makeInstrumentTrack(type: InstrumentType, count: number, presetPatch?: ReturnType<typeof serializePatch>, presetName?: string): ArrangeTrack {
   const label = presetName || (
     type === 'kera' ? `KERA ${count + 1}`
+      : type === 'bajo' ? `BAJO ${count + 1}`
       : isSuite(type) ? `${SUITE[type].name} ${count + 1}`
       : `ONDA ${count + 1}`
   );
@@ -54,7 +56,7 @@ export function makeInstrumentTrack(type: InstrumentType, count: number, presetP
     id: grooveUid(),
     kind: 'instrument',
     name: label,
-    color: type === 'kera' ? '#00DAF3' : isSuite(type) ? SUITE[type].accent : '#B84DFF',
+    color: type === 'kera' ? '#00DAF3' : type === 'bajo' ? '#FF4B1C' : isSuite(type) ? SUITE[type].accent : '#B84DFF',
     mute: false, solo: false, gainDb: 0, pan: 0,
     clips: [],
     instrument: {
@@ -65,7 +67,9 @@ export function makeInstrumentTrack(type: InstrumentType, count: number, presetP
       // patch field beyond the envelope.
       patch: presetPatch || (isSuite(type)
         ? (serializeVelaPatch(newVelaPatch(presetsFor(type)[0])) as ReturnType<typeof serializePatch>)
-        : serializePatch(newPatch(label))),
+        : type === 'bajo'
+          ? (serializeBajoPatch(newBajoPatch()) as ReturnType<typeof serializePatch>)
+          : serializePatch(newPatch(label))),
       presetName,
     },
     armed: true,

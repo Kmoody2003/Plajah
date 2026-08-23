@@ -448,6 +448,14 @@ export class BeatsEngine {
           inst.setParams(velaDriftSetup());
           inst.setParams(velaEngineParams(patch));
         }
+      } else if (track.instrument?.type === 'bajo' && track.instrument?.patch) {
+        // BAJO carries its own shape too: the wobble rate lane and the gate grid are arrays, and
+        // its four macros expand to several engine parameters each. Both are flattened into
+        // plain param ids on this side — which is why neither needed a bespoke ABI call.
+        const { deserializeBajoPatch, bajoEngineParams } =
+          await import('../../instruments/bajo/patch');
+        const patch = deserializeBajoPatch(track.instrument.patch);
+        if (patch) inst.setParams(bajoEngineParams(patch));
       } else if (track.instrument?.patch) {
         const [{ deserializePatch, applyPatch }] = await Promise.all([
           import('../../instruments/onda/patch'),

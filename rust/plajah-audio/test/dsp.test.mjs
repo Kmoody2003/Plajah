@@ -41,7 +41,24 @@ const P = {
   X_TYPE: 1100, X_PRESSURE: 1101, X_GRAIN: 1102, X_TONE: 1103, X_VEL_TILT: 1104,
   V_SIZE: 1200, V_DECAY: 1201, V_DIFFUSION: 1202, V_SHIMMER: 1203,
   V_SHIMMER_IVL: 1204, V_BLUR: 1205, V_FREEZE: 1206, V_MIX: 1207,
+
+  // BAJO — must mirror the block-1400 constants in src/params.rs.
+  SUB_LEVEL: 400,
+  S_LEVEL: 1400, S_DAMP: 1401, S_TONE: 1402, S_PICK: 1403, S_BOW: 1404, S_BODY: 1405,
+  T_AMOUNT: 1420, T_VOWEL: 1421, T_Q: 1422,
+  W_ENABLE: 1440, W_SHAPE: 1441, W_SKEW: 1442, W_SMOOTH: 1443, W_PHASE: 1444,
+  W_FREE: 1445, W_RATE: 1446, W_LANE: 1448, W_DEST1: 1464, W_DEPTH1: 1465,
+  W_DEST2: 1466, W_DEPTH2: 1467,
+  G_ENABLE: 1480, G_DEPTH: 1481, G_SLEW: 1482, G_SPILL: 1483, G_SWING: 1484,
+  G_RATE: 1485, G_SPLIT: 1486, gGrid: (band, step) => 1488 + band * 16 + step,
+  scAlg: (st) => 1560 + st * 8, scDrive: (st) => 1560 + st * 8 + 1,
+  scMix: (st) => 1560 + st * 8 + 4,
+  SC_INPUT: 1590, SC_FOCUS: 1591, SC_SAFE: 1592, SC_SUB: 1593, SC_OUTPUT: 1594,
+  MONO_BELOW: 1650,
 };
+
+const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+const rmsOf = (s) => Math.sqrt(s.reduce((a, v) => a + v * v, 0) / s.length);
 
 async function boot() {
   const mod = await WebAssembly.compile(readFileSync(WASM));
@@ -79,7 +96,7 @@ function magAt(sig, freq, sr) {
 
 test('ABI version matches the host contract', async () => {
   const { x } = await boot();
-  assert.equal(x.pa_abi_version(), 7);
+  assert.equal(x.pa_abi_version(), 8);
 });
 
 /** Stage a mono sample into the upload buffer and load it into a slot. Returns the frame count. */
@@ -639,4 +656,175 @@ test('VELA: a bowed level holds across the decay range', async () => {
   for (const l of levels) assert.ok(l > 0.01, `every decay setting must be audible (got ${l.toExponential(2)})`);
   const spread = Math.max(...levels) / Math.min(...levels);
   assert.ok(spread < 12, `bowed level must not swing wildly with decay (spread ${spread.toFixed(1)}x)`);
+});
+
+
+// ── BAJO ─────────────────────────────────────────────────────────────────────
+
+/** A plain sustaining analog-saw voice with the filter out of the way. */
+function plainVoice({ x, eng }) {
+  x.pa_set_param(eng, P.oscMode(0), 1);
+  x.pa_set_param(eng, P.oscShape(0), 0);
+  x.pa_set_param(eng, P.fltEnable(0), 0);
+  x.pa_set_param(eng, P.envAttack(0), 0);
+  x.pa_set_param(eng, P.envSustain(0), 1);
+}
+
+test('BAJO string: the Karplus-Strong loop plays in tune', async () => {
+  // The whole acoustic half of the instrument rests on this. The loop delay has to account for
+  // the damping filter's group delay AND the in-loop DC blocker's phase ADVANCE; without the
+  // second term every note came out 13.8 cents sharp, which on a bass is fatal.
+  for (const note of [33, 40, 45]) {
+    const ctx = await boot();
+    const { x, eng } = ctx;
+    x.pa_set_param(eng, P.oscEnable(0), 0);
+    x.pa_set_param(eng, P.SUB_LEVEL, 0);
+    x.pa_set_param(eng, P.fltEnable(0), 0);
+    x.pa_set_param(eng, P.envAttack(0), 0);
+    x.pa_set_param(eng, P.envSustain(0), 1);
+    x.pa_set_param(eng, P.S_LEVEL, 1);
+    x.pa_set_param(eng, P.S_DAMP, 0.35);
+    x.pa_set_param(eng, P.S_BODY, 0); // body resonances would bias the peak search
+    x.pa_set_param(eng, P.S_TONE, 0.7);
+    x.pa_note_on(eng, note, 1.0, 1, 0);
+    renderMono(ctx, 4096);
+    const sig = renderMono(ctx, 32768);
+
+    const f0 = mtof(note);
+    let best = 0;
+    let peak = 0;
+    for (let f = f0 * 0.9; f < f0 * 1.1; f += f0 * 0.0005) {
+      const m = magAt(sig, f, SR);
+      if (m > best) { best = m; peak = f; }
+    }
+    const cents = 1200 * Math.log2(peak / f0);
+    assert.ok(Math.abs(cents) < 10, `note ${note} rings at ${peak.toFixed(2)} Hz, ${cents.toFixed(1)} cents off ${f0.toFixed(2)} Hz`);
+    assert.ok(rmsOf(sig) > 0.001, `note ${note} actually sounds`);
+  }
+});
+
+test('BAJO Ghost Gate: every band open is a true bypass', async () => {
+  // A four-band split that does not reconstruct would re-voice the patch the moment the gate is
+  // switched on. The subtractive crossover makes the sum exact; cascaded LP/HP pairs cost about
+  // 5 dB at the fundamental, which is why they are not used here.
+  const run = async (gate) => {
+    const ctx = await boot();
+    const { x, eng } = ctx;
+    plainVoice(ctx);
+    x.pa_set_param(eng, P.G_ENABLE, gate ? 1 : 0);
+    for (let b = 0; b < 4; b++) for (let st = 0; st < 16; st++) x.pa_set_param(eng, P.gGrid(b, st), 1);
+    x.pa_note_on(eng, 40, 1.0, 1, 0);
+    renderMono(ctx, 8192);
+    return renderMono(ctx, 16384);
+  };
+  const off = await run(false);
+  const on = await run(true);
+  let maxDiff = 0;
+  for (let i = 0; i < off.length; i++) maxDiff = Math.max(maxDiff, Math.abs(off[i] - on[i]));
+  assert.ok(maxDiff < 1e-5, `all bands open reconstructs the input (max diff ${maxDiff.toExponential(2)})`);
+});
+
+test('BAJO Ghost Gate: chopping the top leaves the sub standing', async () => {
+  // This is the entire reason the gate is four-band. A normal trance gate takes the sub with it.
+  const run = async (gate) => {
+    const ctx = await boot();
+    const { x, eng } = ctx;
+    plainVoice(ctx);
+    x.pa_set_param(eng, P.G_ENABLE, gate ? 1 : 0);
+    x.pa_set_param(eng, P.G_DEPTH, 1);
+    x.pa_set_param(eng, P.G_SLEW, 0.05);
+    x.pa_set_param(eng, P.G_SPILL, 0);
+    for (let st = 0; st < 16; st++) {
+      x.pa_set_param(eng, P.gGrid(0, st), 1); // sub  — solid
+      x.pa_set_param(eng, P.gGrid(1, st), 1); // low  — solid
+      x.pa_set_param(eng, P.gGrid(2, st), 0); // mid  — shut
+      x.pa_set_param(eng, P.gGrid(3, st), 0); // air  — shut
+    }
+    x.pa_note_on(eng, 40, 1.0, 1, 0);
+    renderMono(ctx, 8192);
+    return renderMono(ctx, 32768);
+  };
+  const off = await run(false);
+  const on = await run(true);
+  const f0 = mtof(40);
+  const fund = magAt(on, f0, SR) / magAt(off, f0, SR);
+  const air = magAt(on, f0 * 48, SR) / magAt(off, f0 * 48, SR);
+  assert.ok(fund > 0.8, `the fundamental survives (${fund.toFixed(3)} of ungated)`);
+  assert.ok(air < 0.2, `the air band is gated away (${air.toFixed(3)} of ungated)`);
+});
+
+test('BAJO Scorch: sub-safe keeps the fundamental clean under heavy drive', async () => {
+  // Sub-safe splits the low band off BEFORE the stages and re-adds it clean, so the fundamental
+  // stays the fundamental rather than becoming a distortion artifact.
+  const run = async (safe, drive) => {
+    const ctx = await boot();
+    const { x, eng } = ctx;
+    plainVoice(ctx);
+    x.pa_set_param(eng, P.scAlg(0), 5); // Ruin
+    x.pa_set_param(eng, P.scDrive(0), drive);
+    x.pa_set_param(eng, P.scMix(0), 1);
+    x.pa_set_param(eng, P.SC_SAFE, safe ? 1 : 0);
+    x.pa_set_param(eng, P.SC_SUB, 0.3);
+    x.pa_note_on(eng, 28, 1.0, 1, 0);
+    renderMono(ctx, 8192);
+    return renderMono(ctx, 32768);
+  };
+  const f0 = mtof(28);
+  const clean = magAt(await run(false, 0), f0, SR);
+  const safeOn = magAt(await run(true, 0.95), f0, SR) / clean;
+  const safeOff = magAt(await run(false, 0.95), f0, SR) / clean;
+  assert.ok(safeOn < 1.9, `sub-safe leaves the fundamental near its clean level (${safeOn.toFixed(2)}x)`);
+  assert.ok(safeOff > safeOn * 1.4, `without it the folder rewrites the low end (${safeOff.toFixed(2)}x)`);
+});
+
+test('BAJO wobble: depth moves the filter, and zero depth does not', async () => {
+  const run = async (depth) => {
+    const ctx = await boot();
+    const { x, eng } = ctx;
+    x.pa_set_param(eng, P.oscMode(0), 1);
+    x.pa_set_param(eng, P.oscShape(0), 0);
+    x.pa_set_param(eng, P.fltEnable(0), 1);
+    x.pa_set_param(eng, P.fltCutoff(0), 0.35);
+    x.pa_set_param(eng, P.envAttack(0), 0);
+    x.pa_set_param(eng, P.envSustain(0), 1);
+    x.pa_set_param(eng, P.W_ENABLE, 1);
+    x.pa_set_param(eng, P.W_FREE, 1);
+    x.pa_set_param(eng, P.W_RATE, 0.45);
+    x.pa_set_param(eng, P.W_SMOOTH, 0.05);
+    x.pa_set_param(eng, P.W_DEST1, 0); // cutoff
+    x.pa_set_param(eng, P.W_DEPTH1, depth);
+    x.pa_note_on(eng, 40, 1.0, 1, 0);
+    renderMono(ctx, 4096);
+    return renderMono(ctx, 32768);
+  };
+  /** Windowed-RMS spread — a wobble is an amplitude envelope that moves. */
+  const spread = (sig) => {
+    const w = Math.floor(sig.length / 64);
+    const v = [];
+    for (let i = 0; i < 64; i++) v.push(rmsOf(sig.subarray(i * w, (i + 1) * w)));
+    const mean = v.reduce((a, b) => a + b, 0) / v.length;
+    return Math.sqrt(v.reduce((a, b) => a + (b - mean) ** 2, 0) / v.length) / mean;
+  };
+  const flat = spread(await run(0));
+  const moving = spread(await run(0.9));
+  assert.ok(moving > flat * 5, `depth 0.9 modulates (${moving.toFixed(3)} vs ${flat.toFixed(3)} at depth 0)`);
+});
+
+test('BAJO defaults leave every other instrument bit-identical', async () => {
+  // The whole 1400 block is additive. If a default ever stops being a bypass, this catches it
+  // before an ONDA patch quietly changes voice.
+  const run = async () => {
+    const ctx = await boot();
+    const { x, eng } = ctx;
+    plainVoice(ctx);
+    x.pa_note_on(eng, 45, 1.0, 1, 0);
+    renderMono(ctx, 2048);
+    return renderMono(ctx, 8192);
+  };
+  const a = await run();
+  const b = await run();
+  let maxDiff = 0;
+  for (let i = 0; i < a.length; i++) maxDiff = Math.max(maxDiff, Math.abs(a[i] - b[i]));
+  assert.equal(maxDiff, 0, 'renders are deterministic');
+  assert.ok(rmsOf(a) > 0.05, 'and the plain ONDA voice still sounds');
 });

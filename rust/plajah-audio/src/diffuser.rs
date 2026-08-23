@@ -245,12 +245,16 @@ impl Diffuser {
     }
 
     /// Process a block in place. `nch` channels of `frames` samples, channel-major.
+    /// `send` is an extra input that reaches the reverb network but never the dry path — this is
+    /// what BAJO's Ghost Gate spill rides on. A gated-out band has to arrive as reverb only; if
+    /// it were summed into `buf` first, the gate would not be gating anything.
     pub fn process(
         &mut self,
         buf: &mut [[f32; crate::engine::MAX_BLOCK]; MAX_CHANNELS],
         frames: usize,
         nch: usize,
         s: &VeilSpec,
+        send: Option<&[[f32; crate::engine::MAX_BLOCK]; 2]>,
     ) {
         if s.mix <= 0.0001 && self.mix_z <= 0.0001 && !s.freeze {
             return;
@@ -326,6 +330,9 @@ impl Diffuser {
                 dry += buf[c][f];
             }
             dry *= 1.0 / (nch as f32).sqrt().max(1.0);
+            if let Some(sd) = send {
+                dry += (sd[0][f] + sd[1][f]) * 0.7071;
+            }
 
             // Input diffusion: a chain of allpasses turns a transient into density before it
             // ever reaches the delay network.
