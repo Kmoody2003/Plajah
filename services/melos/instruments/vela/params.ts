@@ -52,6 +52,15 @@ export const M = {
   FORMANT_SHIFT: 1017,
   /// Sustained mode: how much later the high partials arrive.
   BLOOM: 1018,
+  /// Overtone emphasis. Narrow gain on ONE partial, movable across the series — what throat
+  /// singing physically is. Emphasising by partial INDEX rather than by frequency is what keeps
+  /// the whistle locked to the harmonic series as the pitch moves; a filter cannot do that.
+  SPOTLIGHT: 1019,
+  SPOTLIGHT_POS: 1020,
+  SPOTLIGHT_WIDTH: 1021,
+  /// Pitch vibrato. The slow end is a monastic waver rather than a trained wobble.
+  VIBRATO: 1022,
+  VIBRATO_RATE: 1023,
 } as const;
 
 /** Exciter — what puts energy into the bank. */
@@ -177,6 +186,24 @@ export const VELA_PARAM_META: Record<number, VelaParamMeta> = {
     format: (v) => ['uu', 'oo', 'oh', 'ah', 'eh', 'ee'][Math.round(v * 5)] ?? 'ah',
   },
   [M.BLOOM]: { id: M.BLOOM, label: 'Bloom', group: 'body', format: pct },
+  [M.SPOTLIGHT]: { id: M.SPOTLIGHT, label: 'Overtone', group: 'body', format: pct },
+  [M.SPOTLIGHT_POS]: {
+    id: M.SPOTLIGHT_POS, label: 'Partial', group: 'body',
+    // Reported as a harmonic number, because that is what a singer is actually choosing.
+    format: (v) => `~${Math.round(3 + v * 42) + 1}`,
+  },
+  [M.SPOTLIGHT_WIDTH]: {
+    id: M.SPOTLIGHT_WIDTH, label: 'Width', group: 'body',
+    format: (v) => (v < 0.12 ? 'whistle' : v < 0.4 ? 'narrow' : 'vowel'),
+  },
+  [M.VIBRATO]: {
+    id: M.VIBRATO, label: 'Waver', group: 'body',
+    format: (v) => (v < 0.02 ? 'off' : `${(v * 1.2 * 100).toFixed(0)} cents`),
+  },
+  [M.VIBRATO_RATE]: {
+    id: M.VIBRATO_RATE, label: 'Waver rate', group: 'body',
+    format: (v) => `${(0.5 * Math.pow(18, v)).toFixed(2)} Hz`,
+  },
   [M.BEAT_RATE]: {
     id: M.BEAT_RATE, label: 'Beat rate', group: 'body',
     format: (v) => `${(0.15 * Math.pow(60, Math.max(0, Math.min(1, v)))).toFixed(2)} Hz`,
