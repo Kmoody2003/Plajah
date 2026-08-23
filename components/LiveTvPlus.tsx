@@ -22,6 +22,7 @@ import EndlessHourPlayer from './tv/EndlessHourPlayer';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import { isShellFocused, setShellFocus } from '../hooks/useTvShellFocus';
 import { PLAJAH_CHANNELS, UNNUMBERED, guideSortKey, legacyMajors, plajahNumber, type NumberRegistry } from '../services/fast/channelNumbers';
+import { isChannelFeed } from '../services/fast/guideLineup';
 
 export interface TvChannel {
   id: string;
@@ -324,17 +325,13 @@ const LiveTvPlus: React.FC<{
       return o;
     };
 
-    // Live feeds → channels ONLY for OFF-PLATFORM sources (external URLs not from Plajah). A Reello /
-    // on-platform (WebRTC) live stream is CONTENT, not a channel: it flows to the creator's FAST
-    // channel when it ends. A creator can opt a Reello stream in as a live channel (asChannel), and
-    // those DO get listed here; otherwise on-platform streams are excluded from the guide.
+    // Membership is decided by `isChannelFeed`, shared with the numbering admin — an account that
+    // is in the guide but invisible to the allocator is an account whose address can be given
+    // away. See services/fast/guideLineup.ts for why a Reello stream is content, not a channel.
     (feeds || [])
-      .filter(f => (f as any).status !== 'ENDED' && (f as any).status !== 'OFFLINE' && (f as any).url)
+      .filter(isChannelFeed)
       .forEach(f => {
         const url = (f as any).url as string;
-        const onPlatform = (f as any).streamSource === 'webrtc' || /[?&]stream=/.test(url);
-        const asChannel = !!(f as any).asChannel;
-        if (onPlatform && !asChannel) return; // Reello stream = content, not a channel (unless opted in)
         const ownerId = ((f as any).ownerId as string) || f.id;
         const o = ensure(ownerId, f.ownerName || f.title);
         if (typeof (f as any).channelNumber === 'number') o.bound = (f as any).channelNumber; // account's bound guide number

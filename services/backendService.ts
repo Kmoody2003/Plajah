@@ -86,6 +86,7 @@ export const saveBibleNote = async (uid: string, ref: string, text: string): Pro
   } catch (e) { console.warn('[backendService] saveBibleNote failed:', (e as Error)?.message); }
 };
 import { allTakenNumbers, canClaim, isAllocatableMajor, legacyMajors, numberFor, type NumberRegistry } from './fast/channelNumbers';
+import { guideAccounts, type GuideAccount } from './fast/guideLineup';
 import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannel, ChannelSource, ChannelSourceSet, SavedFeed, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest, PodcastRssSettings, ImportedRssEpisode, AccountType, NotifyLevel } from '../types';
 import { accountFlagUpdate } from './accountCapabilities';
 // Creator Passport provenance (blueprint 1C.5) — attribution record, not crypto proof.
@@ -4390,6 +4391,25 @@ export const fetchAllLiveFeeds = (callback: (feeds: LiveFeed[]) => void) => {
   });
 };
 
+/**
+ * Live feeds, once.
+ *
+ * `fetchAllLiveFeeds` is a subscription, which is right for a guide that has to stay current and
+ * wrong for anything that needs one answer and then stops — the numbering admin, and the
+ * migration that has to see every account before it assigns anything.
+ */
+export const fetchLiveFeedsOnce = async (max = 200): Promise<LiveFeed[]> => {
+  try {
+    const snap = await getDocs(query(collection(db, 'live_feeds'), orderBy('timestamp', 'desc'), limit(max)));
+    return snap.docs.map(d => ({
+      id: d.id, ...d.data(), timestamp: safeToMillis(d.data().timestamp),
+    } as LiveFeed));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'live_feeds');
+    return [];
+  }
+};
+
 export const updateLiveFeed = async (id: string, updates: Partial<LiveFeed>) => {
   const path = `live_feeds/${id}`;
   try {
@@ -8175,6 +8195,21 @@ export const fetchChannelNumberRegistry = async (): Promise<NumberRegistry> => {
 };
 
 /**
+ * Every account the guide gives a number to.
+ *
+ * Both sources, because an account can be in the guide on the strength of a live channel alone.
+ * Numbering only the FAST owners is how an account ends up with a number in the guide that the
+ * registry has never heard of — and therefore one that something else could later be given.
+ */
+export const fetchGuideAccounts = async (): Promise<GuideAccount[]> => {
+  const [listings, feeds] = await Promise.all([
+    fetchAllFastChannels(1000),
+    fetchLiveFeedsOnce(200),
+  ]);
+  return guideAccounts(feeds, listings);
+};
+
+/**
  * Freeze the numbers every channel already had.
  *
  * The one-time migration. It does NOT hand out fresh numbers: it replays the old read-time
@@ -8186,38 +8221,43 @@ export const fetchChannelNumberRegistry = async (): Promise<NumberRegistry> => {
  * again safely and a second run assigns nothing.
  */
 export const backfillChannelNumbers = async (): Promise<{ assigned: number; total: number; numbers: Record<string, number> }> => {
-  const listings = await fetchAllFastChannels(1000);
+  const accounts = await fetchGuideAccounts();
   const reg = await fetchChannelNumberRegistry();
 
-  // Replay over EVERY enabled channel, including ones already in the registry — their numbers
-  // have to be part of the picture or the replay would hand their addresses to somebody else.
-  const legacy = legacyMajors(listings.map((l) => ({
-    ownerId: l.ownerId,
-    name: l.name,
-    // A registry entry outranks the channel doc: it is the one that has already been committed to.
-    number: reg.byOwner[l.ownerId] ?? l.number,
+  // Replay over EVERY account in the guide, including ones already in the registry — their
+  // numbers have to be part of the picture or the replay would hand their addresses to somebody
+  // else.
+  const legacy = legacyMajors(accounts.map((a) => ({
+    ownerId: a.ownerId,
+    name: a.name,
+    // A registry entry outranks the stored one: it is what has already been committed to.
+    number: reg.byOwner[a.ownerId] ?? a.number,
   })));
 
   const byOwner = { ...reg.byOwner };
   const retired = { ...(reg.retired || {}) };
-  const pending = listings.filter((l) => typeof reg.byOwner[l.ownerId] !== 'number');
+  const pending = accounts.filter((a) => typeof reg.byOwner[a.ownerId] !== 'number');
 
-  for (const l of pending) {
-    const n = legacy.get(l.ownerId);
+  for (const a of pending) {
+    const n = legacy.get(a.ownerId);
     if (typeof n !== 'number') continue;
-    byOwner[l.ownerId] = n;
+    byOwner[a.ownerId] = n;
     // If this address was tombstoned by the same account, the tombstone is now redundant.
-    if (retired[String(n)]?.ownerId === l.ownerId) delete retired[String(n)];
+    if (retired[String(n)]?.ownerId === a.ownerId) delete retired[String(n)];
   }
 
   if (pending.length) {
     await setDoc(NUMBER_REGISTRY(), { byOwner, retired, updatedAt: Date.now() }, { merge: true });
-    // Mirror onto each channel doc so a single-channel read still carries its own number.
-    await Promise.all(pending.map((l) =>
-      setDoc(doc(db, 'fast_channels', l.ownerId), { number: byOwner[l.ownerId], updatedAt: Date.now() }, { merge: true })
-        .catch(() => { /* the registry is the source of truth; a failed mirror self-heals */ })));
+    // Mirror onto the channel doc where there is one. An account in the guide on a live feed
+    // alone has no fast_channels doc, and does not need one — the registry is the source of
+    // truth and the mirror is only a convenience for single-channel reads.
+    await Promise.all(pending
+      .filter((a) => a.sources.some((src) => src.kind === 'fast'))
+      .map((a) =>
+        setDoc(doc(db, 'fast_channels', a.ownerId), { number: byOwner[a.ownerId], updatedAt: Date.now() }, { merge: true })
+          .catch(() => { /* the registry is the source of truth; a failed mirror self-heals */ })));
   }
-  return { assigned: pending.length, total: listings.length, numbers: byOwner };
+  return { assigned: pending.length, total: accounts.length, numbers: byOwner };
 };
 
 export const saveFastChannelMeta = async (channel: Partial<FastChannel> & { ownerId: string }): Promise<void> => {
