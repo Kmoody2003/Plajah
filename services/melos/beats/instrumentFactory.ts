@@ -40,23 +40,35 @@ export const INSTRUMENTS: InstrumentDef[] = [
   { type: 'bajo', name: 'BAJO', blurb: 'Bass engine. Per-step wobble, four-band gate, and a plucked upright at the other end.', color: '#FF4B1C', ready: true },
 ];
 
+/** What an instrument is called, wherever it needs a name. */
+export function instrumentLabel(type: InstrumentType): string {
+  if (type === 'kera') return 'KERA';
+  if (type === 'bajo') return 'BAJO';
+  if (isSuite(type)) return SUITE[type].name;
+  return 'ONDA';
+}
+
+/** ...and its colour. Both were inlined in three places, which is why a BAJO or a CANTUS
+ *  dropped on a pad came out labelled "ONDA" in ONDA's purple. */
+export function instrumentColor(type: InstrumentType): string {
+  if (type === 'kera') return '#00DAF3';
+  if (type === 'bajo') return '#FF4B1C';
+  if (isSuite(type)) return SUITE[type].accent;
+  return '#B84DFF';
+}
+
 /**
  * Build an instrument track. Defaults to a fresh Init patch — the user asked to choose the
  * INSTRUMENT first, so a preset is an optional later step inside the panel, not a gate on
  * creation. Armed immediately because you want to play what you just added.
  */
 export function makeInstrumentTrack(type: InstrumentType, count: number, presetPatch?: ReturnType<typeof serializePatch>, presetName?: string): ArrangeTrack {
-  const label = presetName || (
-    type === 'kera' ? `KERA ${count + 1}`
-      : type === 'bajo' ? `BAJO ${count + 1}`
-      : isSuite(type) ? `${SUITE[type].name} ${count + 1}`
-      : `ONDA ${count + 1}`
-  );
+  const label = presetName || `${instrumentLabel(type)} ${count + 1}`;
   return {
     id: grooveUid(),
     kind: 'instrument',
     name: label,
-    color: type === 'kera' ? '#00DAF3' : type === 'bajo' ? '#FF4B1C' : isSuite(type) ? SUITE[type].accent : '#B84DFF',
+    color: instrumentColor(type),
     mute: false, solo: false, gainDb: 0, pan: 0,
     clips: [],
     instrument: {
@@ -95,7 +107,7 @@ export function addPadInstrument(
   track.armed = false;          // pads are triggered, never the armed keyboard target
   track.padOwned = true;
   track.padIndex = padIdx;
-  track.name = presetName || `Pad ${padIdx + 1} · ${type === 'kera' ? 'KERA' : 'ONDA'}`;
+  track.name = presetName || `Pad ${padIdx + 1} · ${instrumentLabel(type)}`;
   doc.arrangement.push(track);
   return track.id;
 }
@@ -119,8 +131,8 @@ export function addInstrumentToNextPad(
     pad.source = 'instrument';
     pad.instrumentTrackId = trackId;
     pad.empty = false;
-    pad.name = presetName || (type === 'kera' ? 'KERA' : 'ONDA');
-    pad.color = type === 'kera' ? '#00DAF3' : '#B84DFF';
+    pad.name = presetName || instrumentLabel(type);
+    pad.color = instrumentColor(type);
     if (pad.instrumentNote === undefined) pad.instrumentNote = 60;
   }
   return { padIdx, trackId };

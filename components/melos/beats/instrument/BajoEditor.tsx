@@ -10,7 +10,7 @@ import { X } from 'lucide-react';
 import type { ArrangeTrack, GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import {
-  deserializeBajoPatch, BAJO_EDITOR_GROUPS, type BajoPatch,
+  deserializeBajoPatch, BAJO_EDITOR_GROUPS, flattenGrid, type BajoPatch,
 } from '../../../../services/melos/instruments/bajo/patch';
 import {
   BAJO_PARAM_META, formatBajoParam, laneParam, gridParam, W, G, bajoDefault,
@@ -66,8 +66,9 @@ export const BajoEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
     }
     onMutate((d) => {
       const t = d.arrangement.find((x) => x.id === track.id);
-      const p = t?.instrument?.patch as { grid?: number[][] } | undefined;
-      if (p) p.grid = grid.map((row) => [...row]);
+      const p = t?.instrument?.patch as { grid?: number[] } | undefined;
+      // Flat: this object is what Firestore stores, and it rejects an array of arrays.
+      if (p) p.grid = flattenGrid(grid);
     });
   }, [onMutate, track.id]);
 

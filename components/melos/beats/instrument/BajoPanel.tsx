@@ -12,7 +12,7 @@ import { X } from 'lucide-react';
 import type { ArrangeTrack, GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import {
-  deserializeBajoPatch, applyBajoPreset, bajoEngineParams, applyBajoPatch, crossformPatch,
+  deserializeBajoPatch, applyBajoPreset, bajoEngineParams, applyBajoPatch, crossformPatch, flattenGrid,
   BAJO_MACRO_HINTS, BAJO_MACRO_LABELS, BAJO_MACRO_ORDER, type BajoPatch,
 } from '../../../../services/melos/instruments/bajo/patch';
 import { BAJO_PRESETS, type BajoMacro } from '../../../../services/melos/instruments/bajo/presets';
@@ -77,7 +77,7 @@ export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
       fn(next);
       raw.macros = { ...next.macros };
       raw.lane = [...next.lane];
-      raw.grid = next.grid.map((row) => [...row]);
+      raw.grid = flattenGrid(next.grid); // flat: Firestore rejects an array of arrays
       raw.params = Object.fromEntries(Object.entries(next.params).map(([k, v]) => [String(k), v]));
       pushParams(next);
     });
@@ -96,7 +96,7 @@ export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
         ...next,
         params: Object.fromEntries(Object.entries(next.params).map(([k, v]) => [String(k), v])),
         lane: [...next.lane],
-        grid: next.grid.map((row) => [...row]),
+        grid: flattenGrid(next.grid),
       } as unknown as Record<string, unknown>;
       t.instrument.presetName = preset.name;
       t.name = preset.name;
@@ -119,7 +119,7 @@ export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
         params: Object.fromEntries(Object.entries(blended.params).map(([k, v]) => [String(k), v])),
         tables: [...blended.tables],
         lane: [...blended.lane],
-        grid: blended.grid.map((row) => [...row]),
+        grid: flattenGrid(blended.grid),
       } as unknown as Record<string, unknown>;
       t.instrument.presetName = blended.name;
       t.name = blended.name;

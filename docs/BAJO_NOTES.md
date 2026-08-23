@@ -94,6 +94,18 @@ calls were no-ops against a null instrument.
 
 ## Fixed along the way
 
+**The gate grid could not be saved.** `grid: number[][]` was the only nested array in any
+persisted Melos type, and **Firestore cannot store an array of arrays** — `setDoc` throws and
+takes the whole groove document with it, not just the BAJO patch. Any project containing a BAJO
+track would have failed to save. The step sequencer hits the same wall and works around it with a
+nested map (`steps: Record<number, Record<number, Step>>`); the grid is always exactly 4 x 16 so
+it flattens to a 64-entry band-major run instead, rebuilt on load. `deserializeBajoPatch` reads
+both shapes. Fixed 2026-08-23, before anything was ever saved.
+
+**An instrument dropped on a pad was labelled "ONDA" in ONDA's purple** unless it was KERA — the
+name and colour were inlined in three places. Now `instrumentLabel()` / `instrumentColor()` in
+`instrumentFactory.ts`, which fixes it for the meditation suite too.
+
 The Veil's `V_SIZE` is a continuous 0..1 size (a 0.25x..2.8x line-length multiplier), but BAJO's
 presets were written against it as though it were a menu of six named rooms — so `RV.SIZE: 5` was
 asking for a room thirteen times oversized, in 23 presets. The parameter metadata was labelling it

@@ -95,14 +95,50 @@ export function applyBajoPreset(patch: BajoPatch, preset: BajoPreset): BajoPatch
   };
 }
 
-/** Param ids stored as strings when serialized, so JSON round-trips without key coercion bugs. */
+/** The gate grid, flattened band-major for storage. See `serializeBajoPatch`. */
+export const flattenGrid = (grid: number[][]): number[] => {
+  const out: number[] = [];
+  for (let b = 0; b < GATE_BANDS; b++) {
+    for (let st = 0; st < GATE_STEPS; st++) out.push(grid[b]?.[st] ? 1 : 0);
+  }
+  return out;
+};
+
+/** Rebuild the 4x16 grid from either the flat form or the legacy nested one. */
+export const unflattenGrid = (raw: unknown): number[][] => {
+  const grid = defaultGrid();
+  if (!Array.isArray(raw)) return grid;
+  if (raw.length && Array.isArray(raw[0])) {
+    // Nested — anything saved before the grid was flattened, or an in-memory patch.
+    for (let b = 0; b < GATE_BANDS; b++) {
+      const row = raw[b];
+      if (!Array.isArray(row)) continue;
+      for (let st = 0; st < GATE_STEPS; st++) grid[b][st] = row[st] ? 1 : 0;
+    }
+    return grid;
+  }
+  for (let b = 0; b < GATE_BANDS; b++) {
+    for (let st = 0; st < GATE_STEPS; st++) grid[b][st] = raw[b * GATE_STEPS + st] ? 1 : 0;
+  }
+  return grid;
+};
+
+/**
+ * Param ids stored as strings when serialized, so JSON round-trips without key coercion bugs.
+ *
+ * The gate grid flattens to a single 64-entry run, band-major. **Firestore cannot store an array
+ * of arrays** — a `number[][]` throws on `setDoc`, and it takes the whole groove document with it,
+ * not just this patch. The step sequencer hits the same wall and solves it with a nested map
+ * (`steps: Record<number, Record<number, Step>>`); a fixed-length flat run is simpler here because
+ * this grid is always exactly 4 x 16.
+ */
 export function serializeBajoPatch(p: BajoPatch): Record<string, unknown> {
   return {
     ...p,
     params: Object.fromEntries(Object.entries(p.params).map(([k, v]) => [String(k), v])),
     tables: [...p.tables],
     lane: [...p.lane],
-    grid: p.grid.map((row) => [...row]),
+    grid: flattenGrid(p.grid),
   };
 }
 
@@ -123,14 +159,7 @@ export function deserializeBajoPatch(raw: Record<string, unknown> | undefined): 
       if (Number.isFinite(v)) lane[i] = Math.max(0, Math.min(12, Math.round(v)));
     }
   }
-  const grid = defaultGrid();
-  if (Array.isArray(src.grid)) {
-    for (let b = 0; b < GATE_BANDS; b++) {
-      const row = src.grid[b];
-      if (!Array.isArray(row)) continue;
-      for (let st = 0; st < GATE_STEPS; st++) grid[b][st] = row[st] ? 1 : 0;
-    }
-  }
+  const grid = unflattenGrid(src.grid);
   return {
     id: String(src.id ?? Math.random().toString(36).slice(2, 10)),
     name: String(src.name ?? 'Bajo'),
