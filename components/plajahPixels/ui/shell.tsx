@@ -146,14 +146,18 @@ export interface InspectorProps {
    *  selection and keeps the tabs beneath it. This is the mockup's whole right rail. */
   selection?: React.ReactNode;
   children?: React.ReactNode;
+  /** 320px for the docked eight-tab settings; 236px for the selection-only rail the mockup
+   *  specifies. Widening only when the tabs are open keeps the default at the mockup's width
+   *  without deleting 1,550 lines of controls that have nowhere else to live yet. */
+  wide?: boolean;
 }
 
 export const Inspector: React.FC<InspectorProps> = ({
-  kind, title, subtitle, onClose, dockRef, selection, children,
+  kind, title, subtitle, onClose, dockRef, selection, children, wide,
 }) => {
   return (
     <aside
-      className="w-[320px] shrink-0 h-full flex flex-col bg-black/70 backdrop-blur-2xl border-l border-white/10"
+      className={`${wide ? 'w-[320px]' : 'w-[236px]'} shrink-0 h-full flex flex-col bg-black/70 backdrop-blur-2xl border-l border-white/10 transition-[width] duration-200`}
       aria-label="Inspector"
     >
       <div className="px-3 py-2.5 border-b border-white/10">

@@ -1,21 +1,40 @@
-// The Library, as a place.
+// The Library, as the one place looks come from.
 //
-// Proposal 2's thesis, in its own words: "Library is a place, not a modal. A permanent left rail
-// with shelves by series, cards with stills, and search — the same pattern every creative tool
-// has converged on." It shipped as a modal behind a button, which is why it kept being reported
-// missing: a place you have to know to summon is not a place.
+// Proposal 2's thesis was "One library, one canvas, one inspector". Before this there were THREE
+// browsers of the same catalogue: this rail (shaders only), the deck's own source browser
+// (Generators / Milkdrop / Shaders / Media), and the old shader modal. That is the exact
+// "organised twice" fault the proposal set out to remove, tripled.
 //
-// This is that rail. It reuses the same catalogue, shelving and cards the modal used — nothing is
-// re-implemented, only re-housed — so a card looks and behaves identically whether the Library is
-// a column or a floating panel. Picking a card sets the look immediately: on a rail there is no
-// Apply button to reach for, and the canvas beside it is the preview.
+// So the rail now holds every browsable catalogue — Generators, Milkdrop, Shaders — and the deck
+// keeps only the arranger (the launch grid). Picking anything here puts it on the canvas through
+// one dispatch; the canvas beside it is the preview. There is no Apply on a rail.
+//
+// Media is deliberately NOT here: it is user uploads, not a preset catalogue, so it belongs in a
+// media bin, not next to the browsable sets. Text and 3D likewise remain their own surfaces for
+// now — the win is collapsing the three duplicated PRESET browsers into one.
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import { Shelf, WorkCard, Chip } from './index';
 import { SHADER_LIBRARY, type ShaderLibraryEntry } from '../components/ShaderPanel';
+import { SCENE_CATALOG } from '../engine/sceneCatalog';
+import type { VisualizerMode } from '../types';
 
-/** The source filters, matching the modal's. `all` first because most sessions want everything. */
+/** What kind of thing a chosen library item is — the dispatch the studio switches on. */
+export type LibrarySource =
+  | { kind: 'shader'; src: string }
+  | { kind: 'generator'; mode: VisualizerMode }
+  | { kind: 'milkdrop'; index: number; name: string };
+
+type Section = 'shaders' | 'generators' | 'milkdrop';
+
+const SECTIONS: { id: Section; label: string }[] = [
+  { id: 'shaders', label: 'Shaders' },
+  { id: 'generators', label: 'Generators' },
+  { id: 'milkdrop', label: 'Milkdrop' },
+];
+
+/** Shader source filters, within the Shaders section. */
 const KINDS: { id: 'all' | 'signature' | 'raw' | 'procedural' | 'isf'; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'signature', label: 'Signature' },
@@ -27,64 +46,132 @@ const KINDS: { id: 'all' | 'signature' | 'raw' | 'procedural' | 'isf'; label: st
 interface ShelfGroup { key: string; title: string; sub?: string; items: ShaderLibraryEntry[] }
 
 interface Props {
-  /** The look currently on the canvas, so its card reads as selected. */
+  /** The shader look currently on the canvas, so its card reads as selected. */
   selectedSrc: string | null;
-  /** Picking a card puts the work on the canvas. */
-  onSelect: (src: string) => void;
-  /** Optional: import ISF, delegated to the existing panel so the two do not diverge. */
+  /** The generator currently on the canvas, if any. */
+  selectedMode?: VisualizerMode | null;
+  /** True while a milkdrop preset is the look, with its index for the selected state. */
+  milkdropOn?: boolean;
+  milkdropIndex?: number;
+  /** Picking anything routes through here; the studio decides what it means. */
+  onSelect: (source: LibrarySource) => void;
+  /** Import ISF, delegated to the existing panel so the two do not diverge. */
   onImport?: () => void;
 }
 
-export const LibraryRail: React.FC<Props> = ({ selectedSrc, onSelect, onImport }) => {
+/** A plain tile for sources that have no GLSL still to render — generators and milkdrop. */
+const Tile: React.FC<{ name: string; sub?: string; selected?: boolean; onClick: () => void; hue: number }> =
+({ name, sub, selected, onClick, hue }) => (
+  <button
+    onClick={onClick}
+    className="text-left rounded-card overflow-hidden border transition-colors"
+    style={{
+      borderColor: selected ? 'var(--pj-orange)' : 'rgba(255,255,255,0.08)',
+      boxShadow: selected ? '0 0 0 1px var(--pj-orange)' : 'none',
+      background: 'rgba(255,255,255,0.02)',
+    }}
+  >
+    <div className="h-[34px]" style={{
+      background: `radial-gradient(90% 80% at 40% 40%, hsl(${hue} 70% 45% / 0.7), transparent 62%), #100c18`,
+    }} />
+    <div className="px-1.5 py-1">
+      <p className="type-body-sm text-white/70 leading-tight truncate">{name}</p>
+      {sub && <p className="type-label-sm text-white/30 truncate">{sub}</p>}
+    </div>
+  </button>
+);
+
+export const LibraryRail: React.FC<Props> = ({
+  selectedSrc, selectedMode, milkdropOn, milkdropIndex, onSelect, onImport,
+}) => {
+  const [section, setSection] = useState<Section>('shaders');
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState<(typeof KINDS)[number]['id']>('all');
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return SHADER_LIBRARY.filter(s =>
-      (kind === 'all' || (s.kind ?? 'raw') === kind) &&
-      (!q || s.name.toLowerCase().includes(q) || (s.setTitle ?? '').toLowerCase().includes(q)));
-  }, [search, kind]);
+  // Milkdrop's preset list is large and only butterchurn knows it — lazily, exactly as the deck's
+  // browser did, so nothing loads it until the Milkdrop section is opened.
+  const [milkNames, setMilkNames] = useState<string[]>([]);
+  const [milkLoading, setMilkLoading] = useState(false);
+  useEffect(() => {
+    if (section !== 'milkdrop' || milkNames.length) return;
+    setMilkLoading(true);
+    import('butterchurn-presets').then(mod => {
+      const api = (mod as { default?: unknown }).default || mod;
+      const presets = (api as { getPresets?: () => Record<string, unknown> }).getPresets?.() ?? api;
+      setMilkNames(Object.keys(presets as Record<string, unknown>).sort());
+    }).catch(() => { /* offline or missing — the section simply shows nothing */ })
+      .finally(() => setMilkLoading(false));
+  }, [section, milkNames.length]);
 
-  // Signature works shelve by series and set — how they were made and how you would look for
-  // one. Everything else falls under a single shelf per category, exactly as the modal grouped it.
-  const shelves = useMemo<ShelfGroup[]>(() => {
+  const q = search.trim().toLowerCase();
+
+  // ── Shaders ──
+  const filteredShaders = useMemo(() =>
+    SHADER_LIBRARY.filter(s =>
+      (kind === 'all' || (s.kind ?? 'raw') === kind) &&
+      (!q || s.name.toLowerCase().includes(q) || (s.setTitle ?? '').toLowerCase().includes(q))),
+  [kind, q]);
+
+  const shaderShelves = useMemo<ShelfGroup[]>(() => {
     const out: ShelfGroup[] = [];
-    const sig = filtered.filter(s => s.kind === 'signature');
+    const sig = filteredShaders.filter(s => s.kind === 'signature');
     const seen = new Set<string>();
     for (const w of sig) {
       const key = `${w.series}·${w.setTitle}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push({
-        key,
-        title: w.setTitle || 'Signature',
-        sub: `Series ${w.series}`,
-        items: sig.filter(x => x.series === w.series && x.setTitle === w.setTitle),
-      });
+      out.push({ key, title: w.setTitle || 'Signature', sub: `Series ${w.series}`,
+        items: sig.filter(x => x.series === w.series && x.setTitle === w.setTitle) });
     }
-    const rest = filtered.filter(s => s.kind !== 'signature');
+    const rest = filteredShaders.filter(s => s.kind !== 'signature');
     const byCat = new Map<string, ShaderLibraryEntry[]>();
-    for (const s of rest) {
-      const list = byCat.get(s.category) ?? [];
-      list.push(s);
-      byCat.set(s.category, list);
-    }
+    for (const s of rest) { const l = byCat.get(s.category) ?? []; l.push(s); byCat.set(s.category, l); }
     for (const [cat, items] of byCat) out.push({ key: cat, title: cat, items });
     return out;
-  }, [filtered]);
+  }, [filteredShaders]);
+
+  // ── Generators (SCENE_CATALOG) ──
+  const generators = useMemo(() =>
+    SCENE_CATALOG.filter(s => !q || s.name.toLowerCase().includes(q) || s.cat.toLowerCase().includes(q)),
+  [q]);
+
+  // ── Milkdrop ──
+  const milk = useMemo(() =>
+    milkNames.map((name, i) => ({ name, i }))
+      .filter(m => !q || m.name.toLowerCase().includes(q))
+      .slice(0, 160),
+  [milkNames, q]);
+
+  const count = section === 'shaders' ? SHADER_LIBRARY.length
+    : section === 'generators' ? SCENE_CATALOG.length
+    : milkNames.length;
 
   return (
     <aside
       className="w-[210px] shrink-0 h-full flex flex-col bg-black/70 backdrop-blur-2xl border-r border-white/10"
       aria-label="Library"
     >
-      {/* Header — named for what it holds, with the count the modal used to show. */}
-      <div className="px-3 py-2.5 border-b border-white/10 flex items-baseline gap-2">
-        <span className="type-label-sm uppercase tracking-[0.14em]" style={{ color: 'var(--pj-cyan)' }}>
-          Library
-        </span>
-        <span className="ml-auto type-label-sm text-white/25 tabular-nums">{SHADER_LIBRARY.length}</span>
+      {/* Header + section switch — the three catalogues that used to be three separate browsers. */}
+      <div className="px-3 pt-2.5 pb-2 border-b border-white/10">
+        <div className="flex items-baseline gap-2 mb-2">
+          <span className="type-label-sm uppercase tracking-[0.14em]" style={{ color: 'var(--pj-cyan)' }}>Library</span>
+          <span className="ml-auto type-label-sm text-white/25 tabular-nums">{count}</span>
+        </div>
+        <div className="flex gap-1">
+          {SECTIONS.map(sec => (
+            <button
+              key={sec.id}
+              onClick={() => setSection(sec.id)}
+              className="flex-1 h-6 rounded-control type-label-sm uppercase tracking-[0.1em] transition-colors"
+              style={{
+                background: section === sec.id ? 'var(--pj-purple)' : 'transparent',
+                color: section === sec.id ? '#F3E6FA' : 'rgba(255,255,255,0.35)',
+              }}
+            >
+              {sec.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Search */}
@@ -99,42 +186,66 @@ export const LibraryRail: React.FC<Props> = ({ selectedSrc, onSelect, onImport }
         />
       </div>
 
-      {/* Source filter */}
-      <div className="flex items-center gap-1.5 px-2.5 py-2 border-b border-white/[0.08] overflow-x-auto scrollbar-none">
-        {KINDS.map(k => (
-          <Chip key={k.id} interactive selected={kind === k.id} onClick={() => setKind(k.id)}>
-            {k.label}
-          </Chip>
-        ))}
-      </div>
+      {/* Shader source filter, only where it applies */}
+      {section === 'shaders' && (
+        <div className="flex items-center gap-1.5 px-2.5 py-2 border-b border-white/[0.08] overflow-x-auto scrollbar-none">
+          {KINDS.map(k => (
+            <Chip key={k.id} interactive selected={kind === k.id} onClick={() => setKind(k.id)}>{k.label}</Chip>
+          ))}
+        </div>
+      )}
 
-      {/* Shelves — the same WorkCard the modal used, so stills and band dots are identical. */}
+      {/* The shelves */}
       <div className="flex-1 min-h-0 overflow-y-auto px-2 pb-2 scrollbar-none">
-        {shelves.map(shelf => (
-          <div key={shelf.key}>
-            <Shelf title={shelf.title} sub={shelf.sub} count={shelf.items.length} />
-            <div className="grid grid-cols-2 gap-1.5">
-              {shelf.items.map(w => (
-                <WorkCard
-                  key={w.name}
-                  name={w.name}
-                  cacheKey={w.name}
-                  src={w.src}
-                  meta={w.kind === 'signature' ? w.setTitle : (w.license || w.category)}
-                  bands={w.reacts?.map(r => r[0])}
-                  selected={selectedSrc === w.src}
-                  onClick={() => onSelect(w.src)}
-                />
-              ))}
+        {section === 'shaders' && (<>
+          {shaderShelves.map(shelf => (
+            <div key={shelf.key}>
+              <Shelf title={shelf.title} sub={shelf.sub} count={shelf.items.length} />
+              <div className="grid grid-cols-2 gap-1.5">
+                {shelf.items.map(w => (
+                  <WorkCard
+                    key={w.name} name={w.name} cacheKey={w.name} src={w.src}
+                    meta={w.kind === 'signature' ? w.setTitle : (w.license || w.category)}
+                    bands={w.reacts?.map(r => r[0])}
+                    selected={selectedSrc === w.src}
+                    onClick={() => onSelect({ kind: 'shader', src: w.src })}
+                  />
+                ))}
+              </div>
             </div>
+          ))}
+          {filteredShaders.length === 0 && <p className="type-body-sm text-white/25 text-center py-6">Nothing matches.</p>}
+        </>)}
+
+        {section === 'generators' && (
+          <div className="grid grid-cols-2 gap-1.5 pt-1.5">
+            {generators.map((g, i) => (
+              <Tile
+                key={g.name} name={g.name} sub={g.cat}
+                hue={(i * 47) % 360}
+                selected={!selectedSrc && selectedMode === g.mode}
+                onClick={() => onSelect({ kind: 'generator', mode: g.mode })}
+              />
+            ))}
           </div>
-        ))}
-        {filtered.length === 0 && (
-          <p className="type-body-sm text-white/25 text-center py-6">Nothing matches.</p>
         )}
+
+        {section === 'milkdrop' && (<>
+          {milkLoading && <p className="type-body-sm text-white/25 text-center py-6">Loading presets…</p>}
+          <div className="grid grid-cols-2 gap-1.5 pt-1.5">
+            {milk.map(m => (
+              <Tile
+                key={m.i} name={m.name} hue={(m.i * 31) % 360}
+                selected={!!milkdropOn && milkdropIndex === m.i}
+                onClick={() => onSelect({ kind: 'milkdrop', index: m.i, name: m.name })}
+              />
+            ))}
+          </div>
+          {!milkLoading && milk.length === 0 && <p className="type-body-sm text-white/25 text-center py-6">Nothing matches.</p>}
+        </>)}
       </div>
 
-      {onImport && (
+      {section === 'shaders' && onImport && (
         <button
           onClick={onImport}
           className="px-3 py-2 border-t border-white/[0.08] text-left type-label-sm uppercase tracking-[0.14em] text-white/40 hover:text-white hover:bg-white/[0.04] transition-colors flex items-center justify-between"

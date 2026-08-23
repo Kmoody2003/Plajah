@@ -18,7 +18,7 @@ import ButterchurnLayer from './components/ButterchurnLayer';
 import ShaderLayer from './components/ShaderLayer';
 import PostProcessLayer from './components/PostProcessLayer';
 import ShaderPanel, { SHADER_LIBRARY, DEFAULT_SHADER_SRC } from './components/ShaderPanel';
-import LibraryRail from './ui/LibraryRail';
+import LibraryRail, { type LibrarySource } from './ui/LibraryRail';
 import ShaderInspector from './ui/ShaderInspector';
 import MidiNotesScene from './components/MidiNotesScene';
 import ThreeScene, { Three3DConfig, Three3DVariant, Three3DCamera } from './components/ThreeScene';
@@ -820,6 +820,22 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
         ]);
     }, []);
 
+    // Every library pick lands here. A look is one of three things, and choosing one clears the
+    // others — only one thing is ON the canvas at a time. This is the single door the deck's own
+    // browser used to be a second, duplicate copy of.
+    const applySource = useCallback((source: LibrarySource) => {
+        if (source.kind === 'shader') { selectLook(source.src); return; }
+        if (source.kind === 'generator') {
+            setShaderSrc(null); setMilkdrop(false); setThree3d(null); setMidiNotes(false);
+            setConfig(prev => ({ ...prev, mode: source.mode }));
+            return;
+        }
+        // milkdrop
+        setShaderSrc(null); setThree3d(null); setMidiNotes(false);
+        setMilkdropIdx(source.index);
+        setMilkdrop(true);
+    }, [selectLook]);
+
     const applyShaderLook = useCallback((src: string) => {
         if (editTarget === 'preview') {
             setPreviewKind('shader'); previewShaderStartRef.current = performance.now(); setPreviewShader(src);
@@ -1412,7 +1428,10 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
             <AtDepth min="simple">
                 <LibraryRail
                     selectedSrc={shaderSrc}
-                    onSelect={selectLook}
+                    selectedMode={!shaderSrc && !milkdrop ? config.mode : null}
+                    milkdropOn={milkdrop}
+                    milkdropIndex={milkdropIdx}
+                    onSelect={applySource}
                     onImport={() => setShowShaderPanel(true)}
                 />
             </AtDepth>
@@ -3863,6 +3882,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                 }
                 onClose={() => setInspectorOpen(false)}
                 dockRef={setDockEl}
+                wide={isSettingsOpen && settingsDocked}
                 selection={activeShader && (
                     <ShaderInspector
                         work={activeShader}
