@@ -24,6 +24,9 @@ export const DEFAULT_BUMPER_SEC = 10;
 export const DEFAULT_AD_SEC = 60;
 export const DEFAULT_LIVE_SEC = 1800;
 export const DEFAULT_FM_SEC = 3600;   // an FM programming block defaults to an hour
+/** A generative block defaults to two hours. It never runs out of content, so the only thing
+ *  deciding the length is how the day should read in a guide. */
+export const DEFAULT_GENERATIVE_SEC = 7200;
 /** Any non-video hold longer than this automatically becomes a Plajah FM insertion. */
 export const FM_FILL_THRESHOLD_SEC = 30;
 
@@ -42,6 +45,9 @@ export function slotDurationSec(s: FastChannelSlot): number {
     case 'BUMPER':         return n(s.bumperDurationSeconds, DEFAULT_BUMPER_SEC);
     case 'AD_BREAK':       return n(s.adDurationSeconds, DEFAULT_AD_SEC);
     case 'FM_BLOCK':       return n(s.videoDurationSeconds, DEFAULT_FM_SEC);
+    // A generative slot is hours long and contains several complete arcs back to back — the arc
+    // is how long one SESSION runs, not how long the slot occupies the grid.
+    case 'GENERATIVE':     return n(s.videoDurationSeconds, DEFAULT_GENERATIVE_SEC);
     case 'LIVE_INTERRUPT': return n(s.liveInterruptMaxDurationSeconds, DEFAULT_LIVE_SEC);
     default:               return DEFAULT_VIDEO_SEC;
   }
@@ -239,7 +245,7 @@ export function unresolvedDurationUrls(sched: FastChannelSchedule): string[] {
   return [...urls];
 }
 
-export type SlotMediaKind = 'MEDIA' | 'AD' | 'LIVE' | 'FM';
+export type SlotMediaKind = 'MEDIA' | 'AD' | 'LIVE' | 'FM' | 'GENERATIVE';
 export interface SlotMedia {
   kind: SlotMediaKind;
   muxPlaybackId?: string; // play via MuxPlayer
@@ -251,6 +257,9 @@ export interface SlotMedia {
   isAd: boolean;
   isBumper: boolean;
   isPublicDomain: boolean;
+  /** GENERATIVE only — what the device needs to render the programme itself. There is no url
+   *  and no playback id, because there is no file. */
+  generative?: { formId: string; seed: number; arcSec: number; offsetSec: number };
 }
 
 const MUX_M3U8 = /stream\.mux\.com\/([^./?#]+)\.m3u8/i;
@@ -270,6 +279,15 @@ export const isEmbedUrl = (u = ''): boolean =>
  */
 export function resolveSlotMedia(s: FastChannelSlot): SlotMedia {
   const durationSec = slotDurationSec(s);
+  if (s.type === 'GENERATIVE') {
+    // Resolved against the wall clock by the caller (resolveGenerativeSlot) — this path only
+    // reports the shape, because a seed derived here would not match the one every other
+    // consumer computes.
+    return {
+      kind: 'GENERATIVE', isHls: false, title: s.videoTitle || 'Generative', durationSec,
+      isAd: false, isBumper: false, isPublicDomain: false,
+    };
+  }
   if (s.type === 'AD_BREAK') {
     return { kind: 'AD', isHls: false, title: 'Commercial Break', durationSec, isAd: true, isBumper: false, isPublicDomain: false };
   }

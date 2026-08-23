@@ -3961,7 +3961,9 @@ export interface StatCardData {
 
 /** FM_BLOCK = a scheduled stretch of Plajah FM used as PROGRAMMING (fills the 24h grid when a channel
  *  has little content); commercials still run inside it per the channel's ad settings. */
-export type FastChannelSlotType = 'VIDEO' | 'BUMPER' | 'AD_BREAK' | 'LIVE_INTERRUPT' | 'PUBLIC_DOMAIN' | 'FM_BLOCK';
+/** GENERATIVE resolves to a SEED rather than to a file — see services/fast/generativeChannel.ts.
+ *  Everything else in the carriage layer treats it like any other slot. */
+export type FastChannelSlotType = 'VIDEO' | 'BUMPER' | 'AD_BREAK' | 'LIVE_INTERRUPT' | 'PUBLIC_DOMAIN' | 'FM_BLOCK' | 'GENERATIVE';
 
 export interface FastChannelSlot {
   id: string;
@@ -3989,6 +3991,11 @@ export interface FastChannelSlot {
   liveSourceId?: string;      // stream/room/episode id
   liveSourceUrl?: string;     // direct audio/HLS url when known (podcast episode, external feed)
   liveSourceTitle?: string;
+  // GENERATIVE — the programme is produced at playback from a seed derived from the date and
+  // this slot's hour. There is no media id, no URL and no master; `generativeFormId` names the
+  // character and the rest is a hash.
+  generativeFormId?: string;
+  generativeArcSec?: number;
   // per-slot overrides
   adMarkersSeconds?: number[]; // timestamps within this video to insert mid-roll ads
   adFrequencyOverrideMinutes?: number;
