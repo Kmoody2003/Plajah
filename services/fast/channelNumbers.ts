@@ -168,6 +168,51 @@ export function isAllocatableMajor(n: number): boolean {
 }
 
 /**
+ * What the OLD guide would have shown.
+ *
+ * A migration shim, and the reason one is needed: numbers used to be computed at read time and
+ * never stored, so there is no record anywhere of what any channel's number was. It cannot be
+ * looked up — it has to be recomputed.
+ *
+ * This is the previous algorithm, exactly: honour any explicitly bound number, then hand the
+ * rest the smallest free integer in (bound, name) order. Given the full set of enabled channels
+ * it reproduces what people were actually seeing, so freezing this result is what preserves
+ * everyone's existing address rather than issuing new ones.
+ *
+ * Two deliberate differences from the original. It runs over EVERY enabled channel rather than
+ * only those on air — which is what made the old numbers drift, and what this fixes. And it
+ * skips reserved bands, which did not exist when the original was written.
+ *
+ * Delete this once every channel has a registry entry. It exists to be run once.
+ */
+export function legacyMajors(
+  channels: readonly { ownerId: string; name: string; number?: number }[],
+): Map<string, number> {
+  const out = new Map<string, number>();
+  const used = new Set<number>();
+  for (const c of channels) {
+    if (typeof c.number === 'number' && isAllocatableMajor(c.number)) used.add(c.number);
+  }
+
+  const order = [...channels].sort((a, b) =>
+    (a.number ?? 1e9) - (b.number ?? 1e9) ||
+    a.name.localeCompare(b.name) ||
+    a.ownerId.localeCompare(b.ownerId));
+
+  let free = 1;
+  for (const c of order) {
+    if (typeof c.number === 'number' && isAllocatableMajor(c.number)) {
+      out.set(c.ownerId, c.number);
+      continue;
+    }
+    while (used.has(free) || RESERVED_MAJORS.has(free)) free++;
+    used.add(free);
+    out.set(c.ownerId, free);
+  }
+  return out;
+}
+
+/**
  * How a channel that has not been given a number yet appears.
  *
  * There is deliberately no provisional number to fall back on. A number computed at read time is

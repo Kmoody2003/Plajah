@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Stillness fields</title>
+<style>
+  :root {
+    --ink: #E8E4F0; --ink-2: #9C96AE; --ink-3: #635E73;
+    --ground: #0D0B14; --panel: #16131F; --line: #262233; --accent: #D0BCFF;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font: 13px/1.6 ui-monospace, "SF Mono", Menlo, monospace;
+    padding: 28px 26px 60px;
+  }
+  h1 { font: 300 26px/1.2 Georgia, serif; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .lede { color: var(--ink-2); max-width: 68ch; margin: 0 0 22px; font-size: 12.5px; }
+  .lede b { color: var(--ink); font-weight: 400; }
+
+  .rig {
+    display: flex; flex-wrap: wrap; gap: 18px 26px; align-items: flex-end;
+    padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--panel); margin-bottom: 24px;
+  }
+  .ctl { display: flex; flex-direction: column; gap: 5px; min-width: 172px; }
+  .ctl label { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); }
+  .ctl .val { color: var(--accent); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  button {
+    font: inherit; color: var(--ink); background: transparent;
+    border: 1px solid var(--line); border-radius: 999px; padding: 7px 15px; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: rgba(208,188,255,.08); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 22px; }
+  .card { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
+  .card canvas { display: block; width: 100%; aspect-ratio: 16/9; background: #000; }
+  .meta { padding: 10px 13px 12px; }
+  .meta h2 { font: 400 15px/1.3 Georgia, serif; margin: 0; }
+  .meta p { margin: 2px 0 0; color: var(--ink-2); font-size: 11.5px; }
+  .tags { margin-top: 7px; display: flex; gap: 5px; flex-wrap: wrap; }
+  .tag {
+    font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase;
+    border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; color: var(--ink-3);
+  }
+  .err { color: #ff8b8b; padding: 10px 13px; white-space: pre-wrap; font-size: 11px; }
+  .note { color: var(--ink-3); font-size: 11.5px; margin-top: 26px; max-width: 72ch; }
+</style>
+</head>
+<body>
+<h1>Stillness fields</h1>
+<p class="lede">
+  The five meditation shaders, live, driven by a real 20-minute session running at whatever speed
+  you set. <b>Session</b> scrubs the arc — arrival through the turn to return — and the four
+  uniforms follow from it exactly as they would on channel 8.1.
+  <b>Sound</b> fakes the ensemble so you can see how much the audio moves things; at 0 the bands
+  are silent, at 1 the drone, voice and breath are all singing. <b>Arc speed</b> scrubs the
+  session faster than real time — it does <em>not</em> speed the visuals up, which always run at
+  the rate they would on air.
+</p>
+
+<div class="rig">
+  <div class="ctl">
+    <label>Session <span class="val" id="tv">0%</span></label>
+    <input id="t" type="range" min="0" max="1200" step="1" value="0" />
+  </div>
+  <div class="ctl">
+    <label>Arc speed <span class="val" id="sv">20×</span></label>
+    <input id="s" type="range" min="0" max="120" step="1" value="20" />
+  </div>
+  <div class="ctl">
+    <label>Sound <span class="val" id="av">0.60</span></label>
+    <input id="a" type="range" min="0" max="1" step="0.01" value="0.6" />
+  </div>
+  <div class="ctl" style="min-width:auto">
+    <label>&nbsp;</label>
+    <button id="play" aria-pressed="true">Pause</button>
+  </div>
+  <div class="ctl" style="min-width:auto">
+    <label>&nbsp;</label>
+    <button id="bloom">Ring the bowl</button>
+  </div>
+  <div class="ctl" style="min-width:auto">
+    <label>Host</label>
+    <label style="text-transform:none;letter-spacing:0;color:var(--ink-2);font-size:12px">
+      <input type="checkbox" id="sanct" checked style="accent-color:var(--accent)" />
+      Meditative
+    </label>
+  </div>
+  <div class="ctl" style="min-width:220px">
+    <label>Now <span class="val" id="phase">arrival</span></label>
+    <p style="margin:0;color:var(--ink-3);font-size:11px" id="uni">—</p>
+  </div>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<p class="note">
+  Every field ends by passing its colour through <code>safe()</code>, which holds the luminance
+  floor, caps saturated red, and desaturates by hue — warm content loses chroma as the session
+  deepens, cool content keeps nearly all of it. That last rule is what changed: it used to pull
+  everything toward grey, which is why these read as colourless.
+</p>
+
+<script type="module">
+// Surface anything that goes wrong on the page. A blank gallery with a clean console is the
+// worst possible failure mode to debug from the outside.
+const fail = (e) => {
+  const d = document.createElement('pre');
+  d.className = 'err';
+  d.style.border = '1px solid #613'; d.style.borderRadius = '8px'; d.style.marginTop = '14px';
+  d.textContent = 'gallery error: ' + (e && e.stack ? e.stack : String(e));
+  document.body.appendChild(d);
+};
+window.addEventListener('error', (e) => fail(e.error || e.message));
+window.addEventListener('unhandledrejection', (e) => fail(e.reason));
+
+import { STILLNESS_SHADERS } from '/components/plajahPixels/engine/presets/stillnessShaders.ts';
+import { createSession } from '/services/ora/stillness/emotionalEngine.ts';
+import { StillnessDriverSampler } from '/components/plajahPixels/engine/stillnessDrivers.ts';
+
+const DUR = 1200;
+const session = createSession({ seed: 0xA17C3F02, durationSec: DUR, arrival: 3 });
+const sampler = new StillnessDriverSampler();
+
+const VERT = `#version 300 es
+in vec2 p; void main(){ gl_Position = vec4(p,0.0,1.0); }`;
+const HEAD = `#version 300 es
+precision highp float;
+out vec4 _frag;
+uniform vec3 iResolution;
+uniform float iTime; uniform float iTimeDelta; uniform int iFrame;
+uniform vec4 iMouse; uniform sampler2D iChannel0;
+uniform float iBass, iMid, iTreble, iLevel;
+uniform float iParam0, iParam1, iParam2, iParam3;
+uniform float iSanctuary;
+`;
+const MAIN = `
+void main(){ vec4 c = vec4(0.0,0.0,0.0,1.0); mainImage(c, gl_FragCoord.xy); _frag = c; }`;
+
+const grid = document.getElementById('grid');
+const views = [];
+
+for (const sh of STILLNESS_SHADERS) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  const cv = document.createElement('canvas');
+  cv.width = 720; cv.height = 405;
+  card.appendChild(cv);
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  meta.innerHTML = `<h2></h2><p></p><div class="tags"></div>`;
+  meta.querySelector('h2').textContent = sh.name;
+  meta.querySelector('p').textContent = sh.blurb;
+  meta.querySelector('.tags').innerHTML =
+    [sh.family, ...sh.phases].map(x => `<span class="tag"></span>`).join('');
+  [...meta.querySelectorAll('.tag')].forEach((el, i) => {
+    el.textContent = [sh.family, ...sh.phases][i];
+  });
+  card.appendChild(meta);
+  grid.appendChild(card);
+
+  const gl = cv.getContext('webgl2', { antialias: false, depth: false });
+  if (!gl) { card.insertAdjacentHTML('beforeend', '<p class="err">No WebGL2</p>'); continue; }
+
+  const compile = (type, src) => {
+    const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  };
+  let prog;
+  try {
+    prog = gl.createProgram();
+    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, HEAD + sh.src + MAIN));
+    gl.bindAttribLocation(prog, 0, 'p');
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  } catch (e) {
+    const p = document.createElement('p');
+    p.className = 'err';
+    p.textContent = String(e.message || e).slice(0, 400);
+    card.appendChild(p);
+    continue;
+  }
+
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+
+  const blank = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, blank);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0,0,0,255]));
+
+  const U = {};
+  for (const n of ['iResolution','iTime','iTimeDelta','iFrame','iMouse','iChannel0',
+                   'iBass','iMid','iTreble','iLevel','iParam0','iParam1','iParam2','iParam3',
+                   'iSanctuary']) {
+    U[n] = gl.getUniformLocation(prog, n);
+  }
+  views.push({ gl, prog, buf, blank, U, cv, id: sh.id });
+}
+
+const el = id => document.getElementById(id);
+// Session position and shader clock are DIFFERENT things, and conflating them made this bench
+// lie about the one property it exists to check. `t` scrubs where you are in the twenty minutes;
+// `clock` is what the shader sees, and it always advances at real time. Running the arc at 60x
+// to see the whole session must not run the visuals at 60x — that is not what the channel does,
+// and it made every field look frantic.
+let t = 0, clock = 0, playing = true, frame = 0, bloomKick = -99;
+
+el('play').onclick = () => {
+  playing = !playing;
+  el('play').textContent = playing ? 'Pause' : 'Play';
+  el('play').setAttribute('aria-pressed', String(playing));
+};
+el('bloom').onclick = () => { bloomKick = t; };
+el('t').oninput = e => { t = +e.target.value; };
+
+/**
+ * Fake ensemble levels.
+ *
+ * Modelled on `ensembleFor` rather than invented: the drone never leaves, the voice carries
+ * Settling and Return, and breath carries Depth. So moving the Sound slider shows the same
+ * relationship the real channel has, not just "more brightness".
+ */
+function bands(state, amount) {
+  const d = state.depth;
+  const drone = 0.55 + 0.12 * Math.sin(t * 0.07);
+  const voiceL = (1 - d) * 0.7 + 0.15 + 0.10 * Math.sin(t * 0.11 + 1.3);
+  const breath = d * 0.8 + 0.12 + 0.10 * Math.sin(t * 0.09 + 2.6);
+  return {
+    bass: drone * amount,
+    mid: voiceL * amount,
+    treble: breath * amount,
+    level: (drone + voiceL + breath) / 3 * amount,
+  };
+}
+
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  const speed = +el('s').value;
+  clock += dt;                                   // real time, always
+  if (playing) { t = (t + dt * speed) % DUR; el('t').value = String(Math.round(t)); }
+
+  const state = session.at(t);
+  sampler.update(state, now);
+  const u = sampler.uniforms();
+
+  // The bloom button rides on top of whatever the session is doing.
+  const since = t - bloomKick;
+  const manual = since >= 0 && since < 4 ? Math.min(1, since / 0.6) * Math.exp(-since / 1.6) : 0;
+  const bloom = Math.max(u.uBloom, manual);
+
+  const amount = +el('a').value;
+  const b = bands(state, amount);
+
+  el('tv').textContent = Math.round((t / DUR) * 100) + '%';
+  el('sv').textContent = speed + '×';
+  el('av').textContent = amount.toFixed(2);
+  el('phase').textContent = state.phase;
+  el('uni').textContent =
+    `breath ${u.uBreath.toFixed(2)}  depth ${u.uDepth.toFixed(2)}  calm ${u.uCalm.toFixed(2)}  bloom ${bloom.toFixed(2)}`;
+
+  for (const v of views) {
+    const { gl, prog, U } = v;
+    gl.viewport(0, 0, v.cv.width, v.cv.height);
+    gl.useProgram(prog);
+    gl.bindBuffer(gl.ARRAY_BUFFER, v.buf);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, v.blank);
+    gl.uniform1i(U.iChannel0, 1);
+    gl.uniform3f(U.iResolution, v.cv.width, v.cv.height, 1);
+    gl.uniform1f(U.iTime, clock);
+    gl.uniform1f(U.iTimeDelta, dt);
+    gl.uniform1i(U.iFrame, frame);
+    gl.uniform4f(U.iMouse, 0, 0, 0, 0);
+    gl.uniform1f(U.iBass, b.bass);
+    gl.uniform1f(U.iMid, b.mid);
+    gl.uniform1f(U.iTreble, b.treble);
+    gl.uniform1f(U.iLevel, b.level);
+    gl.uniform1f(U.iParam0, u.uBreath);
+    gl.uniform1f(U.iParam1, u.uDepth);
+    gl.uniform1f(U.iParam2, u.uCalm);
+    gl.uniform1f(U.iParam3, bloom);
+    gl.uniform1f(U.iSanctuary, el('sanct').checked ? 1 : 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+  frame++;
+  schedule();
+}
+
+/**
+ * requestAnimationFrame stops entirely in a hidden tab, which is correct for a page nobody is
+ * looking at — but it also means this gallery renders nothing when driven headlessly, and a
+ * blank canvas is indistinguishable from a broken shader. Fall back to a timer when hidden.
+ */
+function schedule() {
+  if (document.visibilityState === 'hidden') setTimeout(() => loop(performance.now()), 50);
+  else requestAnimationFrame(loop);
+}
+schedule();
+document.addEventListener('visibilitychange', () => { last = performance.now(); });
+
+/**
+ * The photosensitivity gate, measured rather than assumed.
+ *
+ * Harding / ITU-R BT.1702 is a PAIR, per transition: at most three flashes a second, each under
+ * 10% of full scale. Sampled at 20 Hz because that is the coarsest rate anything renders these
+ * at — the headset's field rate — so it is the worst case for step size.
+ *
+ * Exposed on window because a colour change is exactly the kind of edit that can quietly break
+ * this, and re-running it has to be one call.
+ */
+/**
+ * Does the breath scale the frame?
+ *
+ * A zoom moves features radially, so it shows up as the luminance-weighted mean radius shifting
+ * between the two ends of the breath. Brightness changes do not move it — the weights scale
+ * together and the ratio is unchanged. So this separates "the field got brighter" from "the
+ * field got bigger", which by eye are surprisingly easy to confuse on something this slow.
+ */
+window.__zoom = function zoomProbe(atSec = 300) {
+  const st = session.at(atSec);
+  sampler.update(st, atSec * 1000);
+  const u = sampler.uniforms();
+  const b = bands(st, +el('a').value);
+  const out = [];
+  for (const v of views) {
+    const { gl } = v;
+    const w = 200, h = 200;
+    v.cv.width = w; v.cv.height = h;
+    const px = new Uint8Array(w * h * 4);
+    const radii = [];
+    for (const breath of [0, 1]) {
+      gl.viewport(0, 0, w, h);
+      gl.useProgram(v.prog);
+      gl.bindBuffer(gl.ARRAY_BUFFER, v.buf);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, v.blank);
+      gl.uniform1i(v.U.iChannel0, 1);
+      gl.uniform3f(v.U.iResolution, w, h, 1);
+      gl.uniform1f(v.U.iTime, atSec);
+      gl.uniform1f(v.U.iTimeDelta, 0.05);
+      gl.uniform1i(v.U.iFrame, 1000);
+      gl.uniform4f(v.U.iMouse, 0, 0, 0, 0);
+      gl.uniform1f(v.U.iBass, b.bass); gl.uniform1f(v.U.iMid, b.mid);
+      gl.uniform1f(v.U.iTreble, b.treble); gl.uniform1f(v.U.iLevel, b.level);
+      gl.uniform1f(v.U.iParam0, breath);
+      gl.uniform1f(v.U.iParam1, u.uDepth);
+      gl.uniform1f(v.U.iParam2, u.uCalm);
+      gl.uniform1f(v.U.iParam3, 0);
+      gl.uniform1f(v.U.iSanctuary, 1);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      let wr = 0, ws = 0;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        const L = 0.2126*px[i] + 0.7152*px[i+1] + 0.0722*px[i+2];
+        const dx = (x - w/2) / (w/2), dy = (y - h/2) / (h/2);
+        const r = Math.hypot(dx, dy);
+        wr += L * r; ws += L;
+      }
+      radii.push(ws > 0 ? wr / ws : 0);
+    }
+    // A pure brightness change leaves this at 1.000. Anything scaling shifts it.
+    out.push({ id: v.id, radiusRatio: +(radii[1] / radii[0]).toFixed(4) });
+    v.cv.width = 720; v.cv.height = 405;
+  }
+  return out;
+};
+
+window.__gate = async function gate(hz = 20, dur = DUR) {
+  const wasPlaying = playing; playing = false;
+  const out = [];
+  for (const v of views) {
+    const { gl } = v;
+    const w = 160, h = 90;
+    v.cv.width = w; v.cv.height = h;
+    const px = new Uint8Array(w * h * 4);
+    let prev = null, worst = 0, flashes = 0; const at = [];
+    for (let tt = 0; tt < dur; tt += 1 / hz) {
+      t = tt;
+      const st = session.at(tt);
+      sampler.update(st, tt * 1000);
+      const u = sampler.uniforms();
+      const b = bands(st, +el('a').value);
+      gl.viewport(0, 0, w, h);
+      gl.useProgram(v.prog);
+      gl.bindBuffer(gl.ARRAY_BUFFER, v.buf);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, v.blank);
+      gl.uniform1i(v.U.iChannel0, 1);
+      gl.uniform3f(v.U.iResolution, w, h, 1);
+      gl.uniform1f(v.U.iTime, tt);
+      gl.uniform1f(v.U.iTimeDelta, 1 / hz);
+      gl.uniform1i(v.U.iFrame, Math.round(tt * hz));
+      gl.uniform4f(v.U.iMouse, 0, 0, 0, 0);
+      gl.uniform1f(v.U.iBass, b.bass); gl.uniform1f(v.U.iMid, b.mid);
+      gl.uniform1f(v.U.iTreble, b.treble); gl.uniform1f(v.U.iLevel, b.level);
+      gl.uniform1f(v.U.iParam0, u.uBreath); gl.uniform1f(v.U.iParam1, u.uDepth);
+      gl.uniform1f(v.U.iParam2, u.uCalm); gl.uniform1f(v.U.iParam3, u.uBloom);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      let sum = 0;
+      for (let i = 0; i < px.length; i += 4) sum += 0.2126*px[i] + 0.7152*px[i+1] + 0.0722*px[i+2];
+      const m = sum / (w * h) / 255;
+      if (prev !== null) {
+        const d = Math.abs(m - prev);
+        if (d > worst) worst = d;
+        if (d > 0.10) { flashes++; at.push(tt); }
+      }
+      prev = m;
+      if (Math.round(tt * hz) % 400 === 0) await new Promise(r => setTimeout(r, 0));
+    }
+    let peak = 0;
+    for (const x of at) peak = Math.max(peak, at.filter(y => y >= x && y < x + 1).length);
+    out.push({ id: v.id, worstStep: +worst.toFixed(4), overThreshold: flashes, worstSecond: peak });
+    v.cv.width = 720; v.cv.height = 405;
+  }
+  playing = wasPlaying;
+  return out;
+};
+</script>
+</body>
+</html>

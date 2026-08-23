@@ -54,7 +54,8 @@ import {
   ToggleLeft,
   ToggleRight,
   AlertTriangle,
-  Tv
+  Tv,
+  Hash,
 } from 'lucide-react';
 import ErrorReportsPanel from './admin/ErrorReportsPanel';
 import { motion, AnimatePresence } from 'motion/react';
@@ -96,6 +97,7 @@ import { Achievement } from '../types';
 import FileUploader from './FileUploader';
 import { ThemePresetManager } from './ThemePresetManager';
 import { AdminLiveFeedsManager } from './AdminLiveFeedsManager';
+import ChannelNumberMigration from './admin/ChannelNumberMigration';
 import AdminLandingBgManager from './AdminLandingBgManager';
 import AdminPlatformMediaLibrary from './admin/AdminPlatformMediaLibrary';
 import AdminClubCoverMediaManager from './AdminClubCoverMediaManager';
@@ -138,7 +140,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS' | 'NOTIFY' | 'CHORA_STREAMS' | 'PLATFORM_MEDIA'>('STATS');
+  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS' | 'NOTIFY' | 'CHORA_STREAMS' | 'PLATFORM_MEDIA' | 'CHANNEL_NUMBERS'>('STATS');
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettingsConfig | null>(null);
   const [contentLicensingOn, setContentLicensingOn] = useState(false);
@@ -591,6 +593,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
             { id: 'THEMES', label: 'Theme Manager', icon: Palette },
             { id: 'ACHIEVEMENTS', label: 'Achievements & Points', icon: Trophy },
             { id: 'LIVE_FEEDS', label: 'Live Feeds', icon: Radio },
+            { id: 'CHANNEL_NUMBERS', label: 'Channel Numbers', icon: Hash },
             { id: 'PLATFORM_MEDIA', label: 'Plajah Media Library', icon: Tv },
             { id: 'LANDING_BG', label: 'Landing Background', icon: ImageIcon },
             { id: 'CLUB_COVER_MEDIA', label: 'Club Cover Media', icon: VideoIcon },
@@ -1247,6 +1250,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                 className="h-full"
               >
                 <AdminLiveFeedsManager />
+              </motion.div>
+            )}
+
+            {activeTab === 'CHANNEL_NUMBERS' && (
+              <motion.div
+                key="channelNumbers"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="h-full overflow-y-auto"
+              >
+                <ChannelNumberMigration />
               </motion.div>
             )}
 

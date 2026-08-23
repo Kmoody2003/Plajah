@@ -195,6 +195,7 @@ uniform vec4 iMouse;
 uniform sampler2D iChannel0;
 uniform float iBass, iMid, iTreble, iLevel;
 uniform float iParam0, iParam1, iParam2, iParam3;
+uniform float iSanctuary;
 `;
 const FIELD_MAIN = `
 void main(){ vec4 c = vec4(0.0,0.0,0.0,1.0); mainImage(c, gl_FragCoord.xy); _frag = c; }`;
@@ -386,6 +387,8 @@ function renderField(kit: GlKit, uniforms: number[], timeSec: number, frame: num
   gl.uniform1f(u('iParam1'), uniforms[1] ?? 0);
   gl.uniform1f(u('iParam2'), uniforms[2] ?? 1);
   gl.uniform1f(u('iParam3'), uniforms[3] ?? 0);
+  // A headset is a meditative host by definition — there is no VJ mode in here.
+  gl.uniform1f(u('iSanctuary'), 1);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 }

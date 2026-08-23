@@ -13,8 +13,8 @@ import assert from 'node:assert/strict';
 
 import {
   PLAJAH_BAND, PLAJAH_CHANNELS, RESERVED_MAJORS, SCIENCE_BAND_START, UNNUMBERED,
-  allTakenNumbers, canClaim, findPlajahChannel, guideSortKey, isAllocatableMajor, nextPlajahSub,
-  nextUserMajor, numberFor, plajahNumber, type NumberRegistry,
+  allTakenNumbers, canClaim, findPlajahChannel, guideSortKey, isAllocatableMajor, legacyMajors,
+  nextPlajahSub, nextUserMajor, numberFor, plajahNumber, type NumberRegistry,
 } from '../services/fast/channelNumbers';
 
 const reg = (
@@ -205,4 +205,74 @@ test('nextUserMajor must be given retired numbers too', () => {
   const r = reg({ a: 1 }, { '2': { ownerId: 'b', at: 1 } });
   assert.equal(nextUserMajor(allTakenNumbers(r)), 3);
   assert.equal(nextUserMajor(Object.values(r.byOwner)), 2, 'what going wrong looks like');
+});
+
+// ── The migration ────────────────────────────────────────────────────────────
+//
+// Numbers were computed at read time and never stored, so nobody's number can be looked up — it
+// has to be recomputed from the old algorithm. These pin that replay, because getting it wrong
+// means every channel on the platform silently changes address.
+
+/** The previous algorithm, transcribed from LiveTvPlus before the change, as the oracle. */
+function oldGuide(channels: { ownerId: string; name: string; number?: number }[]): Map<string, number> {
+  const used = new Set<number>(channels.filter(c => c.number != null).map(c => c.number!));
+  let free = 1;
+  const nextFree = () => { while (used.has(free)) free++; used.add(free); return free; };
+  const list = [...channels].sort((a, b) =>
+    (a.number ?? 1e9) - (b.number ?? 1e9) || a.name.localeCompare(b.name));
+  const out = new Map<string, number>();
+  for (const c of list) out.set(c.ownerId, c.number ?? nextFree());
+  return out;
+}
+
+test('the replay reproduces exactly what the old guide showed', () => {
+  const channels = [
+    { ownerId: 'u1', name: 'Zebra TV' },
+    { ownerId: 'u2', name: 'Apple Channel' },
+    { ownerId: 'u3', name: 'Mango', number: 4 },
+    { ownerId: 'u4', name: 'Bramble' },
+  ];
+  const replayed = legacyMajors(channels);
+  const original = oldGuide(channels);
+  for (const c of channels) {
+    assert.equal(replayed.get(c.ownerId), original.get(c.ownerId), `${c.name} moved`);
+  }
+});
+
+test('the replay honours numbers that were explicitly bound', () => {
+  const m = legacyMajors([
+    { ownerId: 'a', name: 'Alpha', number: 12 },
+    { ownerId: 'b', name: 'Beta' },
+  ]);
+  assert.equal(m.get('a'), 12);
+  assert.equal(m.get('b'), 1);
+});
+
+test('the replay skips the Plajah band, which the original did not know about', () => {
+  // The one intentional divergence from the oracle: band 8 did not exist when the old code was
+  // written, so it would happily hand 8 to the eighth channel.
+  const many = Array.from({ length: 9 }, (_, i) => ({ ownerId: `u${i}`, name: `Ch ${String.fromCharCode(65 + i)}` }));
+  const m = legacyMajors(many);
+  assert.ok(![...m.values()].includes(PLAJAH_BAND));
+  assert.deepEqual([...m.values()].sort((x, y) => x - y), [1, 2, 3, 4, 5, 6, 7, 9, 10]);
+});
+
+test('the replay is stable regardless of what order channels arrive in', () => {
+  // The whole reason the old numbers drifted: they depended on the set being enumerated the same
+  // way twice. Ties break on ownerId so two devices cannot disagree.
+  const channels = [
+    { ownerId: 'u1', name: 'Same Name' },
+    { ownerId: 'u2', name: 'Same Name' },
+    { ownerId: 'u3', name: 'Other' },
+  ];
+  const a = legacyMajors(channels);
+  const b = legacyMajors([...channels].reverse());
+  for (const c of channels) assert.equal(b.get(c.ownerId), a.get(c.ownerId));
+});
+
+test('nobody in the migration ends up without a number', () => {
+  const channels = Array.from({ length: 20 }, (_, i) => ({ ownerId: `u${i}`, name: `Channel ${i}` }));
+  const m = legacyMajors(channels);
+  assert.equal(m.size, 20);
+  assert.equal(new Set(m.values()).size, 20, 'two channels were given the same number');
 });

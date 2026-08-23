@@ -120,8 +120,11 @@ export const StillnessDeep: React.FC<Props> = ({ onClose, onWrite }) => {
             const cy = h * 0.52;
             // The field expands and contracts with the breath — the screen is doing the
             // exercise with you, same principle as Stillness's ring.
+            // The ring does NOT breathe in size. A circle growing and shrinking is the same
+            // unrequested motion the shaders had, and this is the reduced-motion path, where it
+            // is least welcome of all. Breath is in its opacity instead.
             const base = Math.min(w, h) * (0.34 + u.uDepth * 0.22);
-            const r = base * (reduced.current ? 0.85 : 0.78 + u.uBreath * 0.26);
+            const r = base * 0.88;
 
             // Chroma falls with arousal; deeper is closer to monochrome.
             const sat = 0.35 + (1 - u.uCalm) * 0.4;
@@ -143,7 +146,7 @@ export const StillnessDeep: React.FC<Props> = ({ onClose, onWrite }) => {
               ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fill();
             }
 
-            ctx.strokeStyle = `rgba(208,188,255,${(0.10 + lum * 0.14).toFixed(3)})`;
+            ctx.strokeStyle = `rgba(208,188,255,${(0.08 + lum * 0.12 + u.uBreath * 0.08).toFixed(3)})`;
             ctx.lineWidth = 1;
             ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
           }
@@ -410,6 +413,7 @@ export const StillnessDeep: React.FC<Props> = ({ onClose, onWrite }) => {
             source={shader.src}
             startTimeMs={shaderStart}
             params={uniforms.current}
+            sanctuary
             // A shader that fails to compile must not leave a black screen in front of someone
             // who came here to be calm — the canvas takes over silently.
             onError={setShaderError}

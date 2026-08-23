@@ -37,6 +37,19 @@
 //
 // THE RULES THESE OBEY
 //
+// TWO HOSTS, ONE SHADER
+//
+// `iSanctuary` is 1 in Stillness and on channel 8.1, and 0 in the Pixels studio. Everything
+// below describes the sanctuary behaviour. Loaded as an ordinary clip these run about four times
+// faster with the colour gates off — the same field, unbound. The rules are constraints of the
+// meditative CONTEXT, not properties of the shaders, and the code should say which is which.
+//
+//   NOTHING ZOOMS. The breath must never scale the frame. A field that grows and shrinks reads
+//   as a camera pushing in and pulling out — motion the viewer's body did not initiate, which is
+//   vection on a screen and nausea in a headset, and on a channel left on for hours it is the
+//   one thing that becomes unbearable rather than unnoticeable. Breath is expressed as
+//   luminance, density, softness and lateral drift, all of which are felt without being watched.
+//   No shader may multiply or divide `uv` by anything derived from uBreath.
 //   No strobing. Measured against a real session, these run at ~1.6 luminance transitions per
 //   second of ~0.05-0.08 of full scale each — inside the Harding / ITU-R BT.1702 pair of three
 //   flashes per second and 10% per flash, with margin. None of them is capable of a hard
@@ -89,14 +102,35 @@ float fbm(vec2 p){
 
 /** Curl-ish domain warp — fields that form and disperse rather than cycling. */
 vec2 warp(vec2 p, float t, float amt){
-  float n1 = fbm(p*1.1 + vec2(t*0.06, -t*0.04));
-  float n2 = fbm(p*1.1 + vec2(-t*0.05, t*0.07) + 5.2);
+  // These rates multiply through every field that warps, so they are the single biggest lever on
+  // how fast the whole set feels. Halved.
+  float n1 = fbm(p*1.1 + vec2(t*0.030, -t*0.020));
+  float n2 = fbm(p*1.1 + vec2(-t*0.025, t*0.035) + 5.2);
   return p + amt*vec2(n1-0.5, n2-0.5);
 }
 
-/** Motion budget: slows toward the Depth ceiling. Quadratic, so most of the Depth phase is
- *  already slow rather than only the single instant of the Turn. */
-float pace(float depth){ float h = 1.0-depth; return 0.05 + h*h*0.25; }
+/** The quadratic depth term, split out so pace() stays readable. */
+float h_(float depth){ float h = 1.0-depth; return h*h*0.075; }
+
+/**
+ * Motion budget.
+ *
+ * Roughly a third of what it was. The old ceiling of 0.30 was set against the design target of
+ * "under 0.05 screen-widths per second" — but that target describes the field's DRIFT, and every
+ * shader also has its own internal rates multiplying through it, so the thing you actually watch
+ * was moving several times faster than the number suggested. On a channel left on for hours, the
+ * difference between slow and very slow is the difference between something you stop noticing
+ * and something you keep noticing.
+ *
+ * Still quadratic in depth, so most of the Depth phase is already near-still rather than only
+ * the single instant of the Turn.
+ */
+float pace(float depth){
+  float slow = 0.016 + h_(depth);
+  // Outside a meditative host these are ordinary Pixels clips and may move like one. Four times
+  // the motion is still gentle by VJ standards and is roughly where they sat before.
+  return mix(slow*4.0, slow, iSanctuary);
+}
 
 /**
  * The gates, applied once at the end of every shader.
@@ -112,6 +146,9 @@ float pace(float depth){ float h = 1.0-depth; return 0.05 + h*h*0.25; }
  * than grey, which is both more restful and considerably better to look at.
  */
 vec3 safe(vec3 c, float calm, float depth){
+  // In the VJ studio the gates come off: full chroma, no red cap, no floor. A field that is
+  // restful on channel 8.1 has no reason to be restrained on a stage.
+  if (iSanctuary < 0.5) return clamp(c, vec3(0.0), vec3(1.0));
   float g = dot(c, vec3(0.299,0.587,0.114));
   // How warm is this pixel? 1 at pure red/orange, 0 at cyan/blue.
   float warmth = clamp((c.r - c.b)*1.6 + 0.15, 0.0, 1.0);
@@ -167,8 +204,9 @@ void mainImage(out vec4 o, in vec2 C){
   float breath = iParam0, depth = iParam1, calm = iParam2, bloom = iParam3;
 
   float t = iTime * pace(depth);
-  // The field expands and contracts with the breath — the screen doing the exercise with you.
-  uv /= (0.86 + breath*0.22 + depth*0.18);
+  // Depth may scale the frame — it moves once across twenty minutes, far too slowly to read as
+  // camera motion. Breath may not: see the rule at the top of this file.
+  uv /= (0.97 + depth*0.18);
 
   // Curtains: vertical bands whose horizontal position wanders, never repeating.
   float acc = 0.0;
@@ -177,8 +215,10 @@ void mainImage(out vec4 o, in vec2 C){
     vec2 q = warp(uv*vec2(1.6,0.7) + vec2(fi*3.1, t*0.10), t, 0.55);
     float band = fbm(q + vec2(0.0, uv.y*0.6));
     // Soft vertical falloff so the curtains hang rather than fill.
-    float veil = smoothstep(1.05, -0.25, abs(uv.y*1.15 + 0.15 - band*0.5));
-    acc += veil * (0.34 - fi*0.07);
+    // Breath instead reaches the curtain's height: it hangs lower and fills more on the in-
+    // breath. The frame never changes size, so nothing reads as movement toward the viewer.
+    float veil = smoothstep(1.05 + breath*0.20, -0.25, abs(uv.y*1.15 + 0.15 - band*0.5));
+    acc += veil * (0.34 - fi*0.07) * (0.86 + breath*0.20);
   }
 
   // Three colours rather than two, so the curtain has a gradient through it instead of a blend
@@ -214,7 +254,7 @@ void mainImage(out vec4 o, in vec2 C){
   float breath = iParam0, depth = iParam1, calm = iParam2, bloom = iParam3;
 
   float t = iTime * pace(depth);
-  uv *= (1.18 - breath*0.14 - depth*0.16);
+  uv *= (1.11 - depth*0.16);
 
   // Two warped noise fields differenced — the classic caustic ridge, without the sharp edges
   // a true caustic would have. Sharpness here would be detail, and detail is stimulating.
@@ -231,7 +271,9 @@ void mainImage(out vec4 o, in vec2 C){
   float tide = fbm(uv*0.55 + vec2(t*0.03, -t*0.02));
   vec3 deepC = mix(vec3(0.05,0.20,0.26), vec3(0.10,0.14,0.34), tide);
   vec3 lit   = mix(vec3(0.52,0.86,0.88), vec3(0.62,0.74,0.98), tide);
-  vec3 col = mix(deepC, lit, ridge) * (0.20 + ridge*0.78);
+  // Breath is the light above the water getting stronger and weaker, which is what actually
+  // happens to caustics — the pattern holds still and the brightness moves through it.
+  vec3 col = mix(deepC, lit, ridge) * (0.20 + ridge*0.78) * (0.84 + breath*0.26);
 
   // Air on the filaments only — the ridges brighten with PNEUMA while the ground stays put,
   // which reads as the light on the water moving rather than the water.
@@ -255,7 +297,9 @@ void mainImage(out vec4 o, in vec2 C){
   float breath = iParam0, depth = iParam1, calm = iParam2, bloom = iParam3;
 
   float t = iTime * pace(depth);
-  vec2 src = vec2(0.0, 0.62 + breath*0.10);
+  // Fixed. The source used to drift up and down with the breath, which is a slow vertical pan —
+  // milder than a zoom but the same category of unrequested motion.
+  vec2 src = vec2(0.0, 0.66);
 
   // March a few samples toward the light, accumulating density. Twelve steps is enough for a
   // soft shaft and cheap enough to hold 60 fps on a phone.
@@ -353,15 +397,22 @@ void mainImage(out vec4 o, in vec2 C){
   for(int i=0;i<14;i++){
     float fi = float(i);
     float sp = 0.05 + hash11(fi*1.7)*0.09;
+    // Vertical drift used to be fract(), which teleports a mote from the top of the frame to the
+    // bottom every time it wraps — a hard cut, in a set whose whole premise is that nothing cuts.
+    // A slow sine on an irrational-ish rate wanders instead, and never wraps.
     vec2 c = vec2(
       (hash11(fi*3.1)-0.5)*1.7 + sin(t*sp + fi)*0.12,
-      fract(hash11(fi*5.3) + t*sp*0.25)*1.5 - 0.75
+      (hash11(fi*5.3)-0.5)*1.5 + sin(t*sp*0.37 + fi*1.7)*0.22
     );
     float r = length(uv-c);
-    float size = 0.020 + hash11(fi*7.9)*0.035 + breath*0.010;
+    float size = 0.020 + hash11(fi*7.9)*0.035;
     // Motes fade in and out independently — nothing here has a shared period.
-    float life = 0.45 + 0.55*sin(t*sp*1.6 + fi*2.3);
-    float m = smoothstep(size, 0.0, r) * max(0.0, life) * 0.42;
+    // Fade rate slowed to match: a mote used to complete a full appear-and-vanish cycle in
+    // about a minute and a half, which on a still field is a visible pulse.
+    float life = 0.45 + 0.55*sin(t*sp*0.7 + fi*2.3);
+    // Breath brightens the motes rather than swelling them. Every mote growing together is a
+    // zoom in disguise: the field appears to approach even though nothing has moved.
+    float m = smoothstep(size, 0.0, r) * max(0.0, life) * 0.42 * (0.82 + breath*0.30);
     acc += m;
     // Each mote carries its own hue, drawn from its index rather than its position, so the
     // field is a scatter of colours instead of one colour at different brightnesses.

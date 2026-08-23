@@ -21,7 +21,7 @@ import ComingUpNextBumper, { type UpNextItem } from './tv/ComingUpNextBumper';
 import EndlessHourPlayer from './tv/EndlessHourPlayer';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import { isShellFocused, setShellFocus } from '../hooks/useTvShellFocus';
-import { PLAJAH_CHANNELS, UNNUMBERED, guideSortKey, plajahNumber, type NumberRegistry } from '../services/fast/channelNumbers';
+import { PLAJAH_CHANNELS, UNNUMBERED, guideSortKey, legacyMajors, plajahNumber, type NumberRegistry } from '../services/fast/channelNumbers';
 
 export interface TvChannel {
   id: string;
@@ -360,16 +360,21 @@ const LiveTvPlus: React.FC<{
     //
     // This used to hand every unbound account "the smallest free positive integer" computed over
     // whoever happened to be on air, so a channel's number moved when a DIFFERENT account went
-    // live. Now the registry is the only source: a channel either has a number it was given, or
-    // it is waiting to be given one and shows none. There is deliberately no fallback that
-    // computes something plausible, because a plausible number that changes next week is worse
-    // than no number at all.
+    // live. The registry is now the source of truth: a number is given once and read thereafter.
+    //
+    // The one exception is the migration. Numbers used to be computed at read time and never
+    // stored, so until backfillChannelNumbers has run there is nothing to look up — and showing
+    // every existing channel a dash would take away addresses people already use. So a channel
+    // with no registry entry falls back to `legacyMajors`, which reproduces exactly what the old
+    // guide showed. It is stable in a way the old code was not, because it runs over every
+    // enabled channel rather than only the ones on air, and the backfill freezes the same
+    // answer. Remove this fallback once the registry is complete.
     const list = [...owners.values()];
+    const legacy = legacyMajors(list.map(o => ({ ownerId: o.ownerId, name: o.name, number: o.bound })));
     const out: TvChannel[] = [];
     list.forEach(o => {
-      // The channel doc's own number is the mirror; the registry is the source. They agree
-      // except in the moment between a backfill writing one and the other.
-      const major = registry?.byOwner?.[o.ownerId] ?? o.bound;
+      // Registry first, then the channel doc's mirror, then the migration replay.
+      const major = registry?.byOwner?.[o.ownerId] ?? o.bound ?? legacy.get(o.ownerId);
       o.subs.forEach((s, j) => {
         // Single-source account → plain "N"; multi-source → "N.1", "N.2".
         const number = major == null

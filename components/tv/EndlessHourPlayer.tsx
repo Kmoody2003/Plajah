@@ -175,10 +175,12 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
           // Never fully black — a black frame reads as the channel having died.
           ctx2d.fillStyle = `rgb(${Math.round(6 + lum * 14)},${Math.round(5 + lum * 12)},${Math.round(10 + lum * 20)})`;
           ctx2d.fillRect(0, 0, w, h);
+          // The glow does NOT breathe in size — see the note in StillnessDeep. Breath is in
+          // its opacity, which is felt without being watched.
           const base = Math.min(w, h) * (0.34 + u.uDepth * 0.22);
-          const r = base * (reduced.current ? 0.85 : 0.78 + u.uBreath * 0.26);
+          const r = base * 0.88;
           const g = ctx2d.createRadialGradient(w / 2, h * 0.52, 0, w / 2, h * 0.52, r);
-          g.addColorStop(0, `rgba(190,175,255,${0.10 + lum * 0.16})`);
+          g.addColorStop(0, `rgba(190,175,255,${(0.07 + lum * 0.14 + u.uBreath * 0.07).toFixed(3)})`);
           g.addColorStop(1, 'rgba(190,175,255,0)');
           ctx2d.fillStyle = g;
           ctx2d.fillRect(0, 0, w, h);
@@ -229,6 +231,7 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
             source={shader.src}
             startTimeMs={shaderStart}
             params={uniforms.current}
+            sanctuary
             onError={onShaderError}
           />
         </div>
