@@ -16,6 +16,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import { Shelf, WorkCard, Chip } from './index';
+import ShaderLayer from '../components/ShaderLayer';
+import { getShaderThumb, peekShaderThumb } from './shaderThumbs';
 import { SHADER_LIBRARY, type ShaderLibraryEntry } from '../components/ShaderPanel';
 import { SCENE_CATALOG } from '../engine/sceneCatalog';
 import type { VisualizerMode } from '../types';
@@ -57,6 +59,8 @@ interface Props {
   onSelect: (source: LibrarySource) => void;
   /** Import ISF, delegated to the existing panel so the two do not diverge. */
   onImport?: () => void;
+  /** Drives the live preview. Null before audio starts; the preview falls back to a still then. */
+  analyser?: AnalyserNode | null;
 }
 
 /** A plain tile for sources that have no GLSL still to render — generators and milkdrop. */
@@ -81,9 +85,55 @@ const Tile: React.FC<{ name: string; sub?: string; selected?: boolean; onClick: 
   </button>
 );
 
+/**
+ * The preview window.
+ *
+ * A shader gets a real live render when there is an analyser to drive it — the same ShaderLayer
+ * the canvas uses, at thumbnail size — and falls back to its rendered still before audio starts.
+ * A generator or milkdrop preset has no self-contained render at this size (it needs the whole
+ * visualiser), so it shows its name on a swatch; picking it makes the main canvas its preview.
+ */
+const Preview: React.FC<{ work: ShaderLibraryEntry | null; label: string | null; analyser?: AnalyserNode | null }> =
+({ work, label, analyser }) => {
+  const [still, setStill] = useState<string | null>(() => (work ? peekShaderThumb(work.name) : null));
+  useEffect(() => {
+    setStill(work ? peekShaderThumb(work.name) : null);
+    if (!work) return;
+    let dead = false;
+    getShaderThumb(work.name, work.src).then(u => { if (!dead && u) setStill(u); });
+    return () => { dead = true; };
+  }, [work]);
+
+  return (
+    <div className="px-3 pt-3 pb-2">
+      <div className="relative aspect-video rounded-card overflow-hidden bg-black/60 border border-white/10">
+        {work && analyser
+          ? <ShaderLayer analyser={analyser} source={work.src} startTimeMs={0} />
+          : work && still
+            ? <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${still})` }} />
+            : (
+              <div className="absolute inset-0 grid place-content-center"
+                style={{ background: 'radial-gradient(90% 80% at 40% 40%, rgba(107,0,153,0.5), transparent 62%), #0b0910' }}>
+                <span className="type-label-sm uppercase tracking-[0.16em] text-white/40 px-2 text-center">
+                  {label ?? 'Hover a work'}
+                </span>
+              </div>
+            )}
+      </div>
+      {(work?.name || label) && (
+        <p className="type-body-sm text-white/70 truncate mt-1.5">{work?.name ?? label}</p>
+      )}
+    </div>
+  );
+};
+
 export const LibraryRail: React.FC<Props> = ({
-  selectedSrc, selectedMode, milkdropOn, milkdropIndex, onSelect, onImport,
+  selectedSrc, selectedMode, milkdropOn, milkdropIndex, onSelect, onImport, analyser,
 }) => {
+  // What the preview window shows: whatever is under the pointer, falling back to the current
+  // selection so the window is never empty once something is on the canvas.
+  const [hoverSrc, setHoverSrc] = useState<string | null>(null);
+  const [hoverLabel, setHoverLabel] = useState<string | null>(null);
   const [section, setSection] = useState<Section>('shaders');
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState<(typeof KINDS)[number]['id']>('all');
@@ -151,8 +201,16 @@ export const LibraryRail: React.FC<Props> = ({
       className="w-[210px] shrink-0 h-full flex flex-col bg-black/70 backdrop-blur-2xl border-r border-white/10"
       aria-label="Library"
     >
+      {/* The preview window — plays what you point at. */}
+      <Preview
+        work={hoverSrc ? (SHADER_LIBRARY.find(w => w.src === hoverSrc) ?? null)
+              : selectedSrc ? (SHADER_LIBRARY.find(w => w.src === selectedSrc) ?? null) : null}
+        label={hoverLabel}
+        analyser={analyser}
+      />
+
       {/* Header + section switch — the three catalogues that used to be three separate browsers. */}
-      <div className="px-3 pt-2.5 pb-2 border-b border-white/10">
+      <div className="px-3 pt-2.5 pb-2 border-t border-b border-white/10">
         <div className="flex items-baseline gap-2 mb-2">
           <span className="type-label-sm uppercase tracking-[0.14em]" style={{ color: 'var(--pj-cyan)' }}>Library</span>
           <span className="ml-auto type-label-sm text-white/25 tabular-nums">{count}</span>
@@ -203,13 +261,19 @@ export const LibraryRail: React.FC<Props> = ({
               <Shelf title={shelf.title} sub={shelf.sub} count={shelf.items.length} />
               <div className="grid grid-cols-2 gap-1.5">
                 {shelf.items.map(w => (
-                  <WorkCard
-                    key={w.name} name={w.name} cacheKey={w.name} src={w.src}
-                    meta={w.kind === 'signature' ? w.setTitle : (w.license || w.category)}
-                    bands={w.reacts?.map(r => r[0])}
-                    selected={selectedSrc === w.src}
-                    onClick={() => onSelect({ kind: 'shader', src: w.src })}
-                  />
+                  <div
+                    key={w.name}
+                    onPointerEnter={() => { setHoverSrc(w.src); setHoverLabel(null); }}
+                    onPointerLeave={() => setHoverSrc(null)}
+                  >
+                    <WorkCard
+                      name={w.name} cacheKey={w.name} src={w.src}
+                      meta={w.kind === 'signature' ? w.setTitle : (w.license || w.category)}
+                      bands={w.reacts?.map(r => r[0])}
+                      selected={selectedSrc === w.src}
+                      onClick={() => onSelect({ kind: 'shader', src: w.src })}
+                    />
+                  </div>
                 ))}
               </div>
             </div>
@@ -220,12 +284,16 @@ export const LibraryRail: React.FC<Props> = ({
         {section === 'generators' && (
           <div className="grid grid-cols-2 gap-1.5 pt-1.5">
             {generators.map((g, i) => (
-              <Tile
-                key={g.name} name={g.name} sub={g.cat}
-                hue={(i * 47) % 360}
-                selected={!selectedSrc && selectedMode === g.mode}
-                onClick={() => onSelect({ kind: 'generator', mode: g.mode })}
-              />
+              <div key={g.name}
+                onPointerEnter={() => { setHoverSrc(null); setHoverLabel(g.name); }}
+                onPointerLeave={() => setHoverLabel(null)}>
+                <Tile
+                  name={g.name} sub={g.cat}
+                  hue={(i * 47) % 360}
+                  selected={!selectedSrc && selectedMode === g.mode}
+                  onClick={() => onSelect({ kind: 'generator', mode: g.mode })}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -234,11 +302,15 @@ export const LibraryRail: React.FC<Props> = ({
           {milkLoading && <p className="type-body-sm text-white/25 text-center py-6">Loading presets…</p>}
           <div className="grid grid-cols-2 gap-1.5 pt-1.5">
             {milk.map(m => (
-              <Tile
-                key={m.i} name={m.name} hue={(m.i * 31) % 360}
-                selected={!!milkdropOn && milkdropIndex === m.i}
-                onClick={() => onSelect({ kind: 'milkdrop', index: m.i, name: m.name })}
-              />
+              <div key={m.i}
+                onPointerEnter={() => { setHoverSrc(null); setHoverLabel(m.name); }}
+                onPointerLeave={() => setHoverLabel(null)}>
+                <Tile
+                  name={m.name} hue={(m.i * 31) % 360}
+                  selected={!!milkdropOn && milkdropIndex === m.i}
+                  onClick={() => onSelect({ kind: 'milkdrop', index: m.i, name: m.name })}
+                />
+              </div>
             ))}
           </div>
           {!milkLoading && milk.length === 0 && <p className="type-body-sm text-white/25 text-center py-6">Nothing matches.</p>}

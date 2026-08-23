@@ -1433,6 +1433,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                     milkdropIndex={milkdropIdx}
                     onSelect={applySource}
                     onImport={() => setShowShaderPanel(true)}
+                    analyser={analyserRef.current}
                 />
             </AtDepth>
         )}
