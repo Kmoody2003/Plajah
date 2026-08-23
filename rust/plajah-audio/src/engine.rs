@@ -1,5 +1,6 @@
 //! The instrument engine: voice allocation, parameter store, global modulation, output stage.
 
+use crate::diffuser::{Diffuser, VeilSpec};
 use crate::lfo::Lfo;
 use crate::modmatrix::{ModMatrix, ModSource, ModValues, Route};
 use crate::osc::Rng;
@@ -50,6 +51,10 @@ pub struct Engine {
     /// Staging buffer the host writes raw wavetable data into before `commit_table`.
     upload: Vec<f32>,
 
+    /// VELA's Veil. One instance after the voice sum — see diffuser.rs for why it is not
+    /// per-voice. Allocated here at construction, never on the audio thread.
+    veil: Diffuser,
+
     events: Vec<ScheduledEvent>,
     events_dirty: bool,
     frame_counter: u64,
@@ -77,6 +82,7 @@ impl Engine {
             sr: if sample_rate > 1000.0 { sample_rate } else { 48000.0 },
             params: Params::new(),
             matrix: ModMatrix::default(),
+            veil: Diffuser::new(if sample_rate > 1000.0 { sample_rate } else { 48000.0 }),
             voices,
             lfos: [Lfo::default(); NUM_LFO],
             tables,
@@ -216,8 +222,9 @@ impl Engine {
                     v.voice_id = voice_id;
                     return;
                 }
+                let sr = self.sr;
                 let p = &self.params;
-                v.note_on(note, vel, voice_id, p, Some(from), frame_offset);
+                v.note_on(note, vel, voice_id, p, Some(from), frame_offset, sr);
                 v.age = self.age_counter;
                 return;
             }
@@ -253,9 +260,10 @@ impl Engine {
 
         self.age_counter += 1;
         let age = self.age_counter;
+        let sr = self.sr;
         let params = &self.params;
         let v = &mut self.voices[idx];
-        v.note_on(note, vel, voice_id, params, glide_from, frame_offset);
+        v.note_on(note, vel, voice_id, params, glide_from, frame_offset, sr);
         v.age = age;
 
         for l in self.lfos.iter_mut() {
@@ -278,6 +286,11 @@ impl Engine {
             } else if v.active {
                 v.note_off();
             }
+        }
+        if hard {
+            // A hard stop has to flush the Veil too. A sixty-second diffusion tail surviving a
+            // panic-stop is exactly the bug that makes people stop trusting the stop button.
+            self.veil.clear();
         }
     }
 
@@ -365,7 +378,12 @@ impl Engine {
         let mut globals = ModValues::default();
         for (i, l) in self.lfos.iter_mut().enumerate() {
             l.shape = crate::lfo::LfoShape::from_index(self.params.get(lfo_param(i, L_SHAPE)) as u32);
-            l.rate_hz = lfo_rate(self.params.get(lfo_param(i, L_RATE)));
+            let rate_norm = self.params.get(lfo_param(i, L_RATE));
+            l.rate_hz = if self.params.get(lfo_param(i, L_RANGE)) > 0.5 {
+                lfo_rate_slow(rate_norm)
+            } else {
+                lfo_rate(rate_norm)
+            };
             l.sync_beats = self.params.get(lfo_param(i, L_SYNC));
             l.bipolar = self.params.get(lfo_param(i, L_BIPOLAR)) > 0.5;
             l.retrigger = self.params.get(lfo_param(i, L_RETRIGGER)) > 0.5;
@@ -377,11 +395,32 @@ impl Engine {
         globals.macros = self.macros;
 
         // Split the borrow: voices render into scratch while reading shared state immutably.
-        let Engine { voices, scratch, params, matrix, tables, samples, sr, layout, position, .. } = self;
+        // `veil` comes out in the same destructure because the Veil also needs `scratch` and a
+        // second `let Engine { .. } = self` would be a double mutable borrow.
+        let Engine { voices, scratch, params, matrix, tables, samples, sr, layout, position, veil, .. } = self;
         for v in voices.iter_mut() {
             if v.active {
                 v.render(scratch, frames, params, matrix, &globals, tables, samples, *sr, *layout, *position);
             }
+        }
+
+        // The Veil runs here: after every voice has summed, before the output stage. Being
+        // inside the engine rather than on the track is what makes it travel with the patch and
+        // render identically offline.
+        let veil_mix = params.get(VEIL_BASE + V_MIX);
+        let veil_freeze = params.get(VEIL_BASE + V_FREEZE) > 0.5;
+        if veil_mix > 0.0001 || veil_freeze {
+            let spec = VeilSpec {
+                size: params.get(VEIL_BASE + V_SIZE),
+                decay: params.get(VEIL_BASE + V_DECAY),
+                diffusion: params.get(VEIL_BASE + V_DIFFUSION),
+                shimmer: params.get(VEIL_BASE + V_SHIMMER),
+                shimmer_ivl: params.get(VEIL_BASE + V_SHIMMER_IVL) as u32,
+                blur: params.get(VEIL_BASE + V_BLUR),
+                freeze: veil_freeze,
+                mix: veil_mix,
+            };
+            veil.process(scratch, frames, nch, &spec);
         }
 
         // Soft clip on the way out: a synth stacking 32 voices × 16 unison will hit the rails,

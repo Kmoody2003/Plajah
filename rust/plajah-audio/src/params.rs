@@ -92,6 +92,10 @@ pub const L_SYNC: u32 = 2; // 0 = free, else beats per cycle
 pub const L_BIPOLAR: u32 = 3;
 pub const L_RETRIGGER: u32 = 4;
 pub const L_FADE: u32 = 5;
+/// 0 = the normal 0.01–40 Hz range, 1 = the slow range (20 s to 5 minutes per cycle).
+/// VELA's Drift needs modulation whose period is measured in minutes; reusing the LFO block
+/// with a range flag keeps every existing Motion route working unchanged.
+pub const L_RANGE: u32 = 6;
 
 #[inline]
 pub fn lfo_param(index: usize, p: u32) -> u32 {
@@ -100,7 +104,44 @@ pub fn lfo_param(index: usize, p: u32) -> u32 {
 
 pub const MACRO_BASE: u32 = 900; // 900..907
 
-pub const MAX_PARAM_ID: usize = 1024;
+// ── VELA (instrument 03): modal body, exciter, diffusion field ───────────────
+// Block 1000 upward, so ONDA's 0..999 never renumbers. Single instances rather than indexed
+// blocks — there is one body, one exciter and one Veil per instrument by design.
+
+/// Modal resonator bank. This is the sound; everything else serves it.
+pub const MODAL_BASE: u32 = 1000;
+pub const M_ENABLE: u32 = 0;
+pub const M_PARTIALS: u32 = 1; // stepped: 16 / 24 / 32 / 48 / 64
+pub const M_INHARM: u32 = 2; // partial-ratio stretch — the character control
+pub const M_SPREAD: u32 = 3;
+pub const M_DECAY: u32 = 4; // 0..1 → 0.2s..45s
+pub const M_DECAY_TILT: u32 = 5; // 0..1 → -1..+1; negative rings the highs longest
+pub const M_MATERIAL: u32 = 6; // 0 bronze, 1 glass, 2 iron, 3 wood, 4 skin, 5 air
+pub const M_POSITION: u32 = 7;
+pub const M_KEYTRACK: u32 = 8;
+
+/// Exciter — bow, blow, strike, rub.
+pub const EXC_BASE: u32 = 1100;
+pub const X_TYPE: u32 = 0;
+pub const X_PRESSURE: u32 = 1;
+pub const X_GRAIN: u32 = 2;
+pub const X_TONE: u32 = 3;
+pub const X_VEL_TILT: u32 = 4;
+
+/// The Veil. Engine-level: one instance after the voice sum, not one per voice.
+pub const VEIL_BASE: u32 = 1200;
+pub const V_SIZE: u32 = 0;
+pub const V_DECAY: u32 = 1;
+pub const V_DIFFUSION: u32 = 2;
+pub const V_SHIMMER: u32 = 3;
+pub const V_SHIMMER_IVL: u32 = 4; // 0 = +12, 1 = +19, 2 = +24, 3 = -12
+pub const V_BLUR: u32 = 5;
+pub const V_FREEZE: u32 = 6;
+pub const V_MIX: u32 = 7;
+
+/// 1408 rather than 1024: the VELA blocks run to 1207, and `Params::set` silently drops any id
+/// past the end of the array — a whole instrument that fails without an error.
+pub const MAX_PARAM_ID: usize = 1408;
 
 /// Flat store. A plain array keeps `set_param` and the mod matrix's destination lookup O(1)
 /// with no hashing on the audio thread.
@@ -179,7 +220,53 @@ impl Params {
             self.set(lfo_param(l, L_BIPOLAR), 1.0);
             self.set(lfo_param(l, L_RETRIGGER), 1.0);
         }
+
+        // VELA defaults. The body is OFF so an ONDA patch is bit-identical to before this block
+        // existed — the instrument is opt-in, not a change to every existing preset.
+        self.set(MODAL_BASE + M_ENABLE, 0.0);
+        self.set(MODAL_BASE + M_PARTIALS, 0.5); // 32
+        self.set(MODAL_BASE + M_INHARM, 0.04); // a bowl
+        self.set(MODAL_BASE + M_SPREAD, 0.12);
+        self.set(MODAL_BASE + M_DECAY, 0.45);
+        self.set(MODAL_BASE + M_DECAY_TILT, 0.5); // centre = no tilt beyond the material's own
+        self.set(MODAL_BASE + M_MATERIAL, 0.0);
+        self.set(MODAL_BASE + M_POSITION, 0.28);
+        self.set(MODAL_BASE + M_KEYTRACK, 0.4);
+
+        self.set(EXC_BASE + X_TYPE, 0.0); // bow
+        self.set(EXC_BASE + X_PRESSURE, 0.5);
+        self.set(EXC_BASE + X_GRAIN, 0.35);
+        self.set(EXC_BASE + X_TONE, 0.4);
+        self.set(EXC_BASE + X_VEL_TILT, 0.6);
+
+        self.set(VEIL_BASE + V_SIZE, 0.5);
+        self.set(VEIL_BASE + V_DECAY, 0.45);
+        self.set(VEIL_BASE + V_DIFFUSION, 0.6);
+        self.set(VEIL_BASE + V_SHIMMER, 0.0);
+        self.set(VEIL_BASE + V_SHIMMER_IVL, 0.0);
+        self.set(VEIL_BASE + V_BLUR, 0.0);
+        self.set(VEIL_BASE + V_FREEZE, 0.0);
+        self.set(VEIL_BASE + V_MIX, 0.0);
     }
+}
+
+// ── VELA unit mappings ───────────────────────────────────────────────────────
+
+/// Modal decay: 0..1 → 0.2 s … 45 s, curved so the short end where percussion lives keeps
+/// real resolution.
+#[inline]
+pub fn modal_decay_s(norm: f32) -> f32 {
+    let n = norm.clamp(0.0, 1.0);
+    0.2 + 44.8 * n * n * n
+}
+
+/// Slow LFO range: 0..1 → 300 s … 20 s per cycle (0.0033 Hz … 0.05 Hz).
+/// Inverted against the normal rate mapping on purpose — turning a rate control up should
+/// always mean "faster", in either range.
+#[inline]
+pub fn lfo_rate_slow(norm: f32) -> f32 {
+    let n = norm.clamp(0.0, 1.0);
+    1.0 / (300.0 - 280.0 * n)
 }
 
 // ── Normalised → real unit mappings ──────────────────────────────────────────

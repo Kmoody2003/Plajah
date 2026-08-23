@@ -6,10 +6,13 @@
 //!
 //! This file is the ABI surface only — all logic lives in the modules.
 
+mod diffuser;
 mod engine;
 mod env;
+mod exciter;
 mod filter;
 mod lfo;
+mod modal;
 mod modmatrix;
 mod osc;
 mod params;
@@ -24,8 +27,10 @@ use spatial::{IamfRole, Layout, Position};
 
 /// Bump when the ABI changes so the host can refuse a stale committed `.wasm`.
 /// v2 adds absolute-frame scheduling (`pa_schedule_note_*`), which is what makes offline
-/// rendering of instrument tracks possible. v3 adds sample playback (KERA).
-pub const ABI_VERSION: u32 = 4;
+/// rendering of instrument tracks possible. v3 adds sample playback (KERA). v5 adds VELA — the
+/// modal body, the exciter and the Veil (param block 1000+), plus the Tide LFO shape and the
+/// slow LFO range.
+pub const ABI_VERSION: u32 = 5;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn pa_abi_version() -> u32 {

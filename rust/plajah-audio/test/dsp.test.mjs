@@ -34,6 +34,13 @@ const P = {
   envDecay: (e) => 700 + e * 10 + 1,
   envSustain: (e) => 700 + e * 10 + 2,
   envRelease: (e) => 700 + e * 10 + 3,
+
+  // VELA — must mirror the block-1000 constants in src/params.rs.
+  M_ENABLE: 1000, M_PARTIALS: 1001, M_INHARM: 1002, M_SPREAD: 1003,
+  M_DECAY: 1004, M_DECAY_TILT: 1005, M_MATERIAL: 1006, M_POSITION: 1007, M_KEYTRACK: 1008,
+  X_TYPE: 1100, X_PRESSURE: 1101, X_GRAIN: 1102, X_TONE: 1103, X_VEL_TILT: 1104,
+  V_SIZE: 1200, V_DECAY: 1201, V_DIFFUSION: 1202, V_SHIMMER: 1203,
+  V_SHIMMER_IVL: 1204, V_BLUR: 1205, V_FREEZE: 1206, V_MIX: 1207,
 };
 
 async function boot() {
@@ -72,7 +79,7 @@ function magAt(sig, freq, sr) {
 
 test('ABI version matches the host contract', async () => {
   const { x } = await boot();
-  assert.equal(x.pa_abi_version(), 4);
+  assert.equal(x.pa_abi_version(), 5);
 });
 
 /** Stage a mono sample into the upload buffer and load it into a slot. Returns the frame count. */
@@ -387,4 +394,207 @@ test('spatial: layout drives channel count and position moves energy', async () 
     for (let i = 0; i < BLOCK; i++) { lSum += Math.abs(l[i]); rSum += Math.abs(r[i]); }
   }
   assert.ok(rSum > lSum * 1.5, `a hard-right source should favour the right channel (L=${lSum.toFixed(1)} R=${rSum.toFixed(1)})`);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VELA — the modal body, the exciter and the Veil.
+//
+// The gates that matter for this instrument are different from ONDA's. Aliasing and filter
+// stability are what separate a good subtractive synth from a toy; for a modal resonator it is
+// whether the bank stays bounded across a forty-second tail, whether inharmonicity actually
+// moves the partials, and whether a re-render is bit-identical — because the meditation host
+// and the generative channel both depend on that last property being true.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Put the engine into VELA mode with a usable bowl patch. */
+function velaPatch({ x, eng }, over = {}) {
+  const set = (id, v) => x.pa_set_param(eng, id, v);
+  set(P.M_ENABLE, 1);
+  set(P.M_PARTIALS, 0.5);   // 32 partials
+  set(P.M_INHARM, 0.04);
+  set(P.M_SPREAD, 0.0);     // off by default so partial positions stay predictable
+  set(P.M_DECAY, 0.45);
+  set(P.M_DECAY_TILT, 0.5);
+  set(P.M_MATERIAL, 0);
+  set(P.M_POSITION, 0.28);
+  set(P.M_KEYTRACK, 0.0);
+  set(P.X_TYPE, 2);         // strike — a bounded excitation, so tails are measurable
+  set(P.X_PRESSURE, 0.7);
+  set(P.X_GRAIN, 0.5);
+  set(P.X_TONE, 0.5);
+  set(P.X_VEL_TILT, 0.0);
+  set(P.V_MIX, 0.0);
+  for (const [k, v] of Object.entries(over)) set(P[k], v);
+}
+
+function rms(sig, from = 0, to = sig.length) {
+  let s = 0;
+  for (let i = from; i < to; i++) s += sig[i] * sig[i];
+  return Math.sqrt(s / Math.max(1, to - from));
+}
+
+test('VELA: a struck body sounds, and keeps ringing after note-off', async () => {
+  const ctx = await boot();
+  const { x, eng } = ctx;
+  velaPatch(ctx, { M_DECAY: 0.6 });
+
+  x.pa_note_on(eng, 60, 1.0, 1, 0);
+  const attack = renderMono(ctx, SR * 0.25);
+  assert.ok(rms(attack) > 1e-3, `the bank should sound when struck (rms=${rms(attack).toExponential(2)})`);
+
+  // Note-off must NOT silence a modal voice — energy is still leaving the bank. This is the
+  // single most important behavioural difference from the subtractive path.
+  x.pa_note_off(eng, 1);
+  const tail = renderMono(ctx, SR * 1.0);
+  assert.ok(rms(tail) > 1e-4, `the body must ring on after note-off (rms=${rms(tail).toExponential(2)})`);
+  assert.equal(x.pa_active_voices(eng), 1, 'the voice must stay allocated while it still rings');
+});
+
+test('VELA: inharmonicity moves the partials off the harmonic series', async () => {
+  const f0 = 220;
+  const note = 57; // A3 = 220 Hz
+
+  const a = await boot();
+  velaPatch(a, { M_INHARM: 0.0, M_PARTIALS: 0.0, M_DECAY: 0.5 });
+  a.x.pa_note_on(a.eng, note, 1.0, 1, 0);
+  const harmonic = renderMono(a, SR * 0.5);
+
+  const b = await boot();
+  velaPatch(b, { M_INHARM: 0.85, M_PARTIALS: 0.0, M_DECAY: 0.5 });
+  b.x.pa_note_on(b.eng, note, 1.0, 1, 0);
+  const stretched = renderMono(b, SR * 0.5);
+
+  // Energy exactly at 2·f0 relative to energy just sharp of it. A harmonic bank concentrates
+  // at the exact multiple; a stretched one does not.
+  const ratio = (sig) => magAt(sig, 2 * f0, SR) / (magAt(sig, 2 * f0 * 1.06, SR) + 1e-12);
+  const h = ratio(harmonic);
+  const s = ratio(stretched);
+  assert.ok(h > s, `stretching should move energy off 2·f0 (harmonic=${h.toFixed(2)}, stretched=${s.toFixed(2)})`);
+});
+
+test('VELA: the bank decays monotonically and never runs away', async () => {
+  const ctx = await boot();
+  const { x, eng } = ctx;
+  // Worst case for stability: most partials, heaviest stretch, longest decay.
+  velaPatch(ctx, { M_PARTIALS: 1.0, M_INHARM: 1.0, M_DECAY: 1.0, M_DECAY_TILT: 0.0 });
+  x.pa_note_on(eng, 48, 1.0, 1, 0);
+  x.pa_note_off(eng, 1);
+
+  const windows = [];
+  for (let i = 0; i < 8; i++) windows.push(rms(renderMono(ctx, SR * 0.5)));
+  for (const w of windows) assert.ok(Number.isFinite(w), 'the bank must never produce NaN or Inf');
+
+  // A resonator with a pole radius at or above 1 would grow rather than decay.
+  const early = (windows[1] + windows[2]) / 2;
+  const late = (windows[6] + windows[7]) / 2;
+  assert.ok(late < early, `energy must leave the bank (early=${early.toExponential(2)}, late=${late.toExponential(2)})`);
+});
+
+test('VELA: a bowed note sustains where a struck note decays', async () => {
+  const bowed = await boot();
+  velaPatch(bowed, { X_TYPE: 0, X_PRESSURE: 0.8, M_DECAY: 0.3 });
+  bowed.x.pa_note_on(bowed.eng, 55, 0.9, 1, 0);
+  renderMono(bowed, SR * 1.0);
+  const bowedLate = rms(renderMono(bowed, SR * 1.0));
+
+  const struck = await boot();
+  velaPatch(struck, { X_TYPE: 2, X_PRESSURE: 0.8, M_DECAY: 0.3 });
+  struck.x.pa_note_on(struck.eng, 55, 0.9, 1, 0);
+  renderMono(struck, SR * 1.0);
+  const struckLate = rms(renderMono(struck, SR * 1.0));
+
+  assert.ok(
+    bowedLate > struckLate * 2,
+    `a held bow must still be feeding the bank after two seconds (bowed=${bowedLate.toExponential(2)}, struck=${struckLate.toExponential(2)})`,
+  );
+});
+
+test('VELA: Veil shimmer stays bounded under feedback', async () => {
+  const ctx = await boot();
+  const { x, eng } = ctx;
+  // Everything that could make an octave-up feedback path climb, all at once.
+  velaPatch(ctx, {
+    V_MIX: 1.0, V_SIZE: 0.9, V_DECAY: 1.0, V_DIFFUSION: 1.0,
+    V_SHIMMER: 1.0, V_SHIMMER_IVL: 0, M_DECAY: 0.5,
+  });
+  x.pa_note_on(eng, 60, 1.0, 1, 0);
+  renderMono(ctx, SR * 0.5);
+  x.pa_note_off(eng, 1);
+
+  let peak = 0;
+  for (let i = 0; i < 10; i++) {
+    const w = renderMono(ctx, SR * 0.5);
+    for (let j = 0; j < w.length; j++) {
+      const v = Math.abs(w[j]);
+      assert.ok(Number.isFinite(v), 'shimmer feedback must never produce NaN');
+      if (v > peak) peak = v;
+    }
+  }
+  assert.ok(peak < 4.0, `shimmer must not climb without bound (peak=${peak.toFixed(2)})`);
+});
+
+test('VELA: Veil freeze holds a spectrum with no further input', async () => {
+  const ctx = await boot();
+  const { x, eng } = ctx;
+  velaPatch(ctx, { V_MIX: 1.0, V_SIZE: 0.5, V_DECAY: 0.6, V_DIFFUSION: 0.7, M_DECAY: 0.3 });
+
+  x.pa_note_on(eng, 60, 1.0, 1, 0);
+  renderMono(ctx, SR * 0.6);
+  x.pa_note_off(eng, 1);
+
+  x.pa_set_param(eng, P.V_FREEZE, 1.0);
+  const first = rms(renderMono(ctx, SR * 0.5));
+  renderMono(ctx, SR * 2.0);
+  const later = rms(renderMono(ctx, SR * 0.5));
+
+  assert.ok(first > 1e-4, `freeze should have something to hold (rms=${first.toExponential(2)})`);
+  assert.ok(later > first * 0.35, `a frozen spectrum must persist (first=${first.toExponential(2)}, later=${later.toExponential(2)})`);
+  assert.ok(Number.isFinite(later), 'freeze must stay finite');
+});
+
+test('VELA: renders are deterministic — the meditation host and the channel depend on it', async () => {
+  const run = async () => {
+    const ctx = await boot();
+    velaPatch(ctx, { M_SPREAD: 0.8, X_GRAIN: 0.9, V_MIX: 0.6, V_SHIMMER: 0.4 });
+    ctx.x.pa_note_on(ctx.eng, 62, 0.85, 1, 0);
+    const a = renderMono(ctx, SR * 0.5);
+    ctx.x.pa_note_off(ctx.eng, 1);
+    const b = renderMono(ctx, SR * 0.5);
+    return [...a, ...b];
+  };
+
+  const first = await run();
+  const second = await run();
+  assert.equal(first.length, second.length);
+  let maxDiff = 0;
+  for (let i = 0; i < first.length; i++) {
+    const d = Math.abs(first[i] - second[i]);
+    if (d > maxDiff) maxDiff = d;
+  }
+  assert.equal(maxDiff, 0, `two renders of the same seed must be bit-identical (max diff=${maxDiff})`);
+});
+
+test('VELA: params above the old 1024 ceiling actually store', async () => {
+  // Regression guard. MAX_PARAM_ID was 1024, so every id in the exciter and Veil blocks was
+  // silently dropped by Params::set — an entire instrument failing with no error anywhere.
+  // Measured in the TAIL, not across the attack. For the first few hundred milliseconds the
+  // direct strike dominates both signals and a reverb is nearly invisible in the rms — the
+  // difference only appears once the dry sound has decayed and the field has built.
+  const ctx = await boot();
+  const { x, eng } = ctx;
+  velaPatch(ctx, { V_MIX: 0.0 });
+  x.pa_note_on(eng, 60, 1.0, 1, 0);
+  renderMono(ctx, SR * 0.4);
+  const dry = rms(renderMono(ctx, SR * 1.0));
+
+  const wet = await boot();
+  velaPatch(wet, { V_MIX: 1.0, V_SIZE: 0.7, V_DECAY: 0.8 });
+  wet.x.pa_note_on(wet.eng, 60, 1.0, 1, 0);
+  renderMono(wet, SR * 0.4);
+  const wetRms = rms(renderMono(wet, SR * 1.0));
+
+  assert.ok(
+    wetRms > dry * 1.5,
+    `id 1207 must reach the engine — a fully wet tail cannot match a dry one (dry=${dry.toExponential(2)}, wet=${wetRms.toExponential(2)})`,
+  );
 });

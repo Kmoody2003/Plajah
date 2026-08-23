@@ -23,7 +23,8 @@
     "test:academia": "npx tsx --test tests/academiaIntegrity.test.ts",
     "test:melos": "npx tsx --test tests/melosArp.test.ts tests/melosKera.test.ts",
     "academia:ingest": "npx tsx scripts/ingestOerLibrary.ts",
-    "test:runner": "npx tsx --test tests/serviceRunner.test.ts"
+    "test:runner": "npx tsx --test tests/serviceRunner.test.ts",
+    "test:stillness": "npx tsx --test tests/stillnessEngine.test.ts"
   },
   "dependencies": {
     "@atproto/api": "^0.19.10",

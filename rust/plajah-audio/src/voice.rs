@@ -6,7 +6,9 @@
 //! smoothed so a control step never produces a zipper.
 
 use crate::env::Envelope;
+use crate::exciter::{Exciter, ExciterSpec, ExciterType};
 use crate::filter::{Ladder, Svf, SvfMode};
+use crate::modal::{partial_count, Material, ModalBank, ModalSpec};
 use crate::modmatrix::{ModMatrix, ModValues};
 use crate::osc::{unison_detune_curve, AnalogShape, Noise, Phasor, Rng};
 use crate::params::*;
@@ -62,6 +64,15 @@ pub struct Voice {
     cutoff_smooth: [f32; 2],
     amp_smooth: f32,
 
+    /// VELA. When the modal body is enabled it REPLACES the oscillator path entirely — an
+    /// exciter drives a resonator bank and there is no filter stage, because a modal bank is
+    /// already a bank of filters.
+    modal: ModalBank,
+    exciter: Exciter,
+    /// Latched at note-on. A voice that started as a modal voice stays one for its whole life,
+    /// so toggling the body mid-tail cannot strand a ringing bank.
+    modal_active: bool,
+
     /// Sample playback (KERA). Inactive (slot -1) for synth voices; when active the sample
     /// replaces the oscillators and everything downstream is shared with the synth path.
     sample: SampleVoice,
@@ -97,6 +108,13 @@ impl Voice {
             glide_note: 60.0,
             cutoff_smooth: [1000.0; 2],
             amp_smooth: 0.0,
+            modal: ModalBank::new(seed),
+            modal_active: false,
+            exciter: {
+                let mut e = Exciter::default();
+                e.reseed(seed);
+                e
+            },
             sample: {
                 let mut s = SampleVoice::default();
                 s.clear();
@@ -113,7 +131,7 @@ impl Voice {
         self.sample_detune = detune_cents;
     }
 
-    pub fn note_on(&mut self, note: f32, vel: f32, id: u32, p: &Params, glide_from: Option<f32>, delay: u32) {
+    pub fn note_on(&mut self, note: f32, vel: f32, id: u32, p: &Params, glide_from: Option<f32>, delay: u32, sr_hint: f32) {
         self.active = true;
         self.released = false;
         self.note = note;
@@ -155,6 +173,18 @@ impl Voice {
             self.envs[e].note_on();
         }
         self.amp_smooth = 0.0;
+
+        // VELA: lay out the partials for this pitch, then arm the exciter. The layout is
+        // computed once per note rather than per block — 64 partials across 32 voices every
+        // 2.7 ms is not affordable, and the body does not change while a note rings.
+        self.modal_active = p.get(MODAL_BASE + M_ENABLE) > 0.5;
+        if self.modal_active {
+            self.modal.reset();
+            let spec = modal_spec_for(note, p);
+            self.modal.prepare(&spec, sr_hint);
+            let xs = exciter_spec(p, self.velocity);
+            self.exciter.strike(&xs, sr_hint);
+        }
     }
 
     pub fn note_off(&mut self) {
@@ -162,6 +192,9 @@ impl Voice {
         for e in self.envs.iter_mut() {
             e.note_off();
         }
+        // Lifting the bow stops feeding the bank; the body keeps ringing on its own, which is
+        // the whole difference between releasing a modal voice and muting one.
+        self.exciter.release();
     }
 
     pub fn kill(&mut self) {
@@ -173,7 +206,61 @@ impl Voice {
 
     #[inline]
     pub fn is_finished(&self) -> bool {
+        if self.modal_active {
+            // A modal voice outlives its amp envelope by design: energy is still leaving the
+            // bank long after the exciter stopped. Freeing it on the envelope would chop a
+            // forty-second tail, which is far more audible than holding a voice slightly long.
+            return self.exciter.is_idle() && self.modal.is_quiet();
+        }
         !self.envs[0].is_active()
+    }
+
+    /// The VELA render path. Separate from the subtractive path on purpose: a modal voice has
+    /// no oscillators, no filters and no amp envelope on its output — the bank's own decay IS
+    /// the envelope, and running the note through a VCA afterwards would flatten exactly the
+    /// behaviour the instrument exists to produce.
+    #[allow(clippy::too_many_arguments)]
+    fn render_modal(
+        &mut self,
+        out: &mut [[f32; crate::engine::MAX_BLOCK]; MAX_CHANNELS],
+        frames: usize,
+        p: &Params,
+        sr: f32,
+        layout: Layout,
+        base_pos: Position,
+    ) {
+        let nch = layout.channels();
+        let mut gains = [0.0f32; MAX_CHANNELS];
+        pan_gains(base_pos, layout, 0.0, &mut gains);
+
+        let xs = exciter_spec(p, self.velocity);
+        let gate = !self.released && xs.kind.is_continuous();
+        // Continuous excitation is scaled by the bank's bandwidth; a strike is not. See
+        // ModalBank::sustain_scale for why the two cannot share a normalisation.
+        let drive = if xs.kind.is_continuous() { self.modal.sustain_scale() } else { 1.0 };
+        // Velocity trims level only slightly; most of it went into the exciter's spectral tilt,
+        // which is how a real body responds to being hit harder.
+        let level = (0.35 + 0.65 * self.velocity) * p.get(P_MASTER_GAIN).max(0.0);
+
+        for f in 0..frames {
+            if self.start_delay > 0 {
+                self.start_delay -= 1;
+                continue;
+            }
+            let x = self.exciter.process(&xs, gate, sr) * drive;
+            let y = self.modal.process(x) * level;
+            if !y.is_finite() {
+                continue;
+            }
+            for c in 0..nch {
+                out[c][f] += y * gains[c];
+            }
+        }
+
+        self.age += frames as u64;
+        if self.is_finished() {
+            self.active = false;
+        }
     }
 
     /// Render into an interleaved-by-channel scratch: `out[ch][frame]`.
@@ -192,6 +279,10 @@ impl Voice {
         base_pos: Position,
     ) {
         if !self.active {
+            return;
+        }
+        if self.modal_active {
+            self.render_modal(out, frames, p, sr, layout, base_pos);
             return;
         }
         let dt = 1.0 / sr;
@@ -483,5 +574,37 @@ impl Voice {
         if self.is_finished() {
             self.active = false;
         }
+    }
+}
+
+// ── VELA parameter resolution ────────────────────────────────────────────────
+// Kept as free functions rather than methods so `note_on` and `render_modal` read the same
+// parameters through the same code, and a mapping can never drift between them.
+
+#[inline]
+pub(crate) fn modal_spec_for(note: f32, p: &Params) -> ModalSpec {
+    ModalSpec {
+        f0: midi_to_hz(note),
+        count: partial_count(p.get(MODAL_BASE + M_PARTIALS)),
+        inharm: p.get(MODAL_BASE + M_INHARM).clamp(0.0, 1.0),
+        spread: p.get(MODAL_BASE + M_SPREAD).clamp(0.0, 1.0),
+        decay: modal_decay_s(p.get(MODAL_BASE + M_DECAY)),
+        // Stored 0..1, used -1..+1, so the centre of the knob means "whatever the material does".
+        decay_tilt: p.get(MODAL_BASE + M_DECAY_TILT) * 2.0 - 1.0,
+        material: Material::from_index(p.get(MODAL_BASE + M_MATERIAL) as u32),
+        position: p.get(MODAL_BASE + M_POSITION).clamp(0.0, 1.0),
+        keytrack: p.get(MODAL_BASE + M_KEYTRACK).clamp(0.0, 1.0),
+    }
+}
+
+#[inline]
+pub(crate) fn exciter_spec(p: &Params, velocity: f32) -> ExciterSpec {
+    ExciterSpec {
+        kind: ExciterType::from_index(p.get(EXC_BASE + X_TYPE) as u32),
+        pressure: p.get(EXC_BASE + X_PRESSURE).clamp(0.0, 1.0),
+        grain: p.get(EXC_BASE + X_GRAIN).clamp(0.0, 1.0),
+        tone: p.get(EXC_BASE + X_TONE).clamp(0.0, 1.0),
+        vel_tilt: p.get(EXC_BASE + X_VEL_TILT).clamp(0.0, 1.0),
+        velocity: velocity.clamp(0.0, 1.0),
     }
 }
