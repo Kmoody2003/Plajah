@@ -26,6 +26,14 @@ const AM_CTL: usize = 32;
 /// a period and the combination never repeats — which is the whole point of Anima.
 const PHI: f32 = 1.618_034;
 
+/// How often the bank re-tunes itself while a note sounds. ~10 ms at 48k.
+///
+/// Re-tuning a ringing resonator changes its pole position while state persists, so the partial
+/// glides rather than restarting. Small steps at this rate are inaudible as steps and audible
+/// as the body slowly becoming a different body — which is the difference between a sample and
+/// an instrument.
+const RETUNE: usize = 512;
+
 /// The partial-count control is stepped, because the count sets the per-voice cost and a
 /// continuous knob would let someone slide into a dropout without knowing why.
 pub const PARTIAL_STEPS: [usize; 5] = [16, 24, 32, 48, 64];
@@ -116,8 +124,19 @@ impl Resonator {
         // g·rⁿ·sin(ωn)/sin(ω), so `g = amp·sin(ω)` makes a strike peak at `amp` regardless of
         // decay time. Normalising for steady-state unity instead (the `(1-r)` form) collapses
         // to silence the moment the decay gets long: at T60 = 20 s, `1-r` is about 7e-6.
+        // Taper the top rather than running partials at full amplitude right up to the cutoff.
+        // A stretched bank puts dozens of partials between 8 kHz and Nyquist, and at full level
+        // that band is pure glare — the "harsh" part of a bright body, and the thing that makes
+        // a high inharmonicity setting unusable rather than interesting.
+        let nyq = sr * 0.5;
+        let taper = if freq > nyq * 0.34 {
+            let t = ((nyq * 0.92 - freq) / (nyq * 0.58)).clamp(0.0, 1.0);
+            t * t
+        } else {
+            1.0
+        };
         self.sin_w = w.sin().max(0.02);
-        self.g = amp * self.sin_w;
+        self.g = amp * taper * self.sin_w;
     }
 
     #[inline]
@@ -182,6 +201,11 @@ pub struct ModalSpec {
     pub position: f32,
     /// 0..1. How much decay shortens as you play up the keyboard. Real bodies do this.
     pub keytrack: f32,
+    /// Timbral evolution across the note, signed: 0 is static, positive opens the body up
+    /// (more stretch, brighter, the excitation point wandering), negative closes it down.
+    pub morph: f32,
+    /// Seconds the morph takes to complete. Long values are the soundscape register.
+    pub morph_time: f32,
 }
 
 pub struct ModalBank {
@@ -199,10 +223,19 @@ pub struct ModalBank {
     am_inc: [f32; MAX_PARTIALS],
     beat_phase: [f32; MAX_PARTIALS],
     beat_inc: [f32; MAX_PARTIALS],
+    /// Current gain, ramped toward `gain_target` one sample at a time.
     gain: [f32; MAX_PARTIALS],
+    gain_target: [f32; MAX_PARTIALS],
+    gain_step: [f32; MAX_PARTIALS],
     anima: f32,
     beat: f32,
     ctl: usize,
+
+    // ── Morph. The spec is kept so the bank can re-derive itself as the note ages. ──
+    spec: ModalSpec,
+    sr: f32,
+    note_samples: usize,
+    retune_ctl: usize,
 }
 
 impl ModalBank {
@@ -228,9 +261,19 @@ impl ModalBank {
             beat_phase: [0.0; MAX_PARTIALS],
             beat_inc: [0.0; MAX_PARTIALS],
             gain: [1.0; MAX_PARTIALS],
+            gain_target: [1.0; MAX_PARTIALS],
+            gain_step: [0.0; MAX_PARTIALS],
             anima: 0.0,
             beat: 0.0,
             ctl: 0,
+            spec: ModalSpec {
+                f0: 261.63, count: 32, inharm: 0.04, spread: 0.1, decay: 4.0, decay_tilt: 0.0,
+                material: Material::Bronze, anima: 0.0, beat: 0.0, beat_rate: 1.0,
+                position: 0.28, keytrack: 0.4, morph: 0.0, morph_time: 8.0,
+            },
+            sr: 48000.0,
+            note_samples: 0,
+            retune_ctl: 0,
         }
     }
 
@@ -243,6 +286,29 @@ impl ModalBank {
     /// Recompute the partial layout. Called on note-on, and again only if the host changes a
     /// body parameter while a note is held.
     pub fn prepare(&mut self, s: &ModalSpec, sr: f32) {
+        self.spec = *s;
+        self.sr = sr;
+        self.note_samples = 0;
+        self.retune_ctl = 0;
+        self.build(0.0);
+    }
+
+    /// Re-derive the partial layout at a given point in the note's morph, 0..1.
+    fn build(&mut self, progress: f32) {
+        let sr = self.sr;
+        let base = self.spec;
+
+        // The morph moves the three parameters that change what the body IS, rather than how
+        // loud it is: how far the partials are stretched, how the decay leans, and where it is
+        // being excited. Together those take a bowl to a gong and back.
+        let m = base.morph * progress;
+        let sp = ModalSpec {
+            inharm: (base.inharm + m * 0.42).clamp(0.0, 1.0),
+            decay_tilt: (base.decay_tilt - m * 0.7).clamp(-1.0, 1.0),
+            position: (base.position + m * 0.35).clamp(0.02, 0.98),
+            ..base
+        };
+        let s = &sp;
         let (tilt_bias, amp_exp, inharm_scale) = s.material.traits();
         let count = s.count.min(MAX_PARTIALS);
         self.count = count;
@@ -323,7 +389,11 @@ impl ModalBank {
         // (58% inharmonic on iron) came out 7x louder than Himalayan and clipped continuously.
         // The ceiling says a sparse body may be lifted, but not turned into the loudest thing
         // in the instrument.
-        self.norm = (0.45 / amp_sq.sqrt().max(0.05)).clamp(0.08, 0.18);
+        // Range widened upward: several bodies were pinned against the floor and could not be
+        // lifted by their preset trim at all. Per-preset MASTER_GAIN pulls the loud ones back
+        // down, which is the right place for it — the DSP should give every body enough level
+        // to work with, and the preset decides where it sits.
+        self.norm = (0.62 / amp_sq.sqrt().max(0.05)).clamp(0.14, 0.30);
     }
 
     /// Scale factor for CONTINUOUS excitation.
@@ -361,14 +431,34 @@ impl ModalBank {
             let wah = (core::f32::consts::TAU * self.beat_phase[k]).sin();
             // Both are unipolar dips rather than bipolar swings: a partial should fade and
             // return, never invert. Peak gain stays 1 so Anima cannot make the voice louder.
-            self.gain[k] = (1.0 - self.anima * 0.5 + self.anima * 0.5 * drift)
+            let target = (1.0 - self.anima * 0.5 + self.anima * 0.5 * drift)
                 * (1.0 - self.beat * 0.45 + self.beat * 0.45 * wah);
+            // Ramp toward it rather than jumping. Sixty-four partials each stepping to a new
+            // gain every 32 samples is a 1.5 kHz zipper spread across the entire spectrum —
+            // it reads as grain and harshness rather than as a stepped envelope, which is why
+            // it is easy to mistake for an aliasing problem.
+            self.gain_target[k] = target;
+            self.gain_step[k] = (target - self.gain[k]) * (1.0 / AM_CTL as f32);
         }
     }
 
     /// Drive the bank with one sample of excitation and return the summed output.
     #[inline]
     pub fn process(&mut self, x: f32) -> f32 {
+        // Age the note and re-derive the body as it goes.
+        self.note_samples += 1;
+        if self.spec.morph.abs() > 0.001 {
+            self.retune_ctl += 1;
+            if self.retune_ctl >= RETUNE {
+                self.retune_ctl = 0;
+                let secs = self.note_samples as f32 / self.sr;
+                // Eased, so the change is fastest in the middle of the journey and settles at
+                // each end rather than stopping dead.
+                let raw = (secs / self.spec.morph_time.max(0.2)).clamp(0.0, 1.0);
+                let progress = raw * raw * (3.0 - 2.0 * raw);
+                self.build(progress);
+            }
+        }
         if self.ctl == 0 {
             self.update_gains();
         }
@@ -378,6 +468,7 @@ impl ModalBank {
         }
         let mut sum = 0.0;
         for k in 0..self.count {
+            self.gain[k] += self.gain_step[k];
             // The gain rides the resonator's OUTPUT, so it modulates the ring itself rather
             // than the excitation — the partials breathe while the note is sounding.
             sum += self.res[k].process(x) * self.gain[k];

@@ -69,6 +69,10 @@ pub struct Voice {
     /// already a bank of filters.
     modal: ModalBank,
     exciter: Exciter,
+    /// Swell state: 0..1, ramped over the attack time. A modal bank can only ever decay on its
+    /// own, so this is the one thing that makes a pad possible at all.
+    swell: f32,
+    swell_inc: f32,
     /// Latched at note-on. A voice that started as a modal voice stays one for its whole life,
     /// so toggling the body mid-tail cannot strand a ringing bank.
     modal_active: bool,
@@ -110,6 +114,8 @@ impl Voice {
             amp_smooth: 0.0,
             modal: ModalBank::new(seed),
             modal_active: false,
+            swell: 1.0,
+            swell_inc: 1.0,
             exciter: {
                 let mut e = Exciter::default();
                 e.reseed(seed);
@@ -184,6 +190,14 @@ impl Voice {
             self.modal.prepare(&spec, sr_hint);
             let xs = exciter_spec(p, self.velocity);
             self.exciter.strike(&xs, sr_hint);
+            let swell_t = swell_time_s(p.get(MODAL_BASE + M_SWELL));
+            if swell_t > 0.002 {
+                self.swell = 0.0;
+                self.swell_inc = 1.0 / (swell_t * sr_hint);
+            } else {
+                self.swell = 1.0;
+                self.swell_inc = 1.0;
+            }
         }
     }
 
@@ -210,6 +224,11 @@ impl Voice {
             // A modal voice outlives its amp envelope by design: energy is still leaving the
             // bank long after the exciter stopped. Freeing it on the envelope would chop a
             // forty-second tail, which is far more audible than holding a voice slightly long.
+            // A voice still swelling in has not sounded yet; freeing it on a quiet bank would
+            // silently drop every slow-attack note.
+            if self.swell < 1.0 {
+                return false;
+            }
             return self.exciter.is_idle() && self.modal.is_quiet();
         }
         !self.envs[0].is_active()
@@ -247,8 +266,13 @@ impl Voice {
                 self.start_delay -= 1;
                 continue;
             }
+            if self.swell < 1.0 {
+                self.swell = (self.swell + self.swell_inc).min(1.0);
+            }
+            // Equal-power-ish curve: a linear swell sounds like it hesitates then rushes.
+            let swell = self.swell * self.swell * (3.0 - 2.0 * self.swell);
             let x = self.exciter.process(&xs, gate, sr) * drive;
-            let y = self.modal.process(x) * level;
+            let y = self.modal.process(x) * level * swell;
             if !y.is_finite() {
                 continue;
             }
@@ -597,6 +621,9 @@ pub(crate) fn modal_spec_for(note: f32, p: &Params) -> ModalSpec {
         beat_rate: beat_rate_hz(p.get(MODAL_BASE + M_BEAT_RATE)),
         position: p.get(MODAL_BASE + M_POSITION).clamp(0.0, 1.0),
         keytrack: p.get(MODAL_BASE + M_KEYTRACK).clamp(0.0, 1.0),
+        // Stored 0..1, used -1..+1 so the centre of the control means "do not evolve".
+        morph: p.get(MODAL_BASE + M_MORPH) * 2.0 - 1.0,
+        morph_time: morph_time_s(p.get(MODAL_BASE + M_MORPH_TIME)),
     }
 }
 

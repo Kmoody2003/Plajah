@@ -1,175 +1,262 @@
 // VELA presets.
 //
-// These eight are the spec, not decoration: if a voice here cannot be reached from the
-// parameter set in params.ts, the parameter set is wrong. They were the acceptance test while
-// the DSP was being written and they stay the acceptance test.
+// These are the spec, not decoration: if a voice here cannot be reached from the parameter set
+// in params.ts, the parameter set is wrong. They were the acceptance test while the DSP was
+// being written and they stay the acceptance test.
 //
-// The four macros — Air, Body, Shimmer, Drift — are the whole of the Play panel, and they are
-// also the exact surface the meditation host drives. That is why there are four and not six.
+// They are grouped into four families, and the families are the point. A bank of resonators
+// that can only be struck has exactly one gesture and every preset ends up a variation on it —
+// which is what the first set was, and why it sounded like one instrument with eight EQ
+// settings. Three engine capabilities open the rest:
 //
-// Every preset carries Anima, Beat and Pulse settings of its own, and a MASTER_GAIN trim.
+//   Swell   an amplitude attack, so a body can arrive rather than only decay. Without it a
+//           modal bank structurally cannot be a pad.
+//   Morph   the bank re-derives itself as the note ages, moving stretch, decay lean and
+//           excitation point. A held note is a different body a minute later.
+//   Anima / Beat / Pulse   movement inside the sustain: independent partial drift, the
+//           singing-bowl beat, and the player leaning into the body.
 //
-// The life settings are not decoration. A modal bank with none of them is an organ: correct
-// partials, correct decay, and completely dead. Anima drifts each partial independently, Beat
-// is the singing-bowl "wah" that comes from two partials a few Hz apart, and Pulse is the
-// player leaning into the body and easing off. Bodies also differ enormously in how much energy
-// they hold, so the trim is where they are balanced against one another — squeezing the DSP's
-// normalisation to do it instead just removes headroom, and headroom is where the movement
-// lives.
+// Every preset also carries a MASTER_GAIN trim. Bodies differ enormously in how much energy
+// they hold, and balancing them by squeezing the DSP's normalisation instead just removes
+// headroom — which is where the movement lives.
 
 import { M, MASTER_GAIN, V, X } from './params';
 
 export type VelaMacro = 'air' | 'body' | 'shimmer' | 'drift';
 
+/** What kind of thing this is, before what it sounds like. */
+export type VelaFamily = 'struck' | 'sustained' | 'pad' | 'soundscape';
+
+export const VELA_FAMILY_LABELS: Record<VelaFamily, string> = {
+  struck: 'Struck bodies',
+  sustained: 'Sustained',
+  pad: 'Pads and swells',
+  soundscape: 'Soundscapes',
+};
+
 export interface VelaPreset {
   id: string;
   name: string;
+  family: VelaFamily;
   /** Shown under the name in the gallery — the shorthand a player actually scans. */
   blurb: string;
-  /** Short description of what the voice is for. */
   description: string;
   /** Raw param ids → values. Anything omitted keeps the engine default. */
   params: Record<number, number>;
-  /** Starting macro positions for the Play panel. */
   macros: Record<VelaMacro, number>;
 }
 
+/** Shorthand so the table below reads as sound design rather than as a wall of ids. */
+const body = (
+  partials: number, inharm: number, spread: number, decay: number, tilt: number,
+  material: number, position: number, keytrack: number,
+) => ({
+  [M.ENABLE]: 1, [M.PARTIALS]: partials, [M.INHARM]: inharm, [M.SPREAD]: spread,
+  [M.DECAY]: decay, [M.DECAY_TILT]: tilt, [M.MATERIAL]: material,
+  [M.POSITION]: position, [M.KEYTRACK]: keytrack,
+});
+const life = (anima: number, beat: number, beatRate: number, pulse: number, pulseRate: number) => ({
+  [M.ANIMA]: anima, [M.BEAT]: beat, [M.BEAT_RATE]: beatRate,
+  [X.PULSE]: pulse, [X.PULSE_RATE]: pulseRate,
+});
+const evolve = (swell: number, morph: number, morphTime: number) => ({
+  [M.SWELL]: swell, [M.MORPH]: morph, [M.MORPH_TIME]: morphTime,
+});
+const breath = (type: number, pressure: number, grain: number, tone: number, velTilt: number) => ({
+  [X.TYPE]: type, [X.PRESSURE]: pressure, [X.GRAIN]: grain, [X.TONE]: tone, [X.VEL_TILT]: velTilt,
+});
+const veil = (
+  mix: number, size: number, decay: number, diffusion: number,
+  shimmer = 0, interval = 0, blur = 0,
+) => ({
+  [V.MIX]: mix, [V.SIZE]: size, [V.DECAY]: decay, [V.DIFFUSION]: diffusion,
+  [V.SHIMMER]: shimmer, [V.SHIMMER_IVL]: interval, [V.BLUR]: blur,
+});
+const trim = (g: number) => ({ [MASTER_GAIN]: g });
+
 export const VELA_PRESETS: VelaPreset[] = [
+  // ── Struck bodies ────────────────────────────────────────────────────────
   {
-    id: 'himalayan-bronze',
-    name: 'Himalayan Bronze',
-    blurb: 'bowl · rub · inharm 4%',
+    id: 'himalayan-bronze', name: 'Himalayan Bronze', family: 'struck',
+    blurb: 'bowl · rub · beat 0.45 Hz',
     description:
-      'The reference voice. Slow rub excitation, long high-partial ring, minimal shimmer. Warm and unmistakably metal.',
+      'The reference voice. The beating is the signature — two partials a few Hz apart is what a real bowl does, and it is most of why one raises hair.',
     params: {
-      [M.ENABLE]: 1, [M.PARTIALS]: 0.75, [M.INHARM]: 0.04, [M.SPREAD]: 0.14,
-      [M.DECAY]: 0.62, [M.DECAY_TILT]: 0.42, [M.MATERIAL]: 0, [M.POSITION]: 0.26, [M.KEYTRACK]: 0.45,
-      [X.TYPE]: 3, [X.PRESSURE]: 0.55, [X.GRAIN]: 0.42, [X.TONE]: 0.34, [X.VEL_TILT]: 0.6,
-      [V.MIX]: 0.42, [V.SIZE]: 0.55, [V.DECAY]: 0.5, [V.DIFFUSION]: 0.66, [V.SHIMMER]: 0.08,
-      [M.ANIMA]: 0.45, [M.BEAT]: 0.55, [M.BEAT_RATE]: 0.15,
-      [X.PULSE]: 0.35, [X.PULSE_RATE]: 0.12,
-      [MASTER_GAIN]: 0.95,
+      ...body(0.75, 0.04, 0.14, 0.62, 0.42, 0, 0.26, 0.45),
+      ...breath(3, 0.55, 0.42, 0.34, 0.6), ...life(0.45, 0.55, 0.15, 0.35, 0.12),
+      ...evolve(0.0, 0.5, 0.2), ...veil(0.42, 0.55, 0.5, 0.66, 0.08), ...trim(1.0),
     },
     macros: { air: 0.55, body: 0.35, shimmer: 0.2, drift: 0.22 },
   },
   {
-    id: 'vitreous',
-    name: 'Vitreous',
-    blurb: 'glass · strike · inharm 9%',
-    description:
-      'Crystal rim. Bright, fast-decaying lows and a top that hangs for twenty seconds. Fragile.',
+    id: 'vitreous', name: 'Vitreous', family: 'struck',
+    blurb: 'glass · strike · fast beat',
+    description: 'Crystal rim. Bright, fast-decaying lows and a top that hangs. Fragile.',
     params: {
-      [M.ENABLE]: 1, [M.PARTIALS]: 1.0, [M.INHARM]: 0.09, [M.SPREAD]: 0.08,
-      [M.DECAY]: 0.5, [M.DECAY_TILT]: 0.3, [M.MATERIAL]: 1, [M.POSITION]: 0.14, [M.KEYTRACK]: 0.6,
-      [X.TYPE]: 2, [X.PRESSURE]: 0.8, [X.GRAIN]: 0.3, [X.TONE]: 0.72, [X.VEL_TILT]: 0.75,
-      [V.MIX]: 0.5, [V.SIZE]: 0.45, [V.DECAY]: 0.55, [V.DIFFUSION]: 0.7, [V.SHIMMER]: 0.22,
-      [M.ANIMA]: 0.3, [M.BEAT]: 0.35, [M.BEAT_RATE]: 0.45,
-      [X.PULSE]: 0.15, [X.PULSE_RATE]: 0.3,
-      [MASTER_GAIN]: 1.0,
+      ...body(1.0, 0.09, 0.08, 0.5, 0.3, 1, 0.14, 0.6),
+      ...breath(2, 0.8, 0.3, 0.62, 0.75), ...life(0.3, 0.35, 0.45, 0.15, 0.3),
+      ...evolve(0.0, 0.5, 0.2), ...veil(0.5, 0.45, 0.55, 0.7, 0.22), ...trim(1.0),
     },
     macros: { air: 0.4, body: 0.28, shimmer: 0.38, drift: 0.14 },
   },
   {
-    id: 'deep-wash',
-    name: 'Deep Wash',
-    blurb: 'gong · strike · inharm 34%',
+    id: 'deep-wash', name: 'Deep Wash', family: 'struck',
+    blurb: 'gong · strike · morphs open',
     description:
-      'A gong that never resolves to a pitch. Position is the interesting modulation target here — put Tide on it and no two strikes land the same.',
+      'A gong that never resolves to a pitch, and keeps opening for twelve seconds after the strike.',
     params: {
-      [M.ENABLE]: 1, [M.PARTIALS]: 1.0, [M.INHARM]: 0.34, [M.SPREAD]: 0.3,
-      [M.DECAY]: 0.78, [M.DECAY_TILT]: 0.36, [M.MATERIAL]: 0, [M.POSITION]: 0.5, [M.KEYTRACK]: 0.2,
-      [X.TYPE]: 2, [X.PRESSURE]: 0.9, [X.GRAIN]: 0.6, [X.TONE]: 0.4, [X.VEL_TILT]: 0.8,
-      [V.MIX]: 0.55, [V.SIZE]: 0.75, [V.DECAY]: 0.68, [V.DIFFUSION]: 0.8, [V.SHIMMER]: 0.1,
-      [M.ANIMA]: 0.6, [M.BEAT]: 0.4, [M.BEAT_RATE]: 0.08,
-      [X.PULSE]: 0.3, [X.PULSE_RATE]: 0.08,
-      [MASTER_GAIN]: 0.62,
+      ...body(1.0, 0.26, 0.3, 0.78, 0.36, 0, 0.5, 0.2),
+      ...breath(2, 0.9, 0.6, 0.36, 0.8), ...life(0.6, 0.4, 0.08, 0.3, 0.08),
+      ...evolve(0.0, 0.72, 0.13), ...veil(0.55, 0.75, 0.68, 0.8, 0.1), ...trim(1.0),
     },
     macros: { air: 0.7, body: 0.62, shimmer: 0.18, drift: 0.4 },
   },
   {
-    id: 'aerial',
-    name: 'Aerial',
-    blurb: 'air · blow · inharm 1%',
+    id: 'ferrous', name: 'Ferrous', family: 'struck',
+    blurb: 'iron · rub · past pitch',
     description:
-      'An air column with almost no metal in it. Breath-forward, nearly a wind sound, pitched only just enough to be played.',
+      'The haunted one. Past the pitch threshold — it reads as a room reacting rather than a note being played.',
     params: {
-      [M.ENABLE]: 1, [M.PARTIALS]: 0.25, [M.INHARM]: 0.01, [M.SPREAD]: 0.2,
-      [M.DECAY]: 0.3, [M.DECAY_TILT]: 0.58, [M.MATERIAL]: 5, [M.POSITION]: 0.4, [M.KEYTRACK]: 0.5,
-      [X.TYPE]: 1, [X.PRESSURE]: 0.62, [X.GRAIN]: 0.85, [X.TONE]: 0.55, [X.VEL_TILT]: 0.4,
-      [V.MIX]: 0.48, [V.SIZE]: 0.6, [V.DECAY]: 0.45, [V.DIFFUSION]: 0.75, [V.SHIMMER]: 0.05,
-      [M.ANIMA]: 0.55, [M.BEAT]: 0.15, [M.BEAT_RATE]: 0.3,
-      [X.PULSE]: 0.6, [X.PULSE_RATE]: 0.18,
-      [MASTER_GAIN]: 0.8,
+      ...body(1.0, 0.46, 0.38, 0.7, 0.3, 2, 0.62, 0.1),
+      ...breath(3, 0.48, 0.7, 0.42, 0.55), ...life(0.7, 0.5, 0.05, 0.35, 0.06),
+      ...evolve(0.0, 0.62, 0.3), ...veil(0.62, 0.7, 0.72, 0.78, 0.16, 0, 0.22), ...trim(0.18),
     },
-    macros: { air: 0.78, body: 0.16, shimmer: 0.12, drift: 0.3 },
+    macros: { air: 0.48, body: 0.82, shimmer: 0.24, drift: 0.55 },
   },
+
+  // ── Sustained ────────────────────────────────────────────────────────────
   {
-    id: 'cathedral',
-    name: 'Cathedral',
+    id: 'cathedral', name: 'Cathedral', family: 'sustained',
     blurb: 'bronze · bow · veil 90%',
     description:
-      'Bowed metal into a forty-second Veil. Turns a single held note into a chord through shimmer alone.',
+      'Bowed metal into a long Veil. Turns a single held note into a chord through shimmer alone.',
     params: {
-      [M.ENABLE]: 1, [M.PARTIALS]: 0.75, [M.INHARM]: 0.06, [M.SPREAD]: 0.16,
-      [M.DECAY]: 0.55, [M.DECAY_TILT]: 0.4, [M.MATERIAL]: 0, [M.POSITION]: 0.3, [M.KEYTRACK]: 0.35,
-      [X.TYPE]: 0, [X.PRESSURE]: 0.6, [X.GRAIN]: 0.3, [X.TONE]: 0.42, [X.VEL_TILT]: 0.5,
-      [V.MIX]: 0.9, [V.SIZE]: 0.85, [V.DECAY]: 0.82, [V.DIFFUSION]: 0.85,
-      [V.SHIMMER]: 0.5, [V.SHIMMER_IVL]: 0,
-      [M.ANIMA]: 0.4, [M.BEAT]: 0.3, [M.BEAT_RATE]: 0.18,
-      [X.PULSE]: 0.4, [X.PULSE_RATE]: 0.1,
-      [MASTER_GAIN]: 0.65,
+      ...body(0.75, 0.06, 0.16, 0.55, 0.4, 0, 0.3, 0.35),
+      ...breath(0, 0.6, 0.3, 0.4, 0.5), ...life(0.4, 0.3, 0.18, 0.4, 0.1),
+      ...evolve(0.12, 0.56, 0.25), ...veil(0.9, 0.85, 0.82, 0.85, 0.5), ...trim(0.22),
     },
     macros: { air: 0.6, body: 0.4, shimmer: 0.72, drift: 0.35 },
   },
   {
-    id: 'ferrous',
-    name: 'Ferrous',
-    blurb: 'iron · rub · inharm 58%',
-    description:
-      'The haunted one. Past the pitch threshold — it reads as a room reacting rather than a note being played.',
+    id: 'aurora', name: 'Aurora', family: 'sustained',
+    blurb: 'glass · bow · shimmer +19',
+    description: 'Shimmer-forward. Blooms upward continuously without ever running away.',
     params: {
-      [M.ENABLE]: 1, [M.PARTIALS]: 1.0, [M.INHARM]: 0.58, [M.SPREAD]: 0.45,
-      [M.DECAY]: 0.7, [M.DECAY_TILT]: 0.3, [M.MATERIAL]: 2, [M.POSITION]: 0.62, [M.KEYTRACK]: 0.1,
-      [X.TYPE]: 3, [X.PRESSURE]: 0.48, [X.GRAIN]: 0.7, [X.TONE]: 0.5, [X.VEL_TILT]: 0.55,
-      [V.MIX]: 0.62, [V.SIZE]: 0.7, [V.DECAY]: 0.72, [V.DIFFUSION]: 0.78, [V.SHIMMER]: 0.16, [V.BLUR]: 0.22,
-      [M.ANIMA]: 0.7, [M.BEAT]: 0.5, [M.BEAT_RATE]: 0.05,
-      [X.PULSE]: 0.35, [X.PULSE_RATE]: 0.06,
-      [MASTER_GAIN]: 0.35,
-    },
-    macros: { air: 0.48, body: 0.82, shimmer: 0.24, drift: 0.55 },
-  },
-  {
-    id: 'aurora',
-    name: 'Aurora',
-    blurb: 'glass · bow · shimmer 100%',
-    description:
-      'Shimmer-forward pad. Feedback sits just under unity, so it blooms upward continuously without running away.',
-    params: {
-      [M.ENABLE]: 1, [M.PARTIALS]: 0.75, [M.INHARM]: 0.11, [M.SPREAD]: 0.12,
-      [M.DECAY]: 0.48, [M.DECAY_TILT]: 0.34, [M.MATERIAL]: 1, [M.POSITION]: 0.22, [M.KEYTRACK]: 0.5,
-      [X.TYPE]: 0, [X.PRESSURE]: 0.55, [X.GRAIN]: 0.25, [X.TONE]: 0.6, [X.VEL_TILT]: 0.45,
-      [V.MIX]: 0.82, [V.SIZE]: 0.68, [V.DECAY]: 0.75, [V.DIFFUSION]: 0.88,
-      [V.SHIMMER]: 1.0, [V.SHIMMER_IVL]: 1,
-      [M.ANIMA]: 0.55, [M.BEAT]: 0.25, [M.BEAT_RATE]: 0.35,
-      [X.PULSE]: 0.45, [X.PULSE_RATE]: 0.15,
-      [MASTER_GAIN]: 0.42,
+      ...body(0.75, 0.11, 0.12, 0.48, 0.34, 1, 0.22, 0.5),
+      ...breath(0, 0.55, 0.25, 0.55, 0.45), ...life(0.55, 0.25, 0.35, 0.45, 0.15),
+      ...evolve(0.18, 0.5, 0.3), ...veil(0.78, 0.68, 0.75, 0.88, 0.85, 1), ...trim(0.15),
     },
     macros: { air: 0.52, body: 0.3, shimmer: 0.95, drift: 0.42 },
   },
   {
-    id: 'undertow',
-    name: 'Undertow',
-    blurb: 'skin · strike · tilt +80%',
+    id: 'aerial', name: 'Aerial', family: 'sustained',
+    blurb: 'air · blow · breath-forward',
     description:
-      'Sub-heavy, highs gone in half a second. The floor a session sits on, rather than anything you would solo.',
+      'An air column with almost no metal in it. Nearly a wind sound, pitched only just enough to be played.',
     params: {
-      [M.ENABLE]: 1, [M.PARTIALS]: 0.25, [M.INHARM]: 0.02, [M.SPREAD]: 0.1,
-      [M.DECAY]: 0.66, [M.DECAY_TILT]: 0.9, [M.MATERIAL]: 4, [M.POSITION]: 0.46, [M.KEYTRACK]: 0.3,
-      [X.TYPE]: 2, [X.PRESSURE]: 0.85, [X.GRAIN]: 0.4, [X.TONE]: 0.12, [X.VEL_TILT]: 0.5,
-      [V.MIX]: 0.38, [V.SIZE]: 0.8, [V.DECAY]: 0.6, [V.DIFFUSION]: 0.6, [V.SHIMMER]: 0.0,
-      [M.ANIMA]: 0.35, [M.BEAT]: 0.3, [M.BEAT_RATE]: 0.1,
-      [X.PULSE]: 0.25, [X.PULSE_RATE]: 0.09,
-      [MASTER_GAIN]: 0.75,
+      ...body(0.25, 0.01, 0.2, 0.3, 0.58, 5, 0.4, 0.5),
+      ...breath(1, 0.62, 0.85, 0.5, 0.4), ...life(0.55, 0.15, 0.3, 0.6, 0.18),
+      ...evolve(0.1, 0.5, 0.2), ...veil(0.48, 0.6, 0.45, 0.75, 0.05), ...trim(0.46),
+    },
+    macros: { air: 0.78, body: 0.16, shimmer: 0.12, drift: 0.3 },
+  },
+
+  // ── Pads and swells ──────────────────────────────────────────────────────
+  {
+    id: 'vespers', name: 'Vespers', family: 'pad',
+    blurb: 'bronze pad · 3 s swell',
+    description:
+      'The plainest pad in the set, and the one to start from. Arrives over three seconds, beats gently, never gets bright.',
+    params: {
+      ...body(0.5, 0.03, 0.18, 0.6, 0.55, 0, 0.32, 0.4),
+      ...breath(0, 0.5, 0.35, 0.24, 0.3), ...life(0.5, 0.42, 0.11, 0.45, 0.07),
+      ...evolve(0.62, 0.56, 0.35), ...veil(0.62, 0.7, 0.62, 0.8, 0.14), ...trim(1.0),
+    },
+    macros: { air: 0.5, body: 0.3, shimmer: 0.25, drift: 0.4 },
+  },
+  {
+    id: 'glasshouse', name: 'Glasshouse', family: 'pad',
+    blurb: 'glass pad · swell into shimmer',
+    description:
+      'Bright and weightless. The swell and the shimmer arrive together, so it seems to come from above rather than in front.',
+    params: {
+      ...body(0.75, 0.13, 0.1, 0.52, 0.28, 1, 0.18, 0.55),
+      ...breath(0, 0.48, 0.22, 0.6, 0.35), ...life(0.45, 0.3, 0.38, 0.4, 0.13),
+      ...evolve(0.7, 0.6, 0.4), ...veil(0.72, 0.66, 0.7, 0.86, 0.6, 1), ...trim(0.17),
+    },
+    macros: { air: 0.45, body: 0.32, shimmer: 0.8, drift: 0.45 },
+  },
+  {
+    id: 'ashfall', name: 'Ashfall', family: 'pad',
+    blurb: 'skin + iron · closes over 20 s',
+    description:
+      'Starts open and slowly shuts. Morph runs negative here, so the body gets darker and shorter the longer you hold it.',
+    params: {
+      ...body(0.5, 0.16, 0.34, 0.58, 0.5, 4, 0.44, 0.25),
+      ...breath(3, 0.55, 0.62, 0.3, 0.4), ...life(0.6, 0.28, 0.07, 0.5, 0.05),
+      ...evolve(0.55, 0.16, 0.45), ...veil(0.6, 0.72, 0.6, 0.74, 0.06, 0, 0.3), ...trim(0.43),
+    },
+    macros: { air: 0.5, body: 0.5, shimmer: 0.12, drift: 0.5 },
+  },
+  {
+    id: 'rise', name: 'Rise', family: 'pad',
+    blurb: 'wood · long swell · opens up',
+    description:
+      'A swell that keeps going. Eight seconds to arrive and it is still brightening when it gets there — hold it longer than feels sensible.',
+    params: {
+      ...body(0.75, 0.07, 0.15, 0.5, 0.62, 3, 0.2, 0.5),
+      ...breath(1, 0.6, 0.55, 0.35, 0.3), ...life(0.5, 0.2, 0.25, 0.55, 0.1),
+      ...evolve(0.86, 0.82, 0.32), ...veil(0.68, 0.75, 0.68, 0.82, 0.4, 0), ...trim(0.21),
+    },
+    macros: { air: 0.6, body: 0.34, shimmer: 0.5, drift: 0.5 },
+  },
+
+  // ── Soundscapes ──────────────────────────────────────────────────────────
+  {
+    id: 'slow-tide', name: 'Slow Tide', family: 'soundscape',
+    blurb: 'one note · 60 s of change',
+    description:
+      'Play one note and leave it. The bank re-derives itself for a full minute, so nothing you hear at the end was there at the start.',
+    params: {
+      ...body(0.75, 0.05, 0.28, 0.72, 0.46, 0, 0.3, 0.2),
+      ...breath(0, 0.44, 0.4, 0.26, 0.25), ...life(0.75, 0.35, 0.04, 0.55, 0.035),
+      ...evolve(0.72, 0.78, 0.8), ...veil(0.72, 0.88, 0.8, 0.86, 0.3, 1, 0.18), ...trim(0.45),
+    },
+    macros: { air: 0.45, body: 0.4, shimmer: 0.45, drift: 0.7 },
+  },
+  {
+    id: 'reliquary', name: 'Reliquary', family: 'soundscape',
+    blurb: 'iron · closes inward · 40 s',
+    description:
+      'Something ancient and shut. Begins wide and inharmonic and gradually pulls in on itself, as if the room were getting smaller.',
+    params: {
+      ...body(1.0, 0.4, 0.42, 0.68, 0.34, 2, 0.56, 0.12),
+      ...breath(3, 0.42, 0.68, 0.34, 0.4), ...life(0.8, 0.45, 0.045, 0.4, 0.04),
+      ...evolve(0.5, 0.12, 0.66), ...veil(0.7, 0.82, 0.78, 0.8, 0.18, 3, 0.35), ...trim(0.14),
+    },
+    macros: { air: 0.44, body: 0.7, shimmer: 0.22, drift: 0.65 },
+  },
+  {
+    id: 'cathedral-dust', name: 'Cathedral Dust', family: 'soundscape',
+    blurb: 'bell → air · 30 s',
+    description:
+      'Starts as a struck bell and ends as breath. The morph carries it the whole way; the strike is only how it begins.',
+    params: {
+      ...body(0.75, 0.08, 0.22, 0.66, 0.4, 0, 0.24, 0.3),
+      ...breath(2, 0.85, 0.5, 0.44, 0.6), ...life(0.7, 0.3, 0.09, 0.3, 0.06),
+      ...evolve(0.0, 0.88, 0.56), ...veil(0.74, 0.86, 0.82, 0.88, 0.45, 0, 0.42), ...trim(1.0),
+    },
+    macros: { air: 0.5, body: 0.45, shimmer: 0.55, drift: 0.6 },
+  },
+  {
+    id: 'undertow', name: 'Undertow', family: 'soundscape',
+    blurb: 'skin · sub-heavy floor',
+    description:
+      'Highs gone in half a second. The floor a session sits on, rather than anything you would solo.',
+    params: {
+      ...body(0.25, 0.02, 0.1, 0.66, 0.9, 4, 0.46, 0.3),
+      ...breath(2, 0.85, 0.4, 0.12, 0.5), ...life(0.35, 0.3, 0.1, 0.25, 0.09),
+      ...evolve(0.2, 0.44, 0.5), ...veil(0.38, 0.8, 0.6, 0.6), ...trim(1.0),
     },
     macros: { air: 0.6, body: 0.7, shimmer: 0.02, drift: 0.18 },
   },
@@ -180,15 +267,22 @@ export const velaPreset = (id: string): VelaPreset | undefined =>
 
 export const DEFAULT_VELA_PRESET = VELA_PRESETS[0];
 
+/** Grouped for the gallery, in family order. */
+export const velaPresetsByFamily = (): Array<{ family: VelaFamily; label: string; presets: VelaPreset[] }> =>
+  (['struck', 'sustained', 'pad', 'soundscape'] as VelaFamily[]).map((family) => ({
+    family,
+    label: VELA_FAMILY_LABELS[family],
+    presets: VELA_PRESETS.filter((p) => p.family === family),
+  }));
+
 // ── Macros ───────────────────────────────────────────────────────────────────
 
 /**
- * Expand the four Play-panel macros into raw parameter values, layered on top of a preset.
+ * Expand the four Play-panel macros into raw parameter values, layered on a preset.
  *
- * A macro is not a single parameter with a friendly name — each one moves several at once along
- * a curve chosen so the whole travel of the knob is useful. Air is the clearest example: at the
- * bottom it is a whisper of pressure with a soft tone, at the top it is hard, grainy and bright,
- * and no single engine parameter does that on its own.
+ * A macro is not one parameter with a friendly name — each moves several along a curve chosen
+ * so the whole travel is useful. Air is the clearest: at the bottom a whisper of pressure with
+ * a soft tone, at the top hard, grainy and bright, and no single engine parameter does that.
  */
 export function expandMacros(
   base: Record<number, number>,
@@ -196,34 +290,31 @@ export function expandMacros(
 ): Record<number, number> {
   const clamp = (v: number) => Math.max(0, Math.min(1, v));
   const air = clamp(macros.air);
-  const body = clamp(macros.body);
+  const bodyM = clamp(macros.body);
   const shimmer = clamp(macros.shimmer);
 
   const at = (id: number, fallback: number) => base[id] ?? fallback;
   const out: Record<number, number> = { ...base };
 
-  // Air — exciter pressure, grain and tone together.
   out[X.PRESSURE] = clamp(0.12 + air * 0.85);
   out[X.GRAIN] = clamp(at(X.GRAIN, 0.4) * 0.45 + air * 0.55);
   out[X.TONE] = clamp(at(X.TONE, 0.4) * 0.6 + air * 0.4);
 
-  // Body — inharmonicity and decay. Non-linear on inharmonicity because the musically useful
-  // range is compressed into the bottom fifth of the control; a linear macro would spend most
-  // of its travel past the point where pitch has already dissolved.
-  const inharmBase = at(M.INHARM, 0.05);
-  out[M.INHARM] = clamp(inharmBase + body * body * 0.55);
-  out[M.DECAY] = clamp(0.15 + body * 0.7);
+  // Non-linear on inharmonicity because the musically useful range is compressed into the
+  // bottom fifth of the control; a linear macro would spend most of its travel past the point
+  // where pitch has already dissolved.
+  out[M.INHARM] = clamp(at(M.INHARM, 0.05) + bodyM * bodyM * 0.45);
+  out[M.DECAY] = clamp(0.15 + bodyM * 0.7);
 
-  // Shimmer — Veil depth. Mix and shimmer move together, since shimmer with no wet signal is
-  // an inaudible control and that is a confusing knob to hand someone.
+  // Mix and shimmer move together: shimmer with no wet signal is an inaudible control, and
+  // that is a confusing knob to hand someone.
   out[V.SHIMMER] = clamp(shimmer);
   out[V.MIX] = clamp(Math.max(at(V.MIX, 0.4), shimmer * 0.9));
 
-  // Drift is not expanded here: it scales the depth of every Motion route, which lives in the
+  // Drift is not expanded here — it scales the depth of every Motion route, which lives in the
   // Motion compiler rather than in the parameter block.
   return out;
 }
 
-/** Drift maps to a multiplier applied to every compiled Motion route's depth. */
 export const driftDepthScale = (drift: number): number =>
   Math.max(0, Math.min(1, drift)) * 1.6;

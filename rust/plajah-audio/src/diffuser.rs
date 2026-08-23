@@ -135,12 +135,20 @@ impl Shifter {
         let p2 = self.phase + self.window * 0.5;
         let p2 = if p2 >= self.window { p2 - self.window } else { p2 };
 
-        // Equal-power crossfade between the two heads, driven by position in the window.
+        // Two Hann windows a half-cycle apart. They sum to exactly 1 everywhere, and both the
+        // window and its derivative are continuous through the wrap.
+        //
+        // This was sin().abs() against cos().abs(). Those do satisfy g1^2 + g2^2 = 1, but the
+        // absolute value folds the cosine at the half-window and leaves a derivative
+        // discontinuity there — a kink on every single grain, which is heard as a persistent
+        // metallic edge on anything with shimmer up. It is the classic granular artefact and it
+        // is easy to misread as the pitch shifter simply "sounding cheap".
         let t = self.phase / self.window;
-        let g1 = (core::f32::consts::PI * t).sin();
-        let g2 = (core::f32::consts::PI * t).cos();
+        let t2 = if t + 0.5 >= 1.0 { t - 0.5 } else { t + 0.5 };
+        let g1 = 0.5 - 0.5 * (core::f32::consts::TAU * t).cos();
+        let g2 = 0.5 - 0.5 * (core::f32::consts::TAU * t2).cos();
 
-        read(p1, &self.buf) * g1.abs() + read(p2, &self.buf) * g2.abs()
+        read(p1, &self.buf) * g1 + read(p2, &self.buf) * g2
     }
 
     fn clear(&mut self) {
@@ -172,6 +180,15 @@ pub struct Diffuser {
     /// field is decorrelated but identical on every render.
     spread: [[f32; MAX_CHANNELS]; LINES],
     /// Smoothed controls — Size and Decay are swept by Motion and must never step.
+    /// One-pole lowpass on the shimmer tap.
+    ///
+    /// Shimmer feedback is a ladder: each pass shifts the signal up another interval, so
+    /// content climbs +12, +24, +36 and piles into the top of the spectrum where partials are
+    /// dense and the ear is least forgiving. Unfiltered, that is not "bright", it is glare —
+    /// the shimmered presets measured 5-20x the roughness of the clean ones. Damping the tap
+    /// gives the ladder a finite number of rungs, which is what every shimmer reverb worth
+    /// using does.
+    shim_lp: f32,
     size_z: f32,
     decay_z: f32,
     mix_z: f32,
@@ -206,6 +223,7 @@ impl Diffuser {
             aps: core::array::from_fn(|i| Line::new((AP_MS[i] * 0.001 * sr) as usize + 8 + max_ap / 4)),
             shifter: Shifter::new((0.080 * sr) as usize + 8),
             spread,
+            shim_lp: 0.0,
             size_z: 0.5,
             decay_z: 0.4,
             mix_z: 0.0,
@@ -223,6 +241,7 @@ impl Diffuser {
             a.clear();
         }
         self.shifter.clear();
+        self.shim_lp = 0.0;
     }
 
     /// Process a block in place. `nch` channels of `frames` samples, channel-major.
@@ -335,7 +354,17 @@ impl Diffuser {
             // The shimmer tap: pitch-shift the network output and fold it back in. Because it
             // re-enters the same network it blooms upward continuously instead of sounding like
             // a discrete octave layer.
-            let shifted = if shim > 0.0001 { self.shifter.process(sum, ratio) } else { 0.0 };
+            let shifted = if shim > 0.0001 {
+                let raw = self.shifter.process(sum, ratio);
+                // ~2.5 kHz at 48k, opened up a little when diffusion is low so a sparse,
+                // deliberate shimmer can still sparkle.
+                let cut = (0.16 + 0.10 * (1.0 - s.diffusion)) * (48000.0 / self.sr);
+                self.shim_lp += (raw - self.shim_lp) * cut.clamp(0.02, 0.9);
+                self.shim_lp
+            } else {
+                self.shim_lp = 0.0;
+                0.0
+            };
 
             for i in 0..LINES {
                 let recirc = m[i] * (1.0 - shim) + shifted * shim;

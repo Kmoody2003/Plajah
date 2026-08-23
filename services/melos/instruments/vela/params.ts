@@ -35,6 +35,13 @@ export const M = {
   BEAT: 1010,
   /// Beat rate at the fundamental. Higher partials beat proportionally faster.
   BEAT_RATE: 1011,
+  /// Amplitude attack, 0..12 s. A modal bank can only decay on its own, so without this the
+  /// instrument structurally cannot make a pad.
+  SWELL: 1012,
+  /// Timbral evolution across the note. 0.5 is static; the bank re-derives itself as the note
+  /// ages, so a held note is still becoming something else a minute later.
+  MORPH: 1013,
+  MORPH_TIME: 1014,
 } as const;
 
 /** Exciter — what puts energy into the bank. */
@@ -133,6 +140,22 @@ export const VELA_PARAM_META: Record<number, VelaParamMeta> = {
   [M.KEYTRACK]: { id: M.KEYTRACK, label: 'Key track', group: 'body', format: pct },
   [M.ANIMA]: { id: M.ANIMA, label: 'Anima', group: 'body', format: pct },
   [M.BEAT]: { id: M.BEAT, label: 'Beat', group: 'body', format: pct },
+  [M.SWELL]: {
+    id: M.SWELL, label: 'Swell', group: 'body',
+    format: (v) => { const t = 12 * v * v * v; return t < 0.05 ? 'instant' : `${t.toFixed(1)} s`; },
+  },
+  [M.MORPH]: {
+    id: M.MORPH, label: 'Morph', group: 'body',
+    format: (v) => {
+      const m = v * 2 - 1;
+      if (Math.abs(m) < 0.04) return 'static';
+      return m > 0 ? `opens ${m.toFixed(2)}` : `closes ${Math.abs(m).toFixed(2)}`;
+    },
+  },
+  [M.MORPH_TIME]: {
+    id: M.MORPH_TIME, label: 'Morph time', group: 'body',
+    format: (v) => `${(1 + 89 * v * v).toFixed(0)} s`,
+  },
   [M.BEAT_RATE]: {
     id: M.BEAT_RATE, label: 'Beat rate', group: 'body',
     format: (v) => `${(0.15 * Math.pow(60, Math.max(0, Math.min(1, v)))).toFixed(2)} Hz`,

@@ -125,6 +125,13 @@ pub const M_ANIMA: u32 = 9;
 pub const M_BEAT: u32 = 10;
 /// Beat rate at the fundamental, 0..1 → 0.15..9 Hz.
 pub const M_BEAT_RATE: u32 = 11;
+/// Amplitude attack. 0..1 → 0..12 s. Without it every note starts at full level, and a modal
+/// bank that can only decay can never be a pad.
+pub const M_SWELL: u32 = 12;
+/// Timbral evolution across the note. 0..1 stored, -1..+1 used; 0.5 is static.
+pub const M_MORPH: u32 = 13;
+/// Seconds the morph takes. 0..1 → 1..90 s.
+pub const M_MORPH_TIME: u32 = 14;
 
 /// Exciter — bow, blow, strike, rub.
 pub const EXC_BASE: u32 = 1100;
@@ -245,6 +252,9 @@ impl Params {
         self.set(MODAL_BASE + M_ANIMA, 0.3);
         self.set(MODAL_BASE + M_BEAT, 0.25);
         self.set(MODAL_BASE + M_BEAT_RATE, 0.22);
+        self.set(MODAL_BASE + M_SWELL, 0.0);
+        self.set(MODAL_BASE + M_MORPH, 0.5);
+        self.set(MODAL_BASE + M_MORPH_TIME, 0.2);
 
         self.set(EXC_BASE + X_TYPE, 0.0); // bow
         self.set(EXC_BASE + X_PRESSURE, 0.5);
@@ -273,6 +283,21 @@ impl Params {
 pub fn modal_decay_s(norm: f32) -> f32 {
     let n = norm.clamp(0.0, 1.0);
     0.2 + 44.8 * n * n * n
+}
+
+/// Swell (amplitude attack): 0..1 → 0 … 12 s, cubed so the short end keeps resolution.
+#[inline]
+pub fn swell_time_s(norm: f32) -> f32 {
+    let n = norm.clamp(0.0, 1.0);
+    12.0 * n * n * n
+}
+
+/// Morph time: 0..1 → 1 s … 90 s. The long end is the soundscape register, where a single held
+/// note is still becoming something else a minute later.
+#[inline]
+pub fn morph_time_s(norm: f32) -> f32 {
+    let n = norm.clamp(0.0, 1.0);
+    1.0 + 89.0 * n * n
 }
 
 /// Beat rate: 0..1 → 0.15 Hz … 9 Hz. A real bowl beats somewhere between one cycle every few
