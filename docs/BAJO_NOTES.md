@@ -42,19 +42,33 @@ cost about a megabyte. If BAJO ever needs to be a surround instrument this is th
 
 ## Surfaces
 
-**6. No playhead on the rate lane or the gate grid.** Both components accept a `playStep` prop
-and both currently receive nothing, so the pattern is editable but not *readable while playing* —
-which is half of why you would draw one. It needs the transport's current 16th from `BeatsEngine`;
-the plumbing does not exist yet.
+**6. ~~No playhead on the rate lane or the gate grid.~~** Done 2026-08-23. `useBajoTransport`
+polls `BeatsEngine.posBeats()` on a frame loop and derives the lane slot and the gate cell with
+the same two expressions the Rust engine uses — both sections read the transport themselves rather
+than being stepped by the host, so the UI has to derive rather than be told. If either expression
+in `bajo.rs` changes, that hook changes with it or the playhead starts lying about what you hear.
+Gated on the index actually changing, so it re-renders a few times a bar rather than 60 times a
+second.
 
-**7. Crossform is in; the Morph Pad is not.** Crossform landed 2026-08-23 — pick any two
-patches, blend the whole instrument between them. Continuous parameters interpolate; wavetables,
-the rate lane, the gate grid and anything the engine reads as an index or a flag snap at the
-midpoint, because half a toggle is not a state and a blend of two patterns is a third pattern
-nobody asked for. Folded away behind a disclosure in the Play panel, since it rewrites the patch.
+**7. ~~The Morph Pad and Crossform did not cross over.~~** Both in as of 2026-08-23.
 
-The XY pad with recordable tempo-locked gesture playback still has not crossed over, and the
-question is still open: Melos has Motion, so the pad may be a second way to do the same thing.
+Crossform: pick any two patches, blend the whole instrument between them. Continuous parameters
+interpolate; wavetables, the rate lane, the gate grid and anything read as an index or a flag snap
+at the midpoint. Folded behind a disclosure, since it rewrites the patch.
+
+Morph Pad: two axes, each wired per-preset to the parameters that matter for THAT sound — the
+vowel on a talkbox, damping and body on an upright, the comb spacing on Screech Metal. Twelve
+presets carry bespoke wiring; the rest fall back to cutoff on X and Scorch drive on Y. Record a
+move and it loops in bars against the transport, and stopping a recording turns the loop on,
+because having to find a second button to hear what you just drew is a bad trade.
+
+**Its one real limitation: the loop is driven by the UI, not the engine.** The wobble lane lives
+in `bajo.rs` and runs whether or not anything is on screen; the pad's gesture is replayed by a
+React effect reading `posBeats()`, so it only plays while the panel is open and the tab is
+visible. Close the panel and the morph stops, leaving its parameters wherever they were. Making it
+survive that means a path player on the Rust side, reading the same transport the wobble does —
+worth doing if the pad turns out to be something people build patches around rather than perform
+with live.
 
 **8. The arpeggiator is Melos's, not BAJO's.** BAJO deliberately does not ship its own arp — the
 Beats layer already has `arp.ts` and `ArpPanel`. **This has not been tested against a BAJO track.**
@@ -72,6 +86,13 @@ riddim patch left the string engine at full strength and the gate stuck on, beca
 only one side mentions is not the two sides agreeing, it is one side changing it.
 
 ## Not yet verified
+
+**The playheads have not been seen moving, and neither has pad loop playback.** Both are driven by
+`requestAnimationFrame`, and the browser throttles that to about 4 fps when the pane is not
+composited — which is every session I have had. The index arithmetic is verified directly against
+the Rust derivations (lane slot, all three gate rates, loop phase, negative positions under
+`rem_euclid`), and the pad's drag path is verified end to end against a stubbed engine. What is
+unverified is the frame loop actually turning those into movement on screen.
 
 **10. Offline render.** The rack lives inside the engine specifically so an offline bounce is
 identical to live. That is the design, and the determinism test covers the voice path, but nobody

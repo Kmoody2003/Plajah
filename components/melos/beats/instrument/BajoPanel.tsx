@@ -7,17 +7,20 @@
 // Four macros under it — Weight, Grit, Wobble, Space — and a preset name. Everything else is one
 // click away in the editor, same as ONDA and VELA.
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import type { ArrangeTrack, GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import {
   deserializeBajoPatch, applyBajoPreset, bajoEngineParams, applyBajoPatch, crossformPatch, flattenGrid,
+  type PadTarget,
   BAJO_MACRO_HINTS, BAJO_MACRO_LABELS, BAJO_MACRO_ORDER, type BajoPatch,
 } from '../../../../services/melos/instruments/bajo/patch';
 import { BAJO_PRESETS, type BajoMacro } from '../../../../services/melos/instruments/bajo/presets';
 import { newBajoPatch } from '../../../../services/melos/instruments/bajo/patch';
-import { W, G } from '../../../../services/melos/instruments/bajo/params';
+import { W, G, bajoParamLabel } from '../../../../services/melos/instruments/bajo/params';
+import { MorphPad, padValue } from './MorphPad';
+import { useBajoTransport } from './useBajoTransport';
 import { Knob } from '../shared/Knob';
 import { WobbleLane, LANE_PRESETS } from './WobbleLane';
 import { BajoEditor } from './BajoEditor';
@@ -48,11 +51,15 @@ export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
   const [xfA, setXfA] = useState(BAJO_PRESETS[0].id);
   const [xfB, setXfB] = useState(BAJO_PRESETS[BAJO_PRESETS.length - 1].id);
   const [xfAmt, setXfAmt] = useState(0);
+  const [padRec, setPadRec] = useState(false);
+  const recBuf = useRef<number[]>([]);
 
   // Deliberately not memoised, for the same reason as ONDA's and VELA's panels: the doc mutates
   // in place, so a memo keyed on the patch object would never invalidate and every control
   // would freeze.
   const patch: BajoPatch | null = deserializeBajoPatch(track.instrument?.patch);
+  // Hooks cannot sit behind the null check below, so the rate is read defensively here.
+  const tr = useBajoTransport(patch?.params?.[G.RATE] ?? 1, !!patch?.padLoop);
 
   /** The fast path: parameters only. Turning a macro must never rebuild a wavetable. */
   const pushParams = useCallback((p: BajoPatch) => {
@@ -127,6 +134,45 @@ export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
     });
   }, [onMutate, pushAll, track.id]);
 
+  /**
+   * Move the pad. This drives the ENGINE only — writing the document on every pointermove would
+   * put a Firestore write behind every pixel of a gesture.
+   */
+  const padMove = useCallback((px: number, py: number, targets: { x: PadTarget[]; y: PadTarget[] }) => {
+    const inst = BeatsEngine.get().getInstrument(track.id);
+    if (!inst) return;
+    for (const t of targets.x) inst.setParam(t.id, padValue(t, px));
+    for (const t of targets.y) inst.setParam(t.id, padValue(t, py));
+  }, [track.id]);
+
+  /** Drag finished, or a recording stopped: now it is worth storing. */
+  const padCommit = useCallback((px: number, py: number, recorded?: number[]) => {
+    onMutate((d) => {
+      const t = d.arrangement.find((x) => x.id === track.id);
+      const raw = t?.instrument?.patch as Record<string, unknown> | undefined;
+      if (!raw) return;
+      raw.padPos = [px, py];
+      if (recorded) raw.padPath = [...recorded];
+    });
+  }, [onMutate, track.id]);
+
+  // Replay a recorded gesture against the transport. Engine-only, like the drag itself.
+  const padX = patch?.padX ?? [];
+  const padY = patch?.padY ?? [];
+  const padPath = patch?.padPath ?? [];
+  const padBars = patch?.padBars ?? 2;
+  const looping = !!patch?.padLoop && padPath.length >= 3;
+  const loopPhase = looping && tr.running ? ((tr.beats / (4 * padBars)) % 1 + 1) % 1 : 0;
+  const lastLoop = useRef(-1);
+  useEffect(() => {
+    if (!looping || !tr.running) return;
+    let best = 0;
+    for (let i = 0; i + 2 < padPath.length; i += 3) if (padPath[i] <= loopPhase) best = i;
+    if (best === lastLoop.current) return;
+    lastLoop.current = best;
+    padMove(padPath[best + 1], padPath[best + 2], { x: padX, y: padY });
+  }, [looping, loopPhase, padMove, padPath, padX, padY, tr.running]);
+
   if (!patch) {
     return <div className="p-4 text-[12px] text-white/50">This track has no BAJO patch.</div>;
   }
@@ -196,6 +242,89 @@ export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
             skew={patch.params[W.SKEW] ?? 0.5}
             smooth={patch.params[W.SMOOTH] ?? 0.1}
             accent={wobbleOn ? BAJO_ACCENT : '#4B4658'}
+            playStep={wobbleOn ? tr.laneStep : -1}
+          />
+        </div>
+
+        {/* The Morph Pad. Above the macros because it is the thing you actually perform with. */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] uppercase tracking-[0.18em] text-white/40">Morph pad</span>
+            <span className="flex-1" />
+            <button
+              onClick={() => {
+                if (padRec) {
+                  // Stop: keep what was drawn, and start looping it — recording a move and then
+                  // having to find a second button to hear it is a bad trade.
+                  const rec = recBuf.current.slice();
+                  setPadRec(false);
+                  onMutate((d) => {
+                    const t = d.arrangement.find((x) => x.id === track.id);
+                    const raw = t?.instrument?.patch as Record<string, unknown> | undefined;
+                    if (!raw) return;
+                    raw.padPath = rec;
+                    raw.padLoop = rec.length >= 3;
+                  });
+                } else {
+                  recBuf.current = [];
+                  setPadRec(true);
+                }
+              }}
+              className="text-[9px] uppercase tracking-[0.12em] px-1.5 py-0.5 rounded border"
+              style={{
+                color: padRec ? '#fff' : 'rgba(255,255,255,0.45)',
+                background: padRec ? BAJO_ACCENT : 'transparent',
+                borderColor: padRec ? BAJO_ACCENT : 'rgba(255,255,255,0.12)',
+              }}
+            >
+              {padRec ? 'Stop' : 'Rec'}
+            </button>
+            <button
+              onClick={() => edit((p) => { p.padLoop = !p.padLoop; })}
+              disabled={padPath.length < 3}
+              className="text-[9px] uppercase tracking-[0.12em] px-1.5 py-0.5 rounded border disabled:opacity-30"
+              style={{
+                color: looping ? BAJO_ACCENT : 'rgba(255,255,255,0.45)',
+                borderColor: looping ? 'rgba(255,75,28,0.45)' : 'rgba(255,255,255,0.12)',
+              }}
+            >
+              Loop
+            </button>
+            <select
+              value={padBars}
+              onChange={(e) => edit((p) => { p.padBars = +e.target.value; })}
+              className="bg-black/40 border border-white/10 rounded px-1 py-0.5 text-[9px] text-white/60"
+            >
+              {[1, 2, 4, 8].map((n) => <option key={n} value={n}>{n} bar</option>)}
+            </select>
+            <button
+              onClick={() => edit((p) => { p.padPath = []; p.padLoop = false; })}
+              disabled={padPath.length < 3}
+              className="text-[9px] uppercase tracking-[0.12em] text-white/35 hover:text-white disabled:opacity-30"
+            >
+              Clear
+            </button>
+          </div>
+          <MorphPad
+            x={patch.padPos[0]}
+            y={patch.padPos[1]}
+            targetsX={padX}
+            targetsY={padY}
+            labelX={padX.map((t) => bajoParamLabel(t.id)).join(' + ') || 'unassigned'}
+            labelY={padY.map((t) => bajoParamLabel(t.id)).join(' + ') || 'unassigned'}
+            path={padPath}
+            recording={padRec}
+            looping={looping}
+            loopPhase={loopPhase}
+            accent={BAJO_ACCENT}
+            onMove={(px, py) => {
+              padMove(px, py, { x: padX, y: padY });
+              if (padRec) {
+                const ph = tr.running ? ((tr.beats / (4 * padBars)) % 1 + 1) % 1 : 0;
+                recBuf.current.push(ph, px, py);
+              }
+            }}
+            onCommit={(px, py) => padCommit(px, py)}
           />
         </div>
 

@@ -19,6 +19,7 @@ import {
 import { Knob } from '../shared/Knob';
 import { WobbleLane, LANE_PRESETS } from './WobbleLane';
 import { GhostGateGrid, GATE_PRESETS, buildGrid } from './GhostGateGrid';
+import { useBajoTransport } from './useBajoTransport';
 import { SURFACE, SURFACE_RAISED } from '../theme';
 
 interface Props {
@@ -34,6 +35,7 @@ export const BajoEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
   const patch: BajoPatch | null = deserializeBajoPatch(track.instrument?.patch);
 
   const val = (id: number, fallback: number) => patch?.params?.[id] ?? fallback;
+  const tr = useBajoTransport(patch?.params?.[G.RATE] ?? 1);
 
   const setParam = useCallback((id: number, value: number) => {
     BeatsEngine.get().getInstrument(track.id)?.setParam(id, value);
@@ -110,6 +112,7 @@ export const BajoEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
                   smooth={val(W.SMOOTH, 0.1)}
                   accent={wobbleOn ? ACCENT : '#4B4658'}
                   height={84}
+                  playStep={wobbleOn ? tr.laneStep : -1}
                 />
                 <div className="flex gap-1 flex-wrap">
                   {LANE_PRESETS.map((lp) => (
@@ -127,7 +130,7 @@ export const BajoEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
 
             {group.key === 'gate' && (
               <div className="mb-3 flex flex-col gap-1.5">
-                <GhostGateGrid grid={patch.grid} onChange={setGrid} />
+                <GhostGateGrid grid={patch.grid} onChange={setGrid} playStep={gateOn ? tr.gateCell : -1} />
                 <div className="flex gap-1 flex-wrap">
                   {GATE_PRESETS.map((gp) => (
                     <button

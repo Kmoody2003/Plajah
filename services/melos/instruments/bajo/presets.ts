@@ -24,6 +24,9 @@ export interface BajoPreset {
   macros: Record<BajoMacro, number>;
   /** Wavetable id per oscillator slot. Absent or '' leaves that oscillator analog. */
   tables?: string[];
+  /** Morph-pad wiring. Absent falls back to cutoff on X, Scorch drive on Y. */
+  padX?: Array<{ id: number; lo: number; hi: number }>;
+  padY?: Array<{ id: number; lo: number; hi: number }>;
   lane?: number[];
   grid?: number[][];
 }
@@ -107,7 +110,11 @@ const preset = (
   description: string,
   params: Record<number, number>,
   macros: Record<BajoMacro, number>,
-  extra?: { lane?: number[]; grid?: number[][]; tables?: string[] },
+  extra?: {
+    lane?: number[]; grid?: number[][]; tables?: string[];
+    padX?: Array<{ id: number; lo: number; hi: number }>;
+    padY?: Array<{ id: number; lo: number; hi: number }>;
+  },
 ): BajoPreset => ({
   id, name, genre, family, description,
   params: { ...base(), ...params },
@@ -115,7 +122,12 @@ const preset = (
   tables: extra?.tables,
   lane: extra?.lane,
   grid: extra?.grid,
+  padX: extra?.padX,
+  padY: extra?.padY,
 });
+
+/** A pad destination. Terse because these are written by the dozen. */
+const pd = (id: number, lo: number, hi: number) => ({ id, lo, hi });
 
 /**
  * Put an oscillator on a wavetable at a morph position.
@@ -157,7 +169,8 @@ export const BAJO_PRESETS: BajoPreset[] = [
       [RV.SIZE]: 0.34, [RV.MIX]: 0.1,
     },
     { weight: 0.7, grit: 0.55, wobble: 0.85, space: 0.15 },
-    { tables: [TBL.growl],
+    { padX: [pd(T.VOWEL, 0.05, 0.95)], padY: [pd(W.DEPTH1, 0.25, 1), pd(scorch(1, SC.DRIVE), 0.1, 0.75)],
+      tables: [TBL.growl],
       lane: lane('6666999966668b8b') }),
 
   preset('riddim-snarl', 'Riddim Snarl', 'Dubstep', 'synth',
@@ -177,7 +190,8 @@ export const BAJO_PRESETS: BajoPreset[] = [
       [RV.SIZE]: 0.5, [RV.MIX]: 0.14,
     },
     { weight: 0.75, grit: 0.7, wobble: 0.9, space: 0.2 },
-    {
+    { padX: [pd(flt(0, F.CUTOFF), cut(180), cut(3200))], padY: [pd(G.SPILL, 0, 0.9)],
+     
       tables: ['', TBL.metal],
       lane: lane('9999bbbb99996666'),
       grid: grid(['1111111111111111', '1010110110101101', '1100101011001010', '1010010110100101']),
@@ -201,7 +215,8 @@ export const BAJO_PRESETS: BajoPreset[] = [
       [RV.SIZE]: 0.5, [RV.MIX]: 0.12,
     },
     { weight: 0.6, grit: 0.6, wobble: 0.5, space: 0.25 },
-    { tables: [TBL.reese, TBL.reese],
+    { padX: [pd(osc(0, O.MORPH), 0.1, 0.95)], padY: [pd(scorch(1, SC.DRIVE), 0.05, 0.85), pd(flt(0, F.RES), 0.1, 0.7)],
+      tables: [TBL.reese, TBL.reese],
       lane: lane('9999999966669999') }),
 
   preset('talkbox-wob', 'Talkbox Wob', 'Dubstep', 'synth',
@@ -220,7 +235,8 @@ export const BAJO_PRESETS: BajoPreset[] = [
       [RV.MIX]: 0.12,
     },
     { weight: 0.65, grit: 0.35, wobble: 0.9, space: 0.25 },
-    { tables: [TBL.growl],
+    { padX: [pd(T.VOWEL, 0, 1)], padY: [pd(T.Q, 0.1, 0.9), pd(W.DEPTH1, 0.3, 1)],
+      tables: [TBL.growl],
       lane: lane('6666666699999999') }),
 
   preset('colossus', 'Colossus', 'Dubstep', 'synth',
@@ -262,7 +278,8 @@ export const BAJO_PRESETS: BajoPreset[] = [
       [RV.SIZE]: 0.34, [RV.MIX]: 0.12,
     },
     { weight: 0.55, grit: 0.8, wobble: 0.75, space: 0.15 },
-    { tables: [TBL.metal, TBL.metal],
+    { padX: [pd(osc(0, O.MORPH), 0, 1)], padY: [pd(flt(0, F.CUTOFF), cut(300), cut(9000))],
+      tables: [TBL.metal, TBL.metal],
       lane: lane('bbbb9999bbbb6666') }),
 
 
@@ -605,7 +622,8 @@ export const BAJO_PRESETS: BajoPreset[] = [
       [RV.SIZE]: 0.74, [RV.DECAY]: 0.85, [RV.MIX]: 0.34,
     },
     { weight: 0.6, grit: 0.3, wobble: 0.4, space: 0.6 },
-    { tables: [TBL.fold, TBL.growl] }),
+    { padX: [pd(osc(0, O.MORPH), 0, 1)], padY: [pd(T.VOWEL, 0, 1)],
+      tables: [TBL.fold, TBL.growl] }),
 
 
   preset('cello-menace', 'Cello Menace', 'Cinematic', 'phys',
@@ -643,7 +661,8 @@ export const BAJO_PRESETS: BajoPreset[] = [
       [RV.SIZE]: 0.42, [RV.MIX]: 0.24,
     },
     { weight: 0.4, grit: 0.6, wobble: 0.9, space: 0.5 },
-    { tables: [TBL.growl, TBL.metal],
+    { padX: [pd(T.VOWEL, 0, 1)], padY: [pd(T.Q, 0, 1)],
+      tables: [TBL.growl, TBL.metal],
       lane: lane('9b9b6a6a9999bbbb') }),
   preset('gravity-well', 'Gravity Well', 'Design', 'synth',
     'Everything falls. Half-second glide, inverted filter envelope, pitch dragged down.',
@@ -668,7 +687,8 @@ export const BAJO_PRESETS: BajoPreset[] = [
       [RV.SIZE]: 0.9, [RV.DECAY]: 0.8, [RV.MIX]: 0.3,
     },
     { weight: 0.65, grit: 0.55, wobble: 0.5, space: 0.55 },
-    { tables: [TBL.fold, TBL.fold] }),
+    { padX: [pd(flt(0, F.CUTOFF), cut(80), cut(6000))], padY: [pd(W.DEPTH1, 0, 1)],
+      tables: [TBL.fold, TBL.fold] }),
 
 
   preset('modem-wreck', 'Modem Wreck', 'Design', 'synth',
@@ -690,7 +710,8 @@ export const BAJO_PRESETS: BajoPreset[] = [
       [RV.MIX]: 0.16,
     },
     { weight: 0.5, grit: 0.8, wobble: 0.85, space: 0.4 },
-    {
+    { padX: [pd(scorch(0, SC.DRIVE), 0.1, 1)], padY: [pd(G.SPILL, 0, 1)],
+     
       tables: [TBL.metal, TBL.reese],
       lane: lane('bbbbbbbbaaaa9999'),
       grid: grid(['1111111111111111', '1101011010110101', '1011010110101101', '1110101011010110']),
@@ -728,7 +749,8 @@ export const BAJO_PRESETS: BajoPreset[] = [
       [scorch(0, SC.ALG)]: 9, [scorch(0, SC.DRIVE)]: 0.1, [scorch(0, SC.MIX)]: 0.25,
       [SC.SUB]: subHz(60), [RV.SIZE]: 0.24, [RV.MIX]: 0.14,
     },
-    { weight: 0.35, grit: 0.1, wobble: 0, space: 0.2 }),
+    { weight: 0.35, grit: 0.1, wobble: 0, space: 0.2 },
+    { padX: [pd(S.DAMP, 0.15, 0.8)], padY: [pd(S.BODY, 0, 1)] }),
 
   preset('fingered-electric', 'Fingered Electric', 'Acoustic', 'phys',
     'P-bass played soft. The one that sits in a mix without being asked to.',
@@ -771,7 +793,8 @@ export const BAJO_PRESETS: BajoPreset[] = [
       [SP.CH_ON]: 1, [SP.CH_RATE]: 0.06, [SP.CH_DEPTH]: 0.25, [SP.CH_MIX]: 0.18,
       [RV.SIZE]: 0.5, [RV.MIX]: 0.2,
     },
-    { weight: 0.4, grit: 0.15, wobble: 0.07, space: 0.35 }),
+    { weight: 0.4, grit: 0.15, wobble: 0.07, space: 0.35 },
+    { padX: [pd(P.GLIDE, 0.005, 0.25)], padY: [pd(S.BOW, 0, 0.9)] }),
 
   preset('bowed-contrabass', 'Bowed Contrabass', 'Acoustic', 'phys',
     'Arco, full section weight. Continuous excitation, not a pluck.',
@@ -786,7 +809,8 @@ export const BAJO_PRESETS: BajoPreset[] = [
       [scorch(0, SC.ALG)]: 1, [scorch(0, SC.DRIVE)]: 0.14, [scorch(0, SC.MIX)]: 0.3,
       [SC.SUB]: subHz(55), [RV.SIZE]: 0.42, [RV.MIX]: 0.3,
     },
-    { weight: 0.45, grit: 0.14, wobble: 0.06, space: 0.5 }),
+    { weight: 0.45, grit: 0.14, wobble: 0.06, space: 0.5 },
+    { padX: [pd(S.BODY, 0.2, 1)], padY: [pd(RV.MIX, 0.08, 0.55)] }),
 ];
 
 export const DEFAULT_BAJO_PRESET = BAJO_PRESETS[0];

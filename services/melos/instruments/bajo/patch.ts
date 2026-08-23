@@ -19,6 +19,16 @@ import { BAJO_PRESETS, DEFAULT_BAJO_PRESET, expandBajoMacros, type BajoMacro, ty
 import type { Instrument } from '../../beats/engine/InstrumentHost';
 import { getBajoWavetable, bajoTableIndex, FRAMES, FRAME_SIZE } from './wavetables';
 
+/**
+ * One morph-pad destination. An array of OBJECTS, not of tuples — Firestore stores objects inside
+ * arrays quite happily and refuses arrays inside arrays, which is the same wall the gate grid hit.
+ */
+export interface PadTarget {
+  id: number;
+  lo: number;
+  hi: number;
+}
+
 export interface BajoModRoute {
   source: number;
   dest: number;
@@ -53,8 +63,18 @@ export interface BajoPatch {
   tables: string[];
   /** 16 slots, one per 16th note; each holds a division index into LANE_DIVS. */
   lane: number[];
-  /** 4 bands × 16 steps of 0/1, band-major: Sub, Low, Mid, Air. */
+  /** 4 bands × 16 steps of 0/1, band-major: Sub, Low, Mid, Air. Flat on disk — see serialize. */
   grid: number[][];
+  /** What each pad axis is wired to. Per patch, because the useful pair differs per sound. */
+  padX: PadTarget[];
+  padY: PadTarget[];
+  /** Pad position, so a patch reloads where it was left. */
+  padPos: [number, number];
+  /** A recorded gesture, flat [phase, x, y, ...]. Flat for storage, and for cheap scanning. */
+  padPath: number[];
+  /** Loop length in bars. */
+  padBars: number;
+  padLoop: boolean;
   macros: Record<BajoMacro, number>;
   routes: BajoModRoute[];
   version: 1;
@@ -74,6 +94,7 @@ export function newBajoPatch(preset: BajoPreset = DEFAULT_BAJO_PRESET): BajoPatc
     tables: preset.tables ? [...preset.tables] : [],
     lane: preset.lane ? [...preset.lane] : defaultLane(),
     grid: preset.grid ? preset.grid.map((row) => [...row]) : defaultGrid(),
+    ...defaultPad(preset),
     macros: { ...preset.macros },
     routes: [],
     version: 1,
@@ -91,7 +112,27 @@ export function applyBajoPreset(patch: BajoPatch, preset: BajoPreset): BajoPatch
     tables: preset.tables ? [...preset.tables] : [],
     lane: preset.lane ? [...preset.lane] : defaultLane(),
     grid: preset.grid ? preset.grid.map((row) => [...row]) : defaultGrid(),
+    ...defaultPad(preset),
     macros: { ...preset.macros },
+  };
+}
+
+/**
+ * A preset's pad wiring, or a sensible one derived from the patch.
+ *
+ * The fallback is cutoff on X and Scorch drive on Y, which is the pair that does something on
+ * every bass patch ever made. Presets that have a better answer — the vowel on a talkbox, the
+ * pick position on an upright — say so.
+ */
+function defaultPad(preset: BajoPreset): Pick<BajoPatch, 'padX' | 'padY' | 'padPos' | 'padPath' | 'padBars' | 'padLoop'> {
+  const cutoff = preset.params[flt(0, F.CUTOFF)] ?? 0.5;
+  return {
+    padX: preset.padX ? preset.padX.map((t) => ({ ...t })) : [{ id: flt(0, F.CUTOFF), lo: Math.max(0, cutoff - 0.22), hi: Math.min(1, cutoff + 0.3) }],
+    padY: preset.padY ? preset.padY.map((t) => ({ ...t })) : [{ id: scorch(0, SC.DRIVE), lo: 0, hi: 0.8 }],
+    padPos: [0.5, 0.5],
+    padPath: [],
+    padBars: 2,
+    padLoop: false,
   };
 }
 
@@ -139,6 +180,10 @@ export function serializeBajoPatch(p: BajoPatch): Record<string, unknown> {
     tables: [...p.tables],
     lane: [...p.lane],
     grid: flattenGrid(p.grid),
+    padX: p.padX.map((t) => ({ ...t })),
+    padY: p.padY.map((t) => ({ ...t })),
+    padPos: [p.padPos[0], p.padPos[1]],
+    padPath: [...p.padPath],
   };
 }
 
@@ -175,9 +220,29 @@ export function deserializeBajoPatch(raw: Record<string, unknown> | undefined): 
       wobble: src.macros?.wobble ?? 0.0,
       space: src.macros?.space ?? 0.2,
     },
+    padX: readTargets(src.padX),
+    padY: readTargets(src.padY),
+    padPos: [
+      Number.isFinite(Number(src.padPos?.[0])) ? Number(src.padPos[0]) : 0.5,
+      Number.isFinite(Number(src.padPos?.[1])) ? Number(src.padPos[1]) : 0.5,
+    ],
+    // A path is [phase, x, y] triples; a truncated tail would desync every point after it.
+    padPath: Array.isArray(src.padPath)
+      ? src.padPath.map(Number).filter((n) => Number.isFinite(n)).slice(0, 3 * Math.floor(src.padPath.length / 3))
+      : [],
+    padBars: Number.isFinite(Number(src.padBars)) ? Math.max(1, Math.min(8, Number(src.padBars))) : 2,
+    padLoop: !!src.padLoop,
     routes: Array.isArray(src.routes) ? (src.routes as BajoModRoute[]) : [],
     version: 1,
   };
+}
+
+function readTargets(raw: unknown): PadTarget[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((t) => t as Partial<PadTarget>)
+    .filter((t) => t && Number.isFinite(Number(t.id)))
+    .map((t) => ({ id: Number(t.id), lo: Number(t.lo) || 0, hi: Number.isFinite(Number(t.hi)) ? Number(t.hi) : 1 }));
 }
 
 /**
