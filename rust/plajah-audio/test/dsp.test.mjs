@@ -79,7 +79,7 @@ function magAt(sig, freq, sr) {
 
 test('ABI version matches the host contract', async () => {
   const { x } = await boot();
-  assert.equal(x.pa_abi_version(), 6);
+  assert.equal(x.pa_abi_version(), 7);
 });
 
 /** Stage a mono sample into the upload buffer and load it into a slot. Returns the frame count. */

@@ -30,9 +30,11 @@ use spatial::{IamfRole, Layout, Position};
 /// rendering of instrument tracks possible. v3 adds sample playback (KERA). v5 adds VELA — the
 /// modal body, the exciter and the Veil (param block 1000+), plus the Tide LFO shape and the
 /// slow LFO range. v6 adds VELA's life controls — per-partial Anima drift, singing-bowl Beat,
-/// and the exciter's breath Pulse. Additive ids, but a stale .wasm would ignore them silently,
+/// and the exciter's breath Pulse. v7 adds Swell, Morph, and the two that matter most —
+/// a Sustained bank mode (driven partials rather than excited resonators) and absolute-frequency
+/// formants, which together are what let the instrument be something other than a struck body. Additive ids, but a stale .wasm would ignore them silently,
 /// which is exactly what this guard exists to prevent.
-pub const ABI_VERSION: u32 = 6;
+pub const ABI_VERSION: u32 = 7;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn pa_abi_version() -> u32 {

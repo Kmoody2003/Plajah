@@ -42,6 +42,16 @@ export const M = {
   /// ages, so a held note is still becoming something else a minute later.
   MORPH: 1013,
   MORPH_TIME: 1014,
+  /// 0 Struck, 1 Sustained, 2 Blend. The largest character control in the instrument: whether
+  /// the partials are excited resonators that ring out, or driven oscillators that simply
+  /// sound. Bells and bowls are the first; strings, choirs and pads are the second.
+  MODE: 1015,
+  /// Formant depth. Fixed absolute-frequency resonances — a resonance that does NOT track pitch
+  /// is what the ear reads as a throat or a cabinet rather than a tuned object.
+  FORMANT: 1016,
+  FORMANT_SHIFT: 1017,
+  /// Sustained mode: how much later the high partials arrive.
+  BLOOM: 1018,
 } as const;
 
 /** Exciter — what puts energy into the bank. */
@@ -156,6 +166,17 @@ export const VELA_PARAM_META: Record<number, VelaParamMeta> = {
     id: M.MORPH_TIME, label: 'Morph time', group: 'body',
     format: (v) => `${(1 + 89 * v * v).toFixed(0)} s`,
   },
+  [M.MODE]: {
+    id: M.MODE, label: 'Mode', group: 'body',
+    format: (v) => ['Struck', 'Sustained', 'Blend'][Math.round(v)] ?? 'Struck',
+    options: ['Struck', 'Sustained', 'Blend'],
+  },
+  [M.FORMANT]: { id: M.FORMANT, label: 'Formant', group: 'body', format: pct },
+  [M.FORMANT_SHIFT]: {
+    id: M.FORMANT_SHIFT, label: 'Vowel', group: 'body',
+    format: (v) => ['uu', 'oo', 'oh', 'ah', 'eh', 'ee'][Math.round(v * 5)] ?? 'ah',
+  },
+  [M.BLOOM]: { id: M.BLOOM, label: 'Bloom', group: 'body', format: pct },
   [M.BEAT_RATE]: {
     id: M.BEAT_RATE, label: 'Beat rate', group: 'body',
     format: (v) => `${(0.15 * Math.pow(60, Math.max(0, Math.min(1, v)))).toFixed(2)} Hz`,

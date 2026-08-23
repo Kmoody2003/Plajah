@@ -34,6 +34,9 @@ const PHI: f32 = 1.618_034;
 /// an instrument.
 const RETUNE: usize = 512;
 
+/// Level match between the driven and the excited bank. See the note at its use site.
+const OSC_GAIN: f32 = 12.0;
+
 /// The partial-count control is stepped, because the count sets the per-voice cost and a
 /// continuous knob would let someone slide into a dropout without knowing why.
 pub const PARTIAL_STEPS: [usize; 5] = [16, 24, 32, 48, 64];
@@ -42,6 +45,61 @@ pub const PARTIAL_STEPS: [usize; 5] = [16, 24, 32, 48, 64];
 pub fn partial_count(norm: f32) -> usize {
     let i = (norm.clamp(0.0, 1.0) * (PARTIAL_STEPS.len() - 1) as f32).round() as usize;
     PARTIAL_STEPS[i.min(PARTIAL_STEPS.len() - 1)]
+}
+
+/// How the partials make sound.
+///
+/// This is the difference between a bell and a choir, and no amount of tuning gets from one to
+/// the other. A resonator has to be struck and then rings out — it is a body reacting. An
+/// oscillator simply sounds for as long as it is asked to. Strings, choirs and pads are
+/// oscillators; bowls and gongs are resonators. VELA needs both or it can only ever make
+/// variations on the same struck object.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum BankMode {
+    /// Excited resonators. Rings and decays.
+    Struck,
+    /// Driven sine partials. Sustains until released.
+    Sustained,
+    /// Both, crossfaded — a body that is also being sung through.
+    Blend,
+}
+
+impl BankMode {
+    pub fn from_index(i: u32) -> Self {
+        match i {
+            1 => BankMode::Sustained,
+            2 => BankMode::Blend,
+            _ => BankMode::Struck,
+        }
+    }
+}
+
+/// Formant weighting over the partial amplitudes.
+///
+/// Three resonant peaks at ABSOLUTE frequencies, not multiples of the fundamental. That
+/// distinction is the whole trick: a resonance that tracks pitch is just a filter and still
+/// sounds like a tuned object, while a resonance that stays put as the pitch moves is what the
+/// ear reads as a throat, a cabinet, a room — a body of fixed size producing different notes.
+/// It is the single cheapest way out of "everything sounds like a bell", because it costs one
+/// multiply per partial at build time and nothing at all per sample.
+#[inline]
+fn formant_gain(freq: f32, shift: f32, amount: f32) -> f32 {
+    if amount <= 0.001 {
+        return 1.0;
+    }
+    // Shift sweeps the triple roughly /u/ -> /o/ -> /a/ -> /e/.
+    let k = 0.55 + shift * 1.1;
+    let peaks = [(300.0 * k, 90.0), (1100.0 * k, 150.0), (2600.0 * k, 260.0)];
+    let weights = [1.0, 0.72, 0.42];
+    let mut sum = 0.0;
+    for (i, (fc, bw)) in peaks.iter().enumerate() {
+        let d = (freq - fc) / bw;
+        sum += weights[i] / (1.0 + d * d);
+    }
+    // Floor so partials between the formants thin out rather than vanish — a fully notched
+    // spectrum sounds synthetic and loses the body underneath.
+    let shaped = (sum.min(1.6) / 1.6).max(0.12);
+    1.0 - amount + amount * shaped
 }
 
 /// Damping presets. Each supplies a decay tilt bias, an amplitude roll-off exponent and an
@@ -206,6 +264,15 @@ pub struct ModalSpec {
     pub morph: f32,
     /// Seconds the morph takes to complete. Long values are the soundscape register.
     pub morph_time: f32,
+    pub mode: BankMode,
+    /// 0..1 formant depth.
+    pub formant: f32,
+    /// 0..1 formant position — sweeps the vowel.
+    pub formant_shift: f32,
+    /// Per-partial envelope in Sustained mode: how much higher partials fade in later. Strings
+    /// and choirs brighten as they are held; a bank whose partials all arrive together sounds
+    /// like an organ stop.
+    pub bloom: f32,
 }
 
 pub struct ModalBank {
@@ -227,6 +294,18 @@ pub struct ModalBank {
     gain: [f32; MAX_PARTIALS],
     gain_target: [f32; MAX_PARTIALS],
     gain_step: [f32; MAX_PARTIALS],
+
+    // ── Sustained mode: one quadrature oscillator per partial. ──
+    // Coupled ("magic circle") form rather than a phase accumulator plus sin(): four multiplies
+    // and two adds per partial per sample, no transcendental. Sixty-four sines per sample per
+    // voice would not be affordable; this is.
+    osc_s: [f32; MAX_PARTIALS],
+    osc_c: [f32; MAX_PARTIALS],
+    osc_eps: [f32; MAX_PARTIALS],
+    osc_amp: [f32; MAX_PARTIALS],
+    /// Per-partial fade-in, so the spectrum arrives over time rather than all at once.
+    osc_env: [f32; MAX_PARTIALS],
+    osc_env_inc: [f32; MAX_PARTIALS],
     anima: f32,
     beat: f32,
     ctl: usize,
@@ -263,6 +342,12 @@ impl ModalBank {
             gain: [1.0; MAX_PARTIALS],
             gain_target: [1.0; MAX_PARTIALS],
             gain_step: [0.0; MAX_PARTIALS],
+            osc_s: [0.0; MAX_PARTIALS],
+            osc_c: [1.0; MAX_PARTIALS],
+            osc_eps: [0.0; MAX_PARTIALS],
+            osc_amp: [0.0; MAX_PARTIALS],
+            osc_env: [0.0; MAX_PARTIALS],
+            osc_env_inc: [1.0; MAX_PARTIALS],
             anima: 0.0,
             beat: 0.0,
             ctl: 0,
@@ -270,6 +355,7 @@ impl ModalBank {
                 f0: 261.63, count: 32, inharm: 0.04, spread: 0.1, decay: 4.0, decay_tilt: 0.0,
                 material: Material::Bronze, anima: 0.0, beat: 0.0, beat_rate: 1.0,
                 position: 0.28, keytrack: 0.4, morph: 0.0, morph_time: 8.0,
+                mode: BankMode::Struck, formant: 0.0, formant_shift: 0.5, bloom: 0.4,
             },
             sr: 48000.0,
             note_samples: 0,
@@ -281,6 +367,24 @@ impl ModalBank {
         for r in self.res.iter_mut() {
             r.reset();
         }
+        // Start the oscillators at spread phases. All-in-phase partials produce a click and a
+        // brief buzz on note-on, and they beat against each other in lockstep afterwards.
+        for k in 0..MAX_PARTIALS {
+            let ph = ((k as f32) * PHI).fract() * core::f32::consts::TAU;
+            self.osc_s[k] = ph.sin();
+            self.osc_c[k] = ph.cos();
+            self.osc_env[k] = 0.0;
+        }
+    }
+
+    /// Per-partial fade-in for Sustained mode. Higher partials arrive later, so a held note
+    /// brightens as it is sustained rather than presenting its whole spectrum at once.
+    fn arm_bloom(&mut self, bloom: f32, sr: f32) {
+        for k in 0..self.count {
+            let lateness = (k as f32 / self.count.max(1) as f32).powf(0.7);
+            let secs = 0.02 + bloom * 6.0 * lateness;
+            self.osc_env_inc[k] = 1.0 / (secs * sr).max(1.0);
+        }
     }
 
     /// Recompute the partial layout. Called on note-on, and again only if the host changes a
@@ -291,6 +395,7 @@ impl ModalBank {
         self.note_samples = 0;
         self.retune_ctl = 0;
         self.build(0.0);
+        self.arm_bloom(s.bloom, sr);
     }
 
     /// Re-derive the partial layout at a given point in the note's morph, 0..1.
@@ -356,7 +461,21 @@ impl ModalBank {
             self.am_inc[k] = drift_hz / sr;
             self.beat_inc[k] = (s.beat_rate * (1.0 + k as f32 * 0.11)).min(24.0) / sr;
 
+            // Formants shape the amplitudes in BOTH modes — a struck body with a throat is
+            // exactly as useful as a sung one.
+            let amp = amp * formant_gain(freq, s.formant_shift, s.formant);
+
             self.res[k].tune(freq, decay, amp, sr);
+
+            // Sustained partial: coupled oscillator at the same frequency.
+            if freq > 0.0 && freq < sr * 0.49 {
+                let w = core::f32::consts::TAU * freq / sr;
+                self.osc_eps[k] = 2.0 * (w * 0.5).sin();
+                self.osc_amp[k] = amp;
+            } else {
+                self.osc_eps[k] = 0.0;
+                self.osc_amp[k] = 0.0;
+            }
         }
         for k in count..MAX_PARTIALS {
             self.res[k].g = 0.0;
@@ -466,12 +585,36 @@ impl ModalBank {
         if self.ctl >= AM_CTL {
             self.ctl = 0;
         }
+        let mode = self.spec.mode;
         let mut sum = 0.0;
         for k in 0..self.count {
             self.gain[k] += self.gain_step[k];
-            // The gain rides the resonator's OUTPUT, so it modulates the ring itself rather
-            // than the excitation — the partials breathe while the note is sounding.
-            sum += self.res[k].process(x) * self.gain[k];
+            let g = self.gain[k];
+
+            // The gain rides the OUTPUT, so it modulates the sound itself rather than the
+            // excitation — the partials breathe while the note is sounding.
+            if mode != BankMode::Sustained {
+                sum += self.res[k].process(x) * g;
+            }
+            if mode != BankMode::Struck {
+                // Coupled-form quadrature oscillator. `s` is the sine output.
+                self.osc_s[k] += self.osc_eps[k] * self.osc_c[k];
+                self.osc_c[k] -= self.osc_eps[k] * self.osc_s[k];
+                if self.osc_env[k] < 1.0 {
+                    self.osc_env[k] = (self.osc_env[k] + self.osc_env_inc[k]).min(1.0);
+                }
+                let e = self.osc_env[k];
+                // OSC_GAIN because the two paths do not have comparable output for the same
+                // amplitude. A resonator is DRIVEN continuously and integrates its input by
+                // roughly its own Q, while an oscillator just puts out the amplitude it was
+                // given — so the sung bank arrived about 25x under the struck one on identical
+                // partial amplitudes, which reads as the mode being broken rather than quiet.
+                sum += self.osc_s[k] * self.osc_amp[k] * g * (e * e * (3.0 - 2.0 * e)) * OSC_GAIN;
+            }
+        }
+        // Blend sums two full banks, so halve it rather than letting the mode change the level.
+        if mode == BankMode::Blend {
+            sum *= 0.5;
         }
         // Normalise loosely by partial count so switching 16 → 64 changes the timbre rather
         // than the level.
@@ -480,7 +623,17 @@ impl ModalBank {
 
     /// True once the bank has rung out. Checked against a floor well below audibility, because
     /// a 40-second tail that is cut early is far more noticeable than one held slightly long.
+    /// True when this bank is driven rather than ringing.
+    pub fn is_sustained(&self) -> bool {
+        self.spec.mode != BankMode::Struck
+    }
+
     pub fn is_quiet(&self) -> bool {
+        // A driven bank never goes quiet on its own. The voice's own gate decides when a
+        // sustained note ends; asking the bank would hold it forever.
+        if self.spec.mode == BankMode::Sustained {
+            return true;
+        }
         let mut e = 0.0;
         for k in 0..self.count {
             e += self.res[k].energy();

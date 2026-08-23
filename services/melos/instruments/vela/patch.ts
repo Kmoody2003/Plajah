@@ -155,6 +155,7 @@ export const VELA_EDITOR_GROUPS: Array<{ key: 'body' | 'breath' | 'veil'; title:
       // The life controls. Anima and Beat are what stop a bank sounding like an organ, so they
       // sit with the body rather than in a separate "modulation" section — they are not
       // modulation of the sound, they are part of what the sound is.
+      M.MODE, M.FORMANT, M.FORMANT_SHIFT, M.BLOOM,
       M.ANIMA, M.BEAT, M.BEAT_RATE, M.SWELL, M.MORPH, M.MORPH_TIME,
     ],
   },

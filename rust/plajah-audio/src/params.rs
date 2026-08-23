@@ -132,6 +132,16 @@ pub const M_SWELL: u32 = 12;
 pub const M_MORPH: u32 = 13;
 /// Seconds the morph takes. 0..1 → 1..90 s.
 pub const M_MORPH_TIME: u32 = 14;
+/// 0 Struck (excited resonators), 1 Sustained (driven partials), 2 Blend.
+/// The single biggest character control in the instrument: it is the difference between a
+/// body that is hit and a body that is sung through.
+pub const M_MODE: u32 = 15;
+/// Formant depth — fixed absolute-frequency resonances over the partial amplitudes.
+pub const M_FORMANT: u32 = 16;
+/// Formant position, sweeping roughly /u/ to /e/.
+pub const M_FORMANT_SHIFT: u32 = 17;
+/// Sustained mode: how much later high partials fade in. Strings brighten as they are held.
+pub const M_BLOOM: u32 = 18;
 
 /// Exciter — bow, blow, strike, rub.
 pub const EXC_BASE: u32 = 1100;
@@ -255,6 +265,10 @@ impl Params {
         self.set(MODAL_BASE + M_SWELL, 0.0);
         self.set(MODAL_BASE + M_MORPH, 0.5);
         self.set(MODAL_BASE + M_MORPH_TIME, 0.2);
+        self.set(MODAL_BASE + M_MODE, 0.0);
+        self.set(MODAL_BASE + M_FORMANT, 0.0);
+        self.set(MODAL_BASE + M_FORMANT_SHIFT, 0.5);
+        self.set(MODAL_BASE + M_BLOOM, 0.4);
 
         self.set(EXC_BASE + X_TYPE, 0.0); // bow
         self.set(EXC_BASE + X_PRESSURE, 0.5);

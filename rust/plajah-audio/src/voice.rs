@@ -8,7 +8,7 @@
 use crate::env::Envelope;
 use crate::exciter::{Exciter, ExciterSpec, ExciterType};
 use crate::filter::{Ladder, Svf, SvfMode};
-use crate::modal::{partial_count, Material, ModalBank, ModalSpec};
+use crate::modal::{partial_count, BankMode, Material, ModalBank, ModalSpec};
 use crate::modmatrix::{ModMatrix, ModValues};
 use crate::osc::{unison_detune_curve, AnalogShape, Noise, Phasor, Rng};
 use crate::params::*;
@@ -73,6 +73,9 @@ pub struct Voice {
     /// own, so this is the one thing that makes a pad possible at all.
     swell: f32,
     swell_inc: f32,
+    /// Release fade for Sustained mode. A driven bank does not decay on its own, so note-off
+    /// has to take the level down or the note never ends.
+    gate_amp: f32,
     /// Latched at note-on. A voice that started as a modal voice stays one for its whole life,
     /// so toggling the body mid-tail cannot strand a ringing bank.
     modal_active: bool,
@@ -116,6 +119,7 @@ impl Voice {
             modal_active: false,
             swell: 1.0,
             swell_inc: 1.0,
+            gate_amp: 0.0,
             exciter: {
                 let mut e = Exciter::default();
                 e.reseed(seed);
@@ -190,6 +194,7 @@ impl Voice {
             self.modal.prepare(&spec, sr_hint);
             let xs = exciter_spec(p, self.velocity);
             self.exciter.strike(&xs, sr_hint);
+            self.gate_amp = 0.0;
             let swell_t = swell_time_s(p.get(MODAL_BASE + M_SWELL));
             if swell_t > 0.002 {
                 self.swell = 0.0;
@@ -229,6 +234,16 @@ impl Voice {
             if self.swell < 1.0 {
                 return false;
             }
+            // A driven voice ends when its gate has faded, not when the bank goes quiet — the
+            // bank never does. This must NOT apply to a struck voice: gate_amp starts at zero
+            // and only rises while rendering, so a note-off arriving before the first block
+            // would report the voice finished and kill it before it ever sounded.
+            if self.modal.is_sustained() {
+                if self.released && self.gate_amp < 0.0008 {
+                    return true;
+                }
+                return false;
+            }
             return self.exciter.is_idle() && self.modal.is_quiet();
         }
         !self.envs[0].is_active()
@@ -253,7 +268,11 @@ impl Voice {
         pan_gains(base_pos, layout, 0.0, &mut gains);
 
         let xs = exciter_spec(p, self.velocity);
-        let gate = !self.released && xs.kind.is_continuous();
+        let sustained = p.get(MODAL_BASE + M_MODE) as u32 != 0;
+        // A sustained bank is driven rather than excited, so its gate is the note itself.
+        let gate = !self.released && (sustained || xs.kind.is_continuous());
+        // Release length scales with the Veil so a big patch does not snap shut. 0.4-3 s.
+        let rel_k = 1.0 / ((0.4 + p.get(VEIL_BASE + V_DECAY) * 2.6) * sr);
         // Continuous excitation is scaled by the bank's bandwidth; a strike is not. See
         // ModalBank::sustain_scale for why the two cannot share a normalisation.
         let drive = if xs.kind.is_continuous() { self.modal.sustain_scale() } else { 1.0 };
@@ -269,10 +288,13 @@ impl Voice {
             if self.swell < 1.0 {
                 self.swell = (self.swell + self.swell_inc).min(1.0);
             }
+            let target = if self.released { 0.0 } else { 1.0 };
+            self.gate_amp += (target - self.gate_amp) * rel_k * 4.0;
             // Equal-power-ish curve: a linear swell sounds like it hesitates then rushes.
             let swell = self.swell * self.swell * (3.0 - 2.0 * self.swell);
             let x = self.exciter.process(&xs, gate, sr) * drive;
-            let y = self.modal.process(x) * level * swell;
+            let driven = if sustained { self.gate_amp } else { 1.0 };
+            let y = self.modal.process(x) * level * swell * driven;
             if !y.is_finite() {
                 continue;
             }
@@ -624,6 +646,10 @@ pub(crate) fn modal_spec_for(note: f32, p: &Params) -> ModalSpec {
         // Stored 0..1, used -1..+1 so the centre of the control means "do not evolve".
         morph: p.get(MODAL_BASE + M_MORPH) * 2.0 - 1.0,
         morph_time: morph_time_s(p.get(MODAL_BASE + M_MORPH_TIME)),
+        mode: BankMode::from_index(p.get(MODAL_BASE + M_MODE) as u32),
+        formant: p.get(MODAL_BASE + M_FORMANT).clamp(0.0, 1.0),
+        formant_shift: p.get(MODAL_BASE + M_FORMANT_SHIFT).clamp(0.0, 1.0),
+        bloom: p.get(MODAL_BASE + M_BLOOM).clamp(0.0, 1.0),
     }
 }
 
