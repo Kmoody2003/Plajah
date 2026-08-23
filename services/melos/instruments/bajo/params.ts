@@ -137,7 +137,6 @@ export const SCORCH_ALGS = [
 export const DELAY_DIVS = ['1/2', '1/4', '1/4.', '1/4T', '1/8', '1/8.', '1/8T', '1/16'] as const;
 export const GATE_RATES = ['1/8', '1/16', '1/32'] as const;
 export const ANALOG_SHAPES = ['Saw', 'Square', 'Triangle', 'Sine'] as const;
-export const REVERB_SIZES = ['Room', 'Plate', 'Hall', 'Chamber', 'Cathedral', 'Cinema'] as const;
 
 // ── formatting ───────────────────────────────────────────────────────────────
 
@@ -228,7 +227,10 @@ export const BAJO_PARAM_META: Record<number, BajoParamMeta> = {
   [SP.EC_DEGRADE]: meta(SP.EC_DEGRADE, 'Degrade', undefined, pct),
   [SP.EC_MIX]: meta(SP.EC_MIX, 'Mix', undefined, pct),
 
-  [RV.SIZE]: meta(RV.SIZE, 'Space', undefined, pick(REVERB_SIZES), REVERB_SIZES),
+  // The Veil's size is continuous (0..1 -> a 0.25x..2.8x line-length multiplier), NOT a menu
+  // of named rooms. Presenting it as an enum is what had these presets writing 5 into a 0..1
+  // parameter and asking for a thirteen-times-oversized room.
+  [RV.SIZE]: meta(RV.SIZE, 'Size', 'Small booth through to cathedral.', pct),
   [RV.DECAY]: meta(RV.DECAY, 'Decay', undefined, pct),
   [RV.MIX]: meta(RV.MIX, 'Reverb', undefined, pct),
 
@@ -298,6 +300,73 @@ const sharedMeta: BajoParamMeta[] = [
   meta(env(1, E.RELEASE), 'F.Release', undefined, envTime),
 ];
 for (const m of sharedMeta) BAJO_PARAM_META[m.id] = m;
+
+/**
+ * The engine's own defaults, mirroring `defaults()` in rust/plajah-audio/src/params.rs.
+ *
+ * A patch states only what it changes — "anything absent keeps the engine default" — so anything
+ * reasoning about a whole patch has to know what absent MEANS. Two things do: Crossform, which
+ * otherwise holds a parameter still when only one of the two patches mentions it (blending an
+ * upright bass into a riddim patch left the string engine at full and the gate stuck on), and the
+ * editor, which otherwise draws a control at the middle of its range rather than where the engine
+ * actually has it.
+ */
+export const BAJO_DEFAULTS: Readonly<Record<number, number>> = Object.freeze({
+  // shared voice
+  [P.MASTER_GAIN]: 0.7, [P.GLIDE]: 0, [P.VOICE_MODE]: 0, [P.ANALOG_DRIFT]: 0.25,
+  [P.UNISON_COUNT]: 0, [P.UNISON_DETUNE]: 0.18, [P.UNISON_WIDTH]: 0.7, [P.UNISON_BLEND]: 0.6,
+  [osc(0, O.ENABLE)]: 1, [osc(0, O.LEVEL)]: 0.8, [osc(0, O.COARSE)]: 0.5, [osc(0, O.FINE)]: 0.5,
+  [osc(0, O.MORPH)]: 0, [osc(0, O.TABLE)]: 0, [osc(0, O.MODE)]: 0, [osc(0, O.ANALOG_SHAPE)]: 0,
+  [osc(0, O.PULSE_WIDTH)]: 0.5, [osc(0, O.DRIVE)]: 0,
+  [osc(1, O.ENABLE)]: 0, [osc(1, O.LEVEL)]: 0, [osc(1, O.COARSE)]: 0.5, [osc(1, O.FINE)]: 0.5,
+  [osc(1, O.MORPH)]: 0, [osc(1, O.TABLE)]: 0, [osc(1, O.MODE)]: 0, [osc(1, O.ANALOG_SHAPE)]: 0,
+  [osc(1, O.PULSE_WIDTH)]: 0.5, [osc(1, O.DRIVE)]: 0,
+  [P.SUB_LEVEL]: 0, [P.SUB_SHAPE]: 0, [P.SUB_OCTAVE]: 0,
+  [P.NOISE_LEVEL]: 0, [P.NOISE_COLOR]: 0, [P.FILTER_ROUTING]: 0,
+  [flt(0, F.ENABLE)]: 1, [flt(0, F.TYPE)]: 0, [flt(0, F.MODE)]: 0, [flt(0, F.CUTOFF)]: 1,
+  [flt(0, F.RES)]: 0.1, [flt(0, F.DRIVE)]: 0, [flt(0, F.KEYTRACK)]: 0, [flt(0, F.ENV_AMT)]: 0.5,
+  [flt(1, F.ENABLE)]: 0, [flt(1, F.CUTOFF)]: 1, [flt(1, F.RES)]: 0.1, [flt(1, F.ENV_AMT)]: 0.5,
+  [env(0, E.ATTACK)]: 0, [env(0, E.DECAY)]: 0.2, [env(0, E.SUSTAIN)]: 0.8, [env(0, E.RELEASE)]: 0.15,
+  [env(1, E.ATTACK)]: 0, [env(1, E.DECAY)]: 0.2, [env(1, E.SUSTAIN)]: 0.8, [env(1, E.RELEASE)]: 0.15,
+  // BAJO's own block — every one of these is a bypass, which is what keeps ONDA/KERA/VELA
+  // bit-identical with the whole 1400 range present.
+  [S.LEVEL]: 0, [S.DAMP]: 0.35, [S.TONE]: 0.5, [S.PICK]: 0.35, [S.BOW]: 0, [S.BODY]: 0.5,
+  [T.AMOUNT]: 0, [T.VOWEL]: 0.2, [T.Q]: 0.35,
+  [W.ENABLE]: 0, [W.SHAPE]: 0, [W.SKEW]: 0.5, [W.SMOOTH]: 0.1, [W.PHASE]: 0,
+  [W.FREE]: 0, [W.RATE]: 0.35, [W.DEST1]: 0, [W.DEPTH1]: 0, [W.DEST2]: 5, [W.DEPTH2]: 0,
+  [G.ENABLE]: 0, [G.DEPTH]: 1, [G.SLEW]: 0.12, [G.SPILL]: 0.4, [G.SWING]: 0,
+  [G.RATE]: 1, [G.SPLIT]: 0.5,
+  [scorch(0, SC.ALG)]: 0, [scorch(0, SC.DRIVE)]: 0, [scorch(0, SC.BIAS)]: 0.5, [scorch(0, SC.TONE)]: 0.5, [scorch(0, SC.MIX)]: 1,
+  [scorch(1, SC.ALG)]: 0, [scorch(1, SC.DRIVE)]: 0, [scorch(1, SC.BIAS)]: 0.5, [scorch(1, SC.TONE)]: 0.5, [scorch(1, SC.MIX)]: 1,
+  [scorch(2, SC.ALG)]: 0, [scorch(2, SC.DRIVE)]: 0, [scorch(2, SC.BIAS)]: 0.5, [scorch(2, SC.TONE)]: 0.5, [scorch(2, SC.MIX)]: 1,
+  [SC.INPUT]: 0.5, [SC.FOCUS]: 0.5, [SC.SAFE]: 1, [SC.SUB]: 0.3, [SC.OUTPUT]: 0.5,
+  [SP.CH_ON]: 0, [SP.CH_RATE]: 0.3, [SP.CH_DEPTH]: 0.4, [SP.CH_MIX]: 0.3,
+  [SP.DL_ON]: 0, [SP.DL_DIV]: 4, [SP.DL_FB]: 0.35, [SP.DL_TONE]: 0.6, [SP.DL_PING]: 1, [SP.DL_MIX]: 0.22,
+  [SP.EC_ON]: 0, [SP.EC_TIME]: 0.26, [SP.EC_FB]: 0.4, [SP.EC_WOW]: 0.25,
+  [SP.EC_DRIVE]: 0.4, [SP.EC_DEGRADE]: 0.2, [SP.EC_MIX]: 0.2,
+  [RV.SIZE]: 0.5, [RV.DECAY]: 0.45, [RV.DIFFUSION]: 0.6, [RV.BLUR]: 0, [RV.MIX]: 0,
+  [MONO_BELOW]: 0,
+});
+
+/** The engine's default for an id, or 0.5 for anything not listed. */
+export const bajoDefault = (id: number): number => BAJO_DEFAULTS[id] ?? 0.5;
+
+/**
+ * Parameters the engine reads as an index or a flag, not as a quantity.
+ *
+ * Crossform has to know these: interpolating halfway between "Saw" and "Square" gives you
+ * neither, and half a toggle is not a state. They snap at the midpoint instead.
+ */
+export const BAJO_DISCRETE_IDS: ReadonlySet<number> = new Set<number>([
+  // BAJO's own stepped and toggled controls
+  ...Object.values(BAJO_PARAM_META).filter((m) => m.options || m.toggle).map((m) => m.id),
+  // ONDA's shared ones, which have no BAJO metadata entry to be caught by the line above
+  P.VOICE_MODE, P.SUB_SHAPE, P.SUB_OCTAVE, P.NOISE_COLOR, P.FILTER_ROUTING,
+  osc(0, O.ENABLE), osc(0, O.MODE), osc(0, O.TABLE), osc(0, O.ANALOG_SHAPE), osc(0, O.DRIVE_MODE),
+  osc(1, O.ENABLE), osc(1, O.MODE), osc(1, O.TABLE), osc(1, O.ANALOG_SHAPE), osc(1, O.DRIVE_MODE),
+  flt(0, F.ENABLE), flt(0, F.TYPE), flt(0, F.MODE),
+  flt(1, F.ENABLE), flt(1, F.TYPE), flt(1, F.MODE),
+]);
 
 export const bajoParamLabel = (id: number): string => BAJO_PARAM_META[id]?.label ?? `P${id}`;
 export const formatBajoParam = (id: number, v: number): string =>

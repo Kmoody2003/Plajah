@@ -456,10 +456,10 @@ export class BeatsEngine {
         // BAJO carries its own shape too: the wobble rate lane and the gate grid are arrays, and
         // its four macros expand to several engine parameters each. Both are flattened into
         // plain param ids on this side — which is why neither needed a bespoke ABI call.
-        const { deserializeBajoPatch, bajoEngineParams } =
+        const { deserializeBajoPatch, applyBajoPatch } =
           await import('../../instruments/bajo/patch');
         const patch = deserializeBajoPatch(track.instrument.patch);
-        if (patch) inst.setParams(bajoEngineParams(patch));
+        if (patch) applyBajoPatch(inst, patch);
       } else if (track.instrument?.patch) {
         const [{ deserializePatch, applyPatch }] = await Promise.all([
           import('../../instruments/onda/patch'),

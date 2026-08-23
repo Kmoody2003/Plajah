@@ -12,10 +12,11 @@ import { X } from 'lucide-react';
 import type { ArrangeTrack, GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import {
-  deserializeBajoPatch, applyBajoPreset, bajoEngineParams,
+  deserializeBajoPatch, applyBajoPreset, bajoEngineParams, applyBajoPatch, crossformPatch,
   BAJO_MACRO_HINTS, BAJO_MACRO_LABELS, BAJO_MACRO_ORDER, type BajoPatch,
 } from '../../../../services/melos/instruments/bajo/patch';
 import { BAJO_PRESETS, type BajoMacro } from '../../../../services/melos/instruments/bajo/presets';
+import { newBajoPatch } from '../../../../services/melos/instruments/bajo/patch';
 import { W, G } from '../../../../services/melos/instruments/bajo/params';
 import { Knob } from '../shared/Knob';
 import { WobbleLane, LANE_PRESETS } from './WobbleLane';
@@ -43,15 +44,26 @@ const MACRO_COLORS: Record<BajoMacro, string> = {
 export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [xfOpen, setXfOpen] = useState(false);
+  const [xfA, setXfA] = useState(BAJO_PRESETS[0].id);
+  const [xfB, setXfB] = useState(BAJO_PRESETS[BAJO_PRESETS.length - 1].id);
+  const [xfAmt, setXfAmt] = useState(0);
 
   // Deliberately not memoised, for the same reason as ONDA's and VELA's panels: the doc mutates
   // in place, so a memo keyed on the patch object would never invalidate and every control
   // would freeze.
   const patch: BajoPatch | null = deserializeBajoPatch(track.instrument?.patch);
 
+  /** The fast path: parameters only. Turning a macro must never rebuild a wavetable. */
   const pushParams = useCallback((p: BajoPatch) => {
     const inst = BeatsEngine.get().getInstrument(track.id);
     if (inst) inst.setParams(bajoEngineParams(p));
+  }, [track.id]);
+
+  /** The slow path: tables THEN parameters. Only when the patch's tables can have changed. */
+  const pushAll = useCallback((p: BajoPatch) => {
+    const inst = BeatsEngine.get().getInstrument(track.id);
+    if (inst) applyBajoPatch(inst, p);
   }, [track.id]);
 
   /** Edit the patch in place and push the result. One path for every control on the panel. */
@@ -88,10 +100,32 @@ export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
       } as unknown as Record<string, unknown>;
       t.instrument.presetName = preset.name;
       t.name = preset.name;
-      pushParams(next);
+      pushAll(next);
     });
     setGalleryOpen(false);
-  }, [onMutate, pushParams, track.id]);
+  }, [onMutate, pushAll, track.id]);
+
+  /** Blend two presets into this track. Tables can change, so this takes the slow path. */
+  const crossform = useCallback((aId: string, bId: string, amount: number) => {
+    const pa = BAJO_PRESETS.find((x) => x.id === aId);
+    const pb = BAJO_PRESETS.find((x) => x.id === bId);
+    if (!pa || !pb) return;
+    const blended = crossformPatch(newBajoPatch(pa), newBajoPatch(pb), amount);
+    onMutate((d) => {
+      const t = d.arrangement.find((x) => x.id === track.id);
+      if (!t?.instrument) return;
+      t.instrument.patch = {
+        ...blended,
+        params: Object.fromEntries(Object.entries(blended.params).map(([k, v]) => [String(k), v])),
+        tables: [...blended.tables],
+        lane: [...blended.lane],
+        grid: blended.grid.map((row) => [...row]),
+      } as unknown as Record<string, unknown>;
+      t.instrument.presetName = blended.name;
+      t.name = blended.name;
+      pushAll(blended);
+    });
+  }, [onMutate, pushAll, track.id]);
 
   if (!patch) {
     return <div className="p-4 text-[12px] text-white/50">This track has no BAJO patch.</div>;
@@ -187,6 +221,61 @@ export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
         {patch.description && (
           <p className="text-[11px] leading-relaxed text-white/40">{patch.description}</p>
         )}
+
+        {/* Crossform. Folded away by default — it rewrites the patch, which is not something to
+            leave one stray drag away from the macros. */}
+        <div className="flex flex-col gap-2 pt-1 border-t border-white/[0.07]">
+          <button
+            onClick={() => setXfOpen((v) => !v)}
+            className="flex items-center gap-2 text-[9px] uppercase tracking-[0.18em] text-white/40 hover:text-white/70"
+          >
+            <span style={{ color: xfOpen ? BAJO_ACCENT : undefined }}>Crossform</span>
+            <span className="text-white/25">{xfOpen ? '−' : '+'}</span>
+            <span className="flex-1 text-left normal-case tracking-normal text-[10px] text-white/25">
+              blend any two patches
+            </span>
+          </button>
+
+          {xfOpen && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <span className="w-4 text-[9px] uppercase text-white/35">A</span>
+                <select
+                  value={xfA}
+                  onChange={(e) => { setXfA(e.target.value); crossform(e.target.value, xfB, xfAmt); }}
+                  className="flex-1 min-w-0 bg-black/40 border border-white/10 rounded px-1.5 py-1 text-[11px] text-white"
+                >
+                  {BAJO_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-4 text-[9px] uppercase text-white/35">B</span>
+                <select
+                  value={xfB}
+                  onChange={(e) => { setXfB(e.target.value); crossform(xfA, e.target.value, xfAmt); }}
+                  className="flex-1 min-w-0 bg-black/40 border border-white/10 rounded px-1.5 py-1 text-[11px] text-white"
+                >
+                  {BAJO_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="range" min={0} max={1} step={0.001} value={xfAmt}
+                  aria-label="Crossform amount"
+                  onChange={(e) => { const v = +e.target.value; setXfAmt(v); crossform(xfA, xfB, v); }}
+                  className="flex-1 min-w-0 accent-[#FF4B1C]"
+                />
+                <span className="w-9 text-right text-[10px] font-mono tabular-nums" style={{ color: BAJO_ACCENT }}>
+                  {Math.round(xfAmt * 100)}%
+                </span>
+              </div>
+              <p className="text-[10px] leading-snug text-white/25">
+                Continuous controls blend; tables, the lane, the gate grid and anything stepped
+                snap at the midpoint. The interesting patch is rarely at either end.
+              </p>
+            </div>
+          )}
+        </div>
 
         {galleryOpen && (
           <div className="flex flex-col gap-1.5">

@@ -13,8 +13,11 @@ import {
   P, O, F, E, osc, flt, env,
   S, T, W, G, SC, SP, RV, MONO_BELOW,
   LANE_LEN, GATE_BANDS, GATE_STEPS, laneParam, gridParam, scorch, SC_STAGES,
+  BAJO_DISCRETE_IDS, bajoDefault,
 } from './params';
 import { BAJO_PRESETS, DEFAULT_BAJO_PRESET, expandBajoMacros, type BajoMacro, type BajoPreset } from './presets';
+import type { Instrument } from '../../beats/engine/InstrumentHost';
+import { getBajoWavetable, bajoTableIndex, FRAMES, FRAME_SIZE } from './wavetables';
 
 export interface BajoModRoute {
   source: number;
@@ -46,6 +49,8 @@ export interface BajoPatch {
   description?: string;
   /** Raw param id → value. Anything absent keeps the engine default. */
   params: Record<number, number>;
+  /** Wavetable id per oscillator slot, index 0..1. Empty string = that oscillator is analog. */
+  tables: string[];
   /** 16 slots, one per 16th note; each holds a division index into LANE_DIVS. */
   lane: number[];
   /** 4 bands × 16 steps of 0/1, band-major: Sub, Low, Mid, Air. */
@@ -66,6 +71,7 @@ export function newBajoPatch(preset: BajoPreset = DEFAULT_BAJO_PRESET): BajoPatc
     presetId: preset.id,
     description: preset.description,
     params: { ...preset.params },
+    tables: preset.tables ? [...preset.tables] : [],
     lane: preset.lane ? [...preset.lane] : defaultLane(),
     grid: preset.grid ? preset.grid.map((row) => [...row]) : defaultGrid(),
     macros: { ...preset.macros },
@@ -82,6 +88,7 @@ export function applyBajoPreset(patch: BajoPatch, preset: BajoPreset): BajoPatch
     presetId: preset.id,
     description: preset.description,
     params: { ...preset.params },
+    tables: preset.tables ? [...preset.tables] : [],
     lane: preset.lane ? [...preset.lane] : defaultLane(),
     grid: preset.grid ? preset.grid.map((row) => [...row]) : defaultGrid(),
     macros: { ...preset.macros },
@@ -93,6 +100,7 @@ export function serializeBajoPatch(p: BajoPatch): Record<string, unknown> {
   return {
     ...p,
     params: Object.fromEntries(Object.entries(p.params).map(([k, v]) => [String(k), v])),
+    tables: [...p.tables],
     lane: [...p.lane],
     grid: p.grid.map((row) => [...row]),
   };
@@ -129,6 +137,7 @@ export function deserializeBajoPatch(raw: Record<string, unknown> | undefined): 
     presetId: src.presetId,
     description: src.description,
     params,
+    tables: Array.isArray(src.tables) ? src.tables.map((t) => String(t ?? '')) : [],
     lane,
     grid,
     macros: {
@@ -159,6 +168,79 @@ export function bajoEngineParams(patch: BajoPatch): Array<[number, number]> {
     for (let st = 0; st < GATE_STEPS; st++) out.push([gridParam(b, st), patch.grid[b]?.[st] ? 1 : 0]);
   }
   return out;
+}
+
+/** Which wavetables this patch needs, deduped — the caller uploads these once per instrument. */
+export function bajoTablesFor(patch: BajoPatch): string[] {
+  return Array.from(new Set(patch.tables.filter(Boolean)));
+}
+
+/**
+ * Push a whole patch into a live instrument: wavetables first (the mip build is the expensive
+ * part and must never land in the render path), then every parameter in one bulk message.
+ *
+ * BAJO owns its engine instance, so its table slots are its own and cannot collide with ONDA's.
+ */
+export function applyBajoPatch(inst: Instrument, patch: BajoPatch): void {
+  for (const id of bajoTablesFor(patch)) {
+    const data = getBajoWavetable(id);
+    if (data) inst.loadWavetable(bajoTableIndex(id), data, FRAMES, FRAME_SIZE);
+  }
+  const entries = bajoEngineParams(patch);
+  // Point each oscillator at its slot. An oscillator with no table stays in analog mode, which
+  // is exact for a sine 808 and cheaper than reading a table to get one.
+  patch.tables.forEach((id, i) => {
+    if (id) entries.push([osc(i, O.TABLE), bajoTableIndex(id)]);
+  });
+  inst.setParams(entries);
+}
+
+/**
+ * Crossform — interpolate the whole instrument between two patches.
+ *
+ * Every continuous parameter moves; everything the engine reads as an index or a flag snaps at
+ * the midpoint, because halfway between Saw and Square is neither and half a toggle is not a
+ * state. Wavetables, the rate lane and the gate grid snap too — they are patterns, and a blend
+ * of two patterns is a third pattern nobody asked for.
+ *
+ * It is the fastest way to hear what the instrument spans (drag Upright Jazz toward Riddim Snarl
+ * and listen to it stop being wood), and a sound-design tool in its own right — the interesting
+ * patch is usually not at either end.
+ */
+export function crossformPatch(a: BajoPatch, b: BajoPatch, amount: number): BajoPatch {
+  const t = Math.max(0, Math.min(1, amount));
+  const pick = t < 0.5 ? a : b;
+  const params: Record<number, number> = {};
+  const ids = new Set<number>([
+    ...Object.keys(a.params).map(Number),
+    ...Object.keys(b.params).map(Number),
+  ]);
+  for (const id of ids) {
+    // A parameter only one side states is not "both sides agree" — it is that side changing it
+    // and the other side leaving it at the engine's default. Reading it as agreement left the
+    // string engine at full strength all the way into a riddim patch, and the gate stuck on.
+    const av = a.params[id] ?? bajoDefault(id);
+    const bv = b.params[id] ?? bajoDefault(id);
+    params[id] = BAJO_DISCRETE_IDS.has(id) ? (t < 0.5 ? av : bv) : av + (bv - av) * t;
+  }
+  const macros = {} as Record<BajoMacro, number>;
+  (Object.keys(a.macros) as BajoMacro[]).forEach((k) => {
+    macros[k] = a.macros[k] + ((b.macros[k] ?? a.macros[k]) - a.macros[k]) * t;
+  });
+  return {
+    ...pick,
+    id: a.id,
+    name: t <= 0 ? a.name : t >= 1 ? b.name : `${a.name} → ${b.name}`,
+    presetId: t <= 0 ? a.presetId : t >= 1 ? b.presetId : undefined,
+    description: pick.description,
+    params,
+    tables: [...pick.tables],
+    lane: [...pick.lane],
+    grid: pick.grid.map((row) => [...row]),
+    macros,
+    routes: pick.routes,
+    version: 1,
+  };
 }
 
 /** The ids the editor surfaces, grouped for its section cards. */
