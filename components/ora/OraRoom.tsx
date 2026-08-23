@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, Trash2, Check, Lock, Sparkles, ArrowLeft, Share2 } from 'lucide-react';
 import { Button, IconButton, Surface, Actions, Eyebrow, Input, Textarea, Chip } from '../ui';
 import Stillness from './Stillness';
+import StillnessDeep from './StillnessDeep';
 import Together from './Together';
 import Commonplace from './Commonplace';
 import SeasonCardModal from './SeasonCardModal';
@@ -491,6 +492,7 @@ export const OraRoom: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [busy, setBusy] = useState(false);
   const [rail, setRail] = useState<Rail>('CARE');
   const [tab, setTab] = useState<Tab>('TODAY');
+  const [deepOpen, setDeepOpen] = useState(false);
   const [checkin, setCheckin] = useState<OraCheckin | null>(null);
   const [recent, setRecent] = useState<OraCheckin[]>([]);
   const [entries, setEntries] = useState<OraEntry[]>([]);
@@ -630,7 +632,28 @@ export const OraRoom: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         />
       )}
       {/* A finished session can move a minutes goal, so refresh when one lands. */}
-      {tab === 'STILLNESS' && <Stillness onLogged={() => void refresh()} />}
+      {tab === 'STILLNESS' && (
+        <>
+          <Stillness onLogged={() => void refresh()} />
+          {/* Deep sits under the breathwork rather than beside it: being led is the thing most
+              people want first, and this is the one you reach for when you don't. */}
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-white/10 px-4 py-3">
+            <div className="min-w-0">
+              <div className="text-[13px] font-semibold text-white/85">Deep</div>
+              <p className="text-[11.5px] text-white/45 leading-snug">
+                No tracks, no narrator. Sound and light made as you listen, and not kept.
+              </p>
+            </div>
+            <Button variant="secondary" onClick={() => setDeepOpen(true)}>Enter</Button>
+          </div>
+        </>
+      )}
+      {deepOpen && (
+        <StillnessDeep
+          onClose={() => { setDeepOpen(false); void refresh(); }}
+          onWrite={() => setTab('LONGHAND')}
+        />
+      )}
       {tab === 'TOGETHER' && <Together onLogged={() => void refresh()} />}
       {tab === 'LONGHAND' && <LonghandTab entries={entries} onSave={addEntry} onDelete={removeEntry} />}
       {tab === 'WORKBENCH' && <Workbench />}
