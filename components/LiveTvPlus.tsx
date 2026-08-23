@@ -18,9 +18,10 @@ import { probeDurations } from '../services/mediaProbe';
 import { now as clockNow } from '../services/platformClock';
 import AdBreakBumper from './tv/AdBreakBumper';
 import ComingUpNextBumper, { type UpNextItem } from './tv/ComingUpNextBumper';
+import EndlessHourPlayer from './tv/EndlessHourPlayer';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import { isShellFocused, setShellFocus } from '../hooks/useTvShellFocus';
-import { PLAJAH_CHANNELS, UNNUMBERED, guideSortKey, plajahNumber } from '../services/fast/channelNumbers';
+import { PLAJAH_CHANNELS, UNNUMBERED, assignMajors, guideSortKey, plajahNumber } from '../services/fast/channelNumbers';
 
 export interface TvChannel {
   id: string;
@@ -305,12 +306,16 @@ const LiveTvPlus: React.FC<{
   // nothing disappears — and their FAST channel is another sub. Then curated Science channels.
   const channels: TvChannel[] = useMemo(() => {
     type Sub = Omit<TvChannel, 'number'>;
-    interface Owner { ownerId: string; name: string; bound?: number; subs: Sub[]; }
+    interface Owner { ownerId: string; name: string; bound?: number; createdAt?: number; subs: Sub[]; }
     const owners = new Map<string, Owner>();
     const ensure = (ownerId: string, name: string): Owner => {
       let o = owners.get(ownerId);
       if (!o) { o = { ownerId, name, subs: [] }; owners.set(ownerId, o); }
       return o;
+    };
+    /** Earliest known creation time wins — an account's age is the age of its oldest source. */
+    const seen = (o: Owner, at?: number) => {
+      if (typeof at === 'number' && (o.createdAt == null || at < o.createdAt)) o.createdAt = at;
     };
 
     // Live feeds → channels ONLY for OFF-PLATFORM sources (external URLs not from Plajah). A Reello /
@@ -327,6 +332,7 @@ const LiveTvPlus: React.FC<{
         const ownerId = ((f as any).ownerId as string) || f.id;
         const o = ensure(ownerId, f.ownerName || f.title);
         if (typeof (f as any).channelNumber === 'number') o.bound = (f as any).channelNumber; // account's bound guide number
+        seen(o, (f as any).createdAt ?? (f as any).startedAt);
         o.subs.push({
           id: `live_${f.id}`, name: f.title, sub: 'Live', accent: BRAND, badge: 'LIVE',
           kind: isHlsUrl(url) ? 'hls' : isEmbeddableUrl(url) ? 'embed' : 'webrtc',
@@ -339,28 +345,30 @@ const LiveTvPlus: React.FC<{
       const o = ensure(fc.ownerId, fc.name || 'Channel');
       if (fc.name) o.name = fc.name;                 // custom channel name wins for the account
       if (typeof fc.number === 'number') o.bound = fc.number;
+      seen(o, fc.createdAt);
       o.subs.push({
         id: `fast_${fc.ownerId}`, name: fc.name || `${o.name} (FAST)`, sub: 'FAST Channel', accent: '#36c5f0', badge: 'FAST',
         kind: 'fast', playUrl: '', now: 'Scheduled programming', ownerId: fc.ownerId, scheduleOwner: fc.ownerId,
       });
     });
 
-    // Numbers are HONOURED, never invented.
+    // Numbers come from claims and creation dates — NEVER from position in the lineup.
     //
-    // This used to hand every unbound account "the smallest free positive integer", computed
-    // over whoever happened to be on air. That is a row index, not an address: it moved every
-    // time another account went live or went dark. An account with no claimed number now shows
-    // as unnumbered until one is allocated and persisted (claimChannelNumber), because a
-    // missing number is honest and a moving one is not.
+    // This used to hand every unbound account "the smallest free positive integer" computed over
+    // whoever happened to be on air, so a channel's number moved when a DIFFERENT account went
+    // live. Allocating oldest-first instead keeps every existing channel on the number it
+    // already has, and makes that number stop drifting: creation time does not change when
+    // somebody else goes on or off air.
     const list = [...owners.values()];
-    list.sort((a, b) => (a.bound ?? Number.MAX_SAFE_INTEGER) - (b.bound ?? Number.MAX_SAFE_INTEGER) || a.name.localeCompare(b.name));
+    const majors = assignMajors(list.map(o => ({ key: o.ownerId, claimed: o.bound, createdAt: o.createdAt })));
     const out: TvChannel[] = [];
     list.forEach(o => {
+      const major = majors.get(o.ownerId);
       o.subs.forEach((s, j) => {
         // Single-source account → plain "N"; multi-source → "N.1", "N.2".
-        const number = o.bound == null
+        const number = major == null
           ? UNNUMBERED
-          : o.subs.length > 1 ? `${o.bound}.${j + 1}` : `${o.bound}`;
+          : o.subs.length > 1 ? `${major}.${j + 1}` : `${major}`;
         out.push({ ...s, number, name: o.subs.length > 1 ? `${o.name} · ${s.badge === 'FAST' ? 'FAST' : s.name}` : o.name });
       });
     });
@@ -702,6 +710,13 @@ const LiveTvPlus: React.FC<{
 
       {/* Content + dial */}
       <div className="relative flex-1 min-h-0">
+        {/* A generative channel has no url and no file, so it does not go through ChannelPlayer
+            at all — it renders itself from the clock. Mounted once and never keyed on a slot:
+            re-mounting it would restart a session someone is inside. */}
+        {playing?.plajahId === 'endless-hour' ? (
+          <EndlessHourPlayer muted={muted} />
+        ) : (
+        <>
         {/* Keyed per scheduled slot so a repeat of the same url still reloads the player. */}
         <ChannelPlayer key={fastMedia?.key || resolvedPlaying?.id || 'none'} channel={resolvedPlaying} muted={muted} onWatchWebrtc={(f) => onWatchWebrtc?.(f)}
           onEnded={playing?.kind === 'fast' ? onFastMediaEnded : undefined}
@@ -717,6 +732,8 @@ const LiveTvPlus: React.FC<{
             for the rest of its window instead of black (the clock boundary moves us on, on time). */}
         {playing?.kind === 'fast' && !fastAd && fastFiller && (
           <ComingUpNextBumper key={fastFiller.key} channelName={playing.name} items={fastFiller.upcoming} accent={playing.accent} />
+        )}
+        </>
         )}
 
         {/* Live pre-emption warning — a FAST channel is being cut over to the broadcaster's live

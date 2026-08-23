@@ -90,7 +90,7 @@ export const LayersPanel: React.FC<{ state: OverlayState }> = ({ state }) => {
           <button onClick={() => state.set({ lottieUrl: lottieDraft, lottieOn: !!lottieDraft })} className="flex-1 py-1.5 rounded-lg bg-pink-600/30 hover:bg-pink-600/50 border border-pink-400/30 text-[9px] font-black uppercase tracking-widest text-white transition-all">Load</button>
           <button onClick={() => state.set({ lottieOn: !state.lottieOn })} disabled={!state.lottieUrl} className={`px-3 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40 ${state.lottieOn ? 'bg-white/15 border-white/20 text-white' : 'bg-white/5 border-white/10 text-white/60'}`}>{state.lottieOn ? 'On' : 'Off'}</button>
         </div>
-        <input type="range" min={0} max={1} step={0.05} value={state.lottieOpacity} onChange={e => state.set({ lottieOpacity: parseFloat(e.target.value) })} className="w-full h-1 accent-pink-400" />
+        <input type="range" min={0} max={1} step={0.05} value={state.lottieOpacity} onChange={e => state.set({ lottieOpacity: parseFloat(e.target.value) })} className="pj-range pj-range--dense w-full" />
       </div>
 
       <div className="h-px bg-white/10" />
@@ -109,7 +109,7 @@ export const LayersPanel: React.FC<{ state: OverlayState }> = ({ state }) => {
           <button onClick={() => state.set({ htmlOn: !state.htmlOn })} disabled={!state.htmlUrl} className={`px-3 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40 ${state.htmlOn ? 'bg-white/15 border-white/20 text-white' : 'bg-white/5 border-white/10 text-white/60'}`}>{state.htmlOn ? 'On' : 'Off'}</button>
         </div>
         <div className="flex items-center gap-3">
-          <input type="range" min={0} max={1} step={0.05} value={state.htmlOpacity} onChange={e => state.set({ htmlOpacity: parseFloat(e.target.value) })} className="flex-1 h-1 accent-cyan-400" />
+          <input type="range" min={0} max={1} step={0.05} value={state.htmlOpacity} onChange={e => state.set({ htmlOpacity: parseFloat(e.target.value) })} className="pj-range pj-range--dense pj-range--signal flex-1" />
           <button onClick={() => state.set({ htmlInteractive: !state.htmlInteractive })} className={`text-[8px] font-black uppercase tracking-widest transition-colors ${state.htmlInteractive ? 'text-cyan-300' : 'text-white/30 hover:text-white'}`}>{state.htmlInteractive ? 'Interactive' : 'Pass-thru'}</button>
         </div>
       </div>

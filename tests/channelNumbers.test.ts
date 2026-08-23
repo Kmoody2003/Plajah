@@ -11,8 +11,17 @@ import assert from 'node:assert/strict';
 
 import {
   PLAJAH_BAND, PLAJAH_CHANNELS, RESERVED_MAJORS, SCIENCE_BAND_START, UNNUMBERED,
-  findPlajahChannel, guideSortKey, isAllocatableMajor, nextPlajahSub, nextUserMajor, plajahNumber,
+  assignMajors, findPlajahChannel, guideSortKey, isAllocatableMajor, nextPlajahSub, nextUserMajor,
+  plajahNumber,
 } from '../services/fast/channelNumbers';
+
+/** A lineup, oldest first. `alice` is the oldest account, `dave` the newest. */
+const LINEUP = [
+  { key: 'alice', createdAt: 1_000 },
+  { key: 'bob', createdAt: 2_000 },
+  { key: 'carol', createdAt: 3_000 },
+  { key: 'dave', createdAt: 4_000 },
+];
 
 // ── Allocation ───────────────────────────────────────────────────────────────
 
@@ -104,4 +113,96 @@ test('an unnumbered channel shows no number rather than a provisional one', () =
   // deliberately no way to render a placeholder that looks like a channel number.
   assert.equal(UNNUMBERED, '—');
   assert.ok(!/\d/.test(UNNUMBERED));
+});
+
+// ── The bug this replaces ────────────────────────────────────────────────────
+
+test('a number does not change when a DIFFERENT account goes live', () => {
+  // The reported bug, stated as a test.
+  //
+  // The candidate set is every account with a channel, not every account currently broadcasting
+  // — going live or dark adds or removes a SUB-channel, never the owner. Previously numbers came
+  // from position in the on-air list, so K-Moody's number changed when somebody else switched on.
+  // Here the input is identical either way, so the numbers are too.
+  const offAir = assignMajors(LINEUP);
+  const bobNowLive = assignMajors(LINEUP);   // bob broadcasting adds bob.1, not a new owner
+  for (const c of LINEUP) assert.equal(bobNowLive.get(c.key), offAir.get(c.key), `${c.key} moved`);
+});
+
+test('an account LEAVING still shifts the ones after it — which is what claiming is for', () => {
+  // The honest limit of a provisional number. Small consecutive integers cannot be both gapless
+  // and stable under deletion without a registry that remembers what was handed out; that is
+  // exactly what claimChannelNumber persists, and once carol has claimed 3 she keeps 3 whatever
+  // happens to bob.
+  const everyone = assignMajors(LINEUP);
+  const bobDeleted = assignMajors(LINEUP.filter((c) => c.key !== 'bob'));
+  assert.equal(everyone.get('carol'), 3);
+  assert.equal(bobDeleted.get('carol'), 2, 'documents the drift a claim removes');
+
+  const carolClaimed = assignMajors(
+    LINEUP.filter((c) => c.key !== 'bob').map((c) => (c.key === 'carol' ? { ...c, claimed: 3 } : c)),
+  );
+  assert.equal(carolClaimed.get('carol'), 3, 'a claim holds the address through a deletion');
+});
+
+test('a new account appears at the end and displaces nobody', () => {
+  const before = assignMajors(LINEUP);
+  const after = assignMajors([...LINEUP, { key: 'erin', createdAt: 9_000 }]);
+  for (const c of LINEUP) assert.equal(after.get(c.key), before.get(c.key), `${c.key} moved`);
+  assert.equal(after.get('erin'), 5);
+});
+
+test('load order does not affect the answer', () => {
+  // Firestore returns documents in whatever order it likes, and two devices will not agree on
+  // it. The allocation has to be a function of the data, not of arrival.
+  const forwards = assignMajors(LINEUP);
+  const backwards = assignMajors([...LINEUP].reverse());
+  for (const c of LINEUP) assert.equal(backwards.get(c.key), forwards.get(c.key));
+});
+
+test('accounts created in the same millisecond still resolve identically everywhere', () => {
+  const tied = [{ key: 'zoe', createdAt: 500 }, { key: 'adam', createdAt: 500 }];
+  const a = assignMajors(tied);
+  const b = assignMajors([...tied].reverse());
+  assert.equal(a.get('adam'), b.get('adam'));
+  assert.equal(a.get('zoe'), b.get('zoe'));
+  assert.notEqual(a.get('adam'), a.get('zoe'));
+});
+
+// ── Existing numbers survive ─────────────────────────────────────────────────
+
+test('a claimed number always wins over allocation', () => {
+  const m = assignMajors([{ key: 'alice', createdAt: 1_000, claimed: 42 }, ...LINEUP.slice(1)]);
+  assert.equal(m.get('alice'), 42);
+});
+
+test('allocation never lands on a number somebody already claimed', () => {
+  // bob holds 1, so alice — older — must take 2 rather than colliding.
+  const m = assignMajors([
+    { key: 'alice', createdAt: 1_000 },
+    { key: 'bob', createdAt: 2_000, claimed: 1 },
+  ]);
+  assert.equal(m.get('bob'), 1);
+  assert.equal(m.get('alice'), 2);
+});
+
+test('everyone in a lineup gets a number, not a dash', () => {
+  // The point of the createdAt fallback: existing channels keep having numbers. Only a channel
+  // with neither a claim nor a creation date falls through to UNNUMBERED.
+  const m = assignMajors(LINEUP);
+  assert.equal(m.size, LINEUP.length);
+  for (const c of LINEUP) assert.ok(typeof m.get(c.key) === 'number');
+});
+
+test('a channel with no claim and no date gets no number', () => {
+  const m = assignMajors([{ key: 'ghost' }, ...LINEUP]);
+  assert.equal(m.has('ghost'), false);
+});
+
+test('allocation skips the Plajah band', () => {
+  // Eight accounts: the eighth must be 9, because 8 belongs to Plajah.
+  const many = Array.from({ length: 8 }, (_, i) => ({ key: `u${i}`, createdAt: i * 100 }));
+  const m = assignMajors(many);
+  assert.deepEqual([...m.values()], [1, 2, 3, 4, 5, 6, 7, 9]);
+  assert.ok(![...m.values()].includes(PLAJAH_BAND));
 });

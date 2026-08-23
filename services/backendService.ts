@@ -8929,6 +8929,9 @@ export interface FastChannelListing {
   number?: number;
   category?: string;
   logoUrl?: string;
+  /** When the channel was created. The guide allocates unclaimed numbers oldest-first, so this
+   *  is what keeps a channel on the number it already has — see fast/channelNumbers.ts. */
+  createdAt?: number;
   profile: UserProfile;
 }
 
@@ -8956,6 +8959,9 @@ export const fetchAllFastChannels = async (max = 300): Promise<FastChannelListin
         number: m?.number,
         category: m?.category,
         logoUrl: m?.logoUrl || (p as any).photoURL || (p as any).headerImage,
+        // Fall back to the account's own creation time: a channel doc written before createdAt
+        // was recorded is still older than one written today, and the account age says so.
+        createdAt: m?.createdAt ?? (p as any).createdAt,
         profile: p,
       });
     });

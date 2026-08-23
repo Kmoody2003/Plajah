@@ -9,8 +9,10 @@
 //
 //   1. It belongs to the account, not to the lineup. It is claimed once, persisted, and honoured
 //      forever after — including while the account is off air, so nothing else takes the slot.
-//   2. It is never derived from position. If an account has no number yet, the guide shows no
-//      number rather than one that will be different tomorrow.
+//   2. It is never derived from POSITION IN THE LINEUP. An account that has not claimed one yet
+//      still gets a number — allocated from when the channel was CREATED, which never changes,
+//      rather than from who happens to be on air, which changes constantly. So existing channels
+//      keep the numbers they have and simply stop drifting.
 //   3. Reserved ranges are reserved even when empty.
 //
 // THE BANDS
@@ -61,7 +63,7 @@ export const PLAJAH_CHANNELS: readonly PlajahChannel[] = [
     id: 'endless-hour',
     sub: 1,
     name: 'The Endless Hour',
-    tagline: 'Generated as you watch. Once it is gone it is gone.',
+    tagline: 'Made as you watch. Some of it only for you.',
     kind: 'generative',
     onAir: false,
   },
@@ -101,12 +103,65 @@ export function isAllocatableMajor(n: number): boolean {
 }
 
 /**
- * How an unnumbered channel appears.
+ * How a channel with no number at all appears.
  *
- * Deliberately not a number. A placeholder that sorts and displays as "not yet assigned" is
- * honest; a number that changes next week teaches people the wrong address.
+ * Reached only when a channel has neither a claim nor a creation date — rare, and better shown
+ * as blank than as a number that will be different tomorrow.
  */
 export const UNNUMBERED = '—';
+
+export interface NumberCandidate {
+  /** Stable identity — the owner account, or the first-party channel id. */
+  key: string;
+  /** A claimed, persisted number. Always wins. */
+  claimed?: number;
+  /** When the channel was created. Immutable, which is the entire point. */
+  createdAt?: number;
+}
+
+/**
+ * Numbers for a whole lineup.
+ *
+ * The ordering property that matters: this depends only on claims and creation dates, never on
+ * who is currently on air or in what order they loaded. Two viewers looking at the same set of
+ * channels at different moments see the same numbers, and an account going live or dark moves
+ * nobody.
+ *
+ * Claims are honoured first and reserved out, so a provisional number can never collide with
+ * one somebody already owns. The rest are handed out oldest-first — which is what keeps the
+ * numbers that existing channels already have, instead of resetting the guide.
+ *
+ * One thing this deliberately does NOT promise: an unclaimed number survives a channel being
+ * DELETED from the set — the ones after it move up. Small consecutive integers cannot be both
+ * gapless and deletion-stable without a registry that remembers what was handed out, which is
+ * precisely what `claimChannelNumber` persists. Provisional numbers are stable against the thing
+ * that was actually going wrong (someone else switching on); claims make them permanent.
+ */
+export function assignMajors(candidates: readonly NumberCandidate[]): Map<string, number> {
+  const out = new Map<string, number>();
+  const taken = new Set<number>();
+
+  for (const c of candidates) {
+    if (typeof c.claimed === 'number' && isAllocatableMajor(c.claimed)) {
+      out.set(c.key, c.claimed);
+      taken.add(c.claimed);
+    }
+  }
+
+  // Oldest first, with the key as a tiebreak so the order is total — two channels created in the
+  // same millisecond must still resolve the same way on every device.
+  const unclaimed = candidates
+    .filter((c) => !out.has(c.key) && typeof c.createdAt === 'number')
+    .sort((a, b) => (a.createdAt! - b.createdAt!) || a.key.localeCompare(b.key));
+
+  let n = 1;
+  for (const c of unclaimed) {
+    while (taken.has(n) || RESERVED_MAJORS.has(n)) n++;
+    taken.add(n);
+    out.set(c.key, n);
+  }
+  return out;
+}
 
 /**
  * Sort key for the guide.

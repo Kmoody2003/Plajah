@@ -51,11 +51,11 @@ const MattePanel: React.FC<Props> = ({ engine, settings, setSettings, visible, o
 
       <div style={{ marginBottom: 12 }}>
         <div style={label}><span>Threshold</span><b style={{ color: '#b56cff' }}>{settings.thresh.toFixed(2)}</b></div>
-        <input type="range" min={0} max={1} step={0.01} value={settings.thresh} onChange={e => setSettings({ ...settings, thresh: +e.target.value })} style={{ width: '100%' }} />
+        <input type="range" min={0} max={1} step={0.01} value={settings.thresh} onChange={e => setSettings({ ...settings, thresh: +e.target.value })} className="pj-range pj-range--dense w-full" />
       </div>
       <div style={{ marginBottom: 12 }}>
         <div style={label}><span>Layer scale</span><b style={{ color: '#b56cff' }}>{settings.scale.toFixed(2)}</b></div>
-        <input type="range" min={0.2} max={2} step={0.05} value={settings.scale} onChange={e => setSettings({ ...settings, scale: +e.target.value })} style={{ width: '100%' }} />
+        <input type="range" min={0.2} max={2} step={0.05} value={settings.scale} onChange={e => setSettings({ ...settings, scale: +e.target.value })} className="pj-range pj-range--dense w-full" />
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: 'rgba(244,242,255,0.55)', marginBottom: 10 }}>
         <span>React to bass (scale)</span>

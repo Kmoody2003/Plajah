@@ -573,5 +573,9 @@ textarea.pj-input { height: auto; min-height: 96px; padding-block: var(--pj-spac
 .pj-range:focus-visible::-moz-range-thumb     { box-shadow: 0 0 0 3px var(--pj-orange-soft); }
 .pj-range:disabled { cursor: not-allowed; }
 
+/* Dense variant — for a packed inspector rail, where sm is too much air.
+   Same control-height scale, one rung down. */
+.pj-range--dense { height: var(--pj-ctl-h-xs, 28px); }
+
 /* Signal variant — an armed / live parameter. */
 .pj-range--signal { --pj-range-fill: var(--pj-orange); }
