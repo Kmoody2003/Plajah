@@ -32,6 +32,8 @@ interface ShaderEntry {
   n?: number;
   /** Which band drives which part of the picture: [channel, what it does]. */
   reacts?: [string, string][];
+  /** Named iParam0..3 controls a signature work reads. */
+  params?: { name: string; def: number }[];
 }
 
 const SHADERS: ShaderEntry[] = [
@@ -629,6 +631,7 @@ const SIGNATURE_ENTRIES: ShaderEntry[] = SIGNATURE_WORKS.map(w => ({
   line: w.line,
   n: w.n,
   reacts: w.reacts,
+  params: w.params,
 }));
 
 const BASE_SHADERS: ShaderEntry[] = [
@@ -654,8 +657,23 @@ const KINDS: { id: 'signature' | 'raw' | 'procedural' | 'isf'; label: string; co
   { id: 'isf',        label: 'ISF',        color: '#f472b6' },
 ];
 
-/** Exported shader library for use in ClipLauncher's SHADERS source tab. */
-export const SHADER_LIBRARY: { name: string; src: string; category: string; kind?: string; license?: string; credit?: string; series?: string; setTitle?: string; line?: string }[] =
+/**
+ * The library, as data.
+ *
+ * ClipLauncher's SHADERS tab reads this, and so does the permanent Library rail and the shader
+ * Inspector (ui/LibraryRail, ui/ShaderInspector). `params` and `reacts` ride along because the
+ * inspector's whole job is to show them — a control the shader actually reads, and which band
+ * drives which part of the picture — and there is no other place to get them at the call site.
+ */
+export interface ShaderLibraryEntry {
+  name: string; src: string; category: string;
+  kind?: string; license?: string; credit?: string;
+  series?: string; setTitle?: string; line?: string;
+  params?: { name: string; def: number }[];
+  reacts?: [string, string][];
+}
+
+export const SHADER_LIBRARY: ShaderLibraryEntry[] =
   BASE_SHADERS.map(s => ({
     name:     s.name,
     src:      s.src,
@@ -666,6 +684,8 @@ export const SHADER_LIBRARY: { name: string; src: string; category: string; kind
              : 'Abstract',
     kind: s.kind, license: s.license, credit: s.credit,
     series: s.series, setTitle: s.setTitle, line: s.line,
+    params: (s as ShaderEntry & { params?: { name: string; def: number }[] }).params,
+    reacts: s.reacts,
   }));
 
 /**

@@ -142,11 +142,14 @@ export interface InspectorProps {
   onClose?: () => void;
   /** Set by the studio; panels portal into this element. */
   dockRef: (el: HTMLDivElement | null) => void;
+  /** Properties of what is selected, shown ABOVE the docked panels — an inspector leads with the
+   *  selection and keeps the tabs beneath it. This is the mockup's whole right rail. */
+  selection?: React.ReactNode;
   children?: React.ReactNode;
 }
 
 export const Inspector: React.FC<InspectorProps> = ({
-  kind, title, subtitle, onClose, dockRef, children,
+  kind, title, subtitle, onClose, dockRef, selection, children,
 }) => {
   return (
     <aside
@@ -172,9 +175,12 @@ export const Inspector: React.FC<InspectorProps> = ({
         </div>
       </div>
 
-      {/* Docked panels land here. They keep their own markup — DraggablePanel
-          portals its children in rather than anything being moved. */}
-      <div ref={dockRef} className="flex-1 min-h-0 overflow-y-auto scrollbar-none" />
+      {/* The selection leads; the docked panels follow. One scroll area over both so a long
+          selection and a docked tab do not fight for height. */}
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none">
+        {selection}
+        <div ref={dockRef} />
+      </div>
 
       {children}
 

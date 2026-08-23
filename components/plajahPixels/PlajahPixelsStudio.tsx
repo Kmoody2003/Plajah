@@ -18,6 +18,8 @@ import ButterchurnLayer from './components/ButterchurnLayer';
 import ShaderLayer from './components/ShaderLayer';
 import PostProcessLayer from './components/PostProcessLayer';
 import ShaderPanel, { SHADER_LIBRARY, DEFAULT_SHADER_SRC } from './components/ShaderPanel';
+import LibraryRail from './ui/LibraryRail';
+import ShaderInspector from './ui/ShaderInspector';
 import MidiNotesScene from './components/MidiNotesScene';
 import ThreeScene, { Three3DConfig, Three3DVariant, Three3DCamera } from './components/ThreeScene';
 import { LottieLayer, HtmlLayer, FpsMeter, LayersPanel, OverlayState } from './components/ExtraLayers';
@@ -263,6 +265,9 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
        or the opening work begins mid-animation. */
     const [shaderSrc, setShaderSrc] = useState<string | null>(DEFAULT_SHADER_SRC);
     const [shaderStart, setShaderStart] = useState(() => performance.now());
+    // iParam0..3 for the look on the canvas. Owned here so the Library rail, the inspector and
+    // ShaderLayer all read one source; seeded from the selected work's declared defaults.
+    const [shaderParams, setShaderParams] = useState<number[]>([0.5, 0.5, 0.5, 0.5]);
     const [shaderError, setShaderError] = useState<string | null>(null);
     const [showShaderPanel, setShowShaderPanel] = useState(false);
     // Per-layer shaders from clip launcher (layerIdx → shader state)
@@ -800,6 +805,20 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
         () => (shaderSrc ? SHADER_LIBRARY.find(s => s.src === shaderSrc) : undefined),
         [shaderSrc],
     );
+
+    // Put a work on the canvas from the Library rail. Seeds iParam0..3 from the work's own
+    // declared defaults so the controls start where the author intended, and restarts the shader
+    // clock so the piece begins at its beginning rather than mid-animation.
+    const selectLook = useCallback((src: string) => {
+        const work = SHADER_LIBRARY.find(w => w.src === src);
+        setShaderSrc(src);
+        setShaderStart(performance.now());
+        setMidiNotes(false); setMilkdrop(false); setThree3d(null);
+        setShaderParams([
+            work?.params?.[0]?.def ?? 0.5, work?.params?.[1]?.def ?? 0.5,
+            work?.params?.[2]?.def ?? 0.5, work?.params?.[3]?.def ?? 0.5,
+        ]);
+    }, []);
 
     const applyShaderLook = useCallback((src: string) => {
         if (editTarget === 'preview') {
@@ -1350,7 +1369,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                 <ThreeScene analyser={analyserRef.current} config={three3d} albumUrl={platform?.mediaImages?.[0]} palette={config.colorPalette} />
             ) : analyserRef.current && (
                 <>
-                    {shaderSrc && <ShaderLayer analyser={analyserRef.current} source={shaderSrc} startTimeMs={shaderStart} onError={setShaderError} />}
+                    {shaderSrc && <ShaderLayer analyser={analyserRef.current} source={shaderSrc} startTimeMs={shaderStart} params={shaderParams} onError={setShaderError} />}
                     {midiNotes && <MidiNotesScene palette={config.colorPalette} />}
                     {milkdrop && <ButterchurnLayer analyser={analyserRef.current} presetIndex={milkdropIdx} blendMode={milkdropBlendMode} layerOpacity={milkdropLayerOpacity} onMeta={setMilkdropMeta} onThumbnail={(name, url) => setMilkdropThumbnails(prev => ({ ...prev, [name]: url }))} />}
                 </>
@@ -1386,6 +1405,19 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
         )}
 
         <div className="flex-1 min-h-0 flex overflow-hidden">
+
+        {/* The Library, as a place — a permanent left column, not a modal. Present from the
+            Simple rung up: "Library + canvas + four sliders" is the whole of Rung 1. */}
+        {!uiHidden && (
+            <AtDepth min="simple">
+                <LibraryRail
+                    selectedSrc={shaderSrc}
+                    onSelect={selectLook}
+                    onImport={() => setShowShaderPanel(true)}
+                />
+            </AtDepth>
+        )}
+
         <div ref={rootRef} id="plajah-pixels-root" className="relative flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden bg-black text-white font-sans">
             {/* ─── Platform-slaved chrome: exit, title, tracklist toggle — sits below icon row ─── */}
             {platform && !uiHidden && (
@@ -3831,6 +3863,15 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                 }
                 onClose={() => setInspectorOpen(false)}
                 dockRef={setDockEl}
+                selection={activeShader && (
+                    <ShaderInspector
+                        work={activeShader}
+                        params={shaderParams}
+                        onParam={(i, v) => setShaderParams(p => { const n = [...p]; n[i] = v; return n; })}
+                        onOpenSource={() => setShowShaderPanel(true)}
+                        onOff={() => setShaderSrc(null)}
+                    />
+                )}
             />
         )}
         {/* ── End canvas + inspector row */}
