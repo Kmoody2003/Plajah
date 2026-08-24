@@ -57,7 +57,8 @@ import {
   Game,
   WebApp,
   IPWorld,
-  ProfileThemePreset
+  ProfileThemePreset,
+  FeaturedProjectRef
 } from '../types';
 import { 
   fetchUserProfile,
@@ -584,6 +585,19 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
 
   const [isLivePlayerExpanded, setIsLivePlayerExpanded] = useState(false);
   const [isLivePlaying, setIsLivePlaying] = useState(false);
+  /** Featured Project (marquee): persist the creator's pick, or clear it back to
+   *  "most recent release". Cleared with null — an undefined field value THROWS on a
+   *  Firestore write, so never pass undefined here. */
+  const handleSetFeaturedProject = async (ref: FeaturedProjectRef | null) => {
+    if (auth.currentUser?.uid !== uid) return;
+    setProfile(prev => (prev ? { ...prev, featuredProject: ref } : prev));   // optimistic
+    try {
+      await updateUserProfile(uid, { featuredProject: ref });
+    } catch (err) {
+      console.error('[profile] featured project save failed', err);
+    }
+  };
+
   const [showFastChannel, setShowFastChannel] = useState(false);
   const [hasFastContent, setHasFastContent] = useState(false);
   const [showFastChannelManager, setShowFastChannelManager] = useState(false);
@@ -849,12 +863,15 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 <LayoutGrid size={16} />
                 Manage My Content
               </button>
+              {/* Creator Hub — replaced "Activate a Brand" here in the marquee rework. Brand
+                  activation is still reachable from the Creator Hub / brand tools; this slot
+                  goes to the one destination a creator opens every day. */}
               <button
-                onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'BRAND_ACTIVATION' } }))}
+                onClick={() => onNavigate?.('CREATOR_HUB')}
                 className="w-full sm:w-auto px-8 py-4 bg-black/25 hover:bg-black/40 text-white border border-white/25 rounded-full font-black uppercase tracking-widest text-[10px] lg:text-xs hover:scale-105 transition-all flex items-center justify-center gap-2 whitespace-nowrap"
               >
                 <Rocket size={16} />
-                Activate a Brand
+                Creator Hub
               </button>
             </div>
           </div>
@@ -870,22 +887,29 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
           following={following}
           isSubscribed={isSubscribed}
           hasFastContent={hasFastContent}
-          isLivePlayerExpanded={isLivePlayerExpanded}
           onProfileUpdate={handleProfileUpdate}
           onFollowToggle={handleFollowToggle}
           onMailingListToggle={handleMailingListToggle}
-          onClaimPioneerReward={handleClaimPioneerReward}
           onMessage={onMessage}
           onVisitUser={onVisitUser}
           onNavigate={onNavigate}
           onShowStatCard={() => setShowStatCard(true)}
           onOpenDonation={() => setIsDonationModalOpen(true)}
           onOpenPlajahPlusLanding={() => setShowPlajahPlusLanding(true)}
-          onSetLivePlayerExpanded={setIsLivePlayerExpanded}
-          onSetLivePlaying={setIsLivePlaying}
           onShowFastChannel={() => setShowFastChannel(true)}
           onShowFastChannelManager={() => setShowFastChannelManager(true)}
-          onOpenXFeed={() => { setFeedInitialType('X_FEED'); setFeedKey(k => k + 1); setActiveTab('FEED'); }}
+          albums={content}
+          videos={profile.videos || []}
+          articles={articles}
+          merch={merch}
+          onOpenRadio={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'RADIO', artistId: profile.uid, params: { artistId: profile.uid } } }))}
+          onSetFeatured={handleSetFeaturedProject}
+          onPlayAlbum={(album) => { const t = album.tracks?.[0]; if (t) playTrack(t, album, 'LIBRARY'); else onSelectAlbum(album); }}
+          onOpenAlbum={(album) => onSelectAlbum(album)}
+          onOpenVideo={() => setActiveTab('VIDEOS')}
+          onOpenArticle={(article) => { if (onSelectArticle) onSelectArticle(article); else setActiveTab('ARTICLES'); }}
+          onOpenSanctuary={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'SANCTUARY', artistId: profile.uid, params: { artistId: profile.uid } } }))}
+          onOpenMerch={() => setActiveTab('MERCH')}
         />
         ) : (
         <div className={`flex flex-col ${isMobile ? 'items-center text-center' : 'lg:flex-row lg:items-end'} gap-6 lg:gap-10`}>
