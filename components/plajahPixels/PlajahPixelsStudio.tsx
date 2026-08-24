@@ -99,7 +99,7 @@ const DEFAULT_CONFIG: VisualizationConfig = {
     slicePush: 0,
     slicePushMusicDriven: false,
     slicePushOscDriven: false,
-    enableLighting: true,
+    enableLighting: false, // stage lighting is opt-in — its moving wash is not what a session should open on
     lightingIntensity: 1.0,
     enableBeams: true,
     lightColor: '#FFCC00',
