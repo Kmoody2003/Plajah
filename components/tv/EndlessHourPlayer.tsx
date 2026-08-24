@@ -31,9 +31,6 @@ const COPY = SOLA_COPY.default;
  *  should morph, never cut. */
 const CROSSFADE_MS = 4500;
 
-const prefersReducedMotion = () =>
-  typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-
 interface Props {
   muted?: boolean;
   /** Notices are a courtesy, not the product — off is a supported way to watch. */
@@ -57,7 +54,12 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
    */
   const [layers, setLayers] = useState<Array<{ shader: StillnessShader; startMs: number; key: number; on: boolean }>>([]);
   const layerKey = useRef(0);
-  const [shaderError, setShaderError] = useState<string | null>(null);
+  // Errors are tracked PER LAYER, not globally. During a crossfade two ShaderLayers are mounted; a
+  // single global flag let one layer's failure blank the whole stack (and it only cleared on the
+  // next successful compile — minutes later), which showed as the field intermittently "not
+  // rendering". Per-layer, a failed layer is simply skipped while the good one keeps drawing, and
+  // the 2D fallback appears only if EVERY layer fails (a true WebGL failure).
+  const [errored, setErrored] = useState<Record<number, boolean>>({});
   const [programme, setProgramme] = useState<GenerativeProgramme | null>(null);
   const [mode, setMode] = useState<SolaMode>('stream');
   const [notice, setNotice] = useState<{ which: 'open' | 'close'; at: number } | null>(null);
@@ -68,9 +70,30 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
   /** Four uniforms as ONE array, mutated in place — ShaderLayer's loop closes over it, so a new
    *  array every frame would never reach the GPU. */
   const uniforms = useRef<number[]>([0.5, 0, 1, 0]);
-  const reduced = useRef(prefersReducedMotion());
 
-  const useShader = !!analyser && layers.length > 0 && !shaderError && !reduced.current;
+  // NOTE: the meditation shaders are deliberately NOT gated on prefers-reduced-motion. They are
+  // built to the photosensitivity spec (see stillnessShaders.ts) — no strobing, no zoom, motion
+  // that slows to ~0.05 screen-widths/sec at depth — and they ARE the channel. Suppressing them to
+  // a bare glow when a viewer has reduce-motion on made the whole visual disappear (which is what
+  // happened on every machine with the OS flag set). The WebGL-failure fallback below still stands.
+  const useShader = !!analyser && layers.some((l) => !errored[l.key]);
+
+  /** Per-layer shader outcome. ShaderLayer calls this with a message on compile failure and with
+   *  null on success, so a layer that recovers clears itself. Failures are logged so a real GLSL
+   *  problem is diagnosable rather than silent. */
+  const onLayerError = useCallback((key: number, m: string | null) => {
+    setErrored((e) => {
+      if (m) {
+        if (e[key]) return e;
+        console.warn('[endless-hour] shader layer failed:', m);
+        return { ...e, [key]: true };
+      }
+      if (!e[key]) return e;
+      const next = { ...e };
+      delete next[key];
+      return next;
+    });
+  }, []);
 
   /**
    * Bring a new shader on screen by dissolving it over whatever is already there.
@@ -125,6 +148,26 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
         master.connect(limiter);
         limiter.connect(ctx.destination);
 
+        // ── A morphing delay/echo bus ────────────────────────────────────────────
+        // Dry stays master→limiter above; this is a parallel WET send that a slow LFO fades in and
+        // out, so the echoes come and go rather than washing constantly. Dark and diffuse, folded
+        // back on itself gently. It hits the SAME limiter, so wet + dry can never add up to loud.
+        const delay = ctx.createDelay(1.5);
+        delay.delayTime.value = 0.42;
+        const fb = ctx.createGain(); fb.gain.value = 0.34;          // feedback → a few repeats, not forever
+        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2000; // dark echoes
+        const wet = ctx.createGain(); wet.gain.value = 0.09;        // base wet, then the LFO rides it
+        master.connect(delay);
+        delay.connect(lp);
+        lp.connect(fb); fb.connect(delay);                          // feedback loop through the filter
+        lp.connect(wet); wet.connect(limiter);
+        // The LFO: a ~110 s cycle, so the echo tail breathes in and out over minutes. Native, so it
+        // needs no JS loop and cannot stall. Range ≈ 0.02 … 0.18 wet.
+        const lfo = ctx.createOscillator(); lfo.frequency.value = 1 / 110;
+        const lfoAmt = ctx.createGain(); lfoAmt.gain.value = 0.08;
+        lfo.connect(lfoAmt); lfoAmt.connect(wet.gain);
+        lfo.start();
+
         // ShaderLayer's contract wants an AnalyserNode, but nothing reads it — iBass/iMid/
         // iTreble stay at zero. A drone has no transients, so analysing it returns noise; both
         // engines subscribe to the emotional state instead, which is also what makes an offline
@@ -138,10 +181,19 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
         an.connect(master);
         setAnalyser(an);
 
+        // Load the Inflection Points config (song pool + policy) so real songs can crossfade in on
+        // the channel. Lazily imported to keep backendService out of this component's static graph;
+        // a failure (or no config) just leaves the channel purely generative.
+        const config = await import('../../services/backendService')
+          .then((m) => m.fetchEndlessHourConfig())
+          .catch(() => undefined);
+        if (!alive) { void ctx.close(); return; }
+
         const eh = new EndlessHour({
           ctx,
           destination: an,
           noticesEnabled,
+          config,
           onModeChange: setMode,
           onNotice: (which) => setNotice({ which, at: performance.now() }),
           onProgramme: (p) => { setProgramme(p); onProgramme?.(p); },
@@ -258,8 +310,6 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
     return () => cancelAnimationFrame(raf);
   }, [notice]);
 
-  const onShaderError = useCallback((m: string) => setShaderError(m), []);
-
   if (failed) {
     return (
       <div className="absolute inset-0 grid place-items-center" style={{ background: '#0D0B14' }}>
@@ -272,7 +322,7 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
     <div className="absolute inset-0 overflow-hidden" style={{ background: '#0D0B14' }}>
       {useShader && analyser ? (
         <div className="absolute inset-0" aria-hidden="true">
-          {layers.map((l) => (
+          {layers.filter((l) => !errored[l.key]).map((l) => (
             <div
               key={l.key}
               className="absolute inset-0"
@@ -284,7 +334,7 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
                 startTimeMs={l.startMs}
                 params={uniforms.current}
                 sanctuary
-                onError={onShaderError}
+                onError={(m) => onLayerError(l.key, m as string | null)}
               />
             </div>
           ))}

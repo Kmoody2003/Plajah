@@ -126,10 +126,12 @@ float h_(float depth){ float h = 1.0-depth; return h*h*0.075; }
  * the single instant of the Turn.
  */
 float pace(float depth){
-  float slow = 0.016 + h_(depth);
-  // Outside a meditative host these are ordinary Pixels clips and may move like one. Four times
-  // the motion is still gentle by VJ standards and is roughly where they sat before.
-  return mix(slow*4.0, slow, iSanctuary);
+  // A visible floor. The old 0.016 was so slow that a deep-night programme read as a FROZEN frame —
+  // technically animating, but imperceptibly. 0.05 keeps the field always, obviously alive while
+  // staying gentle: still no zoom, no strobe, and drift you feel rather than track.
+  float slow = 0.05 + h_(depth);
+  // Outside a meditative host these are ordinary Pixels clips and may move like one.
+  return mix(slow*3.0, slow, iSanctuary);
 }
 
 /**

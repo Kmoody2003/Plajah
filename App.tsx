@@ -2087,7 +2087,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             : raw.startsWith('plajah:') ? { plajahId: raw.slice('plajah:'.length), number }
             : { plajahId: raw || undefined, number },
           );
-          setView('LIVE_TV');
+          setView('LIVE_HUB');
           document.title = 'Plajah Live';
           setIsLoading(false);
           return;
@@ -3479,7 +3479,6 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         BIBLE: { label: 'Lectio', icon: Cross },
                         PLAJAH_LABS: { label: 'Plajah Labs', icon: FlaskConical },
                         RADIO: { label: 'Radio', icon: Radio },
-                        LIVE_TV: { label: 'Live TV', icon: Tv },
                         APPS: { label: 'Apps', icon: AppWindow },
                         CROSSOVER: { label: 'Crossover', icon: Repeat },
                         GAMES: { label: 'Games', icon: Gamepad2 },
@@ -3526,7 +3525,6 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         BOOKS: "Browse and read digital books, comics, and graphic novels.",
                         PLAJAH_LABS: "Science, engineering, and academia hub — research tools, STEM classrooms, and peer discussion.",
                         RADIO: "Tune into live artist stations and curated broadcasts.",
-                        LIVE_TV: "Watch continuous video streams and live FAST channels.",
                         APPS: "Install and run community web applications and tools.",
                         CROSSOVER: "Convert video, audio, and images into almost any format - hardware-accelerated, no paid encoders.",
                         GAMES: "Play interactive web games directly in your browser.",
@@ -3564,7 +3562,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                                 return;
                               }
                               if (config.id === 'LIVE_TV') {
-                                setView('LIVE_TV');
+                                // Legacy id — the standalone "Live TV" view is gone; the Live Hub is
+                                // the one live surface now. Any residual reference lands there.
+                                setView('LIVE_HUB');
                                 return;
                               }
                               if (config.id === 'MOVIES_TV') {

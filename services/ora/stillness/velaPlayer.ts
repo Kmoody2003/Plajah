@@ -73,21 +73,25 @@ const rand01 = (a: number, b: number) => hash(a, b) / 4294967296;
  * Forty-five seconds between chords is not a bug.
  */
 function intervalFor(s: SessionState): number {
-  const base = 7 + s.depth * 38;
+  // Sparser than before. A chord every few seconds is a wall of ringing bodies; leaving real space
+  // between them is what lets each one be heard and then let go, and is most of "calm".
+  const base = 13 + s.depth * 46;
   // Arousal shortens the gaps: someone who arrived agitated is met with more to hold on to.
-  return Math.max(4, base * (1.25 - s.arousal * 0.5));
+  return Math.max(8, base * (1.25 - s.arousal * 0.5));
 }
 
-/** How many notes sound at once. Thins out as the session deepens. */
+/** How many notes sound at once. Thins out as the session deepens. Fewer bodies overall now — a
+ *  five-note quartal stack every few seconds was most of the "too much ringing". */
 function voiceCountFor(s: SessionState): number {
-  if (s.depth > 0.75) return 2;
-  if (s.depth > 0.45) return 3;
-  return s.arousal > 0.6 ? 5 : 4;
+  if (s.depth > 0.7) return 2;
+  if (s.depth > 0.4) return 3;
+  return s.arousal > 0.6 ? 4 : 3;
 }
 
-/** Register centre. Drops as the session deepens — lower is not sadder, it is less arousing. */
+/** Register centre. Lower than before — the mix was sitting too high, and there was not enough
+ *  low-octave weight under it. This drops the whole harmony roughly a fifth. */
 function rootFor(s: SessionState): number {
-  return Math.round(50 - s.depth * 9);
+  return Math.round(43 - s.depth * 8);
 }
 
 export interface Player {
@@ -158,6 +162,10 @@ export function createPlayer(
     // rather than wandering with a random pick.
     let prevMidi = root + set[0];
     notes.push(prevMidi);
+    // A sub-octave under the bass for low-end weight — the mix was thin down low. It hums as a
+    // foundation rather than ringing like the bodies above it. Clamped into a sane range.
+    const sub = prevMidi - 12;
+    if (sub >= 24) notes.push(sub);
     for (let v = 1; v < count; v++) {
       // A fourth or a fifth — the two intervals the whole style is built on.
       const step = rand01(seed, i * 31 + v * 5) < 0.5 ? 5 : 7;

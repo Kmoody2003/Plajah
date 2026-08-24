@@ -354,7 +354,11 @@ export function ensembleFor(phase: string, depth: number, arousal: number): Ense
     },
     {
       instrument: 'cantus',
-      presetId: arousal > 0.55 ? 'cantus-plainsong' : 'cantus-overtone',
+      // The calm register is the ETHEREAL CHOIR (Vault), not the overtone whistle. `cantus-overtone`
+      // is a demonstration piece — an isolated high harmonic — and sitting on it for most of a
+      // session reads as a constant high whine rather than a voice. Plainsong carries the more
+      // aroused moments; the whistle stays in the bank for deliberate use, never as the bed.
+      presetId: arousal > 0.6 ? 'cantus-plainsong' : 'cantus-vault',
       level: fade(0.35, 0.5) * 0.85,
     },
     {

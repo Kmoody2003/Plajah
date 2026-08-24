@@ -55,18 +55,28 @@ export function velaParamsFor(s: SessionState): Array<[number, number]> {
   // Body — roughness comes down across the session. Partials moving out of each other's
   // critical bands is a real psychoacoustic mechanism, not a metaphor, and it is the reason the
   // release is felt before it is noticed.
-  const inharm = clamp01(0.02 + s.arousal * 0.12);
+  // Lower inharmonicity → purer, more synth/voice-like partials and less metallic bell "ring",
+  // which piled up and grated. The body sings rather than clangs.
+  const inharm = clamp01(0.01 + s.arousal * 0.05);
   const decay = clamp01(0.35 + s.depth * 0.45);
 
-  // Spectral brightness falls with depth. High-frequency energy is arousing.
-  const tone = clamp01(0.16 + s.arousal * 0.34);
+  // Slow, non-commensurate morph terms (0..1) so the SPACE and the shimmer breathe over minutes
+  // rather than sitting constant. Two incommensurate sines — never quite the same combination twice.
+  const morphA = clamp01(0.5 + 0.35 * Math.sin(s.t / 53) + 0.15 * Math.sin(s.t / 29 + 1.7));
+  const morphB = clamp01(0.5 + 0.4 * Math.sin(s.t / 71 + 2.3) + 0.1 * Math.sin(s.t / 37));
 
-  // Veil — the field opens as the session deepens, and closes again for Return so the ending
-  // is somewhere you could open your eyes.
-  const veilMix = clamp01(0.45 + s.depth * 0.45);
-  const veilDecay = clamp01(0.3 + s.depth * 0.55);
-  const veilSize = clamp01(0.35 + s.depth * 0.5);
-  const shimmer = clamp01(s.depth * 0.55 * calm);
+  // Spectral brightness falls with depth. High-frequency energy reads as a whine held constant, so
+  // the ceiling is low and darker still than before.
+  const tone = clamp01(0.08 + s.arousal * 0.13);
+
+  // Veil = the reverb. Modest and MORPHING — it opens and closes slowly rather than washing
+  // constantly, which is most of what made it feel like "too much".
+  const veilMix = clamp01(0.26 + s.depth * 0.26 + morphA * 0.12);
+  const veilDecay = clamp01(0.3 + s.depth * 0.5);
+  const veilSize = clamp01(0.4 + s.depth * 0.28 + morphB * 0.1);
+  // Shimmer is the high pitch-shifted sparkle — the whine. Near-off, and it drifts in and out on
+  // its own slow clock, so any brightness that appears is fleeting, never a constant sheen.
+  const shimmer = clamp01((0.02 + morphB * 0.05) * s.depth * calm);
   // Blur swells on the exhale — the visual field does the same thing, from the same value.
   const exhale = clamp01((s.breathPhase - 0.5) * 2);
   const blur = clamp01(s.depth * 0.3 + exhale * 0.12);
@@ -75,6 +85,9 @@ export function velaParamsFor(s: SessionState): Array<[number, number]> {
     [M.ENABLE, 1],
     [M.INHARM, inharm],
     [M.DECAY, decay],
+    // Tilt the decay so the HIGH partials die fast while the low body sustains — the metallic
+    // top-end "ring" is what grates, so it is the first thing to go.
+    [M.DECAY_TILT, 0.62],
     [M.SPREAD, clamp01(0.1 + s.openness * 0.2)],
     [M.KEYTRACK, 0.4],
     [X.PRESSURE, pressure],

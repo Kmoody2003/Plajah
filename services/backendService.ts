@@ -1235,6 +1235,77 @@ export const saveLandingBgConfig = async (config: import('../types').LandingBgCo
   await setDoc(doc(db, 'systemConfig', 'landingBg'), config);
 };
 
+// ── The Endless Hour (channel 8.1) — Inflection Points config ──────────────────
+// The song pool + policy an admin edits. The channel's deterministic scheduler and the admin panel
+// both read this; a dedicated doc (like landingBg) rather than overloading systemConfig/settings.
+
+export const fetchEndlessHourConfig = async (): Promise<import('./fast/inflection').EndlessHourConfig> => {
+  const { EMPTY_ENDLESS_HOUR_CONFIG } = await import('./fast/inflection');
+  try {
+    const snap = await getDoc(doc(db, 'systemConfig', 'endlessHour'));
+    if (snap.exists()) {
+      const d = snap.data() as Partial<import('./fast/inflection').EndlessHourConfig>;
+      return {
+        pool: Array.isArray(d.pool) ? d.pool : [],
+        policy: { ...EMPTY_ENDLESS_HOUR_CONFIG.policy, ...(d.policy || {}) },
+      };
+    }
+    return EMPTY_ENDLESS_HOUR_CONFIG;
+  } catch {
+    return EMPTY_ENDLESS_HOUR_CONFIG;
+  }
+};
+
+export const updateEndlessHourConfig = async (config: import('./fast/inflection').EndlessHourConfig): Promise<void> => {
+  await setDoc(doc(db, 'systemConfig', 'endlessHour'), config);
+};
+
+/** The one global, platform-curated "Inflection Points" playlist. Fixed id so re-syncing overwrites
+ *  it rather than making a new one each time. */
+export const INFLECTION_PLAYLIST_ID = 'curated_inflection_points';
+
+/**
+ * Mirror the enabled pool into the global "Inflection Points" Chora playlist and feature it.
+ *
+ * The songs that surface on the channel are the same tracks people can then play on their own —
+ * so the pool IS the playlist. Idempotent: overwrites the fixed playlist doc and ensures its id is
+ * in the curated list (which is what makes it appear for everyone under Staff Picks in Chora).
+ */
+export const syncInflectionPlaylist = async (pool: import('./fast/inflection').InflectionSong[]): Promise<void> => {
+  const enabled = pool.filter((s) => s.enabled && s.audioUrl);
+  const tracks = enabled.map((s, i) => ({
+    id: s.id,
+    title: s.title,
+    artist: s.artist,
+    url: s.audioUrl,
+    duration: s.durationSec,
+    albumCover: s.coverUrl || '',
+    trackNo: i + 1,
+  }));
+  const playlist = {
+    id: INFLECTION_PLAYLIST_ID,
+    ownerId: 'plajah',
+    authorName: 'Plajah',
+    title: 'Inflection Points',
+    description: 'The songs that surface on The Endless Hour — and bend it afterward.',
+    coverImage: enabled[0]?.coverUrl || '',
+    trackIds: tracks.map((t) => t.id),
+    tracks,
+    isDraft: false,
+    timestamp: Date.now(),
+  };
+  await setDoc(doc(db, 'playlists', INFLECTION_PLAYLIST_ID), playlist);
+  // Feature it globally (idempotent) so it appears for every user.
+  try {
+    const settings = await fetchSystemSettingsConfig();
+    const curated = new Set(settings.curatedMusicPlaylists || []);
+    if (!curated.has(INFLECTION_PLAYLIST_ID)) {
+      curated.add(INFLECTION_PLAYLIST_ID);
+      await updateSystemSettingsConfig({ curatedMusicPlaylists: [...curated] });
+    }
+  } catch { /* featuring is best-effort; the playlist doc still exists */ }
+};
+
 export const uploadLandingBgAsset = async (
   file: File,
   onProgress?: (pct: number) => void

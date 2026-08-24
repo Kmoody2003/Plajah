@@ -153,7 +153,7 @@ export class SolaController {
     const session = new StillnessSession({
       ctx, destination: gain, durationSec, arrival,
       // A burst is the same channel, privately rendered — it wears the same arrangement.
-      arp: true, pulse: true, gentleTurn: true,
+      arp: true, pulse: true, gentleTurn: true, melody: true,
     });
     this.session = session;
     this.burstGain = gain;

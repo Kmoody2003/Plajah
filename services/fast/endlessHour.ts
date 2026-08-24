@@ -28,6 +28,10 @@ import type { SessionState } from '../ora/stillness/emotionalEngine';
 import { SolaController, provisionalTier, type SolaMode } from './solaController';
 import { arcPositionAt, programmeAt, type GenerativeProgramme } from './generativeChannel';
 import type { DeviceTier } from './sola';
+import {
+  sharedSongAt, sharedInflectionAt, EMPTY_ENDLESS_HOUR_CONFIG,
+  type EndlessHourConfig, type InflectionSong,
+} from './inflection';
 
 /**
  * The channel spine's timer period.
@@ -49,6 +53,11 @@ export interface EndlessHourOptions {
   onModeChange?: (mode: SolaMode) => void;
   onNotice?: (which: 'open' | 'close') => void;
   onProgramme?: (p: GenerativeProgramme) => void;
+  /** The Inflection Points config — the song pool + policy. Omitted → purely generative, exactly
+   *  as before. Songs surface only when an admin has enabled the pool. */
+  config?: EndlessHourConfig;
+  /** Fires when a real song starts/stops crossfading in on the shared stream (for the UI chrome). */
+  onSong?: (song: InflectionSong | null) => void;
   /** Injectable so the whole channel can be driven off a fake clock in a test. */
   now?: () => number;
 }
@@ -85,9 +94,30 @@ export class EndlessHour {
 
   private mode: SolaMode = 'stream';
 
+  // ── Inflection Points (real songs crossfading over the generative bed) ────────
+  private config: EndlessHourConfig;
+  /** The generative bed passes through this on the way out; a song ducks it fully to 0. Separate
+   *  from `sharedGain` (which the Sola controller owns) so the two crossfades never fight. */
+  private songBedGain: GainNode | null = null;
+  private songGain: GainNode | null = null;
+  private songAudio: HTMLAudioElement | null = null;
+  private songSource: MediaElementAudioSourceNode | null = null;
+  private currentSongId: string | null = null;
+  private lastSongGain = -1;
+  private lastBedGain = -1;
+
   constructor(opts: EndlessHourOptions) {
     this.opts = opts;
+    this.config = opts.config ?? EMPTY_ENDLESS_HOUR_CONFIG;
     this.programme = programmeAt(this.clock());
+  }
+
+  /** Live-update the pool/policy (an admin edit) without tearing the channel down. */
+  setConfig(config: EndlessHourConfig): void { this.config = config; }
+  /** The song crossfading in right now on the shared stream, if any (for the admin viewer). */
+  get nowSong(): InflectionSong | null {
+    if (!this.currentSongId) return null;
+    return this.config.pool.find((s) => s.id === this.currentSongId) ?? null;
   }
 
   private clock(): number { return this.opts.now ? this.opts.now() : Date.now(); }
@@ -103,8 +133,21 @@ export class EndlessHour {
     const ctx = this.opts.ctx;
     const gain = ctx.createGain();
     gain.gain.value = 1;
-    gain.connect(this.opts.destination);
     this.sharedGain = gain;
+
+    // The bed's own crossfade stage, downstream of the Sola-owned sharedGain, so a song ducking the
+    // bed and a Sola burst fading the stream are two independent multiplications that never collide.
+    const bedGain = ctx.createGain();
+    bedGain.gain.value = 1;
+    gain.connect(bedGain);
+    bedGain.connect(this.opts.destination);
+    this.songBedGain = bedGain;
+
+    // The song's own gain, in parallel — the crossfade is bed↓ / song↑.
+    const songGain = ctx.createGain();
+    songGain.gain.value = 0;
+    songGain.connect(this.opts.destination);
+    this.songGain = songGain;
 
     await this.tuneShared(this.clock());
 
@@ -166,6 +209,11 @@ export class EndlessHour {
       arp: true,
       pulse: true,
       gentleTurn: true,
+      melody: true,
+      // The mark of the most recent Inflection Point, if one is still decaying. Computed once at the
+      // arc's start, so a later arc simply gets a weaker value — the soundscape carries the song's
+      // colour and then lets it go. Null when no song has played recently → an ordinary arc.
+      inflection: sharedInflectionAt(nowMs, this.config),
     });
     this.shared = session;
     await session.start(pos.offsetSec);
@@ -195,7 +243,74 @@ export class EndlessHour {
     // Whichever session is on air feeds the one sampler.
     const state = this.frameState(nowMs);
     if (state) this.sampler.update(state, nowMs);
+
+    // Inflection Points: a real song crossfading over the generative bed (shared stream only).
+    this.driveSong(nowMs);
   };
+
+  /**
+   * Crossfade a scheduled song in over the bed, or fold back to the bed when none is due.
+   *
+   * The schedule is deterministic (`sharedSongAt`), so every viewer starts the same song at the
+   * same position — a joining device seeks to `offsetSec`. Gains are deduped, so in the body of a
+   * song (bed at 0, song at 1) nothing is written; only the ~8 s crossfades touch an AudioParam.
+   */
+  private driveSong(nowMs: number): void {
+    const bed = this.songBedGain, sg = this.songGain;
+    if (!bed || !sg) return;
+    // Songs belong to the shared broadcast; a private burst owns its own audio.
+    const s = this.mode === 'stream' ? sharedSongAt(nowMs, this.config) : null;
+    if (s) {
+      if (s.song.id !== this.currentSongId) this.startSong(s.song, s.offsetSec);
+      this.setGain(sg, 'song', s.songGain);
+      this.setGain(bed, 'bed', s.bedGain);
+    } else if (this.currentSongId) {
+      // Past the window (or a burst took over): fold back to the bed and release the song.
+      this.setGain(sg, 'song', 0);
+      this.setGain(bed, 'bed', 1);
+      this.stopSong();
+    }
+  }
+
+  /** Set a crossfade gain, but only when it has actually moved — the automation-leak rule the whole
+   *  engine now obeys. A short tau keeps the 10 Hz updates smooth. */
+  private setGain(node: GainNode, which: 'song' | 'bed', value: number): void {
+    const last = which === 'song' ? this.lastSongGain : this.lastBedGain;
+    if (Math.abs(value - last) < 0.004) return;
+    if (which === 'song') this.lastSongGain = value; else this.lastBedGain = value;
+    node.gain.setTargetAtTime(value, this.opts.ctx.currentTime, 0.12);
+  }
+
+  private startSong(song: InflectionSong, offsetSec: number): void {
+    this.stopSong();
+    try {
+      const audio = new Audio();
+      audio.crossOrigin = 'anonymous';
+      audio.preload = 'auto';
+      audio.src = song.audioUrl;
+      // Seek so all viewers are at the same position in the shared song.
+      const seek = () => { try { audio.currentTime = Math.max(0, offsetSec); } catch { /* pre-metadata */ } };
+      if (audio.readyState >= 1) seek();
+      else audio.addEventListener('loadedmetadata', seek, { once: true });
+      const src = this.opts.ctx.createMediaElementSource(audio);
+      src.connect(this.songGain!);
+      void audio.play().catch(() => { /* autoplay/CORS refusal — the bed crossfade still runs */ });
+      this.songAudio = audio;
+      this.songSource = src;
+      this.currentSongId = song.id;
+      this.opts.onSong?.(song);
+    } catch {
+      this.currentSongId = null;
+    }
+  }
+
+  private stopSong(): void {
+    if (this.songAudio) { try { this.songAudio.pause(); } catch { /* */ } this.songAudio.src = ''; }
+    if (this.songSource) { try { this.songSource.disconnect(); } catch { /* */ } }
+    this.songAudio = null;
+    this.songSource = null;
+    if (this.currentSongId) { this.currentSongId = null; this.opts.onSong?.(null); }
+  }
 
   /**
    * The state driving picture and sound this instant.
@@ -229,6 +344,11 @@ export class EndlessHour {
     this.sola = null;
     this.shared?.dispose(true);
     this.shared = null;
+    this.stopSong();
+    this.songGain?.disconnect();
+    this.songGain = null;
+    this.songBedGain?.disconnect();
+    this.songBedGain = null;
     this.sharedGain?.disconnect();
     this.sharedGain = null;
   }

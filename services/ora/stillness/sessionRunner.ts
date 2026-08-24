@@ -25,6 +25,7 @@ import { StillnessDriverSampler } from '../../../components/plajahPixels/engine/
 import { createSession, drawEphemeralSeed, type ArrivalMood, type Session, type SessionState } from './emotionalEngine';
 import { turnGesture, velaParamsFor, velaSessionSetup } from './velaMapping';
 import { createPlayer, type Player, type PlayerEvent } from './velaPlayer';
+import { composeMelody, type MelodyNote } from './composer';
 import { velaDriftSetup } from '../../melos/instruments/vela/patch';
 import { ensembleFor, findSuitePreset, type SuiteInstrument } from '../../melos/instruments/vela/suite';
 import { M, X, V, MASTER_GAIN } from '../../melos/instruments/vela/params';
@@ -67,6 +68,17 @@ export interface RunnerOptions {
   arp?: boolean;
   pulse?: boolean;
   gentleTurn?: boolean;
+  /** Run the composer — a real, developing melodic line on a soft ethereal synth, phrased and
+   *  sparse. Channel-only; off leaves the session as pure texture. See composer.ts. */
+  melody?: boolean;
+  /**
+   * An Inflection Point's mark, if this arc is carrying one. When a real song has recently played
+   * on the channel, the procedural engine is bent toward it: transposed toward the song's key, and
+   * tinted brighter/darker and more/less energetic — all already scaled by how long ago the song
+   * ended, so a later arc simply gets a smaller value. Omitted (or zeroed) → the session is exactly
+   * as it was, which is what keeps this additive and Stillness Deep untouched.
+   */
+  inflection?: { transpose: number; brightnessBias: number; energyBias: number } | null;
 }
 
 /**
@@ -115,6 +127,22 @@ const PULSE_PATCH: Array<[number, number]> = [
   [M.MODE, 0], [M.SWELL, 0.22],
   [X.TYPE, 2], [X.PRESSURE, 0.5], [X.GRAIN, 0.2], [X.TONE, 0.1], [X.VEL_TILT, 0.4],
   [V.MIX, 0.7], [V.SIZE, 0.7], [V.DECAY, 0.5], [V.DIFFUSION, 0.82], [V.BLUR, 0.32],
+];
+
+/**
+ * The composer's voice — a soft, pure, ETHEREAL SYNTH. Sustained mode (driven oscillators, not a
+ * struck body), almost no inharmonicity so it sings rather than rings, a gentle vocal formant for
+ * warmth, a real swell so each note blooms, and plenty of Veil for air. This is the "ethereal
+ * synth" the melody rides on — deliberately unlike the choir bed and the bell bodies.
+ */
+const MELODY_PATCH: Array<[number, number]> = [
+  [MASTER_GAIN, 0.4],
+  [M.ENABLE, 1], [M.PARTIALS, 0.5], [M.INHARM, 0.004], [M.SPREAD, 0.18],
+  [M.DECAY, 0.5], [M.DECAY_TILT, 0.5], [M.MATERIAL, 5], [M.POSITION, 0.4], [M.KEYTRACK, 0.5],
+  [M.MODE, 1], [M.SWELL, 0.4], [M.MORPH, 0.55], [M.MORPH_TIME, 0.4],
+  [M.FORMANT, 0.4], [M.FORMANT_SHIFT, 0.42],
+  [X.TYPE, 1], [X.PRESSURE, 0.5], [X.GRAIN, 0.14], [X.TONE, 0.2], [X.VEL_TILT, 0.4],
+  [V.MIX, 0.62], [V.SIZE, 0.72], [V.DECAY, 0.55], [V.DIFFUSION, 0.82], [V.SHIMMER, 0.05], [V.BLUR, 0.22],
 ];
 
 /** A deterministic 0..1 from two integers — no shared mutable state, so the answer never depends
@@ -167,12 +195,24 @@ export class StillnessSession {
   private readonly arpEnabled: boolean;
   private readonly pulseEnabled: boolean;
   private readonly gentleTurn: boolean;
+  /** True on the channel (any channel texture on). Turns on a soft amplitude attack for every voice
+   *  so notes BLOOM in rather than arrive — the fuller quartal chords otherwise read as sudden
+   *  "bursts" on a quiet field, which is the opposite of what this channel is for. */
+  private readonly channelMode: boolean;
+  /** The inflection this arc carries (see RunnerOptions.inflection). Null = none. */
+  private readonly inflect: { transpose: number; brightnessBias: number; energyBias: number } | null;
   /** The muted pulse's own instrument, created lazily the first time a pulse is due. */
   private pulse: Layer | null = null;
   private pulsePending = false;
   /** Breath cycles counted, so the pulse lands at most once per breath and can skip some. */
   private pulseCycles = 0;
   private lastBreathPhase = 1;
+
+  // ── The composer (a real melodic line) ───────────────────────────────────────
+  private readonly melodyEnabled: boolean;
+  private melody: Layer | null = null;
+  private melodyEvents: MelodyNote[] = [];
+  private nextMelody = 0;
 
   private onFrame?: RunnerOptions['onFrame'];
   private onEnded?: RunnerOptions['onEnded'];
@@ -195,6 +235,11 @@ export class StillnessSession {
     this.arpEnabled = opts.arp === true;
     this.pulseEnabled = opts.pulse === true;
     this.gentleTurn = opts.gentleTurn === true;
+    this.melodyEnabled = opts.melody === true;
+    this.channelMode = this.arpEnabled || this.pulseEnabled || this.gentleTurn || this.melodyEnabled;
+    this.inflect = opts.inflection && opts.inflection.transpose === 0 && !opts.inflection.brightnessBias && !opts.inflection.energyBias
+      ? null // a zeroed inflection is no inflection — skip the work entirely
+      : (opts.inflection ?? null);
     this.headset = opts.spatial === 'headset';
     if (this.headset) {
       // One node, so the mix survives the move out to headset distance. See HEADSET_GAIN.
@@ -248,6 +293,21 @@ export class StillnessSession {
     const evs = this.player.events();
     this.nextEvent = evs.findIndex((e) => e.at > offsetSec);
     if (this.nextEvent < 0) this.nextEvent = evs.length;
+
+    // The composer scores the whole arc's melody up front — consonant with the harmony, because it
+    // draws its notes from the same pitch collection. Its voice is spun up now so it's ready.
+    if (this.melodyEnabled) {
+      const player = this.player;
+      this.melodyEvents = composeMelody({
+        seed: this.seed,
+        durationSec: this.session.durationSec,
+        stateAt: (t) => this.session.at(t),
+        setAt: (t) => player.setAt(t),
+      });
+      this.nextMelody = this.melodyEvents.findIndex((e) => e.at > offsetSec);
+      if (this.nextMelody < 0) this.nextMelody = this.melodyEvents.length;
+      await this.ensureMelody();
+    }
     // A timer, not requestAnimationFrame. rAF pauses the moment the tab is hidden or the screen
     // dims — the normal state of a channel left on — which starves the scheduler and is half of
     // why the sound dropped in and out. A timer keeps feeding the audio clock regardless.
@@ -325,6 +385,29 @@ export class StillnessSession {
     if (changed.length) layer.inst.setParams(changed);
   }
 
+  /** Transpose a note by the current inflection (0 when none) — the audible "the model moved
+   *  toward the song's key". Applied at every note site: harmony, drone, pulse and the Turn. */
+  private tp(note: number): number {
+    return note + (this.inflect?.transpose ?? 0);
+  }
+
+  /** Bias the continuous params by the current inflection: brighter/darker tone and veil, more/less
+   *  exciter energy. A no-op (returns the same array) when there is no inflection, so the ordinary
+   *  session is byte-for-byte unchanged. */
+  private applyInflection(params: Array<[number, number]>): Array<[number, number]> {
+    const inf = this.inflect;
+    if (!inf) return params;
+    const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+    const bump: Record<number, number> = {
+      [X.TONE]: inf.brightnessBias * 0.18,
+      [V.SHIMMER]: inf.brightnessBias * 0.15,
+      [V.MIX]: inf.brightnessBias * 0.08,
+      [X.PRESSURE]: inf.energyBias * 0.12,
+      [X.GRAIN]: inf.energyBias * 0.12,
+    };
+    return params.map(([id, v]) => (id in bump ? [id, clamp01(v + bump[id])] : [id, v]));
+  }
+
   /** Apply a preset, then re-apply the session's continuous parameters on top of it, so a patch
    *  change never overwrites where the arc currently is. */
   private loadPreset(layer: Layer, presetId: string, state: SessionState): void {
@@ -351,8 +434,9 @@ export class StillnessSession {
     const present = new Set(wanted.map((l) => l.instrument));
     for (const l of wanted) {
       // `void` rather than await: this runs inside a rAF callback, and a layer still spinning up
-      // simply joins on a later frame.
-      void this.ensureLayer(l.instrument, l.presetId, state, l.level);
+      // simply joins on a later frame. The level is scaled by a slow FOCUS weight so voices move in
+      // and out of the foreground instead of holding a fixed balance — the "mix that breathes".
+      void this.ensureLayer(l.instrument, l.presetId, state, l.level * this.focusWeight(l.instrument, t));
     }
     // Anything no longer wanted fades out rather than stopping. Its tail is part of the sound.
     // setLevel() dedupes, so once a layer has reached zero this stops re-scheduling it.
@@ -364,7 +448,10 @@ export class StillnessSession {
     // values that actually changed cross the thread.
     if (t - this.lastParamAt >= PARAM_INTERVAL_SEC) {
       this.lastParamAt = t;
-      const params = velaParamsFor(state);
+      const params = this.applyInflection(velaParamsFor(state));
+      // Soft amplitude attack on the channel so every voice blooms in (~1 s) rather than arriving
+      // as a struck onset. Deduped, so it crosses the thread once, not every update.
+      if (this.channelMode) params.push([M.SWELL, 0.45]);
       for (const layer of this.layers.values()) this.sendParams(layer, params);
     }
 
@@ -386,8 +473,14 @@ export class StillnessSession {
       for (const pc of [set[0], set[Math.min(set.length - 1, 2)]]) {
         if (pc === undefined) continue;
         ison.held.push(
-          ison.inst.noteOn(root + pc, 0.5, this.ctx.currentTime, this.ctx.currentTime, this.ctx.sampleRate),
+          ison.inst.noteOn(this.tp(root + pc), 0.5, this.ctx.currentTime, this.ctx.currentTime, this.ctx.sampleRate),
         );
+      }
+      // A sub-octave root beneath it all — the low foundation the mix was missing. Clamped so it
+      // never drops into inaudible sub-bass.
+      if (set[0] !== undefined) {
+        const subNote = Math.max(24, this.tp(root + set[0] - 12));
+        ison.held.push(ison.inst.noteOn(subNote, 0.5, this.ctx.currentTime, this.ctx.currentTime, this.ctx.sampleRate));
       }
     }
 
@@ -440,6 +533,17 @@ export class StillnessSession {
     // ── the muted pulse ───────────────────────────────────────────────────────
     if (this.pulseEnabled) this.tickPulse(t, state);
 
+    // ── the composer's melody ───────────────────────────────────────────────────
+    if (this.melodyEnabled && this.melody) {
+      while (this.nextMelody < this.melodyEvents.length && this.melodyEvents[this.nextMelody].at <= t + LOOKAHEAD_SEC) {
+        const m = this.melodyEvents[this.nextMelody];
+        // A gentle stereo drift so successive notes are not stacked dead-centre.
+        const pan = Math.sin(this.nextMelody * 0.7) * 0.35;
+        this.voice(this.melody, m.note, m.velocity, pan, m.holdSec, m.at - t);
+        this.nextMelody++;
+      }
+    }
+
     this.sampler.update(state, performance.now());
     this.onFrame?.(state, this.sampler);
 
@@ -447,6 +551,20 @@ export class StillnessSession {
       this.finish();
     }
   };
+
+  /**
+   * The mixing layer: how present each instrument is right now, beyond what the arc asks for.
+   *
+   * The drone stays quietly in the BACKGROUND, steady — everything is heard against it. The voices,
+   * breath and bodies each swell and recede on their own slow, out-of-phase clock, so at any moment
+   * something is in focus and something is receding, and it keeps changing — never a fixed balance,
+   * never everything forward at once. Slow enough that setLevel's dedupe only writes occasionally.
+   */
+  private focusWeight(kind: SuiteInstrument, t: number): number {
+    if (kind === 'ison') return 0.82;
+    const phase = kind === 'cantus' ? 0 : kind === 'pneuma' ? 2.3 : 4.1;
+    return 0.6 + 0.42 * (0.5 + 0.5 * Math.sin(t / 43 + phase)); // ~0.6 .. 1.02, per-instrument
+  }
 
   /** The most present voice layer — never the drone, which holds rather than articulates. */
   private leadVoiceLayer(wanted: ReturnType<typeof ensembleFor>): Layer | null {
@@ -466,7 +584,9 @@ export class StillnessSession {
    *  wants. */
   private arpRolls(index: number): boolean {
     if (!this.arpEnabled) return false;
-    return hashUnit(this.seed ^ 0x1a2b, index) < 0.34 && hashUnit(this.seed ^ 0x1a2b, index - 1) >= 0.34;
+    // Sparser than before — roughly one chord in six is rolled, never two in a row — so the
+    // arpeggiation is an occasional gesture, not another layer of constant ringing.
+    return hashUnit(this.seed ^ 0x1a2b, index) < 0.16 && hashUnit(this.seed ^ 0x1a2b, index - 1) >= 0.16;
   }
 
   /** The notes to lay down for an event. A rolled two-note voicing is given an octave to rise
@@ -545,6 +665,24 @@ export class StillnessSession {
     }
   }
 
+  /** Create the composer's melody voice. One instrument, its own gain, up at full (it is already a
+   *  quiet patch); individual notes carry the dynamics. */
+  private async ensureMelody(): Promise<void> {
+    if (this.melody) return;
+    const inst = await Instrument.create(this.ctx, {
+      onError: (m) => console.warn('[stillness] melody', m),
+    });
+    const gain = this.ctx.createGain();
+    gain.gain.value = 1;
+    inst.output.connect(gain);
+    gain.connect(this.destination);
+    inst.setSpatial({ layout: SpatialLayout.Stereo });
+    await inst.whenReady();
+    inst.setParams(MELODY_PATCH);
+    this.melody = { inst, gain, presetId: 'melody', held: [], target: 1, lastParams: new Map() };
+    if (!this.running) { this.melody.inst.dispose(); this.melody.gain.disconnect(); this.melody = null; }
+  }
+
   /** Voice one note on a layer, `delaySec` from now, releasing after `durationSec`. */
   private voice(
     layer: Layer, note: number, velocity: number, pan: number, durationSec: number, delaySec: number,
@@ -555,7 +693,7 @@ export class StillnessSession {
         ? spatialPlacement(pan, this.sampler.uniforms().uDepth)
         : [pan, 0.2, -1],
     });
-    const voiceId = layer.inst.noteOn(note, velocity, when, this.ctx.currentTime, this.ctx.sampleRate);
+    const voiceId = layer.inst.noteOn(this.tp(note), velocity, when, this.ctx.currentTime, this.ctx.sampleRate);
     // Note-off does not silence a modal voice — it lifts the exciter, and the body rings on. So
     // the duration here is how long energy is fed in, not how long the note lasts.
     window.setTimeout(() => {
@@ -571,6 +709,7 @@ export class StillnessSession {
     this.timer = null;
     for (const layer of this.layers.values()) layer.inst.allNotesOff(false);
     this.pulse?.inst.allNotesOff(false);
+    this.melody?.inst.allNotesOff(false);
     this.onEnded?.();
   }
 
@@ -591,19 +730,20 @@ export class StillnessSession {
         window.setTimeout(() => { l.inst.dispose(); l.gain.disconnect(); this.trim?.disconnect(); }, 6000);
       }
     }
-    // The pulse rides the same teardown as the ensemble layers.
-    const pulse = this.pulse;
-    this.pulse = null;
-    if (pulse) {
-      pulse.inst.allNotesOff(hard);
+    // The pulse and the melody ride the same teardown as the ensemble layers.
+    for (const extra of [this.pulse, this.melody]) {
+      if (!extra) continue;
+      extra.inst.allNotesOff(hard);
       if (hard) {
-        pulse.inst.dispose();
-        pulse.gain.disconnect();
+        extra.inst.dispose();
+        extra.gain.disconnect();
       } else {
-        pulse.gain.gain.setTargetAtTime(0, this.ctx.currentTime, 1.5);
-        window.setTimeout(() => { pulse.inst.dispose(); pulse.gain.disconnect(); }, 6000);
+        extra.gain.gain.setTargetAtTime(0, this.ctx.currentTime, 1.5);
+        window.setTimeout(() => { extra.inst.dispose(); extra.gain.disconnect(); }, 6000);
       }
     }
+    this.pulse = null;
+    this.melody = null;
     if (hard) this.trim?.disconnect();
     this.layers.clear();
   }
