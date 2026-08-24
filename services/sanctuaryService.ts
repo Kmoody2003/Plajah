@@ -122,6 +122,30 @@ export const fetchCreatorMembers = async (creatorId: string): Promise<SanctuaryM
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as SanctuaryMembership));
 };
 
+/**
+ * The creator's most recent joins, for compact surfaces (the profile marquee's Sanctuary cell).
+ *
+ * Deliberately does NOT use `orderBy` — `fetchCreatorMembers` pairs two `where`s with an
+ * `orderBy`, which needs a composite index this project has not deployed, and a missing index
+ * fails SILENTLY (the promise rejects and the surface just looks empty). One equality filter
+ * plus a client-side sort needs no index at all.
+ *
+ * Readable only by the creator themselves (firestore.rules → sanctuaryMemberships).
+ */
+export const fetchRecentMembers = async (creatorId: string, max = 4): Promise<SanctuaryMembership[]> => {
+  const q = query(
+    collection(db, 'sanctuaryMemberships'),
+    where('creatorId', '==', creatorId),
+    limit(50),
+  );
+  const snap = await getDocs(q);
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() } as SanctuaryMembership))
+    .filter(m => m.status === 'ACTIVE')
+    .sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0))
+    .slice(0, max);
+};
+
 export const checkMembership = async (creatorId: string): Promise<SanctuaryMembership | null> => {
   if (!auth.currentUser) return null;
   const q = query(

@@ -1298,6 +1298,18 @@ export interface BusinessBroadcast {
   recipientCount: number;
 }
 
+/** What a creator can put in the profile marquee's Featured Project slot. The kinds map to the
+ *  content the profile already loads — albums (music / podcast / book), Reello videos and
+ *  articles — so featuring something never needs an extra fetch. */
+export type FeaturedProjectKind = 'ALBUM' | 'VIDEO' | 'ARTICLE';
+export interface FeaturedProjectRef {
+  kind: FeaturedProjectKind;
+  id: string;
+  /** When the creator pinned it — shown as "Artist pick" provenance, and lets us tell a
+   *  deliberate pick from the most-recent-release fallback. */
+  setAt: number;
+}
+
 export interface UserProfile {
   uid: string;
   displayName: string;
@@ -1375,6 +1387,11 @@ export interface UserProfile {
     connectedAt: number;
   } | null;
   pinnedItems?: { id: string; refId: string; type: 'POST' | 'VIDEO' | 'AUDIO' }[];
+  /** The ONE project the creator puts forward in the profile marquee (the header card).
+   *  Unset/null = the marquee falls back to the account's most recent release, so the slot
+   *  is never empty. Cleared with `null`, NEVER `undefined` — an undefined field value
+   *  throws on a Firestore write. */
+  featuredProject?: FeaturedProjectRef | null;
   fastChannelEnabled?: boolean;
   liveStreamConfig?: {
     streamUrl: string;

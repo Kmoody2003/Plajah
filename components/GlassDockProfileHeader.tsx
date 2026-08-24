@@ -21,8 +21,6 @@ import React from 'react';
 import { motion } from 'motion/react';
 import {
   Camera,
-  Tv,
-  Radio,
   UserPlus,
   UserMinus,
   Mail,
@@ -30,12 +28,11 @@ import {
   MessageSquare,
   Shield,
   Sparkles,
-  X,
   Heart,
   Lock,
   AtSign,
 } from 'lucide-react';
-import { UserProfile, AppView } from '../types';
+import { UserProfile, AppView, Album, MerchItem, FeaturedProjectRef } from '../types';
 import { getSocialLinks } from '../services/socialLinks';
 import { isPartneredStatus, statusLabel } from '../services/relationships';
 import PioneerGoldFrame from './PioneerGoldFrame';
@@ -43,8 +40,16 @@ import SafeAvatarViewer from './SafeAvatarViewer';
 import ThreeDImage from './ThreeDImage';
 import ShareButton from './ShareButton';
 import PlajahPlusButton from './PlajahPlusButton';
-import PayItForwardButton from './PayItForwardButton';
 import RssFeedViewer from './RssFeedViewer';
+import ProfileLiveTiles from './profile/ProfileLiveTiles';
+import ProfileFeaturedProject from './profile/ProfileFeaturedProject';
+import ProfileSupportRail from './profile/ProfileSupportRail';
+import {
+  useRadioNowPlaying,
+  useChannelNowPlaying,
+  useSanctuarySummary,
+  resolveFeaturedProject,
+} from '../hooks/useProfileMarquee';
 
 interface GlassDockProfileHeaderProps {
   profile: UserProfile;
@@ -55,22 +60,31 @@ interface GlassDockProfileHeaderProps {
   following: boolean;
   isSubscribed: boolean;
   hasFastContent: boolean;
-  isLivePlayerExpanded: boolean;
   onProfileUpdate: (type: 'photo' | 'cover', file: File) => void;
   onFollowToggle: () => void;
   onMailingListToggle: () => void;
-  onClaimPioneerReward: () => void;
   onMessage?: (uid: string) => void;
   onVisitUser: (uid: string) => void;
   onNavigate?: (view: AppView) => void;
   onShowStatCard: () => void;
   onOpenDonation: () => void;
   onOpenPlajahPlusLanding: () => void;
-  onSetLivePlayerExpanded: (v: boolean) => void;
-  onSetLivePlaying: (v: boolean) => void;
   onShowFastChannel: () => void;
   onShowFastChannelManager: () => void;
-  onOpenXFeed: () => void;
+  // ── Marquee (the reworked card body) ──
+  /** The account's own content — already loaded by the profile, so the marquee never refetches. */
+  albums: Album[];
+  videos: any[];
+  articles: any[];
+  merch: MerchItem[];
+  onOpenRadio: () => void;
+  onSetFeatured: (ref: FeaturedProjectRef | null) => void;
+  onPlayAlbum: (album: Album) => void;
+  onOpenAlbum: (album: Album) => void;
+  onOpenVideo: (video: any) => void;
+  onOpenArticle: (article: any) => void;
+  onOpenSanctuary: () => void;
+  onOpenMerch: () => void;
 }
 
 const BRAND_GRADIENT = 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)';
@@ -84,22 +98,29 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
   following,
   isSubscribed,
   hasFastContent,
-  isLivePlayerExpanded,
   onProfileUpdate,
   onFollowToggle,
   onMailingListToggle,
-  onClaimPioneerReward,
   onMessage,
   onVisitUser,
   onNavigate,
   onShowStatCard,
   onOpenDonation,
   onOpenPlajahPlusLanding,
-  onSetLivePlayerExpanded,
-  onSetLivePlaying,
   onShowFastChannel,
   onShowFastChannelManager,
-  onOpenXFeed,
+  albums,
+  videos,
+  articles,
+  merch,
+  onOpenRadio,
+  onSetFeatured,
+  onPlayAlbum,
+  onOpenAlbum,
+  onOpenVideo,
+  onOpenArticle,
+  onOpenSanctuary,
+  onOpenMerch,
 }) => {
   const socialLinks = getSocialLinks(profile);
   const handle = (profile.username || profile.displayName || 'creator')
@@ -107,13 +128,19 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
     .trim()
     .toLowerCase()
     .replace(/\s+/g, '');
-  const hasLiveStrip =
-    profile.liveStreamConfig?.isActive ||
-    profile.radioSettings?.enabled ||
-    profile.fastChannelEnabled ||
-    hasFastContent ||
-    profile.liveStreamConfig?.fastChannelUrl ||
-    (isOwnProfile && (profile.fastChannelEnabled || hasFastContent));
+  // The two live surfaces the marquee previews. Gating is unchanged from the pill strip
+  // this replaced — a station/channel that was never set up still shows nothing.
+  const showRadio = !!profile.radioSettings?.enabled;
+  const showChannel = !!(profile.fastChannelEnabled || hasFastContent || profile.liveStreamConfig?.fastChannelUrl);
+  const canManageChannel = !!(profile.fastChannelEnabled || hasFastContent);
+
+  const radioNow = useRadioNowPlaying(uid, profile, albums, showRadio);
+  const channelNow = useChannelNowPlaying(uid, showChannel);
+  const { sanctuary, campaign, activity } = useSanctuarySummary(uid, isOwnProfile);
+  const featured = React.useMemo(
+    () => resolveFeaturedProject(profile, albums, videos, articles),
+    [profile, albums, videos, articles],
+  );
 
   return (
     <div className={`relative ${isMobile ? '' : ''}`}>
@@ -242,6 +269,16 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
                 >
                   <Sparkles size={13} /> Stat Card
                 </button>
+                {/* Admin Panel sits with the other owner tools, UNDER Stat Card — it used to
+                    float in the identity pill row where visitors' eyes land first. */}
+                {isOwnProfile && (profile.role === 'admin' || profile.role === 'staff') && (
+                  <button
+                    onClick={() => { window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'ADMIN_DASHBOARD' } })); }}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-red-600/15 border border-red-500/50 text-red-200 text-[9px] font-black uppercase tracking-widest hover:bg-red-600/25 transition-all"
+                  >
+                    <Shield size={12} /> Admin Panel
+                  </button>
+                )}
               </div>
             </div>
 
@@ -316,37 +353,19 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
                 )}
               </div>
 
-              {/* Action pills */}
-              <div className={`flex flex-wrap items-center gap-2 mt-5 ${isMobile ? 'justify-center' : ''}`}>
-                {isOwnProfile && profile.isPioneer && !profile.pioneerRewardClaimed && (
-                  <button
-                    onClick={onClaimPioneerReward}
-                    className="inline-flex items-center justify-center px-5 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full text-white text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
-                  >
-                    Claim Pioneer Reward
-                  </button>
-                )}
-
+              {/* Action pills. The marquee rework stripped this row down to what a visitor
+                  actually needs plus Plajah+ — Claim Pioneer Reward, Pay It Forward, X Feed
+                  and Admin Panel were removed from the card (Admin moved under Stat Card;
+                  the other three live in the creator tools / feed where they belong). */}
+              <div className={`flex flex-wrap items-center gap-2.5 mt-5 ${isMobile ? 'justify-center' : ''}`}>
                 {/* Own-profile pills */}
                 {isOwnProfile && (
-                  <>
-                    <PayItForwardButton variant="FULL" className="inline-flex items-center gap-2 px-5 py-2 bg-small-orange text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-lg" />
-                    <PlajahPlusButton
-                      creatorId={profile.uid}
-                      creatorName={profile.displayName}
-                      isOwnProfile={true}
-                      onOpenLanding={onOpenPlajahPlusLanding}
-                    />
-                    {(profile.xUrl || profile.xHandle) && (
-                      <button
-                        onClick={onOpenXFeed}
-                        className="px-5 py-2 rounded-full inline-flex items-center gap-2 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest"
-                        title="View X Feed"
-                      >
-                        <X size={13} /> X Feed
-                      </button>
-                    )}
-                  </>
+                  <PlajahPlusButton
+                    creatorId={profile.uid}
+                    creatorName={profile.displayName}
+                    isOwnProfile={true}
+                    onOpenLanding={onOpenPlajahPlusLanding}
+                  />
                 )}
 
                 {/* Visitor pills */}
@@ -354,7 +373,7 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
                   <>
                     <button
                       onClick={onFollowToggle}
-                      className={`px-5 py-2 rounded-full font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${
+                      className={`inline-flex h-[42px] items-center justify-center gap-2 rounded-full px-[18px] font-black text-[10px] uppercase tracking-widest transition-all ${
                         following
                           ? 'bg-white/10 text-white hover:bg-red-500/20 hover:text-red-500'
                           : 'bg-small-orange text-black hover:scale-105 active:scale-95'
@@ -365,7 +384,7 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
                     </button>
                     <button
                       onClick={onMailingListToggle}
-                      className={`px-5 py-2 rounded-full font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${
+                      className={`inline-flex h-[42px] items-center justify-center gap-2 rounded-full px-[18px] font-black text-[10px] uppercase tracking-widest transition-all ${
                         isSubscribed
                           ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                           : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'
@@ -376,7 +395,7 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
                     </button>
                     <button
                       onClick={onOpenDonation}
-                      className="px-5 py-2 bg-white/5 border border-white/10 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2"
+                      className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-[18px] font-black text-[10px] uppercase tracking-widest transition-all hover:bg-white/10"
                     >
                       <HeartHandshake size={12} className="text-small-orange" />
                       Gifts
@@ -390,24 +409,13 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
                     {onMessage && !isOwnProfile && (
                       <button
                         onClick={() => onMessage(uid)}
-                        className="px-5 py-2 bg-small-orange text-white font-black text-[10px] uppercase tracking-widest rounded-full hover:bg-small-orange/80 transition-all flex items-center gap-2"
+                        className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full bg-small-orange px-[18px] font-black text-[10px] uppercase tracking-widest text-white transition-all hover:bg-small-orange/80"
                       >
                         <MessageSquare size={12} />
                         Message
                       </button>
                     )}
                   </>
-                )}
-
-                {/* Admin Panel */}
-                {isOwnProfile && (profile.role === 'admin' || profile.role === 'staff') && (
-                  <button
-                    onClick={() => { window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'ADMIN_DASHBOARD' } })); }}
-                    className="px-5 py-2 bg-red-600 text-white font-black text-[10px] uppercase tracking-widest rounded-full hover:bg-red-700 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.3)]"
-                  >
-                    <Shield size={12} />
-                    Admin Panel
-                  </button>
                 )}
               </div>
 
@@ -423,40 +431,21 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
                 </div>
               )}
 
-              {/* Live / radio / channel strip */}
-              {hasLiveStrip && (
-                <div className={`flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5 mt-4 ${isMobile ? 'justify-center' : ''}`}>
-                  {profile.liveStreamConfig?.isActive && (
-                    <div className="px-3 py-1.5 bg-red-600 text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-full flex items-center gap-1.5 shrink-0">
-                      <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />On Air
-                    </div>
-                  )}
-                  {profile.liveStreamConfig?.isActive && (
-                    <button onClick={() => { onSetLivePlayerExpanded(!isLivePlayerExpanded); if (!isLivePlayerExpanded) onSetLivePlaying(true); }}
-                      className={`px-4 py-1.5 rounded-full transition-all border flex items-center gap-1.5 shrink-0 text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${isLivePlayerExpanded ? 'bg-white text-black border-white' : 'bg-white/10 hover:bg-white/20 border-white/10'}`}>
-                      <Tv size={12} />{isLivePlayerExpanded ? 'Close' : 'Watch Live'}
-                    </button>
-                  )}
-                  {profile.radioSettings?.enabled && (
-                    <button onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'RADIO', artistId: profile.uid } }))}
-                      className="px-4 py-2 bg-[#00DAF3]/20 hover:bg-[#00DAF3]/30 text-[#00DAF3] rounded-full transition-all border border-[#00DAF3]/30 flex items-center gap-1.5 shrink-0 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
-                      <Radio size={12} />Artist Radio
-                    </button>
-                  )}
-                  {(profile.fastChannelEnabled || hasFastContent || profile.liveStreamConfig?.fastChannelUrl) && (
-                    <button onClick={onShowFastChannel}
-                      className="px-4 py-2 bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white rounded-full transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5 shrink-0 text-[10px] font-black uppercase tracking-widest whitespace-nowrap shadow-[0_0_14px_rgba(107,0,153,0.35)]">
-                      <Tv size={12} />Watch Channel
-                    </button>
-                  )}
-                  {isOwnProfile && (profile.fastChannelEnabled || hasFastContent) && (
-                    <button onClick={onShowFastChannelManager}
-                      className="px-4 py-2 bg-white/10 border border-white/10 text-white rounded-full transition-all hover:bg-white/20 active:scale-95 flex items-center gap-1.5 shrink-0 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
-                      <Radio size={12} />Manage Channel
-                    </button>
-                  )}
-                </div>
-              )}
+              {/* Live rail — ON AIR plus the two preview tiles (Artist Radio · Watch Channel).
+                  Replaces the old pill strip; the tiles open the same surfaces the pills did. */}
+              <ProfileLiveTiles
+                profile={profile}
+                isOwnProfile={isOwnProfile}
+                isMobile={isMobile}
+                radio={radioNow}
+                channel={channelNow}
+                showRadio={showRadio}
+                showChannel={showChannel}
+                onOpenRadio={onOpenRadio}
+                onOpenChannel={onShowFastChannel}
+                onManageChannel={onShowFastChannelManager}
+                canManageChannel={canManageChannel}
+              />
 
               {/* Bio / quote */}
               <div className={`mt-4 ${profile.bio ? 'pl-4 border-l-2 border-small-orange/40' : ''}`}>
@@ -489,6 +478,35 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
               )}
             </div>
           </div>
+
+          {/* ── The rest of the card: the one project they're putting forward, then the
+                support rail (Sanctuary · merch · an active funding goal). Each piece
+                renders only when it has something real to show, so a bare account's card
+                stays exactly as tall as it was. ── */}
+          <ProfileFeaturedProject
+            featured={featured}
+            albums={albums}
+            videos={videos}
+            articles={articles}
+            isOwnProfile={isOwnProfile}
+            isMobile={isMobile}
+            onSetFeatured={onSetFeatured}
+            onPlayAlbum={onPlayAlbum}
+            onOpenAlbum={onOpenAlbum}
+            onOpenVideo={onOpenVideo}
+            onOpenArticle={onOpenArticle}
+          />
+
+          <ProfileSupportRail
+            sanctuary={sanctuary}
+            campaign={campaign}
+            activity={activity}
+            merch={merch}
+            isOwnProfile={isOwnProfile}
+            isMobile={isMobile}
+            onOpenSanctuary={onOpenSanctuary}
+            onOpenMerch={onOpenMerch}
+          />
         </div>
       </div>
     </div>
