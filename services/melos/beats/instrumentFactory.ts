@@ -4,6 +4,14 @@
 
 import { grooveUid, firstEmptyPadIndex, addPadBank, type ArrangeTrack, type InstrumentType, type GrooveDoc } from './grooveDoc';
 import { newPatch, serializePatch } from '../instruments/onda/patch';
+import { newVelaPatch, serializeVelaPatch } from '../instruments/vela/patch';
+import { newBajoPatch, serializeBajoPatch } from '../instruments/bajo/patch';
+import { SUITE, SUITE_ORDER, presetsFor } from '../instruments/vela/suite';
+
+/** True for any member of the meditation suite — they share a patch shape and an editor. */
+export function isSuite(type: InstrumentType): type is 'vela' | 'cantus' | 'ison' | 'pneuma' {
+  return type === 'vela' || type === 'cantus' || type === 'ison' || type === 'pneuma';
+}
 
 export interface InstrumentDef {
   type: InstrumentType | 'kera';
@@ -20,8 +28,34 @@ export interface InstrumentDef {
 export const INSTRUMENTS: InstrumentDef[] = [
   { type: 'onda', name: 'ONDA', blurb: 'Wavetable synth. Basses, leads, pads — anything you can shape.', color: '#B84DFF', ready: true },
   { type: 'kera', name: 'KERA', blurb: 'Sampler. Play SoundFonts, SFZ and your own recordings across the keys.', color: '#00DAF3', ready: true },
-  { type: 'onda', name: 'FONDO', blurb: 'Bass synth. Focused, deep, sub-first. (Coming soon)', color: '#D40055', ready: false },
+  // The meditation suite. Four entries because they are four instruments, even though they
+  // share an engine — what makes an instrument an instrument is what you reach for it FOR.
+  ...SUITE_ORDER.map((id) => ({
+    type: id as InstrumentType,
+    name: SUITE[id].name,
+    blurb: SUITE[id].blurb,
+    color: SUITE[id].accent,
+    ready: true,
+  })),
+  { type: 'bajo', name: 'BAJO', blurb: 'Bass engine. Per-step wobble, four-band gate, and a plucked upright at the other end.', color: '#FF4B1C', ready: true },
 ];
+
+/** What an instrument is called, wherever it needs a name. */
+export function instrumentLabel(type: InstrumentType): string {
+  if (type === 'kera') return 'KERA';
+  if (type === 'bajo') return 'BAJO';
+  if (isSuite(type)) return SUITE[type].name;
+  return 'ONDA';
+}
+
+/** ...and its colour. Both were inlined in three places, which is why a BAJO or a CANTUS
+ *  dropped on a pad came out labelled "ONDA" in ONDA's purple. */
+export function instrumentColor(type: InstrumentType): string {
+  if (type === 'kera') return '#00DAF3';
+  if (type === 'bajo') return '#FF4B1C';
+  if (isSuite(type)) return SUITE[type].accent;
+  return '#B84DFF';
+}
 
 /**
  * Build an instrument track. Defaults to a fresh Init patch — the user asked to choose the
@@ -29,19 +63,25 @@ export const INSTRUMENTS: InstrumentDef[] = [
  * creation. Armed immediately because you want to play what you just added.
  */
 export function makeInstrumentTrack(type: InstrumentType, count: number, presetPatch?: ReturnType<typeof serializePatch>, presetName?: string): ArrangeTrack {
-  const label = presetName || (type === 'kera' ? `KERA ${count + 1}` : `ONDA ${count + 1}`);
+  const label = presetName || `${instrumentLabel(type)} ${count + 1}`;
   return {
     id: grooveUid(),
     kind: 'instrument',
     name: label,
-    color: type === 'kera' ? '#00DAF3' : '#D0BCFF',
+    color: instrumentColor(type),
     mute: false, solo: false, gainDb: 0, pan: 0,
     clips: [],
     instrument: {
       type,
       // KERA ignores the patch (it plays a loaded program), but a valid ONDA patch keeps the
-      // shared filter/envelope defaults sane and the serialize path uniform.
-      patch: presetPatch || serializePatch(newPatch(label)),
+      // shared filter/envelope defaults sane and the serialize path uniform. VELA has its own
+      // patch shape — the two instruments share the engine and the id space but not a single
+      // patch field beyond the envelope.
+      patch: presetPatch || (isSuite(type)
+        ? (serializeVelaPatch(newVelaPatch(presetsFor(type)[0])) as ReturnType<typeof serializePatch>)
+        : type === 'bajo'
+          ? (serializeBajoPatch(newBajoPatch()) as ReturnType<typeof serializePatch>)
+          : serializePatch(newPatch(label))),
       presetName,
     },
     armed: true,
@@ -67,7 +107,7 @@ export function addPadInstrument(
   track.armed = false;          // pads are triggered, never the armed keyboard target
   track.padOwned = true;
   track.padIndex = padIdx;
-  track.name = presetName || `Pad ${padIdx + 1} · ${type === 'kera' ? 'KERA' : 'ONDA'}`;
+  track.name = presetName || `Pad ${padIdx + 1} · ${instrumentLabel(type)}`;
   doc.arrangement.push(track);
   return track.id;
 }
@@ -91,8 +131,8 @@ export function addInstrumentToNextPad(
     pad.source = 'instrument';
     pad.instrumentTrackId = trackId;
     pad.empty = false;
-    pad.name = presetName || (type === 'kera' ? 'KERA' : 'ONDA');
-    pad.color = type === 'kera' ? '#00DAF3' : '#B84DFF';
+    pad.name = presetName || instrumentLabel(type);
+    pad.color = instrumentColor(type);
     if (pad.instrumentNote === undefined) pad.instrumentNote = 60;
   }
   return { padIdx, trackId };

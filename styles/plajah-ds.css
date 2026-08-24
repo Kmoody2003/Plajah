@@ -527,3 +527,55 @@ textarea.pj-input { height: auto; min-height: 96px; padding-block: var(--pj-spac
   color: var(--on-surface-variant, rgba(255,255,255,0.5));
 }
 .pj-menu__sw { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+
+/* ── RANGE ────────────────────────────────────────────────────────────────────
+   Added 2026-08-22. There was no range token, which is why Plajah Pixels alone
+   grew 49 hand-rolled sliders with no two thumbs alike. A slider is a control:
+   it gets a row in the control table like every other one.
+
+   Track is a hairline, thumb is a --pj-control-xs circle, fill shows the value
+   without needing a second element. Native input, so keyboard and screen
+   readers work with no JS. */
+.pj-range {
+  -webkit-appearance: none; appearance: none;
+  height: var(--pj-ctl-h-sm, 34px);         /* hit target — the track is thinner */
+  background: transparent;
+  cursor: pointer;
+  --pj-range-fill: var(--pj-lilac, #D0BCFF);
+}
+.pj-range::-webkit-slider-runnable-track {
+  height: 3px; border-radius: 999px;
+  background: var(--pj-border, rgba(255,255,255,0.14));
+}
+.pj-range::-moz-range-track {
+  height: 3px; border-radius: 999px;
+  background: var(--pj-border, rgba(255,255,255,0.14));
+}
+.pj-range::-moz-range-progress {
+  height: 3px; border-radius: 999px; background: var(--pj-range-fill);
+}
+.pj-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 11px; height: 11px; margin-top: -4px;
+  border: none; border-radius: 50%;
+  background: var(--on-surface, #fff);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.55);
+  transition: transform 120ms var(--pj-ease-standard, cubic-bezier(0.2,0,0,1));
+}
+.pj-range::-moz-range-thumb {
+  width: 11px; height: 11px; border: none; border-radius: 50%;
+  background: var(--on-surface, #fff);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.55);
+}
+.pj-range:hover:not(:disabled)::-webkit-slider-thumb { transform: scale(1.18); }
+.pj-range:focus-visible { outline: none; }
+.pj-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--pj-orange-soft); }
+.pj-range:focus-visible::-moz-range-thumb     { box-shadow: 0 0 0 3px var(--pj-orange-soft); }
+.pj-range:disabled { cursor: not-allowed; }
+
+/* Dense variant — for a packed inspector rail, where sm is too much air.
+   Same control-height scale, one rung down. */
+.pj-range--dense { height: var(--pj-ctl-h-xs, 28px); }
+
+/* Signal variant — an armed / live parameter. */
+.pj-range--signal { --pj-range-fill: var(--pj-orange); }

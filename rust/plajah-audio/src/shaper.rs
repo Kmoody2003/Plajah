@@ -79,6 +79,20 @@ impl Shaper {
         acc
     }
 
+    /// Same 2x oversampled path, but with a caller-supplied curve. BAJO's Scorch stages have
+    /// their own eleven algorithms and their own bias term; this lets them reuse the half-band
+    /// filters rather than shipping a second, worse oversampler.
+    #[inline]
+    pub fn process_with<F: Fn(f32) -> f32>(&mut self, x: f32, f: F) -> f32 {
+        let a = Self::fir(&mut self.up, x * 2.0);
+        let b = Self::fir(&mut self.up, 0.0);
+        let sa = f(a);
+        let sb = f(b);
+        let _ = Self::fir(&mut self.down, sa);
+        let out = Self::fir(&mut self.down, sb);
+        if out.is_finite() { out } else { 0.0 }
+    }
+
     #[inline]
     pub fn process(&mut self, x: f32, mode: ShapeMode, amount: f32) -> f32 {
         if mode == ShapeMode::Off || amount <= 0.0005 {

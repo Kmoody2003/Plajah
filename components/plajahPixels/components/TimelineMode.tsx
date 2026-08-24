@@ -299,7 +299,7 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
         <button onClick={() => setMode('fast')} title="720p, GPU-accelerated — much quicker" style={tabStyle(mode === 'fast')}><Zap size={12} /> Fast 720p</button>
         <button onClick={() => setMode('accurate')} title="1080p master, GPU-accelerated" style={tabStyle(mode === 'accurate')}><Crosshair size={12} /> Accurate 1080p</button>
         <button onClick={render} disabled={busy || !blocks.length} style={{ ...btn, background: blocks.length && !busy ? 'linear-gradient(90deg,#FF8C00,#ffa733)' : '#3a3a48', color: blocks.length && !busy ? '#1a1a1a' : '#888', fontWeight: 700 }}><Download size={14} /> Render</button>
-        <button onClick={onClose} disabled={busy} style={{ ...btn, background: 'transparent', color: '#888' }}><X size={18} /></button>
+        <button onClick={onClose} disabled={busy} aria-label="Close timeline" title="Close timeline" style={{ ...btn, background: 'transparent', color: '#888' }}><X size={18} /></button>
       </div>
 
       {/* scene palette */}

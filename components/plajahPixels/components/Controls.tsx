@@ -96,7 +96,7 @@ const Controls: React.FC<ControlsProps> = ({ audioState, onTogglePlay, onUpload,
                     step="0.05"
                     value={audioState.volume}
                     onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-                    className="w-20 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full"
+                    className="pj-range pj-range--dense w-20"
                  />
             </div>
 

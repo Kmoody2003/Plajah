@@ -115,6 +115,11 @@ const GlobalLighting: React.FC<GlobalLightingProps> = ({ config, analyser, isPla
 
             ctx.globalCompositeOperation = 'screen';
 
+            // The whole rig is audio-reactive stage lighting. With nothing playing there is nothing
+            // to light, and a moving coloured wash on an empty program reads as a bug — which is
+            // exactly how it was reported. So when not playing, clear and paint nothing.
+            if (!isPlaying) { rafRef.current = requestAnimationFrame(animate); return; }
+
             // ── 1. Ambient moving lissajous wash ────────────────────────────
             {
                 const lightColorHex = cfg.lightColor || palette[0] || '#ffffff';

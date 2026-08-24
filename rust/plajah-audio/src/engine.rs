@@ -1,5 +1,7 @@
 //! The instrument engine: voice allocation, parameter store, global modulation, output stage.
 
+use crate::diffuser::{Diffuser, VeilSpec};
+use crate::bajo::BajoRack;
 use crate::lfo::Lfo;
 use crate::modmatrix::{ModMatrix, ModSource, ModValues, Route};
 use crate::osc::Rng;
@@ -50,6 +52,15 @@ pub struct Engine {
     /// Staging buffer the host writes raw wavetable data into before `commit_table`.
     upload: Vec<f32>,
 
+    /// VELA's Veil. One instance after the voice sum — see diffuser.rs for why it is not
+    /// per-voice. Allocated here at construction, never on the audio thread.
+    veil: Diffuser,
+
+    /// BAJO's rack: Throat → Scorch → Ghost Gate → Space, plus the wobble clock. Same argument
+    /// as the Veil — it belongs to the patch, not the channel strip, so it renders offline
+    /// identically. Bypassed entirely unless a BAJO section is switched on.
+    bajo: BajoRack,
+
     events: Vec<ScheduledEvent>,
     events_dirty: bool,
     frame_counter: u64,
@@ -65,9 +76,14 @@ pub struct Engine {
 
 impl Engine {
     pub fn new(sample_rate: f32) -> Self {
+        let sr_real = if sample_rate > 1000.0 { sample_rate } else { 48000.0 };
         let mut voices = Vec::with_capacity(MAX_VOICES);
         for i in 0..MAX_VOICES {
-            voices.push(Voice::new(0x9E3779B9u32.wrapping_mul(i as u32 + 1)));
+            let seed = 0x9E3779B9u32.wrapping_mul(i as u32 + 1);
+            let mut v = Voice::new(seed);
+            // Size BAJO's string delay line for the real rate here, where allocating is legal.
+            v.init_sr(sr_real, seed);
+            voices.push(v);
         }
         let mut tables = Vec::with_capacity(MAX_TABLES);
         for _ in 0..MAX_TABLES {
@@ -77,6 +93,8 @@ impl Engine {
             sr: if sample_rate > 1000.0 { sample_rate } else { 48000.0 },
             params: Params::new(),
             matrix: ModMatrix::default(),
+            veil: Diffuser::new(if sample_rate > 1000.0 { sample_rate } else { 48000.0 }),
+            bajo: BajoRack::new(if sample_rate > 1000.0 { sample_rate } else { 48000.0 }),
             voices,
             lfos: [Lfo::default(); NUM_LFO],
             tables,
@@ -216,8 +234,9 @@ impl Engine {
                     v.voice_id = voice_id;
                     return;
                 }
+                let sr = self.sr;
                 let p = &self.params;
-                v.note_on(note, vel, voice_id, p, Some(from), frame_offset);
+                v.note_on(note, vel, voice_id, p, Some(from), frame_offset, sr);
                 v.age = self.age_counter;
                 return;
             }
@@ -253,9 +272,10 @@ impl Engine {
 
         self.age_counter += 1;
         let age = self.age_counter;
+        let sr = self.sr;
         let params = &self.params;
         let v = &mut self.voices[idx];
-        v.note_on(note, vel, voice_id, params, glide_from, frame_offset);
+        v.note_on(note, vel, voice_id, params, glide_from, frame_offset, sr);
         v.age = age;
 
         for l in self.lfos.iter_mut() {
@@ -278,6 +298,11 @@ impl Engine {
             } else if v.active {
                 v.note_off();
             }
+        }
+        if hard {
+            // A hard stop has to flush the Veil too. A sixty-second diffusion tail surviving a
+            // panic-stop is exactly the bug that makes people stop trusting the stop button.
+            self.veil.clear();
         }
     }
 
@@ -365,7 +390,12 @@ impl Engine {
         let mut globals = ModValues::default();
         for (i, l) in self.lfos.iter_mut().enumerate() {
             l.shape = crate::lfo::LfoShape::from_index(self.params.get(lfo_param(i, L_SHAPE)) as u32);
-            l.rate_hz = lfo_rate(self.params.get(lfo_param(i, L_RATE)));
+            let rate_norm = self.params.get(lfo_param(i, L_RATE));
+            l.rate_hz = if self.params.get(lfo_param(i, L_RANGE)) > 0.5 {
+                lfo_rate_slow(rate_norm)
+            } else {
+                lfo_rate(rate_norm)
+            };
             l.sync_beats = self.params.get(lfo_param(i, L_SYNC));
             l.bipolar = self.params.get(lfo_param(i, L_BIPOLAR)) > 0.5;
             l.retrigger = self.params.get(lfo_param(i, L_RETRIGGER)) > 0.5;
@@ -376,12 +406,50 @@ impl Engine {
         globals.pitch_bend = self.global_bend;
         globals.macros = self.macros;
 
+        // Transport position at the first sample of this block, in beats. The wobble rate lane
+        // and the Ghost Gate both read it, which is what makes them land on the grid instead of
+        // drifting against it.
+        let beats = (self.frame_counter as f64 / self.sr as f64) * self.beats_per_sec as f64;
+        let bps = self.beats_per_sec;
+
+        // Resolve the wobble BEFORE the voices render, so every voice follows the same phase.
+        let wf = self.bajo.wobble_frame(&self.params, beats, frames, bps);
+
         // Split the borrow: voices render into scratch while reading shared state immutably.
-        let Engine { voices, scratch, params, matrix, tables, samples, sr, layout, position, .. } = self;
+        // `veil` and `bajo` come out in the same destructure because both also need `scratch`
+        // and a second `let Engine { .. } = self` would be a double mutable borrow.
+        let Engine { voices, scratch, params, matrix, tables, samples, sr, layout, position, veil, bajo, .. } = self;
         for v in voices.iter_mut() {
             if v.active {
-                v.render(scratch, frames, params, matrix, &globals, tables, samples, *sr, *layout, *position);
+                v.render(scratch, frames, params, matrix, &globals, tables, samples, *sr, *layout, *position, &wf);
             }
+        }
+
+        // BAJO's rack, before the Veil — the Ghost Gate's spill has to exist before the reverb
+        // that receives it runs.
+        let bajo_on = BajoRack::active(params);
+        if bajo_on {
+            bajo.process(scratch, frames, nch, params, &wf, beats, bps);
+        }
+
+        // The Veil runs here: after every voice has summed, before the output stage. Being
+        // inside the engine rather than on the track is what makes it travel with the patch and
+        // render identically offline.
+        let veil_mix = params.get(VEIL_BASE + V_MIX);
+        let veil_freeze = params.get(VEIL_BASE + V_FREEZE) > 0.5;
+        if veil_mix > 0.0001 || veil_freeze {
+            let spec = VeilSpec {
+                size: params.get(VEIL_BASE + V_SIZE),
+                decay: params.get(VEIL_BASE + V_DECAY),
+                diffusion: params.get(VEIL_BASE + V_DIFFUSION),
+                shimmer: params.get(VEIL_BASE + V_SHIMMER),
+                shimmer_ivl: params.get(VEIL_BASE + V_SHIMMER_IVL) as u32,
+                blur: params.get(VEIL_BASE + V_BLUR),
+                freeze: veil_freeze,
+                mix: veil_mix,
+            };
+            let send = if bajo_on { bajo.spill_buffer() } else { None };
+            veil.process(scratch, frames, nch, &spec, send);
         }
 
         // Soft clip on the way out: a synth stacking 32 voices × 16 unison will hit the rails,

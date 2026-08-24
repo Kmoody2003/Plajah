@@ -16,6 +16,11 @@ interface Props {
   blendMode?: string;
   /** 0–1 layer opacity. */
   layerOpacity?: number;
+  /**
+   * Bind the meditation rules. Set by Stillness and channel 8.1; left off in the VJ studio, so
+   * a field can be calm in one host and lively in the other without being two shaders.
+   */
+  sanctuary?: boolean;
   /** Up to 4 user-controlled parameters exposed as iParam0..iParam3 uniforms (0–1). */
   params?: number[];
 }
@@ -34,12 +39,21 @@ uniform vec4 iMouse;
 uniform sampler2D iChannel0;
 uniform float iBass, iMid, iTreble, iLevel;
 uniform float iParam0, iParam1, iParam2, iParam3;
+/**
+ * 1 in a meditative host, 0 in the VJ studio.
+ *
+ * The same shader is allowed to be two things. Loaded into Pixels it can be as lively as any
+ * other clip; loaded into Stillness or channel 8.1 it is bound by the meditation rules — no
+ * strobing, no zoom, a third of the motion. Shaders that do not read it are unaffected, which
+ * is every shader in the VJ library.
+ */
+uniform float iSanctuary;
 `;
 const FRAG_MAIN = `
 void main(){ vec4 c = vec4(0.0,0.0,0.0,1.0); mainImage(c, gl_FragCoord.xy); _frag = c; }
 `;
 
-const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, blendMode, layerOpacity, params }) => {
+const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, blendMode, layerOpacity, params, sanctuary }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const glRef = useRef<WebGL2RenderingContext | null>(null);
   const progRef = useRef<WebGLProgram | null>(null);
@@ -168,6 +182,8 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, 
         gl.uniform1f(u('iParam1'), params?.[1] ?? 0.5);
         gl.uniform1f(u('iParam2'), params?.[2] ?? 0.5);
         gl.uniform1f(u('iParam3'), params?.[3] ?? 0.5);
+        // Defaults to 0 — the free behaviour — so nothing in the existing library changes.
+        gl.uniform1f(u('iSanctuary'), sanctuary ? 1 : 0);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
         frameRef.current++;
       }

@@ -54,7 +54,8 @@ import {
   ToggleLeft,
   ToggleRight,
   AlertTriangle,
-  Tv
+  Tv,
+  Hash,
 } from 'lucide-react';
 import ErrorReportsPanel from './admin/ErrorReportsPanel';
 import { motion, AnimatePresence } from 'motion/react';
@@ -96,6 +97,8 @@ import { Achievement } from '../types';
 import FileUploader from './FileUploader';
 import { ThemePresetManager } from './ThemePresetManager';
 import { AdminLiveFeedsManager } from './AdminLiveFeedsManager';
+import ChannelNumberMigration from './admin/ChannelNumberMigration';
+import AdminEndlessHour from './admin/AdminEndlessHour';
 import AdminLandingBgManager from './AdminLandingBgManager';
 import AdminPlatformMediaLibrary from './admin/AdminPlatformMediaLibrary';
 import AdminClubCoverMediaManager from './AdminClubCoverMediaManager';
@@ -138,7 +141,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS' | 'NOTIFY' | 'CHORA_STREAMS' | 'PLATFORM_MEDIA'>('STATS');
+  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS' | 'NOTIFY' | 'CHORA_STREAMS' | 'PLATFORM_MEDIA' | 'CHANNEL_NUMBERS' | 'ENDLESS_HOUR'>('STATS');
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettingsConfig | null>(null);
   const [contentLicensingOn, setContentLicensingOn] = useState(false);
@@ -562,9 +565,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-color)] text-white flex flex-col lg:flex-row overflow-hidden">
-      {/* Admin Sidebar */}
-      <aside className="w-full lg:w-80 border-r border-white/5 flex flex-col p-8 bg-black/40 backdrop-blur-3xl z-50">
+    <div className="h-screen bg-[var(--bg-color)] text-white flex flex-col lg:flex-row overflow-hidden">
+      {/* Admin Sidebar.
+          `min-h-0` matters: a flex child will not shrink below its content without it, so
+          without it the nav below cannot scroll no matter what overflow it is given. */}
+      <aside className="w-full lg:w-80 shrink-0 border-r border-white/5 flex flex-col min-h-0 p-8 bg-black/40 backdrop-blur-3xl z-50">
         <div className="flex items-center gap-4 mb-12">
           <div className="w-12 h-12 rounded-2xl bg-red-600 flex items-center justify-center shadow-[0_0_30px_rgba(220,38,38,0.3)]">
             <Shield size={24} className="text-white" />
@@ -575,7 +580,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
           </div>
         </div>
 
-        <nav className="flex-1 space-y-2">
+        {/* Twenty-four tabs do not fit on a laptop. Without this the list was simply clipped —
+            no scrollbar, no indication anything was below — and every tab past about the
+            eleventh was unreachable rather than merely hidden. */}
+        <nav className="flex-1 min-h-0 overflow-y-auto space-y-2 -mr-3 pr-3">
           {[
             { id: 'ANALYTICS', label: 'Analytics', icon: BarChart3 },
             { id: 'SITE_HEALTH', label: 'Site Health', icon: Activity },
@@ -591,6 +599,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
             { id: 'THEMES', label: 'Theme Manager', icon: Palette },
             { id: 'ACHIEVEMENTS', label: 'Achievements & Points', icon: Trophy },
             { id: 'LIVE_FEEDS', label: 'Live Feeds', icon: Radio },
+            { id: 'CHANNEL_NUMBERS', label: 'Channel Numbers', icon: Hash },
+            { id: 'ENDLESS_HOUR', label: 'Endless Hour', icon: Radio },
             { id: 'PLATFORM_MEDIA', label: 'Plajah Media Library', icon: Tv },
             { id: 'LANDING_BG', label: 'Landing Background', icon: ImageIcon },
             { id: 'CLUB_COVER_MEDIA', label: 'Club Cover Media', icon: VideoIcon },
@@ -618,7 +628,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
 
         <button 
           onClick={onBack}
-          className="mt-auto flex items-center gap-4 px-6 py-4 text-white/20 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest group"
+          className="shrink-0 mt-4 pt-4 border-t border-white/5 flex items-center gap-4 px-6 py-4 text-white/20 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest group"
         >
           <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> 
           Exit System Admin
@@ -1247,6 +1257,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                 className="h-full"
               >
                 <AdminLiveFeedsManager />
+              </motion.div>
+            )}
+
+            {activeTab === 'CHANNEL_NUMBERS' && (
+              <motion.div
+                key="channelNumbers"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="h-full overflow-y-auto"
+              >
+                <ChannelNumberMigration />
+              </motion.div>
+            )}
+
+            {activeTab === 'ENDLESS_HOUR' && (
+              <motion.div
+                key="endlessHour"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="h-full overflow-y-auto"
+              >
+                <AdminEndlessHour />
               </motion.div>
             )}
 

@@ -521,7 +521,7 @@ const LayerRow: React.FC<LayerRowProps> = ({
               type="range" min="0" max="100" step="1"
               value={Math.round(layer.opacity * 100)}
               onChange={e => onUpdateLayer({ opacity: Number(e.target.value) / 100 })}
-              className="flex-1 cursor-pointer"
+              className="pj-range pj-range--dense flex-1"
               style={{ accentColor: layerColor, height: 14 }}
             />
             <span className="text-[8px] font-mono w-7 text-right shrink-0"
@@ -1946,7 +1946,7 @@ const ClipLauncher: React.FC<Props> = ({
                         type="range" min="1" max="60" step="1"
                         value={sceneAutoInterval}
                         onChange={e => setSceneAutoInterval(Number(e.target.value))}
-                        className="flex-1 cursor-pointer"
+                        className="pj-range pj-range--dense flex-1"
                         style={{ accentColor: '#FF8C00', height: 14 }}
                       />
                       <input
@@ -2104,7 +2104,7 @@ const ClipLauncher: React.FC<Props> = ({
                               type="range" min="0" max="100" step="1"
                               value={Math.round(m.depth * 100)}
                               onChange={e => updateMapping(m.id, { depth: Number(e.target.value) / 100 })}
-                              className="flex-1 cursor-pointer"
+                              className="pj-range pj-range--dense flex-1"
                               style={{ accentColor: dk.color, height: 12 }}
                             />
                             <span className="text-[7px] font-mono text-white/40 w-6 text-right shrink-0">{Math.round(m.depth * 100)}</span>
@@ -2160,7 +2160,7 @@ const ClipLauncher: React.FC<Props> = ({
                           type="range" min="0" max="100" step="1"
                           value={Math.round(layer.opacity * 100)}
                           onChange={e => updateLayer(li, { opacity: Number(e.target.value) / 100 })}
-                          className="w-full cursor-pointer"
+                          className="pj-range pj-range--dense w-full"
                           style={{ accentColor: col, height: 12 }}
                         />
 
@@ -2279,7 +2279,7 @@ const ClipLauncher: React.FC<Props> = ({
                               updateClip(sel!.li, sel!.ci, { params: newParams });
                               onShaderParamsChange?.(sel!.li, newParams);
                             }}
-                            className="w-full cursor-pointer"
+                            className="pj-range pj-range--dense w-full"
                             style={{ accentColor: '#22d3ee', height: 14 }}
                           />
                         </div>
@@ -2309,7 +2309,7 @@ const ClipLauncher: React.FC<Props> = ({
                           const newParams = [Number(e.target.value)];
                           updateClip(sel!.li, sel!.ci, { params: newParams });
                         }}
-                        className="w-full cursor-pointer"
+                        className="pj-range pj-range--dense w-full"
                         style={{ accentColor: '#c084fc', height: 14 }}
                       />
                     </div>
@@ -2322,7 +2322,7 @@ const ClipLauncher: React.FC<Props> = ({
                         type="range" min="0" max="100" step="1"
                         value={Math.round(layer.opacity * 100)}
                         onChange={e => updateLayer(sel!.li, { opacity: Number(e.target.value) / 100 })}
-                        className="w-full cursor-pointer"
+                        className="pj-range pj-range--dense w-full"
                         style={{ accentColor: '#c084fc', height: 14 }}
                       />
                     </div>

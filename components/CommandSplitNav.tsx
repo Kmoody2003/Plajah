@@ -18,7 +18,7 @@ import {
   Newspaper, BookOpen, Cross, FlaskConical, Radio, AppWindow, Repeat, Gamepad2, Users, UsersRound,
   Heart, Landmark, Shield, ShoppingBag, GraduationCap, Camera, MessageSquare, MessageCircle,
   Mail, Rss, Sparkles, Clapperboard, MonitorPlay, Cctv, Search, HelpCircle, Monitor, Factory, Building2,
-  Briefcase, MapPin, TrendingUp, Tv, Ticket, Home, LayoutPanelTop, Megaphone,
+  Briefcase, MapPin, TrendingUp, Ticket, Home, LayoutPanelTop, Megaphone,
   Compass, Palette, Trophy, Bell, Plus, ChevronLeft,
   ChevronRight, LogOut, Command, RotateCcw, X, Disc3, Grid3x3,
 } from 'lucide-react';
@@ -45,7 +45,6 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'RADIO', label: 'Radio', icon: Radio },
     { id: 'GAMES', label: 'Games', icon: Gamepad2 },
     { id: 'GLOBAL_PHOTOS', label: 'Photos', icon: Camera },
-    { id: 'LIVE_TV', label: 'Live TV', icon: Tv },
     { id: 'LIVE_HUB', label: 'Live Hub', icon: Sparkles },
     { id: 'PPV_EVENTS', label: 'Live Events', icon: Ticket },
   ]},

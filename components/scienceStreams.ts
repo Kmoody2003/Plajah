@@ -21,6 +21,19 @@ export interface ScienceStream {
   tags: string[];
 }
 
+/**
+ * KILL SWITCH for the curated Science Live band (guide channels 9001+).
+ *
+ * OFF as of 2026-08-23: every entry below is a third-party YouTube embed, and they are
+ * currently broken — the `live_stream?channel=` URLs no longer resolve and the rest are
+ * refused in an iframe, so the band showed dead players in the Live TV hub. The data is
+ * kept intact rather than deleted because the block is meant to be revisited: fix or
+ * replace the URLs, flip this back to `true`, and the band returns everywhere at once.
+ *
+ * Surfaces must read {@link ACTIVE_SCIENCE_STREAMS}, never SCIENCE_STREAMS directly.
+ */
+export const SCIENCE_BAND_ENABLED = false;
+
 export const SCIENCE_STREAMS: ScienceStream[] = [
   // ── SPACE ────────────────────────────────────────────────────────────────
   {
@@ -228,6 +241,9 @@ export const SCIENCE_STREAMS: ScienceStream[] = [
     tags: ['usgs', 'earthquake', 'seismic', 'geology', 'real-time'],
   },
 ];
+
+/** What every surface should render: empty while {@link SCIENCE_BAND_ENABLED} is off. */
+export const ACTIVE_SCIENCE_STREAMS: ScienceStream[] = SCIENCE_BAND_ENABLED ? SCIENCE_STREAMS : [];
 
 export const SCIENCE_CATEGORIES: { id: ScienceCategory; label: string; emoji: string; accent: string }[] = [
   { id: 'SPACE',      label: 'Space & Astronomy',      emoji: '🚀', accent: '#0B3D91' },

@@ -17,6 +17,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import LayerStack from './LayerStack';
 import ShaderLayer from './ShaderLayer';
+import { getSilentAnalyser } from '../engine/silentAnalyser';
 import ButterchurnLayer from './ButterchurnLayer';
 import MidiNotesScene from './MidiNotesScene';
 import ThreeScene, { Three3DConfig } from './ThreeScene';
@@ -132,6 +133,9 @@ const ProgramOutView: React.FC = () => {
     );
   }
 
+  // A look animates on iTime, so program-out must render it even before the opener's live
+  // analyser can be pulled across. Silent analyser = zeros for the bands, motion from the clock.
+  const poAnalyser = analyser ?? getSilentAnalyser();
   const { config, layers, isPlaying, shaderSrc, shaderStart, milkdrop, milkdropIdx,
           milkdropBlendMode, milkdropLayerOpacity, midiNotes, three3d, bgMedia1, bgMedia2 } = state;
 
@@ -148,15 +152,18 @@ const ProgramOutView: React.FC = () => {
       {/* The real composite — every active layer of the live column, stacked. */}
       <LayerStack layers={layers} analyser={analyser} config={config} isPlaying={isPlaying} />
 
-      {/* Explicit global override modes, mirrored from the studio. */}
+      {/* Explicit global override modes, mirrored from the studio.
+          The shader must render even before the opener's analyser can be pulled — a look animates
+          on iTime, not on audio — so it falls back to a silent analyser. This was the same gate
+          that kept picked shaders off the program output: no analyser, no shader. */}
       {three3d ? (
-        <ThreeScene analyser={analyser} config={three3d} palette={config.colorPalette} />
-      ) : analyser && (
+        <ThreeScene analyser={poAnalyser} config={three3d} palette={config.colorPalette} />
+      ) : poAnalyser && (
         <>
-          {shaderSrc && <ShaderLayer analyser={analyser} source={shaderSrc} startTimeMs={shaderStart} onError={() => {}} />}
+          {shaderSrc && <ShaderLayer analyser={poAnalyser} source={shaderSrc} startTimeMs={shaderStart} onError={() => {}} />}
           {midiNotes && <MidiNotesScene palette={config.colorPalette} />}
           {milkdrop && (
-            <ButterchurnLayer analyser={analyser} presetIndex={milkdropIdx} blendMode={milkdropBlendMode} layerOpacity={milkdropLayerOpacity} />
+            <ButterchurnLayer analyser={poAnalyser} presetIndex={milkdropIdx} blendMode={milkdropBlendMode} layerOpacity={milkdropLayerOpacity} />
           )}
         </>
       )}

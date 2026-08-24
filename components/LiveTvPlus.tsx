@@ -10,16 +10,22 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, ChevronDown, LayoutGrid, Maximize2, Minimize2 } from 'lucide-react';
 import type { LiveFeed, UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
-import { SCIENCE_STREAMS } from './scienceStreams';
-import { fetchFastChannelSchedule, fetchFastChannelVideos, type FastChannelListing } from '../services/backendService';
+import { ACTIVE_SCIENCE_STREAMS } from './scienceStreams';
+import { fetchChannelNumberRegistry, fetchFastChannelSchedule, fetchFastChannelVideos, type FastChannelListing } from '../services/backendService';
 import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, backfillScheduleDurations, backfillScheduleDurationsByUrl, unresolvedDurationUrls, FM_FILL_THRESHOLD_SEC } from '../services/fastChannelTimeline';
 import { exactDurationSec } from '../services/mediaTimebase';
 import { probeDurations } from '../services/mediaProbe';
 import { now as clockNow } from '../services/platformClock';
 import AdBreakBumper from './tv/AdBreakBumper';
 import ComingUpNextBumper, { type UpNextItem } from './tv/ComingUpNextBumper';
+import EndlessHourPlayer from './tv/EndlessHourPlayer';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import { isShellFocused, setShellFocus } from '../hooks/useTvShellFocus';
+import { PLAJAH_CHANNELS, UNNUMBERED, guideSortKey, legacyMajors, plajahNumber, type NumberRegistry } from '../services/fast/channelNumbers';
+import { isChannelFeed } from '../services/fast/guideLineup';
+import ShareButton from './ShareButton';
+import { buildShareUrl } from '../services/deepLinkService';
+import { createPost } from '../services/backendService';
 
 export interface TvChannel {
   id: string;
@@ -38,6 +44,7 @@ export interface TvChannel {
   isLive?: boolean;      // true = a live stream is on air right now (vs. scheduled programming)
   feed?: any;            // original LiveFeed for the webrtc viewer handoff
   startOffset?: number;  // FAST: seconds to seek into the current programme (terrestrial mid-join)
+  plajahId?: string;     // first-party channel in the reserved band — no owner account behind it
 }
 
 const BRAND = '#FF8C00';
@@ -290,12 +297,28 @@ const LiveTvPlus: React.FC<{
   onWatchWebrtc?: (feed: any) => void;
   /** When set, start on the channel whose FAST owner / feed owner matches (tuning in from the guide). */
   focusOwnerId?: string;
-}> = ({ onBack, feeds, liveArtists, fastChannels = [], onOpenClassic, onWatchWebrtc, focusOwnerId }) => {
+  /** Tune to a first-party channel (its plajahId) — used by a shared-channel deep-link. */
+  focusPlajahId?: string;
+  /** Fallback: tune to whatever channel carries this guide number ("8.1"). */
+  focusNumber?: string;
+  /** For "Post to Plajah feed" from the share sheet. */
+  currentUser?: { uid: string; displayName?: string | null; photoURL?: string | null } | null;
+}> = ({ onBack, feeds, liveArtists, fastChannels = [], onOpenClassic, onWatchWebrtc, focusOwnerId, focusPlajahId, focusNumber, currentUser }) => {
   const [index, setIndex] = useState(0);
   const [muted, setMuted] = useState(true);
   const [loadedIndex, setLoadedIndex] = useState(0); // player follows the dial once it settles
   const settleRef = useRef<any>(null);
   const guideRef = useRef<HTMLDivElement>(null);
+
+  // Every number in one document. Numbers are GIVEN, not derived, so the guide's job is to look
+  // them up rather than to work them out — which is what makes a channel's number the same on
+  // every device regardless of who is on air or what order anything loaded.
+  const [registry, setRegistry] = useState<NumberRegistry | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void fetchChannelNumberRegistry().then(r => { if (alive) setRegistry(r); });
+    return () => { alive = false; };
+  }, []);
 
   // Build the lineup by USER ACCOUNT: each account is a channel (a bound "major" number) and its
   // individual live feeds + FAST channel are SUB-CHANNELS (42.1, 42.2, …) like an over-the-air
@@ -311,17 +334,13 @@ const LiveTvPlus: React.FC<{
       return o;
     };
 
-    // Live feeds → channels ONLY for OFF-PLATFORM sources (external URLs not from Plajah). A Reello /
-    // on-platform (WebRTC) live stream is CONTENT, not a channel: it flows to the creator's FAST
-    // channel when it ends. A creator can opt a Reello stream in as a live channel (asChannel), and
-    // those DO get listed here; otherwise on-platform streams are excluded from the guide.
+    // Membership is decided by `isChannelFeed`, shared with the numbering admin — an account that
+    // is in the guide but invisible to the allocator is an account whose address can be given
+    // away. See services/fast/guideLineup.ts for why a Reello stream is content, not a channel.
     (feeds || [])
-      .filter(f => (f as any).status !== 'ENDED' && (f as any).status !== 'OFFLINE' && (f as any).url)
+      .filter(isChannelFeed)
       .forEach(f => {
         const url = (f as any).url as string;
-        const onPlatform = (f as any).streamSource === 'webrtc' || /[?&]stream=/.test(url);
-        const asChannel = !!(f as any).asChannel;
-        if (onPlatform && !asChannel) return; // Reello stream = content, not a channel (unless opted in)
         const ownerId = ((f as any).ownerId as string) || f.id;
         const o = ensure(ownerId, f.ownerName || f.title);
         if (typeof (f as any).channelNumber === 'number') o.bound = (f as any).channelNumber; // account's bound guide number
@@ -343,32 +362,66 @@ const LiveTvPlus: React.FC<{
       });
     });
 
-    // Assign major numbers: honor bound numbers; give the rest the smallest free positive integer.
+    // Numbers are LOOKED UP, never worked out.
+    //
+    // This used to hand every unbound account "the smallest free positive integer" computed over
+    // whoever happened to be on air, so a channel's number moved when a DIFFERENT account went
+    // live. The registry is now the source of truth: a number is given once and read thereafter.
+    //
+    // The one exception is the migration. Numbers used to be computed at read time and never
+    // stored, so until backfillChannelNumbers has run there is nothing to look up — and showing
+    // every existing channel a dash would take away addresses people already use. So a channel
+    // with no registry entry falls back to `legacyMajors`, which reproduces exactly what the old
+    // guide showed. It is stable in a way the old code was not, because it runs over every
+    // enabled channel rather than only the ones on air, and the backfill freezes the same
+    // answer. Remove this fallback once the registry is complete.
     const list = [...owners.values()];
-    const used = new Set<number>(list.filter(o => o.bound != null).map(o => o.bound!));
-    let free = 1;
-    const nextFree = () => { while (used.has(free)) free++; used.add(free); return free; };
-    list.sort((a, b) => (a.bound ?? 1e9) - (b.bound ?? 1e9) || a.name.localeCompare(b.name));
+    const legacy = legacyMajors(list.map(o => ({ ownerId: o.ownerId, name: o.name, number: o.bound })));
     const out: TvChannel[] = [];
     list.forEach(o => {
-      const major = o.bound ?? nextFree();
+      // Registry first, then the channel doc's mirror, then the migration replay.
+      const major = registry?.byOwner?.[o.ownerId] ?? o.bound ?? legacy.get(o.ownerId);
       o.subs.forEach((s, j) => {
         // Single-source account → plain "N"; multi-source → "N.1", "N.2".
-        const number = o.subs.length > 1 ? `${major}.${j + 1}` : `${major}`;
+        const number = major == null
+          ? UNNUMBERED
+          : o.subs.length > 1 ? `${major}.${j + 1}` : `${major}`;
         out.push({ ...s, number, name: o.subs.length > 1 ? `${o.name} · ${s.badge === 'FAST' ? 'FAST' : s.name}` : o.name });
       });
     });
 
+    // Plajah's own channels, in the reserved band. Always sub-numbered, so the day a second one
+    // arrives the first keeps its address.
+    PLAJAH_CHANNELS.forEach(pc => {
+      out.push({
+        id: `plajah_${pc.id}`,
+        number: plajahNumber(pc),
+        name: pc.name,
+        sub: pc.tagline,
+        accent: BRAND,
+        badge: 'FAST',
+        kind: 'fast',
+        playUrl: '',
+        now: pc.onAir ? pc.tagline : 'Not yet on air',
+        plajahId: pc.id,
+      });
+    });
+
     // Curated Science Live channels — platform channels in a separate high band.
+    // Empty while SCIENCE_BAND_ENABLED is off (the third-party YouTube embeds are broken),
+    // so the guide simply has no 9000s rather than a row of dead players.
     let sci = 9001;
-    SCIENCE_STREAMS.forEach(s => {
+    ACTIVE_SCIENCE_STREAMS.forEach(s => {
       out.push({
         id: `sci_${s.id}`, number: `${sci++}`, name: s.title, sub: s.source, emoji: s.emoji, accent: s.accent, badge: 'SCIENCE',
         kind: s.isEmbeddable ? 'embed' : 'external', playUrl: s.embedUrl, directUrl: s.directUrl, now: s.title,
       });
     });
+    // One sort at the end, by the number itself, so the guide reads in channel order and
+    // unnumbered entries collect at the bottom instead of pushing everyone else around.
+    out.sort((a, b) => guideSortKey(a.number) - guideSortKey(b.number));
     return out;
-  }, [feeds, fastChannels]);
+  }, [feeds, fastChannels, registry]);
 
   // Per-program EPG for the selected channel (fetched once per owner, cached, refreshed each 30s).
   const [epg, setEpg] = useState<EpgProgram[]>([]);
@@ -426,12 +479,16 @@ const LiveTvPlus: React.FC<{
     settleRef.current = setTimeout(() => setLoadedIndex(i), 320); // swap playback once the dial settles
   }, []);
 
-  // Tuned in from the guide → jump straight to the matching channel.
+  // Tuned in from the guide, or from a shared-channel link → jump straight to the matching channel.
   useEffect(() => {
-    if (!focusOwnerId || !channels.length) return;
-    const i = channels.findIndex(c => c.scheduleOwner === focusOwnerId || c.ownerId === focusOwnerId);
+    if (!channels.length) return;
+    if (!focusOwnerId && !focusPlajahId && !focusNumber) return;
+    const i = channels.findIndex(c =>
+      (focusPlajahId && c.plajahId === focusPlajahId) ||
+      (focusOwnerId && (c.scheduleOwner === focusOwnerId || c.ownerId === focusOwnerId)) ||
+      (focusNumber && c.number === focusNumber));
     if (i >= 0) { setIndex(i); setLoadedIndex(i); }
-  }, [focusOwnerId, channels]);
+  }, [focusOwnerId, focusPlajahId, focusNumber, channels]);
 
   // Keyboard / D-pad (works on the TV app too).
   useEffect(() => {
@@ -462,6 +519,39 @@ const LiveTvPlus: React.FC<{
   const selected = channels[index] || null;
   const playing = channels[loadedIndex] || null;
   const tvInset = getPlatformInfo().isTV;   // leave room for the TV shell's tab bar
+
+  // ── Sharing the channel that's on the dial right now ──────────────────────────
+  // A stable key the /share route and the deep-link both understand: `plajah:<id>` for a
+  // first-party channel, `owner:<uid>` for an account's channel. Curated third-party feeds have
+  // no Plajah identity to resolve, so they simply aren't shareable this way.
+  const shareMeta = useMemo(() => {
+    if (!selected) return null;
+    const owner = selected.scheduleOwner || selected.ownerId;
+    const id = selected.plajahId ? `plajah:${selected.plajahId}` : owner ? `owner:${owner}` : null;
+    if (!id) return null;
+    const url = buildShareUrl('channel', id, { n: selected.number });
+    const title = `${selected.name} · Plajah ${selected.number}`;
+    const text = selected.isLive
+      ? `${selected.name} is live right now on Plajah ${selected.number}. Tune in.`
+      : `Tune in to ${selected.name} on Plajah ${selected.number}.`;
+    return { id, url, title, text, name: selected.name, number: selected.number, now: selected.now };
+  }, [selected]);
+
+  const postChannelToFeed = useCallback(async () => {
+    if (!shareMeta) return;
+    // Just the live-channel card — no auto-written body. The card carries the name, the number and
+    // what's on now, and taps straight into the channel.
+    await createPost({
+      text: '',
+      isPublic: true,
+      assetEmbed: {
+        type: 'CHANNEL',
+        id: shareMeta.id,
+        title: shareMeta.name,
+        subtitle: `CH ${shareMeta.number}${shareMeta.now ? ` · ${shareMeta.now}` : ''}`,
+      },
+    } as any);
+  }, [shareMeta]);
 
   // Full-screen viewing: hides the dial + guide so the programme fills the panel. On a TV it engages
   // automatically after a spell with no remote input (long enough not to fight browsing, short enough
@@ -667,6 +757,17 @@ const LiveTvPlus: React.FC<{
           <span className="text-[11px] font-black uppercase tracking-[0.35em]">Plajah Live</span>
         </div>
         <div className="flex items-center gap-2">
+          {shareMeta && (
+            <ShareButton
+              title={shareMeta.title}
+              text={shareMeta.text}
+              url={shareMeta.url}
+              className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15 text-white"
+              iconSize={16}
+              onPostToPlajah={currentUser ? postChannelToFeed : undefined}
+              plajahLabel="Post this channel to your feed"
+            />
+          )}
           <button onClick={() => setMuted(m => !m)} className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15">{muted ? <VolumeX size={16} /> : <Volume2 size={16} />}</button>
           <button onClick={() => setImmersive(true)} title="Full screen" className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15"><Maximize2 size={16} /></button>
           {onOpenClassic && <button onClick={onOpenClassic} title="All live" className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15"><LayoutGrid size={16} /></button>}
@@ -676,6 +777,13 @@ const LiveTvPlus: React.FC<{
 
       {/* Content + dial */}
       <div className="relative flex-1 min-h-0">
+        {/* A generative channel has no url and no file, so it does not go through ChannelPlayer
+            at all — it renders itself from the clock. Mounted once and never keyed on a slot:
+            re-mounting it would restart a session someone is inside. */}
+        {playing?.plajahId === 'endless-hour' ? (
+          <EndlessHourPlayer muted={muted} />
+        ) : (
+        <>
         {/* Keyed per scheduled slot so a repeat of the same url still reloads the player. */}
         <ChannelPlayer key={fastMedia?.key || resolvedPlaying?.id || 'none'} channel={resolvedPlaying} muted={muted} onWatchWebrtc={(f) => onWatchWebrtc?.(f)}
           onEnded={playing?.kind === 'fast' ? onFastMediaEnded : undefined}
@@ -691,6 +799,8 @@ const LiveTvPlus: React.FC<{
             for the rest of its window instead of black (the clock boundary moves us on, on time). */}
         {playing?.kind === 'fast' && !fastAd && fastFiller && (
           <ComingUpNextBumper key={fastFiller.key} channelName={playing.name} items={fastFiller.upcoming} accent={playing.accent} />
+        )}
+        </>
         )}
 
         {/* Live pre-emption warning — a FAST channel is being cut over to the broadcaster's live

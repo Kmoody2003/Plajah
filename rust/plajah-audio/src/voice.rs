@@ -6,10 +6,14 @@
 //! smoothed so a control step never produces a zipper.
 
 use crate::env::Envelope;
+use crate::exciter::{Exciter, ExciterSpec, ExciterType};
 use crate::filter::{Ladder, Svf, SvfMode};
+use crate::modal::{partial_count, BankMode, Material, ModalBank, ModalSpec};
 use crate::modmatrix::{ModMatrix, ModValues};
 use crate::osc::{unison_detune_curve, AnalogShape, Noise, Phasor, Rng};
 use crate::params::*;
+use crate::bajo::{wob_eval, WobbleFrame};
+use crate::string::StringVoice;
 use crate::sample::{SampleBank, SampleVoice};
 use crate::shaper::{ShapeMode, Shaper};
 use crate::spatial::{pan_gains, Layout, Position, MAX_CHANNELS};
@@ -62,11 +66,33 @@ pub struct Voice {
     cutoff_smooth: [f32; 2],
     amp_smooth: f32,
 
+    /// VELA. When the modal body is enabled it REPLACES the oscillator path entirely — an
+    /// exciter drives a resonator bank and there is no filter stage, because a modal bank is
+    /// already a bank of filters.
+    modal: ModalBank,
+    exciter: Exciter,
+    /// Swell state: 0..1, ramped over the attack time. A modal bank can only ever decay on its
+    /// own, so this is the one thing that makes a pad possible at all.
+    swell: f32,
+    swell_inc: f32,
+    /// Release fade for Sustained mode. A driven bank does not decay on its own, so note-off
+    /// has to take the level down or the note never ends.
+    gate_amp: f32,
+    /// Latched at note-on. A voice that started as a modal voice stays one for its whole life,
+    /// so toggling the body mid-tail cannot strand a ringing bank.
+    modal_active: bool,
+
     /// Sample playback (KERA). Inactive (slot -1) for synth voices; when active the sample
     /// replaces the oscillators and everything downstream is shared with the synth path.
     sample: SampleVoice,
     /// Extra detune in cents from the zone, folded into the sample's resampling ratio.
     sample_detune: f32,
+    /// BAJO's string engine. Allocated once at engine construction (see `init_sr`) so nothing
+    /// ever allocates on the audio thread.
+    string: StringVoice,
+    /// Per-voice wobble smoothing state. Every voice follows the same phase from the engine, so
+    /// they agree; only the one-pole is local.
+    wob_smooth: f32,
 }
 
 impl Voice {
@@ -77,6 +103,8 @@ impl Voice {
             *d = rng.bipolar();
         }
         Self {
+            string: StringVoice::new(48000.0, seed ^ 0x5F35_63AD),
+            wob_smooth: 0.0,
             active: false,
             note: 60.0,
             velocity: 0.8,
@@ -97,6 +125,16 @@ impl Voice {
             glide_note: 60.0,
             cutoff_smooth: [1000.0; 2],
             amp_smooth: 0.0,
+            modal: ModalBank::new(seed),
+            modal_active: false,
+            swell: 1.0,
+            swell_inc: 1.0,
+            gate_amp: 0.0,
+            exciter: {
+                let mut e = Exciter::default();
+                e.reseed(seed);
+                e
+            },
             sample: {
                 let mut s = SampleVoice::default();
                 s.clear();
@@ -108,18 +146,30 @@ impl Voice {
 
     /// Assign a sample to this voice — call right after `note_on` for a KERA voice. `start_frame`
     /// lets the host honour a zone's play-start offset; `detune_cents` folds in the zone tuning.
+    /// Size the string's delay line for the real sample rate. Called once at engine
+    /// construction — never on the audio thread.
+    pub fn init_sr(&mut self, sr: f32, seed: u32) {
+        self.string = StringVoice::new(sr, seed ^ 0x5F35_63AD);
+    }
+
     pub fn set_sample(&mut self, slot: i32, start_frame: f64, detune_cents: f32) {
         self.sample.start(slot, start_frame);
         self.sample_detune = detune_cents;
     }
 
-    pub fn note_on(&mut self, note: f32, vel: f32, id: u32, p: &Params, glide_from: Option<f32>, delay: u32) {
+    pub fn note_on(&mut self, note: f32, vel: f32, id: u32, p: &Params, glide_from: Option<f32>, delay: u32, sr_hint: f32) {
         self.active = true;
         self.released = false;
         self.note = note;
         self.velocity = vel.clamp(0.0, 1.0);
         self.voice_id = id;
         self.start_delay = delay;
+        // Strike the string. Only when the section is actually in use — an ONDA patch must not
+        // pay for a delay line it never reads.
+        if p.get(STR_BASE + S_LEVEL) > 0.0001 {
+            self.string.pluck(p.get(STR_BASE + S_PICK), self.velocity);
+        }
+        self.wob_smooth = 0.0;
         self.expr = Expression::default();
         self.glide_note = glide_from.unwrap_or(note);
         self.sample.clear(); // synth mode by default; a KERA note-on calls set_sample after
@@ -155,6 +205,27 @@ impl Voice {
             self.envs[e].note_on();
         }
         self.amp_smooth = 0.0;
+
+        // VELA: lay out the partials for this pitch, then arm the exciter. The layout is
+        // computed once per note rather than per block — 64 partials across 32 voices every
+        // 2.7 ms is not affordable, and the body does not change while a note rings.
+        self.modal_active = p.get(MODAL_BASE + M_ENABLE) > 0.5;
+        if self.modal_active {
+            self.modal.reset();
+            let spec = modal_spec_for(note, p);
+            self.modal.prepare(&spec, sr_hint);
+            let xs = exciter_spec(p, self.velocity);
+            self.exciter.strike(&xs, sr_hint);
+            self.gate_amp = 0.0;
+            let swell_t = swell_time_s(p.get(MODAL_BASE + M_SWELL));
+            if swell_t > 0.002 {
+                self.swell = 0.0;
+                self.swell_inc = 1.0 / (swell_t * sr_hint);
+            } else {
+                self.swell = 1.0;
+                self.swell_inc = 1.0;
+            }
+        }
     }
 
     pub fn note_off(&mut self) {
@@ -162,6 +233,9 @@ impl Voice {
         for e in self.envs.iter_mut() {
             e.note_off();
         }
+        // Lifting the bow stops feeding the bank; the body keeps ringing on its own, which is
+        // the whole difference between releasing a modal voice and muting one.
+        self.exciter.release();
     }
 
     pub fn kill(&mut self) {
@@ -169,11 +243,93 @@ impl Voice {
         for e in self.envs.iter_mut() {
             e.hard_reset();
         }
+        self.string.reset();
     }
 
     #[inline]
     pub fn is_finished(&self) -> bool {
+        if self.modal_active {
+            // A modal voice outlives its amp envelope by design: energy is still leaving the
+            // bank long after the exciter stopped. Freeing it on the envelope would chop a
+            // forty-second tail, which is far more audible than holding a voice slightly long.
+            // A voice still swelling in has not sounded yet; freeing it on a quiet bank would
+            // silently drop every slow-attack note.
+            if self.swell < 1.0 {
+                return false;
+            }
+            // A driven voice ends when its gate has faded, not when the bank goes quiet — the
+            // bank never does. This must NOT apply to a struck voice: gate_amp starts at zero
+            // and only rises while rendering, so a note-off arriving before the first block
+            // would report the voice finished and kill it before it ever sounded.
+            if self.modal.is_sustained() {
+                if self.released && self.gate_amp < 0.0008 {
+                    return true;
+                }
+                return false;
+            }
+            return self.exciter.is_idle() && self.modal.is_quiet();
+        }
         !self.envs[0].is_active()
+    }
+
+    /// The VELA render path. Separate from the subtractive path on purpose: a modal voice has
+    /// no oscillators, no filters and no amp envelope on its output — the bank's own decay IS
+    /// the envelope, and running the note through a VCA afterwards would flatten exactly the
+    /// behaviour the instrument exists to produce.
+    #[allow(clippy::too_many_arguments)]
+    fn render_modal(
+        &mut self,
+        out: &mut [[f32; crate::engine::MAX_BLOCK]; MAX_CHANNELS],
+        frames: usize,
+        p: &Params,
+        sr: f32,
+        layout: Layout,
+        base_pos: Position,
+    ) {
+        let nch = layout.channels();
+        let mut gains = [0.0f32; MAX_CHANNELS];
+        pan_gains(base_pos, layout, 0.0, &mut gains);
+
+        let xs = exciter_spec(p, self.velocity);
+        let sustained = p.get(MODAL_BASE + M_MODE) as u32 != 0;
+        // A sustained bank is driven rather than excited, so its gate is the note itself.
+        let gate = !self.released && (sustained || xs.kind.is_continuous());
+        // Release length scales with the Veil so a big patch does not snap shut. 0.4-3 s.
+        let rel_k = 1.0 / ((0.4 + p.get(VEIL_BASE + V_DECAY) * 2.6) * sr);
+        // Continuous excitation is scaled by the bank's bandwidth; a strike is not. See
+        // ModalBank::sustain_scale for why the two cannot share a normalisation.
+        let drive = if xs.kind.is_continuous() { self.modal.sustain_scale() } else { 1.0 };
+        // Velocity trims level only slightly; most of it went into the exciter's spectral tilt,
+        // which is how a real body responds to being hit harder.
+        let level = (0.35 + 0.65 * self.velocity) * p.get(P_MASTER_GAIN).max(0.0);
+
+        for f in 0..frames {
+            if self.start_delay > 0 {
+                self.start_delay -= 1;
+                continue;
+            }
+            if self.swell < 1.0 {
+                self.swell = (self.swell + self.swell_inc).min(1.0);
+            }
+            let target = if self.released { 0.0 } else { 1.0 };
+            self.gate_amp += (target - self.gate_amp) * rel_k * 4.0;
+            // Equal-power-ish curve: a linear swell sounds like it hesitates then rushes.
+            let swell = self.swell * self.swell * (3.0 - 2.0 * self.swell);
+            let x = self.exciter.process(&xs, gate, sr) * drive;
+            let driven = if sustained { self.gate_amp } else { 1.0 };
+            let y = self.modal.process(x) * level * swell * driven;
+            if !y.is_finite() {
+                continue;
+            }
+            for c in 0..nch {
+                out[c][f] += y * gains[c];
+            }
+        }
+
+        self.age += frames as u64;
+        if self.is_finished() {
+            self.active = false;
+        }
     }
 
     /// Render into an interleaved-by-channel scratch: `out[ch][frame]`.
@@ -190,8 +346,13 @@ impl Voice {
         sr: f32,
         layout: Layout,
         base_pos: Position,
+        wf: &WobbleFrame,
     ) {
         if !self.active {
+            return;
+        }
+        if self.modal_active {
+            self.render_modal(out, frames, p, sr, layout, base_pos);
             return;
         }
         let dt = 1.0 / sr;
@@ -228,7 +389,24 @@ impl Voice {
             } else {
                 self.glide_note = self.note;
             }
-            let bent = self.glide_note + self.expr.pitch_bend * bend_range;
+            // ── BAJO wobble ──────────────────────────────────────────────────────
+            // The engine hands over the phase; every voice evaluates the same function at the
+            // same phase, so the wobble that moves this filter is provably the wobble that moves
+            // the vowel downstream. Evaluated at control rate (3 kHz at 48 k), not block rate —
+            // a 1/32 wobble at block rate is audibly stepped on a resonant filter.
+            let wob = if wf.on {
+                let raw = wob_eval(wf.phase + wf.inc * frame as f32, wf.shape, wf.skew);
+                self.wob_smooth += (raw - self.wob_smooth) * wf.smooth;
+                if wf.smooth >= 1.0 { raw } else { self.wob_smooth }
+            } else {
+                0.0
+            };
+            let wob_cut = wob * wf.depth_for(WOB_DEST_CUTOFF);
+            let wob_pitch = wob * wf.depth_for(WOB_DEST_PITCH);
+            let wob_morph = wob * wf.depth_for(WOB_DEST_MORPH);
+            let wob_reso = wob * wf.depth_for(WOB_DEST_RESO);
+
+            let bent = self.glide_note + self.expr.pitch_bend * bend_range + wob_pitch * 12.0;
 
             // Filters
             let mut cut = [0.0f32; 2];
@@ -246,8 +424,11 @@ impl Voice {
                 let target = cutoff_hz((base + m + kt + envamt).clamp(0.0, 1.0));
                 // One-pole smoothing: a stepped cutoff is the classic digital-synth zipper.
                 self.cutoff_smooth[f] += (target - self.cutoff_smooth[f]) * 0.35;
-                cut[f] = self.cutoff_smooth[f];
-                res[f] = (p.get(flt_param(f, F_RES)) + matrix.amount_for(flt_param(f, F_RES), &mv)).clamp(0.0, 1.0);
+                // Four octaves of wobble, applied after the smoother and in the log domain so
+                // the sweep is musical rather than linear in hertz.
+                cut[f] = (self.cutoff_smooth[f] * (2.0f32).powf(wob_cut * 4.0)).clamp(20.0, 20000.0);
+                res[f] = (p.get(flt_param(f, F_RES)) + matrix.amount_for(flt_param(f, F_RES), &mv)
+                    + wob_reso * 0.5).clamp(0.0, 1.0);
                 drv[f] = p.get(flt_param(f, F_DRIVE));
                 is_ladder[f] = p.get(flt_param(f, F_TYPE)) < 0.5;
                 svf_mode[f] = SvfMode::from_index(p.get(flt_param(f, F_MODE)) as u32);
@@ -277,7 +458,8 @@ impl Voice {
                 let semis = bent + coarse + fine + drift
                     + matrix.amount_for(osc_param(o, O_COARSE), &mv) * 24.0;
                 o_inc[o] = midi_to_hz(semis) / sr;
-                o_morph[o] = (p.get(osc_param(o, O_MORPH)) + matrix.amount_for(osc_param(o, O_MORPH), &mv)).clamp(0.0, 1.0);
+                o_morph[o] = (p.get(osc_param(o, O_MORPH)) + matrix.amount_for(osc_param(o, O_MORPH), &mv)
+                    + wob_morph * 0.5).clamp(0.0, 1.0);
                 o_wavetable[o] = p.get(osc_param(o, O_MODE)) < 0.5;
                 o_shape[o] = AnalogShape::from_index(p.get(osc_param(o, O_ANALOG_SHAPE)) as u32);
                 o_pw[o] = (p.get(osc_param(o, O_PULSE_WIDTH)) + matrix.amount_for(osc_param(o, O_PULSE_WIDTH), &mv)).clamp(0.02, 0.98);
@@ -292,6 +474,16 @@ impl Voice {
             let sub_shape = AnalogShape::from_index(p.get(P_SUB_SHAPE) as u32);
             let noise_lvl = p.get(P_NOISE_LEVEL);
             let noise_pink = p.get(P_NOISE_COLOR) > 0.5;
+
+            // BAJO's string engine. Its frequency follows `bent`, so glide and bend retune the
+            // delay line rather than pitching a sample.
+            let str_lvl = p.get(STR_BASE + S_LEVEL);
+            let str_hz = midi_to_hz(bent);
+            let str_damp = p.get(STR_BASE + S_DAMP);
+            let str_tone = p.get(STR_BASE + S_TONE);
+            let str_bow = p.get(STR_BASE + S_BOW);
+            let str_body = p.get(STR_BASE + S_BODY);
+            let str_pick = p.get(STR_BASE + S_PICK);
 
             let amp_target = mv.env[0]
                 * (0.25 + 0.75 * self.velocity)
@@ -449,6 +641,14 @@ impl Voice {
                         ch_acc[c] += v * g[c];
                     }
                 }
+                if str_lvl > 0.0001 {
+                    let v = self.string.process(str_hz, str_damp, str_tone, str_bow, str_body, str_pick, sr) * str_lvl;
+                    // Centred, for the same reason the sub is: a plucked bass belongs in the middle.
+                    let g = &uni_gains[uni_count / 2];
+                    for c in 0..nch {
+                        ch_acc[c] += v * g[c];
+                    }
+                }
 
                 // Filters run per channel, each with its own state, so resonance images correctly
                 // instead of collapsing to the centre.
@@ -483,5 +683,55 @@ impl Voice {
         if self.is_finished() {
             self.active = false;
         }
+    }
+}
+
+// ── VELA parameter resolution ────────────────────────────────────────────────
+// Kept as free functions rather than methods so `note_on` and `render_modal` read the same
+// parameters through the same code, and a mapping can never drift between them.
+
+#[inline]
+pub(crate) fn modal_spec_for(note: f32, p: &Params) -> ModalSpec {
+    ModalSpec {
+        f0: midi_to_hz(note),
+        count: partial_count(p.get(MODAL_BASE + M_PARTIALS)),
+        inharm: p.get(MODAL_BASE + M_INHARM).clamp(0.0, 1.0),
+        spread: p.get(MODAL_BASE + M_SPREAD).clamp(0.0, 1.0),
+        decay: modal_decay_s(p.get(MODAL_BASE + M_DECAY)),
+        // Stored 0..1, used -1..+1, so the centre of the knob means "whatever the material does".
+        decay_tilt: p.get(MODAL_BASE + M_DECAY_TILT) * 2.0 - 1.0,
+        material: Material::from_index(p.get(MODAL_BASE + M_MATERIAL) as u32),
+        anima: p.get(MODAL_BASE + M_ANIMA).clamp(0.0, 1.0),
+        beat: p.get(MODAL_BASE + M_BEAT).clamp(0.0, 1.0),
+        beat_rate: beat_rate_hz(p.get(MODAL_BASE + M_BEAT_RATE)),
+        position: p.get(MODAL_BASE + M_POSITION).clamp(0.0, 1.0),
+        keytrack: p.get(MODAL_BASE + M_KEYTRACK).clamp(0.0, 1.0),
+        // Stored 0..1, used -1..+1 so the centre of the control means "do not evolve".
+        morph: p.get(MODAL_BASE + M_MORPH) * 2.0 - 1.0,
+        morph_time: morph_time_s(p.get(MODAL_BASE + M_MORPH_TIME)),
+        mode: BankMode::from_index(p.get(MODAL_BASE + M_MODE) as u32),
+        formant: p.get(MODAL_BASE + M_FORMANT).clamp(0.0, 1.0),
+        formant_shift: p.get(MODAL_BASE + M_FORMANT_SHIFT).clamp(0.0, 1.0),
+        bloom: p.get(MODAL_BASE + M_BLOOM).clamp(0.0, 1.0),
+        spotlight: p.get(MODAL_BASE + M_SPOTLIGHT).clamp(0.0, 1.0),
+        spotlight_pos: p.get(MODAL_BASE + M_SPOTLIGHT_POS).clamp(0.0, 1.0),
+        spotlight_width: p.get(MODAL_BASE + M_SPOTLIGHT_WIDTH).clamp(0.0, 1.0),
+        vibrato: p.get(MODAL_BASE + M_VIBRATO).clamp(0.0, 1.0) * 1.2,
+        vibrato_rate: vibrato_rate_hz(p.get(MODAL_BASE + M_VIBRATO_RATE)),
+        subharm: p.get(MODAL_BASE + M_SUBHARM).clamp(0.0, 1.0),
+    }
+}
+
+#[inline]
+pub(crate) fn exciter_spec(p: &Params, velocity: f32) -> ExciterSpec {
+    ExciterSpec {
+        kind: ExciterType::from_index(p.get(EXC_BASE + X_TYPE) as u32),
+        pressure: p.get(EXC_BASE + X_PRESSURE).clamp(0.0, 1.0),
+        grain: p.get(EXC_BASE + X_GRAIN).clamp(0.0, 1.0),
+        tone: p.get(EXC_BASE + X_TONE).clamp(0.0, 1.0),
+        vel_tilt: p.get(EXC_BASE + X_VEL_TILT).clamp(0.0, 1.0),
+        pulse: p.get(EXC_BASE + X_PULSE).clamp(0.0, 1.0),
+        pulse_rate: pulse_rate_hz(p.get(EXC_BASE + X_PULSE_RATE)),
+        velocity: velocity.clamp(0.0, 1.0),
     }
 }

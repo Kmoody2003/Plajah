@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
     Play, Pause, Upload, Volume2, VolumeX, Disc, Square,
@@ -6,8 +6,7 @@ import {
     Video, Image, Trash2, X, Plus, Wand2, RefreshCw, Layers2, Captions, Radio,
     Save, FolderOpen, CheckCircle, Grid3x3, Piano, Gauge, Activity, Box,
     Monitor, Maximize2, EyeOff, Eye, Circle, Tv, ArrowRight,
-    Download, Send, Loader2, SkipBack, SkipForward, Film,
-} from 'lucide-react';
+    Download, Send, Loader2, SkipBack, SkipForward, Film, LayoutGrid,} from 'lucide-react';
 import { uploadVideo, createVideoPlaylist, postToFeed, auth } from '../../services/backendService';
 import AudioVisualizer from './components/AudioVisualizer';
 import StudioStage from './components/StudioStage';
@@ -18,17 +17,23 @@ import type { LauncherLayer } from './components/ClipLauncher';
 import ButterchurnLayer from './components/ButterchurnLayer';
 import ShaderLayer from './components/ShaderLayer';
 import PostProcessLayer from './components/PostProcessLayer';
-import ShaderPanel, { SHADER_LIBRARY } from './components/ShaderPanel';
+import ShaderPanel, { SHADER_LIBRARY, DEFAULT_SHADER_SRC } from './components/ShaderPanel';
+import LibraryRail, { type LibrarySource } from './ui/LibraryRail';
+import { getSilentAnalyser } from './engine/silentAnalyser';
+import ShaderInspector from './ui/ShaderInspector';
 import MidiNotesScene from './components/MidiNotesScene';
 import ThreeScene, { Three3DConfig, Three3DVariant, Three3DCamera } from './components/ThreeScene';
 import { LottieLayer, HtmlLayer, FpsMeter, LayersPanel, OverlayState } from './components/ExtraLayers';
-import TimelineStrip from './components/TimelineStrip';
 import MatteLayer, { MatteSettings } from './components/MatteLayer';
 import MattePanel from './components/MattePanel';
 import { MatteEngine } from './engine/matting/matteEngine';
 import { MidiController, MidiStatusHud } from './components/MidiController';
 import Controls from './components/Controls';
 import DraggablePanel from './components/DraggablePanel';
+import {
+    AtDepth, DepthProvider, InspectorProvider, Inspector, ModeBar, SettingsShell,
+    surfacesForMode, type PixMode,
+} from './ui/shell';
 import ThemeGenerator from './components/ThemeGenerator';
 import GlobalLighting from './components/GlobalLighting';
 import SegmentationLayer from './components/SegmentationLayer';
@@ -94,7 +99,7 @@ const DEFAULT_CONFIG: VisualizationConfig = {
     slicePush: 0,
     slicePushMusicDriven: false,
     slicePushOscDriven: false,
-    enableLighting: true,
+    enableLighting: false, // stage lighting is opt-in — its moving wash is not what a session should open on
     lightingIntensity: 1.0,
     enableBeams: true,
     lightColor: '#FFCC00',
@@ -171,7 +176,15 @@ export interface PlajahPixelsPlatformBridge {
     onClose: () => void;
 }
 
-const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) => {
+/* Four of the tab ids disagree with the label the user actually sees:
+   colors is Palette, ambient is FX, text is Chat, ai is Clips. The inspector
+   header has to match the tab, so it maps id -> visible label, not id -> id. */
+const TAB_TITLES: Record<string, string> = {
+    core: 'Core', colors: 'Palette', ambient: 'FX', stage: 'Stage',
+    text: 'Chat', ai: 'Clips', midi: 'MIDI', tracks: 'Tracks',
+};
+
+const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void }> = ({ platform, onExit }) => {
     // Program-out popup mode: render only visualizer, no UI
     const isProgramOut = typeof window !== 'undefined'
         && new URLSearchParams(window.location.search).get('programOut') === '1';
@@ -215,9 +228,25 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
     // ─── Studio engine UI ───
     const [showRail, setShowRail] = useState(true);
-    const [showTimeline, setShowTimeline] = useState(true);
+    /* ── Shell (Proposal 2) ──────────────────────────────────────────────
+       Pixels had no top-level mode: it had independent booleans that could
+       be in any of eight combinations, most of which nobody wants. These
+       three named jobs drive those booleans, so only the sensible
+       combinations are reachable from the bar. */
+    // Compose is the default: one look, no deck, load a song and it reacts. Perform — the clip
+    // launcher — is the step up for someone playing a set, not the thing a newcomer meets first.
+    const [pixMode, setPixMode] = useState<PixMode>('compose');
+    const [inspectorOpen, setInspectorOpen] = useState(true);
+    const [dockEl, setDockEl] = useState<HTMLDivElement | null>(null);
     const [showMatte, setShowMatte] = useState(false);
-    const [showClipGrid, setShowClipGrid] = useState(true);
+    const [showClipGrid, setShowClipGrid] = useState(false); // compose default — the effect below keeps it in sync with the mode
+    /* One job, one set of surfaces. The booleans stay the source of truth so
+       nothing else in the studio has to change; the mode just picks them. */
+    useEffect(() => {
+        const { deck, render } = surfacesForMode(pixMode);
+        setShowClipGrid(deck);
+        setShowRenderPanel(render);
+    }, [pixMode]);
     // The real composite: the full ordered layer stack emitted by the ClipLauncher.
     const [liveLayers, setLiveLayers] = useState<LauncherLayer[]>([]);
     const liveLayersRef = useRef<LauncherLayer[]>([]);
@@ -234,8 +263,14 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const [milkdropBlendMode, setMilkdropBlendMode] = useState<string>('screen');
     const [milkdropLayerOpacity, setMilkdropLayerOpacity] = useState<number>(0.8);
     // Custom GLSL (Shadertoy-style) layer — active source, editor visibility, errors.
-    const [shaderSrc, setShaderSrc] = useState<string | null>(null);
-    const [shaderStart, setShaderStart] = useState(0);
+    /* Pixels opens on a signature work rather than a bare Stage. iTime is
+       (now - shaderStart)/1000, so the clock has to start when the studio does
+       or the opening work begins mid-animation. */
+    const [shaderSrc, setShaderSrc] = useState<string | null>(DEFAULT_SHADER_SRC);
+    const [shaderStart, setShaderStart] = useState(() => performance.now());
+    // iParam0..3 for the look on the canvas. Owned here so the Library rail, the inspector and
+    // ShaderLayer all read one source; seeded from the selected work's declared defaults.
+    const [shaderParams, setShaderParams] = useState<number[]>([0.5, 0.5, 0.5, 0.5]);
     const [shaderError, setShaderError] = useState<string | null>(null);
     const [showShaderPanel, setShowShaderPanel] = useState(false);
     // Per-layer shaders from clip launcher (layerIdx → shader state)
@@ -250,6 +285,9 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     // ── Output: record · fullscreen/dismiss · program-out window ────────────────
     const rootRef = useRef<HTMLDivElement>(null);
     const [uiHidden, setUiHidden] = useState(false);
+    /* The settings tabs dock into the Inspector whenever it is open; the
+       sliding drawer is the fallback for when it is not. */
+    const settingsDocked = inspectorOpen && !uiHidden;
 
     // ── 3D Depth / Parallax camera ────────────────────────────────────────────
     const depthMouseRef  = useRef({ x: 0, y: 0 });
@@ -763,6 +801,43 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             setLayerMod(prev => ({ ...prev, [layerIdx]: { ...prev[layerIdx], ...mod } }));
         }
     }, []);
+
+    /* What the spine should call the thing on screen. Resolved from the source
+       itself, so applyShaderLook and every other caller keep their signatures. */
+    const activeShader = useMemo(
+        () => (shaderSrc ? SHADER_LIBRARY.find(s => s.src === shaderSrc) : undefined),
+        [shaderSrc],
+    );
+
+    // Put a work on the canvas from the Library rail. Seeds iParam0..3 from the work's own
+    // declared defaults so the controls start where the author intended, and restarts the shader
+    // clock so the piece begins at its beginning rather than mid-animation.
+    const selectLook = useCallback((src: string) => {
+        const work = SHADER_LIBRARY.find(w => w.src === src);
+        setShaderSrc(src);
+        setShaderStart(performance.now());
+        setMidiNotes(false); setMilkdrop(false); setThree3d(null);
+        setShaderParams([
+            work?.params?.[0]?.def ?? 0.5, work?.params?.[1]?.def ?? 0.5,
+            work?.params?.[2]?.def ?? 0.5, work?.params?.[3]?.def ?? 0.5,
+        ]);
+    }, []);
+
+    // Every library pick lands here. A look is one of three things, and choosing one clears the
+    // others — only one thing is ON the canvas at a time. This is the single door the deck's own
+    // browser used to be a second, duplicate copy of.
+    const applySource = useCallback((source: LibrarySource) => {
+        if (source.kind === 'shader') { selectLook(source.src); return; }
+        if (source.kind === 'generator') {
+            setShaderSrc(null); setMilkdrop(false); setThree3d(null); setMidiNotes(false);
+            setConfig(prev => ({ ...prev, mode: source.mode }));
+            return;
+        }
+        // milkdrop
+        setShaderSrc(null); setThree3d(null); setMidiNotes(false);
+        setMilkdropIdx(source.index);
+        setMilkdrop(true);
+    }, [selectLook]);
 
     const applyShaderLook = useCallback((src: string) => {
         if (editTarget === 'preview') {
@@ -1306,16 +1381,28 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     // full output: Fast recording includes overlays, and it's the prereq for the
     // OffscreenCanvas worker). HtmlLayer (an iframe) can't become a texture, so it
     // always stays DOM on top; Lottie likewise stays DOM for its screen blend.
-    const unify = !!config.unifyOverlays;
+    // Unify composites the overlay layers INTO the single GPU surface. With it off, a picked
+    // shader is a DOM plane sitting on top of the compositor — you see it locally, but the
+    // compositor canvas that recording and program-out capture never contains it, which is exactly
+    // "the shader isn't going to the compositor program out". A global override IS the case where
+    // the overlay must be captured, so force unify on whenever one is active. `{!unify && vizOverlay}`
+    // then stops rendering the DOM copy, so there is no double render.
+    const hasOverride = !!shaderSrc || milkdrop || midiNotes || !!three3d;
+    const unify = !!config.unifyOverlays || hasOverride;
+    // A chosen look must render to program the moment it is picked — a shader animates on iTime, not
+    // on audio. The layers dereference their analyser, so before audio starts they get the silent
+    // one (zeros for the bands, motion from iTime). This is why picking a shader with nothing playing
+    // used to show nothing: the whole block was gated on a live analyser that did not exist yet.
+    const vizAnalyser = analyserRef.current ?? getSilentAnalyser();
     const vizOverlay = (
         <>
             {three3d ? (
-                <ThreeScene analyser={analyserRef.current} config={three3d} albumUrl={platform?.mediaImages?.[0]} palette={config.colorPalette} />
-            ) : analyserRef.current && (
+                <ThreeScene analyser={vizAnalyser} config={three3d} albumUrl={platform?.mediaImages?.[0]} palette={config.colorPalette} />
+            ) : vizAnalyser && (
                 <>
-                    {shaderSrc && <ShaderLayer analyser={analyserRef.current} source={shaderSrc} startTimeMs={shaderStart} onError={setShaderError} />}
+                    {shaderSrc && <ShaderLayer analyser={vizAnalyser} source={shaderSrc} startTimeMs={shaderStart} params={shaderParams} onError={setShaderError} />}
                     {midiNotes && <MidiNotesScene palette={config.colorPalette} />}
-                    {milkdrop && <ButterchurnLayer analyser={analyserRef.current} presetIndex={milkdropIdx} blendMode={milkdropBlendMode} layerOpacity={milkdropLayerOpacity} onMeta={setMilkdropMeta} onThumbnail={(name, url) => setMilkdropThumbnails(prev => ({ ...prev, [name]: url }))} />}
+                    {milkdrop && <ButterchurnLayer analyser={vizAnalyser} presetIndex={milkdropIdx} blendMode={milkdropBlendMode} layerOpacity={milkdropLayerOpacity} onMeta={setMilkdropMeta} onThumbnail={(name, url) => setMilkdropThumbnails(prev => ({ ...prev, [name]: url }))} />}
                 </>
             )}
             <MatteLayer id="matte-layer" analyser={analyserRef.current} engine={matteEngineRef.current!} settings={matteSettings} />
@@ -1331,8 +1418,42 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     );
 
     return (
+        <DepthProvider>
+        <InspectorProvider docking={inspectorOpen && !uiHidden} el={dockEl}>
         <div className="flex flex-col overflow-hidden bg-black" style={{ height: '100dvh' }}>
-        <div ref={rootRef} id="plajah-pixels-root" className="relative flex-1 min-h-0 flex flex-col overflow-hidden bg-black text-white font-sans">
+
+        {/* ─── The spine: what you came to do, promoted above everything ─── */}
+        {!uiHidden && (
+            <ModeBar
+                mode={pixMode}
+                onMode={setPixMode}
+                lookName={activeShader?.name ?? config.name}
+                lookMode={activeShader?.series ?? config.mode}
+                onExit={onExit}
+                inspectorOpen={inspectorOpen}
+                onToggleInspector={() => setInspectorOpen(v => !v)}
+            />
+        )}
+
+        <div className="flex-1 min-h-0 flex overflow-hidden">
+
+        {/* The Library, as a place — a permanent left column, not a modal. Present from the
+            Simple rung up: "Library + canvas + four sliders" is the whole of Rung 1. */}
+        {!uiHidden && (
+            <AtDepth min="simple">
+                <LibraryRail
+                    selectedSrc={shaderSrc}
+                    selectedMode={!shaderSrc && !milkdrop ? config.mode : null}
+                    milkdropOn={milkdrop}
+                    milkdropIndex={milkdropIdx}
+                    onSelect={applySource}
+                    onImport={() => setShowShaderPanel(true)}
+                    analyser={analyserRef.current}
+                />
+            </AtDepth>
+        )}
+
+        <div ref={rootRef} id="plajah-pixels-root" className="relative flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden bg-black text-white font-sans">
             {/* ─── Platform-slaved chrome: exit, title, tracklist toggle — sits below icon row ─── */}
             {platform && !uiHidden && (
                 <div className="absolute top-[68px] left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full px-2 py-1.5 shadow-xl">
@@ -1489,8 +1610,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                 type="range" min="0" max={audioState.duration || 1} step="0.1"
                                                 value={audioState.currentTime}
                                                 onChange={e => effSeek(Number(e.target.value))}
-                                                className="w-full cursor-pointer"
-                                                style={{ accentColor: '#8b5cf6', height: 3 }}
+                                                className="pj-range pj-range--dense w-full"
+                                                
                                             />
                                             {/* Volume */}
                                             <div className="flex items-center gap-2">
@@ -1501,289 +1622,15 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     type="range" min="0" max="1" step="0.01"
                                                     value={audioState.volume}
                                                     onChange={e => effVolumeChange(Number(e.target.value))}
-                                                    className="flex-1 cursor-pointer"
-                                                    style={{ accentColor: '#8b5cf6', height: 3 }}
+                                                    className="pj-range pj-range--dense flex-1"
+                                                    
                                                 />
                                             </div>
                                         </div>
 
-                                        {/* ── Settings tabs (compact) ─────────────────────── */}
-                                        <div className="shrink-0 flex overflow-x-auto" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', scrollbarWidth: 'none' }}>
-                                            {(['core','colors','ambient','stage','text','ai','midi'] as const).map(t => (
-                                                <button
-                                                    key={t}
-                                                    onClick={() => setActiveTab(t)}
-                                                    className="flex-shrink-0 px-2 py-1.5 text-[8px] font-black uppercase tracking-wider transition-all border-b-2"
-                                                    style={{
-                                                        borderBottomColor: activeTab === t ? '#FF8C00' : 'transparent',
-                                                        color: activeTab === t ? '#FF8C00' : 'rgba(255,255,255,0.35)',
-                                                        background: 'transparent',
-                                                    }}
-                                                >
-                                                    {t === 'ai' ? 'Clips' : t}
-                                                </button>
-                                            ))}
-                                        </div>
-
-                                        {/* ── Settings content (scrollable) ───────────────── */}
-                                        <div className="flex-1 overflow-y-auto p-3 space-y-4" style={{ scrollbarWidth: 'thin' }}>
-
-                                            {/* CORE */}
-                                            {activeTab === 'core' && (
-                                                <div className="space-y-3">
-                                                    <div>
-                                                        <label className="text-[9px] text-white/40 block mb-1 uppercase tracking-widest">Mode</label>
-                                                        <select value={config.mode} onChange={e => setConfig(p => ({ ...p, mode: e.target.value as any }))}
-                                                            className="w-full bg-black/60 border border-white/10 rounded p-1.5 text-white text-[10px] outline-none">
-                                                            {Object.values(VisualizerMode).map(m => <option key={m} value={m} className="bg-zinc-900">{m}</option>)}
-                                                        </select>
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Sensitivity</span><span className="text-[#FF8C00] font-mono">{config.sensitivity}x</span></div>
-                                                        <input type="range" min="0.1" max="3.0" step="0.1" value={config.sensitivity} onChange={e => setConfig(p => ({ ...p, sensitivity: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Speed</span><span className="text-[#FF8C00] font-mono">{config.speed}x</span></div>
-                                                        <input type="range" min="0.1" max="3.0" step="0.1" value={config.speed} onChange={e => setConfig(p => ({ ...p, speed: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Smoothing</span><span className="text-[#FF8C00] font-mono">{config.smoothingTimeConstant}</span></div>
-                                                        <input type="range" min="0" max="0.95" step="0.05" value={config.smoothingTimeConstant} onChange={e => setConfig(p => ({ ...p, smoothingTimeConstant: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Glow</span><span className="text-[#FF8C00] font-mono">{config.glowIntensity}</span></div>
-                                                        <input type="range" min="0" max="40" step="1" value={config.glowIntensity} onChange={e => setConfig(p => ({ ...p, glowIntensity: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>Blur</span>
-                                                        <input type="checkbox" checked={config.enableBlur} onChange={e => setConfig(p => ({ ...p, enableBlur: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
-                                                    </div>
-                                                    {config.enableBlur && (
-                                                        <div>
-                                                            <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Blur strength</span><span className="text-[#FF8C00] font-mono">{config.blurStrength}</span></div>
-                                                            <input type="range" min="0.1" max="2.0" step="0.1" value={config.blurStrength} onChange={e => setConfig(p => ({ ...p, blurStrength: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                        </div>
-                                                    )}
-                                                    <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>FPS Target</span></div>
-                                                        <div className="flex gap-1">
-                                                            {[30, 60].map(fps => (
-                                                                <button key={fps} onClick={() => setConfig(p => ({ ...p, targetFrameRate: fps as 30|60 }))}
-                                                                    className="flex-1 py-1 rounded text-[9px] font-mono transition-all"
-                                                                    style={{ background: config.targetFrameRate === fps ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.06)', border: `1px solid ${config.targetFrameRate === fps ? '#8b5cf6' : 'rgba(255,255,255,0.1)'}`, color: config.targetFrameRate === fps ? '#c084fc' : 'rgba(255,255,255,0.5)' }}>
-                                                                    {fps}fps
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* COLORS */}
-                                            {activeTab === 'colors' && (
-                                                <div className="space-y-3">
-                                                    <p className="text-[9px] text-white/40 uppercase tracking-widest">Palette</p>
-                                                    <ColorPaletteEditor colors={config.colorPalette} onChange={colors => setConfig(p => ({ ...p, colorPalette: colors }))} />
-                                                </div>
-                                            )}
-
-                                            {/* AMBIENT / FX */}
-                                            {activeTab === 'ambient' && (
-                                                <div className="space-y-3">
-                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>Blur</span>
-                                                        <input type="checkbox" checked={config.enableBlur} onChange={e => setConfig(p => ({ ...p, enableBlur: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Particles</span><span className="text-[#FF8C00] font-mono">{config.particleCount}</span></div>
-                                                        <input type="range" min="10" max="300" step="10" value={config.particleCount} onChange={e => setConfig(p => ({ ...p, particleCount: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Particle life</span><span className="text-[#FF8C00] font-mono">{config.particleLifespan}s</span></div>
-                                                        <input type="range" min="0.5" max="5.0" step="0.1" value={config.particleLifespan} onChange={e => setConfig(p => ({ ...p, particleLifespan: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>Blend Overlay</span>
-                                                        <input type="checkbox" checked={config.enableLayer2} onChange={e => setConfig(p => ({ ...p, enableLayer2: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
-                                                    </div>
-                                                    {config.enableLayer2 && (
-                                                        <div>
-                                                            <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Overlay opacity</span><span className="text-[#FF8C00] font-mono">{config.layer2Opacity}</span></div>
-                                                            <input type="range" min="0" max="1" step="0.05" value={config.layer2Opacity} onChange={e => setConfig(p => ({ ...p, layer2Opacity: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            {/* STAGE */}
-                                            {activeTab === 'stage' && (
-                                                <div className="space-y-3">
-                                                    {/* Global color grade — GPU post-FX over the whole stage */}
-                                                    <div className="rounded-lg p-2 space-y-1.5" style={{ background: 'rgba(255,140,0,0.06)', border: '1px solid rgba(255,140,0,0.18)' }}>
-                                                        <div className="flex items-center justify-between">
-                                                            <span className="text-[9px] font-black uppercase tracking-widest text-[#FF8C00]">Color Grade</span>
-                                                            <button onClick={() => setConfig(p => ({ ...p, gradeBrightness: 1, gradeContrast: 1, gradeSaturation: 1, gradeGamma: 1 }))}
-                                                                className="text-[8px] uppercase font-black text-white/30 hover:text-white/70 transition-colors">Reset</button>
-                                                        </div>
-                                                        {([
-                                                            ['Brightness', 'gradeBrightness', 0, 2],
-                                                            ['Contrast', 'gradeContrast', 0, 2],
-                                                            ['Saturation', 'gradeSaturation', 0, 2],
-                                                            ['Gamma', 'gradeGamma', 0.2, 2.2],
-                                                        ] as [string, 'gradeBrightness'|'gradeContrast'|'gradeSaturation'|'gradeGamma', number, number][]).map(([label, key, min, max]) => (
-                                                            <div key={key}>
-                                                                <div className="flex justify-between text-[9px] text-white/40 mb-0.5"><span>{label}</span><span className="text-[#FF8C00] font-mono">{(config[key] ?? 1).toFixed(2)}</span></div>
-                                                                <input type="range" min={min} max={max} step="0.01" value={config[key] ?? 1} onChange={e => setConfig(p => ({ ...p, [key]: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#FF8C00', height: 3 }} />
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>Mirror slicing</span>
-                                                        <input type="checkbox" checked={config.enableSlicing} onChange={e => setConfig(p => ({ ...p, enableSlicing: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
-                                                    </div>
-                                                    {config.enableSlicing && (
-                                                        <>
-                                                            <div>
-                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Slices</span><span className="text-[#FF8C00] font-mono">{config.sliceCount}</span></div>
-                                                                <input type="range" min="2" max="24" step="1" value={config.sliceCount} onChange={e => setConfig(p => ({ ...p, sliceCount: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                            </div>
-                                                            <div>
-                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Rotation</span><span className="text-[#FF8C00] font-mono">{config.sliceRotation}°</span></div>
-                                                                <input type="range" min="0" max="360" step="5" value={config.sliceRotation} onChange={e => setConfig(p => ({ ...p, sliceRotation: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                            </div>
-                                                            <div>
-                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Push</span><span className="text-[#FF8C00] font-mono">{((config.slicePush ?? 0) * 100).toFixed(0)}%</span></div>
-                                                                <input type="range" min="0" max="1" step="0.01" value={config.slicePush ?? 0} onChange={e => setConfig(p => ({ ...p, slicePush: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                            </div>
-                                                            {(config.slicePush ?? 0) > 0 && (
-                                                                <div className="flex gap-3">
-                                                                    <label className="flex items-center gap-1 text-[9px] text-white/40 cursor-pointer">
-                                                                        <input type="checkbox" checked={config.slicePushMusicDriven ?? false} onChange={e => setConfig(p => ({ ...p, slicePushMusicDriven: e.target.checked }))} className="accent-purple-500" />
-                                                                        Bass drive
-                                                                    </label>
-                                                                    <label className="flex items-center gap-1 text-[9px] text-white/40 cursor-pointer">
-                                                                        <input type="checkbox" checked={config.slicePushOscDriven ?? false} onChange={e => setConfig(p => ({ ...p, slicePushOscDriven: e.target.checked }))} className="accent-purple-500" />
-                                                                        LFO drive
-                                                                    </label>
-                                                                </div>
-                                                            )}
-                                                            {/* Rotation beat pattern */}
-                                                            <div>
-                                                                <div className="text-[8px] text-white/30 uppercase tracking-widest mb-1">Rotation snap</div>
-                                                                <div className="flex gap-1">
-                                                                    {(['off', '2', '4', '8', 'random'] as const).map(p => (
-                                                                        <button
-                                                                            key={p}
-                                                                            onClick={() => setConfig(prev => ({ ...prev, sliceRotationBeatPattern: p === 'off' ? undefined : p }))}
-                                                                            className="flex-1 py-0.5 rounded text-[7px] font-black uppercase transition-all"
-                                                                            style={{
-                                                                                background: (config.sliceRotationBeatPattern ?? 'off') === p ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.04)',
-                                                                                border: (config.sliceRotationBeatPattern ?? 'off') === p ? '1px solid rgba(139,92,246,0.7)' : '1px solid rgba(255,255,255,0.08)',
-                                                                                color: (config.sliceRotationBeatPattern ?? 'off') === p ? '#c084fc' : 'rgba(255,255,255,0.25)',
-                                                                            }}
-                                                                        >{p}</button>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        </>
-                                                    )}
-                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>Stage Lights</span>
-                                                        <input type="checkbox" checked={config.enableBeams} onChange={e => setConfig(p => ({ ...p, enableBeams: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>3D Depth</span>
-                                                        <input type="checkbox" checked={config.enable3dDepth ?? false} onChange={e => setConfig(p => ({ ...p, enable3dDepth: e.target.checked }))} className="accent-cyan-500 cursor-pointer" />
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>Bass shake</span>
-                                                        <input type="checkbox" checked={config.enableBassShake} onChange={e => setConfig(p => ({ ...p, enableBassShake: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
-                                                    </div>
-                                                    {config.enableBassShake && (
-                                                        <div>
-                                                            <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Shake intensity</span><span className="text-[#FF8C00] font-mono">{config.bassShakeIntensity}</span></div>
-                                                            <input type="range" min="0.1" max="3.0" step="0.1" value={config.bassShakeIntensity} onChange={e => setConfig(p => ({ ...p, bassShakeIntensity: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                        </div>
-                                                    )}
-                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>Lighting</span>
-                                                        <input type="checkbox" checked={config.enableLighting} onChange={e => setConfig(p => ({ ...p, enableLighting: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* TEXT */}
-                                            {activeTab === 'text' && (
-                                                <div className="space-y-3">
-                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>Text overlay</span>
-                                                        <input type="checkbox" checked={config.enableText} onChange={e => setConfig(p => ({ ...p, enableText: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
-                                                    </div>
-                                                    {config.enableText && (
-                                                        <>
-                                                            <input type="text" value={config.textContent} onChange={e => setConfig(p => ({ ...p, textContent: e.target.value }))} placeholder="Display text…" className="w-full bg-black/50 border border-white/10 rounded p-1.5 text-white text-[10px] outline-none" />
-                                                            <div>
-                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Size</span><span className="text-[#FF8C00] font-mono">{config.textSize}px</span></div>
-                                                                <input type="range" min="40" max="240" step="4" value={config.textSize} onChange={e => setConfig(p => ({ ...p, textSize: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
-                                                            </div>
-                                                            <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                                <span>Captions</span>
-                                                                <input type="checkbox" checked={config.enableCaptions} onChange={e => setConfig(p => ({ ...p, enableCaptions: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
-                                                            </div>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            {/* AI */}
-                                            {activeTab === 'ai' && (
-                                                <div className="space-y-3">
-                                                    <p className="text-[9px] text-white/40 uppercase tracking-widest">AI & Project</p>
-                                                    <div className="flex gap-2">
-                                                        <button onClick={handleSaveProject} disabled={isSaving}
-                                                            className="flex-1 py-1.5 rounded text-[9px] font-bold transition-all"
-                                                            style={{ background: saveSuccess ? 'rgba(16,185,129,0.3)' : 'rgba(139,92,246,0.3)', border: `1px solid ${saveSuccess ? '#10b981' : '#8b5cf6'}`, color: saveSuccess ? '#6ee7b7' : '#c084fc' }}>
-                                                            {saveSuccess ? '✓ Saved' : isSaving ? '…' : 'Save Project'}
-                                                        </button>
-                                                        <label className="flex-1 cursor-pointer">
-                                                            <input type="file" accept=".plajah" onChange={handleLoadProject} className="hidden" />
-                                                            <div className="w-full py-1.5 rounded text-[9px] font-bold text-center transition-all" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}>Load</div>
-                                                        </label>
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <p className="text-[9px] text-white/40 uppercase tracking-widest">BG Layer 1</p>
-                                                        <label className="block cursor-pointer">
-                                                            <input type="file" accept="image/*,video/mp4" onChange={e => handleBgUpload(e, 1)} className="hidden" />
-                                                            <div className="py-1.5 rounded text-[9px] font-bold text-center transition-all" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}>+ Add BG file</div>
-                                                        </label>
-                                                        {bgMedia1.length > 0 && (
-                                                            <button onClick={() => setBgMedia1([])} className="w-full py-1 rounded text-[9px] text-red-400 transition-all" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>Clear ({bgMedia1.length})</button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* MIDI */}
-                                            {activeTab === 'midi' && (
-                                                <MidiController
-                                                    config={config}
-                                                    setConfig={setConfig}
-                                                    audioContextRef={audioContextRef}
-                                                    analyserRef={analyserRef}
-                                                    audioElRef={audioElRef}
-                                                    sourceRef={sourceRef}
-                                                />
-                                            )}
-
-                                            {/* Open full settings link */}
-                                            <button
-                                                onClick={() => setIsSettingsOpen(v => !v)}
-                                                className="w-full py-2 mt-1 rounded text-[9px] font-black uppercase tracking-widest transition-all"
-                                                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.3)' }}
-                                            >
-                                                {isSettingsOpen ? '✕ Close' : '⚙ Full Settings'}
-                                            </button>
-                                        </div>
+                                        {/* The settings tabs used to be duplicated here, compacted. They live
+                                            in the Inspector now — one place, one copy. What stays in the deck
+                                            is what is genuinely deck-local: program output and transport. */}
                                     </div>
                                 }
                             />
@@ -2045,17 +1892,10 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             />
 
             {/* Floating Top Header */}
-            <div id="title-header" className={`absolute top-6 left-6 z-20 flex items-center space-x-3 pointer-events-none ${uiHidden ? 'hidden' : ''}`}>
-                <div className="w-10 h-10 bg-[#FF8C00]/25 backdrop-blur-xl border border-[#FF8C00]/40 rounded-full flex items-center justify-center animate-spin-slow">
-                    <Music className="w-5 h-5 text-[#FF8C00]" />
-                </div>
-                <div>
-                    <h1 className="text-lg font-semibold tracking-wider font-sans uppercase bg-gradient-to-r from-[#FF8C00] via-fuchsia-500 to-purple-500 bg-clip-text text-transparent">
-                        Plajah Pixels
-                    </h1>
-                    <p className="text-[10px] text-white/40 font-mono tracking-widest">{config.name} — Mode: {config.mode}</p>
-                </div>
-            </div>
+            {/* The floating title header lived here. It was a second wordmark
+                over the canvas, and it collided with the icon row as soon as the
+                Inspector narrowed the stage — both were pinned to top-6. The name
+                and mode it carried are on the ModeBar now. */}
 
             {/* Save / Load Project Buttons (top-right, beside settings toggle) */}
             <div className={`absolute top-6 right-20 z-30 flex items-center gap-2 ${uiHidden ? 'hidden' : ''}`}>
@@ -2108,14 +1948,21 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 </button>
                 <div className="w-px h-5 bg-white/10 mx-0.5" />
                 {/* Studio: clip-launcher grid toggle (Resolume-style cells) */}
-                <button onClick={() => setShowClipGrid(v => !v)} title="Toggle clip grid (launch scenes, palettes, captured looks)"
-                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showClipGrid ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : 'bg-black/40 border-white/10 hover:bg-[#FF8C00]/20'}`}>
-                    <Grid3x3 className="w-4 h-4 text-white/80" />
-                </button>
-                {/* Studio: custom GLSL shader editor toggle */}
-                <button onClick={() => setShowShaderPanel(v => !v)} title="Custom GLSL shader (Shadertoy-style)"
+                <AtDepth min="studio">{/* the deck — DEPTHS names this rung's surfaces */}
+                    <button onClick={() => setShowClipGrid(v => !v)} title="Toggle clip grid (launch scenes, palettes, captured looks)"
+                        className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showClipGrid ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : 'bg-black/40 border-white/10 hover:bg-[#FF8C00]/20'}`}>
+                        <Grid3x3 className="w-4 h-4 text-white/80" />
+                    </button>
+                </AtDepth>
+                {/* The Library. Named for what it opens ON — ninety-five works you pick from —
+                    rather than for the GLSL editor folded away at the bottom of it. The panel's
+                    own comment says "GLSL is Rung 3, it opens closed so the library is what you
+                    meet first"; the button contradicted that and was the reason the Library was
+                    reported missing. A Cpu icon said the same wrong thing, so it is a grid now. */}
+                <button onClick={() => setShowShaderPanel(v => !v)} title="Library — 95 signature works, and your own GLSL"
+                    aria-label="Library"
                     className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showShaderPanel || shaderSrc ? 'bg-cyan-600/40 border-cyan-500/50' : 'bg-black/40 border-white/10 hover:bg-cyan-600/30'}`}>
-                    <Cpu className="w-4 h-4 text-white/80" />
+                    <LayoutGrid className="w-4 h-4 text-white/80" />
                 </button>
                 {/* Studio: 3D mode (React Three Fiber) */}
                 <button onClick={() => setShowThreePanel(v => !v)} title="3D visualizers (water, reflections, orbiting camera)"
@@ -2123,15 +1970,19 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                     <Box className="w-4 h-4 text-white/80" />
                 </button>
                 {/* Studio: Synthesia-style MIDI falling-notes scene */}
-                <button onClick={() => setMidiNotes(v => { const n = !v; if (n) { setShaderSrc(null); setMilkdrop(false); setThree3d(null); } return n; })} title="MIDI notes (Synthesia-style falling notes)"
-                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${midiNotes ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : 'bg-black/40 border-white/10 hover:bg-[#FF8C00]/20'}`}>
-                    <Piano className="w-4 h-4 text-white/80" />
-                </button>
+                <AtDepth min="full">{/* MIDI — DEPTHS names this rung's surfaces */}
+                    <button onClick={() => setMidiNotes(v => { const n = !v; if (n) { setShaderSrc(null); setMilkdrop(false); setThree3d(null); } return n; })} title="MIDI notes (Synthesia-style falling notes)"
+                        className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${midiNotes ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : 'bg-black/40 border-white/10 hover:bg-[#FF8C00]/20'}`}>
+                        <Piano className="w-4 h-4 text-white/80" />
+                    </button>
+                </AtDepth>
                 {/* Studio: overlay layers (Lottie + HTML/URL) */}
-                <button onClick={() => setShowLayersPanel(v => !v)} title="Overlay layers (Lottie / HTML)"
-                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showLayersPanel || overlay.lottieOn || overlay.htmlOn ? 'bg-pink-600/40 border-pink-500/50' : 'bg-black/40 border-white/10 hover:bg-pink-600/30'}`}>
-                    <Layers2 className="w-4 h-4 text-white/80" />
-                </button>
+                <AtDepth min="studio">{/* layers — DEPTHS names this rung's surfaces */}
+                    <button onClick={() => setShowLayersPanel(v => !v)} title="Overlay layers (Lottie / HTML)"
+                        className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showLayersPanel || overlay.lottieOn || overlay.htmlOn ? 'bg-pink-600/40 border-pink-500/50' : 'bg-black/40 border-white/10 hover:bg-pink-600/30'}`}>
+                        <Layers2 className="w-4 h-4 text-white/80" />
+                    </button>
+                </AtDepth>
                 {/* Studio: GPU generators (Pixels Core) — native GLSL for supported modes */}
                 <button onClick={() => setConfig(p => ({ ...p, gpuGenerators: !p.gpuGenerators }))}
                     title={`GPU generators: ${config.gpuGenerators ? 'ON — supported modes render natively on the GPU' : 'OFF (Canvas2D)'} · experimental`}
@@ -2168,16 +2019,13 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                     className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showRail ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : 'bg-black/40 border-white/10 hover:bg-[#FF8C00]/20'}`}>
                     <Layers className="w-4 h-4 text-white/80" />
                 </button>
-                {/* Studio: timeline toggle */}
-                <button onClick={() => setShowTimeline(v => !v)} title="Toggle natural-language timeline"
-                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showTimeline ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : 'bg-black/40 border-white/10 hover:bg-[#FF8C00]/20'}`}>
-                    <Radio className="w-4 h-4 text-white/80" />
-                </button>
                 {/* Studio: matte panel toggle */}
-                <button onClick={() => setShowMatte(v => !v)} title="Toggle media / matte layer"
-                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showMatte ? 'bg-pink-600/40 border-pink-500/50' : 'bg-black/40 border-white/10 hover:bg-pink-600/30'}`}>
-                    <Video className="w-4 h-4 text-white/80" />
-                </button>
+                <AtDepth min="full">{/* matte — DEPTHS names this rung's surfaces */}
+                    <button onClick={() => setShowMatte(v => !v)} title="Toggle media / matte layer"
+                        className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showMatte ? 'bg-pink-600/40 border-pink-500/50' : 'bg-black/40 border-white/10 hover:bg-pink-600/30'}`}>
+                        <Video className="w-4 h-4 text-white/80" />
+                    </button>
+                </AtDepth>
 
                 {/* Save Project */}
                 <button
@@ -2351,7 +2199,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 {showRenderPanel && (
                     <TimelineMode layers={liveLayers} config={config} analyser={analyserRef.current}
                         sessionAudioUrl={audioBlobUrlRef.current} sessionAudioName={audioFileName}
-                        onClose={() => setShowRenderPanel(false)} />
+                        onClose={() => { setShowRenderPanel(false); setPixMode(m => m === 'render' ? 'compose' : m); }} />
                 )}
                 {showSaveModal && recordedBlob && (
                     <motion.div
@@ -2477,69 +2325,64 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             {/* Sliding Tabbed Configuration Drawer (Glassmorphism) */}
             <AnimatePresence>
                 {isSettingsOpen && !uiHidden && (
-                    <motion.div 
-                        id="settings-drawer"
-                        initial={{ x: "100%", opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        exit={{ x: "100%", opacity: 0 }}
-                        transition={{ type: "spring", damping: 25, stiffness: 180 }}
-                        className="absolute top-0 right-0 h-full w-96 bg-black/75 backdrop-blur-3xl border-l border-white/10 z-20 flex flex-col shadow-2xl overflow-hidden text-sm"
-                    >
-                        {/* Drawer Header */}
+                    <SettingsShell docked={settingsDocked} el={dockEl}>
+                        {/* Drawer header — the Inspector supplies its own when docked. */}
+                        {!settingsDocked && (
                         <div className="p-5 border-b border-white/10 flex justify-between items-center bg-black/20">
                             <div>
                                 <h2 className="font-semibold text-white tracking-wide">Audio-Reactive Controls</h2>
                                 <p className="text-xs text-white/40">Fine-tune visual parameters & layers</p>
                             </div>
                         </div>
+                        )}
 
                         {/* Drawer Navigation Tabs */}
-                        <div className="flex bg-white/5 border-b border-white/10 overflow-x-auto text-[11px] font-mono scrollbar-none">
+                        <div className="flex flex-wrap bg-white/5 border-b border-white/10 text-[11px] font-mono">
                             <button
                                 onClick={() => setActiveTab('core')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'core' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-2 py-2.5 flex-1 min-w-[68px] flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'core' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Cpu className="w-3.5 h-3.5" />
                                 <span>Core</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('colors')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'colors' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-2 py-2.5 flex-1 min-w-[68px] flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'colors' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Sparkles className="w-3.5 h-3.5" />
                                 <span>Palette</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('ambient')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'ambient' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-2 py-2.5 flex-1 min-w-[68px] flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'ambient' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Layers className="w-3.5 h-3.5" />
                                 <span>FX</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('stage')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'stage' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-2 py-2.5 flex-1 min-w-[68px] flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'stage' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Layers2 className="w-3.5 h-3.5" />
                                 <span>Stage</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('text')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'text' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-2 py-2.5 flex-1 min-w-[68px] flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'text' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Type className="w-3.5 h-3.5" />
                                 <span>Chat</span>
                             </button>
                              <button
                                 onClick={() => setActiveTab('ai')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'ai' ? 'border-[#FF8C00] text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-2 py-2.5 flex-1 min-w-[68px] flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'ai' ? 'border-[#FF8C00] text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Grid3x3 className="w-3.5 h-3.5" />
                                 <span>Clips</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('midi')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'midi' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-2 py-2.5 flex-1 min-w-[68px] flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'midi' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Radio className="w-3.5 h-3.5" />
                                 <span>MIDI</span>
@@ -2548,7 +2391,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                             {platform && platform.tracklist.length > 0 && (
                                 <button
                                     onClick={() => setActiveTab('tracks')}
-                                    className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'tracks' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                    className={`px-2 py-2.5 flex-1 min-w-[68px] flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'tracks' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                                 >
                                     <Music className="w-3.5 h-3.5" />
                                     <span>Tracks</span>
@@ -2601,7 +2444,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                             step="0.05"
                                             value={config.smoothingTimeConstant}
                                             onChange={e => setConfig(prev => ({ ...prev, smoothingTimeConstant: parseFloat(e.target.value) }))}
-                                            className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                            className="pj-range pj-range--dense w-full"
                                         />
                                     </div>
 
@@ -2632,7 +2475,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                             step="0.1"
                                             value={config.sensitivity}
                                             onChange={e => setConfig(prev => ({ ...prev, sensitivity: parseFloat(e.target.value) }))}
-                                            className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                            className="pj-range pj-range--dense w-full"
                                         />
                                     </div>
 
@@ -2665,7 +2508,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                             step="0.1"
                                             value={config.speed}
                                             onChange={e => setConfig(prev => ({ ...prev, speed: parseFloat(e.target.value) }))}
-                                            className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                            className="pj-range pj-range--dense w-full"
                                         />
                                     </div>
                                 </div>
@@ -2709,7 +2552,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     step="0.1"
                                                     value={config.blurStrength}
                                                     onChange={e => setConfig(prev => ({ ...prev, blurStrength: parseFloat(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             </div>
                                         )}
@@ -2730,7 +2573,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                 step="10"
                                                 value={config.particleCount}
                                                 onChange={e => setConfig(prev => ({ ...prev, particleCount: parseInt(e.target.value) }))}
-                                                className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                className="pj-range pj-range--dense w-full"
                                             />
                                         </div>
 
@@ -2746,7 +2589,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                 step="0.1"
                                                 value={config.particleLifespan}
                                                 onChange={e => setConfig(prev => ({ ...prev, particleLifespan: parseFloat(e.target.value) }))}
-                                                className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                className="pj-range pj-range--dense w-full"
                                             />
                                         </div>
                                     </div>
@@ -2776,7 +2619,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     step="0.1"
                                                     value={config.lyricsDriveStrength || 1.0}
                                                     onChange={e => setConfig(prev => ({ ...prev, lyricsDriveStrength: parseFloat(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             </div>
                                         )}
@@ -2802,7 +2645,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     type="range" min="1" max="30" step="1"
                                                     value={config.chromaAmount || 10}
                                                     onChange={e => setConfig(prev => ({ ...prev, chromaAmount: parseInt(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg accent-purple-500 cursor-pointer"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             )}
                                         </div>
@@ -2823,7 +2666,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     type="range" min="0.1" max="1.0" step="0.05"
                                                     value={config.vhsIntensity || 0.4}
                                                     onChange={e => setConfig(prev => ({ ...prev, vhsIntensity: parseFloat(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg accent-purple-500 cursor-pointer"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             )}
                                         </div>
@@ -2844,7 +2687,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     type="range" min="0.1" max="1.0" step="0.05"
                                                     value={config.glitchIntensity || 0.5}
                                                     onChange={e => setConfig(prev => ({ ...prev, glitchIntensity: parseFloat(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg accent-purple-500 cursor-pointer"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             )}
                                         </div>
@@ -2865,7 +2708,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     type="range" min="0.1" max="1.5" step="0.05"
                                                     value={config.zoomBlurIntensity || 0.5}
                                                     onChange={e => setConfig(prev => ({ ...prev, zoomBlurIntensity: parseFloat(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg accent-purple-500 cursor-pointer"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             )}
                                         </div>
@@ -2886,7 +2729,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     type="range" min="0.1" max="1.0" step="0.05"
                                                     value={config.noiseIntensity || 0.3}
                                                     onChange={e => setConfig(prev => ({ ...prev, noiseIntensity: parseFloat(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg accent-purple-500 cursor-pointer"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             )}
                                         </div>
@@ -2907,7 +2750,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     type="range" min="0.1" max="1.5" step="0.05"
                                                     value={config.waveWarpIntensity || 0.5}
                                                     onChange={e => setConfig(prev => ({ ...prev, waveWarpIntensity: parseFloat(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg accent-purple-500 cursor-pointer"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             )}
                                         </div>
@@ -2928,7 +2771,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     type="range" min="0.1" max="1.5" step="0.05"
                                                     value={config.neonContourIntensity || 0.5}
                                                     onChange={e => setConfig(prev => ({ ...prev, neonContourIntensity: parseFloat(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg accent-purple-500 cursor-pointer"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             )}
                                         </div>
@@ -3009,7 +2852,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                         step="0.05"
                                                         value={config.layer2Opacity}
                                                         onChange={e => setConfig(prev => ({ ...prev, layer2Opacity: parseFloat(e.target.value) }))}
-                                                        className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                        className="pj-range pj-range--dense w-full"
                                                     />
                                                 </div>
                                                 <div>
@@ -3066,7 +2909,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                                         step="0.1"
                                                                         value={config.l2OscillatorFreq !== undefined ? config.l2OscillatorFreq : 1.0}
                                                                         onChange={e => setConfig(prev => ({ ...prev, l2OscillatorFreq: parseFloat(e.target.value) }))}
-                                                                        className="w-full bg-white/10 h-1 rounded accent-purple-500"
+                                                                        className="pj-range pj-range--dense w-full"
                                                                     />
                                                                 </div>
                                                                 <div>
@@ -3081,7 +2924,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                                         step="0.1"
                                                                         value={config.l2OscillatorMusicMod !== undefined ? config.l2OscillatorMusicMod : 0.0}
                                                                         onChange={e => setConfig(prev => ({ ...prev, l2OscillatorMusicMod: parseFloat(e.target.value) }))}
-                                                                        className="w-full bg-white/10 h-1 rounded accent-purple-500"
+                                                                        className="pj-range pj-range--dense w-full"
                                                                     />
                                                                 </div>
                                                             </div>
@@ -3125,7 +2968,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                                     step="0.05"
                                                                     value={config.l2MusicDriveStrength !== undefined ? config.l2MusicDriveStrength : 0.5}
                                                                     onChange={e => setConfig(prev => ({ ...prev, l2MusicDriveStrength: parseFloat(e.target.value) }))}
-                                                                    className="w-full bg-white/10 h-1 rounded accent-purple-500"
+                                                                    className="pj-range pj-range--dense w-full"
                                                                 />
                                                             </div>
                                                         </div>
@@ -3172,7 +3015,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                                         step="0.05"
                                                                         value={config.l2CompDriveThreshold !== undefined ? config.l2CompDriveThreshold : 0.5}
                                                                         onChange={e => setConfig(prev => ({ ...prev, l2CompDriveThreshold: parseFloat(e.target.value) }))}
-                                                                        className="w-full bg-white/10 h-1 rounded accent-purple-500"
+                                                                        className="pj-range pj-range--dense w-full"
                                                                     />
                                                                 </div>
                                                             </div>
@@ -3235,7 +3078,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                             step="1"
                                                             value={config.backgroundRotationInterval || 4}
                                                             onChange={e => setConfig(prev => ({ ...prev, backgroundRotationInterval: parseInt(e.target.value) }))}
-                                                            className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                            className="pj-range pj-range--dense w-full"
                                                         />
                                                     </div>
                                                 ) : (
@@ -3290,7 +3133,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                         step="1"
                                                         value={config.sliceCount}
                                                         onChange={e => setConfig(prev => ({ ...prev, sliceCount: parseInt(e.target.value) }))}
-                                                        className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                        className="pj-range pj-range--dense w-full"
                                                     />
                                                 </div>
                                                 <div>
@@ -3305,7 +3148,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                         step="5"
                                                         value={config.sliceRotation}
                                                         onChange={e => setConfig(prev => ({ ...prev, sliceRotation: parseInt(e.target.value) }))}
-                                                        className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                        className="pj-range pj-range--dense w-full"
                                                     />
                                                 </div>
                                                 <div>
@@ -3317,7 +3160,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                         type="range" min="0" max="1" step="0.01"
                                                         value={config.slicePush ?? 0}
                                                         onChange={e => setConfig(prev => ({ ...prev, slicePush: parseFloat(e.target.value) }))}
-                                                        className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                        className="pj-range pj-range--dense w-full"
                                                     />
                                                     <div className="flex gap-4 mt-2">
                                                         <label className="flex items-center gap-1.5 text-xs text-white/50 cursor-pointer">
@@ -3357,7 +3200,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                             <input type="range" min="5" max="180" step="5"
                                                                 value={config.sliceRotationRange ?? 45}
                                                                 onChange={e => setConfig(prev => ({ ...prev, sliceRotationRange: parseInt(e.target.value) }))}
-                                                                className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                                className="pj-range pj-range--dense w-full"
                                                             />
                                                         </div>
                                                     )}
@@ -3410,7 +3253,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     <input type="range" min="0" max="2" step="0.05"
                                                         value={config.lightingIntensity}
                                                         onChange={e => setConfig(prev => ({ ...prev, lightingIntensity: parseFloat(e.target.value) }))}
-                                                        className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                        className="pj-range pj-range--dense w-full"
                                                     />
                                                 </div>
 
@@ -3455,7 +3298,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     <input type="range" min="0" max="1" step="0.05"
                                                         value={config.depthParallaxIntensity ?? 0.4}
                                                         onChange={e => setConfig(prev => ({ ...prev, depthParallaxIntensity: parseFloat(e.target.value) }))}
-                                                        className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                                                        className="pj-range pj-range--dense pj-range--signal w-full"
                                                     />
                                                 </div>
 
@@ -3479,7 +3322,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                         <input type="range" min="0.1" max="3" step="0.1"
                                                             value={config.cameraFlySpeed ?? 1.0}
                                                             onChange={e => setConfig(prev => ({ ...prev, cameraFlySpeed: parseFloat(e.target.value) }))}
-                                                            className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                                                            className="pj-range pj-range--dense pj-range--signal w-full"
                                                         />
                                                     </div>
                                                 )}
@@ -3531,7 +3374,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     step="0.1"
                                                     value={config.bassShakeIntensity}
                                                     onChange={e => setConfig(prev => ({ ...prev, bassShakeIntensity: parseFloat(e.target.value) }))}
-                                                    className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                    className="pj-range pj-range--dense w-full"
                                                 />
                                             </div>
                                         )}
@@ -3570,7 +3413,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                             type="range" min="40" max="240" step="4"
                                                             value={config.textSize}
                                                             onChange={e => setConfig(prev => ({ ...prev, textSize: parseInt(e.target.value) }))}
-                                                            className="flex-1 h-1 accent-purple-500 cursor-pointer"
+                                                            className="pj-range pj-range--dense flex-1"
                                                         />
                                                         <span className="text-[10px] font-mono text-[#FF8C00] w-10 text-right">{config.textSize}px</span>
                                                     </div>
@@ -3673,7 +3516,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                                     type="range" min="0" max="360" step="15"
                                                                     value={config.textGradientAngle ?? 0}
                                                                     onChange={e => setConfig(prev => ({ ...prev, textGradientAngle: parseInt(e.target.value) }))}
-                                                                    className="flex-1 h-1 accent-purple-500 cursor-pointer"
+                                                                    className="pj-range pj-range--dense flex-1"
                                                                 />
                                                                 <span className="text-[10px] font-mono text-[#FF8C00] w-8 text-right">{config.textGradientAngle ?? 0}°</span>
                                                             </div>
@@ -3732,7 +3575,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                                 <input type="range" min="0.1" max="3" step="0.1"
                                                                     value={config.textReactorIntensity ?? 1}
                                                                     onChange={e => setConfig(prev => ({ ...prev, textReactorIntensity: parseFloat(e.target.value) }))}
-                                                                    className="flex-1 h-1 accent-purple-500 cursor-pointer" />
+                                                                    className="pj-range pj-range--dense flex-1" />
                                                                 <span className="text-[10px] font-mono text-[#FF8C00] w-6 text-right">{(config.textReactorIntensity ?? 1).toFixed(1)}×</span>
                                                             </div>
                                                         )}
@@ -3760,7 +3603,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                             <input type="range" min="0.1" max="3" step="0.1"
                                                                 value={config.textPhysicsIntensity ?? 1}
                                                                 onChange={e => setConfig(prev => ({ ...prev, textPhysicsIntensity: parseFloat(e.target.value) }))}
-                                                                className="flex-1 h-1 accent-cyan-500 cursor-pointer" />
+                                                                className="pj-range pj-range--dense pj-range--signal flex-1" />
                                                             <span className="text-[10px] font-mono text-cyan-400 w-6 text-right">{(config.textPhysicsIntensity ?? 1).toFixed(1)}×</span>
                                                         </div>
                                                     )}
@@ -3776,7 +3619,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                         <input type="range" min="0.1" max="3" step="0.1"
                                                             value={config.textShatterIntensity}
                                                             onChange={e => setConfig(prev => ({ ...prev, textShatterIntensity: parseFloat(e.target.value) }))}
-                                                            className="w-20 h-1 accent-purple-500 cursor-pointer" />
+                                                            className="pj-range pj-range--dense w-20" />
                                                     )}
                                                 </div>
                                             </div>
@@ -4030,14 +3873,50 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                 </div>
                             )}
                         </div>
-                    </motion.div>
+                    </SettingsShell>
                 )}
             </AnimatePresence>
             {/* ── End output area */}
             </div>
         </div>
+
+        {/* ─── One rail, about whatever is selected. The six floating panels
+             dock in here through DraggablePanel; none of them moved. ─── */}
+        {inspectorOpen && !uiHidden && (
+            <Inspector
+                kind={showShaderPanel ? 'Shader layer' : isSettingsOpen ? 'Controls' : 'Output'}
+                title={
+                    showShaderPanel ? 'Library'
+                        : isSettingsOpen ? (TAB_TITLES[activeTab] || 'Controls')
+                        : (config.name || 'Program')
+                }
+                subtitle={
+                    showShaderPanel
+                        ? 'Pick a work, then Apply. Double-click a card to apply it straight away.'
+                        : isSettingsOpen ? undefined
+                        : 'Open a panel and it docks here instead of covering the canvas.'
+                }
+                onClose={() => setInspectorOpen(false)}
+                dockRef={setDockEl}
+                wide={isSettingsOpen && settingsDocked}
+                selection={activeShader && (
+                    <ShaderInspector
+                        work={activeShader}
+                        params={shaderParams}
+                        onParam={(i, v) => setShaderParams(p => { const n = [...p]; n[i] = v; return n; })}
+                        onOpenSource={() => setShowShaderPanel(true)}
+                        onOff={() => setShaderSrc(null)}
+                    />
+                )}
+            />
+        )}
+        {/* ── End canvas + inspector row */}
+        </div>
+
         {/* ── End outer flex wrapper */}
         </div>
+        </InspectorProvider>
+        </DepthProvider>
     );
 };
 

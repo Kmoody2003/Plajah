@@ -44,6 +44,10 @@ export interface EngineDiagnostics {
 
 interface LiveClipSource { src: AudioBufferSourceNode; gain: GainNode; }
 
+/** Members of the meditation suite share VELA's patch shape and loading path. */
+const isSuiteType = (t?: string): boolean =>
+  t === 'vela' || t === 'cantus' || t === 'ison' || t === 'pneuma';
+
 export class BeatsEngine {
   private static _inst: BeatsEngine | null = null;
   static get(): BeatsEngine {
@@ -437,7 +441,26 @@ export class BeatsEngine {
       if (track.position) inst.setSpatial({ position: track.position });
       // Load the track's saved patch. Imported lazily so the ONDA preset bank and its wavetable
       // generators aren't pulled into the engine chunk for users who never open an instrument.
-      if (track.instrument?.patch) {
+      if (isSuiteType(track.instrument?.type) && track.instrument?.patch) {
+        // VELA carries its own patch shape. Its macros expand to several engine parameters
+        // each, so the expansion happens on this side rather than being sent as macro values —
+        // the engine has no idea what "Air" means and should not have to.
+        const { deserializeVelaPatch, velaEngineParams, velaDriftSetup } =
+          await import('../../instruments/vela/patch');
+        const patch = deserializeVelaPatch(track.instrument.patch);
+        if (patch) {
+          inst.setParams(velaDriftSetup());
+          inst.setParams(velaEngineParams(patch));
+        }
+      } else if (track.instrument?.type === 'bajo' && track.instrument?.patch) {
+        // BAJO carries its own shape too: the wobble rate lane and the gate grid are arrays, and
+        // its four macros expand to several engine parameters each. Both are flattened into
+        // plain param ids on this side — which is why neither needed a bespoke ABI call.
+        const { deserializeBajoPatch, applyBajoPatch } =
+          await import('../../instruments/bajo/patch');
+        const patch = deserializeBajoPatch(track.instrument.patch);
+        if (patch) applyBajoPatch(inst, patch);
+      } else if (track.instrument?.patch) {
         const [{ deserializePatch, applyPatch }] = await Promise.all([
           import('../../instruments/onda/patch'),
         ]);
@@ -632,6 +655,12 @@ export class BeatsEngine {
   async reloadPatch(track: ATrack): Promise<void> {
     const inst = this.instruments.get(track.id);
     if (!inst || !track.instrument?.patch) return;
+    if (isSuiteType(track.instrument.type)) {
+      const { deserializeVelaPatch, velaEngineParams } = await import('../../instruments/vela/patch');
+      const patch = deserializeVelaPatch(track.instrument.patch);
+      if (patch) inst.setParams(velaEngineParams(patch));
+      return;
+    }
     const { deserializePatch, applyPatch } = await import('../../instruments/onda/patch');
     const patch = deserializePatch(track.instrument.patch);
     if (patch) applyPatch(inst, patch);

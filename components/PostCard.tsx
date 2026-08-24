@@ -773,7 +773,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser, presentation = '
               player above, so only show this card when there's no full album player. */}
           {(post as any).assetEmbed && !post.albumEmbed && (() => {
             const ae = (post as any).assetEmbed as { type: string; id: string; title?: string; imageUrl?: string; subtitle?: string };
-            const linkFor: Record<string, string> = { VIDEO: 'video', ARTICLE: 'article', TRACK: 'track', ALBUM: 'album' };
+            const linkFor: Record<string, string> = { VIDEO: 'video', ARTICLE: 'article', TRACK: 'track', ALBUM: 'album', CHANNEL: 'channel' };
             const asset = linkFor[ae.type];
             const href = asset ? buildShareUrl(asset as any, ae.id) : undefined;
             const Inner = (

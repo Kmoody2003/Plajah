@@ -11,7 +11,7 @@ export type ShareAsset =
   | 'album' | 'track' | 'video' | 'post' | 'profile' | 'release'
   | 'room' | 'livestream' | 'callin' | 'listen'
   | 'book' | 'article' | 'game' | 'club' | 'clubPost' | 'pitch' | 'event' | 'invite' | 'debate' | 'archive'
-  | 'videoPlaylist' | 'movie';
+  | 'videoPlaylist' | 'movie' | 'channel';
 
 /** Canonical origin for share links — prefer the configured app domain over
  *  whatever host the user is on (e.g. localhost), so links work everywhere. */
@@ -52,6 +52,11 @@ export function buildShareUrl(asset: ShareAsset, id: string, extra?: Record<stri
     case 'article':    return `${base}/share?${qs({ type: 'article', id })}`;
     case 'game':       return `${base}/share?${qs({ type: 'game', id })}`;
     case 'archive':    return `${base}/share?${qs({ type: 'archive', id })}`;
+    // A live channel. `id` is a stable key — `plajah:<id>` for a first-party channel, `owner:<uid>`
+    // for an account's channel — and `n` is the guide number (8.1, 42.1) carried for display and to
+    // re-tune the dial. The /share route injects the channel's OG card then bounces humans into the
+    // Live guide focused on it.
+    case 'channel':    return `${base}/share?${qs({ type: 'channel', id, n: extra?.n })}`;
     case 'club':       return `${base}/?${qs({ club: id })}`;
     case 'debate':     return `${base}/?${qs({ debate: id })}`;
     case 'clubPost':   return `${base}/?${qs({ club: extra?.club, post: id })}`;

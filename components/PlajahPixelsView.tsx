@@ -97,16 +97,12 @@ const PlajahPixelsView: React.FC<{ payload?: PlajahPixelsPayload | null; onClose
 
   return (
     <div className="fixed inset-0 z-[200] bg-black">
-      <PlajahPixelsStudio platform={standalone ? undefined : bridge} />
-      {/* Standalone studio still needs an exit affordance. */}
-      {standalone && (
-        <button
-          onClick={onClose}
-          className="absolute top-6 left-6 z-[60] px-4 py-2 rounded-full bg-black/50 backdrop-blur-xl border border-white/10 text-white/70 hover:text-white text-[11px] font-black uppercase tracking-widest transition-all"
-        >
-          ← Exit
-        </button>
-      )}
+      {/* The standalone exit rides the ModeBar. It used to float at top-6 left-6,
+          which is where the mode spine now lives. */}
+      <PlajahPixelsStudio
+        platform={standalone ? undefined : bridge}
+        onExit={standalone ? onClose : undefined}
+      />
     </div>
   );
 };

@@ -24,27 +24,60 @@ export const DEFAULT_BUMPER_SEC = 10;
 export const DEFAULT_AD_SEC = 60;
 export const DEFAULT_LIVE_SEC = 1800;
 export const DEFAULT_FM_SEC = 3600;   // an FM programming block defaults to an hour
+/** A generative block defaults to two hours. It never runs out of content, so the only thing
+ *  deciding the length is how the day should read in a guide. */
+export const DEFAULT_GENERATIVE_SEC = 7200;
 /** Any non-video hold longer than this automatically becomes a Plajah FM insertion. */
 export const FM_FILL_THRESHOLD_SEC = 30;
 
+/**
+ * A stored duration, or the default if it is not believable.
+ *
+ * ≤1 means "unknown", for every slot type. An old writer bug wrote 1 into duration fields — its
+ * own `Math.max(1, …)` defeated its fallback — and 1 is not a real duration for anything on a
+ * channel anyway. The VIDEO case was fixed for this; the helper every OTHER type used was not,
+ * which is how a schedule ends up full of one-second ad breaks.
+ *
+ * A one-second ad break is not a small error. syncFast arms the next boundary at the slot's
+ * remaining time, so the channel re-derives roughly once a second, remounting the break bumper
+ * each time — it never reaches its own end and never returns to programming. From the sofa that
+ * is an ad break that loops forever.
+ */
+function storedOr(v: unknown, fallback: number): number {
+  const d = Math.round(Number(v) || 0);
+  return d > 1 ? d : fallback;
+}
+
 /** Canonical whole-second duration of a slot. The single source of truth for loop math everywhere. */
 export function slotDurationSec(s: FastChannelSlot): number {
-  const n = (v: any, d: number) => Math.max(1, Math.round(Number(v) || 0) || d);
   switch (s?.type) {
     case 'VIDEO':
-    case 'PUBLIC_DOMAIN': {
-      // A real programme is never ≤1s. Older schedules were poisoned with videoDurationSeconds=1 by a
-      // writer bug (`Math.max(1,…)` defeated the fallback), which made every asset one second long and
-      // collapsed the guide onto a single minute. Treat ≤1 as "unknown" and use the default block.
-      const d = Math.round(Number(s.videoDurationSeconds) || 0);
-      return d > 1 ? d : DEFAULT_VIDEO_SEC;
-    }
-    case 'BUMPER':         return n(s.bumperDurationSeconds, DEFAULT_BUMPER_SEC);
-    case 'AD_BREAK':       return n(s.adDurationSeconds, DEFAULT_AD_SEC);
-    case 'FM_BLOCK':       return n(s.videoDurationSeconds, DEFAULT_FM_SEC);
-    case 'LIVE_INTERRUPT': return n(s.liveInterruptMaxDurationSeconds, DEFAULT_LIVE_SEC);
+    case 'PUBLIC_DOMAIN':  return storedOr(s.videoDurationSeconds, DEFAULT_VIDEO_SEC);
+    case 'BUMPER':         return storedOr(s.bumperDurationSeconds, DEFAULT_BUMPER_SEC);
+    case 'AD_BREAK':       return storedOr(s.adDurationSeconds, DEFAULT_AD_SEC);
+    case 'FM_BLOCK':       return storedOr(s.videoDurationSeconds, DEFAULT_FM_SEC);
+    // A generative slot is hours long and contains several complete arcs back to back — the arc
+    // is how long one SESSION runs, not how long the slot occupies the grid.
+    case 'GENERATIVE':     return storedOr(s.videoDurationSeconds, DEFAULT_GENERATIVE_SEC);
+    case 'LIVE_INTERRUPT': return storedOr(s.liveInterruptMaxDurationSeconds, DEFAULT_LIVE_SEC);
     default:               return DEFAULT_VIDEO_SEC;
   }
+}
+
+/**
+ * Does this schedule contain anything the channel can actually play?
+ *
+ * A loop of nothing but ad breaks, bumpers and unplayable slots is a channel that will sit on the
+ * break card forever, and every symptom of that reads as "stuck in an ad loop" rather than as
+ * "this channel has no programming". Worth being able to say which.
+ */
+export function hasPlayableProgramme(slots: FastChannelSlot[]): boolean {
+  return (slots || []).some((s) => {
+    if (s?.type !== 'VIDEO' && s?.type !== 'PUBLIC_DOMAIN' && s?.type !== 'LIVE_INTERRUPT') return false;
+    const m = resolveSlotMedia(s);
+    const url = m.muxPlaybackId ? `https://stream.mux.com/${m.muxPlaybackId}.m3u8` : (m.url || '');
+    return !!url && !(!m.isHls && !m.muxPlaybackId && isEmbedUrl(url));
+  });
 }
 
 /** Total loop length in seconds. */
@@ -239,7 +272,7 @@ export function unresolvedDurationUrls(sched: FastChannelSchedule): string[] {
   return [...urls];
 }
 
-export type SlotMediaKind = 'MEDIA' | 'AD' | 'LIVE' | 'FM';
+export type SlotMediaKind = 'MEDIA' | 'AD' | 'LIVE' | 'FM' | 'GENERATIVE';
 export interface SlotMedia {
   kind: SlotMediaKind;
   muxPlaybackId?: string; // play via MuxPlayer
@@ -251,6 +284,9 @@ export interface SlotMedia {
   isAd: boolean;
   isBumper: boolean;
   isPublicDomain: boolean;
+  /** GENERATIVE only — what the device needs to render the programme itself. There is no url
+   *  and no playback id, because there is no file. */
+  generative?: { formId: string; seed: number; arcSec: number; offsetSec: number };
 }
 
 const MUX_M3U8 = /stream\.mux\.com\/([^./?#]+)\.m3u8/i;
@@ -270,6 +306,15 @@ export const isEmbedUrl = (u = ''): boolean =>
  */
 export function resolveSlotMedia(s: FastChannelSlot): SlotMedia {
   const durationSec = slotDurationSec(s);
+  if (s.type === 'GENERATIVE') {
+    // Resolved against the wall clock by the caller (resolveGenerativeSlot) — this path only
+    // reports the shape, because a seed derived here would not match the one every other
+    // consumer computes.
+    return {
+      kind: 'GENERATIVE', isHls: false, title: s.videoTitle || 'Generative', durationSec,
+      isAd: false, isBumper: false, isPublicDomain: false,
+    };
+  }
   if (s.type === 'AD_BREAK') {
     return { kind: 'AD', isHls: false, title: 'Commercial Break', durationSec, isAd: true, isBumper: false, isPublicDomain: false };
   }

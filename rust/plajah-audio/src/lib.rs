@@ -1,4 +1,4 @@
-//! plajah-audio — the DSP core for Melos instruments (ONDA, and later KERA / FONDO).
+//! plajah-audio — the DSP core for Melos instruments (ONDA, KERA, VELA, BAJO).
 //!
 //! Compiled to `wasm32-unknown-unknown` as a bare `cdylib` and instantiated inside an
 //! AudioWorklet. Deliberately no wasm-bindgen: the worklet talks to this flat `extern "C"` ABI,
@@ -6,14 +6,19 @@
 //!
 //! This file is the ABI surface only — all logic lives in the modules.
 
+mod bajo;
+mod diffuser;
 mod engine;
 mod env;
+mod exciter;
 mod filter;
 mod lfo;
+mod modal;
 mod modmatrix;
 mod osc;
 mod params;
 mod shaper;
+mod string;
 mod sample;
 mod spatial;
 mod tables;
@@ -24,8 +29,21 @@ use spatial::{IamfRole, Layout, Position};
 
 /// Bump when the ABI changes so the host can refuse a stale committed `.wasm`.
 /// v2 adds absolute-frame scheduling (`pa_schedule_note_*`), which is what makes offline
-/// rendering of instrument tracks possible. v3 adds sample playback (KERA).
-pub const ABI_VERSION: u32 = 4;
+/// rendering of instrument tracks possible. v3 adds sample playback (KERA). v5 adds VELA — the
+/// modal body, the exciter and the Veil (param block 1000+), plus the Tide LFO shape and the
+/// slow LFO range. v6 adds VELA's life controls — per-partial Anima drift, singing-bowl Beat,
+/// and the exciter's breath Pulse. v7 adds Swell, Morph, and the two that matter most —
+/// a Sustained bank mode (driven partials rather than excited resonators) and absolute-frequency
+/// formants, which together are what let the instrument be something other than a struck body.
+/// v8 adds BAJO (param block 1400+): the per-step wobble rate lane, the Throat formant bank, the
+/// Ghost Gate with its reverb spill, the three Scorch stages, Space, the mono fold and the
+/// Karplus-Strong string. Additive ids, but a stale .wasm would ignore them silently,
+/// which is exactly what this guard exists to prevent.
+/// v10 adds the Voice material (a glottal source rather than a body) and period doubling —
+/// the kargyraa buzz. v9 adds CANTUS's overtone spotlight (emphasis on a single partial INDEX, which is what
+/// throat singing physically is) and pitch vibrato. Additive ids, but a .wasm built before them
+/// reports 9 and silently ignores the new params — which is the exact failure this guard is for.
+pub const ABI_VERSION: u32 = 10;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn pa_abi_version() -> u32 {
