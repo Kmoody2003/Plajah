@@ -27,6 +27,10 @@ import type { SolaMode } from '../../services/fast/solaController';
  *  that nobody else is hearing it invites the viewer to think about the ending. */
 const COPY = SOLA_COPY.default;
 
+/** How long one shader dissolves into the next. Long, like everything else here — the field
+ *  should morph, never cut. */
+const CROSSFADE_MS = 4500;
+
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -44,8 +48,15 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
-  const [shader, setShader] = useState<StillnessShader | null>(null);
-  const [shaderStart, setShaderStart] = useState(0);
+  /**
+   * The shaders currently on screen. Normally one; during a phase change, two — the outgoing field
+   * held beneath while the incoming one dissolves in over CROSSFADE_MS. Swapping the field used to
+   * be a hard cut: a new program compiled and the picture jumped, which on a channel whose whole
+   * premise is that nothing arrives suddenly was the visual equivalent of the audio jump-scares.
+   * Now the fields morph into one another.
+   */
+  const [layers, setLayers] = useState<Array<{ shader: StillnessShader; startMs: number; key: number; on: boolean }>>([]);
+  const layerKey = useRef(0);
   const [shaderError, setShaderError] = useState<string | null>(null);
   const [programme, setProgramme] = useState<GenerativeProgramme | null>(null);
   const [mode, setMode] = useState<SolaMode>('stream');
@@ -59,7 +70,26 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
   const uniforms = useRef<number[]>([0.5, 0, 1, 0]);
   const reduced = useRef(prefersReducedMotion());
 
-  const useShader = !!analyser && !!shader && !shaderError && !reduced.current;
+  const useShader = !!analyser && layers.length > 0 && !shaderError && !reduced.current;
+
+  /**
+   * Bring a new shader on screen by dissolving it over whatever is already there.
+   *
+   * The newcomer mounts at opacity 0 on top, then flips on next frame so the CSS transition
+   * actually animates; the outgoing field stays beneath at full opacity until the dissolve is done
+   * and is then dropped, so the stack never holds more than two.
+   */
+  const pushShaderLayer = useCallback((s: StillnessShader) => {
+    const key = ++layerKey.current;
+    setLayers((prev) => [...prev, { shader: s, startMs: performance.now(), key, on: prev.length === 0 }].slice(-2));
+    requestAnimationFrame(() =>
+      setLayers((prev) => prev.map((l) => (l.key === key ? { ...l, on: true } : l))),
+    );
+    window.setTimeout(
+      () => setLayers((prev) => (prev.length > 1 ? prev.slice(-1) : prev)),
+      CROSSFADE_MS + 200,
+    );
+  }, []);
 
   // ── The channel ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -75,9 +105,25 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
         ctxRef.current = ctx;
 
         const master = ctx.createGain();
-        master.gain.value = muted ? 0 : 1;
-        master.connect(ctx.destination);
+        // Start silent and swell in, always — a channel that begins at full level begins with an
+        // entrance, which is the one thing this channel is not allowed to do.
+        master.gain.value = 0;
+        if (!muted) master.gain.setTargetAtTime(1, ctx.currentTime, 1.4);
         masterRef.current = master;
+
+        // A gentle master limiter is the hard backstop behind every "nothing arrives loud" rule.
+        // Whatever the ensemble, the pulse or a handoff does, a transient physically cannot pass
+        // this — so a burst that startled someone can never happen, by construction rather than by
+        // getting every envelope perfect. Slow enough not to pump the drone; fast enough to catch
+        // a spike before it leaves the speaker.
+        const limiter = ctx.createDynamicsCompressor();
+        limiter.threshold.value = -4;
+        limiter.knee.value = 6;
+        limiter.ratio.value = 12;
+        limiter.attack.value = 0.006;
+        limiter.release.value = 0.3;
+        master.connect(limiter);
+        limiter.connect(ctx.destination);
 
         // ShaderLayer's contract wants an AnalyserNode, but nothing reads it — iBass/iMid/
         // iTreble stay at zero. A drone has no transients, so analysing it returns noise; both
@@ -108,7 +154,6 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
         // meant to contain exactly one of those.
         shaderSeed.current = eh.nowPlaying.seed;
         phaseRef.current = '';
-        setShaderStart(performance.now());
 
         const pump = () => {
           if (!alive) return;
@@ -122,8 +167,9 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
             if (f.state.phase !== phaseRef.current) {
               phaseRef.current = f.state.phase;
               // Seeded from the PROGRAMME, so every viewer on the shared side sees the same
-              // field — and a Sola burst gets its own, because its seed is its own.
-              setShader(shaderForPhase(f.state.phase, f.isSola ? f.programme.seed ^ 0x5bf03635 : f.programme.seed));
+              // field — and a Sola burst gets its own, because its seed is its own. The new field
+              // dissolves over the old rather than replacing it.
+              pushShaderLayer(shaderForPhase(f.state.phase, f.isSola ? f.programme.seed ^ 0x5bf03635 : f.programme.seed));
             }
           }
           raf = requestAnimationFrame(pump);
@@ -224,16 +270,24 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
 
   return (
     <div className="absolute inset-0 overflow-hidden" style={{ background: '#0D0B14' }}>
-      {useShader && analyser && shader ? (
+      {useShader && analyser ? (
         <div className="absolute inset-0" aria-hidden="true">
-          <ShaderLayer
-            analyser={analyser}
-            source={shader.src}
-            startTimeMs={shaderStart}
-            params={uniforms.current}
-            sanctuary
-            onError={onShaderError}
-          />
+          {layers.map((l) => (
+            <div
+              key={l.key}
+              className="absolute inset-0"
+              style={{ opacity: l.on ? 1 : 0, transition: `opacity ${CROSSFADE_MS}ms linear` }}
+            >
+              <ShaderLayer
+                analyser={analyser}
+                source={l.shader.src}
+                startTimeMs={l.startMs}
+                params={uniforms.current}
+                sanctuary
+                onError={onShaderError}
+              />
+            </div>
+          ))}
         </div>
       ) : (
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" aria-hidden="true" />

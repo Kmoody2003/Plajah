@@ -23,6 +23,11 @@ import {
 
 export type SolaMode = 'stream' | 'sola' | 'handoff';
 
+/** The controller's timer period. Foregrounded it is 50 ms; backgrounded it throttles to ~1 Hz,
+ *  which is fine because burst boundaries are detected by a change of arc index, not by proximity,
+ *  and the crossfade is scheduled against the audio clock rather than driven frame by frame. */
+const SOLA_TICK_MS = 50;
+
 export interface SolaControllerOptions {
   ctx: AudioContext;
   /** Where a locally rendered burst goes. */
@@ -55,7 +60,7 @@ export class SolaController {
   private closeShown = false;
   /** Last arc index seen, so a boundary is detected by CHANGE rather than by proximity. */
   private lastArcIndex = -1;
-  private raf: number | null = null;
+  private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
 
   /** Sessions seen, so the opening notice can retire itself. Never the seed. */
@@ -78,13 +83,18 @@ export class SolaController {
     if (this.running) return;
     this.running = true;
     this.opts.streamGain.gain.setTargetAtTime(1, this.opts.ctx.currentTime, 1.0);
+    // A timer, not rAF. A burst faded the shared stream to zero; if the handoff logic then stalled
+    // because the tab was hidden — which rAF does the instant it is — the stream never came back
+    // and the channel sat silent for the rest of the night. Timers survive backgrounding, and
+    // every gain move here is scheduled against the audio clock so timer jitter never shows.
     this.tick();
+    this.timer = setInterval(this.tick, SOLA_TICK_MS);
   }
 
   stop(): void {
     this.running = false;
-    if (this.raf !== null) cancelAnimationFrame(this.raf);
-    this.raf = null;
+    if (this.timer !== null) clearInterval(this.timer);
+    this.timer = null;
     this.endBurst(true);
   }
 
@@ -97,8 +107,6 @@ export class SolaController {
     } else {
       this.driveBurst(nowMs);
     }
-
-    this.raf = requestAnimationFrame(this.tick);
   };
 
   /**
@@ -144,6 +152,8 @@ export class SolaController {
     // genuinely unrecoverable rather than merely un-offered.
     const session = new StillnessSession({
       ctx, destination: gain, durationSec, arrival,
+      // A burst is the same channel, privately rendered — it wears the same arrangement.
+      arp: true, pulse: true, gentleTurn: true,
     });
     this.session = session;
     this.burstGain = gain;

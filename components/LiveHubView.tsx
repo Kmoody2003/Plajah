@@ -5,7 +5,7 @@ import { fetchAllLiveFeeds, publishLiveFeed, deleteLiveFeed, searchLiveChannels,
 import { ArrowLeft, Radio, Plus, X, User, ExternalLink, Trash2, Search, Tv, Maximize2, VolumeX, Play, FlaskConical, Clock, PlayCircle } from 'lucide-react';
 import { canGoLive } from '../services/tvCapabilities';
 import { User as FirebaseUser } from 'firebase/auth';
-import { SCIENCE_STREAMS, SCIENCE_CATEGORIES, ScienceCategory, ScienceStream } from './scienceStreams';
+import { ACTIVE_SCIENCE_STREAMS, SCIENCE_BAND_ENABLED, SCIENCE_CATEGORIES, ScienceCategory, ScienceStream } from './scienceStreams';
 
 import { useAchievements } from '../contexts/AchievementContext';
 import TVView from './TVView';
@@ -22,6 +22,9 @@ interface LiveHubViewProps {
   currentUser: FirebaseUser | null;
   onJoinPool: (poolId: string) => void;
   onOpenTVStudio?: () => void;
+  /** A shared-channel deep-link: open TV+ tuned to this channel. */
+  initialChannelFocus?: { ownerId?: string; plajahId?: string; number?: string } | null;
+  onChannelFocusConsumed?: () => void;
 }
 
 // Hover-triggered stream preview: loads iframe once on first hover, stays mounted
@@ -69,7 +72,7 @@ function HoverStreamPreview({ url, mutedUrl }: { url: string; mutedUrl: string }
   );
 }
 
-const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPool, onOpenTVStudio }) => {
+const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPool, onOpenTVStudio, initialChannelFocus, onChannelFocusConsumed }) => {
   const { triggerAction } = useAchievements();
   const [activeTab, setActiveTab] = useState<'TV_PLUS' | 'STREAMS' | 'SCIENCE' | 'LIVE_TV' | 'EVENTS' | 'REPLAYS'>('TV_PLUS');
   const [archives, setArchives] = useState<StreamArchive[]>([]);
@@ -84,6 +87,19 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
   const [showMobileLive, setShowMobileLive] = useState(false);
   // When the guide tunes a FAST channel, jump to the TV+ surface focused on it.
   const [tuneOwnerId, setTuneOwnerId] = useState<string | undefined>(undefined);
+  const [tunePlajahId, setTunePlajahId] = useState<string | undefined>(undefined);
+  const [tuneNumber, setTuneNumber] = useState<string | undefined>(undefined);
+
+  // A shared-channel deep-link: land on TV+ tuned to the channel, then clear it so navigating away
+  // and back does not re-tune.
+  useEffect(() => {
+    if (!initialChannelFocus) return;
+    setActiveTab('TV_PLUS');
+    if (initialChannelFocus.ownerId) setTuneOwnerId(initialChannelFocus.ownerId);
+    if (initialChannelFocus.plajahId) setTunePlajahId(initialChannelFocus.plajahId);
+    if (initialChannelFocus.number) setTuneNumber(initialChannelFocus.number);
+    onChannelFocusConsumed?.();
+  }, [initialChannelFocus, onChannelFocusConsumed]);
 
   // Tune a channel from the EPG guide: FAST → TV+ focused on it; live/science → their existing viewers.
   const tuneChannel = (ch: any) => {
@@ -283,6 +299,9 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
         liveArtists={liveArtists}
         fastChannels={fastChannels}
         focusOwnerId={tuneOwnerId}
+        focusPlajahId={tunePlajahId}
+        focusNumber={tuneNumber}
+        currentUser={currentUser}
         onOpenClassic={() => setActiveTab('LIVE_TV')}
         onWatchWebrtc={(feed) => { if (feed) window.dispatchEvent(new CustomEvent('OPEN_LIVE_FEED', { detail: { feed } })); }}
       />
@@ -304,7 +323,8 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
               items={[
                 { id: 'TV_PLUS',  label: '📺 Live TV+'    },
                 { id: 'LIVE_TV',  label: '📺 Guide'       },
-                { id: 'SCIENCE',  label: '🔭 Science Live' },
+                // Science Live is hidden while its band is off — see SCIENCE_BAND_ENABLED.
+                ...(SCIENCE_BAND_ENABLED ? [{ id: 'SCIENCE', label: '🔭 Science Live' }] : []),
                 { id: 'EVENTS',   label: 'Live Events'    },
                 { id: 'REPLAYS',  label: '▶ Replays'      },
               ]}
@@ -480,7 +500,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
         )}
         
         {/* ── Science Live Tab ─────────────────────────────────────────── */}
-        {activeTab === 'SCIENCE' && (
+        {activeTab === 'SCIENCE' && SCIENCE_BAND_ENABLED && (
           <div className="px-8 lg:px-24 w-full max-w-7xl mx-auto pb-12 overflow-y-auto">
             {/* Category filter pills */}
             <div className="flex flex-wrap gap-2 mb-8 pt-2">
@@ -504,7 +524,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
 
             {/* Per-category sections */}
             {(scienceCat === 'ALL' ? SCIENCE_CATEGORIES : SCIENCE_CATEGORIES.filter(c => c.id === scienceCat)).map(cat => {
-              const streams = SCIENCE_STREAMS.filter(s => s.category === cat.id);
+              const streams = ACTIVE_SCIENCE_STREAMS.filter(s => s.category === cat.id);
               if (!streams.length) return null;
               return (
                 <div key={cat.id} className="mb-12">

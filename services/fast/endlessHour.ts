@@ -29,6 +29,16 @@ import { SolaController, provisionalTier, type SolaMode } from './solaController
 import { arcPositionAt, programmeAt, type GenerativeProgramme } from './generativeChannel';
 import type { DeviceTier } from './sola';
 
+/**
+ * The channel spine's timer period.
+ *
+ * This loop only detects arc/slot boundaries and feeds the visual sampler, both of which move over
+ * seconds, so 100 ms foregrounded is ample. Backgrounded it throttles to ~1 Hz, which still cannot
+ * miss a boundary because boundaries are detected by a change of arc INDEX, never by proximity to
+ * one — a coarse clock steps over a proximity window but cannot step over an identity change.
+ */
+const CHANNEL_TICK_MS = 100;
+
 export interface EndlessHourOptions {
   ctx: AudioContext;
   destination: AudioNode;
@@ -62,7 +72,7 @@ export class EndlessHour {
   private shared: StillnessSession | null = null;
   private sharedGain: GainNode | null = null;
   private sola: SolaController | null = null;
-  private raf: number | null = null;
+  private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
 
   /** The programme currently on air, so a boundary is detected by change rather than by clock maths. */
@@ -114,7 +124,11 @@ export class EndlessHour {
       onNotice: (w) => this.opts.onNotice?.(w),
     });
     this.sola.start();
+    // A timer, not rAF: the channel spine — arc re-arming above all — must keep running when the
+    // tab is hidden or the screen has dimmed, which is the normal state of a channel left on. rAF
+    // stops dead there, which is how the stream used to fall silent after the first arc.
     this.tick();
+    this.timer = setInterval(this.tick, CHANNEL_TICK_MS);
   }
 
   /**
@@ -127,7 +141,11 @@ export class EndlessHour {
     const prog = programmeAt(nowMs);
     const pos = arcPositionAt(nowMs);
     this.programme = prog;
-    this.programmeKey = `${prog.form.id}:${prog.seed}`;
+    // Keyed by the ARC, not just the slot. A slot is hours long and holds many arcs back to back;
+    // keying only on the slot meant the channel started one arc and then, when it finished, had
+    // nothing to re-arm until the next slot — silence for the rest of the hour. The arc index is
+    // what turns "one session" into "a channel".
+    this.programmeKey = `${prog.form.id}:${prog.seed}:${pos.arcIndex}`;
     this.opts.onProgramme?.(prog);
 
     const previous = this.shared;
@@ -136,8 +154,18 @@ export class EndlessHour {
       destination: this.sharedGain!,
       durationSec: prog.arcSec,
       arrival: prog.arrival,
-      // The shared seed. Passing one is what makes this the broadcast rather than a burst.
-      seed: prog.seed,
+      // The per-arc shared seed, derived from the clock so every viewer still resolves the same
+      // one. Using the slot seed here made every arc in a four-hour block identical — the one
+      // thing a generative channel has no excuse for. Passing a seed at all is what makes this the
+      // broadcast rather than a private burst.
+      seed: pos.seed,
+      // The channel is a different thing from a single Stillness Deep session: it is lived in for
+      // hours, so it carries the fuller arrangement — a slow arpeggiation that drifts in and out,
+      // a muted pulse that comes and goes, and a Turn softened into a swell so nothing on a calm
+      // field left running ever arrives as a jolt.
+      arp: true,
+      pulse: true,
+      gentleTurn: true,
     });
     this.shared = session;
     await session.start(pos.offsetSec);
@@ -152,9 +180,12 @@ export class EndlessHour {
     if (!this.running) return;
     const nowMs = this.clock();
 
-    // Programme boundaries, by identity rather than by arithmetic on the clock.
+    // Arc and slot boundaries, by identity rather than by arithmetic on the clock. The key
+    // carries the arc index, so this fires at the end of every arc as well as every slot — which
+    // is what re-arms the next session seamlessly instead of decaying into silence.
     const prog = programmeAt(nowMs);
-    const key = `${prog.form.id}:${prog.seed}`;
+    const pos = arcPositionAt(nowMs);
+    const key = `${prog.form.id}:${prog.seed}:${pos.arcIndex}`;
     if (key !== this.programmeKey && this.mode === 'stream') {
       // Only re-seed while on the shared side. Re-seeding under a running burst would cut a
       // session someone is inside, and the burst is already scheduled to end on an arc boundary.
@@ -164,8 +195,6 @@ export class EndlessHour {
     // Whichever session is on air feeds the one sampler.
     const state = this.frameState(nowMs);
     if (state) this.sampler.update(state, nowMs);
-
-    this.raf = requestAnimationFrame(this.tick);
   };
 
   /**
@@ -194,8 +223,8 @@ export class EndlessHour {
 
   stop(): void {
     this.running = false;
-    if (this.raf !== null) cancelAnimationFrame(this.raf);
-    this.raf = null;
+    if (this.timer !== null) clearInterval(this.timer);
+    this.timer = null;
     this.sola?.stop();
     this.sola = null;
     this.shared?.dispose(true);

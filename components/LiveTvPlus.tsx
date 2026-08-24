@@ -10,7 +10,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, ChevronDown, LayoutGrid, Maximize2, Minimize2 } from 'lucide-react';
 import type { LiveFeed, UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
-import { SCIENCE_STREAMS } from './scienceStreams';
+import { ACTIVE_SCIENCE_STREAMS } from './scienceStreams';
 import { fetchChannelNumberRegistry, fetchFastChannelSchedule, fetchFastChannelVideos, type FastChannelListing } from '../services/backendService';
 import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, backfillScheduleDurations, backfillScheduleDurationsByUrl, unresolvedDurationUrls, FM_FILL_THRESHOLD_SEC } from '../services/fastChannelTimeline';
 import { exactDurationSec } from '../services/mediaTimebase';
@@ -23,6 +23,9 @@ import { getPlatformInfo } from '../hooks/usePlatform';
 import { isShellFocused, setShellFocus } from '../hooks/useTvShellFocus';
 import { PLAJAH_CHANNELS, UNNUMBERED, guideSortKey, legacyMajors, plajahNumber, type NumberRegistry } from '../services/fast/channelNumbers';
 import { isChannelFeed } from '../services/fast/guideLineup';
+import ShareButton from './ShareButton';
+import { buildShareUrl } from '../services/deepLinkService';
+import { createPost } from '../services/backendService';
 
 export interface TvChannel {
   id: string;
@@ -294,7 +297,13 @@ const LiveTvPlus: React.FC<{
   onWatchWebrtc?: (feed: any) => void;
   /** When set, start on the channel whose FAST owner / feed owner matches (tuning in from the guide). */
   focusOwnerId?: string;
-}> = ({ onBack, feeds, liveArtists, fastChannels = [], onOpenClassic, onWatchWebrtc, focusOwnerId }) => {
+  /** Tune to a first-party channel (its plajahId) — used by a shared-channel deep-link. */
+  focusPlajahId?: string;
+  /** Fallback: tune to whatever channel carries this guide number ("8.1"). */
+  focusNumber?: string;
+  /** For "Post to Plajah feed" from the share sheet. */
+  currentUser?: { uid: string; displayName?: string | null; photoURL?: string | null } | null;
+}> = ({ onBack, feeds, liveArtists, fastChannels = [], onOpenClassic, onWatchWebrtc, focusOwnerId, focusPlajahId, focusNumber, currentUser }) => {
   const [index, setIndex] = useState(0);
   const [muted, setMuted] = useState(true);
   const [loadedIndex, setLoadedIndex] = useState(0); // player follows the dial once it settles
@@ -399,8 +408,10 @@ const LiveTvPlus: React.FC<{
     });
 
     // Curated Science Live channels — platform channels in a separate high band.
+    // Empty while SCIENCE_BAND_ENABLED is off (the third-party YouTube embeds are broken),
+    // so the guide simply has no 9000s rather than a row of dead players.
     let sci = 9001;
-    SCIENCE_STREAMS.forEach(s => {
+    ACTIVE_SCIENCE_STREAMS.forEach(s => {
       out.push({
         id: `sci_${s.id}`, number: `${sci++}`, name: s.title, sub: s.source, emoji: s.emoji, accent: s.accent, badge: 'SCIENCE',
         kind: s.isEmbeddable ? 'embed' : 'external', playUrl: s.embedUrl, directUrl: s.directUrl, now: s.title,
@@ -468,12 +479,16 @@ const LiveTvPlus: React.FC<{
     settleRef.current = setTimeout(() => setLoadedIndex(i), 320); // swap playback once the dial settles
   }, []);
 
-  // Tuned in from the guide → jump straight to the matching channel.
+  // Tuned in from the guide, or from a shared-channel link → jump straight to the matching channel.
   useEffect(() => {
-    if (!focusOwnerId || !channels.length) return;
-    const i = channels.findIndex(c => c.scheduleOwner === focusOwnerId || c.ownerId === focusOwnerId);
+    if (!channels.length) return;
+    if (!focusOwnerId && !focusPlajahId && !focusNumber) return;
+    const i = channels.findIndex(c =>
+      (focusPlajahId && c.plajahId === focusPlajahId) ||
+      (focusOwnerId && (c.scheduleOwner === focusOwnerId || c.ownerId === focusOwnerId)) ||
+      (focusNumber && c.number === focusNumber));
     if (i >= 0) { setIndex(i); setLoadedIndex(i); }
-  }, [focusOwnerId, channels]);
+  }, [focusOwnerId, focusPlajahId, focusNumber, channels]);
 
   // Keyboard / D-pad (works on the TV app too).
   useEffect(() => {
@@ -504,6 +519,39 @@ const LiveTvPlus: React.FC<{
   const selected = channels[index] || null;
   const playing = channels[loadedIndex] || null;
   const tvInset = getPlatformInfo().isTV;   // leave room for the TV shell's tab bar
+
+  // ── Sharing the channel that's on the dial right now ──────────────────────────
+  // A stable key the /share route and the deep-link both understand: `plajah:<id>` for a
+  // first-party channel, `owner:<uid>` for an account's channel. Curated third-party feeds have
+  // no Plajah identity to resolve, so they simply aren't shareable this way.
+  const shareMeta = useMemo(() => {
+    if (!selected) return null;
+    const owner = selected.scheduleOwner || selected.ownerId;
+    const id = selected.plajahId ? `plajah:${selected.plajahId}` : owner ? `owner:${owner}` : null;
+    if (!id) return null;
+    const url = buildShareUrl('channel', id, { n: selected.number });
+    const title = `${selected.name} · Plajah ${selected.number}`;
+    const text = selected.isLive
+      ? `${selected.name} is live right now on Plajah ${selected.number}. Tune in.`
+      : `Tune in to ${selected.name} on Plajah ${selected.number}.`;
+    return { id, url, title, text, name: selected.name, number: selected.number, now: selected.now };
+  }, [selected]);
+
+  const postChannelToFeed = useCallback(async () => {
+    if (!shareMeta) return;
+    // Just the live-channel card — no auto-written body. The card carries the name, the number and
+    // what's on now, and taps straight into the channel.
+    await createPost({
+      text: '',
+      isPublic: true,
+      assetEmbed: {
+        type: 'CHANNEL',
+        id: shareMeta.id,
+        title: shareMeta.name,
+        subtitle: `CH ${shareMeta.number}${shareMeta.now ? ` · ${shareMeta.now}` : ''}`,
+      },
+    } as any);
+  }, [shareMeta]);
 
   // Full-screen viewing: hides the dial + guide so the programme fills the panel. On a TV it engages
   // automatically after a spell with no remote input (long enough not to fight browsing, short enough
@@ -709,6 +757,17 @@ const LiveTvPlus: React.FC<{
           <span className="text-[11px] font-black uppercase tracking-[0.35em]">Plajah Live</span>
         </div>
         <div className="flex items-center gap-2">
+          {shareMeta && (
+            <ShareButton
+              title={shareMeta.title}
+              text={shareMeta.text}
+              url={shareMeta.url}
+              className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15 text-white"
+              iconSize={16}
+              onPostToPlajah={currentUser ? postChannelToFeed : undefined}
+              plajahLabel="Post this channel to your feed"
+            />
+          )}
           <button onClick={() => setMuted(m => !m)} className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15">{muted ? <VolumeX size={16} /> : <Volume2 size={16} />}</button>
           <button onClick={() => setImmersive(true)} title="Full screen" className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15"><Maximize2 size={16} /></button>
           {onOpenClassic && <button onClick={onOpenClassic} title="All live" className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15"><LayoutGrid size={16} /></button>}

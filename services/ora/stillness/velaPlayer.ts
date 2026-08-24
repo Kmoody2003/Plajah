@@ -144,21 +144,40 @@ export function createPlayer(
       }
     }
 
-    // Voice it. Notes are chosen from the collection and spread across octaves rather than
-    // stacked in thirds — stacking implies a chord with a root, and a root implies a key.
+    // Voice it as an OPEN QUARTAL/QUINTAL STACK. The bass is the lowest degree of the collection;
+    // each voice above it climbs by roughly a fourth or a fifth, snapped to the nearest pitch the
+    // collection actually holds. Stacked fourths and fifths are the oldest harmony there is — the
+    // sound of organum, of a tuned gong, of open strings — and, crucially, they contain no third,
+    // so they imply no key and resolve nowhere. That open, unplaced quality is exactly the
+    // suspended, ancient character the session wants, and it is "heavier" than scattered octaves
+    // without ever becoming a chord that points somewhere.
     const count = Math.min(voiceCountFor(s), set.length + 1);
     const root = rootFor(s);
     const notes: number[] = [];
-    for (let v = 0; v < count; v++) {
-      const pc = set[Math.floor(rand01(seed, i * 31 + v * 5) * set.length)];
-      // Octave range NARROWS as the session deepens. Openness widens the field, but it should
-      // do that across the stereo image rather than across the register — spreading a two-note
-      // voicing over three octaves deep in pulls it back UP, which undoes the whole point of
-      // dropping the root.
-      const octRange = s.depth > 0.6 ? 1 : s.openness > 0.55 ? 3 : 2;
-      const oct = Math.floor(rand01(seed, i * 31 + v * 5 + 1) * octRange);
-      const note = root + pc + oct * 12;
-      if (!notes.includes(note)) notes.push(note);
+    // The bass: lowest degree, so the register drops cleanly with the root as the session deepens
+    // rather than wandering with a random pick.
+    let prevMidi = root + set[0];
+    notes.push(prevMidi);
+    for (let v = 1; v < count; v++) {
+      // A fourth or a fifth — the two intervals the whole style is built on.
+      const step = rand01(seed, i * 31 + v * 5) < 0.5 ? 5 : 7;
+      const target = prevMidi + step;
+      // Snap to the nearest higher note whose pitch class is in the collection, so the stack is
+      // always quartal-ISH but never leaves the mode. Octaves NARROW deep in: fewer voices means
+      // a lower ceiling on their own, without a separate register rule.
+      let best = -1;
+      let bestDist = 999;
+      for (const pc of set) {
+        for (let oct = 0; oct <= 3; oct++) {
+          const cand = root + pc + oct * 12;
+          if (cand <= prevMidi || notes.includes(cand)) continue; // ascend, and never double
+          const d = Math.abs(cand - target);
+          if (d < bestDist) { best = cand; bestDist = d; }
+        }
+      }
+      if (best < 0) break; // nothing higher left in the collection — a smaller voicing is fine
+      prevMidi = best;
+      notes.push(best);
     }
     notes.sort((a, b) => a - b);
 

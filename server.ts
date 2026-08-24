@@ -629,6 +629,53 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
      } catch { return html; }
    }
 
+   // Live channels have no content doc. A first-party channel (`plajah:<id>`) resolves from a
+   // small static table; an account's channel (`owner:<uid>`) resolves the owner's profile. Either
+   // way the card is a branded large-image preview so the link never falls back to generic Plajah.
+   if (type === 'channel') {
+     try {
+       const rawId = String(id);
+       const num = String((query as any).n || '').trim();
+       let name = 'A live channel';
+       let desc = 'Live now on Plajah.';
+       let image = `https://${host}/og-default.png`;
+       if (rawId.startsWith('owner:')) {
+         const ownerId = rawId.slice('owner:'.length);
+         const dd = await fetchFirebaseDoc('users', ownerId);
+         const ff: any = dd?.fields || {};
+         const p = (keys: string[]): string => { for (const k of keys) { const v = ff?.[k]?.stringValue; if (v) return v; } return ''; };
+         name = p(['artistName', 'displayName', 'name', 'username', 'handle']) || 'A live channel';
+         desc = `${name} is live on Plajah${num ? ` — channel ${num}` : ''}. Tune in now.`;
+       } else {
+         const key = rawId.replace(/^plajah:/, '');
+         if (key === 'endless-hour') {
+           name = 'The Endless Hour';
+           desc = 'Made as you watch. Some of it only for you — a generative meditation channel, live on Plajah.';
+         }
+       }
+       const displayName = num ? `${name} · Plajah ${num}` : name;
+       const safeT = htmlEscape(displayName), safeD = htmlEscape(desc);
+       const safeI = htmlEscape(image), safeH = htmlEscape(host), safeId = htmlEscape(String(id));
+       const safeN = htmlEscape(num);
+       const tags = html.replace(/[ \t]*<meta\s+(?:property|name)="(?:og:[^"]*|twitter:[^"]*)"[^>]*\/?>\s*/gi, '');
+       return tags.replace('</head>', `
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@plajah" />
+    <meta name="twitter:title" content="${safeT}" />
+    <meta name="twitter:description" content="${safeD}" />
+    <meta name="twitter:image" content="${safeI}" />
+    <meta property="og:site_name" content="Plajah" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="${safeT}" />
+    <meta property="og:description" content="${safeD}" />
+    <meta property="og:image" content="${safeI}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content="https://${safeH}/?type=channel&amp;id=${safeId}${safeN ? `&amp;n=${safeN}` : ''}" />
+</head>`);
+     } catch { return html; }
+   }
+
    // Every shareable asset type → its Firestore collection. Books/songs live in `albums`.
    const collectionFor: Record<string, string> = {
      video: 'videos', album: 'albums', track: 'albums', book: 'albums',

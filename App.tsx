@@ -1010,6 +1010,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [relloInitialVideoId, setRelloInitialVideoId] = useState<string | undefined>(undefined);
   const [videoPlaylistInitialId, setVideoPlaylistInitialId] = useState<string | undefined>(undefined);
   const [clubInitialId, setClubInitialId] = useState<string | undefined>(undefined);
+  // A shared live channel deep-link opens the Live guide focused on that channel.
+  const [liveChannelFocus, setLiveChannelFocus] = useState<{ ownerId?: string; plajahId?: string; number?: string } | null>(null);
   // Account Switcher
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
@@ -2072,6 +2074,21 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           setIsPublicView(true);
           setView('VIDEOS');
           document.title = 'Playlist | Plajah';
+          setIsLoading(false);
+          return;
+        } else if (shareType === 'channel') {
+          // A shared live channel — open the Live guide (TV+) tuned to it. `id` is `plajah:<id>`
+          // for a first-party channel or `owner:<uid>` for an account's channel; `n` is the guide
+          // number, kept as a fallback way to find the row.
+          const raw = String(projectId || '');
+          const number = params.get('n') || undefined;
+          setLiveChannelFocus(
+            raw.startsWith('owner:') ? { ownerId: raw.slice('owner:'.length), number }
+            : raw.startsWith('plajah:') ? { plajahId: raw.slice('plajah:'.length), number }
+            : { plajahId: raw || undefined, number },
+          );
+          setView('LIVE_TV');
+          document.title = 'Plajah Live';
           setIsLoading(false);
           return;
         } else if (shareType === 'feed') {
@@ -5451,6 +5468,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   setView('EVENT_PHOTO_POOL');
                 }}
                 onOpenTVStudio={() => setView('TV_STUDIO')}
+                initialChannelFocus={liveChannelFocus}
+                onChannelFocusConsumed={() => setLiveChannelFocus(null)}
               />
             ))}
             {view === 'RADIO' && <RadioView onBack={() => setView('DASHBOARD')} artistId={selectedRadioArtistId} />}
