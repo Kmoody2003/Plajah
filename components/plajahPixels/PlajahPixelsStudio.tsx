@@ -1381,7 +1381,14 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
     // full output: Fast recording includes overlays, and it's the prereq for the
     // OffscreenCanvas worker). HtmlLayer (an iframe) can't become a texture, so it
     // always stays DOM on top; Lottie likewise stays DOM for its screen blend.
-    const unify = !!config.unifyOverlays;
+    // Unify composites the overlay layers INTO the single GPU surface. With it off, a picked
+    // shader is a DOM plane sitting on top of the compositor — you see it locally, but the
+    // compositor canvas that recording and program-out capture never contains it, which is exactly
+    // "the shader isn't going to the compositor program out". A global override IS the case where
+    // the overlay must be captured, so force unify on whenever one is active. `{!unify && vizOverlay}`
+    // then stops rendering the DOM copy, so there is no double render.
+    const hasOverride = !!shaderSrc || milkdrop || midiNotes || !!three3d;
+    const unify = !!config.unifyOverlays || hasOverride;
     // A chosen look must render to program the moment it is picked — a shader animates on iTime, not
     // on audio. The layers dereference their analyser, so before audio starts they get the silent
     // one (zeros for the bands, motion from iTime). This is why picking a shader with nothing playing
