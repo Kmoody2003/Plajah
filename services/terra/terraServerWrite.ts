@@ -15,8 +15,8 @@
  * Server-only — never import from a browser bundle.
  */
 
-import { fsGet, fsSet } from '../firebaseAdminRest';
-import type { TerraParcel, TerraCivicRecord, TerraIngestionSummary } from './terraTypes';
+import { fsBatchWrite, fsGet, fsSet } from '../firebaseAdminRest';
+import { packParcel, type TerraParcel, type TerraCivicRecord, type TerraIngestionSummary } from './terraTypes';
 
 const PARCELS = 'terraParcels';
 const CIVIC = 'terraCivic';
@@ -27,20 +27,6 @@ const RUNS = 'terraIngestionRuns';
  *  stored id matches what the client SDK reads. */
 const docPath = (collection: string, id: string) => `${collection}/${encodeURIComponent(id)}`;
 
-/** Run N async tasks with bounded concurrency; returns how many succeeded. */
-async function pool<T>(items: T[], limit: number, fn: (item: T) => Promise<boolean>): Promise<number> {
-  let ok = 0;
-  let i = 0;
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (i < items.length) {
-      const item = items[i++];
-      try { if (await fn(item)) ok++; } catch { /* count as failure */ }
-    }
-  });
-  await Promise.all(workers);
-  return ok;
-}
-
 function envelope<T>(id: string, data: T): Record<string, unknown> {
   const now = Date.now();
   // firstSeenAt isn't preserved per-doc here (that would need a read each write);
@@ -49,12 +35,17 @@ function envelope<T>(id: string, data: T): Record<string, unknown> {
   return { id, data, firstSeenAt: now, lastVerifiedAt: now, updatedAt: now };
 }
 
-export async function saveParcelsServer(parcels: TerraParcel[], concurrency = 8): Promise<number> {
-  return pool(parcels, concurrency, p => fsSet(docPath(PARCELS, p.id), envelope(p.id, p)));
+// Parcels/civic go through fsBatchWrite (500 docs per API call): a 5k-parcel run
+// is ~10 round trips instead of 5k, and the doc id rides in the body, so the
+// colon in `detroit:1234.` needs no path-encoding games. Geometry MUST be packed
+// (GeoJSON's nested arrays are invalid in Firestore — see terraTypes codec).
+
+export async function saveParcelsServer(parcels: TerraParcel[]): Promise<number> {
+  return fsBatchWrite(parcels.map(p => ({ path: `${PARCELS}/${p.id}`, data: envelope(p.id, packParcel(p)) })));
 }
 
-export async function saveCivicServer(records: TerraCivicRecord[], concurrency = 8): Promise<number> {
-  return pool(records, concurrency, r => fsSet(docPath(CIVIC, r.id), envelope(r.id, r)));
+export async function saveCivicServer(records: TerraCivicRecord[]): Promise<number> {
+  return fsBatchWrite(records.map(r => ({ path: `${CIVIC}/${r.id}`, data: envelope(r.id, r) })));
 }
 
 export async function recordRunServer(summary: TerraIngestionSummary): Promise<boolean> {

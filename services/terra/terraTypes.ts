@@ -89,6 +89,31 @@ export interface GeoJsonGeometry {
   coordinates: any;
 }
 
+// ─── Stored-form codec ───────────────────────────────────────────────────────
+//
+// ⚠️ Firestore rejects arrays nested directly inside arrays, and GeoJSON
+// coordinates are exactly that (Polygon = number[][][]). A parcel written with
+// its geometry intact fails with INVALID_ARGUMENT — and because the write
+// helpers swallow errors, the symptom is "ingestion ran, saved 0". So the
+// geometry crosses the Firestore boundary as a JSON string (`geometryJson`)
+// and is rehydrated on read. Both the server ingestion path and the client
+// admin path MUST write through packParcel and read through unpackParcel.
+
+export type StoredTerraParcel = Omit<TerraParcel, 'geometry'> & { geometryJson?: string };
+
+export function packParcel(p: TerraParcel): StoredTerraParcel {
+  const { geometry, ...rest } = p;
+  return geometry ? { ...rest, geometryJson: JSON.stringify(geometry) } : rest;
+}
+
+export function unpackParcel(stored: StoredTerraParcel | TerraParcel | null | undefined): TerraParcel | null {
+  if (!stored) return null;
+  const { geometryJson, ...rest } = stored as StoredTerraParcel & { geometry?: GeoJsonGeometry };
+  if (rest.geometry || !geometryJson) return rest as TerraParcel;
+  try { return { ...rest, geometry: JSON.parse(geometryJson) as GeoJsonGeometry }; }
+  catch { return rest as TerraParcel; }
+}
+
 // ─── Civic records ───────────────────────────────────────────────────────────
 
 export type CivicRecordKind =
