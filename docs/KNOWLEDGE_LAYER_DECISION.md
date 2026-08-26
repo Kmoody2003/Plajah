@@ -1,6 +1,6 @@
 # Knowledge Layer — Labs × Academia (decision record)
 
-**Decided:** 2026-08-26 · **Status:** model settled, name open, refactor not started
+**Decided:** 2026-08-26 · **Status:** model settled, name settled (**Museion**), refactor not started
 
 ## The question
 
@@ -45,19 +45,32 @@ reads as duplication.
 5. **One registry.** Discipline metadata has a single source of truth. Adding a
    discipline is one edit.
 
-## Naming
+## Naming — **Museion** (decided 2026-08-26)
 
-"Plajah Labs" is a placeholder. It reads as an experiments/beta area (cf. Google
+"Plajah Labs" was a placeholder. It read as an experiments/beta area (cf. Google
 Labs) — actively confusing on a platform that ships experimental features — and it
-underclaims: history, architecture, archaeology and combat are not labs. It is also
-the only English utility word in a naming family of Chora, Lorea, Taleo, Melos,
-Fabula, Tela, Ambo, Vela, Praxis.
+underclaimed: history, architecture, archaeology and combat are not labs. It was
+also the only English utility word in a naming family of Chora, Lorea, Taleo,
+Melos, Fabula, Tela, Ambo, Vela, Praxis.
 
-Candidates: **Museion** (the Library of Alexandria's institution — research
-institute + library + collection in one word; fits the Greek family) or **Lyceum**
-(Aristotle's school and the 19th-c public-lecture movement; immediately legible).
+**The name is Museion** (Μουσεῖον — the Alexandrian institution: collection +
+library + working research institute in one word). Spelled `Museion`, not
+`Musaeum` or `Museum`.
 
-**Open. Not blocking** — it is a display constant.
+Why not **Lyceum**, the runner-up: in French, Italian, Spanish, German and Polish,
+*lycée / liceo / Lyzeum / liceum* means **high school**. The entire point of the
+rename is to stop the collection reading as school property, and Lyceum reasserts
+exactly that frame for a large share of the world — untenable for a platform whose
+delivery layer is explicitly built to CEFR / PISA / ISCED.
+
+Museion also scales to the wing consolidation: Taleo Film Museum, Chora
+Conservatory, Art Gallery, Combat Atlas and Sacred Library all read naturally as
+*wings of the Museion*. A lyceum is a lecture hall; it does not hold collections.
+
+Known marks against, accepted: pronunciation is not self-evident (MEW-zay-on), and
+a contemporary art museum in Bolzano, Italy uses the name — **check trademark
+class before it goes on outbound marketing** (different class for software, but
+worth the glance).
 
 Two constraints when it lands:
 
@@ -125,7 +138,7 @@ route through `PLAJAH_LABS` with `initialDiscipline`. Plumbing exists —
 `EDU_BOTTOM_TABS`. Keep the AppView id. *Not blocked* — `feat/shell-next` is
 already merged to master.
 
-**W1 — Rename.** 0.5–1 day. ~60 display-string sites. Content attributions in
+**W1 — Rename to Museion.** 0.5–1 day. ~60 display-string sites. Content attributions in
 `data/eduFactoids.ts`, `data/richLessonStudio.ts`, `data/demoClassroom.ts` are
 mechanical; `HelpCenter.tsx:444–478` and `SmartGuide.tsx:140` are prose rewrites.
 
