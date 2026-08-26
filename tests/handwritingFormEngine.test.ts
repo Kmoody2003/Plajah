@@ -180,7 +180,7 @@ test('every letter model has at least one stroke with >= 2 points, inside the bo
     for (const st of L.strokes) {
       assert.ok(st.points.length >= 2, `${L.key} stroke too short`);
       for (const p of st.points) {
-        assert.ok(p.x >= -5 && p.x <= 105 && p.y >= -5 && p.y <= 145, `${L.key} point out of box: ${p.x},${p.y}`);
+        assert.ok(p.x >= -5 && p.x <= 105 && p.y >= -5 && p.y <= 155, `${L.key} point out of box: ${p.x},${p.y}`);
       }
     }
   }

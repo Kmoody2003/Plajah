@@ -26,8 +26,10 @@ event — never to finishing or speed. Reward the wrong variable and the game te
 | Full-screen React view + tracing + tuning panel | `components/HandwritingWorkshopView.tsx` | ✅ built |
 | Wiring (route + tiles) | `types.ts`, `App.tsx`, `AcademiaHomeView.tsx`, `AcademiaModules.tsx` | ✅ wired |
 | Firestore rules | `firestore.rules` (`handwritingProgress`, `handwritingSettings`) | ✅ added |
-| Story Mode (fables + reveal) | `data/handwritingStories.ts`, view mode | ⬜ Phase 2 (design below) |
-| Per-class roster tuning UI | teacher student-picker | ⬜ Phase 2 (data layer ready) |
+| Story Mode — write a fable, illustration reveals | `services/handwritingStoryEngine.ts`, `data/handwritingStories.ts`, `services/handwritingScenes.ts`, view mode + tests | ✅ built + tested |
+| Full lowercase alphabet | `data/handwritingLetters.ts` | ✅ expanded (approximate geometry — harden on real strokes) |
+| Per-class roster tuning UI | teacher student-picker | ⬜ Phase 3 (data layer ready) |
+| Word-level (vs per-letter) form scoring | Story Mode | ⬜ Phase 3 |
 
 Run the engine tests: `npx tsx --test tests/handwritingFormEngine.test.ts`
 
