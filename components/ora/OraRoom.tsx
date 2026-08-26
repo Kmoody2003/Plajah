@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2, Check, Lock, Sparkles, ArrowLeft, Share2 } from 'lucide-react';
+import { Plus, Trash2, Check, Lock, Sparkles, ArrowLeft, Share2, LayoutPanelTop } from 'lucide-react';
 import { Button, IconButton, Surface, Actions, Eyebrow, Input, Textarea, Chip } from '../ui';
 import Stillness from './Stillness';
 import StillnessDeep from './StillnessDeep';
@@ -19,6 +19,8 @@ import {
   ORA_ADAPTERS, adapterFor, refreshGoals, isStale, previewAdapters,
 } from '../../services/oraAdapters';
 import type { OraProfile, OraCheckin, OraEntry, OraGoal, OraRitual } from '../../types';
+import { openOraJournalInTela } from '../../services/telaDomainAdapters';
+import { auth } from '../../services/backendService';
 
 /**
  * Ora — the Room (Direction A behind the orb).
@@ -266,11 +268,13 @@ const LonghandTab: React.FC<{
   entries: OraEntry[];
   onSave: (title: string, body: string) => Promise<void>;
   onDelete: (id: string) => void;
-}> = ({ entries, onSave, onDelete }) => {
+  onOpenTela: () => Promise<void>;
+}> = ({ entries, onSave, onDelete, onOpenTela }) => {
   const [writing, setWriting] = useState(false);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
+  const [openingTela, setOpeningTela] = useState(false);
   const prompt = useMemo(() => PROMPTS[new Date().getDate() % PROMPTS.length], []);
 
   const submit = async () => {
@@ -307,9 +311,10 @@ const LonghandTab: React.FC<{
           </p>
         </Surface>
       ) : (
-        <Button variant="primary" size="lg" icon={<Plus />} onClick={() => setWriting(true)} fullWidth>
-          Write today
-        </Button>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 'var(--pj-space-3)' }}>
+          <Button variant="primary" size="lg" icon={<Plus />} onClick={() => setWriting(true)} fullWidth>Write today</Button>
+          <Button variant="outline" size="lg" icon={<LayoutPanelTop />} loading={openingTela} onClick={async () => { setOpeningTela(true); try { await onOpenTela(); } finally { setOpeningTela(false); } }}>Open in Tela</Button>
+        </div>
       )}
 
       {entries.length === 0 && !writing && (
@@ -655,7 +660,7 @@ export const OraRoom: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         />
       )}
       {tab === 'TOGETHER' && <Together onLogged={() => void refresh()} />}
-      {tab === 'LONGHAND' && <LonghandTab entries={entries} onSave={addEntry} onDelete={removeEntry} />}
+      {tab === 'LONGHAND' && <LonghandTab entries={entries} onSave={addEntry} onDelete={removeEntry} onOpenTela={() => openOraJournalInTela(entries, auth.currentUser?.uid || 'local').then(() => undefined)} />}
       {tab === 'WORKBENCH' && <Workbench />}
       {tab === 'RHYTHM' && <Rhythm />}
       {tab === 'NOTES' && <Commonplace />}

@@ -135,3 +135,70 @@ export async function awardPraxisPoints(uid: string, entityId: string, amount = 
   } catch { /* points are a nicety, never block progress */ }
   return amount;
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Learner Ledger bridge
+//
+// Praxis was the platform's flagship money experience but wrote nothing to the
+// academic record — completions only earned Plajah Points. Each chapter is real
+// evidence of a financial-literacy / economics competency, so finishing one now
+// appends a Learner Ledger record against the seeded CEE + Jump$tart and CEE
+// Economics standards. Building the business IS the assessment.
+// See docs/ACADEMIA_FLAGSHIP_CURRICULUM_BLUEPRINT.md (Program 1, Strand 6).
+// ──────────────────────────────────────────────────────────────────────────────
+
+/** Which standards each Praxis chapter is evidence of. */
+export const PRAXIS_STAGE_STANDARDS: Record<string, { framework: 'CEE_FINLIT' | 'CEE_ECON'; ids: string[] }[]> = {
+  spark:    [{ framework: 'CEE_ECON',   ids: ['CEE.ECON.14.12'] }],
+  validate: [{ framework: 'CEE_ECON',   ids: ['CEE.ECON.7.12'] }],
+  form:     [{ framework: 'CEE_FINLIT', ids: ['PFL.RISK.12'] }],
+  books:    [{ framework: 'CEE_FINLIT', ids: ['PFL.BIZ.12', 'PFL.BIZ.ACCT'] }],
+  operate:  [{ framework: 'CEE_FINLIT', ids: ['PFL.BIZ.12'] }],
+  comply:   [{ framework: 'CEE_FINLIT', ids: ['PFL.RISK.12'] }],
+  fund:     [{ framework: 'CEE_FINLIT', ids: ['PFL.BIZ.FIN'] }],
+  grow:     [{ framework: 'CEE_FINLIT', ids: ['PFL.CREDIT.12', 'PFL.INVEST.12'] },
+             { framework: 'CEE_ECON',   ids: ['CEE.ECON.15.12'] }],
+};
+
+/** Competence a completed chapter is worth, by founder band (a build-along, not a quiz). */
+const BAND_TARGET: Record<FounderBand, number> = { new: 72, some: 80, pro: 88 };
+
+/**
+ * Append Learner Ledger records for a completed Praxis chapter.
+ * Mastery eases toward the band target so repeated engagement converges rather
+ * than jumping to full marks off one completion. Never throws — a ledger hiccup
+ * must never block a founder's progress.
+ */
+export async function recordPraxisMastery(
+  uid: string,
+  stageKey: string,
+  band: FounderBand = 'new',
+): Promise<number> {
+  const groups = PRAXIS_STAGE_STANDARDS[stageKey];
+  if (!uid || !groups?.length) return 0;
+  let written = 0;
+  try {
+    const { appendRecord, loadProficiency } = await import('./learningLedgerService');
+    const prof = await loadProficiency(uid);
+    const target = BAND_TARGET[band] ?? BAND_TARGET.new;
+    for (const group of groups) {
+      for (const standardId of group.ids) {
+        const before = prof?.byStandard?.[standardId] ?? 0;
+        const after = Math.round(Math.min(100, before + (target - before) * 0.5) * 100) / 100;
+        if (after <= before) continue;               // never record a regression
+        const rec = await appendRecord({
+          studentId: uid,
+          standardId,
+          framework: group.framework,
+          source: 'praxis',
+          masteryBefore: before,
+          masteryAfter: after,
+          byUid: uid,
+          evidence: `Praxis venture school — completed the ${stageKey} chapter`,
+        });
+        if (rec) written++;
+      }
+    }
+  } catch { /* ledger is additive; progress must never depend on it */ }
+  return written;
+}

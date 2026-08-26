@@ -19,6 +19,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ShaderLayer from '../plajahPixels/components/ShaderLayer';
 import { shaderForPhase, type StillnessShader } from '../plajahPixels/engine/presets/stillnessShaders';
 import { EndlessHour } from '../../services/fast/endlessHour';
+import { getTuning, loadTuning, tuningVersion } from '../../services/ora/stillness/soundTuning';
 import { SOLA_COPY, NOTICE_TIMING } from '../../services/fast/sola';
 import type { GenerativeProgramme } from '../../services/fast/generativeChannel';
 import type { SolaMode } from '../../services/fast/solaController';
@@ -42,6 +43,9 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
   const channel = useRef<EndlessHour | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const masterRef = useRef<GainNode | null>(null);
+  const delaySendRef = useRef<GainNode | null>(null);
+  const reverbSendRef = useRef<GainNode | null>(null);
+  const mutedRef = useRef(muted);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
@@ -122,7 +126,16 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
     (async () => {
       try {
         const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        const ctx = new AC();
+        // 'playback', not the default 'interactive' — this is a passive channel, so latency is
+        // irrelevant and a LARGE output buffer is exactly what we want. The generative engine runs
+        // ~6 modal-resonator worklets, and at each arc handoff the outgoing session's voices ring on
+        // briefly, so load spikes; a big buffer absorbs those spikes instead of underrunning
+        // (the "dropouts / stutters"). The default small interactive buffer had no headroom.
+        // Keep the DSP budget predictable. A device configured at 96 kHz otherwise doubles every
+        // WASM instrument's real-time work for no useful bandwidth on this intentionally dark mix.
+        let ctx: AudioContext;
+        try { ctx = new AC({ latencyHint: 'playback', sampleRate: 48000 }); }
+        catch { ctx = new AC({ latencyHint: 'playback' }); } // older WebViews may reject sampleRate
         await ctx.resume();
         if (!alive) { void ctx.close(); return; }
         ctxRef.current = ctx;
@@ -156,17 +169,42 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
         delay.delayTime.value = 0.42;
         const fb = ctx.createGain(); fb.gain.value = 0.34;          // feedback → a few repeats, not forever
         const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2000; // dark echoes
-        const wet = ctx.createGain(); wet.gain.value = 0.09;        // base wet, then the LFO rides it
-        master.connect(delay);
+        const wet = ctx.createGain(); wet.gain.value = 0.13;        // base wet, then the LFO rides it
+        // A send gain the "delay" knob controls (0..1) — how much of the mix feeds the echo bus.
+        const delaySend = ctx.createGain(); delaySend.gain.value = getTuning().delay;
+        delaySendRef.current = delaySend;
+        master.connect(delaySend);
+        delaySend.connect(delay);
         delay.connect(lp);
         lp.connect(fb); fb.connect(delay);                          // feedback loop through the filter
         lp.connect(wet); wet.connect(limiter);
         // The LFO: a ~110 s cycle, so the echo tail breathes in and out over minutes. Native, so it
         // needs no JS loop and cannot stall. Range ≈ 0.02 … 0.18 wet.
         const lfo = ctx.createOscillator(); lfo.frequency.value = 1 / 110;
-        const lfoAmt = ctx.createGain(); lfoAmt.gain.value = 0.08;
+        // A wide enough excursion to be an arrangement event: repeats genuinely recede and return.
+        const lfoAmt = ctx.createGain(); lfoAmt.gain.value = 0.12;
         lfo.connect(lfoAmt); lfoAmt.connect(wet.gain);
         lfo.start();
+
+        // ── One shared ambience bus ────────────────────────────────────────────
+        // Three decorrelated native delay tanks give the instruments a common room. This replaces
+        // a full WASM Veil inside each ONDA worklet: one optimized graph instead of N reverbs.
+        const reverbSend = ctx.createGain(); reverbSend.gain.value = getTuning().reverb;
+        reverbSendRef.current = reverbSend;
+        const roomMotion = ctx.createGain(); roomMotion.gain.value = 0.17;
+        const roomWet = ctx.createGain(); roomWet.gain.value = 0.24;
+        master.connect(reverbSend); reverbSend.connect(roomMotion);
+        for (const [time, feedback, cutoff] of [[0.071, 0.52, 3100], [0.103, 0.47, 2500], [0.149, 0.42, 1900]] as const) {
+          const d = ctx.createDelay(0.4); d.delayTime.value = time;
+          const lpRoom = ctx.createBiquadFilter(); lpRoom.type = 'lowpass'; lpRoom.frequency.value = cutoff;
+          const fbRoom = ctx.createGain(); fbRoom.gain.value = feedback;
+          roomMotion.connect(d); d.connect(lpRoom); lpRoom.connect(fbRoom); fbRoom.connect(d); lpRoom.connect(roomWet);
+        }
+        roomWet.connect(limiter);
+        // The common room slowly appears and recedes, independently from the echo cycle.
+        const roomLfo = ctx.createOscillator(); roomLfo.frequency.value = 1 / 79;
+        const roomLfoAmt = ctx.createGain(); roomLfoAmt.gain.value = 0.15;
+        roomLfo.connect(roomLfoAmt); roomLfoAmt.connect(roomMotion.gain); roomLfo.start();
 
         // ShaderLayer's contract wants an AnalyserNode, but nothing reads it — iBass/iMid/
         // iTreble stay at zero. A drone has no transients, so analysing it returns noise; both
@@ -188,6 +226,10 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
           .then((m) => m.fetchEndlessHourConfig())
           .catch(() => undefined);
         if (!alive) { void ctx.close(); return; }
+        // Apply the saved sound tuning (warmth, reverb, delay, synth voice, arp) before playback.
+        loadTuning(config?.sound ?? null);
+        delaySend.gain.value = getTuning().delay;
+        reverbSend.gain.value = getTuning().reverb;
 
         const eh = new EndlessHour({
           ctx,
@@ -207,8 +249,18 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
         shaderSeed.current = eh.nowPlaying.seed;
         phaseRef.current = '';
 
+        let pumpTuneVer = -1;
         const pump = () => {
           if (!alive) return;
+          // Live "delay" knob → the echo send, re-applied only when a slider moved.
+          if (tuningVersion() !== pumpTuneVer) {
+            pumpTuneVer = tuningVersion();
+            const tuning = getTuning();
+            delaySendRef.current?.gain.setTargetAtTime(tuning.delay, ctx.currentTime, 0.2);
+            reverbSendRef.current?.gain.setTargetAtTime(tuning.reverb, ctx.currentTime, 0.2);
+            // Master used to be persisted but never read, which made that control a placebo.
+            masterRef.current?.gain.setTargetAtTime(mutedRef.current ? 0 : tuning.master, ctx.currentTime, 0.2);
+          }
           const f = eh.frame();
           if (f) {
             const u = f.sampler.uniforms();
@@ -246,9 +298,10 @@ export const EndlessHourPlayer: React.FC<Props> = ({ muted = false, noticesEnabl
   }, []);
 
   useEffect(() => {
+    mutedRef.current = muted;
     const m = masterRef.current;
     const ctx = ctxRef.current;
-    if (m && ctx) m.gain.setTargetAtTime(muted ? 0 : 1, ctx.currentTime, 0.15);
+    if (m && ctx) m.gain.setTargetAtTime(muted ? 0 : getTuning().master, ctx.currentTime, 0.15);
   }, [muted]);
 
   // ── The canvas fallback ────────────────────────────────────────────────────

@@ -12,8 +12,9 @@
  * the frame wrapper, never to this container itself.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Bold, Italic, Heading1, Heading2, List, Pilcrow } from 'lucide-react';
-import type { TelaBlock, TelaBlockKind, TelaWriterDevice } from '../../types';
+import { createPortal } from 'react-dom';
+import { Bold, BookHeart, CircleHelp, Feather, Italic, Heading1, Heading2, List, Music2, Pilcrow, StickyNote, TextQuote } from 'lucide-react';
+import type { TelaBlock, TelaBlockKind, TelaTextSemanticKind, TelaWriterDevice } from '../../types';
 
 export const newBlockId = () => `blk_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
@@ -51,6 +52,8 @@ interface BlockElProps {
 
 const BlockEl = React.memo<BlockElProps>(({ block, readOnly, onInput, onKeyDown, onFocus, registerEl }) => {
   const ref = useRef<HTMLDivElement>(null);
+  const semantic = block.textRole || block.semanticSpans?.at(-1)?.kind;
+  const semanticColor = semantic === 'LYRIC' ? '#FF8C00' : semantic === 'POETRY' ? '#D40055' : semantic === 'JOURNAL' ? '#6B0099' : semantic === 'NOTE' ? '#2563EB' : '#705D76';
 
   // Only push model → DOM when they differ (typing round-trips are already equal,
   // so this never clobbers the caret mid-edit).
@@ -60,19 +63,22 @@ const BlockEl = React.memo<BlockElProps>(({ block, readOnly, onInput, onKeyDown,
   }, [block.text]);
 
   return (
-    <div
-      ref={el => { (ref as any).current = el; registerEl(block.id, el); }}
-      contentEditable={!readOnly}
-      suppressContentEditableWarning
-      data-block-id={block.id}
-      onInput={e => onInput(block.id, (e.target as HTMLElement).innerHTML)}
-      onKeyDown={e => { if (ref.current) onKeyDown(e, block.id, ref.current); }}
-      onFocus={() => onFocus(block.id)}
-      spellCheck
-      style={{ ...BLOCK_STYLE[block.kind], outline: 'none', minHeight: '1em', wordBreak: 'break-word' }}
-    />
+    <div style={{ position: 'relative' }} title={block.semanticSpans?.length ? block.semanticSpans.map(span => `${span.kind.toLowerCase()}: “${span.text}”`).join('\n') : undefined}>
+      {semantic && <span contentEditable={false} style={{ position: 'absolute', left: -56, top: 2, width: 48, overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'right', color: semanticColor, fontFamily: 'var(--font-body, Inter, sans-serif)', fontSize: 8, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', pointerEvents: 'none' }}>{block.semanticLabel || semantic}</span>}
+      <div
+        ref={el => { (ref as any).current = el; registerEl(block.id, el); }}
+        contentEditable={!readOnly}
+        suppressContentEditableWarning
+        data-block-id={block.id}
+        onInput={e => onInput(block.id, (e.target as HTMLElement).innerHTML)}
+        onKeyDown={e => { if (ref.current) onKeyDown(e, block.id, ref.current); }}
+        onFocus={() => onFocus(block.id)}
+        spellCheck
+        style={{ ...BLOCK_STYLE[block.kind], outline: 'none', minHeight: '1em', wordBreak: 'break-word', borderLeft: semantic ? `2px solid ${semanticColor}42` : undefined, paddingLeft: semantic ? 8 : undefined }}
+      />
+    </div>
   );
-}, (a, b) => a.block.id === b.block.id && a.block.kind === b.block.kind && a.block.text === b.block.text && a.readOnly === b.readOnly);
+}, (a, b) => a.block.id === b.block.id && a.block.kind === b.block.kind && a.block.text === b.block.text && a.block.textRole === b.block.textRole && a.block.semanticLabel === b.block.semanticLabel && JSON.stringify(a.block.semanticSpans || []) === JSON.stringify(b.block.semanticSpans || []) && a.readOnly === b.readOnly);
 BlockEl.displayName = 'TelaWriterBlock';
 
 // ── Caret helpers ─────────────────────────────────────────────────────────────
@@ -122,10 +128,21 @@ interface TelaWriterProps {
   /** Ops-shaped block-list replacement — the whole ordered id list at once. */
   onChangeBlocks: (blocks: TelaBlock[]) => void;
   readOnly?: boolean;
+  onSelectionChange?: (selection: TelaWriterSelection | null) => void;
+  onTurnSelectionInto?: (selection: TelaWriterSelection, kind: 'QUESTION' | 'INSTRUCTION') => void;
 }
 
-const TelaWriter: React.FC<TelaWriterProps> = ({ device, onChangeBlocks, readOnly }) => {
+export interface TelaWriterSelection {
+  deviceId: string;
+  blockId: string;
+  text: string;
+  startOffset: number;
+  endOffset: number;
+}
+
+const TelaWriter: React.FC<TelaWriterProps> = ({ device, onChangeBlocks, readOnly, onSelectionChange, onTurnSelectionInto }) => {
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [selectionTool, setSelectionTool] = useState<{ selection: TelaWriterSelection; x: number; y: number; context?: boolean } | null>(null);
   const els = useRef(new Map<string, HTMLElement>());
   const pendingFocus = useRef<{ id: string; atEnd: boolean } | null>(null);
   // Live mirror of blocks so rapid keydowns act on the latest content.
@@ -241,6 +258,42 @@ const TelaWriter: React.FC<TelaWriterProps> = ({ device, onChangeBlocks, readOnl
     if (id && el) handleInput(id, el.innerHTML);
   }, [focusedId, handleInput]);
 
+  const captureSelection = useCallback((anchor?: { x: number; y: number; context?: boolean }) => {
+    if (readOnly) return;
+    const selected = window.getSelection();
+    if (!selected || selected.rangeCount === 0 || selected.isCollapsed) { setSelectionTool(null); onSelectionChange?.(null); return; }
+    const range = selected.getRangeAt(0);
+    const node = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE ? range.commonAncestorContainer as Element : range.commonAncestorContainer.parentElement;
+    const blockEl = node?.closest?.('[data-block-id]') as HTMLElement | null;
+    const text = selected.toString().replace(/\s+/g, ' ').trim();
+    if (!blockEl || !text) { setSelectionTool(null); onSelectionChange?.(null); return; }
+    const before = range.cloneRange(); before.selectNodeContents(blockEl); before.setEnd(range.startContainer, range.startOffset);
+    const startOffset = before.toString().length;
+    const selection: TelaWriterSelection = { deviceId: device.id, blockId: blockEl.dataset.blockId!, text, startOffset, endOffset: startOffset + selected.toString().length };
+    const box = range.getBoundingClientRect();
+    setSelectionTool({ selection, x: clampToViewport(anchor?.x ?? box.left + box.width / 2, 230), y: Math.max(12, anchor?.y ?? box.top - 48), context: anchor?.context });
+    onSelectionChange?.(selection);
+  }, [device.id, onSelectionChange, readOnly]);
+
+  const defineSemantic = useCallback((selection: TelaWriterSelection, kind: TelaTextSemanticKind) => {
+    const blocks = blocksRef.current;
+    const index = blocks.findIndex(block => block.id === selection.blockId);
+    if (index < 0) return;
+    const block = blocks[index];
+    const wholeText = (els.current.get(block.id)?.innerText || block.text.replace(/<[^>]+>/g, '')).trim();
+    const coversBlock = selection.text.trim() === wholeText;
+    const span = { id: newBlockId(), kind, startOffset: selection.startOffset, endOffset: selection.endOffset, text: selection.text, createdAt: Date.now() };
+    const next = [...blocks];
+    next[index] = {
+      ...block,
+      ...(coversBlock ? { textRole: kind, semanticLabel: kind === 'LYRIC' ? 'Lyric' : kind === 'POETRY' ? 'Poetry' : kind === 'JOURNAL' ? 'Journal' : kind === 'NOTE' ? 'Note' : 'Quote' } : {}),
+      semanticSpans: [...(block.semanticSpans || []).filter(existing => existing.startOffset !== span.startOffset || existing.endOffset !== span.endOffset), span],
+    };
+    onChangeBlocks(next);
+    setSelectionTool(null);
+    onSelectionChange?.(null);
+  }, [onChangeBlocks, onSelectionChange]);
+
   const focusedKind = device.blocks.find(b => b.id === focusedId)?.kind;
 
   const toolBtn = (active: boolean): React.CSSProperties => ({
@@ -296,6 +349,15 @@ const TelaWriter: React.FC<TelaWriterProps> = ({ device, onChangeBlocks, readOnl
           const el = last && els.current.get(last.id);
           if (el) { el.focus(); placeCaret(el, true); }
         }}
+        onPointerUp={() => setTimeout(captureSelection, 0)}
+        onKeyUp={() => setTimeout(captureSelection, 0)}
+        onContextMenu={event => {
+          const selected = window.getSelection();
+          if (!readOnly && selected && !selected.isCollapsed && selected.toString().trim()) {
+            event.preventDefault();
+            captureSelection({ x: event.clientX, y: event.clientY, context: true });
+          }
+        }}
       >
         {device.blocks.map(b => (
           <BlockEl
@@ -309,8 +371,28 @@ const TelaWriter: React.FC<TelaWriterProps> = ({ device, onChangeBlocks, readOnl
           />
         ))}
       </div>
+      {!readOnly && selectionTool && createPortal(
+        <div onMouseDown={event => event.preventDefault()} style={{ position: 'fixed', left: selectionTool.x, top: selectionTool.y, transform: 'translateX(-50%)', zIndex: 420, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 3, maxWidth: 460, padding: 4, borderRadius: 11, background: 'rgba(20,13,32,.97)', border: '1px solid rgba(255,255,255,.14)', boxShadow: '0 12px 36px rgba(0,0,0,.35)' }}>
+          {onTurnSelectionInto && <><button type="button" onClick={() => onTurnSelectionInto(selectionTool.selection, 'QUESTION')} style={{ display: 'flex', alignItems: 'center', gap: 5, height: 30, padding: '0 9px', border: 0, borderRadius: 8, color: '#fff', background: 'linear-gradient(135deg,#6B0099,#D40055)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}><CircleHelp size={13}/> Question</button>
+          <button type="button" onClick={() => onTurnSelectionInto(selectionTool.selection, 'INSTRUCTION')} style={{ display: 'flex', alignItems: 'center', gap: 5, height: 30, padding: '0 9px', border: 0, borderRadius: 8, color: '#D9CFE4', background: 'rgba(255,255,255,.07)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}><TextQuote size={13}/> Instruction</button></>}
+          <button type="button" onClick={() => defineSemantic(selectionTool.selection, 'LYRIC')} style={semanticButton('#FF8C00')}><Music2 size={13}/> Lyric</button>
+          <button type="button" onClick={() => defineSemantic(selectionTool.selection, 'POETRY')} style={semanticButton('#FF6B9D')}><Feather size={13}/> Poetry</button>
+          <button type="button" onClick={() => defineSemantic(selectionTool.selection, 'NOTE')} style={semanticButton('#8EC5FF')}><StickyNote size={13}/> Note</button>
+          <button type="button" onClick={() => defineSemantic(selectionTool.selection, 'JOURNAL')} style={semanticButton('#D0BCFF')}><BookHeart size={13}/> Journal</button>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 };
+
+function clampToViewport(value: number, padding: number) {
+  if (typeof window === 'undefined') return value;
+  return Math.max(padding, Math.min(window.innerWidth - padding, value));
+}
+
+function semanticButton(color: string): React.CSSProperties {
+  return { display: 'flex', alignItems: 'center', gap: 5, height: 30, padding: '0 9px', border: '1px solid rgba(255,255,255,.09)', borderRadius: 8, color, background: 'rgba(255,255,255,.055)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' };
+}
 
 export default TelaWriter;

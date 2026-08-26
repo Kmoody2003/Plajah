@@ -5,12 +5,13 @@ import {
   ArrowLeft, Plus, Trash2, Download, Share2, Tag, Calendar,
   ChevronRight, FlaskConical, BookOpen, Microscope, Brain,
   Lightbulb, Database, FileText, Edit3, Check, X, Copy,
-  Search, Filter, Bookmark, Clock, Link2, ExternalLink,
+  Search, Filter, Bookmark, Clock, Link2, ExternalLink, LayoutPanelTop, Music2, Feather, BookHeart,
 } from 'lucide-react';
+import { openNotebookInTela } from '../services/telaDomainAdapters';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type EntryType = 'NOTE' | 'EXPERIMENT' | 'OBSERVATION' | 'HYPOTHESIS' | 'DATA' | 'LINK';
+export type EntryType = 'NOTE' | 'JOURNAL' | 'LYRIC_IDEA' | 'POEM' | 'EXPERIMENT' | 'OBSERVATION' | 'HYPOTHESIS' | 'DATA' | 'LINK';
 
 export interface ExperimentFields {
   hypothesis: string;
@@ -47,6 +48,9 @@ const uid_short = () => `${Date.now().toString(36)}${Math.random().toString(36).
 
 const TYPE_META: Record<EntryType, { label: string; icon: React.ElementType; color: string; desc: string; scienceOnly?: boolean }> = {
   NOTE:        { label: 'Note',         icon: FileText,   color: '#60a5fa', desc: 'General research note or literature summary' },
+  JOURNAL:     { label: 'Journal',      icon: BookHeart,  color: '#D0BCFF', desc: 'Private longhand reflection or dated journal entry' },
+  LYRIC_IDEA:  { label: 'Lyric idea',   icon: Music2,     color: '#FF8C00', desc: 'Song fragment, hook, title, rhyme, or writing-room idea' },
+  POEM:        { label: 'Poem',         icon: Feather,    color: '#D40055', desc: 'Poetry draft with Tela semantic structure' },
   LINK:        { label: 'Bookmark',     icon: Bookmark,   color: '#FF8C00', desc: 'Bookmarked article, link, or resource' },
   OBSERVATION: { label: 'Observation',  icon: Microscope, color: '#fbbf24', desc: 'Direct observation or field log entry' },
   HYPOTHESIS:  { label: 'Hypothesis',   icon: Lightbulb,  color: '#a78bfa', desc: 'Testable prediction or theoretical proposition', scienceOnly: true },
@@ -258,6 +262,7 @@ const LabsNotebook: React.FC<Props> = ({ currentUser, onBack, context = 'labs', 
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<EntryType | 'ALL'>('ALL');
   const [copied, setCopied] = useState(false);
+  const [openingTela, setOpeningTela] = useState(false);
   const initialEntryApplied = useRef(false);
 
   const storageKey = storageKeyOverride ?? `plajahNotebook_${currentUser?.uid ?? 'guest'}`;
@@ -344,6 +349,7 @@ const LabsNotebook: React.FC<Props> = ({ currentUser, onBack, context = 'labs', 
           </p>
         </div>
         {copied && <span className="text-[9px] text-green-400 font-black">✓ Copied to clipboard</span>}
+        <button disabled={openingTela} onClick={async () => { setOpeningTela(true); try { await openNotebookInTela(storageKey, entries, currentUser?.uid || 'local', context === 'labs' ? 'Lab Notebook' : 'Research Notebook'); } finally { setOpeningTela(false); } }} className="h-9 px-3 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 text-white" style={{ background: 'linear-gradient(135deg,#6B0099,#D40055)' }} title="Open this notebook as the shared Tela Notes component"><LayoutPanelTop size={12}/>{openingTela ? 'Opening…' : 'Open in Tela'}</button>
       </div>
 
       <div className="flex-1 flex overflow-hidden">

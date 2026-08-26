@@ -8,10 +8,10 @@
 // channels into one numbered lineup.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, ChevronDown, LayoutGrid, Maximize2, Minimize2 } from 'lucide-react';
+import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, ChevronDown, LayoutGrid, Maximize2, Minimize2, Pencil, Check, X } from 'lucide-react';
 import type { LiveFeed, UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { ACTIVE_SCIENCE_STREAMS } from './scienceStreams';
-import { fetchChannelNumberRegistry, fetchFastChannelSchedule, fetchFastChannelVideos, type FastChannelListing } from '../services/backendService';
+import { fetchChannelNumberRegistry, fetchFastChannelSchedule, fetchFastChannelVideos, setChannelName, type FastChannelListing } from '../services/backendService';
 import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, backfillScheduleDurations, backfillScheduleDurationsByUrl, unresolvedDurationUrls, FM_FILL_THRESHOLD_SEC } from '../services/fastChannelTimeline';
 import { exactDurationSec } from '../services/mediaTimebase';
 import { probeDurations } from '../services/mediaProbe';
@@ -307,6 +307,11 @@ const LiveTvPlus: React.FC<{
   const [index, setIndex] = useState(0);
   const [muted, setMuted] = useState(true);
   const [loadedIndex, setLoadedIndex] = useState(0); // player follows the dial once it settles
+  const [renamedChannels, setRenamedChannels] = useState<Record<string, string>>({});
+  const [editingOwnerId, setEditingOwnerId] = useState<string | null>(null);
+  const [channelNameDraft, setChannelNameDraft] = useState('');
+  const [savingName, setSavingName] = useState(false);
+  const [renameError, setRenameError] = useState('');
   const settleRef = useRef<any>(null);
   const guideRef = useRef<HTMLDivElement>(null);
 
@@ -342,7 +347,7 @@ const LiveTvPlus: React.FC<{
       .forEach(f => {
         const url = (f as any).url as string;
         const ownerId = ((f as any).ownerId as string) || f.id;
-        const o = ensure(ownerId, f.ownerName || f.title);
+        const o = ensure(ownerId, renamedChannels[ownerId] || f.ownerName || f.title);
         if (typeof (f as any).channelNumber === 'number') o.bound = (f as any).channelNumber; // account's bound guide number
         o.subs.push({
           id: `live_${f.id}`, name: f.title, sub: 'Live', accent: BRAND, badge: 'LIVE',
@@ -353,8 +358,9 @@ const LiveTvPlus: React.FC<{
 
     // FAST channels → a sub-channel for the account (carries the custom channel name + bound number).
     (fastChannels || []).forEach(fc => {
-      const o = ensure(fc.ownerId, fc.name || 'Channel');
-      if (fc.name) o.name = fc.name;                 // custom channel name wins for the account
+      const o = ensure(fc.ownerId, renamedChannels[fc.ownerId] || fc.name || 'Channel');
+      if (renamedChannels[fc.ownerId]) o.name = renamedChannels[fc.ownerId];
+      else if (fc.name) o.name = fc.name;            // custom channel name wins for the account
       if (typeof fc.number === 'number') o.bound = fc.number;
       o.subs.push({
         id: `fast_${fc.ownerId}`, name: fc.name || `${o.name} (FAST)`, sub: 'FAST Channel', accent: '#36c5f0', badge: 'FAST',
@@ -421,7 +427,7 @@ const LiveTvPlus: React.FC<{
     // unnumbered entries collect at the bottom instead of pushing everyone else around.
     out.sort((a, b) => guideSortKey(a.number) - guideSortKey(b.number));
     return out;
-  }, [feeds, fastChannels, registry]);
+  }, [feeds, fastChannels, registry, renamedChannels]);
 
   // Per-program EPG for the selected channel (fetched once per owner, cached, refreshed each 30s).
   const [epg, setEpg] = useState<EpgProgram[]>([]);
@@ -519,6 +525,36 @@ const LiveTvPlus: React.FC<{
   const selected = channels[index] || null;
   const playing = channels[loadedIndex] || null;
   const tvInset = getPlatformInfo().isTV;   // leave room for the TV shell's tab bar
+
+  const beginRename = useCallback((channel: TvChannel) => {
+    const ownerId = channel.scheduleOwner || channel.ownerId;
+    if (!ownerId || ownerId !== currentUser?.uid) return;
+    const accountName = renamedChannels[ownerId]
+      || fastChannels.find(fc => fc.ownerId === ownerId)?.name
+      || channel.name.replace(/ · (FAST|.+)$/, '');
+    setEditingOwnerId(ownerId);
+    setChannelNameDraft(accountName);
+    setRenameError('');
+  }, [currentUser?.uid, fastChannels, renamedChannels]);
+
+  const saveRename = useCallback(async () => {
+    if (!editingOwnerId || editingOwnerId !== currentUser?.uid || savingName) return;
+    const name = channelNameDraft.trim().slice(0, 60);
+    if (!name) { setRenameError('Enter a channel name.'); return; }
+    setSavingName(true);
+    setRenameError('');
+    try {
+      // Never accept an owner id from the selected guide row for the write. Binding the operation
+      // to the signed-in uid keeps the client aligned with the Firestore ownership rule.
+      await setChannelName(currentUser.uid, name);
+      setRenamedChannels(prev => ({ ...prev, [currentUser.uid]: name }));
+      setEditingOwnerId(null);
+    } catch {
+      setRenameError('Could not save the name. Try again.');
+    } finally {
+      setSavingName(false);
+    }
+  }, [channelNameDraft, currentUser?.uid, editingOwnerId, savingName]);
 
   // ── Sharing the channel that's on the dial right now ──────────────────────────
   // A stable key the /share route and the deep-link both understand: `plajah:<id>` for a
@@ -883,20 +919,59 @@ const LiveTvPlus: React.FC<{
           {channels.map((ch, i) => {
             const on = i === index;
             return (
-              <button
+              <div
                 key={ch.id}
                 data-ch={i}
                 onClick={() => setIdx(i)}
-                className="shrink-0 w-52 text-left rounded-xl border p-2.5 transition-colors"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIdx(i); } }}
+                className="shrink-0 w-52 text-left rounded-xl border p-2.5 transition-colors cursor-pointer"
                 style={{ borderColor: on ? BRAND : 'rgba(255,255,255,0.08)', background: on ? `${BRAND}1f` : 'rgba(255,255,255,0.03)' }}
               >
                 <div className="flex items-center gap-1.5 mb-1">
                   <span className="text-[9px] font-black" style={{ color: on ? BRAND : 'rgba(255,255,255,0.4)' }}>CH {ch.number}</span>
                   <span className="text-[8px] font-black px-1.5 py-0.5 rounded" style={{ background: ch.badge === 'LIVE' ? '#e11' : ch.badge === 'FAST' ? '#36c5f0' : ch.accent, color: '#000' }}>{ch.badge === 'LIVE' ? 'LIVE' : ch.badge}</span>
+                  {(ch.scheduleOwner || ch.ownerId) === currentUser?.uid && editingOwnerId !== currentUser.uid && (
+                    <button
+                      type="button"
+                      aria-label={`Rename ${ch.name}`}
+                      title="Edit my channel name"
+                      onClick={(e) => { e.stopPropagation(); setIdx(i); beginRename(ch); }}
+                      className="ml-auto w-7 h-7 -my-1 rounded-lg grid place-items-center text-white/55 hover:text-white hover:bg-white/10"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                  )}
                 </div>
-                <p className="text-[12px] font-black leading-tight truncate">{ch.name}</p>
+                {editingOwnerId === currentUser?.uid && on ? (
+                  <div onClick={e => e.stopPropagation()} className="mt-1">
+                    <div className="flex items-center gap-1">
+                      <input
+                        autoFocus
+                        value={channelNameDraft}
+                        maxLength={60}
+                        aria-label="Channel name"
+                        onChange={e => setChannelNameDraft(e.target.value)}
+                        onKeyDown={e => {
+                          e.stopPropagation();
+                          if (e.key === 'Enter') { e.preventDefault(); void saveRename(); }
+                          if (e.key === 'Escape') setEditingOwnerId(null);
+                        }}
+                        className="min-w-0 flex-1 rounded-md border border-white/20 bg-black/50 px-2 py-1 text-[12px] font-black text-white outline-none focus:border-[#FF8C00]"
+                      />
+                      <button type="button" disabled={savingName} aria-label="Save channel name" onClick={() => void saveRename()}
+                        className="w-7 h-7 rounded-md grid place-items-center bg-[#FF8C00] text-black disabled:opacity-50"><Check size={13} /></button>
+                      <button type="button" disabled={savingName} aria-label="Cancel renaming" onClick={() => setEditingOwnerId(null)}
+                        className="w-7 h-7 rounded-md grid place-items-center bg-white/10 text-white"><X size={13} /></button>
+                    </div>
+                    {renameError && <p role="alert" className="mt-1 text-[9px] font-bold text-red-400">{renameError}</p>}
+                  </div>
+                ) : (
+                  <p className="text-[12px] font-black leading-tight truncate">{ch.name}</p>
+                )}
                 <p className="text-[10px] text-white/45 truncate">Now: {ch.now}</p>
-              </button>
+              </div>
             );
           })}
         </div>

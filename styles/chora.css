@@ -498,6 +498,9 @@
   .chora-next .cn-disc { animation: none; }
   .chora-next .cn-eq i { animation: none !important; height: 60%; }
   .chora-next .cn-pane { transition: none; }
+  /* The comets keep FLYING under reduce (their pace is the plays reading — see
+     ChoraNextMasthead); only the flame's jitter stops, which is the part that is pure
+     decoration. Motion One drives the traversal, so nothing here should stop .cn-comet. */
   .chora-next .cn-comet::before, .chora-next .cn-comet::after { animation: none !important; }
   .chora-next .cn-spark { animation: none !important; opacity: .35; }
   /* The orrery is intentional, wanted motion — SLOW it, don't stop it. The orbit + its counter-

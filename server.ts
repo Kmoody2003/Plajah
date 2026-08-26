@@ -24,6 +24,7 @@ import os from 'node:os';
 import Stripe from 'stripe';
 import { coraRouter } from './routes/cora';
 import { learnerAuthRouter } from './routes/learnerAuth';
+import { schoolsRouter } from './routes/schools';
 import { postmanRouter } from './routes/postman';
 import { campaignsRouter } from './routes/campaigns';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
@@ -932,6 +933,13 @@ async function authMiddleware(req: any, res: any, next: any) {
   next();
 }
 
+function secretsEqual(provided: unknown, expected: unknown): boolean {
+  if (typeof provided !== 'string' || typeof expected !== 'string' || !expected) return false;
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  return a.length === b.length && nodeCrypto.timingSafeEqual(a, b);
+}
+
 // Firestore REST helper (reuses existing fetchFirebaseDoc pattern)
 async function firestoreWrite(collection: string, id: string, data: object) {
   const projectId = 'gen-lang-client-0665118474';
@@ -1186,6 +1194,36 @@ function validateFediverseInstance(instance: string): void {
 async function startServer() {
   const app = express();
   const PORT = parseInt(process.env.PORT || '3000', 10);
+
+  app.disable('x-powered-by');
+  // Cloud Run/Firebase Hosting contributes exactly one trusted proxy hop. This
+  // makes req.ip and HTTPS detection accurate without trusting arbitrary XFF.
+  if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
+
+  // One-shot local recovery when an older production service worker shadows Vite.
+  // This route is intentionally explicit: normal app requests never clear auth or caches.
+  if (process.env.NODE_ENV !== 'production') {
+    app.get('/__dev/clear-plajah-cache', (_req, res) => {
+      res.setHeader('Clear-Site-Data', '"cache", "storage"');
+      res.setHeader('Cache-Control', 'no-store, max-age=0');
+      res.type('html').send(`<!doctype html><meta charset="utf-8"><title>Refreshing Plajah</title>
+        <body style="background:#09090d;color:white;font:16px system-ui;padding:40px">Loading the current Plajah build…
+        <script>
+          (async()=>{
+            try {
+              if ('serviceWorker' in navigator) {
+                const regs = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(regs.map(r => r.unregister()));
+              }
+              if ('caches' in window) {
+                const keys = await caches.keys();
+                await Promise.all(keys.map(k => caches.delete(k)));
+              }
+            } finally { location.replace('/?local_ocr=' + Date.now()); }
+          })();
+        </script></body>`);
+    });
+  }
 
   // ── Alexa skill: "Alexa, ask Chora to play <song>" ───────────────────────
   // Custom Alexa skill endpoint. Verifies Amazon's request signature, searches the
@@ -1791,6 +1829,12 @@ async function startServer() {
   const isDevLocalOrigin = (origin: string) =>
     !isProd && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 
+  const trustedRequestOrigin = (req: any): string => {
+    const configured = (process.env.VITE_APP_URL || 'https://plajah.com').replace(/\/+$/, '');
+    const origin = typeof req.headers.origin === 'string' ? req.headers.origin : '';
+    return origin && (allowedOrigins.includes(origin) || isDevLocalOrigin(origin)) ? origin : configured;
+  };
+
   app.use(cors({
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin) || isDevLocalOrigin(origin)) return callback(null, true);
@@ -1798,6 +1842,18 @@ async function startServer() {
     },
     credentials: true,
   }));
+
+  // A distributed edge/WAF is still required for volumetric DDoS protection;
+  // this limiter protects application capacity from ordinary floods and bots.
+  const globalApiLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: req => req.path === '/api/stripe/webhook' || req.path === '/api/mux/webhook' || req.path === '/api/merch/stripe-webhook',
+    message: { error: 'Request rate limit exceeded' },
+  });
+  app.use('/api', globalApiLimiter);
 
   // Tight global JSON limit for safety — but exempt routes that legitimately carry
   // larger bodies (the AI proxy sends system prompt + scene context, well over 10kb)
@@ -1831,9 +1887,9 @@ async function startServer() {
   // One-time admin endpoint: downloads 40 Gutenberg public-domain TXTs and
   // uploads them to Firebase Storage at books/classics/{id}/text.txt so the
   // reader can fetch them directly (no proxy, no Gutenberg rate-limits).
-  // Hit once after deploy: GET /api/admin/seed-classic-books?key=<ADMIN_KEY>
+  // Hit once after deploy with X-Admin-Key (secrets in URLs leak into logs).
   app.get('/api/admin/seed-classic-books', async (req: any, res: any) => {
-    if (req.query.key !== process.env.ADMIN_SEED_KEY) {
+    if (!secretsEqual(req.get('x-admin-key'), process.env.ADMIN_SEED_KEY)) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     const BUCKET = 'gen-lang-client-0665118474.firebasestorage.app';
@@ -1930,7 +1986,7 @@ async function startServer() {
         await firestoreWrite('organizations', orgId, { stripeAccountId: accountId, updatedAt: Date.now() });
       }
 
-      const origin = req.headers.origin || 'https://plajah.com';
+      const origin = trustedRequestOrigin(req);
       const returnUrl = orgId ? `${origin}?org=${orgId}&connect=success` : `${origin}?connect=success`;
       const link = await (stripe as any).accountLinks.create({
         account: accountId,
@@ -2565,8 +2621,8 @@ async function startServer() {
   // durable hqAuditLog collection (which SURVIVES the asset, whose own hqActivity is
   // deleted in the same sweep).
   app.post('/api/hq/retention/sweep', express.json(), async (req: any, res: any) => {
-    const key = req.query.key || req.headers['x-cron-key'];
-    if (key !== process.env.ADMIN_SEED_KEY && key !== process.env.CRON_SECRET) {
+    const key = req.headers['x-cron-key'];
+    if (!secretsEqual(key, process.env.ADMIN_SEED_KEY) && !secretsEqual(key, process.env.CRON_SECRET)) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     const now = Date.now();
@@ -2717,7 +2773,7 @@ async function startServer() {
   // Single-flight in the worker means this can't overlap a warm/startup pass.
   app.post('/api/terra/cron/ingest', express.json({ limit: '4kb' }), async (req: any, res) => {
     const expected = process.env.TERRA_CRON_KEY || '';
-    const provided = String(req.get('x-terra-cron-key') || req.query.key || '');
+    const provided = String(req.get('x-terra-cron-key') || '');
     const a = Buffer.from(provided);
     const b = Buffer.from(expected);
     if (!expected || a.length !== b.length || !nodeCrypto.timingSafeEqual(a, b)) {
@@ -2914,7 +2970,7 @@ async function startServer() {
       const packagingFee = (physicalRequested && customPackagingRequested) ? (tier.customPackagingFeeCents ?? 0) : 0;
       const subtotal = unitPrice * quantity + packagingFee;
 
-      const origin = req.headers.origin || 'https://plajah.com';
+      const origin = trustedRequestOrigin(req);
       const lineItems: any[] = [{ price_data: { currency: 'usd', product_data: { name: `${f.title?.stringValue} — ${tier.name}`, description: tier.description, ...(f.coverImage?.stringValue ? { images: [f.coverImage.stringValue] } : {}) }, unit_amount: unitPrice }, quantity }];
       if (packagingFee > 0) lineItems.push({ price_data: { currency: 'usd', product_data: { name: 'Custom Ticket Packaging' }, unit_amount: packagingFee }, quantity: 1 });
 
@@ -3001,7 +3057,7 @@ async function startServer() {
       if (f.holderUid?.stringValue !== req.uid && eventDoc?.fields?.creatorUid?.stringValue !== req.uid) return res.status(403).json({ error: 'Forbidden' });
       const apiKey = printNodeApiKey || process.env.PRINTNODE_API_KEY;
       if (!apiKey) return res.status(503).json({ error: 'Printer not configured — add PRINTNODE_API_KEY to env or pass in request' });
-      const ticketPdfUrl = `${req.headers.origin || 'https://plajah.com'}/print-ticket/${req.params.ticketId}`;
+      const ticketPdfUrl = `${trustedRequestOrigin(req)}/print-ticket/${req.params.ticketId}`;
       const printRes = await fetch('https://api.printnode.com/printjobs', {
         method: 'POST',
         headers: { Authorization: `Basic ${Buffer.from(`${apiKey}:`).toString('base64')}`, 'Content-Type': 'application/json' },
@@ -3041,8 +3097,8 @@ async function startServer() {
         return res.status(400).json({ error: 'Subscription pricing not configured yet. Contact support.' });
       }
 
-      const successUrl = `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?subscription=success`;
-      const cancelUrl  = `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?subscription=cancelled`;
+      const successUrl = `${trustedRequestOrigin(req)}/?subscription=success`;
+      const cancelUrl  = `${trustedRequestOrigin(req)}/?subscription=cancelled`;
 
       const session = await stripe.checkout.sessions.create({
         mode: 'subscription',
@@ -3106,8 +3162,8 @@ async function startServer() {
         return res.status(400).json({ error: 'subscriptionId and newCreatorId required' });
       }
 
-      const successUrl = `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?rebind=success`;
-      const cancelUrl  = `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?rebind=cancelled`;
+      const successUrl = `${trustedRequestOrigin(req)}/?rebind=success`;
+      const cancelUrl  = `${trustedRequestOrigin(req)}/?rebind=cancelled`;
 
       // Charge $2.99 one-time rebind fee
       const session = await stripe.checkout.sessions.create({
@@ -3160,8 +3216,8 @@ async function startServer() {
           },
           quantity: 1,
         }],
-        success_url: `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?ad=success`,
-        cancel_url:  `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?ad=cancelled`,
+        success_url: `${trustedRequestOrigin(req)}/?ad=success`,
+        cancel_url:  `${trustedRequestOrigin(req)}/?ad=cancelled`,
         metadata: {
           type: 'adpackage',
           uid,
@@ -3204,8 +3260,8 @@ async function startServer() {
           },
           quantity: 1,
         }],
-        success_url: `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?offplatform=success`,
-        cancel_url:  `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?offplatform=cancelled`,
+        success_url: `${trustedRequestOrigin(req)}/?offplatform=success`,
+        cancel_url:  `${trustedRequestOrigin(req)}/?offplatform=cancelled`,
         metadata: { type: 'offplatform', uid, tier, price: String(t.price / 100) },
       });
 
@@ -3237,8 +3293,8 @@ async function startServer() {
           },
           quantity: 1,
         }],
-        success_url: `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?pledge=success`,
-        cancel_url:  `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?pledge=cancelled`,
+        success_url: `${trustedRequestOrigin(req)}/?pledge=success`,
+        cancel_url:  `${trustedRequestOrigin(req)}/?pledge=cancelled`,
         metadata: {
           type: 'seedraiser_pledge',
           uid,
@@ -3267,7 +3323,7 @@ async function startServer() {
       if (!churchId || !amount || amount < 1) {
         return res.status(400).json({ error: 'churchId and amount (min $1) required' });
       }
-      const origin = req.headers.origin || 'https://gen-lang-client-0665118474.web.app';
+      const origin = trustedRequestOrigin(req);
       const isSub = !!recurring;
 
       // Route the gift to the CHURCH's connected Stripe account (destination charge)
@@ -3365,8 +3421,8 @@ async function startServer() {
         mode: 'payment',
         payment_method_types: ['card'],
         line_items: lineItems,
-        success_url: `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?order=success`,
-        cancel_url:  `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?order=cancelled`,
+        success_url: `${trustedRequestOrigin(req)}/?order=success`,
+        cancel_url:  `${trustedRequestOrigin(req)}/?order=cancelled`,
         metadata: { type: 'business_order', uid, businessId },
       });
 
@@ -3429,7 +3485,7 @@ async function startServer() {
   app.post('/api/mux/upload', authMiddleware, async (req, res) => {
     try {
       const mux = await getMux();
-      const corsOrigin = req.headers.origin || '*';
+      const corsOrigin = trustedRequestOrigin(req);
       const upload = await mux.video.uploads.create({
         new_asset_settings: MUX_ASSET_SETTINGS,
         cors_origin: corsOrigin,
@@ -4365,8 +4421,8 @@ Rules:
   };
 
   app.post('/api/cron/publish-due-posts', express.json(), async (req: any, res: any) => {
-    const key = req.query.key || req.headers['x-cron-key'];
-    if (key !== process.env.ADMIN_SEED_KEY && key !== process.env.CRON_SECRET) {
+    const key = req.headers['x-cron-key'];
+    if (!secretsEqual(key, process.env.ADMIN_SEED_KEY) && !secretsEqual(key, process.env.CRON_SECRET)) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     const token = await getGoogleAccessToken();
@@ -6303,7 +6359,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     const trackId = String(req.body?.trackId || '').trim();
     const srcUrl = String(req.body?.srcUrl || '').trim();
     if (!trackId || !srcUrl) return res.status(400).json({ error: 'trackId and srcUrl required' });
-    const publicBase = (process.env.PUBLIC_API_BASE || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+    const publicBase = (process.env.PUBLIC_API_BASE || trustedRequestOrigin(req)).replace(/\/+$/, '');
     firestoreWrite('choraStreams', trackId, { status: 'processing', updatedAt: Date.now() }).catch(() => {});
     let inPath: string | null = null;
     try {
@@ -6329,13 +6385,13 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // signed-in session provided was the token, which this key replaces. No apiLimiter — a backfill
   // is a deliberate, rate-controlled admin loop, not user traffic.
   app.post('/api/chora/transcode-admin', express.json({ limit: '256kb' }), async (req: any, res) => {
-    const key = String(req.query.key || req.headers['x-backfill-key'] || '');
+    const key = String(req.headers['x-backfill-key'] || '');
     const expected = process.env.CHORA_BACKFILL_KEY || '';
-    if (!expected || key !== expected) return res.status(403).json({ error: 'forbidden' });
+    if (!secretsEqual(key, expected)) return res.status(403).json({ error: 'forbidden' });
     const trackId = String(req.body?.trackId || req.query.trackId || '').trim();
     const srcUrl = String(req.body?.srcUrl || req.query.srcUrl || '').trim();
     if (!trackId || !srcUrl) return res.status(400).json({ error: 'trackId and srcUrl required' });
-    const publicBase = (process.env.PUBLIC_API_BASE || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+    const publicBase = (process.env.PUBLIC_API_BASE || trustedRequestOrigin(req)).replace(/\/+$/, '');
     firestoreWrite('choraStreams', trackId, { status: 'processing', updatedAt: Date.now() }).catch(() => {});
     let inPath: string | null = null;
     try {
@@ -6467,7 +6523,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     let status: any;
     try { status = JSON.parse(buf.toString()); } catch { return res.json({ ok: true, status: 'queued' }); }
     if (status?.status === 'done') {
-      const base = (process.env.PUBLIC_API_BASE || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+      const base = (process.env.PUBLIC_API_BASE || trustedRequestOrigin(req)).replace(/\/+$/, '');
       const out: any = { ok: true, status: 'done' };
       for (const stem of (status.stems || [])) out[stem] = `${base}/api/crossover/stems/${jobId}/${stem}`;
       return res.json(out);
@@ -6807,16 +6863,24 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     const sig = req.headers['mux-signature'] as string;
     const secret = process.env.MUX_WEBHOOK_SECRET;
 
-    // If webhook secret is configured, verify the signature
-    if (secret && sig) {
+    // Webhooks mutate privileged state: never accept them without a configured
+    // secret, a valid signature, and a fresh timestamp.
+    if (!secret) return res.status(503).json({ error: 'Webhook unavailable' });
+    if (!sig) return res.status(401).json({ error: 'Missing signature' });
+    {
       try {
         const body = req.body.toString('utf8');
         const ts = sig.split(',').find(p => p.startsWith('t='))?.split('=')[1];
         const v1 = sig.split(',').find(p => p.startsWith('v1='))?.split('=')[1];
         if (!ts || !v1) return res.status(400).json({ error: 'Invalid signature header' });
+        if (!/^\d+$/.test(ts) || Math.abs(Date.now() / 1000 - Number(ts)) > 300) {
+          return res.status(401).json({ error: 'Stale signature' });
+        }
         const crypto = await import('crypto');
         const expected = crypto.createHmac('sha256', secret).update(`${ts}.${body}`).digest('hex');
-        if (!crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(v1, 'hex'))) {
+        const actual = Buffer.from(v1, 'hex');
+        const wanted = Buffer.from(expected, 'hex');
+        if (actual.length !== wanted.length || !crypto.timingSafeEqual(wanted, actual)) {
           return res.status(401).json({ error: 'Signature mismatch' });
         }
       } catch (err) {
@@ -7023,7 +7087,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
 
       const orderId = `so_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
       const appFee = Math.round(subtotalCents * (STORE_APP_FEE_BPS / 10000));
-      const origin = req.headers.origin || (process.env.VITE_APP_URL ?? 'https://plajah.com');
+      const origin = trustedRequestOrigin(req);
       const session = await getStripe().checkout.sessions.create({
         mode: 'payment',
         payment_method_types: ['card'],
@@ -7213,8 +7277,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
           },
           quantity: 1,
         }],
-        success_url: `${req.headers.origin ?? process.env.VITE_APP_URL ?? ''}/?club_join=${clubId}&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${req.headers.origin ?? process.env.VITE_APP_URL ?? ''}/?club=${clubId}`,
+        success_url: `${trustedRequestOrigin(req)}/?club_join=${clubId}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${trustedRequestOrigin(req)}/?club=${clubId}`,
         metadata: { type: 'club_membership', clubId, uid: req.uid },
         client_reference_id: req.uid,
       });
@@ -7235,7 +7299,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const annual = billingCycle === 'ANNUAL';
       const amount = annual ? Math.round((annualPrice || monthlyPrice * 12 * 0.9) * 100) : Math.round(monthlyPrice * 100);
       const stripe = getStripe();
-      const origin = req.headers.origin ?? process.env.VITE_APP_URL ?? '';
+      const origin = trustedRequestOrigin(req);
       const session = await stripe.checkout.sessions.create({
         mode: 'subscription',
         payment_method_types: ['card'],
@@ -7271,7 +7335,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         return res.status(400).json({ error: 'creatorId, itemId and a positive price are required' });
       }
       const stripe = getStripe();
-      const origin = req.headers.origin ?? process.env.VITE_APP_URL ?? '';
+      const origin = trustedRequestOrigin(req);
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
         payment_method_types: ['card'],
@@ -7310,7 +7374,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       }
       const g = grant === 'RENTAL' || grant === 'PPV' ? grant : 'PURCHASE';
       const stripe = getStripe();
-      const origin = req.headers.origin ?? process.env.VITE_APP_URL ?? '';
+      const origin = trustedRequestOrigin(req);
       const noun = kind === 'book' ? 'Book' : 'Film';
       const verb = g === 'RENTAL' ? 'Rental' : g === 'PPV' ? 'Premiere' : 'Purchase';
       const session = await stripe.checkout.sessions.create({
@@ -7378,7 +7442,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const amountCents = Math.round(amount * 100);
       const appFeeCents = Math.round(amountCents * feePct);
 
-      const origin = req.headers.origin ?? process.env.VITE_APP_URL ?? '';
+      const origin = trustedRequestOrigin(req);
       const productName = kind === 'DONATION'
         ? `${campaignTitle || 'Fundraiser'} — Donation`
         : `${campaignTitle || 'Project'} — Pledge`;
@@ -7571,7 +7635,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       if (!items?.length || !artistId) return res.status(400).json({ error: 'Missing items or artistId' });
 
       const stripe = getStripe();
-      const origin = req.headers.origin ?? process.env.VITE_APP_URL ?? '';
+      const origin = trustedRequestOrigin(req);
       const orderId = `merch-${Date.now()}-${req.uid.slice(0, 6)}`;
 
       // Build Stripe line items (retail price — Plajah takes fee from revenue share)
@@ -8274,6 +8338,9 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
   app.use('/api/learner-auth/login', authLimiter);
   app.use('/api/learner-auth', express.json({ limit: '10kb' }), learnerAuthRouter);
 
+  // Emergent-school backend — resolve/create schools, confirm colleagues, claim, provision.
+  app.use('/api/schools', express.json({ limit: '16kb' }), schoolsRouter);
+
   // ── The Post Man (native mail client — per-user, per-account Gmail) ───────────
   app.use('/api/postman', express.json({ limit: '1mb' }), postmanRouter);
 
@@ -8304,7 +8371,7 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
     startTerraIngestionScheduler({ intervalMs });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Mesh Server running on http://localhost:${PORT}`);
     // Log env var status at startup so Cloud Run logs reveal config issues immediately
     const encKey = process.env.ENCRYPTION_KEY ?? '';
@@ -8323,6 +8390,10 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
     console.log('[Config] VITE_AZURE_SPEECH_KEY (MAI Voice 2 / Transcribe 1.5):', (process.env.VITE_AZURE_SPEECH_KEY ?? '').length > 0 ? 'set' : 'MISSING — add VITE_AZURE_SPEECH_KEY for audiobook features');
     console.log('[Config] VITE_APP_URL:', process.env.VITE_APP_URL ?? '(not set)');
   });
+  // Bound slow-client resource consumption (slowloris/request smuggling class).
+  server.requestTimeout = 120_000;
+  server.headersTimeout = 65_000;
+  server.keepAliveTimeout = 60_000;
 }
 
 startServer();

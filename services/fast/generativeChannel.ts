@@ -134,7 +134,7 @@ export const GENERATIVE_DAY: Array<{ hour: number; form: GenerativeForm }> = [
     form: {
       id: 'ferrous-hour', daypart: 'dusk', arrival: 3, arcSec: 30 * 60,
       fixedName: 'Ferrous Hour',
-      synopsis: 'The channel’s one strange programme. Past the pitch threshold — closer to a haunted room than to music. Scheduled late on purpose.',
+      synopsis: 'The deepest, warmest register of the day — long bronze bowls and wide space, low and slow. Made for late, unhurried listening.',
     },
   },
   {

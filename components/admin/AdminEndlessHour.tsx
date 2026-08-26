@@ -20,6 +20,7 @@ import {
   type EndlessHourConfig, type InflectionSong,
 } from '../../services/fast/inflection';
 import { programmeAt, arcPositionAt } from '../../services/fast/generativeChannel';
+import { DEFAULT_TUNING, setTuning, loadTuning, type SoundTuning } from '../../services/ora/stillness/soundTuning';
 import EndlessHourPlayer from '../tv/EndlessHourPlayer';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -76,12 +77,26 @@ const AdminEndlessHour: React.FC = () => {
   const [uploading, setUploading] = useState<Array<{ id: string; name: string; progress: number; error?: string }>>([]);
   const filesInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
+  /** Live sound knobs. Editing a slider updates the engine (setTuning) AND this state; Save persists. */
+  const [sound, setSound] = useState<SoundTuning>(DEFAULT_TUNING);
 
   useEffect(() => {
     let alive = true;
-    fetchEndlessHourConfig().then((c) => { if (alive) { setConfig(c); setLoading(false); } });
+    fetchEndlessHourConfig().then((c) => {
+      if (!alive) return;
+      setConfig(c);
+      const s = c.sound ?? DEFAULT_TUNING;
+      setSound(s);
+      loadTuning(s); // so the in-tab preview reflects the saved values immediately
+      setLoading(false);
+    });
     return () => { alive = false; };
   }, []);
+
+  const patchSound = (patch: Partial<SoundTuning>) => {
+    setSound((s) => ({ ...s, ...patch }));
+    setTuning(patch); // live — heard immediately if the preview is running
+  };
 
   // The live viewer ticks once a second — enough for a channel that moves over minutes.
   useEffect(() => {
@@ -132,7 +147,7 @@ const AdminEndlessHour: React.FC = () => {
   const save = async () => {
     setSaving(true);
     try {
-      await updateEndlessHourConfig(config);
+      await updateEndlessHourConfig({ ...config, sound });
       await syncInflectionPlaylist(config.pool);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -250,6 +265,37 @@ const AdminEndlessHour: React.FC = () => {
           <Field label="Inflection decay (min)" hint="how long the sound carries a song afterward"><input type="number" className={inputCls} value={Math.round(config.policy.inflectionDecaySec / 60)} onChange={(e) => patchPolicy({ inflectionDecaySec: Math.max(60, Number(e.target.value) * 60) })} /></Field>
           <Field label={`Inflection strength · ${(config.policy.inflectionStrength * 100).toFixed(0)}%`} hint="how far a song bends the engine"><input type="range" min={0} max={1} step={0.05} value={config.policy.inflectionStrength} onChange={(e) => patchPolicy({ inflectionStrength: Number(e.target.value) })} /></Field>
           <Field label={`Sola song chance · ${(config.policy.solaSongChance * 100).toFixed(0)}%`} hint="odds a private burst gets a song"><input type="range" min={0} max={1} step={0.05} value={config.policy.solaSongChance} onChange={(e) => patchPolicy({ solaSongChance: Number(e.target.value) })} /></Field>
+        </div>
+      </div>
+
+      {/* ── SOUND (live) ────────────────────────────────────────────── */}
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 mb-6">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Sound · live</span>
+          <button onClick={() => { setSound({ ...DEFAULT_TUNING }); loadTuning(DEFAULT_TUNING); }} className="text-[10px] font-bold text-white/40 hover:text-white uppercase tracking-widest">Reset</button>
+        </div>
+        <p className="text-[11px] text-white/35 mb-4">Turn on <b className="text-white/60">Preview channel</b> above and these move the sound in real time. Save to make them live for everyone.</p>
+        <div className="grid sm:grid-cols-3 gap-x-5 gap-y-3">
+          {([
+            ['master', 'Master level', 'overall channel output'],
+            ['warmth', 'Warmth', 'low-mid body'],
+            ['brightness', 'Brightness', 'highs / whine — lower = softer'],
+            ['reverb', 'Reverb', 'space'],
+            ['delay', 'Delay / echo', 'wet amount'],
+            ['leadLevel', 'Synth level', 'the ONDA pad + melody voice'],
+            ['leadCutoff', 'Synth tone', 'filter cutoff'],
+            ['leadAttack', 'Synth attack', 'how fast notes bloom'],
+            ['melody', 'Melody', 'how present the tune is'],
+            ['arp', 'Arpeggio', '80s pluck sequence — 0 turns it off'],
+            ['bass', 'Bassline', 'arpeggiated bass — 0 turns it off'],
+            ['kick', 'Soft kick', 'the muted beat — 0 turns it off'],
+            ['bells', 'Bells', 'bright modal accents — keep low'],
+          ] as Array<[keyof SoundTuning, string, string]>).map(([key, label, hint]) => (
+            <Field key={key} label={`${label} · ${Math.round((sound[key] as number) * 100)}%`} hint={hint}>
+              <input type="range" min={0} max={1} step={0.02} value={sound[key] as number}
+                onChange={(e) => patchSound({ [key]: Number(e.target.value) } as Partial<SoundTuning>)} />
+            </Field>
+          ))}
         </div>
       </div>
 

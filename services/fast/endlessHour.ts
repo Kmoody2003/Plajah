@@ -207,6 +207,7 @@ export class EndlessHour {
       // a muted pulse that comes and goes, and a Turn softened into a swell so nothing on a calm
       // field left running ever arrives as a jolt.
       arp: true,
+      // The pulse is the soft KICK now, gated by the kick knob (zeroing it retires the worklet).
       pulse: true,
       gentleTurn: true,
       melody: true,

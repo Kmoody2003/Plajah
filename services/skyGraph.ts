@@ -60,6 +60,12 @@ const SUBJECT_ANCHOR: Partial<Record<Subject, { x: number; y: number }>> = {
   ARTS:     { x: 0.14, y: 0.74 },
   LANGUAGE: { x: 0.60, y: 0.10 },
   CS:       { x: 0.90, y: 0.20 },
+  // Flagship-program constellations
+  CIVICS:     { x: 0.36, y: 0.56 },
+  ECON:       { x: 0.66, y: 0.50 },
+  FINLIT:     { x: 0.20, y: 0.50 },
+  REALESTATE: { x: 0.80, y: 0.86 },
+  PHILOSOPHY: { x: 0.10, y: 0.16 },
 };
 
 /** Longest path to each domain through the prerequisite DAG. Cycles are tolerated rather than

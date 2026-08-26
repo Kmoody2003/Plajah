@@ -10,7 +10,7 @@
 // deterministically for the demo; in production this reads learnerProficiency for each student.
 
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, LayoutGrid, Wand2, ClipboardCheck, Sparkles, Check, Plug, Globe, Download, CalendarDays, FileDown, Send, Trash2, Plus, ListChecks, Printer, Library, Copy, ExternalLink, Music, Film, Image as ImageIcon, Camera, UploadCloud, Loader2, Bell, Users, MessageSquare, Hand, Palette, ScanLine, KeyRound, RefreshCw, BookOpen, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, Wand2, ClipboardCheck, Sparkles, Check, Plug, Globe, Download, CalendarDays, FileDown, Send, Trash2, Plus, ListChecks, Printer, Library, Copy, ExternalLink, Music, Film, Image as ImageIcon, Camera, UploadCloud, Loader2, Bell, Users, MessageSquare, Hand, Palette, ScanLine, KeyRound, RefreshCw, BookOpen, ShieldCheck, ZoomIn, ZoomOut, Maximize2, Minimize2 } from 'lucide-react';
 import LessonContentPicker, { type PickedResource } from './LessonContentPicker';
 import { DEMO_CLASS } from '../data/demoClassroom';
 import {
@@ -24,12 +24,19 @@ import {
   type CheckQuestion,
 } from '../services/interopService';
 import { ORG_TYPES, FRAMEWORK_OVERLAYS, DEFAULT_CONTEXT, type LearningContextSettings } from '../data/deploymentContexts';
-import { digitizeWorksheet, completionPercent, type DigitalWorksheet, type WorksheetField } from '../services/worksheetDigitizer';
+import { digitizeWorksheetDetailed, completionPercent, type DigitalWorksheet, type WorksheetField } from '../services/worksheetDigitizer';
 import { publishWorksheet, type WireResult } from '../services/worksheetAssignmentService';
+import { prepareWorksheetImage, type PreparedWorksheetImage } from '../services/worksheetImagePipeline';
+import { worksheetToTelaDoc } from '../services/worksheetTelaAdapter';
+import { autoFormatDigitalWorksheet } from '../services/telaAssignmentAutoFormat';
+import { rebuildDocumentIntelligently, type TelaModelProgress } from '../services/telaDocumentIntelligence';
+import { recordAssignmentQualityEvent, submitAssignmentQualityFeedback } from '../services/assignmentQualityService';
+import { saveTelaDoc } from '../services/telaStore';
 import WorksheetTutorPanel from './WorksheetTutorPanel';
 import WorksheetFillable from './WorksheetFillable';
 import IntegrityWallPanel from './academia/IntegrityWallPanel';
 import AssignmentTemplateStudio from './academia/AssignmentTemplateStudio';
+import TurnInBriefView from './academia/TurnInBriefView';
 
 export interface LessonPlan {
   id: string; title: string; subject: Subject; band: string; standardCode: string;
@@ -92,7 +99,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
 
   return (
     <div style={{ minHeight: '100%', background: T.bg, color: T.ink, padding: '20px 16px 70px', fontFamily: T.font }}>
-      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+      <div style={{ maxWidth: tab === 'worksheet' ? 1500 : 1000, margin: '0 auto' }}>
         {onBack && <button onClick={onBack} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, border: `1px solid ${T.border}`, background: 'transparent', color: '#bbb', fontSize: 12.5, cursor: 'pointer', fontWeight: 600 }}><ArrowLeft size={16} /> Back</button>}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
@@ -170,52 +177,77 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
 // on the scan. The auto-wire panel (assign · notify parents · attach tutor · arm grading) is scaffolded
 // here — the glue service that actually fires those is the next build.
 
-const readAsBase64 = (file: File): Promise<{ base64: string; dataUrl: string }> =>
-  new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => {
-      const dataUrl = String(r.result || '');
-      resolve({ base64: dataUrl.split(',')[1] || '', dataUrl });
-    };
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(file);
-  });
-
 type ScanStage = 'capture' | 'digitizing' | 'ready' | 'error';
 
 const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
   const [stage, setStage] = useState<ScanStage>('capture');
   const [preview, setPreview] = useState<string>('');
+  const [prepared, setPrepared] = useState<PreparedWorksheetImage | null>(null);
   const [sheet, setSheet] = useState<DigitalWorksheet | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [themed, setThemed] = useState(false);
   const [published, setPublished] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [showTutor, setShowTutor] = useState(false);
+  const [showBrief, setShowBrief] = useState(false);
   const [wire, setWire] = useState<WireResult | null>(null);
   const [err, setErr] = useState('');
+  const [reviewZoom, setReviewZoom] = useState(1);
+  const [inspectionOpen, setInspectionOpen] = useState(false);
+  const [reviewSurface, setReviewSurface] = useState<'FILLABLE' | 'LAYERS'>('FILLABLE');
+  const [onionSkin, setOnionSkin] = useState(false);
+  const [layeredRebuild, setLayeredRebuild] = useState<Awaited<ReturnType<typeof rebuildDocumentIntelligently>> | null>(null);
+  const [layeredBusy, setLayeredBusy] = useState(false);
+  const [layeredProgress, setLayeredProgress] = useState<TelaModelProgress | null>(null);
+  const [layeredError, setLayeredError] = useState('');
+  const [formatUndo, setFormatUndo] = useState<DigitalWorksheet | null>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
+  const scanSessionId = React.useRef(`scan_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`);
+
+  const runLayeredRebuild = async (source = prepared?.cleanedDataUrl, options?: { semanticNaming?: 'auto' | 'require' | 'skip' }) => {
+    if (!source || layeredBusy) return;
+    setLayeredBusy(true); setLayeredError(''); setLayeredProgress({ phase: 'CHECKING', message: 'Preparing layered reconstruction…' });
+    try {
+      const result = await rebuildDocumentIntelligently(source, setLayeredProgress, options);
+      setLayeredRebuild(result); setReviewSurface('LAYERS');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Layered reconstruction failed.';
+      setLayeredError(message);
+      void recordAssignmentQualityEvent({ worksheetId: scanSessionId.current, title: sheet?.title || 'Worksheet scan', actorId: user?.uid, actorName: user?.displayName, actorRole: 'TEACHER', kind: 'SCAN_FAILURE', severity: 'ERROR', source: 'ScanWorksheet.layeredRebuild', message, simulate: !user?.uid });
+    } finally { setLayeredBusy(false); }
+  };
+
+  const applyAutoFormat = () => {
+    if (!sheet || !layeredRebuild) return;
+    const formatted = autoFormatDigitalWorksheet(sheet);
+    setFormatUndo(sheet); setSheet(formatted.sheet);
+  };
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    setErr(''); setAnswers({}); setThemed(false); setPublished(false);
+    setErr(''); setAnswers({}); setThemed(false); setPublished(false); setLayeredRebuild(null); setLayeredError(''); setLayeredProgress(null); setReviewSurface('FILLABLE'); setFormatUndo(null);
     try {
-      const { base64, dataUrl } = await readAsBase64(file);
-      setPreview(dataUrl);
+      const image = await prepareWorksheetImage(file);
+      setPrepared(image);
+      setPreview(image.originalDataUrl);
       setStage('digitizing');
-      const result = await digitizeWorksheet(base64, file.type || 'image/jpeg', user?.uid || 'demo-teacher');
-      if (!result) { setErr('Could not read that worksheet. Try a clearer, well-lit photo.'); setStage('error'); return; }
-      setSheet(result);
+      const result = await digitizeWorksheetDetailed(image.cleanedBase64, image.mimeType, user?.uid || 'demo-teacher');
+      if (!result.ok || !result.sheet) { setErr(result.error?.message || 'Could not read that worksheet. Try a clearer, well-lit photo.'); setStage('error'); return; }
+      setSheet({ ...result.sheet, reviewIssues: [...(result.sheet.reviewIssues || []), ...image.warnings] });
       setStage('ready');
+      // The reprint reconstruction is deterministic and fully local — always build it.
+      // Florence naming joins automatically when its pack is already installed.
+      void runLayeredRebuild(image.cleanedDataUrl);
     } catch (e: any) {
       setErr(e?.message || 'Something went wrong reading the image.');
       setStage('error');
+      void recordAssignmentQualityEvent({ worksheetId: scanSessionId.current, title: file.name, actorId: user?.uid, actorName: user?.displayName, actorRole: 'TEACHER', kind: 'SCAN_FAILURE', severity: 'ERROR', source: 'ScanWorksheet.capture', message: e?.message || 'Worksheet scan failed', simulate: !user?.uid });
     }
   };
 
-  const reset = () => { setStage('capture'); setSheet(null); setPreview(''); setAnswers({}); setErr(''); setPublished(false); setWire(null); setPublishing(false); };
+  const reset = () => { setStage('capture'); setSheet(null); setPrepared(null); setPreview(''); setAnswers({}); setErr(''); setPublished(false); setWire(null); setPublishing(false); setLayeredRebuild(null); setLayeredError(''); setLayeredProgress(null); setReviewSurface('FILLABLE'); setFormatUndo(null); setShowBrief(false); scanSessionId.current = `scan_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`; };
 
   // Publish & auto-wire. The demo roster (DEMO_CLASS) isn't real accounts, so we run in simulate
   // mode: the worksheet is really persisted, but the notification fan-out is computed, not sprayed
@@ -224,16 +256,23 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
     if (!sheet || publishing) return;
     setPublishing(true);
     try {
+      const tela = worksheetToTelaDoc(sheet, user?.uid || 'demo-teacher', preview, layeredRebuild || undefined);
+      const telaSaved = await saveTelaDoc(tela);
+      const publishable = { ...sheet, telaDocId: telaSaved.ok ? tela.id : undefined };
+      setSheet(publishable);
       const res = await publishWorksheet({
-        sheet,
+        sheet: publishable,
         classId: DEMO_CLASS.id || 'demo-4b',
         className: DEMO_CLASS.name,
         students: DEMO_CLASS.students.map(s => ({ id: s.id, name: s.name })),
         teacher: { uid: user?.uid || 'demo-teacher', name: user?.displayName || DEMO_CLASS.teacherName, photo: user?.photoURL || '' },
         simulate: true,
+        originalFile: prepared?.originalFile,
       });
       setWire(res);
-    } catch { /* keep UI success — wiring is best-effort in demo */ }
+    } catch (error) {
+      void recordAssignmentQualityEvent({ worksheetId: scanSessionId.current, title: sheet.title, actorId: user?.uid, actorName: user?.displayName, actorRole: 'TEACHER', kind: 'SUBMISSION_FAILURE', severity: 'ERROR', source: 'ScanWorksheet.publish', message: error instanceof Error ? error.message : 'Worksheet publish failed', simulate: !user?.uid });
+    }
     setPublished(true);
     setPublishing(false);
   };
@@ -244,7 +283,19 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
   return (
     <div>
       <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onFile} style={{ display: 'none' }} />
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .worksheet-review-grid{display:grid;grid-template-columns:repeat(2,minmax(440px,1fr));gap:12px;overflow-x:auto;min-height:620px}
+        .worksheet-review-pane{height:580px;overflow:auto;border-radius:10px;background:#08080c;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+        .worksheet-review-toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+        @media(max-width:720px){
+          .worksheet-review-grid{grid-template-columns:minmax(0,1fr);min-height:0;overflow-x:hidden}
+          .worksheet-review-pane{height:62vh;min-height:430px}
+          .worksheet-review-toolbar{width:100%;overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px}
+          .worksheet-review-toolbar button{flex:0 0 auto;min-width:40px;min-height:40px}
+          .worksheet-inspection{inset:0!important;border-radius:0!important;padding:10px!important}
+        }
+      `}</style>
 
       {/* Capture card — the only required teacher action */}
       {stage === 'capture' && (
@@ -272,7 +323,7 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: T.ink, fontWeight: 700 }}>
             <Loader2 size={18} className="spin" style={{ animation: 'spin 1s linear infinite' }} /> Digitizing worksheet…
           </div>
-          <div style={{ fontSize: 12, color: T.muted }}>Reading questions · extracting the answer key · tagging standards</div>
+            <div style={{ fontSize: 12, color: T.muted }}>Cleaning page · OCR · separating diagrams · rebuilding Tela form · checking answers</div>
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       )}
@@ -289,19 +340,30 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
       {/* Ready — digitized, fillable, auto-wired */}
       {stage === 'ready' && sheet && (
         <>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }}>
           {/* Left: the fillable overlay on the scan */}
-          <div style={{ ...cardStyle, padding: 16 }}>
+          <div className={inspectionOpen ? 'worksheet-inspection' : undefined} style={{ ...cardStyle, padding: 16, ...(inspectionOpen ? { position: 'fixed', inset: 12, zIndex: 9999, background: '#0c0c12', overflow: 'auto' } : {}) }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
               <Eyebrow color={accent}>Digitized · fillable</Eyebrow>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div className="worksheet-review-toolbar">
+                <button onClick={() => setReviewZoom(value => Math.max(.6, +(value - .2).toFixed(1)))} aria-label="Zoom out" style={{ ...chip(false), padding: 7 }}><ZoomOut size={13} /></button>
+                <span style={{ minWidth: 42, textAlign: 'center', fontSize: 10, color: T.muted }}>{Math.round(reviewZoom * 100)}%</span>
+                <button onClick={() => setReviewZoom(value => Math.min(2.5, +(value + .2).toFixed(1)))} aria-label="Zoom in" style={{ ...chip(false), padding: 7 }}><ZoomIn size={13} /></button>
+                <button onClick={() => { setReviewZoom(1); setInspectionOpen(value => !value); }} aria-label={inspectionOpen ? 'Exit full screen review' : 'Open full screen review'} style={{ ...chip(inspectionOpen, accent), padding: 7 }}>{inspectionOpen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}</button>
                 <button onClick={() => setShowTutor(s => !s)} style={{ ...chip(showTutor, accent), display: 'inline-flex', alignItems: 'center', gap: 5 }}><MessageSquare size={12} /> Tutor</button>
+                <button onClick={() => void runLayeredRebuild()} disabled={layeredBusy} style={{ ...chip(!!layeredRebuild, T.blue), display: 'inline-flex', alignItems: 'center', gap: 5, opacity: layeredBusy ? .7 : 1 }}><Sparkles size={12} /> {layeredBusy ? 'Building layers…' : layeredRebuild ? 'Rebuild layers' : 'Build editable layers'}</button>
+                <button onClick={applyAutoFormat} disabled={!layeredRebuild || !!sheet.autoFormat} style={{ ...chip(!!sheet.autoFormat, T.violet), display: 'inline-flex', alignItems: 'center', gap: 5, opacity: layeredRebuild ? 1 : .45 }}><Wand2 size={12} /> {sheet.autoFormat ? 'Plajah Plus formatted' : 'Auto Format'}</button>
+                {formatUndo && <button onClick={() => { setSheet(formatUndo); setFormatUndo(null); }} style={{ ...chip(false), display: 'inline-flex', alignItems: 'center', gap: 5 }}><ArrowLeft size={12}/> Undo format</button>}
                 <button onClick={() => setThemed(t => !t)} style={{ ...chip(themed, T.violet), display: 'inline-flex', alignItems: 'center', gap: 5 }}><Palette size={12} /> {themed ? 'Themed' : 'Theme it'}</button>
                 <button onClick={reset} style={{ ...chip(false), display: 'inline-flex', alignItems: 'center', gap: 5 }}><RefreshCw size={12} /> New</button>
               </div>
             </div>
             <div style={{ fontWeight: 900, fontSize: 17, marginBottom: 10, color: accent }}>{sheet.title}</div>
-            <WorksheetFillable sheet={sheet} preview={preview} answers={answers} setAnswers={setAnswers} accent={accent} />
+            <div className="worksheet-review-grid" style={inspectionOpen ? { minHeight: 'calc(100vh - 150px)' } : undefined}>
+              <div style={{ minWidth: 0 }}><div style={{ fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '.14em', color: T.faint, fontWeight: 800, marginBottom: 6 }}>Original · stored unchanged</div><div className="worksheet-review-pane" style={{ ...(inspectionOpen ? { height: 'calc(100vh - 175px)' } : {}), border: `1px solid ${T.border}` }}><div style={{ width: `${reviewZoom * 100}%`, minWidth: '100%' }}><img src={preview} alt="Original worksheet scan" style={{ width: '100%', display: 'block', background: '#fff' }} /></div></div></div>
+              <div style={{ minWidth: 0 }}><div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}><div style={{ fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '.14em', color: accent, fontWeight: 800 }}>{reviewSurface === 'LAYERS' ? 'Layered reconstruction · editable vectors + text' : 'Faithful page · digital response fields'}</div>{layeredRebuild && reviewSurface === 'LAYERS' && <button onClick={() => setOnionSkin(value => !value)} style={{ ...chip(onionSkin, T.gold), marginLeft: 'auto', padding: '4px 8px', fontSize: 9 }}>Onion skin</button>}{layeredRebuild && <button onClick={() => setReviewSurface(value => value === 'LAYERS' ? 'FILLABLE' : 'LAYERS')} style={{ ...chip(false), marginLeft: reviewSurface === 'LAYERS' ? 0 : 'auto', padding: '4px 8px', fontSize: 9 }}>{reviewSurface === 'LAYERS' ? 'Show fillable' : 'Show layers'}</button>}</div><div className="worksheet-review-pane" style={{ ...(inspectionOpen ? { height: 'calc(100vh - 175px)' } : {}), border: `1px solid ${T.border}` }}><div style={{ width: `${reviewZoom * 100}%`, minWidth: '100%' }}>{reviewSurface === 'LAYERS' && layeredRebuild ? <div style={{ position: 'relative' }}><img src={layeredRebuild.previewUrl} alt="Layered editable reconstruction" style={{ width: '100%', display: 'block', background: '#fff' }}/>{onionSkin && <img src={preview} alt="Original scan overlay" style={{ position: 'absolute', inset: 0, width: '100%', opacity: .35, pointerEvents: 'none' }}/>}</div> : <WorksheetFillable sheet={sheet} preview={preview} answers={answers} setAnswers={setAnswers} accent={accent} mode="rebuilt" />}</div></div></div>
+            </div>
+            {(layeredBusy || layeredError || layeredRebuild) && <div style={{ marginTop: 10, padding: 10, borderRadius: 10, background: layeredError ? `${T.red}10` : `${T.blue}10`, border: `1px solid ${layeredError ? T.red : T.blue}35`, fontSize: 11, color: layeredError ? T.red : T.muted }}>{layeredBusy ? layeredProgress?.message || 'Building separate layout, artwork, text and interaction layers…' : layeredError || (layeredRebuild ? <><div>{layeredRebuild.layers.layout} layout objects · {layeredRebuild.layers.artwork} artwork spline layers · {layeredRebuild.layers.text} editable text objects · {layeredRebuild.layers.interaction} response fields.</div>{layeredRebuild.artworkRegions?.length ? <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginTop:7 }}>{layeredRebuild.artworkRegions.map(region => <span key={region.id} style={{ padding:'3px 7px', borderRadius:99, border:`1px solid ${region.status === 'FALLBACK_IMAGE' ? T.gold : T.green}55`, color:region.status === 'FALLBACK_IMAGE' ? T.gold : T.green }}>{region.label} · {region.status === 'FALLBACK_IMAGE' ? 'clean cutout · needs trace review' : `${region.editablePathCount}/${region.pathCount} pen-editable splines`}</span>)}</div> : <div style={{ color:T.muted, marginTop:5 }}>No artwork ink beyond text and rules was found on this page.</div>}{layeredRebuild.semanticNaming === 'LOCAL' && <div style={{ marginTop:7, display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}><span style={{ color:T.faint }}>Artwork was rebuilt locally without semantic names.</span><button onClick={() => void runLayeredRebuild(undefined, { semanticNaming: 'require' })} style={{ ...chip(false, T.blue), padding:'3px 8px', fontSize:10 }}>Name artwork · install pack (≈300 MB, on-device)</button></div>}</> : '')}</div>}
             {/* live fill progress (what teacher + parent see) */}
             <div style={{ marginTop: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: T.muted, marginBottom: 4 }}><span>Student fill progress (live to teacher + parent)</span><span>{fillPct}%</span></div>
@@ -316,12 +378,19 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
               <DetectRow label="Subject" value={sheet.subject} />
               <DetectRow label="Objective" value={sheet.objective || '—'} />
               <DetectRow label="Grade" value={[sheet.gradeBand, sheet.framework].filter(Boolean).join(' · ') || '—'} />
+              <DetectRow label="Scan score" value={`${sheet.scanAssessment?.score ?? Math.round((sheet.confidence || 0) * 100)}/100 · ${sheet.segments?.length || 0} regions`} />
+              <DetectRow label="Reconstruction" value={layeredRebuild ? `${layeredRebuild.layers.artwork} vector art · ${layeredRebuild.layers.text} text · ${layeredRebuild.layers.layout} layout` : 'Not built yet'} />
+              {sheet.autoFormat && <DetectRow label="Auto Format" value={`${Math.round(sheet.autoFormat.confidence * 100)}% · ${sheet.autoFormat.summary}`} />}
+              {sheet.scanAssessment && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, marginTop: 8 }}>{[['Text',sheet.scanAssessment.textConfidence],['Layout',sheet.scanAssessment.layoutFidelity],['Fields',sheet.scanAssessment.fieldCoverage],['Understanding',sheet.scanAssessment.understandingConfidence]].map(([label,value]) => <div key={String(label)} style={{ padding: 7, borderRadius: 8, background: T.cardAlt, fontSize: 10, color: T.muted }}><b style={{ color: Number(value) >= 70 ? T.green : T.gold }}>{value}%</b> {label}</div>)}</div>}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 12.5, color: T.green, fontWeight: 700 }}>
                 <KeyRound size={13} /> Answer key · {sheet.fields.filter(f => f.correctAnswer !== undefined).length}/{sheet.fields.length} auto-gradable
               </div>
               {sheet.hasManualFields && <div style={{ marginTop: 4, fontSize: 11, color: T.gold }}>Some open-response fields need your review.</div>}
               {sheet.standardIds.length > 0 && <div style={{ marginTop: 8, display: 'flex', gap: 5, flexWrap: 'wrap' }}>{sheet.standardIds.slice(0, 6).map(s => <span key={s} style={{ fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 99, background: `${T.blue}22`, color: T.blue }}>{s}</span>)}</div>}
+              {!!sheet.reviewIssues?.length && <div style={{ marginTop: 10, padding: 10, borderRadius: 10, background: `${T.gold}12`, border: `1px solid ${T.gold}35` }}><div style={{ color: T.gold, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.1em' }}>Verify before assigning</div>{sheet.reviewIssues.map((issue, i) => <div key={i} style={{ fontSize: 11, color: T.muted, marginTop: 4 }}>{issue}</div>)}</div>}
             </div>
+
+            <WorksheetAccuracyEditor sheet={sheet} onChange={setSheet} accent={accent} onQualityRating={(rating) => { void submitAssignmentQualityFeedback({ worksheetId: wire?.worksheetId || scanSessionId.current, assignmentId: wire?.assignmentId, title: sheet.title, actorId: user?.uid, actorName: user?.displayName, actorRole: 'TEACHER', rating, category: 'ACCURACY', simulate: !user?.uid }); }} />
 
             <div style={{ ...cardStyle, padding: 16 }}>
               <Eyebrow>Auto-wired on publish</Eyebrow>
@@ -341,6 +410,16 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
             </div>
           </div>
         </div>
+        {published && (
+          <div style={{ marginTop: 14 }}>
+            <button onClick={() => setShowBrief(v => !v)} style={{ ...chip(showBrief, T.blue), display: 'inline-flex', alignItems: 'center', gap: 6 }}><ClipboardCheck size={13} /> {showBrief ? 'Hide turn-in brief' : 'See turn-in brief (how the class did)'}</button>
+            {showBrief && (
+              <div style={{ marginTop: 12 }}>
+                <TurnInBriefView sheet={sheet} roster={DEMO_CLASS.students.map(st => ({ id: st.id, name: st.name }))} simulate />
+              </div>
+            )}
+          </div>
+        )}
         {showTutor && (
           <div style={{ marginTop: 14 }}>
             <Eyebrow color={accent}>In-worksheet tutor · live preview (guides, never gives the answer)</Eyebrow>
@@ -351,6 +430,18 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
       )}
     </div>
   );
+};
+
+const WorksheetAccuracyEditor: React.FC<{ sheet: DigitalWorksheet; onChange: (sheet: DigitalWorksheet) => void; accent: string; onQualityRating?: (rating: number) => void }> = ({ sheet, onChange, accent, onQualityRating }) => {
+  const corrected = (next: DigitalWorksheet) => onChange({ ...next, scanAssessment: next.scanAssessment ? { ...next.scanAssessment, teacherCorrections: (next.scanAssessment.teacherCorrections || 0) + 1 } : undefined });
+  const patchField = (id: string, patch: Partial<WorksheetField>) => corrected({ ...sheet, fields: sheet.fields.map(f => f.id === id ? { ...f, ...patch } : f), hasManualFields: sheet.fields.some(f => f.id === id ? (patch.needsManualGrade ?? f.needsManualGrade) : f.needsManualGrade) });
+  const removeField = (id: string) => corrected({ ...sheet, fields: sheet.fields.filter(f => f.id !== id), standardIds: Array.from(new Set(sheet.fields.filter(f => f.id !== id).flatMap(f => f.standardIds || []))) });
+  const addField = () => { const id = `teacher_${Date.now()}`; corrected({ ...sheet, fields: [...sheet.fields, { id, label: 'New question', type: 'short-text', box: { x: 10, y: 10, width: 30, height: 6 }, points: 1, needsManualGrade: true, confidence: 1 }], hasManualFields: true }); };
+  const textStyle: React.CSSProperties = { width: '100%', minHeight: 36, borderRadius: 9, border: `1px solid ${T.border}`, background: '#0d0d14', color: T.ink, padding: '6px 9px', font: 'inherit', fontSize: 12 };
+  return <div style={{ ...cardStyle, padding: 16 }}><div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}><Eyebrow color={accent}>Teacher accuracy review · edit anything</Eyebrow><button onClick={addField} style={{ ...chip(false), padding: '5px 9px' }}><Plus size={11} style={{ verticalAlign: -2 }} /> Field</button></div><input value={sheet.title} onChange={e => corrected({ ...sheet, title: e.target.value })} aria-label="Worksheet title" style={{ ...textStyle, fontWeight: 800, marginBottom: 7 }} /><select value={sheet.subject} onChange={e => corrected({ ...sheet, subject: e.target.value })} aria-label="Worksheet subject" style={{ ...textStyle, marginBottom: 7 }}>{['General','Math','Science','English Language Arts','History','Geography','World Language','Art','Music','Health'].map(subject => <option key={subject}>{subject}</option>)}</select><textarea value={sheet.objective} onChange={e => corrected({ ...sheet, objective: e.target.value })} aria-label="Learning objective" style={{ ...textStyle, minHeight: 62, resize: 'vertical', marginBottom: 8 }} />
+    <div style={{ maxHeight: 320, overflowY: 'auto' }}>{sheet.fields.map((f, i) => <div key={f.id} style={{ padding: '10px 0', borderTop: `1px solid ${T.border}` }}><div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}><span style={{ color: (f.confidence || 0) < .72 ? T.gold : T.green, fontFamily: 'monospace', fontSize: 10 }}>{Math.round((f.confidence || 0) * 100)}%</span><b style={{ fontSize: 11 }}>Question {i + 1}</b><button onClick={() => removeField(f.id)} aria-label={`Remove question ${i + 1}`} style={{ marginLeft: 'auto', border: 0, background: 'transparent', color: T.red, cursor: 'pointer' }}><Trash2 size={13} /></button></div><textarea value={f.label} onChange={e => patchField(f.id, { label: e.target.value })} style={{ ...textStyle, minHeight: 54, resize: 'vertical' }} /><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 6 }}><select value={f.type} onChange={e => patchField(f.id, { type: e.target.value as any })} style={textStyle}>{['numeric','short-text','multiple-choice','true-false','fill-blank','long-text'].map(v => <option key={v}>{v}</option>)}</select><input value={f.correctAnswer || ''} onChange={e => patchField(f.id, { correctAnswer: e.target.value || undefined, needsManualGrade: !e.target.value })} placeholder="Answer key or manual" style={textStyle} /></div></div>)}</div>
+    <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 10, marginTop: 8 }}><div style={{ fontSize: 10, color: T.muted, marginBottom: 6 }}>How accurate was this reconstruction? Corrections and this score are stored with the worksheet—not the raw student image.</div><div style={{ display: 'flex', gap: 5 }}>{[1,2,3,4,5].map(rating => <button key={rating} onClick={() => { onChange({ ...sheet, scanAssessment: sheet.scanAssessment ? { ...sheet.scanAssessment, teacherRating: rating } : undefined }); onQualityRating?.(rating); }} style={{ ...chip(sheet.scanAssessment?.teacherRating === rating, accent), padding: '5px 9px' }}>{rating}</button>)}</div></div>
+  </div>;
 };
 
 const DetectRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (

@@ -73,7 +73,9 @@ service firebase.storage {
       allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
     }
     match /chat_intimate/{roomId}/{allPaths=**} {
-      allow read: if true;
+      // These objects were previously world-readable. Authentication is the
+      // minimum safe gate until room membership is encoded into the object path.
+      allow read: if isAuth();
       allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
     }
 
@@ -169,7 +171,7 @@ service firebase.storage {
 
     // ── Fallback: deny everything not explicitly matched ──────────────────────
     match /{allPaths=**} {
-      allow read: if true;
+      allow read: if false;
       allow write: if isAdmin();
     }
   }

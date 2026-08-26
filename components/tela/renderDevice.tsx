@@ -8,12 +8,14 @@ import React from 'react';
 import type { TelaDevice } from '../../types';
 import type { TelaOp } from './telaOps';
 import type { TelaBaseLite, TelaFormulaContext } from './TelaGrid';
-import TelaWriter from './TelaWriter';
+import TelaWriter, { type TelaWriterSelection } from './TelaWriter';
 import TelaGrid from './TelaGrid';
 import TelaBase from './TelaBase';
 import TelaForm from './TelaForm';
 import TelaVector from './TelaVector';
 import TelaImage from './TelaImage';
+import TelaNotes from './TelaNotes';
+import { auth } from '../../services/firebase';
 
 /** Everything renderDevice needs that isn't the device itself. */
 export interface RenderDeviceCtx {
@@ -31,6 +33,9 @@ export interface RenderDeviceCtx {
   formulaContext: TelaFormulaContext;
   /** Id factory (Form submit → new Base row). */
   uid: (p: string) => string;
+  /** Authoring-only selection bridge used by the Assignment Builder. */
+  onWriterSelection?: (selection: TelaWriterSelection | null) => void;
+  onWriterInteraction?: (selection: TelaWriterSelection, kind: 'QUESTION' | 'INSTRUCTION') => void;
 }
 
 /**
@@ -38,7 +43,7 @@ export interface RenderDeviceCtx {
  * device is display-only — the embed's default, and the print path's default.
  */
 export function renderDevice(device: TelaDevice, ctx: RenderDeviceCtx, readOnly = false): React.ReactNode {
-  const { devices, dispatchOp, writerTexts, writers, bases, formulaContext, uid } = ctx;
+  const { devices, dispatchOp, writerTexts, writers, bases, formulaContext, uid, onWriterSelection, onWriterInteraction } = ctx;
 
   if (device.type === 'WRITER') {
     return (
@@ -46,6 +51,8 @@ export function renderDevice(device: TelaDevice, ctx: RenderDeviceCtx, readOnly 
         key={device.id}
         device={device}
         readOnly={readOnly}
+        onSelectionChange={onWriterSelection}
+        onTurnSelectionInto={onWriterInteraction}
         onChangeBlocks={blocks => dispatchOp({ type: 'SET_WRITER_BLOCKS', deviceId: device.id, blocks })}
       />
     );
@@ -75,7 +82,7 @@ export function renderDevice(device: TelaDevice, ctx: RenderDeviceCtx, readOnly 
         bases={bases}
         readOnly={readOnly}
         onSetBase={baseDeviceId => dispatchOp({ type: 'SET_FORM_BASE', deviceId: device.id, baseDeviceId })}
-        onSubmit={values => { if (device.baseDeviceId) dispatchOp({ type: 'ADD_BASE_ROW', deviceId: device.baseDeviceId, row: { id: uid('row'), values } }); }}
+        onSubmit={(values, grading, audit) => { if (device.baseDeviceId) dispatchOp({ type: 'ADD_BASE_ROW', deviceId: device.baseDeviceId, row: { id: uid('row'), values, grading, submissionAudit: audit ? { ...audit, studentId: auth.currentUser?.uid || audit.studentId, studentName: auth.currentUser?.displayName || audit.studentName } : undefined } }); }}
       />
     );
   }
@@ -108,6 +115,9 @@ export function renderDevice(device: TelaDevice, ctx: RenderDeviceCtx, readOnly 
         onReorder={(layerId, toIndex) => dispatchOp({ type: 'REORDER_IMAGE_LAYER', deviceId: device.id, layerId, toIndex })}
       />
     );
+  }
+  if (device.type === 'NOTES') {
+    return <TelaNotes key={device.id} device={device} readOnly={readOnly} onChange={patch => dispatchOp({ type: 'UPDATE_NOTES_DEVICE', deviceId: device.id, patch })}/>;
   }
   return (
     <TelaGrid

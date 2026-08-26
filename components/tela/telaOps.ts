@@ -8,7 +8,7 @@
 
 import type {
   TelaBinding, TelaBlock, TelaDevice, TelaDoc, TelaField, TelaFrame,
-  TelaFramePreset, TelaImageLayer, TelaRow, TelaVectorObject,
+  TelaFramePreset, TelaImageLayer, TelaImageLayerGroup, TelaNotesDevice, TelaRow, TelaVectorObject,
 } from '../../types';
 
 // ── Presets ───────────────────────────────────────────────────────────────────
@@ -29,10 +29,14 @@ export const PRESETS: Record<TelaFramePreset, { w: number; h: number; label: str
 export type TelaOp =
   | { type: 'SET_TITLE'; title: string }
   | { type: 'ADD_FRAME'; frame: TelaFrame; devices: TelaDevice[] }
+  | { type: 'ADD_DEVICES_TO_FRAME'; frameId: string; devices: TelaDevice[] }
   | { type: 'MOVE_FRAME'; frameId: string; x: number; y: number }
+  | { type: 'RENAME_FRAME'; frameId: string; label: string }
   | { type: 'SET_FRAME_PRESET'; frameId: string; preset: TelaFramePreset }
+  | { type: 'SET_FRAME_ORIENTATION'; frameId: string; orientation: 'PORTRAIT' | 'LANDSCAPE' }
   | { type: 'DELETE_FRAME'; frameId: string }
   | { type: 'SET_WRITER_BLOCKS'; deviceId: string; blocks: TelaBlock[] }
+  | { type: 'UPDATE_NOTES_DEVICE'; deviceId: string; patch: Partial<TelaNotesDevice> }
   | { type: 'SET_GRID_CELL'; deviceId: string; key: string; value: string }
   // ── Base (database) ops ────────────────────────────────────────────────────
   | { type: 'ADD_BASE_FIELD'; deviceId: string; field: TelaField }
@@ -46,16 +50,21 @@ export type TelaOp =
   | { type: 'REPLACE_DERIVED_ROWS'; deviceId: string; bindingId: string; rows: TelaRow[] }
   // ── Form ops ────────────────────────────────────────────────────────────────
   | { type: 'SET_FORM_BASE'; deviceId: string; baseDeviceId: string }
+  | { type: 'UPDATE_FORM_DEVICE'; deviceId: string; patch: Partial<Extract<TelaDevice, { type: 'FORM' }>> }
   // ── Vector (SVG design) ops ─────────────────────────────────────────────────
   | { type: 'ADD_VECTOR_OBJECT'; deviceId: string; object: TelaVectorObject }
   | { type: 'UPDATE_VECTOR_OBJECT'; deviceId: string; objectId: string; patch: Partial<TelaVectorObject> }
   | { type: 'DELETE_VECTOR_OBJECT'; deviceId: string; objectId: string }
   | { type: 'REORDER_VECTOR_OBJECT'; deviceId: string; objectId: string; toIndex: number }
+  | { type: 'REPLACE_VECTOR_OBJECTS'; deviceId: string; objects: TelaVectorObject[] }
   // ── Image (raster) ops ──────────────────────────────────────────────────────
   | { type: 'ADD_IMAGE_LAYER'; deviceId: string; layer: TelaImageLayer }
   | { type: 'UPDATE_IMAGE_LAYER'; deviceId: string; layerId: string; patch: Partial<TelaImageLayer> }
   | { type: 'DELETE_IMAGE_LAYER'; deviceId: string; layerId: string }
   | { type: 'REORDER_IMAGE_LAYER'; deviceId: string; layerId: string; toIndex: number }
+  | { type: 'ADD_IMAGE_GROUP'; deviceId: string; group: TelaImageLayerGroup }
+  | { type: 'UPDATE_IMAGE_GROUP'; deviceId: string; groupId: string; patch: Partial<TelaImageLayerGroup> }
+  | { type: 'DELETE_IMAGE_GROUP'; deviceId: string; groupId: string }
   // ── Binding graph ops ───────────────────────────────────────────────────────
   | { type: 'ADD_BINDING'; binding: TelaBinding }
   | { type: 'REMOVE_BINDING'; bindingId: string }
@@ -83,11 +92,33 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
       for (const d of op.devices) devices[d.id] = d;
       return { ...doc, frames: [...doc.frames, op.frame], devices, updatedAt: now };
     }
+    case 'ADD_DEVICES_TO_FRAME': {
+      const devices = { ...doc.devices };
+      for (const device of op.devices) devices[device.id] = device;
+      const ids = op.devices.map(device => device.id);
+      return { ...doc, frames: doc.frames.map(frame => frame.id === op.frameId ? { ...frame, deviceIds: [...frame.deviceIds.filter(id => !ids.includes(id)), ...ids] } : frame), devices, updatedAt: now };
+    }
     case 'MOVE_FRAME':
       return { ...doc, frames: doc.frames.map(f => f.id === op.frameId ? { ...f, x: op.x, y: op.y } : f), updatedAt: now };
+    case 'RENAME_FRAME':
+      return { ...doc, frames: doc.frames.map(f => f.id === op.frameId ? { ...f, label: op.label } : f), updatedAt: now };
     case 'SET_FRAME_PRESET': {
       const p = PRESETS[op.preset];
-      return { ...doc, frames: doc.frames.map(f => f.id === op.frameId ? { ...f, preset: op.preset, w: p.w, h: p.h } : f), updatedAt: now };
+      const frame = doc.frames.find(item => item.id === op.frameId); if (!frame) return doc;
+      const w = frame.orientation === 'LANDSCAPE' ? Math.max(p.w, p.h) : frame.orientation === 'PORTRAIT' ? Math.min(p.w, p.h) : p.w;
+      const h = frame.orientation === 'LANDSCAPE' ? Math.min(p.w, p.h) : frame.orientation === 'PORTRAIT' ? Math.max(p.w, p.h) : p.h;
+      const devices = { ...doc.devices };
+      for (const id of frame.deviceIds) { const device = devices[id]; if (device?.type === 'VECTOR' || device?.type === 'IMAGE') devices[id] = { ...device, width: w, height: h }; }
+      return { ...doc, frames: doc.frames.map(item => item.id === op.frameId ? { ...item, preset: op.preset, w, h } : item), devices, updatedAt: now };
+    }
+    case 'SET_FRAME_ORIENTATION': {
+      const frame = doc.frames.find(item => item.id === op.frameId); if (!frame) return doc;
+      const p = PRESETS[frame.preset];
+      const w = op.orientation === 'LANDSCAPE' ? Math.max(p.w, p.h) : Math.min(p.w, p.h);
+      const h = op.orientation === 'LANDSCAPE' ? Math.min(p.w, p.h) : Math.max(p.w, p.h);
+      const devices = { ...doc.devices };
+      for (const id of frame.deviceIds) { const device = devices[id]; if (device?.type === 'VECTOR' || device?.type === 'IMAGE') devices[id] = { ...device, width: w, height: h }; }
+      return { ...doc, frames: doc.frames.map(item => item.id === op.frameId ? { ...item, orientation: op.orientation, w, h } : item), devices, updatedAt: now };
     }
     case 'DELETE_FRAME': {
       const frame = doc.frames.find(f => f.id === op.frameId);
@@ -99,6 +130,11 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
       const d = doc.devices[op.deviceId];
       if (!d || d.type !== 'WRITER') return doc;
       return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, blocks: op.blocks } }, updatedAt: now };
+    }
+    case 'UPDATE_NOTES_DEVICE': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'NOTES') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, ...op.patch, id: d.id, type: 'NOTES' } }, updatedAt: now };
     }
     case 'SET_GRID_CELL': {
       const d = doc.devices[op.deviceId];
@@ -164,6 +200,11 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
       if (!d || d.type !== 'FORM') return doc;
       return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, baseDeviceId: op.baseDeviceId } }, updatedAt: now };
     }
+    case 'UPDATE_FORM_DEVICE': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'FORM') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, ...op.patch, id: d.id, type: 'FORM' } }, updatedAt: now };
+    }
 
     // ── Vector ────────────────────────────────────────────────────────────────
     case 'ADD_VECTOR_OBJECT': {
@@ -186,6 +227,11 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
       if (!d || d.type !== 'VECTOR') return doc;
       return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, objects: reorderById(d.objects, op.objectId, op.toIndex) } }, updatedAt: now };
     }
+    case 'REPLACE_VECTOR_OBJECTS': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'VECTOR') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, objects: op.objects, trace: d.trace ? { ...d.trace, pathCount: op.objects.length } : d.trace } }, updatedAt: now };
+    }
 
     // ── Image ─────────────────────────────────────────────────────────────────
     case 'ADD_IMAGE_LAYER': {
@@ -207,6 +253,18 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
       const d = doc.devices[op.deviceId];
       if (!d || d.type !== 'IMAGE') return doc;
       return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, layers: reorderById(d.layers, op.layerId, op.toIndex) } }, updatedAt: now };
+    }
+    case 'ADD_IMAGE_GROUP': {
+      const d = doc.devices[op.deviceId]; if (!d || d.type !== 'IMAGE') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, groups: [...(d.groups || []), op.group] } }, updatedAt: now };
+    }
+    case 'UPDATE_IMAGE_GROUP': {
+      const d = doc.devices[op.deviceId]; if (!d || d.type !== 'IMAGE') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, groups: (d.groups || []).map(group => group.id === op.groupId ? { ...group, ...op.patch } : group) } }, updatedAt: now };
+    }
+    case 'DELETE_IMAGE_GROUP': {
+      const d = doc.devices[op.deviceId]; if (!d || d.type !== 'IMAGE') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, groups: (d.groups || []).filter(group => group.id !== op.groupId), layers: d.layers.map(layer => layer.groupId === op.groupId ? { ...layer, groupId: undefined } : layer) } }, updatedAt: now };
     }
 
     // ── Binding graph ─────────────────────────────────────────────────────────

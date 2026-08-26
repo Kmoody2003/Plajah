@@ -47,7 +47,7 @@ export const FILM_SCHOOL: Curriculum = {
     'Every lesson pairs teaching with a watch-along from the public-domain canon and ends with something you actually make in Fabula. ' +
     'Completions write to your portable Academic Passport.',
   accent: '#FFB68D',
-  framework: 'PLAJAH-FILM',
+  framework: 'NCAS_MEDIA',  // seeded in data/educationStandards.ts; FILM.* ids crosswalk to NCAS MA:* anchors
   tracks: [
     // ── FOUNDATIONS ──────────────────────────────────────────────────────────
     {

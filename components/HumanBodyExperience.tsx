@@ -1,14 +1,16 @@
 'use client';
 import React, { useState, useRef, useMemo, Suspense, useCallback, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Html } from '@react-three/drei';
+import { OrbitControls, Html, useGLTF } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, RotateCcw, Layers, X, ChevronRight, Info,
-  Search, Trophy, CheckCircle2, XCircle, Zap, Activity,
+  Search, Trophy, CheckCircle2, XCircle, Zap, Activity, Droplet,
 } from 'lucide-react';
+import BodyChemistryPanel from './anatomy/BodyChemistryPanel';
+import RiggedSkeleton, { JOINTS } from './anatomy/RiggedSkeleton';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -618,6 +620,47 @@ const SYSTEMS: { id: Tab; label: string; color: string; description: string }[] 
   { id:'CIRCULATORY', label:'Circulatory',  color:'#ef4444',  description:'Heart + 100,000 km of blood vessels delivering oxygen and nutrients to every cell.' },
   { id:'NERVOUS',     label:'Nervous',      color:'#a78bfa',  description:'86 billion neurons forming the body\'s electrical network — sensing, deciding, commanding.' },
   { id:'RESPIRATORY', label:'Respiratory',  color:'#f9a8d4',  description:'Lungs + airways — exchanging 22,000 breaths per day to keep every cell alive.' },
+];
+
+// ─── Guided system walkthroughs ───────────────────────────────────────────────────
+// Step-by-step tours of how a system works. Each step focuses (highlights + isolates) the parts
+// whose names match `match`, with a plain-language explanation. `match` is a case-insensitive
+// regex tested against the model's mesh names (Z-Anatomy anatomical names).
+interface WalkStep { title: string; match: string; body: string }
+interface Walkthrough { id: string; name: string; icon: string; color: string; system: Tab; blurb: string; steps: WalkStep[] }
+
+const WALKTHROUGHS: Walkthrough[] = [
+  {
+    id: 'digestive', name: 'Digestion', icon: '🍎', color: '#F59E0B', system: 'ORGANS',
+    blurb: 'Follow a meal from mouth to bloodstream.',
+    steps: [
+      { title: 'Mouth & esophagus', match: 'esophagus|pharynx|tongue|salivary|gingiva', body: 'Chewing and saliva begin breaking food down; the esophagus muscles push each bite to the stomach by peristalsis.' },
+      { title: 'The stomach', match: 'stomach|gastric', body: 'Acid (pH ~1.5) and enzymes churn food into chyme. The stomach lining renews every few days to survive its own acid.' },
+      { title: 'Small intestine', match: 'duoden|jejunum|ileum|small intestine', body: 'Most nutrients are absorbed here across millions of villi — a surface area the size of a tennis court.' },
+      { title: 'Liver & pancreas', match: 'liver|pancrea|gallbladder|bile', body: 'The liver processes absorbed nutrients and makes bile; the pancreas adds enzymes and buffers the acid.' },
+      { title: 'Large intestine', match: 'colon|caecum|cecum|rectum|large intestine', body: 'Water and electrolytes are reclaimed and gut bacteria finish the job before waste is stored for elimination.' },
+    ],
+  },
+  {
+    id: 'respiratory', name: 'Breathing', icon: '🫁', color: '#00DAF3', system: 'ORGANS',
+    blurb: 'Trace a breath and gas exchange.',
+    steps: [
+      { title: 'Airway', match: 'trachea|larynx|pharynx', body: 'Air is warmed, filtered and humidified as it travels down the trachea toward the lungs.' },
+      { title: 'Bronchi & lungs', match: 'bronch|lung|pulmonary', body: 'The airway branches ~23 times into tiny tubes ending in alveoli — around 300 million air sacs per lung.' },
+      { title: 'The diaphragm', match: 'diaphragm|intercostal', body: 'The diaphragm contracts and flattens to pull air in; relaxing pushes it out — ~22,000 breaths a day.' },
+      { title: 'Gas exchange', match: 'lung|pulmonary|alveol', body: 'Oxygen crosses into the blood and CO₂ crosses out, across a membrane thinner than a sheet of paper.' },
+    ],
+  },
+  {
+    id: 'circulatory', name: 'Circulation', icon: '🫀', color: '#EF4444', system: 'CIRCULATORY',
+    blurb: 'Ride a red blood cell around the body.',
+    steps: [
+      { title: 'The heart', match: 'heart|ventricle|atrium|cardiac', body: 'The heart beats ~100,000 times a day, pumping blood to the lungs to reload oxygen, then out to the body.' },
+      { title: 'The aorta & arteries', match: 'aorta|arter', body: 'Oxygen-rich blood leaves under high pressure through the aorta and branches into ever-smaller arteries.' },
+      { title: 'Capillaries', match: 'capillar|arteriol', body: 'In the tiniest vessels, oxygen and nutrients diffuse to cells and waste is picked up — one cell wide.' },
+      { title: 'Veins home', match: 'vein|venous|vena|jugular', body: 'Low-pressure veins carry spent blood back to the heart, with one-way valves stopping backflow.' },
+    ],
+  },
 ];
 
 // ─── Geometry Hook ──────────────────────────────────────────────────────────────
@@ -1254,42 +1297,256 @@ function MuscularLayer() {
 
 // ─── Main 3D Scene ──────────────────────────────────────────────────────────────
 
-function BodyScene({ gender, systemTab, isExploded, selectedOrgan, onSelectOrgan }: {
-  gender: Gender; systemTab: Tab; isExploded: boolean;
-  selectedOrgan: OrganDef | null; onSelectOrgan: (o: OrganDef | null) => void;
-}) {
-  const visibleOrgans = useMemo(() =>
-    ORGANS.filter(o => o.genders.includes(gender) && o.systems.includes(systemTab)),
-    [gender, systemTab]
+// ─── Real anatomical models (Z-Anatomy · CC BY-SA 4.0) ──────────────────────────
+// Accurate per-system meshes in public/models/anatomy/, co-registered in one space.
+const ANATOMY_BASE = '/models/anatomy/';
+const GLB_URL = (k: string) => `${ANATOMY_BASE}${k}.glb`;
+const SYSTEM_GLB: Record<Tab, string[]> = {
+  FULL:        ['skeletal', 'visceral'],
+  SKELETAL:    ['skeletal'],
+  MUSCULAR:    ['muscular'],
+  ORGANS:      ['visceral'],
+  CIRCULATORY: ['cardiovascular'],
+  NERVOUS:     ['nervous'],
+  RESPIRATORY: ['visceral'],
+};
+const SYSTEM_TINT: Record<string, string> = {
+  skeletal: '#ece4d2', muscular: '#b23b3b', visceral: '#c47b6f',
+  cardiovascular: '#b83232', nervous: '#e2c24e',
+};
+
+function cleanName(raw: string): string {
+  return (raw || '')
+    .replace(/\.(l|r|j|or|ol|er|el|\d+)$/i, '')
+    .replace(/[_.]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+// distinct fleshy hues for organs so liver ≠ stomach ≠ kidney; uniform tint for other systems
+function meshColor(systemKey: string, name: string): THREE.Color {
+  const base = new THREE.Color(SYSTEM_TINT[systemKey] || '#c47b6f');
+  if (systemKey !== 'visceral') return base;
+  const n = cleanName(name).toLowerCase();
+  let h = 0; for (let i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) & 0xffff;
+  const hsl = { h: 0, s: 0, l: 0 }; base.getHSL(hsl);
+  const c = new THREE.Color();
+  c.setHSL(
+    (hsl.h + ((h % 60) - 30) / 360 + 1) % 1,
+    Math.min(0.62, hsl.s + (h % 20) / 100),
+    Math.max(0.34, Math.min(0.62, hsl.l + (((h >> 4) % 16) - 8) / 100)),
   );
+  return c;
+}
+// map a picked node name → a curated OrganDef (rich detail panel), else null
+function matchOrgan(name: string): OrganDef | null {
+  const n = cleanName(name).toLowerCase();
+  if (!n) return null;
+  for (const o of ORGANS) {
+    if (n === o.name.toLowerCase() || n === o.id.toLowerCase() || n === (o.latin || '').toLowerCase()) return o;
+  }
+  for (const o of ORGANS) {
+    const nm = o.name.toLowerCase();
+    if (n.includes(nm) || nm.includes(n)) return o;
+  }
+  const alias: [string, string][] = [
+    ['heart', 'heart'], ['lung', 'lungs'], ['kidney', 'kidneys'], ['liver', 'liver'],
+    ['stomach', 'stomach'], ['brain', 'brain'], ['spleen', 'spleen'], ['pancreas', 'pancreas'],
+    ['bladder', 'bladder'], ['intestine', 'intestines'], ['colon', 'intestines'],
+  ];
+  for (const [key, id] of alias) if (n.includes(key)) { const f = ORGANS.find(o => o.id === id); if (f) return f; }
+  return null;
+}
+
+function SystemMeshes({ systemKey, selectedName, isExploded, motion, tourFocus, onPick }: {
+  systemKey: string; selectedName: string | null; isExploded: boolean; motion: boolean; tourFocus: string | null; onPick: (name: string) => void;
+}) {
+  const { scene } = useGLTF(GLB_URL(systemKey));
+  const node = useMemo(() => {
+    const c = scene.clone(true);
+    c.updateMatrixWorld(true);
+    const sbox = new THREE.Box3().setFromObject(c);
+    const sCenter = new THREE.Vector3(); sbox.getCenter(sCenter);
+    c.traverse((o: any) => {
+      if (!o.isMesh) return;
+      const col = meshColor(systemKey, o.name || '');
+      o.material = new THREE.MeshStandardMaterial({
+        color: col, roughness: systemKey === 'skeletal' ? 0.72 : 0.5, metalness: 0,
+        emissive: col.clone().multiplyScalar(0.12), emissiveIntensity: 1,
+      });
+      o.castShadow = false; o.receiveShadow = false;
+      // Explode data: direction from the system's centre to this part's centre.
+      o.geometry.computeBoundingBox?.();
+      const mc = new THREE.Vector3();
+      if (o.geometry.boundingBox) o.geometry.boundingBox.getCenter(mc);
+      o.userData.basePos = o.position.clone();
+      o.userData.explodeVec = mc.sub(sCenter);
+      // Which parts "live" (breathe/pulse) in Motion mode, and how.
+      const nm = (o.name || '').toLowerCase();
+      o.userData.motion = /heart|cardiac|ventricle|atrium|aorta/.test(nm) ? 'pulse'
+        : /lung|pulmonary|bronch|trachea|diaphragm|thorax|rib|intercostal/.test(nm) ? 'breathe'
+        : /stomach|intestine|colon|jejunum|ileum|duoden|bowel/.test(nm) ? 'churn' : '';
+      o.userData.phase = mc.length() * 7; // de-sync neighbours
+      o.userData.baseScale = o.scale.clone();
+    });
+    return c;
+  }, [scene, systemKey]);
+
+  const focusRe = useMemo(() => { try { return tourFocus ? new RegExp(tourFocus, 'i') : null; } catch { return null; } }, [tourFocus]);
+
+  const tRef = useRef(0);
+  useFrame((_, dt) => {
+    tRef.current += dt;
+    const t = tRef.current;
+    node.traverse((o: any) => {
+      if (!o.isMesh || !o.material) return;
+      const isSel = !!selectedName && cleanName(o.name || '').toLowerCase() === selectedName.toLowerCase();
+      const isTourHit = !!focusRe && focusRe.test(o.name || '');
+      // Walkthrough — isolate the active step's parts, dim the rest.
+      if (focusRe) {
+        const target = isTourHit ? 1 : 0.08;
+        o.material.transparent = !isTourHit;
+        o.material.opacity += (target - o.material.opacity) * 0.15;
+        o.material.depthWrite = isTourHit;
+      } else if (o.material.opacity < 1) {
+        o.material.opacity += (1 - o.material.opacity) * 0.2;
+        if (o.material.opacity > 0.98) { o.material.opacity = 1; o.material.transparent = false; o.material.depthWrite = true; }
+      }
+      // Explode — push each part radially out from its system's centre.
+      const base = o.userData.basePos as THREE.Vector3 | undefined;
+      const vec = o.userData.explodeVec as THREE.Vector3 | undefined;
+      if (base && vec) {
+        const k = isExploded ? 0.7 : 0;
+        o.position.lerp(base.clone().addScaledVector(vec, k), 0.12);
+      }
+      // Living motion — rhythmic glow-pulse on the relevant parts (heartbeat / respiration /
+      // peristalsis). Cheap + reads clearly without moving baked geometry off-centre.
+      let emiss = isSel ? 0.7 : 0.12;
+      if (isTourHit) emiss = 0.45 + (Math.sin(t * 3) * 0.5 + 0.5) * 0.5; // active step glows/pulses
+      const m = motion && !isExploded && !focusRe ? (o.userData.motion as string) : '';
+      if (m) {
+        const speed = m === 'pulse' ? 4.4 : m === 'breathe' ? 1.1 : 0.9;
+        const amp = m === 'pulse' ? 0.55 : 0.32;
+        emiss += (Math.sin(t * speed + o.userData.phase) * 0.5 + 0.5) * amp;
+      }
+      o.material.emissiveIntensity = emiss;
+    });
+  });
+
+  return (
+    <primitive
+      object={node}
+      onClick={(e: any) => { e.stopPropagation(); onPick(e.object?.name || ''); }}
+      onPointerOver={(e: any) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; }}
+      onPointerOut={() => { document.body.style.cursor = 'auto'; }}
+    />
+  );
+}
+
+function AnatomyModel({ systemTab, selectedName, isExploded, motion, tourFocus, onPick }: {
+  systemTab: Tab; selectedName: string | null; isExploded: boolean; motion: boolean; tourFocus: string | null; onPick: (name: string) => void;
+}) {
+  const keys = SYSTEM_GLB[systemTab] || ['visceral'];
+  const groupRef = useRef<THREE.Group>(null);
+  const fittedRef = useRef<string>('');
+
+  // Fit the whole group (all requested systems share one coordinate space) to a
+  // consistent on-screen frame. Runs once per tab, after the GLB geometry mounts.
+  useFrame(() => {
+    const g = groupRef.current;
+    if (!g || fittedRef.current === systemTab) return;
+    g.scale.setScalar(1); g.position.set(0, 0, 0); g.rotation.set(0, 0, 0); g.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(g);
+    const size = new THREE.Vector3(); box.getSize(size);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    if (!isFinite(maxDim) || maxDim < 1e-4) return; // geometry not ready yet
+    // If the model was authored lying down (depth taller than height), stand it upright.
+    if (size.z > size.y * 1.3) g.rotation.x = -Math.PI / 2;
+    g.updateMatrixWorld(true);
+    const box2 = new THREE.Box3().setFromObject(g);
+    const size2 = new THREE.Vector3(); box2.getSize(size2);
+    const center = new THREE.Vector3(); box2.getCenter(center);
+    // Fit the largest extent to the frame so the model is always visible regardless of proportions.
+    const s = 2.6 / Math.max(size2.x, size2.y, size2.z);
+    g.scale.setScalar(s);
+    g.position.set(-center.x * s, -center.y * s + 0.1, -center.z * s);
+    fittedRef.current = systemTab;
+  });
+
+  return (
+    <group ref={groupRef}>
+      {keys.map(k => <SystemMeshes key={k} systemKey={k} selectedName={selectedName} isExploded={isExploded} motion={motion} tourFocus={tourFocus} onPick={onPick} />)}
+    </group>
+  );
+}
+useGLTF.preload(GLB_URL('visceral'));
+useGLTF.preload(GLB_URL('skeletal'));
+
+// Clear in-canvas loading indicator while a system's meshes stream in (some are several MB).
+function AnatomyLoading() {
+  return (
+    <Html center style={{ pointerEvents: 'none' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, whiteSpace: 'nowrap' }}>
+        <div style={{ width: 44, height: 44, borderRadius: '50%', border: '2px solid rgba(34,211,238,0.2)', borderTopColor: '#22d3ee', animation: 'spin 0.9s linear infinite' }} />
+        <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.35em', textTransform: 'uppercase', color: '#22d3ee' }}>Loading anatomy…</div>
+      </div>
+      <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
+    </Html>
+  );
+}
+
+// Guards the 3D scene: if a model fails to load/parse, show a clear message + log to console
+// (so it's never a silent blank screen) instead of crashing the whole module.
+class SceneErrorBoundary extends React.Component<{ fallback: React.ReactNode; children: React.ReactNode }, { err: boolean }> {
+  constructor(props: { fallback: React.ReactNode; children: React.ReactNode }) { super(props); this.state = { err: false }; }
+  static getDerivedStateFromError() { return { err: true }; }
+  componentDidCatch(error: unknown) { console.error('[HumanBody] 3D scene failed to render:', error); }
+  render() { return this.state.err ? this.props.fallback : this.props.children; }
+}
+
+function SceneErrorFallback() {
+  return (
+    <Html center style={{ pointerEvents: 'none' }}>
+      <div style={{ textAlign: 'center', color: '#f9a8d4', fontFamily: 'Outfit, sans-serif', whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase' }}>3D model couldn’t load</div>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 6 }}>Check the browser console for details.</div>
+      </div>
+    </Html>
+  );
+}
+
+function BodyScene({ gender, systemTab, isExploded, motion, tourFocus, kinematics, jointAngles, selectedOrgan, onSelectOrgan, onPickName }: {
+  gender: Gender; systemTab: Tab; isExploded: boolean; motion: boolean; tourFocus: string | null;
+  kinematics: boolean; jointAngles: Record<string, number>;
+  selectedOrgan: OrganDef | null; onSelectOrgan: (o: OrganDef | null) => void;
+  onPickName?: (name: string | null) => void;
+}) {
+  const [pickedName, setPickedName] = useState<string | null>(null);
+
+  const handlePick = useCallback((raw: string) => {
+    const clean = cleanName(raw) || null;
+    setPickedName(clean);
+    onPickName?.(clean);
+    const o = matchOrgan(raw);
+    if (o) onSelectOrgan(o);
+  }, [onSelectOrgan, onPickName]);
+
+  const highlightName = selectedOrgan ? cleanName(selectedOrgan.name) : pickedName;
 
   return (
     <>
       <color attach="background" args={['#010509']} />
-      <ambientLight intensity={0.35} color="#1a2040" />
-      <directionalLight position={[3, 5, 4]} intensity={2.4} color="#ffffff" castShadow />
-      <pointLight position={[-3, 2, 2]} intensity={1.8} color="#3366ff" />
-      <pointLight position={[2, -2, 2]} intensity={0.6} color="#ff3322" />
-      <pointLight position={[0, 3, -2]} intensity={0.5} color="#ffffff" />
+      <ambientLight intensity={0.5} color="#233" />
+      <directionalLight position={[3, 5, 4]} intensity={2.2} color="#ffffff" />
+      <pointLight position={[-3, 2, 2]} intensity={1.6} color="#3366ff" />
+      <pointLight position={[2, -2, 2]} intensity={0.7} color="#ff5533" />
+      <pointLight position={[0, 3, -2]} intensity={0.6} color="#ffffff" />
       {systemTab === 'MUSCULAR' && <pointLight position={[0, 0, 3]} intensity={1.2} color="#f97316" />}
 
-      <BodySilhouette gender={gender} />
-      {systemTab === 'SKELETAL'    && <SkeletonLayer />}
-      {systemTab === 'MUSCULAR'    && <MuscularLayer />}
-      {systemTab === 'CIRCULATORY' && <CirculatoryLayer />}
-      {systemTab === 'NERVOUS'     && <NervousLayer />}
-      {systemTab === 'RESPIRATORY' && <RespiratoryLayer />}
-
-      {ORGANS.map(organ => (
-        <OrganMesh
-          key={organ.id}
-          organ={organ}
-          isExploded={isExploded}
-          isSelected={selectedOrgan?.id === organ.id}
-          isVisible={visibleOrgans.some(o => o.id === organ.id)}
-          onClick={o => onSelectOrgan(selectedOrgan?.id === o.id ? null : o)}
-        />
-      ))}
+      <SceneErrorBoundary fallback={<SceneErrorFallback />}>
+        <Suspense fallback={<AnatomyLoading />}>
+          {kinematics
+            ? <RiggedSkeleton joints={jointAngles} />
+            : <AnatomyModel systemTab={systemTab} selectedName={highlightName} isExploded={isExploded} motion={motion} tourFocus={tourFocus} onPick={handlePick} />}
+        </Suspense>
+      </SceneErrorBoundary>
 
       <OrbitControls
         enableDamping dampingFactor={0.05}
@@ -1750,53 +2007,84 @@ function SearchPanel({ onSelect, onClose }: { onSelect: (o: OrganDef) => void; o
 
 // ─── Gender Select ──────────────────────────────────────────────────────────────
 
+// New Plajah-design module entry — tailored to the anatomy experience. Plain, robust buttons
+// (no motion-wrapped click targets), brand-gradient title, body picker that enters on click.
 function GenderSelectScreen({ onSelect, onBack }: { onSelect: (g: Gender) => void; onBack: () => void }) {
+  const G_PURPLE = '#6B0099', G_MAGENTA = '#D40055', G_ORANGE = '#FF8C00', CYAN = '#00DAF3';
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center relative" style={{ background: '#010509' }}>
-      <button onClick={onBack}
-        className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all"
-        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}>
+    <div className="w-full h-full relative overflow-hidden" style={{
+      background: `radial-gradient(120% 90% at 12% -10%, rgba(107,0,153,0.42) 0%, transparent 52%),
+                   radial-gradient(110% 80% at 92% 4%, rgba(0,218,243,0.20) 0%, transparent 52%),
+                   radial-gradient(90% 70% at 55% 118%, rgba(212,0,85,0.20) 0%, transparent 60%),
+                   #06060c`,
+    }}>
+      {/* faint anatomical grid */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        opacity: 0.05,
+        backgroundImage: 'linear-gradient(rgba(0,218,243,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(0,218,243,0.6) 1px, transparent 1px)',
+        backgroundSize: '44px 44px',
+      }} />
+
+      <button type="button" onClick={onBack}
+        className="absolute top-4 left-4 z-20 inline-flex items-center gap-2 px-3.5 h-9 rounded-full text-xs font-bold uppercase tracking-widest"
+        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)', fontFamily: 'Outfit, sans-serif' }}>
         <ArrowLeft size={12} /> Back
       </button>
-      <div className="absolute inset-0 opacity-[0.04]"
-        style={{ backgroundImage: 'linear-gradient(#22d3ee 1px, transparent 1px), linear-gradient(90deg, #22d3ee 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center mb-12">
-        <p className="text-[9px] font-black uppercase tracking-[0.5em] text-cyan-400 mb-3">Classroom Module</p>
-        <h1 className="text-4xl font-black uppercase tracking-tighter text-white mb-2">The Human Body</h1>
-        <p className="text-white/40 text-sm tracking-widest uppercase">Select a body to explore</p>
-      </motion.div>
-      <div className="flex gap-8">
-        {(['MALE', 'FEMALE'] as Gender[]).map((g, idx) => (
-          <motion.button key={g}
-            initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + idx * 0.1 }}
-            onClick={() => onSelect(g)}
-            className="group flex flex-col items-center gap-4 p-8 rounded-3xl transition-all duration-300"
-            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
-            whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
-          >
-            <svg width="80" height="160" viewBox="0 0 80 160" fill="none">
-              {g === 'MALE' ? (
-                <path d="M40 8 C50 8 56 16 56 24 C56 32 52 37 48 40 L52 55 C58 56 66 62 68 80 L62 82 L60 120 L52 120 L50 160 L30 160 L28 120 L20 120 L18 82 L12 80 C14 62 22 56 28 55 L32 40 C28 37 24 32 24 24 C24 16 30 8 40 8Z"
-                  fill="rgba(34,211,238,0.15)" stroke="rgba(34,211,238,0.5)" strokeWidth="1" />
-              ) : (
-                <path d="M40 8 C49 8 55 16 55 24 C55 32 51 37 47 40 L52 56 C60 58 70 66 72 82 L64 84 L60 120 L52 120 L50 160 L30 160 L28 120 L20 120 L16 84 L8 82 C10 66 20 58 28 56 L33 40 C29 37 25 32 25 24 C25 16 31 8 40 8Z"
-                  fill="rgba(244,160,184,0.15)" stroke="rgba(244,160,184,0.5)" strokeWidth="1" />
-              )}
-            </svg>
-            <div className="text-center">
-              <p className="text-xs font-black uppercase tracking-[0.25em]"
-                style={{ color: g === 'MALE' ? '#22d3ee' : '#f9a8d4' }}>
-                {g === 'MALE' ? 'Male Body' : 'Female Body'}
-              </p>
-              <p className="text-[10px] text-white/30 mt-1">16 organs · 7 systems</p>
-            </div>
-          </motion.button>
-        ))}
+
+      <div className="relative z-10 w-full h-full flex flex-col items-center justify-center px-6" style={{ fontFamily: 'Inter, sans-serif' }}>
+        <div className="flex flex-col items-center text-center max-w-2xl">
+          <div className="inline-flex items-center gap-2 mb-5 px-3 h-7 rounded-full" style={{ background: 'rgba(0,218,243,0.12)', border: '1px solid rgba(0,218,243,0.25)' }}>
+            <span style={{ width: 7, height: 7, borderRadius: 99, background: CYAN, boxShadow: `0 0 8px ${CYAN}` }} />
+            <span className="text-[10px] font-extrabold uppercase" style={{ letterSpacing: '0.24em', color: CYAN, fontFamily: 'Outfit, sans-serif' }}>Plajah Labs · Interactive 3D</span>
+          </div>
+
+          <h1 className="font-black italic uppercase leading-[0.9] tracking-tight" style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(2.6rem, 7vw, 5rem)' }}>
+            <span style={{ color: '#fff' }}>The Human</span><br />
+            <span style={{ background: `linear-gradient(120deg, ${G_PURPLE}, ${G_MAGENTA} 55%, ${G_ORANGE})`, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>Body</span>
+          </h1>
+
+          <p className="mt-5 text-[15px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.62)' }}>
+            Real anatomical models — every system, thousands of named structures.
+            Drag to rotate, click any part to learn it.
+          </p>
+
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-6">
+            {['7 systems', '2,000+ structures', 'Ledger-tracked'].map(t => (
+              <span key={t} className="px-3 h-8 inline-flex items-center rounded-full text-[11px] font-bold" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.65)', fontFamily: 'Outfit, sans-serif' }}>{t}</span>
+            ))}
+          </div>
+
+          <p className="mt-9 mb-4 text-[11px] font-extrabold uppercase" style={{ letterSpacing: '0.28em', color: 'rgba(255,255,255,0.4)', fontFamily: 'Outfit, sans-serif' }}>Choose a body to begin</p>
+
+          <div className="flex flex-wrap items-stretch justify-center gap-4">
+            {(['MALE', 'FEMALE'] as Gender[]).map(g => {
+              const accent = g === 'MALE' ? CYAN : G_MAGENTA;
+              return (
+                <button key={g} type="button" onClick={() => onSelect(g)}
+                  className="group relative flex flex-col items-center gap-3 px-9 py-7 rounded-3xl transition-transform duration-200 hover:-translate-y-1 focus:outline-none"
+                  style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.1)', minWidth: 180, cursor: 'pointer' }}
+                >
+                  <span className="absolute inset-x-0 top-0 h-[3px] rounded-t-3xl opacity-70" style={{ background: `linear-gradient(90deg, ${accent}, transparent)` }} />
+                  <svg width="66" height="132" viewBox="0 0 80 160" fill="none" aria-hidden>
+                    <path d={g === 'MALE'
+                      ? 'M40 8 C50 8 56 16 56 24 C56 32 52 37 48 40 L52 55 C58 56 66 62 68 80 L62 82 L60 120 L52 120 L50 160 L30 160 L28 120 L20 120 L18 82 L12 80 C14 62 22 56 28 55 L32 40 C28 37 24 32 24 24 C24 16 30 8 40 8Z'
+                      : 'M40 8 C49 8 55 16 55 24 C55 32 51 37 47 40 L52 56 C60 58 70 66 72 82 L64 84 L60 120 L52 120 L50 160 L30 160 L28 120 L20 120 L16 84 L8 82 C10 66 20 58 28 56 L33 40 C29 37 25 32 25 24 C25 16 31 8 40 8Z'}
+                      fill={`${accent}26`} stroke={accent} strokeWidth="1.2" />
+                  </svg>
+                  <span className="text-[13px] font-black uppercase tracking-[0.16em]" style={{ color: accent, fontFamily: 'Outfit, sans-serif' }}>{g === 'MALE' ? 'Male' : 'Female'}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-widest inline-flex items-center gap-1.5" style={{ color: 'rgba(255,255,255,0.5)', fontFamily: 'Outfit, sans-serif' }}>
+                    Enter <ChevronRight size={12} />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <p className="absolute bottom-7 text-[9px] font-bold uppercase" style={{ letterSpacing: '0.3em', color: 'rgba(255,255,255,0.22)', fontFamily: 'Outfit, sans-serif' }}>
+          Drag to rotate · Scroll to zoom · Click parts to explore
+        </p>
       </div>
-      <motion.p initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.5 }}
-        className="absolute bottom-8 text-[9px] font-bold uppercase tracking-[0.3em] text-white/20">
-        Drag to rotate · Scroll to zoom · Click organs to explore
-      </motion.p>
     </div>
   );
 }
@@ -1806,11 +2094,30 @@ function GenderSelectScreen({ onSelect, onBack }: { onSelect: (g: Gender) => voi
 export default function HumanBodyExperience({ onBack }: { onBack: () => void }) {
   const [phase,         setPhase]         = useState<Phase>('SELECT');
   const [gender,        setGender]        = useState<Gender>('MALE');
-  const [systemTab,     setSystemTab]     = useState<Tab>('FULL');
+  const [systemTab,     setSystemTab]     = useState<Tab>('SKELETAL');
   const [isExploded,    setIsExploded]    = useState(false);
   const [selectedOrgan, setSelectedOrgan] = useState<OrganDef | null>(null);
   const [appMode,       setAppMode]       = useState<AppMode>('EXPLORE');
   const [showSearch,    setShowSearch]    = useState(false);
+  const [pickedPart,    setPickedPart]    = useState<string | null>(null);
+  const [motionOn,      setMotionOn]      = useState(true);
+  const [activeTour,    setActiveTour]    = useState<string | null>(null);
+  const [tourStep,      setTourStep]      = useState(0);
+  const [showTours,     setShowTours]     = useState(false);
+  const [showChem,      setShowChem]      = useState(false);
+  const [kinematics,    setKinematics]    = useState(false);
+  const [jointAngles,   setJointAngles]   = useState<Record<string, number>>({});
+
+  const tour = activeTour ? WALKTHROUGHS.find(w => w.id === activeTour) ?? null : null;
+  const tourFocus = tour ? (tour.steps[tourStep]?.match ?? null) : null;
+
+  const startTour = useCallback((id: string) => {
+    const w = WALKTHROUGHS.find(x => x.id === id);
+    if (!w) return;
+    setActiveTour(id); setTourStep(0); setShowTours(false);
+    setSystemTab(w.system); setSelectedOrgan(null); setIsExploded(false); setPickedPart(null);
+  }, []);
+  const endTour = useCallback(() => { setActiveTour(null); setTourStep(0); }, []);
 
   const activeSystem = SYSTEMS.find(s => s.id === systemTab)!;
   const visibleOrgans = useMemo(() =>
@@ -1856,17 +2163,37 @@ export default function HumanBodyExperience({ onBack }: { onBack: () => void }) 
                   gender={gender}
                   systemTab={systemTab}
                   isExploded={isExploded}
+                  motion={motionOn}
+                  tourFocus={tourFocus}
+                  kinematics={kinematics}
+                  jointAngles={jointAngles}
                   selectedOrgan={selectedOrgan}
                   onSelectOrgan={handleOrganSelect}
+                  onPickName={setPickedPart}
                 />
               </Suspense>
             </Canvas>
+
+            {/* Picked-part name — shows the anatomical label for any part, incl. those
+                outside the curated 16 (which also open the rich detail panel). */}
+            {pickedPart && !selectedOrgan && (
+              <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-full pointer-events-none"
+                style={{ background: 'rgba(2,4,12,0.9)', backdropFilter: 'blur(12px)', border: `1px solid ${activeSystem.color}55`, color: activeSystem.color }}>
+                <span className="text-[11px] font-black uppercase tracking-[0.14em]">{pickedPart}</span>
+              </div>
+            )}
+
+            {/* Z-Anatomy attribution (CC BY-SA 4.0 — required by licence) */}
+            <div className="absolute bottom-3 right-4 z-30 text-[8px] font-bold tracking-wider pointer-events-none"
+              style={{ color: 'rgba(255,255,255,0.3)' }}>
+              Models: Z-Anatomy · CC BY-SA 4.0
+            </div>
 
             {/* System tab bar */}
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 flex flex-wrap gap-1 p-1 rounded-2xl"
               style={{ background: 'rgba(2,4,12,0.85)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.07)' }}>
               {SYSTEMS.map(s => (
-                <button key={s.id} onClick={() => { setSystemTab(s.id); setSelectedOrgan(null); }}
+                <button key={s.id} onClick={() => { setSystemTab(s.id); setSelectedOrgan(null); setPickedPart(null); }}
                   className="px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
                   style={{
                     background: systemTab === s.id ? s.color : 'transparent',
@@ -1886,6 +2213,86 @@ export default function HumanBodyExperience({ onBack }: { onBack: () => void }) 
 
             <AnimatePresence>
               {showSearch && <SearchPanel onSelect={o => handleOrganSelect(o)} onClose={() => setShowSearch(false)} />}
+            </AnimatePresence>
+
+            {/* Guided Tours launcher */}
+            {!activeTour && (
+              <button onClick={() => setShowTours(s => !s)}
+                className="absolute top-4 right-16 z-40 h-9 px-3.5 inline-flex items-center gap-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all"
+                style={{ background: showTours ? '#06D6A0' : 'rgba(2,4,12,0.85)', color: showTours ? '#00140e' : '#06D6A0', backdropFilter: 'blur(16px)', border: '1px solid rgba(6,214,160,0.35)', fontFamily: 'Outfit, sans-serif' }}>
+                <Activity size={13} /> Tours
+              </button>
+            )}
+
+            {/* Tour picker */}
+            <AnimatePresence>
+              {showTours && !activeTour && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(2,4,10,0.72)', backdropFilter: 'blur(8px)' }}
+                  onClick={() => setShowTours(false)}>
+                  <motion.div initial={{ scale: 0.94, y: 14 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.94 }}
+                    className="w-full max-w-2xl" onClick={e => e.stopPropagation()}>
+                    <p className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400 mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Interactive walkthroughs</p>
+                    <h2 className="text-2xl font-black uppercase tracking-tight text-white mb-5" style={{ fontFamily: 'Outfit, sans-serif' }}>How the systems work</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {WALKTHROUGHS.map(w => (
+                        <button key={w.id} onClick={() => startTour(w.id)}
+                          className="text-left p-4 rounded-2xl transition-all hover:-translate-y-1"
+                          style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${w.color}44` }}>
+                          <div className="text-2xl mb-2">{w.icon}</div>
+                          <div className="text-[13px] font-black uppercase tracking-wide" style={{ color: w.color, fontFamily: 'Outfit, sans-serif' }}>{w.name}</div>
+                          <div className="text-[11px] text-white/50 mt-1 leading-snug">{w.blurb}</div>
+                          <div className="text-[10px] text-white/30 mt-2 font-bold uppercase tracking-widest">{w.steps.length} steps →</div>
+                        </button>
+                      ))}
+                    </div>
+                    <button onClick={() => setShowTours(false)} className="mt-4 text-[11px] font-bold uppercase tracking-widest text-white/40 hover:text-white/70" style={{ fontFamily: 'Outfit, sans-serif' }}>Close</button>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Active walkthrough — step narration */}
+            <AnimatePresence>
+              {tour && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
+                  className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 w-[min(92vw,540px)] rounded-2xl overflow-hidden"
+                  style={{ background: 'rgba(3,5,12,0.94)', border: `1px solid ${tour.color}44`, backdropFilter: 'blur(18px)', boxShadow: '0 20px 50px rgba(0,0,0,0.6)' }}>
+                  <div className="h-1" style={{ background: `linear-gradient(90deg, ${tour.color}, transparent)` }} />
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{tour.icon}</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: tour.color, fontFamily: 'Outfit, sans-serif' }}>{tour.name}</span>
+                        <span className="text-[10px] font-bold text-white/30" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{tourStep + 1}/{tour.steps.length}</span>
+                      </div>
+                      <button onClick={endTour} className="p-1 rounded-lg hover:bg-white/10 text-white/40"><X size={15} /></button>
+                    </div>
+                    <div className="text-white font-black text-[15px] mb-1" style={{ fontFamily: 'Outfit, sans-serif' }}>{tour.steps[tourStep]?.title}</div>
+                    <p className="text-white/60 text-[13px] leading-relaxed">{tour.steps[tourStep]?.body}</p>
+                    <div className="flex items-center gap-1.5 mt-3">
+                      {tour.steps.map((_, i) => (
+                        <button key={i} onClick={() => setTourStep(i)} className="h-1.5 rounded-full transition-all"
+                          style={{ width: i === tourStep ? 22 : 8, background: i === tourStep ? tour.color : 'rgba(255,255,255,0.18)' }} />
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2 mt-3">
+                      <button onClick={() => setTourStep(s => Math.max(0, s - 1))} disabled={tourStep === 0}
+                        className="flex-1 h-9 rounded-xl text-[11px] font-black uppercase tracking-widest disabled:opacity-30"
+                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', fontFamily: 'Outfit, sans-serif' }}>← Prev</button>
+                      {tourStep < tour.steps.length - 1 ? (
+                        <button onClick={() => setTourStep(s => Math.min(tour.steps.length - 1, s + 1))}
+                          className="flex-1 h-9 rounded-xl text-[11px] font-black uppercase tracking-widest"
+                          style={{ background: tour.color, color: '#00140e', fontFamily: 'Outfit, sans-serif' }}>Next →</button>
+                      ) : (
+                        <button onClick={endTour}
+                          className="flex-1 h-9 rounded-xl text-[11px] font-black uppercase tracking-widest"
+                          style={{ background: tour.color, color: '#00140e', fontFamily: 'Outfit, sans-serif' }}>Finish ✓</button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
             </AnimatePresence>
 
             {/* Organ index — left panel */}
@@ -1909,11 +2316,35 @@ export default function HumanBodyExperience({ onBack }: { onBack: () => void }) 
                 {isExploded ? 'Collapse' : 'Explode View'}
               </button>
 
+              <button onClick={() => setMotionOn(m => !m)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                style={{
+                  background: motionOn ? '#06D6A0' : 'rgba(2,4,12,0.85)',
+                  color: motionOn ? '#00140e' : '#06D6A0',
+                  border: '1px solid rgba(6,214,160,0.35)',
+                  backdropFilter: 'blur(12px)',
+                }}>
+                <Activity size={12} />
+                {motionOn ? 'Motion: On' : 'Motion: Off'}
+              </button>
+
               <button onClick={() => { setGender(g => g === 'MALE' ? 'FEMALE' : 'MALE'); setSelectedOrgan(null); }}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest"
                 style={{ background: 'rgba(2,4,12,0.85)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)' }}>
                 <RotateCcw size={12} />
                 {gender === 'MALE' ? 'Female Body' : 'Male Body'}
+              </button>
+
+              <button onClick={() => setShowChem(true)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                style={{ background: 'rgba(2,4,12,0.85)', color: '#D40055', border: '1px solid rgba(212,0,85,0.35)', backdropFilter: 'blur(12px)' }}>
+                <Droplet size={12} /> Blood & Fluids
+              </button>
+
+              <button onClick={() => { setKinematics(k => !k); setSelectedOrgan(null); setActiveTour(null); setPickedPart(null); }}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                style={{ background: kinematics ? '#3B82F6' : 'rgba(2,4,12,0.85)', color: kinematics ? '#001226' : '#3B82F6', border: '1px solid rgba(59,130,246,0.4)', backdropFilter: 'blur(12px)' }}>
+                <Zap size={12} /> {kinematics ? 'Exit Motion Lab' : 'Motion Lab'}
               </button>
 
               <button onClick={() => { setAppMode('QUIZ'); setSelectedOrgan(null); }}
@@ -1922,6 +2353,45 @@ export default function HumanBodyExperience({ onBack }: { onBack: () => void }) 
                 <Trophy size={12} /> Quiz Mode
               </button>
             </div>
+
+            <AnimatePresence>
+              {showChem && <BodyChemistryPanel onClose={() => setShowChem(false)} />}
+            </AnimatePresence>
+
+            {/* Motion Lab — joint range-of-motion controls (rigged skeleton) */}
+            <AnimatePresence>
+              {kinematics && (
+                <motion.div initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 40, opacity: 0 }}
+                  className="absolute top-16 right-4 z-40 w-[260px] max-h-[74vh] overflow-y-auto rounded-2xl p-4"
+                  style={{ background: 'rgba(3,6,14,0.92)', border: '1px solid rgba(59,130,246,0.3)', backdropFilter: 'blur(18px)' }}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Zap size={14} className="text-[#3B82F6]" />
+                    <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[#3B82F6]" style={{ fontFamily: 'Outfit, sans-serif' }}>Motion Lab</span>
+                  </div>
+                  <p className="text-[11px] text-white/45 mb-3 leading-snug">Drag a joint to bend it through its range of motion.</p>
+                  {['Arms', 'Legs', 'Spine'].map(grp => (
+                    <div key={grp} className="mb-3">
+                      <div className="text-[9px] font-black uppercase tracking-[0.18em] text-white/35 mb-1.5" style={{ fontFamily: 'Outfit, sans-serif' }}>{grp}</div>
+                      {JOINTS.filter(j => j.group === grp).map(j => (
+                        <div key={j.id} className="mb-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[11px] text-white/70">{j.label}</span>
+                            <span className="text-[10px] text-[#3B82F6]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{Math.round(jointAngles[j.id] ?? 0)}°</span>
+                          </div>
+                          <input type="range" min={j.min} max={j.max} value={jointAngles[j.id] ?? 0}
+                            onChange={e => setJointAngles(a => ({ ...a, [j.id]: +e.target.value }))}
+                            className="w-full" style={{ accentColor: '#3B82F6' }} />
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                  <button onClick={() => setJointAngles({})}
+                    className="w-full h-8 mt-1 rounded-lg text-[10px] font-black uppercase tracking-widest"
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)', fontFamily: 'Outfit, sans-serif' }}>Reset pose</button>
+                  <p className="text-[9px] text-white/25 mt-3 leading-snug">Rigged skeleton: Z-Anatomy / Z-Biomechanics · CC-BY-SA 4.0</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Right panel: stats (FULL) or system card (others) — hidden when organ selected */}
             <AnimatePresence>

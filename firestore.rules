@@ -23,6 +23,31 @@ service cloud.firestore {
       );
     }
 
+    function canAccessDigitalWorksheet(data) {
+      return isAuthenticated() && (
+        data.createdBy == request.auth.uid ||
+        request.auth.uid in data.get('accessUids', []) ||
+        isAdmin()
+      );
+    }
+
+    function worksheetAssignment(assignmentId) {
+      return get(/databases/$(database)/documents/worksheet_assignments/$(assignmentId)).data;
+    }
+
+    function canAccessWorksheetAssignment(data) {
+      return isAuthenticated() && (
+        data.teacherUid == request.auth.uid ||
+        request.auth.uid in data.get('studentIds', []) ||
+        isAdmin()
+      );
+    }
+
+    function canAccessWorksheetById(worksheetId) {
+      return exists(/databases/$(database)/documents/digital_worksheets/$(worksheetId)) &&
+        canAccessDigitalWorksheet(get(/databases/$(database)/documents/digital_worksheets/$(worksheetId)).data);
+    }
+
     function productionById(prodId) {
       return get(/databases/$(database)/documents/productions/$(prodId)).data;
     }
@@ -998,6 +1023,16 @@ service cloud.firestore {
     // this already; it is written out because "nobody added a rule" is a weaker guarantee than
     // "someone wrote deny on purpose".
     match /tvPairings/{code}                  { allow read, write: if false; }
+
+    // Emergent-school model — written EXCLUSIVELY by the backend service account (routes/schools.ts),
+    // which bypasses these rules. Clients go through /api/schools/* and never write directly.
+    //   schools           — public info (name/state/counts), readable by anyone; no client writes.
+    //   schoolMemberships — a member may read only their OWN membership row; no client writes.
+    //   schoolClaims/Audit — credential-grade; backend only.
+    match /schools/{schoolId}            { allow read: if true; allow write: if false; }
+    match /schoolMemberships/{memberId}  { allow read: if request.auth != null && request.auth.uid == resource.data.uid; allow write: if false; }
+    match /schoolClaims/{claimId}        { allow read, write: if false; }
+    match /schoolAudit/{eventId}         { allow read, write: if false; }
 
     // ── Ora Rest — the shared ambient loop library (services/oraRest) ──────
     // One platform-wide library, rendered once and watched by everyone. Users
@@ -3279,6 +3314,93 @@ service cloud.firestore {
     // booleans, never records. If you are adding a rule here, the question to ask is not "can
     // this user read it" but "could a creator-side code path reach it".
     // ===============================================================
+
+    // Published scan reconstructions. Artwork vectors, editable OCR text and interaction fields
+    // remain one document, but only its teacher and assigned family accounts may retrieve it.
+    match /digital_worksheets/{worksheetId} {
+      allow read: if canAccessDigitalWorksheet(resource.data);
+      allow create: if isAuthenticated() && request.resource.data.createdBy == request.auth.uid;
+      allow update: if isAuthenticated() &&
+        (resource.data.createdBy == request.auth.uid || isAdmin()) &&
+        request.resource.data.createdBy == resource.data.createdBy;
+      allow delete: if isAuthenticated() && (resource.data.createdBy == request.auth.uid || isAdmin());
+    }
+
+    match /worksheet_assignments/{assignmentId} {
+      allow read: if canAccessWorksheetAssignment(resource.data);
+      allow create: if isAuthenticated() &&
+        request.resource.data.teacherUid == request.auth.uid &&
+        canAccessWorksheetById(request.resource.data.worksheetId);
+      allow update: if isAuthenticated() &&
+        (resource.data.teacherUid == request.auth.uid || isAdmin()) &&
+        request.resource.data.teacherUid == resource.data.teacherUid &&
+        request.resource.data.worksheetId == resource.data.worksheetId;
+      allow delete: if isAuthenticated() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+    }
+
+    // Students own their response content; the linked teacher owns assignment/grade review.
+    // Identity and assignment pointers cannot be swapped during an update.
+    match /worksheet_submissions/{submissionId} {
+      allow read: if isAuthenticated() && (
+        resource.data.studentId == request.auth.uid ||
+        request.auth.uid in resource.data.get('guardianUids', []) ||
+        (resource.data.assignmentId is string &&
+          worksheetAssignment(resource.data.assignmentId).teacherUid == request.auth.uid) ||
+        isAdmin()
+      );
+      allow create: if isAuthenticated() && request.resource.data.assignmentId is string && (
+        request.resource.data.studentId == request.auth.uid ||
+        worksheetAssignment(request.resource.data.assignmentId).teacherUid == request.auth.uid ||
+        isAdmin()
+      );
+      allow update: if isAuthenticated() &&
+        request.resource.data.studentId == resource.data.studentId &&
+        request.resource.data.worksheetId == resource.data.worksheetId &&
+        request.resource.data.assignmentId == resource.data.assignmentId && (
+          resource.data.studentId == request.auth.uid ||
+          worksheetAssignment(resource.data.assignmentId).teacherUid == request.auth.uid ||
+          isAdmin()
+        );
+      allow delete: if isAuthenticated() && (
+        worksheetAssignment(resource.data.assignmentId).teacherUid == request.auth.uid || isAdmin()
+      );
+    }
+
+    // Runtime failures and user ratings are append-only evidence. Actors may write only as
+    // themselves and only for worksheets already inside their access boundary.
+    match /assignment_quality_events/{eventId} {
+      allow create: if isAuthenticated() &&
+        request.resource.data.actorId == request.auth.uid &&
+        canAccessWorksheetById(request.resource.data.worksheetId);
+      allow read: if isAuthenticated() && (
+        get(/databases/$(database)/documents/digital_worksheets/$(resource.data.worksheetId)).data.createdBy == request.auth.uid ||
+        isAdmin()
+      );
+      allow update, delete: if false;
+    }
+
+    match /assignment_quality_feedback/{feedbackId} {
+      allow create: if isAuthenticated() &&
+        request.resource.data.actorId == request.auth.uid &&
+        request.resource.data.rating is int &&
+        request.resource.data.rating >= 1 && request.resource.data.rating <= 5 &&
+        canAccessWorksheetById(request.resource.data.worksheetId);
+      allow read: if isAuthenticated() && (
+        get(/databases/$(database)/documents/digital_worksheets/$(resource.data.worksheetId)).data.createdBy == request.auth.uid ||
+        isAdmin()
+      );
+      allow update, delete: if false;
+    }
+
+    match /assignment_quality/{qualityId} {
+      allow read: if canAccessWorksheetById(resource.data.worksheetId);
+      allow create: if isAuthenticated() &&
+        get(/databases/$(database)/documents/digital_worksheets/$(request.resource.data.worksheetId)).data.createdBy == request.auth.uid;
+      allow update: if isAuthenticated() &&
+        request.resource.data.worksheetId == resource.data.worksheetId &&
+        get(/databases/$(database)/documents/digital_worksheets/$(resource.data.worksheetId)).data.createdBy == request.auth.uid;
+      allow delete: if false;
+    }
 
     // The teacher's own integrity configuration: personas + Silent Mode settings.
     // Silent Mode may never be switched off while a verified district persona is active —

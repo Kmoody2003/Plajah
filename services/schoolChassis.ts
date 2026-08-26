@@ -17,7 +17,7 @@ import { appendRecord } from './learningLedgerService';
 export interface LessonAssignment {
   prompt: string;
   /** Which studio the learner does the work in — deep-links the "make your own" step. */
-  tool?: 'FABULA' | 'PHOTO' | 'CHORA' | 'LOREA' | 'PIXELS' | 'NONE';
+  tool?: 'FABULA' | 'PHOTO' | 'CHORA' | 'LOREA' | 'PIXELS' | 'PRAXIS' | 'TERRA' | 'NONE';
   /** Tag applied to the published result, so a lesson gets a visible student wall. */
   postTag?: string;
 }

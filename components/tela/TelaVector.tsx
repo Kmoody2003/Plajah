@@ -18,12 +18,13 @@
  */
 import React, { useRef, useState } from 'react';
 import {
-  MousePointer2, Square, Circle, Minus, PenTool, Type,
+  MousePointer2, MousePointerClick, Scan, Square, Circle, Minus, PenTool, Type,
   ChevronUp, ChevronDown, Trash2, Link2, Unlink,
 } from 'lucide-react';
 import type { TelaVectorDevice, TelaVectorObject, TelaVectorObjectKind } from '../../types';
+import { pathDataFromNodes } from '../../services/telaImageTrace';
 
-export type VectorTool = 'select' | 'rect' | 'ellipse' | 'line' | 'pen' | 'text';
+export type VectorTool = 'select' | 'direct' | 'marquee' | 'rect' | 'ellipse' | 'line' | 'pen' | 'text';
 
 const newObjId = () => `obj_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
@@ -72,22 +73,41 @@ const ObjectEl: React.FC<{
   writerTexts?: Record<string, string>;
   interactive: boolean;
   onPointerDown?: (e: React.PointerEvent) => void;
-}> = ({ o, writerTexts, interactive, onPointerDown }) => {
+  onPointerMove?: (e: React.PointerEvent) => void;
+  onPointerUp?: (e: React.PointerEvent) => void;
+  onPointerCancel?: (e: React.PointerEvent) => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
+}> = ({ o, writerTexts, interactive, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onContextMenu }) => {
   const b = objBounds(o);
   const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  const gradientId = `tela_gradient_${o.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+  const angle = (o.gradient?.angle ?? 0) * Math.PI / 180;
+  const gradientDef = o.gradient ? <defs>{o.gradient.kind === 'RADIAL'
+    ? <radialGradient id={gradientId}>{o.gradient.stops.map((stop, index) => <stop key={index} offset={`${stop.offset * 100}%`} stopColor={stop.color} stopOpacity={stop.opacity ?? 1}/>)}</radialGradient>
+    : <linearGradient id={gradientId} x1={`${50 - Math.cos(angle) * 50}%`} y1={`${50 - Math.sin(angle) * 50}%`} x2={`${50 + Math.cos(angle) * 50}%`} y2={`${50 + Math.sin(angle) * 50}%`}>{o.gradient.stops.map((stop, index) => <stop key={index} offset={`${stop.offset * 100}%`} stopColor={stop.color} stopOpacity={stop.opacity ?? 1}/>)}</linearGradient>}</defs> : null;
+  const decorate = (node: React.ReactNode) => <>{gradientDef}{node}</>;
   const common: React.SVGProps<any> = {
-    fill: o.fill, stroke: o.stroke, strokeWidth: o.strokeWidth, opacity: o.opacity,
+    fill: o.gradient ? `url(#${gradientId})` : o.fill, stroke: o.stroke, strokeWidth: o.strokeWidth, opacity: o.opacity,
     transform: o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined,
-    onPointerDown, style: { cursor: interactive ? 'move' : 'default' },
+    onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onContextMenu, style: { cursor: interactive ? 'move' : 'default' },
     strokeLinecap: 'round', strokeLinejoin: 'round',
   };
-  if (o.kind === 'RECT') return <rect x={o.x} y={o.y} width={Math.max(0, o.w)} height={Math.max(0, o.h)} rx={2} {...common} />;
-  if (o.kind === 'ELLIPSE') return <ellipse cx={o.x + o.w / 2} cy={o.y + o.h / 2} rx={Math.max(0, o.w / 2)} ry={Math.max(0, o.h / 2)} {...common} />;
+  if (o.kind === 'RECT') return decorate(<rect x={o.x} y={o.y} width={Math.max(0, o.w)} height={Math.max(0, o.h)} rx={2} {...common} />);
+  if (o.kind === 'ELLIPSE') return decorate(<ellipse cx={o.x + o.w / 2} cy={o.y + o.h / 2} rx={Math.max(0, o.w / 2)} ry={Math.max(0, o.h / 2)} {...common} />);
   if (o.kind === 'LINE' && o.points) return <line x1={o.points[0]} y1={o.points[1]} x2={o.points[2]} y2={o.points[3]} {...common} />;
+  if (o.kind === 'IMAGE' && o.sourceImageSrc && o.sourceCrop) {
+    const c = o.sourceCrop;
+    return <g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default' }} opacity={o.opacity}><svg x={o.x} y={o.y} width={o.w} height={o.h} viewBox={`${c.x} ${c.y} ${c.width} ${c.height}`} preserveAspectRatio="none" style={{ overflow: 'hidden' }}><image href={o.sourceImageSrc} x={0} y={0} width={c.sourceWidth} height={c.sourceHeight} preserveAspectRatio="none" /></svg></g>;
+  }
+  if (o.kind === 'PATH' && o.svgPathData) {
+    const ox = o.pathOriginX ?? o.x, oy = o.pathOriginY ?? o.y;
+    const sx = o.w / Math.max(1, o.pathOriginW ?? o.w), sy = o.h / Math.max(1, o.pathOriginH ?? o.h);
+    return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default' }} opacity={o.opacity}><path d={o.svgPathData} fill={o.gradient ? `url(#${gradientId})` : o.fill} stroke={o.stroke} strokeWidth={o.strokeWidth} strokeLinecap="round" strokeLinejoin="round" transform={`translate(${o.x} ${o.y}) scale(${sx} ${sy}) translate(${-ox} ${-oy})`} /></g>);
+  }
   if (o.kind === 'PATH' && o.points) {
     const pts = [];
     for (let i = 0; i + 1 < o.points.length; i += 2) pts.push(`${o.points[i]},${o.points[i + 1]}`);
-    return <polyline points={pts.join(' ')} {...common} />;
+    return decorate(o.pathClosed ? <polygon points={pts.join(' ')} {...common} /> : <polyline points={pts.join(' ')} {...common} />);
   }
   if (o.kind === 'TEXT') {
     const size = o.fontSize || 24;
@@ -97,7 +117,7 @@ const ObjectEl: React.FC<{
         x={o.x} y={o.y + size} fill={o.fill} opacity={o.opacity}
         fontSize={size} fontFamily={o.fontFamily || 'system-ui, sans-serif'} fontWeight={o.fontWeight || 400}
         transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}
-        onPointerDown={onPointerDown} style={{ cursor: interactive ? 'move' : 'default', userSelect: 'none' }}
+        onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', userSelect: 'none' }}
       >
         {lines.map((ln, i) => (
           <tspan key={i} x={o.x} dy={i === 0 ? 0 : size * 1.22}>{ln === '' ? ' ' : ln}</tspan>
@@ -120,6 +140,7 @@ export const TelaVectorObjectProps: React.FC<{
   compact?: boolean;
 }> = ({ object: o, writers, onUpdate, onDelete, onForward, onBack, compact }) => {
   const isText = o.kind === 'TEXT';
+  const isImage = o.kind === 'IMAGE';
   const isLine = o.kind === 'LINE' || o.kind === 'PATH';
   const lbl: React.CSSProperties = { fontSize: 10, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: 3 };
   const rowCls = 'flex items-center gap-2 mb-2';
@@ -172,7 +193,7 @@ export const TelaVectorObjectProps: React.FC<{
       )}
 
       <div className={rowCls}>
-        {!isText && (
+        {!isText && !isImage && (
           <label className="flex items-center gap-1.5" style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
             <input type="color" value={o.fill === 'none' ? '#000000' : o.fill} onChange={e => onUpdate({ fill: e.target.value })} style={swatch} />
             Fill
@@ -184,12 +205,22 @@ export const TelaVectorObjectProps: React.FC<{
             Color
           </label>
         )}
-        {!isText && (
+        {!isText && !isImage && (
           <button title={o.fill === 'none' ? 'No fill' : 'Clear fill'} onClick={() => onUpdate({ fill: o.fill === 'none' ? '#6B0099' : 'none' })} style={{ fontSize: 10, fontWeight: 700, padding: '4px 7px', borderRadius: 6, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', color: o.fill === 'none' ? 'var(--pj-cyan,#00DAF3)' : 'rgba(255,255,255,0.6)', cursor: 'pointer' }}>none</button>
         )}
       </div>
 
-      {!isText && (
+      {!isText && !isImage && !isLine && (
+        <div style={{ marginBottom: 10, padding: 8, borderRadius: 9, background: 'rgba(255,255,255,.035)', border: '1px solid rgba(255,255,255,.08)' }}>
+          <div className="flex items-center gap-2">
+            <div style={{ ...lbl, marginBottom: 0 }}>Gradient fill</div>
+            <button onClick={() => onUpdate({ gradient: o.gradient ? undefined : { kind: 'LINEAR', angle: 90, stops: [{ offset: 0, color: o.fill === 'none' ? '#6B0099' : o.fill }, { offset: 1, color: '#FF8A00' }] } })} className="ml-auto h-6 px-2 rounded-[7px] text-[9px] font-extrabold" style={{ color: o.gradient ? '#8ff5ff' : 'rgba(255,255,255,.55)', background: o.gradient ? 'rgba(0,218,243,.12)' : 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)' }}>{o.gradient ? 'On' : 'Add'}</button>
+          </div>
+          {o.gradient && <><div className="flex items-center gap-2 mt-2"><select value={o.gradient.kind} onChange={e => onUpdate({ gradient: { ...o.gradient!, kind: e.target.value as 'LINEAR' | 'RADIAL' } })} style={{ ...numStyle, width: 84 }}><option value="LINEAR">Linear</option><option value="RADIAL">Radial</option></select>{o.gradient.kind === 'LINEAR' && <input title="Gradient angle" type="number" value={o.gradient.angle || 0} onChange={e => onUpdate({ gradient: { ...o.gradient!, angle: +e.target.value } })} style={numStyle}/>}<input type="color" value={o.gradient.stops[0]?.color || '#6B0099'} onChange={e => onUpdate({ gradient: { ...o.gradient!, stops: [{ ...(o.gradient!.stops[0] || { offset: 0 }), color: e.target.value }, ...(o.gradient!.stops.slice(1))] } })} style={swatch}/><input type="color" value={o.gradient.stops.at(-1)?.color || '#FF8A00'} onChange={e => { const stops = [...o.gradient!.stops]; stops[stops.length - 1] = { ...(stops.at(-1) || { offset: 1 }), color: e.target.value }; onUpdate({ gradient: { ...o.gradient!, stops } }); }} style={swatch}/></div></>}
+        </div>
+      )}
+
+      {!isText && !isImage && (
         <div className={rowCls}>
           <label className="flex items-center gap-1.5" style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
             <input type="color" value={o.stroke === 'none' ? '#000000' : o.stroke} onChange={e => onUpdate({ stroke: e.target.value })} style={swatch} />
@@ -204,12 +235,10 @@ export const TelaVectorObjectProps: React.FC<{
         <div style={lbl}>Opacity {Math.round(o.opacity * 100)}%</div>
         <input type="range" min={0} max={1} step={0.01} value={o.opacity} onChange={e => onUpdate({ opacity: +e.target.value })} style={{ width: '100%', accentColor: 'var(--pj-magenta,#D40055)' }} />
       </div>
-      {!isLine && (
-        <div style={{ marginBottom: 8 }}>
-          <div style={lbl}>Rotation {Math.round(o.rotation)}°</div>
-          <input type="range" min={-180} max={180} step={1} value={o.rotation} onChange={e => onUpdate({ rotation: +e.target.value })} style={{ width: '100%', accentColor: 'var(--pj-magenta,#D40055)' }} />
-        </div>
-      )}
+      <div style={{ marginBottom: 8 }}>
+        <div style={lbl}>Rotation {Math.round(o.rotation)}°</div>
+        <input type="range" min={-180} max={180} step={1} value={o.rotation} onChange={e => onUpdate({ rotation: +e.target.value })} style={{ width: '100%', accentColor: 'var(--pj-magenta,#D40055)' }} />
+      </div>
 
       <div className="flex items-center gap-1.5" style={{ marginTop: compact ? 6 : 10 }}>
         <button title="Bring forward" onClick={onForward} className="flex-1" style={{ display: 'grid', placeItems: 'center', height: 30, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', color: '#fff', cursor: 'pointer' }}><ChevronUp size={15} /></button>
@@ -231,16 +260,23 @@ interface TelaVectorProps {
   onToolChange?: (t: VectorTool) => void;
   selectedId?: string | null;
   onSelect?: (id: string | null) => void;
+  selectedIds?: string[];
+  onSelectionChange?: (ids: string[]) => void;
   writerTexts?: Record<string, string>;
   writers?: { id: string; name: string }[];
   onAddObject: (object: TelaVectorObject) => void;
   onUpdateObject: (objectId: string, patch: Partial<TelaVectorObject>) => void;
   onDeleteObject: (objectId: string) => void;
   onReorder: (objectId: string, toIndex: number) => void;
+  onObjectContextMenu?: (event: React.MouseEvent, object: TelaVectorObject) => void;
+  objectContextBindings?: (object: TelaVectorObject) => { onContextMenu: (event: React.MouseEvent) => void; onPointerDown: (event: React.PointerEvent) => void; onPointerMove: (event: React.PointerEvent) => void; onPointerUp: () => void; onPointerCancel: () => void };
+  snap?: { enabled: boolean; x: number[]; y: number[]; threshold?: number };
 }
 
 const TOOLS: { id: VectorTool; icon: React.ReactNode; label: string }[] = [
   { id: 'select', icon: <MousePointer2 size={15} />, label: 'Select' },
+  { id: 'direct', icon: <MousePointerClick size={15} />, label: 'Direct select / edit anchors' },
+  { id: 'marquee', icon: <Scan size={15} />, label: 'Marquee select' },
   { id: 'rect', icon: <Square size={15} />, label: 'Rectangle' },
   { id: 'ellipse', icon: <Circle size={15} />, label: 'Ellipse' },
   { id: 'line', icon: <Minus size={15} />, label: 'Line' },
@@ -259,17 +295,29 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
   const tool = props.tool ?? toolI;
   const setTool = (t: VectorTool) => { setToolI(t); props.onToolChange?.(t); };
   const [selI, setSelI] = useState<string | null>(null);
+  const [selIdsI, setSelIdsI] = useState<string[]>([]);
   const selectedId = props.selectedId !== undefined ? props.selectedId : selI;
-  const select = (id: string | null) => { setSelI(id); props.onSelect?.(id); };
+  const selectedIds = props.selectedIds !== undefined ? props.selectedIds : selIdsI;
+  const selectMany = (ids: string[]) => {
+    const next = [...new Set(ids)].filter(id => device.objects.some(object => object.id === id));
+    const primary = next.at(-1) || null;
+    setSelIdsI(next); setSelI(primary); props.onSelectionChange?.(next); props.onSelect?.(primary);
+  };
+  const select = (id: string | null) => selectMany(id ? [id] : []);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const [draft, setDraft] = useState<TelaVectorObject | null>(null);
   const [penPts, setPenPts] = useState<number[] | null>(null);
+  const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [snapLines, setSnapLines] = useState<{ x?: number; y?: number }>({});
   const drag = useRef<
     | { mode: 'create'; startX: number; startY: number }
-    | { mode: 'move'; id: string; startX: number; startY: number; ox: number; oy: number; opoints?: number[] }
+    | { mode: 'move'; id: string; startX: number; startY: number; members: { id: string; ox: number; oy: number; opoints?: number[] }[] }
     | { mode: 'resize'; id: string; handle: string; }
     | { mode: 'linept'; id: string; idx: number }
+    | { mode: 'pathnode'; id: string; idx: number }
+    | { mode: 'marquee'; startX: number; startY: number }
+    | { mode: 'rotate'; id: string }
     | null
   >(null);
 
@@ -289,7 +337,13 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
   const onBgPointerDown = (e: React.PointerEvent) => {
     if (readOnly) return;
     const p = svgPoint(e);
-    if (tool === 'select') { select(null); return; }
+    if (tool === 'select' || tool === 'direct') { select(null); return; }
+    if (tool === 'marquee') {
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+      setMarquee({ x: p.x, y: p.y, w: 0, h: 0 });
+      drag.current = { mode: 'marquee', startX: p.x, startY: p.y };
+      return;
+    }
     if (tool === 'pen') {
       setPenPts(prev => prev ? [...prev, p.x, p.y] : [p.x, p.y]);
       return;
@@ -308,14 +362,19 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
 
   const onObjectPointerDown = (e: React.PointerEvent, id: string) => {
     if (readOnly) return;
-    if (tool !== 'select') return; // let the bg handle creation tools
+    if (tool !== 'select' && tool !== 'direct') return; // let the bg handle creation tools
     e.stopPropagation();
     (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-    select(id);
+    const nextIds = e.shiftKey
+      ? (selectedIds.includes(id) ? selectedIds.filter(item => item !== id) : [...selectedIds, id])
+      : (selectedIds.includes(id) && selectedIds.length > 1 ? selectedIds : [id]);
+    selectMany(nextIds);
+    if (!nextIds.includes(id)) return;
     const o = device.objects.find(x => x.id === id);
     if (!o) return;
     const p = svgPoint(e);
-    drag.current = { mode: 'move', id, startX: p.x, startY: p.y, ox: o.x, oy: o.y, opoints: o.points ? [...o.points] : undefined };
+    const members = nextIds.map(memberId => device.objects.find(object => object.id === memberId)).filter((object): object is TelaVectorObject => !!object).map(object => ({ id: object.id, ox: object.x, oy: object.y, opoints: object.points ? [...object.points] : undefined }));
+    drag.current = { mode: 'move', id, startX: p.x, startY: p.y, members };
   };
 
   const onHandlePointerDown = (e: React.PointerEvent, handle: string) => {
@@ -330,6 +389,17 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
     drag.current = { mode: 'linept', id: selected.id, idx };
   };
+  const onPathNodePointerDown = (e: React.PointerEvent, idx: number) => {
+    if (readOnly || !selected?.pathNodes) return;
+    e.stopPropagation();
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    drag.current = { mode: 'pathnode', id: selected.id, idx };
+  };
+  const onRotatePointerDown = (e: React.PointerEvent) => {
+    if (readOnly || !selected) return;
+    e.stopPropagation(); (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    drag.current = { mode: 'rotate', id: selected.id };
+  };
 
   const onPointerMove = (e: React.PointerEvent) => {
     const d = drag.current;
@@ -342,12 +412,32 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
         const x = Math.min(d.startX, p.x), y = Math.min(d.startY, p.y);
         setDraft({ ...draft, x, y, w: Math.abs(p.x - d.startX), h: Math.abs(p.y - d.startY) });
       }
+    } else if (d.mode === 'marquee') {
+      setMarquee({ x: Math.min(d.startX, p.x), y: Math.min(d.startY, p.y), w: Math.abs(p.x - d.startX), h: Math.abs(p.y - d.startY) });
     } else if (d.mode === 'move') {
-      const dx = p.x - d.startX, dy = p.y - d.startY;
-      if (d.opoints) {
-        onUpdateObject(d.id, { points: d.opoints.map((v, i) => i % 2 === 0 ? v + dx : v + dy) });
-      } else {
-        onUpdateObject(d.id, { x: d.ox + dx, y: d.oy + dy });
+      let dx = p.x - d.startX, dy = p.y - d.startY;
+      const object = device.objects.find(o => o.id === d.id);
+      if (props.snap?.enabled && object) {
+        const bounds = objBounds(object), threshold = props.snap.threshold ?? 6;
+        const nearest = (values: number[], targets: number[]) => {
+          let result: { delta: number; target: number } | null = null;
+          for (const value of values) for (const target of targets) {
+            const delta = target - value;
+            if (Math.abs(delta) <= threshold && (!result || Math.abs(delta) < Math.abs(result.delta))) result = { delta, target };
+          }
+          return result;
+        };
+        const peerBounds = device.objects.filter(peer => peer.id !== d.id).map(objBounds);
+        const xTargets = [...props.snap.x, ...peerBounds.flatMap(b => [b.x, b.x + b.w / 2, b.x + b.w])];
+        const yTargets = [...props.snap.y, ...peerBounds.flatMap(b => [b.y, b.y + b.h / 2, b.y + b.h])];
+        const sx = nearest([bounds.x + dx, bounds.x + bounds.w / 2 + dx, bounds.x + bounds.w + dx], xTargets);
+        const sy = nearest([bounds.y + dy, bounds.y + bounds.h / 2 + dy, bounds.y + bounds.h + dy], yTargets);
+        if (sx) dx += sx.delta; if (sy) dy += sy.delta;
+        setSnapLines({ x: sx?.target, y: sy?.target });
+      } else setSnapLines({});
+      for (const member of d.members) {
+        if (member.opoints) onUpdateObject(member.id, { points: member.opoints.map((value, index) => index % 2 === 0 ? value + dx : value + dy) });
+        else onUpdateObject(member.id, { x: member.ox + dx, y: member.oy + dy });
       }
     } else if (d.mode === 'resize') {
       const o = device.objects.find(x => x.id === d.id); if (!o) return;
@@ -361,6 +451,16 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
       const o = device.objects.find(x => x.id === d.id); if (!o || !o.points) return;
       const pts = [...o.points]; pts[d.idx * 2] = p.x; pts[d.idx * 2 + 1] = p.y;
       onUpdateObject(d.id, { points: pts });
+    } else if (d.mode === 'pathnode') {
+      const o = device.objects.find(x => x.id === d.id); if (!o?.pathNodes) return;
+      const ox = o.pathOriginX ?? o.x, oy = o.pathOriginY ?? o.y;
+      const sx = o.w / Math.max(1, o.pathOriginW ?? o.w), sy = o.h / Math.max(1, o.pathOriginH ?? o.h);
+      const nodes = o.pathNodes.map((n, i) => i === d.idx ? { ...n, x: ox + (p.x - o.x) / sx, y: oy + (p.y - o.y) / sy } : n);
+      onUpdateObject(d.id, { pathNodes: nodes, svgPathData: pathDataFromNodes(nodes, o.pathClosed) });
+    } else if (d.mode === 'rotate') {
+      const o = device.objects.find(x => x.id === d.id); if (!o) return;
+      const b = objBounds(o), cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+      onUpdateObject(d.id, { rotation: Math.atan2(p.y - cy, p.x - cx) * 180 / Math.PI + 90 });
     }
   };
 
@@ -373,8 +473,26 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
         onAddObject(draft); select(draft.id); setTool('select');
       }
       setDraft(null);
+    } else if (d?.mode === 'marquee' && marquee) {
+      const hits = device.objects.filter(o => { const b = objBounds(o); return b.x < marquee.x + marquee.w && b.x + b.w > marquee.x && b.y < marquee.y + marquee.h && b.y + b.h > marquee.y; });
+      selectMany(hits.map(object => object.id)); setMarquee(null); setTool('select');
     }
     drag.current = null;
+    setSnapLines({});
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<SVGSVGElement>) => {
+    if (readOnly || !selectedIds.length) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); e.stopPropagation(); selectedIds.forEach(onDeleteObject); selectMany([]); return; }
+    const delta = e.shiftKey ? 10 : 1;
+    const dx = e.key === 'ArrowLeft' ? -delta : e.key === 'ArrowRight' ? delta : 0;
+    const dy = e.key === 'ArrowUp' ? -delta : e.key === 'ArrowDown' ? delta : 0;
+    if (!dx && !dy) return; e.preventDefault(); e.stopPropagation();
+    for (const id of selectedIds) {
+      const object = device.objects.find(item => item.id === id); if (!object) continue;
+      if (object.points) onUpdateObject(object.id, { points: object.points.map((value, index) => value + (index % 2 === 0 ? dx : dy)) });
+      else onUpdateObject(object.id, { x: object.x + dx, y: object.y + dy });
+    }
   };
 
   const finishPen = () => {
@@ -395,6 +513,7 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
   };
 
   const selBounds = selected ? objBounds(selected) : null;
+  const multiBounds = selectedIds.map(id => device.objects.find(object => object.id === id)).filter((object): object is TelaVectorObject => !!object).map(object => ({ id: object.id, ...objBounds(object) }));
   const handles = selBounds
     ? [
         { k: 'nw', x: selBounds.x, y: selBounds.y },
@@ -441,18 +560,22 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
         style={{ display: 'block', touchAction: 'none' }}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onKeyDown={onKeyDown}
+        tabIndex={0}
         onDoubleClick={() => { if (penPts) finishPen(); }}
       >
         {/* Artboard background — captures create/deselect pointers. */}
         <rect x={0} y={0} width={device.width} height={device.height} fill="#FFFFFF" onPointerDown={onBgPointerDown} />
 
-        {device.objects.map(o => (
+        {device.objects.map(o => { const menu = props.objectContextBindings?.(o); return (
           <ObjectEl
             key={o.id} o={o} writerTexts={writerTexts}
-            interactive={!readOnly && tool === 'select'}
-            onPointerDown={readOnly ? undefined : e => onObjectPointerDown(e, o.id)}
+            interactive={!readOnly && (tool === 'select' || tool === 'direct')}
+            onPointerDown={readOnly ? undefined : e => { menu?.onPointerDown(e); onObjectPointerDown(e, o.id); }}
+            onPointerMove={menu?.onPointerMove} onPointerUp={menu?.onPointerUp} onPointerCancel={menu?.onPointerCancel}
+            onContextMenu={readOnly ? undefined : e => { select(o.id); if (menu) menu.onContextMenu(e); else { e.preventDefault(); e.stopPropagation(); props.onObjectContextMenu?.(e, o); } }}
           />
-        ))}
+        ); })}
 
         {/* Draft preview */}
         {draft && <ObjectEl o={{ ...draft, opacity: 0.7 }} interactive={false} />}
@@ -464,9 +587,14 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
             fill="none" stroke="var(--pj-cyan,#00DAF3)" strokeWidth={2} strokeDasharray="4 3" vectorEffect="non-scaling-stroke"
           />
         )}
+        {marquee && <rect x={marquee.x} y={marquee.y} width={marquee.w} height={marquee.h} fill="rgba(0,218,243,.10)" stroke="var(--pj-cyan,#00DAF3)" strokeWidth={1.5} strokeDasharray="5 3" vectorEffect="non-scaling-stroke" pointerEvents="none" />}
+        {snapLines.x !== undefined && <line x1={snapLines.x} y1={0} x2={snapLines.x} y2={device.height} stroke="var(--pj-cyan,#00DAF3)" strokeWidth={1} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" pointerEvents="none" />}
+        {snapLines.y !== undefined && <line x1={0} y1={snapLines.y} x2={device.width} y2={snapLines.y} stroke="var(--pj-cyan,#00DAF3)" strokeWidth={1} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" pointerEvents="none" />}
+
+        {selectedIds.length > 1 && !readOnly && multiBounds.map(bounds => <rect key={bounds.id} x={bounds.x} y={bounds.y} width={bounds.w} height={bounds.h} fill="none" stroke="var(--pj-cyan,#00DAF3)" strokeWidth={1.25} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" pointerEvents="none"/>)}
 
         {/* Selection outline + handles */}
-        {selBounds && !readOnly && tool === 'select' && (
+        {selBounds && selectedIds.length === 1 && !readOnly && (tool === 'select' || tool === 'direct') && (
           <g>
             <rect x={selBounds.x} y={selBounds.y} width={selBounds.w} height={selBounds.h}
               fill="none" stroke="var(--pj-magenta,#D40055)" strokeWidth={1.5} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" pointerEvents="none" />
@@ -476,12 +604,18 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
                     fill="#fff" stroke="var(--pj-magenta,#D40055)" strokeWidth={1.5} vectorEffect="non-scaling-stroke"
                     style={{ cursor: 'crosshair' }} onPointerDown={e => onLinePtPointerDown(e, i)} />
                 ))
-              : selected && selected.kind !== 'PATH' && handles.map(h => (
+              : selected?.kind === 'PATH' && selected.pathNodes && tool === 'direct' ? selected.pathNodes.map((n, i) => {
+                  const ox = selected.pathOriginX ?? selected.x, oy = selected.pathOriginY ?? selected.y;
+                  const sx = selected.w / Math.max(1, selected.pathOriginW ?? selected.w), sy = selected.h / Math.max(1, selected.pathOriginH ?? selected.h);
+                  return <circle key={n.id} cx={selected.x + (n.x - ox) * sx} cy={selected.y + (n.y - oy) * sy} r={4.5} fill="#fff" stroke="var(--pj-magenta,#D40055)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" style={{ cursor: 'crosshair' }} onPointerDown={e => onPathNodePointerDown(e, i)} />;
+                })
+              : selected && selected.kind !== 'LINE' && tool === 'select' && handles.map(h => (
                   <rect key={h.k} x={h.x - 5} y={h.y - 5} width={10} height={10}
                     fill="#fff" stroke="var(--pj-magenta,#D40055)" strokeWidth={1.5} vectorEffect="non-scaling-stroke"
                     style={{ cursor: h.k === 'nw' || h.k === 'se' ? 'nwse-resize' : 'nesw-resize' }}
                     onPointerDown={e => onHandlePointerDown(e, h.k)} />
                 ))}
+            {selected && tool === 'select' && <><line x1={selBounds.x + selBounds.w / 2} y1={selBounds.y} x2={selBounds.x + selBounds.w / 2} y2={selBounds.y - 28} stroke="var(--pj-magenta,#D40055)" strokeWidth={1.25} vectorEffect="non-scaling-stroke"/><circle cx={selBounds.x + selBounds.w / 2} cy={selBounds.y - 32} r={5} fill="#fff" stroke="var(--pj-magenta,#D40055)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" style={{ cursor: 'grab' }} onPointerDown={onRotatePointerDown}/></>}
           </g>
         )}
       </svg>

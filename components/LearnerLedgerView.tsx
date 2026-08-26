@@ -27,6 +27,14 @@ const SUBJECT_META: Partial<Record<Subject, { label: string; icon: string; color
   ELA: { label: 'Reading & Language', icon: '📖', color: T.orange },
   SCIENCE: { label: 'Science', icon: '🔬', color: T.violet },
   MATH: { label: 'Mathematics', icon: '🔢', color: T.blue },
+  // Flagship programs — see docs/ACADEMIA_FLAGSHIP_CURRICULUM_BLUEPRINT.md
+  SOCIAL: { label: 'History & Social Studies', icon: '🏛️', color: '#FF8C00' },
+  CIVICS: { label: 'Civics & Government', icon: '🗽', color: '#D40055' },
+  ECON: { label: 'Economics', icon: '📈', color: '#3B82F6' },
+  FINLIT: { label: 'Financial Literacy', icon: '💰', color: '#F59E0B' },
+  REALESTATE: { label: 'Real Estate', icon: '🏘️', color: '#06D6A0' },
+  PHILOSOPHY: { label: 'Philosophy', icon: '🦉', color: '#A78BFA' },
+  ARTS: { label: 'Arts, Music & Media', icon: '🎼', color: '#00DAF3' },
 };
 
 // Labeled demo record so the passport is always demonstrable without auth/data.

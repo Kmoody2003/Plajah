@@ -90,6 +90,9 @@ export const DEFAULT_INFLECTION_POLICY: InflectionPolicy = {
 export interface EndlessHourConfig {
   pool: InflectionSong[];
   policy: InflectionPolicy;
+  /** Live sound-tuning knobs (warmth, reverb, delay, synth voice, arp…). Applied on channel start
+   *  and editable live in the admin. Optional — an older config just uses the defaults. */
+  sound?: import('../ora/stillness/soundTuning').SoundTuning;
 }
 
 export const EMPTY_ENDLESS_HOUR_CONFIG: EndlessHourConfig = { pool: [], policy: DEFAULT_INFLECTION_POLICY };

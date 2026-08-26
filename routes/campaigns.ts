@@ -525,7 +525,16 @@ campaignsRouter.post('/webhook/resend', async (req: Request, res: Response) => {
   try {
     // Always 200 — a provider that gets errors here will retry and eventually stop sending events.
     const secret = process.env.RESEND_WEBHOOK_SECRET;
-    if (secret && req.headers['x-plajah-webhook-secret'] !== secret) return res.status(200).json({ ok: true });
+    if (!secret) {
+      console.error('[campaigns] RESEND_WEBHOOK_SECRET is not configured');
+      return res.status(503).json({ error: 'Webhook unavailable' });
+    }
+    const supplied = String(req.headers['x-plajah-webhook-secret'] || '');
+    const expectedBuf = Buffer.from(secret);
+    const suppliedBuf = Buffer.from(supplied);
+    if (expectedBuf.length !== suppliedBuf.length || !nodeCrypto.timingSafeEqual(expectedBuf, suppliedBuf)) {
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
 
     const type = String(req.body?.type || '');
     const email = String(req.body?.data?.to?.[0] || req.body?.data?.email || '').toLowerCase();

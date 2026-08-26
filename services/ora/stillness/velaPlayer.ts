@@ -45,18 +45,23 @@ export interface PlayerEvent {
  * sound suspended rather than unfinished. Rough arrivals start with more notes, because a
  * denser set is closer to where an agitated person already is.
  */
+// MAJOR PENTATONIC only (2,4,5,7,9 above the reference). This is the single biggest "never scary"
+// decision: a pentatonic collection has no semitones, no tritone, and no major/minor-seventh clash
+// against the drone octave, so ANY combination of these notes — chord, melody, drone, echo — is
+// consonant. The old sets carried the major seventh (11) and mutations could bring in the minor
+// third (3) and minor seventh (10); stacked against the drone those are exactly the intervals that
+// read as unease/dread. Pentatonic is the sound of meditation gongs and singing bowls for a reason.
 const ARRIVAL_SETS: Record<number, PitchSet> = {
-  1: [2, 4, 5, 7, 9, 11], // six notes, restless
-  2: [2, 4, 7, 9, 11],
-  3: [2, 4, 7, 9],        // suspended, no third against the reference
+  1: [2, 4, 5, 7, 9], // full pentatonic — warm, but still consonant everywhere
+  2: [2, 4, 7, 9],
+  3: [2, 4, 7, 9],    // suspended, open
   4: [2, 7, 9],
-  5: [2, 7],              // two notes and a lot of space
+  5: [2, 7],          // two notes and a lot of space
 };
 
-/** Candidates a mutation may bring in. Deliberately excludes 1 and 6 semitones from the
- *  reference — those are the two intervals that make the collection sound like it wants
- *  something. */
-const CANDIDATES = [2, 3, 4, 5, 7, 9, 10, 11];
+/** Candidates a mutation may bring in — pentatonic only, so the collection can never drift into a
+ *  dissonant or unsettling colour. */
+const CANDIDATES = [2, 4, 5, 7, 9];
 
 function hash(a: number, b: number): number {
   let h = (a ^ Math.imul(b + 1, 0x9e3779b1)) >>> 0;
@@ -162,10 +167,6 @@ export function createPlayer(
     // rather than wandering with a random pick.
     let prevMidi = root + set[0];
     notes.push(prevMidi);
-    // A sub-octave under the bass for low-end weight — the mix was thin down low. It hums as a
-    // foundation rather than ringing like the bodies above it. Clamped into a sane range.
-    const sub = prevMidi - 12;
-    if (sub >= 24) notes.push(sub);
     for (let v = 1; v < count; v++) {
       // A fourth or a fifth — the two intervals the whole style is built on.
       const step = rand01(seed, i * 31 + v * 5) < 0.5 ? 5 : 7;

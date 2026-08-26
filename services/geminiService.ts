@@ -61,6 +61,48 @@ export const callGemini = async (prompt: string, config: any = {}, model: string
   }
 };
 
+export interface GeminiCallResult {
+  ok: boolean;
+  text: string;
+  status?: number;
+  code?: 'SIGN_IN_REQUIRED' | 'NOT_CONFIGURED' | 'PAYLOAD_TOO_LARGE' | 'RATE_LIMITED' | 'UPSTREAM_ERROR' | 'NETWORK_ERROR' | 'EMPTY_RESPONSE';
+  message?: string;
+}
+
+/**
+ * Browser-first Gemini call with an inspectable failure contract. The legacy helper above is
+ * intentionally nullable and hides HTTP errors; capture/OCR cannot do that because a server 401
+ * must never be presented to a teacher as a blurry photograph.
+ */
+export async function callGeminiDetailed(contents: any, config: any = {}, model = 'gemini-2.5-flash'): Promise<GeminiCallResult> {
+  if (typeof window === 'undefined') {
+    const text = await callGemini(contents as any, config, model);
+    return text ? { ok: true, text } : { ok: false, text: '', code: 'EMPTY_RESPONSE', message: 'The vision model returned no worksheet data.' };
+  }
+  try {
+    const { auth } = await import('./firebase');
+    const user = auth.currentUser;
+    if (!user) return { ok: false, text: '', status: 401, code: 'SIGN_IN_REQUIRED', message: 'Sign in as a teacher to scan and save a worksheet.' };
+    const token = await user.getIdToken().catch(() => null);
+    if (!token) return { ok: false, text: '', status: 401, code: 'SIGN_IN_REQUIRED', message: 'Your teacher session expired. Sign in again and retry.' };
+    const res = await fetch('/api/ai/gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ model, contents, config }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const code: GeminiCallResult['code'] = res.status === 401 ? 'SIGN_IN_REQUIRED' : res.status === 413 ? 'PAYLOAD_TOO_LARGE' : res.status === 429 ? 'RATE_LIMITED' : res.status === 503 ? 'NOT_CONFIGURED' : 'UPSTREAM_ERROR';
+      const fallback = code === 'PAYLOAD_TOO_LARGE' ? 'The photo is too large. Plajah will resize it before retrying.' : code === 'RATE_LIMITED' ? 'Worksheet vision is busy. Wait a moment and retry.' : code === 'NOT_CONFIGURED' ? 'Worksheet vision is not configured on this server.' : 'Worksheet vision could not process this image.';
+      return { ok: false, text: '', status: res.status, code, message: (data as any).error || fallback };
+    }
+    const text = String((data as any).text || '');
+    return text ? { ok: true, text } : { ok: false, text: '', status: res.status, code: 'EMPTY_RESPONSE', message: 'The vision model returned no worksheet data.' };
+  } catch (error: any) {
+    return { ok: false, text: '', code: 'NETWORK_ERROR', message: error?.message || 'Could not reach worksheet vision.' };
+  }
+}
+
 export const generateAlbumMetadata = async (albumTitle: string, trackNames: string[]) => {
   const ai = getAI();
   if (!ai) return { description: "A sonic journey through sound.", themeColor: "#ffffff" };

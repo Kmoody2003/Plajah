@@ -24,6 +24,7 @@ import {
 } from '../../data/praxisJourney';
 import {
   type Venture, newVenture, loadVenture, loadVentureFor, saveVenture, updatePlan, completeStage, awardPraxisPoints,
+  recordPraxisMastery,
 } from '../../services/praxisService';
 import { launchBusinessPage } from '../../services/brandActivation';
 import { runWatchers, type Nudge as NudgeData } from '../../services/praxisWatchers';
@@ -399,7 +400,11 @@ const Chapter: React.FC<{ stage: Stage; venture: Venture; uid?: string; onBack: 
     v = completeStage(v, stage.key, next);
     saveVenture(v);
     onUpdate(v);
-    if (uid) await awardPraxisPoints(uid, stage.key);
+    if (uid) {
+      await awardPraxisPoints(uid, stage.key);
+      // Building the business IS the assessment — record it on the academic ledger.
+      void recordPraxisMastery(uid, stage.key, venture.band);
+    }
     setSaved(true);
   };
 

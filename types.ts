@@ -2614,6 +2614,55 @@ export interface Classroom {
   //              classes (no track) are treated as CREATOR. See docs/education blueprint.
   track?: 'ACADEMIC' | 'CREATOR';
   gradeBand?: string; // academic only — e.g. 'g34'
+  schoolId?: string;  // the emergent School this classroom (a Club) belongs to
+}
+
+// ── Emergent school model ──────────────────────────────────────────────────────
+// A school grows from teachers up: the first teacher to enter its name auto-creates it
+// UNOFFICIAL; as colleagues join it becomes BUILDING; it turns OFFICIAL only when a verified
+// teacher who works there claims it (or a district pre-provisions it). Mirrors the Clubs
+// "Claim as Founder" pattern. Backend: routes/schools.ts + services/schoolService.ts.
+export type SchoolState = 'UNOFFICIAL' | 'BUILDING' | 'OFFICIAL';
+export type SchoolOrgType = 'school' | 'district' | 'homeschool' | 'pod' | 'micro-school' | 'university';
+
+export interface School {
+  id: string;
+  name: string;
+  normalizedName: string;      // lowercase/trimmed/de-punctuated — used to de-dupe on resolve
+  state: SchoolState;
+  orgType: SchoolOrgType;
+  createdByUid: string;        // the first teacher (founder-of-record)
+  createdAt: number;
+  domain?: string;             // e.g. 'lincolnhs.edu' inferred from institutional teacher emails
+  districtId?: string;         // set when under a district
+  adminUids: string[];         // official admins — formed on claim / district provision
+  teacherCount: number;
+  overlayId?: string;          // framework overlay (secular/Catholic/Montessori/…)
+  claimedByUid?: string;
+  claimedAt?: number;
+}
+
+export type SchoolMemberStatus = 'PENDING' | 'CONFIRMED' | 'ADMIN';
+export interface SchoolMembership {
+  id: string;                  // `${schoolId}__${uid}`
+  schoolId: string;
+  uid: string;
+  status: SchoolMemberStatus;  // PENDING → a colleague confirms → CONFIRMED; ADMIN once claimed
+  role: 'TEACHER' | 'ADMIN';
+  joinedAt: number;
+  confirmedByUid?: string;
+  emailDomain?: string;
+}
+
+export interface SchoolClaim {
+  id: string;
+  schoolId: string;
+  requestedByUid: string;
+  requestedAt: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  evidenceDomain?: string;     // the matching institutional email domain, if any
+  resolvedAt?: number;
+  resolvedByUid?: string;
 }
 
 export interface ClassroomModule {
@@ -2767,6 +2816,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'STUDENT_ASSIGNMENT'
   // "Learn the platform" — the one home for every Academia demo, tour and sandbox.
   | 'ACADEMIA_DEMOS'
+  // Resettable source-to-experience demo powered by the production rich-lesson contract.
+  | 'RICH_LESSON_STUDIO_DEMO'
   // The Sky — a learner's position in the real standards prerequisite graph.
   | 'ACADEMIA_SKY'
   // Assigned template lesson — steps + materials + rubric, turned in and graded by hand.
@@ -2781,6 +2832,21 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'LEARNER_LEDGER'
   // Teacher Tools — gradebook, plan-from-mastery, creative assessment
   | 'TEACHER_TOOLS'
+  // School of Money — the financial-literacy flagship (data/finlitCurriculum.ts on the school chassis)
+  | 'MONEY_SCHOOL'
+  // Civics Hall — the founding-documents flagship w/ the Telescoping Text reader
+  | 'CIVICS_HALL'
+  // Real Estate School — full-stack property program, labs run on Terra parcels
+  | 'REAL_ESTATE_SCHOOL'
+  | 'ECON_SCHOOL'
+  | 'PHILOSOPHY_SCHOOL'
+  // Practice portfolio — virtual cash, real prices, reasoned journal
+  | 'PAPER_TRADING'
+  | 'PAPER_TRADING_CLASS'
+  // Classroom as a Club — room interior: feed, sub-group classes, members, points
+  | 'CLASSROOM_CLUB'
+  // Student card — school ID (front) ⇄ stat card (back), verifiable Ledger
+  | 'STUDENT_ID_CARD'
   // Audio Book Studio — Lorea (MAI Voice 2 + MAI Transcribe 1.5)
   | 'AUDIO_BOOK_STUDIO'
   // Science & Engineering hub
@@ -5844,21 +5910,67 @@ export interface TelaFrame {
   deviceIds: string[];
   /** Optional user label shown in the frame chrome. */
   label?: string;
+  /** Page setup is independent of the board and exports with this frame. */
+  orientation?: 'PORTRAIT' | 'LANDSCAPE';
 }
 
 export type TelaBlockKind = 'h1' | 'h2' | 'p' | 'li';
+
+/** Creative-writing meaning is data, not just formatting. */
+export type TelaTextSemanticKind = 'LYRIC' | 'POETRY' | 'NOTE' | 'JOURNAL' | 'QUOTE';
+
+export interface TelaSemanticSpan {
+  id: string;
+  kind: TelaTextSemanticKind;
+  startOffset: number;
+  endOffset: number;
+  text: string;
+  label?: string;
+  createdAt: number;
+}
+
+/**
+ * A Tela component can be the editor for a record owned by another Plajah
+ * surface. The adapter hydrates from the source and writes changes back.
+ */
+export interface TelaDomainBinding {
+  provider: 'MELOS' | 'NOTEBOOK' | 'PLAJAH';
+  entity: 'SONG' | 'TRACKLIST' | 'NOTEBOOK' | 'JOURNAL' | 'PROFILE_NOTES';
+  direction: 'BIDIRECTIONAL';
+  productionId?: string;
+  recordId?: string;
+  storageKey?: string;
+  field?: string;
+  label?: string;
+  /** Sensitive components are encrypted before the Tela bundle reaches OPFS/localStorage. */
+  encryptedAtRest?: boolean;
+}
 
 /** One Writer block. `text` is inline HTML (only strong/em/br/code survive). */
 export interface TelaBlock {
   id: string;
   kind: TelaBlockKind;
   text: string;
+  /** Assignment authoring semantics captured from a Writer text selection. */
+  assignmentRole?: 'QUESTION' | 'INSTRUCTION';
+  assignmentFieldId?: string;
+  assignmentSourceText?: string;
+  /** Whole-block meaning plus exact highlighted semantic ranges. */
+  textRole?: TelaTextSemanticKind;
+  semanticLabel?: string;
+  semanticSpans?: TelaSemanticSpan[];
+  /** Stable source identity for round-tripping structured lyric sections. */
+  domainBlockId?: string;
+  domainBlockKind?: string;
+  domainBlockLocked?: boolean;
 }
 
 export interface TelaWriterDevice {
   id: string;
   type: 'WRITER';
   blocks: TelaBlock[];
+  mode?: 'DOCUMENT' | 'SONGWRITING' | 'POETRY' | 'NOTES' | 'JOURNAL';
+  domainBinding?: TelaDomainBinding;
 }
 
 /** Cells keyed by A1-style refs; raw strings ('=A1+B2' formulas included). */
@@ -5874,6 +5986,108 @@ export interface TelaGridDevice {
 
 export type TelaFieldType = 'TEXT' | 'NUMBER' | 'SELECT' | 'CHECKBOX' | 'DATE';
 
+/** The student-facing response surface for an assignment question. */
+export type TelaResponseType =
+  | 'SHORT_TEXT' | 'LONG_TEXT' | 'NUMBER'
+  | 'MULTIPLE_CHOICE' | 'TRUE_FALSE'
+  | 'ATTACHMENT' | 'AUDIO' | 'VIDEO' | 'LINK';
+
+export type TelaAssignmentAudienceRole = 'STUDENT' | 'TEACHER' | 'PARENT';
+
+export interface TelaAssignmentSourceRef {
+  deviceId: string;
+  blockId?: string;
+  objectId?: string;
+  /** The exact highlighted phrase retained even if the source is edited later. */
+  selectedText?: string;
+  startOffset?: number;
+  endOffset?: number;
+}
+
+/** Durable interactive properties attached to one answer field. */
+export interface TelaQuestionProperties {
+  kind: 'QUESTION';
+  prompt: string;
+  responseType: TelaResponseType;
+  required: boolean;
+  points: number;
+  source?: TelaAssignmentSourceRef;
+  correctAnswer?: string;
+  acceptedAnswers?: string[];
+  tolerance?: number;
+  options?: string[];
+  /** Progressive coaching only; students never receive the answer key through this property. */
+  hints?: string[];
+  standards?: string[];
+  rubricTarget?: string;
+  allowedFileTypes?: string[];
+  /** Tela enforces 60 seconds for native audio/video capture. */
+  maxRecordingSeconds?: number;
+  longerVideoPolicy?: 'LINK_ONLY';
+  externalVideoProviders?: string[];
+  gradingVisibility?: TelaAssignmentAudienceRole[];
+}
+
+export interface TelaFieldGrade {
+  fieldId: string;
+  status: 'CORRECT' | 'INCORRECT' | 'MANUAL_REVIEW' | 'UNANSWERED';
+  earned: number;
+  possible: number;
+  /** Safe for students: coaching without exposing the answer key. */
+  studentTip?: string;
+  /** Teacher/parent-only explanation. */
+  evaluatorNote?: string;
+}
+
+export interface TelaSubmissionGrade {
+  earned: number;
+  possible: number;
+  percent: number;
+  needsManualReview: boolean;
+  fields: TelaFieldGrade[];
+  evaluatedAt: number;
+}
+
+export type TelaAssignmentAuditStatus = 'ASSIGNED' | 'OPENED' | 'SUBMITTED' | 'TURNED_IN';
+
+/** Durable authorship/timing evidence stored beside each assignment response. */
+export interface TelaAssignmentSubmissionAudit {
+  studentId: string;
+  studentName: string;
+  status: TelaAssignmentAuditStatus;
+  assignedAt?: number;
+  openedAt: number;
+  submittedAt?: number;
+  turnedInAt?: number;
+  durationMs?: number;
+}
+
+export interface TelaAssignmentQualityFeedback {
+  id: string;
+  actorId?: string;
+  actorName?: string;
+  role: TelaAssignmentAudienceRole | 'AUTHOR';
+  rating: number;
+  comment?: string;
+  category?: 'ACCURACY' | 'LAYOUT' | 'USABILITY' | 'ACCESSIBILITY' | 'OTHER';
+  createdAt: number;
+}
+
+export interface TelaAssignmentQualityEvent {
+  id: string;
+  kind: 'CRASH' | 'RENDER_FAILURE' | 'SCAN_FAILURE' | 'FORMAT_FAILURE' | 'SUBMISSION_FAILURE' | 'USER_REPORT';
+  severity: 'INFO' | 'WARNING' | 'ERROR' | 'FATAL';
+  message: string;
+  source?: string;
+  createdAt: number;
+}
+
+export interface TelaAssignmentQualitySummary {
+  events: TelaAssignmentQualityEvent[];
+  feedback: TelaAssignmentQualityFeedback[];
+  updatedAt: number;
+}
+
 /** One typed column in a Base. */
 export interface TelaField {
   id: string;
@@ -5881,6 +6095,21 @@ export interface TelaField {
   type: TelaFieldType;
   /** SELECT choices (ignored by other types). */
   options?: string[];
+  /** Worksheet semantics: printed content is never mistaken for student input. */
+  semanticRole?: 'RESPONSE' | 'PRINTED_CONTENT' | 'TEACHER_KEY';
+  /** Normalized position on the source page, 0..100. */
+  layout?: { x: number; y: number; w: number; h: number; pageId?: string };
+  validation?: {
+    mode: 'EXACT' | 'NUMERIC_TOLERANCE' | 'CHOICE' | 'MATH_EXPRESSION' | 'MANUAL';
+    expected?: string;
+    tolerance?: number;
+    /** Tela/Grid-compatible formula used for live checking when present. */
+    formula?: string;
+  };
+  /** Present when the Base field is an interactive assignment answer. */
+  interaction?: TelaQuestionProperties;
+  /** Field name in a bidirectionally bound source record. */
+  domainField?: string;
 }
 
 /** One Base record: field id → cell value (all stringly-typed; CHECKBOX = '1'|''). */
@@ -5893,6 +6122,10 @@ export interface TelaRow {
    * never touched by derivation.
    */
   derivedFromBindingId?: string;
+  /** Role-aware evaluation produced when an assignment Form is submitted. */
+  grading?: TelaSubmissionGrade;
+  /** Who submitted, when they opened, and when the platform accepted the turn-in. */
+  submissionAudit?: TelaAssignmentSubmissionAudit;
 }
 
 /** Database device — the system of record other devices bind to. P1 view = table. */
@@ -5902,6 +6135,33 @@ export interface TelaBaseDevice {
   name?: string;
   fields: TelaField[];
   rows: TelaRow[];
+  domainBinding?: TelaDomainBinding;
+}
+
+export type TelaNoteKind = 'NOTE' | 'JOURNAL' | 'LYRIC_IDEA' | 'POEM' | 'OBSERVATION' | 'RESEARCH';
+
+export interface TelaNoteEntry {
+  id: string;
+  kind: TelaNoteKind;
+  title: string;
+  blocks: TelaBlock[];
+  tags: string[];
+  createdAt: number;
+  updatedAt: number;
+  pinned?: boolean;
+  privacy?: 'PRIVATE' | 'SHARED';
+  domainRecordId?: string;
+}
+
+/** The common note/journal surface used across Plajah. */
+export interface TelaNotesDevice {
+  id: string;
+  type: 'NOTES';
+  name?: string;
+  entries: TelaNoteEntry[];
+  activeEntryId?: string;
+  defaultKind?: TelaNoteKind;
+  domainBinding?: TelaDomainBinding;
 }
 
 /** Input surface writing into a Base (in the same doc, by device id). */
@@ -5910,6 +6170,21 @@ export interface TelaFormDevice {
   type: 'FORM';
   baseDeviceId?: string;
   title?: string;
+  /** Positioned overlays retain page fidelity; FLOW is the accessible reflow posture. */
+  presentation?: 'POSITIONED' | 'FLOW';
+  pageDeviceId?: string;
+  assignment?: {
+    enabled: true;
+    assignmentId?: string;
+    createdAt?: number;
+    previewRole?: TelaAssignmentAudienceRole;
+    showStudentTips?: boolean;
+    maxRecordedVideoSeconds: number;
+    longerVideoPolicy: 'LINK_ONLY';
+    externalVideoProviders: string[];
+    /** Assignment-scoped quality record; never mixed into student answer values. */
+    quality?: TelaAssignmentQualitySummary;
+  };
 }
 
 // ── Vector device — SVG objects, resolution-independent (P2) ─────────────────
@@ -5918,7 +6193,26 @@ export interface TelaFormDevice {
 // Slug analytic-curve text engine (spec §04) is a LATER dedicated push; SVG text
 // delivers sharp-at-zoom today.
 
-export type TelaVectorObjectKind = 'RECT' | 'ELLIPSE' | 'LINE' | 'PATH' | 'TEXT';
+export type TelaVectorObjectKind = 'RECT' | 'ELLIPSE' | 'LINE' | 'PATH' | 'TEXT' | 'IMAGE';
+
+export interface TelaVectorNode {
+  id: string;
+  x: number;
+  y: number;
+  /** Absolute cubic Bezier handles in the path's source coordinate system. */
+  inX?: number;
+  inY?: number;
+  outX?: number;
+  outY?: number;
+  smooth?: boolean;
+}
+
+export interface TelaGradientStop { offset: number; color: string; opacity?: number; }
+export interface TelaGradientPaint {
+  kind: 'LINEAR' | 'RADIAL';
+  angle?: number;
+  stops: TelaGradientStop[];
+}
 
 /** One vector object. Box kinds use x/y/w/h; LINE/PATH use `points` (flat pairs). */
 export interface TelaVectorObject {
@@ -5932,6 +6226,7 @@ export interface TelaVectorObject {
   /** LINE = [x1,y1,x2,y2]; PATH = flat polyline [x0,y0,x1,y1,…] in artboard px. */
   points?: number[];
   fill: string;        // css color or 'none'
+  gradient?: TelaGradientPaint;
   stroke: string;      // css color or 'none'
   strokeWidth: number;
   rotation: number;    // degrees, about the object's own centre
@@ -5947,6 +6242,35 @@ export interface TelaVectorObject {
    * fallback / caption and is never destroyed by the binding.
    */
   boundWriterDeviceId?: string;
+  sourceSegmentId?: string;
+  semanticRole?: 'PRINTED_CONTENT' | 'QUESTION' | 'INSTRUCTION' | 'RESPONSE_GUIDE' | 'ARTWORK';
+  /** Connects a visible question/answer guide to its Base field. */
+  assignmentFieldId?: string;
+  /** Selectable crop retained for a semantically detected illustration/diagram. */
+  sourceImageSrc?: string;
+  sourceCrop?: { x: number; y: number; width: number; height: number; sourceWidth: number; sourceHeight: number };
+  objectLabel?: string;
+  /** Exact SVG outline fallback when no compatible open font can reproduce the glyphs. */
+  svgPathData?: string;
+  /** Nodes make traced outlines editable instead of leaving them as opaque SVG. */
+  pathNodes?: TelaVectorNode[];
+  pathClosed?: boolean;
+  /** Original path bounds; x/y are the editable Tela placement. */
+  pathOriginX?: number;
+  pathOriginY?: number;
+  pathOriginW?: number;
+  pathOriginH?: number;
+  fontMatch?: {
+    family: string;
+    source: 'OPEN_FONT' | 'SYSTEM' | 'GLYPH_OUTLINE' | 'UNKNOWN';
+    confidence: number;
+    fallbackFamilies?: string[];
+  };
+  /** Pipeline provenance keeps layout, artwork, OCR and interaction layers inspectable. */
+  reconstructionLayer?: 'LAYOUT' | 'ARTWORK' | 'TEXT' | 'INTERACTION';
+  detectedLabel?: string;
+  detectionConfidence?: number;
+  parentRegionId?: string;
 }
 
 /** Vector design surface — an artboard of SVG objects (z-order = array order). */
@@ -5959,6 +6283,24 @@ export interface TelaVectorDevice {
   height: number;
   /** Index 0 = back of the stack, last = front. */
   objects: TelaVectorObject[];
+  trace?: {
+    sourceDeviceId?: string;
+    sourceLayerId?: string;
+    preset: 'LINE_ART' | 'LOGO' | 'DETAILED';
+    createdAt: number;
+    pathCount: number;
+    /** Counts are retained so reconstruction quality is visible rather than implied. */
+    layoutObjectCount?: number;
+    artworkObjectCount?: number;
+    textObjectCount?: number;
+    interactionObjectCount?: number;
+    recognizedRegions?: number;
+    understandingSummary?: string;
+  };
+  /** Selectable raster region produced by semantic document segmentation. */
+  sourceImageSrc?: string;
+  sourceCrop?: { x: number; y: number; width: number; height: number; sourceWidth: number; sourceHeight: number };
+  objectLabel?: string;
 }
 
 // ── Image device — stacked raster layers + non-destructive adjustments (P2) ──
@@ -5979,11 +6321,38 @@ export interface TelaImageAdjust {
   blur: number;       // px, 0 = none
 }
 
+export interface TelaLayerMask {
+  kind: 'LUMA_GRADIENT' | 'ALPHA_IMAGE' | 'SHAPE';
+  enabled: boolean;
+  invert?: boolean;
+  /** Black→white luminance ramp. Black hides, white reveals. */
+  angle?: number;
+  blackPoint?: number;
+  whitePoint?: number;
+  midpoint?: number;
+  src?: string;
+  shape?: 'RECT' | 'ELLIPSE' | 'ROUNDED';
+  feather?: number;
+}
+
+export interface TelaImageLayerGroup {
+  id: string;
+  name: string;
+  visible: boolean;
+  opacity: number;
+  blend: TelaBlendMode;
+  mask?: TelaLayerMask;
+  parentGroupId?: string;
+}
+
 export interface TelaImageLayer {
   id: string;
   name?: string;
   /** Firebase Storage download URL, a remote URL, or a guest object: URL. */
   src: string;
+  mediaKind?: 'IMAGE' | 'VIDEO' | 'LOTTIE';
+  intrinsicWidth?: number;
+  intrinsicHeight?: number;
   /** Present when uploaded to Storage (users/{uid}/tela/…) — lets us clean up. */
   storagePath?: string;
   /** Guest object: URLs don't survive a reload — flagged so the UI can say so. */
@@ -5991,6 +6360,9 @@ export interface TelaImageLayer {
   x: number;
   y: number;
   scale: number;      // 1 = natural
+  rotation?: number;  // degrees around the layer centre
+  groupId?: string;
+  mask?: TelaLayerMask;
   opacity: number;    // 0..1
   blend: TelaBlendMode;
   visible: boolean;
@@ -6006,11 +6378,12 @@ export interface TelaImageDevice {
   height: number;
   /** Index 0 = bottom of the stack, last = top. */
   layers: TelaImageLayer[];
+  groups?: TelaImageLayerGroup[];
 }
 
 export type TelaDevice =
   | TelaWriterDevice | TelaGridDevice | TelaBaseDevice | TelaFormDevice
-  | TelaVectorDevice | TelaImageDevice;
+  | TelaVectorDevice | TelaImageDevice | TelaNotesDevice;
 
 // ── The binding graph — typed, directional links between devices (P1) ─────────
 // A binding is `source device · selector → target device · role`. Edits flow
@@ -6046,6 +6419,17 @@ export interface TelaDoc {
   bindings?: TelaBinding[];
   createdAt: number;
   updatedAt: number;
+  /** Last structural assignment formatting pass. Source content remains editable. */
+  assignmentFormat?: {
+    profile: 'PLAJAH_PLUS';
+    version: 1;
+    appliedAt: number;
+    frameId: string;
+    confidence: number;
+    questionsDetected: number;
+    answerFieldsCreated: number;
+    objectsAligned: number;
+  };
   // ── Versioning (P2b — the platform document layer) ───────────────────────
   /**
    * Published lock state. `true` after a Lock/Publish; an author must Unlock

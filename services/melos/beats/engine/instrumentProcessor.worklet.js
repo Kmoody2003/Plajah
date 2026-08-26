@@ -198,9 +198,11 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       out[c].set(this.views[n - 1].subarray(0, frames));
     }
 
-    // Voice count for the diagnostics readout — cheap, and only every ~10ms.
+    // Voice count is UI telemetry, never audio-critical. Posting every four render quanta created
+    // hundreds of cross-thread messages per second once a channel had several instruments; that
+    // traffic competes with the real-time thread it is supposed to diagnose. Roughly 3 Hz is ample.
     this.tick = (this.tick || 0) + 1;
-    if (this.tick % 4 === 0) {
+    if (this.tick % 128 === 0) {
       this.port.postMessage({ type: 'voices', count: this.x.pa_active_voices(this.eng) });
     }
     return true;

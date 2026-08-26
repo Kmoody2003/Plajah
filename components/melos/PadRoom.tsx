@@ -11,7 +11,7 @@
 
 import React, { useMemo, useRef, useState } from 'react';
 import {
-  Plus, GripVertical, Lock, Unlock, Copy, Trash2, Check, ChevronDown,
+  Plus, GripVertical, Lock, Unlock, Copy, Trash2, Check, ChevronDown, LayoutPanelTop,
 } from 'lucide-react';
 import { useMelos, Label, Hearts } from './MelosWorkspace';
 import {
@@ -19,15 +19,18 @@ import {
   stateMeta, commitmentMeta, moveBlock, duplicateBlock, autoLabelBlocks,
   syllables, uid, suggestConfidence,
 } from '../../services/melosService';
+import { openMelosSongInTela } from '../../services/telaDomainAdapters';
+import { auth } from '../../services/firebase';
 
 const PadRoom: React.FC = () => {
   const {
-    songs, selectedSong, selectedSongId, selectSong, editSong, addSong,
+    prodId, songs, selectedSong, selectedSongId, selectSong, editSong, addSong,
   } = useMelos();
 
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
   const [kindMenu, setKindMenu] = useState<string | null>(null);
+  const [openingTela, setOpeningTela] = useState(false);
   const draftRef = useRef<Record<string, string>>({});
 
   const shelved = useMemo(
@@ -145,6 +148,13 @@ const PadRoom: React.FC = () => {
               <Check size={9} className="inline -mt-[1px] mr-1" />Lyrics locked
             </span>
           )}
+          <button
+            disabled={openingTela}
+            onClick={async () => { setOpeningTela(true); try { await openMelosSongInTela(prodId, song, songs, auth.currentUser?.uid || 'local'); } finally { setOpeningTela(false); } }}
+            className="ml-auto h-8 px-3 rounded-[10px] text-[9px] font-extrabold uppercase tracking-[.12em] flex items-center gap-1.5"
+            style={{ background: 'linear-gradient(135deg,#6B0099,#D40055)', color: '#fff', border: 0 }}
+            title="Open the live lyrics, tracklist and song notebook as bidirectional Tela components"
+          ><LayoutPanelTop size={12}/>{openingTela ? 'Opening…' : 'Open in Tela'}</button>
         </div>
 
         {/* Lyric blocks */}

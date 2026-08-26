@@ -1,6 +1,6 @@
 env:
   - variable: ENCRYPTION_KEY
-    value: fde5fd3b6bcc8abfe4f4188ba4df02b4050388ca8ab30a152c309d39e5235f60
+    secret: ENCRYPTION_KEY
     availability:
       - RUNTIME
   - variable: VITE_FIREBASE_API_KEY
@@ -18,7 +18,7 @@ env:
     availability:
       - RUNTIME
   - variable: HUE_CLIENT_SECRET
-    value: 12d13f2401284d9690e79963a0d0abf9
+    secret: HUE_CLIENT_SECRET
     availability:
       - RUNTIME
   - variable: HUE_REDIRECT_URI

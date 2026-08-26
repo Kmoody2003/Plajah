@@ -19,6 +19,11 @@ RUN npm ci --include=dev
 # Copy everything — CI has already built dist/ before the source is uploaded.
 COPY . .
 
+# The application does not need root privileges at runtime. Limiting the
+# container user reduces the impact of a server or dependency compromise.
+RUN chown -R node:node /app
+USER node
+
 # Cloud Run injects $PORT (defaults to 8080); server.ts binds it.
 EXPOSE 8080
 CMD ["npx", "tsx", "server.ts"]
