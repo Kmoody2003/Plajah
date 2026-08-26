@@ -255,6 +255,7 @@ const WcAnthemPlaylist: React.FC<{ onOpenAlbum?: (album: Album) => void }> = ({ 
 };
 
 const ChoraRadio = React.lazy(() => import('./RadioView'));
+import DailyMixCard from './DailyMixCard';
 
 /** Which Chora tabs this device shows. */
 const CHORA_TABS = (): readonly TabType[] =>
@@ -2164,6 +2165,9 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
           {activeTab === 'FOR_YOU' && !selectedArchiveArtist && userProfile && (
              <div className="px-4 sm:px-6 lg:px-12 pt-8 mb-6 space-y-12 animate-in fade-in">
                {tabWordmark('For You')}
+
+               {/* ── Your Daily Mix — Chora curates a ≤40-min mix from your taste ── */}
+               <DailyMixCard onSelectAlbum={onSelectAlbum} />
 
                {/* ── Coming Soon ── */}
                {upcomingAlbums.length > 0 && (

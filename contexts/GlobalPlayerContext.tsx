@@ -356,10 +356,15 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   useEffect(() => {
     const t = currentTrack;
     if (!t?.url || getCachedAnalysis(t)) return;
-    // Never on a TV: the DJ decks and waveform this feeds do not exist at ten feet, and computing
-    // it means decoding the whole master — which on a 2 GB box is pure memory pressure that gets
-    // the audio decoder evicted mid-song. This is the biggest single lever for smooth TV playback.
-    if (getPlatformInfo().isTV) return;
+    // Never on a TV, and never in the native APK: computing this decodes the WHOLE track on an
+    // offline AudioContext (CPU-heavy). On a phone that means the device runs hot — reported when
+    // streaming from Audius, whose tracks never carry precomputed analysis, so every play here
+    // triggered a full on-device decode (native Chora tracks skip it because their analysis is
+    // cached at upload). The waveform falls back to its synthetic render on these surfaces; the DJ
+    // decks (which need real peaks) do their own decode on demand. Biggest lever for cool, smooth
+    // playback on TV + phone.
+    const plat = getPlatformInfo();
+    if (plat.isTV || plat.isNative) return;
     let cancelled = false;
     const id = setTimeout(() => { if (!cancelled) getOrComputeAnalysis(t).catch(() => {}); }, 4000);
     return () => { cancelled = true; clearTimeout(id); };

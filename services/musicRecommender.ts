@@ -17,10 +17,12 @@ import {
   archiveTrackToNativeTrack, audiusTrackToNativeAlbum, isAudiusOwner,
 } from './audiusService';
 import { followedAudiusOwnerIds } from './audiusLibrary';
+import { getTasteVector, type TasteVector } from './tasteService';
 
 export interface UpNextItem { track: Track; album: Album; native: boolean; reason: string; }
 
-interface Signals { followingIds: Set<string>; libraryIds: Set<string>; }
+interface Signals { followingIds: Set<string>; libraryIds: Set<string>; taste: TasteVector; }
+const EMPTY_TASTE: TasteVector = { genres: {}, artists: {}, loved: [], disliked: [], count: 0 };
 
 // ── Native catalog cache — fetchAllPublicAlbums is heavy; don't hit it every album-end. ──
 let _albumsCache: { at: number; albums: Album[] } | null = null;
@@ -43,16 +45,17 @@ async function userSignals(): Promise<Signals> {
   // Artists you follow ON AUDIUS count as follows here too — a connected Audius account
   // should steer the radio the same way a native follow does.
   const audiusFollows = followedAudiusOwnerIds();
-  const empty: Signals = { followingIds: new Set(audiusFollows), libraryIds: new Set() };
+  const empty: Signals = { followingIds: new Set(audiusFollows), libraryIds: new Set(), taste: EMPTY_TASTE };
   if (!uid) return empty;
   try {
-    const profile: any = await fetchUserProfile(uid);
+    const [profile, taste] = await Promise.all([fetchUserProfile(uid) as any, getTasteVector()]);
     const signals: Signals = {
       followingIds: new Set<string>([
         ...(Array.isArray(profile?.following) ? profile.following : []),
         ...audiusFollows,
       ]),
       libraryIds: new Set<string>(Array.isArray(profile?.library) ? profile.library : []),
+      taste,
     };
     _signalsCache = { at: now, uid, signals };
     return signals;
@@ -66,6 +69,8 @@ function relevance(
   track: Track, album: Album, seed: { genre?: string; artist?: string; artistId?: string },
   sig: Signals,
 ): { score: number; reason: string } {
+  // A track you thumbed down is excluded outright (a strongly negative score is dropped by the floor).
+  if (sig.taste.disliked.includes(track.id)) return { score: -1000, reason: 'you passed on this' };
   let score = 0;
   const reasons: string[] = [];
   const g = norm(track.genre) || norm(album.genre);
@@ -74,6 +79,13 @@ function relevance(
   if (sameArtist) { score += 35; reasons.push('same artist'); }
   if (album.ownerId && sig.followingIds.has(album.ownerId)) { score += 60; reasons.push('you follow'); }
   if (sig.libraryIds.has(track.id)) { score += 20; reasons.push('in your library'); }
+  // ── Taste affinity — genres/artists you've liked or loved bias the pick (dislikes penalize). ──
+  const tg = track.genre || album.genre;
+  const gw = tg ? sig.taste.genres[tg] : undefined;
+  if (gw) { score += Math.max(-40, Math.min(45, gw * 6)); if (gw > 0) reasons.unshift('your taste'); }
+  const aid = (track as any).artistId || album.ownerId;
+  const aw = aid ? sig.taste.artists[aid] : undefined;
+  if (aw) { score += Math.max(-45, Math.min(55, aw * 8)); if (aw > 0) reasons.unshift('an artist you love'); }
   const pop = (track.likes || 0) + ((album as any).playCount || 0) + (track.playCount || 0);
   score += Math.min(20, Math.log10(1 + pop) * 8);
   // Small jitter so a fixed seed doesn't always produce the identical order.

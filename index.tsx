@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 import { GlobalPlayerProvider } from './contexts/GlobalPlayerContext';
-import { LATEST_RELEASE } from './src/releaseNotes';
+import { CHANGELOG } from './data/changelog';
 import { isChunkLoadError, recoverFromStaleChunk } from './src/lib/staleChunk';
 // @ts-ignore
 import { registerSW } from 'virtual:pwa-register';
@@ -80,45 +80,39 @@ const reviewToken = new URLSearchParams(window.location.search).get('t') || '';
   } catch { /* non-fatal — keep booting */ }
 })();
 
-// Returns true if any audio or video element is actively playing.
-// We also check window.__plajahMediaActive which media components can set
-// for cases that don't use HTMLMediaElement (e.g. Web Audio, YouTube iframe API).
-function isMediaActive(): boolean {
-  if ((window as any).__plajahMediaActive) return true;
-  return Array.from(document.querySelectorAll<HTMLMediaElement>('audio, video'))
-    .some(el => !el.paused && !el.ended && el.readyState > 2);
-}
-
-// A small, non-intrusive bottom toast offering a one-click reload when a new build
-// is waiting mid-session. Plain DOM so it works regardless of React state.
+// A small, non-intrusive bottom toast offering a MANUAL reload when a new build is waiting.
+// It never reloads on its own — the user taps Reload when they're ready, or snoozes with "Later"
+// (the update also lands by itself whenever every tab is closed). Plain DOM so it works regardless
+// of React state. Notes come from the ONE changelog ledger (data/changelog.ts), never a second list.
 function showUpdateToast(onReload: () => void) {
   if (document.getElementById('plajah-sw-toast')) return;
   const card = document.createElement('div');
   card.id = 'plajah-sw-toast';
-  card.style.cssText = 'position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:2147483647;display:flex;flex-direction:column;gap:0;max-width:min(92vw,380px);border-radius:14px;background:#1b1b24;color:#fff;border:1px solid rgba(255,140,0,0.4);box-shadow:0 8px 30px rgba(0,0,0,.5);font:500 13px system-ui,sans-serif;overflow:hidden';
+  card.style.cssText = 'position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:2147483647;display:flex;flex-direction:column;gap:0;max-width:min(92vw,400px);border-radius:14px;background:#1b1b24;color:#fff;border:1px solid rgba(255,140,0,0.4);box-shadow:0 8px 30px rgba(0,0,0,.5);font:500 13px system-ui,sans-serif;overflow:hidden';
 
-  // Top row — message + Reload + dismiss
+  // Top row — message + Later (snooze) + Reload. No auto-anything: the viewer decides.
   const row = document.createElement('div');
-  row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:11px 14px';
+  row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:11px 14px';
   const msg = document.createElement('span'); msg.textContent = 'A new version of Plajah is ready.';
   msg.style.cssText = 'flex:1;line-height:1.3';
-  const btn = document.createElement('button'); btn.textContent = 'Reload';
+  const later = document.createElement('button'); later.textContent = 'Later';
+  later.style.cssText = 'padding:6px 12px;border-radius:7px;border:1px solid rgba(255,255,255,0.16);background:transparent;color:#c9c9d4;font-weight:600;cursor:pointer;white-space:nowrap';
+  later.title = 'Keep going — it applies when you next reload, or when every tab is closed.';
+  later.onclick = () => card.remove();
+  const btn = document.createElement('button'); btn.textContent = 'Reload now';
   btn.style.cssText = 'padding:6px 14px;border-radius:7px;border:none;background:linear-gradient(90deg,#FF8C00,#ffa733);color:#1a1a1a;font-weight:700;cursor:pointer;white-space:nowrap';
   btn.onclick = () => { btn.textContent = 'Updating…'; onReload(); };
-  const x = document.createElement('button'); x.textContent = '✕';
-  x.style.cssText = 'background:none;border:none;color:#888;cursor:pointer;font-size:14px;line-height:1';
-  x.title = 'Dismiss (update applies next time all tabs are closed)';
-  x.onclick = () => card.remove();
-  row.append(msg, btn, x);
+  row.append(msg, later, btn);
   card.append(row);
 
-  // Expandable "What's in this update" changelog
-  const notes = LATEST_RELEASE?.highlights || [];
+  // Expandable "What's new" — the newest entries from the changelog ledger.
+  const notes = CHANGELOG.slice(0, 5).map(e => e.title);
+  const version = CHANGELOG[0]?.date;
   if (notes.length) {
     const toggle = document.createElement('button');
     toggle.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:8px 14px;background:rgba(255,255,255,0.03);border:none;border-top:1px solid rgba(255,255,255,0.07);color:#c9c9d4;font:700 10px system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;cursor:pointer';
     const label = document.createElement('span');
-    label.textContent = `What’s in this update${LATEST_RELEASE?.version ? ' · ' + LATEST_RELEASE.version : ''}`;
+    label.textContent = `What’s new${version ? ' · ' + version : ''}`;
     const chevron = document.createElement('span'); chevron.textContent = '▾'; chevron.style.cssText = 'transition:transform .2s;color:#FF8C00';
     toggle.append(label, chevron);
 
@@ -182,37 +176,46 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   // which interrupts video, audio, and games with no warning.
   const updateSW = registerSW({
     onNeedRefresh() {
-      // TVs and the native shell get the update applied UNCONDITIONALLY.
+      // A platform update must NEVER yank a viewer out of what they're doing — no silent reloads.
+      // Two non-intrusive paths:
       //
-      // The toast fallback below assumes someone can see and tap it. On a television that
-      // assumption breaks: a D-pad user may never reach a corner toast, so the WebView kept
-      // serving its cached bundle forever and deploy after deploy simply never arrived. That
-      // is exactly how three shipped TV fixes failed to reach the device while the older
-      // cached build kept running. The one thing worse than an interrupted screen here is an
-      // app permanently frozen on stale code.
+      //  • TV / native shell — a D-pad user can't reach a corner toast, and the WebView would
+      //    otherwise serve the stale bundle forever (this is how shipped TV fixes failed to reach the
+      //    device). So apply the waiting update the next time the app is BACKGROUNDED
+      //    (visibilitychange → hidden): the reload happens off-screen while they've stepped away, so
+      //    the fix is simply there next time they open it. Zero interruption, and it still lands.
+      //
+      //  • Desktop / mobile web — show a small "new version ready" prompt with an explicit Reload and
+      //    a Later (snooze). The viewer reloads when THEY are ready; it also applies on its own once
+      //    every tab is closed.
+      //
+      // Removed: the old unconditional TV/native reload and the "silently reload if the page loaded
+      // <10s ago" desktop path — a returning visitor a few seconds in was still mid-action, and it
+      // read as the page spontaneously refreshing.
+      let isTvOrNative = false;
       try {
         const ua = navigator.userAgent.toLowerCase();
-        const isTvOrNative =
+        isTvOrNative =
           ua.includes('plajahtv/1') ||
           ua.includes('plajah/2.0 android') ||          // the Capacitor shell's appendUserAgent
           /smart-?tv|smarttv|googletv|android\s?tv|leanback|aftt|aftmm|aftb|kfapwi|silk|tizen|web0s|webos|roku|bravia|hbbtv/.test(ua) ||
           (navigator.maxTouchPoints === 0 && /android/.test(ua));
-        if (isTvOrNative) { setTimeout(() => updateSW(true), 0); return; }
-      } catch { /* fall through to the normal path */ }
+      } catch { /* treat as desktop web */ }
 
-      // If the user just arrived (page loaded under 10 seconds ago) AND nothing
-      // is playing yet, silently reload to apply the update — feels like normal
-      // page load to the user. Use setTimeout so updateSW is definitely assigned.
-      // Window widened from 6s → 10s because we now kick off the update check
-      // immediately on load (see onRegisteredSW), so the new SW is often found a
-      // few seconds in — comfortably inside this window on a cold open.
-      if (performance.now() < 10000 && !isMediaActive()) {
-        setTimeout(() => updateSW(true), 0);
+      if (isTvOrNative) {
+        // Already backgrounded? Safe to apply now. Otherwise wait for the app to be hidden.
+        if (document.visibilityState === 'hidden') { updateSW(true); return; }
+        const applyWhenHidden = () => {
+          if (document.visibilityState === 'hidden') {
+            document.removeEventListener('visibilitychange', applyWhenHidden);
+            updateSW(true);
+          }
+        };
+        document.addEventListener('visibilitychange', applyWhenHidden);
         return;
       }
-      // Mid-session: don't auto-reload (would interrupt a live VJ set / video), but
-      // DO surface a one-click "Reload" toast so a new deploy actually reaches the
-      // user instead of waiting until every tab is closed. They update when ready.
+
+      // Desktop / web: user-driven only, never automatic.
       showUpdateToast(() => updateSW(true));
     },
     onOfflineReady() {

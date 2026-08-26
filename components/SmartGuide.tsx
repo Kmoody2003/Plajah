@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Compass, X, Sparkles, ChevronRight, Info, Lightbulb } from "lucide-react";
+import { getPlatformInfo } from "../hooks/usePlatform";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -622,10 +623,15 @@ export default function SmartGuide({ view, enabled, onToggle, isFirstTime, onDis
   const lastPosRef = useRef({ x: 0, y: 0 });
   const tipIndexRef = useRef(0);
   const entry = getPageEntry(view);
+  // Never on a TV. SmartGuide is a pointer surface: the first-run GuideOverlay auto-opens and the
+  // idle tooltips are positioned at the cursor, none of it D-pad focusable — on a 10-foot screen it
+  // pops up over the content and a remote can't dismiss it. isTV is stable for the session, so the
+  // hooks below still run unconditionally (rules-of-hooks safe); we just never show anything.
+  const isTv = (() => { try { return getPlatformInfo().isTV; } catch { return false; } })();
 
   useEffect(() => {
-    if (isFirstTime) setShowOverlay(true);
-  }, [isFirstTime]);
+    if (isFirstTime && !isTv) setShowOverlay(true);
+  }, [isFirstTime, isTv]);
 
   useEffect(() => {
     dismissedRef.current = false;
@@ -662,12 +668,15 @@ export default function SmartGuide({ view, enabled, onToggle, isFirstTime, onDis
   }, [enabled, activeTip, showOverlay, view, entry.tips]);
 
   useEffect(() => {
+    if (isTv) return;
     document.addEventListener("mousemove", handleMouseMove, { passive: true });
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
-  }, [handleMouseMove]);
+  }, [handleMouseMove, isTv]);
+
+  if (isTv) return null;
 
   return (
     <AnimatePresence>

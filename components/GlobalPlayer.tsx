@@ -4,6 +4,7 @@ import { useGoogleCast } from '../hooks/useGoogleCast';
 import { useViewport } from '../hooks/useViewport';
 import { useShellNext } from '../hooks/useShellNext';
 import CommandPlayer from './CommandPlayer';
+import TrackReactions from './TrackReactions';
 import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Shuffle, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box, Video as VideoIcon, Headphones, ZapOff } from 'lucide-react';
 import Logo from './Logo';
 import AriaMark from './aria/AriaMark';
@@ -798,7 +799,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
               
               <div className="flex items-center justify-center gap-8">
                 <button onClick={prev} className="text-white/40 hover:text-white transition-all hover:scale-110"><SkipBack size={24} /></button>
-                 <button 
+                 <button
                     onClick={togglePlay}
                     className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:scale-110 active:scale-95 transition-all"
                   >
@@ -806,6 +807,12 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                   </button>
                 <button onClick={next} className="text-white/40 hover:text-white transition-all hover:scale-110"><SkipForward size={24} /></button>
               </div>
+              {/* Taste — teaches Chora what to recommend (works for Chora, Audius & library tracks). */}
+              {currentTrack && audioSource !== 'VIDEO' && (
+                <div className="flex items-center justify-center mt-3">
+                  <TrackReactions track={currentTrack} album={currentAlbum} size={17} />
+                </div>
+              )}
             </div>
           </div>
 

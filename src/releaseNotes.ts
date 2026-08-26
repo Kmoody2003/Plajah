@@ -1,8 +1,10 @@
-// releaseNotes — the "What's new" changelog shown in the update-ready toast.
+// releaseNotes — DEPRECATED, no longer read by anything (as of 2026-08-26).
 //
-// Keep the LATEST release at the top of `RELEASES`. When you ship something the
-// user should notice, add a short, human bullet here (verbs, no jargon). The
-// update toast shows the newest entry's highlights in an expandable section.
+// The update-ready toast and the What's-New page now BOTH read from the single
+// changelog ledger at `data/changelog.ts` — that is the one place to append a
+// user-facing note when you ship something. This file diverged and went stale
+// (it stopped at July while the ledger moved on), which is exactly the confusion
+// a single source removes. Kept only so no stray import breaks; safe to delete.
 
 export interface ReleaseNote {
   /** A short label for the release — a date or version. */
