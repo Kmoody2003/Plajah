@@ -36,9 +36,21 @@ export interface ChangelogEntry {
  * entriesSince), so it can only ever fire when a genuinely new entry is prepended —
  * never on a redeploy that shipped no user-facing changelog line.
  */
-export const APP_BUILD = '2026.07.26-01';
+export const APP_BUILD = '2026.08.26-01';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    id: 'tv-quiet-updates', date: '2026-08-26', time: '18:10', level: 'minor', area: 'Platform',
+    title: 'Updates never interrupt you anymore',
+    technical: 'Removed both auto-reload paths from the service-worker update flow (index.tsx onNeedRefresh): the unconditional TV/native reload and the "silently reload within 10s of load" desktop path. Desktop now always shows a non-intrusive prompt with Reload / Later (snooze); TV & native apply the waiting update on the next visibilitychange→hidden (off-screen), so it lands without interrupting playback. The update prompt now sources its notes from this single changelog ledger instead of a separate, stale list.',
+    plain: 'Platform updates no longer refresh the page on their own or pull you out of what you\'re watching. On desktop you\'ll see a small "new version ready" note with Reload and Later — update whenever you\'re ready. On TV it quietly applies the next time you leave the app, so it\'s just there when you come back.',
+  },
+  {
+    id: 'tv-remote-fluidity', date: '2026-08-26', time: '18:00', level: 'minor', area: 'TV',
+    title: 'A faster, calmer TV experience',
+    technical: 'TV focus unified on one GPU-composited orange ring (index.css) — [data-tv-focusable] was out-specified to the legacy blue, so focus changed colour by element type; only transform animates now and the 50px focus blur is cut to 20px. Removed the redundant BIG_SCREEN linear key-walker on TV (a third navigator running a full-document querySelectorAll every arrow press). Fullscreen exit made reliable on Taleo (Fullscreen-API button dropped on TV; capture-phase Back/Esc/hardware-back → exit) and Reello (own Back handler + data-tv-no-trap). SmartGuide tips no longer mount on TV.',
+    plain: 'Moving around on the TV with the remote is quicker and smoother, and the focus highlight is one consistent colour. Going fullscreen on films, videos and Live TV+ now reliably closes with the Back button, and the on-screen tips no longer pop up over the content where a remote can\'t dismiss them.',
+  },
   {
     id: '4e48dc5', date: '2026-07-27', time: '03:15', level: 'major', area: 'Live',
     title: 'Bring guests on stage in your live stream',
