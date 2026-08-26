@@ -11,7 +11,8 @@ import nodeCrypto from 'node:crypto';
 
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'gen-lang-client-0665118474';
 const DB_ID = process.env.FIREBASE_DB_ID || 'plajah-prod';
-const FS_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/${DB_ID}/documents`;
+const FS_DOC_ROOT = `projects/${PROJECT_ID}/databases/${DB_ID}/documents`;
+const FS_BASE = `https://firestore.googleapis.com/v1/${FS_DOC_ROOT}`;
 
 function serviceAccount(): { client_email: string; private_key: string } | null {
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
@@ -238,6 +239,40 @@ export async function fsDelete(path: string): Promise<boolean> {
     const res = await fetch(`${FS_BASE}/${path}`, { method: 'DELETE', headers: await authHeaders() });
     return res.ok;
   } catch { return false; }
+}
+
+/** Non-transactional bulk create-or-replace, chunked at the API's 500-write cap.
+ *  Returns how many docs landed. Unlike fsSet, the doc id travels in the request
+ *  BODY as a full resource name, so ids containing `:` (e.g. `detroit:1234.`)
+ *  need no URL-path encoding — and per-write failures are logged, not swallowed,
+ *  because "saved 0, silently" is exactly the bug class this replaced. */
+export async function fsBatchWrite(docs: { path: string; data: Record<string, unknown> }[]): Promise<number> {
+  let ok = 0;
+  for (let start = 0; start < docs.length; start += 500) {
+    const chunk = docs.slice(start, start + 500);
+    try {
+      const res = await fetch(`${FS_BASE}:batchWrite`, {
+        method: 'POST',
+        headers: await authHeaders(),
+        body: JSON.stringify({
+          writes: chunk.map(d => ({ update: { name: `${FS_DOC_ROOT}/${d.path}`, fields: toFields(d.data) } })),
+        }),
+      });
+      if (!res.ok) {
+        console.warn('[fsBatchWrite] HTTP', res.status, (await res.text()).slice(0, 300));
+        continue;
+      }
+      const payload = await res.json() as any;
+      const statuses: any[] = Array.isArray(payload?.status) ? payload.status : [];
+      // google.rpc.Status serializes OK (code 0) with the code field omitted.
+      for (let i = 0; i < chunk.length; i++) if (!statuses[i]?.code) ok++;
+      const firstErr = statuses.find(s => s?.code);
+      if (firstErr) console.warn('[fsBatchWrite] partial failure:', firstErr.code, firstErr.message);
+    } catch (err: any) {
+      console.warn('[fsBatchWrite] chunk failed:', err?.message || err);
+    }
+  }
+  return ok;
 }
 
 /** List a collection's documents (id + data), following pagination. Server-side only — this

@@ -21,6 +21,7 @@
     "test:vespers": "npx tsx --test tests/vespersService.test.ts",
     "test:serviceNotes": "npx tsx --test tests/serviceNotes.test.ts",
     "test:civics": "npx tsx --test tests/comparativeCivics.test.ts",
+    "test:terra": "npx tsx --test tests/terraCodec.test.ts",
     "test:paper": "npx tsx --test --experimental-test-module-mocks tests/paperTrading.test.ts",
     "test:academia": "npx tsx --test tests/academiaIntegrity.test.ts",
     "test:melos": "npx tsx --test tests/melosArp.test.ts tests/melosKera.test.ts",

@@ -18,7 +18,7 @@ import { collection, deleteDoc, doc, getDoc, getDocs, limit as fsLimit, query, s
 import { db } from '../backendService';
 import type { OpenListingRecord } from './olr';
 import { hashListingRecord, validateListingRecord } from './olr';
-import type { TerraParcel, TerraCivicRecord, ZoningRule, TerraIngestionSummary } from './terraTypes';
+import { packParcel, unpackParcel, type TerraParcel, type TerraCivicRecord, type ZoningRule, type TerraIngestionSummary } from './terraTypes';
 
 export const TERRA_COLLECTIONS = {
   parcels: 'terraParcels',
@@ -97,13 +97,16 @@ async function writeEnvelopeBatch<T>(collectionName: string, rows: { id: string;
 
 // ─── Parcels ─────────────────────────────────────────────────────────────────
 
+// Geometry crosses the Firestore boundary as a JSON string (nested GeoJSON
+// arrays are invalid in Firestore) — pack on write, unpack on read. See the
+// codec note in terraTypes.ts.
 export const saveParcels = (parcels: TerraParcel[]) =>
-  writeEnvelopeBatch(TERRA_COLLECTIONS.parcels, parcels.map(p => ({ id: p.id, data: p })));
+  writeEnvelopeBatch(TERRA_COLLECTIONS.parcels, parcels.map(p => ({ id: p.id, data: packParcel(p) })));
 
 export async function fetchParcel(parcelId: string): Promise<TerraParcel | null> {
   try {
     const snap = await getDoc(doc(db, TERRA_COLLECTIONS.parcels, parcelId));
-    return snap.exists() ? ((snap.data() as TerraEnvelope<TerraParcel>).data ?? null) : null;
+    return snap.exists() ? unpackParcel((snap.data() as TerraEnvelope<TerraParcel>).data) : null;
   } catch { return null; }
 }
 
@@ -124,7 +127,7 @@ export async function fetchParcelsPage(max = 500): Promise<TerraParcel[]> {
   try {
     const snap = await getDocs(query(collection(db, TERRA_COLLECTIONS.parcels), fsLimit(Math.min(max, 1000))));
     return snap.docs
-      .map(d => (d.data() as TerraEnvelope<TerraParcel>).data)
+      .map(d => unpackParcel((d.data() as TerraEnvelope<TerraParcel>).data))
       .filter((p): p is TerraParcel => Boolean(p?.geometry || (p?.centroidLat && p?.centroidLng)));
   } catch { return []; }
 }
