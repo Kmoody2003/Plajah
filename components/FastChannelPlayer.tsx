@@ -317,6 +317,26 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
     return () => { if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current); };
   }, []);
 
+  // Own the Back exit. FastChannelPlayer used to rely entirely on the parent Reello view's
+  // plajah:hardware-back listener, so a raw Android Back keyCode (4) never reached it and the
+  // geometric layer fell back to its close-X heuristic — unreliable. Both the capture-phase Back
+  // key and the dispatched hardware-back event now call onClose directly (mirrors TvLiveSourcePlayer).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const kc = e.keyCode || e.which;
+      if (kc === 4 || e.key === 'Backspace' || e.key === 'XF86Back' || e.key === 'GoBack') {
+        e.preventDefault(); e.stopImmediatePropagation(); onClose();
+      }
+    };
+    const onHardwareBack = (e: Event) => { e.preventDefault(); onClose(); };
+    window.addEventListener('keydown', onKey, true);
+    window.addEventListener('plajah:hardware-back', onHardwareBack);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('plajah:hardware-back', onHardwareBack);
+    };
+  }, [onClose]);
+
   const togglePlayback = useCallback(() => {
     const v = videoRef.current;
     if (!v) return;
@@ -453,6 +473,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
   return (
     <div
       className="fixed inset-0 bg-black z-[200] overflow-hidden select-none"
+      data-tv-no-trap
       onMouseMove={resetControlsTimer}
       onClick={resetControlsTimer}
     >

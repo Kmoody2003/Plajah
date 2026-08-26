@@ -1394,6 +1394,48 @@ html.tv-nav select:focus {
   outline-offset: 2px !important;
 }
 
+/* ── One focus language on TV ──────────────────────────────────────────────────
+   On a real remote the app showed TWO different focus rings: native focusables
+   got the orange html.tv-nav ring above, but [data-tv-focusable] elements were
+   out-specificity'd by the .theme-big-screen BLUE ring (#3b82f6) — so focus
+   changed COLOUR depending on what it landed on, which reads as a bug and makes
+   navigation feel unreliable. This block unifies every interactive focusable on
+   the single orange signal ring, makes the lift GPU-composited (only `transform`
+   animates, so a focus move never repaints layout), and drops the 50px blur that
+   costs fill-rate on the TV's Mali GPU every single move. The [data-tv-focusable]
+   attribute + html.tv-nav here deliberately out-specifies the theme-big-screen
+   rings. Containers still get just the ring (never the lift) via the block above,
+   so #root can't scale the whole page. */
+html.tv-nav :is(a, button, input, select, textarea, summary,
+                [role="button"], [role="link"], [role="tab"],
+                [role="menuitem"], [role="option"], [data-tv-focusable]):focus,
+html.tv-nav :is(a, button, input, select, textarea, summary,
+                [role="button"], [role="link"], [role="tab"],
+                [role="menuitem"], [role="option"], [data-tv-focusable]):focus-visible {
+  outline: 4px solid #FF8C00 !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(255, 140, 0, 0.22), 0 0 20px rgba(255, 140, 0, 0.30) !important;
+  background-color: transparent !important;
+  transform: scale(1.05) !important;
+  /* Only transform transitions — the ring snaps in instantly (crisp, no paint
+     animation of the shadow), the lift eases in on the compositor. */
+  transition: transform 0.13s ease !important;
+  border-radius: 10px;
+  z-index: 200 !important;
+}
+/* Respect the OS reduced-motion preference: keep the ring, drop the lift + easing. */
+@media (prefers-reduced-motion: reduce) {
+  html.tv-nav :is(a, button, input, select, textarea, summary,
+                  [role="button"], [role="link"], [role="tab"],
+                  [role="menuitem"], [role="option"], [data-tv-focusable]):focus,
+  html.tv-nav :is(a, button, input, select, textarea, summary,
+                  [role="button"], [role="link"], [role="tab"],
+                  [role="menuitem"], [role="option"], [data-tv-focusable]):focus-visible {
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
 /* Row-scroll containers — snap to item boundaries for D-pad swipe feel */
 .tv-row-scroll {
   display: flex;
