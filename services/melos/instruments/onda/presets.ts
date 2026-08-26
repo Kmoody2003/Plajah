@@ -5,7 +5,7 @@
 // Coverage spans the four directions asked for: house/techno/amapiano/808, broad & versatile,
 // cinematic/scoring, and sound-design.
 
-import { E, F, MOD_SOURCE, O, P, env, flt, lfo, osc } from './params';
+import { E, F, L, MOD_SOURCE, O, P, env, flt, lfo, osc } from './params';
 import { DEFAULT_MACROS, newPatch, type OndaPatch } from './patch';
 
 type Build = Partial<Omit<OndaPatch, 'id' | 'version'>> & { params?: Record<number, number> };
@@ -85,6 +85,49 @@ export const FACTORY_PRESETS: OndaPatch[] = [
       [env(0, E.SUSTAIN)]: 0.95, [env(0, E.RELEASE)]: 0.28,
     },
     routes: [{ source: MOD_SOURCE.Macro1, dest: flt(0, F.CUTOFF), depth: 0.35 }],
+  }),
+  preset('Big Room Lead', 'Lead', ['big room', 'edm', 'festival', 'saw'], {
+    tables: ['analog-sweep'],
+    params: {
+      [osc(0, O.MORPH)]: 0.72, [osc(0, O.DRIVE)]: 0.32,
+      [P.UNISON_COUNT]: 0.45, [P.UNISON_DETUNE]: 0.24, [P.UNISON_WIDTH]: 0.92, [P.UNISON_BLEND]: 0.7,
+      ...cut(0.9), [flt(0, F.RES)]: 0.1, [flt(0, F.DRIVE)]: 0.3,
+      ...A(0.0), [env(0, E.SUSTAIN)]: 0.92, [env(0, E.RELEASE)]: 0.18,
+    },
+    routes: [{ source: MOD_SOURCE.Macro1, dest: flt(0, F.CUTOFF), depth: 0.3 }],
+  }),
+  preset('Hoover', 'Lead', ['hoover', 'rave', 'hardstyle', 'pwm'], {
+    tables: ['pulse-pwm'],
+    params: {
+      [osc(0, O.MORPH)]: 0.5, [osc(0, O.PULSE_WIDTH)]: 0.35, [osc(0, O.DRIVE)]: 0.4,
+      [P.UNISON_COUNT]: 0.35, [P.UNISON_DETUNE]: 0.42, [P.UNISON_WIDTH]: 0.8, [P.GLIDE]: 0.08,
+      ...cut(0.62), [flt(0, F.RES)]: 0.3, [flt(0, F.DRIVE)]: 0.4,
+      [env(0, E.SUSTAIN)]: 0.9, [env(0, E.RELEASE)]: 0.2,
+      [lfo(0, L.RATE)]: 0.42, [lfo(0, L.SHAPE)]: 0.0,
+    },
+    routes: [{ source: MOD_SOURCE.Lfo1, dest: osc(0, O.FINE), depth: 0.3 }],
+  }),
+  preset('Festival Pluck', 'Pluck', ['pluck', 'edm', 'festival', 'stab'], {
+    tables: ['analog-sweep'],
+    params: {
+      [osc(0, O.MORPH)]: 0.62, [P.UNISON_COUNT]: 0.3, [P.UNISON_DETUNE]: 0.2, [P.UNISON_WIDTH]: 0.8,
+      ...cut(0.5), [flt(0, F.RES)]: 0.22, [flt(0, F.ENV_AMT)]: 0.8, [flt(0, F.DRIVE)]: 0.25,
+      ...A(0.0), [env(0, E.DECAY)]: 0.28, [env(0, E.SUSTAIN)]: 0.0, [env(0, E.RELEASE)]: 0.2,
+      [env(1, E.DECAY)]: 0.24, [env(1, E.SUSTAIN)]: 0.0,
+    },
+  }),
+  preset('Future Bass Chord', 'Keys', ['future bass', 'edm', 'supersaw', 'chord'], {
+    tables: ['analog-sweep'],
+    params: {
+      [osc(0, O.MORPH)]: 0.66, [P.UNISON_COUNT]: 0.6, [P.UNISON_DETUNE]: 0.34, [P.UNISON_WIDTH]: 1.0, [P.UNISON_BLEND]: 0.85,
+      ...cut(0.8), [flt(0, F.RES)]: 0.14,
+      [env(0, E.ATTACK)]: 0.08, [env(0, E.SUSTAIN)]: 0.95, [env(0, E.RELEASE)]: 0.3,
+      [lfo(0, L.RATE)]: 0.3, [lfo(0, L.SHAPE)]: 0.0,
+    },
+    routes: [
+      { source: MOD_SOURCE.Lfo1, dest: flt(0, F.CUTOFF), depth: 0.35 },
+      { source: MOD_SOURCE.Macro1, dest: flt(0, F.CUTOFF), depth: 0.3 },
+    ],
   }),
   preset('Vowel Lead', 'Lead', ['formant', 'talking', 'expressive'], {
     tables: ['formant-vowel'],
