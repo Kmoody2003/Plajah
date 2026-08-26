@@ -9,6 +9,7 @@ import { BeatsEngine } from '../../../services/melos/beats/engine/BeatsEngine';
 import { defaultPattern, grooveUid, type GrooveDoc, type InstrumentType, type ArrangeTrack } from '../../../services/melos/beats/grooveDoc';
 import { useContextMenu, type MenuNode } from '../../ui/ContextMenu';
 import { autoFill, quantizePattern } from '../../../services/melos/beats/grooveTools';
+import { GENRE_PRESETS, applyGenrePreset, type GenrePreset } from '../../../services/melos/beats/genrePresets';
 import { ingestSample, backupToLocker } from '../../../services/melos/beats/sampleStore';
 import { renderGroove, publishGroove, downloadBlob } from '../../../services/melos/beats/render';
 import { exportGrooveFile, importGrooveFile } from '../../../services/melos/beats/grooveFile';
@@ -434,6 +435,15 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     });
   }, [mutate]);
 
+  // Genre drum presets — drop a ready-made pattern in and set its tempo/swing.
+  const [showGenres, setShowGenres] = useState(false);
+  const applyGenre = useCallback((preset: GenrePreset) => {
+    let id = '';
+    mutate((d: GrooveDoc) => { id = applyGenrePreset(d, preset); });
+    if (id) setActivePatternId(id);
+    setShowGenres(false);
+  }, [mutate]);
+
   // Right-click / long-press a pattern chip — the shared design-system menu.
   const patternMenu = useContextMenu<string>((id) => {
     const p = doc.patterns.find((x) => x.id === id);
@@ -686,6 +696,30 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         <button onClick={addPattern} aria-label="New pattern" className="h-6 w-6 grid place-items-center rounded-lg border border-white/10 text-white/40 hover:text-white">
           <Plus size={11} />
         </button>
+        <div className="relative">
+          <button onClick={() => setShowGenres(v => !v)} title="Load a ready-made genre drum pattern"
+            className="h-6 px-2.5 rounded-lg text-[10px] border border-[#00DAF3]/35 text-[#00DAF3] hover:bg-[#00DAF3]/10 flex items-center gap-1">
+            <Sparkles size={10} /> Genres
+          </button>
+          {showGenres && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowGenres(false)} />
+              <div className="absolute z-50 top-7 left-0 w-60 max-h-80 overflow-y-auto rounded-xl border border-white/12 bg-[#0c0d12] shadow-2xl p-1">
+                <div className="px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-white/30">Genre patterns</div>
+                {GENRE_PRESETS.map(g => (
+                  <button key={g.id} onClick={() => applyGenre(g)}
+                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/8 transition-colors">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[12px] font-bold text-white">{g.name}</span>
+                      <span className="text-[9px] font-mono text-white/35 shrink-0">{g.bpm} BPM</span>
+                    </div>
+                    <div className="text-[10px] text-white/45 leading-snug mt-0.5">{g.hint}</div>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
         <div className="flex-1" />
         <button
           onClick={() => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) autoFill(d, p, 4); }); }}
