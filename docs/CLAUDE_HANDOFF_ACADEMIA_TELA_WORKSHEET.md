@@ -223,7 +223,63 @@ fallback. Orchestrator 1a: `warpToPage(flat) ?? cropToPaper(flat)`.
 
 Verified: a deliberately keystoned book-bag photo on a dark desk → reconstructed flat, square, upright.
 The near-flat real "Find Someone Who" correctly FELL BACK to cropToPaper (page fills the frame),
-identical output — no regression. 22 node tests pass; build green. Roadmap remaining now: (4) semantic
+identical output — no regression. 22 node tests pass; build green. ### 2026-08-25 (dashboard go-live) — turn-in brief wired to real submissions
+
+Wired the dashboard end-to-end (was demo-simulate only):
+- `worksheetGrading.ts` `preAssessFromAnswers(sheet, answers, student, now)` — pure, tested: digital
+  (typed) turn-ins graded at high confidence (keyed fields auto-grade). Same shape as the paper reader.
+- `worksheetAssignmentService.ts`:
+  - `turnInWorksheet` now COMPUTES + PERSISTS a `preAssessment` on the submission doc — via
+    `preAssessCompletedScan` when a completed-paper photo is attached, else `preAssessFromAnswers`.
+  - `fetchAssignmentBrief(worksheetId, sheet, roster, now)` — queries `worksheet_submissions` where
+    worksheetId==, uses each persisted `preAssessment` (or recomputes from stored answers), returns
+    `buildTurnInBrief`. not-turned-in students come from `roster`.
+  - `confirmSubmissionField(worksheetId, studentId, fieldId, correct, teacher)` — teacher write-back;
+    stores `teacherOverrides.<fieldId>` on the submission.
+- `TurnInBriefView.tsx` now takes `loadBrief?: () => Promise<TurnInBrief>` (async, with loading
+  state) and `onConfirmField?`. The suggested-grade chips are INTERACTIVE: for a keyed field routed to
+  review (a paper/handwriting read), the teacher clicks "✓ looks right" / "✗" → the chip becomes a
+  solid "marked right/wrong" and `onConfirmField` persists. Fixed a Rules-of-Hooks ordering bug
+  (all hooks now precede the loading early-return; default-open derived, not stateful-after-return).
+- `TeacherToolsView` ScanWorksheet passes the REAL path when `wire && !wire.simulated &&
+  wire.worksheetId` (`loadBrief`=fetchAssignmentBrief, `onConfirmField`=confirmSubmissionField), else
+  `simulate` for the demo roster.
+
+Verified by mounting standalone: a paper-turn-in brief renders with per-field "✓ looks right / ✗"
+chips; clicking one flips it to "marked right" and fires onConfirmField (confirmed `s1:q1=true`). 23
+node tests pass; build green.
+
+REMAINING (dashboard polish): confirmations persist but the displayed class average still reflects
+only AUTO-scored fields — recompute the average from teacher confirmations for a live finalized score;
+add a standalone "Turn-ins" entry point (currently reachable after a fresh scan+publish).
+
+### 2026-08-25 (re-illustration) — roadmap #4 SHIPPED: semantic re-illustration
+
+The last frontier. New `services/worksheetArtLibrary.ts` (PURE, 3 tests in
+`tests/worksheetArtLibrary.test.ts`): a curated clip-art library (apple, star, pencil, ruler, book,
+notebook, backpack, heart, sun, cake — the decorations that recur on real worksheets), authored from
+simple primitives (perfect ellipses, crisp polygons) in a 0–100 space. `matchLibraryAsset(label)`
+(exact/synonym/substring with longest-synonym specificity — "book bag" → backpack, not "book");
+`instantiateAsset(asset, box, id)` fits an asset into a region box as editable Tela PATH objects
+(true per-primitive bboxes — NOT regexing arc paths); `reillustrateArtwork(objects)` swaps each
+library-matched artwork region (grouped by parentRegionId, driven by detectedLabel) for the clean
+asset, preserving z-order and leaving text/layout/fields/unmatched-art alone.
+`telaDocumentIntelligence.ts`: extracted `buildReconstructionPreview(objects,w,h)` (shared) and added
+`reillustrateReconstruction(reconstruction)` → { objects, replaced, previewSvg, previewUrl }.
+`TeacherToolsView` ScanWorksheet: an "Upgrade artwork" toggle in the layers review (next to onion
+skin) runs it and shows the polished preview; click again to flip back.
+
+Depends on the Florence naming pack for real labels (region labels are "artwork N" without it). Verified:
+the library renders as clean recognizable icons, and a before/after swapped two rough traced blobs
+("a hand drawn book bag"→backpack, "apple"→apple) for crisp vectors in place with text untouched. 26
+node tests pass; build green.
+
+ALL FOUR marquee frontiers now shipped: (1) typed fields, (2) completed-paper grading + handwriting
+lane + wired dashboard, (3) perspective un-warp, (4) semantic re-illustration. Remaining polish:
+recompute class average from teacher confirmations; standalone Turn-ins entry point; base/cloud
+handwriting model; grow the clip-art library; unify reprint pixel-fields with DigitalWorksheet %-fields.
+
+Roadmap remaining now (superseded): (4) semantic
 re-illustration + the go-live wiring / stronger-handwriting / field-unification items above.
 
 Verified result on the synthetic book-bag worksheet (shadow gradient + warm cast + JPEG noise):

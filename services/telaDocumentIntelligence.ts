@@ -243,6 +243,43 @@ function classifyTextObjects(objects: TelaVectorObject[], pageHeight: number) {
   });
 }
 
+/** Render a reconstruction's objects to the preview SVG. Shared by the rebuild and re-illustration. */
+export function buildReconstructionPreview(objects: TelaVectorObject[], pageW: number, pageH: number): string {
+  const measure = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
+  const esc = (value: string) => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const content = objects.map(o => {
+    if (o.kind === 'TEXT') {
+      const size = o.fontSize || 12;
+      const baseline = o.y + Math.min(o.h * .82, size * 1.04);
+      let fit = '';
+      if (measure) {
+        measure.font = `${o.fontWeight || 400} ${size}px ${o.fontFamily || 'Arial'}`;
+        const width = measure.measureText(o.text || '').width;
+        if (width > o.w * 1.05) fit = ` textLength="${Math.round(o.w)}" lengthAdjust="spacingAndGlyphs"`;
+      }
+      return `<text x="${o.x}" y="${baseline}" font-family="${esc(o.fontFamily || 'Arial,Helvetica,sans-serif')}" font-size="${size}" font-weight="${o.fontWeight || 400}" fill="${o.fill}"${fit}>${esc(o.text || '')}</text>`;
+    }
+    if (o.kind === 'PATH' && o.svgPathData) { const ox = o.pathOriginX ?? o.x, oy = o.pathOriginY ?? o.y; const sx = o.w / Math.max(1, o.pathOriginW ?? o.w), sy = o.h / Math.max(1, o.pathOriginH ?? o.h); return `<path d="${o.svgPathData}" fill="${o.fill}" stroke="${o.stroke}" stroke-width="${o.strokeWidth}" opacity="${o.opacity}" transform="translate(${o.x} ${o.y}) scale(${sx} ${sy}) translate(${-ox} ${-oy})"/>`; }
+    if (o.kind === 'IMAGE' && o.sourceCrop && o.sourceImageSrc) { const c = o.sourceCrop; return `<svg x="${o.x}" y="${o.y}" width="${o.w}" height="${o.h}" viewBox="${c.x} ${c.y} ${c.width} ${c.height}" preserveAspectRatio="none"><image href="${esc(o.sourceImageSrc)}" width="${c.sourceWidth}" height="${c.sourceHeight}" preserveAspectRatio="none"/></svg>`; }
+    if (o.kind === 'RECT') { const guide = o.semanticRole === 'RESPONSE_GUIDE'; return `<rect x="${o.x}" y="${o.y}" width="${o.w}" height="${o.h}" rx="${guide ? 7 : 14}" fill="${o.fill}" stroke="${o.stroke}" stroke-width="${o.strokeWidth}"${guide ? ' stroke-dasharray="6 5"' : ''} opacity="${o.opacity}"/>`; }
+    if (o.kind === 'LINE' && o.points) return `<line x1="${o.points[0]}" y1="${o.points[1]}" x2="${o.points[2]}" y2="${o.points[3]}" stroke="${o.stroke}" stroke-width="${o.strokeWidth}" stroke-linecap="round"/>`;
+    return '';
+  }).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${pageW}" height="${pageH}" viewBox="0 0 ${pageW} ${pageH}"><rect width="100%" height="100%" fill="white"/>${content}</svg>`;
+}
+
+/**
+ * Roadmap #4 — swap each named, library-matched artwork region for a clean library illustration and
+ * regenerate the preview. Returns the upgraded objects + preview and which regions were replaced, so
+ * the teacher can toggle between the faithful trace and the polished version.
+ */
+export async function reillustrateReconstruction(reconstruction: { objects: TelaVectorObject[]; width: number; height: number }) {
+  const { reillustrateArtwork } = await import('./worksheetArtLibrary');
+  const { objects, replaced } = reillustrateArtwork(reconstruction.objects);
+  const previewSvg = buildReconstructionPreview(objects, reconstruction.width, reconstruction.height);
+  return { objects, replaced, previewSvg, previewUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(previewSvg)}` };
+}
+
 export interface TelaRebuildOptions {
   /**
    * 'auto' uses the Florence naming pack only when it is already installed; 'require'
@@ -569,27 +606,7 @@ export async function rebuildDocumentIntelligently(src: string, onProgress?: Pro
 
   // 11 · Preview: proper baselines, width-fitted lines, subtle response guides.
   const objects = [...layoutObjects, ...artworkObjects, ...textObjects, ...interactionObjects];
-  const measure = document.createElement('canvas').getContext('2d');
-  const esc = (value: string) => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const content = objects.map(o => {
-    if (o.kind === 'TEXT') {
-      const size = o.fontSize || 12;
-      const baseline = o.y + Math.min(o.h * .82, size * 1.04);
-      let fit = '';
-      if (measure) {
-        measure.font = `${o.fontWeight || 400} ${size}px ${o.fontFamily || 'Arial'}`;
-        const width = measure.measureText(o.text || '').width;
-        if (width > o.w * 1.05) fit = ` textLength="${Math.round(o.w)}" lengthAdjust="spacingAndGlyphs"`;
-      }
-      return `<text x="${o.x}" y="${baseline}" font-family="${esc(o.fontFamily || 'Arial,Helvetica,sans-serif')}" font-size="${size}" font-weight="${o.fontWeight || 400}" fill="${o.fill}"${fit}>${esc(o.text || '')}</text>`;
-    }
-    if (o.kind === 'PATH' && o.svgPathData) { const ox = o.pathOriginX ?? o.x, oy = o.pathOriginY ?? o.y; const sx = o.w / Math.max(1, o.pathOriginW ?? o.w), sy = o.h / Math.max(1, o.pathOriginH ?? o.h); return `<path d="${o.svgPathData}" fill="${o.fill}" stroke="${o.stroke}" stroke-width="${o.strokeWidth}" opacity="${o.opacity}" transform="translate(${o.x} ${o.y}) scale(${sx} ${sy}) translate(${-ox} ${-oy})"/>`; }
-    if (o.kind === 'IMAGE' && o.sourceCrop && o.sourceImageSrc) { const c = o.sourceCrop; return `<svg x="${o.x}" y="${o.y}" width="${o.w}" height="${o.h}" viewBox="${c.x} ${c.y} ${c.width} ${c.height}" preserveAspectRatio="none"><image href="${esc(o.sourceImageSrc)}" width="${c.sourceWidth}" height="${c.sourceHeight}" preserveAspectRatio="none"/></svg>`; }
-    if (o.kind === 'RECT') { const guide = o.semanticRole === 'RESPONSE_GUIDE'; return `<rect x="${o.x}" y="${o.y}" width="${o.w}" height="${o.h}" rx="${guide ? 7 : 14}" fill="${o.fill}" stroke="${o.stroke}" stroke-width="${o.strokeWidth}"${guide ? ' stroke-dasharray="6 5"' : ''} opacity="${o.opacity}"/>`; }
-    if (o.kind === 'LINE' && o.points) return `<line x1="${o.points[0]}" y1="${o.points[1]}" x2="${o.points[2]}" y2="${o.points[3]}" stroke="${o.stroke}" stroke-width="${o.strokeWidth}" stroke-linecap="round"/>`;
-    return '';
-  }).join('');
-  const previewSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${pageW}" height="${pageH}" viewBox="0 0 ${pageW} ${pageH}"><rect width="100%" height="100%" fill="white"/>${content}</svg>`;
+  const previewSvg = buildReconstructionPreview(objects, pageW, pageH);
 
   const textCount = textObjects.length;
   const regionCount = inkRegions.length;

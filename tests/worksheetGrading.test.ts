@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { preAssessWorksheet, buildTurnInBrief, simulateTurnIns } from '../services/worksheetGrading';
+import { preAssessWorksheet, buildTurnInBrief, simulateTurnIns, preAssessFromAnswers } from '../services/worksheetGrading';
 import type { DigitalWorksheet } from '../services/worksheetDigitizer';
 
 function sheet(): DigitalWorksheet {
@@ -92,4 +92,12 @@ test('simulateTurnIns is deterministic and produces a usable class brief', () =>
   assert.equal(brief.turnedIn, a1.length);
   assert.equal(brief.turnedIn + brief.notTurnedIn, 6);
   assert.equal(brief.rows.length, 6);
+});
+
+test('preAssessFromAnswers grades a digital (typed) turn-in with trusted confidence', () => {
+  const ws = sheet();
+  const a = preAssessFromAnswers(ws, { q1: '7', q2: '17', q3: 'Paris', q4: 'I like patterns' }, { id: 's1', name: 'Ada' }, 1);
+  assert.equal(a.perField.find(f => f.fieldId === 'q1')!.status, 'correct'); // typed → auto-graded
+  assert.equal(a.perField.find(f => f.fieldId === 'q4')!.status, 'needs_review'); // open response
+  assert.equal(a.estimatedScorePct, 100); // all 3 keyed correct
 });

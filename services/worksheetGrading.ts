@@ -237,6 +237,24 @@ export function buildTurnInBrief(
   };
 }
 
+/**
+ * Pre-assess a DIGITAL (typed on-platform) turn-in. Typed answers are trusted, so keyed fields
+ * auto-grade; this is the same summary shape as the completed-paper reader, so the teacher's brief
+ * treats paper and digital turn-ins identically.
+ */
+export function preAssessFromAnswers(
+  sheet: DigitalWorksheet,
+  answers: Record<string, string>,
+  student: { id: string; name: string },
+  now: number,
+): WorksheetPreAssessment {
+  const confidence: Record<string, number> = {}, answered: Record<string, boolean> = {};
+  for (const field of sheet.fields) {
+    if ((answers[field.id] ?? '').toString().trim() !== '') { answered[field.id] = true; confidence[field.id] = 0.9; }
+  }
+  return preAssessWorksheet(sheet, { answers, confidence, answered }, student, now);
+}
+
 // ── Demo support ────────────────────────────────────────────────────────────────────
 
 /**

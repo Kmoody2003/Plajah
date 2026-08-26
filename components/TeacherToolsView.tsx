@@ -25,11 +25,11 @@ import {
 } from '../services/interopService';
 import { ORG_TYPES, FRAMEWORK_OVERLAYS, DEFAULT_CONTEXT, type LearningContextSettings } from '../data/deploymentContexts';
 import { digitizeWorksheetDetailed, completionPercent, type DigitalWorksheet, type WorksheetField } from '../services/worksheetDigitizer';
-import { publishWorksheet, type WireResult } from '../services/worksheetAssignmentService';
+import { publishWorksheet, fetchAssignmentBrief, confirmSubmissionField, type WireResult } from '../services/worksheetAssignmentService';
 import { prepareWorksheetImage, type PreparedWorksheetImage } from '../services/worksheetImagePipeline';
 import { worksheetToTelaDoc } from '../services/worksheetTelaAdapter';
 import { autoFormatDigitalWorksheet } from '../services/telaAssignmentAutoFormat';
-import { rebuildDocumentIntelligently, type TelaModelProgress } from '../services/telaDocumentIntelligence';
+import { rebuildDocumentIntelligently, reillustrateReconstruction, type TelaModelProgress } from '../services/telaDocumentIntelligence';
 import { recordAssignmentQualityEvent, submitAssignmentQualityFeedback } from '../services/assignmentQualityService';
 import { saveTelaDoc } from '../services/telaStore';
 import WorksheetTutorPanel from './WorksheetTutorPanel';
@@ -196,6 +196,9 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
   const [inspectionOpen, setInspectionOpen] = useState(false);
   const [reviewSurface, setReviewSurface] = useState<'FILLABLE' | 'LAYERS'>('FILLABLE');
   const [onionSkin, setOnionSkin] = useState(false);
+  const [reillustrated, setReillustrated] = useState<Awaited<ReturnType<typeof reillustrateReconstruction>> | null>(null);
+  const [showReillustrated, setShowReillustrated] = useState(false);
+  const [reillustrating, setReillustrating] = useState(false);
   const [layeredRebuild, setLayeredRebuild] = useState<Awaited<ReturnType<typeof rebuildDocumentIntelligently>> | null>(null);
   const [layeredBusy, setLayeredBusy] = useState(false);
   const [layeredProgress, setLayeredProgress] = useState<TelaModelProgress | null>(null);
@@ -209,7 +212,7 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
     setLayeredBusy(true); setLayeredError(''); setLayeredProgress({ phase: 'CHECKING', message: 'Preparing layered reconstruction…' });
     try {
       const result = await rebuildDocumentIntelligently(source, setLayeredProgress, options);
-      setLayeredRebuild(result); setReviewSurface('LAYERS');
+      setLayeredRebuild(result); setReviewSurface('LAYERS'); setReillustrated(null); setShowReillustrated(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Layered reconstruction failed.';
       setLayeredError(message);
@@ -247,7 +250,7 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
     }
   };
 
-  const reset = () => { setStage('capture'); setSheet(null); setPrepared(null); setPreview(''); setAnswers({}); setErr(''); setPublished(false); setWire(null); setPublishing(false); setLayeredRebuild(null); setLayeredError(''); setLayeredProgress(null); setReviewSurface('FILLABLE'); setFormatUndo(null); setShowBrief(false); scanSessionId.current = `scan_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`; };
+  const reset = () => { setStage('capture'); setSheet(null); setPrepared(null); setPreview(''); setAnswers({}); setErr(''); setPublished(false); setWire(null); setPublishing(false); setLayeredRebuild(null); setLayeredError(''); setLayeredProgress(null); setReviewSurface('FILLABLE'); setFormatUndo(null); setShowBrief(false); setReillustrated(null); setShowReillustrated(false); scanSessionId.current = `scan_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`; };
 
   // Publish & auto-wire. The demo roster (DEMO_CLASS) isn't real accounts, so we run in simulate
   // mode: the worksheet is really persisted, but the notification fan-out is computed, not sprayed
@@ -361,7 +364,7 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
             <div style={{ fontWeight: 900, fontSize: 17, marginBottom: 10, color: accent }}>{sheet.title}</div>
             <div className="worksheet-review-grid" style={inspectionOpen ? { minHeight: 'calc(100vh - 150px)' } : undefined}>
               <div style={{ minWidth: 0 }}><div style={{ fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '.14em', color: T.faint, fontWeight: 800, marginBottom: 6 }}>Original · stored unchanged</div><div className="worksheet-review-pane" style={{ ...(inspectionOpen ? { height: 'calc(100vh - 175px)' } : {}), border: `1px solid ${T.border}` }}><div style={{ width: `${reviewZoom * 100}%`, minWidth: '100%' }}><img src={preview} alt="Original worksheet scan" style={{ width: '100%', display: 'block', background: '#fff' }} /></div></div></div>
-              <div style={{ minWidth: 0 }}><div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}><div style={{ fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '.14em', color: accent, fontWeight: 800 }}>{reviewSurface === 'LAYERS' ? 'Layered reconstruction · editable vectors + text' : 'Faithful page · digital response fields'}</div>{layeredRebuild && reviewSurface === 'LAYERS' && <button onClick={() => setOnionSkin(value => !value)} style={{ ...chip(onionSkin, T.gold), marginLeft: 'auto', padding: '4px 8px', fontSize: 9 }}>Onion skin</button>}{layeredRebuild && <button onClick={() => setReviewSurface(value => value === 'LAYERS' ? 'FILLABLE' : 'LAYERS')} style={{ ...chip(false), marginLeft: reviewSurface === 'LAYERS' ? 0 : 'auto', padding: '4px 8px', fontSize: 9 }}>{reviewSurface === 'LAYERS' ? 'Show fillable' : 'Show layers'}</button>}</div><div className="worksheet-review-pane" style={{ ...(inspectionOpen ? { height: 'calc(100vh - 175px)' } : {}), border: `1px solid ${T.border}` }}><div style={{ width: `${reviewZoom * 100}%`, minWidth: '100%' }}>{reviewSurface === 'LAYERS' && layeredRebuild ? <div style={{ position: 'relative' }}><img src={layeredRebuild.previewUrl} alt="Layered editable reconstruction" style={{ width: '100%', display: 'block', background: '#fff' }}/>{onionSkin && <img src={preview} alt="Original scan overlay" style={{ position: 'absolute', inset: 0, width: '100%', opacity: .35, pointerEvents: 'none' }}/>}</div> : <WorksheetFillable sheet={sheet} preview={preview} answers={answers} setAnswers={setAnswers} accent={accent} mode="rebuilt" />}</div></div></div>
+              <div style={{ minWidth: 0 }}><div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}><div style={{ fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '.14em', color: accent, fontWeight: 800 }}>{reviewSurface === 'LAYERS' ? 'Layered reconstruction · editable vectors + text' : 'Faithful page · digital response fields'}</div>{layeredRebuild && reviewSurface === 'LAYERS' && <button onClick={() => setOnionSkin(value => !value)} style={{ ...chip(onionSkin, T.gold), marginLeft: 'auto', padding: '4px 8px', fontSize: 9 }}>Onion skin</button>}{layeredRebuild && reviewSurface === 'LAYERS' && <button disabled={reillustrating} onClick={async () => { if (reillustrated) { setShowReillustrated(v => !v); return; } setReillustrating(true); try { const r = await reillustrateReconstruction(layeredRebuild); setReillustrated(r); setShowReillustrated(true); } finally { setReillustrating(false); } }} title="Swap recognized artwork for clean library illustrations" style={{ ...chip(showReillustrated, T.violet), marginLeft: onionSkin ? 6 : 'auto', padding: '4px 8px', fontSize: 9 }}>{reillustrating ? 'Upgrading…' : showReillustrated ? `Upgraded${reillustrated?.replaced?.length ? ` (${reillustrated.replaced.length})` : ''}` : 'Upgrade artwork'}</button>}{layeredRebuild && <button onClick={() => setReviewSurface(value => value === 'LAYERS' ? 'FILLABLE' : 'LAYERS')} style={{ ...chip(false), marginLeft: reviewSurface === 'LAYERS' ? 0 : 'auto', padding: '4px 8px', fontSize: 9 }}>{reviewSurface === 'LAYERS' ? 'Show fillable' : 'Show layers'}</button>}</div><div className="worksheet-review-pane" style={{ ...(inspectionOpen ? { height: 'calc(100vh - 175px)' } : {}), border: `1px solid ${T.border}` }}><div style={{ width: `${reviewZoom * 100}%`, minWidth: '100%' }}>{reviewSurface === 'LAYERS' && layeredRebuild ? <div style={{ position: 'relative' }}><img src={showReillustrated && reillustrated ? reillustrated.previewUrl : layeredRebuild.previewUrl} alt="Layered editable reconstruction" style={{ width: '100%', display: 'block', background: '#fff' }}/>{onionSkin && <img src={preview} alt="Original scan overlay" style={{ position: 'absolute', inset: 0, width: '100%', opacity: .35, pointerEvents: 'none' }}/>}</div> : <WorksheetFillable sheet={sheet} preview={preview} answers={answers} setAnswers={setAnswers} accent={accent} mode="rebuilt" />}</div></div></div>
             </div>
             {(layeredBusy || layeredError || layeredRebuild) && <div style={{ marginTop: 10, padding: 10, borderRadius: 10, background: layeredError ? `${T.red}10` : `${T.blue}10`, border: `1px solid ${layeredError ? T.red : T.blue}35`, fontSize: 11, color: layeredError ? T.red : T.muted }}>{layeredBusy ? layeredProgress?.message || 'Building separate layout, artwork, text and interaction layers…' : layeredError || (layeredRebuild ? <><div>{layeredRebuild.layers.layout} layout objects · {layeredRebuild.layers.artwork} artwork spline layers · {layeredRebuild.layers.text} editable text objects · {layeredRebuild.layers.interaction} response fields.</div>{layeredRebuild.artworkRegions?.length ? <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginTop:7 }}>{layeredRebuild.artworkRegions.map(region => <span key={region.id} style={{ padding:'3px 7px', borderRadius:99, border:`1px solid ${region.status === 'FALLBACK_IMAGE' ? T.gold : T.green}55`, color:region.status === 'FALLBACK_IMAGE' ? T.gold : T.green }}>{region.label} · {region.status === 'FALLBACK_IMAGE' ? 'clean cutout · needs trace review' : `${region.editablePathCount}/${region.pathCount} pen-editable splines`}</span>)}</div> : <div style={{ color:T.muted, marginTop:5 }}>No artwork ink beyond text and rules was found on this page.</div>}{layeredRebuild.semanticNaming === 'LOCAL' && <div style={{ marginTop:7, display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}><span style={{ color:T.faint }}>Artwork was rebuilt locally without semantic names.</span><button onClick={() => void runLayeredRebuild(undefined, { semanticNaming: 'require' })} style={{ ...chip(false, T.blue), padding:'3px 8px', fontSize:10 }}>Name artwork · install pack (≈300 MB, on-device)</button></div>}</> : '')}</div>}
             {/* live fill progress (what teacher + parent see) */}
@@ -415,7 +418,13 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
             <button onClick={() => setShowBrief(v => !v)} style={{ ...chip(showBrief, T.blue), display: 'inline-flex', alignItems: 'center', gap: 6 }}><ClipboardCheck size={13} /> {showBrief ? 'Hide turn-in brief' : 'See turn-in brief (how the class did)'}</button>
             {showBrief && (
               <div style={{ marginTop: 12 }}>
-                <TurnInBriefView sheet={sheet} roster={DEMO_CLASS.students.map(st => ({ id: st.id, name: st.name }))} simulate />
+                <TurnInBriefView
+                  sheet={sheet}
+                  roster={DEMO_CLASS.students.map(st => ({ id: st.id, name: st.name }))}
+                  {...(wire && !wire.simulated && wire.worksheetId
+                    ? { loadBrief: () => fetchAssignmentBrief(wire.worksheetId!, sheet, DEMO_CLASS.students.map(st => ({ id: st.id, name: st.name }))), onConfirmField: (sid: string, fid: string, c: boolean) => { void confirmSubmissionField(wire.worksheetId!, sid, fid, c, { uid: user?.uid || 'demo', name: user?.displayName || DEMO_CLASS.teacherName }); } }
+                    : { simulate: true })}
+                />
               </div>
             )}
           </div>

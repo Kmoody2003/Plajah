@@ -17,7 +17,7 @@
 // (whose roster isn't real accounts) so the UI can show the wire result honestly without spraying
 // notification docs at placeholder uids. Real classrooms pass simulate:false.
 
-import { collection, doc, addDoc, arrayUnion, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, addDoc, arrayUnion, setDoc, getDoc, updateDoc, query, where, getDocs } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage, auth } from './firebase';
 import { createNotification, fetchUserProfiles } from './backendService';
@@ -25,7 +25,7 @@ import { unlockAchievementByTrigger } from './achievementService';
 import { appendRecord } from './learningLedgerService';
 import { autoGradeWorksheet, type DigitalWorksheet, type GradeResult } from './worksheetDigitizer';
 import { readCompletedWorksheet } from './worksheetDigitizer';
-import { preAssessWorksheet, buildTurnInBrief, type WorksheetPreAssessment, type TurnInBrief } from './worksheetGrading';
+import { preAssessWorksheet, preAssessFromAnswers, buildTurnInBrief, type WorksheetPreAssessment, type TurnInBrief } from './worksheetGrading';
 import { recordAssignmentQualityEvent } from './assignmentQualityService';
 
 export interface RosterStudent { id: string; name: string }
@@ -254,6 +254,62 @@ export async function preAssessCompletedScan(
   return preAssessWorksheet(sheet, reading, student, options?.now ?? Date.now());
 }
 
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Read every turned-in submission for a worksheet and build the teacher's turn-in brief. Uses each
+ * submission's persisted pre-assessment when present, else recomputes one from the stored answers,
+ * so the dashboard always has data even for older submissions. `roster` supplies the full class so
+ * not-turned-in students appear too.
+ */
+export async function fetchAssignmentBrief(
+  worksheetId: string,
+  sheet: DigitalWorksheet,
+  roster: Array<{ id: string; name: string }>,
+  now: number = Date.now(),
+): Promise<TurnInBrief> {
+  const assessments: WorksheetPreAssessment[] = [];
+  try {
+    const snap = await getDocs(query(collection(db, 'worksheet_submissions'), where('worksheetId', '==', worksheetId)));
+    snap.forEach(docSnap => {
+      const data: any = docSnap.data();
+      if (data.status !== 'turned-in') return;
+      if (data.preAssessment) assessments.push(data.preAssessment as WorksheetPreAssessment);
+      else if (data.answers) assessments.push(preAssessFromAnswers(sheet, data.answers, { id: data.studentId, name: data.studentName }, data.turnedInAt || now));
+    });
+  } catch (error) { console.warn('[worksheetAssignment] fetchAssignmentBrief failed; empty brief.', error); }
+  return buildTurnInBrief(sheet.title, assessments, roster, now);
+}
+
+/**
+ * Teacher confirms or overrides one auto-suggested field grade during review. Stored as an override
+ * map on the submission so re-opening the brief reflects the teacher's decisions; the pre-assessment
+ * itself is left as the machine's original read (an audit of what was suggested vs. finalized).
+ */
+export async function confirmSubmissionField(
+  worksheetId: string,
+  studentId: string,
+  fieldId: string,
+  correct: boolean,
+  teacher?: TeacherRef,
+): Promise<boolean> {
+  try {
+    const submissionRef = doc(db, 'worksheet_submissions', `${worksheetId}_${studentId}`);
+    await updateDoc(submissionRef, {
+      [`teacherOverrides.${fieldId}`]: { correct, at: Date.now(), by: teacher?.uid || null },
+      teacherReviewedAt: Date.now(),
+    });
+    return true;
+  } catch (error) { console.warn('[worksheetAssignment] confirmSubmissionField failed.', error); return false; }
+}
+
 // The teacher's turn-in brief aggregates per-student pre-assessments for the dashboard.
 export { buildTurnInBrief };
 export type { WorksheetPreAssessment, TurnInBrief };
@@ -311,6 +367,17 @@ export async function turnInWorksheet(input: TurnInInput): Promise<TurnInResult>
         completedScanUrl = await getDownloadURL(uploaded.ref);
       }
       turnedInAt = Date.now();
+      // Pre-assess for the teacher's turn-in brief: read the completed photo, or grade the typed
+      // answers. Never fatal — a failure just leaves the submission without a pre-assessment.
+      let preAssessment: WorksheetPreAssessment | null = null;
+      try {
+        if (completedScanFile) {
+          const b64 = await fileToBase64(completedScanFile);
+          preAssessment = await preAssessCompletedScan(sheet, b64, completedScanFile.type || 'image/jpeg', { id: studentId, name: studentName }, { now: turnedInAt });
+        } else {
+          preAssessment = preAssessFromAnswers(sheet, answers, { id: studentId, name: studentName }, turnedInAt);
+        }
+      } catch (error) { console.warn('[worksheetAssignment] pre-assessment skipped.', error); }
       await setDoc(submissionRef, {
         worksheetId, assignmentId: assignmentId || previousData.assignmentId || null, studentId, studentName, answers,
         score: grade.score, maxScore: grade.maxScore, percent: grade.percent,
@@ -322,6 +389,7 @@ export async function turnInWorksheet(input: TurnInInput): Promise<TurnInResult>
           { status: 'TURNED_IN', at: turnedInAt, actorId: studentId, actorName: studentName },
         ),
         completedScanUrl, completedScanStoragePath,
+        ...(preAssessment ? { preAssessment } : {}),
       }, { merge: true });
     } catch (e) {
       console.error('[worksheetAssignment] submission persist failed:', e);

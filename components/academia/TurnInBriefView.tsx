@@ -6,11 +6,11 @@
 // answers with a suggested grade to confirm. Fed by `buildTurnInBrief` over per-student
 // `WorksheetPreAssessment`s; in a demo it simulates a class, in production it reads real submissions.
 
-import React, { useMemo, useState } from 'react';
-import { ClipboardCheck, ChevronDown, ChevronRight, Check, X, HelpCircle, Circle, AlertTriangle, Users } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { ClipboardCheck, ChevronDown, ChevronRight, Check, X, HelpCircle, Circle, AlertTriangle, Users , Loader2 } from 'lucide-react';
 import type { DigitalWorksheet } from '../../services/worksheetDigitizer';
 import {
-  buildTurnInBrief, simulateTurnIns, type WorksheetPreAssessment, type FieldResponse,
+  buildTurnInBrief, simulateTurnIns, type WorksheetPreAssessment, type FieldResponse, type TurnInBrief,
 } from '../../services/worksheetGrading';
 
 const T = {
@@ -40,14 +40,39 @@ const TurnInBriefView: React.FC<{
   roster: Array<{ id: string; name: string }>;
   assessments?: WorksheetPreAssessment[];
   simulate?: boolean;
-}> = ({ sheet, roster, assessments, simulate }) => {
-  const data = useMemo(() => {
+  /** Live classes pass a loader (e.g. fetchAssignmentBrief) instead of assessments/simulate. */
+  loadBrief?: () => Promise<TurnInBrief>;
+  /** Persist a teacher confirm/override of one suggested grade. */
+  onConfirmField?: (studentId: string, fieldId: string, correct: boolean) => void;
+}> = ({ sheet, roster, assessments, simulate, loadBrief, onConfirmField }) => {
+  const [loaded, setLoaded] = useState<{ brief: TurnInBrief; byId: Map<string, WorksheetPreAssessment> } | null>(null);
+  const [loading, setLoading] = useState(!!loadBrief);
+  // Teacher confirmations for this session: `${studentId}:${fieldId}` → confirmed correctness.
+  const [confirms, setConfirms] = useState<Record<string, boolean>>({});
+  const [open, setOpen] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!loadBrief) return;
+    let live = true;
+    setLoading(true);
+    loadBrief().then(brief => { if (live) { setLoaded({ brief, byId: new Map() }); setLoading(false); } }).catch(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+  }, [loadBrief]);
+
+  const local = useMemo(() => {
     const list = assessments ?? (simulate ? simulateTurnIns(sheet, roster, 1) : []);
     const byId = new Map(list.map(a => [a.studentId, a]));
     return { brief: buildTurnInBrief(sheet.title, list, roster, 1), byId };
   }, [sheet, roster, assessments, simulate]);
-  const { brief, byId } = data;
-  const [open, setOpen] = useState<string | null>(brief.needsReviewQueue[0]?.studentId ?? null);
+
+  if (loading) return <div style={{ ...card, padding: 24, display: 'flex', alignItems: 'center', gap: 10, color: T.muted }}><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Loading turn-ins…</div>;
+  const { brief, byId } = loadBrief && loaded ? loaded : local;
+  const confirmField = (studentId: string, fieldId: string, correct: boolean) => {
+    setConfirms(c => ({ ...c, [`${studentId}:${fieldId}`]: correct }));
+    onConfirmField?.(studentId, fieldId, correct);
+  };
+  // `open === undefined` means untouched → default to the first review student; null = closed.
+  const effectiveOpen = open === undefined ? (brief.needsReviewQueue[0]?.studentId ?? null) : open;
   const maxBand = Math.max(1, ...brief.distribution.map(d => d.count));
 
   return (
@@ -120,7 +145,7 @@ const TurnInBriefView: React.FC<{
           {orderedRows(brief).map(row => {
             const a = byId.get(row.studentId);
             const rec = row.recommendation ? REC_META[row.recommendation] : null;
-            const isOpen = open === row.studentId;
+            const isOpen = effectiveOpen === row.studentId;
             return (
               <div key={row.studentId} style={{ border: `1px solid ${T.border}`, borderRadius: 10, background: T.cardAlt, overflow: 'hidden' }}>
                 <button
@@ -160,11 +185,20 @@ const TurnInBriefView: React.FC<{
                                 {fr.expected !== undefined && <span style={{ color: T.faint }}> · key: {fr.expected}</span>}
                               </div>
                             </div>
-                            {fr.suggestedCorrect !== undefined && (
-                              <span style={{ fontSize: 10, fontWeight: 800, color: fr.suggestedCorrect ? T.green : T.red, border: `1px solid ${(fr.suggestedCorrect ? T.green : T.red)}55`, borderRadius: 99, padding: '2px 8px', whiteSpace: 'nowrap' }}>
-                                looks {fr.suggestedCorrect ? 'right' : 'wrong'} · verify
-                              </span>
-                            )}
+                            {fr.suggestedCorrect !== undefined && (() => {
+                              const key = `${row.studentId}:${fr.fieldId}`;
+                              const confirmed = confirms[key];
+                              if (confirmed !== undefined) {
+                                const col = confirmed ? T.green : T.red;
+                                return <span style={{ fontSize: 10, fontWeight: 800, color: '#08130c', background: col, borderRadius: 99, padding: '3px 9px', whiteSpace: 'nowrap' }}><Check size={9} style={{ verticalAlign: -1, marginRight: 3 }} />marked {confirmed ? 'right' : 'wrong'}</span>;
+                              }
+                              return (
+                                <span style={{ display: 'inline-flex', gap: 4, whiteSpace: 'nowrap' }}>
+                                  <button onClick={() => confirmField(row.studentId, fr.fieldId, true)} title="Mark correct" style={{ fontSize: 10, fontWeight: 800, color: T.green, background: fr.suggestedCorrect ? `${T.green}1f` : 'transparent', border: `1px solid ${T.green}66`, borderRadius: 99, padding: '2px 8px', cursor: 'pointer' }}>✓{fr.suggestedCorrect ? ' looks right' : ''}</button>
+                                  <button onClick={() => confirmField(row.studentId, fr.fieldId, false)} title="Mark wrong" style={{ fontSize: 10, fontWeight: 800, color: T.red, background: !fr.suggestedCorrect ? `${T.red}1f` : 'transparent', border: `1px solid ${T.red}66`, borderRadius: 99, padding: '2px 8px', cursor: 'pointer' }}>✗{!fr.suggestedCorrect ? ' looks wrong' : ''}</button>
+                                </span>
+                              );
+                            })()}
                           </div>
                         );
                       })}
