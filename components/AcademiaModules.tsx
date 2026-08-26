@@ -5,7 +5,7 @@
 
 import React from 'react';
 import {
-  Languages, Landmark, Atom, BookOpen, Palette, Music, GraduationCap, ChevronRight,
+  Languages, Landmark, Atom, BookOpen, Palette, Music, GraduationCap, ChevronRight, PenLine,
 } from 'lucide-react';
 
 export interface AcademiaModule {
@@ -17,6 +17,7 @@ export const ACADEMIA_MODULES: AcademiaModule[] = [
   { key: 'history', label: 'History',       desc: 'Nano-lessons and deep dives across world history.',             icon: Landmark,  accent: '#FF8C00', view: 'HISTORY_QUEST' },
   { key: 'science', label: 'Science',       desc: 'Interactive science quests and simulators.',                    icon: Atom,      accent: '#36c5f0', view: 'SCIENCE_QUEST' },
   { key: 'reading', label: 'Reading',       desc: 'Gamified reading practice and a leveled library.',              icon: BookOpen,  accent: '#2bd67a', view: 'READING_QUEST' },
+  { key: 'penna',   label: 'Penna',         desc: 'Handwriting workshop — trace letters, earn the picture.',       icon: PenLine,   accent: '#C9871F', view: 'HANDWRITING_WORKSHOP' },
   { key: 'art',     label: 'Art Masters',   desc: 'Open-access masterworks from the Met, AIC and more.',           icon: Palette,   accent: '#e23b6d', view: 'ART_GALLERY' },
   { key: 'music',   label: 'Music History', desc: 'The Chora Vault — the story of recorded sound.',                icon: Music,     accent: '#FFD24A', view: 'MUSIC' },
 ];

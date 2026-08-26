@@ -7,18 +7,21 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { Plus, Music4, Upload, AlertTriangle, Trash2, Check } from 'lucide-react';
+import { Plus, Music4, Upload, AlertTriangle, Trash2, Check, LayoutPanelTop } from 'lucide-react';
 import { useMelos, Label, Hearts } from './MelosWorkspace';
 import {
   MelosSong, Commitment, COMMITMENTS, SONG_STATES, stateMeta, commitmentMeta,
   fmtDuration, songDuration, blockingSamples, IS_ON_RECORD,
 } from '../../services/melosService';
+import { openMelosTracklistInTela } from '../../services/telaDomainAdapters';
+import { auth } from '../../services/firebase';
 
 type Filter = 'ALL' | 'ON_RECORD' | Commitment;
 
 const TracklistRoom: React.FC = () => {
-  const { songs, samples, editSong, dropSong, addSong, selectSong, goRoom } = useMelos();
+  const { prodId, songs, samples, editSong, dropSong, addSong, selectSong, goRoom } = useMelos();
   const [filter, setFilter] = useState<Filter>('ALL');
+  const [openingTela, setOpeningTela] = useState(false);
 
   const rows = useMemo(() => {
     if (filter === 'ALL') return songs;
@@ -41,6 +44,7 @@ const TracklistRoom: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-1.5 flex-wrap">
+          <button disabled={openingTela} onClick={async () => { setOpeningTela(true); try { await openMelosTracklistInTela(prodId, songs, auth.currentUser?.uid || 'local'); } finally { setOpeningTela(false); } }} className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.12em] flex items-center gap-1.5" style={{ background: 'linear-gradient(135deg,#6B0099,#D40055)', color: '#fff', border: 0 }} title="Edit this live tracklist as a bidirectional Tela Base"><LayoutPanelTop size={11}/>{openingTela ? 'Opening…' : 'Open in Tela'}</button>
           {([['ALL', 'All'], ['ON_RECORD', 'On the record'], ...COMMITMENTS.map(c => [c.key, c.label] as [string, string])] as [Filter, string][])
             .map(([k, label]) => (
               <button

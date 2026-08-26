@@ -27,7 +27,8 @@ import {
 
 export type LearningRecordSource =
   | 'reading-quest' | 'science-quest' | 'math-classroom' | 'teacher-assessment' | 'creative-artifact' | 'import'
-  | 'school-lesson';   // any curriculum built on the shared School chassis (Film, Photo/Art, Chora, Academia)
+  | 'school-lesson'    // any curriculum built on the shared School chassis (Film, Photo/Art, Chora, Academia)
+  | 'praxis';          // the Praxis venture school — building a real business IS the assessment
 
 export interface LearningRecord {
   id: string;

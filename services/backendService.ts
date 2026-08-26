@@ -1248,6 +1248,7 @@ export const fetchEndlessHourConfig = async (): Promise<import('./fast/inflectio
       return {
         pool: Array.isArray(d.pool) ? d.pool : [],
         policy: { ...EMPTY_ENDLESS_HOUR_CONFIG.policy, ...(d.policy || {}) },
+        sound: d.sound,
       };
     }
     return EMPTY_ENDLESS_HOUR_CONFIG;
@@ -8611,7 +8612,9 @@ export const allocateChannelNumber = async (uid: string): Promise<number | null>
 /** Let an account name its channel (shown in the guide instead of their display name). */
 export const setChannelName = async (uid: string, name: string): Promise<void> => {
   if (!uid) return;
-  await saveFastChannelMeta({ ownerId: uid, name: (name || '').trim().slice(0, 60) }).catch(() => {});
+  // Let permission/network failures reach the caller so an inline editor never claims an update
+  // succeeded when Firestore rejected it. Firestore rules enforce that uid is the signed-in owner.
+  await saveFastChannelMeta({ ownerId: uid, name: (name || '').trim().slice(0, 60) });
 };
 
 export const scheduleLiveInterrupt = async (uid: string, scheduledAt: number, maxDurationSeconds: number, membersOnly = false): Promise<void> => {

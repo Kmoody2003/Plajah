@@ -15,6 +15,7 @@
 
 import { M, V, X, lfoRange, LFO_SHAPE_TIDE } from '../../melos/instruments/vela/params';
 import type { SessionState } from './emotionalEngine';
+import { getTuning } from './soundTuning';
 
 export interface VelaFrame {
   /** Raw param id → value, ready for `instrument.setParams`. */
@@ -65,18 +66,20 @@ export function velaParamsFor(s: SessionState): Array<[number, number]> {
   const morphA = clamp01(0.5 + 0.35 * Math.sin(s.t / 53) + 0.15 * Math.sin(s.t / 29 + 1.7));
   const morphB = clamp01(0.5 + 0.4 * Math.sin(s.t / 71 + 2.3) + 0.1 * Math.sin(s.t / 37));
 
-  // Spectral brightness falls with depth. High-frequency energy reads as a whine held constant, so
-  // the ceiling is low and darker still than before.
-  const tone = clamp01(0.08 + s.arousal * 0.13);
+  // Live tuning (admin sliders): warmth lifts the low-mid floor, brightness scales the high end
+  // (the whine control), reverb scales the Veil. Read fresh each update so a slider is heard at once.
+  const T = getTuning();
 
-  // Veil = the reverb. Modest and MORPHING — it opens and closes slowly rather than washing
-  // constantly, which is most of what made it feel like "too much".
-  const veilMix = clamp01(0.26 + s.depth * 0.26 + morphA * 0.12);
+  // Spectral brightness — warmth in the floor, brightness on the arousal-driven top.
+  const tone = clamp01(0.05 + T.warmth * 0.1 + s.arousal * 0.16 * T.brightness);
+
+  // Veil = the reverb: modest, MORPHING, and scaled by the reverb knob.
+  const veilMix = clamp01((0.24 + s.depth * 0.24 + morphA * 0.12) * (0.5 + T.reverb));
   const veilDecay = clamp01(0.3 + s.depth * 0.5);
   const veilSize = clamp01(0.4 + s.depth * 0.28 + morphB * 0.1);
-  // Shimmer is the high pitch-shifted sparkle — the whine. Near-off, and it drifts in and out on
-  // its own slow clock, so any brightness that appears is fleeting, never a constant sheen.
-  const shimmer = clamp01((0.02 + morphB * 0.05) * s.depth * calm);
+  // Shimmer is the high pitch-shifted sparkle — the whine. Near-off, drifting, scaled by brightness
+  // so it can be taken to nothing.
+  const shimmer = clamp01((0.02 + morphB * 0.05) * s.depth * calm * (T.brightness * 2));
   // Blur swells on the exhale — the visual field does the same thing, from the same value.
   const exhale = clamp01((s.breathPhase - 0.5) * 2);
   const blur = clamp01(s.depth * 0.3 + exhale * 0.12);
@@ -112,7 +115,10 @@ export function velaParamsFor(s: SessionState): Array<[number, number]> {
 export function velaSessionSetup(depth: number): Array<[number, number]> {
   const out: Array<[number, number]> = [
     [M.ENABLE, 1],
-    [M.PARTIALS, depth > 0.5 ? 0.75 : 0.5],
+    // Lighter banks: fewer resonator partials is the dominant CPU cost of modal synthesis, so this
+    // buys back the headroom the ONDA pad + lead cost — and fewer high partials is also LESS
+    // metallic, which the sound wanted anyway. The ONDA pad now carries the richness.
+    [M.PARTIALS, depth > 0.5 ? 0.5 : 0.35],
     [M.MATERIAL, 0],
     [M.POSITION, 0.28],
     [M.DECAY_TILT, 0.42],

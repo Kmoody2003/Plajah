@@ -16,7 +16,8 @@
 // stays testable. Mirrors learningLedgerService's "own-interfaces, guarded, non-fatal" style.
 
 import { Type } from '@google/genai';
-import { callGemini } from './geminiService';
+import type { GeminiCallResult } from './geminiService';
+import { digitizeWorksheetOnDevice, readCompletedWorksheetOnDevice } from './worksheetLocalVision';
 
 // ── Model ───────────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,42 @@ export interface WorksheetField {
   standardIds?: string[];
   /** True for open-response the model couldn't key — teacher grades it. */
   needsManualGrade?: boolean;
+  /** Model confidence 0..1. Low-confidence fields are always highlighted for teacher review. */
+  confidence?: number;
+  /** Printed question number/label, when present. */
+  ordinal?: string;
+}
+
+export interface WorksheetSegment {
+  id: string;
+  kind: 'heading' | 'instructions' | 'question' | 'answer-region' | 'image' | 'diagram' | 'table' | 'decoration';
+  box: { x: number; y: number; width: number; height: number };
+  text?: string;
+  fieldIds?: string[];
+  confidence: number;
+  style?: { fontSize?: number; fontWeight?: number; align?: 'left' | 'center' | 'right'; lineHeight?: number };
+}
+
+export interface WorksheetScanAssessment {
+  score: number;
+  textConfidence: number;
+  layoutFidelity: number;
+  fieldCoverage: number;
+  understandingConfidence: number;
+  teacherCorrections?: number;
+  teacherRating?: number;
+}
+
+export interface WorksheetAutoFormatMetadata {
+  profile: 'PLAJAH_PLUS';
+  version: 1;
+  appliedAt: number;
+  confidence: number;
+  headingsCreated: number;
+  questionsOrganized: number;
+  fieldsAligned: number;
+  /** A short human-readable audit shown before a teacher publishes. */
+  summary: string;
 }
 
 export interface DigitalWorksheet {
@@ -60,15 +97,27 @@ export interface DigitalWorksheet {
   fields: WorksheetField[];
   sourceImageUrl?: string;  // the original scan (set by caller after upload)
   createdBy: string;        // teacher uid
+  /** Students/guardians allowed to open the published copy. The teacher remains `createdBy`. */
+  accessUids?: string[];
   createdAt: number;
   status: 'draft' | 'published';
   /** Optional theming the teacher applies; render layer reads this. Absent ⇒ default look. */
   theme?: { accent?: string; background?: string; font?: string; name?: string };
   /** True when any field needs manual grading — surfaces "review required" to the teacher. */
   hasManualFields: boolean;
+  segments?: WorksheetSegment[];
+  /** Overall OCR/layout confidence. The teacher review UI never hides this. */
+  confidence?: number;
+  reviewIssues?: string[];
+  originalImageUrl?: string;
+  cleanedImageUrl?: string;
+  telaDocId?: string;
+  intelligence?: { primary: 'on-device' | 'pokee' | 'claude' | 'manual'; ocr?: string; segmentation?: string; cloudCalls: number };
+  scanAssessment?: WorksheetScanAssessment;
+  autoFormat?: WorksheetAutoFormatMetadata;
 }
 
-// ── Digitize (the single automatic Gemini pass) ───────────────────────────────────
+// ── Digitize — local-first; cloud reasoning is an optional enhancement ────────────
 
 const FIELD_TYPES: WorksheetFieldType[] = [
   'numeric', 'short-text', 'multiple-choice', 'true-false', 'fill-blank', 'long-text',
@@ -103,10 +152,26 @@ const WORKSHEET_SCHEMA = {
           tolerance: { type: Type.NUMBER },
           points: { type: Type.NUMBER },
           standardIds: { type: Type.ARRAY, items: { type: Type.STRING } },
+          confidence: { type: Type.NUMBER },
+          ordinal: { type: Type.STRING },
         },
         required: ['id', 'label', 'type', 'box', 'points'],
       },
     },
+    segments: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          id: { type: Type.STRING }, kind: { type: Type.STRING }, text: { type: Type.STRING },
+          box: { type: Type.OBJECT, properties: { x: { type: Type.NUMBER }, y: { type: Type.NUMBER }, width: { type: Type.NUMBER }, height: { type: Type.NUMBER } }, required: ['x','y','width','height'] },
+          fieldIds: { type: Type.ARRAY, items: { type: Type.STRING } }, confidence: { type: Type.NUMBER },
+        },
+        required: ['id','kind','box','confidence'],
+      },
+    },
+    confidence: { type: Type.NUMBER },
+    reviewIssues: { type: Type.ARRAY, items: { type: Type.STRING } },
   },
   required: ['title', 'subject', 'objective', 'fields'],
 };
@@ -114,6 +179,8 @@ const WORKSHEET_SCHEMA = {
 const DIGITIZE_PROMPT = `You are digitizing a school worksheet from an image so it becomes an interactive, auto-gradable assignment.
 
 Read the sheet carefully and return JSON describing it. Requirements:
+- First understand the page layout. Separate headings, instructions, questions, answer regions,
+  illustrations, diagrams, tables and decoration into segments. Do not merge nearby questions.
 - title: the worksheet's title (or a short descriptive one if none is printed).
 - subject: the academic subject (e.g. "Math", "Science", "History").
 - objective: a single concise sentence describing what the worksheet teaches/assesses.
@@ -134,6 +201,15 @@ Read the sheet carefully and return JSON describing it. Requirements:
     - tolerance: for numeric answers only, an acceptable +/- range (0 if exact).
     - points: point value; if none printed, assign 1.
     - standardIds: education standard codes if you can identify them, else omit.
+    - confidence: 0 to 1 confidence that the prompt, answer region and answer key are correct.
+    - ordinal: the printed question number/letter if present.
+
+- segments: every meaningful page region with kind, 0-100 bounding box, extracted text,
+  related fieldIds and confidence. Images/diagrams must be separate segments so Plajah can crop,
+  describe, move or replace them without baking them into the text.
+- confidence: overall OCR + layout confidence from 0 to 1.
+- reviewIssues: short, specific uncertainties the teacher should verify (cropped edge, glare,
+  unreadable symbol, ambiguous key, overlapping handwriting). Empty when none.
 
 Only include correctAnswer when you are confident it is objectively correct. Do not guess answers for
 open-ended prompts.`;
@@ -150,52 +226,28 @@ export async function digitizeWorksheet(
   mimeType: string,
   createdBy: string,
 ): Promise<DigitalWorksheet | null> {
-  const parts = [
-    { inlineData: { data: imageBase64, mimeType } },
-    { text: DIGITIZE_PROMPT },
-  ];
+  const result = await digitizeWorksheetDetailed(imageBase64, mimeType, createdBy);
+  return result.ok ? result.sheet : null;
+}
 
-  let raw: string | null;
+export interface WorksheetDigitizeResult {
+  ok: boolean;
+  sheet: DigitalWorksheet | null;
+  error?: GeminiCallResult;
+}
+
+export async function digitizeWorksheetDetailed(
+  imageBase64: string,
+  mimeType: string,
+  createdBy: string,
+): Promise<WorksheetDigitizeResult> {
   try {
-    // callGemini assigns its first arg to `contents`; the SDK accepts a Part[] there for vision.
-    raw = await callGemini(parts as unknown as string, {
-      responseMimeType: 'application/json',
-      responseSchema: WORKSHEET_SCHEMA,
-    });
+    const local = await digitizeWorksheetOnDevice(`data:${mimeType};base64,${imageBase64}`, createdBy);
+    return { ok: true, sheet: local.sheet };
   } catch (err) {
-    console.error('[worksheetDigitizer] gemini call failed:', err);
-    return null;
+    console.error('[worksheetDigitizer] on-device OCR failed:', err);
+    return { ok: false, sheet: null, error: { ok: false, text: '', code: 'NETWORK_ERROR', message: (err as Error)?.message || 'On-device worksheet OCR failed. The scan was not uploaded.' } };
   }
-  if (!raw) return null;
-
-  const parsed = safeParse(raw);
-  if (!parsed || !Array.isArray(parsed.fields)) {
-    console.error('[worksheetDigitizer] unparseable response');
-    return null;
-  }
-
-  const fields: WorksheetField[] = parsed.fields.map((f: any, i: number) =>
-    normalizeField(f, i),
-  );
-  const hasManualFields = fields.some((f) => f.needsManualGrade);
-  const standardIds = Array.from(
-    new Set(fields.flatMap((f) => f.standardIds || [])),
-  );
-
-  return {
-    id: '', // set by caller on persist
-    title: String(parsed.title || 'Untitled Worksheet'),
-    subject: String(parsed.subject || 'General'),
-    objective: String(parsed.objective || ''),
-    gradeBand: parsed.gradeBand || undefined,
-    framework: parsed.framework || undefined,
-    standardIds,
-    fields,
-    createdBy,
-    createdAt: Date.now(),
-    status: 'draft',
-    hasManualFields,
-  };
 }
 
 // ── Auto-grade (pure, local, Phase-1 trustworthy) ─────────────────────────────────
@@ -315,10 +367,33 @@ function normalizeField(f: any, i: number): WorksheetField {
   if (Array.isArray(f?.standardIds) && f.standardIds.length) {
     field.standardIds = f.standardIds.map(String);
   }
+  field.confidence = clamp01(f?.confidence, .65);
+  if (f?.ordinal) field.ordinal = String(f.ordinal);
   const hasKey = f?.correctAnswer !== undefined && f?.correctAnswer !== null && String(f.correctAnswer).trim() !== '';
   if (hasKey && type !== 'long-text') field.correctAnswer = String(f.correctAnswer);
   else field.needsManualGrade = true;
   return field;
+}
+
+/** Read handwriting/marks from a completed paper copy into the existing field ids. */
+export async function readCompletedWorksheet(
+  imageBase64: string,
+  mimeType: string,
+  sheet: DigitalWorksheet,
+  options?: { handwriting?: 'auto' | 'require' | 'skip'; onProgress?: (message: string) => void },
+): Promise<{ ok: boolean; answers: Record<string, string>; confidence: Record<string, number>; answered?: Record<string, boolean>; message?: string }> {
+  return readCompletedWorksheetOnDevice(`data:${mimeType};base64,${imageBase64}`, sheet, options);
+}
+
+function normalizeSegment(s: any, i: number): WorksheetSegment {
+  const allowed: WorksheetSegment['kind'][] = ['heading','instructions','question','answer-region','image','diagram','table','decoration'];
+  const kind = allowed.includes(s?.kind) ? s.kind : 'question';
+  return { id: String(s?.id || `seg${i + 1}`), kind, box: { x: clampPct(s?.box?.x), y: clampPct(s?.box?.y), width: clampPct(s?.box?.width, 10), height: clampPct(s?.box?.height, 6) }, ...(s?.text ? { text: String(s.text) } : {}), ...(Array.isArray(s?.fieldIds) ? { fieldIds: s.fieldIds.map(String) } : {}), confidence: clamp01(s?.confidence, .6) };
+}
+
+function clamp01(v: any, fallback = 0): number {
+  const n = typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+  return Math.max(0, Math.min(1, n));
 }
 
 function clampPct(v: any, fallback = 0): number {

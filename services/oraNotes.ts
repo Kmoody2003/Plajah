@@ -43,7 +43,7 @@ export interface OraNote extends SyncableEntry {
 }
 
 /** Per-account bucket. Guests get a local-only notebook under the same key. */
-const keyFor = () => `oraCommonplace_${auth.currentUser?.uid || 'guest'}`;
+export const oraNotesStorageKey = () => `oraCommonplace_${auth.currentUser?.uid || 'guest'}`;
 
 const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
@@ -64,7 +64,7 @@ export function parseTags(text: string): string[] {
 }
 
 export async function listNotes(): Promise<OraNote[]> {
-  const entries = await loadNotebook(keyFor());
+  const entries = await loadNotebook(oraNotesStorageKey());
   return entries
     .filter((e): e is OraNote => typeof (e as OraNote).text === 'string')
     .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
@@ -85,12 +85,12 @@ export async function saveNote(
     createdAt: input.createdAt ?? now,
     updatedAt: now,
   };
-  await putEntry(keyFor(), note);
+  await putEntry(oraNotesStorageKey(), note);
   return note;
 }
 
 export async function removeNote(id: string): Promise<void> {
-  await deleteEntry(keyFor(), id);
+  await deleteEntry(oraNotesStorageKey(), id);
 }
 
 /** Plain substring search across title, body and tags. */

@@ -20,11 +20,13 @@
     "test:kairos": "npx tsx --test tests/kairosService.test.ts",
     "test:vespers": "npx tsx --test tests/vespersService.test.ts",
     "test:serviceNotes": "npx tsx --test tests/serviceNotes.test.ts",
+    "test:civics": "npx tsx --test tests/comparativeCivics.test.ts",
+    "test:paper": "npx tsx --test --experimental-test-module-mocks tests/paperTrading.test.ts",
     "test:academia": "npx tsx --test tests/academiaIntegrity.test.ts",
     "test:melos": "npx tsx --test tests/melosArp.test.ts tests/melosKera.test.ts",
     "academia:ingest": "npx tsx scripts/ingestOerLibrary.ts",
     "test:runner": "npx tsx --test tests/serviceRunner.test.ts",
-    "test:stillness": "npx tsx --test tests/stillnessEngine.test.ts tests/solaHandoff.test.ts tests/velaPlayer.test.ts tests/velaSuite.test.ts tests/generativeChannel.test.ts tests/inflection.test.ts tests/composer.test.ts"
+    "test:stillness": "npx tsx --test tests/stillnessEngine.test.ts tests/solaHandoff.test.ts tests/velaPlayer.test.ts tests/velaSuite.test.ts tests/generativeChannel.test.ts tests/inflection.test.ts tests/composer.test.ts tests/autonomousProducer.test.ts"
   },
   "dependencies": {
     "@atproto/api": "^0.19.10",
@@ -38,6 +40,7 @@
     "@giphy/js-fetch-api": "^5.8.0",
     "@giphy/react-components": "^10.1.2",
     "@google/genai": "1.41.0",
+    "@huggingface/transformers": "^4.2.0",
     "@lottiefiles/dotlottie-web": "^0.55.0",
     "@lumaai/luma-web": "^0.2.2",
     "@msgpack/msgpack": "^3.1.3",
@@ -72,6 +75,7 @@
     "hls.js": "^1.6.16",
     "html2canvas": "^1.4.1",
     "idb-keyval": "^6.2.2",
+    "imagetracerjs": "^1.2.6",
     "jsmediatags": "^3.9.7",
     "konva": "^10.2.3",
     "leaflet": "^1.9.4",
@@ -92,6 +96,7 @@
     "stripe": "^22.1.1",
     "styled-components": "^6.4.2",
     "tailwindcss": "^4.2.2",
+    "tesseract.js": "^7.0.0",
     "three": "^0.184.0",
     "uuid": "^14.0.0",
     "verovio": "^6.2.0",

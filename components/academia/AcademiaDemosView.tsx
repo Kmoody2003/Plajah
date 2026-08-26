@@ -16,7 +16,7 @@
 
 import React from 'react';
 import {
-  ArrowLeft, GraduationCap, Baby, Users, School, Wrench, LayoutGrid, ArrowRight, Sparkles,
+  ArrowLeft, GraduationCap, Baby, Users, School, Wrench, LayoutGrid, ArrowRight, Sparkles, WandSparkles,
 } from 'lucide-react';
 import { useViewport } from '../../hooks/useViewport';
 import DoorCard from './DoorCard';
@@ -35,6 +35,17 @@ interface Door extends DoorSpec {
 
 const DOORS: Door[] = [
   {
+    key: 'lesson-studio',
+    kicker: 'Start here · 8 min · Resettable',
+    title: 'Turn six sources into one living lesson',
+    blurb: 'Give Aria links, files, audio, photos, data and a 3D model. Watch Plajah align standards, build a shared rubric, choreograph rich media and personalize the invitation for each learner.',
+    minutes: 8,
+    icon: WandSparkles,
+    from: 'rgba(107,0,153,0.72)', to: 'rgba(255,140,0,0.42)',
+    view: 'RICH_LESSON_STUDIO_DEMO',
+    wide: true,
+  },
+  {
     key: 'teacher',
     kicker: 'Teacher · 6 min',
     title: 'Run Room 4B for a week',
@@ -43,7 +54,6 @@ const DOORS: Door[] = [
     icon: GraduationCap,
     from: 'rgba(255,140,0,0.55)', to: 'rgba(212,0,85,0.32)',
     role: 'teacher',
-    wide: true,
   },
   {
     key: 'student',

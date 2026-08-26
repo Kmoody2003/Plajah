@@ -5,7 +5,7 @@ import { fetchFastChannelSchedule, fetchFastChannelVideos, fetchVideoById, type 
 import { activeDaySlots, dayAnchoredPosition, linearPositionMidnight, slotDurationSec, resolveSlotMedia, backfillScheduleDurations } from '../../services/fastChannelTimeline';
 import { exactDurationSec } from '../../services/mediaTimebase';
 import { now as clockNow } from '../../services/platformClock';
-import { SCIENCE_STREAMS } from '../scienceStreams';
+import { ACTIVE_SCIENCE_STREAMS } from '../scienceStreams';
 import { PLAJAH_CHANNELS, UNNUMBERED, guideSortKey, plajahNumber } from '../../services/fast/channelNumbers';
 
 /**
@@ -75,7 +75,9 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune }) => {
       id: `plajah_${pc.id}`, number: plajahNumber(pc), name: pc.name,
       logo: undefined, accent: ORANGE, kind: 'fast', plajahId: pc.id,
     }));
-    SCIENCE_STREAMS.filter(s => s.isLive).slice(0, 8).forEach((s, i) => out.push({
+    // Curated science feeds (the 90x rows). Empty while SCIENCE_BAND_ENABLED is off — the
+    // third-party YouTube embeds behind them are broken, so the guide omits the block entirely.
+    ACTIVE_SCIENCE_STREAMS.filter(s => s.isLive).slice(0, 8).forEach((s, i) => out.push({
       id: `sci_${s.id}`, number: `90${i + 1}`, name: s.title, logo: undefined, accent: s.accent || PURPLE, kind: 'science', sciDesc: s.description, sciSource: s.source, feed: { id: s.id, title: s.title, url: s.embedUrl, ownerName: s.source },
     }));
     // guideSortKey rather than parseFloat: "1.10" must sort after "1.2", and parseFloat reads

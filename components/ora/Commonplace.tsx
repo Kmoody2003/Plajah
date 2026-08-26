@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2, Search, Link2 } from 'lucide-react';
+import { Plus, Trash2, Search, Link2, LayoutPanelTop } from 'lucide-react';
 import { Button, IconButton, Surface, Eyebrow, Textarea, Chip } from '../ui';
-import { listNotes, saveNote, removeNote, searchNotes, tagCloud, parseTags, type OraNote } from '../../services/oraNotes';
+import { listNotes, saveNote, removeNote, searchNotes, tagCloud, parseTags, oraNotesStorageKey, type OraNote } from '../../services/oraNotes';
+import { openNotebookInTela } from '../../services/telaDomainAdapters';
+import { auth } from '../../services/backendService';
 
 /**
  * Ora — Commonplace. The notes surface.
@@ -19,6 +21,7 @@ export const Commonplace: React.FC = () => {
   const [q, setQ] = useState('');
   const [tag, setTag] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [openingTela, setOpeningTela] = useState(false);
 
   const load = useCallback(async () => { setNotes(await listNotes()); }, []);
   useEffect(() => { void load(); }, [load]);
@@ -48,7 +51,10 @@ export const Commonplace: React.FC = () => {
   return (
     <div style={{ display: 'grid', gap: 'var(--pj-space-5)' }}>
       <div>
-        <Eyebrow>Commonplace</Eyebrow>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--pj-space-3)' }}>
+          <Eyebrow style={{ marginRight: 'auto' }}>Commonplace</Eyebrow>
+          <Button variant="outline" size="sm" icon={<LayoutPanelTop />} loading={openingTela} onClick={async () => { setOpeningTela(true); try { await openNotebookInTela(oraNotesStorageKey(), notes, auth.currentUser?.uid || 'local', 'Ora Commonplace'); } finally { setOpeningTela(false); } }}>Open in Tela</Button>
+        </div>
         <p className="type-body-sm" style={{ margin: 'var(--pj-space-2) 0 0', color: 'var(--on-surface-variant)', lineHeight: 1.6 }}>
           Anything worth keeping. Write <code>#tag</code> anywhere in a note and it files itself.
           {/* Said plainly rather than implied: notes are not the journal, and they

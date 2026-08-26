@@ -26,6 +26,11 @@ import { createSession, drawEphemeralSeed, type ArrivalMood, type Session, type 
 import { turnGesture, velaParamsFor, velaSessionSetup } from './velaMapping';
 import { createPlayer, type Player, type PlayerEvent } from './velaPlayer';
 import { composeMelody, type MelodyNote } from './composer';
+import { composeProducer, type ProducerScore } from './autonomousProducer';
+import { meditationLead, meditationPluck } from './meditationSynths';
+import { applyPatch } from '../../melos/instruments/onda/patch';
+import { getTuning, tuningVersion } from './soundTuning';
+import { F, P, E, flt, env } from '../../melos/instruments/onda/params';
 import { velaDriftSetup } from '../../melos/instruments/vela/patch';
 import { ensembleFor, findSuitePreset, type SuiteInstrument } from '../../melos/instruments/vela/suite';
 import { M, X, V, MASTER_GAIN } from '../../melos/instruments/vela/params';
@@ -121,12 +126,14 @@ const LAYER_FADE_TAU = 2.5;
  * notice — and it can never spike, because the master limiter sits downstream of everything.
  */
 const PULSE_PATCH: Array<[number, number]> = [
-  [MASTER_GAIN, 0.5],
-  [M.ENABLE, 1], [M.PARTIALS, 0.3], [M.INHARM, 0.03], [M.SPREAD, 0.15],
-  [M.DECAY, 0.28], [M.DECAY_TILT, 0.72], [M.MATERIAL, 4], [M.POSITION, 0.5], [M.KEYTRACK, 0.2],
-  [M.MODE, 0], [M.SWELL, 0.22],
-  [X.TYPE, 2], [X.PRESSURE, 0.5], [X.GRAIN, 0.2], [X.TONE, 0.1], [X.VEL_TILT, 0.4],
-  [V.MIX, 0.7], [V.SIZE, 0.7], [V.DECAY, 0.5], [V.DIFFUSION, 0.82], [V.BLUR, 0.32],
+  [MASTER_GAIN, 0.6],
+  // A soft KICK: a low skin body, struck with a fast attack (no swell) for punch, short decay so it
+  // is a thump rather than a drone, highs killed so it is felt not clicky, and only a little space.
+  [M.ENABLE, 1], [M.PARTIALS, 0.25], [M.INHARM, 0.05], [M.SPREAD, 0.1],
+  [M.DECAY, 0.14], [M.DECAY_TILT, 0.8], [M.MATERIAL, 4], [M.POSITION, 0.5], [M.KEYTRACK, 0.15],
+  [M.MODE, 0], [M.SWELL, 0.0],
+  [X.TYPE, 2], [X.PRESSURE, 0.6], [X.GRAIN, 0.15], [X.TONE, 0.08], [X.VEL_TILT, 0.5],
+  [V.MIX, 0.35], [V.SIZE, 0.5], [V.DECAY, 0.35], [V.DIFFUSION, 0.7], [V.BLUR, 0.2],
 ];
 
 /**
@@ -214,6 +221,27 @@ export class StillnessSession {
   private melodyEvents: MelodyNote[] = [];
   private nextMelody = 0;
 
+  // ── ONDA warmth + arpeggiator ─────────────────────────────────────────────────
+  // The pad chord, the composed melody and the arp all share ONE polyphonic ONDA voice
+  // (`this.melody`), rather than a worklet each — the extra worklets were the source of the
+  // buffer underruns. `padHeld` is the sustained chord's voice ids on that one instrument.
+  private padHeld: number[] = [];
+  private padSet = '';
+  private arpOn = false;
+  private nextArpAt = 0;
+  private arpStep = 0;
+  /** Last soundTuning version applied to the ONDA voice, so knob changes re-apply only on change. */
+  private lastTuningVer = -1;
+
+  // ── The 80s sequence voice (one ONDA pluck carrying arp + bassline) ───────────
+  private seq: Layer | null = null;
+  private seqPending = false;
+  private nextSeqAt = 0;
+  private seqStep = 0;
+  private producer: ProducerScore | null = null;
+  private nextProducerSeq = 0;
+  private nextProducerKick = 0;
+
   private onFrame?: RunnerOptions['onFrame'];
   private onEnded?: RunnerOptions['onEnded'];
 
@@ -280,10 +308,15 @@ export class StillnessSession {
     const state = this.session.at(offsetSec);
 
     this.player = createPlayer(this.seed, this.session.durationSec, (t) => this.session.at(t));
+    this.producer = composeProducer(this.seed ^ 0x4d454c4f, this.session.durationSec, (t) => this.session.at(t));
+    this.nextProducerSeq = this.producer.events.findIndex((e) => e.at > offsetSec && (e.part === 'arp' || e.part === 'bass'));
+    if (this.nextProducerSeq < 0) this.nextProducerSeq = this.producer.events.length;
+    this.nextProducerKick = this.producer.events.findIndex((e) => e.at > offsetSec && e.part === 'kick');
+    if (this.nextProducerKick < 0) this.nextProducerKick = this.producer.events.length;
 
     // Bring up whatever the arc calls for at this moment. Joining mid-session is a first-class
     // case — on the channel you tune in whenever you tune in.
-    for (const layer of ensembleFor(state.phase, state.depth, state.arousal)) {
+    for (const layer of this.wantedEnsemble(state)) {
       await this.ensureLayer(layer.instrument, layer.presetId, state, layer.level);
     }
 
@@ -297,15 +330,22 @@ export class StillnessSession {
     // The composer scores the whole arc's melody up front — consonant with the harmony, because it
     // draws its notes from the same pitch collection. Its voice is spun up now so it's ready.
     if (this.melodyEnabled) {
-      const player = this.player;
       this.melodyEvents = composeMelody({
         seed: this.seed,
         durationSec: this.session.durationSec,
         stateAt: (t) => this.session.at(t),
-        setAt: (t) => player.setAt(t),
+        // The producer now owns harmony. Give the melodic composer the active chord tones expressed
+        // relative to its own register root, so every composed note agrees with pad, bass and arp.
+        setAt: (t) => {
+          const root = Math.round(43 - this.session.at(t).depth * 8);
+          const chord = this.producer?.chordAt(t).notes ?? [];
+          return [...new Set(chord.map((n) => ((n - root) % 12 + 12) % 12))].sort((a, b) => a - b);
+        },
       });
       this.nextMelody = this.melodyEvents.findIndex((e) => e.at > offsetSec);
       if (this.nextMelody < 0) this.nextMelody = this.melodyEvents.length;
+      this.nextArpAt = offsetSec;
+      this.nextSeqAt = offsetSec;
       await this.ensureMelody();
     }
     // A timer, not requestAnimationFrame. rAF pauses the moment the tab is hidden or the screen
@@ -430,13 +470,20 @@ export class StillnessSession {
     const state = this.session.at(t);
 
     // ── the ensemble ────────────────────────────────────────────────────────
-    const wanted = ensembleFor(state.phase, state.depth, state.arousal);
+    const wanted = this.wantedEnsemble(state);
     const present = new Set(wanted.map((l) => l.instrument));
     for (const l of wanted) {
       // `void` rather than await: this runs inside a rAF callback, and a layer still spinning up
       // simply joins on a later frame. The level is scaled by a slow FOCUS weight so voices move in
       // and out of the foreground instead of holding a fixed balance — the "mix that breathes".
-      void this.ensureLayer(l.instrument, l.presetId, state, l.level * this.focusWeight(l.instrument, t));
+      // The modal "bells" (the CANTUS chord voice) are scaled by the bells knob — sparing accents
+      // by default, since the ONDA pad now carries the harmony's warmth.
+      let lvl = l.level * this.focusWeight(l.instrument, t);
+      if (l.instrument === 'cantus') lvl *= getTuning().bells * 1.4;
+      // On the channel the autonomous producer is the music and VELA is the distant atmosphere.
+      // The old full-strength ensemble masked the synth arrangement even though its notes fired.
+      if (this.channelMode) lvl *= l.instrument === 'ison' ? 0.42 : l.instrument === 'vela' ? 0.35 : 0.2;
+      void this.ensureLayer(l.instrument, l.presetId, state, lvl);
     }
     // Anything no longer wanted fades out rather than stopping. Its tail is part of the sound.
     // setLevel() dedupes, so once a layer has reached zero this stops re-scheduling it.
@@ -476,16 +523,19 @@ export class StillnessSession {
           ison.inst.noteOn(this.tp(root + pc), 0.5, this.ctx.currentTime, this.ctx.currentTime, this.ctx.sampleRate),
         );
       }
-      // A sub-octave root beneath it all — the low foundation the mix was missing. Clamped so it
-      // never drops into inaudible sub-bass.
+      // A sub-octave root beneath it all — a WARM low foundation, floored well above the sub-bass
+      // region where a low drone stops sounding like a foundation and starts sounding like dread.
       if (set[0] !== undefined) {
-        const subNote = Math.max(24, this.tp(root + set[0] - 12));
-        ison.held.push(ison.inst.noteOn(subNote, 0.5, this.ctx.currentTime, this.ctx.currentTime, this.ctx.sampleRate));
+        const subNote = Math.max(31, this.tp(root + set[0] - 12));
+        ison.held.push(ison.inst.noteOn(subNote, 0.45, this.ctx.currentTime, this.ctx.currentTime, this.ctx.sampleRate));
       }
     }
 
     // ── the harmony ─────────────────────────────────────────────────────────
-    const events = this.player?.events() ?? [];
+    // A standalone Stillness session keeps the original drifting VELA harmony. The channel has a
+    // real producer score now; doubling it with the old modal chord stream only restores the lone
+    // bell-note foreground we are deliberately replacing.
+    const events = this.channelMode ? [] : (this.player?.events() ?? []);
     while (this.nextEvent < events.length && events[this.nextEvent].at <= t + LOOKAHEAD_SEC) {
       const e = events[this.nextEvent];
       // Whichever voice layer is most present carries the chord. Sending it to all of them would
@@ -518,12 +568,15 @@ export class StillnessSession {
       if (vela) {
         const g = turnGesture(this.session.at(this.session.turnAt));
         if (this.gentleTurn) {
-          // The channel version: a slow bowed swell, not a struck bell. A real attack (SWELL) and
-          // the gentlest exciter (Rub) turn the one transient of the session into something that
-          // rises into the field over a couple of seconds — a gesture you feel arrive rather than
-          // a sound that arrives at you. Half the velocity, and fed for far longer so it blooms.
-          this.sendParams(vela, [[M.SWELL, 0.6], [M.MODE, 2], [X.TYPE, 3], [X.PRESSURE, 0.4]]);
-          this.voice(vela, g.note, g.velocity * 0.5, g.pan, 22, this.session.turnAt - t);
+          // A real gong gesture: a short strike feeding a long resonant body. The previous 22-second
+          // excitation behaved like another drone; a gong is hit briefly and earns its duration
+          // from modal decay and the room around it.
+          this.sendParams(vela, [
+            [M.SWELL, 0.08], [M.MODE, 0], [M.DECAY, 0.78], [M.DECAY_TILT, 0.64],
+            [X.TYPE, 0], [X.PRESSURE, 0.48], [V.MIX, 0.58], [V.SIZE, 0.82],
+            [V.DECAY, 0.76], [V.DIFFUSION, 0.88], [V.BLUR, 0.2],
+          ]);
+          this.voice(vela, g.note, g.velocity * 0.62 * getTuning().bells, g.pan, 0.18, this.session.turnAt - t);
         } else {
           this.voice(vela, g.note, g.velocity, g.pan, 14, this.session.turnAt - t);
         }
@@ -539,8 +592,34 @@ export class StillnessSession {
         const m = this.melodyEvents[this.nextMelody];
         // A gentle stereo drift so successive notes are not stacked dead-centre.
         const pan = Math.sin(this.nextMelody * 0.7) * 0.35;
-        this.voice(this.melody, m.note, m.velocity, pan, m.holdSec, m.at - t);
+        this.voice(this.melody, m.note, m.velocity * getTuning().melody, pan, m.holdSec, m.at - t);
         this.nextMelody++;
+      }
+    }
+
+    // ── the warm pad chord (ONDA voice) + the flowing 80s sequence (arp + bass) ──
+    if (this.melodyEnabled && this.melody) {
+      this.tickPad(t, state);
+      this.tickSeq(t, state);
+      // Tone still breathes here, but ambience is now ONE shared native bus in EndlessHourPlayer.
+      // Running a complete WASM Veil inside every synth was the dominant avoidable DSP cost.
+      const T = getTuning();
+      const colour = 0.5 + 0.5 * Math.sin(t / 47 + 1.3);
+      this.sendParams(this.melody, [
+        [V.MIX, 0],
+        [flt(0, F.CUTOFF), Math.min(0.9, T.leadCutoff * (0.72 + colour * 0.56))],
+      ]);
+      if (this.seq) this.sendParams(this.seq, [
+        [V.MIX, 0],
+        [flt(0, F.CUTOFF), 0.38 + colour * 0.34],
+      ]);
+      // Live sound tuning → the ONDA voice, re-applied only when a slider actually moved.
+      if (tuningVersion() !== this.lastTuningVer) {
+        this.lastTuningVer = tuningVersion();
+        this.sendParams(this.melody, [
+          [env(0, E.ATTACK), T.leadAttack],
+          [P.MASTER_GAIN, T.leadLevel],
+        ]);
       }
     }
 
@@ -564,6 +643,14 @@ export class StillnessSession {
     if (kind === 'ison') return 0.82;
     const phase = kind === 'cantus' ? 0 : kind === 'pneuma' ? 2.3 : 4.1;
     return 0.6 + 0.42 * (0.5 + 0.5 * Math.sin(t / 43 + phase)); // ~0.6 .. 1.02, per-instrument
+  }
+
+  /** The produced channel needs one quiet modal foundation, not the full three-worklet meditation
+   * ensemble underneath its pad, melody, bass and arp. Standalone sessions retain the full suite. */
+  private wantedEnsemble(state: SessionState): ReturnType<typeof ensembleFor> {
+    const all = ensembleFor(state.phase, state.depth, state.arousal);
+    if (!this.channelMode) return all;
+    return all.filter((l) => l.instrument === 'ison' || l.instrument === 'vela');
   }
 
   /** The most present voice layer — never the drone, which holds rather than articulates. */
@@ -615,27 +702,26 @@ export class StillnessSession {
    *  every second or third one, never every one. Soft-attacked and heavily veiled, so it is the
    *  beat you feel rather than the beat you hear. */
   private tickPulse(t: number, state: SessionState): void {
-    // A wrap of breath phase from near 1 back toward 0 is the bottom of the cycle — where a
-    // heartbeat lands. Count cycles so at most one pulse fires per breath.
-    const phase = state.breathPhase;
-    const wrapped = phase + 0.4 < this.lastBreathPhase;
-    this.lastBreathPhase = phase;
-    if (wrapped) this.pulseCycles++;
+    const T = getTuning();
+    // The kick knob owns this now. Zeroed → silent, and the worklet is never created.
+    if (T.kick <= 0.02) {
+      if (this.pulse) this.setLevel(this.pulse, 0);
+      const events = this.producer?.events ?? [];
+      while (this.nextProducerKick < events.length && events[this.nextProducerKick].at <= t) this.nextProducerKick++;
+      return;
+    }
 
-    const active = this.pulseActive(t, state);
     void this.ensurePulse();
-    if (this.pulse) this.setLevel(this.pulse, active ? 1 : 0);
-    if (!active || !wrapped || !this.pulse) return;
-
-    // Every second breath near the surface, every third deep in — sparser where the session is
-    // already emptiest. An occasional extra skip keeps even that from being a fixed metre.
-    const every = state.depth > 0.55 ? 3 : 2;
-    if (this.pulseCycles % every !== 0) return;
-    if (hashUnit(this.seed ^ 0x70f5, this.pulseCycles) > 0.85) return;
-
-    const root = Math.round(33 - state.depth * 5); // very low — A1-ish, felt more than pitched
-    const velocity = 0.12 + (1 - state.depth) * 0.05;
-    this.voice(this.pulse, root, velocity, 0, 1.2 + state.openness * 1.4, 0);
+    if (this.pulse) this.setLevel(this.pulse, 1);
+    if (!this.pulse || !this.producer) return;
+    const events = this.producer.events;
+    while (this.nextProducerKick < events.length) {
+      const e = events[this.nextProducerKick];
+      if (e.at > t + LOOKAHEAD_SEC) break;
+      this.nextProducerKick++;
+      if (e.part !== 'kick' || e.at < t - LOOKAHEAD_SEC) continue;
+      this.voice(this.pulse, e.notes[0], e.velocity * T.kick, 0, e.holdSec, e.at - t);
+    }
   }
 
   /** Create the pulse's own instrument the first time one is due. Guarded like `ensureLayer`. */
@@ -678,9 +764,112 @@ export class StillnessSession {
     gain.connect(this.destination);
     inst.setSpatial({ layout: SpatialLayout.Stereo });
     await inst.whenReady();
-    inst.setParams(MELODY_PATCH);
+    // ONDA, not VELA — a soft synth lead (warm, not metallic) is the composer's voice now.
+    applyPatch(inst, meditationLead());
     this.melody = { inst, gain, presetId: 'melody', held: [], target: 1, lastParams: new Map() };
     if (!this.running) { this.melody.inst.dispose(); this.melody.gain.disconnect(); this.melody = null; }
+  }
+
+  /** The warm ONDA pad — one polyphonic synth voice holding the current chord for mid-range warmth. */
+  /** Re-voice the warm pad chord — held on the single ONDA voice — only when the collection moves.
+   *  A pad that re-articulates on a schedule is a stab; the point is that the warmth is just there. */
+  private tickPad(t: number, state: SessionState): void {
+    const mel = this.melody;
+    const chord = this.producer?.chordAt(t);
+    const notes = chord?.notes ?? [];
+    const key = `${chord?.bar ?? -1}:${notes.join(',')}`;
+    if (!notes.length || !mel || key === this.padSet) return;
+    this.padSet = key;
+    for (const id of this.padHeld) { try { mel.inst.noteOff(id, true); } catch { /* gone */ } }
+    this.padHeld = [];
+    const seen = new Set<number>();
+    for (const raw of notes) {
+      const note = this.tp(raw);
+      if (seen.has(note)) continue;
+      seen.add(note);
+      this.padHeld.push(mel.inst.noteOn(note, 0.58, this.ctx.currentTime, this.ctx.currentTime, this.ctx.sampleRate));
+    }
+  }
+
+  /** Create the 80s pluck voice the arp + bassline share. Lazy — only if either is turned up, so a
+   *  viewer who zeroes both never pays for the worklet. */
+  private async ensureSeq(): Promise<void> {
+    if (this.seq || this.seqPending) return;
+    this.seqPending = true;
+    try {
+      const inst = await Instrument.create(this.ctx, { onError: (m) => console.warn('[stillness] seq', m) });
+      const gain = this.ctx.createGain();
+      gain.gain.value = 1;
+      inst.output.connect(gain);
+      gain.connect(this.destination);
+      inst.setSpatial({ layout: SpatialLayout.Stereo });
+      await inst.whenReady();
+      applyPatch(inst, meditationPluck());
+      this.seq = { inst, gain, presetId: 'seq', held: [], target: 1, lastParams: new Map() };
+    } finally {
+      this.seqPending = false;
+    }
+    if (!this.running && this.seq) { this.seq.inst.dispose(); this.seq.gain.disconnect(); this.seq = null; }
+  }
+
+  /**
+   * The flowing 80s sequence: an arpeggio (mid) and an arpeggiated bassline (low) on one pluck voice.
+   *
+   * Steady eighth-ish pulse tied to the breath, notes held longer than the step so they overlap into
+   * a flow rather than staccato — and the echo bus carries them further. Density follows the arc so
+   * it feels like a journey: fuller through Settling and Return, thinned in Depth. Both lines scale
+   * with their live knobs, and zeroing both retires the voice.
+   */
+  private tickSeq(t: number, state: SessionState): void {
+    const T = getTuning();
+    const wantArp = T.arp > 0.02;
+    const wantBass = T.bass > 0.02;
+    if (!wantArp && !wantBass) {
+      // Keep the clock current while disabled. Without this, turning either control back on makes
+      // the scheduler render every step missed while it was at zero in one large audible burst.
+      this.nextSeqAt = t;
+      if (this.seq) this.setLevel(this.seq, 0);
+      const events = this.producer?.events ?? [];
+      while (this.nextProducerSeq < events.length && events[this.nextProducerSeq].at <= t) this.nextProducerSeq++;
+      return;
+    }
+    void this.ensureSeq();
+    if (!this.seq) return;
+    this.setLevel(this.seq, 1);
+    // `ensureSeq` is asynchronous. Never catch up more than the normal lookahead if the worklet
+    // took a while to become ready (or the browser suspended this tab).
+    if (this.nextSeqAt < t - LOOKAHEAD_SEC) this.nextSeqAt = t;
+    if (!this.producer) return;
+    const events = this.producer.events;
+    while (this.nextProducerSeq < events.length) {
+      const e = events[this.nextProducerSeq];
+      if (e.at > t + LOOKAHEAD_SEC) break;
+      this.nextProducerSeq++;
+      if ((e.part !== 'arp' && e.part !== 'bass') || e.at < t - LOOKAHEAD_SEC) continue;
+      if (e.part === 'arp' && wantArp) this.voice(this.seq, e.notes[0], e.velocity * T.arp, Math.sin(e.bar * 0.8) * 0.35, e.holdSec, e.at - t);
+      if (e.part === 'bass' && wantBass) this.voice(this.seq, e.notes[0], e.velocity * T.bass, 0, e.holdSec, e.at - t);
+    }
+  }
+
+  /** A moving pentatonic bassline in a low register — root, up a step, root, down — one per bar. */
+  private bassNote(set: number[], step: number, state: SessionState): number {
+    const root = Math.round(31 - state.depth * 3); // low, but above the sub-dread floor
+    const pattern = [0, 2, 0, 1];
+    const idx = pattern[Math.floor(step / 4) % pattern.length];
+    const pc = set[Math.min(set.length - 1, idx)] ?? set[0] ?? 0;
+    return this.tp(root + pc);
+  }
+
+  /** Up-then-down through the pentatonic set across an octave, in a mid register. */
+  private arpNote(set: number[], step: number, state: SessionState): number {
+    const root = Math.round(50 - state.depth * 6);
+    const len = set.length;
+    const span = len * 2; // one octave up and back
+    const c = ((step % (span * 2)) + span * 2) % (span * 2);
+    const idx = c < span ? c : span * 2 - 1 - c; // triangle contour
+    const oct = Math.floor(idx / len);
+    const pc = set[idx % len];
+    return this.tp(root + pc + oct * 12);
   }
 
   /** Voice one note on a layer, `delaySec` from now, releasing after `durationSec`. */
@@ -710,6 +899,7 @@ export class StillnessSession {
     for (const layer of this.layers.values()) layer.inst.allNotesOff(false);
     this.pulse?.inst.allNotesOff(false);
     this.melody?.inst.allNotesOff(false);
+    this.seq?.inst.allNotesOff(false);
     this.onEnded?.();
   }
 
@@ -725,25 +915,29 @@ export class StillnessSession {
         layer.gain.disconnect();
       } else {
         // Let the tails finish before tearing the nodes down.
-        layer.gain.gain.setTargetAtTime(0, this.ctx.currentTime, 1.5);
+        // Faster fade + earlier teardown (was 1.5 / 6 s): at an arc handoff both sessions' worklets
+        // run at once, so shrinking this overlap is what keeps the boundary from underrunning. By
+        // 3 s the fade is ~-30 dB — inaudible — so the tail is not lost, the CPU is just freed.
+        layer.gain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.38);
         const l = layer;
-        window.setTimeout(() => { l.inst.dispose(); l.gain.disconnect(); this.trim?.disconnect(); }, 6000);
+        window.setTimeout(() => { l.inst.dispose(); l.gain.disconnect(); this.trim?.disconnect(); }, 1400);
       }
     }
-    // The pulse and the melody ride the same teardown as the ensemble layers.
-    for (const extra of [this.pulse, this.melody]) {
+    // The pulse (kick), melody (also the pad chord) and seq (arp + bass) ride the same teardown.
+    for (const extra of [this.pulse, this.melody, this.seq]) {
       if (!extra) continue;
       extra.inst.allNotesOff(hard);
       if (hard) {
         extra.inst.dispose();
         extra.gain.disconnect();
       } else {
-        extra.gain.gain.setTargetAtTime(0, this.ctx.currentTime, 1.5);
-        window.setTimeout(() => { extra.inst.dispose(); extra.gain.disconnect(); }, 6000);
+        extra.gain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.38);
+        window.setTimeout(() => { extra.inst.dispose(); extra.gain.disconnect(); }, 1400);
       }
     }
     this.pulse = null;
     this.melody = null;
+    this.seq = null;
     if (hard) this.trim?.disconnect();
     this.layers.clear();
   }

@@ -7,10 +7,11 @@
 import React, { useEffect, useState } from 'react';
 import { GraduationCap, Sparkles, ExternalLink, RefreshCw } from 'lucide-react';
 import HistoryMomentPulseCard from './HistoryMomentPulseCard';
-import { fetchArtworksByMovement, MOVEMENTS, type ArtWork } from '../services/artMuseumService';
+import { searchArtworks, type ArtWork } from '../services/artMuseumService';
 import { EDU_FACTOIDS, factoidAt } from '../data/eduFactoids';
 
 const ROTATE_MS = 14000;
+const SCHOOL_SAFE_ART_QUERIES = ['landscape', 'still life', 'architecture', 'flowers', 'abstract'];
 
 const EducationRail: React.FC<{ uid?: string | null; onNavigate?: (view: string) => void }> = ({ uid, onNavigate }) => {
   const [step, setStep] = useState(0);          // 0 = history, 1 = art, 2 = factoid
@@ -21,8 +22,8 @@ const EducationRail: React.FC<{ uid?: string | null; onNavigate?: (view: string)
   // Load a batch of real, public-domain artworks (Met / Art Institute — keyless, cached).
   useEffect(() => {
     let cancelled = false;
-    const movement = MOVEMENTS[factIdx % MOVEMENTS.length]?.id;
-    fetchArtworksByMovement(movement).then(list => {
+    const query = SCHOOL_SAFE_ART_QUERIES[factIdx % SCHOOL_SAFE_ART_QUERIES.length];
+    searchArtworks(query, { limit: 30, educationSafe: true }).then(list => {
       if (!cancelled) setArt((list || []).filter(a => a.imageUrl));
     }).catch(() => {});
     return () => { cancelled = true; };

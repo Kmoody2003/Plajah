@@ -26,6 +26,21 @@ export interface ArtWork {
   source: ArtSource;
   sourceUrl: string;          // link to the artwork page on the museum site
   isPublicDomain: boolean;
+  /** Museum-supplied descriptors used by strict, fail-closed education filtering. */
+  contentTags?: string[];
+}
+
+const EDUCATION_DENY = /\b(nud(?:e|ity|ism)|naked|erotic|sexual|sex|sensual|pornograph\w*|genital\w*|breast\w*|buttock\w*|groin|rape|orgy|courtesan|prostitut\w*|lover\w*|kiss\w*|bather\w*|venus|aphrodite|adam|eve|human|anatom\w*|body|bodies|torso|figure\w*|figurative|portrait\w*|self[- ]portrait|person|people|woman|women|man|men|girl\w*|boy\w*|child\w*|mother|father|family|couple|dancer\w*|sculpture|statue|statuette)\b/i;
+const EDUCATION_ALLOW = /\b(landscape|seascape|waterscape|cityscape|still life|flower\w*|floral|botanic\w*|plant\w*|tree\w*|garden|architecture|architectural|building\w*|bridge\w*|street|interior|abstract|abstraction|geometric|non[- ]?objective|textile|tapestry|decorative art|ceramic\w*|pottery|vessel|furniture|animal\w*|bird\w*|horse\w*|dog\w*|cat\w*|fish\w*)\b/i;
+
+/**
+ * Education rails are fail-closed: a work must have an affirmatively safe,
+ * non-human subject and no human-form, nudity, or sexual-context descriptor.
+ * Unknown/unclassified works are deliberately rejected.
+ */
+export function isEducationSafeArtwork(work: Pick<ArtWork, 'title' | 'medium' | 'contentTags'>): boolean {
+  const metadata = [work.title, work.medium, ...(work.contentTags ?? [])].filter(Boolean).join(' ');
+  return !EDUCATION_DENY.test(metadata) && EDUCATION_ALLOW.test(metadata);
 }
 
 export interface MovementDef {
@@ -62,7 +77,7 @@ const articImage = (imageId: string, width = 843) =>
 
 async function searchArtic(query: string, limit: number, signal?: AbortSignal): Promise<ArtWork[]> {
   try {
-    const fields = 'id,title,artist_display,date_display,medium_display,image_id,is_public_domain';
+    const fields = 'id,title,artist_display,date_display,medium_display,image_id,is_public_domain,subject_titles,classification_title,artwork_type_title,category_titles';
     const url = `https://api.artic.edu/api/v1/artworks/search?q=${encodeURIComponent(query)}` +
       `&query[term][is_public_domain]=true&fields=${fields}&limit=${limit}`;
     const res = await fetch(url, { signal: signal ?? AbortSignal.timeout(9000) });
@@ -82,6 +97,7 @@ async function searchArtic(query: string, limit: number, signal?: AbortSignal): 
         source: 'artic',
         sourceUrl: `https://www.artic.edu/artworks/${a.id}`,
         isPublicDomain: true,
+        contentTags: [a.classification_title, a.artwork_type_title, ...(a.subject_titles ?? []), ...(a.category_titles ?? [])].filter(Boolean),
       }));
   } catch {
     return [];
@@ -124,6 +140,12 @@ async function searchMet(query: string, limit: number, signal?: AbortSignal): Pr
           source: 'met',
           sourceUrl: o.objectURL || `https://www.metmuseum.org/art/collection/search/${o.objectID}`,
           isPublicDomain: true,
+          contentTags: [
+            o.objectName,
+            o.classification,
+            o.department,
+            ...(o.tags ?? []).map((tag: any) => tag?.term),
+          ].filter(Boolean),
         });
       } catch {
         // skip this object, keep going
@@ -141,6 +163,8 @@ export interface SearchArtOpts {
   limit?: number;            // per-source result target (default 24)
   sources?: ArtSource[];     // which museums to hit (default both)
   signal?: AbortSignal;
+  /** Strict school/family surface policy; unknown content is excluded. */
+  educationSafe?: boolean;
 }
 
 /** Interleave two lists so both museums are represented in the grid. */
@@ -161,7 +185,7 @@ function interleave<T>(a: T[], b: T[]): T[] {
 export async function searchArtworks(query: string, opts: SearchArtOpts = {}): Promise<ArtWork[]> {
   const limit = opts.limit ?? 24;
   const sources = opts.sources ?? ['artic', 'met'];
-  const cacheKey = `${query.toLowerCase()}|${limit}|${sources.join(',')}`;
+  const cacheKey = `${query.toLowerCase()}|${limit}|${sources.join(',')}|edu:${!!opts.educationSafe}`;
   const cached = artCache.get(cacheKey);
   if (cached) return cached;
 
@@ -176,7 +200,10 @@ export async function searchArtworks(query: string, opts: SearchArtOpts = {}): P
   // De-dupe by id, interleave sources for a balanced wall.
   const merged = sources.length === 2 ? interleave(lists[0] ?? [], lists[1] ?? []) : lists.flat();
   const seen = new Set<string>();
-  const deduped = merged.filter(w => (seen.has(w.id) ? false : (seen.add(w.id), true))).slice(0, limit);
+  const deduped = merged
+    .filter(w => !opts.educationSafe || isEducationSafeArtwork(w))
+    .filter(w => (seen.has(w.id) ? false : (seen.add(w.id), true)))
+    .slice(0, limit);
 
   if (deduped.length) artCache.set(cacheKey, deduped);
   return deduped;

@@ -18,6 +18,8 @@ import { auth } from '../../services/backendService';
 
 const TOOL_EVENT: Record<string, string> = {
   FABULA: 'OPEN_FABULA', PHOTO: 'OPEN_MEDIA_CONVERTER', CHORA: 'NAVIGATE', LOREA: 'NAVIGATE', PIXELS: 'OPEN_PLAJAH_PIXELS',
+  PRAXIS: 'NAVIGATE',
+  TERRA: 'NAVIGATE',
 };
 
 const Bar: React.FC<{ pct: number; accent: string }> = ({ pct, accent }) => (
@@ -88,13 +90,16 @@ const LessonReader: React.FC<{
               <button
                 onClick={() => {
                   const evt = TOOL_EVENT[lesson.assignment!.tool!];
-                  if (evt === 'NAVIGATE') window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: lesson.assignment!.tool === 'CHORA' ? 'MUSIC' : 'BOOKS' } }));
+                  if (evt === 'NAVIGATE') {
+                    const t = lesson.assignment!.tool;
+                    window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: t === 'CHORA' ? 'MUSIC' : t === 'PRAXIS' ? 'PRAXIS' : t === 'TERRA' ? 'TERRA' : 'BOOKS' } }));
+                  }
                   else if (evt) window.dispatchEvent(new CustomEvent(evt, { detail: {} }));
                 }}
                 className="mt-3 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest"
                 style={{ background: accent, color: '#000' }}
               >
-                Open {lesson.assignment.tool === 'FABULA' ? 'Fabula' : lesson.assignment.tool === 'PHOTO' ? 'the photo editor' : lesson.assignment.tool === 'CHORA' ? 'Chora' : lesson.assignment.tool === 'PIXELS' ? 'Pixels' : 'Lorea'} <ChevronRight size={12} />
+                Open {lesson.assignment.tool === 'FABULA' ? 'Fabula' : lesson.assignment.tool === 'PHOTO' ? 'the photo editor' : lesson.assignment.tool === 'CHORA' ? 'Chora' : lesson.assignment.tool === 'PIXELS' ? 'Pixels' : lesson.assignment.tool === 'PRAXIS' ? 'Praxis' : lesson.assignment.tool === 'TERRA' ? 'Terra' : 'Lorea'} <ChevronRight size={12} />
               </button>
             )}
             {lesson.assignment.postTag && (

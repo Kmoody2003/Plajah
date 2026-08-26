@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { UserProfile, AppView, Album, MerchItem, FeaturedProjectRef } from '../types';
 import { getSocialLinks } from '../services/socialLinks';
+import { resolveAcademiaHubs, hubsAreSchoolAffiliated } from '../services/academiaHubs';
 import { isPartneredStatus, statusLabel } from '../services/relationships';
 import PioneerGoldFrame from './PioneerGoldFrame';
 import SafeAvatarViewer from './SafeAvatarViewer';
@@ -141,6 +142,12 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
     () => resolveFeaturedProject(profile, albums, videos, articles),
     [profile, albums, videos, articles],
   );
+
+  // "My Academia Hub" identity pill (Concept B) — role-aware, cyan when
+  // school-affiliated, brand when a platform learner; popover when multi-role.
+  const academiaHubs = React.useMemo(() => resolveAcademiaHubs(profile), [profile]);
+  const hubsSchool = hubsAreSchoolAffiliated(academiaHubs);
+  const [showHubMenu, setShowHubMenu] = React.useState(false);
 
   return (
     <div className={`relative ${isMobile ? '' : ''}`}>
@@ -416,6 +423,63 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
                       </button>
                     )}
                   </>
+                )}
+
+                {/* My Academia Hub — Concept B identity pill. Cyan = verified-school
+                    affiliation, brand gradient = Plajah Learn (platform). Single hub
+                    navigates straight in; multiple roles open a small switcher. */}
+                {onNavigate && academiaHubs.length > 0 && (
+                  <div className="relative">
+                    <button
+                      onClick={() => {
+                        if (academiaHubs.length === 1) onNavigate(academiaHubs[0].view);
+                        else setShowHubMenu(s => !s);
+                      }}
+                      className={`inline-flex h-[42px] items-center justify-center gap-2 rounded-full px-[18px] font-black text-[10px] uppercase tracking-widest transition-all hover:brightness-110 ${
+                        hubsSchool
+                          ? 'text-[#031a24] shadow-[0_6px_20px_rgba(0,218,243,0.32)]'
+                          : 'text-white shadow-[0_6px_20px_rgba(212,0,85,0.3)]'
+                      }`}
+                      style={{
+                        background: hubsSchool
+                          ? 'linear-gradient(135deg, #00DAF3, #3B82F6)'
+                          : 'linear-gradient(120deg, #6B0099, #D40055 55%, #FF8C00)',
+                      }}
+                    >
+                      {hubsSchool ? '🎓' : '📚'}{' '}
+                      {isOwnProfile
+                        ? 'My Academia Hub'
+                        : `${academiaHubs[0].label}`}
+                      {academiaHubs.length > 1 && (
+                        <span className="ml-0.5 rounded-full bg-black/25 px-1.5 py-0.5 text-[9px]">+{academiaHubs.length - 1}</span>
+                      )}
+                    </button>
+                    {showHubMenu && academiaHubs.length > 1 && (
+                      <div className="absolute left-0 top-[50px] z-50 w-[290px] overflow-hidden rounded-2xl border border-white/[0.17] bg-[#0c0b14]/[0.99] shadow-[0_24px_60px_rgba(0,0,0,0.6)]">
+                        <div className="border-b border-white/10 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-white/70">
+                          Your Academia hubs
+                        </div>
+                        {academiaHubs.map(h => (
+                          <button
+                            key={h.id}
+                            onClick={() => { setShowHubMenu(false); onNavigate(h.view); }}
+                            className="flex w-full items-center gap-3 border-t border-white/5 px-4 py-3 text-left transition-all hover:bg-white/[0.06] first:border-t-0"
+                          >
+                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-lg" style={{ background: h.school ? 'rgba(0,218,243,0.14)' : 'rgba(212,0,85,0.14)' }}>{h.icon}</span>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-center gap-2 text-[13px] font-bold text-white">
+                                {h.label}
+                                <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider ${h.school ? 'bg-[#00DAF3]/[0.16] text-[#00DAF3]' : 'bg-[#D40055]/[0.16] text-[#ff5c97]'}`}>
+                                  {h.school ? 'School' : 'Plajah Learn'}
+                                </span>
+                              </span>
+                              <span className="mt-0.5 block truncate text-[11px] text-white/40">{h.sub}</span>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 

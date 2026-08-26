@@ -591,6 +591,26 @@ const MusicTheoryStudio: React.FC<Props> = ({ onBack, user }) => {
       localStorage.setItem('plajah_theory_completed', JSON.stringify([...next]));
       return next;
     });
+    // Record it on the Learner Ledger too (signed-in only). The standards live in
+    // data/educationStandards.ts under NCAS_MUSIC, keyed THEORY.<lesson id>.
+    const uid = user?.uid;
+    if (uid) {
+      void (async () => {
+        try {
+          const { appendRecord, loadProficiency } = await import('../services/learningLedgerService');
+          const standardId = `THEORY.${id}`;
+          const prof = await loadProficiency(uid);
+          const before = prof?.byStandard?.[standardId] ?? 0;
+          const after = Math.round(Math.min(100, before + (82 - before) * 0.6) * 100) / 100;
+          if (after <= before) return;
+          await appendRecord({
+            studentId: uid, standardId, framework: 'NCAS_MUSIC', source: 'school-lesson',
+            masteryBefore: before, masteryAfter: after, byUid: uid,
+            evidence: 'Music Theory Studio — completed the lesson',
+          });
+        } catch { /* the ledger is additive; never block the lesson */ }
+      })();
+    }
   };
 
   const lessons = LESSONS.filter(l => l.difficulty === difficulty);

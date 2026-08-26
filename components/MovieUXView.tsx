@@ -975,14 +975,30 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
     setActiveVideo(null);
   }, []);
 
-  // Esc closes the player once out of fullscreen (browser handles the fullscreen exit first).
+  // Back / Esc reliably close the player, including on a TV remote. Three routes converge on
+  // exitPlayer: browser Escape (once out of element fullscreen), the Android/Tizen Back key
+  // (capture phase, so it beats TVNavigationLayer's fall-through to history.back()), and the
+  // plajah:hardware-back event TVNavigationLayer dispatches for the remote's Back button. Before,
+  // only bubble-phase Escape was handled, so a remote Back popped the whole MOVIE_UX view instead
+  // of just the player — the "unreliable / hard to get out of fullscreen" report.
   useEffect(() => {
     if (!activeVideo) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !document.fullscreenElement) { e.preventDefault(); exitPlayer(); }
+    const leave = () => {
+      if (document.fullscreenElement) { document.exitFullscreen?.().catch(() => {}); return; }
+      exitPlayer();
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const onKey = (e: KeyboardEvent) => {
+      const kc = e.keyCode || e.which;
+      const isBack = kc === 4 || e.key === 'Backspace' || e.key === 'XF86Back' || e.key === 'GoBack';
+      if (isBack || e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); leave(); }
+    };
+    const onHardwareBack = (e: Event) => { e.preventDefault(); leave(); };
+    window.addEventListener('keydown', onKey, true);
+    window.addEventListener('plajah:hardware-back', onHardwareBack);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('plajah:hardware-back', onHardwareBack);
+    };
   }, [activeVideo, exitPlayer]);
 
   // ── Next-episode autoplay (TV series) ─────────────────────────────────────
@@ -1073,13 +1089,16 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
           tabs and page chrome visible around a playing film. A portal has no such ancestor. */}
       {activeVideo && createPortal(
         <div ref={videoContainerRef} className="fixed inset-0 z-[200] bg-black" data-tv-no-trap>
+          {/* On a TV the browser Fullscreen API routes through the WebView's onShowCustomView — a
+              dead fullscreen surface with no UI and no way out (the trap VideoPlayer avoids). The
+              player is already full-bleed here, so onToggleFullscreen is dropped on TV; desktop keeps it. */}
           <CinemaPlayer
             key={activeVideo.id || activeVideo.url}
             video={activeVideo}
             poster={coverImage || undefined}
             onVideoRef={el => { setVideoElement(el); if (el) videoRef.current = el; }}
             isFullscreen={isFullscreen}
-            onToggleFullscreen={toggleFullscreen}
+            onToggleFullscreen={getPlatformInfo().isTV ? undefined : toggleFullscreen}
             onWhatIfParticipation={handleWhatIfParticipation}
             onEnded={handleEpisodeEnded}
             onBack={exitPlayer}

@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Brush, Eraser, Undo2, Trash2, Plus, Eye, EyeOff, X, Check, Loader2, Layers as LayersIcon, Droplet,
+  Brush, Eraser, Undo2, Trash2, Plus, Eye, EyeOff, X, Check, Loader2, Layers as LayersIcon, Droplet, Pencil, Highlighter, SprayCan,
 } from 'lucide-react';
+import { TELA_BRUSH_PRESETS } from '../services/telaCreativeEngine';
 
 // A real layered paint canvas — the drawing-engine foundation. Pressure-aware brush
 // (PointerEvent.pressure), eraser, per-layer opacity/visibility/blend mode, undo, and
@@ -28,11 +29,13 @@ const ComicDrawCanvas: React.FC<{
   const [, force] = useState(0);
   const rerender = () => force(v => v + 1);
 
-  const [tool, setTool] = useState<'brush' | 'eraser'>('brush');
+  const [tool, setTool] = useState<'brush' | 'pencil' | 'marker' | 'airbrush' | 'eraser'>('brush');
+  const [presetId, setPresetId] = useState('ink-comic');
   const [color, setColor] = useState('#111111');
   const [size, setSize] = useState(8);
   const [opacity, setOpacity] = useState(1);
   const [saving, setSaving] = useState(false);
+  const preset = TELA_BRUSH_PRESETS.find(item => item.id === presetId) || TELA_BRUSH_PRESETS[0];
 
   const mkLayer = (name: string): Layer => {
     const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
@@ -92,12 +95,16 @@ const ComicDrawCanvas: React.FC<{
     const { x, y, p } = pos(e);
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
-    ctx.globalAlpha = tool === 'eraser' ? 1 : opacity;
+    const pressureOpacity = preset.pressureOpacity ? (1 - preset.pressureOpacity + preset.pressureOpacity * p) : 1;
+    ctx.globalAlpha = tool === 'eraser' ? Math.max(.25, opacity) : opacity * preset.opacity * pressureOpacity;
     ctx.strokeStyle = color;
-    ctx.lineWidth = Math.max(0.5, size * (0.35 + 0.65 * p));
+    ctx.lineWidth = Math.max(0.5, size * (1 - preset.pressureSize + preset.pressureSize * p));
     const lp = last.current || { x, y };
     const mx = (lp.x + x) / 2, my = (lp.y + y) / 2;
-    ctx.beginPath(); ctx.moveTo(lp.x, lp.y); ctx.quadraticCurveTo(lp.x, lp.y, mx, my); ctx.stroke();
+    if (tool === 'airbrush') {
+      const distance = Math.max(1, Math.hypot(x - lp.x, y - lp.y)), steps = Math.max(1, Math.ceil(distance / Math.max(2, size * .12)));
+      for (let i = 0; i <= steps; i++) { const t = i / steps, px = lp.x + (x - lp.x) * t, py = lp.y + (y - lp.y) * t; const gradient = ctx.createRadialGradient(px, py, 0, px, py, ctx.lineWidth / 2); gradient.addColorStop(0, color); gradient.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(px, py, ctx.lineWidth / 2, 0, Math.PI * 2); ctx.fill(); }
+    } else { ctx.beginPath(); ctx.moveTo(lp.x, lp.y); ctx.quadraticCurveTo(lp.x, lp.y, mx, my); ctx.stroke(); }
     last.current = { x, y };
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
     composite();
@@ -147,8 +154,11 @@ const ComicDrawCanvas: React.FC<{
       <div className="flex-1 min-h-0 flex">
         {/* Tools */}
         <div className="w-16 shrink-0 border-r border-white/8 flex flex-col items-center gap-2 py-3">
-          <Tool on={tool === 'brush'} onClick={() => setTool('brush')} title="Brush"><Brush size={16} /></Tool>
-          <Tool on={tool === 'eraser'} onClick={() => setTool('eraser')} title="Eraser"><Eraser size={16} /></Tool>
+          <Tool on={tool === 'pencil'} onClick={() => { setTool('pencil'); setPresetId('pencil-hb'); setSize(3); }} title="Pencil"><Pencil size={16} /></Tool>
+          <Tool on={tool === 'brush'} onClick={() => { setTool('brush'); setPresetId('ink-comic'); setSize(11); }} title="Brush / ink"><Brush size={16} /></Tool>
+          <Tool on={tool === 'marker'} onClick={() => { setTool('marker'); setPresetId('marker-broad'); setSize(34); }} title="Marker"><Highlighter size={16} /></Tool>
+          <Tool on={tool === 'airbrush'} onClick={() => { setTool('airbrush'); setPresetId('air-soft'); setSize(96); }} title="Airbrush"><SprayCan size={16} /></Tool>
+          <Tool on={tool === 'eraser'} onClick={() => { setTool('eraser'); setPresetId('eraser-hard'); setSize(28); }} title="Eraser"><Eraser size={16} /></Tool>
           <Tool on={false} onClick={undo} title="Undo"><Undo2 size={16} /></Tool>
           <Tool on={false} onClick={clearActive} title="Clear layer"><Trash2 size={16} /></Tool>
           <label className="mt-2 w-9 h-9 rounded-xl overflow-hidden border border-white/15 cursor-pointer" title="Color" style={{ background: color }}>
@@ -159,6 +169,7 @@ const ComicDrawCanvas: React.FC<{
         {/* Canvas */}
         <div className="flex-1 min-w-0 flex flex-col">
           <div className="flex items-center gap-4 px-4 py-2 border-b border-white/8 text-white/50 text-[10px]">
+            <label className="flex items-center gap-2">Preset<select value={presetId} onChange={e => { const next = TELA_BRUSH_PRESETS.find(item => item.id === e.target.value); if (!next) return; setPresetId(next.id); setSize(next.size); setOpacity(next.opacity); setTool(next.family === 'ERASER' ? 'eraser' : next.family === 'PENCIL' ? 'pencil' : next.family === 'MARKER' ? 'marker' : next.id === 'air-soft' ? 'airbrush' : 'brush'); }} className="h-7 rounded-lg bg-black/40 border border-white/10 px-2 text-[10px] text-white/70">{TELA_BRUSH_PRESETS.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
             <label className="flex items-center gap-2"><Brush size={11} /> Size<input type="range" min={1} max={80} value={size} onChange={e => setSize(+e.target.value)} className="w-24 accent-orange-500" /><span className="w-6 tabular-nums">{size}</span></label>
             <label className="flex items-center gap-2"><Droplet size={11} /> Opacity<input type="range" min={0.05} max={1} step={0.05} value={opacity} onChange={e => setOpacity(+e.target.value)} className="w-24 accent-orange-500" /><span className="w-8 tabular-nums">{Math.round(opacity * 100)}%</span></label>
             <span className="ml-auto text-white/25">Pressure-sensitive · pen or mouse</span>

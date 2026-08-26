@@ -55,6 +55,8 @@ interface ClassroomsViewProps {
   onBack: () => void;
   user: any;
   onNavigate?: (view: string) => void;
+  /** When set, opens straight into this module (e.g. 'HUMAN_BODY') — used by the Academia Hub. */
+  initialModule?: string | null;
 }
 
 // ── DEMO CLASSROOM SEEDER ─────────────────────────────────────────────────────
@@ -404,7 +406,7 @@ const CreateClassModal: React.FC<CreateClassModalProps> = ({ user, track = 'CREA
 
 // ── MAIN VIEW ─────────────────────────────────────────────────────────────────
 
-const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigate }) => {
+const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigate, initialModule }) => {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [modules, setModules] = useState<ClassroomModule[]>([]);
   const [selectedClass, setSelectedClass] = useState<Classroom | null>(null);
@@ -428,6 +430,15 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
     loadClassrooms();
     loadModules();
   }, []);
+
+  // Open straight into a module when the Academia Hub routes here with one.
+  useEffect(() => {
+    if (initialModule) setSelectedModule(initialModule);
+  }, [initialModule]);
+
+  // Back out of a module: if it was opened directly from the Academia Hub, return to the Hub
+  // (via onBack) rather than the classroom grid; otherwise fall back to the grid.
+  const closeModule = () => { if (initialModule) onBack(); else setSelectedModule(null); };
 
   const loadClassrooms = async () => {
     setLoading(true);
@@ -604,7 +615,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary animate-pulse">Syncing Star Maps...</p>
           </div>
         }>
-          <SolarSystemModule onBack={() => setSelectedModule(null)} />
+          <SolarSystemModule onBack={closeModule} />
         </Suspense>
       </ErrorBoundary>
     );
@@ -619,7 +630,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#3E4A35] animate-pulse">Gathering Botanical Samples...</p>
           </div>
         }>
-          <PlantBiologyModule onBack={() => setSelectedModule(null)} />
+          <PlantBiologyModule onBack={closeModule} />
         </Suspense>
       </ErrorBoundary>
     );
@@ -634,7 +645,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400 animate-pulse">Initialising Anatomy Scanner...</p>
           </div>
         }>
-          <HumanBodyExperience onBack={() => setSelectedModule(null)} />
+          <HumanBodyExperience onBack={closeModule} />
         </Suspense>
       </ErrorBoundary>
     );
@@ -649,7 +660,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#B08968] animate-pulse">Unrolling the Blueprints...</p>
           </div>
         }>
-          <ArchitectureDisciplineView onBack={() => setSelectedModule(null)} currentUser={user} />
+          <ArchitectureDisciplineView onBack={closeModule} currentUser={user} />
         </Suspense>
       </ErrorBoundary>
     );
@@ -664,7 +675,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#E8590C] animate-pulse">Opening the Archives...</p>
           </div>
         }>
-          <WorldHistoryDisciplineView onBack={() => setSelectedModule(null)} currentUser={user} />
+          <WorldHistoryDisciplineView onBack={closeModule} currentUser={user} />
         </Suspense>
       </ErrorBoundary>
     );
@@ -679,7 +690,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#D4A017] animate-pulse">Excavating the Record...</p>
           </div>
         }>
-          <ArchaeologyDisciplineView onBack={() => setSelectedModule(null)} currentUser={user} />
+          <ArchaeologyDisciplineView onBack={closeModule} currentUser={user} />
         </Suspense>
       </ErrorBoundary>
     );
@@ -690,7 +701,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
     return (
       <ErrorBoundary>
         <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center text-white/30 text-sm">Loading the studio…</div>}>
-          <ScienceDisciplineView data={SCIENCE_DISCIPLINES[selectedModule.toLowerCase()]} onBack={() => setSelectedModule(null)} currentUser={user} />
+          <ScienceDisciplineView data={SCIENCE_DISCIPLINES[selectedModule.toLowerCase()]} onBack={closeModule} currentUser={user} />
         </Suspense>
       </ErrorBoundary>
     );
@@ -710,7 +721,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#FF8C00] animate-pulse">Loading {league} Playbook...</p>
           </div>
         }>
-          <SportExplainerModule league={league} onBack={() => setSelectedModule(null)} />
+          <SportExplainerModule league={league} onBack={closeModule} />
         </Suspense>
       </ErrorBoundary>
     );
@@ -799,53 +810,9 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
           </button>
         )}
 
-        {/* Reading Quest — gamified reading practice that awards class points */}
-        {onNavigate && (
-          <button
-            onClick={() => onNavigate('READING_QUEST')}
-            className="w-full mb-4 flex items-center gap-3 rounded-2xl px-5 py-4 text-left transition-all hover:scale-[1.005]"
-            style={{ border: '1px solid rgba(129,102,230,0.3)', background: 'linear-gradient(120deg, rgba(255,140,0,0.12), rgba(129,102,230,0.12))' }}
-          >
-            <span className="text-2xl">📖</span>
-            <div className="flex-1">
-              <div className="text-sm font-black text-white flex items-center gap-2">Reading Quest <span className="bg-black/40 text-[#FFD24A] text-[8px] font-black tracking-widest px-2 py-0.5 rounded-full">BETA</span></div>
-              <div className="text-[11px] text-white/50">Pre-K–Grade 7 reading games + Phoneme Beat — finishing a quest awards points to the class story.</div>
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#FF8C00]">Play →</span>
-          </button>
-        )}
-
-        {/* Science Quest — NGSS cartridge on the same chassis */}
-        {onNavigate && (
-          <button
-            onClick={() => onNavigate('SCIENCE_QUEST')}
-            className="w-full mb-4 flex items-center gap-3 rounded-2xl px-5 py-4 text-left transition-all hover:scale-[1.005]"
-            style={{ border: '1px solid rgba(54,197,240,0.3)', background: 'linear-gradient(120deg, rgba(129,102,230,0.12), rgba(54,197,240,0.12))' }}
-          >
-            <span className="text-2xl">🔬</span>
-            <div className="flex-1">
-              <div className="text-sm font-black text-white flex items-center gap-2">Science Quest <span className="bg-black/40 text-[#FFD24A] text-[8px] font-black tracking-widest px-2 py-0.5 rounded-full">BETA</span></div>
-              <div className="text-[11px] text-white/50">Pre-K–Grade 7 NGSS science practices — observe, analyze, explain. Same engine as Reading Quest; writes the learner ledger + Turbo.</div>
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#36c5f0]">Play →</span>
-          </button>
-        )}
-
-        {/* History Quest — C3 cartridge on the same chassis */}
-        {onNavigate && (
-          <button
-            onClick={() => onNavigate('HISTORY_QUEST')}
-            className="w-full mb-4 flex items-center gap-3 rounded-2xl px-5 py-4 text-left transition-all hover:scale-[1.005]"
-            style={{ border: '1px solid rgba(232,89,12,0.3)', background: 'linear-gradient(120deg, rgba(232,89,12,0.12), rgba(255,140,0,0.12))' }}
-          >
-            <span className="text-2xl">🏛️</span>
-            <div className="flex-1">
-              <div className="text-sm font-black text-white flex items-center gap-2">History Quest <span className="bg-black/40 text-[#FFD24A] text-[8px] font-black tracking-widest px-2 py-0.5 rounded-full">BETA</span></div>
-              <div className="text-[11px] text-white/50">Pre-K–Grade 7 C3 history practices — eras, figures, civilisations and primary sources, drawn from the World History studio. Writes the learner ledger + Turbo.</div>
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#E8590C]">Play →</span>
-          </button>
-        )}
+        {/* Quest demo promos intentionally removed from the directory (Academia redesign 2026-08).
+            Quests now live inside each subject course and in the student dashboard's "Quest" section,
+            reached via the Academia Hub subject tiles — not as promo cards on this page. */}
 
         {/* Featured learning hero card */}
         {onNavigate && (

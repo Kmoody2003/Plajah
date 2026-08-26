@@ -7,7 +7,7 @@ import React from 'react';
 import {
   GraduationCap, ShieldCheck, LayoutGrid, Award, BookOpen, Languages,
   ClipboardList, Library, Sparkles, FlaskConical, Music, Film, Image as ImageIcon, ChevronRight,
-  School, ArrowRight, Rocket,
+  School, ArrowRight, Rocket, PenLine,
 } from 'lucide-react';
 import type { UserProfile } from '../types';
 import { ageTokensFor } from '../data/ageScaling';
@@ -27,6 +27,7 @@ const TILES: Tile[] = [
   { key: 'classes',  label: 'My Classes',        desc: 'Courses, modules, assignments & grades', icon: LayoutGrid,   view: 'CLASSROOMS',    accent: '#FF8C00', roles: ['teacher', 'student'] },
   { key: 'dojo',     label: 'Class Points',      desc: 'Behavior & skill points, attendance, class story', icon: Award, view: 'CLASS_POINTS', accent: '#2bd67a', roles: ['teacher', 'parent', 'student'] },
   { key: 'reading',  label: 'Reading Quest',     desc: 'Gamified reading practice, PreK → G7', icon: BookOpen,     view: 'READING_QUEST', accent: '#36c5f0', roles: ['teacher', 'parent', 'student'] },
+  { key: 'penna',    label: 'Penna',             desc: 'Handwriting workshop — trace letters, earn the picture, PreK →', icon: PenLine, view: 'HANDWRITING_WORKSHOP', accent: '#C9871F', roles: ['teacher', 'parent', 'student'], badge: 'New' },
   { key: 'lang',     label: 'Languages',         desc: 'Learn a language, Duolingo-style, in the lesson', icon: Languages, view: 'LANGUAGE_QUEST', accent: '#7a2bd6', roles: ['teacher', 'parent', 'student'], badge: 'New' },
   { key: 'tools',    label: 'Teacher Tools',     desc: 'Build lessons, quests & assignments', icon: ClipboardList, view: 'TEACHER_TOOLS', accent: '#FF8C00', roles: ['teacher'] },
   { key: 'ledger',   label: 'Learning Record',   desc: 'The portable, student-owned proficiency ledger', icon: ShieldCheck, view: 'LEARNER_LEDGER', accent: '#2bd67a', roles: ['teacher', 'parent', 'student'] },

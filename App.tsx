@@ -106,6 +106,7 @@ const MathClassroom = retryLazy(() => import('./components/MathClassroom'));
 const StudentAssignmentView = retryLazy(() => import('./components/StudentAssignmentView'));
 const AssignedLessonView = retryLazy(() => import('./components/academia/AssignedLessonView'));
 const AcademiaDemosView = retryLazy(() => import('./components/academia/AcademiaDemosView'));
+const RichLessonStudioDemo = retryLazy(() => import('./components/academia/RichLessonStudioDemo'));
 const SkyRoute = retryLazy(() => import('./components/academia/SkyRoute'));
 // Science & Engineering hub
 const PlajahLabsView = retryLazy(() => import('./components/PlajahLabsView'));
@@ -197,11 +198,22 @@ const ClassPointsView = retryLazy(() => import('./components/ClassPointsView'));
 const AcademiaTourView = retryLazy(() => import('./components/AcademiaTourView'));
 const AcademiaHomeView = retryLazy(() => import('./components/AcademiaHomeView'));
 const AcademiaLandingView = retryLazy(() => import('./components/AcademiaLandingView'));
+const MoneySchoolView = retryLazy(() => import('./components/MoneySchoolView'));
+const CivicsHallView = retryLazy(() => import('./components/CivicsHallView'));
+const RealEstateSchoolView = retryLazy(() => import('./components/RealEstateSchoolView'));
+const EconSchoolView = retryLazy(() => import('./components/EconSchoolView'));
+const PhilosophySchoolView = retryLazy(() => import('./components/PhilosophySchoolView'));
+const PaperTradingView = retryLazy(() => import('./components/PaperTradingView'));
+const PaperTradingClassView = retryLazy(() => import('./components/PaperTradingClassView'));
+const AcademiaHubView = retryLazy(() => import('./components/AcademiaHubView'));
+const ClassroomClubView = retryLazy(() => import('./components/ClassroomClubView'));
+const StudentIdCard = retryLazy(() => import('./components/StudentIdCard'));
 const SchoolPackageView = retryLazy(() => import('./components/SchoolPackageView'));
 const LanguageQuestView = retryLazy(() => import('./components/LanguageQuestView'));
 const EducationSocialView = retryLazy(() => import('./components/EducationSocialView'));
 const EducationRail = retryLazy(() => import('./components/EducationRail'));
 const ReadingQuestView = retryLazy(() => import('./components/ReadingQuestView'));
+const HandwritingWorkshopView = retryLazy(() => import('./components/HandwritingWorkshopView'));
 const ScienceQuestView = retryLazy(() => import('./components/ScienceQuestView'));
 const HistoryQuestView = retryLazy(() => import('./components/HistoryQuestView'));
 const LearnerLedgerView = retryLazy(() => import('./components/LearnerLedgerView'));
@@ -578,8 +590,13 @@ const App: React.FC = () => {
   })();
 
   const [view, setViewInternal] = useState<AppView>(pitchInitialView);
+  const [telaRequestedDocId, setTelaRequestedDocId] = useState<string | null>(null);
   // Which role the Demos corridor opened the tour at, so it skips its own role picker.
   const [demoRole, setDemoRole] = useState<'teacher' | 'parent' | 'student' | undefined>(undefined);
+  // Academia Hub → open a Labs module directly (routes into ClassroomsView with the module preselected).
+  const [academiaModule, setAcademiaModule] = useState<string | null>(null);
+  // Academia Hub → "browse all / see all" opens the functional catalog grid (never loops to the landing).
+  const [academiaBrowseGrid, setAcademiaBrowseGrid] = useState(false);
   // Admin kill-switch for the standalone Crossover converter (systemConfig/settings).
   const [crossoverSystemEnabled, setCrossoverSystemEnabled] = useState(true);
   useEffect(() => { fetchSystemSettingsConfig().then(c => setCrossoverSystemEnabled(c?.crossoverEnabled !== false)).catch(() => {}); }, []);
@@ -701,7 +718,10 @@ const App: React.FC = () => {
   // Open Tela (the unified document canvas) from anywhere; mirrors the
   // openGallery CustomEvent pattern above.
   useEffect(() => {
-    const h = () => setView('TELA');
+    const h = (event: Event) => {
+      setTelaRequestedDocId((event as CustomEvent)?.detail?.docId || null);
+      setView('TELA');
+    };
     window.addEventListener('plajah:openTela', h as EventListener);
     return () => window.removeEventListener('plajah:openTela', h as EventListener);
   }, [setView]);
@@ -1634,6 +1654,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('SCHOOL_PACKAGE');
     } else if (target === 'PRAXIS') {
       setView('PRAXIS');
+    } else if (target === 'MONEY_SCHOOL') {
+      setView('MONEY_SCHOOL');
+    } else if (target === 'CIVICS_HALL') {
+      setView('CIVICS_HALL');
+    } else if (target === 'REAL_ESTATE_SCHOOL') {
+      setView('REAL_ESTATE_SCHOOL');
+    } else if (target === 'ECON_SCHOOL') {
+      setView('ECON_SCHOOL');
+    } else if (target === 'PHILOSOPHY_SCHOOL') {
+      setView('PHILOSOPHY_SCHOOL');
+    } else if (target === 'PAPER_TRADING') {
+      setView('PAPER_TRADING');
+    } else if (target === 'PAPER_TRADING_CLASS') {
+      setView('PAPER_TRADING_CLASS');
     } else if (target === 'LANGUAGE_QUEST') {
       setView('LANGUAGE_QUEST');
     } else if (target === 'EDU_SOCIAL') {
@@ -2247,6 +2281,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   useEffect(() => {
     if (theme !== 'BIG_SCREEN') return;
+    // On a TV this handler is HARMFUL, not just redundant. TVNavigationLayer (spatial) and
+    // useTvGrid (declarative) already own the remote there; this legacy DOM-order walker is a
+    // THIRD navigator that (a) fights them — it is bubble-phase and, in any gap where a capture
+    // handler doesn't stopImmediatePropagation, it linear-jumps focus, which reads as "two things
+    // move / focus lands somewhere random" — and (b) runs a full-document querySelectorAll on
+    // EVERY arrow press, a real cost on a TV SoC with a content-heavy DOM. Keep it only for the
+    // desktop BIG_SCREEN *theme*, where it is the sole keyboard-nav (no D-pad layer is active).
+    if (getPlatformInfo().isTV) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -2954,7 +2996,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               journals and mood, and an ad rail beside it both breaks the promise that
               this data never touches advertising and destroys the quiet the room exists
               for. See docs/PLAJAH_WELLBEING_SUITE_BLUEPRINT.md §6. */}
-          {(!isPublicView && view !== 'MOVIE_UX' && view !== 'GAME_PLAYER' && view !== 'EVENT_PHOTO_POOL' && view !== 'ORA') && (
+          {(!isPublicView && !getPlatformInfo().isTV && view !== 'MOVIE_UX' && view !== 'GAME_PLAYER' && view !== 'EVENT_PHOTO_POOL' && view !== 'ORA') && (
             <aside className={`hidden lg:block z-50 shrink-0 overflow-hidden border-white/[0.06] relative ${
               navLayout.isBar
                 ? 'lg:order-last border-l lg:w-56 sticky lg:top-14 h-[calc(100vh-3.5rem)]'
@@ -3263,7 +3305,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           )}
 
           {/* Concept C — horizontal top bar for touch tablets / portrait (fixed chrome) */}
-          {(!isPublicView && !navLayout.isPhone && navLayout.isBar) && (
+          {(!isPublicView && !getPlatformInfo().isTV && !navLayout.isPhone && navLayout.isBar) && (
             shellNext.enabled ? (
               <CommandSplitBar
                 view={view}
@@ -3302,7 +3344,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             </div>
           )}
 
-          {(!isPublicView && !isMobile && theme !== 'PHONE' && !navLayout.isBar) && (
+          {(!isPublicView && !getPlatformInfo().isTV && !isMobile && theme !== 'PHONE' && !navLayout.isBar) && (
             shellNext.enabled ? (
               <CommandSplitNav
                 view={view}
@@ -4517,6 +4559,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
 
+            {view === 'RICH_LESSON_STUDIO_DEMO' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/30 text-sm">Preparing Aria Lesson Studio…</div>}>
+                <RichLessonStudioDemo onBack={() => setView('ACADEMIA_DEMOS')} />
+              </Suspense>
+            )}
+
             {view === 'ACADEMIA_HOME' && (
               <Suspense fallback={null}>
                 <AcademiaHomeView profile={userProfile} onNavigate={(v) => setView(v as AppView)} />
@@ -4571,6 +4619,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'READING_QUEST' && (
               <ReadingQuestView onBack={() => setView('CLASSROOMS')} user={user} />
+            )}
+
+            {view === 'HANDWRITING_WORKSHOP' && (
+              <HandwritingWorkshopView onBack={() => setView('ACADEMIA_HOME')} user={user} profile={userProfile} />
             )}
 
             {view === 'SCIENCE_QUEST' && (
@@ -5547,7 +5599,62 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <AcademiaLandingView profile={userProfile} onNavigate={(v) => setView(v as AppView)} onEnterCourses={() => setView('ACADEMIA_COURSES')} onOpenTour={(role) => { setDemoRole(role); setView('ACADEMIA_TOUR'); }} />
               </Suspense>
             )}
-            {view === 'ACADEMIA_COURSES' && <ClassroomsView onBack={() => setView('CLASSROOMS')} user={user} onNavigate={(v) => setView(v as any)} />}
+            {view === 'ECON_SCHOOL' && (
+              <EconSchoolView onBack={() => setView('ACADEMIA_LANDING')} />
+            )}
+            {view === 'PAPER_TRADING' && (
+              <PaperTradingView onBack={() => setView('MONEY_SCHOOL')} user={user} />
+            )}
+            {view === 'PAPER_TRADING_CLASS' && (
+              <PaperTradingClassView onBack={() => setView('PAPER_TRADING')} user={user} />
+            )}
+            {view === 'PHILOSOPHY_SCHOOL' && (
+              <PhilosophySchoolView onBack={() => setView('ACADEMIA_LANDING')} />
+            )}
+            {view === 'REAL_ESTATE_SCHOOL' && (
+              <RealEstateSchoolView onBack={() => setView('ACADEMIA_LANDING')} onNavigate={(v) => setView(v as AppView)} />
+            )}
+            {view === 'CIVICS_HALL' && (
+              <CivicsHallView onBack={() => setView('ACADEMIA_LANDING')} />
+            )}
+            {view === 'MONEY_SCHOOL' && (
+              <MoneySchoolView onBack={() => setView('ACADEMIA_LANDING')} onNavigate={(v) => setView(v as AppView)} />
+            )}
+            {view === 'CLASSROOM_CLUB' && (
+              <ClassroomClubView
+                profile={userProfile}
+                user={user}
+                onNavigate={(v) => setView(v as any)}
+                onBack={() => setView('CLASSROOMS')}
+              />
+            )}
+            {view === 'STUDENT_ID_CARD' && (
+              <StudentIdCard
+                profile={userProfile}
+                onNavigate={(v) => setView(v as any)}
+                onBack={() => setView('LEARNER_LEDGER')}
+              />
+            )}
+            {view === 'ACADEMIA_COURSES' && (
+              (academiaModule || academiaBrowseGrid) ? (
+                <ClassroomsView
+                  key={academiaModule || 'grid'}
+                  initialModule={academiaModule}
+                  onBack={() => { setAcademiaModule(null); setAcademiaBrowseGrid(false); }}
+                  user={user}
+                  onNavigate={(v) => setView(v as any)}
+                />
+              ) : (
+                <AcademiaHubView
+                  profile={userProfile}
+                  user={user}
+                  onNavigate={(v) => setView(v as any)}
+                  onBrowseAll={() => setAcademiaBrowseGrid(true)}
+                  onOpenModule={(m) => setAcademiaModule(m)}
+                  onBack={() => setView(isEducationAccount(userProfile) || (userProfile as any)?.accountType === 'PARENT' ? 'ACADEMIA_HOME' : 'ACADEMIA_LANDING')}
+                />
+              )
+            )}
             {view === 'GLOBAL_PHOTOS' && <GlobalPhotosView onVisitUser={handleVisitUser} initialMode="WATERFALL" onOpenArtMuseum={() => setView('ART_GALLERY')} />}
             {view === 'GALLERY' && activeGallery && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading gallery…</div>}>
@@ -5578,7 +5685,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
             {view === 'TELA' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Opening Tela…</div>}>
-                <TelaView onBack={() => goBack('CREATOR_HUB')} />
+                <TelaView initialDocId={telaRequestedDocId} onBack={() => goBack('CREATOR_HUB')} />
               </Suspense>
             )}
             {view === 'TELA_EMBED_DEMO' && (

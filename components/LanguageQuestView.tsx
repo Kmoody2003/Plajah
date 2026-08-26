@@ -118,7 +118,33 @@ const LanguageQuestView: React.FC<{ user?: any; profile?: any; onBack?: () => vo
     const gainedXp = correctCount * 10;
     const nextProgress: LanguageProgress = { ...progress, srs, streak, lastDay, xp: progress.xp + gainedXp };
     setProgress(nextProgress);
-    if (uid) { await saveLanguageProgress(nextProgress); await awardLanguagePoints(uid, `${langId}:${lesson?.id || ''}`); }
+    if (uid) {
+      await saveLanguageProgress(nextProgress);
+      await awardLanguagePoints(uid, `${langId}:${lesson?.id || ''}`);
+      // Record CEFR mastery on the Learner Ledger. Standards live in
+      // data/educationStandards.ts as CEFR.<level>.<lesson id>. Accuracy on the
+      // session drives how far mastery moves, so a shaky run records honestly.
+      const lessonId = lesson?.id;
+      if (lessonId && queue.length) {
+        const standardId = `CEFR.${lesson?.cefr || 'A1'}.${lessonId}`;
+        const accuracy = correctCount / queue.length;
+        void (async () => {
+          try {
+            const { appendRecord, loadProficiency } = await import('../services/learningLedgerService');
+            const prof = await loadProficiency(uid);
+            const before = prof?.byStandard?.[standardId] ?? 0;
+            const target = Math.round(accuracy * 100);
+            const after = Math.round(Math.max(before, before + (target - before) * 0.5) * 100) / 100;
+            if (after <= before) return;
+            await appendRecord({
+              studentId: uid, standardId, framework: 'CEFR', source: 'school-lesson',
+              masteryBefore: before, masteryAfter: after, byUid: uid,
+              evidence: `Language Quest — ${langId} · ${lessonId} (${correctCount}/${queue.length})`,
+            });
+          } catch { /* additive only; never block the session summary */ }
+        })();
+      }
+    }
     setSummary({ xp: gainedXp, correct: correctCount, total: queue.length, streak });
     setMode('summary');
   };

@@ -127,24 +127,28 @@ const ChoraNextMasthead: React.FC<ChoraNextMastheadProps> = ({
             const popularity = (a.playCount || 0) / maxSkyPlays;
             // Moderate pace, clearly varied per disc: popularity gives a brisker pass,
             // and a per-lane offset keeps even similar releases from pacing in lockstep.
-            const duration = 34 - popularity * 12 + (i % 3) * 4;
+            //
+            // REDUCED MOTION: the sky is not decoration — a comet's pace IS its plays-this-week
+            // reading, so freezing it deletes the chart. Same rule the orrery already follows in
+            // styles/chora.css: SLOW it, don't stop it. Under reduce we fly the same lane at 2.4x
+            // the duration and drop the vertical sway; the flicker/spark jitter stays off in CSS.
+            // (Windows with "Animation effects" off reports reduce, which is why desktop looked
+            // dead while mobile flew.)
+            const duration = (34 - popularity * 12 + (i % 3) * 4) * (reduceMotion ? 2.4 : 1);
             return (
               <motion.div
                 key={a.id}
                 className="cn-comet"
-                initial={reduceMotion ? false : { x: 0, y: 0 }}
+                initial={{ x: 0, y: 0 }}
                 animate={reduceMotion
-                  ? { x: `var(--comet-rest-x)`, y: 0 }
+                  ? { x: [0, 'calc(100vw + 240px)'], y: 0 }
                   : { x: [0, 'calc(100vw + 240px)'], y: [0, s.sway, 0] }}
-                transition={reduceMotion
-                  ? { duration: 0 }
-                  : { duration, repeat: Infinity, ease: 'linear', delay: -(i * 5.7 + 2) }}
+                transition={{ duration, repeat: Infinity, ease: 'linear', delay: -(i * 5.7 + 2) }}
                 style={{
                   top: `${s.top}%`, width: s.size, height: s.size,
                   ['--comet-duration' as any]: `${duration}s`,
                   ['--comet-delay' as any]: `${-(i * 5.7 + 2)}s`,
                   ['--comet-sway' as any]: `${s.sway}px`,
-                  ['--comet-rest-x' as any]: `${12 + i * 15}vw`,
                 } as React.CSSProperties}
               >
                 <span className="cn-spark" aria-hidden="true" />

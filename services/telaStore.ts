@@ -20,6 +20,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from './backendService';
 import type { TelaDoc, TelaDocMeta, TelaVersion, TelaVersionMeta } from '../types';
+import { decryptWith, encryptWith, isEncrypted } from './cryptoService';
 
 const OPFS_DIR = 'tela';
 const VERSIONS_DIR = 'versions';
@@ -82,6 +83,34 @@ function lsList(): TelaDoc[] {
 
 export const newTelaId = () => `tela_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
+function sensitiveSecret(doc: TelaDoc, deviceId: string) { return `${doc.ownerId}:tela:${doc.id}:${deviceId}`; }
+
+/** Clone and protect sensitive Notes blocks without ever mutating the live document. */
+async function protectSensitiveComponents(doc: TelaDoc): Promise<TelaDoc> {
+  const clone: TelaDoc = JSON.parse(JSON.stringify(doc));
+  for (const device of Object.values(clone.devices)) {
+    if (device.type !== 'NOTES' || !device.domainBinding?.encryptedAtRest) continue;
+    const secret = sensitiveSecret(clone, device.id);
+    for (const entry of device.entries) for (const block of entry.blocks) if (block.text && !isEncrypted(block.text)) block.text = await encryptWith(block.text, secret);
+  }
+  return clone;
+}
+
+async function restoreSensitiveComponents(doc: TelaDoc): Promise<TelaDoc> {
+  let changed = false; const devices = { ...doc.devices };
+  for (const [deviceId, source] of Object.entries(devices)) {
+    if (source.type !== 'NOTES' || !source.domainBinding?.encryptedAtRest) continue;
+    const secret = sensitiveSecret(doc, source.id); const entries = [];
+    for (const entry of source.entries) {
+      const blocks = [];
+      for (const block of entry.blocks) { const text = isEncrypted(block.text) ? await decryptWith(block.text, secret) : block.text; if (text !== block.text) changed = true; blocks.push({ ...block, text }); }
+      entries.push({ ...entry, blocks });
+    }
+    devices[deviceId] = { ...source, entries };
+  }
+  return changed ? { ...doc, devices } : doc;
+}
+
 /** Where docs are being kept on this device (for the save-state indicator). */
 export async function telaStorageMode(): Promise<'opfs' | 'local'> {
   return (await opfsAvailable()) ? 'opfs' : 'local';
@@ -89,7 +118,7 @@ export async function telaStorageMode(): Promise<'opfs' | 'local'> {
 
 /** Persist a doc bundle locally (OPFS or localStorage) + mirror the manifest. */
 export async function saveTelaDoc(doc: TelaDoc): Promise<{ ok: boolean; synced: boolean }> {
-  const json = JSON.stringify(doc);
+  const json = JSON.stringify(await protectSensitiveComponents(doc));
   let ok = false;
   if (await opfsAvailable()) {
     try {
@@ -118,12 +147,12 @@ export async function loadTelaDoc(id: string): Promise<TelaDoc | null> {
       const dir = await telaDir();
       const fh = await dir.getFileHandle(`${id}.json`);
       const file = await fh.getFile();
-      return JSON.parse(await file.text()) as TelaDoc;
+      return restoreSensitiveComponents(JSON.parse(await file.text()) as TelaDoc);
     } catch { /* not in OPFS — fall through to localStorage */ }
   }
   try {
     const raw = localStorage.getItem(LS_PREFIX + id);
-    return raw ? (JSON.parse(raw) as TelaDoc) : null;
+    return raw ? restoreSensitiveComponents(JSON.parse(raw) as TelaDoc) : null;
   } catch { return null; }
 }
 
@@ -250,7 +279,8 @@ export async function publishTelaVersion(doc: TelaDoc, label?: string): Promise<
   const version: TelaVersion = { versionId, docId: doc.id, createdAt: Date.now(), bundle, ...(label ? { label } : {}) };
 
   let ok = false;
-  const json = JSON.stringify(version);
+  const storedVersion: TelaVersion = { ...version, bundle: await protectSensitiveComponents(bundle) };
+  const json = JSON.stringify(storedVersion);
   if (await opfsAvailable()) {
     try {
       const dir = await versionsDir(doc.id, true);
@@ -283,12 +313,15 @@ export async function loadTelaVersion(docId: string, versionId: string): Promise
     try {
       const fh = await dir.getFileHandle(`${versionId}.json`);
       const file = await fh.getFile();
-      return JSON.parse(await file.text()) as TelaVersion;
+      const parsed = JSON.parse(await file.text()) as TelaVersion;
+      return { ...parsed, bundle: await restoreSensitiveComponents(parsed.bundle) };
     } catch { /* not in OPFS — fall through */ }
   }
   try {
     const raw = localStorage.getItem(`${LS_VER_PREFIX}${docId}__${versionId}`);
-    return raw ? (JSON.parse(raw) as TelaVersion) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as TelaVersion;
+    return { ...parsed, bundle: await restoreSensitiveComponents(parsed.bundle) };
   } catch { return null; }
 }
 
