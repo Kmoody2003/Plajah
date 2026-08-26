@@ -1115,6 +1115,17 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isGuardianOf(userId);
       allow write: if isOwner(userId);
     }
+    // Penna handwriting workshop — the learner writes their own progress as they practice.
+    match /handwritingProgress/{userId} {
+      allow read: if isOwner(userId) || isGuardianOf(userId);
+      allow write: if isOwner(userId);
+    }
+    // Penna difficulty tuning — set BY an adult FOR the learner (the app blocks student self-edits;
+    // a guardian can always write, and an adult account may tune its own).
+    match /handwritingSettings/{userId} {
+      allow read: if isOwner(userId) || isGuardianOf(userId);
+      allow write: if isOwner(userId) || isGuardianOf(userId);
+    }
     match /languageProgress/{userId} {
       allow read: if isOwner(userId) || isGuardianOf(userId);
       allow write: if isOwner(userId);

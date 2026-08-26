@@ -2826,6 +2826,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'STUDENT_LESSON'
   // Reading Quest (BETA) — Classrooms, Class-Points-integrated
   | 'READING_QUEST'
+  // Penna — handwriting workshop (form-scoring, pen/touch tracing)
+  | 'HANDWRITING_WORKSHOP'
   // Science Quest (BETA) — NGSS cartridge on the same chassis
   | 'SCIENCE_QUEST'
   // Learner Ledger / Academic Passport — the portable record across subjects

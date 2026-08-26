@@ -213,6 +213,7 @@ const LanguageQuestView = retryLazy(() => import('./components/LanguageQuestView
 const EducationSocialView = retryLazy(() => import('./components/EducationSocialView'));
 const EducationRail = retryLazy(() => import('./components/EducationRail'));
 const ReadingQuestView = retryLazy(() => import('./components/ReadingQuestView'));
+const HandwritingWorkshopView = retryLazy(() => import('./components/HandwritingWorkshopView'));
 const ScienceQuestView = retryLazy(() => import('./components/ScienceQuestView'));
 const HistoryQuestView = retryLazy(() => import('./components/HistoryQuestView'));
 const LearnerLedgerView = retryLazy(() => import('./components/LearnerLedgerView'));
@@ -4618,6 +4619,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'READING_QUEST' && (
               <ReadingQuestView onBack={() => setView('CLASSROOMS')} user={user} />
+            )}
+
+            {view === 'HANDWRITING_WORKSHOP' && (
+              <HandwritingWorkshopView onBack={() => setView('ACADEMIA_HOME')} user={user} profile={userProfile} />
             )}
 
             {view === 'SCIENCE_QUEST' && (

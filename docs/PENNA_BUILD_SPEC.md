@@ -21,10 +21,13 @@ event — never to finishing or speed. Reward the wrong variable and the game te
 | Letter models (pre-writing → caps → lowercase) | `data/handwritingLetters.ts` | ✅ built |
 | Engine test suite (14 cases, `node:test`) | `tests/handwritingFormEngine.test.ts` | ✅ 14/14 pass |
 | Progress + points persistence | `services/handwritingProgressService.ts` | ✅ built (mirrors `readingQuestService`) |
-| Full-screen React view | `components/HandwritingWorkshopView.tsx` | ⬜ TODO (this spec) |
-| Wiring (route + tiles) | `types.ts`, `App.tsx`, `AcademiaHomeView.tsx`, `AcademiaModules.tsx` | ⬜ TODO |
-| Firestore rule | `firestore.rules` | ⬜ TODO |
+| Adult tuning logic (auto-adapt + override) | `services/handwritingFormEngine.ts` (`effectiveStrictness`, `autoStrictness`, `TUNING_LEVELS`) | ✅ built + tested |
+| Tuning persistence (per-learner / per-class) | `services/handwritingSettingsService.ts` | ✅ built |
+| Full-screen React view + tracing + tuning panel | `components/HandwritingWorkshopView.tsx` | ✅ built |
+| Wiring (route + tiles) | `types.ts`, `App.tsx`, `AcademiaHomeView.tsx`, `AcademiaModules.tsx` | ✅ wired |
+| Firestore rules | `firestore.rules` (`handwritingProgress`, `handwritingSettings`) | ✅ added |
 | Story Mode (fables + reveal) | `data/handwritingStories.ts`, view mode | ⬜ Phase 2 (design below) |
+| Per-class roster tuning UI | teacher student-picker | ⬜ Phase 2 (data layer ready) |
 
 Run the engine tests: `npx tsx --test tests/handwritingFormEngine.test.ts`
 
@@ -58,7 +61,29 @@ the product decision — tune against real children's strokes (see Open question
 
 ---
 
-## The view — `components/HandwritingWorkshopView.tsx`
+## Adult tuning — set by parents/teachers, auto-adapts to skill (BUILT)
+
+Difficulty is **set by an adult for a learner**; a learner never changes their own. Two modes:
+
+- **Auto-adapt** (`autoStrictness`) — starts at the age-band base (`DEFAULT_STRICTNESS`) and tightens
+  `+0.02` per mastered letter (capped `+0.35`). This is the skill/level progression.
+- **Manual** — an adult pins one of four named `TUNING_LEVELS` (Emerging → Advanced) or fine-tunes a
+  slider.
+
+`effectiveStrictness(band, tuning, masteredCount)` resolves an adult `manual` override over the auto
+ramp; the view feeds the result straight into `scoreStroke`. Settings persist per-learner at
+`handwritingSettings/{uid}` (`handwritingSettingsService`), with `loadClassTuning`/`saveClassTuning`
+and `resolveTuning` (learner → class → auto) ready for a per-class default. The view's tuning panel
+is **role-gated**: teacher/parent accounts edit it; a student sees it locked with an explanation.
+*Phase-2:* a student-picker so a teacher tunes each roster member (data layer already supports it).
+
+## The view — `components/HandwritingWorkshopView.tsx` (BUILT)
+
+Implemented to this spec: DPR-aware pressure canvas (pointer `pen`/`touch`/`mouse`, `getCoalescedEvents`),
+ruled guide + ghost scaffold (corridor→dotted→faded→blank, default off `age.band`), start dot + arrow,
+per-stroke `scoreStroke`, coaching in Aria's voice, star reward strip painted per correct stroke,
+confetti on completion (reduced-motion aware), mastery + points on form-correct only, and the tuning
+panel above. Below is the original reference (kept for Story Mode + extension work).
 
 Signature (Academia convention): `const HandwritingWorkshopView: React.FC<{ onBack?: () => void; user?: … }>`
 returning `<div className="min-h-full bg-[#0a0a0f] text-white">`. Back → `setView('ACADEMIA_HOME')`.
