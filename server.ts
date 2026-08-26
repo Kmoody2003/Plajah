@@ -28,6 +28,7 @@ import { schoolsRouter } from './routes/schools';
 import { postmanRouter } from './routes/postman';
 import { campaignsRouter } from './routes/campaigns';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
+import { kithSightingsRouter } from './routes/kithSightings';
 import { createCustomToken, fsGet, fsSet, fsPatch, fsDelete } from './services/firebaseAdminRest';
 import { buildFfmpegArgs } from './services/crossover/engine';
 import { extFor } from './services/crossover/formats';
@@ -8355,6 +8356,13 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
   app.use('/api/academia/conflict-check', authLimiter);
   app.use('/api/academia/district-salt', authLimiter);
   app.use('/api/academia', express.json({ limit: '64kb' }), academiaIntegrityRouter);
+
+  // Kith Sightings — the mascots turn up rarely; the user logs it for points.
+  // Rate-limited because spawn-check is the farm surface: the deterministic
+  // per-window roll already makes refreshing pointless, but the limiter stops
+  // anyone burning API budget trying to find that out.
+  app.use('/api/kith/spawn-check', authLimiter);
+  app.use('/api/kith', express.json({ limit: '8kb' }), kithSightingsRouter);
 
   if (process.env.SPORTS_INGESTION_WORKER !== 'false') {
     const intervalMs = Number(process.env.SPORTS_INGESTION_INTERVAL_MS) || undefined;

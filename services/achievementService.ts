@@ -27,6 +27,60 @@ const USER_ACHIEVEMENTS_COLLECTION = 'userAchievements';
 // ── BASE ACHIEVEMENTS (SYSTEM) ───────────────────────────────────────────────
 
 const BASE_ACHIEVEMENTS: Omit<Achievement, 'id' | 'createdAt' | 'updatedAt'>[] = [
+  // KITH SIGHTINGS
+  // Minted server-side (routes/kithSightings.ts) — the client never unlocks these.
+  // Registered here so they render with a title and icon wherever achievements
+  // are listed. Deliberately vague copy: Kith is embargoed, and the whole point
+  // is that people collect a symbol they cannot yet name.
+  {
+    title: 'First Sighting',
+    description: 'You saw something.',
+    category: 'USER',
+    triggerType: 'KITH_SIGHTING_FIRST',
+    icon: 'Flame',
+    backgroundColor: '#6B0099',
+    pointsValue: 0,
+    requirements: { type: 'ACTION', actionTrigger: 'KITH_SIGHTING_FIRST' },
+    createdBy: 'SYSTEM',
+    isActive: true,
+  },
+  {
+    title: 'Field Notes',
+    description: 'A pattern emerges.',
+    category: 'USER',
+    triggerType: 'KITH_SIGHTING_10',
+    icon: 'Flame',
+    backgroundColor: '#A01B72',
+    pointsValue: 0,
+    requirements: { type: 'METRIC', metric: 'kithSightings', targetValue: 10, actionTrigger: 'KITH_SIGHTING_10' },
+    createdBy: 'SYSTEM',
+    isActive: true,
+  },
+  {
+    title: 'Tracker',
+    description: 'You know their habits.',
+    category: 'USER',
+    triggerType: 'KITH_SIGHTING_50',
+    icon: 'Flame',
+    backgroundColor: '#D40055',
+    pointsValue: 0,
+    requirements: { type: 'METRIC', metric: 'kithSightings', targetValue: 50, actionTrigger: 'KITH_SIGHTING_50' },
+    createdBy: 'SYSTEM',
+    isActive: true,
+  },
+  {
+    title: 'Kith-Kenner',
+    description: 'They trust you now.',
+    category: 'USER',
+    triggerType: 'KITH_SIGHTING_100',
+    icon: 'Flame',
+    backgroundColor: '#FF8C00',
+    pointsValue: 0,
+    requirements: { type: 'METRIC', metric: 'kithSightings', targetValue: 100, actionTrigger: 'KITH_SIGHTING_100' },
+    createdBy: 'SYSTEM',
+    isActive: true,
+  },
+
   // USER ACHIEVEMENTS
   {
     title: 'First Album Listen',

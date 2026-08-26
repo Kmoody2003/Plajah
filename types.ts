@@ -3797,6 +3797,10 @@ export type AchievementTriggerType =
   | 'THEME_FIRST_ADD' | 'THEME_RECEIVED' | 'USE_FEELING_LUCKY'
   // Academia — gamified learning
   | 'MATH_FIRST_SESSION' | 'MATH_STREAK_10' | 'MATH_TIME_ATTACK_100' | 'WORKSHEET_TURNED_IN' | 'WORKSHEET_PERFECT'
+  // Kith sightings — minted server-side by routes/kithSightings.ts. The
+  // achievement ids are these trigger strings, so a claim can mint without a
+  // lookup. Kith itself is embargoed: show the mark, never the name.
+  | 'KITH_SIGHTING_FIRST' | 'KITH_SIGHTING_10' | 'KITH_SIGHTING_50' | 'KITH_SIGHTING_100'
   | 'CUSTOM' | 'MANUAL';
 
 export interface AchievementUnlockRequirement {
