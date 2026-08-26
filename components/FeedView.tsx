@@ -2164,9 +2164,24 @@ const toggleFavoriteTeam = async (team: string) => {
                  activeTab === 'PULSE' ? 'Platform Pulse' : 'Signal'}
               </PageHeader>
             </div>
-            <div className="hidden sm:flex items-center gap-2 shrink-0 mt-1">
-               <span className="w-1.5 h-1.5 rounded-full bg-small-orange animate-pulse" />
-               <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Live</span>
+            <div className="hidden sm:flex items-center gap-2.5 shrink-0 mt-1">
+               <button
+                 onClick={() => { try { window.dispatchEvent(new CustomEvent('plajah:open-command')); } catch {} }}
+                 className="flex items-center gap-2 h-9 px-3.5 rounded-full bg-white/5 border border-white/10 text-white/45 text-[11px] hover:text-white hover:bg-white/10 transition-all"
+               >
+                 <Search size={13} /> <span>Search the signal…</span>
+               </button>
+               <span className="flex items-center gap-1.5">
+                 <span className="w-1.5 h-1.5 rounded-full bg-small-orange animate-pulse" />
+                 <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Live</span>
+               </span>
+               <button
+                 onClick={() => setShowGoLive(true)}
+                 className="flex items-center gap-1.5 h-9 px-4 rounded-full text-white text-[11px] font-black uppercase tracking-wider transition-transform hover:-translate-y-0.5"
+                 style={{ background: 'linear-gradient(135deg,#6B0099 0%,#D40055 55%,#FF8C00 100%)', boxShadow: '0 6px 22px rgba(212,0,85,.34)' }}
+               >
+                 <Radio size={13} /> Go Live
+               </button>
             </div>
           </div>
 

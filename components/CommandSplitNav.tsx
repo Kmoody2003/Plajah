@@ -139,8 +139,13 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
       if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); openLauncher(); }
       if (e.key === 'Escape') setLauncher(false);
     };
+    const onOpenCmd = () => openLauncher();
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('plajah:open-command', onOpenCmd);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('plajah:open-command', onOpenCmd);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
