@@ -214,17 +214,30 @@ export async function verifyBusiness(name: string, address?: string): Promise<Te
   const nameKey = businessNameKey(name);
   if (!nameKey) return null;
   try {
-    const clauses = [where('data.nameKey', '==', nameKey)];
-    const addrKey = address ? addressKey(address) : '';
-    if (addrKey) clauses.push(where('data.addressKey', '==', addrKey));
-    const snap = await getDocs(query(collection(db, TERRA_COLLECTIONS.business), ...clauses, fsLimit(10)));
+    // Query on the NAME only. An address is used to PREFER a match, never to
+    // exclude one — the register's stored address can differ in suffix from what
+    // the user typed, and a good name match shouldn't null out over that.
+    const snap = await getDocs(query(
+      collection(db, TERRA_COLLECTIONS.business),
+      where('data.nameKey', '==', nameKey),
+      fsLimit(10),
+    ));
     const now = new Date().toISOString().slice(0, 10);
     const active = snap.docs
       .map(d => (d.data() as TerraEnvelope<TerraBusinessLicense>).data)
       .filter((r): r is TerraBusinessLicense => Boolean(r) && (!r.expirationDate || r.expirationDate >= now));
-    // Prefer the licence with the furthest expiry — the most current record.
-    active.sort((a, b) => (b.expirationDate ?? '').localeCompare(a.expirationDate ?? ''));
-    return active[0] ?? null;
+    if (!active.length) return null;
+    const addrKey = address ? addressKey(address) : '';
+    // Prefer an address match, then the furthest expiry (most current record).
+    active.sort((a, b) => {
+      if (addrKey) {
+        const am = Number(a.addressKey === addrKey);
+        const bm = Number(b.addressKey === addrKey);
+        if (am !== bm) return bm - am;
+      }
+      return (b.expirationDate ?? '').localeCompare(a.expirationDate ?? '');
+    });
+    return active[0];
   } catch { return null; }
 }
 
@@ -261,7 +274,7 @@ export async function fetchRentalByAddress(address: string): Promise<TerraRental
   try {
     const snap = await getDocs(query(
       collection(db, TERRA_COLLECTIONS.rental),
-      where('data.addressKey', '==', key),
+      where('data.addressKeys', 'array-contains', key),
       fsLimit(5),
     ));
     const rows = snap.docs.map(d => (d.data() as TerraEnvelope<TerraRentalCompliance>).data).filter(Boolean) as TerraRentalCompliance[];

@@ -226,8 +226,14 @@ export interface TerraRentalCompliance {
   jurisdiction: TerraJurisdiction;
   parcelNumber: string;
   address?: string;
-  /** addressKey(address) — the equality-lookup key a tenant search hits. */
-  addressKey?: string;
+  /**
+   * Every normalized address variant the source gave for this building —
+   * `parcel_address` ("8156 NORMILE") AND `record_addresses` ("8156 Normile St")
+   * often differ in the street-type suffix, and a tenant may type either. Stored
+   * as an array so the lookup matches any of them (array-contains). Single
+   * `addressKey` alone missed suffix-mismatched inputs.
+   */
+  addressKeys?: string[];
   state: RentalComplianceState;
   registered: boolean;
   certified: boolean;

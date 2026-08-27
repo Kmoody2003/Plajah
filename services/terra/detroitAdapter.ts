@@ -530,13 +530,18 @@ export async function fetchDetroitRentalCompliance(opts: ArcGisQueryOptions = {}
     const state: RentalComplianceState = certified
       ? 'CERTIFIED'
       : registered ? 'REGISTERED_UNCERTIFIED' : 'UNKNOWN';
-    const address = str(pick(p, 'parcel_address')) ?? str(pick(p, 'record_addresses'));
+    const parcelAddr = str(pick(p, 'parcel_address'));
+    const recordAddr = str(pick(p, 'record_addresses'));
+    const address = parcelAddr ?? recordAddr;
+    // Index BOTH address forms — they routinely differ in the street-type suffix
+    // ("8156 NORMILE" vs "8156 Normile St") and a tenant may type either.
+    const addressKeys = [...new Set([addressKey(parcelAddr), addressKey(recordAddr)].filter(Boolean))];
     const rec: TerraRentalCompliance = {
       id: `detroit:${parcelNumber}`,
       jurisdiction: 'detroit',
       parcelNumber,
       address,
-      addressKey: addressKey(address) || undefined,
+      addressKeys: addressKeys.length ? addressKeys : undefined,
       state,
       registered,
       certified,
