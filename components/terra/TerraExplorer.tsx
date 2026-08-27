@@ -84,10 +84,15 @@ const ParcelMap: React.FC<{
   const layerRef = useRef<any>(null);
   const selectRef = useRef(onSelect);
   selectRef.current = onSelect;
+  // Flips when the async init lands, so the redraw effect re-runs. Without it,
+  // parcels that arrive BEFORE the map exists bail out of the redraw effect and
+  // nothing ever draws (the deps don't change again).
+  const [mapReady, setMapReady] = useState(false);
 
   // Init once.
   useEffect(() => {
     let cancelled = false;
+    let ro: ResizeObserver | null = null;
     (async () => {
       const L = await import('leaflet');
       if (cancelled || !hostRef.current || mapRef.current) return;
@@ -99,10 +104,19 @@ const ParcelMap: React.FC<{
         // No tile layer by design — see the header note.
       });
       mapRef.current = map;
+      // ⚠️ The view animates in, so the container is often 0×0 (or hidden) at
+      // init. Leaflet caches that size and the vector renderer then draws
+      // NOTHING — black map, working zoom controls. Re-measure whenever the
+      // container actually gets laid out.
+      ro = new ResizeObserver(() => { try { map.invalidateSize(false); } catch { /* mid-teardown */ } });
+      ro.observe(hostRef.current);
+      setMapReady(true);
     })();
     return () => {
       cancelled = true;
+      ro?.disconnect();
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
+      setMapReady(false);
     };
   }, []);
 
@@ -146,12 +160,15 @@ const ParcelMap: React.FC<{
 
       layerRef.current = group;
       try {
+        // Size may still be stale from an animated-in mount — re-measure before
+        // fitting, or the fit computes against a 0×0 viewport.
+        map.invalidateSize(false);
         const bounds = group.getBounds();
         if (bounds?.isValid()) map.fitBounds(bounds, { padding: [28, 28], maxZoom: 17 });
       } catch { /* single degenerate geometry — keep the default view */ }
     })();
     return () => { cancelled = true; };
-  }, [parcels, selectedId]);
+  }, [parcels, selectedId, mapReady]);
 
   return <div ref={hostRef} className="w-full h-full" style={{ background: '#07080B' }} />;
 };
