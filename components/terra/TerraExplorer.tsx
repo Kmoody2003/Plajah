@@ -7,13 +7,13 @@
  *
  * ── Two deliberate choices ──────────────────────────────────────────────────
  *
- * 1. THE PARCELS ARE THE SUBJECT; the basemap is context. A dark CARTO raster
- *    basemap sits underneath at low opacity purely for orientation — parcels on
- *    a bare black ground gave no sense of place, but at full strength the grey
- *    streets and labels swamp the parcel hairlines and it reads as "streets on
- *    top of nothing". Keep the tiles dim and the parcel strokes bright.
- *    ⚠️ Licensing: CARTO's free tier is not licensed for commercial use, so this
- *    is a stopgap — a self-hosted basemap (OpenFreeMap → Protomaps) is the fix.
+ * 1. NO THIRD-PARTY TILE BASEMAP. Stadia and CARTO both require an API key and
+ *    neither free tier is licensed for commercial use — CARTO now watermarks
+ *    keyless tiles outright. Terra draws the city's OWN street centrelines
+ *    instead: same open-data posture as every other layer here, nothing to
+ *    licence, street names included, and thin lines on a dark ground is the
+ *    plat-drawing look the design wanted anyway. Streets sit in their own pane
+ *    BELOW the parcels — the parcels are the subject, streets are context.
  *
  * 2. EVERY FACT CARRIES ITS VINTAGE. Some sources update daily, others are frozen
  *    years back. The inspector renders `retrievedAt` and the observed/estimated
@@ -29,6 +29,7 @@ import {
 import 'leaflet/dist/leaflet.css';
 import type { TerraParcel, TerraCivicRecord, CivicRecordKind } from '../../services/terra/terraTypes';
 import { fetchParcelsInBounds, clearParcelCellCache, fetchCivicForParcel } from '../../services/terra/terraService';
+import { fetchDetroitStreets, type StreetSegment } from '../../services/terra/detroitAdapter';
 
 /** Terra's accent: Plajah's primary orange, read here as a surveyor's flag. */
 const ACCENT = '#FF8C00';
@@ -82,11 +83,14 @@ const ParcelMap: React.FC<{
   onViewport?: (v: { south: number; west: number; north: number; east: number; zoom: number }) => void;
   /** Street basemap on/off — context, toggled independently of the civic layers. */
   showBasemap?: boolean;
-}> = ({ parcels, selectedId, onSelect, onViewport, showBasemap = true }) => {
+  /** City street centrelines for the current viewport. */
+  streets?: StreetSegment[];
+}> = ({ parcels, selectedId, onSelect, onViewport, showBasemap = true, streets = [] }) => {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const layerRef = useRef<any>(null);
   const tileRef = useRef<any>(null);
+  const labelsRef = useRef<any[]>([]);
   // Read inside the init effect, which must not re-run when the toggle flips.
   const basemapRef = useRef(showBasemap);
   basemapRef.current = showBasemap;
@@ -116,19 +120,12 @@ const ParcelMap: React.FC<{
         // polygons on screen, which SVG cannot sustain.
         preferCanvas: true,
       });
-      // Dark street basemap under the parcel fabric — parcels alone gave no
-      // sense of place. CARTO's dark tiles keep the ink-on-black aesthetic;
-      // attribution (© OpenStreetMap contributors © CARTO) lives in the footer.
-      //
-      // ⚠️ Held at low opacity ON PURPOSE. The basemap is CONTEXT; the parcels
-      // are the subject. At full strength its grey roads and labels swamp the
-      // fine parcel hairlines and the map reads as "streets on top of nothing".
-      tileRef.current = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        subdomains: 'abcd',
-        maxZoom: 20,
-        opacity: 0.42,
-      });
-      if (basemapRef.current) tileRef.current.addTo(map);
+      // Streets render into their OWN pane, below the parcel pane (400), so the
+      // parcels are always on top of the context no matter what order the two
+      // async loads happen to finish in.
+      map.createPane('terraStreets');
+      const streetPane = map.getPane('terraStreets');
+      if (streetPane) streetPane.style.zIndex = '350';
       const report = () => {
         const b = map.getBounds();
         viewportRef.current?.({
@@ -157,6 +154,7 @@ const ParcelMap: React.FC<{
       cancelled = true;
       ro?.disconnect();
       for (const t of timers) clearTimeout(t);
+      labelsRef.current = [];
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
       setMapReady(false);
     };
@@ -212,16 +210,43 @@ const ParcelMap: React.FC<{
     return () => { cancelled = true; };
   }, [parcels, selectedId, mapReady]);
 
-  // Basemap on/off.
+  // Streets layer (Terra's basemap) — city centrelines, drawn under the parcels
+  // with one label per distinct street name so the view is orientable.
   useEffect(() => {
-    const map = mapRef.current;
-    const tiles = tileRef.current;
-    if (!map || !tiles) return;
-    try {
-      if (showBasemap) { if (!map.hasLayer(tiles)) tiles.addTo(map); }
-      else if (map.hasLayer(tiles)) map.removeLayer(tiles);
-    } catch { /* mid-teardown */ }
-  }, [showBasemap, mapReady]);
+    let cancelled = false;
+    (async () => {
+      const L = await import('leaflet');
+      const map = mapRef.current;
+      if (cancelled || !map) return;
+
+      if (tileRef.current) { map.removeLayer(tileRef.current); tileRef.current = null; }
+      for (const t of labelsRef.current) { try { map.removeLayer(t); } catch { /* already gone */ } }
+      labelsRef.current = [];
+      if (!showBasemap || !streets.length) return;
+
+      const group = L.geoJSON(
+        { type: 'FeatureCollection', features: streets.map(s => ({ type: 'Feature' as const, properties: { name: s.name }, geometry: s.geometry as any })) } as any,
+        { pane: 'terraStreets', style: { color: 'rgba(150,170,190,0.5)', weight: 1.1 }, interactive: false },
+      ).addTo(map);
+
+      // Label each street once — 39k segments would otherwise stack thousands
+      // of identical tooltips on top of each other.
+      const labelled = new Set<string>();
+      for (const s of streets) {
+        if (!s.name || labelled.has(s.name) || labelled.size >= 40) continue;
+        const line = s.geometry?.type === 'LineString' ? (s.geometry as any).coordinates
+          : s.geometry?.type === 'MultiLineString' ? (s.geometry as any).coordinates?.[0] : null;
+        const mid = Array.isArray(line) && line.length ? line[Math.floor(line.length / 2)] : null;
+        if (!mid) continue;
+        labelled.add(s.name);
+        labelsRef.current.push(
+          L.tooltip({ permanent: true, direction: 'center', className: 'terra-street-label', opacity: 1 })
+            .setLatLng([mid[1], mid[0]]).setContent(s.name).addTo(map));
+      }
+      tileRef.current = group;
+    })();
+    return () => { cancelled = true; };
+  }, [streets, showBasemap, mapReady]);
 
   // Bring a selection made from the sidebar list into view.
   useEffect(() => {
@@ -383,6 +408,7 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
   const [zoomedOut, setZoomedOut] = useState(false);
   const [activeLayers, setActiveLayers] = useState<Set<string>>(new Set(['PARCELS', 'BLIGHT_TICKET']));
   const [showBasemap, setShowBasemap] = useState(true);
+  const [streets, setStreets] = useState<StreetSegment[]>([]);
   const [q, setQ] = useState('');
 
   // Viewport-driven loading: the map reports every settled view; we debounce,
@@ -403,6 +429,9 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
       fetchParcelsInBounds(vp)
         .then(setParcels)
         .finally(() => setLoading(false));
+      // Streets come straight from the city layer (server-side spatial filter),
+      // independent of the parcel read so one slow source can't block the other.
+      fetchDetroitStreets(vp).then(setStreets).catch(() => { /* context only */ });
     }, immediate ? 0 : 450);
   }, []);
 
@@ -523,7 +552,7 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
 
           {/* Map — always mounted: the viewport drives the parcel loading. */}
           <div className="relative min-h-[320px] bg-[#07080B]">
-            <ParcelMap parcels={visible} selectedId={selected?.id ?? null} onSelect={setSelected} onViewport={handleViewport} showBasemap={showBasemap} />
+            <ParcelMap parcels={visible} selectedId={selected?.id ?? null} onSelect={setSelected} onViewport={handleViewport} showBasemap={showBasemap} streets={streets} />
 
             {loading && (
               <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[500] flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur border border-white/10 text-white/50 pointer-events-none">
@@ -543,7 +572,7 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
                 {visible.length ? `${fmtNum(visible.length)} parcels in view` : ''}
               </span>
               <span className="text-[9px] font-mono text-white/20 tracking-wider">
-                City of Detroit Open Data · as-is · basemap © OpenStreetMap contributors © CARTO
+                City of Detroit Open Data · as-is
               </span>
             </div>
           </div>

@@ -31,6 +31,10 @@ export const DETROIT_LAYERS = {
   serviceRequests:  `${ORG}/improve_detroit/FeatureServer/0`,
   landBank:         `${ORG}/DLBA_Owned_Properties/FeatureServer/0`,
   demolitionQueue:  `${ORG}/city_demolition_pipeline/FeatureServer/0`,
+  // Street centrelines (39,233 named segments). This is Terra's basemap: the
+  // city's OWN streets, under the same open-data posture as everything else
+  // here — no third-party tile provider, no API key, nothing to licence.
+  streets:          `${ORG}/Detroit_Street_Centerline/FeatureServer/0`,
 } as const;
 
 export const DETROIT_ATTRIBUTION = 'Data: City of Detroit Open Data Portal (provided as-is, without warranty)';
@@ -58,6 +62,8 @@ export interface ArcGisQueryOptions {
   /** Hard ceiling so a full-city pull can be bounded during development. */
   maxRecords?: number;
   resultOffset?: number;
+  /** Server-side spatial filter (WGS84). Lets the layer return only the viewport. */
+  envelope?: { xmin: number; ymin: number; xmax: number; ymax: number };
   signal?: AbortSignal;
 }
 
@@ -93,6 +99,12 @@ export async function queryArcGisGeoJson(
       resultOffset: String(offset),
       resultRecordCount: String(Math.min(pageSize, maxRecords - features.length)),
     });
+    if (opts.envelope) {
+      params.set('geometry', JSON.stringify(opts.envelope));
+      params.set('geometryType', 'esriGeometryEnvelope');
+      params.set('spatialRel', 'esriSpatialRelIntersects');
+      params.set('inSR', '4326');
+    }
     const url = `${layerUrl}/query?${params.toString()}`;
     const res = await fetch(url, { signal: opts.signal });
     if (!res.ok) throw new Error(`ArcGIS HTTP ${res.status} on ${layerUrl}`);
@@ -341,6 +353,45 @@ export async function fetchDetroitCivic(feed: CivicFeed, opts: ArcGisQueryOption
   if (!spec) throw new Error(`Unknown civic feed: ${feed}`);
   const features = await queryArcGisGeoJson(DETROIT_LAYERS[spec.layer], { returnGeometry: true, ...opts });
   return features.map(spec.normalize).filter((r): r is TerraCivicRecord => r !== null);
+}
+
+// ─── Streets (Terra's basemap) ───────────────────────────────────────────────
+
+export interface StreetSegment {
+  id: string;
+  /** Assembled display name, e.g. "E JEFFERSON AVE". */
+  name?: string;
+  geometry: GeoJsonGeometry;
+}
+
+/**
+ * Street centrelines intersecting a viewport, fetched live from the city.
+ *
+ * Deliberately NOT a third-party tile basemap: Stadia and CARTO both require a
+ * key (CARTO now watermarks keyless tiles) and neither free tier is licensed
+ * for commercial use. The city's own centrelines carry no such problem, come
+ * with names for labelling, and draw as thin lines — which is the plat-drawing
+ * look this map wanted in the first place.
+ */
+export async function fetchDetroitStreets(
+  bounds: { south: number; west: number; north: number; east: number },
+  opts: { maxRecords?: number; signal?: AbortSignal } = {},
+): Promise<StreetSegment[]> {
+  const features = await queryArcGisGeoJson(DETROIT_LAYERS.streets, {
+    envelope: { xmin: bounds.west, ymin: bounds.south, xmax: bounds.east, ymax: bounds.north },
+    outFields: 'OBJECTID,STREETNAME,STREETPREF,STREETTYPE',
+    maxRecords: opts.maxRecords ?? 3000,
+    signal: opts.signal,
+  });
+  const out: StreetSegment[] = [];
+  for (const f of features) {
+    if (!f?.geometry) continue;
+    const p = f.properties ?? {};
+    const name = [str(pick(p, 'STREETPREF')), str(pick(p, 'STREETNAME')), str(pick(p, 'STREETTYPE'))]
+      .filter(Boolean).join(' ') || undefined;
+    out.push({ id: String(pick(p, 'OBJECTID') ?? `${out.length}`), name, geometry: f.geometry });
+  }
+  return out;
 }
 
 /** Layer record count — cheap health check that also proves the endpoint is live. */

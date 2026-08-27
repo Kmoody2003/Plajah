@@ -87,7 +87,7 @@ export interface TerraParcel {
 }
 
 export interface GeoJsonGeometry {
-  type: 'Polygon' | 'MultiPolygon' | 'Point' | 'LineString';
+  type: 'Polygon' | 'MultiPolygon' | 'Point' | 'LineString' | 'MultiLineString';
   coordinates: any;
 }
 
