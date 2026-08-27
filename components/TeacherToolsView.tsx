@@ -31,7 +31,9 @@ import { worksheetToTelaDoc } from '../services/worksheetTelaAdapter';
 import { autoFormatDigitalWorksheet } from '../services/telaAssignmentAutoFormat';
 import { rebuildDocumentIntelligently, reillustrateReconstruction, type TelaModelProgress } from '../services/telaDocumentIntelligence';
 import { recordAssignmentQualityEvent, submitAssignmentQualityFeedback } from '../services/assignmentQualityService';
-import { saveTelaDoc } from '../services/telaStore';
+import { saveTelaDoc, loadTelaDoc } from '../services/telaStore';
+import { telaDocToWorksheet } from '../services/worksheetTelaInverse';
+import TelaEmbed from './tela/TelaEmbed';
 import WorksheetTutorPanel from './WorksheetTutorPanel';
 import WorksheetFillable from './WorksheetFillable';
 import IntegrityWallPanel from './academia/IntegrityWallPanel';
@@ -204,6 +206,12 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
   const [layeredProgress, setLayeredProgress] = useState<TelaModelProgress | null>(null);
   const [layeredError, setLayeredError] = useState('');
   const [formatUndo, setFormatUndo] = useState<DigitalWorksheet | null>(null);
+  // Refine & Author (Tela) — the authoring step between review and publish.
+  const [telaDocId, setTelaDocId] = useState<string | null>(null);
+  const [telaBuilding, setTelaBuilding] = useState(false);
+  const [authoringOpen, setAuthoringOpen] = useState(false);
+  const [authored, setAuthored] = useState(false);
+  const [authorSyncing, setAuthorSyncing] = useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
   const scanSessionId = React.useRef(`scan_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`);
 
@@ -250,7 +258,46 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
     }
   };
 
-  const reset = () => { setStage('capture'); setSheet(null); setPrepared(null); setPreview(''); setAnswers({}); setErr(''); setPublished(false); setWire(null); setPublishing(false); setLayeredRebuild(null); setLayeredError(''); setLayeredProgress(null); setReviewSurface('FILLABLE'); setFormatUndo(null); setShowBrief(false); setReillustrated(null); setShowReillustrated(false); scanSessionId.current = `scan_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`; };
+  const reset = () => { setStage('capture'); setSheet(null); setPrepared(null); setPreview(''); setAnswers({}); setErr(''); setPublished(false); setWire(null); setPublishing(false); setLayeredRebuild(null); setLayeredError(''); setLayeredProgress(null); setReviewSurface('FILLABLE'); setFormatUndo(null); setShowBrief(false); setReillustrated(null); setShowReillustrated(false); setTelaDocId(null); setAuthoringOpen(false); setAuthored(false); setTelaBuilding(false); scanSessionId.current = `scan_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`; };
+
+  // ── Refine & Author (Tela) ────────────────────────────────────────────────────────
+  // Build the authorable Tela doc from the reviewed worksheet + reconstruction, open it in an
+  // editable Tela canvas, and sync the teacher's answer-model edits back into the DigitalWorksheet
+  // (which stays authoritative for grading). The Tela doc is the artifact carried to publish.
+  const ensureTelaDoc = async (): Promise<string | null> => {
+    if (telaDocId) return telaDocId;
+    if (!sheet) return null;
+    setTelaBuilding(true);
+    try {
+      const tela = worksheetToTelaDoc(sheet, user?.uid || 'demo-teacher', preview, layeredRebuild || undefined);
+      await saveTelaDoc(tela);
+      setTelaDocId(tela.id);
+      setSheet(prev => (prev ? { ...prev, telaDocId: tela.id } : prev));
+      return tela.id;
+    } finally { setTelaBuilding(false); }
+  };
+  const openAuthoring = async () => { const id = await ensureTelaDoc(); if (id) setAuthoringOpen(true); };
+  const openFullEditor = async () => {
+    const id = await ensureTelaDoc();
+    if (id) window.dispatchEvent(new CustomEvent('plajah:openTela', { detail: { docId: id } }));
+  };
+  const applyAuthoring = async () => {
+    if (!telaDocId || !sheet) return;
+    setAuthorSyncing(true);
+    try {
+      const doc = await loadTelaDoc(telaDocId);
+      if (doc) { setSheet(telaDocToWorksheet(doc, sheet)); setAuthored(true); }
+    } finally { setAuthorSyncing(false); }
+  };
+  const rebuildTelaFromForm = async () => {
+    if (!sheet) return;
+    setTelaBuilding(true);
+    try {
+      const tela = worksheetToTelaDoc({ ...sheet, telaDocId: telaDocId || undefined }, user?.uid || 'demo-teacher', preview, layeredRebuild || undefined);
+      await saveTelaDoc(tela);
+      setTelaDocId(tela.id); setAuthored(false);
+    } finally { setTelaBuilding(false); }
+  };
 
   // Publish & auto-wire. The demo roster (DEMO_CLASS) isn't real accounts, so we run in simulate
   // mode: the worksheet is really persisted, but the notification fan-out is computed, not sprayed
@@ -259,9 +306,17 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
     if (!sheet || publishing) return;
     setPublishing(true);
     try {
-      const tela = worksheetToTelaDoc(sheet, user?.uid || 'demo-teacher', preview, layeredRebuild || undefined);
-      const telaSaved = await saveTelaDoc(tela);
-      const publishable = { ...sheet, telaDocId: telaSaved.ok ? tela.id : undefined };
+      let publishable: DigitalWorksheet;
+      if (telaDocId) {
+        // Teacher authored on the Tela canvas — that doc is the artifact. Sync its answer model
+        // back so the auto-graded worksheet matches what was authored, and keep the same doc id.
+        const doc = await loadTelaDoc(telaDocId);
+        publishable = { ...(doc ? telaDocToWorksheet(doc, sheet) : sheet), telaDocId };
+      } else {
+        const tela = worksheetToTelaDoc(sheet, user?.uid || 'demo-teacher', preview, layeredRebuild || undefined);
+        const telaSaved = await saveTelaDoc(tela);
+        publishable = { ...sheet, telaDocId: telaSaved.ok ? tela.id : undefined };
+      }
       setSheet(publishable);
       const res = await publishWorksheet({
         sheet: publishable,
@@ -396,6 +451,23 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
             <WorksheetAccuracyEditor sheet={sheet} onChange={setSheet} accent={accent} onQualityRating={(rating) => { void submitAssignmentQualityFeedback({ worksheetId: wire?.worksheetId || scanSessionId.current, assignmentId: wire?.assignmentId, title: sheet.title, actorId: user?.uid, actorName: user?.displayName, actorRole: 'TEACHER', rating, category: 'ACCURACY', simulate: !user?.uid }); }} />
 
             <div style={{ ...cardStyle, padding: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <Eyebrow color={T.violet}>Refine &amp; author · powered by Tela</Eyebrow>
+                {authored && <span style={{ fontSize: 10, fontWeight: 800, color: T.green, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={11} /> Synced</span>}
+              </div>
+              <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.5, margin: '6px 0 12px' }}>
+                Open the reconstruction on the Tela canvas to fix the layout, edit or add questions, move and add content, then verify — the final authoring step before you publish.
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button onClick={openAuthoring} disabled={telaBuilding} style={{ cursor: telaBuilding ? 'default' : 'pointer', flex: '1 1 auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 14px', borderRadius: 10, border: 'none', background: T.violet, color: '#160a1e', fontSize: 12, fontWeight: 800, opacity: telaBuilding ? 0.7 : 1 }}>
+                  {telaBuilding ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Preparing…</> : <><Wand2 size={14} /> {authoringOpen ? 'Authoring open below' : telaDocId ? 'Reopen authoring canvas' : 'Open authoring canvas'}</>}
+                </button>
+                <button onClick={openFullEditor} disabled={telaBuilding} title="Open the full Tela editor" style={{ ...chip(false, T.violet), display: 'inline-flex', alignItems: 'center', gap: 5 }}><ExternalLink size={12} /> Full editor</button>
+              </div>
+              <div style={{ marginTop: 8, fontSize: 10.5, color: T.faint, lineHeight: 1.5 }}>The Tela document is saved as the worksheet's editable source. Publishing syncs your authored questions &amp; answer key back into the graded version.</div>
+            </div>
+
+            <div style={{ ...cardStyle, padding: 16 }}>
               <Eyebrow>Auto-wired on publish</Eyebrow>
               <WireStep icon={Users} label={`Assign to ${DEMO_CLASS.name.split('—')[0].trim()}${published && wire ? ` · ${wire.studentsNotified} notified` : ''}`} done={published} />
               <WireStep icon={Bell} label={`Notify ${published && wire ? wire.parentsNotified : DEMO_CLASS.students.length} parents · homework available`} done={published} />
@@ -413,6 +485,23 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
             </div>
           </div>
         </div>
+        {authoringOpen && telaDocId && (
+          <div style={{ ...cardStyle, padding: 14, marginTop: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+              <Eyebrow color={T.violet}>Tela authoring canvas · edit in place</Eyebrow>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button onClick={rebuildTelaFromForm} disabled={telaBuilding} title="Regenerate the canvas from the current form fields (discards visual edits)" style={{ ...chip(false), display: 'inline-flex', alignItems: 'center', gap: 5 }}><RefreshCw size={12} /> Rebuild from fields</button>
+                <button onClick={openFullEditor} style={{ ...chip(false, T.violet), display: 'inline-flex', alignItems: 'center', gap: 5 }}><ExternalLink size={12} /> Full editor</button>
+                <button onClick={applyAuthoring} disabled={authorSyncing} style={{ ...chip(true, T.green), display: 'inline-flex', alignItems: 'center', gap: 5 }}>{authorSyncing ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={12} />} Apply edits &amp; sync answer key</button>
+                <button onClick={() => setAuthoringOpen(false)} style={{ ...chip(false), display: 'inline-flex', alignItems: 'center', gap: 5 }}>Close</button>
+              </div>
+            </div>
+            <div style={{ borderRadius: 10, overflow: 'auto', maxHeight: 700, border: `1px solid ${T.border}`, background: '#0d0d12' }}>
+              <TelaEmbed docId={telaDocId} frameId={`${telaDocId}_reconstructed`} mode="pinned" editable canEdit width={900} className="worksheet-tela-embed" />
+            </div>
+            <div style={{ marginTop: 8, fontSize: 10.5, color: T.faint, lineHeight: 1.5 }}>Move &amp; add content, edit or add questions with the flying menu. When you're done, <b style={{ color: T.muted }}>Apply edits</b> pulls your questions &amp; answer key back into the graded worksheet — then Publish below.</div>
+          </div>
+        )}
         {published && (
           <div style={{ marginTop: 14 }}>
             <button onClick={() => setShowBrief(v => !v)} style={{ ...chip(showBrief, T.blue), display: 'inline-flex', alignItems: 'center', gap: 6 }}><ClipboardCheck size={13} /> {showBrief ? 'Hide turn-in brief' : 'See turn-in brief (how the class did)'}</button>
