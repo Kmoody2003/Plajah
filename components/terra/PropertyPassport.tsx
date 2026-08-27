@@ -22,13 +22,13 @@ import { motion } from 'motion/react';
 import {
   MapPin, ArrowLeft, Home, Ruler, Landmark, FileText, Hammer, AlertTriangle,
   Info, Fingerprint, Share2, CalendarClock, DollarSign, Building2, ClipboardList,
-  ExternalLink, ShieldCheck,
+  ExternalLink, ShieldCheck, Gauge,
 } from 'lucide-react';
 import type { UserProfile } from '../../types';
-import type { TerraParcel, TerraCivicRecord, CivicRecordKind } from '../../services/terra/terraTypes';
+import type { TerraParcel, TerraCivicRecord, CivicRecordKind, TerraBuildingEnergy } from '../../services/terra/terraTypes';
 import type { OpenListingRecord, OlrSource } from '../../services/terra/olr';
 import {
-  fetchParcel, fetchListing, fetchCivicForParcel, fetchListingForParcel,
+  fetchParcel, fetchListing, fetchCivicForParcel, fetchListingForParcel, fetchEnergyForParcel,
 } from '../../services/terra/terraService';
 
 const ACCENT = '#FF8C00';
@@ -95,6 +95,131 @@ const Row: React.FC<{ k: string; v: React.ReactNode }> = ({ k, v }) => (
     <span className="text-[12px] text-white/80 font-semibold tabular-nums text-right">{v}</span>
   </div>
 );
+
+// ─── Building energy & water ────────────────────────────────────────────────
+//
+// The differentiator: measured consumption, joined to the parcel by id. Two
+// honesty rules are enforced here rather than left to the copy —
+//   1. NO DOLLARS. We hold no tariff, so we show units and let the reader price
+//      them. A blended rate would be a number someone budgets against.
+//   2. The panel renders ONLY when the building reports. Absence is "not a
+//      reporting building", never "efficient", so there is no empty state.
+
+/** Compact unit label — the source's units string is far too long for a table. */
+function shortUnits(units: string): string {
+  const m = units.match(/^([^(]+)/);
+  return (m ? m[1] : units).trim();
+}
+
+/** kWh/ccf run to millions; full digits would swamp the row. */
+function compactUsage(n: number): string {
+  if (!Number.isFinite(n)) return '—';
+  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (Math.abs(n) >= 10_000) return `${Math.round(n / 1000).toLocaleString()}k`;
+  return Math.round(n).toLocaleString();
+}
+
+const METER_COLOR: Record<string, string> = {
+  Electric: '#E8B33D',
+  'Natural Gas': '#FF8C00',
+  'District Steam': '#C97BE8',
+};
+const meterColor = (t: string) =>
+  METER_COLOR[t] ?? (/water/i.test(t) ? MEASURE : '#6F7689');
+
+const EnergyPanel: React.FC<{ energy: TerraBuildingEnergy }> = ({ energy }) => {
+  // The reading window's final year is partial by definition — label it rather
+  // than letting it read as a low year against complete ones.
+  const latestYear = energy.lastReading ? Number(energy.lastReading.slice(0, 4)) : undefined;
+
+  const meters = energy.meters
+    .map(m => {
+      const years = m.years.filter(y => y.total > 0).slice(-6);
+      const complete = years.filter(y => y.year !== latestYear);
+      const headline = complete[complete.length - 1] ?? years[years.length - 1];
+      const prior = complete[complete.length - 2];
+      const change = headline && prior && prior.total > 0
+        ? ((headline.total - prior.total) / prior.total) * 100
+        : undefined;
+      // Scale each meter against ITS OWN peak — electric runs in millions of kWh
+      // and water in hundreds of ccf, so a shared maximum would flatten water to
+      // an invisible sliver.
+      const peak = Math.max(...years.map(y => y.total), 1);
+      return { ...m, years, headline, prior, change, peak };
+    })
+    .filter(m => m.headline);
+
+  if (!meters.length) return null;
+
+  return (
+    <div>
+      <p className={`${label} mb-3 flex items-center gap-1.5`}>
+        <Gauge size={11} /> What this building uses
+      </p>
+      <div className={`${card} p-4`}>
+        <div className="flex flex-col gap-4">
+          {meters.map(m => {
+            const color = meterColor(m.meterType);
+            return (
+              <div key={m.meterType}>
+                <div className="flex items-baseline justify-between gap-3 mb-1.5">
+                  <span className="text-[11px] font-bold text-white/75 truncate">{m.meterType}</span>
+                  <span className="text-[11px] font-black tabular-nums shrink-0" style={{ color }}>
+                    {compactUsage(m.headline!.total)}
+                    <span className="text-white/35 font-semibold ml-1">
+                      {shortUnits(m.units)}/yr
+                    </span>
+                  </span>
+                </div>
+                {/* Year bars — a shape for the trend, exact figures on hover. */}
+                <div className="flex items-end gap-1 h-9">
+                  {m.years.map(y => {
+                    const partial = y.year === latestYear;
+                    return (
+                      <div key={y.year} className="flex-1 flex flex-col justify-end h-full group relative"
+                           title={`${y.year}: ${Math.round(y.total).toLocaleString()} ${shortUnits(m.units)}${partial ? ' (year to date)' : ''} · ${y.readings} readings`}>
+                        <div className="rounded-sm transition-all"
+                             style={{
+                               height: `${Math.max(6, (y.total / m.peak) * 100)}%`,
+                               background: color,
+                               opacity: partial ? 0.35 : 0.8,
+                               border: partial ? `1px dashed ${color}` : 'none',
+                             }} />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-[9px] font-mono text-white/25 tabular-nums">
+                    {m.years[0]?.year}–{m.years[m.years.length - 1]?.year}
+                  </span>
+                  {m.change !== undefined && (
+                    <span className="text-[9px] font-mono tabular-nums"
+                          style={{ color: m.change > 0 ? '#FF3D80' : '#3DD68C' }}>
+                      {m.change > 0 ? '▲' : '▼'} {Math.abs(m.change).toFixed(0)}% vs {m.prior!.year}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-start gap-2">
+          <Info size={11} className="text-white/25 mt-0.5 shrink-0" />
+          <p className="text-[10px] text-white/35 leading-relaxed">
+            Measured meter readings filed under Detroit's benchmarking ordinance —
+            {' '}{energy.readingCount.toLocaleString()} readings, {fmtDate(energy.firstReading)} to {fmtDate(energy.lastReading)}.
+            Shown in the meters' own units: we hold no utility tariff, so converting
+            to dollars would be a guess.
+            {latestYear ? ` ${latestYear} is year-to-date.` : ''}
+          </p>
+        </div>
+      </div>
+      <Vintage sources={energy.sources} />
+    </div>
+  );
+};
 
 // ─── The record timeline (history, not status) ──────────────────────────────
 
@@ -165,6 +290,7 @@ export const PropertyPassport: React.FC<PropertyPassportProps> = ({ parcelId, li
   const [parcel, setParcel] = useState<TerraParcel | null>(null);
   const [listing, setListing] = useState<OpenListingRecord | null>(null);
   const [civic, setCivic] = useState<TerraCivicRecord[]>([]);
+  const [energy, setEnergy] = useState<TerraBuildingEnergy | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
@@ -186,12 +312,18 @@ export const PropertyPassport: React.FC<PropertyPassportProps> = ({ parcelId, li
       }
 
       const pin = resolvedParcel?.parcelNumber || resolvedListing?.ParcelNumber;
-      const civicRecords = pin ? await fetchCivicForParcel(pin, 60) : [];
+      // Civic history and benchmarking both hang off the parcel number; fetch
+      // together so one slow read doesn't stage the page in twice.
+      const [civicRecords, energyRecord] = await Promise.all([
+        pin ? fetchCivicForParcel(pin, 60) : Promise.resolve([]),
+        pin ? fetchEnergyForParcel(`detroit:${pin}`) : Promise.resolve(null),
+      ]);
 
       if (cancelled) return;
       setParcel(resolvedParcel);
       setListing(resolvedListing);
       setCivic(civicRecords);
+      setEnergy(energyRecord);
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -327,6 +459,9 @@ export const PropertyPassport: React.FC<PropertyPassportProps> = ({ parcelId, li
                 </p>
               </div>
             )}
+
+            {/* Only for buildings that report — see the honesty note on EnergyPanel. */}
+            {energy && <div className="mt-6"><EnergyPanel energy={energy} /></div>}
           </div>
 
           <div>

@@ -2978,6 +2978,12 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+    // Building energy/water benchmarking rollups, keyed by parcel. Public record
+    // (the ordinance requires reporting), same write posture as the spine.
+    match /terraEnergy/{parcelId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
     // Zoning rules are hand-encoded from the ordinance and drive a buildability
     // estimate — admin-only, and versioned rather than edited in place.
     match /terraZoningRules/{ruleId} {

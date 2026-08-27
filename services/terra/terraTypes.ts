@@ -116,6 +116,71 @@ export function unpackParcel(stored: StoredTerraParcel | TerraParcel | null | un
   catch { return rest as TerraParcel; }
 }
 
+// ─── Building energy & water — measured, not modelled ────────────────────────
+//
+// Detroit's benchmarking ordinance publishes METER READINGS keyed by
+// `parcel_id`, which joins Terra's spine by identity (verified: benchmarking
+// `08000086-8` is parcel `08000086-8`, 1600 W LAFAYETTE). That makes Terra able
+// to show what a building actually costs to run.
+//
+// ⚠️ COVERAGE IS NARROW AND MUST BE STATED. Only buildings subject to the
+// ordinance report — 112 parcels of 377,940, i.e. large commercial and
+// institutional stock. Absence of data means "not a reporting building", NEVER
+// "efficient". The UI must not imply city-wide coverage.
+//
+// ⚠️ NO DOLLAR FIGURES. Converting usage to cost needs a tariff (rate class,
+// demand charges, seasonality) that the city does not publish and we do not
+// hold. Inventing a blended rate would manufacture a number a business might
+// budget against. Show measured units; let the reader price them.
+
+/** One calendar year of readings for a single meter type. */
+export interface TerraEnergyYear {
+  year: number;
+  /** Summed `total_usage` in the meter's own units. */
+  total: number;
+  /** How many readings rolled up — a year with 2 readings is not a full year. */
+  readings: number;
+}
+
+export interface TerraEnergyMeter {
+  /** The source's own meter label, unmapped (e.g. 'Electric', 'Natural Gas'). */
+  meterType: string;
+  /** The source's own units string, e.g. 'kWh (thousand Watt-hours)'. */
+  units: string;
+  /** Ascending by year. */
+  years: TerraEnergyYear[];
+}
+
+/** Aggregated benchmarking history for one parcel. Doc id `detroit:<parcelNumber>`. */
+export interface TerraBuildingEnergy {
+  id: string;
+  jurisdiction: TerraJurisdiction;
+  parcelNumber: string;
+  address?: string;
+  /** The ordinance's building ids seen on this parcel (a parcel can carry several). */
+  buildingIds: string[];
+  meters: TerraEnergyMeter[];
+  /** ISO dates bounding the readings — the vintage the UI must show. */
+  firstReading?: string;
+  lastReading?: string;
+  readingCount: number;
+  sources: OlrSource[];
+  updatedAt: number;
+}
+
+/** One raw reading, normalised from the city layer before aggregation. */
+export interface TerraEnergyReading {
+  parcelNumber: string;
+  buildingId?: string;
+  address?: string;
+  meterType: string;
+  units: string;
+  totalUsage: number;
+  /** ISO date (yyyy-mm-dd). */
+  startDate?: string;
+  endDate?: string;
+}
+
 // ─── Civic records ───────────────────────────────────────────────────────────
 
 export type CivicRecordKind =

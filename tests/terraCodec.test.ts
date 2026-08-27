@@ -92,3 +92,63 @@ test('coverBounds: city-scale viewport refuses rather than exploding', () => {
   assert.ok(size.latDeg > 0 && size.lonDeg > 0);
   assert.equal(geohashCellsForBounds(city, 7, 32), null, 'fine precision must bail');
 });
+
+// ─── Energy benchmarking rollup ─────────────────────────────────────────────
+import { aggregateEnergyReadings } from '../services/terra/detroitAdapter';
+import type { TerraEnergyReading } from '../services/terra/terraTypes';
+
+const reading = (o: Partial<TerraEnergyReading>): TerraEnergyReading => ({
+  parcelNumber: '08000086-8', meterType: 'Electric', units: 'kWh (thousand Watt-hours)',
+  totalUsage: 100, startDate: '2024-03-01', endDate: '2024-04-01', ...o,
+});
+
+test('energy: sums a year across multiple readings of the same meter type', () => {
+  const [rec] = aggregateEnergyReadings([
+    reading({ totalUsage: 100, startDate: '2024-01-01' }),
+    reading({ totalUsage: 250, startDate: '2024-02-01' }),
+    reading({ totalUsage: 400, startDate: '2025-01-01' }),
+  ]);
+  const electric = rec.meters.find(m => m.meterType === 'Electric')!;
+  assert.deepEqual(electric.years, [
+    { year: 2024, total: 350, readings: 2 },
+    { year: 2025, total: 400, readings: 1 },
+  ]);
+  assert.equal(rec.id, 'detroit:08000086-8');
+  assert.equal(rec.readingCount, 3);
+});
+
+test('energy: keeps meter types separate and never mixes units', () => {
+  const [rec] = aggregateEnergyReadings([
+    reading({ meterType: 'Electric', units: 'kWh (thousand Watt-hours)', totalUsage: 10 }),
+    reading({ meterType: 'Natural Gas', units: 'ccf (hundred cubic feet)', totalUsage: 20 }),
+  ]);
+  assert.equal(rec.meters.length, 2);
+  const gas = rec.meters.find(m => m.meterType === 'Natural Gas')!;
+  assert.equal(gas.units, 'ccf (hundred cubic feet)');
+  assert.equal(gas.years[0].total, 20);
+  // Electric total must NOT have absorbed the gas reading.
+  assert.equal(rec.meters.find(m => m.meterType === 'Electric')!.years[0].total, 10);
+});
+
+test('energy: splits by parcel and tracks the reading window', () => {
+  const recs = aggregateEnergyReadings([
+    reading({ parcelNumber: 'A', startDate: '2020-05-01', endDate: '2020-06-01' }),
+    reading({ parcelNumber: 'A', startDate: '2024-01-01', endDate: '2024-02-01' }),
+    reading({ parcelNumber: 'B', startDate: '2023-01-01', endDate: '2023-02-01' }),
+  ]);
+  assert.equal(recs.length, 2);
+  const a = recs.find(r => r.parcelNumber === 'A')!;
+  assert.equal(a.firstReading, '2020-05-01');
+  assert.equal(a.lastReading, '2024-02-01');
+});
+
+test('energy: collects building ids and carries a source', () => {
+  const [rec] = aggregateEnergyReadings([
+    reading({ buildingId: '3925' }),
+    reading({ buildingId: '3925' }),
+    reading({ buildingId: '4001' }),
+  ]);
+  assert.deepEqual(rec.buildingIds, ['3925', '4001']);
+  assert.equal(rec.sources.length, 1);
+  assert.match(rec.sources[0].system, /energyUsage/);
+});

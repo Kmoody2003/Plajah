@@ -16,11 +16,12 @@
  */
 
 import { fsBatchWrite, fsGet, fsSet } from '../firebaseAdminRest';
-import { packParcel, type TerraParcel, type TerraCivicRecord, type TerraIngestionSummary } from './terraTypes';
+import { packParcel, type TerraParcel, type TerraCivicRecord, type TerraIngestionSummary, type TerraBuildingEnergy } from './terraTypes';
 
 const PARCELS = 'terraParcels';
 const CIVIC = 'terraCivic';
 const RUNS = 'terraIngestionRuns';
+const ENERGY = 'terraEnergy';
 
 /** Doc ids carry a colon (`detroit:16004044.`); encode so the REST path segment
  *  isn't parsed as a Google `:method` suffix. Firestore decodes it back, so the
@@ -46,6 +47,11 @@ export async function saveParcelsServer(parcels: TerraParcel[]): Promise<number>
 
 export async function saveCivicServer(records: TerraCivicRecord[]): Promise<number> {
   return fsBatchWrite(records.map(r => ({ path: `${CIVIC}/${r.id}`, data: envelope(r.id, r) })));
+}
+
+/** Benchmarking rollups — ~112 docs, one per reporting parcel. */
+export async function saveEnergyServer(records: TerraBuildingEnergy[]): Promise<number> {
+  return fsBatchWrite(records.map(r => ({ path: `${ENERGY}/${r.id}`, data: envelope(r.id, r) })));
 }
 
 export async function recordRunServer(summary: TerraIngestionSummary): Promise<boolean> {

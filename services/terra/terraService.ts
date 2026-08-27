@@ -9,6 +9,7 @@
  * Collections
  *   terraParcels/{jurisdiction}:{parcelNumber}
  *   terraCivic/{jurisdiction}:{kind}:{localId}
+ *   terraEnergy/{jurisdiction}:{parcelNumber}  — benchmarking rollups
  *   terraZoningRules/{jurisdiction}:{district}:{useKey}
  *   terraListings/{listingKey}          — Open Listing Records
  *   terraIngestionRuns/{runId}
@@ -18,12 +19,13 @@ import { collection, deleteDoc, doc, getDoc, getDocs, limit as fsLimit, query, s
 import { db } from '../backendService';
 import type { OpenListingRecord } from './olr';
 import { hashListingRecord, validateListingRecord } from './olr';
-import { packParcel, unpackParcel, type TerraParcel, type TerraCivicRecord, type ZoningRule, type TerraIngestionSummary } from './terraTypes';
+import { packParcel, unpackParcel, type TerraParcel, type TerraCivicRecord, type ZoningRule, type TerraIngestionSummary, type TerraBuildingEnergy } from './terraTypes';
 import { coverBounds, type GeoBounds } from './geohash';
 
 export const TERRA_COLLECTIONS = {
   parcels: 'terraParcels',
   civic: 'terraCivic',
+  energy: 'terraEnergy',
   zoningRules: 'terraZoningRules',
   listings: 'terraListings',
   runs: 'terraIngestionRuns',
@@ -180,6 +182,20 @@ export async function fetchParcelsInBounds(bounds: GeoBounds, perCellLimit = 300
     }
     return out;
   } catch { return []; }
+}
+
+/**
+ * Benchmarking history for one parcel, or null when the building doesn't report.
+ *
+ * ⚠️ null means "not subject to the ordinance / not reporting" — only ~112
+ * parcels report. It NEVER means the building is efficient, and the UI must not
+ * present absence as a result.
+ */
+export async function fetchEnergyForParcel(parcelId: string): Promise<TerraBuildingEnergy | null> {
+  try {
+    const snap = await getDoc(doc(db, TERRA_COLLECTIONS.energy, parcelId));
+    return snap.exists() ? ((snap.data() as TerraEnvelope<TerraBuildingEnergy>).data ?? null) : null;
+  } catch { return null; }
 }
 
 // ─── Civic records ───────────────────────────────────────────────────────────

@@ -15,12 +15,15 @@
  *   TERRA_INGESTION_MAX_PARCELS      cap per run (default 5000; 0 = uncapped)
  */
 
-import { CIVIC_FEEDS, fetchDetroitCivic, fetchDetroitParcels, type CivicFeed } from './terra/detroitAdapter';
+import {
+  CIVIC_FEEDS, aggregateEnergyReadings, fetchDetroitCivic, fetchDetroitEnergyReadings,
+  fetchDetroitParcels, type CivicFeed,
+} from './terra/detroitAdapter';
 // Server-side persistence: the worker runs unauthenticated, so it writes through
 // the service account (rules-exempt), NOT the client-SDK terraService — otherwise
 // every write is denied by `terraParcels write: if isAdmin()`.
 import {
-  getCursorServer, recordRunServer, saveCivicServer, saveParcelsServer, setCursorServer,
+  getCursorServer, recordRunServer, saveCivicServer, saveEnergyServer, saveParcelsServer, setCursorServer,
 } from './terra/terraServerWrite';
 import type { TerraIngestionScope, TerraIngestionSummary } from './terra/terraTypes';
 
@@ -43,15 +46,15 @@ export interface TerraIngestionOptions {
 }
 
 /** How much each scope pulls. `deep` is a full-city refresh and takes a while. */
-function planFor(scope: TerraIngestionScope): { parcels: number; civicPerFeed: number; feeds: CivicFeed[] } {
+function planFor(scope: TerraIngestionScope): { parcels: number; civicPerFeed: number; feeds: CivicFeed[]; energy: boolean } {
   switch (scope) {
     case 'lite':
-      return { parcels: 500, civicPerFeed: 250, feeds: ['permits', 'blightTickets'] };
+      return { parcels: 500, civicPerFeed: 250, feeds: ['permits', 'blightTickets'], energy: false };
     case 'deep':
-      return { parcels: 0, civicPerFeed: 5000, feeds: [...CIVIC_FEEDS] };
+      return { parcels: 0, civicPerFeed: 5000, feeds: [...CIVIC_FEEDS], energy: true };
     case 'standard':
     default:
-      return { parcels: 5000, civicPerFeed: 1000, feeds: [...CIVIC_FEEDS] };
+      return { parcels: 5000, civicPerFeed: 1000, feeds: [...CIVIC_FEEDS], energy: true };
   }
 }
 
@@ -106,6 +109,22 @@ async function runTerraIngestion(options: TerraIngestionOptions = {}): Promise<T
       counts[`${feed}Saved`] = await saveCivicServer(records);
     } catch (err: any) {
       errors.push(`${feed}: ${err?.message || err}`);
+    }
+  }
+
+  // ── Building energy & water (benchmarking ordinance) ──
+  // The whole layer is ~52k readings across ~112 reporting parcels, so it's
+  // pulled complete and rolled up in memory rather than cursored: the write is
+  // ~112 docs. Skipped on `lite`, which exists to be quick.
+  if (plan.energy) {
+    try {
+      const readings = await fetchDetroitEnergyReadings({ signal: options.signal });
+      const rollups = aggregateEnergyReadings(readings);
+      counts.energyReadings = readings.length;
+      counts.energyParcels = rollups.length;
+      counts.energySaved = await saveEnergyServer(rollups);
+    } catch (err: any) {
+      errors.push(`energy: ${err?.message || err}`);
     }
   }
 
