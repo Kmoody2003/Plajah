@@ -900,10 +900,11 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
     } else if (isTV) {
       if (album.seasons?.[0]?.episodes?.[0]) {
         payload = album.seasons[0].episodes[0] as Video;
-      } else if (album.tracks?.[0]?.url) {
+      } else if (album.tracks?.[0]?.muxPlaybackId || album.tracks?.[0]?.muxUploadId || album.tracks?.[0]?.url) {
         payload = {
           id: album.id, ownerId: album.ownerId || 'system', title: album.title,
-          url: album.tracks[0].url, artist: album.artist, timestamp: album.createdAt || Date.now(),
+          url: album.tracks[0].url || '', muxPlaybackId: album.tracks[0].muxPlaybackId,
+          artist: album.artist, timestamp: album.createdAt || Date.now(),
         } as Video;
       } else if (album.customVideoUrl) {
         payload = {
@@ -911,14 +912,19 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
           url: album.customVideoUrl, artist: album.artist, timestamp: album.createdAt || Date.now(),
         } as Video;
       }
-    } else if (album.tracks?.[0]?.url) {
-      const trackUrl = album.tracks[0].url;
+    } else if (album.tracks?.[0]?.muxPlaybackId || album.tracks?.[0]?.muxUploadId || album.tracks?.[0]?.url) {
+      // MOVIE film track. It may stream from Mux (muxPlaybackId) with an empty url, still be
+      // transcoding (muxUploadId only → CinemaPlayer shows "Processing…"), or be a legacy
+      // Firebase/archive url. Carry the mux id into the payload so the player can stream it.
+      const t0 = album.tracks[0];
+      const trackUrl = t0.url || '';
       const isArchive = trackUrl.includes('archive.org');
       const archiveId = isArchive && trackUrl.includes('/download/')
         ? trackUrl.slice(trackUrl.indexOf('/download/') + 10).split('/')[0] : '';
       payload = {
         id: album.id, ownerId: album.ownerId || 'system', title: album.title,
         url: trackUrl,
+        muxPlaybackId: t0.muxPlaybackId,
         embedUrl: archiveId ? `https://archive.org/embed/${archiveId}?autoplay=1` : undefined,
         artist: album.artist, timestamp: album.createdAt || Date.now(),
         description: album.description, thumbnailUrl: album.coverImage,

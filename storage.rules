@@ -34,9 +34,12 @@ service firebase.storage {
              request.resource.contentType.matches('text/.*');
     }
 
-    // Maximum 25 GB for any single file — full films exceed the old 2 GB cap.
+    // Maximum 100 GB for any single file. Full 4K/ProRes masters can exceed 25 GB, so
+    // this headroom guarantees a "25 GB or larger" film is never rejected at the rules
+    // layer. The primary film path is Mux direct-upload (no Storage cap at all); this
+    // limit governs the Firebase Storage fallback + non-Mux media (images, audio, etc.).
     function withinSizeLimit() {
-      return request.resource.size < 25 * 1024 * 1024 * 1024;
+      return request.resource.size < 100 * 1024 * 1024 * 1024;
     }
 
     // ── User-scoped files ─────────────────────────────────────────────────────
@@ -140,10 +143,10 @@ service firebase.storage {
     // ── General uploads (UploadContext: films, videos, images, music, audio) ──
     // Path shape: uploads/<type>s/<timestamp>_<filename>. Any signed-in user may upload here.
     // NOTE: no content-type gate (browsers report .mov etc. as application/octet-stream, which the
-    // media-type check wrongly rejected) and a generous 25 GB cap (full films exceed the 2 GB limit).
+    // media-type check wrongly rejected) and a 100 GB cap (a 25 GB+ master must never be rejected).
     match /uploads/{allPaths=**} {
       allow read: if true;
-      allow write: if isAuth() && request.resource.size < 25 * 1024 * 1024 * 1024;
+      allow write: if isAuth() && withinSizeLimit();
     }
 
     // Content HQ originals and revisions. Discovery and authorization are enforced by
@@ -157,10 +160,10 @@ service firebase.storage {
     // ── Private media locker (Chora music + Taleo movies/TV the user owns) ────
     // personal/<uid>/… — owner-only read+write. Kept private (the user may not
     // hold distribution rights); playback works via tokenized download URLs.
-    // 25 GB cap so full movies fit.
+    // 100 GB cap so full movies (incl. 25 GB+ masters) fit.
     match /personal/{uid}/{allPaths=**} {
       allow read:  if isAuth() && request.auth.uid == uid;
-      allow write: if isAuth() && request.auth.uid == uid && request.resource.size < 25 * 1024 * 1024 * 1024;
+      allow write: if isAuth() && request.auth.uid == uid && withinSizeLimit();
     }
 
     // ── Fabula project JSON — owner-only (durable cloud copy of the editor project) ──
