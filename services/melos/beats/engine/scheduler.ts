@@ -18,7 +18,7 @@ export interface SchedulerDeps {
   // rng is injectable so offline renders are deterministic (seeded) while live stays random —
   // the render-twice-byte-identical quality gate depends on this.
   rng(): number;
-  trigger(padIdx: number, vel127: number, when: number, gateSec?: number, semiOffset?: number, pan?: number, stepFx?: number): void;
+  trigger(padIdx: number, vel127: number, when: number, gateSec?: number, semiOffset?: number, pan?: number, stepFx?: number, skipChoke?: boolean): void;
   startAudioClip(track: ArrangeTrack, clip: TimelineClip, when: number, offsetIntoClipSec: number): void;
   /** Instrument tracks: one MIDI note, at an absolute context time, for `durSec`. */
   startInstrumentNote(track: ArrangeTrack, note: NoteEvent, when: number, durSec: number): void;
@@ -170,7 +170,7 @@ export class StepScheduler {
         if (!notes?.length) continue;
         const when = this.eventTime(beat, localStep, doc);
         const stepSec = STEP_BEATS * d.secPerBeat();
-        for (const n of notes) d.trigger(padIdx, n.v, when, Math.max(1, n.len) * stepSec, n.semi);
+        for (const n of notes) d.trigger(padIdx, n.v, when, Math.max(1, n.len) * stepSec, n.semi, undefined, undefined, true);
       }
     }
   }
@@ -195,7 +195,8 @@ export class StepScheduler {
         if (!notes?.length) continue;
         const when = this.eventTime(beat, localStep, doc);
         const stepSec = STEP_BEATS * d.secPerBeat();
-        for (const n of notes) d.trigger(padIdx, n.v, when, Math.max(1, n.len) * stepSec, n.semi);
+        // Pitched notes are polyphonic — skip the choke group so a chord/overlap doesn't self-cut.
+        for (const n of notes) d.trigger(padIdx, n.v, when, Math.max(1, n.len) * stepSec, n.semi, undefined, undefined, true);
       }
     }
   }

@@ -906,6 +906,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           selectedPad={selectedPad}
           onSelectPad={setSelectedPad}
           onMutate={mutate}
+          onOpenInstrument={(id) => setOpenInstrumentId(id)}
+          onFocusPad={(padIdx) => { setSelectedPad(padIdx); setView('machine'); }}
+          onFocusTrack={() => setView('timeline')}
         />
       )}
 

@@ -308,6 +308,20 @@ export function buildGraph(ctx: BaseAudioContext, padCount = 16): BeatsGraph {
   const pbuf = new Float32Array(256);
   const tbuf = new Float32Array(256);
 
+  // Peak-hold meters. A raw instantaneous peak of a transient drum hit lasts a few milliseconds —
+  // sampled once per animation frame it flickers so briefly the bar looks dead. Hold the peak and
+  // fall it on a time constant (time-based, so it's correct no matter how often a meter is read).
+  const holds = new Map<string, { v: number; t: number }>();
+  const HOLD_TAU = 0.2; // seconds — meter fall
+  const heldPeak = (key: string, analyser: AnalyserNode, buf: Float32Array): number => {
+    const inst = peakOf(analyser, buf);
+    const now = ctx.currentTime;
+    const prev = holds.get(key);
+    const v = prev ? Math.max(inst, prev.v * Math.exp(-Math.max(0, now - prev.t) / HOLD_TAU)) : inst;
+    holds.set(key, { v, t: now });
+    return v;
+  };
+
   const graph: BeatsGraph = {
     ctx, pads, groups, groupAnalysers, sendBuses, tracks, master,
 
@@ -407,8 +421,8 @@ export function buildGraph(ctx: BaseAudioContext, padCount = 16): BeatsGraph {
     setTrackSend(trackId, sendIdx, level) {
       const sg = tracks.get(trackId)?.sends[sendIdx]; if (sg) sg.gain.value = Math.max(0, Math.min(2, level));
     },
-    padMeter(padIdx) { const s = pads[padIdx]; return s ? peakOf(s.analyser, pbuf) : 0; },
-    trackMeter(trackId) { const s = tracks.get(trackId); return s ? peakOf(s.analyser, tbuf) : 0; },
+    padMeter(padIdx) { const s = pads[padIdx]; return s ? heldPeak(`pad${padIdx}`, s.analyser, pbuf) : 0; },
+    trackMeter(trackId) { const s = tracks.get(trackId); return s ? heldPeak(`trk${trackId}`, s.analyser, tbuf) : 0; },
 
     setGroupInsert(groupIdx, insInput, insOutput) {
       const ins = groupIns[groupIdx]; if (!ins) return;
@@ -434,13 +448,13 @@ export function buildGraph(ctx: BaseAudioContext, padCount = 16): BeatsGraph {
     setSendReturnGain(sendIdx, db) {
       const b = sendBuses[sendIdx]; if (b) b.gain.gain.value = dbToGain(db);
     },
-    sendMeters() { return sendBuses.map((b) => peakOf(b.analyser, sbuf)); },
+    sendMeters() { return sendBuses.map((b, i) => heldPeak(`snd${i}`, b.analyser, sbuf)); },
 
     meters() {
       return {
-        groups: groupAnalysers.map((a) => peakOf(a, gbuf)),
-        master: peakOf(analyser, mbuf),
-        sends: sendBuses.map((b) => peakOf(b.analyser, sbuf)),
+        groups: groupAnalysers.map((a, i) => heldPeak(`grp${i}`, a, gbuf)),
+        master: heldPeak('master', analyser, mbuf),
+        sends: sendBuses.map((b, i) => heldPeak(`snd${i}`, b.analyser, sbuf)),
       };
     },
 

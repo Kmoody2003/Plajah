@@ -27,6 +27,11 @@ interface MixerViewProps {
   selectedPad: number;
   onSelectPad: (i: number) => void;
   onMutate: (fn: (d: GrooveDoc) => void) => void;
+  /** Double-click a channel header: instrument → its window; synth/sample pad → its controls in
+   *  MEKA; audio track → the Timeline where its clips/waveform live. */
+  onOpenInstrument?: (trackId: string) => void;
+  onFocusPad?: (padIdx: number) => void;
+  onFocusTrack?: (trackId: string) => void;
 }
 
 /** What's open in the editor. Master isn't here — its full chain lives in the Project view. */
@@ -37,7 +42,7 @@ type Sel =
   | { kind: 'send'; id: number };
 
 
-export const MixerView: React.FC<MixerViewProps> = ({ doc, meters, limiterReduction, selectedPad, onSelectPad, onMutate }) => {
+export const MixerView: React.FC<MixerViewProps> = ({ doc, meters, limiterReduction, selectedPad, onSelectPad, onMutate, onOpenInstrument, onFocusPad, onFocusTrack }) => {
   const [sel, setSel] = useState<Sel>({ kind: 'group', id: 0 });
   const [tab, setTab] = useState<'inserts' | 'sends'>('inserts');
   const [panelH, setPanelH] = useState(240);
@@ -114,7 +119,13 @@ export const MixerView: React.FC<MixerViewProps> = ({ doc, meters, limiterReduct
               <div
                 key={pad.id}
                 onPointerDown={() => { onSelectPad(i); setSel({ kind: 'pad', id: i }); }}
-                className="rounded-[10px]"
+                onDoubleClick={() => {
+                  // Instrument pad → its window; a synth/sample pad → its sound controls in MEKA.
+                  if (pad.source === 'instrument' && pad.instrumentTrackId) onOpenInstrument?.(pad.instrumentTrackId);
+                  else onFocusPad?.(i);
+                }}
+                className="rounded-[10px] cursor-pointer"
+                title="Double-click to edit this channel's sound"
                 style={isSel('pad', i) ? { outline: `1px solid ${SELECT}`, outlineOffset: 1 } : i === selectedPad ? { outline: '1px solid rgba(212,0,85,0.35)', outlineOffset: 1 } : undefined}
               >
                 <ChannelStrip
@@ -195,7 +206,19 @@ export const MixerView: React.FC<MixerViewProps> = ({ doc, meters, limiterReduct
               instrument two mixer channels. */}
           <div className="flex gap-1.5">
             {doc.arrangement.filter((t) => !t.padOwned).map((t) => (
-              <div key={t.id} onPointerDown={() => !t.foreign && setSel({ kind: 'track', id: t.id })} className="rounded-[10px]" style={isSel('track', t.id) ? { outline: `1px solid ${SELECT}`, outlineOffset: 1 } : undefined}>
+              <div
+                key={t.id}
+                onPointerDown={() => !t.foreign && setSel({ kind: 'track', id: t.id })}
+                onDoubleClick={() => {
+                  if (t.foreign) return;
+                  // Instrument track → its window; audio track → the Timeline (its clips/waveform).
+                  if (t.kind === 'instrument') onOpenInstrument?.(t.id);
+                  else onFocusTrack?.(t.id);
+                }}
+                className="rounded-[10px] cursor-pointer"
+                title={t.foreign ? undefined : 'Double-click to open this track'}
+                style={isSel('track', t.id) ? { outline: `1px solid ${SELECT}`, outlineOffset: 1 } : undefined}
+              >
                 <ChannelStrip
                   label={t.name} color={t.kind === 'audio' ? PLAYHEAD : '#B84DFF'} gainDb={t.gainDb} pan={t.pan} mute={t.mute} solo={t.solo}
                   meter={t.kind === 'audio' ? eng.trackMeter(t.id) : 0} dimmed={!!t.foreign}

@@ -139,7 +139,7 @@ export class BeatsEngine {
       rng: Math.random, // offline renders inject a seeded rng in render.ts instead
       // Forward pan + stepFx too — the scheduler passes step.pan/step.fx, and dropping them here
       // is why per-step Step Effects (and per-step pan) applied on Audition but were dry on playback.
-      trigger: (padIdx, vel, when, gateSec, semiOffset, pan, stepFx) => this.trigger(padIdx, vel, when, gateSec, semiOffset, pan, stepFx),
+      trigger: (padIdx, vel, when, gateSec, semiOffset, pan, stepFx, skipChoke) => this.trigger(padIdx, vel, when, gateSec, semiOffset, pan, stepFx, skipChoke),
       startAudioClip: (track, clip, when, offset) => this.startAudioClip(track, clip, when, offset),
       startInstrumentNote: (track, note, when, durSec) => this.startInstrumentNote(track, note, when, durSec),
       runArp: (track, stepIndex, beat) => this.runArp(track, stepIndex, beat),
@@ -291,7 +291,7 @@ export class BeatsEngine {
    * MIDI handlers and pad pointerdown call this directly. A live hit on a sustaining pad
    * (env.sustain > 0) HOLDS until release(padIdx); sequenced notes pass gateSec instead.
    */
-  trigger(padIdx: number, vel127: number, when?: number, gateSec?: number, semiOffset?: number, pan?: number, stepFx?: number): void {
+  trigger(padIdx: number, vel127: number, when?: number, gateSec?: number, semiOffset?: number, pan?: number, stepFx?: number, skipChoke?: boolean): void {
     if (!this.voices || !this.ctx) return;
     const pad = this.doc.kit[padIdx];
     if (pad?.empty) return; // greyed placeholder pad — no sound
@@ -303,7 +303,7 @@ export class BeatsEngine {
     }
     // Step Effects: route this hit through the referenced per-pad slot's chain (feature 2).
     const dest = this.stepFxDestFor(padIdx, stepFx);
-    this.voices.trigger(this.doc, padIdx, vel127, when, gateSec, semiOffset, pan, dest);
+    this.voices.trigger(this.doc, padIdx, vel127, when, gateSec, semiOffset, pan, dest, skipChoke);
     this.lastHit[padIdx] = performance.now();
   }
 
@@ -1016,10 +1016,18 @@ export class BeatsEngine {
     this.scheduler.onTick(this.ctx.currentTime);
   }
 
-  /** Playhead position mapped into the loop for display — the cursor visibly jumps back. */
+  /** Playhead position mapped into the loop for display — the cursor visibly jumps back.
+   *  Pattern mode LOOPS the pattern, so the readout wraps to the pattern's length instead of
+   *  counting up forever like a timeline (the transport is auditioning one pattern on repeat). */
   posBeatsDisplay(): number {
-    const loop = this.doc.loop;
     const p = this.posBeats();
+    if (this.mode === 'pattern') {
+      const id = this.scheduler?.currentPatternId() ?? this.currentPatternId;
+      const pat = this.doc.patterns.find((x) => x.id === id) || this.doc.patterns[0];
+      const lenBeats = Math.max(1, pat?.length ?? 16) * 0.25;
+      return ((p % lenBeats) + lenBeats) % lenBeats;
+    }
+    const loop = this.doc.loop;
     if (this.mode === 'song' && loop?.on && loop.endBeats > loop.startBeats && p >= loop.startBeats) {
       return loop.startBeats + ((p - loop.startBeats) % (loop.endBeats - loop.startBeats));
     }

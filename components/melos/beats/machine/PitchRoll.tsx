@@ -51,6 +51,9 @@ export const PitchRoll: React.FC<PitchRollProps> = ({ doc, pattern, selectedPad,
 
   const pad = doc.kit[selectedPad];
   const lane = pattern.melo?.[selectedPad] || {};
+  // The step-sequencer row for this pad, surfaced on the roll's BASE row so a hit placed in the
+  // step strip shows here too (and vice-versa) — they are one and the same drum row.
+  const steps = pattern.steps?.[selectedPad] || {};
   const playStep = running && playMode === 'pattern'
     ? ((Math.floor(beats / 0.25) % pattern.length) + pattern.length) % pattern.length
     : -1;
@@ -66,7 +69,21 @@ export const PitchRoll: React.FC<PitchRollProps> = ({ doc, pattern, selectedPad,
     });
   }, [onMutate, pattern.id, selectedPad]);
 
+  // Toggle the drum STEP for this pad — the base row IS the step sequencer's row.
+  const toggleStep = useCallback((step: number, audition = true) => {
+    onMutate((d) => {
+      const pat = d.patterns.find((p) => p.id === pattern.id); if (!pat) return;
+      const row = pat.steps[selectedPad] || (pat.steps[selectedPad] = {});
+      if (row[step]?.v) delete row[step]; else row[step] = { v: 100 };
+    });
+    if (audition) { const engine = BeatsEngine.get(); void engine.init().then(() => engine.trigger(selectedPad, 100)); }
+  }, [onMutate, pattern.id, selectedPad]);
+
   const addNote = useCallback((rootSemi: number, step: number) => {
+    // The base row (semi 0) is the pad's own pitch = a plain drum hit, so a single-note click there
+    // toggles the STEP that the step strip shows, keeping both views one truth. Chords/pitched rows
+    // go to the melo lane as before.
+    if (!chordId && rootSemi === 0) { toggleStep(step); return; }
     // In chord mode, one click drops the whole chord (root + intervals) that fits the roll range.
     const semis = chordId
       ? chordById(chordId).intervals.map((iv) => rootSemi + iv).filter((s) => s >= SEMI_BOTTOM && s <= SEMI_TOP)
@@ -75,10 +92,10 @@ export const PitchRoll: React.FC<PitchRollProps> = ({ doc, pattern, selectedPad,
       const arr = l[step] || (l[step] = []);
       for (const semi of semis) if (!arr.some((n) => n.semi === semi)) arr.push({ semi, v: 100, len: 1 });
     });
-    // Audition — the whole chord, so drawing is musical, not clerical.
+    // Audition — the whole chord, so drawing is musical, not clerical. Pitched notes skip choke.
     const engine = BeatsEngine.get();
-    void engine.init().then(() => { for (const semi of semis) engine.trigger(selectedPad, 100, undefined, (60 / doc.bpm) * 0.25, semi); });
-  }, [mutateLane, selectedPad, doc.bpm, chordId]);
+    void engine.init().then(() => { for (const semi of semis) engine.trigger(selectedPad, 100, undefined, (60 / doc.bpm) * 0.25, semi, undefined, undefined, true); });
+  }, [mutateLane, selectedPad, doc.bpm, chordId, toggleStep]);
 
   const removeNote = useCallback((semi: number, step: number) => {
     mutateLane((l) => {
@@ -147,6 +164,29 @@ export const PitchRoll: React.FC<PitchRollProps> = ({ doc, pattern, selectedPad,
                     borderLeft: c % 4 === 0 ? '1px solid rgba(255,255,255,0.10)' : '1px solid rgba(255,255,255,0.03)',
                     background: playStep === c ? 'rgba(0,218,243,0.05)' : 'transparent',
                   }}
+                />
+              );
+            })}
+            {/* drum steps — the step-sequencer row, on the roll's base row (semi 0). Click to
+                remove; placing one in the step strip shows it here and vice-versa. */}
+            {Object.entries(steps).map(([stepKey, st]) => {
+              const step = Number(stepKey);
+              if (!st?.v || step >= cols) return null;
+              const r = SEMI_TOP; // base row (semi 0)
+              return (
+                <div
+                  key={`step-${step}`}
+                  onPointerDown={(e) => { e.stopPropagation(); toggleStep(step, false); }}
+                  className="absolute rounded-[3px] cursor-pointer"
+                  style={{
+                    top: r * ROW_H + 1.5, height: ROW_H - 3,
+                    left: `${(step / cols) * 100}%`, width: `calc(${(1 / cols) * 100}% - 2px)`,
+                    background: `${SELECT}D9`,
+                    boxShadow: `0 0 5px ${SELECT}66`,
+                    opacity: 0.45 + (st.v / 127) * 0.55,
+                    touchAction: 'none',
+                  }}
+                  title={`Step ${step + 1} · ${st.v} — click to remove (mirrors the step strip)`}
                 />
               );
             })}
