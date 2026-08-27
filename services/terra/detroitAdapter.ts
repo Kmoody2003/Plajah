@@ -18,8 +18,10 @@
 
 import type { OlrSource } from './olr';
 import { geohashEncode } from './geohash';
+import { addressKey, businessNameKey } from './normalize';
 import type {
   TerraParcel, TerraCivicRecord, GeoJsonGeometry, TerraEnergyReading, TerraBuildingEnergy,
+  TerraBusinessLicense, TerraRentalCompliance, RentalComplianceState,
 } from './terraTypes';
 
 const ORG = 'https://services2.arcgis.com/qvkbeam7Wirps6zC/arcgis/rest/services';
@@ -36,6 +38,10 @@ export const DETROIT_LAYERS = {
   // Building energy/water meter readings under the benchmarking ordinance.
   // Keyed by `parcel_id`, so it joins the parcel spine by identity.
   energyUsage:      `${ORG}/energy_water_benchmarking_usage/FeatureServer/0`,
+  // Active business licence register — carries parcel_id; business verification.
+  businessLicenses: `${ORG}/bseed_active_business_licenses/FeatureServer/0`,
+  // Rental compliance (registered vs certified) — the strongest civic metric.
+  rentalComplianceFull: `${ORG}/bseed_building_rental_compliance_public_view/FeatureServer/0`,
   // Street centrelines (39,233 named segments). This is Terra's basemap: the
   // city's OWN streets, under the same open-data posture as everything else
   // here — no third-party tile provider, no API key, nothing to licence.
@@ -452,6 +458,86 @@ export function aggregateEnergyReadings(readings: TerraEnergyReading[]): TerraBu
       lastReading: last,
       readingCount: rows.length,
       sources: [source('energyUsage')],
+      updatedAt: Date.now(),
+    });
+  }
+  return out;
+}
+
+// ─── Business licences (city register) ───────────────────────────────────────
+
+export async function fetchDetroitBusinessLicenses(opts: ArcGisQueryOptions = {}): Promise<TerraBusinessLicense[]> {
+  const features = await queryArcGisGeoJson(DETROIT_LAYERS.businessLicenses, {
+    returnGeometry: false,
+    outFields: 'record_id,business_name,license_type,license_category,address,parcel_id,neighborhood,council_district,longitude,latitude,expiration_date',
+    ...opts,
+  });
+  const out: TerraBusinessLicense[] = [];
+  for (const f of features) {
+    const p = f?.properties ?? {};
+    const recordId = str(pick(p, 'record_id'));
+    const businessName = str(pick(p, 'business_name'));
+    if (!recordId || !businessName) continue;
+    const address = str(pick(p, 'address'));
+    out.push({
+      id: `detroit:${recordId}`,
+      jurisdiction: 'detroit',
+      recordId,
+      businessName,
+      nameKey: businessNameKey(businessName),
+      licenseType: str(pick(p, 'license_type')),
+      licenseCategory: str(pick(p, 'license_category')),
+      address,
+      addressKey: addressKey(address) || undefined,
+      parcelNumber: str(pick(p, 'parcel_id')),
+      neighborhood: str(pick(p, 'neighborhood')),
+      councilDistrict: str(pick(p, 'council_district')),
+      lat: num(pick(p, 'latitude')),
+      lng: num(pick(p, 'longitude')),
+      expirationDate: isoDate(pick(p, 'expiration_date')),
+      sources: [source('businessLicenses')],
+      updatedAt: Date.now(),
+    });
+  }
+  return out;
+}
+
+// ─── Rental compliance (registered vs certified) ─────────────────────────────
+
+export async function fetchDetroitRentalCompliance(opts: ArcGisQueryOptions = {}): Promise<TerraRentalCompliance[]> {
+  const features = await queryArcGisGeoJson(DETROIT_LAYERS.rentalComplianceFull, {
+    returnGeometry: false,
+    outFields: 'parcel_id,parcel_address,record_addresses,current_reg_issued_date,current_cofc_issued_date,current_cofc_expired_date',
+    ...opts,
+  });
+  const out: TerraRentalCompliance[] = [];
+  for (const f of features) {
+    const p = f?.properties ?? {};
+    const parcelNumber = str(pick(p, 'parcel_id'));
+    if (!parcelNumber) continue;
+    const regIssued = isoDate(pick(p, 'current_reg_issued_date'));
+    const cofcIssued = isoDate(pick(p, 'current_cofc_issued_date'));
+    const registered = !!regIssued;
+    const certified = !!cofcIssued;
+    // A building can be certified without a captured reg date; treat certified as
+    // the stronger state regardless.
+    const state: RentalComplianceState = certified
+      ? 'CERTIFIED'
+      : registered ? 'REGISTERED_UNCERTIFIED' : 'UNKNOWN';
+    const address = str(pick(p, 'parcel_address')) ?? str(pick(p, 'record_addresses'));
+    out.push({
+      id: `detroit:${parcelNumber}`,
+      jurisdiction: 'detroit',
+      parcelNumber,
+      address,
+      addressKey: addressKey(address) || undefined,
+      state,
+      registered,
+      certified,
+      regIssuedDate: regIssued,
+      cofcIssuedDate: cofcIssued,
+      cofcExpiredDate: isoDate(pick(p, 'current_cofc_expired_date')),
+      sources: [source('rentalComplianceFull')],
       updatedAt: Date.now(),
     });
   }

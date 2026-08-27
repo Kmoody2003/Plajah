@@ -152,3 +152,38 @@ test('energy: collects building ids and carries a source', () => {
   assert.equal(rec.sources.length, 1);
   assert.match(rec.sources[0].system, /energyUsage/);
 });
+
+// ─── Normalisation keys (the join contract) ─────────────────────────────────
+import { addressKey, businessNameKey } from '../services/terra/normalize';
+
+test('addressKey: canonicalises suffix, case, punctuation', () => {
+  const k = addressKey('8156 Normile St.');
+  assert.equal(k, '8156 normile st');
+  assert.equal(addressKey('8156 NORMILE STREET'), k);
+  assert.equal(addressKey('8156   normile  st'), k);
+});
+
+test('addressKey: preserves meaningful directionals but normalises spelling', () => {
+  assert.equal(addressKey('123 Main St North'), '123 main st n');
+  // North and South must NOT collapse to the same building.
+  assert.notEqual(addressKey('123 Main St N'), addressKey('123 Main St S'));
+});
+
+test('addressKey: drops unit designators so a tenant matches their building', () => {
+  assert.equal(addressKey('8156 Normile St Apt 3'), '8156 normile st');
+  assert.equal(addressKey('500 Woodward Ave, Suite 1200'), '500 woodward ave');
+});
+
+test('businessNameKey: strips only trailing company suffix', () => {
+  assert.equal(businessNameKey('VISION TRANSPORTATION OF MI, LLC'), 'vision transportation of mi');
+  assert.equal(businessNameKey('Acme Inc.'), 'acme');
+  // A "Co" that is part of the name, not a suffix, survives.
+  assert.equal(businessNameKey('Co-op Market'), 'co op market');
+  // Distinct businesses stay distinct.
+  assert.notEqual(businessNameKey('Detroit Coffee Co'), businessNameKey('Detroit Coffee House'));
+});
+
+test('businessNameKey: expands ampersand, ignores case', () => {
+  assert.equal(businessNameKey('Smith & Sons LLC'), 'smith and sons');
+  assert.equal(businessNameKey('smith and sons'), 'smith and sons');
+});

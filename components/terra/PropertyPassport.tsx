@@ -22,13 +22,14 @@ import { motion } from 'motion/react';
 import {
   MapPin, ArrowLeft, Home, Ruler, Landmark, FileText, Hammer, AlertTriangle,
   Info, Fingerprint, Share2, CalendarClock, DollarSign, Building2, ClipboardList,
-  ExternalLink, ShieldCheck, Gauge,
+  ExternalLink, ShieldCheck, Gauge, Store, BadgeCheck, ShieldAlert,
 } from 'lucide-react';
 import type { UserProfile } from '../../types';
-import type { TerraParcel, TerraCivicRecord, CivicRecordKind, TerraBuildingEnergy } from '../../services/terra/terraTypes';
+import type { TerraParcel, TerraCivicRecord, CivicRecordKind, TerraBuildingEnergy, TerraBusinessLicense, TerraRentalCompliance } from '../../services/terra/terraTypes';
 import type { OpenListingRecord, OlrSource } from '../../services/terra/olr';
 import {
   fetchParcel, fetchListing, fetchCivicForParcel, fetchListingForParcel, fetchEnergyForParcel,
+  fetchRentalForParcel, fetchBusinessesForParcel,
 } from '../../services/terra/terraService';
 
 const ACCENT = '#FF8C00';
@@ -221,6 +222,96 @@ const EnergyPanel: React.FC<{ energy: TerraBuildingEnergy }> = ({ energy }) => {
   );
 };
 
+// ─── Rental compliance (registered vs certified) ────────────────────────────
+//
+// A tenant's right to know, made lookup-able. The three states are visually
+// distinct because the difference is the whole point: CERTIFIED (passed
+// inspection), REGISTERED_UNCERTIFIED (on the roll but never certified — the
+// gap), UNKNOWN (not a registered rental at all).
+
+const RentalPanel: React.FC<{ rental: TerraRentalCompliance }> = ({ rental }) => {
+  const certified = rental.state === 'CERTIFIED';
+  const gap = rental.state === 'REGISTERED_UNCERTIFIED';
+  const tone = certified ? '#3DD68C' : gap ? '#E8B33D' : '#6F7689';
+  const Icon = certified ? BadgeCheck : gap ? ShieldAlert : Info;
+
+  return (
+    <div>
+      <p className={`${label} mb-3 flex items-center gap-1.5`}>
+        <ShieldCheck size={11} /> Rental compliance
+      </p>
+      <div className={`${card} p-4`}>
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+               style={{ background: `${tone}1F`, color: tone }}>
+            <Icon size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[13px] font-black text-white leading-tight">
+              {certified ? 'Registered and certified' : gap ? 'Registered — not certified' : 'Not a registered rental'}
+            </p>
+            <p className="text-[11px] text-white/50 leading-relaxed mt-1">
+              {certified
+                ? 'The landlord holds a current certificate of compliance — the building passed its rental inspection.'
+                : gap
+                  ? 'On the rental registry, but with no current certificate of compliance on file. Under city ordinance a rental must be certified, not just registered.'
+                  : 'No rental registration is on file for this parcel.'}
+            </p>
+          </div>
+        </div>
+
+        {(rental.registered || rental.certified) && (
+          <div className="mt-3 pt-3 border-t border-white/[0.06] grid grid-cols-2 gap-x-4">
+            <Row k="Registered" v={rental.registered ? fmtDate(rental.regIssuedDate) || 'Yes' : 'No'} />
+            <Row k="Certified" v={rental.certified ? fmtDate(rental.cofcIssuedDate) || 'Yes' : 'No'} />
+          </div>
+        )}
+      </div>
+      <Vintage sources={rental.sources} />
+    </div>
+  );
+};
+
+// ─── Businesses at this address (licence register) ───────────────────────────
+
+const BusinessPanel: React.FC<{ businesses: TerraBusinessLicense[] }> = ({ businesses }) => {
+  const today = new Date().toISOString().slice(0, 10);
+  return (
+    <div>
+      <p className={`${label} mb-3 flex items-center gap-1.5`}>
+        <Store size={11} /> Licensed here
+      </p>
+      <div className={`${card} p-4`}>
+        <div className="flex flex-col gap-2.5">
+          {businesses.slice(0, 8).map(b => {
+            const active = !b.expirationDate || b.expirationDate >= today;
+            return (
+              <div key={b.id} className="flex items-start gap-2.5">
+                <BadgeCheck size={14} className="mt-0.5 shrink-0" style={{ color: active ? '#3DD68C' : '#6F7689' }} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12px] font-bold text-white/85 leading-tight truncate">{b.businessName}</p>
+                  <p className="text-[10px] text-white/40 leading-tight mt-0.5">
+                    {b.licenseType || 'Licensed'}
+                    {b.expirationDate ? ` · ${active ? 'expires' : 'expired'} ${fmtDate(b.expirationDate)}` : ''}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-start gap-2">
+          <Info size={11} className="text-white/25 mt-0.5 shrink-0" />
+          <p className="text-[10px] text-white/35 leading-relaxed">
+            Active licences the city holds for this parcel. This is the public record a
+            business can be verified against.
+          </p>
+        </div>
+      </div>
+      <Vintage sources={businesses[0]?.sources} />
+    </div>
+  );
+};
+
 // ─── The record timeline (history, not status) ──────────────────────────────
 
 interface TimelineItem {
@@ -291,6 +382,8 @@ export const PropertyPassport: React.FC<PropertyPassportProps> = ({ parcelId, li
   const [listing, setListing] = useState<OpenListingRecord | null>(null);
   const [civic, setCivic] = useState<TerraCivicRecord[]>([]);
   const [energy, setEnergy] = useState<TerraBuildingEnergy | null>(null);
+  const [rental, setRental] = useState<TerraRentalCompliance | null>(null);
+  const [businesses, setBusinesses] = useState<TerraBusinessLicense[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
@@ -314,9 +407,11 @@ export const PropertyPassport: React.FC<PropertyPassportProps> = ({ parcelId, li
       const pin = resolvedParcel?.parcelNumber || resolvedListing?.ParcelNumber;
       // Civic history and benchmarking both hang off the parcel number; fetch
       // together so one slow read doesn't stage the page in twice.
-      const [civicRecords, energyRecord] = await Promise.all([
+      const [civicRecords, energyRecord, rentalRecord, bizRecords] = await Promise.all([
         pin ? fetchCivicForParcel(pin, 60) : Promise.resolve([]),
         pin ? fetchEnergyForParcel(`detroit:${pin}`) : Promise.resolve(null),
+        pin ? fetchRentalForParcel(`detroit:${pin}`) : Promise.resolve(null),
+        pin ? fetchBusinessesForParcel(pin, 20) : Promise.resolve([]),
       ]);
 
       if (cancelled) return;
@@ -324,6 +419,8 @@ export const PropertyPassport: React.FC<PropertyPassportProps> = ({ parcelId, li
       setListing(resolvedListing);
       setCivic(civicRecords);
       setEnergy(energyRecord);
+      setRental(rentalRecord);
+      setBusinesses(bizRecords);
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -461,6 +558,7 @@ export const PropertyPassport: React.FC<PropertyPassportProps> = ({ parcelId, li
             )}
 
             {/* Only for buildings that report — see the honesty note on EnergyPanel. */}
+            {rental && rental.state !== 'UNKNOWN' && <div className="mt-6"><RentalPanel rental={rental} /></div>}
             {energy && <div className="mt-6"><EnergyPanel energy={energy} /></div>}
           </div>
 
@@ -490,6 +588,8 @@ export const PropertyPassport: React.FC<PropertyPassportProps> = ({ parcelId, li
                 </div>
               )}
             </div>
+
+            {businesses.length > 0 && <div className="mt-6"><BusinessPanel businesses={businesses} /></div>}
           </div>
         </div>
 

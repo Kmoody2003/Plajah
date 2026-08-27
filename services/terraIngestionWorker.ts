@@ -16,14 +16,15 @@
  */
 
 import {
-  CIVIC_FEEDS, aggregateEnergyReadings, fetchDetroitCivic, fetchDetroitEnergyReadings,
-  fetchDetroitParcels, type CivicFeed,
+  CIVIC_FEEDS, aggregateEnergyReadings, fetchDetroitBusinessLicenses, fetchDetroitCivic,
+  fetchDetroitEnergyReadings, fetchDetroitParcels, fetchDetroitRentalCompliance, type CivicFeed,
 } from './terra/detroitAdapter';
 // Server-side persistence: the worker runs unauthenticated, so it writes through
 // the service account (rules-exempt), NOT the client-SDK terraService — otherwise
 // every write is denied by `terraParcels write: if isAdmin()`.
 import {
-  getCursorServer, recordRunServer, saveCivicServer, saveEnergyServer, saveParcelsServer, setCursorServer,
+  getCursorServer, recordRunServer, saveBusinessServer, saveCivicServer, saveEnergyServer,
+  saveParcelsServer, saveRentalServer, setCursorServer,
 } from './terra/terraServerWrite';
 import type { TerraIngestionScope, TerraIngestionSummary } from './terra/terraTypes';
 
@@ -46,15 +47,15 @@ export interface TerraIngestionOptions {
 }
 
 /** How much each scope pulls. `deep` is a full-city refresh and takes a while. */
-function planFor(scope: TerraIngestionScope): { parcels: number; civicPerFeed: number; feeds: CivicFeed[]; energy: boolean } {
+function planFor(scope: TerraIngestionScope): { parcels: number; civicPerFeed: number; feeds: CivicFeed[]; extras: boolean } {
   switch (scope) {
     case 'lite':
-      return { parcels: 500, civicPerFeed: 250, feeds: ['permits', 'blightTickets'], energy: false };
+      return { parcels: 500, civicPerFeed: 250, feeds: ['permits', 'blightTickets'], extras: false };
     case 'deep':
-      return { parcels: 0, civicPerFeed: 5000, feeds: [...CIVIC_FEEDS], energy: true };
+      return { parcels: 0, civicPerFeed: 5000, feeds: [...CIVIC_FEEDS], extras: true };
     case 'standard':
     default:
-      return { parcels: 5000, civicPerFeed: 1000, feeds: [...CIVIC_FEEDS], energy: true };
+      return { parcels: 5000, civicPerFeed: 1000, feeds: [...CIVIC_FEEDS], extras: true };
   }
 }
 
@@ -112,11 +113,12 @@ async function runTerraIngestion(options: TerraIngestionOptions = {}): Promise<T
     }
   }
 
-  // ── Building energy & water (benchmarking ordinance) ──
-  // The whole layer is ~52k readings across ~112 reporting parcels, so it's
-  // pulled complete and rolled up in memory rather than cursored: the write is
-  // ~112 docs. Skipped on `lite`, which exists to be quick.
-  if (plan.energy) {
+  // ── Whole-layer joins (energy, business, rental) ──
+  // Each is small enough to pull complete and write in one pass rather than
+  // cursor: energy ~112 docs, business ~1.9k, rental ~22.6k. Skipped on `lite`,
+  // which exists to be quick. Each is independently guarded so one failing
+  // source can't sink the others.
+  if (plan.extras) {
     try {
       const readings = await fetchDetroitEnergyReadings({ signal: options.signal });
       const rollups = aggregateEnergyReadings(readings);
@@ -125,6 +127,23 @@ async function runTerraIngestion(options: TerraIngestionOptions = {}): Promise<T
       counts.energySaved = await saveEnergyServer(rollups);
     } catch (err: any) {
       errors.push(`energy: ${err?.message || err}`);
+    }
+
+    try {
+      const licenses = await fetchDetroitBusinessLicenses({ signal: options.signal });
+      counts.businessFetched = licenses.length;
+      counts.businessSaved = await saveBusinessServer(licenses);
+    } catch (err: any) {
+      errors.push(`business: ${err?.message || err}`);
+    }
+
+    try {
+      const rental = await fetchDetroitRentalCompliance({ signal: options.signal });
+      counts.rentalFetched = rental.length;
+      counts.rentalCertified = rental.filter(r => r.certified).length;
+      counts.rentalSaved = await saveRentalServer(rental);
+    } catch (err: any) {
+      errors.push(`rental: ${err?.message || err}`);
     }
   }
 

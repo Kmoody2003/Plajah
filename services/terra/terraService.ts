@@ -19,13 +19,16 @@ import { collection, deleteDoc, doc, getDoc, getDocs, limit as fsLimit, query, s
 import { db } from '../backendService';
 import type { OpenListingRecord } from './olr';
 import { hashListingRecord, validateListingRecord } from './olr';
-import { packParcel, unpackParcel, type TerraParcel, type TerraCivicRecord, type ZoningRule, type TerraIngestionSummary, type TerraBuildingEnergy } from './terraTypes';
+import { packParcel, unpackParcel, type TerraParcel, type TerraCivicRecord, type ZoningRule, type TerraIngestionSummary, type TerraBuildingEnergy, type TerraBusinessLicense, type TerraRentalCompliance } from './terraTypes';
+import { addressKey, businessNameKey } from './normalize';
 import { coverBounds, type GeoBounds } from './geohash';
 
 export const TERRA_COLLECTIONS = {
   parcels: 'terraParcels',
   civic: 'terraCivic',
   energy: 'terraEnergy',
+  business: 'terraBusiness',
+  rental: 'terraRental',
   zoningRules: 'terraZoningRules',
   listings: 'terraListings',
   runs: 'terraIngestionRuns',
@@ -195,6 +198,76 @@ export async function fetchEnergyForParcel(parcelId: string): Promise<TerraBuild
   try {
     const snap = await getDoc(doc(db, TERRA_COLLECTIONS.energy, parcelId));
     return snap.exists() ? ((snap.data() as TerraEnvelope<TerraBuildingEnergy>).data ?? null) : null;
+  } catch { return null; }
+}
+
+// ─── Business verification (city licence register) ───────────────────────────
+
+/**
+ * Does the city hold an ACTIVE licence for this business at this address?
+ *
+ * Equality-only on normalized keys (Firestore can't fuzzy-match), so the caller
+ * gets a definite match or nothing — never a ranked guess. Expiry is checked
+ * client-side against `now` so an expired licence never reads as verification.
+ */
+export async function verifyBusiness(name: string, address?: string): Promise<TerraBusinessLicense | null> {
+  const nameKey = businessNameKey(name);
+  if (!nameKey) return null;
+  try {
+    const clauses = [where('data.nameKey', '==', nameKey)];
+    const addrKey = address ? addressKey(address) : '';
+    if (addrKey) clauses.push(where('data.addressKey', '==', addrKey));
+    const snap = await getDocs(query(collection(db, TERRA_COLLECTIONS.business), ...clauses, fsLimit(10)));
+    const now = new Date().toISOString().slice(0, 10);
+    const active = snap.docs
+      .map(d => (d.data() as TerraEnvelope<TerraBusinessLicense>).data)
+      .filter((r): r is TerraBusinessLicense => Boolean(r) && (!r.expirationDate || r.expirationDate >= now));
+    // Prefer the licence with the furthest expiry — the most current record.
+    active.sort((a, b) => (b.expirationDate ?? '').localeCompare(a.expirationDate ?? ''));
+    return active[0] ?? null;
+  } catch { return null; }
+}
+
+/** All active licences recorded on a parcel (a building can host several). */
+export async function fetchBusinessesForParcel(parcelNumber: string, max = 50): Promise<TerraBusinessLicense[]> {
+  try {
+    const snap = await getDocs(query(
+      collection(db, TERRA_COLLECTIONS.business),
+      where('data.parcelNumber', '==', parcelNumber),
+      fsLimit(max),
+    ));
+    return snap.docs.map(d => (d.data() as TerraEnvelope<TerraBusinessLicense>).data).filter(Boolean);
+  } catch { return []; }
+}
+
+// ─── Rental compliance (registered vs certified) ─────────────────────────────
+
+/** Compliance for one parcel. */
+export async function fetchRentalForParcel(parcelId: string): Promise<TerraRentalCompliance | null> {
+  try {
+    const snap = await getDoc(doc(db, TERRA_COLLECTIONS.rental, parcelId));
+    return snap.exists() ? ((snap.data() as TerraEnvelope<TerraRentalCompliance>).data ?? null) : null;
+  } catch { return null; }
+}
+
+/**
+ * Compliance for a typed address — the tenant-facing lookup. Equality on the
+ * normalized address key; returns null when no rental building matches (which
+ * means "not a registered rental", not "certified").
+ */
+export async function fetchRentalByAddress(address: string): Promise<TerraRentalCompliance | null> {
+  const key = addressKey(address);
+  if (!key) return null;
+  try {
+    const snap = await getDocs(query(
+      collection(db, TERRA_COLLECTIONS.rental),
+      where('data.addressKey', '==', key),
+      fsLimit(5),
+    ));
+    const rows = snap.docs.map(d => (d.data() as TerraEnvelope<TerraRentalCompliance>).data).filter(Boolean) as TerraRentalCompliance[];
+    // If several buildings share a key, surface the certified one first.
+    rows.sort((a, b) => Number(b.certified) - Number(a.certified));
+    return rows[0] ?? null;
   } catch { return null; }
 }
 

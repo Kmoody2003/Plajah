@@ -181,6 +181,63 @@ export interface TerraEnergyReading {
   endDate?: string;
 }
 
+// ─── Business licences (city register) ───────────────────────────────────────
+//
+// Detroit's active-licence register carries `parcel_id`, a business name, a
+// category and an expiry. It gives Plajah a business-verification primitive that
+// checks a claim against the CITY'S record — no dependence on Google Business
+// Profile. Doc id `detroit:<record_id>`; also stored under normalized name and
+// address keys for equality lookup (Firestore can't do fuzzy matching).
+
+export interface TerraBusinessLicense {
+  id: string;
+  jurisdiction: TerraJurisdiction;
+  recordId: string;
+  businessName: string;
+  /** businessNameKey(businessName) — the equality-lookup key. */
+  nameKey: string;
+  licenseType?: string;
+  licenseCategory?: string;
+  address?: string;
+  /** addressKey(address) — the equality-lookup key. */
+  addressKey?: string;
+  parcelNumber?: string;
+  neighborhood?: string;
+  councilDistrict?: string;
+  lat?: number;
+  lng?: number;
+  /** ISO date; a licence past this is expired, not active. */
+  expirationDate?: string;
+  sources: OlrSource[];
+  updatedAt: number;
+}
+
+// ─── Rental compliance (registered vs certified) ─────────────────────────────
+//
+// The gap between "registered" and "certified" is the strongest civic metric in
+// the dataset. This type is a per-BUILDING rollup keyed to the parcel and to a
+// normalized address, so a tenant can look up their own building. Verified
+// 2026-08-27: 22,406 registered vs 10,370 certified city-wide.
+
+export type RentalComplianceState = 'CERTIFIED' | 'REGISTERED_UNCERTIFIED' | 'UNKNOWN';
+
+export interface TerraRentalCompliance {
+  id: string;
+  jurisdiction: TerraJurisdiction;
+  parcelNumber: string;
+  address?: string;
+  /** addressKey(address) — the equality-lookup key a tenant search hits. */
+  addressKey?: string;
+  state: RentalComplianceState;
+  registered: boolean;
+  certified: boolean;
+  regIssuedDate?: string;
+  cofcIssuedDate?: string;
+  cofcExpiredDate?: string;
+  sources: OlrSource[];
+  updatedAt: number;
+}
+
 // ─── Civic records ───────────────────────────────────────────────────────────
 
 export type CivicRecordKind =

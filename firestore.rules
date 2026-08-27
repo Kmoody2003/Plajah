@@ -2984,6 +2984,16 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+    // Active business licence register — public record, drives verification.
+    match /terraBusiness/{recordId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    // Rental compliance (registered vs certified) — a tenant's own building.
+    match /terraRental/{parcelId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
     // Zoning rules are hand-encoded from the ordinance and drive a buildability
     // estimate — admin-only, and versioned rather than edited in place.
     match /terraZoningRules/{ruleId} {
