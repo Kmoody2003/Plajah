@@ -510,7 +510,15 @@ export async function fetchDetroitRentalCompliance(opts: ArcGisQueryOptions = {}
     outFields: 'parcel_id,parcel_address,record_addresses,current_reg_issued_date,current_cofc_issued_date,current_cofc_expired_date',
     ...opts,
   });
-  const out: TerraRentalCompliance[] = [];
+  // ⚠️ Dedupe by parcel. The source carries up to ~33 rows for one parcel (per
+  // building/unit), but our doc id is `detroit:<parcelNumber>` and Firestore's
+  // batchWrite REJECTS a batch containing two writes to the same document — so
+  // un-deduped, most chunks 400 and the write silently loses ~90% of records.
+  // One rollup per parcel is also the correct shape: keep the strongest state,
+  // and within a state the most recent dates.
+  const byParcel = new Map<string, TerraRentalCompliance>();
+  const rank = (s: RentalComplianceState) => (s === 'CERTIFIED' ? 2 : s === 'REGISTERED_UNCERTIFIED' ? 1 : 0);
+
   for (const f of features) {
     const p = f?.properties ?? {};
     const parcelNumber = str(pick(p, 'parcel_id'));
@@ -519,13 +527,11 @@ export async function fetchDetroitRentalCompliance(opts: ArcGisQueryOptions = {}
     const cofcIssued = isoDate(pick(p, 'current_cofc_issued_date'));
     const registered = !!regIssued;
     const certified = !!cofcIssued;
-    // A building can be certified without a captured reg date; treat certified as
-    // the stronger state regardless.
     const state: RentalComplianceState = certified
       ? 'CERTIFIED'
       : registered ? 'REGISTERED_UNCERTIFIED' : 'UNKNOWN';
     const address = str(pick(p, 'parcel_address')) ?? str(pick(p, 'record_addresses'));
-    out.push({
+    const rec: TerraRentalCompliance = {
       id: `detroit:${parcelNumber}`,
       jurisdiction: 'detroit',
       parcelNumber,
@@ -539,9 +545,16 @@ export async function fetchDetroitRentalCompliance(opts: ArcGisQueryOptions = {}
       cofcExpiredDate: isoDate(pick(p, 'current_cofc_expired_date')),
       sources: [source('rentalComplianceFull')],
       updatedAt: Date.now(),
-    });
+    };
+    const prev = byParcel.get(rec.id);
+    if (!prev) { byParcel.set(rec.id, rec); continue; }
+    // Keep the record that better represents the parcel's compliance.
+    const better = rank(rec.state) !== rank(prev.state)
+      ? rank(rec.state) > rank(prev.state)
+      : (rec.cofcIssuedDate ?? rec.regIssuedDate ?? '') > (prev.cofcIssuedDate ?? prev.regIssuedDate ?? '');
+    if (better) byParcel.set(rec.id, rec);
   }
-  return out;
+  return [...byParcel.values()];
 }
 
 // ─── Streets (Terra's basemap) ───────────────────────────────────────────────

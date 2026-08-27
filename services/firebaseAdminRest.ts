@@ -247,6 +247,16 @@ export async function fsDelete(path: string): Promise<boolean> {
  *  need no URL-path encoding — and per-write failures are logged, not swallowed,
  *  because "saved 0, silently" is exactly the bug class this replaced. */
 export async function fsBatchWrite(docs: { path: string; data: Record<string, unknown> }[]): Promise<number> {
+  // ⚠️ Firestore's batchWrite REJECTS the whole request (HTTP 400) if it
+  // contains two writes to the same document path. A caller that passes
+  // duplicate paths would otherwise lose entire 500-doc chunks silently — the
+  // exact bug that dropped ~90% of a rental-compliance run. Collapse to the
+  // last write per path (idempotent create-or-replace, so last wins).
+  if (docs.length) {
+    const byPath = new Map<string, { path: string; data: Record<string, unknown> }>();
+    for (const d of docs) byPath.set(d.path, d);
+    if (byPath.size !== docs.length) docs = [...byPath.values()];
+  }
   let ok = 0;
   for (let start = 0; start < docs.length; start += 500) {
     const chunk = docs.slice(start, start + 500);
