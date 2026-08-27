@@ -23,12 +23,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import {
-  MapPin, Layers, Ruler, Building2, Download, Info, RefreshCw,
+  MapPin, Layers, Ruler, Download, Info, RefreshCw,
   FileText, AlertTriangle, Home, Hammer, Landmark, Search, ArrowLeft,
 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import type { TerraParcel, TerraCivicRecord, CivicRecordKind } from '../../services/terra/terraTypes';
-import { fetchParcelsPage, fetchCivicForParcel } from '../../services/terra/terraService';
+import { fetchParcelsInBounds, clearParcelCellCache, fetchCivicForParcel } from '../../services/terra/terraService';
 
 /** Terra's accent: Plajah's primary orange, read here as a surveyor's flag. */
 const ACCENT = '#FF8C00';
@@ -78,12 +78,16 @@ const ParcelMap: React.FC<{
   parcels: TerraParcel[];
   selectedId: string | null;
   onSelect: (p: TerraParcel) => void;
-}> = ({ parcels, selectedId, onSelect }) => {
+  /** Fires on every settle of the view (and once on init) — the shell loads parcels for it. */
+  onViewport?: (v: { south: number; west: number; north: number; east: number; zoom: number }) => void;
+}> = ({ parcels, selectedId, onSelect, onViewport }) => {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const layerRef = useRef<any>(null);
   const selectRef = useRef(onSelect);
   selectRef.current = onSelect;
+  const viewportRef = useRef(onViewport);
+  viewportRef.current = onViewport;
   // Flips when the async init lands, so the redraw effect re-runs. Without it,
   // parcels that arrive BEFORE the map exists bail out of the redraw effect and
   // nothing ever draws (the deps don't change again).
@@ -100,9 +104,28 @@ const ParcelMap: React.FC<{
         center: DETROIT_CENTER,
         zoom: 15,
         zoomControl: true,
-        attributionControl: false,
-        // No tile layer by design — see the header note.
+        attributionControl: false, // attribution rendered in the footer strip instead
+        // Canvas renderer: the viewport loader can put thousands of parcel
+        // polygons on screen, which SVG cannot sustain.
+        preferCanvas: true,
       });
+      // Dark street basemap under the parcel fabric — parcels alone gave no
+      // sense of place. CARTO's dark tiles keep the ink-on-black aesthetic;
+      // attribution (© OpenStreetMap contributors © CARTO) lives in the footer.
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        subdomains: 'abcd',
+        maxZoom: 20,
+        opacity: 0.9,
+      }).addTo(map);
+      const report = () => {
+        const b = map.getBounds();
+        viewportRef.current?.({
+          south: b.getSouth(), west: b.getWest(), north: b.getNorth(), east: b.getEast(),
+          zoom: map.getZoom(),
+        });
+      };
+      map.on('moveend', report);
+      report();
       mapRef.current = map;
       // ⚠️ The view animates in, so the container is often 0×0 (or hidden) at
       // init. Leaflet caches that size and the vector renderer then draws
@@ -159,16 +182,28 @@ const ParcelMap: React.FC<{
       }).addTo(map);
 
       layerRef.current = group;
-      try {
-        // Size may still be stale from an animated-in mount — re-measure before
-        // fitting, or the fit computes against a 0×0 viewport.
-        map.invalidateSize(false);
-        const bounds = group.getBounds();
-        if (bounds?.isValid()) map.fitBounds(bounds, { padding: [28, 28], maxZoom: 17 });
-      } catch { /* single degenerate geometry — keep the default view */ }
+      // Size may still be stale from an animated-in mount — re-measure so the
+      // renderer isn't drawing into a cached 0×0 viewport. Deliberately NO
+      // fitBounds here: parcels now follow the viewport, so fitting to them
+      // would fight every pan.
+      try { map.invalidateSize(false); } catch { /* mid-teardown */ }
     })();
     return () => { cancelled = true; };
   }, [parcels, selectedId, mapReady]);
+
+  // Bring a selection made from the sidebar list into view.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !selectedId) return;
+    const p = parcels.find(x => x.id === selectedId);
+    if (!p || p.centroidLat === undefined || p.centroidLng === undefined) return;
+    try {
+      if (!map.getBounds().contains([p.centroidLat, p.centroidLng])) {
+        map.panTo([p.centroidLat, p.centroidLng]);
+      }
+    } catch { /* mid-teardown */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
 
   return <div ref={hostRef} className="w-full h-full" style={{ background: '#07080B' }} />;
 };
@@ -313,17 +348,42 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
   const [parcels, setParcels] = useState<TerraParcel[]>([]);
   const [selected, setSelected] = useState<TerraParcel | null>(null);
   const [loading, setLoading] = useState(true);
+  const [zoomedOut, setZoomedOut] = useState(false);
   const [activeLayers, setActiveLayers] = useState<Set<string>>(new Set(['PARCELS', 'BLIGHT_TICKET']));
   const [q, setQ] = useState('');
 
-  const load = useCallback(() => {
-    setLoading(true);
-    fetchParcelsPage(500)
-      .then(setParcels)
-      .finally(() => setLoading(false));
+  // Viewport-driven loading: the map reports every settled view; we debounce,
+  // gate on zoom (a city-wide read would be ~378k docs), and fetch by geohash
+  // cell — cached per cell in terraService, so panning back is free.
+  const MIN_PARCEL_ZOOM = 14;
+  const viewportTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastViewport = useRef<{ south: number; west: number; north: number; east: number; zoom: number } | null>(null);
+
+  const loadViewport = useCallback((immediate = false) => {
+    if (viewportTimer.current) clearTimeout(viewportTimer.current);
+    viewportTimer.current = setTimeout(() => {
+      const vp = lastViewport.current;
+      if (!vp) return;
+      if (vp.zoom < MIN_PARCEL_ZOOM) { setZoomedOut(true); setLoading(false); return; }
+      setZoomedOut(false);
+      setLoading(true);
+      fetchParcelsInBounds(vp)
+        .then(setParcels)
+        .finally(() => setLoading(false));
+    }, immediate ? 0 : 450);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  const handleViewport = useCallback((v: { south: number; west: number; north: number; east: number; zoom: number }) => {
+    lastViewport.current = v;
+    loadViewport();
+  }, [loadViewport]);
+
+  const load = useCallback(() => {
+    clearParcelCellCache();
+    loadViewport(true);
+  }, [loadViewport]);
+
+  useEffect(() => () => { if (viewportTimer.current) clearTimeout(viewportTimer.current); }, []);
 
   const toggleLayer = (id: string) => setActiveLayers(prev => {
     const next = new Set(prev);
@@ -404,7 +464,7 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
             <div className="mt-5 pt-4 border-t border-white/[0.06]">
               <p className={`${label} mb-2`}>Offline</p>
               <div className={`${card} p-3`}>
-                <p className="text-[11px] text-white/60 font-semibold">{fmtNum(parcels.length)} parcels loaded</p>
+                <p className="text-[11px] text-white/60 font-semibold">{fmtNum(parcels.length)} parcels in view</p>
                 <button disabled
                   className="w-full mt-2 py-2 rounded-lg bg-white/[0.04] border border-white/[0.07] text-white/30 text-[9px] font-black uppercase tracking-widest cursor-not-allowed"
                   title="Neighbourhood packs land with the offline layer.">
@@ -414,40 +474,29 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
             </div>
           </div>
 
-          {/* Map */}
+          {/* Map — always mounted: the viewport drives the parcel loading. */}
           <div className="relative min-h-[320px] bg-[#07080B]">
-            {loading ? (
-              <div className="absolute inset-0 flex items-center justify-center gap-3 text-white/30">
-                <div className="w-5 h-5 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                <span className="text-xs">Loading parcels…</span>
+            <ParcelMap parcels={visible} selectedId={selected?.id ?? null} onSelect={setSelected} onViewport={handleViewport} />
+
+            {loading && (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[500] flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur border border-white/10 text-white/50 pointer-events-none">
+                <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                <span className="text-[10px] font-semibold uppercase tracking-widest">Loading parcels</span>
               </div>
-            ) : visible.length === 0 ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-8">
-                <div className="w-16 h-16 rounded-3xl border border-dashed border-white/15 flex items-center justify-center text-white/20">
-                  <Building2 size={22} />
-                </div>
-                <div className="max-w-sm">
-                  <p className="text-sm font-black uppercase tracking-widest text-white/40 mb-2">
-                    {parcels.length === 0 ? 'No parcels ingested yet' : 'Nothing matches that search'}
-                  </p>
-                  <p className="text-xs text-white/25 leading-relaxed">
-                    {parcels.length === 0
-                      ? 'The parcel spine populates from the city’s open data. An admin can run an ingestion pass to load Detroit.'
-                      : 'Try an address fragment or a parcel number.'}
-                  </p>
-                </div>
+            )}
+            {!loading && zoomedOut && (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[500] px-3 py-1.5 rounded-full bg-black/60 backdrop-blur border border-white/10 text-white/50 pointer-events-none">
+                <span className="text-[10px] font-semibold uppercase tracking-widest">Zoom in to load parcels</span>
               </div>
-            ) : (
-              <ParcelMap parcels={visible} selectedId={selected?.id ?? null} onSelect={setSelected} />
             )}
 
             {/* Scale / attribution strip */}
-            <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between pointer-events-none">
+            <div className="absolute bottom-2 left-3 right-3 z-[500] flex items-center justify-between pointer-events-none">
               <span className="text-[9px] font-mono text-white/25 tracking-wider">
-                {visible.length ? `${fmtNum(visible.length)} parcels shown` : ''}
+                {visible.length ? `${fmtNum(visible.length)} parcels in view` : ''}
               </span>
               <span className="text-[9px] font-mono text-white/20 tracking-wider">
-                City of Detroit Open Data · as-is
+                City of Detroit Open Data · as-is · basemap © OpenStreetMap contributors © CARTO
               </span>
             </div>
           </div>

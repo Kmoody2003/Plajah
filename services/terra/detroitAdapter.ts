@@ -17,6 +17,7 @@
  */
 
 import type { OlrSource } from './olr';
+import { geohashEncode } from './geohash';
 import type { TerraParcel, TerraCivicRecord, GeoJsonGeometry } from './terraTypes';
 
 const ORG = 'https://services2.arcgis.com/qvkbeam7Wirps6zC/arcgis/rest/services';
@@ -197,6 +198,7 @@ export function normalizeParcel(feature: any): TerraParcel | null {
     geometry,
     centroidLat: lat,
     centroidLng: lng,
+    geohash: lat !== undefined && lng !== undefined ? geohashEncode(lat, lng, 7) : undefined,
     frontageFt: num(pick(p, 'frontage')),
     depthFt: num(pick(p, 'depth')),
     lotSqFt: num(pick(p, 'total_square_footage', 'total_sq_ft')),
