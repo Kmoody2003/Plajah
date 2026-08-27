@@ -157,6 +157,8 @@ export const MachineView: React.FC<MachineViewProps> = (p) => {
           onSelectPad={p.onSelectPad}
           onDropSample={p.onLoadSampleFile}
           onAddToPad={p.onPickInstrumentForPad}
+          onEditPadInstrument={p.onEditPadInstrument}
+          onMutate={p.onMutate}
           melosSamples={p.melosSamples}
           noteRepeat={{ on: noteRepeat, cyclesPerBeat: REPEAT_RATES[repeatRate].cycles, bpm: p.doc.bpm }}
           velocity16={vel16}

@@ -49,7 +49,7 @@ import { BajoPanel } from './instrument/BajoPanel';
 import { isSuite } from '../../../services/melos/beats/instrumentFactory';
 import { SpectraPanel } from './mixer/SpectraPanel';
 import { MuseLibrary } from './muse/MuseLibrary';
-import { addPadInstrument, addInstrumentToNextPad } from '../../../services/melos/beats/instrumentFactory';
+import { addPadInstrument, addInstrumentToNextPad, detachPadInstrument } from '../../../services/melos/beats/instrumentFactory';
 import { SELECT, WASH_BG } from './theme';
 
 export interface BeatsLaunchPayload {
@@ -323,6 +323,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     mutate((d) => {
       const p = d.kit[padIdx];
       if (!p) return;
+      detachPadInstrument(d, padIdx); // replacing an instrument pad with a sample — drop its track
       p.source = 'sample';
       p.sample = result.ref;
       p.name = name.slice(0, 18);
@@ -438,6 +439,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       mutate((d) => {
         const p = d.kit[padIdx];
         if (!p) return;
+        detachPadInstrument(d, padIdx); // replacing an instrument pad with a sample — drop its track
         p.source = 'sample';
         p.sample = ingested.ref;
         p.name = ref.title.slice(0, 18);
@@ -1005,13 +1007,18 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
             const padIdx = padPickerFor;
             let newId = '';
             mutate((d) => {
+              // Replacing a pad that already had an instrument? Drop the old track first so it
+              // doesn't orphan (a wasted worklet + phantom channel).
+              const hadInstrument = !!d.kit[padIdx]?.instrumentTrackId;
+              detachPadInstrument(d, padIdx);
               newId = addPadInstrument(d, padIdx, type);
               const pad = d.kit[padIdx];
               if (pad) {
-                const wasEmpty = pad.empty;
+                const relabel = pad.empty || pad.source === 'sample' || hadInstrument;
                 pad.source = 'instrument'; pad.instrumentTrackId = newId; pad.empty = false;
+                pad.sample = null;
                 if (pad.instrumentNote === undefined) pad.instrumentNote = 60;
-                if (wasEmpty) { pad.name = type === 'kera' ? 'KERA' : 'ONDA'; pad.color = type === 'kera' ? '#00DAF3' : '#B84DFF'; }
+                if (relabel) { pad.name = type === 'kera' ? 'KERA' : 'ONDA'; pad.color = type === 'kera' ? '#00DAF3' : '#B84DFF'; }
               }
             });
             void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());

@@ -6,6 +6,8 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import type { GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { GROUP_NAMES } from '../../../../services/melos/beats/grooveDoc';
+import { clearPad } from '../../../../services/melos/beats/instrumentFactory';
+import { useContextMenu, type MenuNode } from '../../../ui/ContextMenu';
 import { ARMED, SELECT, SURFACE_CELL } from '../theme';
 import { liveClearance, type MelosSampleRef } from '../melosSamples';
 
@@ -19,8 +21,12 @@ interface PadGridProps {
   melosSamples?: MelosSampleRef[];
   /** Which Group (bank of 16) to show — pad indices are bank*16 + cell. */
   bank?: number;
-  /** Click an empty pad → add an instrument onto it. */
+  /** Click an empty pad → add an instrument onto it. Also the right-click "Replace with instrument". */
   onAddToPad?: (padIdx: number) => void;
+  /** Open an instrument pad's window (right-click "Open instrument"). */
+  onEditPadInstrument?: (padIdx: number) => void;
+  /** Edit the doc — for the right-click "Clear pad". */
+  onMutate?: (fn: (d: GrooveDoc) => void) => void;
   /** Maschine Note Repeat: hold a pad → it retriggers at the rate (cycles per beat) at the
    *  current tempo. */
   noteRepeat?: { on: boolean; cyclesPerBeat: number; bpm: number };
@@ -31,7 +37,7 @@ interface PadGridProps {
 
 const HIT_GLOW_MS = 160;
 
-export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad, onDropSample, melosSamples, bank = 0, onAddToPad, noteRepeat, velocity16 }) => {
+export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad, onDropSample, melosSamples, bank = 0, onAddToPad, onEditPadInstrument, onMutate, noteRepeat, velocity16 }) => {
   const engine = BeatsEngine.get();
   const base = bank * 16;
 
@@ -39,7 +45,40 @@ export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad,
   const repeatTimers = useRef(new Map<number, { timer: ReturnType<typeof setInterval>; target: number }>());
   useEffect(() => () => { for (const { timer } of repeatTimers.current.values()) clearInterval(timer); }, []);
 
+  // Right-click "Replace with sample…" → a hidden file input targeting one pad.
+  const sampleInputRef = useRef<HTMLInputElement>(null);
+  const sampleTarget = useRef<number>(0);
+  const pickSampleFor = useCallback((padIdx: number) => {
+    sampleTarget.current = padIdx;
+    sampleInputRef.current?.click();
+  }, []);
+
+  // Right-click a pad — replace it with a sample or an instrument, open it, or clear it.
+  const padMenu = useContextMenu<number>((padIdx) => {
+    const pad = doc.kit[padIdx];
+    if (!pad) return [];
+    const isInstrument = pad.source === 'instrument' && !!pad.instrumentTrackId;
+    const items: MenuNode<number>[] = [
+      { kind: 'header', label: pad.empty ? `Empty pad ${padIdx + 1}` : pad.name },
+    ];
+    if (isInstrument && onEditPadInstrument) {
+      items.push({ id: 'open', label: 'Open instrument', onSelect: () => onEditPadInstrument(padIdx) });
+    }
+    items.push(
+      { id: 'inst', label: pad.empty ? 'Add instrument…' : 'Replace with instrument…', onSelect: () => onAddToPad?.(padIdx) },
+      { id: 'samp', label: pad.empty ? 'Load sample…' : 'Replace with sample…', disabled: !onDropSample, onSelect: () => pickSampleFor(padIdx) },
+    );
+    if (!pad.empty && onMutate) {
+      items.push(
+        { kind: 'separator' },
+        { id: 'clear', label: 'Clear pad', danger: true, onSelect: () => { onMutate((d) => clearPad(d, padIdx)); BeatsEngine.get().syncInstruments(); } },
+      );
+    }
+    return items;
+  });
+
   const hit = useCallback((padIdx: number, e: React.PointerEvent) => {
+    if (e.button === 2) return; // right-click opens the menu, never a hit
     const pad = doc.kit[padIdx];
     if (pad?.empty && !velocity16) { onAddToPad?.(padIdx); onSelectPad(padIdx); return; } // empty pad → add an instrument
     const el = e.currentTarget as HTMLElement;
@@ -74,6 +113,14 @@ export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad,
 
   return (
     <div className="grid grid-cols-4 gap-2.5 w-full max-w-[520px] mx-auto select-none" role="group" aria-label="Pads">
+      {padMenu.node}
+      <input
+        ref={sampleInputRef}
+        type="file"
+        accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a,.aif,.aiff"
+        className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) onDropSample?.(sampleTarget.current, f); e.target.value = ''; }}
+      />
       {Array.from({ length: 16 }, (_, cell) => {
         // Render top row first: pad index 0 is bottom-left.
         const rowFromTop = Math.floor(cell / 4);
@@ -91,6 +138,7 @@ export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad,
             onPointerUp={() => lift(padIdx)}
             onPointerCancel={() => lift(padIdx)}
             onPointerLeave={() => lift(padIdx)}
+            onContextMenu={padMenu.bind(padIdx).onContextMenu}
             onDragOver={(e) => { if (onDropSample) { e.preventDefault(); } }}
             onDrop={(e) => {
               if (!onDropSample) return;
