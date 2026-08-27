@@ -97,6 +97,7 @@ const ParcelMap: React.FC<{
   useEffect(() => {
     let cancelled = false;
     let ro: ResizeObserver | null = null;
+    let timers: ReturnType<typeof setTimeout>[] = [];
     (async () => {
       const L = await import('leaflet');
       if (cancelled || !hostRef.current || mapRef.current) return;
@@ -131,13 +132,20 @@ const ParcelMap: React.FC<{
       // init. Leaflet caches that size and the vector renderer then draws
       // NOTHING — black map, working zoom controls. Re-measure whenever the
       // container actually gets laid out.
-      ro = new ResizeObserver(() => { try { map.invalidateSize(false); } catch { /* mid-teardown */ } });
+      // …and re-report the viewport once real bounds exist: the init-time report
+      // fires against a 0×0 container, whose degenerate bounds load ~nothing.
+      ro = new ResizeObserver(() => { try { map.invalidateSize(false); report(); } catch { /* mid-teardown */ } });
       ro.observe(hostRef.current);
+      // RO and moveend are frame-timed, and frames stall for hidden/animating
+      // panes — plain timers always run, so re-measure once layout settles.
+      const remeasure = () => { try { map.invalidateSize(false); report(); } catch { /* mid-teardown */ } };
+      timers = [setTimeout(remeasure, 350), setTimeout(remeasure, 1400)];
       setMapReady(true);
     })();
     return () => {
       cancelled = true;
       ro?.disconnect();
+      for (const t of timers) clearTimeout(t);
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
       setMapReady(false);
     };
