@@ -7,13 +7,13 @@
  *
  * ── Two deliberate choices ──────────────────────────────────────────────────
  *
- * 1. NO BASEMAP TILES. The tile sources already used elsewhere in this repo
- *    (Stadia, CartoDB) are not licensed for commercial use on their free tiers —
- *    CARTO's own licence file restricts its CDN to enterprise customers. Rather
- *    than inherit that, Terra renders parcel geometry directly on a dark ground.
- *    In a dense city the parcels tile the space themselves and the streets read
- *    as the gaps, which is also the plat-drawing look the design calls for.
- *    A licensed vector basemap (OpenFreeMap → self-hosted Protomaps) comes later.
+ * 1. THE PARCELS ARE THE SUBJECT; the basemap is context. A dark CARTO raster
+ *    basemap sits underneath at low opacity purely for orientation — parcels on
+ *    a bare black ground gave no sense of place, but at full strength the grey
+ *    streets and labels swamp the parcel hairlines and it reads as "streets on
+ *    top of nothing". Keep the tiles dim and the parcel strokes bright.
+ *    ⚠️ Licensing: CARTO's free tier is not licensed for commercial use, so this
+ *    is a stopgap — a self-hosted basemap (OpenFreeMap → Protomaps) is the fix.
  *
  * 2. EVERY FACT CARRIES ITS VINTAGE. Some sources update daily, others are frozen
  *    years back. The inspector renders `retrievedAt` and the observed/estimated
@@ -80,10 +80,16 @@ const ParcelMap: React.FC<{
   onSelect: (p: TerraParcel) => void;
   /** Fires on every settle of the view (and once on init) — the shell loads parcels for it. */
   onViewport?: (v: { south: number; west: number; north: number; east: number; zoom: number }) => void;
-}> = ({ parcels, selectedId, onSelect, onViewport }) => {
+  /** Street basemap on/off — context, toggled independently of the civic layers. */
+  showBasemap?: boolean;
+}> = ({ parcels, selectedId, onSelect, onViewport, showBasemap = true }) => {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const layerRef = useRef<any>(null);
+  const tileRef = useRef<any>(null);
+  // Read inside the init effect, which must not re-run when the toggle flips.
+  const basemapRef = useRef(showBasemap);
+  basemapRef.current = showBasemap;
   const selectRef = useRef(onSelect);
   selectRef.current = onSelect;
   const viewportRef = useRef(onViewport);
@@ -113,11 +119,16 @@ const ParcelMap: React.FC<{
       // Dark street basemap under the parcel fabric — parcels alone gave no
       // sense of place. CARTO's dark tiles keep the ink-on-black aesthetic;
       // attribution (© OpenStreetMap contributors © CARTO) lives in the footer.
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      //
+      // ⚠️ Held at low opacity ON PURPOSE. The basemap is CONTEXT; the parcels
+      // are the subject. At full strength its grey roads and labels swamp the
+      // fine parcel hairlines and the map reads as "streets on top of nothing".
+      tileRef.current = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         subdomains: 'abcd',
         maxZoom: 20,
-        opacity: 0.9,
-      }).addTo(map);
+        opacity: 0.42,
+      });
+      if (basemapRef.current) tileRef.current.addTo(map);
       const report = () => {
         const b = map.getBounds();
         viewportRef.current?.({
@@ -169,11 +180,13 @@ const ParcelMap: React.FC<{
       const group = L.geoJSON({ type: 'FeatureCollection', features } as any, {
         style: (feature: any) => {
           const isSelected = feature?.properties?.id === selectedId;
+          // Tuned to sit ON TOP of the basemap, not compete with it: a hairline
+          // at 0.34 alpha vanished over CARTO's grey streets. Parcels lead.
           return {
-            color: isSelected ? ACCENT : 'rgba(255,255,255,0.34)',
-            weight: isSelected ? 2.4 : 0.9,
-            fillColor: isSelected ? ACCENT : '#ffffff',
-            fillOpacity: isSelected ? 0.22 : 0.045,
+            color: isSelected ? ACCENT : 'rgba(255,236,214,0.66)',
+            weight: isSelected ? 2.6 : 1,
+            fillColor: isSelected ? ACCENT : '#FFD9A8',
+            fillOpacity: isSelected ? 0.3 : 0.1,
           };
         },
         onEachFeature: (feature: any, lyr: any) => {
@@ -198,6 +211,17 @@ const ParcelMap: React.FC<{
     })();
     return () => { cancelled = true; };
   }, [parcels, selectedId, mapReady]);
+
+  // Basemap on/off.
+  useEffect(() => {
+    const map = mapRef.current;
+    const tiles = tileRef.current;
+    if (!map || !tiles) return;
+    try {
+      if (showBasemap) { if (!map.hasLayer(tiles)) tiles.addTo(map); }
+      else if (map.hasLayer(tiles)) map.removeLayer(tiles);
+    } catch { /* mid-teardown */ }
+  }, [showBasemap, mapReady]);
 
   // Bring a selection made from the sidebar list into view.
   useEffect(() => {
@@ -358,6 +382,7 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
   const [loading, setLoading] = useState(true);
   const [zoomedOut, setZoomedOut] = useState(false);
   const [activeLayers, setActiveLayers] = useState<Set<string>>(new Set(['PARCELS', 'BLIGHT_TICKET']));
+  const [showBasemap, setShowBasemap] = useState(true);
   const [q, setQ] = useState('');
 
   // Viewport-driven loading: the map reports every settled view; we debounce,
@@ -469,6 +494,20 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
               })}
             </div>
 
+            {/* Basemap is context, not data — so it toggles separately from the
+                civic layers, and off is a legitimate way to read the parcels. */}
+            <div className="mt-4 pt-3 border-t border-white/[0.06]">
+              <button onClick={() => setShowBasemap(v => !v)}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] transition-colors ${
+                  showBasemap ? 'text-white' : 'text-white/35 hover:text-white/60'}`}
+                style={showBasemap ? { background: 'rgba(255,255,255,0.07)' } : {}}
+                title="Street basemap — © OpenStreetMap contributors, © CARTO">
+                <span className="w-2 h-2 rounded-sm shrink-0"
+                      style={{ background: showBasemap ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.18)' }} />
+                <span className="truncate">Streets</span>
+              </button>
+            </div>
+
             <div className="mt-5 pt-4 border-t border-white/[0.06]">
               <p className={`${label} mb-2`}>Offline</p>
               <div className={`${card} p-3`}>
@@ -484,7 +523,7 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
 
           {/* Map — always mounted: the viewport drives the parcel loading. */}
           <div className="relative min-h-[320px] bg-[#07080B]">
-            <ParcelMap parcels={visible} selectedId={selected?.id ?? null} onSelect={setSelected} onViewport={handleViewport} />
+            <ParcelMap parcels={visible} selectedId={selected?.id ?? null} onSelect={setSelected} onViewport={handleViewport} showBasemap={showBasemap} />
 
             {loading && (
               <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[500] flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur border border-white/10 text-white/50 pointer-events-none">
