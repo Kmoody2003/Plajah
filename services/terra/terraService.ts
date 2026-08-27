@@ -19,6 +19,7 @@ import { db } from '../backendService';
 import type { OpenListingRecord } from './olr';
 import { hashListingRecord, validateListingRecord } from './olr';
 import { packParcel, unpackParcel, type TerraParcel, type TerraCivicRecord, type ZoningRule, type TerraIngestionSummary } from './terraTypes';
+import { coverBounds, type GeoBounds } from './geohash';
 
 export const TERRA_COLLECTIONS = {
   parcels: 'terraParcels',
@@ -129,6 +130,55 @@ export async function fetchParcelsPage(max = 500): Promise<TerraParcel[]> {
     return snap.docs
       .map(d => unpackParcel((d.data() as TerraEnvelope<TerraParcel>).data))
       .filter((p): p is TerraParcel => Boolean(p?.geometry || (p?.centroidLat && p?.centroidLng)));
+  } catch { return []; }
+}
+
+/**
+ * Parcels intersecting a map viewport, via geohash prefix-range queries — one
+ * per covering cell (see services/terra/geohash.ts). Each is a single-field
+ * range (`data.geohash`), so no composite index is needed. Returns [] for a
+ * viewport too wide to cover — callers gate on zoom rather than pull the city.
+ *
+ * `perCellLimit`: densest Detroit blocks run ~2.5k parcels per precision-6
+ * cell; 3000 keeps a cell whole without letting one query pull the world.
+ */
+const parcelCellCache = new Map<string, TerraParcel[]>();
+
+/** Drop the cache (Refresh button) so the next viewport read hits Firestore. */
+export function clearParcelCellCache(): void { parcelCellCache.clear(); }
+
+export async function fetchParcelsInBounds(bounds: GeoBounds, perCellLimit = 3000): Promise<TerraParcel[]> {
+  const cover = coverBounds(bounds, 32);
+  if (!cover) return [];
+  try {
+    const missing = cover.cells.filter(c => !parcelCellCache.has(c));
+    await Promise.all(missing.map(async cell => {
+      const snap = await getDocs(query(
+        collection(db, TERRA_COLLECTIONS.parcels),
+        where('data.geohash', '>=', cell),
+        where('data.geohash', '<=', cell + '~'),
+        fsLimit(perCellLimit),
+      )).catch(() => null);
+      const rows: TerraParcel[] = [];
+      for (const d of snap?.docs ?? []) {
+        const p = unpackParcel((d.data() as TerraEnvelope<TerraParcel>).data);
+        if (p && (p.geometry || (p.centroidLat && p.centroidLng))) rows.push(p);
+      }
+      // Cache even an empty cell — vacant ground shouldn't be re-queried every pan.
+      parcelCellCache.set(cell, rows);
+    }));
+    // Bounded cache: evict oldest half once it outgrows a city-pan's worth.
+    if (parcelCellCache.size > 120) {
+      for (const key of [...parcelCellCache.keys()].slice(0, 60)) parcelCellCache.delete(key);
+    }
+    const seen = new Set<string>();
+    const out: TerraParcel[] = [];
+    for (const cell of cover.cells) {
+      for (const p of parcelCellCache.get(cell) ?? []) {
+        if (!seen.has(p.id)) { seen.add(p.id); out.push(p); }
+      }
+    }
+    return out;
   } catch { return []; }
 }
 

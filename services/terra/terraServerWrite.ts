@@ -52,7 +52,10 @@ export async function recordRunServer(summary: TerraIngestionSummary): Promise<b
   const ok = await fsSet(docPath(RUNS, summary.id), envelope(summary.id, summary));
   // Also keep a stable pointer to the most recent run so the status endpoint can
   // read it with a single get — no orderBy, so no composite-index trap.
-  await fsSet(docPath(RUNS, '__latest__'), envelope('__latest__', summary));
+  // NOT `__latest__`: Firestore RESERVES doc ids matching `__.*__` and rejects
+  // the write (which fsSet swallows). `__cursor__detroit_parcels` survives only
+  // because it doesn't END in a double underscore.
+  await fsSet(docPath(RUNS, 'latest'), envelope('latest', summary));
   return ok;
 }
 
