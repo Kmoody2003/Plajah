@@ -2,7 +2,7 @@
 // (higher on the pad = harder) plus pointer pressure where the hardware reports it. The
 // pointerdown path calls engine.trigger DIRECTLY — no state updates before sound.
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import type { GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { GROUP_NAMES } from '../../../../services/melos/beats/grooveDoc';
@@ -21,28 +21,54 @@ interface PadGridProps {
   bank?: number;
   /** Click an empty pad → add an instrument onto it. */
   onAddToPad?: (padIdx: number) => void;
+  /** Maschine Note Repeat: hold a pad → it retriggers at the rate (cycles per beat) at the
+   *  current tempo. */
+  noteRepeat?: { on: boolean; cyclesPerBeat: number; bpm: number };
+  /** Maschine 16 Velocities: every pad plays the SELECTED pad, velocity rising with the pad
+   *  number — a whole grid of dynamics for one sound. */
+  velocity16?: boolean;
 }
 
 const HIT_GLOW_MS = 160;
 
-export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad, onDropSample, melosSamples, bank = 0, onAddToPad }) => {
+export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad, onDropSample, melosSamples, bank = 0, onAddToPad, noteRepeat, velocity16 }) => {
   const engine = BeatsEngine.get();
   const base = bank * 16;
 
+  // Note Repeat timers, keyed by the PHYSICAL pad held (target may differ in 16-vel mode).
+  const repeatTimers = useRef(new Map<number, { timer: ReturnType<typeof setInterval>; target: number }>());
+  useEffect(() => () => { for (const { timer } of repeatTimers.current.values()) clearInterval(timer); }, []);
+
   const hit = useCallback((padIdx: number, e: React.PointerEvent) => {
     const pad = doc.kit[padIdx];
-    if (pad?.empty) { onAddToPad?.(padIdx); onSelectPad(padIdx); return; } // empty pad → add an instrument
+    if (pad?.empty && !velocity16) { onAddToPad?.(padIdx); onSelectPad(padIdx); return; } // empty pad → add an instrument
     const el = e.currentTarget as HTMLElement;
     const rect = el.getBoundingClientRect();
     const yRel = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
     const pressure = e.pressure && e.pressure > 0 && e.pressure < 1 ? e.pressure : null;
-    const vel = pressure ? Math.round(30 + pressure * 97) : Math.round(127 - yRel * 82);
-    void engine.init().then(() => engine.trigger(padIdx, vel));
-    onSelectPad(padIdx);
-  }, [engine, onSelectPad, doc.kit, onAddToPad]);
+    // 16 Velocities: the grid becomes one sound at sixteen levels — pad 1 soft, pad 16 full.
+    const target = velocity16 ? selectedPad : padIdx;
+    const vel = velocity16
+      ? Math.max(8, Math.round(((padIdx - base + 1) / 16) * 127))
+      : pressure ? Math.round(30 + pressure * 97) : Math.round(127 - yRel * 82);
+    void engine.init().then(() => engine.trigger(target, vel));
+    if (!velocity16) onSelectPad(padIdx);
+    if (noteRepeat?.on) {
+      const prev = repeatTimers.current.get(padIdx);
+      if (prev) clearInterval(prev.timer);
+      const intervalMs = Math.max(20, (60000 / Math.max(20, noteRepeat.bpm)) / Math.max(1, noteRepeat.cyclesPerBeat));
+      const timer = setInterval(() => { engine.trigger(target, vel); }, intervalMs);
+      repeatTimers.current.set(padIdx, { timer, target });
+    }
+  }, [engine, onSelectPad, doc.kit, onAddToPad, velocity16, selectedPad, base, noteRepeat?.on, noteRepeat?.cyclesPerBeat, noteRepeat?.bpm]);
 
-  // Note-off: sustaining pads (env.sustain > 0) hold while pressed and release here.
-  const lift = useCallback((padIdx: number) => { engine.release(padIdx); }, [engine]);
+  // Note-off: sustaining pads (env.sustain > 0) hold while pressed and release here; a held
+  // Note Repeat stops with the finger.
+  const lift = useCallback((padIdx: number) => {
+    const rep = repeatTimers.current.get(padIdx);
+    if (rep) { clearInterval(rep.timer); repeatTimers.current.delete(padIdx); engine.release(rep.target); return; }
+    engine.release(velocity16 ? selectedPad : padIdx);
+  }, [engine, velocity16, selectedPad]);
 
   const now = performance.now();
 

@@ -27,8 +27,10 @@ import type { MelosSampleRef } from './melosSamples';
 import { useBeatsDoc } from './useBeatsDoc';
 import { useEngineBridge } from './useEngineBridge';
 import { useBeatsHid } from './useBeatsHid';
-import { useInstrumentKeyboard } from './instrument/useInstrumentKeyboard';
+import { useInstrumentKeyboard, commitRecordedNote, type RecordedNote } from './instrument/useInstrumentKeyboard';
 import { TransportBar, type BeatsViewId } from './shared/TransportBar';
+import { MenuBar, type MenuGroup } from './shared/MenuBar';
+import { InstrumentWindow } from './instrument/InstrumentWindow';
 import { DiagnosticsReadout } from './shared/DiagnosticsReadout';
 import { MidiLearnPanel } from './shared/MidiLearnPanel';
 import { midiStatus } from '../../../services/melos/midiInput';
@@ -88,6 +90,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     setViewState(v);
     try { localStorage.setItem('plajah_beats_view', v); } catch { /* private mode */ }
   }, []);
+  useEffect(() => { viewRef.current = view; }, [view]);
   const [selectedPad, setSelectedPad] = useState(0);
   // Mirror for the MIDI CC handler — it must read the CURRENT selection without re-subscribing.
   const selectedPadRef = React.useRef(0);
@@ -98,6 +101,19 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const [showGrooves, setShowGrooves] = useState(false);
   const [octave, setOctave] = useState(4);
   const [recording, setRecording] = useState(false);
+  const recordingRef = React.useRef(false);
+  useEffect(() => { recordingRef.current = recording; }, [recording]);
+  // Mirror the view for the MIDI handler: the Project page is for assembling releases — pads
+  // and notes should not fire there (transport still works).
+  const viewRef = React.useRef<BeatsViewId>('machine');
+  // Metronome + record pre-roll (count-in bars) — session preferences, engine-side click.
+  const [metronomeOn, setMetronomeOn] = useState(() => localStorage.getItem('plajah_beats_metronome') === '1');
+  const [preRollBars, setPreRollBars] = useState(() => { const v = Number(localStorage.getItem('plajah_beats_preroll')); return v === 1 || v === 2 ? v : 1; });
+  useEffect(() => {
+    BeatsEngine.get().setMetronome(metronomeOn);
+    try { localStorage.setItem('plajah_beats_metronome', metronomeOn ? '1' : '0'); } catch { /* */ }
+  }, [metronomeOn]);
+  useEffect(() => { try { localStorage.setItem('plajah_beats_preroll', String(preRollBars)); } catch { /* */ } }, [preRollBars]);
   const [showInstrumentPicker, setShowInstrumentPicker] = useState(false);
   const [openInstrumentId, setOpenInstrumentId] = useState<string | null>(null);
   // When set, the instrument picker is targeting a PAD (turn the pad into an ONDA/KERA instrument)
@@ -147,10 +163,26 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
 
   const handlePlay = useCallback(() => {
     const engine = BeatsEngine.get();
-    void engine.init().then(() => engine.play(playMode, { patternId: pattern?.id }));
-  }, [playMode, pattern?.id]);
+    // Recording with a pre-roll: count the metronome in for N bars before beat 1.
+    const countInBeats = recordingRef.current ? preRollBars * 4 : 0;
+    void engine.init().then(() => engine.play(playMode, { patternId: pattern?.id, countInBeats }));
+  }, [playMode, pattern?.id, preRollBars]);
 
   const handleStop = useCallback(() => { BeatsEngine.get().stop(); }, []);
+
+  // Record button: while stopped it arms AND rolls (with the count-in), like every DAW; while
+  // playing it just toggles capture on the fly.
+  const handleToggleRecord = useCallback(() => {
+    setRecording((v) => {
+      const next = !v;
+      recordingRef.current = next;
+      if (next && !BeatsEngine.get().isRunning()) {
+        const engine = BeatsEngine.get();
+        void engine.init().then(() => engine.play(playMode, { patternId: pattern?.id, countInBeats: preRollBars * 4 }));
+      }
+      return next;
+    });
+  }, [playMode, pattern?.id, preRollBars]);
 
   // Space = play/stop, the one shortcut every DAW agrees on.
   useEffect(() => {
@@ -192,6 +224,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     return picked;
   }, [mutate]);
 
+  const midiRec = React.useRef(new Map<number, RecordedNote>());
   useEffect(() => {
     ensureMidi(); // request access now so the device readout populates before you play
     return subscribeMidi((e) => {
@@ -202,6 +235,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       if (learned === 'captured') return;
       const action = learned ?? mapMidiEvent(e, !!armed);
       if (!action) return;
+      // MIDI plays in every view EXCEPT Project — that page assembles releases, it doesn't
+      // perform. Transport controls still pass so hardware play/stop always works.
+      if (viewRef.current === 'project' && action.kind !== 'transport') return;
       noteMidiRouted(e.note);
       switch (action.kind) {
         case 'pad':
@@ -221,12 +257,21 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           if (!target) break;
           void engine.ensureInstrument(target).then(() => engine.instrumentNoteOn(target, action.note, action.velocity));
           midiSendNoteOn(action.note, action.velocity);
+          // Hardware takes record through the SAME path as the QWERTY keyboard.
+          if (recordingRef.current && engine.isRunning()) {
+            midiRec.current.set(action.note, { key: action.note, vel: action.velocity, startBeats: engine.posBeats() });
+          }
           break;
         }
         case 'noteOff': {
           const target = armed ?? engine.armedTrack();
           if (target) engine.instrumentNoteOff(target, action.note);
           midiSendNoteOff(action.note);
+          const rec = midiRec.current.get(action.note);
+          if (rec && target) {
+            midiRec.current.delete(action.note);
+            if (recordingRef.current) commitRecordedNote(target.id, rec, engine.posBeats(), mutate);
+          }
           break;
         }
         case 'macro':
@@ -554,6 +599,68 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     );
   }
 
+  // ── The menu bar — the proper DAW File menu. A Melos Project (.melos) is the complete
+  // project file; a Melos Song (.dawproject) is the interchange song that Bitwig, Studio One
+  // and Cubase open natively.
+  const menus: MenuGroup[] = [
+    {
+      label: 'File',
+      items: [
+        { id: 'new', label: 'New project', onSelect: newGroove },
+        // The projects drawer is anchored in the pattern bar, which Mixer/Project don't show.
+        { id: 'open', label: 'Open…', hint: 'projects', onSelect: () => { if (view === 'mixer' || view === 'project') setView('machine'); setShowGrooves(true); } },
+        { id: 'save', label: 'Save now', onSelect: () => { void saveNow(); } },
+        { id: 'copy', label: 'Save a copy', onSelect: handleSaveCopy },
+        'sep',
+        { id: 'open-melos', label: 'Open Melos Project…', hint: '.melos', onSelect: () => melosFileRef.current?.click() },
+        { id: 'save-melos', label: 'Save Melos Project', hint: '.melos', onSelect: () => { exportGrooveFile(doc); } },
+        'sep',
+        { id: 'import-song', label: 'Import Melos Song…', hint: '.dawproject', onSelect: () => dawFileRef.current?.click() },
+        { id: 'export-song', label: 'Export Melos Song', hint: '.dawproject', disabled: !!busy, onSelect: () => { void handleExportDawproject(); } },
+        'sep',
+        { id: 'bounce', label: onRenderTake ? `Bounce to take${takeTargetName ? ` — ${takeTargetName}` : ''}` : 'Bounce to WAV', hint: '24-bit', disabled: !!busy, onSelect: () => { void handleBounce(); } },
+        { id: 'fabula', label: 'Send to Fabula', disabled: !!busy, onSelect: () => { void handleSendToFabula(); } },
+        { id: 'publish', label: 'Publish to Chora…', disabled: !!busy, onSelect: () => { void handlePublish(); } },
+      ],
+    },
+    {
+      label: 'Edit',
+      items: [
+        { id: 'quantize', label: 'Quantize pattern', disabled: !pattern, onSelect: () => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) quantizePattern(p, 1); }); } },
+        { id: 'fill', label: 'Auto-fill last bar', disabled: !pattern, onSelect: () => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) autoFill(d, p, 4); }); } },
+        { id: 'clear', label: 'Clear pattern steps', danger: true, disabled: !pattern, onSelect: () => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) p.steps = {}; }); } },
+        'sep',
+        { id: 'new-pattern', label: 'New pattern', onSelect: addPattern },
+      ],
+    },
+    {
+      label: 'View',
+      items: [
+        ...AVAILABLE_VIEWS.map((v) => ({
+          id: v,
+          label: v === 'machine' ? 'MEKA' : v === 'glass' ? 'Glass' : v.charAt(0).toUpperCase() + v.slice(1),
+          checked: view === v,
+          onSelect: () => setView(v),
+        })),
+        'sep' as const,
+        { id: 'diag', label: 'Engine diagnostics', checked: showDiagnostics, onSelect: () => setShowDiagnostics((v) => !v) },
+      ],
+    },
+    {
+      label: 'Options',
+      items: [
+        { id: 'metro', label: 'Metronome', checked: metronomeOn, onSelect: () => setMetronomeOn((v) => !v) },
+        { id: 'pre0', label: 'Pre-roll: off', checked: preRollBars === 0, onSelect: () => setPreRollBars(0) },
+        { id: 'pre1', label: 'Pre-roll: 1 bar', checked: preRollBars === 1, onSelect: () => setPreRollBars(1) },
+        { id: 'pre2', label: 'Pre-roll: 2 bars', checked: preRollBars === 2, onSelect: () => setPreRollBars(2) },
+        'sep',
+        { id: 'midi', label: 'MIDI controllers…', onSelect: () => setShowMidi(true) },
+        { id: 'eq', label: 'Mix-bus EQ…', onSelect: () => { void BeatsEngine.get().init().then(() => setShowEq(true)); } },
+        { id: 'library', label: 'Muse Library…', onSelect: () => setShowLibrary(true) },
+      ],
+    },
+  ];
+
   return (
     <div
       className={`${embedded ? 'absolute inset-0' : 'fixed inset-0 z-[100]'} flex flex-col text-white`}
@@ -580,15 +687,15 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         onToggleDiagnostics={() => setShowDiagnostics((v) => !v)}
         onOpenMidi={() => setShowMidi(true)}
         midiConnected={midiConnected}
-        onOpenEq={() => { void BeatsEngine.get().init().then(() => setShowEq(true)); }}
-        onOpenLibrary={() => setShowLibrary(true)}
-        onExportDawproject={() => { void handleExportDawproject(); }}
-        onImportDawproject={() => dawFileRef.current?.click()}
-        onBounce={() => { void handleBounce(); }}
-        onSendToFabula={() => { void handleSendToFabula(); }}
-        bounceLabel={onRenderTake ? 'Bounce to take' : 'Bounce'}
         onPublish={() => { void handlePublish(); }}
         busy={busy}
+        recording={recording}
+        onToggleRecord={handleToggleRecord}
+        metronomeOn={metronomeOn}
+        onToggleMetronome={() => setMetronomeOn((v) => !v)}
+        preRollBars={preRollBars}
+        onCyclePreRoll={() => setPreRollBars((v) => (v + 1) % 3)}
+        menuSlot={<MenuBar menus={menus} />}
         hideClose={embedded}
         onClose={onClose}
       />
@@ -629,6 +736,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         </div>
       )}
 
+      {/* The pattern bar belongs to the pattern-editing pages — Mixer and Project have no
+          business showing pattern chips. */}
+      {view !== 'mixer' && view !== 'project' && (
       <div
         className="flex items-center gap-1.5 px-4 h-9 border-b border-white/[0.07] bg-black/20 flex-none"
         onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }}
@@ -767,6 +877,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         ><AlignStartVertical size={10} /> Quantize</button>
         <span className="text-[9px] text-white/20 ml-1">{busy === 'transcribe' ? 'Listening…' : 'drop a loop here to transcribe'}</span>
       </div>
+      )}
 
       {view === 'timeline' && pattern && (
         <TimelineView
@@ -818,6 +929,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           onSelectPad={setSelectedPad}
           onMutate={mutate}
           onAddInstrument={() => setShowInstrumentPicker(true)}
+          onOpenInstrument={(id) => setOpenInstrumentId(id)}
         />
       )}
 
@@ -846,16 +958,18 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
 
       {showMidi && <MidiLearnPanel onClose={() => setShowMidi(false)} />}
 
-      {/* Add an instrument from ANY view — the button is always present, and the picker leads
-          with the instrument choice rather than a preset list. */}
-      <button
-        onClick={() => setShowInstrumentPicker(true)}
-        className="absolute bottom-4 right-4 z-30 h-10 px-4 rounded-full text-[12px] font-semibold text-white flex items-center gap-2 shadow-xl"
-        style={{ background: 'linear-gradient(135deg, #6B0099, #B84DFF)' }}
-        title="Add an instrument to this groove"
-      >
-        <Plus size={15} /> Instrument
-      </button>
+      {/* Add an instrument from the pattern-editing views — the picker leads with the
+          instrument choice rather than a preset list. Mixer and Project don't add sounds. */}
+      {view !== 'mixer' && view !== 'project' && (
+        <button
+          onClick={() => setShowInstrumentPicker(true)}
+          className="absolute bottom-4 right-4 z-30 h-10 px-4 rounded-full text-[12px] font-semibold text-white flex items-center gap-2 shadow-xl"
+          style={{ background: 'linear-gradient(135deg, #6B0099, #B84DFF)' }}
+          title="Add an instrument to this groove"
+        >
+          <Plus size={15} /> Instrument
+        </button>
+      )}
 
       {showInstrumentPicker && (
         <InstrumentPicker
@@ -867,8 +981,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
             setSelectedPad(landedPad);
             // Instantiate the worklet now so the first note (or arp step) has something to play.
             void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
-            // MEKA is where the pads live — land on the pad it just filled.
-            setView('machine');
+            // Stay on the view you added it from — it appears in Glass's rack, the Timeline's
+            // pad lanes and MEKA's grid alike; being teleported to MEKA was disorienting.
+            setShowInstrumentPicker(false);
             if (newId) setTimeout(() => setOpenInstrumentId(newId), 60);
           }}
         />
@@ -902,15 +1017,22 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         />
       )}
 
-      {/* Room-level instrument panel: opened by the picker or by a track header from any view. */}
+      {/* Room-level instrument window: opened by the picker or by a track header from any view.
+          Every instrument shares the SAME floating, resizable window — common chrome (rename,
+          preset dropdown + management, Arm, close) around each panel's own play surface. */}
       {openInstrumentId && (() => {
         const t = doc.arrangement.find((x) => x.id === openInstrumentId && x.kind === 'instrument');
         if (!t) return null;
         const close = () => setOpenInstrumentId(null);
-        if (t.instrument?.type === 'kera') return <KeraPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
-        if (t.instrument?.type === 'bajo') return <BajoPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
-        if (isSuite(t.instrument?.type as InstrumentType)) return <VelaPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
-        return <InstrumentPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
+        const body = t.instrument?.type === 'kera' ? <KeraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+          : t.instrument?.type === 'bajo' ? <BajoPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+          : isSuite(t.instrument?.type as InstrumentType) ? <VelaPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+          : <InstrumentPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />;
+        return (
+          <InstrumentWindow doc={doc} track={t} onMutate={mutate} onClose={close}>
+            {body}
+          </InstrumentWindow>
+        );
       })()}
     </div>
   );

@@ -52,7 +52,7 @@ export const SequenceStrip: React.FC<SequenceStripProps> = ({ doc, activePattern
         {playBar >= 0 && playBar < BARS_SHOWN && (
           <div className="absolute top-[-2px] bottom-[-2px] w-[2px] z-10 pointer-events-none" style={{ left: `${(playBar / BARS_SHOWN) * 100}%`, background: PLAYHEAD, boxShadow: `0 0 10px ${PLAYHEAD}99` }} />
         )}
-        {doc.arrangement.map((track) => (
+        {doc.arrangement.filter((track) => !track.padOwned).map((track) => (
           <div key={track.id} className="relative h-[30px]">
             <div className="absolute inset-0 grid gap-[2px]" style={{ gridTemplateColumns: `repeat(${BARS_SHOWN}, minmax(0,1fr))` }}>
               {Array.from({ length: BARS_SHOWN }, (_, b) => (

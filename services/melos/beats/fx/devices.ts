@@ -13,7 +13,7 @@
 
 import { AMP_MODELS, CAB_MODELS, MIC_MODELS, PEDAL_MODELS, ampModelAt, cabModelAt, micModelAt, pedalModelAt } from './ampModels';
 
-export type FxCategory = 'eq' | 'dynamics' | 'saturation' | 'stereo' | 'space' | 'repair' | 'utility' | 'amp';
+export type FxCategory = 'eq' | 'dynamics' | 'saturation' | 'stereo' | 'space' | 'mod' | 'dj' | 'repair' | 'utility' | 'amp';
 
 export interface FxParamSpec {
   key: string;
@@ -49,6 +49,8 @@ export interface FxNode {
   setParams(p: Record<string, number>): void;
   /** Live gain reduction (dB, ≤0) for dynamics devices — for the GR meter. */
   gr?(): number;
+  /** Tempo-synced devices (Gater, Beatmasher, synced LFOs) take the transport BPM here. */
+  setTempo?(bpm: number): void;
   dispose(): void;
 }
 
@@ -667,8 +669,552 @@ class PristineDevice extends FxBase {
   dispose(): void { this.imager.dispose(); super.dispose(); }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// MODULATION SET — chorus / flanger / phaser / tremolo / auto-pan / vibrato /
+// rotary / comb / ring-mod. The standard DAW rack (Bitwig's modulation family),
+// all native nodes so the offline render prints them identically.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** An LFO: oscillator → depth gain. Modulates any AudioParam it's connected to. */
+class Lfo {
+  readonly osc: OscillatorNode;
+  readonly depth: GainNode;
+  constructor(ctx: BaseAudioContext, type: OscillatorType = 'sine') {
+    this.osc = ctx.createOscillator(); this.osc.type = type;
+    this.depth = ctx.createGain(); this.depth.gain.value = 0;
+    this.osc.connect(this.depth);
+    this.osc.start();
+  }
+  set(rateHz: number, depth: number): void {
+    this.osc.frequency.value = Math.max(0.01, Math.min(40, rateHz));
+    this.depth.gain.value = depth;
+  }
+  dispose(): void { try { this.osc.stop(); this.osc.disconnect(); this.depth.disconnect(); } catch { /* */ } }
+}
+
+class ChorusDevice extends FxBase {
+  private d1: DelayNode; private d2: DelayNode;
+  private lfo: Lfo; private inv: GainNode;
+  private p1: StereoPannerNode; private p2: StereoPannerNode;
+  private dry: GainNode; private wet: GainNode;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.d1 = this.own(ctx.createDelay(0.1)); this.d2 = this.own(ctx.createDelay(0.1));
+    this.lfo = new Lfo(ctx);
+    this.inv = this.own(ctx.createGain()); this.inv.gain.value = -1; // 180° for the second voice
+    this.p1 = this.own(ctx.createStereoPanner()); this.p2 = this.own(ctx.createStereoPanner());
+    this.dry = this.own(ctx.createGain()); this.wet = this.own(ctx.createGain());
+    this.lfo.depth.connect(this.d1.delayTime);
+    this.lfo.depth.connect(this.inv); this.inv.connect(this.d2.delayTime);
+    this.input.connect(this.dry); this.dry.connect(this.output);
+    this.input.connect(this.d1); this.d1.connect(this.p1); this.p1.connect(this.wet);
+    this.input.connect(this.d2); this.d2.connect(this.p2); this.p2.connect(this.wet);
+    this.wet.connect(this.output);
+  }
+  setParams(p: Record<string, number>): void {
+    const base = 0.012 + Math.max(0, Math.min(1, p.delay ?? 0.4)) * 0.02;
+    this.d1.delayTime.value = base; this.d2.delayTime.value = base * 1.15;
+    this.lfo.set(p.rate ?? 0.8, Math.max(0, Math.min(1, p.depth ?? 0.5)) * 0.006);
+    const spread = Math.max(0, Math.min(1, p.spread ?? 0.7));
+    this.p1.pan.value = -spread; this.p2.pan.value = spread;
+    const mix = Math.max(0, Math.min(1, (p.mix ?? 50) / 100));
+    this.dry.gain.value = 1 - mix * 0.5; this.wet.gain.value = mix * 0.75;
+  }
+  dispose(): void { this.lfo.dispose(); super.dispose(); }
+}
+
+class FlangerDevice extends FxBase {
+  private delay: DelayNode; private fb: GainNode; private lfo: Lfo;
+  private dry: GainNode; private wet: GainNode;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.delay = this.own(ctx.createDelay(0.05));
+    this.fb = this.own(ctx.createGain());
+    this.lfo = new Lfo(ctx);
+    this.dry = this.own(ctx.createGain()); this.wet = this.own(ctx.createGain());
+    this.lfo.depth.connect(this.delay.delayTime);
+    this.input.connect(this.dry); this.dry.connect(this.output);
+    this.input.connect(this.delay); this.delay.connect(this.wet); this.wet.connect(this.output);
+    this.delay.connect(this.fb); this.fb.connect(this.delay);
+  }
+  setParams(p: Record<string, number>): void {
+    const center = 0.0015 + Math.max(0, Math.min(1, p.center ?? 0.35)) * 0.008;
+    this.delay.delayTime.value = center;
+    this.lfo.set(p.rate ?? 0.25, Math.max(0, Math.min(1, p.depth ?? 0.6)) * center * 0.9);
+    // Negative feedback flips the comb — the "jet" flavour switch.
+    this.fb.gain.value = Math.max(-0.92, Math.min(0.92, (p.feedback ?? 55) / 100));
+    const mix = Math.max(0, Math.min(1, (p.mix ?? 50) / 100));
+    this.dry.gain.value = 1 - mix * 0.5; this.wet.gain.value = mix;
+  }
+  dispose(): void { this.lfo.dispose(); super.dispose(); }
+}
+
+class PhaserDevice extends FxBase {
+  private stages: BiquadFilterNode[] = [];
+  private lfo: Lfo; private fb: GainNode;
+  private dry: GainNode; private wet: GainNode;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.lfo = new Lfo(ctx);
+    this.fb = this.own(ctx.createGain());
+    this.dry = this.own(ctx.createGain()); this.wet = this.own(ctx.createGain());
+    let node: AudioNode = this.input;
+    for (let i = 0; i < 6; i++) {
+      const ap = this.own(ctx.createBiquadFilter()); ap.type = 'allpass'; ap.Q.value = 0.55;
+      this.lfo.depth.connect(ap.frequency);
+      node.connect(ap); node = ap; this.stages.push(ap);
+    }
+    node.connect(this.wet); this.wet.connect(this.output);
+    node.connect(this.fb); this.fb.connect(this.stages[0]);
+    this.input.connect(this.dry); this.dry.connect(this.output);
+  }
+  setParams(p: Record<string, number>): void {
+    const center = clampHz(p.center ?? 900);
+    const active = Math.max(2, Math.min(6, Math.round(p.stages ?? 4)));
+    this.stages.forEach((ap, i) => {
+      ap.frequency.value = center * (1 + i * 0.5);
+      ap.Q.value = i < active ? 0.55 : 0.0001; // parked stages pass through flat
+    });
+    this.lfo.set(p.rate ?? 0.4, Math.max(0, Math.min(1, p.depth ?? 0.6)) * center * 0.8);
+    this.fb.gain.value = Math.max(0, Math.min(0.85, (p.feedback ?? 30) / 100));
+    const mix = Math.max(0, Math.min(1, (p.mix ?? 50) / 100));
+    this.dry.gain.value = 1 - mix * 0.5; this.wet.gain.value = mix;
+  }
+  dispose(): void { this.lfo.dispose(); super.dispose(); }
+}
+
+class TremoloDevice extends FxBase {
+  private amp: GainNode; private lfo: Lfo;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.amp = this.own(ctx.createGain());
+    this.lfo = new Lfo(ctx);
+    this.lfo.depth.connect(this.amp.gain);
+    this.input.connect(this.amp); this.amp.connect(this.output);
+  }
+  setParams(p: Record<string, number>): void {
+    const depth = Math.max(0, Math.min(1, p.depth ?? 0.6));
+    this.amp.gain.value = 1 - depth * 0.5;
+    this.lfo.set(p.rate ?? 5, depth * 0.5);
+  }
+  dispose(): void { this.lfo.dispose(); super.dispose(); }
+}
+
+class AutoPanDevice extends FxBase {
+  private pan: StereoPannerNode; private lfo: Lfo;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.pan = this.own(ctx.createStereoPanner());
+    this.lfo = new Lfo(ctx);
+    this.lfo.depth.connect(this.pan.pan);
+    this.input.connect(this.pan); this.pan.connect(this.output);
+  }
+  setParams(p: Record<string, number>): void {
+    this.lfo.set(p.rate ?? 1, Math.max(0, Math.min(1, p.depth ?? 0.8)));
+  }
+  dispose(): void { this.lfo.dispose(); super.dispose(); }
+}
+
+class VibratoDevice extends FxBase {
+  private delay: DelayNode; private lfo: Lfo;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.delay = this.own(ctx.createDelay(0.05));
+    this.delay.delayTime.value = 0.008;
+    this.lfo = new Lfo(ctx);
+    this.lfo.depth.connect(this.delay.delayTime);
+    this.input.connect(this.delay); this.delay.connect(this.output); // 100% wet — that's vibrato
+  }
+  setParams(p: Record<string, number>): void {
+    this.lfo.set(p.rate ?? 5, Math.max(0, Math.min(1, p.depth ?? 0.4)) * 0.004);
+  }
+  dispose(): void { this.lfo.dispose(); super.dispose(); }
+}
+
+class RotaryDevice extends FxBase {
+  // Leslie-style: crossover split; the horn gets fast vibrato+tremolo, the drum a slower wobble.
+  private lowLp: BiquadFilterNode; private hiHp: BiquadFilterNode;
+  private hornDelay: DelayNode; private hornAmp: GainNode; private drumAmp: GainNode;
+  private hornLfo: Lfo; private hornTrem: Lfo; private drumLfo: Lfo;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.lowLp = this.own(ctx.createBiquadFilter()); this.lowLp.type = 'lowpass'; this.lowLp.frequency.value = 800;
+    this.hiHp = this.own(ctx.createBiquadFilter()); this.hiHp.type = 'highpass'; this.hiHp.frequency.value = 800;
+    this.hornDelay = this.own(ctx.createDelay(0.05)); this.hornDelay.delayTime.value = 0.004;
+    this.hornAmp = this.own(ctx.createGain()); this.drumAmp = this.own(ctx.createGain());
+    this.hornLfo = new Lfo(ctx); this.hornTrem = new Lfo(ctx); this.drumLfo = new Lfo(ctx);
+    this.hornLfo.depth.connect(this.hornDelay.delayTime);
+    this.hornTrem.depth.connect(this.hornAmp.gain);
+    this.drumLfo.depth.connect(this.drumAmp.gain);
+    this.input.connect(this.hiHp); this.hiHp.connect(this.hornDelay); this.hornDelay.connect(this.hornAmp); this.hornAmp.connect(this.output);
+    this.input.connect(this.lowLp); this.lowLp.connect(this.drumAmp); this.drumAmp.connect(this.output);
+  }
+  setParams(p: Record<string, number>): void {
+    const speed = Math.max(0, Math.min(1, p.speed ?? 0.5));
+    const horn = 0.8 + speed * 6.2;             // chorale → tremolo speeds
+    const drum = horn * 0.85;                   // the bass rotor lags the horn — the Leslie feel
+    const depth = Math.max(0, Math.min(1, p.depth ?? 0.6));
+    this.hornLfo.set(horn, depth * 0.0022);
+    this.hornTrem.set(horn, depth * 0.35); this.hornAmp.gain.value = 1 - depth * 0.35;
+    this.drumLfo.set(drum, depth * 0.2); this.drumAmp.gain.value = 1 - depth * 0.2;
+  }
+  dispose(): void { this.hornLfo.dispose(); this.hornTrem.dispose(); this.drumLfo.dispose(); super.dispose(); }
+}
+
+class CombDevice extends FxBase {
+  private delay: DelayNode; private fb: GainNode;
+  private dry: GainNode; private wet: GainNode;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.delay = this.own(ctx.createDelay(0.1));
+    this.fb = this.own(ctx.createGain());
+    this.dry = this.own(ctx.createGain()); this.wet = this.own(ctx.createGain());
+    this.input.connect(this.dry); this.dry.connect(this.output);
+    this.input.connect(this.delay); this.delay.connect(this.wet); this.wet.connect(this.output);
+    this.delay.connect(this.fb); this.fb.connect(this.delay);
+  }
+  setParams(p: Record<string, number>): void {
+    const freq = Math.max(25, Math.min(2000, p.freq ?? 220));
+    this.delay.delayTime.value = 1 / freq;
+    // Signed feedback: + rings at f, − rings at f/2 odd harmonics (the hollow flavour).
+    this.fb.gain.value = Math.max(-0.95, Math.min(0.95, (p.feedback ?? 70) / 100));
+    const mix = Math.max(0, Math.min(1, (p.mix ?? 50) / 100));
+    this.dry.gain.value = 1 - mix; this.wet.gain.value = mix;
+  }
+}
+
+class RingModDevice extends FxBase {
+  private ring: GainNode; private osc: OscillatorNode;
+  private dry: GainNode; private wet: GainNode;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.ring = this.own(ctx.createGain()); this.ring.gain.value = 0; // carrier drives the gain
+    this.osc = ctx.createOscillator(); this.osc.start();
+    this.osc.connect(this.ring.gain);
+    this.dry = this.own(ctx.createGain()); this.wet = this.own(ctx.createGain());
+    this.input.connect(this.dry); this.dry.connect(this.output);
+    this.input.connect(this.ring); this.ring.connect(this.wet); this.wet.connect(this.output);
+  }
+  setParams(p: Record<string, number>): void {
+    this.osc.frequency.value = Math.max(1, Math.min(8000, p.freq ?? 300));
+    const mix = Math.max(0, Math.min(1, (p.mix ?? 100) / 100));
+    this.dry.gain.value = 1 - mix; this.wet.gain.value = mix;
+  }
+  dispose(): void { try { this.osc.stop(); this.osc.disconnect(); } catch { /* */ } super.dispose(); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DJ / PERFORMANCE SET — the Traktor rack, rebuilt: the sweepable performance
+// filter with an LFO, the Gater, and the Beatmasher (loop-freeze stutter).
+// Gater and Beatmasher sync to the transport via setTempo.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const DIVISIONS = [1, 2, 4, 8] as const; // cycles per beat: 1/4, 1/8, 1/16, 1/32
+const divisionLabel = (v: number) => ['1/4', '1/8', '1/16', '1/32'][Math.max(0, Math.min(3, Math.round(v)))];
+
+class AutoFilterDevice extends FxBase {
+  private shaper: WaveShaperNode;
+  private filter: BiquadFilterNode;
+  private lfo: Lfo;
+  private lastDrive = -1;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.shaper = this.own(ctx.createWaveShaper()); this.shaper.oversample = '2x';
+    this.filter = this.own(ctx.createBiquadFilter());
+    this.lfo = new Lfo(ctx);
+    this.lfo.depth.connect(this.filter.frequency);
+    this.input.connect(this.shaper); this.shaper.connect(this.filter); this.filter.connect(this.output);
+  }
+  setParams(p: Record<string, number>): void {
+    const mode = Math.round(p.mode ?? 0);
+    this.filter.type = mode === 1 ? 'highpass' : mode === 2 ? 'bandpass' : 'lowpass';
+    const cutoff = clampHz(p.cutoff ?? 1200);
+    this.filter.frequency.value = cutoff;
+    this.filter.Q.value = Math.max(0.3, Math.min(18, p.res ?? 2));
+    const drive = Math.max(0, Math.min(1, p.drive ?? 0));
+    if (drive !== this.lastDrive) { this.lastDrive = drive; this.shaper.curve = drive < 0.01 ? null : driveCurve(drive * 0.7, 0.1); }
+    this.lfo.set(p.rate ?? 0.5, Math.max(0, Math.min(1, p.depth ?? 0)) * cutoff * 0.85);
+  }
+  dispose(): void { this.lfo.dispose(); super.dispose(); }
+}
+
+class GaterDevice extends FxBase {
+  private amp: GainNode;
+  private lfo: Lfo;
+  private square: WaveShaperNode;
+  private depthG: GainNode;
+  private bpm = 120;
+  private lastP: Record<string, number> = {};
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.amp = this.own(ctx.createGain());
+    this.lfo = new Lfo(ctx);
+    this.square = this.own(ctx.createWaveShaper());
+    // Steep sigmoid → the sine LFO becomes a smoothed square (clickless gate edges).
+    const curve = new Float32Array(1024);
+    for (let i = 0; i < 1024; i++) { const x = (i / 1023) * 2 - 1; curve[i] = Math.tanh(x * 14); }
+    this.square.curve = curve;
+    this.depthG = this.own(ctx.createGain());
+    this.lfo.depth.gain.value = 1;
+    this.lfo.depth.connect(this.square); this.square.connect(this.depthG); this.depthG.connect(this.amp.gain);
+    this.input.connect(this.amp); this.amp.connect(this.output);
+  }
+  setTempo(bpm: number): void { this.bpm = bpm; this.setParams(this.lastP); }
+  setParams(p: Record<string, number>): void {
+    this.lastP = p;
+    const depth = Math.max(0, Math.min(1, p.depth ?? 0.9));
+    const cyclesPerBeat = DIVISIONS[Math.max(0, Math.min(3, Math.round(p.division ?? 2)))];
+    this.lfo.osc.frequency.value = (this.bpm / 60) * cyclesPerBeat;
+    // gate swings ±0.5·depth around 1−0.5·depth → floor at 1−depth, ceiling at 1.
+    this.amp.gain.value = 1 - depth * 0.5;
+    this.depthG.gain.value = depth * 0.5;
+  }
+  dispose(): void { this.lfo.dispose(); super.dispose(); }
+}
+
+class BeatmasherDevice extends FxBase {
+  // Loop-freeze stutter: engage → the last slice loops (input muted, feedback ≈ 1).
+  private inGate: GainNode;
+  private delay: DelayNode;
+  private fb: GainNode;
+  private loopHp: BiquadFilterNode;
+  private dry: GainNode; private wet: GainNode;
+  private bpm = 120;
+  private lastP: Record<string, number> = {};
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.inGate = this.own(ctx.createGain());
+    this.delay = this.own(ctx.createDelay(4));
+    this.fb = this.own(ctx.createGain());
+    this.loopHp = this.own(ctx.createBiquadFilter()); this.loopHp.type = 'highpass'; this.loopHp.frequency.value = 25;
+    this.dry = this.own(ctx.createGain()); this.wet = this.own(ctx.createGain());
+    this.input.connect(this.dry); this.dry.connect(this.output);
+    this.input.connect(this.inGate); this.inGate.connect(this.delay);
+    this.delay.connect(this.loopHp); this.loopHp.connect(this.fb); this.fb.connect(this.delay);
+    this.delay.connect(this.wet); this.wet.connect(this.output);
+  }
+  setTempo(bpm: number): void { this.bpm = bpm; this.setParams(this.lastP); }
+  setParams(p: Record<string, number>): void {
+    this.lastP = p;
+    const on = (p.mash ?? 0) > 0.5;
+    const beatsPerSlice = 4 / DIVISIONS[Math.max(0, Math.min(3, Math.round(p.length ?? 1)))]; // 1/4→1 beat …
+    const slice = Math.max(0.02, Math.min(4, (60 / this.bpm) * beatsPerSlice));
+    // Only move the slice length while NOT frozen — changing delayTime mid-freeze warps the loop
+    // (which is also a classic Beatmasher move, so pitch/warp rides the Length knob when held).
+    this.delay.delayTime.value = slice;
+    this.inGate.gain.value = on ? 0 : 1;
+    this.fb.gain.value = on ? 0.995 : 0;
+    this.dry.gain.value = on ? 0 : 1;
+    this.wet.gain.value = on ? 1 : 0;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UTILITY ADDITIONS — Peak Limiter, Transient Control, Bit-8 crusher.
+// ═══════════════════════════════════════════════════════════════════════════
+
+class LimiterDevice extends FxBase {
+  private comp: DynamicsCompressorNode;
+  private ceilingG: GainNode;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.comp = this.own(ctx.createDynamicsCompressor());
+    this.comp.knee.value = 0; this.comp.ratio.value = 20; this.comp.attack.value = 0.001;
+    this.ceilingG = this.own(ctx.createGain());
+    this.input.connect(this.comp); this.comp.connect(this.ceilingG); this.ceilingG.connect(this.output);
+  }
+  setParams(p: Record<string, number>): void {
+    const ceiling = Math.max(-12, Math.min(0, p.ceiling ?? -0.3));
+    this.comp.threshold.value = ceiling - Math.max(0, p.gain ?? 0);
+    this.comp.release.value = Math.max(0.01, (p.release ?? 80) / 1000);
+    this.ceilingG.gain.value = dbToGain(Math.max(0, p.gain ?? 0));
+  }
+  gr(): number { return this.comp.reduction; }
+}
+
+class TransientDevice extends FxBase {
+  // Parallel attack emphasis + sustain trim — the honest native-node transient designer.
+  private punch: DynamicsCompressorNode;
+  private punchMix: GainNode;
+  private body: GainNode;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.punch = this.own(ctx.createDynamicsCompressor());
+    this.punch.threshold.value = -34; this.punch.ratio.value = 12; this.punch.knee.value = 6;
+    this.punch.attack.value = 0.02; this.punch.release.value = 0.14;
+    this.punchMix = this.own(ctx.createGain());
+    this.body = this.own(ctx.createGain());
+    this.input.connect(this.body); this.body.connect(this.output);
+    this.input.connect(this.punch); this.punch.connect(this.punchMix); this.punchMix.connect(this.output);
+  }
+  setParams(p: Record<string, number>): void {
+    const attack = Math.max(-1, Math.min(1, p.attack ?? 0.4));
+    const sustain = Math.max(-1, Math.min(1, p.sustain ?? 0));
+    // +attack: add the clamped-tail branch (attack pokes through). −attack: duck the body.
+    this.punchMix.gain.value = Math.max(0, attack) * 1.2;
+    this.body.gain.value = (1 - Math.max(0, attack) * 0.25) * (1 + sustain * 0.5) * (1 + Math.min(0, attack) * 0.4);
+  }
+  gr(): number { return this.punch.reduction; }
+}
+
+class BitcrushDevice extends FxBase {
+  private shaper: WaveShaperNode;
+  private rate: BiquadFilterNode;
+  private dry: GainNode; private wet: GainNode;
+  private lastBits = -1;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.shaper = this.own(ctx.createWaveShaper());
+    this.rate = this.own(ctx.createBiquadFilter()); this.rate.type = 'lowpass'; this.rate.Q.value = 4;
+    this.dry = this.own(ctx.createGain()); this.wet = this.own(ctx.createGain());
+    this.input.connect(this.dry); this.dry.connect(this.output);
+    this.input.connect(this.shaper); this.shaper.connect(this.rate); this.rate.connect(this.wet); this.wet.connect(this.output);
+  }
+  setParams(p: Record<string, number>): void {
+    const bits = Math.max(1, Math.min(16, Math.round(p.bits ?? 8)));
+    if (bits !== this.lastBits) {
+      this.lastBits = bits;
+      const steps = Math.pow(2, bits);
+      const curve = new Float32Array(4096);
+      for (let i = 0; i < 4096; i++) {
+        const x = (i / 4095) * 2 - 1;
+        curve[i] = Math.round(x * steps * 0.5) / (steps * 0.5);
+      }
+      this.shaper.curve = curve;
+    }
+    // "Rate" as a resonant lowpass — the downsample aliasing flavour without a worklet.
+    this.rate.frequency.value = clampHz(p.rateHz ?? 12000);
+    const mix = Math.max(0, Math.min(1, (p.mix ?? 100) / 100));
+    this.dry.gain.value = 1 - mix; this.wet.gain.value = mix;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DEVICE: Spaces — the flagship convolution reverb.
+//
+// A bank of modeled impulse responses of the world's great reverberant spaces —
+// synthesized (multi-band decay + space-specific early-reflection patterns +
+// decorrelated stereo), not recordings, so the whole bank ships in zero bytes
+// and regenerates at any sample rate. Each space defines RT60 per band, an
+// early-reflection character, and a tonal tilt; Size stretches the room, Damp
+// pulls the high band down faster (soft furnishings), Width narrows the tail.
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface SpaceDef {
+  id: string; label: string;
+  rtLow: number; rtMid: number; rtHigh: number;  // RT60 seconds per band
+  erCount: number; erSpanMs: number; erGain: number; // early-reflection pattern
+  tilt: number;   // −1 dark … +1 bright overall voicing
+  seed: number;
+}
+
+export const REVERB_SPACES: SpaceDef[] = [
+  { id: 'wood-room', label: 'Wood Room', rtLow: 0.5, rtMid: 0.45, rtHigh: 0.3, erCount: 10, erSpanMs: 22, erGain: 0.7, tilt: 0.1, seed: 11 },
+  { id: 'chamber', label: 'Echo Chamber', rtLow: 1.7, rtMid: 1.6, rtHigh: 1.2, erCount: 8, erSpanMs: 18, erGain: 0.5, tilt: 0.2, seed: 21 },
+  { id: 'plate', label: 'Studio Plate', rtLow: 2.4, rtMid: 2.8, rtHigh: 2.6, erCount: 0, erSpanMs: 0, erGain: 0, tilt: 0.5, seed: 31 },
+  { id: 'opera', label: 'Opera House', rtLow: 2.0, rtMid: 1.8, rtHigh: 1.2, erCount: 14, erSpanMs: 42, erGain: 0.45, tilt: 0, seed: 41 },
+  { id: 'concert-hall', label: 'Grand Concert Hall', rtLow: 2.6, rtMid: 2.2, rtHigh: 1.5, erCount: 16, erSpanMs: 55, erGain: 0.4, tilt: -0.1, seed: 51 },
+  { id: 'stone-chapel', label: 'Stone Chapel', rtLow: 3.0, rtMid: 3.2, rtHigh: 2.0, erCount: 12, erSpanMs: 38, erGain: 0.55, tilt: 0.15, seed: 61 },
+  { id: 'cathedral', label: 'Gothic Cathedral', rtLow: 7.5, rtMid: 6.5, rtHigh: 3.4, erCount: 18, erSpanMs: 90, erGain: 0.45, tilt: -0.15, seed: 71 },
+  { id: 'taj', label: 'Marble Dome (Taj)', rtLow: 9.0, rtMid: 8.5, rtHigh: 5.5, erCount: 9, erSpanMs: 75, erGain: 0.6, tilt: 0.3, seed: 81 },
+  { id: 'mausoleum', label: 'Hamilton Mausoleum', rtLow: 11, rtMid: 9.5, rtHigh: 4.5, erCount: 8, erSpanMs: 70, erGain: 0.5, tilt: -0.2, seed: 91 },
+  { id: 'cistern', label: 'Underground Cistern', rtLow: 12, rtMid: 10, rtHigh: 3.0, erCount: 6, erSpanMs: 60, erGain: 0.4, tilt: -0.5, seed: 101 },
+  { id: 'canyon', label: 'Canyon', rtLow: 5.5, rtMid: 5.0, rtHigh: 2.5, erCount: 5, erSpanMs: 320, erGain: 0.8, tilt: -0.1, seed: 111 },
+  { id: 'cave', label: 'Lava Cave', rtLow: 4.0, rtMid: 3.2, rtHigh: 1.2, erCount: 22, erSpanMs: 48, erGain: 0.6, tilt: -0.6, seed: 121 },
+];
+
+/** Deterministic per-space rng so a preset always sounds like itself. */
+function spaceRng(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function makeSpaceIR(ctx: BaseAudioContext, space: SpaceDef, size: number, damp: number, width: number): AudioBuffer {
+  const sr = ctx.sampleRate;
+  const rtLow = space.rtLow * size;
+  const rtMid = space.rtMid * size;
+  const rtHigh = Math.max(0.1, space.rtHigh * size * (1 - damp * 0.75));
+  const seconds = Math.min(10, Math.max(rtLow, rtMid, rtHigh) * 0.75 + 0.1);
+  const len = Math.max(64, Math.floor(seconds * sr));
+  const buf = ctx.createBuffer(2, len, sr);
+  const kLow = 6.91 / (rtLow * sr), kMid = 6.91 / (rtMid * sr), kHigh = 6.91 / (rtHigh * sr);
+  // One-pole crossovers at ~250 Hz and ~2.5 kHz.
+  const aLow = 1 - Math.exp(-2 * Math.PI * 250 / sr);
+  const aHigh = 1 - Math.exp(-2 * Math.PI * 2500 / sr);
+  const chans: Float32Array[] = [];
+  for (let ch = 0; ch < 2; ch++) {
+    const rng = spaceRng(space.seed + ch * 7919);
+    const d = buf.getChannelData(ch);
+    let lp1 = 0, lp2 = 0;
+    for (let i = 0; i < len; i++) {
+      const x = rng() * 2 - 1;
+      lp1 += aLow * (x - lp1);          // low band
+      lp2 += aHigh * (x - lp2);         // low+mid band
+      const low = lp1, mid = lp2 - lp1, high = x - lp2;
+      const tiltHi = 1 + space.tilt * 0.6, tiltLo = 1 - space.tilt * 0.4;
+      d[i] = low * tiltLo * Math.exp(-kLow * i) + mid * Math.exp(-kMid * i) + high * tiltHi * Math.exp(-kHigh * i);
+    }
+    // Early reflections: sparse signed taps over the space's own span, fading with distance.
+    const erSpan = Math.max(1, Math.floor((space.erSpanMs / 1000) * size * sr));
+    for (let e = 0; e < space.erCount; e++) {
+      const at = Math.floor(rng() * erSpan);
+      if (at < len) d[at] += (rng() > 0.5 ? 1 : -1) * space.erGain * (1 - e / Math.max(1, space.erCount)) * (0.5 + rng() * 0.5);
+    }
+    // Fade-in over ~3 ms so the direct-sound spike never clicks.
+    const fade = Math.min(len, Math.floor(sr * 0.003));
+    for (let i = 0; i < fade; i++) d[i] *= i / fade;
+    chans.push(d);
+  }
+  // Width: crossmix the decorrelated channels toward mono.
+  const w = Math.max(0, Math.min(1, width));
+  if (w < 1) {
+    const [l, r] = chans;
+    for (let i = 0; i < len; i++) {
+      const m = (l[i] + r[i]) * 0.5, s = (l[i] - r[i]) * 0.5 * w;
+      l[i] = m + s; r[i] = m - s;
+    }
+  }
+  // Normalize to a sane wet level.
+  let peak = 1e-6;
+  for (const c of chans) for (let i = 0; i < len; i++) { const a = Math.abs(c[i]); if (a > peak) peak = a; }
+  const g = 0.5 / peak;
+  for (const c of chans) for (let i = 0; i < len; i++) c[i] *= g;
+  return buf;
+}
+
+class SpacesDevice extends FxBase {
+  private conv: ConvolverNode;
+  private preDelay: DelayNode;
+  private dry: GainNode; private wet: GainNode;
+  private lastKey = '';
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.conv = this.own(ctx.createConvolver());
+    this.preDelay = this.own(ctx.createDelay(0.5));
+    this.dry = this.own(ctx.createGain()); this.wet = this.own(ctx.createGain());
+    this.input.connect(this.dry); this.dry.connect(this.output);
+    this.input.connect(this.preDelay); this.preDelay.connect(this.conv); this.conv.connect(this.wet); this.wet.connect(this.output);
+  }
+  setParams(p: Record<string, number>): void {
+    const space = REVERB_SPACES[Math.max(0, Math.min(REVERB_SPACES.length - 1, Math.round(p.space ?? 6)))];
+    const size = Math.max(0.25, Math.min(2, p.size ?? 1));
+    const damp = Math.max(0, Math.min(1, p.damp ?? 0.2));
+    const width = Math.max(0, Math.min(1, (p.width ?? 100) / 100));
+    const key = `${space.id}:${size.toFixed(2)}:${damp.toFixed(2)}:${width.toFixed(2)}`;
+    if (key !== this.lastKey) { this.lastKey = key; this.conv.buffer = makeSpaceIR(this.ctx, space, size, damp, width); }
+    this.preDelay.delayTime.value = Math.max(0, Math.min(0.25, (p.preDelay ?? 15) / 1000));
+    const mix = Math.max(0, Math.min(1, (p.mix ?? 30) / 100));
+    this.dry.gain.value = 1 - mix; this.wet.gain.value = mix;
+  }
+}
+
 // ── the registry ─────────────────────────────────────────────────────────────
-const C = { eq: '#00DAF3', dynamics: '#FF8C00', saturation: '#D40055', stereo: '#D0BCFF', space: '#06D6A0', repair: '#F59E0B', utility: '#8899aa', amp: '#E8A33D' };
+const C = { eq: '#00DAF3', dynamics: '#FF8C00', saturation: '#D40055', stereo: '#D0BCFF', space: '#06D6A0', mod: '#B84DFF', dj: '#FF4B1C', repair: '#F59E0B', utility: '#8899aa', amp: '#E8A33D' };
 
 export const DEVICES: FxDescriptor[] = [
   {
@@ -775,6 +1321,171 @@ export const DEVICES: FxDescriptor[] = [
       { key: 'mix', label: 'Mix', min: 0, max: 100, default: 25, unit: '%' },
     ],
     create: (ctx) => new DelayDevice(ctx),
+  },
+  {
+    type: 'spaces', label: 'Spaces', category: 'space', color: C.space,
+    blurb: 'Convolution reverb — modeled impulses of the world’s great rooms, halls and monuments',
+    params: [
+      { key: 'space', label: 'Space', min: 0, max: REVERB_SPACES.length - 1, default: 6, step: 1, format: (v) => REVERB_SPACES[Math.max(0, Math.min(REVERB_SPACES.length - 1, Math.round(v)))].label },
+      { key: 'size', label: 'Size', min: 0.25, max: 2, default: 1, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'damp', label: 'Damp', min: 0, max: 1, default: 0.2, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'preDelay', label: 'Pre', min: 0, max: 250, default: 15, unit: 'ms' },
+      { key: 'width', label: 'Width', min: 0, max: 100, default: 100, unit: '%' },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 30, unit: '%' },
+    ],
+    create: (ctx) => new SpacesDevice(ctx),
+  },
+  {
+    type: 'chorus', label: 'Chorus', category: 'mod', color: C.mod,
+    blurb: 'Two detuned voices, spread wide',
+    params: [
+      { key: 'rate', label: 'Rate', min: 0.05, max: 8, default: 0.8, unit: 'Hz' },
+      { key: 'depth', label: 'Depth', min: 0, max: 1, default: 0.5, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'delay', label: 'Delay', min: 0, max: 1, default: 0.4, format: (v) => `${Math.round(12 + v * 20)}ms` },
+      { key: 'spread', label: 'Spread', min: 0, max: 1, default: 0.7, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 50, unit: '%' },
+    ],
+    create: (ctx) => new ChorusDevice(ctx),
+  },
+  {
+    type: 'flanger', label: 'Flanger', category: 'mod', color: C.mod,
+    blurb: 'Swept comb with feedback — tape-flange to jet',
+    params: [
+      { key: 'rate', label: 'Rate', min: 0.02, max: 5, default: 0.25, unit: 'Hz' },
+      { key: 'depth', label: 'Depth', min: 0, max: 1, default: 0.6, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'center', label: 'Center', min: 0, max: 1, default: 0.35, format: (v) => `${(1.5 + v * 8).toFixed(1)}ms` },
+      { key: 'feedback', label: 'Feedback', min: -92, max: 92, default: 55, unit: '%' },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 50, unit: '%' },
+    ],
+    create: (ctx) => new FlangerDevice(ctx),
+  },
+  {
+    type: 'phaser', label: 'Phaser', category: 'mod', color: C.mod,
+    blurb: 'Up to six swept all-pass stages with feedback',
+    params: [
+      { key: 'rate', label: 'Rate', min: 0.02, max: 8, default: 0.4, unit: 'Hz' },
+      { key: 'depth', label: 'Depth', min: 0, max: 1, default: 0.6, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'center', label: 'Center', min: 100, max: 4000, default: 900, unit: 'Hz', curve: 'log' },
+      { key: 'stages', label: 'Stages', min: 2, max: 6, default: 4, step: 2 },
+      { key: 'feedback', label: 'Feedback', min: 0, max: 85, default: 30, unit: '%' },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 50, unit: '%' },
+    ],
+    create: (ctx) => new PhaserDevice(ctx),
+  },
+  {
+    type: 'tremolo', label: 'Tremolo', category: 'mod', color: C.mod,
+    blurb: 'Amplitude wobble — amp-style shimmer',
+    params: [
+      { key: 'rate', label: 'Rate', min: 0.1, max: 20, default: 5, unit: 'Hz' },
+      { key: 'depth', label: 'Depth', min: 0, max: 1, default: 0.6, format: (v) => `${Math.round(v * 100)}%` },
+    ],
+    create: (ctx) => new TremoloDevice(ctx),
+  },
+  {
+    type: 'autopan', label: 'Auto-Pan', category: 'mod', color: C.mod,
+    blurb: 'Sweeps the image left–right on an LFO',
+    params: [
+      { key: 'rate', label: 'Rate', min: 0.05, max: 10, default: 1, unit: 'Hz' },
+      { key: 'depth', label: 'Depth', min: 0, max: 1, default: 0.8, format: (v) => `${Math.round(v * 100)}%` },
+    ],
+    create: (ctx) => new AutoPanDevice(ctx),
+  },
+  {
+    type: 'vibrato', label: 'Vibrato', category: 'mod', color: C.mod,
+    blurb: 'True pitch wobble — no dry signal',
+    params: [
+      { key: 'rate', label: 'Rate', min: 0.5, max: 12, default: 5, unit: 'Hz' },
+      { key: 'depth', label: 'Depth', min: 0, max: 1, default: 0.4, format: (v) => `${Math.round(v * 100)}%` },
+    ],
+    create: (ctx) => new VibratoDevice(ctx),
+  },
+  {
+    type: 'rotary', label: 'Rotary', category: 'mod', color: C.mod,
+    blurb: 'Leslie-style twin rotors — chorale to tremolo',
+    params: [
+      { key: 'speed', label: 'Speed', min: 0, max: 1, default: 0.5, format: (v) => (v < 0.33 ? 'Chorale' : v < 0.66 ? 'Ramp' : 'Tremolo') },
+      { key: 'depth', label: 'Depth', min: 0, max: 1, default: 0.6, format: (v) => `${Math.round(v * 100)}%` },
+    ],
+    create: (ctx) => new RotaryDevice(ctx),
+  },
+  {
+    type: 'comb', label: 'Comb', category: 'mod', color: C.mod,
+    blurb: 'Tuned feedback comb — metallic rings and hollows',
+    params: [
+      { key: 'freq', label: 'Freq', min: 25, max: 2000, default: 220, unit: 'Hz', curve: 'log' },
+      { key: 'feedback', label: 'Feedback', min: -95, max: 95, default: 70, unit: '%' },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 50, unit: '%' },
+    ],
+    create: (ctx) => new CombDevice(ctx),
+  },
+  {
+    type: 'ringmod', label: 'Ring-Mod', category: 'mod', color: C.mod,
+    blurb: 'Carrier multiplication — bells, robots, sidebands',
+    params: [
+      { key: 'freq', label: 'Freq', min: 1, max: 8000, default: 300, unit: 'Hz', curve: 'log' },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 100, unit: '%' },
+    ],
+    create: (ctx) => new RingModDevice(ctx),
+  },
+  {
+    type: 'autofilter', label: 'Filter LFO', category: 'dj', color: C.dj,
+    blurb: 'The performance filter — sweepable LP/HP/BP with drive and an LFO',
+    params: [
+      { key: 'mode', label: 'Mode', min: 0, max: 2, default: 0, step: 1, format: (v) => ['LP', 'HP', 'BP'][Math.max(0, Math.min(2, Math.round(v)))] },
+      { key: 'cutoff', label: 'Cutoff', min: 40, max: 18000, default: 1200, unit: 'Hz', curve: 'log' },
+      { key: 'res', label: 'Res', min: 0.3, max: 18, default: 2 },
+      { key: 'drive', label: 'Drive', min: 0, max: 1, default: 0, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'rate', label: 'LFO Rate', min: 0.05, max: 12, default: 0.5, unit: 'Hz' },
+      { key: 'depth', label: 'LFO Depth', min: 0, max: 1, default: 0, format: (v) => `${Math.round(v * 100)}%` },
+    ],
+    create: (ctx) => new AutoFilterDevice(ctx),
+  },
+  {
+    type: 'gater', label: 'Gater', category: 'dj', color: C.dj,
+    blurb: 'Tempo-synced rhythmic gate — the Traktor chop',
+    params: [
+      { key: 'division', label: 'Rate', min: 0, max: 3, default: 2, step: 1, format: divisionLabel },
+      { key: 'depth', label: 'Depth', min: 0, max: 1, default: 0.9, format: (v) => `${Math.round(v * 100)}%` },
+    ],
+    create: (ctx) => new GaterDevice(ctx),
+  },
+  {
+    type: 'beatmasher', label: 'Beatmasher', category: 'dj', color: C.dj,
+    blurb: 'Loop-freeze stutter — grab a slice and mash it, tempo-synced',
+    params: [
+      { key: 'mash', label: 'Mash', min: 0, max: 1, default: 0, step: 1, format: (v) => (v > 0.5 ? 'HELD' : 'Off') },
+      { key: 'length', label: 'Length', min: 0, max: 3, default: 1, step: 1, format: divisionLabel },
+    ],
+    create: (ctx) => new BeatmasherDevice(ctx),
+  },
+  {
+    type: 'limiter', label: 'Peak Limiter', category: 'dynamics', color: C.dynamics,
+    blurb: 'Brickwall-ish ceiling with input gain',
+    params: [
+      { key: 'gain', label: 'Gain', min: 0, max: 24, default: 0, unit: 'dB' },
+      { key: 'ceiling', label: 'Ceiling', min: -12, max: 0, default: -0.3, unit: 'dB' },
+      { key: 'release', label: 'Release', min: 10, max: 500, default: 80, unit: 'ms' },
+    ],
+    create: (ctx) => new LimiterDevice(ctx),
+  },
+  {
+    type: 'transient', label: 'Transient', category: 'dynamics', color: C.dynamics,
+    blurb: 'Attack and sustain, shaped independently',
+    params: [
+      { key: 'attack', label: 'Attack', min: -1, max: 1, default: 0.4, format: (v) => `${v >= 0 ? '+' : ''}${Math.round(v * 100)}%` },
+      { key: 'sustain', label: 'Sustain', min: -1, max: 1, default: 0, format: (v) => `${v >= 0 ? '+' : ''}${Math.round(v * 100)}%` },
+    ],
+    create: (ctx) => new TransientDevice(ctx),
+  },
+  {
+    type: 'bitcrush', label: 'Bit-8', category: 'saturation', color: C.saturation,
+    blurb: 'Bit-depth crush + rate grime',
+    params: [
+      { key: 'bits', label: 'Bits', min: 1, max: 16, default: 8, step: 1 },
+      { key: 'rateHz', label: 'Rate', min: 500, max: 20000, default: 12000, unit: 'Hz', curve: 'log' },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 100, unit: '%' },
+    ],
+    create: (ctx) => new BitcrushDevice(ctx),
   },
   {
     type: 'trim', label: 'Gain', category: 'utility', color: C.utility,
@@ -891,12 +1602,19 @@ export class FxChainHost {
   readonly output: GainNode;
   private ctx: BaseAudioContext;
   private live = new Map<string, { node: FxNode; type: string }>();
+  private bpm = 120;
 
   constructor(ctx: BaseAudioContext) {
     this.ctx = ctx;
     this.input = ctx.createGain();
     this.output = ctx.createGain();
     this.input.connect(this.output);
+  }
+
+  /** Transport tempo for synced devices (Gater, Beatmasher). Safe to call any time. */
+  setTempo(bpm: number): void {
+    this.bpm = Math.max(20, Math.min(300, bpm || 120));
+    for (const { node } of this.live.values()) node.setTempo?.(this.bpm);
   }
 
   setChain(instances: FxInstance[]): void {
@@ -914,6 +1632,7 @@ export class FxChainHost {
         const d = deviceByType(inst.type);
         if (!d) continue;
         entry = { node: d.create(this.ctx), type: inst.type };
+        entry.node.setTempo?.(this.bpm);
         this.live.set(inst.id, entry);
       }
       entry.node.setParams(inst.params);

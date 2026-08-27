@@ -6,7 +6,6 @@ import React from 'react';
 import { Plus } from 'lucide-react';
 import type { GrooveDoc, Pattern } from '../../../../services/melos/beats/grooveDoc';
 import { ChannelRack } from './ChannelRack';
-import { SequenceStrip } from './SequenceStrip';
 import { StepGraphEditor } from './StepGraphEditor';
 import { StepFxPanel } from './StepFxPanel';
 
@@ -21,8 +20,12 @@ interface GlassViewProps {
   onMutate: (fn: (d: GrooveDoc) => void) => void;
   /** Add an instrument straight from Glass — it lands as a rack channel. */
   onAddInstrument?: () => void;
+  /** Open an instrument's window from a rack row. */
+  onOpenInstrument?: (trackId: string) => void;
 }
 
+// The Sequence strip moved to the Timeline page (Song mode only) — Glass is the pattern
+// surface; the arrangement is the arranger's business.
 export const GlassView: React.FC<GlassViewProps> = (p) => (
   <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-3.5">
     <ChannelRack
@@ -34,6 +37,7 @@ export const GlassView: React.FC<GlassViewProps> = (p) => (
       playMode={p.playMode}
       onSelectPad={p.onSelectPad}
       onMutate={p.onMutate}
+      onOpenInstrument={p.onOpenInstrument}
     />
     {/* FL-style per-step pitch / velocity / pan for the selected channel. */}
     <StepGraphEditor
@@ -47,14 +51,6 @@ export const GlassView: React.FC<GlassViewProps> = (p) => (
       doc={p.doc}
       pattern={p.pattern}
       padIdx={p.selectedPad}
-      onMutate={p.onMutate}
-    />
-    <SequenceStrip
-      doc={p.doc}
-      activePattern={p.pattern}
-      beats={p.beats}
-      running={p.running}
-      playMode={p.playMode}
       onMutate={p.onMutate}
     />
     {p.onAddInstrument && (

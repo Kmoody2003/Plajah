@@ -188,11 +188,13 @@ export const MixerView: React.FC<MixerViewProps> = ({ doc, meters, limiterReduct
             ))}
           </div>
 
-          {doc.arrangement.length > 0 && <div className="w-px bg-white/[0.16] flex-none" />}
+          {doc.arrangement.some((t) => !t.padOwned) && <div className="w-px bg-white/[0.16] flex-none" />}
 
-          {/* arrangement tracks — each a channel with sends + inserts */}
+          {/* arrangement tracks — each a channel with sends + inserts. padOwned instrument
+              tracks are already the PAD strip on the left; showing them twice gave every pad
+              instrument two mixer channels. */}
           <div className="flex gap-1.5">
-            {doc.arrangement.map((t) => (
+            {doc.arrangement.filter((t) => !t.padOwned).map((t) => (
               <div key={t.id} onPointerDown={() => !t.foreign && setSel({ kind: 'track', id: t.id })} className="rounded-[10px]" style={isSel('track', t.id) ? { outline: `1px solid ${SELECT}`, outlineOffset: 1 } : undefined}>
                 <ChannelStrip
                   label={t.name} color={t.kind === 'audio' ? PLAYHEAD : '#B84DFF'} gainDb={t.gainDb} pan={t.pan} mute={t.mute} solo={t.solo}

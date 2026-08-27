@@ -2,7 +2,7 @@
 // Purple appears here ONLY in the wordmark (brand-chrome rule).
 
 import React, { useCallback, useRef, useState } from 'react';
-import { Play, Square, Activity, X, FileDown, FileUp, Download, UploadCloud, OctagonX, Repeat, SlidersHorizontal } from 'lucide-react';
+import { Play, Square, Activity, X, Circle, UploadCloud, OctagonX, Repeat, SlidersHorizontal, Timer } from 'lucide-react';
 import type { GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { PLAYHEAD } from '../theme';
@@ -39,16 +39,18 @@ interface TransportBarProps {
   onToggleDiagnostics: () => void;
   onOpenMidi?: () => void;
   midiConnected?: boolean;
-  onOpenEq?: () => void;
-  onOpenLibrary?: () => void;
-  onExportDawproject?: () => void;
-  onImportDawproject?: () => void;
-  onBounce?: () => void;
-  onSendToFabula?: () => void;
-  /** "Bounce to take" inside a Melos production, plain "Bounce" standalone. */
-  bounceLabel?: string;
   onPublish?: () => void;
   busy?: string | null;
+  /** Record arm — pressing Play (or Record while stopped) then records the armed instrument. */
+  recording?: boolean;
+  onToggleRecord?: () => void;
+  /** Metronome click, and the record pre-roll (count-in) in bars: 0, 1 or 2. */
+  metronomeOn?: boolean;
+  onToggleMetronome?: () => void;
+  preRollBars?: number;
+  onCyclePreRoll?: () => void;
+  /** The File/Edit/View/Options menu bar renders inline, left of the view tabs. */
+  menuSlot?: React.ReactNode;
   /** The Melos shell owns navigation — no close button when embedded there. */
   hideClose?: boolean;
   onClose: () => void;
@@ -83,6 +85,8 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
         <span className="bg-gradient-to-br from-[#B84DFF] to-[#D40055] bg-clip-text text-transparent">MELOS</span>
         <span className="text-white/80">&nbsp;· STUDIO</span>
       </span>
+
+      {p.menuSlot}
 
       <div className="flex gap-0.5 bg-white/[0.06] border border-white/10 rounded-[10px] p-0.5">
         {VIEWS.map((v) => {
@@ -189,6 +193,42 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
         </button>
       )}
 
+      {/* Record arm — QWERTY and MIDI takes land in clips on the armed track. */}
+      {p.onToggleRecord && (
+        <button
+          onClick={p.onToggleRecord}
+          aria-label={p.recording ? 'Recording armed' : 'Arm recording'}
+          title={p.recording ? 'Recording armed — notes you play are captured to the armed track' : 'Arm recording (plays with the pre-roll count-in)'}
+          className={`w-9 h-8 grid place-items-center rounded-lg border transition-colors ${p.recording ? 'animate-pulse' : ''}`}
+          style={p.recording
+            ? { background: 'rgba(212,0,85,0.25)', borderColor: '#D40055', color: '#FF4D8C' }
+            : { borderColor: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.45)' }}
+        >
+          <Circle size={13} fill="currentColor" />
+        </button>
+      )}
+
+      {/* Metronome + pre-roll: click toggles the click, the chip cycles the count-in bars. */}
+      {p.onToggleMetronome && (
+        <div className="flex items-center rounded-lg border border-white/10 overflow-hidden">
+          <button
+            onClick={p.onToggleMetronome}
+            aria-label="Metronome"
+            title={p.metronomeOn ? 'Metronome on' : 'Metronome off'}
+            className="w-8 h-8 grid place-items-center transition-colors"
+            style={p.metronomeOn ? { color: PLAYHEAD, background: 'rgba(0,218,243,0.12)' } : { color: 'rgba(255,255,255,0.4)' }}
+          ><Timer size={14} /></button>
+          {p.onCyclePreRoll && (
+            <button
+              onClick={p.onCyclePreRoll}
+              title="Pre-roll — count-in bars before a recording starts"
+              className="h-8 px-1.5 text-[9px] font-mono border-l border-white/10 transition-colors"
+              style={(p.preRollBars ?? 0) > 0 ? { color: PLAYHEAD } : { color: 'rgba(255,255,255,0.35)' }}
+            >{(p.preRollBars ?? 0) > 0 ? `${p.preRollBars}bar` : 'pre 0'}</button>
+          )}
+        </div>
+      )}
+
       {/* Panic — cut every sounding voice. The safety net for a synth note left ringing. */}
       <button
         onClick={p.onPanic}
@@ -199,45 +239,9 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
         <OctagonX size={15} />
       </button>
 
-      <div className="flex rounded-lg border border-[#00DAF3]/40 overflow-hidden">
-        <button
-          onClick={p.onExportDawproject}
-          disabled={!p.onExportDawproject || !!p.busy}
-          title="Export .dawproject — opens in Bitwig, Studio One and Cubase"
-          className="h-8 px-2.5 text-[11px] text-[#00DAF3] hover:bg-[#00DAF3]/10 flex items-center gap-1.5 disabled:opacity-40"
-        >
-          <FileDown size={12} /> {p.busy === 'dawproject' ? 'Exporting…' : '.dawproject'}
-        </button>
-        <button
-          onClick={p.onImportDawproject}
-          disabled={!p.onImportDawproject || !!p.busy}
-          title="Import a .dawproject file (Bitwig / Studio One / Cubase)"
-          aria-label="Import .dawproject"
-          className="h-8 px-2 text-[#00DAF3] border-l border-[#00DAF3]/30 hover:bg-[#00DAF3]/10 disabled:opacity-40"
-        >
-          <FileUp size={12} />
-        </button>
-      </div>
-
-      <button
-        onClick={p.onBounce}
-        disabled={!p.onBounce || !!p.busy}
-        title="Bounce — render the song offline to a 24-bit WAV"
-        className="h-8 px-3 rounded-lg text-[11px] border border-white/15 text-white/60 hover:text-white hover:bg-white/10 flex items-center gap-1.5 disabled:opacity-40"
-      >
-        <Download size={12} /> {p.busy === 'bounce' ? 'Rendering…' : (p.bounceLabel || 'Bounce')}
-      </button>
-
-      {p.onSendToFabula && (
-        <button
-          onClick={p.onSendToFabula}
-          disabled={!!p.busy}
-          title="Send this groove to Fabula as a music track (round-trips back to Melos)"
-          className="h-8 px-3 rounded-lg text-[11px] border border-[#B84DFF]/40 text-[#D0BCFF] hover:bg-[#B84DFF]/12 flex items-center gap-1.5 disabled:opacity-40"
-        >{p.busy === 'fabula' ? 'Sending…' : '→ Fabula'}</button>
-      )}
-
-      {/* Brand gradient is reserved for exactly this: the Publish CTA (and the wordmark). */}
+      {/* Brand gradient is reserved for exactly this: the Publish CTA (and the wordmark).
+          Everything else file-shaped (export/import/bounce/Fabula/library/EQ) lives in the
+          File and Options menus now — a transport bar is for transport. */}
       <button
         onClick={p.onPublish}
         disabled={!p.onPublish || !!p.busy}
@@ -245,15 +249,9 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
         className="h-8 px-3.5 rounded-lg text-[11px] font-semibold text-white flex items-center gap-1.5 disabled:opacity-40"
         style={{ background: 'linear-gradient(135deg, #6B0099, #D40055)', boxShadow: '0 6px 22px rgba(212,0,85,0.34)' }}
       >
-        <UploadCloud size={12} /> {p.busy === 'publish' ? 'Rendering…' : 'Publish'}
+        <UploadCloud size={12} /> {p.busy === 'publish' ? 'Rendering…' : p.busy === 'bounce' ? 'Rendering…' : 'Publish'}
       </button>
 
-      {p.onOpenLibrary && (
-        <button onClick={p.onOpenLibrary} title="Muse Library — browse instruments, samples, loops" className="h-8 px-2.5 rounded-lg text-[11px] border border-white/10 text-white/50 hover:text-white hover:bg-white/10 font-mono">Library</button>
-      )}
-      {p.onOpenEq && (
-        <button onClick={p.onOpenEq} title="Spectra — mix-bus EQ + dynamics" className="h-8 px-2.5 rounded-lg text-[11px] border border-white/10 text-white/50 hover:text-white hover:bg-white/10 font-mono">EQ</button>
-      )}
       {p.onOpenMidi && (
         <button onClick={p.onOpenMidi} aria-label="MIDI controllers" title="MIDI controllers — devices and Learn mapping"
           className="w-8 h-8 grid place-items-center rounded-lg border transition-colors relative border-white/10 text-white/40 hover:text-white">

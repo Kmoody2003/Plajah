@@ -29,6 +29,10 @@ export interface SchedulerDeps {
   /** Song-mode loop region. When on, scheduling stops at endBeats and the engine re-seeks to
    *  startBeats — so nothing past the loop is ever queued. Null/off = play straight through. */
   loop?(): { on: boolean; startBeats: number; endBeats: number } | null;
+  /** Metronome switch — live transport only; offline renders never pass these deps. */
+  metronome?(): boolean;
+  /** Emit one click at an absolute context time; accent = bar start. */
+  click?(when: number, accent: boolean): void;
 }
 
 /** Deterministic PRNG for offline renders (mulberry32). */
@@ -45,6 +49,7 @@ export function seededRng(seed: number): () => number {
 export class StepScheduler {
   private mode: PlayMode = 'pattern';
   private patternId: string | null = null;
+  private queuedPatternId: string | null = null; // launcher: switch at the next bar boundary
   private nextStep = 0;                       // monotonic global 16th index from transport zero
   private startedAudioClips = new Set<string>();
   private running = false;
@@ -54,13 +59,22 @@ export class StepScheduler {
   start(mode: PlayMode, fromBeats: number, patternId?: string) {
     this.mode = mode;
     this.patternId = patternId ?? null;
+    this.queuedPatternId = null;
     this.nextStep = Math.ceil(fromBeats / STEP_BEATS - 1e-9);
     this.startedAudioClips.clear();
     this.running = true;
     if (mode === 'song') this.startMidClips(fromBeats);
   }
 
-  stop() { this.running = false; }
+  stop() { this.running = false; this.queuedPatternId = null; }
+
+  /** Clip-launcher gesture: hand the transport to another pattern at the next bar boundary. */
+  queuePattern(patternId: string) {
+    if (patternId === this.patternId) { this.queuedPatternId = null; return; }
+    this.queuedPatternId = patternId;
+  }
+  currentPatternId(): string | null { return this.patternId; }
+  queuedId(): string | null { return this.queuedPatternId; }
 
   /** Live path — called on every worklet tick with the current audio time. */
   onTick(nowSec: number) {
@@ -93,6 +107,9 @@ export class StepScheduler {
       if (beat >= endBeats || beat >= loopCap - 1e-9) break;
       const baseTime = d.toTime(beat);
       if (baseTime >= horizonSec) break;
+      // Metronome: a click every beat, accented on the bar. Live transport only — offline
+      // renders build their own deps without these, so a bounce never prints the click.
+      if (d.metronome?.() && d.click && this.nextStep % 4 === 0) d.click(baseTime, this.nextStep % 16 === 0);
       if (this.mode === 'pattern') this.schedulePatternStep(doc, beat);
       else this.scheduleSongStep(doc, beat, horizonSec);
       // Arps run in BOTH modes — an armed instrument responds to held keys whether you're
@@ -115,12 +132,47 @@ export class StepScheduler {
    * Legato gate for sustaining pads: a step holds until the NEXT active step on the same pad
    * (wrapping the pattern), 303/mono-bass style — a lone sub step sustains the whole loop.
    */
-  private legatoGateSec(doc: GrooveDoc, pattern: Pattern, padIdx: number, localStep: number): number {
+  private legatoGateSec(doc: GrooveDoc, pattern: Pattern, padIdx: number, localStep: number, lenOverride?: number): number {
     const row = pattern.steps[padIdx] || {};
-    for (let i = 1; i <= pattern.length; i++) {
-      if (row[(localStep + i) % pattern.length]) return i * STEP_BEATS * this.deps.secPerBeat();
+    const len = Math.max(1, Math.min(pattern.length, Math.round(lenOverride ?? pattern.length)));
+    for (let i = 1; i <= len; i++) {
+      if (row[(localStep + i) % len]) return i * STEP_BEATS * this.deps.secPerBeat();
     }
-    return pattern.length * STEP_BEATS * this.deps.secPerBeat();
+    return len * STEP_BEATS * this.deps.secPerBeat();
+  }
+
+  /**
+   * Fire one 16th of a PATTERN CLIP in song mode. Unlike fireRow (pattern mode), each pad can
+   * carry its own loop length inside the clip (`clip.padLens`) — Bitwig-style independent clip
+   * lengths per track, with MEKA's pattern length as the default.
+   */
+  private fireRowClip(doc: GrooveDoc, pattern: Pattern, clip: TimelineClip, intoClipSteps: number, beat: number) {
+    const d = this.deps;
+    const padLen = (padIdx: number) =>
+      Math.max(1, Math.min(pattern.length, Math.round(clip.padLens?.[padIdx] ?? pattern.length)));
+    for (const padKey of Object.keys(pattern.steps)) {
+      const padIdx = Number(padKey);
+      const len = padLen(padIdx);
+      const localStep = ((intoClipSteps % len) + len) % len;
+      const step = pattern.steps[padIdx]?.[localStep];
+      if (!step) continue;
+      if (step.p !== undefined && step.p < 1 && d.rng() > step.p) continue;
+      const when = this.eventTime(beat, localStep, doc, step.micro);
+      const sustaining = (doc.kit[padIdx]?.env.sustain || 0) > 0.001;
+      d.trigger(padIdx, step.v, when, sustaining ? this.legatoGateSec(doc, pattern, padIdx, localStep, len) : undefined, step.pitch ?? 0, step.pan, step.fx);
+    }
+    if (pattern.melo) {
+      for (const padKey of Object.keys(pattern.melo)) {
+        const padIdx = Number(padKey);
+        const len = padLen(padIdx);
+        const localStep = ((intoClipSteps % len) + len) % len;
+        const notes = pattern.melo[padIdx]?.[localStep];
+        if (!notes?.length) continue;
+        const when = this.eventTime(beat, localStep, doc);
+        const stepSec = STEP_BEATS * d.secPerBeat();
+        for (const n of notes) d.trigger(padIdx, n.v, when, Math.max(1, n.len) * stepSec, n.semi);
+      }
+    }
   }
 
   private fireRow(doc: GrooveDoc, pattern: Pattern, localStep: number, beat: number) {
@@ -160,6 +212,11 @@ export class StepScheduler {
   }
 
   private schedulePatternStep(doc: GrooveDoc, beat: number) {
+    // A queued launcher pattern takes over on the bar line — the Bitwig launch quantum.
+    if (this.queuedPatternId && this.nextStep % 16 === 0) {
+      this.patternId = this.queuedPatternId;
+      this.queuedPatternId = null;
+    }
     const pattern = doc.patterns.find((p) => p.id === this.patternId) || doc.patterns[0];
     if (!pattern) return;
     const localStep = ((this.nextStep % pattern.length) + pattern.length) % pattern.length;
@@ -180,8 +237,7 @@ export class StepScheduler {
         const pattern = doc.patterns.find((p) => p.id === clip.patternId);
         if (!pattern) continue;
         const intoClipSteps = Math.round((beat - clip.startBeats) / STEP_BEATS);
-        const localStep = ((intoClipSteps % pattern.length) + pattern.length) % pattern.length;
-        this.fireRow(doc, pattern, localStep, beat);
+        this.fireRowClip(doc, pattern, clip, intoClipSteps, beat);
       }
     }
     // Instrument tracks: fire every note whose absolute start falls inside this step window, at

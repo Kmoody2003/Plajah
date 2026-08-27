@@ -64,10 +64,17 @@ export async function renderGroove(
     graph.setGlueOn(!!masteringState.glue);
   }
   // The mixer's inserts + aux sends print too — FxChainHost is context-agnostic, so the bounce
-  // is the same board the live room heard (BeatsEngine.syncMixerFx, offline). Every channel:
+  // is the same board the live room heard (BeatsEngine.syncMixerFx, offline). Every channel.
+  // Tempo-synced devices (Gater, Beatmasher) need the song's BPM before the chain builds.
+  const chain = (instances: Parameters<FxChainHost['setChain']>[0]) => {
+    const h = new FxChainHost(offline);
+    h.setTempo(doc.bpm || 120);
+    h.setChain(instances);
+    return h;
+  };
   doc.kit.forEach((pad, i) => {
     const inserts = (pad.inserts ?? []).filter((f) => f.on);
-    if (inserts.length) { const h = new FxChainHost(offline); h.setChain(pad.inserts ?? []); graph.setPadInsert(i, h.input, h.output); }
+    if (inserts.length) { const h = chain(pad.inserts ?? []); graph.setPadInsert(i, h.input, h.output); }
     const sends = pad.sends ?? [];
     for (let s = 0; s < 2; s++) graph.setPadSend(i, s, sends[s] ?? 0);
   });
@@ -75,20 +82,20 @@ export async function renderGroove(
     if (t.kind !== 'audio') continue;
     graph.trackDestination(t); // ensure the strip exists before wiring its insert/sends
     const inserts = (t.inserts ?? []).filter((f) => f.on);
-    if (inserts.length) { const h = new FxChainHost(offline); h.setChain(t.inserts ?? []); graph.setTrackInsert(t.id, h.input, h.output); }
+    if (inserts.length) { const h = chain(t.inserts ?? []); graph.setTrackInsert(t.id, h.input, h.output); }
     const sends = t.sends ?? [];
     for (let s = 0; s < 2; s++) graph.setTrackSend(t.id, s, sends[s] ?? 0);
   }
   doc.mixer.groups.forEach((ch, i) => {
     const inserts = (ch.inserts ?? []).filter((f) => f.on);
-    if (inserts.length) { const h = new FxChainHost(offline); h.setChain(ch.inserts ?? []); graph.setGroupInsert(i, h.input, h.output); }
+    if (inserts.length) { const h = chain(ch.inserts ?? []); graph.setGroupInsert(i, h.input, h.output); }
     const sends = ch.sends ?? [];
     for (let s = 0; s < 2; s++) graph.setGroupSend(i, s, sends[s] ?? 0);
   });
   (doc.mixer.sendBuses ?? []).forEach((b, s) => {
     graph.setSendReturnGain(s, b.gainDb ?? 0);
     const inserts = (b.inserts ?? []).filter((f) => f.on);
-    if (inserts.length) { const h = new FxChainHost(offline); h.setChain(b.inserts ?? []); graph.setSendInsert(s, h.input, h.output); }
+    if (inserts.length) { const h = chain(b.inserts ?? []); graph.setSendInsert(s, h.input, h.output); }
   });
   const voices = new VoiceBank(graph);
   for (const [key, buf] of buffers) voices.setBuffer(key, buf);

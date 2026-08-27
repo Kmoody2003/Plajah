@@ -17,6 +17,7 @@ import { ArpPanel } from './ArpPanel';
 import { OndaEditor } from './OndaEditor';
 import { PresetGallery } from './PresetGallery';
 import { defaultArpPatch, type ArpPatch } from '../../../../services/melos/arp';
+import { syncPadWithTrack } from '../../../../services/melos/beats/instrumentFactory';
 import { ARMED, PLAYHEAD, SELECT, SURFACE, SURFACE_RAISED } from '../theme';
 
 interface Props {
@@ -24,11 +25,13 @@ interface Props {
   track: ArrangeTrack;
   onMutate: (fn: (d: GrooveDoc) => void) => void;
   onClose: () => void;
+  /** Hosted inside the shared InstrumentWindow — no overlay of its own, chrome comes from the window. */
+  embedded?: boolean;
 }
 
 const MACRO_COLORS = ['#FF8C00', '#D0BCFF', '#FF8C00', '#00DAF3', '#F4F0F7', '#F4F0F7', '#D40055', '#00DAF3'];
 
-export const InstrumentPanel: React.FC<Props> = ({ doc, track, onMutate, onClose }) => {
+export const InstrumentPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embedded }) => {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -67,6 +70,7 @@ export const InstrumentPanel: React.FC<Props> = ({ doc, track, onMutate, onClose
       t.instrument.patch = serializePatch(preset);
       t.instrument.presetName = preset.name;
       t.name = preset.name;
+      syncPadWithTrack(d, track.id);
     });
     // Reload into the live engine from the freshly written doc.
     setTimeout(() => {
@@ -133,43 +137,52 @@ export const InstrumentPanel: React.FC<Props> = ({ doc, track, onMutate, onClose
   }
 
   return (
-    <div className="absolute inset-0 z-40 grid place-items-center bg-black/65 backdrop-blur-sm p-5" onClick={onClose}>
+    <div
+      className={embedded ? 'h-full flex flex-col' : 'absolute inset-0 z-40 grid place-items-center bg-black/65 backdrop-blur-sm p-5'}
+      onClick={embedded ? undefined : onClose}
+    >
       <div
-        className="w-full max-w-5xl rounded-[22px] border border-white/[0.16] overflow-hidden shadow-2xl"
+        className={embedded
+          ? 'w-full h-full flex flex-col overflow-hidden'
+          : 'w-full max-w-5xl rounded-[22px] border border-white/[0.16] overflow-hidden shadow-2xl'}
         style={{ background: SURFACE }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={embedded ? undefined : (e) => e.stopPropagation()}
       >
         {/* top bar */}
-        <div className="flex items-center gap-3 px-4 h-12 border-b border-white/10" style={{ background: '#0E0E12' }}>
+        <div className="flex items-center gap-3 px-4 h-12 flex-none border-b border-white/10" style={{ background: '#0E0E12' }}>
           <span className="font-black text-[13px] tracking-[0.06em] bg-gradient-to-br from-[#B84DFF] to-[#D40055] bg-clip-text text-transparent">ONDA</span>
           <span className="h-7 px-3 rounded-lg border border-white/10 text-[11px] text-white/70 flex items-center gap-2 min-w-[190px] justify-between">
             {patch?.name || 'Init'} <span className="text-white/30">{patch?.category}</span>
           </span>
           <span className="flex-1" />
-          <button
-            onClick={() => onMutate((d) => {
-              const on = !track.armed;
-              for (const t of d.arrangement) t.armed = false;
-              const t = d.arrangement.find((x) => x.id === track.id);
-              if (t) t.armed = on;
-            })}
-            className="h-7 px-3 rounded-lg text-[11px] border flex items-center gap-1.5"
-            style={track.armed
-              ? { borderColor: ARMED, color: ARMED, background: 'rgba(255,140,0,0.12)' }
-              : { borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.45)' }}
-          ><Piano size={12} /> {track.armed ? 'Armed' : 'Arm'}</button>
+          {!embedded && (
+            <button
+              onClick={() => onMutate((d) => {
+                const on = !track.armed;
+                for (const t of d.arrangement) t.armed = false;
+                const t = d.arrangement.find((x) => x.id === track.id);
+                if (t) t.armed = on;
+              })}
+              className="h-7 px-3 rounded-lg text-[11px] border flex items-center gap-1.5"
+              style={track.armed
+                ? { borderColor: ARMED, color: ARMED, background: 'rgba(255,140,0,0.12)' }
+                : { borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.45)' }}
+            ><Piano size={12} /> {track.armed ? 'Armed' : 'Arm'}</button>
+          )}
           <button
             onClick={() => setEditorOpen(true)}
             className="h-7 px-3 rounded-lg text-[11px] font-semibold border"
             style={{ borderColor: 'rgba(208,188,255,0.45)', color: '#D0BCFF', background: 'rgba(208,188,255,0.12)' }}
             title="Oscillators, filters, Motion and spatial"
           >Open ▸</button>
-          <button onClick={onClose} aria-label="Close instrument" className="w-8 h-8 grid place-items-center rounded-lg border border-white/10 text-white/50 hover:text-white hover:bg-white/10">
-            <X size={15} />
-          </button>
+          {!embedded && (
+            <button onClick={onClose} aria-label="Close instrument" className="w-8 h-8 grid place-items-center rounded-lg border border-white/10 text-white/50 hover:text-white hover:bg-white/10">
+              <X size={15} />
+            </button>
+          )}
         </div>
 
-        <div className="grid" style={{ gridTemplateColumns: '212px 1fr' }}>
+        <div className={`grid ${embedded ? 'flex-1 min-h-0 overflow-y-auto items-start' : ''}`} style={{ gridTemplateColumns: '212px 1fr' }}>
           {/* preset browser */}
           <div className="p-3 border-r border-white/10" style={{ background: '#0C0C10' }}>
             <div className="flex items-center justify-between mb-2">

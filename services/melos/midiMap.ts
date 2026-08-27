@@ -113,9 +113,9 @@ export function deviceLabel(type: DetectedDeviceType): string {
 /** What each device drives, for the "connected" readout — honest about what's premapped. */
 export function deviceCapabilities(type: DetectedDeviceType): string {
   switch (type) {
-    case 'maschine_studio': return 'Pads → drums · knobs → macros · pads play the synth when an instrument is armed';
-    case 'komplete_kontrol': return 'Keys → the armed instrument · 8 knobs → macros · transport';
+    case 'maschine_studio': return 'Pads → drums · knobs → macros · pads play the synth when an instrument is armed · Play/Stop/Rec premapped';
+    case 'komplete_kontrol': return 'Keys → the armed instrument · 8 knobs → macros · Play/Stop/Rec transport premapped';
     case 'maschine_jam': return 'Grid → drums · plays the synth when an instrument is armed';
-    default: return 'Notes 36–51 → pads · CC 14–21 → macros · plays the armed instrument';
+    default: return 'Notes 36–51 → pads (Maschine MK3/Mikro default MIDI mode) · CC 14–21 → macros · CC 118/117/119 → Play/Stop/Rec · plays the armed instrument';
   }
 }

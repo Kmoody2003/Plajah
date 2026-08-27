@@ -33,7 +33,17 @@ interface MachineViewProps {
   onEditPadInstrument?: (padIdx: number) => void;
 }
 
+const REPEAT_RATES = [
+  { label: '1/4', cycles: 1 }, { label: '1/8', cycles: 2 }, { label: '1/8T', cycles: 3 },
+  { label: '1/16', cycles: 4 }, { label: '1/32', cycles: 8 },
+];
+
 export const MachineView: React.FC<MachineViewProps> = (p) => {
+  // Maschine performance modes: Note Repeat (hold a pad → retriggers at the rate) and
+  // 16 Velocities (the grid plays the selected pad at sixteen levels).
+  const [noteRepeat, setNoteRepeat] = useState(false);
+  const [repeatRate, setRepeatRate] = useState(3); // 1/16 — the Maschine default
+  const [vel16, setVel16] = useState(false);
   // Which Maschine "Group" (bank of 16) is showing. Follows the selected pad across banks.
   const banks = bankCount(p.doc.kit);
   const [bank, setBank] = useState(() => Math.floor(p.selectedPad / 16));
@@ -114,6 +124,30 @@ export const MachineView: React.FC<MachineViewProps> = (p) => {
             className="w-7 h-7 grid place-items-center rounded-lg border border-white/12 text-white/40 hover:text-white"
             title="Add a Group (16 more pads)"
           ><Plus size={13} /></button>
+
+          <span className="w-px h-5 bg-white/10 mx-1.5" />
+
+          {/* Note Repeat + 16 Velocities — the Maschine performance modes. */}
+          <button
+            onClick={() => setNoteRepeat((v) => !v)}
+            className="h-7 px-2 rounded-lg text-[9px] uppercase tracking-wide border transition-colors"
+            style={noteRepeat ? { color: '#FF8C00', borderColor: 'rgba(255,140,0,0.5)', background: 'rgba(255,140,0,0.1)' } : { color: 'rgba(255,255,255,0.4)', borderColor: 'rgba(255,255,255,0.12)' }}
+            title="Note Repeat — hold a pad and it retriggers at the rate"
+          >Repeat</button>
+          {noteRepeat && REPEAT_RATES.map((r, i) => (
+            <button
+              key={r.label}
+              onClick={() => setRepeatRate(i)}
+              className="h-7 px-1.5 rounded-lg text-[9px] font-mono border transition-colors"
+              style={i === repeatRate ? { color: '#FF8C00', borderColor: 'rgba(255,140,0,0.5)' } : { color: 'rgba(255,255,255,0.35)', borderColor: 'rgba(255,255,255,0.1)' }}
+            >{r.label}</button>
+          ))}
+          <button
+            onClick={() => setVel16((v) => !v)}
+            className="h-7 px-2 rounded-lg text-[9px] uppercase tracking-wide border transition-colors"
+            style={vel16 ? { color: '#00DAF3', borderColor: 'rgba(0,218,243,0.5)', background: 'rgba(0,218,243,0.1)' } : { color: 'rgba(255,255,255,0.4)', borderColor: 'rgba(255,255,255,0.12)' }}
+            title="16 Velocities — the whole grid plays the selected pad, soft to full"
+          >16 Vel</button>
         </div>
         <PadGrid
           doc={p.doc}
@@ -124,6 +158,8 @@ export const MachineView: React.FC<MachineViewProps> = (p) => {
           onDropSample={p.onLoadSampleFile}
           onAddToPad={p.onPickInstrumentForPad}
           melosSamples={p.melosSamples}
+          noteRepeat={{ on: noteRepeat, cyclesPerBeat: REPEAT_RATES[repeatRate].cycles, bpm: p.doc.bpm }}
+          velocity16={vel16}
         />
         <StepStrip
           doc={p.doc}

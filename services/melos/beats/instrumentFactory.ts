@@ -138,6 +138,20 @@ export function addInstrumentToNextPad(
   return { padIdx, trackId };
 }
 
+/**
+ * Keep a pad's label in step with its instrument track. Preset changes rename the TRACK; the
+ * pad is what MEKA, Glass and the Timeline pad lanes actually display, so without this the
+ * rack shows a stale name forever.
+ */
+export function syncPadWithTrack(doc: GrooveDoc, trackId: string): void {
+  const track = doc.arrangement.find((t) => t.id === trackId && t.kind === 'instrument');
+  if (!track) return;
+  const pad = doc.kit.find((p) => p.instrumentTrackId === trackId);
+  if (!pad) return;
+  pad.name = track.name.slice(0, 18);
+  if (track.instrument) pad.color = instrumentColor(track.instrument.type);
+}
+
 /** Add an instrument track to the doc, disarming whatever was armed before. Returns its id. */
 export function addInstrument(
   doc: { arrangement: ArrangeTrack[] },

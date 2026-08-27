@@ -3,7 +3,9 @@
 
 import React, { useRef, useState } from 'react';
 import { Upload, Piano, SlidersHorizontal } from 'lucide-react';
-import type { GrooveDoc, SynthVoiceId } from '../../../../services/melos/beats/grooveDoc';
+import type { GrooveDoc, SynthVoiceId, InstrumentType } from '../../../../services/melos/beats/grooveDoc';
+import { instrumentLabel } from '../../../../services/melos/beats/instrumentFactory';
+import { useContextMenu, type MenuNode } from '../../../ui/ContextMenu';
 import { NksBrowser } from './NksBrowser';
 import type { MelosSampleRef } from '../melosSamples';
 import { PLAYHEAD, SELECT, SURFACE_RAISED } from '../theme';
@@ -39,6 +41,23 @@ export const BrowserRail: React.FC<BrowserRailProps> = ({ doc, selectedPad, onSe
   const padInstTrack = pad?.source === 'instrument' && pad.instrumentTrackId
     ? doc.arrangement.find((t) => t.id === pad.instrumentTrackId)
     : undefined;
+
+  // Right-click a kit row: the instrument-header menu — open its UI, rename, mute, swap sound.
+  const kitMenu = useContextMenu<number>((i) => {
+    const p = doc.kit[i];
+    if (!p) return [];
+    const items: MenuNode<number>[] = [{ kind: 'header', label: p.empty ? `Pad ${i + 1}` : p.name }];
+    if (p.source === 'instrument' && p.instrumentTrackId) {
+      items.push({ id: 'open', label: 'Open instrument', onSelect: () => onEditPadInstrument?.(i) });
+    } else {
+      items.push({ id: 'load', label: 'Load an instrument…', onSelect: () => { onSelectPad(i); onPickInstrumentForPad?.(i); } });
+    }
+    items.push(
+      { id: 'rename', label: 'Rename…', onSelect: () => { const name = window.prompt('Pad name', p.name)?.trim().slice(0, 18); if (name) onMutate((d) => { const x = d.kit[i]; if (x) { x.name = name; if (x.instrumentTrackId) { const t = d.arrangement.find((y) => y.id === x.instrumentTrackId); if (t) t.name = name; } } }); } },
+      { id: 'mute', label: 'Mute', checked: !!p.mute, keepOpen: true, onSelect: () => onMutate((d) => { const x = d.kit[i]; if (x) x.mute = !x.mute; }) },
+    );
+    return items;
+  });
 
   return (
     <div className="flex flex-col gap-3 h-full min-h-0">
@@ -91,11 +110,15 @@ export const BrowserRail: React.FC<BrowserRailProps> = ({ doc, selectedPad, onSe
       )}
 
       <div className={`flex-1 min-h-0 overflow-y-auto pr-1 ${tab !== 'kit' ? 'hidden' : ''}`}>
+        {kitMenu.node}
         <div className="flex flex-col gap-0.5">
           {doc.kit.map((p, i) => (
             <button
               key={p.id}
               onClick={() => onSelectPad(i)}
+              onDoubleClick={() => { if (p.instrumentTrackId) onEditPadInstrument?.(i); }}
+              {...kitMenu.bind(i)}
+              title={p.instrumentTrackId ? 'Click to select · double-click to open the instrument · right-click for menu' : 'Click to select · right-click for menu'}
               className="flex items-center gap-2 h-7 px-2 rounded-lg text-left text-[11px] transition-colors"
               style={i === selectedPad
                 ? { background: `${SELECT}29`, border: `1px solid ${SELECT}59`, color: '#fff' }
@@ -130,7 +153,7 @@ export const BrowserRail: React.FC<BrowserRailProps> = ({ doc, selectedPad, onSe
                 className="w-full h-9 rounded-lg border text-[11px] font-semibold flex items-center justify-center gap-2"
                 style={{ borderColor: `${PLAYHEAD}59`, color: PLAYHEAD, background: `${PLAYHEAD}14` }}
               >
-                <SlidersHorizontal size={12} /> {padInstTrack?.instrument?.type === 'kera' ? 'KERA' : 'ONDA'} · Edit
+                <SlidersHorizontal size={12} /> {padInstTrack?.instrument ? instrumentLabel(padInstTrack.instrument.type as InstrumentType) : 'ONDA'} · Edit
               </button>
               <div className="flex items-center gap-2">
                 <span className="text-[9px] uppercase tracking-wide text-white/35 flex-1 flex items-center gap-1"><Piano size={10} /> Base note</span>

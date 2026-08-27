@@ -14,9 +14,9 @@ import { AmpRigEditor } from './AmpRigEditor';
 import { Knob } from '../shared/Knob';
 
 const CAT_LABEL: Record<FxCategory, string> = {
-  eq: 'EQ', dynamics: 'Dynamics', saturation: 'Saturation', stereo: 'Stereo', space: 'Space', repair: 'Repair', utility: 'Utility', amp: 'Amps & Rigs',
+  eq: 'EQ', dynamics: 'Dynamics', saturation: 'Saturation', stereo: 'Stereo', space: 'Space', mod: 'Modulation', dj: 'DJ / Performance', repair: 'Repair', utility: 'Utility', amp: 'Amps & Rigs',
 };
-const CAT_ORDER: FxCategory[] = ['amp', 'eq', 'dynamics', 'saturation', 'stereo', 'space', 'repair', 'utility'];
+const CAT_ORDER: FxCategory[] = ['amp', 'eq', 'dynamics', 'saturation', 'stereo', 'space', 'mod', 'dj', 'repair', 'utility'];
 
 interface FxRackProps {
   instances: FxInstance[];

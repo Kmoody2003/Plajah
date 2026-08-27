@@ -6,7 +6,7 @@
 // right-edge grip = trim (beat snap) · click = select · Delete = remove · drop audio = clip.
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Music2, AudioWaveform, Piano, Circle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Music2, AudioWaveform, Piano, Circle, MousePointer2, Pencil, Scissors, Combine, Eraser } from 'lucide-react';
 import type { GrooveDoc, Pattern, TimelineClip } from '../../../../services/melos/beats/grooveDoc';
 import { grooveUid } from '../../../../services/melos/beats/grooveDoc';
 import { useContextMenu, type MenuNode } from '../../../ui/ContextMenu';
@@ -16,6 +16,8 @@ import { MixerPanel } from '../shared/MixerPanel';
 import { PianoRoll } from './PianoRoll';
 import { TimelineEditPanel } from './TimelineEditPanel';
 import { InstrumentPanel } from '../instrument/InstrumentPanel';
+import { ClipLauncher } from './ClipLauncher';
+import { SequenceStrip } from '../glass/SequenceStrip';
 
 import { PLAYHEAD, SELECT, glassPanel } from '../theme';
 
@@ -25,41 +27,117 @@ const LANE_H = 44;
 const PAD_LANE_H = 28;
 const STEPS_PER_BEAT = 4;
 
+/** One pattern clip projected onto a pad lane: where it sits, which pattern it plays, and this
+ *  pad's own loop length inside it (`clip.padLens[padIdx]`, defaulting to the pattern length). */
+interface PadClipWindow {
+  trackId: string;
+  clipId: string;
+  startBeats: number;
+  lengthBeats: number;
+  pattern: Pattern;
+  padLen: number;
+}
+
 // One MEKA pad's lane on the arrangement — the SAME channel the mixer and Glass drive, surfaced
-// here as a track. The lane is a canvas mirror of the pad's step row in the active pattern, tiled
-// across the song; clicking a step toggles it, so the drum grid is editable from the timeline too.
+// here as a track. Steps draw ONLY inside the pattern clips that actually play them (the lane
+// used to tile the grid to infinity, which lied about what would sound). Each clip window shows
+// the pad's own loop cycle bright and its repeats dimmed; the cycle boundary is draggable, so a
+// pad can run a shorter independent loop inside the same clip (Bitwig-style polymeter).
 const PadLane: React.FC<{
-  padIdx: number; color: string; steps: Record<number, { v: number } | undefined>;
-  patternLen: number; pxPerBeat: number; contentW: number; onToggle: (localStep: number) => void;
-}> = ({ color, steps, patternLen, pxPerBeat, contentW, onToggle }) => {
+  padIdx: number; color: string;
+  windows: PadClipWindow[];
+  pxPerBeat: number; contentW: number;
+  onToggle: (patternId: string, localStep: number) => void;
+  onSetPadLen: (trackId: string, clipId: string, len: number | null) => void;
+}> = ({ padIdx, color, windows, pxPerBeat, contentW, onToggle, onSetPadLen }) => {
   const ref = useRef<HTMLCanvasElement>(null);
   const stepW = pxPerBeat / STEPS_PER_BEAT;
-  const sig = Object.keys(steps).filter((k) => steps[Number(k)]?.v).join(',');
+  const sig = windows.map((w) => {
+    const steps = w.pattern.steps[padIdx] || {};
+    return `${w.clipId}:${w.startBeats}:${w.lengthBeats}:${w.padLen}:${Object.keys(steps).filter((k) => steps[Number(k)]?.v).join('.')}`;
+  }).join(',');
   useEffect(() => {
     const cv = ref.current; if (!cv) return; const g = cv.getContext('2d'); if (!g) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     cv.width = contentW * dpr; cv.height = PAD_LANE_H * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, contentW, PAD_LANE_H);
-    const total = Math.ceil(contentW / stepW);
-    for (let gstep = 0; gstep < total; gstep++) {
-      const local = ((gstep % patternLen) + patternLen) % patternLen;
-      const s = steps[local];
-      if (!s?.v) continue;
-      const x = gstep * stepW;
-      const h = Math.max(4, (PAD_LANE_H - 8) * (s.v / 127));
-      g.fillStyle = color;
-      g.globalAlpha = 0.85;
-      g.fillRect(x + 0.5, (PAD_LANE_H - h) / 2, Math.max(2, stepW - 1.5), h);
+    for (const w of windows) {
+      const x0 = w.startBeats * pxPerBeat;
+      const wpx = w.lengthBeats * pxPerBeat;
+      // The clip body — so every pad visibly HAS a clip for the arrangement window it plays.
+      g.fillStyle = color; g.globalAlpha = 0.09;
+      g.fillRect(x0 + 0.5, 1.5, Math.max(2, wpx - 1.5), PAD_LANE_H - 3);
+      g.globalAlpha = 0.35;
+      g.strokeStyle = color;
+      g.strokeRect(x0 + 0.5, 1.5, Math.max(2, wpx - 1.5), PAD_LANE_H - 3);
+      const steps = w.pattern.steps[padIdx] || {};
+      const totalSteps = Math.round(w.lengthBeats * STEPS_PER_BEAT);
+      for (let s = 0; s < totalSteps; s++) {
+        const local = ((s % w.padLen) + w.padLen) % w.padLen;
+        const st = steps[local];
+        if (!st?.v) continue;
+        const x = x0 + s * stepW;
+        if (x >= x0 + wpx - 0.5) break;
+        const h = Math.max(4, (PAD_LANE_H - 8) * (st.v / 127));
+        g.fillStyle = color;
+        g.globalAlpha = s < w.padLen ? 0.9 : 0.42; // first cycle bright, repeats dimmed
+        g.fillRect(x + 0.5, (PAD_LANE_H - h) / 2, Math.max(2, Math.min(stepW - 1.5, x0 + wpx - x)), h);
+      }
+      // Loop-cycle boundaries inside the clip.
+      g.globalAlpha = 0.25; g.fillStyle = '#fff';
+      for (let s = w.padLen; s < totalSteps; s += w.padLen) {
+        const x = x0 + s * stepW;
+        if (x >= x0 + wpx) break;
+        g.fillRect(x, 2, 1, PAD_LANE_H - 4);
+      }
     }
     g.globalAlpha = 1;
-  }, [sig, color, patternLen, stepW, contentW]);
+  }, [sig, color, padIdx, stepW, pxPerBeat, contentW, windows]);
+
+  const dragLen = (w: PadClipWindow) => (e: React.PointerEvent) => {
+    e.stopPropagation(); e.preventDefault();
+    const startX = e.clientX;
+    const startLen = w.padLen;
+    const move = (ev: PointerEvent) => {
+      const dSteps = Math.round((ev.clientX - startX) / stepW);
+      const len = Math.max(1, Math.min(w.pattern.length, startLen + dSteps));
+      onSetPadLen(w.trackId, w.clipId, len >= w.pattern.length ? null : len);
+    };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  };
+
   return (
-    <canvas
-      ref={ref}
-      style={{ width: contentW, height: PAD_LANE_H, display: 'block', cursor: 'pointer' }}
-      onClick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); const gstep = Math.floor((e.clientX - r.left) / stepW); onToggle(((gstep % patternLen) + patternLen) % patternLen); }}
-      title="Click a step to toggle it — mirrors the MEKA grid"
-    />
+    <div className="relative" style={{ width: contentW, height: PAD_LANE_H }}>
+      <canvas
+        ref={ref}
+        style={{ width: contentW, height: PAD_LANE_H, display: 'block', cursor: 'pointer' }}
+        onClick={(e) => {
+          const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          const beats = (e.clientX - r.left) / pxPerBeat;
+          const w = windows.find((x) => beats >= x.startBeats && beats < x.startBeats + x.lengthBeats);
+          if (!w) return;
+          const gstep = Math.floor((beats - w.startBeats) * STEPS_PER_BEAT);
+          onToggle(w.pattern.id, ((gstep % w.padLen) + w.padLen) % w.padLen);
+        }}
+        title="Click a step to toggle it — steps play only inside their clips. Drag the ◆ grip to give this pad its own loop length."
+      />
+      {/* per-clip loop-length grips — one draggable boundary at the end of the pad's first cycle */}
+      {windows.map((w) => {
+        const gx = w.startBeats * pxPerBeat + Math.min(w.padLen * stepW, w.lengthBeats * pxPerBeat) - 3;
+        return (
+          <span
+            key={w.clipId}
+            onPointerDown={dragLen(w)}
+            className="absolute top-0 bottom-0 w-[7px] cursor-ew-resize"
+            style={{ left: gx, background: 'transparent' }}
+            title={`${w.padLen} step loop — drag to change this pad's clip length`}
+          >
+            <span className="absolute top-1/2 -translate-y-1/2 left-[2px] w-[3px] h-[10px] rounded-[1px]" style={{ background: `${color}CC` }} />
+          </span>
+        );
+      })}
+    </div>
   );
 };
 
@@ -81,11 +159,31 @@ interface TimelineViewProps {
 export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const [pxPerBeat, setPxPerBeat] = useState(14);
   const [selectedClip, setSelectedClip] = useState<string | null>(null);
+  const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
   const [showMixer, setShowMixer] = useState(true);
   const [showPads, setShowPads] = useState(true);
   const [showEditor, setShowEditor] = useState(true);
+  const [showLauncher, setShowLauncher] = useState(() => localStorage.getItem('plajah_beats_launcher') !== '0');
+  const toggleLauncher = () => setShowLauncher((v) => { try { localStorage.setItem('plajah_beats_launcher', v ? '0' : '1'); } catch { /* */ } return !v; });
   const [editorH, setEditorH] = useState(240);
   const [openClip, setOpenClip] = useState<{ trackId: string; clipId: string } | null>(null);
+  const [renamingPad, setRenamingPad] = useState<number | null>(null);
+  const [renamingTrack, setRenamingTrack] = useState<string | null>(null);
+  const [nameText, setNameText] = useState('');
+  // The Bitwig tool set: pointer selects/moves/trims, pencil paints clips, knife splits at the
+  // click, glue joins a clip with the next one on its track, eraser deletes on click. 1–5 keys.
+  type Tool = 'select' | 'pencil' | 'knife' | 'glue' | 'eraser';
+  const [tool, setTool] = useState<Tool>('select');
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.metaKey || e.ctrlKey || e.altKey) return;
+      const map: Record<string, Tool> = { '1': 'select', '2': 'pencil', '3': 'knife', '4': 'glue', '5': 'eraser' };
+      if (map[e.key]) setTool(map[e.key]);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   // Opening an instrument is owned by the room now (so the add-instrument picker can open one
   // from any view), and this view just asks. A local fallback keeps it working standalone.
   const [localOpen, setLocalOpen] = useState<string | null>(null);
@@ -99,6 +197,111 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   );
   const totalBars = Math.ceil(contentBeats / BEATS_PER_BAR);
   const contentW = contentBeats * pxPerBeat;
+
+  // Every pattern clip in the arrangement, resolved — the windows the pad lanes draw inside.
+  const patternClips = p.doc.arrangement
+    .filter((t) => t.kind === 'pattern' && !t.foreign)
+    .flatMap((t) => t.clips
+      .filter((c) => c.patternId)
+      .map((c) => ({ track: t, clip: c, pattern: p.doc.patterns.find((x) => x.id === c.patternId) }))
+      .filter((x): x is { track: typeof t; clip: TimelineClip; pattern: Pattern } => !!x.pattern));
+
+  const padWindowsFor = (padIdx: number) => patternClips.map(({ track, clip, pattern }) => ({
+    trackId: track.id,
+    clipId: clip.id,
+    startBeats: clip.startBeats,
+    lengthBeats: clip.lengthBeats,
+    pattern,
+    padLen: Math.max(1, Math.min(pattern.length, Math.round(clip.padLens?.[padIdx] ?? pattern.length))),
+  }));
+
+  const setPadLen = useCallback((trackId: string, clipId: string, padIdx: number, len: number | null) => {
+    p.onMutate((d) => {
+      const t = d.arrangement.find((x) => x.id === trackId);
+      const c = t?.clips.find((x) => x.id === clipId);
+      if (!c) return;
+      if (len === null) {
+        if (c.padLens) { delete c.padLens[padIdx]; if (!Object.keys(c.padLens).length) delete c.padLens; }
+      } else {
+        (c.padLens ||= {})[padIdx] = len;
+      }
+    });
+  }, [p.onMutate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Right-click a PAD lane header — open/rename/mute/clear, the same grammar as track headers.
+  const padHeaderMenu = useContextMenu<number>((padIdx) => {
+    const pad = p.doc.kit[padIdx];
+    if (!pad) return [];
+    const items: MenuNode<number>[] = [{ kind: 'header', label: pad.name }];
+    if (pad.instrumentTrackId && p.onOpenInstrument) {
+      items.push({ id: 'open', label: 'Open instrument', onSelect: () => p.onOpenInstrument!(pad.instrumentTrackId!) });
+    }
+    items.push(
+      { id: 'rename', label: 'Rename…', onSelect: () => { setNameText(pad.name); setRenamingPad(padIdx); } },
+      { id: 'mute', label: 'Mute', checked: !!pad.mute, keepOpen: true, onSelect: () => p.onMutate((d) => { const x = d.kit[padIdx]; if (x) x.mute = !x.mute; }) },
+      { kind: 'separator' },
+      { id: 'clear', label: 'Clear steps (active pattern)', danger: true, onSelect: () => p.onMutate((d) => { const pat = d.patterns.find((x) => x.id === p.activePattern.id); if (pat) pat.steps[padIdx] = {}; }) },
+    );
+    return items;
+  });
+
+  // Right-click a TRACK header — the menu the user reaches for to open the instrument UI.
+  const trackMenu = useContextMenu<string>((trackId) => {
+    const track = p.doc.arrangement.find((t) => t.id === trackId);
+    if (!track) return [];
+    const items: MenuNode<string>[] = [{ kind: 'header', label: track.name }];
+    if (track.kind === 'instrument' && !track.foreign) {
+      items.push(
+        { id: 'open', label: 'Open instrument', onSelect: () => requestOpen(trackId) },
+        { id: 'arm', label: 'Arm for play/record', checked: !!track.armed, onSelect: () => p.onMutate((d) => { const on = !track.armed; for (const t of d.arrangement) t.armed = false; const t = d.arrangement.find((x) => x.id === trackId); if (t) t.armed = on; }) },
+      );
+    }
+    if (!track.foreign) {
+      items.push(
+        { id: 'rename', label: 'Rename…', onSelect: () => { setNameText(track.name); setRenamingTrack(trackId); } },
+        { id: 'mute', label: 'Mute', checked: track.mute, keepOpen: true, onSelect: () => p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === trackId); if (t) t.mute = !t.mute; }) },
+        { id: 'solo', label: 'Solo', checked: track.solo, keepOpen: true, onSelect: () => p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === trackId); if (t) t.solo = !t.solo; }) },
+      );
+    }
+    items.push(
+      { kind: 'separator' },
+      { id: 'del', label: 'Delete track', danger: true, onSelect: () => {
+        p.onMutate((d) => {
+          const i = d.arrangement.findIndex((x) => x.id === trackId);
+          if (i < 0) return;
+          // Unlink any pad that pointed at this instrument so the pad doesn't dangle.
+          for (const pad of d.kit) if (pad.instrumentTrackId === trackId) { pad.instrumentTrackId = undefined; pad.source = 'synth'; }
+          d.arrangement.splice(i, 1);
+        });
+        BeatsEngine.get().syncInstruments();
+      } },
+    );
+    return items;
+  });
+
+  const commitTrackRename = (trackId: string) => {
+    setRenamingTrack(null);
+    const name = nameText.trim();
+    if (!name) return;
+    p.onMutate((d) => {
+      const t = d.arrangement.find((x) => x.id === trackId);
+      if (!t) return;
+      t.name = name;
+      const pad = d.kit.find((x) => x.instrumentTrackId === trackId);
+      if (pad) pad.name = name.slice(0, 18);
+    });
+  };
+  const commitPadRename = (padIdx: number) => {
+    setRenamingPad(null);
+    const name = nameText.trim().slice(0, 18);
+    if (!name) return;
+    p.onMutate((d) => {
+      const pad = d.kit[padIdx];
+      if (!pad) return;
+      pad.name = name;
+      if (pad.instrumentTrackId) { const t = d.arrangement.find((x) => x.id === pad.instrumentTrackId); if (t) t.name = name; }
+    });
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -228,6 +431,62 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     });
   }, [p.onMutate]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** Knife: split a clip at a beat (1-beat snap), moving/clamping notes and audio offsets. */
+  const splitClip = useCallback((trackId: string, clipId: string, atBeats: number) => {
+    p.onMutate((d) => {
+      const t = d.arrangement.find((x) => x.id === trackId);
+      const c = t?.clips.find((x) => x.id === clipId);
+      if (!t || !c) return;
+      const rel = Math.round(atBeats - c.startBeats);
+      if (rel <= 0 || rel >= c.lengthBeats) return;
+      const right = JSON.parse(JSON.stringify(c)) as TimelineClip;
+      right.id = grooveUid() + grooveUid();
+      right.startBeats = c.startBeats + rel;
+      right.lengthBeats = c.lengthBeats - rel;
+      c.lengthBeats = rel;
+      if (c.notes) {
+        right.notes = (right.notes ?? []).filter((n) => n.startBeats >= rel - 1e-6)
+          .map((n) => ({ ...n, id: grooveUid(), startBeats: n.startBeats - rel }));
+        c.notes = c.notes.filter((n) => n.startBeats < rel - 1e-6);
+        for (const n of c.notes) if (n.startBeats + n.lengthBeats > rel) n.lengthBeats = rel - n.startBeats;
+      }
+      if (c.audio && right.audio) right.audio.offsetSec = (c.audio.offsetSec || 0) + rel * (60 / d.bpm);
+      t.clips.push(right);
+    });
+  }, [p.onMutate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Glue: merge a clip with the NEXT clip on its track (notes fold in; audio only if it's the
+   *  same file continuing). */
+  const glueClip = useCallback((trackId: string, clipId: string) => {
+    p.onMutate((d) => {
+      const t = d.arrangement.find((x) => x.id === trackId);
+      const c = t?.clips.find((x) => x.id === clipId);
+      if (!t || !c) return;
+      const after = t.clips
+        .filter((x) => x.id !== c.id && x.startBeats >= c.startBeats + c.lengthBeats - 1e-6)
+        .sort((a, b) => a.startBeats - b.startBeats);
+      const next = after[0];
+      if (!next) return;
+      if (c.audio || next.audio) {
+        if (!c.audio || !next.audio || c.audio.sampleKey !== next.audio.sampleKey) return;
+      }
+      const off = next.startBeats - c.startBeats;
+      if (c.notes || next.notes) {
+        c.notes = [...(c.notes ?? []), ...(next.notes ?? []).map((n) => ({ ...n, id: grooveUid(), startBeats: n.startBeats + off }))];
+      }
+      c.lengthBeats = next.startBeats + next.lengthBeats - c.startBeats;
+      t.clips = t.clips.filter((x) => x.id !== next.id);
+    });
+  }, [p.onMutate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const eraseClip = useCallback((trackId: string, clipId: string) => {
+    p.onMutate((d) => {
+      const t = d.arrangement.find((x) => x.id === trackId);
+      if (t) t.clips = t.clips.filter((x) => x.id !== clipId);
+    });
+    setSelectedClip((s) => (s === clipId ? null : s));
+  }, [p.onMutate]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const playheadX = p.running && p.playMode === 'song' ? p.beats * pxPerBeat : -1;
 
   // The selected clip, resolved to {track,clip} for the docked detail editor below.
@@ -262,7 +521,19 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   return (
     <div className="flex-1 min-h-0 flex flex-col p-4 pt-3 gap-0">
       {clipMenu.node}
+      {padHeaderMenu.node}
+      {trackMenu.node}
       <div className={`${glassPanel} flex-1 min-h-0 overflow-hidden flex flex-col`}>
+        <div className="flex-1 min-h-0 flex">
+        {showLauncher && (
+          <ClipLauncher
+            doc={p.doc}
+            activePatternId={p.activePattern.id}
+            playMode={p.playMode}
+            running={p.running}
+            onMutate={p.onMutate}
+          />
+        )}
         <div className="flex-1 min-h-0 overflow-auto">
           <div style={{ width: HEADER_W + contentW, minWidth: '100%' }}>
             {/* ruler */}
@@ -315,9 +586,39 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                 const mstyle = (on: boolean, c: string) => on ? { background: `${c}22`, borderColor: c, color: c } : { borderColor: 'rgba(255,255,255,0.16)', color: 'rgba(255,255,255,0.3)' };
                 return (
                   <div key={pad.id} className="flex border-b border-white/[0.05]" style={{ height: PAD_LANE_H, opacity: pad.mute ? 0.5 : 1 }}>
-                    <div className="sticky left-0 z-10 flex items-center gap-1.5 px-3 bg-[#0C0714] border-r border-white/10" style={{ width: HEADER_W, minWidth: HEADER_W }}>
-                      <span className="w-[4px] h-4 rounded-[2px] flex-none" style={{ background: pad.color }} />
-                      <span className="flex-1 min-w-0 truncate text-[10.5px] text-white/70" title={pad.name}>{pad.name}</span>
+                    <div
+                      className="sticky left-0 z-10 flex items-center gap-1.5 px-3 bg-[#0C0714] border-r border-white/10"
+                      style={{ width: HEADER_W, minWidth: HEADER_W }}
+                      {...padHeaderMenu.bind(padIdx)}
+                    >
+                      {pad.instrumentTrackId && p.onOpenInstrument ? (
+                        <button
+                          onClick={() => p.onOpenInstrument!(pad.instrumentTrackId!)}
+                          className="w-[4px] h-4 rounded-[2px] flex-none hover:h-5 transition-all"
+                          style={{ background: pad.color }}
+                          title="Open the instrument"
+                          aria-label={`Open ${pad.name}`}
+                        />
+                      ) : (
+                        <span className="w-[4px] h-4 rounded-[2px] flex-none" style={{ background: pad.color }} />
+                      )}
+                      {renamingPad === padIdx ? (
+                        <input
+                          autoFocus
+                          value={nameText}
+                          onChange={(e) => setNameText(e.target.value)}
+                          onBlur={() => commitPadRename(padIdx)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') commitPadRename(padIdx); if (e.key === 'Escape') setRenamingPad(null); }}
+                          className="flex-1 min-w-0 h-5 px-1 rounded bg-black/40 border border-white/25 text-[10.5px] text-white outline-none"
+                          aria-label={`Rename ${pad.name}`}
+                        />
+                      ) : (
+                        <span
+                          className="flex-1 min-w-0 truncate text-[10.5px] text-white/70"
+                          title={`${pad.name} — double-click to rename · right-click for menu`}
+                          onDoubleClick={() => { setNameText(pad.name); setRenamingPad(padIdx); }}
+                        >{pad.name}</span>
+                      )}
                       <span className="text-[7px] font-mono text-white/25 flex-none" title="Bus group">{'ABCD'[pad.group]}</span>
                       <button onClick={() => p.onMutate((d) => { const x = d.kit[padIdx]; if (x) x.mute = !x.mute; })} className="w-[15px] h-[15px] rounded-[4px] border text-[7px] grid place-items-center flex-none" style={mstyle(!!pad.mute, '#fff')} aria-label={`Mute ${pad.name}`}>M</button>
                     </div>
@@ -325,15 +626,15 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                       <PadLane
                         padIdx={padIdx}
                         color={pad.color}
-                        steps={(p.activePattern.steps[padIdx] ?? {}) as Record<number, { v: number } | undefined>}
-                        patternLen={Math.max(1, p.activePattern.length)}
+                        windows={padWindowsFor(padIdx)}
                         pxPerBeat={pxPerBeat}
                         contentW={contentW}
-                        onToggle={(local) => p.onMutate((d) => {
-                          const pat = d.patterns.find((x) => x.id === p.activePattern.id); if (!pat) return;
+                        onToggle={(patternId, local) => p.onMutate((d) => {
+                          const pat = d.patterns.find((x) => x.id === patternId); if (!pat) return;
                           const r = pat.steps[padIdx] || (pat.steps[padIdx] = {});
                           if (r[local]?.v) delete r[local]; else r[local] = { v: 100 };
                         })}
+                        onSetPadLen={(trackId, clipId, len) => setPadLen(trackId, clipId, padIdx, len)}
                       />
                     </div>
                   </div>
@@ -342,7 +643,15 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
 
               {p.doc.arrangement.filter((track) => !track.padOwned).map((track) => (
                 <div key={track.id} className="flex border-b border-white/[0.06]" style={{ height: LANE_H, opacity: track.foreign ? 0.65 : 1 }}>
-                  <div className="sticky left-0 z-10 flex items-center gap-2 px-3 bg-[#0E0916] border-r border-white/10" style={{ width: HEADER_W, minWidth: HEADER_W }}>
+                  <div
+                    className="sticky left-0 z-10 flex items-center gap-2 px-3 bg-[#0E0916] border-r border-white/10"
+                    style={{
+                      width: HEADER_W, minWidth: HEADER_W,
+                      boxShadow: selectedTrack === track.id ? `inset 2px 0 0 ${SELECT}` : undefined,
+                    }}
+                    onClick={() => setSelectedTrack(track.id)}
+                    {...trackMenu.bind(track.id)}
+                  >
                     {track.kind === 'instrument' && !track.foreign ? (
                       <button
                         onClick={() => requestOpen(track.id)}
@@ -354,13 +663,23 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                     ) : (
                       <span className="w-[4px] h-6 rounded-[2px] flex-none" style={{ background: track.color }} />
                     )}
-                    <input
-                      value={track.name}
-                      onChange={(e) => p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === track.id); if (t) t.name = e.target.value; })}
-                      className="flex-1 min-w-0 bg-transparent text-[11px] text-white/80 outline-none border border-transparent focus:border-white/20 rounded px-1"
-                      aria-label={`Track name: ${track.name}`}
-                      disabled={!!track.foreign}
-                    />
+                    {renamingTrack === track.id ? (
+                      <input
+                        autoFocus
+                        value={nameText}
+                        onChange={(e) => setNameText(e.target.value)}
+                        onBlur={() => commitTrackRename(track.id)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') commitTrackRename(track.id); if (e.key === 'Escape') setRenamingTrack(null); }}
+                        className="flex-1 min-w-0 h-6 px-1 rounded bg-black/40 border border-white/25 text-[11px] text-white outline-none"
+                        aria-label={`Rename ${track.name}`}
+                      />
+                    ) : (
+                      <span
+                        className="flex-1 min-w-0 truncate text-[11px] text-white/80"
+                        title={track.foreign ? track.name : `${track.name} — click to select · double-click to rename · right-click for menu`}
+                        onDoubleClick={() => { if (!track.foreign) { setNameText(track.name); setRenamingTrack(track.id); } }}
+                      >{track.name}</span>
+                    )}
                     {track.foreign ? (
                       <span className="text-[8px] text-[#D0BCFF] border border-[#D0BCFF]/35 rounded px-1 flex-none">preserved</span>
                     ) : (
@@ -396,6 +715,14 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
 
                   <div
                     className="relative flex-1"
+                    onClick={(e) => {
+                      // Pencil: paint on a single click (double-click still works on any tool).
+                      if (tool !== 'pencil') return;
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      const at = (e.clientX - rect.left) / pxPerBeat;
+                      if (track.kind === 'pattern') paintClip(track.id, at);
+                      else if (track.kind === 'instrument' && !track.foreign) addMidiClip(track.id, at);
+                    }}
                     onDoubleClick={(e) => {
                       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                       const at = (e.clientX - rect.left) / pxPerBeat;
@@ -423,8 +750,13 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                           onPointerDown={(e) => {
                             if (track.foreign) return;
                             e.stopPropagation();
-                            setSelectedClip(clip.id);
                             const el = e.currentTarget as HTMLElement;
+                            // The Bitwig tools act on the click, before any drag begins.
+                            if (tool === 'knife') { splitClip(track.id, clip.id, clip.startBeats + (e.clientX - el.getBoundingClientRect().left) / pxPerBeat); return; }
+                            if (tool === 'glue') { glueClip(track.id, clip.id); return; }
+                            if (tool === 'eraser') { eraseClip(track.id, clip.id); return; }
+                            setSelectedClip(clip.id);
+                            if (tool === 'pencil') return; // pencil paints on lanes; on clips it just selects
                             const isTrim = e.clientX > el.getBoundingClientRect().right - 10;
                             el.setPointerCapture(e.pointerId);
                             drag.current = { clipId: clip.id, trackId: track.id, mode: isTrim ? 'trim' : 'move', startX: e.clientX, orig: { ...clip, audio: clip.audio ? { ...clip.audio } : undefined } };
@@ -467,7 +799,11 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                               : clip.notes ? '1px solid rgba(208,188,255,0.42)' : 'none',
                             outline: selected ? `2px solid ${SELECT}` : 'none',
                             outlineOffset: 1,
-                            cursor: track.foreign ? 'default' : 'grab',
+                            cursor: track.foreign ? 'default'
+                              : tool === 'knife' ? 'col-resize'
+                              : tool === 'eraser' ? 'not-allowed'
+                              : tool === 'glue' ? 'cell'
+                              : tool === 'pencil' ? 'crosshair' : 'grab',
                           }}
                           title={track.foreign ? 'Preserved for re-export — not played in browser' : `${pat?.name || clip.audio?.name || 'Clip'} · drag to move (bar snap), right edge to trim, Delete to remove`}
                         >
@@ -535,16 +871,39 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
             </div>
           </div>
         </div>
+        </div>
 
         {/* Bitwig-style docked detail editor — devices / notes / audio for the selected clip. */}
         {showEditor && <TimelineEditPanel doc={p.doc} selected={selRef} onMutate={p.onMutate} height={editorH} onResize={setEditorH} />}
 
         <div className="flex items-center gap-3 px-3 h-8 border-t border-white/10 flex-none text-[10px] text-white/35">
+          {/* The tool set — Bitwig's grammar: 1 pointer · 2 pencil · 3 knife · 4 glue · 5 eraser */}
+          <div className="flex gap-0.5 rounded-lg border border-white/10 bg-white/[0.04] p-0.5">
+            {([
+              ['select', MousePointer2, 'Pointer — select, move, trim (1)'],
+              ['pencil', Pencil, 'Pencil — click a lane to paint a clip (2)'],
+              ['knife', Scissors, 'Knife — click a clip to split it (3)'],
+              ['glue', Combine, 'Glue — click a clip to join it with the next (4)'],
+              ['eraser', Eraser, 'Eraser — click a clip to delete it (5)'],
+            ] as const).map(([id, Icon, tip]) => (
+              <button
+                key={id}
+                onClick={() => setTool(id)}
+                title={tip}
+                aria-label={tip}
+                className="w-6 h-6 grid place-items-center rounded-md transition-colors"
+                style={tool === id ? { background: `${SELECT}30`, color: '#fff' } : { color: 'rgba(255,255,255,0.4)' }}
+              ><Icon size={12} /></button>
+            ))}
+          </div>
           <span>Snap: <b className="text-white/60">1 bar</b> (trim: 1 beat)</span>
           <label className="flex items-center gap-1.5">Zoom
             <input type="range" min={6} max={48} value={pxPerBeat} onChange={(e) => setPxPerBeat(Number(e.target.value))} className="w-28 accent-[#D0BCFF]" />
           </label>
           <span className="flex-1" />
+          <button onClick={toggleLauncher} className="flex items-center gap-1 hover:text-white" style={{ color: showLauncher ? PLAYHEAD : 'rgba(255,255,255,0.45)' }}>
+            {showLauncher ? <ChevronDown size={11} /> : <ChevronUp size={11} />} Launcher
+          </button>
           <button onClick={() => setShowEditor((v) => !v)} className="flex items-center gap-1 text-white/45 hover:text-white">
             {showEditor ? <ChevronDown size={11} /> : <ChevronUp size={11} />} Editor
           </button>
@@ -553,6 +912,21 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
           </button>
         </div>
       </div>
+
+      {/* The Sequence strip — Song mode only, and only here on the arranger page: the compact
+          bar-painter for sketching the arrangement without leaving the timeline. */}
+      {p.playMode === 'song' && (
+        <div className="mt-2 flex-none">
+          <SequenceStrip
+            doc={p.doc}
+            activePattern={p.activePattern}
+            beats={p.beats}
+            running={p.running}
+            playMode={p.playMode}
+            onMutate={p.onMutate}
+          />
+        </div>
+      )}
 
       {showMixer && <div className="rounded-b-[18px] overflow-hidden -mt-px"><MixerPanel doc={p.doc} meters={p.meters} onMutate={p.onMutate} /></div>}
 
