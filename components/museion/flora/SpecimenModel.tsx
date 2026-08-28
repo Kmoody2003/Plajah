@@ -12,7 +12,7 @@
 // Failure is never fatal: a missing or broken file logs once and renders
 // nothing, so one bad asset can't take the wing down.
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
@@ -85,12 +85,11 @@ export default function SpecimenModel({
     group.current.rotation.z = Math.sin(t * 0.5 + seed) * 0.01 * wind;
   });
 
-  useEffect(() => () => {
-    model.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (m.isMesh) m.geometry?.dispose?.();
-    });
-  }, [model]);
+  // DO NOT dispose this model's geometry. scene.clone() shares geometries and
+  // materials with the cached original, so disposing the clone destroys the asset
+  // useGLTF has cached — the model renders once and then vanishes for the rest of
+  // the session on the first re-render. That was the empty Ancient Line. useGLTF
+  // owns the cache; let it.
 
   return (
     <group

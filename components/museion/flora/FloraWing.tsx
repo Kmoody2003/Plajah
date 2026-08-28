@@ -9,14 +9,15 @@
 import { useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, SoftShadows } from '@react-three/drei';
-import { EffectComposer, N8AO, Bloom, ToneMapping, SMAA, Vignette } from '@react-three/postprocessing';
+import { EffectComposer, N8AO, Bloom, ToneMapping, SMAA, Vignette, DepthOfField } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import * as THREE from 'three';
 import { ArrowLeft, Volume2, VolumeX, Sprout, BookOpen } from 'lucide-react';
 import TreeMesh from './TreeMesh';
 import SpecimenModel from './SpecimenModel';
 import GrassField from './GrassField';
-import { disposeFloraTextures } from './textures';
+import GroundCover from './GroundCover';
+import { disposeFloraTextures, forestFloorTexture, forestFloorNormal } from './textures';
 import { SKY_ENVIRONMENTS, DEFAULT_SKY, skyById } from './skyEnvironments';
 import ForestBackdrop from './ForestBackdrop';
 import LightShafts from './LightShafts';
@@ -30,23 +31,47 @@ const prefersReducedMotion = () =>
 
 /** Fire-TV contract: cap DPR and drop branch sides on small/weak devices. */
 function tierFor(): { dpr: [number, number]; radial: number; grass: number; post: boolean } {
-  if (typeof window === 'undefined') return { dpr: [1, 1.5], radial: 6, grass: 20000, post: true };
+  if (typeof window === 'undefined') return { dpr: [1, 1.5], radial: 6, grass: 34000, post: true };
   const tv = /TV|BRAVIA|AFT|SmartTV|Tizen/i.test(navigator.userAgent);
   const small = window.innerWidth < 700;
-  if (tv) return { dpr: [1, 1], radial: 5, grass: 9000, post: false };
-  if (small) return { dpr: [1, 1.5], radial: 5, grass: 12000, post: false };
-  return { dpr: [1, 1.75], radial: 7, grass: 32000, post: true };
+  if (tv) return { dpr: [1, 1], radial: 5, grass: 14000, post: false };
+  if (small) return { dpr: [1, 1.5], radial: 5, grass: 20000, post: false };
+  return { dpr: [1, 1.75], radial: 7, grass: 60000, post: true };
 }
 
-/** Ground plane + a hint of mist, so trees stand in a place rather than a void. */
+/**
+ * The forest floor. This was a flat dark-green disc, which was most of why the
+ * ground read as a stage — a uniform colour under sparse grass gives the eye
+ * nothing to resolve, so the grass looked pasted onto a board. Now it carries
+ * baked litter and a matching normal map, repeated enough times that the grain
+ * is ground-scale rather than field-scale.
+ */
 function ForestFloor() {
+  const map = useMemo(() => forestFloorTexture(512, 5), []);
+  const normal = useMemo(() => forestFloorNormal(512, 5), []);
+
+  useEffect(() => {
+    // Litter repeats about every 4 m; any larger and the tiling is legible.
+    for (const t of [map, normal]) {
+      if (!t) continue;
+      t.repeat.set(26, 26);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.needsUpdate = true;
+    }
+  }, [map, normal]);
+
   return (
-    <>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-        <circleGeometry args={[52, 64]} />
-        <meshStandardMaterial color="#1b2a14" roughness={1} metalness={0} />
-      </mesh>
-    </>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+      <circleGeometry args={[92, 96]} />
+      <meshStandardMaterial
+        color="#6f6552"
+        map={map ?? undefined}
+        normalMap={normal ?? undefined}
+        normalScale={new THREE.Vector2(0.9, 0.9)}
+        roughness={0.97}
+        metalness={0}
+      />
+    </mesh>
   );
 }
 
@@ -160,7 +185,8 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
           <Environment
             files={sky.file}
             background
-            backgroundBlurriness={sky.blur ?? 0}
+            backgroundBlurriness={backdrop.images.length > 0 ? Math.max(sky.blur ?? 0, 0.4) : (sky.blur ?? 0)}
+            backgroundIntensity={backdrop.images.length > 0 ? 0.55 : 1}
             environmentIntensity={sky.intensity ?? 1}
             environmentRotation={[0, sky.rotationY ?? 0, 0]}
             backgroundRotation={[0, sky.rotationY ?? 0, 0]}
@@ -188,7 +214,30 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
           <SoftShadows size={26} samples={12} focus={0.7} />
           <ForestLight sun={sky.sun ?? { position: [30, 26, 16], color: '#ffe2b0', intensity: 2.6 }} />
           <ForestFloor />
-          <GrassField count={grassCount} outerRadius={26} season={season} wind={reduced ? 0 : 1} />
+          <GrassField
+            count={grassCount}
+            outerRadius={26}
+            season={season}
+            wind={reduced ? 0 : 1}
+            sunPosition={(sky.sun ?? { position: [30, 26, 16] }).position}
+          />
+          <GroundCover
+            count={Math.round(grassCount / 40)}
+            outerRadius={26}
+            shape="broad"
+            season={season}
+            wind={reduced ? 0 : 1}
+            sunPosition={(sky.sun ?? { position: [30, 26, 16] }).position}
+          />
+          <GroundCover
+            count={Math.round(grassCount / 70)}
+            outerRadius={24}
+            shape="frond"
+            color="#35682d"
+            season={season}
+            wind={reduced ? 0 : 1}
+            sunPosition={(sky.sun ?? { position: [30, 26, 16] }).position}
+          />
           {specimens.map((s, i) => {
             const spot = layout[i];
             if (!s.model || !spot) return null;
@@ -233,6 +282,19 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
             <EffectComposer enableNormalPass multisampling={0}>
               <N8AO aoRadius={1.6} intensity={2.4} distanceFalloff={0.9} quality="performance" halfRes />
               <Bloom intensity={0.42} luminanceThreshold={0.86} luminanceSmoothing={0.28} mipmapBlur />
+              {/* DEPTH BY OPTICS, NOT BY HAZE.
+                  Fog builds depth by mixing everything toward one pale colour,
+                  which is exactly what was draining the backdrop photographs. A
+                  lens does it without touching colour: near things resolve, far
+                  things go soft. Focused on the specimen ring, the trees stay
+                  crisp and the treeline falls away into bokeh — so the backdrop
+                  reads as distance rather than as a wall behind the set. */}
+              <DepthOfField
+                focusDistance={0.012}
+                focalLength={0.05}
+                bokehScale={4.5}
+                height={480}
+              />
               <SMAA />
               <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
               <Vignette offset={0.32} darkness={0.5} />

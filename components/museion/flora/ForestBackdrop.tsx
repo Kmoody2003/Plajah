@@ -150,7 +150,7 @@ function Panel({
         side={THREE.BackSide}
         transparent
         depthWrite={false}
-        fog
+        fog={false}
         color={new THREE.Color(intensity, intensity, intensity)}
         onBeforeCompile={onBeforeCompile}
       />

@@ -299,6 +299,132 @@ export function leafTexture(shape: LeafShape, color: string, size = 256): THREE.
   return leafCardTexture(shape, color, size, 1, 3);
 }
 
+/**
+ * The forest floor's height field: litter, not soil.
+ *
+ * A real woodland floor is not one surface, it is layers — leaf litter over
+ * moss over bare earth, with the scale of the clumping much larger than the
+ * scale of the debris. So this sums three octaves at very different cell counts
+ * and adds scattered elliptical "leaves" on top, which is what gives the ground
+ * its broken, non-tiling read once it is repeated across the disc.
+ */
+function floorHeight(size: number, seed: number): Float32Array {
+  const broad = valueNoise(size, size, 5, seed);        // damp hollows and rises
+  const mid = valueNoise(size, size, 17, seed + 41);    // clumps of litter
+  const fine = valueNoise(size, size, 61, seed + 907);  // grain
+  const h = new Float32Array(size * size);
+  for (let i = 0; i < h.length; i++) {
+    h[i] = broad[i] * 0.55 + mid[i] * 0.3 + fine[i] * 0.15;
+  }
+  // Fallen leaves: shallow ellipses at random angles, pressed into the field.
+  const rand = mulberry(seed + 1223);
+  const leaves = Math.floor(size * 0.9);
+  for (let n = 0; n < leaves; n++) {
+    const cx = rand() * size;
+    const cy = rand() * size;
+    const a = rand() * Math.PI;
+    const ra = 3 + rand() * 7;
+    const rb = ra * (0.35 + rand() * 0.3);
+    const lift = 0.08 + rand() * 0.12;
+    const ca = Math.cos(a);
+    const sa = Math.sin(a);
+    const r = Math.ceil(ra);
+    for (let y = -r; y <= r; y++) {
+      for (let x = -r; x <= r; x++) {
+        const u = (x * ca + y * sa) / ra;
+        const v = (-x * sa + y * ca) / rb;
+        const d = u * u + v * v;
+        if (d > 1) continue;
+        const px = (Math.round(cx + x) + size) % size;
+        const py = (Math.round(cy + y) + size) % size;
+        h[py * size + px] += lift * (1 - d);
+      }
+    }
+  }
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (let i = 0; i < h.length; i++) { if (h[i] < lo) lo = h[i]; if (h[i] > hi) hi = h[i]; }
+  const span = hi - lo || 1;
+  for (let i = 0; i < h.length; i++) h[i] = (h[i] - lo) / span;
+  return h;
+}
+
+/**
+ * Forest floor albedo. The flat dark-green disc it replaces was most of why the
+ * ground read as a stage: real litter is brown shot through with moss and damp
+ * earth, and the COLOUR VARIANCE between those is what the eye reads as ground.
+ */
+export function forestFloorTexture(size = 512, seed = 5): THREE.Texture | null {
+  const key = `floor:${size}:${seed}`;
+  const hit = canvasCache.get(key);
+  if (hit) return hit;
+  const made = makeCanvas(size, size);
+  if (!made) return null;
+  const { cv, ctx } = made;
+  const h = floorHeight(size, seed);
+  const moss = valueNoise(size, size, 9, seed + 313);   // where moss takes hold
+  const img = ctx.createImageData(size, size);
+  const soil = [46, 34, 22];
+  const litter = [104, 74, 40];
+  const mossC = [58, 84, 38];
+  for (let i = 0; i < size * size; i++) {
+    const t = h[i];
+    // High ground is dry litter, low ground is dark damp soil.
+    let r = soil[0] + (litter[0] - soil[0]) * t;
+    let g = soil[1] + (litter[1] - soil[1]) * t;
+    let b = soil[2] + (litter[2] - soil[2]) * t;
+    // Moss colonises the damp hollows, so it follows the inverse of height.
+    const m = Math.max(0, Math.min(1, (moss[i] - 0.52) * 3.2)) * (1 - t * 0.7);
+    r += (mossC[0] - r) * m;
+    g += (mossC[1] - g) * m;
+    b += (mossC[2] - b) * m;
+    const o = i * 4;
+    img.data[o] = r;
+    img.data[o + 1] = g;
+    img.data[o + 2] = b;
+    img.data[o + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  canvasCache.set(key, tex);
+  return tex;
+}
+
+/** Matching floor normal map — same height field, same Sobel as the bark. */
+export function forestFloorNormal(size = 512, seed = 5, strength = 2.2): THREE.Texture | null {
+  const key = `floorN:${size}:${seed}:${strength}`;
+  const hit = normalCache.get(key);
+  if (hit) return hit;
+  const made = makeCanvas(size, size);
+  if (!made) return null;
+  const { cv, ctx } = made;
+  const h = floorHeight(size, seed);
+  const img = ctx.createImageData(size, size);
+  const at = (x: number, y: number) => h[((y + size) % size) * size + ((x + size) % size)];
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const dx = (at(x + 1, y) - at(x - 1, y)) * strength;
+      const dy = (at(x, y + 1) - at(x, y - 1)) * strength;
+      const nz = 1;
+      const len = Math.hypot(dx, dy, nz) || 1;
+      const o = (y * size + x) * 4;
+      img.data[o] = ((-dx / len) * 0.5 + 0.5) * 255;
+      img.data[o + 1] = ((-dy / len) * 0.5 + 0.5) * 255;
+      img.data[o + 2] = ((nz / len) * 0.5 + 0.5) * 255;
+      img.data[o + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 8;
+  normalCache.set(key, tex);
+  return tex;
+}
+
 /** Free every baked texture (wing unmount). */
 export function disposeFloraTextures() {
   for (const t of canvasCache.values()) t.dispose();
