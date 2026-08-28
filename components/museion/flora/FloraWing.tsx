@@ -8,7 +8,7 @@
 
 import { useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment, Sky, SoftShadows } from '@react-three/drei';
+import { OrbitControls, Environment, SoftShadows } from '@react-three/drei';
 import { EffectComposer, N8AO, Bloom, ToneMapping, SMAA, Vignette } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import * as THREE from 'three';
@@ -17,6 +17,7 @@ import TreeMesh from './TreeMesh';
 import SpecimenModel from './SpecimenModel';
 import GrassField from './GrassField';
 import { disposeFloraTextures } from './textures';
+import { SKY_ENVIRONMENTS, DEFAULT_SKY, skyById } from './skyEnvironments';
 import { ForestAudio, roomForGallery } from './ForestAudio';
 import { FLORA, GALLERY_META, LINEAGE_LABEL, CONSERVATION_LABEL, populatedGalleries } from '../../../data/flora';
 import type { FloraSpecimen, Gallery } from '../../../data/flora';
@@ -34,26 +35,6 @@ function tierFor(): { dpr: [number, number]; radial: number; grass: number; post
   return { dpr: [1, 1.75], radial: 7, grass: 32000, post: true };
 }
 
-/** Preetham sky with fog disabled on its shader — see the note at the call site. */
-function SkyDome() {
-  const ref = useRef<THREE.Mesh>(null);
-  useEffect(() => {
-    const m = ref.current?.material as THREE.Material | undefined;
-    if (m) { (m as THREE.ShaderMaterial).fog = false; m.needsUpdate = true; }
-  }, []);
-  return (
-    <Sky
-      ref={ref as never}
-      distance={450000}
-      sunPosition={[30, 26, 16]}
-      turbidity={4.2}
-      rayleigh={1.6}
-      mieCoefficient={0.0045}
-      mieDirectionalG={0.82}
-    />
-  );
-}
-
 /** Ground plane + a hint of mist, so trees stand in a place rather than a void. */
 function ForestFloor() {
   return (
@@ -67,14 +48,16 @@ function ForestFloor() {
 }
 
 /** Dusk light: a warm shaft from the canopy plus cool sky fill. */
-function ForestLight() {
+function ForestLight({ sun }: { sun: { position: [number, number, number]; color: string; intensity: number } }) {
   return (
     <>
-      <hemisphereLight args={['#cfe8ff', '#20301a', 0.45]} />
+      {/* The HDRI supplies ambient light; this is only the sun that casts shadows,
+          aimed to match the sun in the panorama so the two never disagree. */}
+      <hemisphereLight args={['#cfe8ff', '#20301a', 0.22]} />
       <directionalLight
-        position={[30, 26, 16]}
-        intensity={3.2}
-        color="#ffe2b0"
+        position={sun.position}
+        intensity={sun.intensity}
+        color={sun.color}
         castShadow
         shadow-bias={-0.0006}
         shadow-normalBias={0.035}
@@ -101,6 +84,10 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
   const [growth, setGrowth] = useState(1);
   const [season, setSeason] = useState(0);
   const [audioOn, setAudioOn] = useState(false);
+  const [skyId, setSkyId] = useState<string>(DEFAULT_SKY);
+  const sky = useMemo(() => skyById(skyId), [skyId]);
+  const skyRef = useRef(sky);
+  skyRef.current = sky;
   const audioRef = useRef<ForestAudio | null>(null);
   const reduced = useMemo(prefersReducedMotion, []);
   const tier = useMemo(tierFor, []);
@@ -149,10 +136,10 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
           onCreated={({ scene, gl }) => {
             gl.toneMappingExposure = 1.06;
             gl.shadowMap.type = THREE.PCFSoftShadowMap;
-            // LINEAR fog with a hard far plane: distant trees fade into haze while
-            // the sky dome (far beyond `far`, and fog-exempt) stays clean. Colour is
-            // sampled from the horizon so the two meet without a seam.
-            scene.fog = new THREE.Fog('#cfe0e8', 34, 190);
+            // LINEAR fog with a hard far plane: distant trees haze out while the
+            // HDRI background (drawn beyond it) stays crisp. Colour comes from the
+            // chosen sky's horizon so the two meet without a seam.
+            scene.fog = new THREE.Fog(skyRef.current.fog ?? '#cfe0e8', 38, 210);
           }}
         >
           {/* Preetham atmospheric sky — no asset, and it sets the horizon colour
@@ -161,27 +148,22 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
               the dome's distance renders it 100% fog colour, which is what turned
               the horizon white. Sun position matches the directional light so the
               scattering and the shadows agree. */}
-          <SkyDome />
+          {/* THE SKY AND THE LIGHT ARE THE SAME OBJECT. A real HDRI panorama is
+              both what you see at the horizon and what lights every leaf — which
+              is why the hall reads as photographed rather than shaded. Swap the
+              file to change the weather, the hour and the mood at once. */}
+          <Environment
+            files={sky.file}
+            background
+            backgroundBlurriness={sky.blur ?? 0}
+            environmentIntensity={sky.intensity ?? 1}
+            environmentRotation={[0, sky.rotationY ?? 0, 0]}
+            backgroundRotation={[0, sky.rotationY ?? 0, 0]}
+          />
           <SoftShadows size={26} samples={12} focus={0.7} />
-          <ForestLight />
+          <ForestLight sun={sky.sun ?? { position: [30, 26, 16], color: '#ffe2b0', intensity: 2.6 }} />
           <ForestFloor />
           <GrassField count={grassCount} outerRadius={26} season={season} wind={reduced ? 0 : 1} />
-          {/* Image-based lighting generated in-engine: a warm sky dome over a
-              green ground bounce. Real IBL without downloading an HDRI. */}
-          <Environment resolution={128} frames={1}>
-            <mesh scale={100}>
-              <sphereGeometry args={[1, 24, 16]} />
-              <meshBasicMaterial color="#9fd3ff" side={THREE.BackSide} />
-            </mesh>
-            <mesh position={[0, -40, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={140}>
-              <planeGeometry />
-              <meshBasicMaterial color="#2c4a1e" />
-            </mesh>
-            <mesh position={[34, 26, 18]} scale={16}>
-              <sphereGeometry args={[1, 16, 12]} />
-              <meshBasicMaterial color="#fff0cf" />
-            </mesh>
-          </Environment>
           {specimens.map((s, i) => {
             const spot = layout[i];
             if (!s.model || !spot) return null;
@@ -256,6 +238,10 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
             title={audioOn ? 'Silence the forest' : 'Let the forest in'}>
             {audioOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
           </button>
+          <select className="fw-skysel" value={skyId} onChange={(e) => setSkyId(e.target.value)}
+            title="Sky & lighting — the panorama is both the background and the light source">
+            {SKY_ENVIRONMENTS.map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
+          </select>
           {onOpenStudyRoom && (
             <button className="fw-icon" onClick={onOpenStudyRoom} title="The Study Room — cells, photosynthesis, microscopy">
               <BookOpen size={15} />
@@ -263,6 +249,8 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
           )}
         </div>
       </header>
+
+      <div className="fw-skycredit">Sky: {sky.credit} · {sky.license}</div>
 
       <nav className="fw-galleries">
         {galleries.map((g) => (
@@ -350,7 +338,13 @@ const CSS = `
 .fw-title h1{font-family:Fraunces,Georgia,serif;font-size:clamp(20px,3.4vw,32px);font-weight:600;
   margin:2px 0 0;letter-spacing:-.01em}
 .fw-latin{font-family:Fraunces,Georgia,serif;font-style:italic;font-size:12.5px;color:rgba(232,220,192,.55)}
-.fw-topright{display:flex;gap:8px}
+.fw-topright{display:flex;gap:8px;align-items:center}
+.fw-skysel{background:rgba(12,22,14,.6);border:1px solid rgba(200,230,200,.16);color:rgba(231,236,230,.8);
+  font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:7px 9px;
+  border-radius:999px;backdrop-filter:blur(8px);font-family:inherit;cursor:pointer;outline:none}
+.fw-skysel:hover{color:#fff;border-color:rgba(87,194,106,.5)}
+.fw-skycredit{position:absolute;right:14px;bottom:82px;z-index:10;font-size:9px;
+  color:rgba(231,236,230,.32);pointer-events:none;letter-spacing:.04em}
 .fw-icon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;cursor:pointer;
   background:rgba(12,22,14,.6);border:1px solid rgba(200,230,200,.16);color:rgba(231,236,230,.75);
   backdrop-filter:blur(8px)}
