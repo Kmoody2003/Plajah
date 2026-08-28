@@ -6813,8 +6813,14 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
 
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite'); // dev-only — never loaded in prod
+    // In middleware mode Vite still opens its own HMR websocket, on a FIXED port
+    // (24678) that it does not negotiate. So a second dev server on this repo —
+    // another agent session, or two branches side by side — starts, serves
+    // nothing, and reports only "Port 24678 is already in use". PORT is already
+    // auto-assigned; this makes the HMR port follow suit.
+    const hmrPort = Number(process.env.VITE_HMR_PORT) || 24678;
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: { port: hmrPort } },
       appType: 'spa',
     });
     app.use(async (req, res, next) => {
