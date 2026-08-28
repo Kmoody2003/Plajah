@@ -214,7 +214,7 @@ Rules:
 - Do NOT invent, guess, or summarise. Only transcribe clearly audible words. If the clip is purely instrumental or silent, return [].
 - Sort entries by ascending time.`;
   const response = await genai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.6-flash',
     contents: [
       { inlineData: { data: base64, mimeType } },
       { text: prompt },
@@ -226,7 +226,8 @@ Rules:
         items: { type: Type.OBJECT, properties: { time: { type: Type.NUMBER }, text: { type: Type.STRING } }, required: ['time', 'text'] },
       },
       maxOutputTokens: 8192,
-      thinkingConfig: { thinkingBudget: 0 },
+      // Gemini 3.x: thinkingBudget is an invalid argument; thinkingLevel replaces it.
+      thinkingConfig: { thinkingLevel: 'minimal' },
     },
   });
   const raw = (response as any).text || '[]';
@@ -3272,6 +3273,84 @@ async function startServer() {
     }
   });
 
+  // ── Marketing: Local Reach — Lob address verification ───────────────────────
+  // Targeted (list-based) direct mail — see docs/MARKETING_LOCAL_REACH_SPEC.md §3
+  // and services/marketing/reachEstimateService.ts. Lob is the one Local Reach
+  // vendor with a genuinely public, key-only API (no partner agreement needed —
+  // https://www.lob.com/products/print-mail/postcards + /v1/us_verifications).
+  // Real endpoint, real HTTP call — but it only VERIFIES deliverability of a
+  // supplied address list; it does not compute EDDM route/mailbox counts or DOOH
+  // screen availability, which need a signed Taradel/Adomni-class partner
+  // agreement neither of which exists yet. Those channels stay on the density
+  // model (reachEstimateService `source: 'model'`) until that changes — this
+  // route is what flips a targeted-mail estimate's source to 'live'.
+  const LOB_MAX_BATCH = 100; // one request per campaign audience upload is plenty; caps cost/abuse.
+
+  async function lobVerifyOne(apiKey: string, address: Record<string, string>) {
+    const res = await fetch('https://api.lob.com/v1/us_verifications', {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${apiKey}:`).toString('base64')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        primary_line: address.address_line1,
+        secondary_line: address.address_line2 || undefined,
+        city: address.address_city,
+        state: address.address_state,
+        zip_code: address.address_zip,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return { deliverable: false, error: body?.error?.message || `Lob ${res.status}` };
+    }
+    const data = await res.json();
+    return {
+      deliverable: data.deliverability === 'deliverable' || data.deliverability === 'deliverable_missing_unit',
+      deliverability: data.deliverability,
+    };
+  }
+
+  app.post('/api/marketing/verify-address', authMiddleware, express.json(), async (req: any, res) => {
+    const apiKey = process.env.LOB_API_KEY;
+    if (!apiKey) return res.status(503).json({ configured: false, error: 'LOB_API_KEY not configured — add it to verify real addresses; targeted-mail counts stay estimate-only until then.' });
+    try {
+      const result = await lobVerifyOne(apiKey, req.body?.address || {});
+      res.json({ configured: true, ...result });
+    } catch (err: any) {
+      res.status(502).json({ error: err.message });
+    }
+  });
+
+  // Verifies a whole audience list in one call so a campaign's `direct_mail`
+  // AudienceList.count can be a VERIFIED deliverable count, not a raw upload
+  // count. Small fixed concurrency — Lob rate-limits, and this runs at most
+  // once per campaign build, not per keystroke.
+  app.post('/api/marketing/verify-address-batch', authMiddleware, express.json(), async (req: any, res) => {
+    const apiKey = process.env.LOB_API_KEY;
+    if (!apiKey) return res.status(503).json({ configured: false, error: 'LOB_API_KEY not configured — add it to verify the list; the campaign will use the raw upload count instead.' });
+    const addresses: Record<string, string>[] = Array.isArray(req.body?.addresses) ? req.body.addresses : [];
+    if (!addresses.length) return res.status(400).json({ error: 'No addresses supplied' });
+    if (addresses.length > LOB_MAX_BATCH) return res.status(400).json({ error: `Batch capped at ${LOB_MAX_BATCH} addresses per request` });
+
+    try {
+      const CONCURRENCY = 5;
+      const results: Awaited<ReturnType<typeof lobVerifyOne>>[] = new Array(addresses.length);
+      let next = 0;
+      await Promise.all(Array.from({ length: Math.min(CONCURRENCY, addresses.length) }, async () => {
+        while (next < addresses.length) {
+          const i = next++;
+          results[i] = await lobVerifyOne(apiKey, addresses[i]);
+        }
+      }));
+      const deliverableCount = results.filter(r => r.deliverable).length;
+      res.json({ configured: true, total: addresses.length, deliverableCount, results });
+    } catch (err: any) {
+      res.status(502).json({ error: err.message });
+    }
+  });
+
   // ── Stripe: SeedRaiser Pledge ─────────────────────────────────────────────
   app.post('/api/stripe/seedraiser-pledge', authMiddleware, async (req: any, res) => {
     try {
@@ -4312,7 +4391,7 @@ Rules:
           return res.status(413).json({ error: 'audio too large to transcribe' });
         }
         const response = await genai.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3.6-flash',
           contents: [
             { inlineData: { data: ssData, mimeType: ssMime } },
             { text: kind === 'speech' ? speechPrompt : lyricPrompt },
@@ -4324,7 +4403,8 @@ Rules:
               items: { type: Type.OBJECT, properties: { time: { type: Type.NUMBER }, text: { type: Type.STRING } }, required: ['time', 'text'] },
             },
             maxOutputTokens: 65536,
-            thinkingConfig: { thinkingBudget: 0 },
+            // Gemini 3.x: thinkingBudget is an invalid argument; thinkingLevel replaces it.
+            thinkingConfig: { thinkingLevel: 'minimal' },
           },
         });
         const raw = (response as any).text || '[]';
@@ -4374,16 +4454,21 @@ Rules:
     if (!geminiKey) return res.status(503).json({ error: 'Gemini not configured' });
     const { model, contents, config } = (req.body || {}) as { model?: string; contents?: any; config?: any };
     if (!contents) return res.status(400).json({ error: 'contents required' });
-    // Normalise to a known-good model (the client default alias can be unreliable).
-    let safeModel = typeof model === 'string' && /^gemini-2\.[05]/.test(model) ? model : 'gemini-2.5-flash';
+    // Normalise to a known-good model. gemini-2.x was retired for this project's key
+    // (2026-08-28 rotation — new Google projects can't call 2.5); legacy client requests
+    // for 2.x models are transparently upgraded to 3.6-flash.
+    let safeModel = typeof model === 'string' && /^gemini-(3\.\d|flash-latest|flash-lite-latest)/.test(model) ? model : 'gemini-3.6-flash';
     try {
       const { GoogleGenAI } = await import('@google/genai');
       const genai = new GoogleGenAI({ apiKey: geminiKey });
+      // Disable "thinking" by default (it can yield empty replies) unless the caller set it.
+      // Gemini 3.x rejects the old thinkingBudget field — swap it for thinkingLevel.
+      const callerTc = config && config.thinkingConfig;
+      const safeThinking = callerTc && !('thinkingBudget' in callerTc) ? callerTc : { thinkingLevel: 'minimal' };
       const response = await genai.models.generateContent({
         model: safeModel,
         contents,
-        // Disable "thinking" by default (it can yield empty replies) unless the caller set it.
-        config: { ...(config || {}), thinkingConfig: (config && config.thinkingConfig) || { thinkingBudget: 0 } },
+        config: { ...(config || {}), thinkingConfig: safeThinking },
       });
       res.json({ text: (response as any).text || '' });
     } catch (err: any) {
@@ -8156,8 +8241,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
         }));
         const geminiTools = webSearchAllowed ? [{ googleSearch: {} }] : undefined;
         const chat = genai.chats.create({
-          model: 'gemini-2.5-flash',
-          config: { systemInstruction: ARIA_SYSTEM_PROMPT, tools: geminiTools, maxOutputTokens: 2048, temperature: 0.8, thinkingConfig: { thinkingBudget: 0 } },
+          model: 'gemini-3.6-flash',
+          config: { systemInstruction: ARIA_SYSTEM_PROMPT, tools: geminiTools, maxOutputTokens: 2048, temperature: 0.8, thinkingConfig: { thinkingLevel: 'minimal' } },
           history: geminiHistory,
         });
         const geminiRes = await chat.sendMessage({ message: [{ text: userContent }] });
@@ -8316,10 +8401,10 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
       try {
         const { GoogleGenAI } = await import('@google/genai');
         const genai = new GoogleGenAI({ apiKey: geminiKey });
-        const chat = genai.chats.create({ model: 'gemini-2.5-flash', config: { maxOutputTokens: 64, thinkingConfig: { thinkingBudget: 0 } } });
+        const chat = genai.chats.create({ model: 'gemini-3.6-flash', config: { maxOutputTokens: 64, thinkingConfig: { thinkingLevel: 'minimal' } } });
         const r = await chat.sendMessage({ message: [{ text: 'Reply with the single word: ok' }] });
         const txt = (r.text || '').trim();
-        out = { provider: 'gemini', configured: true, ok: !!txt, model: 'gemini-2.5-flash', sample: txt.slice(0, 40) };
+        out = { provider: 'gemini', configured: true, ok: !!txt, model: 'gemini-3.6-flash', sample: txt.slice(0, 40) };
       } catch (e: any) {
         // On failure, list the models this key can actually use so we pick a valid one.
         let availableModels: string[] = [];

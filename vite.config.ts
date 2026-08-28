@@ -120,8 +120,11 @@ export default defineConfig(({ mode }) => {
         })
       ],
       define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+        // SECURITY: never inject real keys here — anything defined is baked into the
+        // public bundle. A Gemini key shipped this way was reported leaked and revoked
+        // by Google (2026-08-28). Browser code must call the server proxies instead.
+        'process.env.API_KEY': JSON.stringify(''),
+        'process.env.GEMINI_API_KEY': JSON.stringify('')
       },
       build: {
         // AudioWorklet processors must stay REAL FILES. Small assets are inlined as data: URLs
