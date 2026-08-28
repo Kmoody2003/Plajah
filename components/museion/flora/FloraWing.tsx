@@ -8,10 +8,12 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment } from '@react-three/drei';
+import { OrbitControls, Environment, Sky } from '@react-three/drei';
 import * as THREE from 'three';
 import { ArrowLeft, Volume2, VolumeX, Sprout, BookOpen } from 'lucide-react';
 import TreeMesh from './TreeMesh';
+import GrassField from './GrassField';
+import { disposeFloraTextures } from './textures';
 import { ForestAudio, roomForGallery } from './ForestAudio';
 import { FLORA, GALLERY_META, LINEAGE_LABEL, CONSERVATION_LABEL, populatedGalleries } from '../../../data/flora';
 import type { FloraSpecimen, Gallery } from '../../../data/flora';
@@ -20,13 +22,13 @@ const prefersReducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 /** Fire-TV contract: cap DPR and drop branch sides on small/weak devices. */
-function tierFor(): { dpr: [number, number]; radial: number } {
-  if (typeof window === 'undefined') return { dpr: [1, 1.5], radial: 5 };
+function tierFor(): { dpr: [number, number]; radial: number; grass: number } {
+  if (typeof window === 'undefined') return { dpr: [1, 1.5], radial: 6, grass: 4200 };
   const tv = /TV|BRAVIA|AFT|SmartTV|Tizen/i.test(navigator.userAgent);
   const small = window.innerWidth < 700;
-  if (tv) return { dpr: [1, 1], radial: 4 };
-  if (small) return { dpr: [1, 1.5], radial: 4 };
-  return { dpr: [1, 1.75], radial: 5 };
+  if (tv) return { dpr: [1, 1], radial: 5, grass: 1400 };
+  if (small) return { dpr: [1, 1.5], radial: 5, grass: 1800 };
+  return { dpr: [1, 1.75], radial: 7, grass: 5000 };
 }
 
 /** Ground plane + a hint of mist, so trees stand in a place rather than a void. */
@@ -34,12 +36,8 @@ function ForestFloor() {
   return (
     <>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-        <circleGeometry args={[46, 48]} />
-        <meshStandardMaterial color="#12200f" roughness={1} metalness={0} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-        <ringGeometry args={[7.4, 8.0, 64]} />
-        <meshBasicMaterial color="#2f6b34" transparent opacity={0.22} />
+        <circleGeometry args={[52, 64]} />
+        <meshStandardMaterial color="#1b2a14" roughness={1} metalness={0} />
       </mesh>
     </>
   );
@@ -49,11 +47,11 @@ function ForestFloor() {
 function ForestLight() {
   return (
     <>
-      <hemisphereLight args={['#8fd0a0', '#0a1408', 0.55]} />
+      <hemisphereLight args={['#bfe3c8', '#1a2410', 0.7]} />
       <directionalLight
-        position={[9, 18, 6]}
-        intensity={1.5}
-        color="#ffe6b0"
+        position={[26, 34, 14]}
+        intensity={2.1}
+        color="#ffe9c2"
         castShadow
         shadow-mapSize={[1024, 1024]}
         shadow-camera-far={60}
@@ -81,6 +79,7 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
   const audioRef = useRef<ForestAudio | null>(null);
   const reduced = useMemo(prefersReducedMotion, []);
   const tier = useMemo(tierFor, []);
+  const grassCount = tier.grass;
 
   useEffect(() => { setSelectedId(specimens[0]?.id ?? ''); }, [gallery]); // eslint-disable-line
 
@@ -89,7 +88,7 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
     if (audioOn) audioRef.current?.applyRoom(roomForGallery(gallery));
   }, [gallery, audioOn]);
 
-  useEffect(() => () => { audioRef.current?.stop(); audioRef.current = null; }, []);
+  useEffect(() => () => { audioRef.current?.stop(); audioRef.current = null; disposeFloraTextures(); }, []);
 
   const toggleAudio = async () => {
     if (audioOn) { audioRef.current?.stop(); audioRef.current = null; setAudioOn(false); return; }
@@ -123,13 +122,32 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
           camera={{ position: [0, 4.2, 15], fov: 52 }}
           gl={{ antialias: true, powerPreference: 'high-performance' }}
           onCreated={({ scene }) => {
-            scene.background = new THREE.Color('#0a120c');
-            scene.fog = new THREE.FogExp2('#0b1710', 0.028);
+            scene.fog = new THREE.FogExp2('#9ec4a8', 0.012);
           }}
         >
+          {/* Preetham atmospheric sky — no asset, and it sets the horizon colour
+              the whole hall is lit against. */}
+          <Sky distance={4500} sunPosition={[26, 18, 14]} turbidity={7} rayleigh={2.2}
+            mieCoefficient={0.006} mieDirectionalG={0.86} />
           <ForestLight />
           <ForestFloor />
-          <Environment preset="forest" background={false} />
+          <GrassField count={grassCount} outerRadius={26} season={season} wind={reduced ? 0 : 1} />
+          {/* Image-based lighting generated in-engine: a warm sky dome over a
+              green ground bounce. Real IBL without downloading an HDRI. */}
+          <Environment resolution={128} frames={1}>
+            <mesh scale={100}>
+              <sphereGeometry args={[1, 24, 16]} />
+              <meshBasicMaterial color="#9fd3ff" side={THREE.BackSide} />
+            </mesh>
+            <mesh position={[0, -40, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={140}>
+              <planeGeometry />
+              <meshBasicMaterial color="#2c4a1e" />
+            </mesh>
+            <mesh position={[34, 26, 18]} scale={16}>
+              <sphereGeometry args={[1, 16, 12]} />
+              <meshBasicMaterial color="#fff0cf" />
+            </mesh>
+          </Environment>
           {specimens.map((s, i) => {
             const spot = layout[i];
             if (!s.model || s.model.kind !== 'procedural' || !spot) return null;

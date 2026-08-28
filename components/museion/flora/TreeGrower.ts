@@ -60,7 +60,7 @@ export interface TreeParams {
   twist: number;              // degrees of roll between sibling branches
   leafSize: number;
   leafDensity: number;        // leaves per terminal twig
-  leafShape: 'broad' | 'needle' | 'palmate' | 'scale' | 'frond';
+  leafShape: 'broad' | 'needle' | 'palmate' | 'scale' | 'frond' | 'lanceolate' | 'ovate';
   barkColor: string;
   leafColor: string;
   /** Autumn target — the seasonal shader ramps toward this. */
@@ -244,7 +244,7 @@ export const TREE_SPECIES: Record<string, TreeParams> = {
     splits: [2, 3], branchAngle: 38, angleJitter: 26,
     lengthFalloff: 0.74, radiusFalloff: 0.66,
     gravitropism: 0.05, twist: 34,
-    leafSize: 0.34, leafDensity: 5, leafShape: 'broad',
+    leafSize: 0.38, leafDensity: 7, leafShape: 'broad',       // lobed — the oak signature
     barkColor: '#4a3b2a', leafColor: '#3f7d3a', autumnColor: '#b3541e',
   },
   birch: {
@@ -253,7 +253,7 @@ export const TREE_SPECIES: Record<string, TreeParams> = {
     splits: [2, 2], branchAngle: 26, angleJitter: 18,
     lengthFalloff: 0.78, radiusFalloff: 0.7,
     gravitropism: -0.12, twist: 46,          // slender, weeping tips
-    leafSize: 0.22, leafDensity: 6, leafShape: 'broad',
+    leafSize: 0.24, leafDensity: 8, leafShape: 'ovate',       // ovate + doubly serrate
     barkColor: '#d8d2c4', leafColor: '#7ab648', autumnColor: '#e0b62c',
   },
   pine: {
@@ -262,7 +262,7 @@ export const TREE_SPECIES: Record<string, TreeParams> = {
     splits: [4, 5], branchAngle: 68, angleJitter: 12,
     lengthFalloff: 0.62, radiusFalloff: 0.58,
     gravitropism: -0.06, twist: 72,          // whorled, near-horizontal tiers
-    leafSize: 0.3, leafDensity: 8, leafShape: 'needle',
+    leafSize: 0.42, leafDensity: 10, leafShape: 'needle',
     barkColor: '#5a3f2b', leafColor: '#2f5d3f',
   },
   willow: {
@@ -271,7 +271,7 @@ export const TREE_SPECIES: Record<string, TreeParams> = {
     splits: [2, 3], branchAngle: 30, angleJitter: 22,
     lengthFalloff: 0.8, radiusFalloff: 0.62,
     gravitropism: -0.55, twist: 28,          // the signature fall
-    leafSize: 0.26, leafDensity: 7, leafShape: 'broad',
+    leafSize: 0.34, leafDensity: 9, leafShape: 'lanceolate',  // long, narrow, drooping
     barkColor: '#5c4a33', leafColor: '#6f9c4a', autumnColor: '#c9b84c',
   },
   baobab: {

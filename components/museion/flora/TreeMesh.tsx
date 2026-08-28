@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { growTree, skeletonAtGrowth, type TreeParams, type TreeSkeleton } from './TreeGrower';
 import { buildTreeGeometry, buildLeafMatrices } from './treeGeometry';
+import { barkTexture, barkNormal, leafTexture } from './textures';
 
 /** Autumn ramp: leaves lerp from their summer colour toward the species' autumn. */
 function seasonColor(leafHex: string, autumnHex: string | undefined, season: number): THREE.Color {
@@ -76,6 +77,23 @@ export default function TreeMesh({
   useLayoutEffect(() => () => { geom.dispose(); }, [geom]);
   useLayoutEffect(() => () => { leafGeom.dispose(); }, [leafGeom]);
 
+  // Species surfaces, baked once and cached across every tree of that species.
+  const barkMap = useMemo(() => {
+    const t = barkTexture(params.species, params.barkColor);
+    if (t) { t.repeat.set(1.4, Math.max(2, params.trunkHeight * 0.9)); t.needsUpdate = true; }
+    return t;
+  }, [params.species, params.barkColor, params.trunkHeight]);
+  const barkNrm = useMemo(() => {
+    const t = barkNormal(params.species);
+    if (t) { t.repeat.set(1.4, Math.max(2, params.trunkHeight * 0.9)); t.needsUpdate = true; }
+    return t;
+  }, [params.species, params.trunkHeight]);
+  const normalScale = useMemo(() => new THREE.Vector2(1.1, 1.1), []);
+  const leafMap = useMemo(
+    () => leafTexture(params.leafShape as never, params.leafColor),
+    [params.leafShape, params.leafColor],
+  );
+
   const barkColor = useMemo(() => new THREE.Color(params.barkColor), [params.barkColor]);
   const leafColor = useMemo(
     () => seasonColor(params.leafColor, params.autumnColor, season),
@@ -93,7 +111,14 @@ export default function TreeMesh({
   return (
     <group ref={groupRef} position={position} rotation={[0, rotation, 0]} scale={scale} onClick={onClick}>
       <mesh geometry={geom} castShadow receiveShadow>
-        <meshStandardMaterial color={barkColor} roughness={0.94} metalness={0} flatShading />
+        <meshStandardMaterial
+          color={barkColor}
+          map={barkMap ?? undefined}
+          normalMap={barkNrm ?? undefined}
+          normalScale={normalScale}
+          roughness={0.92}
+          metalness={0}
+        />
       </mesh>
       {leafData.count > 0 && (
         <instancedMesh
@@ -104,11 +129,13 @@ export default function TreeMesh({
         >
           <meshStandardMaterial
             color={leafColor}
-            roughness={0.8}
+            map={leafMap ?? undefined}
+            alphaMap={leafMap ?? undefined}
+            transparent
+            alphaTest={0.42}
+            roughness={0.72}
             metalness={0}
             side={THREE.DoubleSide}
-            transparent
-            opacity={0.96}
           />
         </instancedMesh>
       )}
