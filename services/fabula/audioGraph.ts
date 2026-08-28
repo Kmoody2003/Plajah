@@ -255,6 +255,21 @@ function applyComp(comp: DynamicsCompressorNode, makeup: GainNode, c: Partial<Co
 
 /** Attach (or reuse) the DSP strip for a media element. Returns null if Web Audio is
  *  unavailable or the element is already sourced elsewhere — callers fall back to element.volume. */
+/** The master-bus sum point — the playback ENGINE's track buses connect here so
+ *  scheduled-buffer playback runs through the same fader/limiter/meter as everything else. */
+export function getMasterInput(): GainNode | null {
+  const ctx = getAudioCtx();
+  if (!ctx) return null;
+  return getMasterBus(ctx).input as GainNode;
+}
+/** The shared FX aux buses (reverb / delay sends) for the playback engine's track strips. */
+export function getFxSends(): { reverbSend: GainNode; delaySend: GainNode } | null {
+  const ctx = getAudioCtx();
+  if (!ctx) return null;
+  const fx = getFxBuses(ctx);
+  return { reverbSend: fx.reverbSend, delaySend: fx.delaySend };
+}
+
 export function attachAudioGraph(el: HTMLMediaElement): Graph | null {
   if (graphs.has(el)) return graphs.get(el) || null;
   const ctx = getAudioCtx();

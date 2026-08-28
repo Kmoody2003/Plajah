@@ -41,6 +41,10 @@ import { buildCurveLut, isCurvesIdentity } from "../../services/fabula/gradeCurv
 import { isQualifierIdentity, keyFromPixel, QUALIFIER_DEFAULT } from "../../services/fabula/hslKey";
 import { isWindowEnabled, WINDOW_DEFAULT } from "../../services/fabula/gradeWindow";
 import { rangeClips } from "../../services/fabula/rangeClips";
+import {
+  startPlayback, stopPlayback, engineRunning, engineClock, setEngineTracks,
+  warmAudio, subscribePlayback, enginePlayable, registerLiveVideo, unregisterLiveVideo, syncLiveVideos,
+} from "../../services/fabula/playbackEngine";
 import { sampleParam as kfSample, isAnimated as kfIsAnimated, hasKeys as kfHasKeys, addKey as kfAddKey, removeKey as kfRemoveKey, keyAt as kfKeyAt, prevKeyTime as kfPrev, nextKeyTime as kfNext, KF_PARAMS, KF_ALL } from "../../services/fabula/keyframes";
 import { quickStems, separateStemsCloud } from "../../services/fabula/stemSeparation";
 import { exportFCPXML, importFCPXML } from "../../services/fabula/fcpxml";
@@ -925,12 +929,28 @@ export default function Fabula() {
       if (fx.fadeOut > 0) for (let t = 0.1; t <= fx.fadeOut; t += 0.1) marks.add(+(c.start + c.duration - t).toFixed(3));
     }
     const bounds = [...marks].sort((a, b) => a - b);
+    // ── AUDIO-MASTERED TRANSPORT. At 1× the playhead derives from the playback
+    // ENGINE's AudioContext clock (sample-accurate, immune to main-thread jank);
+    // scheduled-buffer audio makes dropouts structurally impossible. The wall
+    // clock only drives JKL shuttle (≠1×), where audio is silent by design.
+    // syncLiveVideos slaves the visible <video>s to the same clock every ~160ms
+    // with playbackRate nudges — no drift, no yank at cuts, no end-of-file wrap.
+    const engineOpts = () => ({ clips, mediaPool: prod?.mediaPool || [], trackSettings: container?.timeline?.trackSettings || {}, t0: clockRef.current });
+    if (rateRef.current === 1) startPlayback(engineOpts());
     let raf; let last = performance.now();
     const tick = (now) => {
       const dt = Math.min(0.25, (now - last) / 1000); last = now; // clamp tab-stall jumps
       const prev = clockRef.current;
-      const cur = Math.max(0, prev + dt * rateRef.current);
+      let cur;
+      if (rateRef.current === 1) {
+        if (!engineRunning()) startPlayback(engineOpts());       // gesture-gated ctx → retry until it runs
+        cur = engineRunning() ? engineClock() : Math.max(0, prev + dt);
+      } else {
+        if (engineRunning()) stopPlayback();                     // shuttle: wall clock, engine silent
+        cur = Math.max(0, prev + dt * rateRef.current);
+      }
       clockRef.current = cur;
+      syncLiveVideos(cur, rateRef.current);
       if (phlineRef.current) phlineRef.current.style.left = (128 + cur * pxPerSecRef.current) + "px";
       if (tcRef.current) tcRef.current.textContent = fmtTc(cur, vfmt);
       const lo = Math.min(prev, cur), hi = Math.max(prev, cur);
@@ -941,9 +961,22 @@ export default function Fabula() {
     };
     raf = requestAnimationFrame(tick);
     // On pause, land React exactly where the clock stopped (frame-quantized).
-    return () => { cancelAnimationFrame(raf); setPlayhead(Math.max(0, Math.round(clockRef.current * fps) / fps)); };
+    return () => { cancelAnimationFrame(raf); stopPlayback(); setPlayhead(Math.max(0, Math.round(clockRef.current * fps) / fps)); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing]);
+  // Live mixer moves (fader/pan/mute/solo/EQ/comp/sends) reach the engine's buses mid-play.
+  const engineTrackKey = JSON.stringify(container?.timeline?.trackSettings || {});
+  useEffect(() => { setEngineTracks(container?.timeline?.trackSettings || {}); }, [engineTrackKey]); // eslint-disable-line
+  // Decode the timeline's audio in the background so the first play is instant, and
+  // re-render when the engine marks a source unplayable (element fallback mounts).
+  const [, setEngineVer] = useState(0);
+  useEffect(() => subscribePlayback(() => setEngineVer((v) => v + 1)), []);
+  const clipAudioSig = useMemo(() => clips.map((c) => `${c.id}:${c.assetId || ""}`).join("|"), [clips]);
+  useEffect(() => {
+    if (!prod?.mediaPool?.length || !clips.length) return undefined;
+    const t = setTimeout(() => warmAudio(clips, prod.mediaPool), 400);
+    return () => clearTimeout(t);
+  }, [clipAudioSig, prod?.id]); // eslint-disable-line
 
   /* ----- production CRUD ----- */
   const migrate = (p) => {
@@ -3958,8 +3991,10 @@ export default function Fabula() {
                         if (!tclips.length) return null;
                         const curIdx = tclips.findIndex((c) => playhead >= c.start && playhead < c.start + c.duration);
                         const idxs = new Set();
-                        if (curIdx >= 0) { idxs.add(curIdx - 1); idxs.add(curIdx); idxs.add(curIdx + 1); }
-                        else { const nx = tclips.findIndex((c) => c.start >= playhead); if (nx >= 0) { idxs.add(nx - 1); idxs.add(nx); } else idxs.add(tclips.length - 1); }
+                        // +2 lookahead: the clip after next starts decoding a full clip early, so even
+                        // short clips cut to a warm buffer (black frames at cuts came from cold loads).
+                        if (curIdx >= 0) { idxs.add(curIdx - 1); idxs.add(curIdx); idxs.add(curIdx + 1); idxs.add(curIdx + 2); }
+                        else { const nx = tclips.findIndex((c) => c.start >= playhead); if (nx >= 0) { idxs.add(nx - 1); idxs.add(nx); idxs.add(nx + 1); } else idxs.add(tclips.length - 1); }
                         const ts = (container.timeline?.trackSettings || {})[tr.id] || { vol: 1, mute: false };
                         return [...idxs].filter((idx) => idx >= 0 && idx < tclips.length).map((idx) => {
                           const c = tclips[idx];
@@ -3982,6 +4017,11 @@ export default function Fabula() {
                         return [...idxs].filter((idx) => idx >= 0 && idx < tclips.length).map((idx) => {
                           const c = tclips[idx];
                           const isActive = curIdx >= 0 && idx === curIdx;
+                          // The playback ENGINE (decoded + scheduled Web Audio) owns every source it can
+                          // decode — mounting an element too would double the sound. Elements remain only
+                          // as the fallback for sources the engine marked unplayable (or no Web Audio).
+                          const aAsset = prod.mediaPool.find((x) => x.id === c.assetId);
+                          if (typeof AudioContext !== "undefined" && enginePlayable(aAsset?.url)) return null;
                           return <AudioLayer key={c.id} clip={c} active={isActive} prod={prod} playhead={playhead} playing={playing} track={ts} trackId={tr.id} />;
                         });
                       })}
@@ -6740,6 +6780,13 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
       try { v.currentTime = Math.max(0, t); } catch { /* not seekable yet — onLoadedData/onSeeked retries */ }
     }
   };
+  // Slave this element to the transport clock while it's the live picture: the engine's
+  // sync pass (playbackRate nudges) replaces per-render seek yanks — smooth, drift-free.
+  useEffect(() => {
+    if (!(active && playing && asset?.type === "video" && vRef.current)) return undefined;
+    registerLiveVideo(clip.id, { el: vRef.current, clipStart: clip.start, offset, srcDur: asset.duration || 0 });
+    return () => unregisterLiveVideo(clip.id);
+  }, [active, playing, asset?.url, clip.start, offset]); // eslint-disable-line
   useEffect(() => {
     const v = vRef.current;
     if (!v || asset?.type !== "video") return;
@@ -6760,10 +6807,14 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
   // Live audio: honor the track's mixer vol/mute (was hardcoded `muted`, so nothing played).
   // av === linked-audio clip present → the picture is muted here and its sound plays through the
   // audio track (AudioLayer). Warm (inactive) buffers stay muted.
+  // While the ENGINE plays this source's audio (decoded + scheduled, mixer-routed), the
+  // element must stay muted or the sound doubles; the element unmutes only for sources
+  // the engine can't decode (its element fallback) or when the transport is stopped.
+  const engineOwnsAudio = playing && !clip.av && enginePlayable(asset?.url);
   useEffect(() => {
     const v = vRef.current;
-    if (v && asset?.type === "video") { v.volume = Math.max(0, Math.min(1, vol)); v.muted = !active || !!mute || !!clip.disabled || !!clip.av; }
-  }, [vol, mute, clip.disabled, clip.av, asset?.url, active]);
+    if (v && asset?.type === "video") { v.volume = Math.max(0, Math.min(1, vol)); v.muted = !active || !!mute || !!clip.disabled || !!clip.av || engineOwnsAudio; }
+  }, [vol, mute, clip.disabled, clip.av, asset?.url, active, engineOwnsAudio]);
 
   // fades
   const tIn = playhead - clip.start, tOut = clip.start + clip.duration - playhead;
@@ -6808,7 +6859,13 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
         <SceneView snapshot={asset.pixels} palette={prod?.pixelsConfig?.colorPalette}
           playing={playing} time={playhead - clip.start + offset} className="mvid" />
       ) : <>
-        {asset?.url && asset.type === "video" && <video ref={vRef} src={asset.url} className="mvid" muted={!active || !!mute || !!clip.disabled || !!clip.av} playsInline preload="auto" onLoadedData={doSeek} onCanPlay={doSeek} onSeeked={() => { if (!playing) doSeek(); }} />}
+        {asset?.url && asset.type === "video" && <video ref={vRef} src={asset.url} className="mvid" muted={!active || !!mute || !!clip.disabled || !!clip.av || engineOwnsAudio} playsInline preload="auto" onLoadedData={doSeek} onCanPlay={doSeek} onSeeked={() => { if (!playing) doSeek(); }}
+          onError={() => {
+            // Dead source (revoked/evicted blob URL) used to mean a permanently black clip.
+            // Heal in place: fall to the durable cloud copy on this element, then re-seek.
+            const v = vRef.current;
+            if (v && asset?.cloudUrl && v.src !== asset.cloudUrl) { v.src = asset.cloudUrl; try { v.load(); } catch { /* */ } doSeek(); }
+          }} />}
         {asset?.url && asset.type === "lottie" && <LottieLayer url={asset.url} time={Math.max(0, playhead - clip.start + offset)} playing={playing && active} speed={clip.lottieSpeed || 1} loop={clip.lottieLoop !== false} />}
         {asset?.url && (asset.type === "image" || asset.type === "graphic") && <img src={asset.url} className="mvid" alt="" />}
         {asset && !asset.url && (
