@@ -6,18 +6,27 @@
 //
 // It also solves a practical problem. An ORDINARY photo is not equirectangular,
 // so it cannot be wrapped onto the sky without smearing — but it is exactly the
-// right shape for a flat panel standing at the treeline. Three photos at 120°
-// each close a full circle around the hall.
-//
-// The panels stand well beyond the specimens, take scene fog so they recede into
-// the same haze as the far trees, and fade to transparent at their base so there
-// is no visible bottom edge where photo meets grass.
+// right shape for a curved panel standing at the treeline.
 //
 // A panel accepts a PHOTO or a LOOPING VIDEO. Video is the stronger choice where
 // you have it: motion at the horizon — leaves stirring, light shifting — reads as
 // depth in a way no still can.
+//
+// ── Two things this has to get right ────────────────────────────────────────
+//
+// ASPECT. Sources are whatever the camera produced — a square photo, a 2.37:1
+// ultrawide, a 16:9 clip. Giving them all identical panels stretches everything
+// that isn't the one aspect the panel was cut for, and it shows immediately on
+// tree trunks. So each panel's ARC is proportional to its source's aspect ratio
+// and the panel height is derived from the radius. Every source then lands at
+// its native proportions and the panels still close a full circle.
+//
+// DECODES. Panels repeat the source list to close the circle, so six panels may
+// show three clips. A video texture is therefore created once per UNIQUE URL and
+// shared, which keeps six panels costing three decodes instead of six — the
+// difference between running and not running on a TV.
 
-import { useMemo, useLayoutEffect, useRef, useEffect, useState } from 'react';
+import { useMemo, useLayoutEffect, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { useTexture } from '@react-three/drei';
 
@@ -29,6 +38,12 @@ export const isVideoBackdrop = (url: string) => VIDEO_RE.test(url);
 export interface ForestBackdropProps {
   /** Photos OR videos in public/backdrops/, arranged clockwise around the hall. */
   images: string[];
+  /**
+   * Width-over-height of each source, parallel to `images`. Supplying these is
+   * what stops mixed-aspect sources from stretching; without them the circle is
+   * divided equally and `height` is used as given.
+   */
+  aspects?: number[];
   radius?: number;
   height?: number;
   /** Lift the panel so the treeline sits above the horizon. */
@@ -38,70 +53,73 @@ export interface ForestBackdropProps {
 }
 
 /**
- * A looping video panel. A moving backdrop — leaves stirring, light shifting —
- * does more for the illusion of a living forest than any still can, because the
- * eye reads motion at the horizon as depth.
+ * One looping video texture per unique URL.
+ *
+ * Managed in a single effect rather than a hook per panel, so the hook count
+ * never depends on how many panels a set happens to have — and so two panels
+ * showing the same clip share one decode instead of racing two.
  *
  * Muted + playsInline + loop is what browsers require to autoplay at all; a
  * rejected play() is retried on the first interaction, since a frozen first
  * frame still reads as a photograph and nothing looks broken.
  */
-function useVideoTexture(url: string, active: boolean): THREE.VideoTexture | null {
-  const [tex, setTex] = useState<THREE.VideoTexture | null>(null);
-  const elRef = useRef<HTMLVideoElement | null>(null);
+function useVideoTextures(urls: string[]): Map<string, THREE.VideoTexture> {
+  const [textures, setTextures] = useState<Map<string, THREE.VideoTexture>>(new Map());
+  const key = urls.join('|');
 
   useEffect(() => {
-    if (typeof document === 'undefined') return undefined;
-    const v = document.createElement('video');
-    v.src = url;
-    v.loop = true;
-    v.muted = true;
-    v.playsInline = true;
-    v.crossOrigin = 'anonymous';
-    v.preload = 'auto';
-    elRef.current = v;
+    if (typeof document === 'undefined' || urls.length === 0) {
+      setTextures(new Map());
+      return undefined;
+    }
+    const made = new Map<string, THREE.VideoTexture>();
+    const els: HTMLVideoElement[] = [];
 
-    const t = new THREE.VideoTexture(v);
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.minFilter = THREE.LinearFilter;
-    t.magFilter = THREE.LinearFilter;
-    setTex(t);
+    for (const url of urls) {
+      const v = document.createElement('video');
+      v.src = url;
+      v.loop = true;
+      v.muted = true;
+      v.playsInline = true;
+      v.preload = 'auto';
+      els.push(v);
+      const t = new THREE.VideoTexture(v);
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.minFilter = THREE.LinearFilter;
+      t.magFilter = THREE.LinearFilter;
+      made.set(url, t);
+      v.play().catch(() => { /* retried on the gesture below */ });
+    }
+    setTextures(made);
 
-    const tryPlay = () => { v.play().catch(() => { /* retried on gesture */ }); };
-    tryPlay();
-    const onGesture = () => { tryPlay(); };
+    const onGesture = () => { els.forEach((v) => { v.play().catch(() => {}); }); };
     window.addEventListener('pointerdown', onGesture, { once: true, passive: true });
 
     return () => {
       window.removeEventListener('pointerdown', onGesture);
-      try { v.pause(); v.removeAttribute('src'); v.load(); } catch { /* */ }
-      t.dispose();
-      elRef.current = null;
-      setTex(null);
+      els.forEach((v) => {
+        try { v.pause(); v.removeAttribute('src'); v.load(); } catch { /* */ }
+      });
+      made.forEach((t) => t.dispose());
+      setTextures(new Map());
     };
-  }, [url]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
-  // Don't spend decode budget on a backdrop nobody is looking at.
-  useEffect(() => {
-    const v = elRef.current;
-    if (!v) return;
-    if (active) v.play().catch(() => {});
-    else v.pause();
-  }, [active]);
-
-  return tex;
+  return textures;
 }
 
-/** One curved panel carrying one photograph. */
+/** One curved panel carrying one photograph or one shared video texture. */
 function Panel({
-  url, index, count, radius, height, yOffset, intensity,
-}: { url: string; index: number; count: number; radius: number; height: number; yOffset: number; intensity: number }) {
-  // One panel type, two sources: a still photograph or a looping video.
+  url, startAngle, arc, radius, height, yOffset, intensity, videoTex,
+}: {
+  url: string; startAngle: number; arc: number; radius: number; height: number;
+  yOffset: number; intensity: number; videoTex: THREE.VideoTexture | null;
+}) {
   const isVid = isVideoBackdrop(url);
-  const vidTex = useVideoTexture(isVid ? url : '', isVid);
+  // Still panels load their own image; video panels take the shared texture.
   const imgTex = useTexture(isVid ? TRANSPARENT_PX : url);
-  const tex = isVid ? vidTex : imgTex;
-  const matRef = useRef<THREE.MeshBasicMaterial>(null);
+  const tex = isVid ? videoTex : imgTex;
 
   useLayoutEffect(() => {
     if (!tex || isVid) return;                      // video texture configures itself
@@ -111,13 +129,12 @@ function Panel({
     tex.needsUpdate = true;
   }, [tex, isVid]);
 
-  // A cylinder SEGMENT: curved so the photo wraps with the horizon instead of
+  // A cylinder SEGMENT: curved so the image wraps with the horizon instead of
   // reading as a flat billboard, open-ended, and drawn from the inside.
   const geom = useMemo(() => {
-    const arc = (Math.PI * 2) / count;
-    const g = new THREE.CylinderGeometry(radius, radius, height, 48, 1, true, index * arc, arc);
-    // Fade the bottom out so the panel dissolves into the fog rather than
-    // ending in a hard line across the grass.
+    const g = new THREE.CylinderGeometry(radius, radius, height, 48, 1, true, startAngle, arc);
+    // Fade the bottom out so the panel dissolves into the scene rather than
+    // ending in a hard line across the ground.
     const pos = g.attributes.position;
     const alpha = new Float32Array(pos.count);
     for (let i = 0; i < pos.count; i++) {
@@ -127,12 +144,12 @@ function Panel({
     }
     g.setAttribute('aAlpha', new THREE.BufferAttribute(alpha, 1));
     return g;
-  }, [index, count, radius, height]);
+  }, [startAngle, arc, radius, height]);
 
   useLayoutEffect(() => () => { geom.dispose(); }, [geom]);
 
   // Vertex-alpha fade grafted onto a basic material — the backdrop is a
-  // photograph and must not be re-lit, only faded and fogged.
+  // photograph and must not be re-lit, only faded.
   const onBeforeCompile = useMemo(() => (shader: THREE.WebGLProgramParametersWithUniforms) => {
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nattribute float aAlpha;\nvarying float vAlpha;')
@@ -144,8 +161,12 @@ function Panel({
 
   return (
     <mesh geometry={geom} position={[0, height / 2 + yOffset, 0]} renderOrder={-1}>
+      {/* fog={false}: a photograph must not be re-fogged. It already carries the
+          aerial perspective of the day it was taken, and layering ours on top
+          replaces a fifth of every pixel with flat pale blue — which is what was
+          draining the colour out of the backdrops. Depth separation comes from
+          the depth-of-field pass instead, which dims nothing. */}
       <meshBasicMaterial
-        ref={matRef}
         map={tex ?? undefined}
         side={THREE.BackSide}
         transparent
@@ -159,21 +180,64 @@ function Panel({
 }
 
 export default function ForestBackdrop({
-  images, radius = 78, height = 62, yOffset = -6, intensity = 1,
+  images, aspects, radius = 78, height = 62, yOffset = -6, intensity = 1,
 }: ForestBackdropProps) {
+  // One texture per unique clip, however many panels end up showing it.
+  const videoUrls = useMemo(
+    () => Array.from(new Set(images.filter(isVideoBackdrop))),
+    [images],
+  );
+  const videoTextures = useVideoTextures(videoUrls);
+
+  // Lay the panels out around the circle. With aspects supplied, each panel's
+  // arc is proportional to its source's shape and the height falls out of the
+  // radius — so panelWidth / panelHeight equals the source aspect exactly, and
+  // nothing stretches however mixed the sources are.
+  const { panels, panelHeight } = useMemo(() => {
+    const n = images.length;
+    if (n === 0) return { panels: [] as { url: string; startAngle: number; arc: number }[], panelHeight: height };
+
+    const usable = aspects && aspects.length === n && aspects.every((a) => a > 0)
+      ? aspects
+      : null;
+
+    if (!usable) {
+      const arc = (Math.PI * 2) / n;
+      return {
+        panels: images.map((url, i) => ({ url, startAngle: i * arc, arc })),
+        panelHeight: height,
+      };
+    }
+
+    // We want panelWidth_i = radius * arc_i to equal h * aspect_i, with the arcs
+    // summing to 2π. Solving both at once gives h directly:
+    const total = usable.reduce((a, b) => a + b, 0);
+    const h = (Math.PI * 2 * radius) / total;
+    let angle = 0;
+    const out = images.map((url, i) => {
+      const arc = (usable[i] / total) * Math.PI * 2;
+      const p = { url, startAngle: angle, arc };
+      angle += arc;
+      return p;
+    });
+    return { panels: out, panelHeight: h };
+  }, [images, aspects, radius, height]);
+
   if (!images.length) return null;
+
   return (
     <group>
-      {images.map((url, i) => (
+      {panels.map((p, i) => (
         <Panel
-          key={url + i}
-          url={url}
-          index={i}
-          count={images.length}
+          key={p.url + i}
+          url={p.url}
+          startAngle={p.startAngle}
+          arc={p.arc}
           radius={radius}
-          height={height}
+          height={panelHeight}
           yOffset={yOffset}
           intensity={intensity}
+          videoTex={videoTextures.get(p.url) ?? null}
         />
       ))}
     </group>

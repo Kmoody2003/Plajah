@@ -198,6 +198,7 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
             <Suspense fallback={null}>
               <ForestBackdrop
                 images={backdrop.images}
+                aspects={backdrop.aspects}
                 radius={backdrop.radius}
                 height={backdrop.height}
                 yOffset={backdrop.yOffset}
