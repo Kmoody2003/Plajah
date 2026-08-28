@@ -53,8 +53,11 @@ export class VoiceBank {
    * panOverride: per-step pan (Glass), replaces the pad strip's pan for this hit only via a
    *              private StereoPanner in the voice — so overlapping hits don't fight one panner.
    * destOverride: route this hit through a Step-FX chain input instead of the pad bus (feature 2).
+   * skipChoke: pitched notes (piano-roll / melo lane) are polyphonic — a chord or an overlapping
+   *            melody must NOT choke itself. Choke stays a drum-articulation feature for the step
+   *            row (open/closed hat pairs), never for the pitch roll.
    */
-  trigger(doc: GrooveDoc, padIdx: number, vel127: number, when?: number, gateSec?: number, semiOffset = 0, panOverride?: number, destOverride?: AudioNode): void {
+  trigger(doc: GrooveDoc, padIdx: number, vel127: number, when?: number, gateSec?: number, semiOffset = 0, panOverride?: number, destOverride?: AudioNode, skipChoke = false): void {
     const ctx = this.graph.ctx;
     const pad = doc.kit[padIdx];
     if (!pad || pad.mute) return;
@@ -62,7 +65,7 @@ export class VoiceBank {
     const gain = applyVelCurve(pad, vel127);
     if (gain <= 0) return;
 
-    this.chokeGroup(pad.choke, t);
+    if (!skipChoke) this.chokeGroup(pad.choke, t);
     this.reap(t);
 
     const dest = destOverride ?? this.graph.padDestination(padIdx);
@@ -74,6 +77,17 @@ export class VoiceBank {
     const rel = Math.max(0.005, (env.releaseMs || 80) / 1000);
     const sustaining = sus > 0.001;
     const heldLive = sustaining && gateSec === undefined;
+
+    // Mono retrigger for a sustaining (bass/sub) pad on the DRUM row: end any voice still sounding
+    // on this pad before the new one starts. Without it, a looping bass note's release tail (and
+    // its next pitch-drop transient) overlaps the next hit and the two detuned oscillators BEAT —
+    // which reads as random pitch wobble on the drums, and as one note "cancelling" the other.
+    // Pitched melo/piano-roll notes (skipChoke) stay fully polyphonic — chords must not self-cut.
+    if (sustaining && !skipChoke) {
+      for (const v of this.live) {
+        if (v.padIdx === padIdx && v.endsAt > t) this.kill(v, t);
+      }
+    }
     // For a gated note the whole envelope is pre-scheduled (sample-accurate, works offline).
     const gate = sustaining && gateSec !== undefined ? Math.max(gateSec, atk + hold) : 0;
 

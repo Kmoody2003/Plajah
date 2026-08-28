@@ -19,9 +19,11 @@ interface Props {
   track: ArrangeTrack;
   onMutate: (fn: (d: GrooveDoc) => void) => void;
   onClose: () => void;
+  /** Hosted inside the shared InstrumentWindow — no overlay of its own, chrome comes from the window. */
+  embedded?: boolean;
 }
 
-export const KeraPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
+export const KeraPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded }) => {
   const [program, setProgram] = useState<KeraProgram | null>(null);
   const [status, setStatus] = useState('Drop a sound to begin');
   const [sf2Presets, setSf2Presets] = useState<{ name: string; index: number }[] | null>(null);
@@ -136,24 +138,35 @@ export const KeraPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
   const stats = program ? programStats(program) : null;
 
   return (
-    <div className="absolute inset-0 z-40 grid place-items-center bg-black/65 backdrop-blur-sm p-5" onClick={onClose}>
-      <div className="w-full max-w-3xl rounded-[22px] border border-white/[0.16] overflow-hidden shadow-2xl" style={{ background: SURFACE }} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-3 px-4 h-12 border-b border-white/10" style={{ background: '#0E0E12' }}>
+    <div
+      className={embedded ? 'h-full flex flex-col' : 'absolute inset-0 z-40 grid place-items-center bg-black/65 backdrop-blur-sm p-5'}
+      onClick={embedded ? undefined : onClose}
+    >
+      <div
+        className={embedded
+          ? 'w-full h-full flex flex-col overflow-hidden'
+          : 'w-full max-w-3xl rounded-[22px] border border-white/[0.16] overflow-hidden shadow-2xl'}
+        style={{ background: SURFACE }}
+        onClick={embedded ? undefined : (e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3 px-4 h-12 flex-none border-b border-white/10" style={{ background: '#0E0E12' }}>
           <span className="font-black text-[13px] tracking-[0.06em]" style={{ color: PLAYHEAD }}>KERA</span>
           <span className="text-[11px] text-white/55">{program?.name || 'No sound loaded'}</span>
           <span className="flex-1" />
-          <button
-            onClick={() => onMutate((d) => {
-              const on = !track.armed;
-              for (const t of d.arrangement) t.armed = false;
-              const t = d.arrangement.find((x) => x.id === track.id);
-              if (t) t.armed = on;
-            })}
-            className="h-7 px-3 rounded-lg text-[11px] border flex items-center gap-1.5"
-            style={track.armed
-              ? { borderColor: '#FF8C00', color: '#FF8C00', background: 'rgba(255,140,0,0.12)' }
-              : { borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.45)' }}
-          ><Piano size={12} /> {track.armed ? 'Armed' : 'Arm'}</button>
+          {!embedded && (
+            <button
+              onClick={() => onMutate((d) => {
+                const on = !track.armed;
+                for (const t of d.arrangement) t.armed = false;
+                const t = d.arrangement.find((x) => x.id === track.id);
+                if (t) t.armed = on;
+              })}
+              className="h-7 px-3 rounded-lg text-[11px] border flex items-center gap-1.5"
+              style={track.armed
+                ? { borderColor: '#FF8C00', color: '#FF8C00', background: 'rgba(255,140,0,0.12)' }
+                : { borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.45)' }}
+            ><Piano size={12} /> {track.armed ? 'Armed' : 'Arm'}</button>
+          )}
           {stats && stats.zones > 0 && (
             <button onClick={() => void openEditor()}
               className="h-7 px-3 rounded-lg text-[11px] font-semibold border"
@@ -161,14 +174,16 @@ export const KeraPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
               title="Zone map, loops and playback modes"
             >Edit ▸</button>
           )}
-          <button onClick={onClose} aria-label="Close" className="w-8 h-8 grid place-items-center rounded-lg border border-white/10 text-white/50 hover:text-white"><X size={15} /></button>
+          {!embedded && (
+            <button onClick={onClose} aria-label="Close" className="w-8 h-8 grid place-items-center rounded-lg border border-white/10 text-white/50 hover:text-white"><X size={15} /></button>
+          )}
         </div>
 
         {editorOpen && program && (
           <KeraEditor program={program} trackId={track.id} onChange={commitProgram} onClose={() => setEditorOpen(false)} />
         )}
 
-        <div className="p-4 space-y-3">
+        <div className={`p-4 space-y-3 ${embedded ? 'flex-1 min-h-0 overflow-y-auto' : ''}`}>
           {/* drop zone */}
           <div
             onDragOver={(e) => { e.preventDefault(); }}

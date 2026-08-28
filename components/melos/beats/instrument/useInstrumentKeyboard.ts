@@ -16,7 +16,7 @@ const KEY_MAP: Record<string, number> = {
   q: 12, '2': 13, w: 14, '3': 15, e: 16, r: 17, '5': 18, t: 19, '6': 20, y: 21, '7': 22, u: 23, i: 24,
 };
 
-interface RecordedNote {
+export interface RecordedNote {
   key: number;
   vel: number;
   startBeats: number;
@@ -92,7 +92,7 @@ export function useInstrumentKeyboard(opts: KeyboardOptions): void {
       const rec = recorded.current.get(note);
       if (rec) {
         recorded.current.delete(note);
-        commitNote(o, rec, o.posBeats());
+        if (o.armedTrack) commitRecordedNote(o.armedTrack.id, rec, o.posBeats(), o.onMutate);
       }
     };
 
@@ -125,11 +125,17 @@ export function useInstrumentKeyboard(opts: KeyboardOptions): void {
  * Write a captured note into a clip on the armed track, creating the clip if the take started
  * somewhere no clip exists yet. Recording that silently discards notes is worse than not
  * recording, so the clip is grown to fit rather than clipping the take.
+ * Exported so the hardware-MIDI path (BeatsRoom) records through the same code as QWERTY.
  */
-function commitNote(o: KeyboardOptions, rec: RecordedNote, endBeats: number): void {
+export function commitRecordedNote(
+  trackId: string,
+  rec: RecordedNote,
+  endBeats: number,
+  onMutate: (fn: (d: GrooveDoc) => void) => void,
+): void {
   const lengthBeats = Math.max(0.0625, endBeats - rec.startBeats);
-  o.onMutate((d) => {
-    const track = d.arrangement.find((t) => t.id === o.armedTrack?.id);
+  onMutate((d) => {
+    const track = d.arrangement.find((t) => t.id === trackId);
     if (!track || track.kind !== 'instrument') return;
 
     let clip = track.clips.find(

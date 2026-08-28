@@ -2893,8 +2893,11 @@ export type ScriptElementType =
   | 'SCENE_HEADING' | 'ACTION' | 'CHARACTER' | 'DIALOGUE'
   | 'PARENTHETICAL' | 'TRANSITION' | 'SHOT' | 'SECTION' | 'NOTE';
 
+// Industry shooting-script revision ladder (White is the locked shooting draft;
+// each subsequent published revision advances one colour).
 export type RevisionColor =
-  | 'WHITE' | 'BLUE' | 'PINK' | 'YELLOW' | 'GREEN' | 'GOLDENROD';
+  | 'WHITE' | 'BLUE' | 'PINK' | 'YELLOW' | 'GREEN' | 'GOLDENROD'
+  | 'BUFF' | 'SALMON' | 'CHERRY' | 'TAN' | 'GRAY';
 
 export interface ScriptElement {
   id: string;

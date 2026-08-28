@@ -13,7 +13,7 @@ import { Actions, Button, Chip, Eyebrow, Input, Surface, Textarea } from '../ui'
 import { analyzeScheduleImpact } from '../../services/productionActionService';
 
 export const FilmScheduleTab: React.FC = () => {
-  const { prod, scenes, members, locations, tasks, can, goTab } = useProd();
+  const { prod, scenes, members, locations, clearances, tasks, can, goTab } = useProd();
   const [plans, setPlans] = useState<SchedulePlan[]>([]);
   const [constraints, setConstraints] = useState<ScheduleConstraint[]>([]);
   const [breakdown, setBreakdown] = useState<BreakdownElement[]>([]);
@@ -44,7 +44,7 @@ export const FilmScheduleTab: React.FC = () => {
     setActiveId(selected.id); setDraft(selected);
   }, [plans, activeId, prod?.approvedScheduleId]);
 
-  const conflicts = useMemo(() => draft && prod ? analyzeSchedule(draft, prod, scenes, members, locations, breakdown, constraints) : [], [draft, prod, scenes, members, locations, breakdown, constraints]);
+  const conflicts = useMemo(() => draft && prod ? analyzeSchedule(draft, prod, scenes, members, locations, breakdown, constraints, clearances) : [], [draft, prod, scenes, members, locations, breakdown, constraints, clearances]);
   const blocking = conflicts.filter(conflict => conflict.severity === 'ERROR');
   const dirty = !!draft && JSON.stringify(draft) !== JSON.stringify(plans.find(plan => plan.id === draft.id));
   const approvalImpact = useMemo(() => draft && prod ? analyzeScheduleImpact(prod, draft, scenes, members, plans.find(plan => plan.status === 'APPROVED' && plan.id !== draft.id)) : null, [draft, prod, scenes, members, plans]);

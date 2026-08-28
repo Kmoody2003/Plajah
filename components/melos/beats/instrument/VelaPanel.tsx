@@ -28,6 +28,7 @@ import { VELA_PRESETS } from '../../../../services/melos/instruments/vela/preset
 import { SUITE, presetsFor, type SuiteInstrument } from '../../../../services/melos/instruments/vela/suite';
 import type { VelaMacro } from '../../../../services/melos/instruments/vela/presets';
 import { M } from '../../../../services/melos/instruments/vela/params';
+import { syncPadWithTrack } from '../../../../services/melos/beats/instrumentFactory';
 import { Knob } from '../shared/Knob';
 import { PartialDisplay } from './PartialDisplay';
 import { VelaEditor } from './VelaEditor';
@@ -38,6 +39,8 @@ interface Props {
   track: ArrangeTrack;
   onMutate: (fn: (d: GrooveDoc) => void) => void;
   onClose: () => void;
+  /** Hosted inside the shared InstrumentWindow — chrome (close/arm/presets) comes from the window. */
+  embedded?: boolean;
 }
 
 /** Bronze for Air, lilac for Body, cyan for Shimmer, lilac for Drift — the same reading order
@@ -49,7 +52,7 @@ const MACRO_COLORS: Record<VelaMacro, string> = {
   drift: '#D0BCFF',
 };
 
-export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
+export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded }) => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
 
@@ -62,9 +65,14 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
   // a memo keyed on the patch object would never invalidate and every control would freeze.
   const patch: VelaPatch | null = deserializeVelaPatch(track.instrument?.patch);
 
+  // If the engine instrument doesn't exist yet (created lazily), create it and THEN apply —
+  // silently dropping the edit is why preset changes sometimes made no sound difference.
   const pushParams = useCallback((p: VelaPatch) => {
-    const inst = BeatsEngine.get().getInstrument(track.id);
-    if (inst) inst.setParams(velaEngineParams(p));
+    const engine = BeatsEngine.get();
+    const inst = engine.getInstrument(track.id);
+    if (inst) { inst.setParams(velaEngineParams(p)); return; }
+    const t = engine.getDoc().arrangement.find((x) => x.id === track.id);
+    if (t) void engine.ensureInstrument(t).then((i) => i?.setParams(velaEngineParams(p)));
   }, [track.id]);
 
   const setMacro = useCallback((macro: VelaMacro, value: number) => {
@@ -92,6 +100,7 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
       t.instrument.patch = { ...next, params: { ...next.params } } as unknown as Record<string, unknown>;
       t.instrument.presetName = preset.name;
       t.name = preset.name;
+      syncPadWithTrack(d, track.id);
       pushParams(next);
     });
     setGalleryOpen(false);
@@ -99,7 +108,10 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
 
   if (!patch) {
     return (
-      <div className="p-4 text-[12px] text-white/50">This track has no VELA patch.</div>
+      <div className="p-4 flex items-center gap-3">
+        <span className="text-[12px] text-white/50">This track has no VELA patch.</span>
+        <button onClick={onClose} className="h-7 px-3 rounded-lg border border-white/15 text-[11px] text-white/60 hover:text-white">Close</button>
+      </div>
     );
   }
 
@@ -127,9 +139,11 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
         >
           Open
         </button>
-        <button onClick={onClose} aria-label="Close" className="w-7 h-7 grid place-items-center rounded-lg border border-white/10 text-white/45 hover:text-white">
-          <X size={14} />
-        </button>
+        {!embedded && (
+          <button onClick={onClose} aria-label="Close" className="w-7 h-7 grid place-items-center rounded-lg border border-white/10 text-white/45 hover:text-white">
+            <X size={14} />
+          </button>
+        )}
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4">

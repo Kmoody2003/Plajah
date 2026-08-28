@@ -24,7 +24,8 @@ import {
   type ProdTask, type CraftItem, type CraftOrder, type DeptKey,
   type DailyProductionReport, type DprSceneRow, type CastWorkCode, type SceneShootStatus, type SidePage,
   type ProductionPermission, type ProductionRoleKey,
-  type ProductionBudgetLine, type ProductionLocation, type ProductionFestival,
+  type ProductionBudgetLine, type ProductionLocation, type ProductionFestival, type ProductionClearance,
+  type PurchaseOrder, type PettyCashEntry, type Timecard,
 } from '../../services/filmProductionService';
 import { listWritingProjects, fetchScriptScenes, type WritingProject } from '../../services/loreaProjectsService';
 import { Button, Surface, Input, Textarea, Chip, Actions, Eyebrow } from '../ui';
@@ -35,6 +36,7 @@ import type { CallSheetTemplate, RecipientDelivery } from '../../services/produc
 import { canManageProductionChat, provisionProductionChat } from '../../services/productionChatService';
 import { putTaskWithAction } from '../../services/productionActionService';
 import { copyFilmShowcaseProduction, ensureFilmShowcaseProduction, buildFilmShowcaseCorpus } from '../../services/productionShowcaseTemplate';
+import { isDemoMode, subscribeDemoMode } from '../../services/demoMode';
 
 // Identifiers for the always-available, in-memory demo production.
 const DEMO_FILM_ID = 'demo_film_local';
@@ -54,6 +56,10 @@ interface Ctx {
   budgetLines: ProductionBudgetLine[];
   locations: ProductionLocation[];
   festivals: ProductionFestival[];
+  clearances: ProductionClearance[];
+  purchaseOrders: PurchaseOrder[];
+  pettyCash: PettyCashEntry[];
+  timecards: Timecard[];
   callSheets: CallSheet[];
   deliveries: RecipientDelivery[];
   callSheetTemplates: CallSheetTemplate[];
@@ -88,6 +94,10 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
   const [budgetLines, setBudgetLines] = useState<ProductionBudgetLine[]>([]);
   const [locations, setLocations] = useState<ProductionLocation[]>([]);
   const [festivals, setFestivals] = useState<ProductionFestival[]>([]);
+  const [clearances, setClearances] = useState<ProductionClearance[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [pettyCash, setPettyCash] = useState<PettyCashEntry[]>([]);
+  const [timecards, setTimecards] = useState<Timecard[]>([]);
   const [callSheets, setCallSheets] = useState<CallSheet[]>([]);
   const [deliveries, setDeliveries] = useState<RecipientDelivery[]>([]);
   const [callSheetTemplates, setCallSheetTemplates] = useState<CallSheetTemplate[]>([]);
@@ -106,35 +116,43 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
   const demoCorpus = useMemo(() => buildFilmShowcaseCorpus(DEMO_FILM_ID, DEMO_FILM_OWNER, 'Plajah Producer', true), []);
   const isDemo = selectedId === DEMO_FILM_ID;
 
+  // Global demo-data toggle (shared with Creator Hub / Artist Manager). When off,
+  // neither the in-memory demo nor the Firestore showcase is created or listed.
+  const [demoOn, setDemoOn] = useState(() => isDemoMode());
+  useEffect(() => subscribeDemoMode(setDemoOn), []);
+
   const selectionKey = `plajah_active_production_${uid}`;
 
-  // Membership drives the production list; the in-memory demo is always appended so
-  // there is something to open before anything real exists.
+  // Membership drives the production list; the demo/showcase is appended only when
+  // demo mode is on, so there is something to open before anything real exists.
   useEffect(() => {
     let alive = true;
     (async () => {
       const demoProd = demoCorpus.production;
       if (!uid) {
         if (!alive) return;
-        setProductions([demoProd]);
-        setSelectedId(demoProd.id);
+        setProductions(demoOn ? [demoProd] : []);
+        setSelectedId(demoOn ? demoProd.id : null);
         setLoading(false);
         return;
       }
-      const showcase = await ensureFilmShowcaseProduction(uid, currentUser?.displayName || undefined).catch(() => null);
+      // Demo off → don't create or surface the showcase or the in-memory demo.
+      const showcase = demoOn ? await ensureFilmShowcaseProduction(uid, currentUser?.displayName || undefined).catch(() => null) : null;
       const owned = await FP.fetchMyProductions(uid);
-      const real = [...owned.filter(row => row.id !== showcase?.id), ...(showcase ? [showcase] : [])];
+      let real = [...owned.filter(row => row.id !== showcase?.id), ...(showcase ? [showcase] : [])];
+      if (!demoOn) real = real.filter(row => !row.isShowcase); // hide any pre-existing showcase
       // The Firestore showcase already serves as the signed-in demo; only fall back to
-      // the in-memory demo when that failed, so a demo is guaranteed to be listed.
-      const rows = showcase ? real : [...real, demoProd];
+      // the in-memory demo when that failed AND demo mode is on.
+      const rows = showcase ? real : (demoOn ? [...real, demoProd] : real);
       if (!alive) return;
       setProductions(rows);
       const saved = localStorage.getItem(selectionKey);
-      setSelectedId(rows.some(row => row.id === saved) ? saved : (real.find(row => !row.isShowcase && row.status !== 'ARCHIVED') || showcase || demoProd)?.id || null);
+      const fallback = real.find(row => !row.isShowcase && row.status !== 'ARCHIVED') || (demoOn ? (showcase || demoProd) : null);
+      setSelectedId(rows.some(row => row.id === saved) ? saved : fallback?.id || null);
       setLoading(false);
     })();
     return () => { alive = false; };
-  }, [uid, selectionKey, demoCorpus]);
+  }, [uid, selectionKey, demoCorpus, demoOn]);
 
   useEffect(() => {
     let alive = true;
@@ -148,7 +166,8 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
   useEffect(() => {
     if (!selectedId) {
       setMembers([]); setScenes([]); setCallSheets([]); setDeliveries([]); setCallSheetTemplates([]); setTasks([]); setMenu([]); setOrders([]); setDprs([]);
-      setBudgetLines([]); setLocations([]); setFestivals([]);
+      setBudgetLines([]); setLocations([]); setFestivals([]); setClearances([]);
+      setPurchaseOrders([]); setPettyCash([]); setTimecards([]);
       return;
     }
     if (selectedId === DEMO_FILM_ID) {
@@ -159,6 +178,8 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
       setMenu(demoCorpus.craftMenu); setOrders(demoCorpus.craftOrders);
       setDprs(demoCorpus.dprs); setBudgetLines(demoCorpus.budgetLines);
       setLocations(demoCorpus.locations); setFestivals(demoCorpus.festivals);
+      setClearances((demoCorpus as { clearances?: ProductionClearance[] }).clearances || []);
+      setPurchaseOrders([]); setPettyCash([]); setTimecards([]);
       return;
     }
     const unsubs = [
@@ -169,6 +190,8 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
       FP.subCraftMenu(selectedId, setMenu), FP.subCraftOrders(selectedId, setOrders),
       FP.subDprs(selectedId, setDprs), FP.subBudgetLines(selectedId, setBudgetLines),
       FP.subLocations(selectedId, setLocations), FP.subFestivals(selectedId, setFestivals),
+      FP.subClearances(selectedId, setClearances),
+      FP.subPurchaseOrders(selectedId, setPurchaseOrders), FP.subPettyCash(selectedId, setPettyCash), FP.subTimecards(selectedId, setTimecards),
     ];
     return () => unsubs.forEach(u => u());
   }, [selectedId, demoCorpus]);
@@ -226,7 +249,7 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
 
   const value: Ctx = {
     prod, productions, selectProduction, createProduction, copyShowcase, applySample,
-    members, scenes, budgetLines, locations, festivals, callSheets: liveCallSheets, deliveries, callSheetTemplates, tasks, menu, orders, dprs,
+    members, scenes, budgetLines, locations, festivals, clearances, purchaseOrders, pettyCash, timecards, callSheets: liveCallSheets, deliveries, callSheetTemplates, tasks, menu, orders, dprs,
     activeSheet, activeSheetId, setActiveSheetId, me, isOwner, readOnly, can, loading, goTab: onGoTab,
   };
   return (
@@ -1197,9 +1220,15 @@ const SidesView: React.FC<{ cs: CallSheet }> = ({ cs }) => {
   const [blocks, setBlocks] = useState<{ heading: string; text: string }[]>([]);
   useEffect(() => { if (prod?.ownerUid) listWritingProjects(prod.ownerUid).then(r => setScripts(r.projects.filter(p => p.kind === 'SCRIPT'))).catch(() => {}); }, [prod?.ownerUid]);
   useEffect(() => {
-    if (prod?.linkedScriptId) fetchScriptScenes(prod.linkedScriptId).then(setBlocks).catch(() => setBlocks([]));
+    // Sides must reflect the LOCKED greenlit revision, not the writer's live edits.
+    // Read the current script draft's blocks; fall back to the live script only when no draft exists.
+    if (prod?.currentDraftId) {
+      FP.fetchDraftBlocks(prod.id, prod.currentDraftId)
+        .then(blocks => { if (blocks.length) setBlocks(blocks); else if (prod.linkedScriptId) fetchScriptScenes(prod.linkedScriptId).then(setBlocks).catch(() => setBlocks([])); else setBlocks([]); })
+        .catch(() => { if (prod.linkedScriptId) fetchScriptScenes(prod.linkedScriptId).then(setBlocks).catch(() => setBlocks([])); else setBlocks([]); });
+    } else if (prod?.linkedScriptId) fetchScriptScenes(prod.linkedScriptId).then(setBlocks).catch(() => setBlocks([]));
     else setBlocks([]);
-  }, [prod?.linkedScriptId]);
+  }, [prod?.currentDraftId, prod?.linkedScriptId, prod?.id]);
 
   const sides = buildSides(cs, blocks);
   const linked = scripts.find(s => s.id === prod?.linkedScriptId);

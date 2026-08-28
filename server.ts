@@ -2799,7 +2799,7 @@ async function startServer() {
     try {
       const { fsGet } = await import('./services/firebaseAdminRest.js');
       const [latestDoc, cursorDoc]: any[] = await Promise.all([
-        fsGet('terraIngestionRuns/__latest__'),
+        fsGet('terraIngestionRuns/latest'), // NOT `__latest__` — that id form is reserved by Firestore
         fsGet('terraIngestionRuns/__cursor__detroit_parcels'),
       ]);
       const lastRun = latestDoc?.data ?? null;

@@ -139,12 +139,14 @@ export class BeatsEngine {
       rng: Math.random, // offline renders inject a seeded rng in render.ts instead
       // Forward pan + stepFx too — the scheduler passes step.pan/step.fx, and dropping them here
       // is why per-step Step Effects (and per-step pan) applied on Audition but were dry on playback.
-      trigger: (padIdx, vel, when, gateSec, semiOffset, pan, stepFx) => this.trigger(padIdx, vel, when, gateSec, semiOffset, pan, stepFx),
+      trigger: (padIdx, vel, when, gateSec, semiOffset, pan, stepFx, skipChoke) => this.trigger(padIdx, vel, when, gateSec, semiOffset, pan, stepFx, skipChoke),
       startAudioClip: (track, clip, when, offset) => this.startAudioClip(track, clip, when, offset),
       startInstrumentNote: (track, note, when, durSec) => this.startInstrumentNote(track, note, when, durSec),
       runArp: (track, stepIndex, beat) => this.runArp(track, stepIndex, beat),
       arpActive: (track) => this.arpIsActive(track),
       loop: () => this.doc.loop ?? null,
+      metronome: () => this.metronomeOn,
+      click: (when, accent) => this.clickAt(when, accent),
     });
     this.graph.applyDoc(this.doc);
     this.syncMixerFx();
@@ -196,6 +198,14 @@ export class BeatsEngine {
     }
 
     this.syncStepFx();
+    // Transport tempo → every chain host, so synced devices (Gater, Beatmasher) follow the song.
+    const bpm = this.doc.bpm || 120;
+    for (const host of this.padInserts.values()) host.setTempo(bpm);
+    for (const host of this.trackInserts.values()) host.setTempo(bpm);
+    for (const host of this.groupInserts) host?.setTempo(bpm);
+    for (const host of this.sendInserts) host?.setTempo(bpm);
+    for (const host of this.stepFxHosts.values()) host.setTempo(bpm);
+    this.masterSuite?.setTempo(bpm);
     // Group inserts + sends.
     mixer.groups.forEach((ch, i) => {
       const inserts = ch.inserts ?? [];
@@ -281,7 +291,7 @@ export class BeatsEngine {
    * MIDI handlers and pad pointerdown call this directly. A live hit on a sustaining pad
    * (env.sustain > 0) HOLDS until release(padIdx); sequenced notes pass gateSec instead.
    */
-  trigger(padIdx: number, vel127: number, when?: number, gateSec?: number, semiOffset?: number, pan?: number, stepFx?: number): void {
+  trigger(padIdx: number, vel127: number, when?: number, gateSec?: number, semiOffset?: number, pan?: number, stepFx?: number, skipChoke?: boolean): void {
     if (!this.voices || !this.ctx) return;
     const pad = this.doc.kit[padIdx];
     if (pad?.empty) return; // greyed placeholder pad — no sound
@@ -293,7 +303,7 @@ export class BeatsEngine {
     }
     // Step Effects: route this hit through the referenced per-pad slot's chain (feature 2).
     const dest = this.stepFxDestFor(padIdx, stepFx);
-    this.voices.trigger(this.doc, padIdx, vel127, when, gateSec, semiOffset, pan, dest);
+    this.voices.trigger(this.doc, padIdx, vel127, when, gateSec, semiOffset, pan, dest, skipChoke);
     this.lastHit[padIdx] = performance.now();
   }
 
@@ -651,14 +661,29 @@ export class BeatsEngine {
     return this.doc.arrangement.find((t) => t.kind === 'instrument' && t.armed) ?? null;
   }
 
-  /** Reload a track's patch into its live instrument (preset change, macro edit). */
+  /** Reload a track's patch into its live instrument (preset change, macro edit).
+   *  Dispatches per instrument TYPE — BAJO and KERA carry their own patch shapes, and running
+   *  them through ONDA's deserializer was exactly why their preset changes never took. */
   async reloadPatch(track: ATrack): Promise<void> {
-    const inst = this.instruments.get(track.id);
+    const inst = this.instruments.get(track.id) ?? await this.ensureInstrument(track);
     if (!inst || !track.instrument?.patch) return;
     if (isSuiteType(track.instrument.type)) {
       const { deserializeVelaPatch, velaEngineParams } = await import('../../instruments/vela/patch');
       const patch = deserializeVelaPatch(track.instrument.patch);
       if (patch) inst.setParams(velaEngineParams(patch));
+      return;
+    }
+    if (track.instrument.type === 'bajo') {
+      const { deserializeBajoPatch, applyBajoPatch } = await import('../../instruments/bajo/patch');
+      const patch = deserializeBajoPatch(track.instrument.patch);
+      if (patch) applyBajoPatch(inst, patch);
+      return;
+    }
+    if (track.instrument.type === 'kera') {
+      if (track.instrument.kera) {
+        const prog = await deserializeKeraProgram(track.instrument.kera as unknown as SerializedKeraProgram);
+        if (prog) inst.loadKeraProgram(prog);
+      }
       return;
     }
     const { deserializePatch, applyPatch } = await import('../../instruments/onda/patch');
@@ -828,7 +853,41 @@ export class BeatsEngine {
     setTimeout(() => inst.noteOff(voiceId, true), offIn);
   }
 
-  play(mode: PlayMode, opts: { patternId?: string; fromBeats?: number } = {}): void {
+  // ── Metronome + count-in ────────────────────────────────────────────────────
+  private metronomeOn = false;
+  setMetronome(on: boolean): void { this.metronomeOn = on; }
+  metronome(): boolean { return this.metronomeOn; }
+
+  /** One click, straight to the output (outside the master chain so the pressing never colors it). */
+  private clickAt(when: number, accent: boolean): void {
+    if (!this.ctx) return;
+    const t = Math.max(when, this.ctx.currentTime);
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.frequency.value = accent ? 1568 : 1046.5;
+    g.gain.setValueAtTime(accent ? 0.4 : 0.24, t);
+    g.gain.exponentialRampToValueAtTime(0.0008, t + 0.05);
+    osc.connect(g).connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.06);
+  }
+
+  /** Launch a pattern quantized to the next bar (clip-launcher gesture). Starts pattern-mode
+   *  playback immediately when the transport is stopped. */
+  queuePattern(patternId: string): void {
+    if (!this.running || this.mode !== 'pattern') {
+      void this.init().then(() => this.play('pattern', { patternId }));
+      return;
+    }
+    this.scheduler?.queuePattern(patternId);
+  }
+
+  /** The pattern the scheduler is actually playing right now (pattern mode). */
+  playingPatternId(): string | null { return this.scheduler?.currentPatternId() ?? this.currentPatternId ?? null; }
+  /** A pattern waiting for the next bar boundary, or null. */
+  queuedPatternId(): string | null { return this.scheduler?.queuedId() ?? null; }
+
+  play(mode: PlayMode, opts: { patternId?: string; fromBeats?: number; countInBeats?: number } = {}): void {
     if (!this.ctx || !this.scheduler || !this.clock) return;
     this.stopAudition(); // the transport and an album audition never fight over the bus
     this.resume();
@@ -836,8 +895,13 @@ export class BeatsEngine {
     this.mode = mode;
     this.secPerBeat = 60 / (this.doc.bpm || 120);
     // Anchor slightly ahead so the first step is scheduled inside the lookahead, never late.
+    // A count-in (pre-roll) pushes the anchor further out and fills the gap with clicks.
+    const countIn = Math.max(0, opts.countInBeats ?? 0);
     this.anchorBeats = from;
-    this.anchorTime = this.ctx.currentTime + 0.1;
+    this.anchorTime = this.ctx.currentTime + 0.1 + countIn * this.secPerBeat;
+    if (countIn > 0) {
+      for (let b = 0; b < countIn; b++) this.clickAt(this.ctx.currentTime + 0.1 + b * this.secPerBeat, b % 4 === 0);
+    }
     this.running = true;
     this.jitterWindow.length = 0;
     this.lastTickAudio = 0;
@@ -947,14 +1011,23 @@ export class BeatsEngine {
     if (!this.ctx || !this.scheduler) return;
     this.anchorBeats = beats;
     this.anchorTime = this.ctx.currentTime;
-    this.scheduler.start(this.mode, beats, this.currentPatternId);
+    // A queued launcher switch may have landed since play() — keep playing what's actually playing.
+    this.scheduler.start(this.mode, beats, this.scheduler.currentPatternId() ?? this.currentPatternId);
     this.scheduler.onTick(this.ctx.currentTime);
   }
 
-  /** Playhead position mapped into the loop for display — the cursor visibly jumps back. */
+  /** Playhead position mapped into the loop for display — the cursor visibly jumps back.
+   *  Pattern mode LOOPS the pattern, so the readout wraps to the pattern's length instead of
+   *  counting up forever like a timeline (the transport is auditioning one pattern on repeat). */
   posBeatsDisplay(): number {
-    const loop = this.doc.loop;
     const p = this.posBeats();
+    if (this.mode === 'pattern') {
+      const id = this.scheduler?.currentPatternId() ?? this.currentPatternId;
+      const pat = this.doc.patterns.find((x) => x.id === id) || this.doc.patterns[0];
+      const lenBeats = Math.max(1, pat?.length ?? 16) * 0.25;
+      return ((p % lenBeats) + lenBeats) % lenBeats;
+    }
+    const loop = this.doc.loop;
     if (this.mode === 'song' && loop?.on && loop.endBeats > loop.startBeats && p >= loop.startBeats) {
       return loop.startBeats + ((p - loop.startBeats) % (loop.endBeats - loop.startBeats));
     }

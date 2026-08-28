@@ -125,6 +125,10 @@ export interface TimelineClip {
   startBeats: number;
   lengthBeats: number;
   patternId?: string;                              // kind 'pattern'
+  /** kind 'pattern' — per-pad loop-length override IN 16th STEPS inside this clip. MEKA's
+   *  pattern length is the default; a pad listed here loops its own shorter cycle instead
+   *  (independent per-track clip lengths, Bitwig-style polymeter). */
+  padLens?: Record<number, number>;
   /** kind 'instrument' — a MIDI clip. */
   notes?: NoteEvent[];
   audio?: { sampleKey: string; name: string; offsetSec: number; gainDb: number;

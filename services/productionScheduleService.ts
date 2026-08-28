@@ -4,8 +4,8 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import {
-  computeSunTimes, fetchProduction, generateCallSheet, hasProductionPermission, uid8,
-  type CallSheet, type DeptKey, type Production, type ProductionLocation, type ProductionMember,
+  computeSunTimes, fetchProduction, generateCallSheet, hasProductionPermission, isClearanceCleared, uid8,
+  type CallSheet, type DeptKey, type Production, type ProductionClearance, type ProductionLocation, type ProductionMember,
   type ProductionScene,
 } from './filmProductionService';
 import type { BreakdownElement } from './productionBreakdownService';
@@ -70,7 +70,7 @@ export interface ScheduleConstraint {
   createdAt: number;
 }
 
-export type ScheduleConflictType = 'CAST' | 'LOCATION' | 'DAYLIGHT' | 'WORKLOAD' | 'BREAKDOWN' | 'COMPANY_MOVE' | 'CONSTRAINT';
+export type ScheduleConflictType = 'CAST' | 'LOCATION' | 'DAYLIGHT' | 'WORKLOAD' | 'BREAKDOWN' | 'COMPANY_MOVE' | 'CONSTRAINT' | 'CLEARANCE';
 export interface ScheduleConflict {
   id: string;
   type: ScheduleConflictType;
@@ -184,7 +184,7 @@ export function addScheduleMarker(plan: SchedulePlan, dayId: string, type: 'BANN
 
 export function analyzeSchedule(
   plan: SchedulePlan, production: Production, scenes: ProductionScene[], members: ProductionMember[], locations: ProductionLocation[],
-  breakdown: BreakdownElement[], constraints: ScheduleConstraint[],
+  breakdown: BreakdownElement[], constraints: ScheduleConstraint[], clearances: ProductionClearance[] = [],
 ): ScheduleConflict[] {
   const sceneById = new Map(scenes.map(scene => [scene.id, scene]));
   const locationById = new Map(locations.map(location => [location.id, location]));
@@ -214,6 +214,28 @@ export function analyzeSchedule(
       if (matchingLocation) sceneConstraints.filter(constraint => constraint.type === 'LOCATION_UNAVAILABLE' && constraint.locationId === matchingLocation.id).forEach(constraint => push({ type: 'LOCATION', severity: constraint.severity === 'HARD' ? 'ERROR' : 'WARNING', dayId: day.id, sceneId: scene.id, title: `${matchingLocation.name} unavailable`, detail: constraint.notes || 'Location is constrained on this shoot day.', relatedIds: [matchingLocation.id, constraint.id] }));
       const blocked = breakdown.filter(element => element.status === 'BLOCKED' && element.occurrences.some(occurrence => occurrence.sceneId === scene.id));
       if (blocked.length) push({ type: 'BREAKDOWN', severity: 'ERROR', dayId: day.id, sceneId: scene.id, title: `${blocked.length} blocked production element${blocked.length === 1 ? '' : 's'}`, detail: blocked.map(element => element.name).join(', '), relatedIds: blocked.map(element => element.id) });
+      // Clearances: a logged legal clearance that isn't in hand (or has expired before the shoot date)
+      // blocks the day. Only clearances the production has actually recorded are checked, so this stays
+      // quiet until a producer logs one — then scheduling its scene/cast/location surfaces the gap.
+      const dayDateMs = day.date ? Date.parse(day.date) : NaN;
+      clearances
+        .filter(clearance =>
+          (clearance.sceneId && clearance.sceneId === scene.id) ||
+          (clearance.memberId && cast.some(member => member.id === clearance.memberId)) ||
+          (matchingLocation && clearance.locationId === matchingLocation.id))
+        .forEach(clearance => {
+          const expired = clearance.expiresAt != null && !Number.isNaN(dayDateMs) && dayDateMs > clearance.expiresAt;
+          if (isClearanceCleared(clearance) && !expired) return;
+          const hardType = clearance.type === 'MINOR' || clearance.type === 'PERMIT' || clearance.type === 'LOCATION_RELEASE';
+          push({
+            type: 'CLEARANCE', severity: hardType ? 'ERROR' : 'WARNING', dayId: day.id, sceneId: scene.id,
+            title: expired ? `${clearance.title} expired` : `${clearance.title} not cleared`,
+            detail: expired
+              ? `Clearance expired before this shoot day — re-clear before shooting Scene ${scene.sceneNum}.`
+              : `Status ${clearance.status}. Scene ${scene.sceneNum} cannot lawfully shoot until this clearance is in hand.`,
+            relatedIds: [clearance.id, scene.id],
+          });
+        });
       if (date && production.lat != null && production.lng != null) {
         const sun = computeSunTimes(production.lat, production.lng, date, -(new Date().getTimezoneOffset()));
         if (sun) {

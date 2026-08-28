@@ -23,9 +23,10 @@ import {
   onSnapshot, query, where, serverTimestamp, runTransaction, writeBatch,
 } from 'firebase/firestore';
 import { db, auth } from './backendService';
-import type { ScriptData } from '../types';
+import type { ScriptData, ScriptElement, RevisionColor } from '../types';
 import {
   makeScriptDraft, projectScriptScenes, reconcileSceneProjection,
+  nextRevisionColor, diffDraftScenes, draftScriptBlocks,
   type ScriptDraft, type WorkflowEvent,
 } from './productionGraph';
 
@@ -165,11 +166,104 @@ export interface ProductionScene {
   heading?: string;
   order?: number;
   projectionVersion?: number;
+  // Revision marks (stamped by reconcileSceneProjection on a colored revision).
+  revisionColor?: import('../types').RevisionColor;
+  changedInRevision?: string;
+  isNewInRevision?: boolean;
 }
 
 export interface ProductionBudgetLine {
   id: string; department: string; lineItem: string;
   estimated: number; actual: number; notes: string; createdAt: number; updatedAt?: number;
+  // Accounting maturity (all optional / backward-compatible).
+  accountCode?: string;   // e.g. "2100" camera dept account
+  category?: 'ATL' | 'BTL' | 'POST' | 'OTHER'; // above/below-the-line / post
+  fringePct?: number;     // payroll fringes as a % of the estimate
+  committed?: number;     // legacy manual commitment; live commitment is summed from POs
+}
+
+// ─── Production accounting — POs, petty cash, timecards, cost report ──────────
+// Closes the "accounting cliff": a producer can budget but must also RUN the money —
+// commit it (purchase orders), spend it in the field (petty cash), and pay labor
+// (timecards, auto-seeded from the DPR's actual call/wrap times). The cost report
+// rolls Estimated vs Committed (POs) vs Actual (line actuals + petty + labor).
+
+export type POStatus = 'DRAFT' | 'ISSUED' | 'PARTIAL' | 'PAID' | 'VOID';
+export interface PurchaseOrder {
+  id: string; poNumber: string; vendor: string; department: string;
+  budgetLineId?: string; amount: number; status: POStatus; date: string;
+  docUrl?: string; docAssetId?: string; notes?: string; createdAt: number; updatedAt?: number;
+}
+
+export interface PettyCashEntry {
+  id: string; date: string; department: string;
+  spentByMemberId?: string; spentByName?: string; amount: number; category: string;
+  budgetLineId?: string; receiptUrl?: string; receiptAssetId?: string;
+  reconciled: boolean; notes?: string; createdAt: number; updatedAt?: number;
+}
+
+export interface Timecard {
+  id: string; memberId: string; memberName: string; department: string;
+  shootDay: number; date: string; callTime?: string; wrapTime?: string;
+  mealOut?: string; mealIn?: string; hoursStraight: number; hoursOT: number;
+  ratePreview?: number; notes?: string; source?: 'DPR' | 'MANUAL'; createdAt: number; updatedAt?: number;
+}
+
+export interface CostReportRow {
+  department: string; estimated: number; fringe: number; committed: number; actual: number; variance: number;
+}
+
+/** Pure roll-up: Estimated (+fringe) vs Committed (POs) vs Actual (line actuals + petty + labor). */
+export function buildCostReport(
+  lines: ProductionBudgetLine[], pos: PurchaseOrder[], petty: PettyCashEntry[], timecards: Timecard[],
+): { rows: CostReportRow[]; totals: CostReportRow } {
+  const depts = [...new Set([
+    ...lines.map(l => l.department), ...pos.map(p => p.department),
+    ...petty.map(p => p.department), ...timecards.map(t => t.department),
+  ].filter(Boolean))].sort();
+  const rows: CostReportRow[] = depts.map(dept => {
+    const dl = lines.filter(l => l.department === dept);
+    const estimated = dl.reduce((s, l) => s + (l.estimated || 0), 0);
+    const fringe = dl.reduce((s, l) => s + (l.estimated || 0) * ((l.fringePct || 0) / 100), 0);
+    const committed = pos.filter(p => p.department === dept && p.status !== 'VOID').reduce((s, p) => s + (p.amount || 0), 0);
+    const lineActual = dl.reduce((s, l) => s + (l.actual || 0), 0);
+    const pettyActual = petty.filter(p => p.department === dept).reduce((s, p) => s + (p.amount || 0), 0);
+    const laborActual = timecards.filter(t => t.department === dept).reduce((s, t) => s + (t.ratePreview || 0), 0);
+    const actual = lineActual + pettyActual + laborActual;
+    return { department: dept, estimated, fringe, committed, actual, variance: estimated + fringe - actual };
+  });
+  const sum = (key: keyof Omit<CostReportRow, 'department'>) => rows.reduce((total, row) => total + row[key], 0);
+  return { rows, totals: { department: 'TOTAL', estimated: sum('estimated'), fringe: sum('fringe'), committed: sum('committed'), actual: sum('actual'), variance: sum('variance') } };
+}
+
+/** Worked hours from actual call/wrap (minus meal), split at the 12-hour OT threshold. */
+export function computeWorkHours(call?: string, wrap?: string, mealOut?: string, mealIn?: string): { straight: number; ot: number } {
+  if (!call || !wrap) return { straight: 0, ot: 0 };
+  const toM = (t: string) => { const [h, m] = t.split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+  let total = toM(wrap) - toM(call);
+  if (total < 0) total += 1440; // wrapped past midnight
+  const meal = (mealOut && mealIn) ? Math.max(0, toM(mealIn) - toM(mealOut)) : 0;
+  const worked = Math.max(0, total - meal) / 60;
+  const straight = Math.min(worked, 12);
+  return { straight: Math.round(straight * 10) / 10, ot: Math.round(Math.max(0, worked - 12) * 10) / 10 };
+}
+
+function estimateLaborCost(member: ProductionMember, straight: number, ot: number): number | undefined {
+  const numeric = parseFloat((member.rate || '').replace(/[^0-9.]/g, ''));
+  if (!numeric || Number.isNaN(numeric)) return undefined;
+  if (/hr|hour/i.test(member.rate || '')) return Math.round(numeric * (straight + ot * 1.5));
+  return Math.round(numeric); // treat as a flat day rate
+}
+
+/** Auto-seed a timecard per active crew member from a DPR's actual times. IDs are stable per (day, member) so re-seeding merges. */
+export function timecardsFromDpr(dpr: DailyProductionReport, members: ProductionMember[]): Timecard[] {
+  const { straight, ot } = computeWorkHours(dpr.crewCallActual || dpr.crewCallSched, dpr.wrapActual || dpr.wrapSched, dpr.lunchOut, dpr.lunchIn);
+  return members.filter(m => m.status === 'ACTIVE').map(m => ({
+    id: `tc_${dpr.shootDay}_${m.id}`, memberId: m.id, memberName: m.name, department: deptMeta(m.dept).label,
+    shootDay: dpr.shootDay, date: dpr.date || '', callTime: dpr.crewCallActual || dpr.crewCallSched, wrapTime: dpr.wrapActual || dpr.wrapSched,
+    mealOut: dpr.lunchOut, mealIn: dpr.lunchIn, hoursStraight: straight, hoursOT: ot,
+    ratePreview: estimateLaborCost(m, straight, ot), source: 'DPR', createdAt: Date.now(),
+  }));
 }
 
 export interface ProductionLocation {
@@ -183,6 +277,44 @@ export interface ProductionFestival {
   id: string; festival: string; tier: 'A' | 'B' | 'C' | 'D'; deadline: number; fee: number;
   status: 'PLANNING' | 'SUBMITTED' | 'OFFICIAL_SELECTION' | 'REJECTED' | 'WINNER' | 'WITHDRAWN';
   category: string; notes: string; createdAt: number; updatedAt?: number;
+}
+
+// ─── Clearances / releases / chain-of-title — the legal gate on delivery ──────
+// A production cannot lawfully distribute without these. Each clearance links to
+// the entity it clears (a cast member's release, a location's permit, a scene's
+// minor/intimacy clearance, a music/clip licence) so the schedule engine can flag
+// shooting a scene whose clearances aren't in hand. Documents are stored PRIVATELY
+// in Content HQ (protected-hq/, virus-scanned, streamed via an authed endpoint) —
+// releases and COIs carry signatures and PII — so `docUrl` is an authed URL and
+// `docAssetId` is the orgAssets id, never a public Storage URL.
+
+export type ClearanceType =
+  | 'TALENT_RELEASE' | 'LOCATION_RELEASE' | 'MINOR' | 'MUSIC_SYNC' | 'CLIP'
+  | 'INSURANCE_COI' | 'PERMIT' | 'CHAIN_OF_TITLE' | 'OTHER';
+export type ClearanceStatus = 'NEEDED' | 'REQUESTED' | 'RECEIVED' | 'APPROVED' | 'EXPIRED' | 'NA';
+
+/** A clearance is "in hand" (won't block scheduling/delivery) only when APPROVED, RECEIVED, or N/A. */
+export const CLEARED_STATUSES: ClearanceStatus[] = ['APPROVED', 'RECEIVED', 'NA'];
+export const isClearanceCleared = (c: Pick<ProductionClearance, 'status'>) => CLEARED_STATUSES.includes(c.status);
+
+export interface ProductionClearance {
+  id: string;
+  type: ClearanceType;
+  title: string;
+  status: ClearanceStatus;
+  // What this clearance covers (any subset). Drives the schedule conflict engine.
+  memberId?: string;
+  locationId?: string;
+  sceneId?: string;
+  elementId?: string;
+  // Private document held in Content HQ (authed download URL + orgAssets id).
+  docUrl?: string;
+  docAssetId?: string;
+  docName?: string;
+  expiresAt?: number;
+  notes?: string;
+  createdAt: number;
+  updatedAt?: number;
 }
 
 export interface CallSheetDeptCall { dept: DeptKey; callTime: string; note?: string; }
@@ -783,15 +915,34 @@ export async function greenlightScriptToProduction(
   const existingSnap = await getDocs(sub(prodId, 'scenes'));
   const existing = existingSnap.docs.map(d => d.data() as ProductionScene);
   const now = Date.now();
+  const isRevision = !!production.currentDraftId;
+
+  // Load the prior locked draft so we can advance the colour and mark what changed.
+  let priorElements: ScriptElement[] = [];
+  let priorLabel = 'WHITE';
+  if (isRevision && production.currentDraftId) {
+    const priorSnap = await getDoc(doc(db, 'productions', prodId, 'scriptDrafts', production.currentDraftId));
+    if (priorSnap.exists()) {
+      const priorDraft = priorSnap.data() as ScriptDraft;
+      priorElements = priorDraft.elements || [];
+      priorLabel = priorDraft.revisionLabel || 'WHITE';
+    }
+  }
+
   const draft = makeScriptDraft(prodId, script, actorUid, now);
+  // First greenlight keeps the writer's colour (usually WHITE); each later revision advances the ladder.
+  if (isRevision) draft.revisionLabel = nextRevisionColor(priorLabel);
+  const revColor = isRevision ? (draft.revisionLabel as RevisionColor) : undefined;
+  const changedIds = isRevision ? diffDraftScenes(priorElements, script.elements, script.id) : undefined;
+
   const projected = projectScriptScenes({ scriptId: script.id, draftId: draft.id, elements: script.elements });
-  const scenes = reconcileSceneProjection(projected, existing);
+  const scenes = reconcileSceneProjection(projected, existing, changedIds, revColor);
   const event: WorkflowEvent = {
     id: `evt_${uid8()}`, productionId: prodId,
-    type: production.currentDraftId ? 'SCRIPT_REVISED' : 'SCRIPT_GREENLIT',
+    type: isRevision ? 'SCRIPT_REVISED' : 'SCRIPT_GREENLIT',
     actorUid, entityType: 'scriptDraft', entityId: draft.id,
-    summary: `${draft.title} ${production.currentDraftId ? 'revision approved' : 'greenlit for production'}`,
-    data: { scriptId: script.id, sceneCount: scenes.length }, createdAt: now,
+    summary: `${draft.title} ${isRevision ? `${draft.revisionLabel} revision approved (${changedIds?.size || 0} scenes changed)` : 'greenlit for production'}`,
+    data: { scriptId: script.id, sceneCount: scenes.length, revisionLabel: draft.revisionLabel, changedScenes: changedIds ? [...changedIds] : [] }, createdAt: now,
   };
   const batch = writeBatch(db);
   batch.set(doc(db, 'productions', prodId, 'scriptDrafts', draft.id), stripUndefined(draft));
@@ -834,6 +985,21 @@ export const putScene = (p: string, s: ProductionScene) => put(p, 'scenes', s);
 export const patchScene = (p: string, id: string, x: Partial<ProductionScene>) => patch(p, 'scenes', id, x);
 export const removeScene = (p: string, id: string) => remove(p, 'scenes', id);
 
+// Script drafts (immutable colored-revision snapshots).
+export async function fetchScriptDrafts(prodId: string): Promise<ScriptDraft[]> {
+  try {
+    const snap = await getDocs(sub(prodId, 'scriptDrafts'));
+    return snap.docs.map(d => d.data() as ScriptDraft).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  } catch { return []; }
+}
+/** Locked side blocks from a specific draft — sides read this instead of the live editable script. */
+export async function fetchDraftBlocks(prodId: string, draftId: string): Promise<{ heading: string; text: string }[]> {
+  try {
+    const snap = await getDoc(doc(db, 'productions', prodId, 'scriptDrafts', draftId));
+    return snap.exists() ? draftScriptBlocks((snap.data() as ScriptDraft).elements || []) : [];
+  } catch { return []; }
+}
+
 // Shared planning records used by Artist Manager and the on-set suite.
 export const subBudgetLines = (p: string, cb: (r: ProductionBudgetLine[]) => void) => subscribe<ProductionBudgetLine>(p, 'budgetLines', cb);
 export const putBudgetLine = (p: string, row: ProductionBudgetLine) => put(p, 'budgetLines', row);
@@ -844,6 +1010,44 @@ export const removeLocation = (p: string, id: string) => remove(p, 'locations', 
 export const subFestivals = (p: string, cb: (r: ProductionFestival[]) => void) => subscribe<ProductionFestival>(p, 'festivals', cb);
 export const putFestival = (p: string, row: ProductionFestival) => put(p, 'festivals', row);
 export const removeFestival = (p: string, id: string) => remove(p, 'festivals', id);
+// Accounting — purchase orders, petty cash, timecards.
+export const subPurchaseOrders = (p: string, cb: (r: PurchaseOrder[]) => void) => subscribe<PurchaseOrder>(p, 'purchaseOrders', cb);
+export const putPurchaseOrder = (p: string, row: PurchaseOrder) => put(p, 'purchaseOrders', row);
+export const patchPurchaseOrder = (p: string, id: string, x: Partial<PurchaseOrder>) => patch(p, 'purchaseOrders', id, x);
+export const removePurchaseOrder = (p: string, id: string) => remove(p, 'purchaseOrders', id);
+export const subPettyCash = (p: string, cb: (r: PettyCashEntry[]) => void) => subscribe<PettyCashEntry>(p, 'pettyCash', cb);
+export const putPettyCash = (p: string, row: PettyCashEntry) => put(p, 'pettyCash', row);
+export const patchPettyCash = (p: string, id: string, x: Partial<PettyCashEntry>) => patch(p, 'pettyCash', id, x);
+export const removePettyCash = (p: string, id: string) => remove(p, 'pettyCash', id);
+export const subTimecards = (p: string, cb: (r: Timecard[]) => void) => subscribe<Timecard>(p, 'timecards', cb);
+export const putTimecard = (p: string, row: Timecard) => put(p, 'timecards', row);
+export const patchTimecard = (p: string, id: string, x: Partial<Timecard>) => patch(p, 'timecards', id, x);
+export const removeTimecard = (p: string, id: string) => remove(p, 'timecards', id);
+/** Write a full day's auto-seeded timecards in one batch. */
+export async function seedTimecardsFromDpr(prodId: string, dpr: DailyProductionReport, members: ProductionMember[]): Promise<number> {
+  const cards = timecardsFromDpr(dpr, members);
+  if (!cards.length) return 0;
+  const batch = writeBatch(db);
+  cards.forEach(card => batch.set(doc(db, 'productions', prodId, 'timecards', card.id), stripUndefined(card), { merge: true }));
+  try { await batch.commit(); return cards.length; } catch { return 0; }
+}
+
+// Clearances / releases / chain-of-title.
+export const subClearances = (p: string, cb: (r: ProductionClearance[]) => void) => subscribe<ProductionClearance>(p, 'clearances', cb);
+export const patchClearance = (p: string, id: string, x: Partial<ProductionClearance>) => patch(p, 'clearances', id, x);
+export const removeClearance = (p: string, id: string) => remove(p, 'clearances', id);
+/** Write a clearance and append a workflow-ledger event in one batch, so the On-Set activity feed sees legal changes. */
+export async function putClearanceWithEvent(prodId: string, clearance: ProductionClearance, actorUid: string, summary: string): Promise<void> {
+  const now = Date.now();
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'productions', prodId, 'clearances', clearance.id), stripUndefined({ ...clearance, updatedAt: now }));
+  const event: WorkflowEvent = {
+    id: `evt_${uid8()}`, productionId: prodId, type: 'CLEARANCE_UPDATED', actorUid,
+    entityType: 'clearance', entityId: clearance.id, summary, createdAt: now,
+  };
+  batch.set(doc(db, 'productions', prodId, 'workflowEvents', event.id), stripUndefined(event));
+  try { await batch.commit(); } catch { /* offline: the optimistic UI already reflects it */ }
+}
 export const subWorkflowEvents = (p: string, cb: (r: WorkflowEvent[]) => void) => subscribe<WorkflowEvent>(p, 'workflowEvents', cb);
 
 // Call sheets

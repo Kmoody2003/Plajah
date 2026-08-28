@@ -138,6 +138,47 @@ export function addInstrumentToNextPad(
   return { padIdx, trackId };
 }
 
+/**
+ * Keep a pad's label in step with its instrument track. Preset changes rename the TRACK; the
+ * pad is what MEKA, Glass and the Timeline pad lanes actually display, so without this the
+ * rack shows a stale name forever.
+ */
+export function syncPadWithTrack(doc: GrooveDoc, trackId: string): void {
+  const track = doc.arrangement.find((t) => t.id === trackId && t.kind === 'instrument');
+  if (!track) return;
+  const pad = doc.kit.find((p) => p.instrumentTrackId === trackId);
+  if (!pad) return;
+  pad.name = track.name.slice(0, 18);
+  if (track.instrument) pad.color = instrumentColor(track.instrument.type);
+}
+
+/**
+ * Detach a pad's instrument: remove its padOwned track from the arrangement and unlink the pad.
+ * Call this before replacing a pad's sound (with a sample or a different instrument) so the old
+ * instrument track doesn't linger as an orphan — a wasted worklet the engine keeps alive and a
+ * phantom channel. No-op for a pad that isn't an instrument.
+ */
+export function detachPadInstrument(doc: GrooveDoc, padIdx: number): void {
+  const pad = doc.kit[padIdx];
+  const id = pad?.instrumentTrackId;
+  if (!id) return;
+  doc.arrangement = doc.arrangement.filter((t) => t.id !== id);
+  pad.instrumentTrackId = undefined;
+}
+
+/** Turn a pad back into an empty placeholder — drops its sample/instrument and clears its name. */
+export function clearPad(doc: GrooveDoc, padIdx: number): void {
+  detachPadInstrument(doc, padIdx);
+  const pad = doc.kit[padIdx];
+  if (!pad) return;
+  pad.source = 'synth';
+  pad.sample = null;
+  pad.empty = true;
+  pad.name = 'Empty';
+  pad.color = '#2A2431';
+  pad.melos = undefined;
+}
+
 /** Add an instrument track to the doc, disarming whatever was armed before. Returns its id. */
 export function addInstrument(
   doc: { arrangement: ArrangeTrack[] },

@@ -18,6 +18,7 @@ import {
 } from '../../../../services/melos/instruments/bajo/patch';
 import { BAJO_PRESETS, type BajoMacro } from '../../../../services/melos/instruments/bajo/presets';
 import { newBajoPatch } from '../../../../services/melos/instruments/bajo/patch';
+import { syncPadWithTrack } from '../../../../services/melos/beats/instrumentFactory';
 import { W, G, bajoParamLabel } from '../../../../services/melos/instruments/bajo/params';
 import { MorphPad, padValue } from './MorphPad';
 import { useBajoTransport } from './useBajoTransport';
@@ -31,6 +32,8 @@ interface Props {
   track: ArrangeTrack;
   onMutate: (fn: (d: GrooveDoc) => void) => void;
   onClose: () => void;
+  /** Hosted inside the shared InstrumentWindow — chrome (close/arm/presets) comes from the window. */
+  embedded?: boolean;
 }
 
 export const BAJO_ACCENT = '#FF4B1C';
@@ -44,7 +47,7 @@ const MACRO_COLORS: Record<BajoMacro, string> = {
   space: '#63C9DE',
 };
 
-export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
+export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded }) => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [xfOpen, setXfOpen] = useState(false);
@@ -61,16 +64,24 @@ export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
   // Hooks cannot sit behind the null check below, so the rate is read defensively here.
   const tr = useBajoTransport(patch?.params?.[G.RATE] ?? 1, !!patch?.padLoop);
 
-  /** The fast path: parameters only. Turning a macro must never rebuild a wavetable. */
+  /** The fast path: parameters only. Turning a macro must never rebuild a wavetable.
+   *  If the engine instrument doesn't exist yet (it's created lazily), create it and THEN apply —
+   *  silently dropping the edit is why presets "didn't change" on a fresh track. */
   const pushParams = useCallback((p: BajoPatch) => {
-    const inst = BeatsEngine.get().getInstrument(track.id);
-    if (inst) inst.setParams(bajoEngineParams(p));
+    const engine = BeatsEngine.get();
+    const inst = engine.getInstrument(track.id);
+    if (inst) { inst.setParams(bajoEngineParams(p)); return; }
+    const t = engine.getDoc().arrangement.find((x) => x.id === track.id);
+    if (t) void engine.ensureInstrument(t).then((i) => i?.setParams(bajoEngineParams(p)));
   }, [track.id]);
 
   /** The slow path: tables THEN parameters. Only when the patch's tables can have changed. */
   const pushAll = useCallback((p: BajoPatch) => {
-    const inst = BeatsEngine.get().getInstrument(track.id);
-    if (inst) applyBajoPatch(inst, p);
+    const engine = BeatsEngine.get();
+    const inst = engine.getInstrument(track.id);
+    if (inst) { applyBajoPatch(inst, p); return; }
+    const t = engine.getDoc().arrangement.find((x) => x.id === track.id);
+    if (t) void engine.ensureInstrument(t).then((i) => { if (i) applyBajoPatch(i, p); });
   }, [track.id]);
 
   /** Edit the patch in place and push the result. One path for every control on the panel. */
@@ -107,6 +118,7 @@ export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
       } as unknown as Record<string, unknown>;
       t.instrument.presetName = preset.name;
       t.name = preset.name;
+      syncPadWithTrack(d, track.id);
       pushAll(next);
     });
     setGalleryOpen(false);
@@ -174,7 +186,12 @@ export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
   }, [looping, loopPhase, padMove, padPath, padX, padY, tr.running]);
 
   if (!patch) {
-    return <div className="p-4 text-[12px] text-white/50">This track has no BAJO patch.</div>;
+    return (
+      <div className="p-4 flex items-center gap-3">
+        <span className="text-[12px] text-white/50">This track has no BAJO patch.</span>
+        <button onClick={onClose} className="h-7 px-3 rounded-lg border border-white/15 text-[11px] text-white/60 hover:text-white">Close</button>
+      </div>
+    );
   }
 
   const wobbleOn = (patch.params[W.ENABLE] ?? 0) > 0.5;
@@ -204,9 +221,11 @@ export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose }) => {
         >
           Open
         </button>
-        <button onClick={onClose} aria-label="Close" className="w-7 h-7 grid place-items-center rounded-lg border border-white/10 text-white/45 hover:text-white">
-          <X size={14} />
-        </button>
+        {!embedded && (
+          <button onClick={onClose} aria-label="Close" className="w-7 h-7 grid place-items-center rounded-lg border border-white/10 text-white/45 hover:text-white">
+            <X size={14} />
+          </button>
+        )}
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4">

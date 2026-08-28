@@ -57,7 +57,7 @@ export const StepStrip: React.FC<StepStripProps> = ({ doc, pattern, selectedPad,
           </div>
         )}
         <div className="flex gap-1">
-          {([16, 32, 64] as const).map((len) => (
+          {([16, 32, 48, 64] as const).map((len) => (
             <button
               key={len}
               onClick={() => onMutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) p.length = len; })}

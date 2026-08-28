@@ -39,6 +39,8 @@ export interface TerraParcel {
   geometry?: GeoJsonGeometry;
   centroidLat?: number;
   centroidLng?: number;
+  /** Precision-7 geohash of the centroid — the spatial index for viewport queries. */
+  geohash?: string;
 
   // Dimensions — the parcel-side inputs to a buildable envelope.
   frontageFt?: number;
@@ -85,7 +87,7 @@ export interface TerraParcel {
 }
 
 export interface GeoJsonGeometry {
-  type: 'Polygon' | 'MultiPolygon' | 'Point' | 'LineString';
+  type: 'Polygon' | 'MultiPolygon' | 'Point' | 'LineString' | 'MultiLineString';
   coordinates: any;
 }
 

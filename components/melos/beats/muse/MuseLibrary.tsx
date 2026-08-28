@@ -11,7 +11,7 @@ import type { GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { grooveUid } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { ingestSample, backupToLocker } from '../../../../services/melos/beats/sampleStore';
-import { addInstrument } from '../../../../services/melos/beats/instrumentFactory';
+import { addInstrumentToNextPad } from '../../../../services/melos/beats/instrumentFactory';
 import { FACTORY_PRESETS } from '../../../../services/melos/instruments/onda/presets';
 import { serializePatch } from '../../../../services/melos/instruments/onda/patch';
 import { analyzeBuffer, keyLabel, CATEGORY_FOR, type MuseAsset, type MuseAnalysis, type MuseKind, type MuseSource } from '../../../../services/melos/beats/muse/museAsset';
@@ -133,9 +133,12 @@ export const MuseLibrary: React.FC<Props> = ({ doc, onMutate, onClose }) => {
   // ── add to project ──
   const addToProject = useCallback(async (row: Row) => {
     if (row.kind === 'instrument' && row.presetPatch) {
-      onMutate((d) => { addInstrument(d, 'onda', row.presetPatch, row.name); });
+      // Pad-paired like every other add path — an instrument with no pad was invisible in
+      // Glass's rack and MEKA's grid, which read the KIT, not the arrangement.
+      let padIdx = 0;
+      onMutate((d) => { padIdx = addInstrumentToNextPad(d, 'onda', row.presetPatch, row.name).padIdx; });
       void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
-      setStatus(`Added ${row.name} as an instrument track`); return;
+      setStatus(`Added ${row.name} on pad ${padIdx + 1}`); return;
     }
     // audio/sample → a new labelled audio track
     const engine = BeatsEngine.get(); await engine.init(); const ctx = engine.getContext(); if (!ctx) return;

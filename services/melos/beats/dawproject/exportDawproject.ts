@@ -110,6 +110,21 @@ export async function exportDawproject(inp: ExportInputs): Promise<Blob> {
       ));
   });
 
+  // Instrument tracks (ONDA/BAJO/KERA/…): real NOTE tracks so the synth lines survive the trip
+  // into Bitwig/Studio One — these were silently dropped before. padOwned tracks are already
+  // represented by their pad's track.
+  const instrumentArrTracks = doc.arrangement.filter(
+    (t) => t.kind === 'instrument' && !t.foreign && !t.padOwned && t.clips.some((c) => c.notes?.length),
+  );
+  const instTracks = instrumentArrTracks.map((t) =>
+    el('Track', { contentType: 'notes', loaded: 'true', id: `t-${t.id}`, name: t.name, color: t.color },
+      el('Channel', { audioChannels: 2, role: 'regular', id: `c-${t.id}` },
+        el('Volume', { unit: 'linear', value: num(Math.pow(10, t.gainDb / 20)), id: `v-${t.id}` }),
+        el('Pan', { unit: 'normalized', value: num((t.pan + 1) / 2), id: `p-${t.id}` }),
+        el('Mute', { value: String(t.mute), id: `m-${t.id}` }),
+        el('Destination', { ref: 'c-master' }),
+      )));
+
   const audioTracks = doc.arrangement.filter((t) => t.kind === 'audio' && !t.foreign).map((t) =>
     el('Track', { contentType: 'audio', loaded: 'true', id: `t-${t.id}`, name: t.name, color: t.color },
       el('Channel', { audioChannels: 2, role: 'regular', id: `c-${t.id}` },
@@ -149,6 +164,20 @@ export async function exportDawproject(inp: ExportInputs): Promise<Blob> {
     return el('Lanes', { track: `t-pad${padIdx}`, id: `l-pad${padIdx}` }, el('Clips', { id: `cl-pad${padIdx}` }, ...clips));
   }).filter(Boolean);
 
+  const instLanes = instrumentArrTracks.map((t) => {
+    const clips = t.clips.filter((c) => c.notes?.length).map((c) =>
+      el('Clip', { time: num(c.startBeats), duration: num(c.lengthBeats), playStart: '0', name: `${t.name} clip` },
+        el('Notes', { id: `n-${c.id}` }, ...c.notes!.map((n) => el('Note', {
+          time: num(n.startBeats),
+          duration: num(Math.max(0.05, Math.min(n.lengthBeats, c.lengthBeats - n.startBeats))),
+          channel: 0,
+          key: n.key,
+          vel: num(n.vel / 127),
+          rel: num(n.vel / 127),
+        })))));
+    return el('Lanes', { track: `t-${t.id}`, id: `l-${t.id}` }, el('Clips', { id: `cl-${t.id}` }, ...clips));
+  });
+
   const audioLanes = doc.arrangement.filter((t) => t.kind === 'audio' && !t.foreign).map((t) => {
     const clips = t.clips.filter((c) => c.audio).map((c) => {
       const buf = bufMap.get(c.audio!.sampleKey);
@@ -177,12 +206,12 @@ export async function exportDawproject(inp: ExportInputs): Promise<Blob> {
       el('Tempo', { unit: 'bpm', value: num(doc.bpm), id: 'tempo' }),
       el('TimeSignature', { numerator: 4, denominator: 4, id: 'tsig' })),
     el('Structure', {},
-      ...padTracks, ...groupTracks, ...audioTracks, printTrack,
+      ...padTracks, ...groupTracks, ...instTracks, ...audioTracks, printTrack,
       ...(foreign.tracks || []), // preserved foreign tracks, verbatim
       masterTrack),
     el('Arrangement', { id: 'arr' },
       el('Lanes', { timeUnit: 'beats', id: 'lanes' },
-        ...padLanes, ...audioLanes, printLane,
+        ...padLanes, ...instLanes, ...audioLanes, printLane,
         ...(foreign.lanes || []))),
     el('Scenes', {}),
   ));

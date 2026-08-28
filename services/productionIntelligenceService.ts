@@ -6,7 +6,7 @@ import {
 } from './filmProductionService';
 import { decryptText } from './cryptoService';
 
-export type ProductionBrainMode = 'ASK' | 'RISK_SCAN' | 'NEXT_ACTIONS' | 'CONTINUITY' | 'DAY_PLAN';
+export type ProductionBrainMode = 'ASK' | 'RISK_SCAN' | 'NEXT_ACTIONS' | 'CONTINUITY' | 'DAY_PLAN' | 'CLEARANCE_SCAN' | 'BUDGET_BENCHMARK';
 
 export interface ProductionBrainEvidence {
   source: string;
@@ -41,8 +41,12 @@ export interface ProductionCorpusData {
   recipientDeliveries: unknown[];
   callSheetTemplates: unknown[];
   budgetLines: unknown[];
+  purchaseOrders: unknown[];
+  pettyCash: unknown[];
+  timecards: unknown[];
   locations: unknown[];
   festivals: unknown[];
+  clearances: unknown[];
   dprs: unknown[];
   craftMenu: unknown[];
   craftOrders: unknown[];
@@ -118,8 +122,10 @@ export function buildAuthorizedProductionCorpus(data: ProductionCorpusData): Bui
     callSheetTemplates: data.callSheetTemplates,
     crewAndCast: safeMembers(data.members, includeSensitive),
     budgetLines: includeBudget ? data.budgetLines : [],
+    accounting: includeBudget ? { purchaseOrders: data.purchaseOrders, pettyCash: data.pettyCash, timecards: data.timecards } : {},
     locations: data.locations,
     festivalsAndDistribution: data.festivals,
+    clearances: data.clearances,
     dailyProductionReports: includeReports ? data.dprs : [],
     craft: { menu: data.craftMenu, orders: data.craftOrders },
     workflowHistory: data.workflowEvents,
@@ -134,7 +140,8 @@ export function buildAuthorizedProductionCorpus(data: ProductionCorpusData): Bui
   const arrays: Record<string, unknown[]> = {
     members: data.members, scenes: data.scenes, callSheets: data.callSheets, tasks: data.tasks, breakdownElements: data.breakdownElements,
     schedulePlans: data.schedulePlans, scheduleConstraints: data.scheduleConstraints, recipientDeliveries: data.recipientDeliveries, callSheetTemplates: data.callSheetTemplates,
-    budgetLines: includeBudget ? data.budgetLines : [], locations: data.locations, festivals: data.festivals,
+    budgetLines: includeBudget ? data.budgetLines : [], locations: data.locations, festivals: data.festivals, clearances: data.clearances,
+    purchaseOrders: includeBudget ? data.purchaseOrders : [], pettyCash: includeBudget ? data.pettyCash : [], timecards: includeBudget ? data.timecards : [],
     dprs: includeReports ? data.dprs : [], workflowEvents: data.workflowEvents,
     jobPostings: includeHiring ? data.jobPostings : [], applications: includeHiring ? data.applications : [],
     productionChannels: data.productionChannels || [], productionMessages: data.productionMessages || [],
@@ -165,10 +172,13 @@ export async function loadAuthorizedProductionCorpus(prodId: string, askingUid: 
     : production.authority?.[askingUid]?.permissions || [];
   const canBudget = hasProductionPermission(production, askingUid, 'MANAGE_BUDGET');
   const canReports = hasProductionPermission(production, askingUid, 'MANAGE_REPORTS');
-  const names = ['members', 'scenes', 'callsheets', 'tasks', 'breakdownElements', 'schedulePlans', 'scheduleConstraints', 'recipientDeliveries', 'callSheetTemplates', 'locations', 'festivals', 'craftMenu', 'craftOrders', 'workflowEvents', 'decisions', 'alerts', 'artifactAcknowledgements', 'productionActions'];
+  const names = ['members', 'scenes', 'callsheets', 'tasks', 'breakdownElements', 'schedulePlans', 'scheduleConstraints', 'recipientDeliveries', 'callSheetTemplates', 'locations', 'festivals', 'clearances', 'craftMenu', 'craftOrders', 'workflowEvents', 'decisions', 'alerts', 'artifactAcknowledgements', 'productionActions'];
   const result = await Promise.all(names.map(name => rows(prodId, name)));
   const byName = Object.fromEntries(names.map((name, index) => [name, result[index]]));
   byName.budgetLines = canBudget ? await rows(prodId, 'budgetLines') : [];
+  byName.purchaseOrders = canBudget ? await rows(prodId, 'purchaseOrders') : [];
+  byName.pettyCash = canBudget ? await rows(prodId, 'pettyCash') : [];
+  byName.timecards = canBudget ? await rows(prodId, 'timecards') : [];
   byName.dprs = canReports ? await rows(prodId, 'dprs') : [];
   let scriptDraft: unknown | null = null;
   if (production.currentDraftId) {
@@ -200,7 +210,8 @@ export async function loadAuthorizedProductionCorpus(prodId: string, askingUid: 
     members: byName.members as ProductionMember[], scriptDraft,
     scenes: byName.scenes, callSheets: byName.callsheets, tasks: byName.tasks, breakdownElements: byName.breakdownElements,
     schedulePlans: byName.schedulePlans, scheduleConstraints: byName.scheduleConstraints, recipientDeliveries: byName.recipientDeliveries, callSheetTemplates: byName.callSheetTemplates,
-    budgetLines: byName.budgetLines, locations: byName.locations, festivals: byName.festivals,
+    budgetLines: byName.budgetLines, locations: byName.locations, festivals: byName.festivals, clearances: byName.clearances,
+    purchaseOrders: byName.purchaseOrders, pettyCash: byName.pettyCash, timecards: byName.timecards,
     dprs: byName.dprs, craftMenu: byName.craftMenu, craftOrders: byName.craftOrders,
     workflowEvents: byName.workflowEvents, jobPostings, applications,
     decisions: byName.decisions, alerts: byName.alerts, artifactAcknowledgements: byName.artifactAcknowledgements,
@@ -244,6 +255,8 @@ export async function askProductionBrain(prodId: string, question: string, mode:
     NEXT_ACTIONS: 'Based on the entire production, prioritize the next actions and assign each to the correct role or department.',
     CONTINUITY: 'Find contradictions and continuity risks across the approved script, scene breakdown, call sheets, and daily reports.',
     DAY_PLAN: question || 'Assess the next scheduled shoot day and identify everything each responsible department must resolve before call.',
+    CLEARANCE_SCAN: 'Audit legal readiness for distribution. Cross-reference the clearances against cast (talent releases, minor permits), locations (location releases, permits, insurance/COI), scenes (music sync, clip, intimacy), and chain-of-title. For each shoot day, flag scenes that cannot lawfully shoot because a required clearance is NEEDED, REQUESTED, EXPIRED, or missing entirely, and rank by shoot-day proximity. Name the exact clearance, the entity it covers, and the scene/day it blocks.',
+    BUDGET_BENCHMARK: 'Analyze the budget and accounting (line items, purchase orders/commitments, petty cash, labor timecards). Benchmark the department allocation against comparable indie/studio norms for this format and scale. Flag departments that are overspending or over-committed (committed + actual approaching or exceeding estimate), missing fringe, or lacking contingency. Recommend a contingency %, and give concrete reallocation and cost-saving actions per department without compromising the production.',
   };
   const started = Date.now();
   const res = await fetch('/api/ai/pokee', {
