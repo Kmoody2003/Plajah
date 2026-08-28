@@ -43,7 +43,7 @@ import { isWindowEnabled, WINDOW_DEFAULT } from "../../services/fabula/gradeWind
 import { rangeClips } from "../../services/fabula/rangeClips";
 import {
   startPlayback, stopPlayback, engineRunning, engineClock, setEngineTracks,
-  warmAudio, subscribePlayback, enginePlayable, registerLiveVideo, unregisterLiveVideo, syncLiveVideos, engineStats,
+  warmAudio, subscribePlayback, enginePlayable, registerLiveVideo, unregisterLiveVideo, syncLiveVideos, engineStats, engineIsDead,
 } from "../../services/fabula/playbackEngine";
 import { sampleParam as kfSample, isAnimated as kfIsAnimated, hasKeys as kfHasKeys, addKey as kfAddKey, removeKey as kfRemoveKey, keyAt as kfKeyAt, prevKeyTime as kfPrev, nextKeyTime as kfNext, KF_PARAMS, KF_ALL } from "../../services/fabula/keyframes";
 import { quickStems, separateStemsCloud } from "../../services/fabula/stemSeparation";
@@ -2770,7 +2770,8 @@ export default function Fabula() {
       try {
         const st = engineStats();
         console.info("[fabula-playback]", st);
-        if (st.running && st.unplayable.length) ping(`${st.unplayable.length} audio source${st.unplayable.length === 1 ? "" : "s"} can't decode — playing via fallback. Check console for urls.`);
+        if (st.dead) ping("Audio device stalled — switched to direct playback for this session. If audio still misbehaves, check Windows sound devices / Bluetooth.");
+        if (st.running && st.unplayable.length) ping(`${st.unplayable.length} audio source${st.unplayable.length === 1 ? "" : "s"} can't decode (${(st.reasons?.[0] || "").split(" ← ")[0] || "?"}) — playing via fallback. Console has urls.`);
         else if (st.running && st.pending > 0) ping(`${st.pending} audio clip${st.pending === 1 ? "" : "s"} still decoding — they join as they finish.`);
         if (st.running && st.soloed.length) ping(`SOLO is on (${st.soloed.join(", ")}) — other tracks are muted.`);
       } catch { /* diagnostics only */ }
@@ -7018,7 +7019,7 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active
     if (active) resumeAudioCtx();
     // Attach the DSP strip only when the context is running AND the element's samples are
     // readable (same-origin, or cross-origin loaded via CORS). A corsFail element plays direct.
-    if (ctx && ctx.state === "running" && graphRef.current === undefined && (!needsCors(url) || wantCors)) graphRef.current = attachAudioGraph(a);
+    if (ctx && ctx.state === "running" && !engineIsDead() && graphRef.current === undefined && (!needsCors(url) || wantCors)) graphRef.current = attachAudioGraph(a);
     const g = graphRef.current || null;
     if (g) {
       a.muted = !!clip.disabled; a.volume = 1;
@@ -7036,6 +7037,15 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active
   if (!url || clip.disabled) return null;
   return <audio key={wantCors ? "cors" : "plain"} ref={aRef} src={url} preload="auto" style={{ display: "none" }}
     {...(wantCors ? { crossOrigin: "anonymous" } : {})}
+    onCanPlay={() => {
+      // Element just became ready — if we are mid-play and it missed its start, join now.
+      const a = aRef.current;
+      if (a && active && playing && a.paused) {
+        const t = playhead - clip.start + offset;
+        try { if (Math.abs(a.currentTime - Math.max(0, t)) > 0.25) a.currentTime = Math.max(0, t); } catch { /* */ }
+        a.play().catch(() => {});
+      }
+    }}
     onError={() => {
       // CORS-mode load refused → rebuild plain and play direct (audible, DSP bypassed for this clip).
       if (wantCors) { console.warn("[fabula-audio] CORS refused for", url, "— playing direct, DSP bypassed"); setCorsFail(true); }
