@@ -1,5 +1,5 @@
 /**
- * Plajah Labs — Dataset Visualizer
+ * Museion — Dataset Visualizer
  *
  * Renders maps, charts, and tables from live science API data
  * and makes them shareable to the Plajah comment/post system.
@@ -305,7 +305,7 @@ const ShareVizButton: React.FC<{
     }
 
     // Fallback: copy as text summary
-    const text = `📊 ${config.title} — ${config.source}\n${config.description ?? ''}\nSource: ${config.sourceUrl ?? 'Plajah Labs'}\nFetched: ${config.fetchedAt ? new Date(config.fetchedAt).toLocaleString() : 'now'}`;
+    const text = `📊 ${config.title} — ${config.source}\n${config.description ?? ''}\nSource: ${config.sourceUrl ?? 'Museion'}\nFetched: ${config.fetchedAt ? new Date(config.fetchedAt).toLocaleString() : 'now'}`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

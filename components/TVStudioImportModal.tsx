@@ -9,7 +9,7 @@
  *  Posts         — render a social post as an interactive source
  *  Live Feeds    — other on-platform live streams as picture-in-picture sources
  *  FAST / Ads    — user's FAST channel ad assets + radio station ad spots
- *  Plajah Labs   — visual data, charts, research from Labs
+ *  Museion   — visual data, charts, research from Labs
  *
  * Returns selected asset(s) via onImport callback with enough info for the
  * engine to load them as sources.
@@ -173,7 +173,7 @@ const TVStudioImportModal: React.FC<TVStudioImportModalProps> = ({
     { id: 'TALEO',  label: 'Taleo Films',         icon: <Film size={12} />      },
     { id: 'LIVE',   label: 'Live Feeds',           icon: <Rss size={12} />      },
     { id: 'FAST',   label: 'FAST / Ads',           icon: <Tv size={12} />       },
-    { id: 'LABS',   label: 'Plajah Labs',          icon: <FlaskConical size={12} /> },
+    { id: 'LABS',   label: 'Museion',          icon: <FlaskConical size={12} /> },
     { id: 'POSTS',  label: 'Posts',                icon: <ImageIcon size={12} /> },
   ];
 
@@ -367,7 +367,7 @@ const TVStudioImportModal: React.FC<TVStudioImportModalProps> = ({
                 )
               )}
 
-              {/* Plajah Labs */}
+              {/* Museion */}
               {tab === 'LABS' && (
                 <div className="space-y-3">
                   <p className="text-[9px] opacity-30 uppercase tracking-widest font-bold mb-4">Labs visual data sources appear as live canvas inputs</p>
@@ -381,7 +381,7 @@ const TVStudioImportModal: React.FC<TVStudioImportModalProps> = ({
                         <FlaskConical size={16} style={{ color: '#6B0099' }} className="shrink-0" />
                         <div className="flex-1">
                           <p className="text-[11px] font-bold text-white">{name}</p>
-                          <p className="text-[8px] opacity-35">Plajah Labs — live iframe source</p>
+                          <p className="text-[8px] opacity-35">Museion — live iframe source</p>
                         </div>
                         {sel && <Check size={14} style={{ color: '#6B0099' }} />}
                       </button>

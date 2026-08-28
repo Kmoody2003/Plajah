@@ -47,7 +47,7 @@ export async function translateForPublic(
     plainLanguage: sentences.join('. ').trim() + '.',
     detectedDisciplines: disciplines,
     keyTerms: [],
-    significance: 'New scientific observation shared on Plajah Labs.',
+    significance: 'New scientific observation shared on Museion.',
     generatedAt: Date.now(),
     model: 'stub',
   };

@@ -204,7 +204,7 @@ const LabsFormulaEditor: React.FC<Props> = ({ currentUser, onBack }) => {
             <span className="text-base">∑</span>
             <h1 className="font-black text-white text-sm">Formula Editor</h1>
           </div>
-          <p className="text-[8px] text-white/25 uppercase tracking-widest mt-0.5">LaTeX · KaTeX renderer · Plajah Labs</p>
+          <p className="text-[8px] text-white/25 uppercase tracking-widest mt-0.5">LaTeX · KaTeX renderer · Museion</p>
         </div>
         {!katexReady && <span className="flex items-center gap-1.5 text-[9px] text-white/30"><RefreshCw size={10} className="animate-spin" /> Loading KaTeX…</span>}
       </div>

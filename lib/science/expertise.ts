@@ -79,7 +79,7 @@ export async function fetchExpertiseLeaderboard(
 
 export function profileSummary(profile: ExpertiseProfile): string {
   const top = topDisciplines(profile, 2);
-  if (!top.length) return 'Researcher on Plajah Labs';
+  if (!top.length) return 'Researcher on Museion';
   return top.map(d => DISCIPLINE_LABELS[d.discipline]).join(' · ');
 }
 

@@ -64,7 +64,7 @@ export function findLearnTarget(tags: string[] = [], text = ''): LearnTarget | n
   return best && best.score >= 2 ? best.target : null;
 }
 
-/** Open a learn target (deep-links into Plajah Labs / Academia). */
+/** Open a learn target (deep-links into Museion / Academia). */
 export function openLearnTarget(target: LearnTarget): void {
   window.dispatchEvent(new CustomEvent('OPEN_LABS_DISCIPLINE', { detail: { disciplineId: target.id } }));
 }

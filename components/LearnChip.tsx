@@ -18,7 +18,7 @@ const LearnChip: React.FC<Props> = ({ tags, text, className, compact }) => {
   return (
     <button
       onClick={e => { e.stopPropagation(); openLearnTarget(target); }}
-      title={`Learn about ${target.label} in Plajah Labs`}
+      title={`Learn about ${target.label} in Museion`}
       className={`inline-flex items-center gap-1.5 rounded-full border transition-all hover:brightness-125 ${compact ? 'px-2.5 py-1' : 'px-3 py-1.5'} ${className || ''}`}
       style={{ background: `${target.accent}1c`, borderColor: `${target.accent}44`, color: target.accent }}
     >

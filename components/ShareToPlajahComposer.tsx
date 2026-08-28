@@ -13,7 +13,7 @@ import {
   academicPrefillText, academicPrefillAttachments, type AcademicAsset,
 } from '../services/academicSocial';
 
-// Full-screen share flow for academic / Plajah Labs assets. Opens the Universal
+// Full-screen share flow for academic / Museion assets. Opens the Universal
 // Post Composer with the asset prepopulated (interactive 3D scan when available,
 // otherwise the image) and editable text, then lets the author choose where it
 // lands: the source discipline's feed or the Plajah social feed, plus a searchable

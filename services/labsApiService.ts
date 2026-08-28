@@ -1,5 +1,5 @@
 /**
- * Plajah Labs — Client-Side Science API Service
+ * Museion — Client-Side Science API Service
  *
  * All APIs here are publicly available and CORS-safe for browser fetch.
  * NASA requires a free API key (DEMO_KEY works for low volume).

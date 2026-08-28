@@ -20,7 +20,7 @@ Plajah is a multi-format creator platform combining music, video, film, TV, book
 | **Radio** | Curated genre stations + creator-built stations |
 | **Live Hub** | WebRTC live streams, tipping, co-streams |
 | **Classrooms** | Courses, lessons, assignments, live sessions |
-| **Plajah Labs** | Science & research community (14 disciplines + live data) |
+| **Museion** | Science & research community (14 disciplines + live data) |
 | **Sanctuary** | Creator membership tiers, exclusive content, private community |
 | **Store** | Creator merch, digital products, physical orders |
 | **Clubs** | Fan clubs with paid membership, chat, and events |

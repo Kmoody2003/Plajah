@@ -87,7 +87,7 @@ const Advantage: React.FC<{ onNext: () => void }> = ({ onNext }) => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 12, marginTop: 26 }}>
       {[
         ['01','Mixed sources become one context','PoKee reads the full source set together instead of losing relationships in chunked retrieval.',Layers3,'#D0BCFF'],
-        ['02','Media becomes pedagogy','Claude shapes a narrative arc; Plajah Labs supplies galleries, data stories, spatial audio and 3D tools.',Play,'#FF8C00'],
+        ['02','Media becomes pedagogy','Claude shapes a narrative arc; Museion supplies galleries, data stories, spatial audio and 3D tools.',Play,'#FF8C00'],
         ['03','Every learner gets a way in','Ledger evidence, strengths, interests and supports adapt the invitation—not the rigor.',Users,'#00DAF3'],
         ['04','Trust travels with the draft','Standards, quotations, rights, attribution, accessibility and AI receipts stay inspectable.',ShieldCheck,'#06D6A0'],
       ].map(([n,title,body,Icon,color]: any) => <div key={n} style={{ ...panel, padding: 20 }}><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ fontFamily: 'var(--font-mono-tech,monospace)', color, fontWeight: 900 }}>{n}</span><Icon size={18} color={color} /></div><h2 style={{ fontFamily: 'var(--font-display,Outfit)', fontSize: 20, margin: '16px 0 7px' }}>{title}</h2><p style={{ ...muted, fontSize: 13, lineHeight: 1.55, margin: 0 }}>{body}</p></div>)}

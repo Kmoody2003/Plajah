@@ -147,7 +147,7 @@ const PlajahResearchPage: React.FC<PlajahResearchPageProps> = ({ onBack }) => {
 
         <div className="relative px-6 lg:px-16 py-12 max-w-7xl mx-auto w-full">
           <button onClick={onBack} className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white mb-8 transition-colors">
-            <ArrowLeft size={13} /> Back to Plajah Labs
+            <ArrowLeft size={13} /> Back to Museion
           </button>
 
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#3DFFC0]/10 border border-[#3DFFC0]/20 mb-6">

@@ -44,7 +44,7 @@ const CHANNELS: { id: Channel; lb: string; ic: string; badge?: string }[] = [
 interface Post { pin?: boolean; who: string; role: Role | 'school'; av: string; hue: string; time: string; tx: string; attach?: { ic: string; hue: string; t: string; u: string }; react: { likes: number; comments: number }; points?: number; }
 
 const FEED: Post[] = [
-  { pin: true, who: 'Ms. Rivera', role: 'teacher', av: 'MR', hue: 'var(--grad-warm)', time: 'Pinned', tx: 'Welcome to Period 3 Biology! This week we’re dissecting the water cycle in Plajah Labs. Lab report due Friday — rubric is attached.', attach: { ic: '🔬', hue: '#8B5CF6', t: 'Water Cycle Lab', u: 'Assignment · rubric shown up front · due Fri' }, react: { likes: 18, comments: 5 } },
+  { pin: true, who: 'Ms. Rivera', role: 'teacher', av: 'MR', hue: 'var(--grad-warm)', time: 'Pinned', tx: 'Welcome to Period 3 Biology! This week we’re dissecting the water cycle in Museion. Lab report due Friday — rubric is attached.', attach: { ic: '🔬', hue: '#8B5CF6', t: 'Water Cycle Lab', u: 'Assignment · rubric shown up front · due Fri' }, react: { likes: 18, comments: 5 } },
   { who: 'Diego M.', role: 'student', av: 'DM', hue: '#06D6A0', time: '2h', tx: 'Turned in my lab report early! The evaporation section was tricky 😅', react: { likes: 9, comments: 2 }, points: 3 },
   { who: 'Ms. Rivera', role: 'teacher', av: 'MR', hue: 'var(--grad-warm)', time: '4h', tx: 'Great observations in class today, everyone. Awarded Class Points for the group that modeled condensation. 🌧️', react: { likes: 22, comments: 3 } },
   { who: 'Ava T.', role: 'student', av: 'AT', hue: '#00DAF3', time: 'Yesterday', tx: 'Question — does the rubric want the diagram hand-drawn or can we use the Labs sim export?', react: { likes: 4, comments: 6 } },
@@ -133,7 +133,7 @@ const ClassroomClubView: React.FC<ClassroomClubViewProps> = ({ profile, classroo
     return (
       <div className="panel"><div className="phd"><h2>Resources</h2>{role === 'teacher' && <button className="btn btn-primary btn-sm">+ Add</button>}</div><div className="pbd">
         <div className="assign"><span className="ic" style={{ background: 'linear-gradient(135deg,#8B5CF6,#241a34)' }}>📕</span><div className="m"><div className="t">OpenStax Biology for AP</div><div className="u">Free textbook · read in Lorea</div></div><span className="due open">Free</span></div>
-        <div className="assign"><span className="ic" style={{ background: 'linear-gradient(135deg,#00DAF3,#241a34)' }}>🔬</span><div className="m"><div className="t">Water Cycle · Plajah Labs</div><div className="u">Interactive 3D sim</div></div><span className="due open">Open</span></div>
+        <div className="assign"><span className="ic" style={{ background: 'linear-gradient(135deg,#00DAF3,#241a34)' }}>🔬</span><div className="m"><div className="t">Water Cycle · Museion</div><div className="u">Interactive 3D sim</div></div><span className="due open">Open</span></div>
         <div className="assign"><span className="ic" style={{ background: 'linear-gradient(135deg,#FF8C00,#241a34)' }}>🎬</span><div className="m"><div className="t">Photosynthesis explainer</div><div className="u">Rights-cleared · Internet Archive</div></div><span className="due open">Watch</span></div>
       </div></div>
     );

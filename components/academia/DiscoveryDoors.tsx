@@ -1,7 +1,7 @@
 // DiscoveryDoors — the "worth a look" row on the Academia portal.
 //
 // This is the Corridor's job on the Today screen: not navigation (the tiles and the bottom bar
-// already do that) but INVITATION. A tile says "Plajah Labs — arts, history & science across the
+// already do that) but INVITATION. A tile says "Museion — arts, history & science across the
 // disciplines". A door says "drag a real pendulum". One is a category; the other is a reason.
 //
 // Role decides what's behind them, because a curiosity that lands for a twelve-year-old is not

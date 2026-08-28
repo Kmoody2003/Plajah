@@ -39,7 +39,7 @@ The resettable Lesson Studio demo is the first consumer of this contract. Produc
 | Narrative and activity craft | `/api/ai/anthropic` Claude proxy | Turn the content map into a coherent age-appropriate arc, prompts and media cues |
 | Teacher-facing orchestration | Aria/Plajah Agent and `ariaContextService` | Collect intent, explain choices, request teacher approval and revise locally |
 | Public/cultural sources | Library of Congress sync, Chora Vault, Met/artifact services, archive content service, OER library | Implement `RichLessonSource` resolvers that preserve canonical URL, rights, creator, quote/page/time anchors and retrieval date |
-| Rich experiences | Plajah Labs, spatial mixer, gallery, charting, 3D/GLTF, audio and video players | Implement each `LessonBlockKind` with a reusable renderer rather than flattening it to text |
+| Rich experiences | Museion, spatial mixer, gallery, charting, 3D/GLTF, audio and video players | Implement each `LessonBlockKind` with a reusable renderer rather than flattening it to text |
 | Standards and rubrics | assignment template service, education standards, OER taxonomy | Validate every criterion against at least one student action and observable evidence block |
 | Learner evidence | `learningLedgerService` | Build private learner-context summaries and write back assessed evidence; never expose peer comparison to students |
 | Delivery | school chassis, template assignments, notifications, assigned lesson view | Publish a frozen lesson version with per-learner overlays and a common objective/rubric |

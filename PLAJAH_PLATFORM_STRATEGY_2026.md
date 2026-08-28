@@ -24,7 +24,7 @@ The creator stack (music/film/writers, Sanctuary memberships, FAST channels, Art
 | **Teacher Console (8 tools)** | Plan-from-Mastery · Planner · Checks (QTI) · Gradebook (CSV) · Assess Work · Reports (print-ready) · Integrations (CASE/Clever/LTI) · Context (homeschool/pods/overlays) | ✅ live |
 | **Interop layer** | Inbound CASE import (live) + OneRoster/LTI/Clever adapters; outbound Google Classroom/LTI/QTI/CSV exports | ✅ live (live OAuth pending) |
 
-**The platform now spans 11 verticals:** Chora (music), Reello (short video), Taleo (film/TV), Lorea (books), Sports, Social, Classrooms/Education, Worlds (IP), Business, Plajah Labs (science), Games — over one identity + payments + ledger spine.
+**The platform now spans 11 verticals:** Chora (music), Reello (short video), Taleo (film/TV), Lorea (books), Sports, Social, Classrooms/Education, Worlds (IP), Business, Museion (science), Games — over one identity + payments + ledger spine.
 
 ---
 
@@ -35,7 +35,7 @@ The creator stack (music/film/writers, Sanctuary memberships, FAST channels, Art
 - **Structural distribution in education:** 1 teacher → ~30 students → ~30 families. The viral coefficient is built into the org chart, not bought.
 - **A real creative-production stack** (Chora/Pixels/Fabula/Lorea/Taleo) that makes *learn-by-creating* and *creativity-as-assessment* real — uncopyable by pure-play edtech.
 - **Generous economics** (90% creator share; low platform take) and **values features already built** (Pay-It-Forward charitable flow, data-export/ownership).
-- **Uncontested beachheads:** Plajah Labs (science-with-live-data), structured Debate, the portable Learner Ledger — nobody is competing here.
+- **Uncontested beachheads:** Museion (science-with-live-data), structured Debate, the portable Learner Ledger — nobody is competing here.
 
 ### Weaknesses (you named these — here they are squarely)
 1. **Breadth is the #1 GTM liability.** 11 verticals = a confused first impression. A musician doesn't care about NGSS; a teacher doesn't need a FAST channel. *(Fix in §3.)*
@@ -227,7 +227,7 @@ Each: **the Hook** (one attention-grabbing, clever idea) · **🌱 Grassroots** 
 - 🌱 Local SMB outreach; the unified ad-dashboard demo; pitch the Pay-It-Forward goodwill angle to mission-driven SMBs.
 - 💰 SMB-targeted ads; local chamber-of-commerce partnerships.
 
-### 🔬 Plajah Labs (science)
+### 🔬 Museion (science)
 - **Hook — "Paste a DOI — get live data."** (the enricher auto-attaches NASA/NOAA/NCBI/USGS).
 - 🌱 r/science, r/AskScience, science Twitter; pitch science communicators (FAST-channel angle); ResearchGate.
 - 💰 Science-org / museum partnerships; STEM-educator sponsorships.

@@ -240,7 +240,7 @@ const LabsGrantTracker: React.FC<Props> = ({ currentUser, onBack }) => {
         <button onClick={onBack} className="text-white/30 hover:text-white transition-colors"><ArrowLeft size={16} /></button>
         <div className="flex-1">
           <div className="flex items-center gap-2"><Trophy size={15} className="text-[#fbbf24]" /><h1 className="font-black text-white text-sm">Grant Tracker</h1></div>
-          <p className="text-[8px] text-white/25 uppercase tracking-widest mt-0.5">{grants.length} grants · Plajah Labs</p>
+          <p className="text-[8px] text-white/25 uppercase tracking-widest mt-0.5">{grants.length} grants · Museion</p>
         </div>
         <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white rounded-xl text-xs font-black uppercase">
           <Plus size={12} /> New Grant

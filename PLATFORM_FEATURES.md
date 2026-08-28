@@ -24,7 +24,7 @@ Every creator on Plajah can run their own Free Ad-Supported Streaming TV channel
 
 ---
 
-### 2. Plajah Labs — Scientific Research Community
+### 2. Museion — Scientific Research Community
 The only social platform with a dedicated science layer across 15 disciplines:
 
 **Disciplines:** Physics, Chemistry, Biology, Computer Science, Engineering, Mathematics, Neuroscience, Earth Science, Astronomy, Data Science, Environment, Networks, Medicine, Archaeology, Linguistics, **Architecture**, **History**
@@ -225,7 +225,7 @@ Full in-browser book writing environment:
 | FAST Channels | Live Hub |
 | Live Streams | Live Hub |
 | Stories (24h) | Feed |
-| Science Posts | Plajah Labs |
+| Science Posts | Museion |
 | Pitch Decks | Pitch Deck Studio |
 | Games | Arcade |
 | Sports & Teams | Sports Center |

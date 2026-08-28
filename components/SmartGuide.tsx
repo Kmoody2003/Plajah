@@ -138,7 +138,7 @@ const TEXT_TIPS: Record<string, Tip> = {
   "health & fitness":   { icon: "💪", label: "Health & Fitness", desc: "Workout videos, health content, and fitness communities from creators on the platform." },
   "the newstand":       { icon: "📰", label: "The Newstand", desc: "Long-form articles, newsletters, and editorial content from writers and creators on Plajah." },
   "lorea":              { icon: "📚", label: "Lorea — Books", desc: "The digital library. Read books, comics, and graphic novels directly in your browser with the built-in reader." },
-  "plajah labs":        { icon: "🔬", label: "Plajah Labs", desc: "Science, engineering, and academia hub — research tools, STEM classrooms, and peer discussion for curious minds." },
+  "plajah labs":        { icon: "🔬", label: "Museion", desc: "Science, engineering, and academia hub — research tools, STEM classrooms, and peer discussion for curious minds." },
   "radio":              { icon: "📻", label: "Radio", desc: "Live artist radio stations and curated broadcasts. Music that plays continuously like a real radio station." },
   "live hub":           { icon: "🔴", label: "Live Hub", desc: "See everything happening live on the platform right now. Browse streams or go live yourself to your audience." },
   "clubs":              { icon: "🏛️", label: "Clubs", desc: "Community groups around shared interests — genres, artists, sports, topics. Join public clubs instantly." },

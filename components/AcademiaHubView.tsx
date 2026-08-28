@@ -83,10 +83,10 @@ const RAILS = [
   },
   {
     key: 'module', title: 'Interactive Labs modules', sub: 'Explore, simulate, build', cards: [
-      { t: 'The Human Body', prov: 'Plajah Labs', kind: '🫀', hue: 'science', badge: '3D module', meta: ['Systems'], nav: 'HUMAN_BODY' },
-      { t: 'The Solar System', prov: 'Plajah Labs', kind: '🪐', hue: 'science', badge: 'Sim', meta: ['Orbit'], nav: 'SOLAR_SYSTEM' },
-      { t: 'Plant Biology', prov: 'Plajah Labs', kind: '🌱', hue: 'language', badge: '3D module', meta: ['Anatomy'], nav: 'PLANT_BIOLOGY' },
-      { t: 'Architecture in Time', prov: 'Plajah Labs', kind: '🏗️', hue: 'history', badge: 'Tour', meta: ['3D'], nav: 'ARCHITECTURE' },
+      { t: 'The Human Body', prov: 'Museion', kind: '🫀', hue: 'science', badge: '3D module', meta: ['Systems'], nav: 'HUMAN_BODY' },
+      { t: 'The Solar System', prov: 'Museion', kind: '🪐', hue: 'science', badge: 'Sim', meta: ['Orbit'], nav: 'SOLAR_SYSTEM' },
+      { t: 'Plant Biology', prov: 'Museion', kind: '🌱', hue: 'language', badge: '3D module', meta: ['Anatomy'], nav: 'PLANT_BIOLOGY' },
+      { t: 'Architecture in Time', prov: 'Museion', kind: '🏗️', hue: 'history', badge: 'Tour', meta: ['3D'], nav: 'ARCHITECTURE' },
     ]
   },
 ];

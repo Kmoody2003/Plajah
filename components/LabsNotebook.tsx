@@ -345,7 +345,7 @@ const LabsNotebook: React.FC<Props> = ({ currentUser, onBack, context = 'labs', 
             </h1>
           </div>
           <p className="text-[8px] text-white/25 uppercase tracking-widest mt-0.5">
-            {entries.length} entries · {context === 'sports' ? 'Plajah Sports' : context === 'general' ? 'Research' : 'Plajah Labs'}
+            {entries.length} entries · {context === 'sports' ? 'Plajah Sports' : context === 'general' ? 'Research' : 'Museion'}
           </p>
         </div>
         {copied && <span className="text-[9px] text-green-400 font-black">✓ Copied to clipboard</span>}

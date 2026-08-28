@@ -365,7 +365,7 @@ All platforms prepped in codebase:
 6. **Compete with established platforms** → Never compete directly; always position as complementary and additive
 7. **Feature overwhelm for new users** → Experience Picker on first login routes to the right section; onboarding tour active for first 7 days
 8. **Payment not live** → Stripe integration completing June 2026; payouts functional same day
-9. **Science community adoption** → Plajah Labs is a beachhead no competitor has — STEM is an uncontested segment
+9. **Science community adoption** → Museion is a beachhead no competitor has — STEM is an uncontested segment
 
 ---
 
@@ -379,7 +379,7 @@ All platforms prepped in codebase:
 | Daily active users | 50 | 300 | 1,500 |
 | Paid Sanctuary memberships | 0 | 20 | 100 |
 | TikTok → Plajah referrals/week | 50 | 300 | 1,000 |
-| Plajah Labs science posts | 0 | 50 | 300 |
+| Museion science posts | 0 | 50 | 300 |
 | Stripe Connect creators onboarded | 0 | 40 | 150 |
 
 ---
@@ -450,9 +450,9 @@ All platforms prepped in codebase:
 4. **No mobile app shipped** — Android/iOS are Capacitor shells but haven't shipped to stores. TV/Smart device deployment also pending.
 
 **Structural:**
-5. **Feature breadth creates messaging confusion** — A musician doesn't care about Plajah Labs. A researcher doesn't need a FAST channel. The experience picker helps but isn't enough. Need segment-specific onboarding flows.
+5. **Feature breadth creates messaging confusion** — A musician doesn't care about Museion. A researcher doesn't need a FAST channel. The experience picker helps but isn't enough. Need segment-specific onboarding flows.
 6. **Cold start on both sides** — Creators need fans, fans need creators. Breaking this requires seeding one side aggressively with a loss-leader offer (Founding Creator free tier is the right move).
-7. **Science community is small** — Plajah Labs is genuinely unique and unchallenged, but academic researchers are not high-spending consumers. The value is differentiation + press coverage + word-of-mouth, not direct revenue.
+7. **Science community is small** — Museion is genuinely unique and unchallenged, but academic researchers are not high-spending consumers. The value is differentiation + press coverage + word-of-mouth, not direct revenue.
 8. **Storage at scale** — Tier 3 storage cost is roughly break-even. A viral creator with heavy video output could cost more than they generate in subscription revenue. Mitigation: overage pricing after tier limit.
 
 **Competitive:**
@@ -476,7 +476,7 @@ All platforms prepped in codebase:
 **Week 3–4: Science community**
 - Post to r/science, r/AskScience, r/MachineLearning: "We built a social platform where science posts auto-attach live data from NOAA, NASA, NCBI, USGS..." — this is genuinely novel and will get attention
 - Reach out to science communicators on YouTube (Kurzgesagt, SciShow, etc.) — FAST channel angle
-- Post on ResearchGate, Academia.edu about Plajah Labs as a researcher-to-public bridge
+- Post on ResearchGate, Academia.edu about Museion as a researcher-to-public bridge
 
 **Week 5–8: Soft launch hooks**
 - "Plajah vs Spotify payout calculator" — interactive tool showing revenue comparison, shareable, drives organic traffic
@@ -1768,7 +1768,7 @@ Plus a **CDN image pipeline** (resized WebP thumbnails) and the **Labs disciplin
 - **AI now depends on Cloud Run + the server keys.** The security win (keys off client) means captions/translation/insights require the API service to be healthy and `GOOGLE_AI_API_KEY` / `ANTHROPIC_API_KEY` present in the Cloud Run env. Mitigation: all calls degrade gracefully (fallbacks / empty rather than crashes), but the failure mode moved from "client key missing" to "server misconfigured."
 - **Third-party open APIs are a dependency.** The museum/data spine is only as available as The Met, Smithsonian, Europeana, Wikipedia, arXiv, etc. Each fetch is non-throwing and cached, and the browser degrades to fewer sources — but a broad outage thins the experience. Two sources (Smithsonian, Europeana) require free keys to activate.
 - **In-app 3D embedding depends on each museum's framing policy.** Some hosts block iframing (X-Frame-Options); those fall back to a clear "open source" action rather than embedding inline.
-- **New segments ≠ new revenue yet.** Lifelong learners, museum enthusiasts and humanities students deepen the *Education* front's differentiation and PR, but (like Plajah Labs in §11) their direct monetization is soft; the value is retention, credibility, distribution and press — routed through the existing Plajah+ / Sanctuary / education monetization, not a new paywall.
+- **New segments ≠ new revenue yet.** Lifelong learners, museum enthusiasts and humanities students deepen the *Education* front's differentiation and PR, but (like Museion in §11) their direct monetization is soft; the value is retention, credibility, distribution and press — routed through the existing Plajah+ / Sanctuary / education monetization, not a new paywall.
 
 ### Economic note
 

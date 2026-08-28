@@ -2035,7 +2035,7 @@ function GenderSelectScreen({ onSelect, onBack }: { onSelect: (g: Gender) => voi
         <div className="flex flex-col items-center text-center max-w-2xl">
           <div className="inline-flex items-center gap-2 mb-5 px-3 h-7 rounded-full" style={{ background: 'rgba(0,218,243,0.12)', border: '1px solid rgba(0,218,243,0.25)' }}>
             <span style={{ width: 7, height: 7, borderRadius: 99, background: CYAN, boxShadow: `0 0 8px ${CYAN}` }} />
-            <span className="text-[10px] font-extrabold uppercase" style={{ letterSpacing: '0.24em', color: CYAN, fontFamily: 'Outfit, sans-serif' }}>Plajah Labs · Interactive 3D</span>
+            <span className="text-[10px] font-extrabold uppercase" style={{ letterSpacing: '0.24em', color: CYAN, fontFamily: 'Outfit, sans-serif' }}>Museion · Interactive 3D</span>
           </div>
 
           <h1 className="font-black italic uppercase leading-[0.9] tracking-tight" style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(2.6rem, 7vw, 5rem)' }}>

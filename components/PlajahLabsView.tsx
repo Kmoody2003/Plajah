@@ -222,7 +222,7 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#00B4D8]/10 border border-[#00B4D8]/25 mb-6"
           >
             <FlaskConical size={11} className="text-[#00B4D8]" />
-            <span className={`${TYPE.labelSm} text-[#00B4D8]`}>Plajah Labs</span>
+            <span className={`${TYPE.labelSm} text-[#00B4D8]`}>Museion</span>
             <span className={`px-1.5 py-0.5 bg-[#00B4D8]/20 rounded-full ${TYPE.labelSm} text-[#00B4D8]`}>Beta</span>
           </motion.div>
 
@@ -624,7 +624,7 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
             <div className="w-10 h-10 rounded-xl bg-[#B31B1B]/10 border border-[#B31B1B]/20 flex items-center justify-center shrink-0 text-base">📄</div>
             <div>
               <p className="text-xs font-black text-white">arXiv Integration — Live</p>
-              <p className="text-[9px] text-white/35 mt-0.5">Search and read the latest preprints across 15 disciplines. New papers every day, directly in Plajah Labs.</p>
+              <p className="text-[9px] text-white/35 mt-0.5">Search and read the latest preprints across 15 disciplines. New papers every day, directly in Museion.</p>
             </div>
             <button onClick={() => setOpenDiscipline('physics')} className="shrink-0 flex items-center gap-1 px-3 py-2 bg-[#B31B1B]/15 border border-[#B31B1B]/25 rounded-xl text-[8px] font-black text-white/60 hover:text-white transition-all uppercase">Browse <ChevronRight size={9} /></button>
           </div>

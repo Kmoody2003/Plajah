@@ -88,7 +88,7 @@ export const DEMO_LESSON: DemoLesson = {
   content: [
     { kind: 'MUSIC', title: 'Duke Ellington & the sound of the Cotton Club', source: 'Chora · The Vault (National Jukebox, LOC)', note: 'Listen to the era. Rights-cleared from the Library of Congress.', icon: '🎷' },
     { kind: 'FILM',  title: 'Harlem street life, c. 1930s (archival footage)', source: 'Taleo · Film History (Internet Archive)', note: 'Primary-source moving image of the neighborhood.', icon: '🎞️' },
-    { kind: 'ART',   title: 'Aaron Douglas — "Aspects of Negro Life"', source: 'Plajah Labs · Art Masters hall', note: 'Study the muralist of the movement.', icon: '🖼️' },
+    { kind: 'ART',   title: 'Aaron Douglas — "Aspects of Negro Life"', source: 'Museion · Art Masters hall', note: 'Study the muralist of the movement.', icon: '🖼️' },
     { kind: 'READING', title: 'Langston Hughes — "Dreams" (guided read + vocabulary)', source: 'Lorea · Reading Quest', note: 'Comprehension + a Spanish/French vocabulary side-quest.', icon: '📖' },
   ],
 };

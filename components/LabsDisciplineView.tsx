@@ -571,7 +571,7 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
             <button onClick={onBack}
               className="flex items-center gap-2 mb-8 text-white/30 hover:text-white transition-colors group">
               <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
-              <span className="text-xs font-black uppercase tracking-widest">Plajah Labs</span>
+              <span className="text-xs font-black uppercase tracking-widest">Museion</span>
             </button>
           )}
 
@@ -584,7 +584,7 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
                 </div>
                 <div>
                   <p className={`${TYPE.labelSm} tracking-[0.3em] mb-1`} style={{ color: meta.color }}>
-                    Plajah Labs · {meta.label}
+                    Museion · {meta.label}
                   </p>
                   <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tight text-white leading-none">
                     {meta.label}
@@ -765,7 +765,7 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
               disciplineId={disciplineId}
               color={meta.color}
               onShare={(payload: SharedVizPayload) => {
-                const text = `📊 ${payload.title} — ${payload.source}\n${payload.description ?? ''}\nSource: ${payload.sourceUrl ?? 'Plajah Labs'}\nShared from Plajah Labs`;
+                const text = `📊 ${payload.title} — ${payload.source}\n${payload.description ?? ''}\nSource: ${payload.sourceUrl ?? 'Museion'}\nShared from Museion`;
                 navigator.clipboard.writeText(text);
               }}
             />

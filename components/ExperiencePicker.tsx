@@ -73,7 +73,7 @@ const EXPERIENCES: ExperienceOption[] = [
   {
     mode: 'SCIENCE_ENGINEER',
     label: 'Science & Engineer',
-    tagline: 'Welcome to Plajah Labs',
+    tagline: 'Welcome to Museion',
     description: "A dedicated home for the scientific and engineering community. Research tools, academic resources, and STEM connections await.",
     icon: FlaskConical,
     gradient: 'from-[#00B4D8] via-[#0077B6] to-[#03045E]',

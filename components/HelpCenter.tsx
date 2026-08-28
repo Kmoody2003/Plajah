@@ -441,17 +441,17 @@ const helpSections: HelpSection[] = [
   },
   {
     id: 'labs',
-    title: 'Plajah Labs',
+    title: 'Museion',
     icon: FlaskConical,
     description: 'A scientific research and discovery community spanning 17 disciplines, with live data from 20+ APIs auto-attached to every science post.',
     features: [
       {
-        name: 'What is Plajah Labs?',
-        description: 'Plajah Labs is the scientific and academic community layer of the platform. It spans 17 disciplines — Physics, Chemistry, Biology, Computer Science, Engineering, Mathematics, Neuroscience, Earth Science, Astronomy, Data Science, Environment, Networks, Medicine, Archaeology, Linguistics, Architecture, and History. Researchers, educators, and science communicators post findings, hypotheses, replications, and open questions — and the platform automatically attaches live scientific data to every post.'
+        name: 'What is Museion?',
+        description: 'Museion is the scientific and academic community layer of the platform. It spans 17 disciplines — Physics, Chemistry, Biology, Computer Science, Engineering, Mathematics, Neuroscience, Earth Science, Astronomy, Data Science, Environment, Networks, Medicine, Archaeology, Linguistics, Architecture, and History. Researchers, educators, and science communicators post findings, hypotheses, replications, and open questions — and the platform automatically attaches live scientific data to every post.'
       },
       {
         name: 'Making a Science Post',
-        description: 'Navigate to Plajah Labs and click "New Science Post." In the composer, toggle "Science Mode" to unlock the science metadata panel. Select your discipline(s), choose a Claim Type (Hypothesis, Observation, Established Finding, Replication, Peer Review, Extension, Null Result, Dataset, or Preprint), and set your confidence level with the slider. The platform automatically detects DOIs, arXiv IDs, SMILES strings, GPS coordinates, and LaTeX equations in your text and badges them inline.'
+        description: 'Navigate to Museion and click "New Science Post." In the composer, toggle "Science Mode" to unlock the science metadata panel. Select your discipline(s), choose a Claim Type (Hypothesis, Observation, Established Finding, Replication, Peer Review, Extension, Null Result, Dataset, or Preprint), and set your confidence level with the slider. The platform automatically detects DOIs, arXiv IDs, SMILES strings, GPS coordinates, and LaTeX equations in your text and badges them inline.'
       },
       {
         name: 'Live Data Auto-Enrichment',
@@ -471,11 +471,11 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'Discipline Feed & Discovery',
-        description: 'Navigate to any discipline from the Plajah Labs homepage to see a filtered feed of posts in that area. Posts are ranked by a combination of recency, reproducibility score, engagement, and expertise of the author. The Live Data Widget at the top of each discipline page shows real-time data relevant to that field — seismic activity for geology, latest APOD for astronomy, current biodiversity occurrences for ecology.'
+        description: 'Navigate to any discipline from the Museion homepage to see a filtered feed of posts in that area. Posts are ranked by a combination of recency, reproducibility score, engagement, and expertise of the author. The Live Data Widget at the top of each discipline page shows real-time data relevant to that field — seismic activity for geology, latest APOD for astronomy, current biodiversity occurrences for ecology.'
       },
       {
         name: 'LaTeX & SMILES Rendering',
-        description: 'Plajah Labs renders mathematical notation and chemical structure strings natively. Wrap LaTeX in $...$ for inline math or $$...$$ for display equations — they render as formatted equations in the post. Type a SMILES string prefixed with "SMILES:" and the platform fetches the compound from PubChem and renders its molecular formula, weight, and IUPAC name alongside the text. Paste a DOI like 10.1234/example and it resolves to a full citation card via CrossRef.'
+        description: 'Museion renders mathematical notation and chemical structure strings natively. Wrap LaTeX in $...$ for inline math or $$...$$ for display equations — they render as formatted equations in the post. Type a SMILES string prefixed with "SMILES:" and the platform fetches the compound from PubChem and renders its molecular formula, weight, and IUPAC name alongside the text. Paste a DOI like 10.1234/example and it resolves to a full citation card via CrossRef.'
       }
     ]
   },

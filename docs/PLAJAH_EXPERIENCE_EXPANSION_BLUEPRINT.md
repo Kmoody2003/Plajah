@@ -218,7 +218,7 @@ MusicXML → Lorea scores pipeline. What's missing is the *humanities* half and 
 **World History** and **Architecture** shipped as Labs-model disciplines surfaced as Academia
 modules. See "Phase 1 delivered" below.
 
-### 5A. Structural model (per user direction: mirror Plajah Labs disciplines)
+### 5A. Structural model (per user direction: mirror Museion disciplines)
 
 Both sections are `LabsDisciplineId`s (`history`, `architecture`) with the full Labs chassis:
 hero + live-data strip + tabs (Papers · Visualize · Datasets · Textbooks · Discipline Feed ·

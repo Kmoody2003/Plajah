@@ -311,7 +311,7 @@ const LabsCitationManager: React.FC<Props> = ({ currentUser, onBack }) => {
             <BookOpen size={15} className="text-[#60a5fa]" />
             <h1 className="font-black text-white text-sm">Citation Manager</h1>
           </div>
-          <p className="text-[8px] text-white/25 uppercase tracking-widest mt-0.5">{citations.length} references · Plajah Labs</p>
+          <p className="text-[8px] text-white/25 uppercase tracking-widest mt-0.5">{citations.length} references · Museion</p>
         </div>
       </div>
 
