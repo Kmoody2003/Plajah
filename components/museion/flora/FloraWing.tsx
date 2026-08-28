@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, SoftShadows } from '@react-three/drei';
-import { EffectComposer, N8AO, Bloom, ToneMapping, SMAA, Vignette, DepthOfField } from '@react-three/postprocessing';
+import { EffectComposer, N8AO, Bloom, ToneMapping, SMAA, Vignette, DepthOfField, HueSaturation } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import * as THREE from 'three';
 import { ArrowLeft, Volume2, VolumeX, Sprout, BookOpen } from 'lucide-react';
@@ -164,12 +164,17 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
           camera={{ position: [0, 4.2, 15], fov: 52 }}
           gl={{ antialias: true, powerPreference: 'high-performance' }}
           onCreated={({ scene, gl }) => {
-            gl.toneMappingExposure = 1.06;
+            gl.toneMappingExposure = 1.16;   // open up; the hall was reading flat
             gl.shadowMap.type = THREE.PCFSoftShadowMap;
             // LINEAR fog with a hard far plane: distant trees haze out while the
             // HDRI background (drawn beyond it) stays crisp. Colour comes from the
             // chosen sky's horizon so the two meet without a seam.
-            scene.fog = new THREE.Fog(skyRef.current.fog ?? '#cfe0e8', 38, 210);
+            // Fog starts BEYOND the hall. It began at 38 while the ground
+            // runs to 92, so most of the floor was being mixed toward flat pale
+            // blue — the grey wash over everything. Depth separation is the
+            // depth-of-field pass's job now; fog only softens the far rim, and
+            // the colour leans to the sky's warmth rather than a cold haze.
+            scene.fog = new THREE.Fog(skyRef.current.fog ?? '#cfe0e8', 78, 260);
           }}
         >
           {/* Preetham atmospheric sky — no asset, and it sets the horizon colour
@@ -185,8 +190,8 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
           <Environment
             files={sky.file}
             background
-            backgroundBlurriness={backdrop.images.length > 0 ? Math.max(sky.blur ?? 0, 0.4) : (sky.blur ?? 0)}
-            backgroundIntensity={backdrop.images.length > 0 ? 0.55 : 1}
+            backgroundBlurriness={backdrop.images.length > 0 ? Math.max(sky.blur ?? 0, 0.22) : (sky.blur ?? 0)}
+            backgroundIntensity={backdrop.images.length > 0 ? 0.9 : 1}
             environmentIntensity={sky.intensity ?? 1}
             environmentRotation={[0, sky.rotationY ?? 0, 0]}
             backgroundRotation={[0, sky.rotationY ?? 0, 0]}
@@ -281,24 +286,32 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
               edges that otherwise shimmer. Tiered off on weak devices. */}
           {tier.post && (
             <EffectComposer enableNormalPass multisampling={0}>
-              <N8AO aoRadius={1.6} intensity={2.4} distanceFalloff={0.9} quality="performance" halfRes />
+              <N8AO aoRadius={1.5} intensity={1.5} distanceFalloff={0.85} quality="performance" halfRes />
               <Bloom intensity={0.42} luminanceThreshold={0.86} luminanceSmoothing={0.28} mipmapBlur />
-              {/* DEPTH BY OPTICS, NOT BY HAZE.
-                  Fog builds depth by mixing everything toward one pale colour,
-                  which is exactly what was draining the backdrop photographs. A
-                  lens does it without touching colour: near things resolve, far
-                  things go soft. Focused on the specimen ring, the trees stay
-                  crisp and the treeline falls away into bokeh — so the backdrop
-                  reads as distance rather than as a wall behind the set. */}
+              {/* DEPTH BY OPTICS, NOT BY HAZE — but only at DEPTH.
+                  focusDistance/focalLength are normalised against the camera's
+                  far plane, and the values here were putting the focal plane
+                  about a metre from the lens with a paper-thin depth of field,
+                  so the specimens blurred exactly as hard as the treeline. The
+                  world-space props say what was actually meant, in metres: hold
+                  focus across the whole hall, and let only the backdrop at 70 m
+                  fall away. Small bokeh, because this should be felt and not
+                  noticed. */}
               <DepthOfField
-                focusDistance={0.012}
-                focalLength={0.05}
-                bokehScale={4.5}
+                worldFocusDistance={17}
+                worldFocusRange={52}
+                bokehScale={2.2}
                 height={480}
               />
               <SMAA />
               <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-              <Vignette offset={0.32} darkness={0.5} />
+              {/* ACES is filmic and deliberately desaturating — lovely on
+                  highlight rolloff, but it pulls the green out of a forest.
+                  Putting the saturation back AFTER tone mapping is what a
+                  colourist does; pushing the input colours instead just clips
+                  them. */}
+              <HueSaturation saturation={0.24} />
+              <Vignette offset={0.36} darkness={0.34} />
             </EffectComposer>
           )}
           <OrbitControls

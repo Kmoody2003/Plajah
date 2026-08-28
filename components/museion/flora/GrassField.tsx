@@ -67,7 +67,7 @@ function bladeGeometry(segments = 5, height = 1, width = 0.022): THREE.BufferGeo
 
 export default function GrassField({
   count = 24000, innerRadius = 0, outerRadius = 26,
-  color = '#4a8433', dryColor = '#9a8a3e', wind = 1, season = 0,
+  color = '#4f9a34', dryColor = '#a8933f', wind = 1, season = 0,
   sunPosition = [30, 26, 16],
 }: GrassFieldProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null);

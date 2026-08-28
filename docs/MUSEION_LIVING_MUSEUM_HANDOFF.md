@@ -80,7 +80,19 @@ Per `plajah-pixels-gpu-ceiling`, the browser cannot reach the discrete GPU. Budg
    fifth of every pixel was being replaced with flat pale blue. A photo already carries the aerial
    perspective of the day it was shot. Use `fog={false}` and get depth separation from the
    `DepthOfField` pass, which blurs without touching colour.
-9. **PWA service worker serves stale bundles.** After deploying, hard-refresh (Ctrl+Shift+R) or the
+9. **`DepthOfField`'s `focusDistance` / `focalLength` are NORMALISED, not metres.** They are
+   fractions of the camera's far plane, so plausible-looking values (0.012 / 0.05) put the focal
+   plane about a metre from the lens with a paper-thin depth of field — every specimen blurs exactly
+   as hard as the backdrop, which reads as a broken renderer rather than a mis-set lens. Use
+   `worldFocusDistance` / `worldFocusRange`, which take metres and say what you mean.
+10. **Fog must start beyond the hall, not inside it.** Fog at `near: 38` against a 92-unit ground
+   disc mixes most of the visible floor toward flat pale blue — a grey wash over the lower frame that
+   looks like a lighting failure. Depth separation is the depth-of-field pass's job; fog should only
+   soften the far rim.
+11. **ACES desaturates.** It is the right tone-mapper for highlight rolloff, but it visibly pulls the
+   green out of a forest. Put saturation back with `HueSaturation` AFTER `ToneMapping` — pushing the
+   input colours instead just clips them.
+12. **PWA service worker serves stale bundles.** After deploying, hard-refresh (Ctrl+Shift+R) or the
    old UI persists. The Android APK is a **thin shell** (`capacitor.config.ts` →
    `server.url: 'https://plajah.com'`), so deploys reach it with **no APK rebuild** — force-stop and
    relaunch the app.
