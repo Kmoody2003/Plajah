@@ -964,19 +964,6 @@ export default function Fabula() {
     return () => { cancelAnimationFrame(raf); stopPlayback(); setPlayhead(Math.max(0, Math.round(clockRef.current * fps) / fps)); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing]);
-  // Live mixer moves (fader/pan/mute/solo/EQ/comp/sends) reach the engine's buses mid-play.
-  const engineTrackKey = JSON.stringify(container?.timeline?.trackSettings || {});
-  useEffect(() => { setEngineTracks(container?.timeline?.trackSettings || {}); }, [engineTrackKey]); // eslint-disable-line
-  // Decode the timeline's audio in the background so the first play is instant, and
-  // re-render when the engine marks a source unplayable (element fallback mounts).
-  const [, setEngineVer] = useState(0);
-  useEffect(() => subscribePlayback(() => setEngineVer((v) => v + 1)), []);
-  const clipAudioSig = useMemo(() => clips.map((c) => `${c.id}:${c.assetId || ""}`).join("|"), [clips]);
-  useEffect(() => {
-    if (!prod?.mediaPool?.length || !clips.length) return undefined;
-    const t = setTimeout(() => warmAudio(clips, prod.mediaPool), 400);
-    return () => clearTimeout(t);
-  }, [clipAudioSig, prod?.id]); // eslint-disable-line
 
   /* ----- production CRUD ----- */
   const migrate = (p) => {
@@ -2773,6 +2760,21 @@ export default function Fabula() {
 
   const activeEdit = editSel ? prod?.edits?.find((e) => e.id === editSel) : null;
   const container = activeEdit || scene; // whichever timeline is open
+  // ── playback-engine wiring (MUST sit below the `container` declaration — reading
+  //    container?.timeline at render time above it was a TDZ crash on mount). ──
+  // Live mixer moves (fader/pan/mute/solo/EQ/comp/sends) reach the engine's buses mid-play.
+  const engineTrackKey = JSON.stringify(container?.timeline?.trackSettings || {});
+  useEffect(() => { setEngineTracks(container?.timeline?.trackSettings || {}); }, [engineTrackKey]); // eslint-disable-line
+  // Decode the timeline's audio in the background so the first play is instant, and
+  // re-render when the engine marks a source unplayable (element fallback mounts).
+  const [, setEngineVer] = useState(0);
+  useEffect(() => subscribePlayback(() => setEngineVer((v) => v + 1)), []);
+  const clipAudioSig = useMemo(() => clips.map((c) => `${c.id}:${c.assetId || ""}`).join("|"), [clips]);
+  useEffect(() => {
+    if (!prod?.mediaPool?.length || !clips.length) return undefined;
+    const t = setTimeout(() => warmAudio(clips, prod.mediaPool), 400);
+    return () => clearTimeout(t);
+  }, [clipAudioSig, prod?.id]); // eslint-disable-line
 
   const newEdit = (title) => {
     const ed = { id: uid(), title: title || `EDIT ${(prod?.edits?.length || 0) + 1}`, timeline: { clips: [], trackSettings: {} }, updatedAt: Date.now() };
