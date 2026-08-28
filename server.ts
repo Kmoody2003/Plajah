@@ -7879,35 +7879,46 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     PRO:         { daily: 100, searches: 20 },
   };
 
-  const ARIA_SYSTEM_PROMPT = `You are Aria, Plajah's private creative agent. You help users on the Plajah platform:
+  const ARIA_SYSTEM_PROMPT = `You are Aria, the single AI presence across all of Plajah — a multi-format creator platform (writing, music, video, film, learning, business, live, and more). You are ONE consistent personality everywhere; you simply put on whatever hat the current task needs. You are the user's collaborator, not a chatbot bolted onto the side.
 
-1. BUILD MODULE EXPERIENCES — When a user describes a module (educational, historical, musical, cinematic), generate a JSON config they can use on the platform. Output it in a <BUILD_MODULE> block.
+CORE BEHAVIOUR — BE CONTEXT-AWARE:
+A message may include a "[LIVE CONTEXT]" block describing exactly what the user is doing right now: which surface they're on, the document or project they're working on, their current selection, and the ACTIONS you're allowed to take there. Treat this as your working memory. Ground every answer in it. Never echo the context back verbatim — use it.
 
-2. DESIGN ALBUM GALLERY VIEWS — When a user describes an aesthetic or experience for an album, generate a gallery view config. Output it in a <BUILD_GALLERY> block.
+YOU CAN DO REAL WORK IN EACH DOMAIN:
+- WRITING: act as a co-author. Continue prose in the author's voice, tighten or rewrite a passage, outline chapters, fix continuity, brainstorm. If actions like appendParagraph / rewriteBlock / setTitle are offered, USE them to actually change the document rather than only describing changes.
+- MUSIC: help with the actual music process — suggest chords/progressions/basslines/drum patterns, explain and adjust instrument or effect parameters, propose arrangement or mix moves. Use any offered actions to change the project when asked.
+- LEARNING / FILM / BUSINESS / etc.: assist with that domain's real work using the live context and offered actions.
+- GENERAL: answer any question directly and well. Not every message is about the current surface — if the user just asks a question, answer it.
 
-3. CURATE CONTENT — Recommend tracks, artists, and experiences based on user interests. Output curated list in a <BUILD_PLAYLIST> block.
+TAKING ACTIONS (the ARIA_ACTION protocol):
+When the LIVE CONTEXT lists actions and the user's intent calls for one, DO it. Emit one action per block:
+<ARIA_ACTION>{"id":"<action id from the context>","label":"<short label>","params":{ ... }}</ARIA_ACTION>
+Rules:
+- Only use action ids that appear in the LIVE CONTEXT's action list. Never invent ids.
+- Always write a short human sentence BEFORE the action block saying what you did ("Here's a stronger opening — I've added it:").
+- You may emit multiple action blocks in one reply. The blocks are executed and hidden from the user, so put the real prose/values inside params, not just a description.
+- If no suitable action is offered, help in words instead.
 
-4. RESEARCH — Search the web (when enabled) to find factual information, biographies, public domain content, and creative inspiration.
+PLATFORM BUILDS (existing protocol, still supported):
+- BUILD MODULE / GALLERY / PLAYLIST / CURATION experiences via <BUILD_MODULE>{...}</BUILD_MODULE> etc. Always include type, title, description, layout, theme (colorPalette, gradient), sections[], tags[]. Precede every build block with a human-readable explanation.
 
-5. ANALYZE DOCUMENTS — Process any files the user uploads and incorporate their content.
+RESEARCH: When web search is available, use it for current facts, biographies, and public-domain material.
 
-PRIVACY: Never reveal other users' data. This is a private 1:1 session.
+PRIVACY: Never reveal other users' data. This is a private 1:1 session. Only the current user's own context is ever shared with you.
 
-LIMITS: Be transparent about tier limits when relevant.
-
-OUTPUT FORMAT for builds:
-- When generating a build, always include a human-readable explanation BEFORE the build block.
-- Build blocks are JSON inside XML-like tags:  <BUILD_MODULE>{...}</BUILD_MODULE>
-- Always include: type, title, description, layout, theme (colorPalette, gradient), sections[], tags[]
-
-TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's idea is vague, ask one clarifying question.`;
+TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a request is genuinely ambiguous, ask ONE sharp clarifying question — otherwise just do the work.`;
 
   app.post('/api/agent/chat', authMiddleware, express.json({ limit: '10mb' }), async (req: any, res) => {
     try {
       const uid: string = req.uid;
-      const { sessionId, message, attachments = [], tier = 'FREE', context = {} } = req.body;
+      const { sessionId, message, attachments = [], tier = 'FREE', context = {}, localReply } = req.body;
 
       if (!sessionId || !message) return res.status(400).json({ error: 'sessionId and message required' });
+
+      // A reply generated on-device (local Qwen lane): the client already did the
+      // reasoning, so we skip the cloud LLM call and just persist + parse actions.
+      // On-device turns are free, so they don't count against the daily cap.
+      const isLocalTurn = typeof localReply === 'string' && localReply.trim().length > 0;
 
       // ── Tier enforcement ──
       const limits = AGENT_TIER_LIMITS[tier] ?? AGENT_TIER_LIMITS.FREE;
@@ -7926,7 +7937,7 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
         }
       } catch {}
 
-      if (dailyMessages >= limits.daily) {
+      if (!isLocalTurn && dailyMessages >= limits.daily) {
         return res.status(429).json({ error: 'Daily message limit reached. Upgrade your plan to continue.' });
       }
 
@@ -7990,8 +8001,40 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
 
       // Append current user message (include attachment text inline)
       let userContent = message;
-      const ctxNote = context.currentView ? `[Context: user is in ${context.currentView}]\n` : '';
-      if (ctxNote) userContent = ctxNote + userContent;
+
+      // ── Rich live-context injection ──────────────────────────────────────────
+      // `context.surface` is an AriaContextSnapshot published by whatever the user
+      // is doing (see services/aria/ariaContext.ts). It carries the working text,
+      // the current selection, structured state, and the actions Aria may take.
+      const surface = context && typeof context.surface === 'object' ? context.surface : null;
+      let contextBlock = '';
+      if (surface && surface.surface) {
+        const parts: string[] = [];
+        parts.push(`SURFACE: ${surface.surface}${surface.domain ? ` (domain: ${surface.domain})` : ''}`);
+        if (surface.title)   parts.push(`WHAT THE USER IS DOING: ${surface.title}`);
+        if (surface.summary) parts.push(`STATE: ${surface.summary}`);
+        if (surface.selection) parts.push(`USER'S CURRENT SELECTION:\n"""\n${String(surface.selection).slice(0, 2000)}\n"""`);
+        if (surface.documentText) parts.push(`WORKING TEXT (may be truncated):\n"""\n${String(surface.documentText).slice(0, 12000)}\n"""`);
+        if (surface.data) {
+          try {
+            const dj = JSON.stringify(surface.data);
+            if (dj && dj !== '{}') parts.push(`STRUCTURED STATE:\n${dj.slice(0, 4000)}`);
+          } catch {}
+        }
+        if (Array.isArray(surface.actions) && surface.actions.length) {
+          const lines = surface.actions.slice(0, 24).map((a: any) => {
+            const ps = a.params && typeof a.params === 'object'
+              ? ` [params: ${Object.entries(a.params).map(([k, v]) => `${k} = ${v}`).join('; ')}]`
+              : '';
+            return `- ${a.id}: ${a.label || ''} — ${a.description || ''}${ps}`;
+          }).join('\n');
+          parts.push(`ACTIONS YOU CAN PERFORM HERE (invoke with <ARIA_ACTION>{"id":"…","params":{…}}</ARIA_ACTION>):\n${lines}`);
+        }
+        contextBlock = `[LIVE CONTEXT — what the user is doing right now. Ground your reply in this; do not repeat it back verbatim.]\n${parts.join('\n')}\n\n`;
+      } else if (context && context.currentView) {
+        contextBlock = `[Context: user is in ${context.currentView}]\n`;
+      }
+      if (contextBlock) userContent = contextBlock + userContent;
       for (const att of attachments.slice(0, 5)) {
         if (att.dataUrl && att.type === 'text/plain') {
           const text = Buffer.from(att.dataUrl.split(',')[1] || att.dataUrl, 'base64').toString('utf8').slice(0, 6000);
@@ -8019,7 +8062,13 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
       let replyError = false;
 
       try {
-      if (MAI_KEY && !MAI_ENDPOINT.includes('TODO')) {
+      if (isLocalTurn) {
+        // ── On-device (local Qwen) lane ──────────────────────────────────────────
+        // The client already generated this reply with the same system prompt +
+        // action protocol; we only persist it and parse actions below. No cloud
+        // call, no web search.
+        replyText = String(localReply);
+      } else if (MAI_KEY && !MAI_ENDPOINT.includes('TODO')) {
         // ── Microsoft MAI (primary) ──────────────────────────────────────────────
         const maiRes = await fetch(`${MAI_ENDPOINT}/chat/completions?api-version=2025-05-15-preview`, {
           method: 'POST',
@@ -8152,8 +8201,28 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
         } catch {}
       }
 
-      // Strip raw build blocks from reply text for cleaner display
-      const cleanReply = replyText.replace(/<BUILD_\w+>[\s\S]*?<\/BUILD_\w+>/g, '').trim();
+      // ── Parse action calls (the <ARIA_ACTION> protocol) ──
+      // Aria performs real work on the active surface by emitting one or more
+      // action blocks. We extract them here and hand them back to the client,
+      // which runs the matching handler registered via the Aria context bus.
+      const actionCalls: Array<{ id: string; label?: string; params: any }> = [];
+      const actionRe = /<ARIA_ACTION>([\s\S]*?)<\/ARIA_ACTION>/g;
+      let am: RegExpExecArray | null;
+      while ((am = actionRe.exec(replyText)) !== null) {
+        try {
+          const obj = JSON.parse(am[1].trim());
+          if (obj && typeof obj.id === 'string') {
+            actionCalls.push({ id: obj.id, label: obj.label, params: obj.params || {} });
+            toolCalls.push({ name: 'surface_action', label: obj.label || obj.id, status: 'done' });
+          }
+        } catch { /* skip malformed action block */ }
+      }
+
+      // Strip raw build + action blocks from reply text for cleaner display
+      const cleanReply = replyText
+        .replace(/<BUILD_\w+>[\s\S]*?<\/BUILD_\w+>/g, '')
+        .replace(/<ARIA_ACTION>[\s\S]*?<\/ARIA_ACTION>/g, '')
+        .trim();
 
       // ── Persist message to Firestore ──
       const now = Date.now();
@@ -8182,7 +8251,8 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
       await persistMsg('muse', cleanReply, { buildOutput, toolCalls: toolCalls.length ? toolCalls : undefined, error: replyError });
 
       // ── Update daily usage counters ──
-      const newDaily = dailyMessages + 1;
+      // On-device turns are free — don't count them against the daily cap.
+      const newDaily = dailyMessages + (isLocalTurn ? 0 : 1);
       const newSearches = dailySearches + (usedSearch ? 1 : 0);
       await fetch(usageUrl, {
         method: 'PATCH',
@@ -8212,6 +8282,7 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
         reply: cleanReply,
         toolCalls: toolCalls.length ? toolCalls : undefined,
         buildOutput: buildOutput || undefined,
+        actionCalls: actionCalls.length ? actionCalls : undefined,
         usage: {
           dailyMessages: newDaily,
           dailySearches: newSearches,

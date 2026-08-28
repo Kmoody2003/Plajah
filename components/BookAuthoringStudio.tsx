@@ -25,6 +25,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { useContextMenu } from './ui/ContextMenu';
 import { StudioBook, StudioPage, StudioPanel, StudioPageType, Album } from '../types';
+import { useAriaSurface } from '../services/aria/useAriaSurface';
 import { setComicHandoff, peekComicHandoff } from '../services/comicHandoff';
 import { extractDocument, type ImportedParagraph } from '../services/documentImport';
 import type { ContinuityReport } from '../services/manuscriptContinuity';
@@ -866,6 +867,10 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
   // Rights & Identifiers — the opt-in professional layer (ARK, fingerprint, ISBN, splits).
   const [showRights, setShowRights] = useState(false);
 
+  // Bumped whenever Aria edits the active page's body, so the contentEditable
+  // (which only re-seeds from richText on remount) reflects her changes live.
+  const [aiRev, setAiRev] = useState(0);
+
   /** Plain-text manuscript, used for the content fingerprint. Same shape the publisher sends. */
   const manuscriptText = useCallback(() => {
     const strip = (html: string) => {
@@ -985,6 +990,87 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
     setActivePageId(p.id);
     setShowAddMenu(false);
   };
+
+  // ── Aria co-author wiring ────────────────────────────────────────────────────
+  // Publishes the manuscript + the current chapter so Aria can co-write, and
+  // exposes edit actions she can perform. See services/aria/ariaContext.ts.
+  const aiEscapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const aiParasToHtml = (text: string) =>
+    String(text).split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
+      .map(p => `<p>${aiEscapeHtml(p).replace(/\n/g, '<br/>')}</p>`).join('');
+  const aiStripHtml = (html: string) => {
+    const el = document.createElement('div'); el.innerHTML = html || '';
+    return (el.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+  };
+  const aiActiveChapterText = activePage?.type === 'TEXT' ? aiStripHtml(activePage.richText || '') : '';
+
+  useAriaSurface({
+    surface: 'book-studio',
+    domain: 'writing',
+    title: `Writing book: ${book.title || 'Untitled'}`,
+    summary: `${book.pages.length} page(s). Active: ${activePage?.chapterTitle || (activePage ? `page (${activePage.type.toLowerCase()})` : 'none')}. You are co-authoring a manuscript; edits target the active TEXT chapter unless told otherwise.`,
+    documentText: manuscriptText(),
+    selection: aiActiveChapterText || undefined,
+    data: {
+      bookTitle: book.title,
+      activeChapterId: activePageId,
+      chapters: sortedPages.map((p, i) => ({
+        id: p.id, title: p.chapterTitle || `Chapter ${i + 1}`, type: p.type, active: p.id === activePageId,
+      })),
+    },
+    actions: [
+      { id: 'appendToChapter', label: 'Continue the chapter',
+        description: 'Append finished prose to the END of the current TEXT chapter, in the author\'s voice. Separate paragraphs with a blank line.',
+        params: { text: 'the prose to add' } },
+      { id: 'rewriteChapter', label: 'Rewrite the chapter',
+        description: 'Replace the ENTIRE body of the current TEXT chapter with new prose.',
+        params: { text: 'the full new chapter body' } },
+      { id: 'setChapterTitle', label: 'Set chapter title',
+        description: 'Set the title of the current chapter/page.',
+        params: { text: 'the chapter title' } },
+      { id: 'setBookTitle', label: 'Set book title',
+        description: 'Set or replace the book title.',
+        params: { text: 'the new book title' } },
+      { id: 'addChapter', label: 'Add a new chapter',
+        description: 'Create a new TEXT chapter at the end of the book and make it active.',
+        params: { title: 'the chapter title (optional)', text: 'the chapter body (optional)' } },
+    ],
+    handlers: {
+      appendToChapter: ({ text }) => {
+        if (!activePage || activePage.type !== 'TEXT') return { ok: false, message: 'Open a text chapter first.' };
+        const html = aiParasToHtml(String(text ?? ''));
+        if (!html) return { ok: false, message: 'No text to add.' };
+        updatePage({ ...activePage, richText: (activePage.richText || '') + html });
+        setAiRev(v => v + 1);
+        return { ok: true, message: 'Continued the chapter.' };
+      },
+      rewriteChapter: ({ text }) => {
+        if (!activePage || activePage.type !== 'TEXT') return { ok: false, message: 'Open a text chapter first.' };
+        updatePage({ ...activePage, richText: aiParasToHtml(String(text ?? '')) });
+        setAiRev(v => v + 1);
+        return { ok: true, message: 'Rewrote the chapter.' };
+      },
+      setChapterTitle: ({ text }) => {
+        if (!activePage) return { ok: false, message: 'No active chapter.' };
+        updatePage({ ...activePage, chapterTitle: String(text ?? '') });
+        return { ok: true, message: 'Updated the chapter title.' };
+      },
+      setBookTitle: ({ text }) => { setBookField('title', String(text ?? '')); return { ok: true, message: 'Updated the book title.' }; },
+      addChapter: ({ title, text }) => {
+        const maxOrder = Math.max(0, ...book.pages.map(p => p.order));
+        const blank = makeBlankPage('TEXT', maxOrder + 1);
+        const page: StudioPage = {
+          ...blank,
+          ...(title ? { chapterTitle: String(title) } : {}),
+          ...(text ? { richText: aiParasToHtml(String(text)) } : {}),
+        };
+        setBook(b => ({ ...b, updatedAt: Date.now(), pages: [...b.pages, page] }));
+        setActivePageId(page.id);
+        setAiRev(v => v + 1);
+        return { ok: true, message: 'Added a new chapter.' };
+      },
+    },
+  }, [book, activePageId]);
 
   // Send a text page's words to the comic composer as a script (Lorea → Comic).
   const sendTextToComic = (page: StudioPage) => {
@@ -1181,7 +1267,7 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
         <div className="flex-1 overflow-hidden relative">
           <AnimatePresence mode="wait">
             {activePage ? (
-              <motion.div key={activePage.id} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.15}} className="h-full">
+              <motion.div key={`${activePage.id}:${aiRev}`} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.15}} className="h-full">
                 {activePage.type === 'TEXT' && <TextPageEditor page={activePage} onChange={updatePage}/>}
                 {(activePage.type === 'COMIC' || activePage.type === 'MANGA') && (
                   <Suspense fallback={<div className="h-full flex items-center justify-center text-white/20 text-sm">Loading canvas…</div>}>

@@ -39,6 +39,14 @@ import { auth } from './backendService';
 import { collection, doc, getDoc, getDocs, addDoc, updateDoc, query, orderBy, limit, serverTimestamp } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
 import { db } from './firebase';
+import type { AriaContextSnapshot } from './aria/ariaContext';
+
+/** An action Aria decided to perform on the active surface (executed client-side). */
+export interface AriaActionCall {
+  id: string;
+  label?: string;
+  params: Record<string, unknown>;
+}
 
 // ── Tier definitions ──────────────────────────────────────────────────────────
 
@@ -457,14 +465,20 @@ export interface SendMessageOptions {
     userInterests?: string[];
     currentBookId?: string;
     writingStyle?: string;  // style sample cached from style analyser
+    /** Live snapshot of what the user is doing, from the Aria context bus. */
+    surface?: AriaContextSnapshot;
   };
   servedLocally?: boolean;  // if local Phi-4 handled this, still log but don't bill
+  /** A reply already generated on-device (local Qwen lane). Server persists it
+   *  and parses actions instead of calling the cloud model. */
+  localReply?: string;
 }
 
 export interface SendMessageResult {
   reply: string;
   toolCalls?: AgentToolCall[];
   buildOutput?: AgentBuildOutput;
+  actionCalls?: AriaActionCall[];
   usage?: AgentUsage;
   error?: string;
   limitReached?: boolean;
@@ -488,6 +502,7 @@ export async function sendAgentMessage(opts: SendMessageOptions): Promise<SendMe
         activeTool: opts.activeTool,
         context: opts.context,
         servedLocally: opts.servedLocally,
+        localReply: opts.localReply,
       }),
     });
 

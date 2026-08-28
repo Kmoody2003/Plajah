@@ -11,6 +11,7 @@ import { useContextMenu, type MenuNode } from '../../ui/ContextMenu';
 import { autoFill, quantizePattern } from '../../../services/melos/beats/grooveTools';
 import { GENRE_PRESETS, applyGenrePreset, type GenrePreset } from '../../../services/melos/beats/genrePresets';
 import { BASSLINES, applyBassline, type BasslinePreset } from '../../../services/melos/beats/bassLines';
+import { useAriaSurface } from '../../../services/aria/useAriaSurface';
 import { ingestSample, backupToLocker } from '../../../services/melos/beats/sampleStore';
 import { renderGroove, publishGroove, downloadBlob } from '../../../services/melos/beats/render';
 import { exportGrooveFile, importGrooveFile } from '../../../services/melos/beats/grooveFile';
@@ -500,6 +501,78 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     mutate((d: GrooveDoc) => { applyBassline(d, pid, preset); });
     setShowBass(false);
   }, [mutate, pattern?.id]);
+
+  // ── Aria music-assistant wiring ──────────────────────────────────────────────
+  // Publishes the beat's live state and exposes production actions Aria can take.
+  // Actions reuse the existing engine-safe handlers above. See ariaContext.ts.
+  const aiFindGenre = (q: unknown) => {
+    const s = String(q ?? '').toLowerCase().trim();
+    if (!s) return undefined;
+    return GENRE_PRESETS.find(g => g.name.toLowerCase() === s || g.genre.toLowerCase() === s || g.id.toLowerCase() === s)
+      || GENRE_PRESETS.find(g => g.name.toLowerCase().includes(s) || g.genre.toLowerCase().includes(s));
+  };
+  const aiFindBass = (q: unknown) => {
+    const s = String(q ?? '').toLowerCase().trim();
+    if (!s) return undefined;
+    return BASSLINES.find(b => b.name.toLowerCase() === s || b.genre.toLowerCase() === s || b.id.toLowerCase() === s)
+      || BASSLINES.find(b => b.name.toLowerCase().includes(s) || b.genre.toLowerCase().includes(s));
+  };
+
+  useAriaSurface({
+    surface: 'melos-beats',
+    domain: 'music',
+    title: `Making a beat${doc.name ? `: ${doc.name}` : ''}`,
+    summary: `${doc.bpm} BPM, swing ${Math.round((doc.swing || 0) * 100)}%. Active pattern "${pattern?.name || '—'}" of ${doc.patterns.length}. Help with tempo, groove, genre feel, drum patterns, and basslines.`,
+    data: {
+      bpm: doc.bpm,
+      swing: doc.swing,
+      activePattern: pattern?.name,
+      patterns: doc.patterns.map(p => p.name),
+      availableGenres: GENRE_PRESETS.map(g => g.name),
+      availableBasslines: BASSLINES.map(b => `${b.name} (${b.genre})`),
+    },
+    actions: [
+      { id: 'setTempo', label: 'Set tempo',
+        description: 'Set the project tempo in BPM (20–300).', params: { bpm: 'the tempo in beats per minute' } },
+      { id: 'setSwing', label: 'Set swing',
+        description: 'Set the swing/shuffle amount, 0 (straight) to 100 (max).', params: { amount: 'swing percent 0–100' } },
+      { id: 'applyGenre', label: 'Apply a genre groove',
+        description: `Drop in a ready-made drum pattern + tempo/swing for a genre. Available: ${GENRE_PRESETS.map(g => g.name).join(', ')}.`,
+        params: { genre: 'the genre name from the available list' } },
+      { id: 'addBassline', label: 'Add a bassline',
+        description: `Spawn a bass instrument and write a genre bassline into the active pattern. Available: ${BASSLINES.map(b => b.name).join(', ')}.`,
+        params: { genre: 'a bassline name or genre from the available list' } },
+    ],
+    handlers: {
+      setTempo: ({ bpm }) => {
+        const n = Math.round(Number(bpm));
+        if (!Number.isFinite(n)) return { ok: false, message: 'Give a number for BPM.' };
+        const clamped = Math.max(20, Math.min(300, n));
+        mutate((d: GrooveDoc) => { d.bpm = clamped; });
+        return { ok: true, message: `Tempo set to ${clamped} BPM.` };
+      },
+      setSwing: ({ amount }) => {
+        const n = Number(amount);
+        if (!Number.isFinite(n)) return { ok: false, message: 'Give a number 0–100 for swing.' };
+        const s = Math.max(0, Math.min(1, n > 1 ? n / 100 : n));
+        mutate((d: GrooveDoc) => { d.swing = s; });
+        return { ok: true, message: `Swing set to ${Math.round(s * 100)}%.` };
+      },
+      applyGenre: ({ genre }) => {
+        const preset = aiFindGenre(genre);
+        if (!preset) return { ok: false, message: `No genre preset matching "${genre}".` };
+        applyGenre(preset);
+        return { ok: true, message: `Applied the ${preset.name} groove (${preset.bpm} BPM).` };
+      },
+      addBassline: ({ genre }) => {
+        if (!pattern?.id) return { ok: false, message: 'No active pattern to add a bassline to.' };
+        const preset = aiFindBass(genre);
+        if (!preset) return { ok: false, message: `No bassline matching "${genre}".` };
+        applyBass(preset);
+        return { ok: true, message: `Added the ${preset.name} bassline.` };
+      },
+    },
+  }, [doc.bpm, doc.swing, doc.name, activePatternId, doc.patterns.length]);
 
   // Right-click / long-press a pattern chip — the shared design-system menu.
   const patternMenu = useContextMenu<string>((id) => {

@@ -23,7 +23,7 @@ import {
   ChevronDown, ChevronRight, RefreshCw, Layers, Music2,
   Film, GraduationCap, Search, Image as ImageIcon, FileText,
   Zap, Star, Check, AlertTriangle, Trash2, MessageSquare,
-  Settings, ChevronLeft, ExternalLink, Maximize2, Minimize2,
+  Settings, ChevronLeft, ExternalLink, Maximize2, Minimize2, Cpu,
 } from 'lucide-react';
 import {
   AGENT_TIERS, AgentTier, AgentMessage, AgentSession, AgentBuildOutput,
@@ -33,6 +33,11 @@ import {
 import { auth } from '../services/backendService';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import AriaMark from './aria/AriaMark';
+import {
+  getActiveAriaContext, serializeAriaContextForWire, runAriaAction,
+} from '../services/aria/ariaContext';
+import { ariaLocalModel, AriaLocalModel } from '../services/aria/ariaLocalModel';
+import { buildLocalChatMessages } from '../services/aria/ariaLocalPrompt';
 
 interface Props {
   isOpen: boolean;
@@ -40,7 +45,7 @@ interface Props {
   /** The user's current Plajah tier — passed from App state */
   tier?: AgentTier;
   /** Current context: what page/album the user is on */
-  context?: { currentView?: string; currentAlbumId?: string; userInterests?: string[] };
+  context?: { currentView?: string; currentAlbumId?: string; userInterests?: string[]; currentBookId?: string };
   /** Navigate when a build is applied */
   onApplyBuild?: (build: AgentBuildOutput) => void;
   isMobile?: boolean;
@@ -67,6 +72,7 @@ const ToolCallBadge: React.FC<{ name: string; label: string; status: 'running' |
     curate_content: <Sparkles size={10} />,
     read_document: <FileText size={10} />,
     find_images: <Search size={10} />,
+    surface_action: <Zap size={10} />,
   };
   return (
     <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all ${
@@ -279,6 +285,20 @@ const PlajahAgent: React.FC<Props> = ({
   const [showUsage, setShowUsage] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(tier !== 'FREE' && tier !== 'CREATOR');
   const [limitBanner, setLimitBanner] = useState<string | null>(null);
+  // On-device (local Qwen) lane — opt-in, remembered per browser.
+  const [onDevice, setOnDevice] = useState<boolean>(() => {
+    try { return localStorage.getItem('aria_on_device') === '1'; } catch { return false; }
+  });
+  const [localStatus, setLocalStatus] = useState<string>('');
+  const localSupported = AriaLocalModel.isSupported();
+
+  // Warm the on-device model when the user turns the lane on.
+  useEffect(() => {
+    if (!onDevice) return;
+    let alive = true;
+    ariaLocalModel.warm(s => { if (alive) setLocalStatus(s); });
+    return () => { alive = false; };
+  }, [onDevice]);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -381,25 +401,62 @@ const PlajahAgent: React.FC<Props> = ({
     // Optimistic usage increment
     setUsage(u => ({ ...u, dailyMessages: u.dailyMessages + 1 }));
 
+    // Capture what the user is doing right now (document, music project, …) so
+    // Aria can co-author / assist rather than answer blind. See ariaContext.ts.
+    const liveSurface = serializeAriaContextForWire(getActiveAriaContext());
+
+    // On-device lane: generate the reply locally (free, private), then hand it to
+    // the server to persist + parse actions. Any failure falls through to cloud.
+    let localReply: string | undefined;
+    if (onDevice && ariaLocalModel.ready) {
+      try {
+        setThinkingLabel('Thinking on-device…');
+        const out = await ariaLocalModel.chat(
+          buildLocalChatMessages({
+            snapshot: getActiveAriaContext(),
+            history: messages.map(m => ({ role: m.role, content: m.content })),
+            userMessage: text,
+          }),
+          { maxNewTokens: 512 },
+        );
+        if (out && out.trim()) localReply = out.trim();
+      } catch (e) {
+        console.warn('[Aria] on-device generation failed — using cloud:', e);
+      } finally {
+        setThinkingLabel(undefined);
+      }
+    }
+
     const result = await sendAgentMessage({
       uid, sessionId, message: text,
       attachments: attachments.length > 0 ? attachments : undefined,
       tier,
       context: {
         ...context,
-        // tell the agent whether web search is enabled for this turn
         userInterests: context?.userInterests,
+        surface: liveSurface,
       },
+      localReply,
+      servedLocally: !!localReply,
     });
 
     setAttachments([]);
     setIsThinking(false);
 
+    // Execute any actions Aria decided to perform on the active surface. Handlers
+    // were registered by the surface via useAriaSurface(); failures are non-fatal.
+    if (result.actionCalls?.length) {
+      for (const call of result.actionCalls) {
+        try { await runAriaAction(call.id, call.params); }
+        catch (e) { console.warn('[Aria] action failed:', call.id, e); }
+      }
+    }
+
     if (result.limitReached) {
       setLimitBanner(result.error || 'Limit reached.');
     }
     if (result.usage) setUsage(result.usage);
-  }, [canSend, uid, sessionId, input, attachments, tier, context]);
+  }, [canSend, uid, sessionId, input, attachments, tier, context, onDevice, messages]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
@@ -502,6 +559,33 @@ const PlajahAgent: React.FC<Props> = ({
                   className={`flex items-center gap-1 px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-widest border transition-all ${webSearchEnabled ? 'bg-blue-600/20 border-blue-500/40 text-blue-300' : 'bg-white/5 border-white/10 text-white/30'}`}
                 >
                   <Globe size={9} />Web
+                </button>
+              )}
+
+              {/* On-device (local Qwen) toggle — free & private when supported */}
+              {localSupported && (
+                <button
+                  onClick={() => {
+                    setOnDevice(v => {
+                      const next = !v;
+                      try { localStorage.setItem('aria_on_device', next ? '1' : '0'); } catch {}
+                      return next;
+                    });
+                  }}
+                  title={
+                    onDevice
+                      ? (ariaLocalModel.ready ? `Aria is running on-device (${ariaLocalModel.backend})` : (localStatus || 'Loading on-device model…'))
+                      : 'Run Aria on-device (free & private)'
+                  }
+                  className={`flex items-center gap-1 px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-widest border transition-all ${
+                    onDevice
+                      ? (ariaLocalModel.ready
+                          ? 'bg-emerald-600/20 border-emerald-500/40 text-emerald-300'
+                          : 'bg-amber-600/20 border-amber-500/40 text-amber-300 animate-pulse')
+                      : 'bg-white/5 border-white/10 text-white/30'
+                  }`}
+                >
+                  <Cpu size={9} />{onDevice ? (ariaLocalModel.ready ? 'On-device' : 'Loading') : 'Local'}
                 </button>
               )}
 
