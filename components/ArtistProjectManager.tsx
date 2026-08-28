@@ -23,6 +23,8 @@ import {
 } from './film/FilmProductionSuite';
 import * as FilmProduction from '../services/filmProductionService';
 import { patchSceneWithAction, putLocationWithAction } from '../services/productionActionService';
+import { askProductionBrain, type ProductionBrainAnswer } from '../services/productionIntelligenceService';
+import { addHqAsset } from '../services/orgAssets';
 import { FilmStaffingTab } from './film/FilmStaffingTab';
 import { FilmBreakdownTab } from './film/FilmBreakdownTab';
 import { FilmScheduleTab as ProductionScheduleTab } from './film/FilmScheduleTab';
@@ -34,8 +36,12 @@ import {
   PRODUCTION_STATUSES as MELOS_STATUSES, stateMeta, commitmentMeta,
   type MelosProduction, type SongState, type Commitment, type ProductionStatus,
 } from '../services/melosService';
+import { isDemoMode, setDemoMode, subscribeDemoMode } from '../services/demoMode';
 
 // ─── Storage helpers ────────────────────────────────────────────────────────────
+
+/** Writer demo rows (seeded by ensureWriterDemo) carry these sentinel ids. */
+const WRITER_DEMO_IDS = new Set(['proj1', 'proj2', 'proj3']);
 
 function pmStore<T>(key: string): { get: () => T[]; set: (v: T[]) => void } {
   const K = `plajah_pm_${key}_v1`;
@@ -1615,7 +1621,8 @@ const MelosLaunchTab: React.FC<{ currentUser?: UserProfile | null }> = ({ curren
               );
             })}
 
-            {/* Always-present demo production */}
+            {/* Demo production — only when demo mode is on */}
+            {isDemoMode() && (
             <button
               onClick={() => setShowDemo(v => !v)}
               className={`text-left p-4 rounded-2xl border transition-colors ${showDemo ? 'border-pink-500/40 bg-pink-500/[0.06]' : 'border-dashed border-white/15 bg-white/[0.02] hover:bg-white/[0.05]'}`}
@@ -1635,10 +1642,11 @@ const MelosLaunchTab: React.FC<{ currentUser?: UserProfile | null }> = ({ curren
                 {showDemo ? 'Hide' : 'Explore'} <ArrowRight size={11} />
               </p>
             </button>
+            )}
           </div>
 
           <AnimatePresence>
-            {showDemo && <MusicDemoDetail onOpenMelos={() => navigate('MELOS')} />}
+            {isDemoMode() && showDemo && <MusicDemoDetail onOpenMelos={() => navigate('MELOS')} />}
           </AnimatePresence>
         </>
       )}
@@ -1866,9 +1874,14 @@ const FilmOverviewTab: React.FC = () => {
 
 // ─── Film Tab: Script & Breakdown ──────────────────────────────────────────
 
+const REVISION_HEX: Record<string, string> = { WHITE: '#e5e5e5', BLUE: '#60a5fa', PINK: '#f9a8d4', YELLOW: '#fde047', GREEN: '#4ade80', GOLDENROD: '#eab308', BUFF: '#f0d9a8', SALMON: '#fca5a5', CHERRY: '#e11d48', TAN: '#d2b48c', GRAY: '#9ca3af' };
+
 const FilmScriptTab: React.FC = () => {
   const { prod, scenes, me } = useProd();
   const [filter, setFilter] = useState<string>('ALL');
+  const [drafts, setDrafts] = useState<Awaited<ReturnType<typeof FilmProduction.fetchScriptDrafts>>>([]);
+  useEffect(() => { if (prod?.id && !prod.isShowcase) FilmProduction.fetchScriptDrafts(prod.id).then(setDrafts).catch(() => {}); }, [prod?.id, prod?.currentDraftId]);
+  const currentRev = drafts.find(d => d.id === prod?.currentDraftId) || drafts[0];
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ sceneNum: '', setting: 'INT' as FilmScene['setting'], location: '', timeOfDay: 'DAY' as FilmScene['timeOfDay'], synopsis: '', characters: '', pages: '1.0', shootDay: '1', notes: '' });
   const save = () => {
@@ -1891,6 +1904,18 @@ const FilmScriptTab: React.FC = () => {
   const statusColors: Record<string, string> = { NOT_SHOT: 'text-white/50 bg-white/5', SHOT: 'text-emerald-400 bg-emerald-500/10', PARTIAL: 'text-yellow-400 bg-yellow-500/10', OMIT: 'text-white/25 bg-white/5' };
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      {drafts.length > 0 && (
+        <div className="p-4 bg-white/[0.03] border border-white/[0.06] rounded-2xl">
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+            <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Shooting Script Revisions</p>
+            {currentRev && <span className="flex items-center gap-1.5 text-[10px] font-black text-white/70"><span className="w-3 h-3 rounded-full border border-white/20" style={{ background: REVISION_HEX[currentRev.revisionLabel] || '#888' }} /> {currentRev.revisionLabel} (current)</span>}
+          </div>
+          <div className="flex gap-1.5 flex-wrap">
+            {drafts.map(d => <span key={d.id} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold ${d.id === prod?.currentDraftId ? 'bg-white/10 text-white' : 'bg-white/5 text-white/40'}`}><span className="w-2.5 h-2.5 rounded-full" style={{ background: REVISION_HEX[d.revisionLabel] || '#888' }} /> {d.revisionLabel}</span>)}
+          </div>
+          <p className="text-[10px] text-white/25 mt-2">Revisions publish from Script Studio's <span className="text-white/40 font-bold">Greenlight</span> action — each advances the colour ladder. Changed scenes carry a <span className="text-amber-400 font-black">*</span> mark; sides print from the locked current revision.</p>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
           {['ALL', 'NOT_SHOT', 'SHOT', 'PARTIAL'].map(f => (
@@ -1935,7 +1960,11 @@ const FilmScriptTab: React.FC = () => {
                 <p className="text-[9px] font-black text-white/30 uppercase">{s.intExt}</p>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-black text-white uppercase tracking-wide mb-0.5">{s.set} — {s.dayNight}</p>
+                <p className="text-xs font-black text-white uppercase tracking-wide mb-0.5">
+                  {s.changedInRevision && <span title={`${s.isNewInRevision ? 'New' : 'Changed'} in ${s.changedInRevision} revision`} className="text-amber-400 mr-1">{s.isNewInRevision ? '★' : '*'}</span>}
+                  {s.set} — {s.dayNight}
+                  {s.changedInRevision && <span className="ml-2 inline-flex items-center gap-1 align-middle text-[8px] font-black px-1.5 py-0.5 rounded" style={{ background: `${REVISION_HEX[s.changedInRevision] || '#888'}22`, color: REVISION_HEX[s.changedInRevision] || '#aaa' }}>{s.changedInRevision}</span>}
+                </p>
                 <p className="text-[11px] text-white/50 leading-relaxed">{s.synopsis}</p>
                 {s.characters.length > 0 && <p className="text-[10px] text-violet-400/70 mt-1 font-bold">{s.characters.join(', ')}</p>}
               </div>
@@ -1956,81 +1985,236 @@ const FilmScriptTab: React.FC = () => {
 
 // ─── Film Tab: Budget ───────────────────────────────────────────────────────
 
+type BudgetSeg = 'lines' | 'po' | 'petty' | 'time' | 'report';
+const PO_STATUSES: FilmProduction.POStatus[] = ['DRAFT', 'ISSUED', 'PARTIAL', 'PAID', 'VOID'];
+const poStatusColor: Record<string, string> = { DRAFT: 'text-white/40 bg-white/5', ISSUED: 'text-blue-400 bg-blue-500/10', PARTIAL: 'text-yellow-400 bg-yellow-500/10', PAID: 'text-emerald-400 bg-emerald-500/10', VOID: 'text-red-400 bg-red-500/10' };
+
 const FilmBudgetTab: React.FC = () => {
-  const { prod, budgetLines: lines } = useProd();
+  const { prod, budgetLines: lines, purchaseOrders, pettyCash, timecards, members, dprs, isOwner, readOnly, can } = useProd();
+  const canManage = !readOnly && (isOwner || can('MANAGE_BUDGET'));
+  const [seg, setSeg] = useState<BudgetSeg>('lines');
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ department: FILM_CREW_DEPTS[0], lineItem: '', estimated: '', actual: '', notes: '' });
-  const save = () => {
-    const n: FilmBudgetLine = { id: uuid(), department: form.department, lineItem: form.lineItem, estimated: parseFloat(form.estimated) || 0, actual: parseFloat(form.actual) || 0, notes: form.notes, createdAt: Date.now() };
-    if (prod) FilmProduction.putBudgetLine(prod.id, n);
-    setAdding(false);
-    setForm({ department: FILM_CREW_DEPTS[0], lineItem: '', estimated: '', actual: '', notes: '' });
-  };
-  const depts = [...new Set(lines.map(l => l.department))].sort();
-  const totalEst = lines.reduce((s, l) => s + l.estimated, 0);
-  const totalAct = lines.reduce((s, l) => s + l.actual, 0);
-  const pct = totalEst > 0 ? Math.min(100, (totalAct / totalEst) * 100) : 0;
+  const [form, setForm] = useState({ department: FILM_CREW_DEPTS[0], lineItem: '', estimated: '', actual: '', fringePct: '', notes: '' });
+  const [poForm, setPoForm] = useState({ poNumber: '', vendor: '', department: FILM_CREW_DEPTS[0], amount: '', status: 'ISSUED' as FilmProduction.POStatus, date: '' });
+  const [pettyForm, setPettyForm] = useState({ date: '', department: FILM_CREW_DEPTS[0], spentByName: '', amount: '', category: '' });
+  const [scan, setScan] = useState<ProductionBrainAnswer | null>(null);
+  const [scanning, setScanning] = useState(false);
   const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-violet-500/50';
+
+  const report = FilmProduction.buildCostReport(lines, purchaseOrders, pettyCash, timecards);
+  const totalEst = report.totals.estimated + report.totals.fringe;
+  const totalAct = report.totals.actual;
+  const totalCommitted = report.totals.committed;
+  const pct = totalEst > 0 ? Math.min(100, (totalAct / totalEst) * 100) : 0;
+  const depts = [...new Set(lines.map(l => l.department))].sort();
+
+  const saveLine = () => {
+    if (!prod || !form.lineItem.trim()) return;
+    const n: FilmProduction.ProductionBudgetLine = { id: uuid(), department: form.department, lineItem: form.lineItem.trim(), estimated: parseFloat(form.estimated) || 0, actual: parseFloat(form.actual) || 0, fringePct: parseFloat(form.fringePct) || undefined, notes: form.notes, createdAt: Date.now() };
+    FilmProduction.putBudgetLine(prod.id, n);
+    setAdding(false); setForm({ department: FILM_CREW_DEPTS[0], lineItem: '', estimated: '', actual: '', fringePct: '', notes: '' });
+  };
+  const savePo = () => {
+    if (!prod || !poForm.vendor.trim()) return;
+    const po: FilmProduction.PurchaseOrder = { id: uuid(), poNumber: poForm.poNumber.trim() || `PO-${purchaseOrders.length + 1}`, vendor: poForm.vendor.trim(), department: poForm.department, amount: parseFloat(poForm.amount) || 0, status: poForm.status, date: poForm.date, createdAt: Date.now() };
+    FilmProduction.putPurchaseOrder(prod.id, po);
+    setAdding(false); setPoForm({ poNumber: '', vendor: '', department: FILM_CREW_DEPTS[0], amount: '', status: 'ISSUED', date: '' });
+  };
+  const savePetty = () => {
+    if (!prod || !pettyForm.category.trim()) return;
+    const entry: FilmProduction.PettyCashEntry = { id: uuid(), date: pettyForm.date, department: pettyForm.department, spentByName: pettyForm.spentByName.trim() || undefined, amount: parseFloat(pettyForm.amount) || 0, category: pettyForm.category.trim(), reconciled: false, createdAt: Date.now() };
+    FilmProduction.putPettyCash(prod.id, entry);
+    setAdding(false); setPettyForm({ date: '', department: FILM_CREW_DEPTS[0], spentByName: '', amount: '', category: '' });
+  };
+  const seedDay = async (dprId: string) => {
+    const dpr = dprs.find(d => d.id === dprId);
+    if (prod && dpr) await FilmProduction.seedTimecardsFromDpr(prod.id, dpr, members);
+  };
+  const runScan = async () => {
+    if (!prod) return;
+    setScanning(true);
+    try { setScan(await askProductionBrain(prod.id, '', 'BUDGET_BENCHMARK')); }
+    catch { /* surfaced by empty panel */ }
+    finally { setScanning(false); }
+  };
+
+  const SEGMENTS: { id: BudgetSeg; label: string }[] = [
+    { id: 'lines', label: 'Budget' }, { id: 'po', label: 'Purchase Orders' }, { id: 'petty', label: 'Petty Cash' }, { id: 'time', label: 'Timecards' }, { id: 'report', label: 'Cost Report' },
+  ];
+
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <div className="p-5 bg-white/[0.03] border border-white/[0.06] rounded-2xl">
-        <div className="flex items-center justify-between mb-3">
-          <div><p className="text-[10px] font-black uppercase tracking-widest text-white/30">Total Budget</p><p className="text-2xl font-black text-white">{fmtCurrency(totalEst)}</p></div>
-          <div className="text-right"><p className="text-[10px] font-black uppercase tracking-widest text-white/30">Actual Spent</p><p className={`text-xl font-black ${pct > 85 ? 'text-red-400' : pct > 65 ? 'text-yellow-400' : 'text-emerald-400'}`}>{fmtCurrency(totalAct)}</p></div>
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
+          <div><p className="text-[10px] font-black uppercase tracking-widest text-white/30">Total Budget (incl. fringe)</p><p className="text-2xl font-black text-white">{fmtCurrency(totalEst)}</p></div>
+          <div className="text-right"><p className="text-[10px] font-black uppercase tracking-widest text-white/30">Committed</p><p className="text-lg font-black text-blue-400">{fmtCurrency(totalCommitted)}</p></div>
+          <div className="text-right"><p className="text-[10px] font-black uppercase tracking-widest text-white/30">Actual</p><p className={`text-xl font-black ${pct > 85 ? 'text-red-400' : pct > 65 ? 'text-yellow-400' : 'text-emerald-400'}`}>{fmtCurrency(totalAct)}</p></div>
         </div>
         <div className="h-2.5 bg-white/10 rounded-full overflow-hidden"><div className={`h-full rounded-full transition-all ${pct > 85 ? 'bg-red-500' : pct > 65 ? 'bg-yellow-500' : 'bg-emerald-500'}`} style={{ width: `${pct}%` }} /></div>
-        <div className="flex justify-between mt-2"><p className="text-[10px] text-white/30">{pct.toFixed(1)}% spent</p><p className="text-[10px] text-emerald-400">{fmtCurrency(totalEst - totalAct)} remaining</p></div>
+        <div className="flex justify-between mt-2"><p className="text-[10px] text-white/30">{pct.toFixed(1)}% actualized</p><p className="text-[10px] text-emerald-400">{fmtCurrency(totalEst - totalAct)} remaining</p></div>
       </div>
-      <div className="flex justify-end">
-        <button onClick={() => setAdding(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-400 text-xs font-black uppercase tracking-widest hover:bg-violet-500/25 transition-all"><Plus size={12} /> Add Line Item</button>
+
+      <div className="flex gap-1.5 flex-wrap">
+        {SEGMENTS.map(s => <button key={s.id} onClick={() => { setSeg(s.id); setAdding(false); }} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${seg === s.id ? 'bg-violet-500/20 text-violet-300 border border-violet-500/40' : 'bg-white/5 text-white/40 border border-transparent hover:text-white/60'}`}>{s.label}</button>)}
       </div>
-      {adding && (
-        <div className="p-5 bg-white/[0.03] border border-violet-500/20 rounded-2xl space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <select className={inputCls} value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))}>
-              {FILM_CREW_DEPTS.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-            <input className={inputCls} placeholder="Line item description" value={form.lineItem} onChange={e => setForm(f => ({ ...f, lineItem: e.target.value }))} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <input className={inputCls} type="number" placeholder="Estimated ($)" value={form.estimated} onChange={e => setForm(f => ({ ...f, estimated: e.target.value }))} />
-            <input className={inputCls} type="number" placeholder="Actual ($)" value={form.actual} onChange={e => setForm(f => ({ ...f, actual: e.target.value }))} />
-          </div>
-          <div className="flex gap-3">
-            <button onClick={save} className="flex-1 py-2.5 rounded-xl bg-violet-500 text-white text-xs font-black uppercase tracking-widest hover:bg-violet-400 transition-all">Add</button>
-            <button onClick={() => setAdding(false)} className="px-5 py-2.5 rounded-xl bg-white/5 text-white/40 text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all">Cancel</button>
-          </div>
+
+      {canManage && seg !== 'time' && seg !== 'report' && (
+        <div className="flex justify-end">
+          <button onClick={() => setAdding(a => !a)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-400 text-xs font-black uppercase tracking-widest hover:bg-violet-500/25 transition-all"><Plus size={12} /> {adding ? 'Close' : seg === 'lines' ? 'Add Line' : seg === 'po' ? 'Add PO' : 'Add Petty Cash'}</button>
         </div>
       )}
-      <div className="space-y-6">
-        {depts.map(dept => {
-          const dLines = lines.filter(l => l.department === dept);
-          const dEst = dLines.reduce((s, l) => s + l.estimated, 0);
-          const dAct = dLines.reduce((s, l) => s + l.actual, 0);
-          return (
-            <div key={dept}>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">{dept}</p>
-                <div className="flex gap-4 text-[10px] font-black"><span className="text-white/30">Est {fmtCurrency(dEst)}</span><span className={dAct > dEst ? 'text-red-400' : 'text-emerald-400'}>Act {fmtCurrency(dAct)}</span></div>
-              </div>
-              <div className="space-y-1.5">
-                {dLines.map(l => (
+
+      {/* ── Budget lines ── */}
+      {seg === 'lines' && <>
+        {adding && canManage && (
+          <div className="p-5 bg-white/[0.03] border border-violet-500/20 rounded-2xl space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <select className={inputCls} value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))}>{FILM_CREW_DEPTS.map(d => <option key={d} value={d}>{d}</option>)}</select>
+              <input className={inputCls} placeholder="Line item" value={form.lineItem} onChange={e => setForm(f => ({ ...f, lineItem: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <input className={inputCls} type="number" placeholder="Estimated ($)" value={form.estimated} onChange={e => setForm(f => ({ ...f, estimated: e.target.value }))} />
+              <input className={inputCls} type="number" placeholder="Actual ($)" value={form.actual} onChange={e => setForm(f => ({ ...f, actual: e.target.value }))} />
+              <input className={inputCls} type="number" placeholder="Fringe %" value={form.fringePct} onChange={e => setForm(f => ({ ...f, fringePct: e.target.value }))} />
+            </div>
+            <button onClick={saveLine} className="w-full py-2.5 rounded-xl bg-violet-500 text-white text-xs font-black uppercase tracking-widest hover:bg-violet-400 transition-all">Add Line</button>
+          </div>
+        )}
+        <div className="space-y-6">
+          {depts.map(dept => {
+            const dLines = lines.filter(l => l.department === dept);
+            const dEst = dLines.reduce((s, l) => s + l.estimated, 0);
+            const dAct = dLines.reduce((s, l) => s + l.actual, 0);
+            return (
+              <div key={dept}>
+                <div className="flex items-center justify-between mb-2"><p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">{dept}</p><div className="flex gap-4 text-[10px] font-black"><span className="text-white/30">Est {fmtCurrency(dEst)}</span><span className={dAct > dEst ? 'text-red-400' : 'text-emerald-400'}>Act {fmtCurrency(dAct)}</span></div></div>
+                <div className="space-y-1.5">{dLines.map(l => (
                   <div key={l.id} className="flex items-center gap-4 px-4 py-2.5 bg-white/[0.02] border border-white/[0.04] rounded-xl hover:border-white/10 transition-all">
-                    <p className="flex-1 text-xs text-white/70">{l.lineItem}</p>
+                    <p className="flex-1 text-xs text-white/70">{l.lineItem}{l.fringePct ? <span className="text-white/25"> · +{l.fringePct}% fringe</span> : null}</p>
                     <p className="text-xs text-white/40 w-24 text-right">{fmtCurrency(l.estimated)}</p>
                     <p className={`text-xs w-24 text-right font-bold ${l.actual > l.estimated ? 'text-red-400' : l.actual === 0 ? 'text-white/20' : 'text-emerald-400'}`}>{l.actual > 0 ? fmtCurrency(l.actual) : '—'}</p>
-                  </div>
-                ))}
+                    {canManage && <button onClick={() => prod && FilmProduction.removeBudgetLine(prod.id, l.id)} className="text-white/20 hover:text-red-400"><Trash2 size={12} /></button>}
+                  </div>))}
+                </div>
               </div>
+            );
+          })}
+          {!lines.length && <EmptyState icon={<DollarSign size={22} />} title="No Budget Yet" body="Add line items with estimates, actuals, and fringes. POs, petty cash, and timecards roll up into the cost report." />}
+        </div>
+      </>}
+
+      {/* ── Purchase Orders ── */}
+      {seg === 'po' && <>
+        {adding && canManage && (
+          <div className="p-5 bg-white/[0.03] border border-violet-500/20 rounded-2xl space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <input className={inputCls} placeholder="PO # (auto if blank)" value={poForm.poNumber} onChange={e => setPoForm(f => ({ ...f, poNumber: e.target.value }))} />
+              <input className={inputCls} placeholder="Vendor" value={poForm.vendor} onChange={e => setPoForm(f => ({ ...f, vendor: e.target.value }))} />
             </div>
-          );
-        })}
-      </div>
-      <div className="p-4 bg-violet-500/5 border border-violet-500/20 rounded-2xl">
-        <button onClick={() => window.dispatchEvent(new CustomEvent('OPEN_ARIA', { detail: { prompt: `Act as Aria, my AI Film Budget Supervisor. My production budget is ${fmtCurrency(totalEst)} with ${fmtCurrency(totalAct)} spent (${pct.toFixed(0)}%). Review these departments: ${depts.join(', ')}. Tell me: Where am I overspending? What contingency should I set? How do other indie films this size typically allocate budget? Give me 3 cost-saving strategies without compromising production quality.` } }))}
-          className="flex items-center gap-2 text-violet-400 text-xs font-black uppercase tracking-widest hover:text-violet-300 transition-colors">
-          <Sparkles size={11} /> Ask Aria — Budget Supervisor Mode →
-        </button>
+            <div className="grid grid-cols-4 gap-3">
+              <select className={inputCls} value={poForm.department} onChange={e => setPoForm(f => ({ ...f, department: e.target.value }))}>{FILM_CREW_DEPTS.map(d => <option key={d} value={d}>{d}</option>)}</select>
+              <input className={inputCls} type="number" placeholder="Amount ($)" value={poForm.amount} onChange={e => setPoForm(f => ({ ...f, amount: e.target.value }))} />
+              <select className={inputCls} value={poForm.status} onChange={e => setPoForm(f => ({ ...f, status: e.target.value as FilmProduction.POStatus }))}>{PO_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}</select>
+              <input className={inputCls} type="date" value={poForm.date} onChange={e => setPoForm(f => ({ ...f, date: e.target.value }))} />
+            </div>
+            <button onClick={savePo} className="w-full py-2.5 rounded-xl bg-violet-500 text-white text-xs font-black uppercase tracking-widest hover:bg-violet-400 transition-all">Issue PO</button>
+          </div>
+        )}
+        {purchaseOrders.length ? <div className="space-y-1.5">{purchaseOrders.map(po => (
+          <div key={po.id} className="flex items-center gap-4 px-4 py-2.5 bg-white/[0.02] border border-white/[0.04] rounded-xl">
+            <span className="text-[10px] font-black text-white/40 w-20">{po.poNumber}</span>
+            <p className="flex-1 text-xs text-white/70 truncate">{po.vendor} <span className="text-white/25">· {po.department}</span></p>
+            {canManage ? <select value={po.status} onChange={e => prod && FilmProduction.patchPurchaseOrder(prod.id, po.id, { status: e.target.value as FilmProduction.POStatus })} className={`text-[9px] font-black uppercase rounded-full px-2 py-1 border-0 cursor-pointer ${poStatusColor[po.status]}`}>{PO_STATUSES.map(s => <option key={s} value={s} className="bg-neutral-900 text-white">{s}</option>)}</select> : <span className={`text-[9px] font-black uppercase rounded-full px-2 py-1 ${poStatusColor[po.status]}`}>{po.status}</span>}
+            <p className="text-xs font-bold text-white w-24 text-right">{fmtCurrency(po.amount)}</p>
+            {canManage && <button onClick={() => prod && FilmProduction.removePurchaseOrder(prod.id, po.id)} className="text-white/20 hover:text-red-400"><Trash2 size={12} /></button>}
+          </div>))}</div> : <EmptyState icon={<Receipt size={22} />} title="No Purchase Orders" body="Commit budget to vendors. Committed totals feed the cost report." />}
+      </>}
+
+      {/* ── Petty Cash ── */}
+      {seg === 'petty' && <>
+        {adding && canManage && (
+          <div className="p-5 bg-white/[0.03] border border-violet-500/20 rounded-2xl space-y-3">
+            <div className="grid grid-cols-3 gap-3">
+              <input className={inputCls} type="date" value={pettyForm.date} onChange={e => setPettyForm(f => ({ ...f, date: e.target.value }))} />
+              <select className={inputCls} value={pettyForm.department} onChange={e => setPettyForm(f => ({ ...f, department: e.target.value }))}>{FILM_CREW_DEPTS.map(d => <option key={d} value={d}>{d}</option>)}</select>
+              <input className={inputCls} type="number" placeholder="Amount ($)" value={pettyForm.amount} onChange={e => setPettyForm(f => ({ ...f, amount: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <input className={inputCls} placeholder="Category (e.g. expendables)" value={pettyForm.category} onChange={e => setPettyForm(f => ({ ...f, category: e.target.value }))} />
+              <input className={inputCls} placeholder="Spent by" value={pettyForm.spentByName} onChange={e => setPettyForm(f => ({ ...f, spentByName: e.target.value }))} />
+            </div>
+            <button onClick={savePetty} className="w-full py-2.5 rounded-xl bg-violet-500 text-white text-xs font-black uppercase tracking-widest hover:bg-violet-400 transition-all">Log Expense</button>
+          </div>
+        )}
+        {pettyCash.length ? <div className="space-y-1.5">{pettyCash.map(p => (
+          <div key={p.id} className="flex items-center gap-4 px-4 py-2.5 bg-white/[0.02] border border-white/[0.04] rounded-xl">
+            <span className="text-[10px] text-white/30 w-20">{p.date || '—'}</span>
+            <p className="flex-1 text-xs text-white/70 truncate">{p.category} <span className="text-white/25">· {p.department}{p.spentByName ? ` · ${p.spentByName}` : ''}</span></p>
+            {canManage && <button onClick={() => prod && FilmProduction.patchPettyCash(prod.id, p.id, { reconciled: !p.reconciled })} className={`text-[9px] font-black uppercase rounded-full px-2 py-1 ${p.reconciled ? 'text-emerald-400 bg-emerald-500/10' : 'text-yellow-400 bg-yellow-500/10'}`}>{p.reconciled ? 'Reconciled' : 'Open'}</button>}
+            <p className="text-xs font-bold text-white w-24 text-right">{fmtCurrency(p.amount)}</p>
+            {canManage && <button onClick={() => prod && FilmProduction.removePettyCash(prod.id, p.id)} className="text-white/20 hover:text-red-400"><Trash2 size={12} /></button>}
+          </div>))}</div> : <EmptyState icon={<DollarSign size={22} />} title="No Petty Cash" body="Log field spending with receipts. Totals roll into the department actuals." />}
+      </>}
+
+      {/* ── Timecards ── */}
+      {seg === 'time' && <>
+        {canManage && (
+          <div className="p-4 bg-white/[0.03] border border-white/[0.06] rounded-2xl flex flex-wrap items-center gap-3">
+            <p className="text-[11px] text-white/40 flex-1">Auto-seed a day's timecards from a finalized Daily Production Report's actual call/wrap times.</p>
+            <select className={`${inputCls} max-w-xs`} defaultValue="" onChange={e => { if (e.target.value) { seedDay(e.target.value); e.target.value = ''; } }}>
+              <option value="">Seed from DPR…</option>
+              {dprs.map(d => <option key={d.id} value={d.id}>Day {d.shootDay}{d.date ? ` · ${d.date}` : ''}</option>)}
+            </select>
+          </div>
+        )}
+        {timecards.length ? <div className="space-y-1.5">{[...timecards].sort((a, b) => a.shootDay - b.shootDay).map(t => (
+          <div key={t.id} className="flex items-center gap-4 px-4 py-2.5 bg-white/[0.02] border border-white/[0.04] rounded-xl">
+            <span className="text-[10px] font-black text-violet-400 w-12">Day {t.shootDay}</span>
+            <p className="flex-1 text-xs text-white/70 truncate">{t.memberName} <span className="text-white/25">· {t.department}</span></p>
+            <span className="text-[10px] text-white/40 w-28 text-right">{t.hoursStraight}h {t.hoursOT > 0 ? <span className="text-yellow-400">+{t.hoursOT} OT</span> : null}</span>
+            <p className="text-xs font-bold text-white w-24 text-right">{t.ratePreview != null ? fmtCurrency(t.ratePreview) : '—'}</p>
+            {canManage && <button onClick={() => prod && FilmProduction.removeTimecard(prod.id, t.id)} className="text-white/20 hover:text-red-400"><Trash2 size={12} /></button>}
+          </div>))}</div> : <EmptyState icon={<Clock size={22} />} title="No Timecards" body="Seed a day from its DPR, or add manually. Labor cost rolls into the cost report." />}
+      </>}
+
+      {/* ── Cost Report ── */}
+      {seg === 'report' && (
+        <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl overflow-hidden">
+          <div className="grid grid-cols-6 gap-2 px-4 py-2.5 bg-white/[0.03] text-[9px] font-black uppercase tracking-widest text-white/40">
+            <span className="col-span-2">Department</span><span className="text-right">Est</span><span className="text-right">Fringe</span><span className="text-right">Committed</span><span className="text-right">Actual</span>
+          </div>
+          {report.rows.map(r => (
+            <div key={r.department} className="grid grid-cols-6 gap-2 px-4 py-2.5 border-t border-white/[0.04] text-xs">
+              <span className="col-span-2 text-white/70 truncate">{r.department}</span>
+              <span className="text-right text-white/40">{fmtCurrency(r.estimated)}</span>
+              <span className="text-right text-white/30">{fmtCurrency(r.fringe)}</span>
+              <span className="text-right text-blue-400">{fmtCurrency(r.committed)}</span>
+              <span className={`text-right font-bold ${r.actual > r.estimated + r.fringe ? 'text-red-400' : 'text-emerald-400'}`}>{fmtCurrency(r.actual)}</span>
+            </div>
+          ))}
+          <div className="grid grid-cols-6 gap-2 px-4 py-3 border-t-2 border-white/10 text-xs font-black">
+            <span className="col-span-2 text-white uppercase tracking-widest">Total</span>
+            <span className="text-right text-white/60">{fmtCurrency(report.totals.estimated)}</span>
+            <span className="text-right text-white/40">{fmtCurrency(report.totals.fringe)}</span>
+            <span className="text-right text-blue-400">{fmtCurrency(report.totals.committed)}</span>
+            <span className="text-right text-emerald-400">{fmtCurrency(report.totals.actual)}</span>
+          </div>
+          {!report.rows.length && <p className="p-8 text-center text-[11px] text-white/30">Add budget lines, POs, petty cash, or timecards to build the cost report.</p>}
+        </div>
+      )}
+
+      {scan && (
+        <div className="p-5 bg-emerald-500/[0.06] border border-emerald-500/20 rounded-2xl space-y-3">
+          <div className="flex items-center gap-2"><Zap size={14} className="text-emerald-300" /><p className="text-xs font-black text-emerald-200 uppercase tracking-widest">Production Brain — Budget Benchmark</p></div>
+          {scan.answer && <p className="text-[12px] text-white/70 leading-relaxed">{scan.answer}</p>}
+          {scan.risks.map((r, i) => <div key={i} className="flex gap-2 border-t border-white/5 pt-2"><AlertCircle size={13} className={r.severity === 'high' ? 'text-red-400 mt-0.5 shrink-0' : 'text-amber-400 mt-0.5 shrink-0'} /><div><p className="text-[11px] font-black text-white">{r.title}</p><p className="text-[10px] text-white/40">{r.detail}</p></div></div>)}
+        </div>
+      )}
+
+      <div className="p-4 bg-violet-500/5 border border-violet-500/20 rounded-2xl flex flex-wrap gap-4">
+        <button onClick={runScan} disabled={scanning || !lines.length} className="flex items-center gap-2 text-emerald-400 text-xs font-black uppercase tracking-widest hover:text-emerald-300 transition-colors disabled:opacity-40"><Zap size={11} /> {scanning ? 'Benchmarking…' : 'Budget Benchmark Scan'}</button>
+        <button onClick={() => window.dispatchEvent(new CustomEvent('OPEN_ARIA', { detail: { prompt: `Act as Aria, my AI Film Budget Supervisor. My production budget is ${fmtCurrency(totalEst)} with ${fmtCurrency(totalAct)} actual and ${fmtCurrency(totalCommitted)} committed. Departments: ${depts.join(', ')}. Where am I overspending? What contingency should I set? Give me 3 cost-saving strategies without compromising quality.` } }))}
+          className="flex items-center gap-2 text-violet-400 text-xs font-black uppercase tracking-widest hover:text-violet-300 transition-colors"><Sparkles size={11} /> Ask Aria — Budget Supervisor →</button>
       </div>
     </motion.div>
   );
@@ -2206,6 +2390,197 @@ const FilmLocationsTab: React.FC = () => {
   );
 };
 
+// ─── Film Tab: Clearances / Releases / Chain-of-Title ────────────────────────
+
+const CLEARANCE_TYPE_META: { id: FilmProduction.ClearanceType; label: string; link: 'member' | 'location' | 'scene' | 'none' }[] = [
+  { id: 'TALENT_RELEASE', label: 'Talent Release', link: 'member' },
+  { id: 'MINOR', label: 'Minor / Work Permit', link: 'member' },
+  { id: 'LOCATION_RELEASE', label: 'Location Release', link: 'location' },
+  { id: 'PERMIT', label: 'Film Permit', link: 'location' },
+  { id: 'INSURANCE_COI', label: 'Insurance / COI', link: 'location' },
+  { id: 'MUSIC_SYNC', label: 'Music Sync License', link: 'scene' },
+  { id: 'CLIP', label: 'Clip / Footage License', link: 'scene' },
+  { id: 'CHAIN_OF_TITLE', label: 'Chain of Title', link: 'none' },
+  { id: 'OTHER', label: 'Other', link: 'none' },
+];
+const CLEARANCE_STATUSES: FilmProduction.ClearanceStatus[] = ['NEEDED', 'REQUESTED', 'RECEIVED', 'APPROVED', 'EXPIRED', 'NA'];
+const clearanceStatusColor: Record<string, string> = {
+  NEEDED: 'text-red-400 bg-red-500/10', REQUESTED: 'text-yellow-400 bg-yellow-500/10',
+  RECEIVED: 'text-blue-400 bg-blue-500/10', APPROVED: 'text-emerald-400 bg-emerald-500/10',
+  EXPIRED: 'text-red-400 bg-red-500/10', NA: 'text-white/30 bg-white/5',
+};
+
+const FilmClearancesTab: React.FC = () => {
+  const { prod, clearances, members, locations, scenes, isOwner, readOnly, can } = useProd();
+  const canManage = !readOnly && (isOwner || can('MANAGE_LOCATIONS') || can('MANAGE_REPORTS'));
+  const [adding, setAdding] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [form, setForm] = useState({ type: 'TALENT_RELEASE' as FilmProduction.ClearanceType, title: '', status: 'NEEDED' as FilmProduction.ClearanceStatus, memberId: '', locationId: '', sceneId: '', expires: '', notes: '' });
+  const [scan, setScan] = useState<ProductionBrainAnswer | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanErr, setScanErr] = useState('');
+  const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-violet-500/50';
+
+  const meta = CLEARANCE_TYPE_META.find(m => m.id === form.type)!;
+  const openCount = clearances.filter(c => !FilmProduction.isClearanceCleared(c)).length;
+  const linkedLabel = (c: FilmProduction.ProductionClearance) =>
+    c.memberId ? members.find(m => m.id === c.memberId)?.name :
+    c.locationId ? locations.find(l => l.id === c.locationId)?.name :
+    c.sceneId ? `Scene ${scenes.find(s => s.id === c.sceneId)?.sceneNum || '?'}` : '';
+
+  const save = async () => {
+    if (!prod || !form.title.trim()) return;
+    setBusy(true);
+    try {
+      let docUrl: string | undefined, docAssetId: string | undefined, docName: string | undefined;
+      if (pendingFile) {
+        const asset = await addHqAsset({ kind: 'user', id: prod.ownerUid }, pendingFile, 'Clearances');
+        docUrl = asset.url; docAssetId = asset.id; docName = pendingFile.name;
+      }
+      const clearance: FilmProduction.ProductionClearance = {
+        id: uuid(), type: form.type, title: form.title.trim(), status: form.status,
+        memberId: meta.link === 'member' && form.memberId ? form.memberId : undefined,
+        locationId: meta.link === 'location' && form.locationId ? form.locationId : undefined,
+        sceneId: meta.link === 'scene' && form.sceneId ? form.sceneId : undefined,
+        docUrl, docAssetId, docName,
+        expiresAt: form.expires ? Date.parse(form.expires) : undefined,
+        notes: form.notes.trim() || undefined,
+        createdAt: Date.now(),
+      };
+      await FilmProduction.putClearanceWithEvent(prod.id, clearance, FilmProduction.currentUid() || '', `${meta.label} logged: ${clearance.title}`);
+      setAdding(false); setPendingFile(null);
+      setForm({ type: 'TALENT_RELEASE', title: '', status: 'NEEDED', memberId: '', locationId: '', sceneId: '', expires: '', notes: '' });
+    } finally { setBusy(false); }
+  };
+  const setStatus = (c: FilmProduction.ProductionClearance, status: FilmProduction.ClearanceStatus) => { if (prod) FilmProduction.patchClearance(prod.id, c.id, { status }); };
+  const del = (c: FilmProduction.ProductionClearance) => { if (prod) FilmProduction.removeClearance(prod.id, c.id); };
+  const runScan = async () => {
+    if (!prod) return;
+    setScanning(true); setScanErr('');
+    try { setScan(await askProductionBrain(prod.id, '', 'CLEARANCE_SCAN')); }
+    catch (e) { setScanErr(e instanceof Error ? e.message : 'Scan failed.'); }
+    finally { setScanning(false); }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-[11px] text-white/40">{clearances.length} clearance{clearances.length !== 1 ? 's' : ''} · <span className={openCount ? 'text-amber-400 font-black' : 'text-emerald-400'}>{openCount} open</span>. Documents are stored privately in Content HQ.</p>
+        <div className="flex gap-2">
+          <button onClick={runScan} disabled={scanning || !clearances.length} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-black uppercase tracking-widest hover:bg-amber-500/25 transition-all disabled:opacity-40"><Sparkles size={12} /> {scanning ? 'Scanning…' : 'Legal Readiness Scan'}</button>
+          {canManage && <button onClick={() => setAdding(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-400 text-xs font-black uppercase tracking-widest hover:bg-violet-500/25 transition-all"><Plus size={12} /> Add Clearance</button>}
+        </div>
+      </div>
+
+      {scanErr && <p className="text-[11px] text-red-400">{scanErr}</p>}
+      {scan && (
+        <div className="p-5 bg-amber-500/[0.06] border border-amber-500/20 rounded-2xl space-y-3">
+          <div className="flex items-center gap-2"><Shield size={14} className="text-amber-300" /><p className="text-xs font-black text-amber-200 uppercase tracking-widest">Production Brain — Legal Readiness</p></div>
+          {scan.answer && <p className="text-[12px] text-white/70 leading-relaxed">{scan.answer}</p>}
+          {scan.risks.map((r, i) => (
+            <div key={i} className="flex gap-2 border-t border-white/5 pt-2">
+              <AlertCircle size={13} className={r.severity === 'high' ? 'text-red-400 mt-0.5 shrink-0' : r.severity === 'medium' ? 'text-amber-400 mt-0.5 shrink-0' : 'text-white/40 mt-0.5 shrink-0'} />
+              <div><p className="text-[11px] font-black text-white">{r.title}</p><p className="text-[10px] text-white/40">{r.detail}</p></div>
+            </div>
+          ))}
+          {!scan.risks.length && <p className="text-[11px] text-emerald-300">No clearance risks flagged.</p>}
+        </div>
+      )}
+
+      {adding && canManage && (
+        <div className="p-5 bg-white/[0.03] border border-violet-500/20 rounded-2xl space-y-3">
+          <div className="grid grid-cols-3 gap-3">
+            <select className={inputCls} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value as FilmProduction.ClearanceType }))}>
+              {CLEARANCE_TYPE_META.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+            <input className={inputCls} placeholder="Title (e.g. Warehouse location release)" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+            <select className={inputCls} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as FilmProduction.ClearanceStatus }))}>
+              {CLEARANCE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {meta.link === 'member' && (
+              <select className={inputCls} value={form.memberId} onChange={e => setForm(f => ({ ...f, memberId: e.target.value }))}>
+                <option value="">Link a cast / crew member…</option>
+                {members.map(m => <option key={m.id} value={m.id}>{m.name} — {m.character || m.role}</option>)}
+              </select>
+            )}
+            {meta.link === 'location' && (
+              <select className={inputCls} value={form.locationId} onChange={e => setForm(f => ({ ...f, locationId: e.target.value }))}>
+                <option value="">Link a location…</option>
+                {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            )}
+            {meta.link === 'scene' && (
+              <select className={inputCls} value={form.sceneId} onChange={e => setForm(f => ({ ...f, sceneId: e.target.value }))}>
+                <option value="">Link a scene…</option>
+                {scenes.map(s => <option key={s.id} value={s.id}>Scene {s.sceneNum} — {s.set}</option>)}
+              </select>
+            )}
+            <input className={inputCls} type="date" title="Expires" value={form.expires} onChange={e => setForm(f => ({ ...f, expires: e.target.value }))} />
+          </div>
+          <input className={inputCls} placeholder="Notes" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white/50 text-[11px] font-bold cursor-pointer hover:bg-white/10 transition-all">
+              <FileText size={12} /> {pendingFile ? pendingFile.name.slice(0, 28) : 'Attach document (private)'}
+              <input type="file" accept=".pdf,.doc,.docx,.txt,image/*" className="sr-only" onChange={e => setPendingFile(e.target.files?.[0] || null)} />
+            </label>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={save} disabled={busy || !form.title.trim()} className="flex-1 py-2.5 rounded-xl bg-violet-500 text-white text-xs font-black uppercase tracking-widest hover:bg-violet-400 transition-all disabled:opacity-40">{busy ? 'Saving…' : 'Save Clearance'}</button>
+            <button onClick={() => { setAdding(false); setPendingFile(null); }} className="px-5 py-2.5 rounded-xl bg-white/5 text-white/40 text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {clearances.length === 0 ? (
+        <EmptyState icon={<Shield size={22} />} title="No Clearances Yet" body="Track releases, permits, insurance, music/clip licenses, and chain-of-title. Scheduling a scene whose clearances aren't in hand flags a conflict on the stripboard." cta={canManage ? 'Add Clearance' : undefined} onCta={canManage ? () => setAdding(true) : undefined} />
+      ) : (
+        <div className="space-y-3">
+          {clearances.map(c => {
+            const expired = c.expiresAt != null && c.expiresAt < Date.now();
+            const cleared = FilmProduction.isClearanceCleared(c) && !expired;
+            return (
+              <div key={c.id} className={`p-4 bg-white/[0.03] border rounded-xl transition-all ${cleared ? 'border-white/[0.06]' : 'border-amber-500/25'}`}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="text-[9px] font-black text-white/30 bg-white/5 px-2 py-0.5 rounded">{CLEARANCE_TYPE_META.find(t => t.id === c.type)?.label || c.type}</span>
+                      <p className="text-sm font-black text-white truncate">{c.title}</p>
+                    </div>
+                    {linkedLabel(c) && <p className="text-[11px] text-white/40">{linkedLabel(c)}</p>}
+                    {c.docName && <p className="text-[10px] text-white/30 mt-1 flex items-center gap-1"><FileText size={10} /> {c.docName} · private</p>}
+                    {c.expiresAt != null && <p className={`text-[10px] mt-1 ${expired ? 'text-red-400 font-black' : 'text-white/30'}`}>{expired ? 'Expired' : 'Expires'} {new Date(c.expiresAt).toLocaleDateString()}</p>}
+                    {c.notes && <p className="text-[10px] text-white/25 mt-1">{c.notes}</p>}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {canManage ? (
+                      <select value={c.status} onChange={e => setStatus(c, e.target.value as FilmProduction.ClearanceStatus)} className={`text-[9px] font-black uppercase rounded-full px-2 py-1 border-0 focus:outline-none cursor-pointer ${clearanceStatusColor[expired ? 'EXPIRED' : c.status] ?? 'text-white/40 bg-white/5'}`}>
+                        {CLEARANCE_STATUSES.map(s => <option key={s} value={s} className="bg-neutral-900 text-white">{s}</option>)}
+                      </select>
+                    ) : (
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${clearanceStatusColor[expired ? 'EXPIRED' : c.status] ?? 'text-white/40 bg-white/5'}`}>{expired ? 'EXPIRED' : c.status}</span>
+                    )}
+                    {canManage && <button onClick={() => del(c)} className="text-white/20 hover:text-red-400 transition-colors"><Trash2 size={13} /></button>}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="p-4 bg-violet-500/5 border border-violet-500/20 rounded-2xl">
+        <button onClick={() => window.dispatchEvent(new CustomEvent('OPEN_ARIA', { detail: { prompt: 'Act as Aria, my production legal coordinator. Based on my production, give me a complete clearances checklist for an indie film: talent releases, minor work permits, location agreements, film permits, insurance/COI, music sync and clip licenses, and chain-of-title. Explain which are non-negotiable before distribution and common mistakes indie productions make.' } }))}
+          className="flex items-center gap-2 text-violet-400 text-xs font-black uppercase tracking-widest hover:text-violet-300 transition-colors">
+          <Sparkles size={11} /> Ask Aria — Clearances Checklist →
+        </button>
+      </div>
+    </motion.div>
+  );
+};
+
 // ─── Film Tab: Schedule ─────────────────────────────────────────────────────
 
 const FilmScheduleTab: React.FC = () => {
@@ -2367,6 +2742,7 @@ const writerResearchStore   = pmStore<WriterResearchNote>('writer_research');
 const WRITER_PROJECT_TYPES = ['BOOK', 'ARTICLE', 'COLUMN', 'ESSAY', 'NEWSLETTER', 'SCRIPT', 'PODCAST'];
 
 function ensureWriterDemo() {
+  if (!isDemoMode()) return;           // demo off → never seed sample writer data
   if (writerProjectStore.get().length > 0) return;
   writerProjectStore.set([
     { id: 'proj1', title: 'The Weight of Small Things', type: 'BOOK', status: 'DRAFTING', wordCountTarget: 80000, wordCountCurrent: 34200, deadline: new Date('2026-09-01').getTime(), genre: 'Literary Fiction', logline: 'A Detroit family confronts three generations of silence after a mysterious death reopens old wounds.', notes: 'Agent expressed interest after seeing first 50 pages', createdAt: Date.now() },
@@ -2397,10 +2773,11 @@ function ensureWriterDemo() {
 
 const WriterOverviewTab: React.FC = () => {
   useEffect(() => { ensureWriterDemo(); }, []);
-  const projects = writerProjectStore.get();
+  const demoOn = isDemoMode();
+  const projects = demoOn ? writerProjectStore.get() : writerProjectStore.get().filter(p => !WRITER_DEMO_IDS.has(p.id));
   const chapters = writerChapterStore.get();
-  const subs     = writerSubmissionStore.get();
-  const events   = writerEventStore.get();
+  const subs     = (demoOn ? writerSubmissionStore.get() : writerSubmissionStore.get().filter(s => !WRITER_DEMO_IDS.has((s as any).projectId)));
+  const events   = (demoOn ? writerEventStore.get() : writerEventStore.get().filter(e => !WRITER_DEMO_IDS.has((e as any).projectId)));
   const totalWords = projects.reduce((s, p) => s + p.wordCountCurrent, 0);
   const activeProjects = projects.filter(p => ['ACTIVE', 'DRAFTING', 'EDITING'].includes(p.status));
   const pendingSubs   = subs.filter(s => s.status === 'SENT' || s.status === 'UNDER_REVIEW');
@@ -2467,8 +2844,12 @@ const WriterProjectsTab: React.FC<{ currentUser?: UserProfile | null }> = ({ cur
   // Real Lorea projects auto-populate at the top; local demo/manual projects follow.
   const loreaIds = new Set(lorea.map(l => l.id));
   const loreaAsWriter: WriterProject[] = lorea.map(l => ({ id: l.id, title: l.title, type: l.type, status: l.status, wordCountTarget: l.wordCountTarget, wordCountCurrent: l.wordCountCurrent, genre: l.genre, logline: l.logline, notes: '', createdAt: l.createdAt }));
-  const demoIds = new Set(['proj1', 'proj2', 'proj3']);
-  const displayProjects = lorea.length ? [...loreaAsWriter, ...projects.filter(p => !demoIds.has(p.id))] : projects;
+  const demoIds = WRITER_DEMO_IDS;
+  // Show demo rows only when demo mode is on AND there are no real Lorea projects.
+  const showDemoRows = isDemoMode() && lorea.length === 0;
+  const displayProjects = showDemoRows
+    ? projects
+    : [...loreaAsWriter, ...projects.filter(p => !demoIds.has(p.id))];
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <div className="flex items-center justify-between">
@@ -2625,7 +3006,10 @@ const WriterManuscriptsTab: React.FC<{ currentUser?: UserProfile | null }> = ({ 
 
 const WriterSubmissionsTab: React.FC = () => {
   useEffect(() => { ensureWriterDemo(); }, []);
-  const [subs, setSubs] = useState<WriterSubmission[]>(() => writerSubmissionStore.get());
+  const [subs, setSubs] = useState<WriterSubmission[]>(() => {
+    const all = writerSubmissionStore.get();
+    return isDemoMode() ? all : all.filter(s => !WRITER_DEMO_IDS.has((s as any).projectId));
+  });
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ publication: '', editorContact: '', editorEmail: '', type: 'QUERY' as WriterSubmission['type'], status: 'PLANNING' as WriterSubmission['status'], submittedAt: '', responseDeadline: '', notes: '' });
   const save = () => {
@@ -2704,7 +3088,10 @@ const WriterSubmissionsTab: React.FC = () => {
 
 const WriterEventsTab: React.FC = () => {
   useEffect(() => { ensureWriterDemo(); }, []);
-  const [events, setEvents] = useState<WriterEvent[]>(() => writerEventStore.get());
+  const [events, setEvents] = useState<WriterEvent[]>(() => {
+    const all = writerEventStore.get();
+    return isDemoMode() ? all : all.filter(e => !WRITER_DEMO_IDS.has((e as any).projectId));
+  });
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ title: '', type: 'SIGNING' as WriterEvent['type'], venue: '', city: '', date: '', rsvpCount: '', fee: '', status: 'PLANNING' as WriterEvent['status'], notes: '' });
   const save = () => {
@@ -2862,7 +3249,7 @@ const WriterPressTab: React.FC = () => (
 type PMTab =
   | 'overview' | 'releases' | 'productions' | 'import' | 'payroll' | 'contracts' | 'invoices' | 'tasks' | 'vendors' | 'venues' | 'events' | 'boards' | 'promote'
   | 'film_overview' | 'film_script' | 'film_breakdown' | 'film_budget' | 'film_crew' | 'film_locations' | 'film_schedule' | 'film_distro'
-  | 'film_hub' | 'film_chat' | 'film_callsheets' | 'film_staffing' | 'film_roster' | 'film_brief' | 'film_craft' | 'film_reports'
+  | 'film_hub' | 'film_chat' | 'film_callsheets' | 'film_staffing' | 'film_roster' | 'film_brief' | 'film_craft' | 'film_reports' | 'film_clearances'
   | 'writer_overview' | 'writer_projects' | 'writer_manuscripts' | 'writer_research' | 'writer_submissions' | 'writer_events' | 'writer_press';
 
 type Discipline = 'music' | 'film' | 'writer';
@@ -2909,6 +3296,7 @@ const FILM_TABS: { id: PMTab; label: string; icon: React.ReactNode; color: strin
   { id: 'film_crew',       label: 'Crew',         icon: <Users size={13} />,        color: '#a855f7' },
   { id: 'film_schedule',   label: 'Schedule',     icon: <Calendar size={13} />,     color: '#3b82f6' },
   { id: 'film_locations',  label: 'Locations',    icon: <MapPin size={13} />,       color: '#ef4444' },
+  { id: 'film_clearances', label: 'Clearances',   icon: <Shield size={13} />,       color: '#eab308' },
   { id: 'film_distro',     label: 'Distribution', icon: <Award size={13} />,        color: '#f59e0b' },
   { id: 'contracts',       label: 'Contracts',    icon: <FileText size={13} />,     color: '#a855f7' },
   { id: 'invoices',        label: 'Invoices',     icon: <Receipt size={13} />,      color: '#10b981' },
@@ -2932,9 +3320,20 @@ export const ArtistProjectManager: React.FC<Props> = ({ currentUser }) => {
   const [discipline, setDiscipline] = useState<Discipline>(() =>
     (localStorage.getItem('plajah_pm_discipline_v1') as Discipline) || 'music'
   );
-  const [activeTab, setActiveTab] = useState<PMTab>(() =>
-    new URLSearchParams(window.location.search).get('productionInvite') ? 'film_staffing' : 'overview'
-  );
+  const [activeTab, setActiveTab] = useState<PMTab>(() => {
+    // One-shot deep-link intent from Creator Hub: the discipline is set via
+    // `plajah_pm_discipline_v1`, the target tab is handed over here. Consume it
+    // so it doesn't persist to the next open.
+    try {
+      const intent = sessionStorage.getItem('plajah_pm_intent_tab_v1');
+      if (intent) { sessionStorage.removeItem('plajah_pm_intent_tab_v1'); return intent as PMTab; }
+    } catch { /* storage disabled */ }
+    if (new URLSearchParams(window.location.search).get('productionInvite')) return 'film_staffing';
+    // Otherwise honour the restored discipline so a persisted Film/Writer choice
+    // doesn't open on the Music overview tab.
+    const d = (localStorage.getItem('plajah_pm_discipline_v1') as Discipline) || 'music';
+    return d === 'film' ? 'film_overview' : d === 'writer' ? 'writer_overview' : 'overview';
+  });
 
   const switchDiscipline = (d: Discipline) => {
     setDiscipline(d);
@@ -2945,6 +3344,11 @@ export const ArtistProjectManager: React.FC<Props> = ({ currentUser }) => {
 
   const activeTabs = discipline === 'music' ? PM_TABS : discipline === 'film' ? FILM_TABS : WRITER_TABS;
   const disciplineConfig = DISCIPLINES.find(d => d.id === discipline)!;
+
+  // Global demo-data toggle (shared with Creator Hub). Re-rendering on change
+  // refreshes every demo surface below, which reads isDemoMode() at render.
+  const [demoOn, setDemoOn] = useState(() => isDemoMode());
+  useEffect(() => subscribeDemoMode(setDemoOn), []);
 
   const renderTab = () => {
     switch (activeTab) {
@@ -2975,6 +3379,7 @@ export const ArtistProjectManager: React.FC<Props> = ({ currentUser }) => {
       case 'film_budget':         return <FilmBudgetTab />;
       case 'film_crew':           return <FilmCrewTab />;
       case 'film_locations':      return <FilmLocationsTab />;
+      case 'film_clearances':     return <FilmClearancesTab />;
       case 'film_schedule':       return <ProductionScheduleTab />;
       case 'film_distro':         return <FilmDistroTab />;
       case 'writer_overview':     return <WriterOverviewTab />;
@@ -3005,6 +3410,19 @@ export const ArtistProjectManager: React.FC<Props> = ({ currentUser }) => {
               </button>
             ))}
             <div className="ml-auto flex items-center gap-3">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={demoOn}
+                onClick={() => setDemoMode(!demoOn)}
+                title={demoOn ? 'Demo data is on — sample productions are shown' : 'Demo data is off — only your real work is shown'}
+                className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white/50 transition-colors hover:border-white/25 hover:text-white/80"
+              >
+                <span>Demo</span>
+                <span className="relative h-4 w-7 rounded-full transition-colors" style={{ background: demoOn ? disciplineConfig.color : 'rgba(255,255,255,0.16)' }}>
+                  <span className="absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all" style={{ left: demoOn ? '0.875rem' : '0.125rem' }} />
+                </span>
+              </button>
               <div className="w-8 h-8 rounded-xl flex items-center justify-center border" style={{ background: `${disciplineConfig.color}20`, borderColor: `${disciplineConfig.color}40` }}>
                 <Briefcase size={14} style={{ color: disciplineConfig.color }} />
               </div>

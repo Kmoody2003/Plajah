@@ -30,6 +30,7 @@ import {
 
 import { auth } from '../../services/firebase';
 import { uploadFile } from '../../services/backendService';
+import { isDemoMode, subscribeDemoMode } from '../../services/demoMode';
 import { useViewport } from '../../hooks/useViewport';
 import { toMelosSampleRefs } from './beats/melosSamples';
 
@@ -191,6 +192,9 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
+  // Global demo-data toggle (shared with Creator Hub / Artist Manager).
+  const [demoOn, setDemoOn] = useState(() => isDemoMode());
+  useEffect(() => subscribeDemoMode(setDemoOn), []);
 
   const [songs, setSongs] = useState<MelosSong[]>([]);
   const [arrangements, setArrangements] = useState<MelosArrangement[]>([]);
@@ -209,15 +213,16 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
   // Productions list — falls back to the demo when the artist has none yet.
   useEffect(() => {
     if (!uid) {
-      setProductions([demoSeed.production]);
-      setProdId(cur => cur || DEMO_ID);
+      setProductions(demoOn ? [demoSeed.production] : []);
+      setProdId(cur => cur || (demoOn ? DEMO_ID : ''));
       setLoading(false);
       return;
     }
     const un = subProductions(uid, rows => {
       if (rows.length === 0) {
-        setProductions([demoSeed.production]);
-        setProdId(cur => cur || DEMO_ID);
+        // No real productions — fall back to the demo only when demo mode is on.
+        setProductions(demoOn ? [demoSeed.production] : []);
+        setProdId(cur => cur || (demoOn ? DEMO_ID : ''));
       } else {
         setProductions(rows);
         setProdId(cur => cur || rows[0]?.id || '');
@@ -225,7 +230,7 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
       setLoading(false);
     });
     return un;
-  }, [uid, demoSeed, DEMO_ID]);
+  }, [uid, demoSeed, DEMO_ID, demoOn]);
 
   // Subcollections for the open production
   useEffect(() => {
@@ -378,6 +383,7 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
             >
               {seeding ? 'Opening…' : 'Start a production'}
             </button>
+            {demoOn && (
             <button
               onClick={startDemo}
               disabled={seeding}
@@ -387,6 +393,7 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
               <Sparkles size={12} className="inline mr-2 -mt-[2px]" />
               Look around a finished one
             </button>
+            )}
           </div>
           {onBack && (
             <button onClick={onBack} className="mt-6 text-[11px] tracking-wider uppercase" style={{ color: 'var(--mel-faint)', background: 'none', border: 0 }}>

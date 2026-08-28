@@ -17,15 +17,21 @@ import { motion, useReducedMotion } from 'motion/react';
 import {
   Music2, Sparkles, LayoutPanelTop, Film, Clapperboard, MonitorPlay, Cctv,
   TrendingUp, Mail, AppWindow, Repeat, MapPin, BookOpen,
-  Plus, Radio, ArrowRight, ArrowUpRight, Wand2, Video, PenLine,
+  Plus, Radio, ArrowRight, ArrowUpRight, Wand2, PenLine,
   FolderOpen, Globe, ScrollText, LogIn, Upload, Layers, Clock,
   Megaphone, LayoutDashboard, Disc3, Grid3x3,
+  DollarSign, CheckCircle2, CheckSquare, FileText, Calendar, CalendarDays,
+  Users, Send, BookMarked, ClipboardList, Eye, Search, Newspaper, Receipt,
+  Flag, Coffee,
 } from 'lucide-react';
 import type { UserProfile, Album, IPWorld } from '../types';
 import MarketingKit from './MarketingKit';
 import { fetchUserAlbums, fetchUserWorlds } from '../services/backendService';
 import { listWritingProjects } from '../services/loreaProjectsService';
 import { listMyManifests, listTelaDocs } from '../services/telaStore';
+import { fetchMyProductions as fetchMusicProductions, PRODUCTION_STATUSES } from '../services/melosService';
+import { fetchMyProductions as fetchFilmProductions } from '../services/filmProductionService';
+import { isDemoMode, setDemoMode, subscribeDemoMode } from '../services/demoMode';
 // fabulaProjects is JS (no types) — listProjectsCloud() reads the signed-in user's films.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — untyped JS module
@@ -40,7 +46,7 @@ export interface CreatorHubProps {
   onNewPost?: () => void;                // open the post composer → posts to the user feed
 }
 
-type Lucide = React.ComponentType<{ size?: number; className?: string }>;
+type Lucide = React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties; color?: string }>;
 
 /* ── "Your Projects" — the real work the user has across the creative stack.
    Every source below is a genuine per-user loader discovered in the codebase;
@@ -54,6 +60,7 @@ interface ProjectItem {
   cover?: string;
   updatedAt?: number;
   subtitle?: string;
+  count?: number;   // honest per-item metric: tracks | scenes | chapters
 }
 
 interface KindMeta { label: string; icon: Lucide; hue: string; grad: string; }
@@ -116,6 +123,7 @@ async function loadAllProjects(uid: string): Promise<ProjectItem[]> {
           cover: a.coverThumb || a.coverImage || undefined,
           updatedAt: (a as any).createdAt || (a as any).timestamp || 0,
           subtitle: Array.isArray(a.tracks) && a.tracks.length ? `${a.tracks.length} tracks` : (a.artist || 'Release'),
+          count: Array.isArray(a.tracks) ? a.tracks.length : undefined,
         }))),
     // Books + Screenplays — the user's real Lorea writing work.
     listWritingProjects(uid).then(({ projects }) =>
@@ -128,6 +136,7 @@ async function loadAllProjects(uid: string): Promise<ProjectItem[]> {
         subtitle: p.kind === 'SCRIPT'
           ? `${p.chapterCount || 0} scenes`
           : `${p.chapterCount || 0} chapters`,
+        count: p.chapterCount || 0,
       }))),
     // Films — the user's Fabula productions (cloud index).
     Promise.resolve(listProjectsCloud()).then((rows: any[]) =>
@@ -137,6 +146,7 @@ async function loadAllProjects(uid: string): Promise<ProjectItem[]> {
         title: r.title || 'Untitled film',
         updatedAt: r.updated || 0,
         subtitle: r.sceneCount ? `${r.sceneCount} scenes` : 'Production',
+        count: typeof r.sceneCount === 'number' ? r.sceneCount : undefined,
       }))),
     // Tela docs — cloud manifests + any local-only bundles, deduped by id.
     Promise.all([
@@ -215,8 +225,268 @@ const MORE_TOOLS: { id: string; label: string; icon: Lucide }[] = [
   { id: 'CROSSOVER',      label: 'Crossover',         icon: Repeat },
 ];
 
-/* Quick-create chips — honest actions only, no fabricated data. */
-interface QuickChip { label: string; icon: Lucide; run: () => void; }
+/* ── Artist Manager surface — the professional workflow layer. Creator Hub
+   surfaces each discipline's real dashboard + task shortcuts so the workflow
+   capability isn't buried behind the "Artist Manager" tile. ─────────────────── */
+type Disc = 'music' | 'film' | 'writer';
+
+/** Deep-link into a specific Artist Manager discipline + tab. Mirrors the app's
+ *  existing `plajah_pm_discipline_v1` lever and hands the target tab to AM via a
+ *  one-shot sessionStorage intent that AM's activeTab initializer consumes.
+ *  `MELOS` is a top-level view, so it routes directly. */
+const AM_INTENT_TAB_KEY = 'plajah_pm_intent_tab_v1';
+const AM_DISCIPLINE_KEY = 'plajah_pm_discipline_v1';
+function openAm(disc: Disc, tab: string | undefined, onNavigate: (v: string) => void): void {
+  try {
+    localStorage.setItem(AM_DISCIPLINE_KEY, disc);
+    if (tab) sessionStorage.setItem(AM_INTENT_TAB_KEY, tab);
+    else sessionStorage.removeItem(AM_INTENT_TAB_KEY);
+  } catch { /* storage disabled — AM opens on its default tab */ }
+  onNavigate('ARTIST_MANAGER');
+}
+
+/** One task shortcut inside a discipline dashboard. `tab` deep-links into AM;
+ *  `melos: true` routes to the standalone Melos view instead. */
+interface TaskShortcut { label: string; icon: Lucide; tab?: string; melos?: boolean; }
+
+interface DisciplineDash {
+  disc: Disc;
+  name: string;
+  desc: string;
+  icon: Lucide;
+  hue: string;               // discipline accent, matching Artist Manager's DISCIPLINES
+  kinds: ProjectKind[];      // which loaded project kinds count as this discipline's productions
+  overviewTab: string;       // AM tab the "Open … Manager" footer lands on
+  shortcuts: TaskShortcut[];
+}
+
+const DISCIPLINE_DASH: DisciplineDash[] = [
+  {
+    disc: 'music', name: 'Music Production', desc: 'Artist · Band · Label',
+    icon: Music2, hue: '#FF8C00', kinds: ['MUSIC'], overviewTab: 'overview',
+    shortcuts: [
+      { label: 'Open Melos', icon: Music2, melos: true },
+      { label: 'Boards', icon: ClipboardList, tab: 'boards' },
+      { label: 'Events', icon: Calendar, tab: 'events' },
+      { label: 'Contracts', icon: FileText, tab: 'contracts' },
+      { label: 'Invoices', icon: Receipt, tab: 'invoices' },
+      { label: 'Band Payroll', icon: Users, tab: 'payroll' },
+      { label: 'Promote', icon: Megaphone, tab: 'promote' },
+      { label: 'Venues', icon: MapPin, tab: 'venues' },
+    ],
+  },
+  {
+    disc: 'film', name: 'Film Production', desc: 'Director · Producer · EP',
+    icon: Film, hue: '#A855F7', kinds: ['FILM'], overviewTab: 'film_overview',
+    shortcuts: [
+      { label: 'On Set', icon: Cctv, tab: 'film_hub' },
+      { label: 'Call Sheets', icon: ClipboardList, tab: 'film_callsheets' },
+      { label: 'Script Supervision', icon: Eye, tab: 'film_script' },
+      { label: 'My Brief', icon: FileText, tab: 'film_brief' },
+      { label: 'Roster', icon: Users, tab: 'film_roster' },
+      { label: 'Craft', icon: Coffee, tab: 'film_craft' },
+      { label: 'Budget', icon: DollarSign, tab: 'film_budget' },
+      { label: 'Schedule', icon: CalendarDays, tab: 'film_schedule' },
+      { label: 'Distribution', icon: Flag, tab: 'film_distro' },
+    ],
+  },
+  {
+    disc: 'writer', name: 'Writer / Journalist', desc: 'Author · Journalist · Blogger',
+    icon: PenLine, hue: '#06B6D4', kinds: ['BOOK', 'SCRIPT'], overviewTab: 'writer_overview',
+    shortcuts: [
+      { label: 'Projects', icon: BookMarked, tab: 'writer_projects' },
+      { label: 'Manuscripts', icon: FileText, tab: 'writer_manuscripts' },
+      { label: 'Research', icon: Search, tab: 'writer_research' },
+      { label: 'Submissions', icon: Send, tab: 'writer_submissions' },
+      { label: 'Events', icon: Calendar, tab: 'writer_events' },
+      { label: 'Press', icon: Newspaper, tab: 'writer_press' },
+    ],
+  },
+];
+
+/* ── Honest KPI reads. Music & Writer numbers come from the SAME localStorage
+   stores Artist Manager writes (`plajah_pm_*_v1`) — real user data, honest zeros
+   when empty; nothing fabricated. Film's live KPIs live in AM's in-memory
+   production context, so the hub derives Film stats from the loaded films. ──── */
+function readPm(key: string): any[] {
+  try { return JSON.parse(localStorage.getItem(`plajah_pm_${key}_v1`) || '[]'); }
+  catch { return []; }
+}
+function lineTotal(inv: any): number {
+  return (inv?.lineItems || []).reduce((a: number, l: any) => a + (Number(l?.qty) || 0) * (Number(l?.rate) || 0), 0);
+}
+
+interface MusicKpis { outstanding: number; collected: number; openTasks: number; totalTasks: number; contracts: number; totalContracts: number; hasData: boolean; }
+interface WriterKpis { active: number; totalProjects: number; words: number; inReview: number; events: number; hasData: boolean; }
+
+/** Artist Manager's writer demo (`ensureWriterDemo`) seeds rows with sentinel ids.
+ *  When demo mode is off we filter them out so KPIs reflect only real work. */
+const WRITER_DEMO_IDS = new Set(['proj1', 'proj2', 'proj3']);
+
+function readAmKpis(includeDemo: boolean): { music: MusicKpis; writer: WriterKpis } {
+  const invoices = readPm('invoices');
+  const contracts = readPm('contracts');
+  const tasks = readPm('tasks');
+  // Music stores have no demo seeds — nothing to filter here.
+  const music: MusicKpis = {
+    outstanding: invoices.filter((i) => i.status === 'SENT' || i.status === 'OVERDUE').reduce((s, i) => s + lineTotal(i), 0),
+    collected: invoices.filter((i) => i.status === 'PAID').reduce((s, i) => s + lineTotal(i), 0),
+    openTasks: tasks.filter((t) => t.status !== 'DONE').length,
+    totalTasks: tasks.length,
+    contracts: contracts.filter((c) => c.status === 'SIGNED').length,
+    totalContracts: contracts.length,
+    hasData: invoices.length > 0 || contracts.length > 0 || tasks.length > 0,
+  };
+  let wProjects = readPm('writer_projects');
+  let wSubs = readPm('writer_subs');
+  let wEvents = readPm('writer_events');
+  if (!includeDemo) {
+    wProjects = wProjects.filter((p) => !WRITER_DEMO_IDS.has(p.id));
+    wSubs = wSubs.filter((s) => !WRITER_DEMO_IDS.has(s.projectId));
+    wEvents = wEvents.filter((e) => !WRITER_DEMO_IDS.has(e.projectId));
+  }
+  const writer: WriterKpis = {
+    active: wProjects.filter((p) => ['ACTIVE', 'DRAFTING', 'EDITING'].includes(p.status)).length,
+    totalProjects: wProjects.length,
+    words: wProjects.reduce((s, p) => s + (Number(p.wordCountCurrent) || 0), 0),
+    inReview: wSubs.filter((s) => s.status === 'SENT' || s.status === 'UNDER_REVIEW').length,
+    events: wEvents.filter((e) => e.status === 'CONFIRMED' || e.status === 'PLANNING').length,
+    hasData: wProjects.length > 0,
+  };
+  return { music, writer };
+}
+
+function fmtMoney(n: number): string {
+  if (!n) return '$0';
+  if (n >= 1000) return `$${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
+  return `$${Math.round(n).toLocaleString()}`;
+}
+function fmtNum(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`;
+}
+
+/* ── Live cross-discipline productions (with real status). Music comes from
+   melosService, Film from filmProductionService, Writing from Lorea. Each row
+   carries a real status pill; demo/showcase rows are flagged so the demo toggle
+   can hide them. ──────────────────────────────────────────────────────────── */
+interface ProductionRow {
+  disc: Disc;
+  id: string;
+  title: string;
+  subtitle?: string;
+  statusLabel: string;
+  statusColor: string;
+  isDemo: boolean;
+  updatedAt?: number;
+  melosProductionId?: string; // real music productions open to their record
+}
+
+interface DiscMeta { label: string; icon: Lucide; hue: string; grad: string; }
+const DISC_META: Record<Disc, DiscMeta> = {
+  music:  { label: 'Music',  icon: Music2,  hue: '#FF8C00', grad: 'linear-gradient(135deg,#FF8C00,#D40055)' },
+  film:   { label: 'Film',   icon: Film,    hue: '#A855F7', grad: 'linear-gradient(135deg,#A855F7,#6B0099)' },
+  writer: { label: 'Writer', icon: PenLine, hue: '#06B6D4', grad: 'linear-gradient(135deg,#06B6D4,#0066FF)' },
+};
+
+const MUSIC_STATUS = new Map(PRODUCTION_STATUSES.map((s) => [s.key, s]));
+const FILM_STATUS: Record<string, { label: string; color: string }> = {
+  ACTIVE: { label: 'Active', color: '#06D6A0' },
+  ARCHIVED: { label: 'Archived', color: '#9C96B4' },
+};
+const WRITER_STATUS: Record<string, { label: string; color: string }> = {
+  DRAFTING: { label: 'Drafting', color: '#00DAF3' },
+  EDITING: { label: 'Editing', color: '#D0BCFF' },
+  ACTIVE: { label: 'Active', color: '#06D6A0' },
+  PUBLISHED: { label: 'Published', color: '#06D6A0' },
+  SUBMITTED: { label: 'In review', color: '#FF8C00' },
+};
+
+/** The canonical platform showcase — mirrors Artist Manager's demos (same titles
+ *  and statuses). Shown only when demo mode is on. */
+const DEMO_PRODUCTIONS: ProductionRow[] = [
+  { disc: 'music',  id: 'demo-neon-cathedral', title: 'Neon Cathedral', subtitle: '“the Detroit record” · Vela', statusLabel: 'Tracking', statusColor: '#FF8C00', isDemo: true },
+  { disc: 'film',   id: 'demo-halflight',      title: 'Halflight',      subtitle: 'Feature · Production Showcase', statusLabel: 'On set', statusColor: '#06D6A0', isDemo: true },
+  { disc: 'writer', id: 'demo-weight',         title: 'The Weight of Small Things', subtitle: 'Book · Literary Fiction', statusLabel: 'Drafting', statusColor: '#00DAF3', isDemo: true },
+  { disc: 'writer', id: 'demo-protest',        title: 'The New Language of Protest Music', subtitle: 'Article · Music Journalism', statusLabel: 'In review', statusColor: '#FF8C00', isDemo: true },
+  { disc: 'writer', id: 'demo-detroit',        title: 'Detroit Futures', subtitle: 'Newsletter · Urban Affairs', statusLabel: 'Active', statusColor: '#06D6A0', isDemo: true },
+];
+
+/** Load the user's real productions across disciplines, most-recent first.
+ *  Each source is guarded so one failure never blanks the list. */
+async function loadProductions(uid: string): Promise<ProductionRow[]> {
+  const results = await Promise.allSettled([
+    fetchMusicProductions(uid),
+    fetchFilmProductions(uid),
+    listWritingProjects(uid),
+  ]);
+  const rows: ProductionRow[] = [];
+
+  if (results[0].status === 'fulfilled') {
+    for (const p of (results[0].value || []) as any[]) {
+      const st = MUSIC_STATUS.get(p.status);
+      rows.push({
+        disc: 'music', id: p.id, title: p.title || 'Untitled record',
+        subtitle: p.workingTitle || p.artistName || undefined,
+        statusLabel: st?.label || String(p.status || '—'), statusColor: st?.color || '#9C96B4',
+        isDemo: false, updatedAt: p.updatedAt || 0, melosProductionId: p.id,
+      });
+    }
+  }
+  if (results[1].status === 'fulfilled') {
+    for (const p of (results[1].value || []) as any[]) {
+      if (p.isShowcase) continue;            // showcase = demo, surfaced via DEMO_PRODUCTIONS
+      if (p.status === 'ARCHIVED') continue;  // keep the active list focused
+      const st = FILM_STATUS[p.status || 'ACTIVE'] || FILM_STATUS.ACTIVE;
+      rows.push({
+        disc: 'film', id: p.id, title: p.title || 'Untitled film',
+        subtitle: p.format || 'Production',
+        statusLabel: st.label, statusColor: st.color,
+        isDemo: false, updatedAt: p.updatedAt || 0,
+      });
+    }
+  }
+  if (results[2].status === 'fulfilled') {
+    const { projects } = (results[2].value || {}) as any;
+    for (const p of (projects || []) as any[]) {
+      const st = WRITER_STATUS[p.status] || { label: String(p.status || '—'), color: '#9C96B4' };
+      rows.push({
+        disc: 'writer', id: p.id, title: p.title || 'Untitled',
+        subtitle: `${p.kind === 'SCRIPT' ? 'Script' : 'Book'}${p.genre ? ` · ${p.genre}` : ''}`,
+        statusLabel: st.label, statusColor: st.color,
+        isDemo: false, updatedAt: p.updatedAt || 0,
+      });
+    }
+  }
+  return rows.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
+
+/** Open a production in its discipline's workspace. Music opens straight to its
+ *  record; Film pre-selects the production so the film suite opens on it; Writer
+ *  opens Artist Manager's writer projects. */
+function openProduction(row: ProductionRow, uid: string | undefined, onNavigate: (v: string) => void): void {
+  if (row.disc === 'music') {
+    if (row.melosProductionId) {
+      try {
+        window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'MELOS', params: { productionId: row.melosProductionId } } }));
+        return;
+      } catch { /* fall through */ }
+    }
+    onNavigate('MELOS');
+  } else if (row.disc === 'film') {
+    // The film suite restores its selection from this key on mount — pre-set it
+    // so a specific (real) production opens. Demo rows keep the suite's own demo.
+    if (uid && !row.isDemo) {
+      try { localStorage.setItem(`plajah_active_production_${uid}`, row.id); } catch { /* storage disabled */ }
+    }
+    openAm('film', 'film_hub', onNavigate);
+  } else {
+    openAm('writer', 'writer_projects', onNavigate);
+  }
+}
+
+/* Quick-create chips — honest actions only, no fabricated data.
+   `hue` + `isNew` spotlight the discipline starts (Music / Film / Book). */
+interface QuickChip { label: string; icon: Lucide; run: () => void; hue?: string; isNew?: boolean; }
 
 const EASE = [0.2, 0, 0, 1] as const;
 
@@ -229,8 +499,10 @@ export default function CreatorHub({
   const [hubTab, setHubTab] = useState<'OVERVIEW' | 'MARKETING'>('OVERVIEW');
 
   const quickChips: QuickChip[] = [
+    { label: 'New Music', icon: Music2, hue: '#FF8C00', isNew: true, run: () => onNavigate('MELOS') },
+    { label: 'New Film', icon: Film, hue: '#A855F7', isNew: true, run: () => onNavigate('FABULA') },
+    { label: 'New Book / Article', icon: BookOpen, hue: '#06B6D4', isNew: true, run: () => onNavigate('BOOKS') },
     { label: 'New Doc', icon: PenLine, run: () => onNavigate('TELA') },
-    { label: 'New Video', icon: Video, run: () => onNavigate('FABULA') },
     { label: 'Go Live', icon: Radio, run: () => (onGoLive ? onGoLive() : onNavigate('LIVE_HUB')) },
     { label: 'New Post', icon: Plus, run: () => (onNewPost ? onNewPost() : onNavigate('FEED')) },
   ];
@@ -272,6 +544,53 @@ export default function CreatorHub({
   }, [projects]);
 
   const recent = useMemo(() => projects.slice(0, 6), [projects]);
+
+  /* ── Global demo-data toggle (shared with Artist Manager). On (default) shows
+     the platform showcase everywhere; off restricts everything to real work. ── */
+  const [demoMode, setDemoModeState] = useState<boolean>(() => isDemoMode());
+  useEffect(() => subscribeDemoMode(setDemoModeState), []);
+  const toggleDemo = () => setDemoMode(!demoMode);
+
+  /* ── Artist Manager KPIs — read from the same stores AM writes; refresh on
+     focus so the numbers update after the user works inside AM. Demo mode
+     filters out AM's seeded writer demo rows. ── */
+  const [amKpis, setAmKpis] = useState(() => readAmKpis(true));
+  useEffect(() => {
+    if (isGuest) return;
+    const refresh = () => setAmKpis(readAmKpis(demoMode));
+    refresh();
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [isGuest, demoMode]);
+
+  /* ── Live cross-discipline productions, loaded from the real per-discipline
+     services (music/film/writing) with their true status. ── */
+  const [prodRows, setProdRows] = useState<ProductionRow[]>([]);
+  const [loadingProds, setLoadingProds] = useState<boolean>(!isGuest);
+  useEffect(() => {
+    const uid = user?.uid;
+    if (!uid) { setProdRows([]); setLoadingProds(false); return; }
+    let alive = true;
+    setLoadingProds(true);
+    loadProductions(uid)
+      .then((rows) => { if (alive) setProdRows(rows); })
+      .catch(() => { if (alive) setProdRows([]); })
+      .finally(() => { if (alive) setLoadingProds(false); });
+    return () => { alive = false; };
+  }, [user?.uid]);
+
+  /* Displayed productions — real work always; demos appended when demo mode is
+     on, deduped against any real production with the same title. */
+  const productions = useMemo(() => {
+    if (!demoMode) return prodRows.slice(0, 8);
+    const realTitles = new Set(prodRows.map((r) => r.title.trim().toLowerCase()));
+    const demos = DEMO_PRODUCTIONS.filter((d) => !realTitles.has(d.title.trim().toLowerCase()));
+    return [...prodRows, ...demos].slice(0, 8);
+  }, [prodRows, demoMode]);
 
   const scrollToPanels = () => panelsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
@@ -431,15 +750,32 @@ export default function CreatorHub({
             </span>
             {quickChips.map((c) => {
               const Icon = c.icon;
+              const spot = !!c.hue;
               return (
                 <button
                   key={c.label}
                   type="button"
                   onClick={c.run}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.14] bg-white/[0.05] px-3.5 py-2 text-[0.74rem] font-bold text-white/85 transition-colors duration-200 hover:border-white/25 hover:bg-white/[0.1] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                  className="group/chip relative inline-flex items-center gap-1.5 rounded-full border border-transparent px-3.5 py-2 text-[0.74rem] font-bold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                  style={
+                    spot
+                      ? { borderColor: `${c.hue}66`, background: `${c.hue}1f`, color: '#fff' }
+                      : undefined
+                  }
                 >
-                  <Icon size={13} />
-                  {c.label}
+                  {!spot && (
+                    <span aria-hidden className="pointer-events-none absolute inset-0 rounded-full border border-white/[0.14] bg-white/[0.05] transition-colors duration-200 group-hover/chip:border-white/25 group-hover/chip:bg-white/[0.1]" />
+                  )}
+                  <Icon size={13} className="relative" style={spot ? { color: c.hue } : undefined} />
+                  <span className={`relative ${spot ? '' : 'text-white/85 group-hover/chip:text-white'}`}>{c.label}</span>
+                  {c.isNew && (
+                    <span
+                      className="relative ml-0.5 rounded-full px-1.5 py-px text-[0.5rem] font-black uppercase tracking-[0.12em] text-white"
+                      style={{ background: 'var(--pj-grad-ember)' }}
+                    >
+                      New
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -486,6 +822,60 @@ export default function CreatorHub({
                 sub={stats.mostRecent ? (relTime(stats.mostRecent.updatedAt) || KIND_META[stats.mostRecent.kind].label) : 'Nothing yet'}
               />
             </motion.div>
+          )}
+        </section>
+      )}
+
+      {/* ══ 2.5 · YOUR PRODUCTIONS — the professional workflow layer ═════════ */}
+      {!isGuest && (
+        <section className="relative mx-auto w-full max-w-[1400px] px-5 pt-12 sm:px-8">
+          <div className="mb-3 flex flex-wrap items-center gap-3">
+            <span aria-hidden className="h-6 w-1.5 rounded-full" style={{ background: 'var(--pj-grad-brand)' }} />
+            <h2 className="font-display text-2xl font-black italic uppercase tracking-tight text-white sm:text-3xl">
+              Your Productions
+            </h2>
+            <div className="ml-auto flex items-center gap-2.5">
+              <DemoToggle on={demoMode} onToggle={toggleDemo} />
+              <button
+                type="button"
+                onClick={() => onNavigate('ARTIST_MANAGER')}
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-[0.72rem] font-black uppercase tracking-wide text-white/70 transition-colors hover:border-white/25 hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pj-orange)]"
+              >
+                <LayoutDashboard size={14} /> Artist Manager <ArrowRight size={13} />
+              </button>
+            </div>
+          </div>
+          <p className="mb-6 max-w-2xl text-sm leading-relaxed text-white/55">
+            Every project you're on, across every craft — with the production tools and daily tasks one tap away,
+            so the real work never gets buried.
+          </p>
+
+          {(loadingProjects || loadingProds) ? (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-[360px] animate-pulse rounded-[1.75rem] border border-white/10 bg-white/[0.03]" />
+              ))}
+            </div>
+          ) : (
+            <>
+              {/* Cross-discipline productions list */}
+              <ProductionsCard items={productions} demoOn={demoMode} uid={user?.uid} onNavigate={onNavigate} reveal={reveal()} />
+
+              {/* Per-discipline dashboards + task shortcuts */}
+              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {DISCIPLINE_DASH.map((d, i) => (
+                  <DisciplineCard
+                    key={d.disc}
+                    dash={d}
+                    projects={projects}
+                    kpis={amKpis}
+                    demoMode={demoMode}
+                    onNavigate={onNavigate}
+                    reveal={reveal(Math.min(i, 3) * 0.05)}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </section>
       )}
@@ -885,6 +1275,258 @@ function StudioPanel({
           {isGuest ? `Explore ${studio.key}` : `Start something in ${studio.key}`}
         </button>
       )}
+    </motion.div>
+  );
+}
+
+/* ── A small on/off switch for demo data. ── */
+function DemoToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={onToggle}
+      title={on ? 'Demo data is on — showcase productions are shown' : 'Demo data is off — only your real work is shown'}
+      className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[0.66rem] font-black uppercase tracking-wide text-white/60 transition-colors hover:border-white/25 hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pj-orange)]"
+    >
+      <span>Demo data</span>
+      <span
+        aria-hidden
+        className="relative h-4 w-7 rounded-full transition-colors duration-200"
+        style={{ background: on ? 'var(--pj-grad-brand)' : 'rgba(255,255,255,0.16)' }}
+      >
+        <span
+          className="absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all duration-200"
+          style={{ left: on ? '0.875rem' : '0.125rem' }}
+        />
+      </span>
+    </button>
+  );
+}
+
+/* ── Cross-discipline productions — every real work the user is on (with true
+   status pulled from each discipline's service), plus showcase demos when demo
+   mode is on. Opens each in its workspace. ─────────────────────────────────── */
+function ProductionsCard({
+  items, demoOn, uid, onNavigate, reveal,
+}: {
+  items: ProductionRow[];
+  demoOn: boolean;
+  uid?: string;
+  onNavigate: (v: string) => void;
+  reveal: Record<string, unknown>;
+}) {
+  if (items.length === 0) {
+    return (
+      <motion.div
+        {...reveal}
+        className="flex flex-col items-center justify-center rounded-[1.75rem] border border-white/10 bg-white/[0.03] px-6 py-12 text-center"
+      >
+        <span className="mb-3 grid h-11 w-11 place-items-center rounded-2xl text-white" style={{ background: 'var(--pj-grad-brand)' }}>
+          <FolderOpen size={20} />
+        </span>
+        <p className="text-sm font-bold text-white">No productions yet</p>
+        <p className="mt-1 max-w-sm text-xs leading-relaxed text-white/45">
+          {demoOn
+            ? "Start a track, a film or a book above — it'll show up here with its whole production toolkit attached."
+            : 'Turn demo data on to explore a sample production, or start a track, a film or a book above.'}
+        </p>
+      </motion.div>
+    );
+  }
+  const realCount = items.filter((r) => !r.isDemo).length;
+  return (
+    <motion.div {...reveal} className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.03]">
+      <div className="flex items-center gap-2 border-b border-white/[0.08] px-5 py-3.5">
+        <Layers size={14} className="text-white/45" />
+        <span className="font-display text-[0.66rem] font-black uppercase tracking-[0.16em] text-white/45">
+          Across all disciplines · {realCount || items.length}{demoOn && items.length > realCount ? ' + demo' : ''}
+        </span>
+      </div>
+      <div className="flex flex-col">
+        {items.map((row) => {
+          const meta = DISC_META[row.disc];
+          const RowIcon = meta.icon;
+          return (
+            <button
+              key={`${row.disc}:${row.id}`}
+              type="button"
+              onClick={() => openProduction(row, uid, onNavigate)}
+              aria-label={`Open ${row.title}`}
+              className="group flex items-center gap-3.5 border-t border-white/[0.05] px-5 py-3.5 text-left transition-colors duration-200 first:border-t-0 hover:bg-white/[0.025] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--pj-orange)]"
+            >
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: meta.grad }}>
+                <RowIcon size={18} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2">
+                  <span className="truncate text-[0.92rem] font-bold leading-tight text-white">{row.title}</span>
+                  {row.isDemo && (
+                    <span className="shrink-0 rounded-full bg-white/[0.08] px-1.5 py-px text-[0.5rem] font-black uppercase tracking-[0.12em] text-white/50">
+                      Demo
+                    </span>
+                  )}
+                </span>
+                <span className="mt-0.5 flex items-center gap-1.5 text-[0.72rem] text-white/45">
+                  <span
+                    className="rounded-full px-1.5 py-px text-[0.56rem] font-black uppercase tracking-[0.1em]"
+                    style={{ color: meta.hue, boxShadow: `inset 0 0 0 1px ${meta.hue}55` }}
+                  >
+                    {meta.label}
+                  </span>
+                  {row.subtitle && <span className="truncate">{row.subtitle}</span>}
+                </span>
+              </span>
+              <span
+                className="hidden shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.62rem] font-black uppercase tracking-wide sm:inline-flex"
+                style={{ color: row.statusColor, background: `${row.statusColor}1a` }}
+              >
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: row.statusColor }} />
+                {row.statusLabel}
+              </span>
+              <ArrowUpRight size={15} className="shrink-0 text-white/25 transition-all duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-white/70" />
+            </button>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
+
+/* ── One discipline dashboard — mirrors Artist Manager's mini-KPIs and exposes
+   its task shortcuts as deep-links. Music/Writer figures are read from AM's own
+   stores; Film figures are derived from the user's loaded films. ───────────── */
+function DisciplineCard({
+  dash, projects, kpis, demoMode, onNavigate, reveal,
+}: {
+  dash: DisciplineDash;
+  projects: ProjectItem[];
+  kpis: { music: MusicKpis; writer: WriterKpis };
+  demoMode: boolean;
+  onNavigate: (v: string) => void;
+  reveal: Record<string, unknown>;
+}) {
+  const Icon = dash.icon;
+  const mine = projects.filter((p) => dash.kinds.includes(p.kind));
+  const active = mine[0]; // recency-sorted upstream
+  const demoActive = !active && demoMode ? DEMO_PRODUCTIONS.find((p) => p.disc === dash.disc) : undefined;
+  const weekMs = 7 * 24 * 3600 * 1000;
+
+  let cells: { icon: Lucide; hue: string; value: string; label: string }[];
+  if (dash.disc === 'music') {
+    const m = kpis.music;
+    cells = [
+      { icon: DollarSign, hue: '#F97316', value: fmtMoney(m.outstanding), label: 'Outstanding' },
+      { icon: CheckCircle2, hue: '#10B981', value: fmtMoney(m.collected), label: 'Collected' },
+      { icon: CheckSquare, hue: '#3B82F6', value: `${m.openTasks}`, label: m.totalTasks ? `Open · ${m.totalTasks} total` : 'Open tasks' },
+      { icon: FileText, hue: '#A855F7', value: `${m.contracts}`, label: m.totalContracts ? `Signed · ${m.totalContracts}` : 'Contracts' },
+    ];
+  } else if (dash.disc === 'film') {
+    const scenes = mine.reduce((s, p) => s + (p.count || 0), 0);
+    const edited = mine.filter((p) => p.updatedAt && Date.now() - p.updatedAt < weekMs).length;
+    cells = [
+      { icon: Film, hue: '#A855F7', value: `${mine.length}`, label: 'Productions' },
+      { icon: Clapperboard, hue: '#3B82F6', value: `${scenes}`, label: 'Scenes' },
+      { icon: TrendingUp, hue: '#FF8C00', value: `${edited}`, label: 'Edited · 7d' },
+      { icon: Clock, hue: '#8B5CF6', value: active ? (relTime(active.updatedAt)?.replace(' ago', '') || '—') : '—', label: 'Last touched' },
+    ];
+  } else {
+    const w = kpis.writer;
+    cells = [
+      { icon: BookMarked, hue: '#06B6D4', value: `${w.hasData ? w.active : mine.length}`, label: w.hasData && w.totalProjects ? `Active · ${w.totalProjects}` : 'Active projects' },
+      { icon: PenLine, hue: '#A855F7', value: w.hasData ? fmtNum(w.words) : '—', label: 'Words written' },
+      { icon: Send, hue: '#10B981', value: `${w.inReview}`, label: 'In review' },
+      { icon: Calendar, hue: '#FF8C00', value: `${w.events}`, label: 'Upcoming events' },
+    ];
+  }
+
+  return (
+    <motion.div
+      {...reveal}
+      className="relative flex flex-col overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-5"
+    >
+      <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[3px]" style={{ background: dash.hue }} />
+
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <span
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl"
+          style={{ background: `${dash.hue}22`, color: dash.hue, boxShadow: `inset 0 0 0 1px ${dash.hue}40` }}
+        >
+          <Icon size={20} />
+        </span>
+        <div className="min-w-0">
+          <h3 className="font-display text-base font-black italic uppercase tracking-tight text-white">{dash.name}</h3>
+          <p className="text-[0.68rem] text-white/40">{dash.desc}</p>
+        </div>
+      </div>
+
+      {/* Active production */}
+      <div className="mt-4 flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
+        <span className="shrink-0 text-[0.56rem] font-black uppercase tracking-[0.14em] text-white/35">Active</span>
+        {active ? (
+          <span className="truncate text-[0.82rem] font-bold text-white">{active.title}</span>
+        ) : demoActive ? (
+          <>
+            <span className="truncate text-[0.82rem] font-bold text-white/90">{demoActive.title}</span>
+            <span className="ml-auto shrink-0 rounded-full bg-white/[0.08] px-1.5 py-px text-[0.5rem] font-black uppercase tracking-[0.12em] text-white/50">Demo</span>
+          </>
+        ) : (
+          <span className="truncate text-[0.82rem] font-semibold text-white/40">Nothing in production yet</span>
+        )}
+      </div>
+
+      {/* KPI 2×2 */}
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        {cells.map((c) => {
+          const CIcon = c.icon;
+          return (
+            <div key={c.label} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+              <span className="grid h-6 w-6 place-items-center rounded-lg" style={{ background: `${c.hue}22`, color: c.hue }}>
+                <CIcon size={13} />
+              </span>
+              <p className="mt-2 font-display text-lg font-black leading-none tabular-nums text-white">{c.value}</p>
+              <p className="mt-1 truncate text-[0.6rem] font-bold uppercase tracking-[0.06em] text-white/40">{c.label}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Task shortcuts */}
+      <div className="mt-4">
+        <p className="mb-2 text-[0.58rem] font-black uppercase tracking-[0.18em] text-white/35">Jump to</p>
+        <div className="flex flex-wrap gap-1.5">
+          {dash.shortcuts.map((sc) => {
+            const SIcon = sc.icon;
+            return (
+              <button
+                key={sc.label}
+                type="button"
+                onClick={() => (sc.melos ? onNavigate('MELOS') : openAm(dash.disc, sc.tab, onNavigate))}
+                className="group/tc inline-flex items-center gap-1.5 rounded-lg border border-white/[0.07] bg-white/[0.03] px-2.5 py-1.5 text-[0.72rem] font-semibold text-white/70 transition-colors duration-200 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pj-orange)]"
+                style={{ borderColor: undefined }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = `${dash.hue}66`; (e.currentTarget as HTMLButtonElement).style.background = `${dash.hue}14`; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = ''; (e.currentTarget as HTMLButtonElement).style.background = ''; }}
+              >
+                <SIcon size={13} style={{ color: dash.hue }} />
+                {sc.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Footer — open the full discipline in Artist Manager */}
+      <button
+        type="button"
+        onClick={() => openAm(dash.disc, dash.overviewTab, onNavigate)}
+        className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-display text-[0.72rem] font-black uppercase tracking-wide text-white transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pj-orange)]"
+        style={{ background: `${dash.hue}1f`, boxShadow: `inset 0 0 0 1px ${dash.hue}55` }}
+      >
+        Open {dash.name.split(' ')[0]} Manager
+        <ArrowRight size={13} />
+      </button>
     </motion.div>
   );
 }
