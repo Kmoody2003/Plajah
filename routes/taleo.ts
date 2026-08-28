@@ -98,6 +98,7 @@ taleoRouter.post('/analyze', async (req: Request, res: Response) => {
   if (!uid) return res.status(401).json({ error: 'Sign in required.' });
 
   const albumId = String((req.body ?? {}).albumId || '').trim();
+  const force = (req.body ?? {}).force === true;
   if (!ID_RE.test(albumId)) return res.status(400).json({ error: 'albumId is required.' });
 
   const album = await fsGet(`albums/${albumId}`);
@@ -107,6 +108,18 @@ taleoRouter.post('/analyze', async (req: Request, res: Response) => {
   const film = await findFilm(albumId, album);
   const now = Date.now();
   const existing = await fsGet(`${JOBS}/${albumId}`);
+
+  // publishToCloud fires this on EVERY save of a movie (edits included). Analysis costs real
+  // money, so an existing job is only re-run when the creator explicitly asks (force=true —
+  // the Story Intelligence toggle in Edit Details). A job mid-flight is never restarted.
+  const RUNNING = ['QUEUED', 'SAMPLING', 'PERCEIVING', 'REASONING', 'ASSEMBLING'];
+  if (existing && RUNNING.includes(String(existing.status))) {
+    return res.status(202).json({ ok: true, albumId, status: existing.status, alreadyRunning: true });
+  }
+  if (existing && !force && existing.status !== 'WAITING_MEDIA') {
+    return res.status(200).json({ ok: true, albumId, status: existing.status, skipped: 'already-analyzed' });
+  }
+
   const status = film.muxPlaybackId ? 'QUEUED' : 'WAITING_MEDIA';
 
   const saved = await fsPatch(`${JOBS}/${albumId}`, {

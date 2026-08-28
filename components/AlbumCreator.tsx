@@ -7,6 +7,7 @@ import { generateAlbumMetadata, generateTrackLyrics } from '../services/geminiSe
 import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, fetchUserCharacters, uploadFile as storageUpload, uploadVideo, fetchUserVideos } from '../services/backendService';
 import { listCloudProjects } from './plajahPixels/services/projectService';
 import { enqueueTranscode } from '../services/choraStreamService';
+import { requestAnalysis } from '../services/storyIntelService';
 // Lyric sync lives in ONE place (services/lyricSync.ts) so the Melos Project view and this
 // Caption Sync card can never drift apart.
 import {
@@ -177,6 +178,9 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [tagInput, setTagInput] = useState('');
   const [isScheduled, setIsScheduled] = useState<boolean>(initialAlbum?.isScheduled || false);
   const [isSlideshowEnabled, setIsSlideshowEnabled] = useState<boolean>(initialAlbum?.isSlideshowEnabled || false);
+  // Story Intelligence re-run toggle (films/TV, Edit Details). Not persisted — it's a one-shot
+  // "run it again on save"; the analysis itself is a server-side job that outlives this dialog.
+  const [runStoryIntel, setRunStoryIntel] = useState(false);
   const [releaseDate, setReleaseDate] = useState<string>(initialAlbum?.releaseDate ? new Date(initialAlbum.releaseDate).toISOString().slice(0, 16) : '');
   const [publishVideosToGallery, setPublishVideosToGallery] = useState<boolean>(initialAlbum?.publishVideosToGallery ?? true);
   const [newVideoTitle, setNewVideoTitle] = useState('');
@@ -1036,6 +1040,14 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           }
         },
       });
+      // Story Intelligence toggle: a server-side job — fires now and keeps running whether or
+      // not this dialog (or the whole tab) stays open. force=true because this is the
+      // creator's explicit "run it (again)" for already-uploaded content; brand-new publishes
+      // get their first run automatically via publishToCloud.
+      if (isFilm && runStoryIntel) {
+        void requestAnalysis(initialAlbum?.id || projectIdRef.current, { force: true });
+        setRunStoryIntel(false);
+      }
       setIsDirty(false);
       if (keepOpenAfterSaveRef.current) {
         // "Save Now" / autosave — persist a draft but stay in the editor.
@@ -2736,6 +2748,21 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       {isFilm && (
         <div className="p-5 bg-white/[0.03] border border-white/10 rounded-2xl">
           <FilmDistributionStep value={filmDist} onChange={setFilmDist} />
+        </div>
+      )}
+
+      {/* Story Intelligence — toggle on, hit Save, and Aria re-analyzes the film server-side
+          (keeps running after this dialog closes; progress lands on the film page's pill). */}
+      {isFilm && (
+        <div className="flex items-center justify-between p-6 bg-white/[0.03] rounded-[2rem] border border-white/5">
+          <div className="flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${runStoryIntel ? 'bg-[#8b5cf6] text-white' : 'bg-white/5 text-white/20'}`}><Sparkles size={24} /></div>
+            <div>
+              <h4 className="text-sm font-display font-black tracking-tight uppercase">Story Intelligence</h4>
+              <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Aria watches the film & rebuilds characters, scenes and story — runs in the background after save</p>
+            </div>
+          </div>
+          <button type="button" onClick={() => setRunStoryIntel(!runStoryIntel)} className={`px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border ${runStoryIntel ? 'bg-[#8b5cf6] text-white border-[#8b5cf6] shadow-xl' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}>{runStoryIntel ? 'Run on Save' : 'Off'}</button>
         </div>
       )}
 

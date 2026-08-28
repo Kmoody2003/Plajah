@@ -9,10 +9,38 @@
 // resolve still URLs. Everything is read-only and non-throwing — analysis is a
 // bonus layer and must never break the movie page.
 
-import { db, storage } from './firebase';
+import { auth, db, storage } from './firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
 import { ref, getDownloadURL } from 'firebase/storage';
+
+/**
+ * Ask the server to run (or re-run) Story Intelligence for an album the caller owns.
+ * Server-side + fire-and-forget by nature: the worker keeps going whether or not any
+ * page stays open — progress lands on the taleoAnalysis/{albumId} job doc.
+ * `force` re-runs a title that already has a finished analysis (a fresh run costs
+ * real money, so the server ignores repeat requests without it). Non-throwing.
+ */
+export async function requestAnalysis(
+  albumId: string,
+  opts: { force?: boolean } = {},
+): Promise<{ ok: boolean; status?: string; error?: string }> {
+  try {
+    if (!auth.currentUser) return { ok: false, error: 'Sign in required.' };
+    const token = await auth.currentUser.getIdToken();
+    const appUrl = (import.meta as any).env?.VITE_APP_URL ?? window.location.origin;
+    const res = await fetch(`${appUrl}/api/taleo/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ albumId, ...(opts.force ? { force: true } : {}) }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: data?.error || `HTTP ${res.status}` };
+    return { ok: true, status: data?.status };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Network error' };
+  }
+}
 
 // ─── Types (source of truth for the Phase-1 pipeline) ────────────────────────
 
