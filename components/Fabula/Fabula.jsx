@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, memo } from "react";
+import { useState, useEffect, useRef, useMemo, memo, Fragment } from "react";
 import {
   Film, Music, Clapperboard, Layers, Play, Pause, SkipBack, Plus, Upload,
   Sparkles, ChevronLeft, Wand2, Users, Globe, Trash2, MonitorPlay, X, ListVideo,
@@ -628,9 +628,12 @@ export default function Fabula() {
   const [editWs, setEditWs] = useState("edit");     // resolve-style workspace: media|edit|vfx|color|audio|deliver
   const [colorTab, setColorTab] = useState("wheels"); // color room control-bar tab: looks|wheels|curves|primaries
   const [audioTab, setAudioTab] = useState("mixer");  // audio room control-band tab: mixer|voice|clips
-  const [vfxTab, setVfxTab] = useState("comp");       // vfx room control-band tab: comp|lottie|capture
+  const [vfxTab, setVfxTab] = useState("nodes");      // vfx room: nodes (primary, Mockup B) | comp | lottie | capture
   const [eyedrop, setEyedrop] = useState(false);      // qualifier eyedropper armed → next monitor click samples a key
   const [gradeLayer, setGradeLayer] = useState(0);    // color room: which grade layer the tabs edit (0 = base)
+  const [colorStills, setColorStills] = useState([]); // grabbed reference stills {id,url,label} (session)
+  const [wipeStill, setWipeStill] = useState(null);   // still id wiped against the grade monitor
+  const [wipePos, setWipePos] = useState(0.5);        // wipe divider 0..1
   const [binFilter, setBinFilter] = useState("all");
   const [previewAsset, setPreviewAsset] = useState(null); // source viewer (dual canvas, à la resolve)
   const [srcPlaying, setSrcPlaying] = useState(false);
@@ -3847,15 +3850,29 @@ export default function Fabula() {
                   </div>
   );
 
-  const renderPool = () => (
+  const renderPool = () => {
+    // Mockup-C pool: searchable, bin-filtered, identity-striped. One filtered list
+    // feeds both views; the full library still lives in the MEDIA workspace.
+    const q = mediaSearch.trim();
+    const poolAll = prod.mediaPool || [];
+    const poolShown = poolAll.filter((a) => {
+      if (binFilter !== "all") { const b = a.bin || "imports"; if (!(b === binFilter || b.startsWith(binFilter + "/"))) return false; }
+      return !q || assetMatches(a, q);
+    }).slice(0, srcPoolCap);
+    const poolBins = ["all", ...binTree()];
+    const BIN_HUES = ["var(--blue)", "var(--green)", "var(--pur)", "var(--cyan)", "#ffd166", "var(--pl-magenta)"];
+    const binHue = (b) => b === "all" ? "var(--org)" : BIN_HUES[[...b].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % BIN_HUES.length];
+    return (
 <aside className="pool glass-dark" style={{ width: poolW, minWidth: poolW }}>
                     <div className="paneltitle"><MonitorPlay size={12} /> MEDIA POOL
                       <button className="minibtn" style={{ marginLeft: "auto", fontSize: 8, color: fxLibOpen ? "#FF8C00" : undefined }} title="Effects Library — filters, generators, Lottie"
                         onClick={() => { const nv = !fxLibOpen; setFxLibOpen(nv); try { localStorage.setItem("fabula:fxlib", nv ? "1" : "0"); } catch { /* */ } }}>⚡FX</button>
-                      <button className="minibtn" style={{ fontSize: 8, opacity: poolView === "list" ? 1 : 0.45 }} title="List view"
-                        onClick={() => { setPoolView("list"); try { localStorage.setItem("fabula:poolview", "list"); } catch { /* */ } }}>≡</button>
-                      <button className="minibtn" style={{ fontSize: 8, opacity: poolView === "thumbs" ? 1 : 0.45 }} title="Thumbnail view — hover a thumb to play + scrub it in the source monitor"
-                        onClick={() => { setPoolView("thumbs"); try { localStorage.setItem("fabula:poolview", "thumbs"); } catch { /* */ } }}>▦</button>
+                      <span className="segx">
+                        <button className={poolView === "list" ? "on" : ""} title="List view"
+                          onClick={() => { setPoolView("list"); try { localStorage.setItem("fabula:poolview", "list"); } catch { /* */ } }}>≡</button>
+                        <button className={poolView === "thumbs" ? "on" : ""} title="Thumbnails — hover to play + scrub in the source monitor"
+                          onClick={() => { setPoolView("thumbs"); try { localStorage.setItem("fabula:poolview", "thumbs"); } catch { /* */ } }}>▦</button>
+                      </span>
                       <button className="minibtn" style={{ fontSize: 8 }} title="Create a media bin"
                         onClick={() => {
                           const name = (window.prompt("New bin name") || "").trim();
@@ -3863,6 +3880,24 @@ export default function Fabula() {
                           updateProd((p) => { p.bins = p.bins || []; if (!p.bins.includes(name)) p.bins.push(name); });
                           ping(`Bin "${name}" created — assign clips to it from the MEDIA workspace`);
                         }}>+ BIN</button>
+                    </div>
+                    <div className="poolsearch2"><Search size={11} />
+                      <input value={mediaSearch} onChange={(e) => setMediaSearch(e.target.value)} placeholder="Search name, tag, folder…" />
+                      {mediaSearch && <X size={11} style={{ cursor: "pointer" }} onClick={() => setMediaSearch("")} />}
+                    </div>
+                    <div className="poolbins">
+                      {poolBins.map((b) => {
+                        const count = b === "all" ? poolAll.length
+                          : poolAll.filter((a) => { const ab = a.bin || "imports"; return ab === b || ab.startsWith(b + "/"); }).length;
+                        const depth = b === "all" ? 0 : b.split("/").length - 1;
+                        const leaf = b === "all" ? "ALL" : (b.split("/").pop() || b).toUpperCase();
+                        return (
+                          <button key={b} className={`poolbin ${binFilter === b ? "on" : ""}`} style={{ "--tab": binHue(b), paddingLeft: 8 + depth * 10 }}
+                            onClick={() => setBinFilter(binFilter === b ? "all" : b)} title={b === "all" ? "Everything" : b}>
+                            <span className="idstripe" style={{ height: 12 }} />{leaf}<i>{count}</i>
+                          </button>
+                        );
+                      })}
                     </div>
                     <button className="minibtn full" onClick={() => fileRef.current?.click()}><Upload size={12} /> IMPORT MEDIA</button>
                     <input ref={fileRef} type="file" multiple accept={`${codecImportAccept()},.lottie,.json,.svg,.ai,.pdf`} style={{ display: "none" }} onChange={handleUpload} />
@@ -3915,7 +3950,7 @@ export default function Fabula() {
                     </button>
                     {poolView === "thumbs" && (
                       <div className="poolthumbs">
-                        {(prod.mediaPool || []).slice(0, srcPoolCap).map((a) => {
+                        {poolShown.map((a) => {
                           const playable = a.url && (a.type === "video" || a.type === "audio");
                           return (
                             <div key={a.id} className={`ptcard ${previewAsset?.id === a.id ? "previewing" : ""} ${(!a.url || a.offline) ? "offline" : ""}`}
@@ -3948,7 +3983,7 @@ export default function Fabula() {
                       </div>
                     )}
                     <div className="poollist" style={poolView === "thumbs" ? { display: "none" } : undefined}>
-                      {(prod.mediaPool || []).slice(0, srcPoolCap).map((a) => (
+                      {poolShown.map((a) => (
                         <div className={`poolitem ${previewAsset?.id === a.id ? "previewing" : ""} ${(!a.url || a.offline) ? "offline" : ""}`} key={a.id} onClick={() => openInViewer(a, false)} onDoubleClick={() => openInViewer(a, true)} title={(!a.url || a.offline) ? "Media not linked — locate it (relink) or add its sync folder" : "Click: load in source viewer · Double-click: load & play"}>
                           {(a.type === "video" || a.type === "audio") && (
                             <input type="checkbox" className="mcchk" checked={mcSel.includes(a.id)} title="Select for multicam group"
@@ -3997,6 +4032,7 @@ export default function Fabula() {
                     </div>
                   </aside>
   );
+  };
   const renderMonitor = () => (
 <section className="monitor" onMouseDown={() => (activeViewerRef.current = "program")}>
                     <div ref={screenRef} className="screen" style={{ aspectRatio: prod.defaults.aspect.includes(":") ? prod.defaults.aspect.replace(":", "/") : "2.39/1", filter: LOOKS.find((l) => l.id === prod.design?.lookId)?.filter || "none", containerType: "inline-size" }}>
@@ -4355,11 +4391,10 @@ export default function Fabula() {
                           return (
                             <>
                               <div className="insp-div" />
-                              <div className="lbl">EFFECTS & COMPOSITE</div>
-                              {slider("OPACITY", "op", 0, 1, 0.01)}
-                              {slider("SCALE", "sc", 0.1, 3, 0.01)}
+                              <div className="lbl">TRANSFORM <span className="cap" style={{ letterSpacing: ".14em" }}>◆ = KEYFRAME AT PLAYHEAD</span></div>
                               {slider("POS X", "x", -100, 100, 1)}
                               {slider("POS Y", "y", -100, 100, 1)}
+                              {slider("SCALE", "sc", 0.1, 3, 0.01)}
                               {slider("ROTATE", "rot", -180, 180, 1)}
                               {kfIsAnimated(fx) && (() => {
                                 // Keyframe navigator: jump the playhead between keys (across all
@@ -4380,12 +4415,16 @@ export default function Fabula() {
                                   </div>
                                 );
                               })()}
+                              <div className="lbl" style={{ marginTop: 8 }}>LOOK</div>
                               {slider("BLUR", "blur", 0, 30, 0.5)}
                               {slider("BRIGHT", "bri", 0, 2.5, 0.02)}
                               {slider("CONTRAST", "con", 0, 2.5, 0.02)}
                               {slider("SATURATE", "sat", 0, 2.5, 0.02)}
+                              <div className="lbl" style={{ marginTop: 8 }}>FADES</div>
                               {slider("FADE IN", "fadeIn", 0, 4, 0.1)}
                               {slider("FADE OUT", "fadeOut", 0, 4, 0.1)}
+                              <div className="lbl" style={{ marginTop: 8 }}>COMPOSITE</div>
+                              {slider("OPACITY", "op", 0, 1, 0.01)}
                               <div className="fxrow">
                                 <span className="fxlbl">BLEND</span>
                                 <select className="sel xs grow" value={fx.blend} onChange={(e) => updateFx(selClip.id, { blend: e.target.value })}>
@@ -4876,7 +4915,8 @@ export default function Fabula() {
                       <div ref={phlineRef} className="phline" style={{ left: 128 + playhead * pxPerSec }} />
                       {/* tracks — clips render only within ±1 screen of the scroll viewport */}
                       {tracks.map((tr) => (
-                        <div className={`track ${tr.type} ${tr.id === "v1" ? "primary" : ""}`} key={tr.id}>
+                        <Fragment key={tr.id}>
+                        <div className={`track ${tr.type} ${tr.id === "v1" ? "primary" : ""}`}>
                           <div className={`trackhead ${tr.type}`}>
                             <div className="thname">
                               {tr.type === "video" ? <Film size={10} /> : tr.type === "subtitle" ? <Captions size={10} /> : <Music size={10} />}
@@ -4957,6 +4997,67 @@ export default function Fabula() {
                             })}
                           </div>
                         </div>
+                        {/* ── KEYFRAME LANE (Mockup C) — the selected clip opens a lane under its
+                            track: one row per animated parameter, diamonds you drag along the ruler.
+                            Click a diamond seeks; drag moves the key; double-click removes it. ── */}
+                        {selClip && selClip.trackId === tr.id && kfIsAnimated(ensureFx(selClip)) && (() => {
+                          const kfx = ensureFx(selClip);
+                          const animParams = KF_ALL.filter((k) => kfHasKeys(kfx.kf?.[k]));
+                          if (!animParams.length) return null;
+                          const moveKey = (param, oldT, e0) => {
+                            e0.stopPropagation();
+                            const x0 = e0.clientX; let moved = false;
+                            const track = kfx.kf[param];
+                            const key = track.find((k) => Math.abs(k.t - oldT) < 1e-3);
+                            if (!key) return;
+                            const mv = (ev) => {
+                              const dt = (ev.clientX - x0) / pxPerSec;
+                              if (Math.abs(ev.clientX - x0) > 3) moved = true;
+                              const nt = Math.max(0, Math.min(selClip.duration, oldT + dt));
+                              const cur = ensureFx(clips.find((c) => c.id === selClip.id) || selClip);
+                              const nkf = { ...(cur.kf || {}) };
+                              nkf[param] = kfAddKey(kfRemoveKey(cur.kf?.[param], key.__t ?? oldT), nt, key.v, key.ease);
+                              key.__t = nt; // track the live position across the drag
+                              updateFx(selClip.id, { kf: nkf });
+                            };
+                            const up = () => {
+                              window.removeEventListener("mousemove", mv); window.removeEventListener("mouseup", up);
+                              if (!moved) setPlayhead(selClip.start + (key.__t ?? oldT));
+                              delete key.__t;
+                            };
+                            window.addEventListener("mousemove", mv); window.addEventListener("mouseup", up);
+                          };
+                          return (
+                            <div className="kflane">
+                              <div className="kflhead">
+                                <span className="cap" style={{ color: "rgba(168,85,247,.8)" }}>KEYFRAMES</span>
+                                <span className="chip pur" style={{ alignSelf: "flex-start", maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selClip.label}</span>
+                              </div>
+                              <div className="kflbody">
+                                {animParams.map((param) => (
+                                  <div className="kflrow" key={param}>
+                                    <em>{(KF_PARAMS.find((p2) => p2.key === param) || { label: param }).label}</em>
+                                    <span className="kflline" style={{ left: selClip.start * pxPerSec, width: selClip.duration * pxPerSec }} />
+                                    {(kfx.kf[param] || []).map((k, ki) => (
+                                      <s key={ki} className="kfldia" style={{ left: (selClip.start + k.t) * pxPerSec - 4 }}
+                                        title={`${k.v.toFixed(2)} @ ${k.t.toFixed(2)}s — drag to move · double-click to remove`}
+                                        onMouseDown={(e) => moveKey(param, k.t, e)}
+                                        onDoubleClick={(e) => {
+                                          e.stopPropagation();
+                                          const cur = ensureFx(clips.find((c) => c.id === selClip.id) || selClip);
+                                          const nkf = { ...(cur.kf || {}) };
+                                          const t2 = kfRemoveKey(cur.kf?.[param], k.t);
+                                          if (t2.length) nkf[param] = t2; else delete nkf[param];
+                                          updateFx(selClip.id, { kf: Object.keys(nkf).length ? nkf : undefined });
+                                        }} />
+                                    ))}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                        </Fragment>
                       ))}
                       <div className="track addtrackrow" style={{ display: "flex", gap: 6, padding: "5px 8px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
                         <button className="minibtn" onClick={() => addTrack("video")} title="Add a video track (no limit)"><Film size={10} /> + VIDEO</button>
@@ -6157,7 +6258,7 @@ export default function Fabula() {
                 {editWs === "vfx" && (() => {
                   // Four-band VFX/COMP: monitor + inspector reference surface; the three authoring
                   // tools (comp / lottie / capture) become a tabbed control band.
-                  const VTABS = [["comp", "COMPOSITE"], ["nodes", "NODE GRAPH"], ["lottie", "LOTTIE"], ["capture", "PERFORM CAPTURE"]];
+                  const VTABS = [["nodes", "NODE GRAPH"], ["comp", "AI COMPOSITE"], ["lottie", "LOTTIE"], ["capture", "PERFORM CAPTURE"]];
                   return (
                     <div className="vfxroom">
                       <div className="vfxstage edit-upper">
@@ -6253,8 +6354,48 @@ export default function Fabula() {
                   const extraMon = (fx?.grades || []).filter((g) => g && g.enabled !== false).map(monToGrade);
                   const glgStack = extraMon.length ? [glg, ...extraMon].filter(Boolean) : null;
                   const CTABS = [["looks", "LOOKS"], ["wheels", "WHEELS"], ["curves", "CURVES"], ["qualifier", "QUALIFIER"], ["windows", "WINDOWS"], ["primaries", "PRIMARIES"]];
+                  const stillOn = colorStills.find((st) => st.id === wipeStill) || null;
+                  const grabStill = () => {
+                    const cv = gradeMonRef.current;
+                    if (!cv) { ping("Play or scrub so the grade monitor has a frame first."); return; }
+                    try {
+                      const url = cv.toDataURL("image/jpeg", 0.85);
+                      const st = { id: uid(), url, label: `${selClip ? selClip.label.slice(0, 10) : "STILL"} · ${fmtTc(playhead, vfmt)}` };
+                      setColorStills((cur) => [...cur.slice(-11), st]);
+                      ping("Still grabbed — click it to wipe against the live grade.");
+                    } catch { ping("Could not grab — the monitor canvas is protected (cross-origin media)."); }
+                  };
+                  const layerChips = (g, isBase) => {
+                    const chips = [];
+                    const w2 = g.wheel;
+                    if (w2 && ((w2.lift || []).some((v) => v !== 0) || (w2.gamma || []).some((v) => v !== 1) || (w2.gain || []).some((v) => v !== 1) || w2.temp || w2.tint)) chips.push(["WHEELS", "dim"]);
+                    if (g.curves && !isCurvesIdentity(g.curves)) chips.push(["CURVES", "dim"]);
+                    if (g.qualifier && !isQualifierIdentity(g.qualifier)) chips.push(["HSL KEY", "amb"]);
+                    if (isWindowEnabled(g.window)) chips.push([(g.window.shape === "rect" ? "RECT" : "ELLIPSE"), "blue"]);
+                    if (isBase && !chips.length) chips.push(["PRIMARIES", "dim"]);
+                    if (!chips.length) chips.push(["EMPTY", "dim"]);
+                    return chips;
+                  };
                   return (
                     <div className="colorroom">
+                      {/* ── STILLS & VERSIONS (Mockup A #1): grab reference stills off the grade
+                          monitor; click one to A/B-wipe it against the live grade. ── */}
+                      <div className="cgallery glass-dark">
+                        <span className="lbl" style={{ margin: 0 }}>STILLS &amp; VERSIONS</span>
+                        {stillOn && <span className="chip amb">A/B WIPE ON</span>}
+                        <div className="cgal-strip">
+                          {colorStills.map((st) => (
+                            <div key={st.id} className={`cstill ${wipeStill === st.id ? "on" : ""}`}
+                              title="Click: wipe against the live grade · double-click: remove"
+                              onClick={() => setWipeStill(wipeStill === st.id ? null : st.id)}
+                              onDoubleClick={() => { setColorStills((cur) => cur.filter((x) => x.id !== st.id)); if (wipeStill === st.id) setWipeStill(null); }}>
+                              <img src={st.url} alt="" /><span>{st.label}</span>
+                            </div>
+                          ))}
+                          {!colorStills.length && <span className="dim small" style={{ alignSelf: "center" }}>Grab stills to compare grades across shots.</span>}
+                        </div>
+                        <button className="minibtn" style={{ marginLeft: "auto" }} onClick={grabStill}>GRAB STILL</button>
+                      </div>
                       <div className="colorstage">
                         <div className="colormon">{renderMonitor()}</div>
                         <aside className="colorscopes glass-dark">
@@ -6276,11 +6417,58 @@ export default function Fabula() {
                               } catch { ping("Could not sample — try again."); }
                             } : undefined}>
                             <GradePreview videoRef={videoRef} grade={glg} grades={glgStack} outRef={gradeMonRef} />
+                            {stillOn && (
+                              <>
+                                <img src={stillOn.url} alt="" draggable={false}
+                                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
+                                    clipPath: `inset(0 ${Math.round((1 - wipePos) * 100)}% 0 0)`, pointerEvents: "none" }} />
+                                <div className="wipebar" style={{ left: `${wipePos * 100}%` }}
+                                  onMouseDown={(e) => {
+                                    e.stopPropagation();
+                                    const host = e.currentTarget.parentElement.getBoundingClientRect();
+                                    const mv = (ev) => setWipePos(Math.max(0.02, Math.min(0.98, (ev.clientX - host.left) / host.width)));
+                                    const up = () => { window.removeEventListener("mousemove", mv); window.removeEventListener("mouseup", up); };
+                                    window.addEventListener("mousemove", mv); window.addEventListener("mouseup", up);
+                                  }} />
+                                <span className="wipetag a">STILL</span>
+                                <span className="wipetag b">LIVE GRADE</span>
+                              </>
+                            )}
                           </div>
                           <div className="paneltitle" style={{ marginTop: 8 }}>SCOPES <span className="cap">POST-GRADE</span></div>
                           <ColorScopes sourceRef={gradeMonRef} />
                           <div className="dim small" style={{ marginTop: 8, lineHeight: 1.5 }}>Waveform: exposure (skin ~55&ndash;70%). Parade: channel balance. Vectorscope: skin hugs the orange line. Histogram: watch the ends for clipping.</div>
                         </aside>
+                        {/* ── GRADE STACK rail (Mockup A #2): base + secondaries as cards; the
+                            control tabs below edit whichever layer is selected. ── */}
+                        {gradeable && (
+                          <aside className="graderail glass-dark">
+                            <div className="paneltitle">GRADE STACK</div>
+                            {gLayers.map((g, i) => {
+                              const data = i === 0 ? fx : (fx.grades?.[i - 1] || {});
+                              const off = i > 0 && g.enabled === false;
+                              return (
+                                <div key={i} className={`glayer ${gi === i ? "on" : ""} ${off ? "off" : ""}`} onClick={() => setGradeLayer(i)}>
+                                  <div className="gl-top">
+                                    <span className="gl-name">{i === 0 ? "Base" : `Secondary ${i}`}</span>
+                                    {i > 0 && (
+                                      <button className="gl-eye" title={off ? "Enable layer" : "Bypass layer"}
+                                        onClick={(e) => { e.stopPropagation(); const grades = [...(fx.grades || [])]; grades[i - 1] = { ...grades[i - 1], enabled: off }; updateFx(selClip.id, { grades }); }}>
+                                        {off ? "◌" : "◉"}</button>
+                                    )}
+                                    {i > 0 && gi === i && (
+                                      <button className="gl-eye" title="Delete layer" style={{ color: "#ff9a9a" }}
+                                        onClick={(e) => { e.stopPropagation(); const grades = (fx.grades || []).filter((_, k) => k !== i - 1); updateFx(selClip.id, { grades }); setGradeLayer(Math.max(0, gi - 1)); }}>✕</button>
+                                    )}
+                                  </div>
+                                  <div className="gl-meta">{layerChips(data, i === 0).map(([lab, tone], ci) => <span key={ci} className={`chip ${tone}`}>{lab}</span>)}</div>
+                                </div>
+                              );
+                            })}
+                            <button className="minibtn full" style={{ marginTop: "auto" }}
+                              onClick={() => { const grades = [...(fx.grades || []), { enabled: true }]; updateFx(selClip.id, { grades }); setGradeLayer(grades.length); }}>＋ LAYER</button>
+                          </aside>
+                        )}
                       </div>
 
                       <div className="colorctrl glass-dark">
@@ -6292,24 +6480,7 @@ export default function Fabula() {
                               <button key={id} className={colorTab === id ? "on" : ""} onClick={() => setColorTab(id)}>{lab}</button>
                             ))}
                           </span>
-                          {gradeable && colorTab !== "looks" && colorTab !== "primaries" && (
-                            <span className="gradelayers">
-                              <span className="cap" style={{ marginLeft: 6 }}>GRADES</span>
-                              {gLayers.map((g, i) => (
-                                <button key={i} className={`glchip ${gi === i ? "on" : ""} ${i > 0 && g.enabled === false ? "off" : ""}`}
-                                  title={i === 0 ? "Base grade" : `Secondary ${i}${g.enabled === false ? " (off)" : ""} — click to edit · dbl-click toggles`}
-                                  onClick={() => setGradeLayer(i)}
-                                  onDoubleClick={() => { if (i === 0) return; const grades = [...(fx.grades || [])]; grades[i - 1] = { ...grades[i - 1], enabled: grades[i - 1].enabled === false }; updateFx(selClip.id, { grades }); }}>
-                                  {i === 0 ? "BASE" : i}</button>
-                              ))}
-                              <button className="glchip add" title="Add a secondary grade layer"
-                                onClick={() => { const grades = [...(fx.grades || []), { enabled: true }]; updateFx(selClip.id, { grades }); setGradeLayer(grades.length); }}>＋</button>
-                              {gi > 0 && (
-                                <button className="glchip del" title="Remove this grade layer"
-                                  onClick={() => { const grades = (fx.grades || []).filter((_, k) => k !== gi - 1); updateFx(selClip.id, { grades }); setGradeLayer(Math.max(0, gi - 1)); }}>✕</button>
-                              )}
-                            </span>
-                          )}
+                          {gradeable && gi > 0 && <span className="chip pur" style={{ marginLeft: 6 }}>EDITING · SECONDARY {gi}</span>}
                           {gradeable && <span className="chip pur" style={{ marginLeft: "auto" }}>{selClip.label}</span>}
                           {prod.design?.lookId && <span className="chip amb">{(LOOKS.find((l) => l.id === prod.design.lookId) || {}).name}</span>}
                         </div>
@@ -6456,6 +6627,38 @@ export default function Fabula() {
                             </div>
                           ) : <div className="dim small colorempty">Select a clip to grade its primaries.</div>)}
                         </div>
+                      </div>
+                      {/* ── GRADE-PASS mini timeline (Mockup A #6): every picture clip, striped by
+                          graded state. Click to jump the grade to that clip. ── */}
+                      <div className="cgradetl glass-dark">
+                        <span className="cap" style={{ flex: "none" }}>TIMELINE</span>
+                        {(() => {
+                          const vclips = clips.filter((c) => c.trackId?.startsWith("v")).sort((a, b) => a.start - b.start);
+                          const graded = (c) => {
+                            const f2 = c.fx || {};
+                            return !!(f2.wheel || (f2.curves && !isCurvesIdentity(f2.curves)) || (f2.qualifier && !isQualifierIdentity(f2.qualifier))
+                              || (f2.grades || []).length || (f2.bri ?? 1) !== 1 || (f2.con ?? 1) !== 1 || (f2.sat ?? 1) !== 1 || (f2.hue || 0) !== 0);
+                          };
+                          const g = vclips.filter(graded).length;
+                          return (
+                            <>
+                              <span className="chip amb">{g} GRADED</span>
+                              <span className="chip dimchip">{vclips.length - g} UNGRADED</span>
+                              <div className="cgradeclips">
+                                {vclips.map((c) => (
+                                  <span key={c.id} className={`cgclip ${selClipId === c.id ? "sel" : ""}`}
+                                    style={{ width: Math.max(26, Math.min(110, c.duration * 9)) }}
+                                    title={`${c.label} — click to grade`}
+                                    onClick={() => { setSelClipId(c.id); setPlayhead(c.start + Math.min(0.2, c.duration / 2)); setGradeLayer(0); }}>
+                                    <u style={{ background: selClipId === c.id ? "var(--org)" : graded(c) ? "var(--green)" : "rgba(255,255,255,.18)" }} />
+                                    <b>{c.label}</b>
+                                  </span>
+                                ))}
+                                {!vclips.length && <span className="dim small">No picture clips yet.</span>}
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   );
@@ -7535,11 +7738,23 @@ const CSS = `
 .hsplit::after{content:"";width:3px;height:44px;border-radius:2px;background:rgba(255,255,255,.14)}
 .hsplit:hover::after{background:#FF8C00}
 .poolthumbs{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(102px,1fr));gap:8px;align-content:start;margin-top:8px}
-.ptcard{background:rgba(0,0,0,.35);border:1px solid var(--w08);border-radius:8px;padding:5px;cursor:pointer}
+.ptcard{background:rgba(0,0,0,.35);border:1px solid var(--w08);border-radius:8px;padding:0;cursor:pointer;position:relative;overflow:hidden}
+/* Mockup-C pool: search + identity-striped bins */
+.poolsearch2{display:flex;align-items:center;gap:6px;border:1px solid var(--w08);background:rgba(0,0,0,.45);
+  border-radius:7px;padding:5px 8px;margin-top:7px;color:var(--w40)}
+.poolsearch2 input{flex:1;background:none;border:none;outline:none;color:#ddd;font-size:10.5px;font-family:inherit;min-width:0}
+.poolbins{display:flex;flex-direction:column;gap:2px;margin-top:6px;max-height:132px;overflow-y:auto;flex:none}
+.poolbin{display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:6px;font-size:9.5px;font-weight:700;
+  color:#ccc;border:1px solid transparent;background:none;cursor:pointer;text-align:left;font-family:inherit}
+.poolbin:hover{background:var(--w04)}
+.poolbin.on{background:rgba(249,115,22,.1);border-color:rgba(249,115,22,.4);color:var(--org)}
+.poolbin i{margin-left:auto;font-style:normal;font-size:8.5px;color:var(--w25);font-family:'JetBrains Mono',monospace}
 .ptcard.previewing{border-color:#FF8C00;box-shadow:0 0 0 1px rgba(255,140,0,.4)}
 .ptvid{width:100%;height:62px;object-fit:cover;border-radius:5px;background:#000;display:block;cursor:ew-resize}
 .ptph{display:flex;align-items:center;justify-content:center;color:var(--w40);cursor:pointer}
-.ptname{display:block;font-size:8px;font-weight:700;letter-spacing:.04em;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgba(255,255,255,.75)}
+.ptname{position:absolute;left:5px;right:5px;bottom:3px;font-size:7.5px;font-weight:900;letter-spacing:.06em;color:#fff;
+  text-shadow:0 1px 3px #000;z-index:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none}
+.ptname-legacy{display:block;font-size:8px;font-weight:700;letter-spacing:.04em;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgba(255,255,255,.75)}
 .poolitem:hover{background:var(--w04);border-color:var(--w08)}
 .pooltype{font-size:7.5px;font-weight:900;letter-spacing:.1em;padding:2px 5px;border-radius:3px;background:var(--w08);color:var(--w40)}
 .pooltype.video{color:var(--blue)} .pooltype.audio{color:var(--green)} .pooltype.image{color:var(--org)}
@@ -7868,9 +8083,9 @@ const CSS = `
 
 /* fx panel */
 .fxrow{display:flex;align-items:center;gap:6px;margin-bottom:3px}
-.fxlbl{font-size:8px;font-weight:900;letter-spacing:.12em;color:var(--w40);width:52px;flex:none}
+.fxlbl{font-size:8px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--w40);width:56px;flex:none}
 .fxrow input[type=range]{flex:1;accent-color:#f97316;min-width:0}
-.fxval{font-family:'JetBrains Mono',monospace;font-size:9px;color:#ccc;width:32px;text-align:right}
+.fxval{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;font-size:9.5px;font-weight:700;color:#ccc;width:34px;text-align:right}
 /* keyframe diamond — the studio-wide "animated" colour is purple (--pur) */
 .kfdiamond{width:13px;height:13px;flex:none;border:none;background:none;cursor:pointer;color:var(--w25);
   font-size:9px;line-height:1;display:grid;place-items:center;padding:0}
@@ -7891,6 +8106,18 @@ const CSS = `
 .transwedge.wipe{background:linear-gradient(90deg,rgba(0,163,255,.4),rgba(0,163,255,.1))}
 .transwedge.blur{background:linear-gradient(90deg,rgba(168,85,247,.4),rgba(168,85,247,.1))}
 .transwedge span{font-size:8px;font-weight:900;color:#fff;text-shadow:0 1px 2px #000;pointer-events:none}
+/* keyframe LANE under the selected clip's track (Mockup C) */
+.kflane{display:flex;background:rgba(168,85,247,.05);border-bottom:1px solid var(--line-2, rgba(255,255,255,.08))}
+.kflhead{width:128px;min-width:128px;max-width:128px;border-right:1px solid var(--line, rgba(255,255,255,.13));
+  padding:5px 8px;display:flex;flex-direction:column;gap:3px;position:sticky;left:0;background:rgba(22,22,28,.94);z-index:5}
+.kflbody{flex:1;position:relative;padding:3px 0}
+.kflrow{height:16px;position:relative}
+.kflrow em{position:absolute;left:6px;top:2px;font-style:normal;font-size:6.5px;font-weight:900;
+  letter-spacing:.12em;color:rgba(168,85,247,.85);z-index:2;pointer-events:none}
+.kflline{position:absolute;top:8px;height:1px;background:rgba(168,85,247,.28)}
+.kfldia{position:absolute;top:3px;width:9px;height:9px;background:var(--pur,#a855f7);transform:rotate(45deg);
+  border-radius:1.5px;border:1px solid rgba(0,0,0,.55);cursor:ew-resize;z-index:3;text-decoration:none}
+.kfldia:hover{background:#fff;box-shadow:0 0 8px rgba(168,85,247,.8)}
 .gennote{background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.35);border-radius:8px;padding:8px;margin-top:6px;display:flex;flex-direction:column;gap:5px;align-items:flex-start}
 
 /* dual canvas — source + program viewers */
@@ -8044,6 +8271,37 @@ const CSS = `
 .gpanel{flex:1;min-width:220px}
 .gpanel.narrow{flex:0 0 220px}
 .colorempty{margin-top:10px;max-width:56ch;line-height:1.6}
+/* Mockup-A color surfaces */
+.cgallery{flex:none;border-radius:12px;padding:7px 10px;display:flex;align-items:center;gap:9px;min-height:66px}
+.cgal-strip{display:flex;gap:6px;overflow-x:auto;flex:1;min-width:0}
+.cstill{flex:none;width:82px;cursor:pointer;border:1px solid var(--w08);border-radius:6px;overflow:hidden;position:relative;background:#000}
+.cstill img{width:100%;height:40px;object-fit:cover;display:block}
+.cstill span{display:block;font-size:6.5px;font-weight:900;letter-spacing:.06em;color:#ccc;padding:2px 4px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cstill.on{border-color:var(--org);box-shadow:0 0 0 1px var(--org)}
+.wipebar{position:absolute;top:0;bottom:0;width:3px;background:#fff;box-shadow:0 0 8px rgba(0,0,0,.9);cursor:ew-resize;z-index:5}
+.wipebar::after{content:"◂ ▸";position:absolute;top:calc(50% - 8px);left:-14px;font-size:9px;color:#fff;text-shadow:0 1px 3px #000;white-space:nowrap}
+.wipetag{position:absolute;top:6px;font-size:6.5px;font-weight:900;letter-spacing:.14em;padding:2px 6px;border-radius:4px;
+  background:rgba(0,0,0,.65);color:#ddd;z-index:4;pointer-events:none}
+.wipetag.a{left:6px}.wipetag.b{right:6px}
+.graderail{width:172px;min-width:150px;flex:none;border-radius:12px;padding:9px;display:flex;flex-direction:column;gap:7px;overflow-y:auto}
+.glayer{border:1px solid var(--w08);border-radius:8px;padding:7px 8px;cursor:pointer;background:rgba(0,0,0,.3);display:flex;flex-direction:column;gap:5px}
+.glayer.on{border-color:var(--org);box-shadow:0 0 0 1px var(--org)}
+.glayer.off{opacity:.45}
+.gl-top{display:flex;align-items:center;gap:5px}
+.gl-name{flex:1;font-size:9.5px;font-weight:800;color:#eee;letter-spacing:.03em}
+.gl-eye{background:none;border:none;color:var(--w40);cursor:pointer;font-size:11px;padding:0 2px}
+.gl-eye:hover{color:#fff}
+.gl-meta{display:flex;gap:3px;flex-wrap:wrap}
+.cgradetl{flex:none;border-radius:12px;padding:7px 10px;display:flex;align-items:center;gap:8px;min-height:56px}
+.cgradeclips{display:flex;gap:3px;overflow-x:auto;flex:1;min-width:0;align-items:stretch}
+.cgclip{flex:none;height:34px;border-radius:5px;border:1px solid var(--w08);background:rgba(0,0,0,.4);cursor:pointer;
+  position:relative;overflow:hidden;display:flex;align-items:flex-end}
+.cgclip u{position:absolute;left:0;right:0;top:0;height:3px;text-decoration:none}
+.cgclip b{font-size:6.5px;font-weight:900;letter-spacing:.04em;color:#bbb;padding:2px 4px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.cgclip.sel{border-color:var(--org);box-shadow:0 0 0 1px var(--org)}
+.cgclip:hover b{color:#fff}
 /* AUDIO ROOM (Mockup-D) */
 .audioroom{flex:1;display:flex;flex-direction:column;gap:8px;min-height:0}
 .audiostage{flex:1;display:flex;gap:8px;min-height:0}
@@ -8077,32 +8335,45 @@ const CSS = `
 .vfxtabs{height:34px;flex:none;display:flex;align-items:center;gap:8px;padding:0 11px;
   border-bottom:1px solid var(--line);background:rgba(0,0,0,.24)}
 .vfxbody{flex:1;padding:12px 14px;overflow-y:auto;min-height:0}
-/* NODE GRAPH EDITOR (H3) */
-.ngeditor{display:flex;flex-direction:column;gap:8px;height:100%;min-height:360px}
-.ngpalette{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+/* NODE GRAPH EDITOR — Comp Room mockup layout: library | canvas | viewer+inspector */
+.ngeditor{display:flex;flex-direction:column;gap:8px;height:100%;min-height:420px}
 .ngbody{flex:1;display:flex;gap:8px;min-height:0}
+.nglib{width:150px;flex:none;border-radius:10px;padding:9px;display:flex;flex-direction:column;gap:6px;min-height:0}
+.nglibscroll{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:9px}
+.nglibgrp{display:flex;flex-direction:column;gap:2px}
+.nglibitem{display:flex;align-items:center;gap:7px;padding:4px 6px;border-radius:6px;font-size:9.5px;font-weight:700;
+  color:#ccc;background:none;border:1px solid transparent;cursor:pointer;text-align:left;font-family:inherit}
+.nglibitem:hover{background:var(--w04);border-color:var(--w08);color:#fff}
+.nglibitem i{width:15px;height:15px;border-radius:4px;font-style:normal;font-size:8px;font-weight:900;color:#0b0b0e;
+  display:grid;place-items:center;flex:none}
 .ngcanvas{flex:1;position:relative;min-width:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;
   background:radial-gradient(circle at 50% 40%,rgba(124,58,237,.08),transparent 60%),rgba(0,0,0,.34);
   background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1px);background-size:20px 20px}
 .ngwires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
-.ngnode{position:absolute;z-index:2;border-radius:8px;padding:6px 8px;cursor:grab;user-select:none;
+.ngtools{position:absolute;top:8px;left:10px;z-index:4}
+.ngzoom{position:absolute;bottom:8px;right:10px;z-index:4;display:flex;gap:6px;align-items:center}
+.ngnode{position:absolute;z-index:2;border-radius:8px;cursor:grab;user-select:none;overflow:visible;
   background:linear-gradient(180deg,rgba(40,40,52,.96),rgba(24,24,32,.98));border:1px solid var(--line-hi);
   box-shadow:0 3px 10px rgba(0,0,0,.5)}
+.ngnode::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;border-radius:8px 8px 0 0;background:var(--tab,var(--org))}
 .ngnode.sel{border-color:var(--org);box-shadow:0 0 0 1px var(--org),0 3px 14px rgba(249,115,22,.3)}
-.ngnode.source{border-top:2px solid var(--blue)} .ngnode.effect{border-top:2px solid var(--pur)}
-.ngnode.merge{border-top:2px solid var(--green)} .ngnode.output{border-top:2px solid var(--org)}
-.ngtitle{display:flex;align-items:center;gap:5px;font-size:9px;font-weight:900;letter-spacing:.06em;color:#eee}
-.ngtitle span:first-child{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ngtitle{display:flex;align-items:center;gap:5px;font-size:9px;font-weight:900;letter-spacing:.06em;color:#eee;padding:7px 8px 3px}
+.ngico{width:14px;height:14px;border-radius:4px;font-style:normal;font-size:8px;font-weight:900;color:#0b0b0e;
+  display:grid;place-items:center;flex:none}
+.ngtitle span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ngbadge{font-size:6.5px;font-weight:900;padding:1px 4px;border-radius:3px;background:var(--org);color:#0b0b0e}
-.ngtype{font-size:7px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--w25);margin-top:2px}
+.ngfoot{font-size:6.5px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--w25);padding:0 8px 6px}
 .ngport{position:absolute;width:11px;height:11px;border-radius:50%;border:1px solid rgba(0,0,0,.6);cursor:pointer;z-index:3}
 .ngport.out{right:-6px;top:calc(50% - 5px);background:radial-gradient(circle at 40% 35%,#ffd0a0,#f97316)}
 .ngport.out.armed{box-shadow:0 0 0 3px rgba(249,115,22,.4)}
 .ngport.in{left:-6px;top:calc(50% - 5px);background:radial-gradient(circle at 40% 35%,#cbb3ff,#7c3aed)}
 .ngport.in.a{top:calc(35% - 5px)} .ngport.in.b{top:calc(65% - 5px)}
-.nginsp{width:236px;flex:none;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:7px;overflow-y:auto}
-.ngpreview{aspect-ratio:16/9;border-radius:7px;overflow:hidden;border:1px solid var(--line-2);background:#000}
+.ngright{width:250px;flex:none;display:flex;flex-direction:column;gap:8px;min-height:0}
+.ngviewer{border-radius:10px;overflow:hidden;flex:none}
+.ngpreview{aspect-ratio:16/9;background:#000}
 .ngpreview>*{width:100%;height:100%}
+.ngviewbar{display:flex;align-items:center;gap:6px;padding:6px 9px;border-top:1px solid var(--line-2)}
+.nginsp{flex:1;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:7px;overflow-y:auto;min-height:0}
 .raildiv{width:1px;height:20px;background:var(--w08);margin:0 6px;align-self:center}
 .raildot.ws{padding:6px 8px}
 
